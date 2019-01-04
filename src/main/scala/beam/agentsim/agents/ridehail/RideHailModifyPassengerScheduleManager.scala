@@ -23,10 +23,11 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.mutable
 
 class RideHailModifyPassengerScheduleManager(
-  val log: LoggingAdapter,
-  val rideHailManager: ActorRef,
-  val scheduler: ActorRef,
-  val beamConfig: BeamConfig
+                                              val log: LoggingAdapter,
+                                              val rideHailManagerRef: ActorRef,
+                                              val rideHailManager: RideHailManager,
+                                              val scheduler: ActorRef,
+                                              val beamConfig: BeamConfig
 ) extends HasTickAndTrigger {
 
   val resourcesNotCheckedIn_onlyForDebugging: mutable.Set[Id[Vehicle]] = mutable.Set()
@@ -83,7 +84,7 @@ class RideHailModifyPassengerScheduleManager(
                 we send a resume message to the agent. This puts the driver back to state driving, so that the reservation
                 interrupt is received when the agent is in state driving. */
                 if (reply.isInstanceOf[InterruptedWhileDriving]) {
-                  modifyStatus.rideHailAgent.tell(Resume(), rideHailManager)
+                  modifyStatus.rideHailAgent.tell(Resume(), rideHailManagerRef)
                 }
               case SingleReservation =>
                 // process reservation interrupt confirmation
@@ -118,10 +119,10 @@ class RideHailModifyPassengerScheduleManager(
     modifyStatus: RideHailModifyPassengerScheduleStatus,
     stopDriving: Boolean
   ): Unit = {
-    if (stopDriving) modifyStatus.rideHailAgent.tell(StopDriving(modifyStatus.tick.toInt), rideHailManager)
+    if (stopDriving) modifyStatus.rideHailAgent.tell(StopDriving(modifyStatus.tick.toInt), rideHailManagerRef)
     resourcesNotCheckedIn_onlyForDebugging += modifyStatus.vehicleId
-    modifyStatus.rideHailAgent.tell(modifyStatus.modifyPassengerSchedule, rideHailManager)
-    modifyStatus.rideHailAgent.tell(Resume(), rideHailManager)
+    modifyStatus.rideHailAgent.tell(modifyStatus.modifyPassengerSchedule, rideHailManagerRef)
+    modifyStatus.rideHailAgent.tell(Resume(), rideHailManagerRef)
     modifyStatus.status = InterruptMessageStatus.MODIFY_PASSENGER_SCHEDULE_SENT
   }
 
@@ -164,8 +165,9 @@ class RideHailModifyPassengerScheduleManager(
     allTriggersInWave = triggersToSchedule ++ allTriggersInWave
 
     if (numberPendingModifyPassengerScheduleAcks == 0) {
-      log.debug("sendCompletionAndScheduleNewTimeout 165")
+      log.debug("sendCompletionAndScheduleNewTimeout from line 167 @ {} with trigger {}", _currentTick, _currentTriggerId)
       sendCompletionAndScheduleNewTimeout(Reposition, tick)
+      rideHailManager.cleanUp
     }
   }
 
@@ -207,8 +209,8 @@ class RideHailModifyPassengerScheduleManager(
 //        )
 //      }
     scheduler.tell(
-      CompletionNotice(triggerId, allTriggersInWave :+ ScheduleTrigger(timerTrigger, rideHailManager)),
-      rideHailManager
+      CompletionNotice(triggerId, allTriggersInWave :+ ScheduleTrigger(timerTrigger, rideHailManagerRef)),
+      rideHailManagerRef
     )
     allTriggersInWave = Vector()
   }
@@ -330,7 +332,7 @@ class RideHailModifyPassengerScheduleManager(
     passengerScheduleStatus.status = InterruptMessageStatus.INTERRUPT_SENT
     //    log.debug("sendInterruptMessage:" + passengerScheduleStatus)
     passengerScheduleStatus.rideHailAgent
-      .tell(Interrupt(passengerScheduleStatus.interruptId, passengerScheduleStatus.tick), rideHailManager)
+      .tell(Interrupt(passengerScheduleStatus.interruptId, passengerScheduleStatus.tick), rideHailManagerRef)
   }
 
   def isPendingReservationEnding(
