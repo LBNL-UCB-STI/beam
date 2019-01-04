@@ -108,7 +108,7 @@ class TransitInitializer(
                   (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
                     BeamPath(
                       edgeIds,
-                      Vector((duration.toDouble / 2.0).round.toInt,(duration.toDouble / 2.0).round.toInt), // for non-street based paths we don't have link ids so make up travel times
+                      Vector((duration.toDouble / 2.0).round.toInt, (duration.toDouble / 2.0).round.toInt), // for non-street based paths we don't have link ids so make up travel times
                       Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
                       SpaceTime(
                         startEdge.getGeometry.getStartPoint.getX,
@@ -139,7 +139,7 @@ class TransitInitializer(
               (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
                 BeamPath(
                   edgeIds,
-                  Vector((duration.toDouble / 2.0).round.toInt,(duration.toDouble / 2.0).round.toInt), // for non-street based paths we don't have link ids so make up travel times
+                  Vector((duration.toDouble / 2.0).round.toInt, (duration.toDouble / 2.0).round.toInt), // for non-street based paths we don't have link ids so make up travel times
                   Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
                   SpaceTime(
                     startEdge.getGeometry.getStartPoint.getX,
@@ -324,30 +324,28 @@ class TransitInitializer(
   }
 
   private def resolveFirstLastTransitEdges(stopIdxs: Int*): Vector[Int] = {
-    val edgeIds: Vector[Int] = stopIdxs
-      .map { stopIdx =>
-        if (transportNetwork.transitLayer.streetVertexForStop.get(stopIdx) >= 0) {
-          val stopVertex = transportNetwork.streetLayer.vertexStore.getCursor(
-            transportNetwork.transitLayer.streetVertexForStop.get(stopIdx)
-          )
-          val split = transportNetwork.streetLayer.findSplit(
-            stopVertex.getLat,
-            stopVertex.getLon,
-            10000,
-            StreetMode.CAR
-          )
-          if (split != null) {
-            split.edge
-          } else {
-            limitedWarn(stopIdx)
-            createDummyEdgeFromVertex(stopVertex)
-          }
+    val edgeIds: Vector[Int] = stopIdxs.map { stopIdx =>
+      if (transportNetwork.transitLayer.streetVertexForStop.get(stopIdx) >= 0) {
+        val stopVertex = transportNetwork.streetLayer.vertexStore.getCursor(
+          transportNetwork.transitLayer.streetVertexForStop.get(stopIdx)
+        )
+        val split = transportNetwork.streetLayer.findSplit(
+          stopVertex.getLat,
+          stopVertex.getLon,
+          10000,
+          StreetMode.CAR
+        )
+        if (split != null) {
+          split.edge
         } else {
           limitedWarn(stopIdx)
-          createDummyEdge()
+          createDummyEdgeFromVertex(stopVertex)
         }
+      } else {
+        limitedWarn(stopIdx)
+        createDummyEdge()
       }
-      .toVector
+    }.toVector
     edgeIds
   }
 
