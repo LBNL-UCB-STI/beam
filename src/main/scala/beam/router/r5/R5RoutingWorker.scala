@@ -8,7 +8,7 @@ import java.util.concurrent.Executors
 
 import akka.actor._
 import akka.pattern._
-import beam.agentsim.agents.choice.mode.{DrivingCostDefaults, ModeSubsidy, PtFares}
+import beam.agentsim.agents.choice.mode.{DrivingCostDefaults, ModeIncentive, PtFares}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
@@ -119,8 +119,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
         val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
           BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
-        override val modeSubsidies: ModeSubsidy =
-          ModeSubsidy(beamConfig.beam.agentsim.agents.modeSubsidy.file)
+        override val modeIncentives: ModeIncentive =
+          ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.file)
         override val ptFares: PtFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.file)
         override protected def injectActor[A <: Actor](implicit factory: ActorRefFactory, tag: ClassTag[A]): ActorRef =
           super.injectActor
@@ -141,7 +141,13 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override def rideHailIterationHistoryActor: akka.actor.ActorRef = ???
       }
 
-      val initializer = new TransitInitializer(beamServices, transportNetwork, scenario.getTransitVehicles)
+      val defaultTravelTimeByLink = (time: Int, linkId: Int, mode: StreetMode) => {
+        val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+        val tt = (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, mode)).round
+        tt.toInt
+      }
+      val initializer =
+        new TransitInitializer(beamServices, transportNetwork, scenario.getTransitVehicles, defaultTravelTimeByLink)
       val transits = initializer.initMap
 
       val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
@@ -331,7 +337,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val linkTimes = linkEvents
         .drop(1)
         .grouped(2)
-        .map(pair => (pair.last.getTime - pair.head.getTime).toInt)
+        .map(pair => Math.round(pair.last.getTime - pair.head.getTime).toInt)
         .toIndexedSeq :+ 0
       val duration = linkEvents
         .maxBy(e => e.getTime)
@@ -720,7 +726,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                 val ids = beamServices.agencyAndRouteByVehicleIds.get(
                   beamLeg.travelPath.transitStops.fold(vehicle.id)(_.vehicleId)
                 )
-                cost = ids.fold(cost)(id => beamServices.ptFares.getPtFare(id._1, Some(id._2), age).getOrElse(cost))
+                cost =
+                  ids.fold(cost)(id => beamServices.ptFares.getPtFare(Some(id._1), Some(id._2), age).getOrElse(cost))
 
                 if (Modes.isR5TransitMode(beamLeg.mode)) {
                   EmbodiedBeamLeg(
@@ -1047,7 +1054,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   private def travelTimeByLinkCalculator(time: Int, linkId: Int, mode: StreetMode): Int = {
     maybeTravelTime match {
       case Some(matsimTravelTime) if mode == StreetMode.CAR =>
-        getTravelTime(time, linkId, matsimTravelTime).toInt
+        getTravelTime(time, linkId, matsimTravelTime).round.toInt
 
       case _ =>
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)

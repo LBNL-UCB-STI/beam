@@ -3,7 +3,6 @@ package beam.analysis.physsim;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.matsim.api.core.v01.Scenario;
-import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.Config;
@@ -29,7 +28,6 @@ public class PhyssimCalcLinkSpeedDistributionStatsTest {
     private static final String NETWORK_FILE_PATH = BASE_PATH + "/test/input/equil-square/test-data/physSimNetwork-relative-speeds.xml";
 
     private static PhyssimCalcLinkSpeedDistributionStats physsimCalcLinkSpeedDistributionStats;
-    private static TravelTimeCalculator travelTimeCalculator;
     private static Network network;
     private int binCount = 10;
 
@@ -43,7 +41,7 @@ public class PhyssimCalcLinkSpeedDistributionStatsTest {
         matsimNetworkReader.readFile(NETWORK_FILE_PATH);
 
         TravelTimeCalculatorConfigGroup defaultTravelTimeCalculator = config.travelTimeCalculator();
-        travelTimeCalculator = new TravelTimeCalculator(network, defaultTravelTimeCalculator);
+        TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(network, defaultTravelTimeCalculator);
         EventsManager eventsManager = EventsUtils.createEventsManager();
         eventsManager.addHandler(travelTimeCalculator);
 

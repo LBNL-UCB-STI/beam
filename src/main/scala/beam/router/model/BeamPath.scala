@@ -33,7 +33,7 @@ case class BeamPath(
 
   def scaleTravelTimes(scaleBy: Double): BeamPath = {
     this.copy(
-      linkTravelTime = this.linkTravelTime.map(travelTime => (travelTime.toDouble * scaleBy).toInt),
+      linkTravelTime = this.linkTravelTime.map(travelTime => Math.round(travelTime.toDouble * scaleBy).toInt),
       endPoint = this.endPoint.copy(time = this.startPoint.time + (this.duration.toDouble * scaleBy).toInt)
     )
   }

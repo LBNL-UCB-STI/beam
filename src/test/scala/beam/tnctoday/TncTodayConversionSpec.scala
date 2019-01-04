@@ -1,25 +1,26 @@
 package beam.tnctoday
 
+import com.typesafe.scalalogging.StrictLogging
 import json.converter.{TazOutput, TncToday}
 import org.scalatest.{Matchers, WordSpecLike}
 
-class TnctodayConversionSpec extends WordSpecLike with Matchers {
+class TncTodayConversionSpec extends WordSpecLike with Matchers with StrictLogging {
 
-  lazy val completedStats = TncToday.completeStats(inputData)
-  lazy val statsTotals = TncToday.generateTotals(completedStats)
+  private lazy val completedStats = TncToday.completeStats(inputData)
+  private lazy val statsTotals = TncToday.generateTotals(completedStats)
 
-  lazy val inputData = Seq(
+  private lazy val inputData = Seq(
     TazOutput.TazStats(1l, 0, "00:00:00", 0.5, 0.9),
     TazOutput.TazStats(1l, 0, "01:00:00", 0.2, 0.3),
     TazOutput.TazStats(1l, 0, "02:00:00", 0.3, 0.7),
     TazOutput.TazStats(1l, 0, "03:00:00", 0.4, 0.6),
     TazOutput.TazStats(1l, 0, "04:00:00", 0.2, 0.2),
-    //dropoffs = 1.6 - pickups = 2.7
+    // dropOffs = 1.6 - pickups = 2.7
     TazOutput.TazStats(1l, 1, "01:00:00", 0.2, 0.3),
     TazOutput.TazStats(1l, 1, "02:00:00", 0.6, 0.6),
     TazOutput.TazStats(1l, 1, "04:00:00", 0.1, 0.9),
     TazOutput.TazStats(1l, 1, "07:00:00", 0.9, 0.0)
-    //dropoffs = 1.8 - pickups = 1.8
+    // dropOffs = 1.8 - pickups = 1.8
   )
 
   "TncToday class " must {
@@ -27,7 +28,7 @@ class TnctodayConversionSpec extends WordSpecLike with Matchers {
       completedStats.size shouldBe 168
 
       inputData.forall(completedStats.contains) shouldBe true
-      completedStats should contain allElementsOf (inputData)
+      completedStats should contain allElementsOf inputData
 
       val groupedByDay = completedStats.groupBy(_.day_of_week)
       groupedByDay.size shouldBe 7
@@ -55,7 +56,7 @@ class TnctodayConversionSpec extends WordSpecLike with Matchers {
       )
       val totalsMap =
         statsTotals.map(e => (e.day_of_week, (e.dropoffs, e.pickups)))
-      totalsMap should contain theSameElementsAs (totals)
+      totalsMap should contain theSameElementsAs totals
 
     }
   }

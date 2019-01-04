@@ -11,8 +11,6 @@ import org.matsim.core.utils.collections.Tuple;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertArrayEquals;
-
 public class PersonTravelTimeTest {
 
     private class PersonTravelTimeHandler implements BasicEventHandler {

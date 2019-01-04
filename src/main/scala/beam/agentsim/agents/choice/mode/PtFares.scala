@@ -10,26 +10,65 @@ import scala.collection.mutable.ListBuffer
 import scala.io.Source
 import scala.util.Try
 
-case class PtFares(ptFares: Map[String, List[FareRule]]) {
+case class PtFares(ptFares: List[FareRule]) {
 
-  def getPtFare(agencyId: String, routeId: Option[String], age: Option[Int]): Option[Double] = {
-    ptFares
-      .getOrElse(agencyId, List())
-      .filter(
-        s =>
-          s.age.hasOrEmpty(age.getOrElse(0)) &&
-          (s.routeId.isEmpty || routeId.fold(false)(s.routeId.equalsIgnoreCase))
-      )
+  def getPtFare(agencyId: Option[String], routeId: Option[String], age: Option[Int]): Option[Double] = {
+    filterByAgency(agencyId, filterByRoute(routeId, filterByAge(age, ptFares)))
       .map(_.amount)
       .reduceOption(_ + _)
+  }
+
+  private def filterByAgency(agencyId: Option[String], ptFares: List[FareRule]) = {
+    val agencyMatch = ptFares
+      .filter(
+        f => agencyId.fold(false)(f.agencyId.equalsIgnoreCase)
+      )
+
+    lazy val agencyNotMatch = ptFares
+      .filter(
+        f => agencyId.fold(f.agencyId.isEmpty)(_ => f.agencyId.isEmpty)
+      )
+
+    if (agencyMatch.isEmpty) agencyNotMatch else agencyMatch
+  }
+
+  private def filterByRoute(routeId: Option[String], ptFares: List[FareRule]) = {
+    val routeMatch = ptFares
+      .filter(
+        f => routeId.fold(false)(f.routeId.equalsIgnoreCase)
+      )
+
+    lazy val routeNotMatch = ptFares
+      .filter(
+        f => routeId.fold(f.routeId.isEmpty)(_ => f.routeId.isEmpty)
+      )
+
+    if (routeMatch.isEmpty) routeNotMatch else routeMatch
+  }
+
+  private def filterByAge(age: Option[Int], ptFares: List[FareRule]) = {
+
+    val ageMatch = ptFares
+      .filter(
+        f => age.fold(false)(f.age.has)
+      )
+
+    lazy val ageNoMatch = ptFares
+      .filter(
+        f => age.fold(f.age.isEmpty)(f.age.hasOrEmpty)
+      )
+
+    if (ageMatch.isEmpty) ageNoMatch else ageMatch
+
   }
 }
 
 object PtFares {
   private val log = LoggerFactory.getLogger(classOf[PtFares])
+
   def apply(ptFaresFile: String): PtFares = new PtFares(loadPtFares(ptFaresFile))
 
-  def loadPtFares(ptFaresFile: String): Map[String, List[FareRule]] = {
+  def loadPtFares(ptFaresFile: String): List[FareRule] = {
     if (Files.notExists(Paths.get(ptFaresFile))) {
       log.error("PtFares file not found at location: {}", ptFaresFile)
       throw new FileNotFoundException(s"PtFares file not found at location: $ptFaresFile")
@@ -41,7 +80,7 @@ object PtFares {
 
       if (row.length == 4) fareRules += FareRule(row(0), row(1), row(2), row(3))
     }
-    fareRules.toList.groupBy(_.agencyId)
+    fareRules.toList
   }
 
   case class FareRule(agencyId: String, routeId: String, age: Range, amount: Double)
@@ -55,4 +94,5 @@ object PtFares {
       Try(amount.toDouble).getOrElse(0D)
     )
   }
+
 }

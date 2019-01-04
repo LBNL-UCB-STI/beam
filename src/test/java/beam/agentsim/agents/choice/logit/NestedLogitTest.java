@@ -47,8 +47,6 @@ public class NestedLogitTest extends TestCase {
                 + "	</nestedLogit>"
                 + "</nestedLogit>";
 
-        NestedLogit model = NestedLogit.nestedLogitFactory(xmlTestString);
-
         LinkedHashMap<String, LinkedHashMap<String, Double>> inputData = new LinkedHashMap<>();
         LinkedHashMap<String, Double> altData = new LinkedHashMap<>();
         altData.put("time", 5.0);
