@@ -50,7 +50,6 @@ public class PersonTravelTimeTest {
     private double[][] statsComputed;
 
 
-    @Test
     public void testShouldPassShouldReturnAvgTimeForSpecificHour() {
         /**
          * 0 index represent CAR count
@@ -69,7 +68,7 @@ public class PersonTravelTimeTest {
                 (int) Math.ceil(statsComputed[3][6]),
                 (int) Math.ceil(statsComputed[4][6])
         };
-        assertArrayEquals(expectedResultOfMode, actualResultOfMode);
+        assert(expectedResultOfMode.equals(actualResultOfMode));
     }
 
 
