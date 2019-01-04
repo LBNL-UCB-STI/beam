@@ -551,7 +551,7 @@ class RideHailManager(
       }
 
     case ContinueBufferedRideHailRequests(tick) =>
-      if (tick == modifyPassengerScheduleManager.getCurrentTick.getOrElse(-1))
+      if (tick == modifyPassengerScheduleManager.getCurrentTick.getOrElse(tick))
         findAllocationsAndProcess(tick)
 
     case trigger @ TriggerWithId(RideHailRepositioningTrigger(tick), triggerId) =>
