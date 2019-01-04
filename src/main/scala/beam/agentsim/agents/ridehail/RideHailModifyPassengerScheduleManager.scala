@@ -23,11 +23,11 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.mutable
 
 class RideHailModifyPassengerScheduleManager(
-                                              val log: LoggingAdapter,
-                                              val rideHailManagerRef: ActorRef,
-                                              val rideHailManager: RideHailManager,
-                                              val scheduler: ActorRef,
-                                              val beamConfig: BeamConfig
+  val log: LoggingAdapter,
+  val rideHailManagerRef: ActorRef,
+  val rideHailManager: RideHailManager,
+  val scheduler: ActorRef,
+  val beamConfig: BeamConfig
 ) extends HasTickAndTrigger {
 
   val resourcesNotCheckedIn_onlyForDebugging: mutable.Set[Id[Vehicle]] = mutable.Set()
@@ -165,7 +165,11 @@ class RideHailModifyPassengerScheduleManager(
     allTriggersInWave = triggersToSchedule ++ allTriggersInWave
 
     if (numberPendingModifyPassengerScheduleAcks == 0) {
-      log.debug("sendCompletionAndScheduleNewTimeout from line 167 @ {} with trigger {}", _currentTick, _currentTriggerId)
+      log.debug(
+        "sendCompletionAndScheduleNewTimeout from line 167 @ {} with trigger {}",
+        _currentTick,
+        _currentTriggerId
+      )
       sendCompletionAndScheduleNewTimeout(Reposition, tick)
       rideHailManager.cleanUp
     }
