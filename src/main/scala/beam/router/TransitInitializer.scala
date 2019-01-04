@@ -12,6 +12,7 @@ import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{BeamLeg, BeamPath, RoutingModel}
 import beam.sim.BeamServices
 import beam.utils.TravelTimeUtils
+import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.{StreetRouter, VertexStore}
@@ -32,7 +33,7 @@ class TransitInitializer(
   transportNetwork: TransportNetwork,
   transitVehicles: Vehicles,
   travelTimeByLinkCalculator: (Int, Int, StreetMode) => Int
-) extends LazyLogging {
+) extends ExponentialLazyLogging {
   private var numStopsNotFound = 0
   private val transitVehicleTypesByRoute: Map[String, Map[String, String]] = loadTransitVehicleTypesMap()
 
