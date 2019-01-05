@@ -5,7 +5,7 @@ import java.util.concurrent.ConcurrentHashMap
 import beam.utils.logging.ExponentialLoggerWrapperImpl._
 import org.slf4j.{Logger, LoggerFactory}
 
-private class ExponentialLoggerWrapperImpl(name: String) extends LoggerWrapper {
+class ExponentialLoggerWrapperImpl(name: String) extends LoggerWrapper {
 
   private type Func = String => Unit
 
@@ -55,7 +55,7 @@ private class ExponentialLoggerWrapperImpl(name: String) extends LoggerWrapper {
 
 }
 
-private object ExponentialLoggerWrapperImpl {
+object ExponentialLoggerWrapperImpl {
 
   def isNumberPowerOfTwo(number: Int): Boolean = {
     number > 0 && ((number & (number - 1)) == 0)
