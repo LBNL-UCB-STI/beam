@@ -37,8 +37,7 @@ class OutOfServiceVehicleManager(
 
     passengerSchedules.put(vehicleId, passengerSchedule)
 
-    rideHailManager
-        .vehicleManager
+    rideHailManager.vehicleManager
       .getRideHailAgentLocation(vehicleId)
       .rideHailAgent
       .tell(
@@ -56,8 +55,7 @@ class OutOfServiceVehicleManager(
     tick: Int
   ): Unit = {
 
-    val rideHailAgent = rideHailManager
-        .vehicleManager
+    val rideHailAgent = rideHailManager.vehicleManager
       .getRideHailAgentLocation(vehicleId)
       .rideHailAgent
 
@@ -73,8 +71,7 @@ class OutOfServiceVehicleManager(
     vehicleId: Id[Vehicle],
     triggersToSchedule: Seq[ScheduleTrigger] = Vector()
   ): Unit = {
-    val rideHailAgent = rideHailManager
-        .vehicleManager
+    val rideHailAgent = rideHailManager.vehicleManager
       .getRideHailAgentLocation(vehicleId)
       .rideHailAgent
 

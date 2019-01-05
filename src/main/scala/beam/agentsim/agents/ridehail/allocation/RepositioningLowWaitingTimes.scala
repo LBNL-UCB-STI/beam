@@ -156,8 +156,7 @@ class RepositioningLowWaitingTimes(
 
             for (vehToRepso <- whichTAZToRepositionTo) {
               val lineToPlot = LineToPlot(
-                rideHailManager
-                    .vehicleManager
+                rideHailManager.vehicleManager
                   .getRideHailAgentLocation(vehToRepso._1)
                   .currentLocationUTM
                   .loc,
@@ -181,8 +180,7 @@ class RepositioningLowWaitingTimes(
 
             if (firstRepositionCoordsOfDay.isEmpty) {
               firstRepositionCoordsOfDay = Some(
-                rideHailManager
-                    .vehicleManager
+                rideHailManager.vehicleManager
                   .getRideHailAgentLocation(whichTAZToRepositionTo.head._1)
                   .currentLocationUTM
                   .loc,

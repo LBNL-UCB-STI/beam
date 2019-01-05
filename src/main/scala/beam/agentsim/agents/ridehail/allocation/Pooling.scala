@@ -17,8 +17,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
   val tempPickDropStore: mutable.Map[Int, PickDropIdAndLeg] = mutable.Map()
 
   override def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
-    rideHailManager
-        .vehicleManager
+    rideHailManager.vehicleManager
       .getClosestIdleVehiclesWithinRadiusByETA(
         inquiry.pickUpLocationUTM,
         rideHailManager.radiusInMeters,
@@ -81,8 +80,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
       twoToPool.size match {
         case 1 =>
           val request = twoToPool.head
-          rideHailManager
-              .vehicleManager
+          rideHailManager.vehicleManager
             .getClosestIdleVehiclesWithinRadiusByETA(
               request.pickUpLocationUTM,
               rideHailManager.radiusInMeters,
@@ -108,8 +106,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
           val routingResponses1 = vehicleAllocationRequest.requests(request1)
           val request2 = twoToPool.last
           val routingResponses2 = vehicleAllocationRequest.requests(request2)
-          rideHailManager
-              .vehicleManager
+          rideHailManager.vehicleManager
             .getClosestIdleVehiclesWithinRadiusByETA(
               request1.pickUpLocationUTM,
               rideHailManager.radiusInMeters,

@@ -15,7 +15,11 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, InService, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{
+  CouldNotFindRouteToCustomer,
+  DriverNotFoundError,
+  RideHailVehicleTakenError
+}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
 import beam.agentsim.events.SpaceTime
@@ -82,7 +86,6 @@ object RideHailManager {
     )
   }
 
-
   case class NotifyIterationEnds()
 
   case class TravelProposal(
@@ -131,7 +134,6 @@ object RideHailManager {
   )
 
   case class RegisterRideUnavailable(ref: ActorRef, location: Coord)
-
 
   case class RepositionResponse(
     rnd1: RideHailAgentLocation,
@@ -643,7 +645,6 @@ class RideHailManager(
     }
   }
 
-
   def attemptToCancelCurrentRideRequest(tick: Int, requestId: Int): Unit = {
     Option(travelProposalCache.getIfPresent(requestId.toString)) match {
       case Some(travelProposal) =>
@@ -733,7 +734,6 @@ class RideHailManager(
 
     DebugLib.emptyFunctionForSettingBreakPoint()
   }
-
 
   private def handleReservation(request: RideHailRequest, tick: Int, travelProposal: TravelProposal): Unit = {
     surgePricingManager.addRideCost(
