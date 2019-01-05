@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 
 import akka.util.Timeout
 import beam.agentsim.agents.ridehail.RideHailManager
-import beam.agentsim.agents.ridehail.RideHailManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.router.BeamRouter.Location
 import beam.utils._
 import org.matsim.api.core.v01.{Coord, Id}
@@ -26,7 +26,7 @@ class RepositioningLowWaitingTimes(
 
     rideHailManager.tncIterationStats match {
       case Some(tncIterStats) =>
-        val idleVehicles = rideHailManager.getIdleVehicles
+        val idleVehicles = rideHailManager.vehicleManager.getIdleVehicles
         val fleetSize = rideHailManager.resources.size
 
         val repositioningConfig =
@@ -157,6 +157,7 @@ class RepositioningLowWaitingTimes(
             for (vehToRepso <- whichTAZToRepositionTo) {
               val lineToPlot = LineToPlot(
                 rideHailManager
+                    .vehicleManager
                   .getRideHailAgentLocation(vehToRepso._1)
                   .currentLocationUTM
                   .loc,
@@ -181,6 +182,7 @@ class RepositioningLowWaitingTimes(
             if (firstRepositionCoordsOfDay.isEmpty) {
               firstRepositionCoordsOfDay = Some(
                 rideHailManager
+                    .vehicleManager
                   .getRideHailAgentLocation(whichTAZToRepositionTo.head._1)
                   .currentLocationUTM
                   .loc,
@@ -228,7 +230,7 @@ class RepositioningLowWaitingTimes(
       case None =>
         // iteration 0
 
-        val idleVehicles = rideHailManager.getIdleVehicles
+        val idleVehicles = rideHailManager.vehicleManager.getIdleVehicles
 
         if (firstRepositioningOfDay && idleVehicles.nonEmpty) {
           // these are zero distance repositionings
@@ -259,7 +261,7 @@ class RepositioningLowWaitingTimes(
   }
 
   def filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable(
-    idleVehicles: collection.mutable.Map[Id[Vehicle], RideHailManager.RideHailAgentLocation],
+    idleVehicles: collection.mutable.Map[Id[Vehicle], RideHailAgentLocation],
     maxNumberOfVehiclesToReposition: Int
   ): Vector[RideHailAgentLocation] = {
     val (idle, repositioning) = idleVehicles.values.toVector.partition(
