@@ -309,11 +309,9 @@ class RideHailManager(
             } else {
               log.debug("Making available: {}", vehicleId)
               vehicleManager.makeAvailable(rideHailAgentLocation)
-              // ridehail agent awaiting NotifyVehicleResourceIdleReply
               sender() ! NotifyVehicleResourceIdleReply(triggerId, Vector[ScheduleTrigger]())
             }
           } else {
-            // ridehail agent awaiting NotifyVehicleResourceIdleReply
             sender() ! NotifyVehicleResourceIdleReply(triggerId, Vector[ScheduleTrigger]())
           }
           modifyPassengerScheduleManager
@@ -714,25 +712,6 @@ class RideHailManager(
         val orderedResponses = preservedOrder.map(requestId => requestIdToResponse(requestId))
         self ! RoutingResponses(tick, orderedResponses)
       }
-  }
-
-  def printRepositionDistanceSum(
-    repositionVehicles: Vector[(Id[Vehicle], Location)]
-  ): Unit = {
-    var sumOfDistances: Double = 0
-    var numberOfTrips = 0
-    for (repositionVehicle <- repositionVehicles) {
-      val (vehicleId, destinationLocation) = repositionVehicle
-      val rideHailAgentLocation = vehicleManager.getIdleVehicles(vehicleId)
-
-      sumOfDistances += beamServices.geo
-        .distUTMInMeters(rideHailAgentLocation.currentLocationUTM.loc, destinationLocation)
-      numberOfTrips += 1
-    }
-
-//println(s"sumOfDistances: $sumOfDistances - numberOfTrips: $numberOfTrips")
-
-    DebugLib.emptyFunctionForSettingBreakPoint()
   }
 
   private def handleReservation(request: RideHailRequest, tick: Int, travelProposal: TravelProposal): Unit = {
