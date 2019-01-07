@@ -7,7 +7,7 @@ import org.matsim.vehicles.Vehicle
 
 case class RepositionVehicleRequest(
   passengerSchedule: PassengerSchedule,
-  tick: Double,
+  tick: Int,
   vehicleId: Id[Vehicle],
   rideHailAgent: ActorRef
 )
