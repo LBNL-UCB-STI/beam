@@ -41,40 +41,57 @@ class RideHailFleetInitializer extends LazyLogging {
   ): List[(FleetData, BeamVehicle)] = {
     try {
       val bufferedSource = Source.fromFile(filePath)
-      val rideHailAgents: Seq[(FleetData, BeamVehicle)] =
-        bufferedSource.getLines().toList.drop(1).map(s => s.split(",")).flatMap { row =>
-          try {
-            val fleetData = FleetData(
-              row(0),
-              row(1),
-              row(2),
-              if (row(3).isEmpty) 0.0 else row(3).toDouble,
-              if (row(4).isEmpty) 0.0 else row(4).toDouble,
-              if (row(5).isEmpty) None else Some(row(5)),
-              if (row(6).isEmpty) None else Some(row(6).toDouble),
-              if (row(7).isEmpty) None else Some(row(7).toDouble),
-              if (row(8).isEmpty) None else Some(row(8).toDouble)
-            )
-            val vehicleTypeId = Id.create(fleetData.vehicleType, classOf[BeamVehicleType])
-            val vehicleType =
-              beamServices.vehicleTypes.getOrElse(vehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
-            val powertrain = Option(vehicleType.primaryFuelConsumptionInJoulePerMeter)
-              .map(new Powertrain(_))
-              .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
-            val beamVehicle = new BeamVehicle(
-              Id.create(fleetData.id, classOf[BeamVehicle]),
-              powertrain,
-              None,
-              vehicleType
-            )
-            Some(fleetData -> beamVehicle)
-          } catch {
-            case e: Exception =>
-              logger.error("Error while reading an entry of ride-hail-fleet.csv as RideHailAgent : " + e.getMessage, e)
-              None
+      val data = bufferedSource.getLines()
+      if (data.nonEmpty) {
+        val headerKeys: Array[String] = data.next().split(",").map(_.trim)
+        val idIndex = headerKeys.indexOf("id")
+        val rideHailManagerIdIndex = headerKeys.indexOf("rideHailManagerId")
+        val vehicleTypeIndex = headerKeys.indexOf("vehicleType")
+        val initialLocationXIndex = headerKeys.indexOf("initialLocationX")
+        val initialLocationYIndex = headerKeys.indexOf("initialLocationY")
+        val shiftsIndex = headerKeys.indexOf("shifts")
+        val geofenceXIndex = headerKeys.indexOf("geofenceX")
+        val geofenceYIndex = headerKeys.indexOf("geofenceY")
+        val geofenceRadiusIndex = headerKeys.indexOf("geofenceRadius")
+        val rideHailAgents: Seq[(FleetData, BeamVehicle)] =
+          bufferedSource.getLines().toList.drop(1).map(s => s.split(",")).flatMap { row =>
+            try {
+              val fleetData: FleetData = FleetData(
+                id = row(idIndex),
+                rideHailManagerId = row(rideHailManagerIdIndex),
+                vehicleType = row(vehicleTypeIndex),
+                initialLocationX = if (row(initialLocationXIndex).isEmpty) 0.0 else row(initialLocationXIndex).toDouble,
+                initialLocationY = if (row(initialLocationYIndex).isEmpty) 0.0 else row(initialLocationYIndex).toDouble,
+                shifts = if (row(shiftsIndex).isEmpty) None else Some(row(shiftsIndex)),
+                geoFenceX = if (row(geofenceXIndex).isEmpty) None else Some(row(geofenceXIndex).toDouble),
+                geoFenceY = if (row(geofenceYIndex).isEmpty) None else Some(row(geofenceYIndex).toDouble),
+                geoFenceRadius = if (row(geofenceRadiusIndex).isEmpty) None else Some(row(geofenceRadiusIndex).toDouble)
+              )
+              val vehicleTypeId = Id.create(fleetData.vehicleType, classOf[BeamVehicleType])
+              val vehicleType =
+                beamServices.vehicleTypes.getOrElse(vehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
+              val powertrain = Option(vehicleType.primaryFuelConsumptionInJoulePerMeter)
+                .map(new Powertrain(_))
+                .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
+              val beamVehicle = new BeamVehicle(
+                Id.create(fleetData.id, classOf[BeamVehicle]),
+                powertrain,
+                None,
+                vehicleType
+              )
+              Some(fleetData -> beamVehicle)
+            } catch {
+              case e: Exception =>
+                logger
+                  .error("Error while reading an entry of ride-hail-fleet.csv as RideHailAgent : " + e.getMessage, e)
+                None
+            }
           }
-        }
-      rideHailAgents.toList
+        rideHailAgents.toList
+      } else {
+        logger.error(s"Input file is empty - $filePath")
+        List.empty[(FleetData, BeamVehicle)]
+      }
     } catch {
       case fne: FileNotFoundException =>
         logger.error(s"No file found at path - $filePath", fne)
