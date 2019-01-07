@@ -1,6 +1,6 @@
 
 library(colinmisc)
-load.libraries(c('Hmisc','sqldf','GEOquery','stringr'))
+load.libraries(c('Hmisc','sqldf','GEOquery','stringr','plyr'))
 
 source('~/Dropbox/ucb/vto/beam-all/beam-calibration/beam/src/main/R/debug.R')
 source('~/Dropbox/ucb/vto/beam-all/beam-calibration/beam/src/main/R/vgi-functions.R')
@@ -21,10 +21,10 @@ out.dirs <- list()
 out.dirs[['base']]            <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-12_13-05-59-base/',0)
 #out.dirs[['base-tou-night']]  <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-12_13-05-59-base/',0)
 #out.dirs[['base-tou-both']]   <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-12_13-05-59-base/',0)
-#out.dirs[['morework-8x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
+out.dirs[['morework-8x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
 #out.dirs[['morework-8x-tou-night']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
 #out.dirs[['morework-8x-tou-both']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
-#out.dirs[['morework-4x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-10_15-12-08-morework-4x/',0)
+out.dirs[['morework-4x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-10_15-12-08-morework-4x/',0)
 #out.dirs[['morework-4x-tou-night']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-10_15-12-08-morework-4x/',0)
 #out.dirs[['morework-4x-tou-both']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-10_15-12-08-morework-4x/',0)
 #out.dirs[['morework-2x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-21_16-50-05-morework-2x/',0)
@@ -33,6 +33,7 @@ out.dirs[['base']]            <- c('/Users/critter/Documents/beam/beam-output/ca
 
 scens <- names(out.dirs)
 all.soc.sums <- list()
+sessions.alls <- list()
 
 scen <- scens[1]
 for(scen in scens){
@@ -242,18 +243,10 @@ for(scen in scens){
   }
 
   ### Making an optional plot of sessions and their flexibility
-  if(F){
-    sessions.all <- ev[,.(start = hr[1], plugTime = tail(hr,1) - head(hr,1),chargeTime = hr[2]-hr[1],energy = energy.level[3] - energy.level[1], power=kw[1], final.type=final.type[1]),by=c('scenario','person','decisionEventId')]
-    sessions <- sessions.all[start>49 & start<=73]
-    sessions[,hour:=floor(start-48)]
-    sessions[,flex:=plugTime-chargeTime]
-    flex.bins <- c('beg'=0,'0-2'=2,'2-4'=4,'4-8'=8,'8-12'=12,'12+'=1000)
-    sessions[,flex.bin:=names(flex.bins)[findInterval(flex,flex.bins)+1]]
-    sessions[,flex.bin:=factor(flex.bin,levels=names(flex.bins))]
-    setkey(sessions,hour,flex.bin,final.type)
-    ggplot(sessions[,.(n=.N),by=c('hour','flex.bin','final.type')],aes(x=hour,y=n,fill=flex.bin))+geom_bar(stat='identity')+facet_wrap(~final.type)+labs(x="Charging Start Hour",y="# of Sessions Initiated",fill="Hours of flexibility")
-    dev.new();ggplot(sessions[,.(n=.N,energy=sum(energy)),by=c('hour','flex.bin','final.type')],aes(x=hour,y=energy/1e3,fill=flex.bin))+geom_bar(stat='identity')+facet_wrap(~final.type)+labs(x="Charging Start Hour",y="Energy Demanded in Session (MWh)",fill="Hours of flexibility")
-  }
+  sessions.all <- ev[,.(start = hr[1], plugTime = tail(hr,1) - head(hr,1),chargeTime = hr[2]-hr[1],energy = energy.level[3] - energy.level[1], power=kw[1], final.type=final.type[1]),by=c('scenario','person','decisionEventId')]
+  sessions.all[,scen:=scen]
+  sessions.alls[[length(sessions.alls)+1]] <- sessions.all
+}
 
   ##################################################################
   # First aggregate for plexos
@@ -507,6 +500,25 @@ for(scen in scens){
   save.all[,scenario:=scen]
   save(save.all,file=pp(results.dir.base,'/',scen,'/all-plexos-inputs.Rdata'))
   write.csv(reservoirs.max,pp(results.dir.base,'/',scen,'/Table_of_Max_Volume_of_Smart_Charging_Reservoirs.csv'),row.names=F)
+}
+
+# Plotting flexibility in a simple way
+if(F){
+  sessions.all <- rbindlist(sessions.alls)
+  sessions <- sessions.all[start>49 & start<=73]
+  sessions[,hour:=floor(start-48)]
+  sessions[,flex:=plugTime-chargeTime]
+  flex.bins <- c('beg'=0,'0-2'=2,'2-4'=4,'4-8'=8,'8-12'=12,'12+'=1000)
+  sessions[,flex.bin:=names(flex.bins)[findInterval(flex,flex.bins)+1]]
+  sessions[,flex.bin:=factor(flex.bin,levels=names(flex.bins))]
+  sessions[,scen:=revalue(factor(scen),c('base'='Base','morework-4x'='4X Workplace Chargers','morework-8x'='8X Workplace Chargers'))]
+  setkey(sessions,hour,flex.bin,final.type,scen)
+  #ggplot(sessions[,.(n=.N),by=c('hour','flex.bin','final.type')],aes(x=hour,y=n,fill=flex.bin))+geom_bar(stat='identity')+facet_grid(scen~final.type)+labs(x="Charging Start Hour",y="# of Sessions Initiated",fill="Hours of flexibility")
+  #dev.new();
+  ggplot(sessions[,.(n=.N,energy=sum(energy)),by=c('scen','hour','flex.bin','final.type')],aes(x=hour,y=energy/1e3,fill=flex.bin))+geom_bar(stat='identity')+
+    facet_grid(scen~final.type)+labs(x="Charging Session Start Hour",y="Energy Demanded in Charging Session (MWh)",fill="Hours of flexibility") + 
+    theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), strip.text.x = element_text(size = 10, face = "bold"), strip.text.y = element_text(size = 10, face = "bold"), axis.text.x = element_text(angle=0, size=10), axis.title.x = element_text(size=12) , axis.text.y = element_text(angle=0, size=10), axis.title.y = element_text(size=12),legend.position="bottom", legend.title = element_text( size = 12), legend.text = element_text( size = 12)  , plot.title = element_text(size=14, hjust=0.5))  + 
+    scale_x_continuous(breaks=seq(0,24,6))
 }
 
 # Compare the scenarios against each other
