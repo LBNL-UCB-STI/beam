@@ -1,6 +1,6 @@
 package beam.agentsim.agents.ridehail
 
-import beam.agentsim.agents.ridehail.RideHailManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.TNCIterationStats._
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
@@ -421,7 +421,7 @@ case class TNCIterationStats(
   }
 
   def getUpdatedCircleSize(
-    vehiclesToReposition: Vector[RideHailManager.RideHailAgentLocation],
+    vehiclesToReposition: Vector[RideHailAgentLocation],
     circleRadiusInMeters: Double,
     tick: Double,
     timeWindowSizeInSecForDecidingAboutRepositioning: Double,
@@ -447,7 +447,7 @@ case class TNCIterationStats(
   }
 
   def demandRatioInCircleToOutside(
-    vehiclesToReposition: Vector[RideHailManager.RideHailAgentLocation],
+    vehiclesToReposition: Vector[RideHailAgentLocation],
     circleSize: Double,
     tick: Double,
     timeWindowSizeInSecForDecidingAboutRepositioning: Double

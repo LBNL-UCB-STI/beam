@@ -1,11 +1,8 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTrigger,
-  PoolingInfo,
-  RideHailAgentLocation
-}
+import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, PoolingInfo}
+import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
 import beam.agentsim.agents.vehicles.VehiclePersonId
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
@@ -36,7 +33,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    * rational choices about mode that reflect the true travel time cost of pooling.
    */
   def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
-    rideHailManager.getClosestIdleRideHailAgent(
+    rideHailManager.vehicleManager.getClosestIdleRideHailAgent(
       inquiry.pickUpLocationUTM,
       rideHailManager.radiusInMeters
     ) match {
@@ -111,7 +108,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     var alreadyAllocated: Set[Id[Vehicle]] = Set()
     val allocResponses = vehicleAllocationRequest.requests.map {
       case (request, routingResponses) if (routingResponses.isEmpty) =>
-        rideHailManager
+        rideHailManager.vehicleManager
           .getClosestIdleVehiclesWithinRadiusByETA(
             request.pickUpLocationUTM,
             rideHailManager.radiusInMeters,
@@ -135,7 +132,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
       case (request, routingResponses) if routingResponses.find(_.itineraries.size == 0).isDefined =>
         NoVehicleAllocated(request)
       case (request, routingResponses) =>
-        rideHailManager
+        rideHailManager.vehicleManager
           .getClosestIdleVehiclesWithinRadiusByETA(
             request.pickUpLocationUTM,
             rideHailManager.radiusInMeters,
