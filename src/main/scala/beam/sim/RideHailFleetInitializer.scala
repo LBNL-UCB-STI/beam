@@ -63,9 +63,9 @@ class RideHailFleetInitializer extends LazyLogging {
                 initialLocationX = if (row(initialLocationXIndex).isEmpty) 0.0 else row(initialLocationXIndex).toDouble,
                 initialLocationY = if (row(initialLocationYIndex).isEmpty) 0.0 else row(initialLocationYIndex).toDouble,
                 shifts = if (row(shiftsIndex).isEmpty) None else Some(row(shiftsIndex)),
-                geoFenceX = if (row(geofenceXIndex).isEmpty) None else Some(row(geofenceXIndex).toDouble),
-                geoFenceY = if (row(geofenceYIndex).isEmpty) None else Some(row(geofenceYIndex).toDouble),
-                geoFenceRadius = if (row(geofenceRadiusIndex).isEmpty) None else Some(row(geofenceRadiusIndex).toDouble)
+                geofenceX = if (row(geofenceXIndex).isEmpty) None else Some(row(geofenceXIndex).toDouble),
+                geofenceY = if (row(geofenceYIndex).isEmpty) None else Some(row(geofenceYIndex).toDouble),
+                geofenceRadius = if (row(geofenceRadiusIndex).isEmpty) None else Some(row(geofenceRadiusIndex).toDouble)
               )
               val vehicleTypeId = Id.create(fleetData.vehicleType, classOf[BeamVehicleType])
               val vehicleType =
@@ -154,9 +154,9 @@ object RideHailFleetInitializer extends OutputDataDescriptor {
     * @param initialLocationX x-coordinate of the initial location of the ride hail vehicle
     * @param initialLocationY y-coordinate of the initial location of the ride hail vehicle
     * @param shifts time shifts for the vehicle , usually a stringified collection of time ranges
-    * @param geoFenceX x-coordinate of the geo fence
-    * @param geoFenceY x-coordinate of the geo fence
-    * @param geoFenceRadius radius of the geo fence
+    * @param geofenceX x-coordinate of the geo fence
+    * @param geofenceY x-coordinate of the geo fence
+    * @param geofenceRadius radius of the geo fence
     */
   case class FleetData(
     id: String,
@@ -165,9 +165,9 @@ object RideHailFleetInitializer extends OutputDataDescriptor {
     initialLocationX: Double,
     initialLocationY: Double,
     shifts: Option[String],
-    geoFenceX: Option[Double],
-    geoFenceY: Option[Double],
-    geoFenceRadius: Option[Double]
+    geofenceX: Option[Double],
+    geofenceY: Option[Double],
+    geofenceRadius: Option[Double]
   )
 
   /**
