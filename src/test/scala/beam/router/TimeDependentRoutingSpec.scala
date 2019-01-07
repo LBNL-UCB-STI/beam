@@ -62,7 +62,7 @@ class TimeDependentRoutingSpec
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
     when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
-    when(services.ptFares).thenReturn(PtFares(Map[String, List[FareRule]]()))
+    when(services.ptFares).thenReturn(PtFares(List[FareRule]()))
     when(services.dates).thenReturn(
       DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,

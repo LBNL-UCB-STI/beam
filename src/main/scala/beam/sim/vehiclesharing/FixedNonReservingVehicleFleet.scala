@@ -12,6 +12,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
+import beam.sim.population.AttributesOfIndividual
 import com.vividsolutions.jts.geom.{Coordinate, Envelope}
 import com.vividsolutions.jts.index.quadtree.Quadtree
 import org.matsim.api.core.v01.{Coord, Id}
@@ -96,7 +97,7 @@ class FixedNonReservingVehicleFleet(val parkingManager: ActorRef, val locations:
     whenWhere.loc,
     whenWhere.loc,
     "wherever",
-    0,
+    AttributesOfIndividual.EMPTY,
     NoNeed,
     0,
     0

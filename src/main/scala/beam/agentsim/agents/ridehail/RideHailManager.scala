@@ -6,7 +6,7 @@ import java.util.Random
 import java.util.concurrent.TimeUnit
 
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Stash, Terminated}
 import akka.event.LoggingReceive
 import akka.pattern._
 import akka.util.Timeout
@@ -17,13 +17,13 @@ import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
+import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.allocation._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{
   CouldNotFindRouteToCustomer,
   DriverNotFoundError,
   RideHailVehicleTakenError
 }
-import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -48,8 +48,6 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.{Activity, Person, Population}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.utils.collections.QuadTree
-import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
@@ -129,27 +127,9 @@ object RideHailManager {
 
   case class RegisterRideUnavailable(ref: ActorRef, location: Coord)
 
-  case class RideHailAgentLocation(
-    rideHailAgent: ActorRef,
-    vehicleId: Id[Vehicle],
-    vehicleTypeId: Id[BeamVehicleType],
-    currentLocation: SpaceTime
-  ) {
-
-    def toStreetVehicle: StreetVehicle = {
-      StreetVehicle(vehicleId, vehicleTypeId, currentLocation, CAR, asDriver = true)
-    }
-  }
-
-  case class RideHailAgentETA(
-    agentLocation: RideHailAgentLocation,
-    distance: Double,
-    timeToCustomer: Double
-  )
-
   case class RepositionResponse(
     rnd1: RideHailAgentLocation,
-    rnd2: RideHailManager.RideHailAgentLocation,
+    rnd2: RideHailAgentLocation,
     rnd1Response: RoutingResponse,
     rnd2Response: RoutingResponse
   )
@@ -161,13 +141,6 @@ object RideHailManager {
   case object DebugRideHailManagerDuringExecution
 
   case class ContinueBufferedRideHailRequests(tick: Int)
-
-  /* Available means vehicle can be assigned to a new customer */
-  case object Available extends RideHailServiceStatus
-
-  case object InService extends RideHailServiceStatus
-
-  case object OutOfService extends RideHailServiceStatus
 
   final val fileBaseName = "rideHailInitialLocation"
 
@@ -215,10 +188,6 @@ object RideHailManager {
 
 }
 
-// TODO: RW: We need to update the location of vehicle as it is moving to give good estimate to ride hail allocation manager
-// TODO: Build RHM from XML to be able to specify different kinds of TNC/Rideshare types and attributes
-// TODO: remove name variable, as not used currently in the code anywhere?
-
 class RideHailManager(
   val beamServices: BeamServices,
   val transportNetwork: TransportNetwork,
@@ -233,7 +202,8 @@ class RideHailManager(
   val tncIterationStats: Option[TNCIterationStats]
 ) extends Actor
     with ActorLogging
-    with HasServices {
+    with HasServices
+    with Stash {
 
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   override val supervisorStrategy: OneForOneStrategy =
@@ -257,6 +227,8 @@ class RideHailManager(
   /**
     * Customer inquiries awaiting reservation confirmation.
     */
+  val vehicleManager: RideHailVehicleManager = new RideHailVehicleManager(this, boundingBox)
+
   lazy val travelProposalCache: Cache[String, TravelProposal] = {
     CacheBuilder
       .newBuilder()
@@ -284,6 +256,7 @@ class RideHailManager(
     new RideHailModifyPassengerScheduleManager(
       log,
       self,
+      this,
       scheduler,
       beamServices.beamConfig
     )
@@ -293,8 +266,6 @@ class RideHailManager(
       self,
       this
     )
-  private val vehicleState: mutable.Map[Id[Vehicle], BeamVehicleState] =
-    mutable.Map[Id[Vehicle], BeamVehicleState]()
   private val DefaultCostPerMinute = beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute
   tncIterationStats.foreach(_.logMap())
   private val DefaultCostPerSecond = DefaultCostPerMinute / 60.0d
@@ -302,34 +273,8 @@ class RideHailManager(
   beamServices.beamRouter ! GetTravelTime
   beamServices.beamRouter ! GetMatSimNetwork
   //TODO improve search to take into account time when available
-  private val availableRideHailAgentSpatialIndex = {
-    new QuadTree[RideHailAgentLocation](
-      boundingBox.getMinX,
-      boundingBox.getMinY,
-      boundingBox.getMaxX,
-      boundingBox.getMaxY
-    )
-  }
-  private val inServiceRideHailAgentSpatialIndex = {
-    new QuadTree[RideHailAgentLocation](
-      boundingBox.getMinX,
-      boundingBox.getMinY,
-      boundingBox.getMaxX,
-      boundingBox.getMaxY
-    )
-  }
-  private val outOfServiceRideHailAgentSpatialIndex = {
-    new QuadTree[RideHailAgentLocation](
-      boundingBox.getMinX,
-      boundingBox.getMinY,
-      boundingBox.getMaxX,
-      boundingBox.getMaxY
-    )
-  }
-  private val availableRideHailVehicles = mutable.HashMap[Id[Vehicle], RideHailAgentLocation]()
-  private val outOfServiceRideHailVehicles = mutable.HashMap[Id[Vehicle], RideHailAgentLocation]()
-  private val inServiceRideHailVehicles = mutable.HashMap[Id[Vehicle], RideHailAgentLocation]()
   private val pendingModifyPassengerScheduleAcks = mutable.HashMap[Int, RideHailResponse]()
+  private var numPendingRoutingRequestsForReservations = 0
   private val parkingInquiryCache = collection.mutable.HashMap[Int, RideHailAgentLocation]()
   private val pendingAgentsSentToPark = collection.mutable.Map[Id[Vehicle], ParkingStall]()
 
@@ -339,10 +284,8 @@ class RideHailManager(
   val routeRequestIdToRideHailRequestId: mutable.Map[Int, Int] = mutable.Map()
   val reservationIdToRequest: mutable.Map[Int, RideHailRequest] = mutable.Map()
 
-  //context.actorSelection("user/")
-  //rideHailIterationHistoryActor send message to ridheailiterationhsitoryactor
-
-  DebugLib.emptyFunctionForSettingBreakPoint()
+  // Are we in the middle of processing a batch?
+  var currentlyProcessingTimeoutTrigger: Option[TriggerWithId] = None
 
   private val numRideHailAgents = math.round(
     beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation
@@ -433,8 +376,8 @@ class RideHailManager(
         )
       if (modifyPassengerScheduleManager.noPendingReservations(rideHailBeamVehicle.id)) {
         log.debug("Checking in: {}", rideHailBeamVehicle.id)
-        makeAvailable(rideHailAgentLocation)
-        updateLocationOfAgent(rideHailBeamVehicle.id, SpaceTime(rideInitialLocation, 0), Available)
+        vehicleManager.makeAvailable(rideHailAgentLocation)
+        vehicleManager.updateLocationOfAgent(rideHailBeamVehicle.id, SpaceTime(rideInitialLocation, 0), Available)
       }
       modifyPassengerScheduleManager
         .checkInResource(rideHailBeamVehicle.id, Some(SpaceTime(rideInitialLocation, 0)), None)
@@ -497,14 +440,14 @@ class RideHailManager(
       log.debug("RHM.NotifyVehicleResourceIdle: {}", ev)
       val vehicleId = vId.asInstanceOf[Id[Vehicle]]
 
-      updateLocationOfAgent(vehicleId, whenWhere, getServiceStatusOf(vehicleId))
+      vehicleManager.updateLocationOfAgent(vehicleId, whenWhere, vehicleManager.getServiceStatusOf(vehicleId))
 
       //updateLocationOfAgent(vehicleId, whenWhereOpt, isAvailable = true)
       resources.get(agentsim.vehicleId2BeamVehicleId(vehicleId)).foreach { beamVehicle =>
         beamVehicle.driver.foreach { driver =>
           val rideHailAgentLocation =
             RideHailAgentLocation(driver, vehicleId, beamVehicle.beamVehicleType.id, whenWhere)
-          vehicleState.put(vehicleId, beamVehicleState)
+          vehicleManager.vehicleState.put(vehicleId, beamVehicleState)
 
           if (modifyPassengerScheduleManager
                 .noPendingReservations(vehicleId) || modifyPassengerScheduleManager
@@ -528,22 +471,20 @@ class RideHailManager(
               // not enough range to make trip
 
               if (modifyPassengerScheduleManager.vehicleHasMoreThanOneOngoingRequests(vehicleId)) {
-                putOutOfService(rideHailAgentLocation)
+                vehicleManager.putOutOfService(rideHailAgentLocation)
                 sender() ! NotifyVehicleResourceIdleReply(triggerId, Vector[ScheduleTrigger]())
               } else {
                 log.debug("Not enough range: {}", vehicleId)
                 outOfServiceVehicleManager.registerTrigger(vehicleId, triggerId)
-                putOutOfService(rideHailAgentLocation)
+                vehicleManager.putOutOfService(rideHailAgentLocation)
                 findRefuelStationAndSendVehicle(rideHailAgentLocation)
               }
             } else {
               log.debug("Making available: {}", vehicleId)
-              makeAvailable(rideHailAgentLocation)
-              // ridehail agent awaiting NotifyVehicleResourceIdleReply
+              vehicleManager.makeAvailable(rideHailAgentLocation)
               sender() ! NotifyVehicleResourceIdleReply(triggerId, Vector[ScheduleTrigger]())
             }
           } else {
-            // ridehail agent awaiting NotifyVehicleResourceIdleReply
             sender() ! NotifyVehicleResourceIdleReply(triggerId, Vector[ScheduleTrigger]())
           }
           modifyPassengerScheduleManager
@@ -552,7 +493,7 @@ class RideHailManager(
       }
 
     case BeamVehicleStateUpdate(id, beamVehicleState) =>
-      vehicleState.put(id, beamVehicleState)
+      vehicleManager.vehicleState.put(id, beamVehicleState)
 
     case MATSimNetwork(network) =>
       rideHailNetworkApi.setMATSimNetwork(network)
@@ -569,15 +510,10 @@ class RideHailManager(
      */
     case RoutingResponses(tick, responses)
         if reservationIdToRequest.contains(routeRequestIdToRideHailRequestId(responses.head.staticRequestId)) =>
+      numPendingRoutingRequestsForReservations = numPendingRoutingRequestsForReservations - responses.size
       responses.foreach { routeResponse =>
-        if (responses.size > 10) {
-          val i = 0
-        }
         val request = reservationIdToRequest(routeRequestIdToRideHailRequestId(routeResponse.staticRequestId))
         rideHailResourceAllocationManager.addRouteForRequestToBuffer(request, routeResponse)
-      }
-      if (tick >= 23400) {
-        val i = 0
       }
       self ! ContinueBufferedRideHailRequests(tick)
 
@@ -586,15 +522,11 @@ class RideHailManager(
      * In this case we can treat the responses as if they apply to a single request
      * for a single occupant trip.
      */
-    case RoutingResponses(tick, responses)
+    case RoutingResponses(_, responses)
         if inquiryIdToInquiryAndResponse.contains(routeRequestIdToRideHailRequestId(responses.head.staticRequestId)) =>
       val (request, singleOccupantQuoteAndPoolingInfo) = inquiryIdToInquiryAndResponse(
         routeRequestIdToRideHailRequestId(responses.head.staticRequestId)
       )
-
-      if (tick >= 23460) {
-        val i = 0
-      }
 
       // If any response contains no RIDE_HAIL legs, then the router failed
       if (responses.exists(!_.itineraries.exists(_.tripClassifier.equals(RIDE_HAIL)))) {
@@ -612,20 +544,20 @@ class RideHailManager(
         // We can rely on preserved ordering here (see RideHailManager.requestRoutes),
         // for a simple single-occupant trip sequence, we know that first
         // itin is RH2Customer and second is Pickup2Destination.
-        val driverPassengerSchedule = singleOccupantItinsToPassengerSchedule(
-          request,
-          EmbodiedBeamTrip(
-            responses
-              .flatMap(_.itineraries.find(p => p.tripClassifier.equals(RIDE_HAIL)))
-              .flatMap(_.legs)
-              .toIndexedSeq
-          )
+        val embodiedBeamTrip: EmbodiedBeamTrip = EmbodiedBeamTrip(
+          responses
+            .flatMap(_.itineraries.find(p => p.tripClassifier.equals(RIDE_HAIL)))
+            .flatMap(_.legs)
+            .toIndexedSeq
         )
+        val driverPassengerSchedule = singleOccupantItinsToPassengerSchedule(request, embodiedBeamTrip)
+
+        val baseFare = embodiedBeamTrip.legs.map(_.cost).sum
 
         val travelProposal = TravelProposal(
           singleOccupantQuoteAndPoolingInfo.rideHailAgentLocation,
           driverPassengerSchedule,
-          calcFare(request, driverPassengerSchedule),
+          calcFare(request, driverPassengerSchedule, baseFare),
           singleOccupantQuoteAndPoolingInfo.poolingInfo
         )
         travelProposalCache.put(request.requestId.toString, travelProposal)
@@ -641,7 +573,8 @@ class RideHailManager(
     case modifyPassengerScheduleAck @ ModifyPassengerScheduleAck(
           requestIdOpt,
           triggersToSchedule,
-          vehicleId
+          vehicleId,
+          tick
         ) =>
       pendingAgentsSentToPark.get(vehicleId) match {
         case Some(_) =>
@@ -660,12 +593,13 @@ class RideHailManager(
               )
               modifyPassengerScheduleManager
                 .modifyPassengerScheduleAckReceived(
-                  triggersToSchedule
+                  triggersToSchedule,
+                  tick
                 )
             case Some(requestId) =>
               // Some here means this is part of a reservation / dispatch of vehicle to a customer
               log.debug("modifyPassengerScheduleAck received, completing reservation {}", modifyPassengerScheduleAck)
-              completeReservation(requestId, triggersToSchedule)
+              completeReservation(requestId, tick, triggersToSchedule)
           }
       }
 
@@ -675,73 +609,29 @@ class RideHailManager(
     case DebugRideHailManagerDuringExecution =>
       modifyPassengerScheduleManager.printState()
 
-    case TriggerWithId(BufferedRideHailRequestsTrigger(tick), triggerId) =>
-      modifyPassengerScheduleManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
-      findAllocationsAndProcess(tick)
-
-    case ContinueBufferedRideHailRequests(tick) =>
-      findAllocationsAndProcess(tick)
-
-    case TriggerWithId(RideHailRepositioningTrigger(tick), triggerId) =>
-//      DebugRepositioning.produceRepositioningDebugImages(tick, this)
-
-      modifyPassengerScheduleManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
-
-      val repositionVehicles: Vector[(Id[Vehicle], Location)] =
-        rideHailResourceAllocationManager.repositionVehicles(tick)
-
-      if (repositionVehicles.isEmpty) {
-        modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(Reposition)
-      } else {
-        modifyPassengerScheduleManager.setNumberOfRepositioningsToProcess(repositionVehicles.size)
+    case trigger @ TriggerWithId(BufferedRideHailRequestsTrigger(tick), triggerId) =>
+      currentlyProcessingTimeoutTrigger match {
+        case Some(_) =>
+          stash()
+        case None =>
+          currentlyProcessingTimeoutTrigger = Some(trigger)
+          log.debug("Starting wave of buffered at {}", tick)
+          modifyPassengerScheduleManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
+          findAllocationsAndProcess(tick)
       }
 
-      for ((vehicleId, destinationLocation) <- repositionVehicles) {
-        if (getIdleVehicles.contains(vehicleId)) {
-          val rideHailAgentLocation = getIdleVehicles(vehicleId)
+    case ContinueBufferedRideHailRequests(tick) =>
+      if (tick == modifyPassengerScheduleManager.getCurrentTick.getOrElse(tick))
+        findAllocationsAndProcess(tick)
 
-          val rideHailVehicleAtOrigin = StreetVehicle(
-            rideHailAgentLocation.vehicleId,
-            rideHailAgentLocation.vehicleTypeId,
-            SpaceTime((rideHailAgentLocation.currentLocation.loc, tick)),
-            CAR,
-            asDriver = false
-          )
-          val routingRequest = RoutingRequest(
-            origin = rideHailAgentLocation.currentLocation.loc,
-            destination = destinationLocation,
-            departureTime = tick,
-            transitModes = Vector(),
-            streetVehicles = Vector(rideHailVehicleAtOrigin)
-          )
-          val futureRideHailAgent2CustomerResponse = router ? routingRequest
-
-          for {
-            rideHailAgent2CustomerResponse <- futureRideHailAgent2CustomerResponse
-              .mapTo[RoutingResponse]
-          } {
-            val itins2Cust = rideHailAgent2CustomerResponse.itineraries.filter(
-              x => x.tripClassifier.equals(RIDE_HAIL)
-            )
-
-            if (itins2Cust.nonEmpty) {
-              val modRHA2Cust: IndexedSeq[EmbodiedBeamTrip] =
-                itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true)))).toIndexedSeq
-              val rideHailAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust, routingRequest.staticRequestId)
-
-              // TODO: extract creation of route to separate method?
-              val passengerSchedule = PassengerSchedule().addLegs(
-                rideHailAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs
-              )
-              self ! RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgentLocation.rideHailAgent)
-            } else {
-              self ! ReduceAwaitingRepositioningAckMessagesByOne
-            }
-          }
-
-        } else {
-          modifyPassengerScheduleManager.cancelRepositionAttempt()
-        }
+    case trigger @ TriggerWithId(RideHailRepositioningTrigger(tick), triggerId) =>
+//      DebugRepositioning.produceRepositioningDebugImages(tick, this)
+      currentlyProcessingTimeoutTrigger match {
+        case Some(_) =>
+          stash()
+        case None =>
+          currentlyProcessingTimeoutTrigger = Some(trigger)
+          startRepositioning(tick, triggerId)
       }
 
     case ReduceAwaitingRepositioningAckMessagesByOne =>
@@ -752,7 +642,7 @@ class RideHailManager(
       outOfServiceVehicleManager.initiateMovementToParkingDepot(vehicleId, passengerSchedule, tick)
 
     case RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgent) =>
-      if (getIdleVehicles.contains(vehicleId)) {
+      if (vehicleManager.getIdleVehicles.contains(vehicleId)) {
         modifyPassengerScheduleManager.repositionVehicle(
           passengerSchedule,
           tick,
@@ -766,7 +656,7 @@ class RideHailManager(
 
     case reply @ InterruptedWhileIdle(interruptId, vehicleId, tick) =>
       if (pendingAgentsSentToPark.contains(vehicleId)) {
-        outOfServiceVehicleManager.handleInterruptReply(vehicleId)
+        outOfServiceVehicleManager.handleInterruptReply(vehicleId, tick)
       } else {
         modifyPassengerScheduleManager.handleInterruptReply(reply)
       }
@@ -792,9 +682,9 @@ class RideHailManager(
       val agentLocation = parkingInquiryCache.remove(requestId).get
 
       val routingRequest = RoutingRequest(
-        origin = agentLocation.currentLocation.loc,
-        destination = stall.location,
-        departureTime = agentLocation.currentLocation.time,
+        originUTM = agentLocation.currentLocationUTM.loc,
+        destinationUTM = stall.locationUTM,
+        departureTime = agentLocation.currentLocationUTM.time,
         transitModes = Vector(),
         streetVehicles = Vector(agentLocation.toStreetVehicle)
       )
@@ -855,20 +745,25 @@ class RideHailManager(
       .addPassenger(request.customer, beamLegs.tail)
   }
 
-  def calcFare(request: RideHailRequest, trip: PassengerSchedule): Map[Id[Person], Double] = {
+  def calcFare(
+    request: RideHailRequest,
+    trip: PassengerSchedule,
+    baseFare: Double
+  ): Map[Id[Person], Double] = {
     val farePerSecond = DefaultCostPerSecond * surgePricingManager
       .getSurgeLevel(
-        request.pickUpLocation,
+        request.pickUpLocationUTM,
         request.departAt
       )
-    val fare = trip.legsWithPassenger(request.customer).map(_.duration).sum.toDouble * farePerSecond
+    val fare = (trip.legsWithPassenger(request.customer).map(_.duration).sum.toDouble * farePerSecond) + baseFare
+
     Map(request.customer.personId -> fare)
   }
 
   def findRefuelStationAndSendVehicle(rideHailAgentLocation: RideHailAgentLocation): Unit = {
     val inquiry = DepotParkingInquiry(
       rideHailAgentLocation.vehicleId,
-      rideHailAgentLocation.currentLocation.loc,
+      rideHailAgentLocation.currentLocationUTM.loc,
       ParkingStall.RideHailManager
     )
     parkingInquiryCache.put(inquiry.requestId, rideHailAgentLocation)
@@ -880,99 +775,11 @@ class RideHailManager(
       case NoVehiclesAvailable =>
         log.debug("{} -- NoVehiclesAvailable", inquiry.requestId)
         inquiry.customer.personRef.get ! RideHailResponse(inquiry, None, Some(DriverNotFoundError))
-      case inquiryResponse @ SingleOccupantQuoteAndPoolingInfo(agentLocation, None, poolingInfo) =>
+      case inquiryResponse @ SingleOccupantQuoteAndPoolingInfo(agentLocation, poolingInfo) =>
         inquiryIdToInquiryAndResponse.put(inquiry.requestId, (inquiry, inquiryResponse))
         val routingRequests = createRoutingRequestsToCustomerAndDestination(inquiry.departAt, inquiry, agentLocation)
         routingRequests.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.staticRequestId, inquiry.requestId))
         requestRoutes(inquiry.departAt, routingRequests)
-    }
-  }
-
-  def getRideHailAgentLocation(vehicleId: Id[Vehicle]): RideHailAgentLocation = {
-    getServiceStatusOf(vehicleId) match {
-      case Available =>
-        availableRideHailVehicles(vehicleId)
-      case InService =>
-        inServiceRideHailVehicles(vehicleId)
-      case OutOfService =>
-        outOfServiceRideHailVehicles(vehicleId)
-    }
-  }
-
-  def getClosestIdleVehiclesWithinRadiusByETA(
-    pickupLocation: Coord,
-    radius: Double,
-    customerRequestTime: Long,
-    excludeRideHailVehicles: Set[Id[Vehicle]] = Set(),
-    secondsPerEuclideanMeterFactor: Double = 0.1 // (~13.4m/s)^-1 * 1.4
-  ): Vector[RideHailAgentETA] = {
-    var start = System.currentTimeMillis()
-    val nearbyAvailableRideHailAgents = availableRideHailAgentSpatialIndex
-      .getDisk(pickupLocation.getX, pickupLocation.getY, radius)
-      .asScala
-      .filter(x => availableRideHailVehicles.contains(x.vehicleId) && !excludeRideHailVehicles.contains(x.vehicleId))
-    var end = System.currentTimeMillis()
-    val diff1 = end - start
-
-    start = System.currentTimeMillis()
-    val times2RideHailAgents = nearbyAvailableRideHailAgents
-      .map { rideHailAgentLocation =>
-        val distance =
-          CoordUtils.calcProjectedEuclideanDistance(pickupLocation, rideHailAgentLocation.currentLocation.loc)
-        // we consider the time to travel to the customer and the time before the vehicle is actually ready (due to
-        // already moving or dropping off a customer, etc.)
-        val extra = Math.max(rideHailAgentLocation.currentLocation.time - customerRequestTime, 0)
-        val timeToCustomer = distance * secondsPerEuclideanMeterFactor + extra
-        RideHailAgentETA(rideHailAgentLocation, distance, timeToCustomer)
-      }
-      .toVector
-      .sortBy(_.timeToCustomer)
-    end = System.currentTimeMillis()
-    val diff2 = end - start
-
-    if (diff1 + diff2 > 100)
-      log.debug(
-        s"getClosestIdleVehiclesWithinRadiusByETA for $pickupLocation with $radius nearbyAvailableRideHailAgents: $diff1, diff2: $diff2. Total: ${diff1 + diff2} ms"
-      )
-
-    times2RideHailAgents
-  }
-
-  def getClosestIdleVehiclesWithinRadius(
-    pickupLocation: Coord,
-    radius: Double
-  ): Array[RideHailAgentLocation] = {
-    val idleVehicles = getIdleVehiclesWithinRadius(pickupLocation, radius).toArray
-    util.Arrays.sort(idleVehicles, RideHailAgentLocationWithRadiusOrdering)
-    idleVehicles.map { case (location, _) => location }
-  }
-
-  def getIdleVehiclesWithinRadius(
-    pickupLocation: Location,
-    radius: Double
-  ): Iterable[(RideHailAgentLocation, Double)] = {
-    val nearbyRideHailAgents = availableRideHailAgentSpatialIndex
-      .getDisk(pickupLocation.getX, pickupLocation.getY, radius)
-      .asScala
-      .view
-    val distances2RideHailAgents =
-      nearbyRideHailAgents.map(rideHailAgentLocation => {
-        val distance = CoordUtils
-          .calcProjectedEuclideanDistance(pickupLocation, rideHailAgentLocation.currentLocation.loc)
-        (rideHailAgentLocation, distance)
-      })
-    distances2RideHailAgents.filter(x => availableRideHailVehicles.contains(x._1.vehicleId))
-  }
-
-  def getClosestIdleRideHailAgent(
-    pickupLocation: Coord,
-    radius: Double
-  ): Option[RideHailAgentLocation] = {
-    val idleVehicles = getIdleVehiclesWithinRadius(pickupLocation, radius)
-    if (idleVehicles.isEmpty) None
-    else {
-      val min = idleVehicles.min(RideHailAgentLocationWithRadiusOrdering)
-      Some(min._1)
     }
   }
 
@@ -994,22 +801,19 @@ class RideHailManager(
 
   }
 
-  def getVehicleState(vehicleId: Id[Vehicle]): BeamVehicleState =
-    vehicleState(vehicleId)
-
   def createRoutingRequestsToCustomerAndDestination(
     requestTime: Int,
     request: RideHailRequest,
     rideHailLocation: RideHailAgentLocation
   ): List[RoutingRequest] = {
 
-    val pickupSpaceTime = SpaceTime((request.pickUpLocation, request.departAt))
+    val pickupSpaceTime = SpaceTime((request.pickUpLocationUTM, request.departAt))
 //    val customerAgentBody =
 //      StreetVehicle(request.customer.vehicleId, pickupSpaceTime, WALK, asDriver = true)
     val rideHailVehicleAtOrigin = StreetVehicle(
       rideHailLocation.vehicleId,
       rideHailLocation.vehicleTypeId,
-      SpaceTime((rideHailLocation.currentLocation.loc, requestTime)),
+      SpaceTime((rideHailLocation.currentLocationUTM.loc, requestTime)),
       CAR,
       asDriver = false
     )
@@ -1018,16 +822,16 @@ class RideHailManager(
 
 // route from ride hailing vehicle to customer
     val rideHailAgent2Customer = RoutingRequest(
-      rideHailLocation.currentLocation.loc,
-      request.pickUpLocation,
+      rideHailLocation.currentLocationUTM.loc,
+      request.pickUpLocationUTM,
       requestTime,
       Vector(),
       Vector(rideHailVehicleAtOrigin)
     )
 // route from customer to destination
     val rideHail2Destination = RoutingRequest(
-      request.pickUpLocation,
-      request.destination,
+      request.pickUpLocationUTM,
+      request.destinationUTM,
       requestTime,
       Vector(),
       Vector(rideHailVehicleAtPickup)
@@ -1042,174 +846,15 @@ class RideHailManager(
       .map(RoutingResponses(tick, _)) pipeTo self
   }
 
-  def printRepositionDistanceSum(
-    repositionVehicles: Vector[(Id[Vehicle], Location)]
-  ): Unit = {
-    var sumOfDistances: Double = 0
-    var numberOfTrips = 0
-    for (repositionVehicle <- repositionVehicles) {
-      val (vehicleId, destinationLocation) = repositionVehicle
-      val rideHailAgentLocation = getIdleVehicles(vehicleId)
-
-      sumOfDistances += beamServices.geo
-        .distInMeters(rideHailAgentLocation.currentLocation.loc, destinationLocation)
-      numberOfTrips += 1
-    }
-
-//println(s"sumOfDistances: $sumOfDistances - numberOfTrips: $numberOfTrips")
-
-    DebugLib.emptyFunctionForSettingBreakPoint()
-  }
-
-  def getIdleVehicles: mutable.HashMap[Id[Vehicle], RideHailAgentLocation] = {
-    availableRideHailVehicles
-  }
-
-  private def getServiceStatusOf(vehicleId: Id[Vehicle]): RideHailServiceStatus = {
-    if (availableRideHailVehicles.contains(vehicleId)) {
-      Available
-    } else if (inServiceRideHailVehicles.contains(vehicleId)) {
-      InService
-    } else if (outOfServiceRideHailVehicles.contains(vehicleId)) {
-      OutOfService
-    } else {
-      log.error(s"Vehicle {} does not have a service status, assuming out of service", vehicleId)
-      OutOfService
-    }
-  }
-
-  private def updateLocationOfAgent(
-    vehicleId: Id[Vehicle],
-    whenWhere: SpaceTime,
-    serviceStatus: RideHailServiceStatus
-  ) = {
-    serviceStatus match {
-      case Available =>
-        availableRideHailVehicles.get(vehicleId) match {
-          case Some(prevLocation) =>
-            val newLocation = prevLocation.copy(currentLocation = whenWhere)
-            availableRideHailAgentSpatialIndex.remove(
-              prevLocation.currentLocation.loc.getX,
-              prevLocation.currentLocation.loc.getY,
-              prevLocation
-            )
-            availableRideHailAgentSpatialIndex.put(
-              newLocation.currentLocation.loc.getX,
-              newLocation.currentLocation.loc.getY,
-              newLocation
-            )
-            availableRideHailVehicles.put(newLocation.vehicleId, newLocation)
-          case None =>
-        }
-      case InService =>
-        inServiceRideHailVehicles.get(vehicleId) match {
-          case Some(prevLocation) =>
-            val newLocation = prevLocation.copy(currentLocation = whenWhere)
-            inServiceRideHailAgentSpatialIndex.remove(
-              prevLocation.currentLocation.loc.getX,
-              prevLocation.currentLocation.loc.getY,
-              prevLocation
-            )
-            inServiceRideHailAgentSpatialIndex.put(
-              newLocation.currentLocation.loc.getX,
-              newLocation.currentLocation.loc.getY,
-              newLocation
-            )
-            inServiceRideHailVehicles.put(newLocation.vehicleId, newLocation)
-          case None =>
-        }
-      case OutOfService =>
-        outOfServiceRideHailVehicles.get(vehicleId) match {
-          case Some(prevLocation) =>
-            val newLocation = prevLocation.copy(currentLocation = whenWhere)
-            outOfServiceRideHailAgentSpatialIndex.remove(
-              prevLocation.currentLocation.loc.getX,
-              prevLocation.currentLocation.loc.getY,
-              prevLocation
-            )
-            outOfServiceRideHailAgentSpatialIndex.put(
-              newLocation.currentLocation.loc.getX,
-              newLocation.currentLocation.loc.getY,
-              newLocation
-            )
-            outOfServiceRideHailVehicles.put(newLocation.vehicleId, newLocation)
-          case None =>
-        }
-    }
-  }
-
-  private def makeAvailable(agentLocation: RideHailAgentLocation) = {
-    availableRideHailVehicles.put(agentLocation.vehicleId, agentLocation)
-    availableRideHailAgentSpatialIndex.put(
-      agentLocation.currentLocation.loc.getX,
-      agentLocation.currentLocation.loc.getY,
-      agentLocation
-    )
-    inServiceRideHailVehicles.remove(agentLocation.vehicleId)
-    inServiceRideHailAgentSpatialIndex.remove(
-      agentLocation.currentLocation.loc.getX,
-      agentLocation.currentLocation.loc.getY,
-      agentLocation
-    )
-    outOfServiceRideHailVehicles.remove(agentLocation.vehicleId)
-    outOfServiceRideHailAgentSpatialIndex.remove(
-      agentLocation.currentLocation.loc.getX,
-      agentLocation.currentLocation.loc.getY,
-      agentLocation
-    )
-  }
-
-  private def putIntoService(agentLocation: RideHailAgentLocation) = {
-    availableRideHailVehicles.remove(agentLocation.vehicleId)
-    availableRideHailAgentSpatialIndex.remove(
-      agentLocation.currentLocation.loc.getX,
-      agentLocation.currentLocation.loc.getY,
-      agentLocation
-    )
-    outOfServiceRideHailVehicles.remove(agentLocation.vehicleId)
-    outOfServiceRideHailAgentSpatialIndex.remove(
-      agentLocation.currentLocation.loc.getX,
-      agentLocation.currentLocation.loc.getY,
-      agentLocation
-    )
-    inServiceRideHailVehicles.put(agentLocation.vehicleId, agentLocation)
-    inServiceRideHailAgentSpatialIndex.put(
-      agentLocation.currentLocation.loc.getX,
-      agentLocation.currentLocation.loc.getY,
-      agentLocation
-    )
-  }
-
-  private def putOutOfService(agentLocation: RideHailAgentLocation) = {
-    availableRideHailVehicles.remove(agentLocation.vehicleId)
-    availableRideHailAgentSpatialIndex.remove(
-      agentLocation.currentLocation.loc.getX,
-      agentLocation.currentLocation.loc.getY,
-      agentLocation
-    )
-    inServiceRideHailVehicles.remove(agentLocation.vehicleId)
-    inServiceRideHailAgentSpatialIndex.remove(
-      agentLocation.currentLocation.loc.getX,
-      agentLocation.currentLocation.loc.getY,
-      agentLocation
-    )
-    outOfServiceRideHailVehicles.put(agentLocation.vehicleId, agentLocation)
-    outOfServiceRideHailAgentSpatialIndex.put(
-      agentLocation.currentLocation.loc.getX,
-      agentLocation.currentLocation.loc.getY,
-      agentLocation
-    )
-  }
-
-  private def handleReservation(request: RideHailRequest, travelProposal: TravelProposal): Unit = {
+  private def handleReservation(request: RideHailRequest, tick: Int, travelProposal: TravelProposal): Unit = {
     surgePricingManager.addRideCost(
       request.departAt,
       travelProposal.estimatedPrice(request.customer.personId),
-      request.pickUpLocation
+      request.pickUpLocationUTM
     )
 
     // This makes the vehicle unavailable for others to reserve
-    putIntoService(travelProposal.rideHailAgentLocation)
+    vehicleManager.putIntoService(travelProposal.rideHailAgentLocation)
 
     // Create confirmation info but stash until we receive ModifyPassengerScheduleAck
     pendingModifyPassengerScheduleAcks.put(
@@ -1228,17 +873,22 @@ class RideHailManager(
     modifyPassengerScheduleManager.reserveVehicle(
       travelProposal.passengerSchedule,
       travelProposal.rideHailAgentLocation,
+      tick,
       Some(request.requestId)
     )
   }
 
   private def completeReservation(
     requestId: Int,
+    tick: Int,
     finalTriggersToSchedule: Vector[ScheduleTrigger]
   ): Unit = {
     log.debug(
-      "Removing request: {}",
-      requestId
+      "Removing request: {} pendingAcks: {} pendingRoutes: {} requestBufferEmpty: {}",
+      requestId,
+      s"(${pendingModifyPassengerScheduleAcks.size}) ${pendingModifyPassengerScheduleAcks.keySet.map(_.toString).mkString(",")}",
+      numPendingRoutingRequestsForReservations,
+      rideHailResourceAllocationManager.isBufferEmpty
     )
     pendingModifyPassengerScheduleAcks.remove(requestId) match {
       case Some(response) =>
@@ -1267,10 +917,8 @@ class RideHailManager(
         log.error("Vehicle was reserved by another agent for inquiry id {}", requestId)
         sender() ! RideHailResponse.dummyWithError(RideHailVehicleTakenError)
     }
-    if (processBufferedRequestsOnTimeout &&
-        pendingModifyPassengerScheduleAcks.isEmpty &&
-        rideHailResourceAllocationManager.isBufferEmpty) {
-      modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
+    if (processBufferedRequestsOnTimeout) {
+      self ! ContinueBufferedRideHailRequests(tick)
     }
   }
 
@@ -1293,6 +941,7 @@ class RideHailManager(
    */
   private def findAllocationsAndProcess(tick: Int) = {
     var allRoutesRequired: List[RoutingRequest] = List()
+    log.debug("findAllocationsAndProcess @ {}", tick)
 
     rideHailResourceAllocationManager.allocateVehiclesToCustomers(tick) match {
       case VehicleAllocations(allocations) =>
@@ -1307,7 +956,7 @@ class RideHailManager(
               allRoutesRequired = allRoutesRequired ++ routesRequired
             case alloc @ VehicleMatchedToCustomers(request, rideHailAgentLocation, pickDropIdWithRoutes)
                 if !pickDropIdWithRoutes.isEmpty =>
-              handleReservation(request, createTravelProposal(alloc))
+              handleReservation(request, tick, createTravelProposal(alloc))
               rideHailResourceAllocationManager.removeRequestFromBuffer(request)
             case VehicleMatchedToCustomers(request, _, _) =>
               failedAllocation(request, tick)
@@ -1318,10 +967,15 @@ class RideHailManager(
       case _ =>
     }
     if (!allRoutesRequired.isEmpty) {
+      log.debug("requesting {} routes at {}", allRoutesRequired.size, tick)
+      numPendingRoutingRequestsForReservations = numPendingRoutingRequestsForReservations + allRoutesRequired.size
       requestRoutes(tick, allRoutesRequired)
     } else if (processBufferedRequestsOnTimeout && pendingModifyPassengerScheduleAcks.isEmpty &&
-               rideHailResourceAllocationManager.isBufferEmpty) {
-      modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
+               rideHailResourceAllocationManager.isBufferEmpty && numPendingRoutingRequestsForReservations == 0 &&
+               currentlyProcessingTimeoutTrigger.isDefined) {
+      log.debug("sendCompletionAndScheduleNewTimeout from 1156")
+      modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation, tick)
+      cleanUp
     }
   }
 
@@ -1330,7 +984,7 @@ class RideHailManager(
     TravelProposal(
       alloc.rideHailAgentLocation,
       passSched,
-      calcFare(alloc.request, passSched),
+      calcFare(alloc.request, passSched, 0),
       None
     )
   }
@@ -1376,4 +1030,73 @@ class RideHailManager(
     QuadTreeBounds(xs.min, ys.min, xs.max, ys.max)
   }
 
+  def cleanUp = {
+    currentlyProcessingTimeoutTrigger = None
+    unstashAll()
+  }
+
+  def startRepositioning(tick: Int, triggerId: Long) = {
+    log.debug("Starting wave of repositioning at {}", tick)
+    modifyPassengerScheduleManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
+
+    val repositionVehicles: Vector[(Id[Vehicle], Location)] =
+      rideHailResourceAllocationManager.repositionVehicles(tick)
+
+    if (repositionVehicles.isEmpty) {
+      log.debug("sendCompletionAndScheduleNewTimeout from 1204")
+      modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(Reposition, tick)
+      cleanUp
+    } else {
+      modifyPassengerScheduleManager.setNumberOfRepositioningsToProcess(repositionVehicles.size)
+    }
+
+    for ((vehicleId, destinationLocation) <- repositionVehicles) {
+      if (vehicleManager.getIdleVehicles.contains(vehicleId)) {
+        val rideHailAgentLocation = vehicleManager.getIdleVehicles(vehicleId)
+
+        val rideHailVehicleAtOrigin = StreetVehicle(
+          rideHailAgentLocation.vehicleId,
+          rideHailAgentLocation.vehicleTypeId,
+          SpaceTime((rideHailAgentLocation.currentLocationUTM.loc, tick)),
+          CAR,
+          asDriver = false
+        )
+        val routingRequest = RoutingRequest(
+          originUTM = rideHailAgentLocation.currentLocationUTM.loc,
+          destinationUTM = destinationLocation,
+          departureTime = tick,
+          transitModes = Vector(),
+          streetVehicles = Vector(rideHailVehicleAtOrigin)
+        )
+        val futureRideHailAgent2CustomerResponse = router ? routingRequest
+
+        for {
+          rideHailAgent2CustomerResponse <- futureRideHailAgent2CustomerResponse
+            .mapTo[RoutingResponse]
+        } {
+          val itins2Cust = rideHailAgent2CustomerResponse.itineraries.filter(
+            x => x.tripClassifier.equals(RIDE_HAIL)
+          )
+
+          if (itins2Cust.nonEmpty) {
+            val modRHA2Cust: IndexedSeq[EmbodiedBeamTrip] =
+              itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true)))).toIndexedSeq
+            val rideHailAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust, routingRequest.staticRequestId)
+
+            // TODO: extract creation of route to separate method?
+            val passengerSchedule = PassengerSchedule().addLegs(
+              rideHailAgent2CustomerResponseMod.itineraries.head.toBeamTrip.legs
+            )
+            self ! RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgentLocation.rideHailAgent)
+          } else {
+            self ! ReduceAwaitingRepositioningAckMessagesByOne
+          }
+        }
+
+      } else {
+        modifyPassengerScheduleManager.cancelRepositionAttempt()
+      }
+    }
+
+  }
 }

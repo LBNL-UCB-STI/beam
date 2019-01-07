@@ -12,7 +12,7 @@ object VehicleProtocol {
   case class StreetVehicle(
     id: Id[Vehicle],
     vehicleTypeId: Id[BeamVehicleType],
-    location: SpaceTime,
+    locationUTM: SpaceTime,
     mode: BeamMode,
     asDriver: Boolean
   )

@@ -15,7 +15,8 @@ import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
-import beam.router.BeamRouter.InitTransit
+import beam.router.BeamRouter.{InitTransit, UpdateTravelTimeLocal, UpdateTravelTimeRemote}
+import beam.router.FreeFlowTravelTime
 import beam.router.osm.TollCalculator
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
@@ -27,6 +28,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.utils.misc.Time
 import scala.collection.JavaConverters._
@@ -183,16 +185,18 @@ class BeamMobsim @Inject()(
 
           scenario.getPopulation.getPersons
             .values()
-            .forEach(x => {
-              val personInitialLocation: Coord =
-                x.getSelectedPlan.getPlanElements
-                  .iterator()
-                  .next()
-                  .asInstanceOf[Activity]
-                  .getCoord
-              activityLocationsSpatialPlot
-                .addPoint(PointToPlot(personInitialLocation, Color.BLUE, 10))
-            })
+            .forEach(
+              x => {
+                val personInitialLocation: Coord =
+                  x.getSelectedPlan.getPlanElements
+                    .iterator()
+                    .next()
+                    .asInstanceOf[Activity]
+                    .getCoord
+                activityLocationsSpatialPlot
+                  .addPoint(PointToPlot(personInitialLocation, Color.BLUE, 10))
+              }
+            )
 
           if (beamServices.beamConfig.beam.outputs.writeGraphs) {
             activityLocationsSpatialPlot.writeImage(
@@ -206,13 +210,17 @@ class BeamMobsim @Inject()(
 
         Await.result(beamServices.beamRouter ? InitTransit(scheduler, parkingManager), timeout.duration)
 
+        log.info("Transit schedule has been initialized")
+
         if (beamServices.iterationNumber == 0) {
           val maxHour = TimeUnit.SECONDS.toHours(scenario.getConfig.travelTimeCalculator().getMaxTime).toInt
           val warmStart = BeamWarmStart(beamServices.beamConfig, maxHour)
           warmStart.warmStartTravelTime(beamServices.beamRouter, scenario)
-        }
 
-        log.info("Transit schedule has been initialized")
+          if (!beamServices.beamConfig.beam.warmStart.enabled && beamServices.beamConfig.beam.physsim.initializeRouterWithFreeFlowTimes) {
+            FreeFlowTravelTime.initializeRouterFreeFlow(beamServices, scenario)
+          }
+        }
 
         scheduleRideHailManagerTimerMessages()
 

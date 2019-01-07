@@ -6,13 +6,14 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorRef
 import akka.util.Timeout
-import beam.agentsim.agents.choice.mode.{ModeSubsidy, PtFares}
+import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.BeamVehicleType.{FuelTypeId, VehicleCategory}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.router.Modes.BeamMode
 import beam.sim.BeamServices.{getTazTreeMap, readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -45,6 +46,7 @@ trait BeamServices {
   val dates: DateUtils
 
   var beamRouter: ActorRef
+  val rideHailTransitModes: Seq[BeamMode]
   val personRefs: TrieMap[Id[Person], ActorRef]
   val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)]
   var personHouseholds: Map[Id[Person], Household]
@@ -54,7 +56,7 @@ trait BeamServices {
 
   var matsimServices: MatsimServices
   val tazTreeMap: TAZTreeMap
-  val modeSubsidies: ModeSubsidy
+  val modeIncentives: ModeIncentive
   val ptFares: PtFares
   var iterationNumber: Int = -1
 
@@ -72,6 +74,18 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
     ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
     ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
   )
+
+  val rideHailTransitModes =
+    if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("all")) {
+      BeamMode.transitModes.toSeq
+    } else if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("mass")) {
+      BeamMode.massTransitModes.toSeq
+    } else {
+      beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.toUpperCase
+        .split(",")
+        .map(BeamMode.fromString(_))
+        .toSeq
+    }
 
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
   var beamRouter: ActorRef = _
@@ -94,7 +108,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   val tazTreeMap: TAZTreeMap = getTazTreeMap(beamConfig.beam.agentsim.taz.file)
 
-  val modeSubsidies = ModeSubsidy(beamConfig.beam.agentsim.agents.modeSubsidy.file)
+  val modeIncentives = ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.file)
   val ptFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.file)
 
   def clearAll(): Unit = {

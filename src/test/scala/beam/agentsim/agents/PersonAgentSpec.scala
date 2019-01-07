@@ -7,8 +7,8 @@ import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.PersonTestUtil._
-import beam.agentsim.agents.choice.mode.ModeSubsidy
-import beam.agentsim.agents.choice.mode.ModeSubsidy.Subsidy
+import beam.agentsim.agents.choice.mode.ModeIncentive
+import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
@@ -35,9 +35,9 @@ import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
-import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.controler.MatsimServices
@@ -54,6 +54,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 import scala.collection.concurrent.TrieMap
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
+import org.mockito.ArgumentMatchers._
 
 class PersonAgentSpec
     extends TestKit(
@@ -89,11 +90,19 @@ class PersonAgentSpec
 
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(matsimServices)
+    when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
+    when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(theServices.beamConfig).thenReturn(beamConfig)
     when(theServices.personRefs).thenReturn(personRefs)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(theServices))
-    when(theServices.modeSubsidies).thenReturn(ModeSubsidy(Map[BeamMode, List[Subsidy]]()))
+    when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
+
+    var map = TrieMap[Id[Vehicle], (String, String)]()
+    map += (Id.createVehicleId("my_bus")  -> ("", ""))
+    map += (Id.createVehicleId("my_tram") -> ("", ""))
+    when(theServices.agencyAndRouteByVehicleIds).thenReturn(map)
+
     theServices
   }
 
@@ -406,7 +415,7 @@ class PersonAgentSpec
         beamVehicleId = tramId,
         BeamVehicleType.defaultTransitBeamVehicleType.id,
         asDriver = false,
-        cost = 0.0,
+        cost = 1.0, // $1 fare
         unbecomeDriverOnCompletion = false
       )
 
@@ -559,6 +568,8 @@ class PersonAgentSpec
       )
 
       events.expectMsgType[PersonEntersVehicleEvent]
+
+      events.expectMsgType[AgencyRevenueEvent]
       events.expectMsgType[PersonCostEvent]
 
       //Generating 1 event of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent
@@ -572,7 +583,7 @@ class PersonAgentSpec
           ReserveConfirmInfo(
             tramLeg.beamLeg,
             tramLeg.beamLeg,
-            reservationRequestBus.passengerVehiclePersonId
+            reservationRequestTram.passengerVehiclePersonId
           )
         ),
         TRANSIT
@@ -586,11 +597,11 @@ class PersonAgentSpec
         personActor
       ) // My tram is late!
 
+      //expects a message of type PersonEntersVehicleEvent
       events.expectMsgType[PersonEntersVehicleEvent]
+
+      events.expectMsgType[AgencyRevenueEvent]
       events.expectMsgType[PersonCostEvent]
-
-      //Generating 1 event of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent
-
       events.expectMsgType[PersonLeavesVehicleEvent]
 
       events.expectMsgType[VehicleEntersTrafficEvent]

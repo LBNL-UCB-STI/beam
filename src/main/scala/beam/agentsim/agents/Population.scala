@@ -12,6 +12,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BicycleFactory}
 import beam.agentsim.vehicleId2BeamVehicleId
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
+import beam.sim.population.AttributesOfIndividual
 import beam.utils.BeamVehicleUtils.makeHouseholdVehicle
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.population.{Activity, Person}

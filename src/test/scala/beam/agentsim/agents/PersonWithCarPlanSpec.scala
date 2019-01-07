@@ -6,15 +6,15 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.PersonTestUtil._
-import beam.agentsim.agents.choice.mode.ModeSubsidy
-import beam.agentsim.agents.choice.mode.ModeSubsidy.Subsidy
+import beam.agentsim.agents.choice.mode.ModeIncentive
+import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
-import beam.agentsim.infrastructure.{ParkingStall, TAZTreeMap, ZonalParkingManager}
+import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
@@ -88,7 +88,7 @@ class PersonWithCarPlanSpec
     when(theServices.personRefs).thenReturn(personRefs)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(theServices))
-    when(theServices.modeSubsidies).thenReturn(ModeSubsidy(Map[BeamMode, List[Subsidy]]()))
+    when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     theServices
   }
 
@@ -319,7 +319,7 @@ class PersonWithCarPlanSpec
 
       for (i <- 0 to 1) {
         expectMsgPF() {
-          case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _, _) =>
+          case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _, _, _) =>
             val embodiedLeg = EmbodiedBeamLeg(
               beamLeg = leg.copy(
                 duration = 500,
@@ -421,7 +421,7 @@ class PersonWithCarPlanSpec
                   duration = 50,
                   travelPath = BeamPath(
                     linkIds = Vector(1, 2),
-                    linkTravelTime = Vector(50),
+                    linkTravelTime = Vector(50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(0.0, 0.0, 28800),
                     endPoint = SpaceTime(0.01, 0.0, 28950),
@@ -441,7 +441,7 @@ class PersonWithCarPlanSpec
                   duration = 50,
                   travelPath = BeamPath(
                     linkIds = Vector(3, 4),
-                    linkTravelTime = Vector(50),
+                    linkTravelTime = Vector(50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(0.01, 0.0, 28950),
                     endPoint = SpaceTime(0.01, 0.01, 29000),
@@ -467,12 +467,16 @@ class PersonWithCarPlanSpec
 
       expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[VehicleEntersTrafficEvent]
+      expectMsgType[LinkLeaveEvent]
+      expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
 
       expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[LeavingParkingEvent]
       expectMsgType[VehicleEntersTrafficEvent]
+      expectMsgType[LinkLeaveEvent]
+      expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
       expectMsgType[PersonLeavesVehicleEvent]
@@ -570,7 +574,7 @@ class PersonWithCarPlanSpec
                   duration = 50,
                   travelPath = BeamPath(
                     linkIds = Vector(1, 2),
-                    linkTravelTime = Vector(50),
+                    linkTravelTime = Vector(50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(0.0, 0.0, 28800),
                     endPoint = SpaceTime(0.01, 0.0, 28950),
@@ -590,7 +594,7 @@ class PersonWithCarPlanSpec
                   duration = 50,
                   travelPath = BeamPath(
                     linkIds = Vector(3, 4),
-                    linkTravelTime = Vector(50),
+                    linkTravelTime = Vector(50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(0.01, 0.0, 28950),
                     endPoint = SpaceTime(0.01, 0.01, 29000),
@@ -616,6 +620,8 @@ class PersonWithCarPlanSpec
 
       expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[VehicleEntersTrafficEvent]
+      expectMsgType[LinkLeaveEvent]
+      expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
 

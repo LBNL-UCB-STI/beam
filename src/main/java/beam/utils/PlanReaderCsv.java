@@ -15,30 +15,27 @@ import java.io.IOException;
 
 public class PlanReaderCsv {
 
-    private Logger log = LoggerFactory.getLogger(PlanReaderCsv.class);
+    private static final String PATH = "test/input/beamville/test-data/";
+    static final String plansOutputFileName = "plans-output.xml";
+    private static final String DEFAULT_DELIMITER = ",";
+    private static final String PLANS_INPUT_FILE_NAME = "plans-input.csv";
 
-    public String delimiter = ",";
-    public static final String path = "test/input/beamville/test-data/";
-    public static final String plansInputFileName = "plans-input.csv";
-    public static final String plansOutputFileName = "plans-output.xml";
+    private static final Logger log = LoggerFactory.getLogger(PlanReaderCsv.class);
 
+    private final String delimiter;
 
     public static void main(String[] args) throws IOException {
-
         PlanReaderCsv planReader = new PlanReaderCsv();
-        Population population = planReader.readPlansFromCSV(path + plansInputFileName);
-        planReader.writePlansToXml(population, path + plansOutputFileName);
+        Population population = planReader.readPlansFromCSV(PATH + PLANS_INPUT_FILE_NAME);
+        planReader.writePlansToXml(population, PATH + plansOutputFileName);
     }
 
     public PlanReaderCsv(){
-
-        this(null);
+        this(DEFAULT_DELIMITER);
     }
 
-    public PlanReaderCsv(String delimiter) {
-
-        this.delimiter = delimiter == null ? this.delimiter : delimiter;
-
+    PlanReaderCsv(String delimiter) {
+        this.delimiter = delimiter == null ? DEFAULT_DELIMITER : delimiter;
     }
 
     public Population readPlansFromCSV(String plansFile) throws IOException{
@@ -46,7 +43,7 @@ public class PlanReaderCsv {
         Population population = PopulationUtils.createPopulation(ConfigUtils.createConfig());
 
         BufferedReader reader = new BufferedReader(new FileReader(plansFile));
-        String line = "";
+        String line;
         int idx = 0;
 
         while((line = reader.readLine()) != null){
@@ -89,15 +86,13 @@ public class PlanReaderCsv {
                     act.setEndTime(Double.parseDouble(endTime));
             }
 
-
-            //printRow(dRow);
             idx++;
         }
 
         return population;
     }
 
-    public void writePlansToXml(Population population, String outputFile) {
+    void writePlansToXml(Population population, String outputFile) {
         new PopulationWriter(population).write(outputFile);
 
         log.info("Written plans successfully to {}", outputFile);
@@ -105,10 +100,7 @@ public class PlanReaderCsv {
 
     public void printRow(String[] dRow){
         log.info("personId => {}, planElement => {} , planElementId => {} , activityType => {} , " +
-                        "x => {} , y => {} , endTime => {} , mode => {}",
-                dRow);
+                        "x => {} , y => {} , endTime => {} , mode => {}", dRow);
     }
 
-
 }
-

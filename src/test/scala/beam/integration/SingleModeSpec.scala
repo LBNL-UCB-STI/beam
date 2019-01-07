@@ -5,9 +5,9 @@ import java.time.ZonedDateTime
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.PersonTestUtil
-import beam.agentsim.agents.choice.mode.ModeSubsidy.Subsidy
+import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
-import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, ModeSubsidy, PtFares}
+import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, ModeIncentive, PtFares}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.{BeamVehicle, FuelType}
 import beam.agentsim.events.PathTraversalEvent
@@ -22,10 +22,12 @@ import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamMobsim, BeamServices}
 import beam.utils.DateUtils
 import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
+import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Id, Scenario}
+import org.matsim.core.controler.MatsimServices
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsManagerImpl, EventsUtils}
 import org.matsim.core.scenario.ScenarioUtils
@@ -33,7 +35,6 @@ import org.matsim.vehicles.Vehicle
 import org.mockito.Mockito._
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
-
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -43,11 +44,9 @@ class SingleModeSpec
     extends TestKit(
       ActorSystem(
         "single-mode-test",
-        ConfigFactory.parseString(
-          """
-  akka.test.timefactor=10
-  """
-        )
+        ConfigFactory
+          .load()
+          .withValue("akka.test.timefactor", ConfigValueFactory.fromAnyRef(10))
       )
     )
     with WordSpecLike
@@ -77,10 +76,13 @@ class SingleModeSpec
 
     services = mock[BeamServices](withSettings().stubOnly())
     when(services.beamConfig).thenReturn(beamConfig)
+//    when(services.matsimServices).thenReturn(mock[MatsimServices])
+//    when(services.matsimServices.getScenario).thenReturn(mock[Scenario])
+//    when(services.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(services.tazTreeMap).thenReturn(BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file))
     when(services.vehicleTypes).thenReturn(vehicleTypes)
     when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
-    when(services.ptFares).thenReturn(PtFares(Map[String, List[FareRule]]()))
+    when(services.ptFares).thenReturn(PtFares(List[FareRule]()))
     when(services.privateVehicles).thenReturn {
       BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
     }
@@ -97,7 +99,7 @@ class SingleModeSpec
       .thenReturn((_: AttributesOfIndividual) => new ModeChoiceUniformRandom(services))
     val personRefs = TrieMap[Id[Person], ActorRef]()
     when(services.personRefs).thenReturn(personRefs)
-    when(services.modeSubsidies).thenReturn(ModeSubsidy(Map[BeamMode, List[Subsidy]]()))
+    when(services.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
@@ -106,6 +108,7 @@ class SingleModeSpec
     tollCalculator = new TollCalculator(beamConfig)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
+
     scenario.getPopulation.getPersons.values.asScala
       .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.availableModes))
     router = system.actorOf(

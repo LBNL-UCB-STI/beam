@@ -2,10 +2,8 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.analysis.via.CSVWriter;
-import beam.sim.OutputDataDescription;
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
-import beam.utils.OutputDataDescriptor;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -18,21 +16,33 @@ import org.matsim.core.utils.collections.Tuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.util.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import static beam.sim.metrics.Metrics.ShortLevel;
 import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
 
-public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport , OutputDataDescriptor {
+public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport {
 
     private static final String graphTitle = "Mode Choice Histogram";
     private static final String graphTitleBenchmark = "Reference Mode Choice Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
-    private static final String modeChoiceFileBaseName = "modeChoice";
-    private static final String referenceModeChoiceFileBaseName = "referenceModeChoice";
+    static final String modeChoiceFileBaseName = "modeChoice";
+    static final String referenceModeChoiceFileBaseName = "referenceModeChoice";
 
     private final Set<String> iterationTypeSet = new HashSet<>();
     private final Map<Integer, Map<String, Integer>> modeChoiceInIteration = new HashMap<>();
@@ -46,31 +56,6 @@ public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport , Outpu
     private final boolean writeGraph;
 
     private final StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation;
-
-    @Override
-    public List<OutputDataDescription> getOutputDataDescriptions() {
-        String modeChoiceOutputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(modeChoiceFileBaseName + ".csv");
-        String referenceModeChoiceOutputFilePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(referenceModeChoiceFileBaseName + ".csv");
-        String outputDirPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath();
-        String modeChoiceRelativePath = modeChoiceOutputFilePath.replace(outputDirPath, "");
-        String referenceModeChoiceRelativePath = referenceModeChoiceOutputFilePath.replace(outputDirPath, "");
-        List<OutputDataDescription> list = new ArrayList<>();
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "iterations", "iteration number"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "car", "Car chosen as travel mode"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "drive_transit", "Drive to transit chosen as travel mode"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "ride_hail", "Ride Hail chosen as travel mode"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "walk", "Walk chosen as travel mode"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), modeChoiceRelativePath, "walk_transit", "Walk to transit chosen as travel mode"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "iterations", "Bike chosen as travel mode"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "bike", "iteration number"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "car", "Car chosen as travel mode"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "drive_transit", "Drive to transit chosen as travel mode"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "ride_hail", "Ride Hail chosen as travel mode"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "ride_hail_transit", "Ride Hail to transit chosen as travel mode"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "walk", "Walk chosen as travel mode"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), referenceModeChoiceRelativePath, "walk_transit", "Walk to transit chosen as travel mode"));
-        return list;
-    }
 
     public static class ModeChosenComputation implements StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> {
 

@@ -5,12 +5,13 @@ import org.matsim.api.core.v01.population._
 import org.matsim.core.config.groups.PlanCalcScoreConfigGroup
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.replanning.selectors.RandomPlanSelector
+import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 
 object ReplanningUtil {
 
-  def updateAndAddExperiencedPlan[T <: Plan, I](person: HasPlansAndId[T, I]): Unit = {
+  def makeExperiencedMobSimCompatible[T <: Plan, I](person: HasPlansAndId[T, I]): Unit = {
     val experiencedPlan = person.getSelectedPlan.getCustomAttributes
       .get(PlanCalcScoreConfigGroup.EXPERIENCED_PLAN_KEY)
       .asInstanceOf[Plan]
@@ -40,8 +41,6 @@ object ReplanningUtil {
       person.asInstanceOf[Person].addPlan(experiencedPlan)
       person.removePlan(person.getSelectedPlan)
       person.asInstanceOf[Person].setSelectedPlan(experiencedPlan)
-    } else {
-      person.addPlan(person.getSelectedPlan)
     }
   }
 

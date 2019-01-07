@@ -6,8 +6,6 @@ import org.matsim.api.core.v01.events.PersonArrivalEvent;
 import org.matsim.api.core.v01.events.PersonDepartureEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 
-import static org.junit.Assert.assertArrayEquals;
-
 public class PersonTravelTimeTest {
 
     private class PersonTravelTimeHandler implements BasicEventHandler {

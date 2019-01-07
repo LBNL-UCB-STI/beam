@@ -21,7 +21,6 @@ import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.sim.HasServices
-import beam.utils.TravelTimeUtils
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{
@@ -69,6 +68,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
   protected val transportNetwork: TransportNetwork
   protected val parkingManager: ActorRef
   protected val tollCalculator: TollCalculator
+  private var tollsAccumulated = 0.0
 
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime, toll: Double)
 
@@ -113,7 +113,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       val currentVehicleUnderControl = data.currentVehicle.headOption
         .getOrElse(throw new RuntimeException("Current Vehicle is not available."))
       val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
-      val fuelConsumed = data.currentVehicleToken.useFuel(currentLeg.travelPath.distanceInM)
+      val fuelConsumed = data.currentVehicleToken.useFuel(currentLeg, beamServices)
 
       if (isLastLeg) {
         nextNotifyVehicleResourceIdle = Some(
@@ -158,10 +158,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       )
 
       val tollOnCurrentLeg = toll(currentLeg)
+      tollsAccumulated += tollOnCurrentLeg
       eventsManager.processEvent(
         new PathTraversalEvent(
           tick,
           currentVehicleUnderControl,
+          id.toString,
           data.currentVehicleToken.beamVehicleType,
           data.passengerSchedule.schedule(currentLeg).riders.size,
           currentLeg,
@@ -198,7 +200,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 .drop(data.currentLegPassengerScheduleIndex)
                 .head
             val distance =
-              beamServices.geo.distInMeters(stall.location, nextLeg.travelPath.endPoint.loc)
+              beamServices.geo.distUTMInMeters(stall.locationUTM, nextLeg.travelPath.endPoint.loc)
             eventsManager
               .processEvent(new ParkEvent(tick, stall, distance, data.currentVehicleToken.id)) // nextLeg.endTime -> to fix repeated path traversal
           }
@@ -214,8 +216,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               .travelPath
               .endPoint
           ),
-          tollOnCurrentLeg
+          tollsAccumulated
         )
+        tollsAccumulated = 0.0
         goto(PassengerScheduleEmpty) using data
           .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
           .asInstanceOf[T]
@@ -288,7 +291,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           transportNetwork
         )
 
-      val fuelConsumed = data.currentVehicleToken.useFuel(updatedBeamLeg.travelPath.distanceInM)
+      val fuelConsumed = data.currentVehicleToken.useFuel(updatedBeamLeg, beamServices)
 
       nextNotifyVehicleResourceIdle = Some(
         NotifyVehicleIdle(
@@ -317,10 +320,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       )
 
       val tollOnCurrentLeg = toll(currentLeg)
+      tollsAccumulated += tollOnCurrentLeg
       eventsManager.processEvent(
         new PathTraversalEvent(
           stopTick,
           currentVehicleUnderControl,
+          id.toString,
           data.currentVehicleToken.beamVehicleType,
           data.passengerSchedule.schedule(currentLeg).riders.size,
           updatedBeamLeg,
@@ -340,8 +345,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
             .travelPath
             .endPoint
         ),
-        tollOnCurrentLeg
+        tollsAccumulated
       )
+      tollsAccumulated = 0.0
       goto(PassengerScheduleEmptyInterrupted) using data
         .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
         .asInstanceOf[T]
@@ -606,7 +612,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     if (path.linkTravelTime.nonEmpty) {
       // FIXME once done with debugging, make this code faster
       // We don't need the travel time for the last link, so we drop it (dropRight(1))
-      val avgTravelTimeWithoutLast = TravelTimeUtils.getAverageTravelTime(path.linkTravelTime).dropRight(1)
+      val avgTravelTimeWithoutLast = path.linkTravelTime.dropRight(1)
       val links = path.linkIds
       val linksWithTime = links.sliding(2).zip(avgTravelTimeWithoutLast.iterator)
 

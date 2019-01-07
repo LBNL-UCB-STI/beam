@@ -3,14 +3,13 @@ package beam.agentsim.agents
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.pattern.{ask, pipe}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
-import akka.pattern.ask
-import akka.pattern.pipe
 import akka.util.Timeout
 import beam.agentsim.Resource.{Boarded, NotAvailable, TryToBoardVehicle}
 import beam.agentsim.agents.PersonTestUtil._
-import beam.agentsim.agents.choice.mode.ModeSubsidy
-import beam.agentsim.agents.choice.mode.ModeSubsidy.Subsidy
+import beam.agentsim.agents.choice.mode.ModeIncentive
+import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.household.HouseholdActor.{HouseholdActor, MobilityStatusInquiry, MobilityStatusResponse}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -94,7 +93,7 @@ class PersonWithVehicleSharingSpec
     when(theServices.personRefs).thenReturn(personRefs)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(theServices))
-    when(theServices.modeSubsidies).thenReturn(ModeSubsidy(Map[BeamMode, List[Subsidy]]()))
+    when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     theServices
   }
 
@@ -354,7 +353,7 @@ class PersonWithVehicleSharingSpec
         } pipeTo mockSharedVehicleFleet.lastSender
 
       mockRouter.expectMsgPF() {
-        case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _, _) =>
+        case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _, _, _) =>
           assert(vehicleId == car1.id, "Agent should ask for route with the car I gave it.")
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = leg.copy(
@@ -388,7 +387,7 @@ class PersonWithVehicleSharingSpec
       mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28820)))
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector(car1))
       mockRouter.expectMsgPF() {
-        case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _, _) =>
+        case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _, _, _) =>
           assert(vehicleId == car1.id, "Agent should ask for route with the car I gave it.")
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = leg.copy(
@@ -417,7 +416,9 @@ class PersonWithVehicleSharingSpec
 
       person2EntersVehicleEvents.expectNoMessage()
 
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28820)))
+      mockSharedVehicleFleet.expectMsgPF() {
+        case MobilityStatusInquiry(SpaceTime(_, 28820)) =>
+      }
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector())
 
       // agent has no car available, so will ask for new route
@@ -483,7 +484,7 @@ class PersonWithVehicleSharingSpec
     whenWhere.loc,
     whenWhere.loc,
     "wherever",
-    0,
+    AttributesOfIndividual.EMPTY,
     NoNeed,
     0,
     0

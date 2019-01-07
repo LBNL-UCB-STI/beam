@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.pattern.ask
 import akka.pattern.pipe
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.util.Timeout
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
@@ -12,6 +13,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
+import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.Id
 
 class InexhaustibleReservingVehicleFleet(val parkingManager: ActorRef) extends Actor with ActorLogging {
@@ -52,7 +54,7 @@ class InexhaustibleReservingVehicleFleet(val parkingManager: ActorRef) extends A
     whenWhere.loc,
     whenWhere.loc,
     "wherever",
-    0,
+    AttributesOfIndividual.EMPTY,
     NoNeed,
     0,
     0

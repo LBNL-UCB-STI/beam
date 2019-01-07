@@ -35,6 +35,7 @@ import beam.sim.BeamServices
 import beam.sim.metrics.MetricsPrinter
 import beam.sim.metrics.MetricsPrinter.Subscribe
 import beam.sim.population.AttributesOfIndividual
+import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
@@ -174,7 +175,8 @@ class BeamRouter(
       }
     case InitTransit(scheduler, parkingManager, _) =>
       val localInit: Future[Set[Status]] = Future {
-        val initializer = new TransitInitializer(services, transportNetwork, transitVehicles)
+        val initializer =
+          new TransitInitializer(services, transportNetwork, transitVehicles, BeamRouter.oneSecondTravelTime)
         val transits = initializer.initMap
         initDriverAgents(initializer, scheduler, parkingManager, transits)
         localNodes.map { localWorker =>
@@ -430,7 +432,8 @@ object BeamRouter {
     vehicleId: Id[Vehicle],
     vehicleTypeId: Id[BeamVehicleType],
     id: Int = UUID.randomUUID().hashCode(),
-    mustParkAtEnd: Boolean = false
+    mustParkAtEnd: Boolean = false,
+    destinationForSplitting: Option[Coord] = None
   )
   case class UpdateTravelTimeLocal(travelTime: TravelTime)
   case class R5Network(transportNetwork: TransportNetwork)
@@ -444,16 +447,16 @@ object BeamRouter {
   /**
     * It is use to represent a request object
     *
-    * @param origin                 start/from location of the route
-    * @param destination            end/to location of the route
+    * @param originUTM                 start/from location of the route
+    * @param destinationUTM            end/to location of the route
     * @param departureTime          time in seconds from base midnight
     * @param transitModes           what transit modes should be considered
     * @param streetVehicles         what vehicles should be considered in route calc
     * @param streetVehiclesUseIntermodalUse boolean (default true), if false, the vehicles considered for use on egress
     */
   case class RoutingRequest(
-    origin: Location,
-    destination: Location,
+    originUTM: Location,
+    destinationUTM: Location,
     departureTime: Int,
     transitModes: IndexedSeq[BeamMode],
     streetVehicles: IndexedSeq[StreetVehicle],
@@ -543,4 +546,6 @@ object BeamRouter {
   sealed trait WorkMessage
   case object GimmeWork extends WorkMessage
   case object WorkAvailable extends WorkMessage
+
+  def oneSecondTravelTime(a: Int, b: Int, c: StreetMode) = 1
 }

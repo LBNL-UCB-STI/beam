@@ -87,35 +87,36 @@ object RideHailAgent {
 
   case class ModifyPassengerSchedule(
     updatedPassengerSchedule: PassengerSchedule,
+    tick: Int,
     reservationRequestId: Option[Int] = None
   )
 
   case class ModifyPassengerScheduleAck(
     reservationRequestId: Option[Int] = None,
     triggersToSchedule: Vector[ScheduleTrigger],
-    vehicleId: Id[Vehicle]
+    vehicleId: Id[Vehicle],
+    tick: Int
   )
 
-  case class Interrupt(interruptId: Id[Interrupt], tick: Double)
+  case class Interrupt(interruptId: Id[Interrupt], tick: Int)
 
   case class Resume()
 
   sealed trait InterruptReply {
     val interruptId: Id[Interrupt]
     val vehicleId: Id[Vehicle]
-    val tick: Double
+    val tick: Int
   }
 
   case class InterruptedWhileDriving(
     interruptId: Id[Interrupt],
     vehicleId: Id[Vehicle],
-    tick: Double,
+    tick: Int,
     passengerSchedule: PassengerSchedule,
     currentPassengerScheduleIndex: Int,
   ) extends InterruptReply
 
-  case class InterruptedWhileIdle(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Double)
-      extends InterruptReply
+  case class InterruptedWhileIdle(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Int) extends InterruptReply
 
   case object Idle extends BeamAgentState
 
@@ -170,7 +171,7 @@ class RideHailAgent(
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
       vehicle.becomeDriver(self)
       eventsManager.processEvent(
-        new PersonDepartureEvent(tick, Id.createPersonId(id), null, "be_a_tnc_driver")
+        new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_tnc_driver")
       )
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
       goto(Idle) replying CompletionNotice(triggerId) using data
@@ -201,7 +202,7 @@ class RideHailAgent(
       eventsManager.processEvent(
         new RefuelEvent(
           tick,
-          vehicle.stall.get.copy(location = beamServices.geo.utm2Wgs(vehicle.stall.get.location)),
+          vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
           energyInJoules,
           tick - sessionStart,
           vehicle.id
@@ -212,7 +213,7 @@ class RideHailAgent(
       vehicle.manager.foreach(
         _ ! NotifyVehicleIdle(
           vehicle.id,
-          SpaceTime(vehicle.stall.get.location, tick),
+          SpaceTime(vehicle.stall.get.locationUTM, tick),
           data.passengerSchedule,
           vehicle.getState,
           _currentTriggerId
@@ -238,7 +239,7 @@ class RideHailAgent(
   }
 
   when(IdleInterrupted) {
-    case ev @ Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
+    case ev @ Event(ModifyPassengerSchedule(updatedPassengerSchedule, tick, requestId), data) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
       // i.e. for what time it is. For now, we just believe it that time is not running backwards.
@@ -252,15 +253,13 @@ class RideHailAgent(
           self
         )
       )
-      if (updatedPassengerSchedule.schedule.firstKey.startTime == 24600) {
-        val i = 0
-      }
       goto(WaitingToDriveInterrupted) using data
         .withPassengerSchedule(updatedPassengerSchedule)
         .asInstanceOf[RideHailAgentData] replying ModifyPassengerScheduleAck(
         requestId,
         triggerToSchedule,
-        vehicle.id
+        vehicle.id,
+        tick
       )
     case ev @ Event(Resume(), _) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
@@ -299,7 +298,7 @@ class RideHailAgent(
         .withPassengerSchedule(PassengerSchedule())
         .withCurrentLegPassengerScheduleIndex(0)
         .asInstanceOf[RideHailAgentData]
-    case ev @ Event(ModifyPassengerSchedule(_, _), _) =>
+    case ev @ Event(ModifyPassengerSchedule(_, _, _), _) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       stash()
       stay()

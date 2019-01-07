@@ -118,6 +118,15 @@ object HouseholdActor {
         case _: AssertionError => Stop
       }
 
+    if (beamServices.beamConfig.beam.experimental.optimizer.enabled) {
+      //Create the solver actor
+      val solver = context.actorOf(beam.agentsim.agents.household.HouseholdSolverActor.props)
+      //Tell it to begin solving
+      solver ! beam.agentsim.agents.household.BeginSolving
+      //Watch for it to die so that it allows this parent to complete
+      context.watch(solver)
+    }
+
     import beam.agentsim.agents.memberships.Memberships.RankedGroup._
 
     implicit val pop: org.matsim.api.core.v01.population.Population = population
@@ -164,7 +173,7 @@ object HouseholdActor {
         homeCoord,
         homeCoord,
         "home",
-        0,
+        AttributesOfIndividual.EMPTY,
         NoNeed,
         0,
         0

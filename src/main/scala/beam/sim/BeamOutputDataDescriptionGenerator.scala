@@ -2,20 +2,23 @@ package beam.sim
 
 import java.io.{BufferedWriter, FileWriter, IOException}
 
+import scala.collection.JavaConverters._
+
 import akka.actor.ActorSystem
 import beam.agentsim.agents.ridehail
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.analysis.physsim.{PhyssimCalcLinkSpeedDistributionStats, PhyssimCalcLinkSpeedStats}
+import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
+import beam.analysis.physsim.{PhyssimCalcLinkSpeedDistributionStatsObject, PhyssimCalcLinkSpeedStatsObject}
 import beam.analysis.plots._
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
+import beam.analysis.via.{ExpectedMaxUtilityHeatMap, ExpectedMaxUtilityHeatMapObject}
 import beam.utils.OutputDataDescriptor
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.ControlerEvent
-
-import scala.collection.JavaConverters._
 
 /**
   * Generate data descriptions table for all output file generating classes.
@@ -38,8 +41,10 @@ class BeamOutputDataDescriptionGenerator @Inject()(
     */
   def generateDescriptors(event: ControlerEvent): Unit = {
     //get all the required class file instances
-    val descriptors: Seq[OutputDataDescription] = getClassesGeneratingOutputs(event) flatMap { classRef =>
-      classRef.getOutputDataDescriptions.asScala.toList
+    val descriptors
+      : Seq[OutputDataDescription] = BeamOutputDataDescriptionGenerator.getClassesGeneratingOutputs flatMap {
+      classRef =>
+        classRef.getOutputDataDescriptions.asScala.toList
     }
     //generate csv from the data objects
     val descriptionsAsCSV = descriptors map { d =>
@@ -49,47 +54,6 @@ class BeamOutputDataDescriptionGenerator @Inject()(
     val filePath = event.getServices.getControlerIO.getOutputPath + "/" + outputFileName
     writeToFile(filePath, Some(outputFileHeader), descriptionsAsCSV, None)
   }
-
-  /**
-    * creates and collects instances of all output file generating classes
-    * @return collected class instances
-    */
-  private def getClassesGeneratingOutputs(event: ControlerEvent): List[OutputDataDescriptor] = List(
-    new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation, this.beamServices.beamConfig),
-    new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation, writeGraphs),
-    new RideHailRevenueAnalysis(new RideHailSurgePricingManager(this.beamServices)),
-    new PersonTravelTimeAnalysis(new PersonTravelTimeAnalysis.PersonTravelTimeComputation, writeGraphs),
-    new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation, writeGraphs),
-    new ExpectedMaxUtilityHeatMap(
-      this.eventsManager,
-      this.scenario.getNetwork,
-      event.getServices.getControlerIO,
-      this.beamServices.beamConfig.beam.outputs.writeEventsInterval
-    ),
-    new PhyssimCalcLinkSpeedStats(scenario.getNetwork, event.getServices.getControlerIO, beamServices.beamConfig),
-    new PhyssimCalcLinkSpeedDistributionStats(
-      scenario.getNetwork,
-      event.getServices.getControlerIO,
-      beamServices.beamConfig
-    ),
-    new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation, beamServices.beamConfig),
-    new GraphSurgePricing(new RideHailSurgePricingManager(beamServices)),
-    new RideHailingWaitingSingleAnalysis(
-      beamServices.beamConfig,
-      new RideHailingWaitingSingleAnalysis.RideHailingWaitingSingleComputation
-    ),
-    new ridehail.RideHailManager.OutputData,
-    StopWatchOutputs,
-    ScoreStatsOutputs,
-    SummaryStatsOutputs,
-    CountsCompareOutputs,
-    EventOutputs,
-    LegHistogramOutputs,
-    RideHailTripDistanceOutputs,
-    TripDurationOutputs,
-    BiasErrorGraphDataOutputs,
-    BiasNormalizedErrorGraphDataOutputs
-  )
 
   /**
     * Writes data to the output file at specified path.
@@ -118,6 +82,38 @@ class BeamOutputDataDescriptionGenerator @Inject()(
       bw.close()
     }
   }
+
+}
+
+object BeamOutputDataDescriptionGenerator {
+
+  /**
+    * creates and collects instances of all output file generating classes
+    * @return collected class instances
+    */
+  def getClassesGeneratingOutputs: Seq[OutputDataDescriptor] = List(
+    ModeChosenAnalysisObject,
+    RealizedModeAnalysisObject,
+    RideHailRevenueAnalysisObject,
+    PersonTravelTimeAnalysisObject,
+    FuelUsageAnalysisObject,
+//    ExpectedMaxUtilityHeatMapObject,
+    PhyssimCalcLinkSpeedStatsObject,
+    PhyssimCalcLinkSpeedDistributionStatsObject,
+    RideHailWaitingAnalysisObject,
+    GraphSurgePricingObject,
+    RideHailingWaitingSingleAnalysisObject,
+    StopWatchOutputs,
+    ScoreStatsOutputs,
+    SummaryStatsOutputs,
+    CountsCompareOutputs,
+    EventOutputs,
+    LegHistogramOutputs,
+    RideHailTripDistanceOutputs,
+    TripDurationOutputs,
+    BiasErrorGraphDataOutputs,
+    BiasNormalizedErrorGraphDataOutputs
+  )
 
 }
 
@@ -482,40 +478,40 @@ object SummaryStatsOutputs extends OutputDataDescriptor {
       OutputDataDescription(
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
-        "totalCostIncludingSubsidy_walk_transit",
-        "Total cost (including subsidy) paid by the passenger to reach destination by walking to transit and then transit to destination"
+        "totalCostIncludingIncentive_walk_transit",
+        "Total cost (including incentive) paid by the passenger to reach destination by walking to transit and then transit to destination"
       )
     )
     list.add(
       OutputDataDescription(
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
-        "totalCostIncludingSubsidy_ride_hail",
-        "Total cost (including subsidy) paid by the passenger to reach destination on a ride hail"
+        "totalCostIncludingIncentive_ride_hail",
+        "Total cost (including incentive) paid by the passenger to reach destination on a ride hail"
       )
     )
     list.add(
       OutputDataDescription(
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
-        "totalSubsidy_drive_transit",
-        "Total subsidy amount paid to passenger to reach destination by driving to transit and then transit to destination"
+        "totalIncentive_drive_transit",
+        "Total incentive amount paid to passenger to reach destination by driving to transit and then transit to destination"
       )
     )
     list.add(
       OutputDataDescription(
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
-        "totalSubsidy_ride_hail",
-        "Total subsidy amount paid to passenger to reach destination by ride hail"
+        "totalIncentive_ride_hail",
+        "Total incentive amount paid to passenger to reach destination by ride hail"
       )
     )
     list.add(
       OutputDataDescription(
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
-        "totalSubsidy_walk_transit",
-        "Total subsidy amount paid to passenger to reach destination by walking to transit and then transit to destination"
+        "totalIncentive_walk_transit",
+        "Total incentive amount paid to passenger to reach destination by walking to transit and then transit to destination"
       )
     )
     list.add(

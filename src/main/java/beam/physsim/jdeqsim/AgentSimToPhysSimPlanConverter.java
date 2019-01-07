@@ -2,10 +2,10 @@ package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
 import beam.agentsim.events.PathTraversalEvent;
+import beam.analysis.IterationStatsProvider;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedDistributionStats;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimCalcLinkStats;
-import beam.analysis.IterationStatsProvider;
 import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.calibration.impl.example.CountsObjectiveFunction;
 import beam.router.BeamRouter;
@@ -101,15 +101,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
     }
 
+
     private void preparePhysSimForNewIteration() {
         jdeqsimPopulation = PopulationUtils.createPopulation(agentSimScenario.getConfig());
-    }
+            }
 
-
-    @Override
-    public void reset(int iteration) {
-
-    }
 
     private void setupActorsAndRunPhysSim(int iterationNumber) {
         MutableScenario jdeqSimScenario = (MutableScenario) ScenarioUtils.createScenario(agentSimScenario.getConfig());
@@ -192,7 +188,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         completableFutures.add(CompletableFuture.runAsync(() -> linkSpeedDistributionStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator)));
 
-
         if (shouldWritePhysSimEvents(iterationNumber)) {
             assert eventsWriterXML != null;
             eventsWriterXML.closeFile();
@@ -243,6 +238,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
     }
 
+
+    public static boolean isPhyssimMode(String mode){
+        return mode.equalsIgnoreCase(CAR) || mode.equalsIgnoreCase(BUS);
+    }
+
     @Override
     public void handleEvent(Event event) {
 
@@ -264,7 +264,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             }
 
 
-            if (mode.equalsIgnoreCase(CAR) || mode.equalsIgnoreCase(BUS)) {
+            if (isPhyssimMode(mode)) {
 
                 String links = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
                 double departureTime = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME));

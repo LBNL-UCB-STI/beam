@@ -140,7 +140,7 @@ class RideHailAgentSpec
       rideHailAgent ! Interrupt(Id.create("1", classOf[Interrupt]), 30000)
       expectMsgClass(classOf[InterruptedWhileIdle])
       //expectMsg(InterruptedWhileIdle(_,_))
-      rideHailAgent ! ModifyPassengerSchedule(passengerSchedule)
+      rideHailAgent ! ModifyPassengerSchedule(passengerSchedule, 30000)
       rideHailAgent ! Resume()
       val modifyPassengerScheduleAck = expectMsgType[ModifyPassengerScheduleAck]
       modifyPassengerScheduleAck.triggersToSchedule.foreach(scheduler ! _)

@@ -14,32 +14,36 @@ public class PersonCostEvent extends Event implements HasPersonId {
     public final static String EVENT_TYPE = "PersonCost";
     public final static String ATTRIBUTE_PERSON = "person";
     public final static String ATTRIBUTE_MODE = "mode";
-    public static final String ATTRIBUTE_COST_TYPE = "costType";
-    public static final String ATTRIBUTE_COST = "cost";
-
-    public static final String COST_TYPE_COST = "Cost";
-    public static final String COST_TYPE_SUBSIDY = "Subsidy";
+    public static final String ATTRIBUTE_INCENTIVE = "incentive";
+    public static final String ATTRIBUTE_TOLL_COST = "tollCost";
+    public static final String ATTRIBUTE_NET_COST = "netCost";
 
     private final Id<Person> personId;
     private String mode;
-    private String costType;
-    private double cost;
+    private double incentive;
+    private double tollCost;
+    private double netCost;
 
     private final AtomicReference<Map<String, String>> attributes;
 
-    public PersonCostEvent(final double time, final Id<Person> personId, String mode, String costType, double cost) {
+    public PersonCostEvent(final double time, final Id<Person> personId, String mode, double incentive, double tollCost, double netCost) {
         super(time);
         this.personId = personId;
         this.mode = mode;
-        this.costType = costType;
-        this.cost = cost;
+        this.incentive = incentive;
+        this.tollCost = tollCost;
+        this.netCost = netCost;
         this.attributes = new AtomicReference<>(Collections.emptyMap());
     }
 
     public static PersonCostEvent apply(Event event) {
         if (!(event instanceof PersonCostEvent) && EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
             Map<String, String> attr = event.getAttributes();
-            return new PersonCostEvent(event.getTime(), Id.createPersonId(attr.get(ATTRIBUTE_PERSON)), attr.get(ATTRIBUTE_MODE), attr.get(ATTRIBUTE_COST_TYPE), Double.parseDouble(attr.get(ATTRIBUTE_COST)));
+            return new PersonCostEvent(event.getTime(), Id.createPersonId(attr.get(ATTRIBUTE_PERSON)),
+                    attr.get(ATTRIBUTE_MODE),
+                    Double.parseDouble(attr.get(ATTRIBUTE_INCENTIVE)),
+                    Double.parseDouble(attr.get(ATTRIBUTE_TOLL_COST)),
+                    Double.parseDouble(attr.get(ATTRIBUTE_NET_COST)));
         }
         return (PersonCostEvent) event;
     }
@@ -63,8 +67,9 @@ public class PersonCostEvent extends Event implements HasPersonId {
 
         attr.put(ATTRIBUTE_PERSON, personId.toString());
         attr.put(ATTRIBUTE_MODE, mode);
-        attr.put(ATTRIBUTE_COST_TYPE, costType);
-        attr.put(ATTRIBUTE_COST, Double.toString(cost));
+        attr.put(ATTRIBUTE_INCENTIVE, Double.toString(incentive));
+        attr.put(ATTRIBUTE_TOLL_COST, Double.toString(tollCost));
+        attr.put(ATTRIBUTE_NET_COST, Double.toString(netCost));
 
         attributes.set(attr);
 
