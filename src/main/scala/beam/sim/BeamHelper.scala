@@ -246,7 +246,7 @@ trait BeamHelper extends LazyLogging {
     }
     assert(
       !isConfigArgRequired || (isConfigArgRequired && parsedArgs.config.isDefined),
-      "Beam config is a required, Please provide a valid configuration file."
+      "Please provide a valid configuration file."
     )
     val configLocation = parsedArgs.configLocation.get
 

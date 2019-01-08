@@ -12,7 +12,7 @@ import org.matsim.households.{Household, HouseholdIncomeComparator}
 
 import scala.collection.mutable.ListBuffer
 
-class ScenarioReaderCsv2(var scenario: MutableScenario, var beamServices: BeamServices, val delimiter: String = ",")
+class ScenarioReaderCsv(var scenario: MutableScenario, var beamServices: BeamServices, val delimiter: String = ",")
   extends LazyLogging {
 
   val scenarioFolder = beamServices.beamConfig.beam.agentsim.agents.population.beamPopulationDirectory
