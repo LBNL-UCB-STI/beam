@@ -71,6 +71,16 @@ class RideHailFleetInitializer extends LazyLogging {
             bufferedSource.getLines().toList.drop(1).map(s => s.split(",")).flatMap { row =>
               try {
                 //generate the FleetData object from the csv entry
+                val geofenceX =
+                  if (row(keyIndices.getOrElse(attr_geofenceX, -1)).isEmpty) None
+                  else Some(row(keyIndices.getOrElse(attr_geofenceX, -1)).toDouble)
+                val geofenceY =
+                  if (row(keyIndices.getOrElse(attr_geofenceY, -1)).isEmpty) None
+                  else Some(row(keyIndices.getOrElse(attr_geofenceY, -1)).toDouble)
+                val geofenceRadius =
+                  if (row(keyIndices.getOrElse(attr_geofenceRadius, -1)).isEmpty) None
+                  else Some(row(keyIndices.getOrElse(attr_geofenceRadius, -1)).toDouble)
+
                 val fleetData: FleetData = FleetData(
                   id = row(keyIndices.getOrElse(attr_id, -1)),
                   rideHailManagerId = row(keyIndices.getOrElse(attr_rideHailManagerId, -1)),
@@ -84,15 +94,7 @@ class RideHailFleetInitializer extends LazyLogging {
                   shifts =
                     if (row(keyIndices.getOrElse(attr_shifts, -1)).isEmpty) None
                     else Some(row(keyIndices.getOrElse(attr_shifts, -1))),
-                  geofenceX =
-                    if (row(keyIndices.getOrElse(attr_geofenceX, -1)).isEmpty) None
-                    else Some(row(keyIndices.getOrElse(attr_geofenceX, -1)).toDouble),
-                  geofenceY =
-                    if (row(keyIndices.getOrElse(attr_geofenceY, -1)).isEmpty) None
-                    else Some(row(keyIndices.getOrElse(attr_geofenceY, -1)).toDouble),
-                  geofenceRadius =
-                    if (row(keyIndices.getOrElse(attr_geofenceRadius, -1)).isEmpty) None
-                    else Some(row(keyIndices.getOrElse(attr_geofenceRadius, -1)).toDouble)
+                  geofence = Some(Geofence(geofenceX, geofenceY, geofenceRadius))
                 )
                 val vehicleTypeId = Id.create(fleetData.vehicleType, classOf[BeamVehicleType])
                 val vehicleType =
@@ -210,9 +212,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor {
     * @param initialLocationX x-coordinate of the initial location of the ride hail vehicle
     * @param initialLocationY y-coordinate of the initial location of the ride hail vehicle
     * @param shifts time shifts for the vehicle , usually a stringified collection of time ranges
-    * @param geofenceX x-coordinate of the geo fence
-    * @param geofenceY x-coordinate of the geo fence
-    * @param geofenceRadius radius of the geo fence
+    * @param geofence geo fence values
     */
   case class FleetData(
     id: String,
@@ -221,9 +221,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor {
     initialLocationX: Double,
     initialLocationY: Double,
     shifts: Option[String],
-    geofenceX: Option[Double],
-    geofenceY: Option[Double],
-    geofenceRadius: Option[Double]
+    geofence: Option[Geofence]
   )
 
   /**
@@ -322,3 +320,9 @@ object RideHailFleetInitializer extends OutputDataDescriptor {
   }
 
 }
+
+case class Geofence(
+  geofenceX: Option[Double],
+  geofenceY: Option[Double],
+  geofenceRadius: Option[Double]
+)

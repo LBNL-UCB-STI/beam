@@ -28,7 +28,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.model.RoutingModel
 import beam.router.osm.TollCalculator
-import beam.sim.BeamServices
+import beam.sim.{BeamServices, Geofence}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -50,9 +50,7 @@ object RideHailAgent {
     vehicle: BeamVehicle,
     location: Coord,
     shifts: Option[List[Range]],
-    geoFenceX: Option[Double],
-    geoFenceY: Option[Double],
-    geoFenceRadius: Option[Double]
+    geofence: Option[Geofence]
   ) =
     Props(
       new RideHailAgent(
@@ -62,9 +60,7 @@ object RideHailAgent {
         vehicle,
         location,
         shifts,
-        geoFenceX,
-        geoFenceY,
-        geoFenceRadius,
+        geofence,
         eventsManager,
         parkingManager,
         services,
@@ -147,9 +143,7 @@ class RideHailAgent(
   vehicle: BeamVehicle,
   initialLocation: Coord,
   shifts: Option[List[Range]],
-  geoFenceX: Option[Double],
-  geoFenceY: Option[Double],
-  geoFenceRadius: Option[Double],
+  geofence: Option[Geofence],
   val eventsManager: EventsManager,
   val parkingManager: ActorRef,
   val beamServices: BeamServices,

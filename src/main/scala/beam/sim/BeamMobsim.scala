@@ -359,8 +359,6 @@ class BeamMobsim @Inject()(
                     rideHailBeamVehicle,
                     rideInitialLocation,
                     None,
-                    None,
-                    None,
                     None
                   )
 
@@ -371,9 +369,7 @@ class BeamMobsim @Inject()(
                     initialLocationX = rideInitialLocation.getX,
                     initialLocationY = rideInitialLocation.getY,
                     shifts = None,
-                    geofenceX = None,
-                    geofenceY = None,
-                    geofenceRadius = None
+                    geofence = None
                   )
 
                   val rideHailAgentRef: ActorRef =
@@ -419,9 +415,7 @@ class BeamMobsim @Inject()(
                     beamVehicle,
                     new Coord(fleetData.initialLocationX, fleetData.initialLocationY),
                     fleetData.shifts.map(RideHailFleetInitializer.generateRanges),
-                    fleetData.geofenceX,
-                    fleetData.geofenceY,
-                    fleetData.geofenceRadius
+                    fleetData.geofence
                   )
                   val rideHailAgentRef: ActorRef =
                     context.actorOf(props, rideHailAgentId.toString)
