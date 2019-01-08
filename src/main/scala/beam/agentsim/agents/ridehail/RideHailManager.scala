@@ -180,7 +180,7 @@ class RideHailManager(
     CacheBuilder
       .newBuilder()
       .maximumSize(
-        (10 * beamServices.beamConfig.beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation * beamServices.beamConfig.beam.agentsim.numAgents).toLong
+        (10 * beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation * beamServices.beamConfig.beam.agentsim.numAgents).toLong
       )
       .expireAfterWrite(1, TimeUnit.MINUTES)
       .build()
