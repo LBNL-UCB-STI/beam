@@ -73,7 +73,6 @@ class PersonWithCarPlanSpec
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   private lazy val beamConfig = BeamConfig(system.settings.config)
 
-  private val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
   private val personRefs = TrieMap[Id[Person], ActorRef]()
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
@@ -138,7 +137,6 @@ class PersonWithCarPlanSpec
         BeamVehicleType.defaultCarBeamVehicleType
       )
 
-      vehicles.put(vehicleId, beamVehicle)
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
 
@@ -263,14 +261,12 @@ class PersonWithCarPlanSpec
         None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
-      vehicles.put(car1.id, car1)
       val car2 = new BeamVehicle(
         Id.createVehicleId("car-2"),
         new Powertrain(0.0),
         None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
-      vehicles.put(car2.id, car2)
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -365,7 +361,6 @@ class PersonWithCarPlanSpec
         None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
-      vehicles.put(vehicleId, beamVehicle)
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
 
@@ -495,7 +490,6 @@ class PersonWithCarPlanSpec
     }
 
     it("should refuse to use a car that is not available (even if told so by the router") {
-      vehicles.clear()
       val eventsManager = new EventsManagerImpl()
       eventsManager.addHandler(
         new BasicEventHandler {
@@ -510,14 +504,12 @@ class PersonWithCarPlanSpec
         None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
-      vehicles.put(car1.id, car1)
       val car2 = new BeamVehicle(
         Id.createVehicleId("car-2"),
         new Powertrain(0.0),
         None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
-      vehicles.put(car2.id, car2)
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
