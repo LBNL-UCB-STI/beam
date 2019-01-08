@@ -60,6 +60,7 @@ class PersonWithCarPlanSpec
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
+        akka.test.timefactor = 2
         """
           )
           .withFallback(testConfig("test/input/beamville/beam.conf"))
@@ -487,141 +488,6 @@ class PersonWithCarPlanSpec
       expectMsgType[ActivityStartEvent]
 
       expectMsgType[CompletionNotice]
-    }
-
-    it("should refuse to use a car that is not available (even if told so by the router") {
-      val eventsManager = new EventsManagerImpl()
-      eventsManager.addHandler(
-        new BasicEventHandler {
-          override def handleEvent(event: Event): Unit = {
-            self ! event
-          }
-        }
-      )
-      val car1 = new BeamVehicle(
-        Id.createVehicleId("car-1"),
-        new Powertrain(0.0),
-        None,
-        BeamVehicleType.defaultCarBeamVehicleType
-      )
-      val car2 = new BeamVehicle(
-        Id.createVehicleId("car-2"),
-        new Powertrain(0.0),
-        None,
-        BeamVehicleType.defaultCarBeamVehicleType
-      )
-
-      val household = householdsFactory.createHousehold(hoseHoldDummyId)
-      val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
-
-      val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.id, false)
-      population.addPerson(person)
-
-      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
-      val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
-      scenario.setPopulation(population)
-      scenario.setLocked()
-      ScenarioUtils.loadScenario(scenario)
-      when(beamSvc.matsimServices.getScenario).thenReturn(scenario)
-
-      val scheduler = TestActorRef[BeamAgentScheduler](
-        SchedulerProps(
-          beamConfig,
-          stopTick = 24 * 60 * 60,
-          maxWindow = 10,
-          new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
-        )
-      )
-
-      val householdActor = TestActorRef[HouseholdActor](
-        new HouseholdActor(
-          beamSvc,
-          _ => modeChoiceCalculator,
-          scheduler,
-          networkCoordinator.transportNetwork,
-          tollCalculator,
-          self,
-          self,
-          parkingManager,
-          eventsManager,
-          population,
-          household,
-          Map(car1.id -> car1),
-          new Coord(0.0, 0.0)
-        )
-      )
-      val personActor = householdActor.getSingleChild(person.getId.toString)
-
-      scheduler ! StartSchedule(0)
-
-      val routingRequest = expectMsgType[RoutingRequest]
-      personActor ! RoutingResponse(
-        itineraries = Vector(
-          EmbodiedBeamTrip(
-            legs = Vector(
-              EmbodiedBeamLeg(
-                beamLeg = BeamLeg(
-                  startTime = 28800,
-                  mode = BeamMode.WALK,
-                  duration = 50,
-                  travelPath = BeamPath(
-                    linkIds = Vector(1, 2),
-                    linkTravelTime = Vector(50, 50),
-                    transitStops = None,
-                    startPoint = SpaceTime(0.0, 0.0, 28800),
-                    endPoint = SpaceTime(0.01, 0.0, 28950),
-                    distanceInM = 1000D
-                  )
-                ),
-                beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
-                asDriver = true,
-                cost = 0.0,
-                unbecomeDriverOnCompletion = false
-              ),
-              EmbodiedBeamLeg(
-                beamLeg = BeamLeg(
-                  startTime = 28950,
-                  mode = BeamMode.CAR,
-                  duration = 50,
-                  travelPath = BeamPath(
-                    linkIds = Vector(3, 4),
-                    linkTravelTime = Vector(50, 50),
-                    transitStops = None,
-                    startPoint = SpaceTime(0.01, 0.0, 28950),
-                    endPoint = SpaceTime(0.01, 0.01, 29000),
-                    distanceInM = 1000D
-                  )
-                ),
-                beamVehicleId = car2.id,
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
-                asDriver = true,
-                cost = 0.0,
-                unbecomeDriverOnCompletion = true
-              )
-            )
-          )
-        ),
-        requestId = Some(routingRequest.requestId),
-        staticRequestId = java.util.UUID.randomUUID().hashCode()
-      )
-
-      expectMsgType[ModeChoiceEvent]
-      expectMsgType[ActivityEndEvent]
-      expectMsgType[PersonDepartureEvent]
-
-      expectMsgType[PersonEntersVehicleEvent]
-      expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[VehicleLeavesTrafficEvent]
-      expectMsgType[PathTraversalEvent]
-
-      // This agent gets stuck for now.
-      // As soon as it can re-plan, change this test accordingly.
-
-      expectMsgType[CompletionNotice]
-
     }
 
   }
