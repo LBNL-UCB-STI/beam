@@ -371,7 +371,6 @@ class PersonWithVehicleSharingSpec
             staticRequestId = java.util.UUID.randomUUID().hashCode()
           )
       }
-      Thread.sleep(3000)
 
       modeChoiceEvents.expectMsgType[ModeChoiceEvent]
 
