@@ -288,7 +288,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
           calcRoute(request)
-            .copy(requestId = Some(request.requestId), staticRequestId = request.staticRequestId)
+            .copy(requestId = request.requestId)
         }
       }
       eventualResponse.onComplete {
@@ -781,19 +781,17 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         )
         RoutingResponse(
           embodiedTrips :+ dummyTrip,
-          routingRequest.staticRequestId,
-          Some(routingRequest.requestId)
+          routingRequest.requestId
         )
       } else {
         //        log.debug("Not adding a dummy walk route since agent has no body.")
         RoutingResponse(
           embodiedTrips,
-          routingRequest.staticRequestId,
-          Some(routingRequest.requestId)
+          routingRequest.requestId
         )
       }
     } else {
-      RoutingResponse(embodiedTrips, routingRequest.staticRequestId, Some(routingRequest.requestId))
+      RoutingResponse(embodiedTrips, routingRequest.requestId)
     }
   }
 

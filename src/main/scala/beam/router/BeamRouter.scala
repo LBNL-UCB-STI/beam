@@ -316,8 +316,8 @@ class BeamRouter(
   ): Unit = {
     work match {
       case routingRequest: RoutingRequest =>
-        outstandingWorkIdToOriginalSenderMap.put(routingRequest.staticRequestId, originalSender) //TODO: Add a central Id trait so can just match on that and combine logic
-        outstandingWorkIdToTimeSent.put(routingRequest.staticRequestId, getCurrentTime)
+        outstandingWorkIdToOriginalSenderMap.put(routingRequest.requestId, originalSender) //TODO: Add a central Id trait so can just match on that and combine logic
+        outstandingWorkIdToTimeSent.put(routingRequest.requestId, getCurrentTime)
         worker ! work
       case embodyWithCurrentTravelTime: EmbodyWithCurrentTravelTime =>
         outstandingWorkIdToOriginalSenderMap.put(
@@ -337,23 +337,23 @@ class BeamRouter(
   }
 
   private def pipeResponseToOriginalSender(routingResp: RoutingResponse): Unit =
-    outstandingWorkIdToOriginalSenderMap.remove(routingResp.staticRequestId) match {
+    outstandingWorkIdToOriginalSenderMap.remove(routingResp.requestId) match {
       case Some(originalSender) => originalSender ! routingResp
       case None =>
         log.error(
           "Received a RoutingResponse that does not match a tracked WorkId: {}",
-          routingResp.staticRequestId
+          routingResp.requestId
         )
     }
 
   private def logIfResponseTookExcessiveTime(routingResp: RoutingResponse): Unit =
-    outstandingWorkIdToTimeSent.remove(routingResp.staticRequestId) match {
+    outstandingWorkIdToTimeSent.remove(routingResp.requestId) match {
       case Some(timeSent) =>
         val secondsSinceSent = timeSent.until(getCurrentTime, java.time.temporal.ChronoUnit.SECONDS)
         if (secondsSinceSent > 30)
           log.warning(
             "Took longer than 30 seconds to hear back from work id '{}' - {} seconds",
-            routingResp.staticRequestId,
+            routingResp.requestId,
             secondsSinceSent
           )
       case None => //No matching id. No need to log since this is more for analysis
@@ -464,8 +464,7 @@ object BeamRouter {
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
     mustParkAtEnd: Boolean = false
   ) {
-    lazy val requestId: Int = this.hashCode()
-    lazy val staticRequestId: Int = UUID.randomUUID().hashCode()
+    lazy val requestId: Int = UUID.randomUUID().hashCode()
     lazy val timeValueOfMoney
       : Double = attributesOfIndividual.fold(360.0)(3600.0 / _.valueOfTime) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
   }
@@ -481,11 +480,10 @@ object BeamRouter {
     * @param itineraries a vector of planned routes
     */
   case class RoutingResponse(
-    itineraries: Seq[EmbodiedBeamTrip],
-    staticRequestId: Int,
-    requestId: Option[Int] = None
+                              itineraries: Seq[EmbodiedBeamTrip],
+                              requestId: Int
   ) {
-    lazy val responseId: UUID = UUID.randomUUID()
+    lazy val responseId: Int = UUID.randomUUID().hashCode()
   }
 
   object RoutingResponse {

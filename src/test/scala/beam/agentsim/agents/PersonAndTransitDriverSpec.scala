@@ -394,7 +394,7 @@ class PersonAndTransitDriverSpec
             )
           )
         ),
-        staticRequestId = java.util.UUID.randomUUID().hashCode()
+        requestId = java.util.UUID.randomUUID().hashCode()
       )
 
       personEvents.expectMsgType[ModeChoiceEvent]
