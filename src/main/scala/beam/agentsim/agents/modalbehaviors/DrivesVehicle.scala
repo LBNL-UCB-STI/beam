@@ -47,8 +47,6 @@ object DrivesVehicle {
 
   case class StopDriving(tick: Int)
 
-  case class AddFuel(fuelInJoules: Double)
-
   case class StartRefuelTrigger(tick: Int) extends Trigger
 
   case class EndRefuelTrigger(tick: Int, sessionStart: Double, fuelAddedInJoule: Double) extends Trigger
@@ -566,11 +564,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           )
         )
         .asInstanceOf[T]
-
-    case ev @ Event(AddFuel(fuelInJoules), data) =>
-      log.debug("state(DrivesVehicle.drivingBehavior): {}", ev)
-      data.currentVehicleToken.addFuel(fuelInJoules)
-      stay()
 
     case ev @ Event(GetBeamVehicleState, data) =>
       log.debug("state(DrivesVehicle.drivingBehavior): {}", ev)
