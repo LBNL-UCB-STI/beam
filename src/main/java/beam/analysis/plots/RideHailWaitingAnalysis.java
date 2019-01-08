@@ -157,6 +157,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         numOfTrips = 0;
         rideHailCount = 0;
         totalPTWaitingTime = 0.0;
+        ptWaiting.clear();
         rideHailWaiting.clear();
         hoursTimesMap.clear();
         rideHailWaitingIndividualStatList.clear();
