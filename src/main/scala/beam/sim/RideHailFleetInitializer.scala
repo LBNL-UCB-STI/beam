@@ -11,6 +11,7 @@ import beam.utils.{FileUtils, OutputDataDescriptor}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 
+import scala.collection.mutable
 import scala.io.Source
 
 class RideHailFleetInitializer extends LazyLogging {
@@ -40,54 +41,87 @@ class RideHailFleetInitializer extends LazyLogging {
     beamServices: BeamServices
   ): List[(FleetData, BeamVehicle)] = {
     try {
+      //read csv data from the given file path
       val bufferedSource = Source.fromFile(filePath)
       val data = bufferedSource.getLines()
+      // if the file is empty proceed , else throw an error
       if (data.nonEmpty) {
         val headerKeys: Array[String] = data.next().split(",").map(_.trim)
-        val idIndex = headerKeys.indexOf("id")
-        val rideHailManagerIdIndex = headerKeys.indexOf("rideHailManagerId")
-        val vehicleTypeIndex = headerKeys.indexOf("vehicleType")
-        val initialLocationXIndex = headerKeys.indexOf("initialLocationX")
-        val initialLocationYIndex = headerKeys.indexOf("initialLocationY")
-        val shiftsIndex = headerKeys.indexOf("shifts")
-        val geofenceXIndex = headerKeys.indexOf("geofenceX")
-        val geofenceYIndex = headerKeys.indexOf("geofenceY")
-        val geofenceRadiusIndex = headerKeys.indexOf("geofenceRadius")
-        val rideHailAgents: Seq[(FleetData, BeamVehicle)] =
-          bufferedSource.getLines().toList.drop(1).map(s => s.split(",")).flatMap { row =>
-            try {
-              val fleetData: FleetData = FleetData(
-                id = row(idIndex),
-                rideHailManagerId = row(rideHailManagerIdIndex),
-                vehicleType = row(vehicleTypeIndex),
-                initialLocationX = if (row(initialLocationXIndex).isEmpty) 0.0 else row(initialLocationXIndex).toDouble,
-                initialLocationY = if (row(initialLocationYIndex).isEmpty) 0.0 else row(initialLocationYIndex).toDouble,
-                shifts = if (row(shiftsIndex).isEmpty) None else Some(row(shiftsIndex)),
-                geofenceX = if (row(geofenceXIndex).isEmpty) None else Some(row(geofenceXIndex).toDouble),
-                geofenceY = if (row(geofenceYIndex).isEmpty) None else Some(row(geofenceYIndex).toDouble),
-                geofenceRadius = if (row(geofenceRadiusIndex).isEmpty) None else Some(row(geofenceRadiusIndex).toDouble)
-              )
-              val vehicleTypeId = Id.create(fleetData.vehicleType, classOf[BeamVehicleType])
-              val vehicleType =
-                beamServices.vehicleTypes.getOrElse(vehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
-              val powertrain = Option(vehicleType.primaryFuelConsumptionInJoulePerMeter)
-                .map(new Powertrain(_))
-                .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
-              val beamVehicle = new BeamVehicle(
-                Id.create(fleetData.id, classOf[BeamVehicle]),
-                powertrain,
-                None,
-                vehicleType
-              )
-              Some(fleetData -> beamVehicle)
-            } catch {
-              case e: Exception =>
-                logger
-                  .error("Error while reading an entry of ride-hail-fleet.csv as RideHailAgent : " + e.getMessage, e)
-                None
+        import RideHailFleetInitializer._
+        val keys = mutable.LinkedHashSet(
+          attr_id,
+          attr_rideHailManagerId,
+          attr_vehicleType,
+          attr_initialLocationX,
+          attr_initialLocationY,
+          attr_shifts,
+          attr_geofenceX,
+          attr_geofenceY,
+          attr_geofenceRadius
+        )
+        // compute the indices for all header keys in the csv
+        val keyIndices: Map[String, Int] = (keys map { k =>
+          k -> headerKeys.indexOf(k)
+        }).toMap
+        val invalidIndices: Map[String, Int] = keyIndices.filter(k => k._2 == -1)
+        // validate for any missing fields and throw an error (if any)
+        if (invalidIndices.isEmpty) {
+          val rideHailAgents: Seq[(FleetData, BeamVehicle)] =
+            //for each data entry in the csv file
+            bufferedSource.getLines().toList.drop(1).map(s => s.split(",")).flatMap { row =>
+              try {
+                //generate the FleetData object from the csv entry
+                val fleetData: FleetData = FleetData(
+                  id = row(keyIndices.getOrElse(attr_id, -1)),
+                  rideHailManagerId = row(keyIndices.getOrElse(attr_rideHailManagerId, -1)),
+                  vehicleType = row(keyIndices.getOrElse(attr_vehicleType, -1)),
+                  initialLocationX =
+                    if (row(keyIndices.getOrElse(attr_initialLocationX, -1)).isEmpty) 0.0
+                    else row(keyIndices.getOrElse(attr_initialLocationX, -1)).toDouble,
+                  initialLocationY =
+                    if (row(keyIndices.getOrElse(attr_initialLocationY, -1)).isEmpty) 0.0
+                    else row(keyIndices.getOrElse(attr_initialLocationY, -1)).toDouble,
+                  shifts =
+                    if (row(keyIndices.getOrElse(attr_shifts, -1)).isEmpty) None
+                    else Some(row(keyIndices.getOrElse(attr_shifts, -1))),
+                  geofenceX =
+                    if (row(keyIndices.getOrElse(attr_geofenceX, -1)).isEmpty) None
+                    else Some(row(keyIndices.getOrElse(attr_geofenceX, -1)).toDouble),
+                  geofenceY =
+                    if (row(keyIndices.getOrElse(attr_geofenceY, -1)).isEmpty) None
+                    else Some(row(keyIndices.getOrElse(attr_geofenceY, -1)).toDouble),
+                  geofenceRadius =
+                    if (row(keyIndices.getOrElse(attr_geofenceRadius, -1)).isEmpty) None
+                    else Some(row(keyIndices.getOrElse(attr_geofenceRadius, -1)).toDouble)
+                )
+                val vehicleTypeId = Id.create(fleetData.vehicleType, classOf[BeamVehicleType])
+                val vehicleType =
+                  beamServices.vehicleTypes.getOrElse(vehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
+                val powertrain = Option(vehicleType.primaryFuelConsumptionInJoulePerMeter)
+                  .map(new Powertrain(_))
+                  .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
+                //generate the beam vehicle object from the data read from the input file
+                val beamVehicle = new BeamVehicle(
+                  Id.create(fleetData.id, classOf[BeamVehicle]),
+                  powertrain,
+                  None,
+                  vehicleType
+                )
+                // map fleet data to the respective vehicle
+                Some(fleetData -> beamVehicle)
+              } catch {
+                case e: Exception =>
+                  logger
+                    .error("Error while reading an entry of ride-hail-fleet.csv as RideHailAgent : " + e.getMessage, e)
+                  None
+              }
             }
-          }
-        rideHailAgents.toList
+          //return the list of initialized fleet data objects
+          rideHailAgents.toList
+        } else {
+          logger.error(s"Fields not found in csv header - ${invalidIndices.keySet.mkString(", ")}")
+          List.empty
+        }
       } else {
         logger.error(s"Input file is empty - $filePath")
         List.empty[(FleetData, BeamVehicle)]
@@ -145,6 +179,28 @@ object RideHailFleetInitializer extends OutputDataDescriptor {
       case _ => None
     }
   }
+
+  final val (
+    attr_id,
+    attr_rideHailManagerId,
+    attr_vehicleType,
+    attr_initialLocationX,
+    attr_initialLocationY,
+    attr_shifts,
+    attr_geofenceX,
+    attr_geofenceY,
+    attr_geofenceRadius
+  ) = (
+    "id",
+    "rideHailManagerId",
+    "vehicleType",
+    "initialLocationX",
+    "initialLocationY",
+    "shifts",
+    "geofenceX",
+    "geofenceY",
+    "geofenceRadius"
+  )
 
   /**
     * An intermediary class to hold the ride hail fleet data read from the file.
