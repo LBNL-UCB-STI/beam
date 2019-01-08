@@ -12,7 +12,6 @@ import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.csv.readers.ScenarioReaderCsv
 import com.google.inject.Injector
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.{Id, Scenario}

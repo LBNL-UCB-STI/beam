@@ -19,7 +19,6 @@ import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.{PopulationAdjustment}
 import beam.utils._
-import beam.utils.csv.readers.{ScenarioReaderCsv}
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
@@ -372,7 +371,7 @@ trait BeamHelper extends LazyLogging {
 
       //val planReaderCsv: ScenarioReaderCsv = new ScenarioReaderCsv(scenario, beamServices)
 
-      val csvScenarioLoader = new ScenarioReaderCsv2(scenario, beamServices)
+      val csvScenarioLoader = new ScenarioReaderCsv(scenario, beamServices)
       csvScenarioLoader.loadScenario()
 
       if (beamConfig.matsim.modules.plans.inputPlansFile != null && !beamConfig.matsim.modules.plans.inputPlansFile
