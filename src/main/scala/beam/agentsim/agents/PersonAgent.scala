@@ -584,7 +584,7 @@ class PersonAgent(
       def nextState: FSM.State[BeamAgentState, PersonData] = {
         val (currentVehicleForNextState, vehicleTokenForNextState) =
           if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
-            val vehicle = if (nextLeg.beamVehicleId.toString.startsWith("body")) {
+            val vehicle = if (nextLeg.isHumanBodyVehicle) {
               body
             } else {
               currentTourPersonalVehicle.get
