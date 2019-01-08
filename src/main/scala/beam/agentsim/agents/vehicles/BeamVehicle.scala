@@ -11,6 +11,8 @@ import beam.agentsim.infrastructure.ParkingStall.ChargingType
 import beam.router.Modes
 import beam.router.model.BeamLeg
 import beam.sim.BeamServices
+import beam.sim.common.GeoUtils
+import beam.sim.common.GeoUtils.{Straight, TurningDirection}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -186,59 +188,9 @@ object BeamVehicle {
     linkArrivalTime: Long,
     vehicleId: String,
     vehicleType: BeamVehicleType,
-    turnAtLinkEnd: String,
+    turnAtLinkEnd: TurningDirection,
     numberOfStops: Int
   )
-
-  /**
-    * Get the desired direction to be taken , based on the angle between the coordinates
-    * @param source source coordinates
-    * @param destination destination coordinates
-    * @return Direction to be taken ( L / SL / HL / R / HR / SR / S)
-    */
-  def getDirection(source: Coord, destination: Coord): String = {
-    val radians = computeAngle(source, destination)
-    radians match {
-      case _ if radians < 0.174533 || radians >= 6.10865 => "S" // Straight
-      case _ if radians >= 0.174533 & radians < 1.39626  => "SL" // Soft Left
-      case _ if radians >= 1.39626 & radians < 1.74533   => "L" // Left
-      case _ if radians >= 1.74533 & radians < 3.14159   => "HL" // Hard Left
-      case _ if radians >= 3.14159 & radians < 4.53785   => "HR" // Hard Right
-      case _ if radians >= 4.53785 & radians < 4.88692   => "R" // Right
-      case _ if radians >= 4.88692 & radians < 6.10865   => "SR" // Soft Right
-      case _                                             => "S" // default => Straight
-    }
-  }
-
-  /**
-    * Generate the vector coordinates from the link nodes
-    * @param link link in the network
-    * @return vector coordinates
-    */
-  def vectorFromLink(link: Link): Coord = {
-    new Coord(
-      link.getToNode.getCoord.getX - link.getFromNode.getCoord.getX,
-      link.getToNode.getCoord.getY - link.getFromNode.getCoord.getY
-    )
-  }
-
-  /**
-    * Computes the angle between two coordinates
-    * @param source source coordinates
-    * @param destination destination coordinates
-    * @return angle between the coordinates (in radians).
-    */
-  def computeAngle(source: Coord, destination: Coord): Double = {
-    val rad = Math.atan2(
-      source.getX * destination.getY - source.getY * destination.getX,
-      source.getX * destination.getX - source.getY * destination.getY
-    )
-    if (rad < 0) {
-      rad + 3.141593 * 2.0
-    } else {
-      rad
-    }
-  }
 
   /**
     * Organizes the fuel consumption data table
@@ -288,9 +240,13 @@ object BeamVehicle {
         }
         val turnAtLinkEnd = currentLink match {
           case Some(curLink) =>
-            getDirection(vectorFromLink(curLink), vectorFromLink(nextLink.get))
+            GeoUtils.getDirection(GeoUtils.vectorFromLink(curLink), GeoUtils.vectorFromLink(nextLink.get))
           case None =>
-            "S"
+            Straight
+        }
+        val numStops = turnAtLinkEnd match {
+          case Straight => 0
+          case _        => 1
         }
         FuelConsumptionData(
           linkId = id,
@@ -302,9 +258,7 @@ object BeamVehicle {
           vehicleId = id.toString,
           vehicleType = vehicleType,
           turnAtLinkEnd = turnAtLinkEnd,
-          numberOfStops =
-            if (turnAtLinkEnd.equalsIgnoreCase("NA")) 0
-            else 1
+          numberOfStops = numStops
         )
       }.toList
     }

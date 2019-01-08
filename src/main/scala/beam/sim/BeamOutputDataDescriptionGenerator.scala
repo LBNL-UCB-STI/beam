@@ -476,40 +476,40 @@ object SummaryStatsOutputs extends OutputDataDescriptor {
       OutputDataDescription(
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
-        "totalCostIncludingSubsidy_walk_transit",
-        "Total cost (including subsidy) paid by the passenger to reach destination by walking to transit and then transit to destination"
+        "totalCostIncludingIncentive_walk_transit",
+        "Total cost (including incentive) paid by the passenger to reach destination by walking to transit and then transit to destination"
       )
     )
     list.add(
       OutputDataDescription(
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
-        "totalCostIncludingSubsidy_ride_hail",
-        "Total cost (including subsidy) paid by the passenger to reach destination on a ride hail"
+        "totalCostIncludingIncentive_ride_hail",
+        "Total cost (including incentive) paid by the passenger to reach destination on a ride hail"
       )
     )
     list.add(
       OutputDataDescription(
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
-        "totalSubsidy_drive_transit",
-        "Total subsidy amount paid to passenger to reach destination by driving to transit and then transit to destination"
+        "totalIncentive_drive_transit",
+        "Total incentive amount paid to passenger to reach destination by driving to transit and then transit to destination"
       )
     )
     list.add(
       OutputDataDescription(
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
-        "totalSubsidy_ride_hail",
-        "Total subsidy amount paid to passenger to reach destination by ride hail"
+        "totalIncentive_ride_hail",
+        "Total incentive amount paid to passenger to reach destination by ride hail"
       )
     )
     list.add(
       OutputDataDescription(
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
-        "totalSubsidy_walk_transit",
-        "Total subsidy amount paid to passenger to reach destination by walking to transit and then transit to destination"
+        "totalIncentive_walk_transit",
+        "Total incentive amount paid to passenger to reach destination by walking to transit and then transit to destination"
       )
     )
     list.add(

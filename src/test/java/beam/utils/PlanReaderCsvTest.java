@@ -12,12 +12,13 @@ import java.io.IOException;
 
 public class PlanReaderCsvTest {
 
-    String path = "test/input/beamville/test-data/";
-    String delimiter = ",";
-    PlanReaderCsv planReader;
+    private static final String path = "test/input/beamville/test-data/";
+    private static String delimiter = ",";
 
-    Population populationReadFromCsv;
-    Population populationReadFromXml;
+    private PlanReaderCsv planReader;
+
+    private Population populationReadFromCsv;
+    private Population populationReadFromXml;
 
     @Before
     public void init() throws IOException {
@@ -47,7 +48,7 @@ public class PlanReaderCsvTest {
 
         // Read the population from the written file
         Scenario scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig());
-        new PopulationReader(scenario).readFile(path + planReader.plansOutputFileName);
+        new PopulationReader(scenario).readFile(path + PlanReaderCsv.plansOutputFileName);
         return scenario.getPopulation();
     }
 }

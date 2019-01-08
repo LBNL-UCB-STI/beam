@@ -31,13 +31,13 @@ class OutOfServiceVehicleManager(
   def initiateMovementToParkingDepot(
     vehicleId: Id[Vehicle],
     passengerSchedule: PassengerSchedule,
-    tick: Double
+    tick: Int
   ): Unit = {
     log.debug("initiateMovementToParkingDepot - vehicle: " + vehicleId)
 
     passengerSchedules.put(vehicleId, passengerSchedule)
 
-    rideHailManager
+    rideHailManager.vehicleManager
       .getRideHailAgentLocation(vehicleId)
       .rideHailAgent
       .tell(
@@ -52,14 +52,15 @@ class OutOfServiceVehicleManager(
 
   def handleInterruptReply(
     vehicleId: Id[Vehicle],
+    tick: Int
   ): Unit = {
 
-    val rideHailAgent = rideHailManager
+    val rideHailAgent = rideHailManager.vehicleManager
       .getRideHailAgentLocation(vehicleId)
       .rideHailAgent
 
     rideHailAgent.tell(
-      ModifyPassengerSchedule(passengerSchedules(vehicleId)),
+      ModifyPassengerSchedule(passengerSchedules(vehicleId), tick),
       rideHailManagerActor
     )
     rideHailAgent.tell(Resume(), rideHailManagerActor)
@@ -70,7 +71,7 @@ class OutOfServiceVehicleManager(
     vehicleId: Id[Vehicle],
     triggersToSchedule: Seq[ScheduleTrigger] = Vector()
   ): Unit = {
-    val rideHailAgent = rideHailManager
+    val rideHailAgent = rideHailManager.vehicleManager
       .getRideHailAgentLocation(vehicleId)
       .rideHailAgent
 
@@ -86,7 +87,7 @@ case class ReleaseAgentTrigger(vehicleId: Id[Vehicle])
 
 case class MoveOutOfServiceVehicleToDepotParking(
   passengerSchedule: PassengerSchedule,
-  tick: Double,
+  tick: Int,
   vehicleId: Id[Vehicle],
   stall: ParkingStall
 )

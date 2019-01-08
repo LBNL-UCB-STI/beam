@@ -354,15 +354,15 @@ Classname: SummaryStatsOutput
 +----------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+
 | personTravelTime_walk_transit          | Time taken by the passenger to walk to the transit                                                                              |
 +----------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+
-| totalCostIncludingSubsidy_walk_transit | Total cost (including subsidy) paid by the passenger to reach destination by walking to transit and then transit to destination |
+| totalCostIncludingIncentive_walk_transit | Total cost (including incentive) paid by the passenger to reach destination by walking to transit and then transit to destination |
 +----------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+
-| totalCostIncludingSubsidy_ride_hail    | Total cost (including subsidy) paid by the passenger to reach destination on a ride hail                                        |
+| totalCostIncludingIncentive_ride_hail    | Total cost (including incentive) paid by the passenger to reach destination on a ride hail                                        |
 +----------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+
-| totalSubsidy_drive_transit             | Total subsidy amount paid to passenger to reach destination by driving to transit and then transit to destination               |
+| totalIncentive_drive_transit             | Total incentive amount paid to passenger to reach destination by driving to transit and then transit to destination               |
 +----------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+
-| totalSubsidy_ride_hail                 | Total subsidy amount paid to passenger to reach destination by ride hail                                                        |
+| totalIncentive_ride_hail                 | Total incentive amount paid to passenger to reach destination by ride hail                                                        |
 +----------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+
-| totalSubsidy_walk_transit              | Total subsidy amount paid to passenger to reach destination by walking to transit and then transit to destination               |
+| totalIncentive_walk_transit              | Total incentive amount paid to passenger to reach destination by walking to transit and then transit to destination               |
 +----------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+
 | totalTravelTime                        | Total time taken by the passenger to travel from source to destination                                                          |
 +----------------------------------------+---------------------------------------------------------------------------------------------------------------------------------+
