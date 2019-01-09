@@ -256,7 +256,14 @@ class BeamSim @Inject()(
     iterationSummaryStats.zipWithIndex.foreach {
       case (stats, it) =>
         out.write(s"$it,")
-        out.write(keys.map(stats.getOrElse(_, "")).mkString(","))
+        out.write(
+          keys
+            .map { key =>
+              val stat = stats.getOrElse(key, "")
+              if (stat == null) 0 else stat
+            }
+            .mkString(",")
+        )
         out.newLine()
     }
 
