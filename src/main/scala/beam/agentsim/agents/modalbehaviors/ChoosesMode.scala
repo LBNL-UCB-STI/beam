@@ -652,10 +652,14 @@ trait ChoosesMode {
   def mustBeDrivenHome(vehicle: VehicleOrToken): Boolean = {
     vehicle match {
       case ActualVehicle(beamVehicle) =>
-        beamVehicle.manager.contains(context.parent) // is a household vehicle
+        mustBeDrivenHome(beamVehicle)
       case _: Token =>
         false // is not a household vehicle
     }
+  }
+
+  def mustBeDrivenHome(vehicle: BeamVehicle): Boolean = {
+    vehicle.manager.contains(context.parent) // is a household vehicle
   }
 
   def completeChoiceIfReady: PartialFunction[State, State] = {

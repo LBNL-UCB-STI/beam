@@ -497,6 +497,11 @@ class PersonAgent(
         eventsManager.processEvent(
           new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), data.currentVehicle.head)
         )
+        if (currentBeamVehicle != body && !mustBeDrivenHome(currentBeamVehicle)) {
+          // Is a shared vehicle. Give it up.
+          currentBeamVehicle.manager.get ! ReleaseVehicle(currentBeamVehicle)
+          beamVehicles -= data.currentVehicle.head
+        }
       }
       goto(ProcessingNextLegOrStartActivity) using data.copy(
         restOfCurrentTrip = data.restOfCurrentTrip.tail,

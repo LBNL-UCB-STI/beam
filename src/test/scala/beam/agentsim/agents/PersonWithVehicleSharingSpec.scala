@@ -11,7 +11,12 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeIncentive
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
-import beam.agentsim.agents.household.HouseholdActor.{HouseholdActor, MobilityStatusInquiry, MobilityStatusResponse}
+import beam.agentsim.agents.household.HouseholdActor.{
+  HouseholdActor,
+  MobilityStatusInquiry,
+  MobilityStatusResponse,
+  ReleaseVehicle
+}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -419,6 +424,7 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[PersonLeavesVehicleEvent]
 
       mockSharedVehicleFleet.expectMsgType[NotifyVehicleIdle]
+      mockSharedVehicleFleet.expectMsgType[ReleaseVehicle]
 
       events.expectMsgType[VehicleEntersTrafficEvent]
       events.expectMsgType[VehicleLeavesTrafficEvent]
@@ -447,7 +453,6 @@ class PersonWithVehicleSharingSpec
             vehicle2.useParkingStall(stall)
             MobilityStatusResponse(Vector(ActualVehicle(vehicle2)))
         } pipeTo mockSharedVehicleFleet.lastSender
-
 
       val routingRequest2 = mockRouter.expectMsgType[RoutingRequest]
       println(routingRequest2)
