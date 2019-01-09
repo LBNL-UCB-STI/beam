@@ -9,7 +9,7 @@ import org.supercsv.prefs.CsvPreference
 
 import scala.collection.mutable.ListBuffer
 
-object CoordInBoundsUtil extends App{
+object CoordInBoundsUtil extends App {
 
   //val plansFilePath = "C:/ns/beam-projects/beam-master4/test/input/beamville/test-data/urbansim/urbansim2/plans.csv"
   val plansFilePath = "D:/beam/test/input/sfbay/test-data/urbansim/plans.csv"
@@ -30,7 +30,7 @@ object CoordInBoundsUtil extends App{
   val miny = 4076139.064808234
   val maxy = 4321404.5918796975
 
-  val envelop = QuadTreeBounds(minx, miny, maxx,  maxy)
+  val envelop = QuadTreeBounds(minx, miny, maxx, maxy)
   val radius = 10000
   val randomSeed = 4711
   val rand: Random = new Random(randomSeed)
@@ -41,25 +41,21 @@ object CoordInBoundsUtil extends App{
   println("Loaded coord 10 out of " + coords.size)
   coords.take(10).foreach(println)
 
-  val transformedCoords = coords.map {
-    coord =>
-      val coordUtm = wgs2Utm.transform(coord)
-      val coordUtmWithRadius = new Coord(
-        coordUtm.getX + radius * (rand.nextDouble() - 0.5),
-        coordUtm.getY + radius * (rand.nextDouble() - 0.5)
-      )
-      (coord, coordUtmWithRadius)
+  val transformedCoords = coords.map { coord =>
+    val coordUtm = wgs2Utm.transform(coord)
+    val coordUtmWithRadius = new Coord(
+      coordUtm.getX + radius * (rand.nextDouble() - 0.5),
+      coordUtm.getY + radius * (rand.nextDouble() - 0.5)
+    )
+    (coord, coordUtmWithRadius)
   }
 
-
-
-  val filteredCoords = transformedCoords.filter{
-    coordSet =>
-      if(coordSet._2.getX.equals(4013.4729453296563)){
-        //x=-4515.877289622377
-        println("X coordinate found")
-      }
-      !containsOrEqualsCoords(envelop, coordSet._2)
+  val filteredCoords = transformedCoords.filter { coordSet =>
+    if (coordSet._2.getX.equals(4013.4729453296563)) {
+      //x=-4515.877289622377
+      println("X coordinate found")
+    }
+    !containsOrEqualsCoords(envelop, coordSet._2)
   }
 
   println("Filtered coordinates those are not in bounds 10 out of " + filteredCoords.size)
@@ -67,7 +63,7 @@ object CoordInBoundsUtil extends App{
 
   def containsOrEqualsCoords(boundingBox: QuadTreeBounds, coord: Coord): Boolean = {
     (boundingBox.minx <= coord.getX && coord.getX <= boundingBox.maxx &&
-      boundingBox.miny <= coord.getY && coord.getY <= boundingBox.maxy)
+    boundingBox.miny <= coord.getY && coord.getY <= boundingBox.maxy)
   }
 
   private def readCsvFileByLine[A](filePath: String, z: A)(readLine: (java.util.Map[String, String], A) => A): A = {
@@ -90,8 +86,8 @@ object CoordInBoundsUtil extends App{
     coords += (new Coord(-121.88562672146001, 37.336730003490004))
     coords += (new Coord(-121.92953484746799, 37.3827565381698))
     coords += (new Coord(-121.88562672146001, 37.336730003490004))
-    coords.foreach{
-      case coord : Coord => println(coord.toString() + " -> " + wgs2Utm.transform(coord))
+    coords.foreach {
+      case coord: Coord => println(coord.toString() + " -> " + wgs2Utm.transform(coord))
     }
 
     coords
@@ -112,7 +108,7 @@ object CoordInBoundsUtil extends App{
 
         (lng, lat) match {
           case (lng_, lat_) if lng_ != null && lat_ != null => acc += new Coord(lng.toDouble, lat.toDouble)
-          case _ => acc
+          case _                                            => acc
         }
 
     }

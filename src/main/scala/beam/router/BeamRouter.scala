@@ -480,8 +480,8 @@ object BeamRouter {
     * @param itineraries a vector of planned routes
     */
   case class RoutingResponse(
-                              itineraries: Seq[EmbodiedBeamTrip],
-                              requestId: Int
+    itineraries: Seq[EmbodiedBeamTrip],
+    requestId: Int
   ) {
     lazy val responseId: Int = UUID.randomUUID().hashCode()
   }

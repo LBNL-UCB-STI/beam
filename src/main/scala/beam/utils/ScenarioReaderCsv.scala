@@ -1,6 +1,5 @@
 package beam.utils
 
-
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
@@ -19,7 +18,7 @@ import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.mutable.ParTrieMap
 
 class ScenarioReaderCsv(var scenario: MutableScenario, var beamServices: BeamServices, val delimiter: String = ",")
-  extends LazyLogging {
+    extends LazyLogging {
 
   val scenarioFolder = beamServices.beamConfig.beam.agentsim.agents.population.beamPopulationDirectory
 
@@ -52,7 +51,11 @@ class ScenarioReaderCsv(var scenario: MutableScenario, var beamServices: BeamSer
     val buildings = ScenarioReaderCsv.readBuildingsFile(buildingFilePath)
 
     logger.info("Reading Persons...")
-    val householdPersons = ScenarioReaderCsv.readPersonsFile(personFilePath, scenario.getPopulation, BeamMode.allBeamModes.map(_.value).mkString(","))
+    val householdPersons = ScenarioReaderCsv.readPersonsFile(
+      personFilePath,
+      scenario.getPopulation,
+      BeamMode.allBeamModes.map(_.value).mkString(",")
+    )
 
     logger.info("Reading plans...")
     ScenarioReaderCsv.readPlansFile(planFilePath, scenario.getPopulation, beamServices)
@@ -63,7 +66,7 @@ class ScenarioReaderCsv(var scenario: MutableScenario, var beamServices: BeamSer
     val listOfPersonsWithoutPlan: ListBuffer[Id[Person]] = ListBuffer()
     scenario.getPopulation.getPersons.forEach {
       case (pk: Id[Person], pv: Person) if (pv.getSelectedPlan == null) => listOfPersonsWithoutPlan += pk
-      case _ =>
+      case _                                                            =>
     }
 
     logger.info("Removing persons without plan {}", listOfPersonsWithoutPlan.size)
@@ -98,7 +101,7 @@ class ScenarioReaderCsv(var scenario: MutableScenario, var beamServices: BeamSer
     val listOfHouseholdsWithoutMembers: ListBuffer[Household] = ListBuffer()
     scenario.getHouseholds.getHouseholds.forEach {
       case (hId: Id[Household], h: Household) if (h.getMemberIds.size() == 0) => listOfHouseholdsWithoutMembers += h
-      case _ =>
+      case _                                                                  =>
     }
 
     logger.info("Removing households without members {}", listOfHouseholdsWithoutMembers.size)
@@ -123,12 +126,11 @@ object ScenarioReaderCsv {
 
   var vehicleCounter = 1;
 
-
   def readPersonsFile(
-                       filePath: String,
-                       population: Population,
-                       modes: String
-                     ): TrieMap[Id[Household], ListBuffer[Id[Person]]] = {
+    filePath: String,
+    population: Population,
+    modes: String
+  ): TrieMap[Id[Household], ListBuffer[Id[Person]]] = {
     BeamServices.readCsvFileByLine(filePath, TrieMap[Id[Household], ListBuffer[Id[Person]]]()) {
       case (line, acc) =>
         val _personId: Id[Person] = Id.createPersonId(line.get("person_id"))
@@ -219,7 +221,7 @@ object ScenarioReaderCsv {
           else if (planElement.equalsIgnoreCase("activity")) {
             val coord =
               beamServices.beamConfig.beam.agentsim.agents.population.convertWgs2Utm match {
-                case true => beamServices.geo.wgs2Utm(new Coord(lng.toDouble, lat.toDouble))
+                case true  => beamServices.geo.wgs2Utm(new Coord(lng.toDouble, lat.toDouble))
                 case false => new Coord(lng.toDouble, lat.toDouble)
               }
 
@@ -234,14 +236,14 @@ object ScenarioReaderCsv {
   }
 
   def readHouseholdsFile(
-                          filePath: String,
-                          scenario: MutableScenario,
-                          beamServices: BeamServices,
-                          householdPersons: ParTrieMap[Id[Household], ListBuffer[Id[Person]]],
-                          units: ParTrieMap[String, java.util.Map[String, String]],
-                          buildings: ParTrieMap[String, java.util.Map[String, String]],
-                          parcelAttrs: ParTrieMap[String, java.util.Map[String, String]]
-                        ): Unit = {
+    filePath: String,
+    scenario: MutableScenario,
+    beamServices: BeamServices,
+    householdPersons: ParTrieMap[Id[Household], ListBuffer[Id[Person]]],
+    units: ParTrieMap[String, java.util.Map[String, String]],
+    buildings: ParTrieMap[String, java.util.Map[String, String]],
+    parcelAttrs: ParTrieMap[String, java.util.Map[String, String]]
+  ): Unit = {
 
     val scenarioHouseholdAttributes = scenario.getHouseholds.getHouseholdAttributes
     val scenarioHouseholds = scenario.getHouseholds.getHouseholds
@@ -255,7 +257,6 @@ object ScenarioReaderCsv {
         val householdId = Id.create(_householdId, classOf[Household])
 
         val numberOfVehicles = java.lang.Double.parseDouble(line.get("cars")).intValue()
-
 
         val objHousehold = new HouseholdsFactoryImpl().createHousehold(householdId)
 
@@ -279,7 +280,7 @@ object ScenarioReaderCsv {
                           val lat = parcelAttr.get("y")
 
                           beamServices.beamConfig.beam.agentsim.agents.population.convertWgs2Utm match {
-                            case true => beamServices.geo.wgs2Utm(new Coord(lng.toDouble, lat.toDouble))
+                            case true  => beamServices.geo.wgs2Utm(new Coord(lng.toDouble, lat.toDouble))
                             case false => new Coord(lng.toDouble, lat.toDouble)
                           }
                         case None => new Coord(0, 0)
@@ -319,8 +320,6 @@ object ScenarioReaderCsv {
           //logger.info("no persons for household")
         }
 
-
-
         val vehicleTypes = VehiclesAdjustment
           .getVehicleAdjustment(beamServices)
           .sampleVehicleTypesForHousehold(
@@ -352,13 +351,13 @@ object ScenarioReaderCsv {
           .putAttribute(objHousehold.getId.toString, "homecoordy", householdCoord.getY)
       }
 
-        Unit
+      Unit
     }
   }
 
   def readBuildingsFile(
-                         filePath: String
-                       ): TrieMap[String, java.util.Map[String, String]] = {
+    filePath: String
+  ): TrieMap[String, java.util.Map[String, String]] = {
 
     BeamServices.readCsvFileByLine(filePath, TrieMap[String, java.util.Map[String, String]]()) {
       case (line, acc) =>
@@ -375,7 +374,5 @@ object ScenarioReaderCsv {
         acc += ((buildingId, _line))
     }
   }
-
-
 
 }

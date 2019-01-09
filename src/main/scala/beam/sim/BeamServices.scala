@@ -148,19 +148,19 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
   // say, a yacht or personal bus, but I think this will be fine for now.
   def maybeScaleTransit(
-                         vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType]
-                       ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
+    vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType]
+  ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
     beamConfig.beam.agentsim.tuning.transitCapacity match {
       case Some(scalingFactor) =>
         vehicleTypes.map {
           case (id, bvt) =>
             id -> (if (bvt.standingRoomCapacity > 0)
-              bvt.copy(
-                seatingCapacity = Math.ceil(bvt.seatingCapacity.toDouble * scalingFactor).toInt,
-                standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity.toDouble * scalingFactor).toInt
-              )
-            else
-              bvt)
+                     bvt.copy(
+                       seatingCapacity = Math.ceil(bvt.seatingCapacity.toDouble * scalingFactor).toInt,
+                       standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity.toDouble * scalingFactor).toInt
+                     )
+                   else
+                     bvt)
         }
       case None => vehicleTypes
     }
@@ -196,33 +196,33 @@ object BeamServices {
     }
   }
 
-  def readVehiclesFile(filePath: String,
-                        vehiclesTypeMap: TrieMap[Id[BeamVehicleType], BeamVehicleType]
-                      ): TrieMap[Id[BeamVehicle], BeamVehicle] = {
+  def readVehiclesFile(
+    filePath: String,
+    vehiclesTypeMap: TrieMap[Id[BeamVehicleType], BeamVehicleType]
+  ): TrieMap[Id[BeamVehicle], BeamVehicle] = {
 
+    readCsvFileByLine(filePath, TrieMap[Id[BeamVehicle], BeamVehicle]()) {
+      case (line, acc) =>
+        val vehicleIdString = line.get("vehicleId")
+        val vehicleId = Id.create(vehicleIdString, classOf[BeamVehicle])
 
-        readCsvFileByLine(filePath, TrieMap[Id[BeamVehicle], BeamVehicle]()) {
-        case (line, acc) =>
-          val vehicleIdString = line.get("vehicleId")
-          val vehicleId = Id.create(vehicleIdString, classOf[BeamVehicle])
+        val vehicleTypeIdString = line.get("vehicleTypeId")
+        val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))
 
-          val vehicleTypeIdString = line.get("vehicleTypeId")
-          val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))
+        val householdIdString = line.get("householdId")
 
-          val householdIdString = line.get("householdId")
+        val householdId: Option[Id[Household]] = if (householdIdString == null) {
+          None
+        } else {
+          Some(Id.create(householdIdString, classOf[Household]))
+        }
 
-          val householdId: Option[Id[Household]] = if (householdIdString == null) {
-            None
-          }else{
-            Some(Id.create(householdIdString, classOf[Household]))
-          }
+        val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
-          val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
-
-          val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, householdId)
-          acc += ((vehicleId, beamVehicle))
-          acc
-      }
+        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, householdId)
+        acc += ((vehicleId, beamVehicle))
+        acc
+    }
 
   }
 
@@ -236,9 +236,9 @@ object BeamServices {
   }
 
   def readBeamVehicleTypeFile(
-                               filePath: String,
-                               fuelTypePrices: TrieMap[FuelType, Double]
-                             ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
+    filePath: String,
+    fuelTypePrices: TrieMap[FuelType, Double]
+  ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
 
     val vehicleTypes = readCsvFileByLine(filePath, TrieMap[Id[BeamVehicleType], BeamVehicleType]()) {
       case (line, z) =>

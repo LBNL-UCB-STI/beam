@@ -131,7 +131,6 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
       val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
         BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
 
-
       override def startNewIteration(): Unit = throw new Exception("???")
 
       override protected def injector: Injector = throw new Exception("???")

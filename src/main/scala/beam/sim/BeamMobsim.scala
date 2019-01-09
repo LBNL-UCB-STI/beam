@@ -62,17 +62,17 @@ import scala.concurrent.duration._
   * Created by sfeygin on 2/8/17.
   */
 class BeamMobsim @Inject()(
-                            val beamServices: BeamServices,
-                            val transportNetwork: TransportNetwork,
-                            val tollCalculator: TollCalculator,
-                            val scenario: Scenario,
-                            val eventsManager: EventsManager,
-                            val actorSystem: ActorSystem,
-                            val rideHailSurgePricingManager: RideHailSurgePricingManager,
-                            val rideHailIterationHistory: RideHailIterationHistory
-                          ) extends Mobsim
-  with LazyLogging
-  with MetricsSupport {
+  val beamServices: BeamServices,
+  val transportNetwork: TransportNetwork,
+  val tollCalculator: TollCalculator,
+  val scenario: Scenario,
+  val eventsManager: EventsManager,
+  val actorSystem: ActorSystem,
+  val rideHailSurgePricingManager: RideHailSurgePricingManager,
+  val rideHailIterationHistory: RideHailIterationHistory
+) extends Mobsim
+    with LazyLogging
+    with MetricsSupport {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   var memoryLoggingTimerActorRef: ActorRef = _
@@ -238,7 +238,7 @@ class BeamMobsim @Inject()(
                     case z: Activity =>
                       activityLocationsSpatialPlot.addPoint(PointToPlot(z.getCoord, Color.RED, 10))
                     case _ =>
-                  }
+                }
               )
 
             scenario.getPopulation.getPersons
@@ -305,7 +305,7 @@ class BeamMobsim @Inject()(
                     null
                 }
 
-              if(rideInitialLocation.getX.equals(503454.0427511351)){
+              if (rideInitialLocation.getX.equals(503454.0427511351)) {
                 println("here break")
               }
               val rideHailName = s"rideHailAgent-${person.getId}"
@@ -400,10 +400,10 @@ class BeamMobsim @Inject()(
           scheduleRideHailManagerTimerMessages()
 
           def prepareMemoryLoggingTimerActor(
-                                              timeoutInSeconds: Int,
-                                              system: ActorSystem,
-                                              memoryLoggingTimerActorRef: ActorRef
-                                            ): Cancellable = {
+            timeoutInSeconds: Int,
+            system: ActorSystem,
+            memoryLoggingTimerActorRef: ActorRef
+          ): Cancellable = {
             import system.dispatcher
 
             val cancellable = system.scheduler.schedule(
