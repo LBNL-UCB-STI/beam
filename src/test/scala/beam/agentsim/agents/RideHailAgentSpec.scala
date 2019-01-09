@@ -10,7 +10,7 @@ import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent.DrivingInterrupted
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDriving
-import beam.agentsim.agents.ridehail.RideHailAgent
+import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager}
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule, VehiclePersonId}
@@ -174,9 +174,12 @@ class RideHailAgentSpec
       val rideHailAgent = TestFSMRef(
         new RideHailAgent(
           Id.create("1", classOf[RideHailAgent]),
+          Id.create("1", classOf[RideHailManager]),
           scheduler,
           beamVehicle,
           new Coord(0.0, 0.0),
+          None,
+          None,
           eventsManager,
           zonalParkingManager,
           services,
@@ -253,9 +256,12 @@ class RideHailAgentSpec
       val rideHailAgent = TestFSMRef(
         new RideHailAgent(
           Id.create("1", classOf[RideHailAgent]),
+          Id.create("1", classOf[RideHailManager]),
           scheduler,
           beamVehicle,
           new Coord(0.0, 0.0),
+          None,
+          None,
           eventsManager,
           zonalParkingManager,
           services,
@@ -321,9 +327,12 @@ class RideHailAgentSpec
       val rideHailAgent = TestFSMRef(
         new RideHailAgent(
           Id.create("1", classOf[RideHailAgent]),
+          Id.create("1", classOf[RideHailManager]),
           scheduler,
           beamVehicle,
           new Coord(0.0, 0.0),
+          None,
+          None,
           eventsManager,
           zonalParkingManager,
           services,

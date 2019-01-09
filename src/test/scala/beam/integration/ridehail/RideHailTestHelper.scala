@@ -20,7 +20,7 @@ object RideHailTestHelper {
         ConfigValueFactory.fromAnyRef("ModeChoiceRideHailIfAvailable")
       )
       .withValue(
-        "beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation",
+        "beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation",
         ConfigValueFactory.fromAnyRef(0.1)
       )
       .withValue(
