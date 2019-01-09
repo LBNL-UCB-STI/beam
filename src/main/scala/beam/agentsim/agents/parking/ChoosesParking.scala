@@ -60,7 +60,7 @@ trait ChoosesParking extends {
       stay using data
     case Event(StateTimeout, data: BasePersonData) =>
       val (tick, _) = releaseTickAndTriggerId()
-      val veh = data.currentTourPersonalVehicle.get
+      val veh = beamVehicles(data.currentTourPersonalVehicle.get)
       assert(veh.id == data.currentVehicle.head)
       val stall = veh.stall.getOrElse(throw new RuntimeException(log.format("My vehicle {} is not parked.", veh.id)))
       parkingManager ! ReleaseParkingStall(stall.id)
@@ -223,7 +223,6 @@ trait ChoosesParking extends {
           )
         )
       )
-      currentBeamVehicle = newVehicleToken
       goto(WaitingToDrive) using data.copy(
         currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
         restOfCurrentTrip = newRestOfTrip.toList,

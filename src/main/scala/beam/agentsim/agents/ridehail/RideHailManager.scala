@@ -381,7 +381,6 @@ class RideHailManager(
       }
       modifyPassengerScheduleManager
         .checkInResource(rideHailBeamVehicle.id, Some(SpaceTime(rideInitialLocation, 0)), None)
-      driver ! GetBeamVehicleState
       scheduler ! ScheduleTrigger(InitializeTrigger(0), driver)
 
       rideHailinitialLocationSpatialPlot

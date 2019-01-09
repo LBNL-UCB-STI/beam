@@ -75,7 +75,7 @@ trait ChoosesMode {
             _,
             _
             ) =>
-          self ! MobilityStatusResponse(Vector(vehicle))
+          self ! MobilityStatusResponse(Vector(beamVehicles(vehicle)))
         // Only need to get available street vehicles from household if our mode requires such a vehicle
         case ChoosesModeData(
             BasePersonData(_, _, _, _, None | Some(CAR | BIKE | DRIVE_TRANSIT), _, _, _, _, _),
@@ -115,7 +115,8 @@ trait ChoosesMode {
   }
 
   when(ChoosingMode)(stateFunction = transform {
-    case Event(MobilityStatusResponse(beamVehicles), choosesModeData: ChoosesModeData) =>
+    case Event(MobilityStatusResponse(newlyAvailableBeamVehicles), choosesModeData: ChoosesModeData) =>
+      beamVehicles ++= newlyAvailableBeamVehicles.map(v => v.id -> v)
       val currentPersonLocation = choosesModeData.currentLocation
       val availableModes: Seq[BeamMode] = availableModesForPerson(
         matsimPlan.getPerson
@@ -142,12 +143,12 @@ trait ChoosesMode {
         correctedCurrentTourMode match {
           case None | Some(CAR | BIKE) =>
             // In these cases, a personal vehicle will be involved
-            beamVehicles
+            newlyAvailableBeamVehicles
           case Some(DRIVE_TRANSIT) =>
             val tour = _experiencedBeamPlan.getTourContaining(nextAct)
             val tripIndex = tour.tripIndexOfElement(nextAct)
             if (tripIndex == 0 || tripIndex == tour.trips.size - 1) {
-              beamVehicles
+              newlyAvailableBeamVehicles
             } else {
               Vector()
             }
@@ -219,7 +220,7 @@ trait ChoosesMode {
         choosesModeData.personData.currentTourPersonalVehicle match {
           case Some(personalVeh) =>
             // We already have a vehicle we're using on this tour, so filter down to that
-            streetVehicles.filter(_.id == personalVeh.id)
+            streetVehicles.filter(_.id == personalVeh)
           case None =>
             // Otherwise, filter by mode
             streetVehicles.filter(_.toStreetVehicle.mode == byMode)
@@ -227,7 +228,7 @@ trait ChoosesMode {
       }
 
       val hasRideHail = availableModes.contains(RIDE_HAIL)
-      val willRequestDrivingRoute = beamVehicles.nonEmpty
+      val willRequestDrivingRoute = newlyAvailableBeamVehicles.nonEmpty
 
       var responsePlaceholders = ChoosesModeResponsePlaceholders()
       var requestId: Option[Int] = None
@@ -253,7 +254,7 @@ trait ChoosesMode {
           }
           parkingRequestId = makeRequestWith(
             Vector(TRANSIT),
-            beamVehicles.map(_.toStreetVehicle) :+ bodyStreetVehicle,
+            newlyAvailableBeamVehicles.map(_.toStreetVehicle) :+ bodyStreetVehicle,
             withParking = willRequestDrivingRoute
           )
         case Some(WALK) =>
@@ -271,7 +272,7 @@ trait ChoosesMode {
           maybeLeg.map(l => (l, l.getRoute)) match {
             case Some((l, r: NetworkRoute)) =>
               val maybeVehicle =
-                filterStreetVehiclesForQuery(beamVehicles, mode).headOption
+                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles, mode).headOption
               maybeVehicle match {
                 case Some(vehicle) =>
                   val linkIds = new ArrayBuffer[Int](2 + r.getLinkIds.size())
@@ -317,7 +318,7 @@ trait ChoosesMode {
             case _ =>
               parkingRequestId = makeRequestWith(
                 Vector(),
-                filterStreetVehiclesForQuery(beamVehicles, mode).map(_.toStreetVehicle) :+ bodyStreetVehicle,
+                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles, mode).map(_.toStreetVehicle) :+ bodyStreetVehicle,
                 withParking = mode == CAR
               )
               responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = mode == CAR)
@@ -334,7 +335,7 @@ trait ChoosesMode {
               // actual location of transit station
               makeRequestWith(
                 Vector(TRANSIT),
-                filterStreetVehiclesForQuery(beamVehicles, CAR).map(_.toStreetVehicle) :+ bodyStreetVehicle,
+                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles, CAR).map(_.toStreetVehicle) :+ bodyStreetVehicle,
                 withParking = false
               )
               responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = false)
@@ -342,9 +343,9 @@ trait ChoosesMode {
               // At the end of the tour, only drive home a vehicle that we have also taken away from there.
               parkingRequestId = makeRequestWith(
                 Vector(TRANSIT),
-                beamVehicles
+                newlyAvailableBeamVehicles
                   .map(_.toStreetVehicle)
-                  .filter(_.id == currentTourPersonalVehicle.id) :+ bodyStreetVehicle,
+                  .filter(_.id == currentTourPersonalVehicle) :+ bodyStreetVehicle,
                 streetVehiclesIntermodalUse = Egress,
                 withParking = true
               )
@@ -878,7 +879,7 @@ trait ChoosesMode {
         )
       )
       goto(WaitingForDeparture) using data.personData.copy(currentTrip = Some(chosenTrip), restOfCurrentTrip = chosenTrip.legs.toList, currentTourMode = data.personData.currentTourMode
-          .orElse(Some(chosenTrip.tripClassifier)), currentTourPersonalVehicle = data.personData.currentTourPersonalVehicle.orElse(personalVehiclesUsed.headOption))
+          .orElse(Some(chosenTrip.tripClassifier)), currentTourPersonalVehicle = data.personData.currentTourPersonalVehicle.orElse(personalVehiclesUsed.headOption.map(_.id)))
   }
 }
 

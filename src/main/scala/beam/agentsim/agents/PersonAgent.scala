@@ -26,7 +26,6 @@ import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.DebugLib
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
@@ -124,7 +123,7 @@ object PersonAgent {
     restOfCurrentTrip: List[EmbodiedBeamLeg] = List(),
     currentVehicle: VehicleStack = Vector(),
     currentTourMode: Option[BeamMode] = None,
-    currentTourPersonalVehicle: Option[BeamVehicle] = None,
+    currentTourPersonalVehicle: Option[Id[BeamVehicle]] = None,
     passengerSchedule: PassengerSchedule = PassengerSchedule(),
     currentLegPassengerScheduleIndex: Int = 0,
     hasDeparted: Boolean = false,
@@ -203,6 +202,7 @@ class PersonAgent(
     BeamVehicleType.defaultHumanBodyBeamVehicleType
   )
   body.manager = Some(self)
+  beamVehicles.put(body.id, body)
 
   val attributes: AttributesOfIndividual =
     matsimPlan.getPerson.getCustomAttributes
@@ -501,7 +501,6 @@ class PersonAgent(
           new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), data.currentVehicle.head)
         )
       }
-      currentBeamVehicle = body
       goto(ProcessingNextLegOrStartActivity) using data.copy(
         restOfCurrentTrip = data.restOfCurrentTrip.tail,
         currentVehicle = Vector(body.id),
@@ -578,12 +577,13 @@ class PersonAgent(
       def nextState: FSM.State[BeamAgentState, PersonData] = {
         val (currentVehicleForNextState, vehicleTokenForNextState) =
           if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
-            val vehicle = if (nextLeg.isHumanBodyVehicle) {
-              body
+            val vehicleId = if (nextLeg.isHumanBodyVehicle) {
+              body.id
             } else {
               currentTourPersonalVehicle.get
             }
-            assert(vehicle.id == nextLeg.beamVehicleId)
+            assert(vehicleId == nextLeg.beamVehicleId)
+            val vehicle = beamVehicles(vehicleId)
             if (!vehicle.exclusiveAccess && !gotAccess) {
               vehicle.manager.get ! TryToBoardVehicle(vehicle.id, self)
               return goto(TryingToBoardVehicle)
@@ -619,7 +619,6 @@ class PersonAgent(
           releaseTickAndTriggerId()
           WaitingToDrive
         }
-        currentBeamVehicle = vehicleTokenForNextState
         goto(stateToGo) using data.copy(
           passengerSchedule = newPassengerSchedule,
           currentLegPassengerScheduleIndex = 0,
@@ -766,7 +765,8 @@ class PersonAgent(
             currentTrip = None,
             restOfCurrentTrip = List(),
             currentTourPersonalVehicle = currentTourPersonalVehicle match {
-              case Some(personalVeh) =>
+              case Some(personalVehId) =>
+                val personalVeh = beamVehicles(personalVehId)
                 if (activity.getType.equals("Home")) {
                   assert(personalVeh.stall.nonEmpty)
                   gotAccess = false

@@ -108,13 +108,13 @@ class TransitDriverAgent(
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
       logDebug(s" $id has been initialized, going to Waiting state")
+      beamVehicles.put(vehicle.id, vehicle)
       vehicle.becomeDriver(self)
       eventsManager.processEvent(
         new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_transit_driver")
       )
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
       val schedule = data.passengerSchedule.addLegs(legs)
-      currentBeamVehicle = vehicle
       goto(WaitingToDrive) using data
         .copy(currentVehicle = Vector(vehicle.id))
         .withPassengerSchedule(schedule)

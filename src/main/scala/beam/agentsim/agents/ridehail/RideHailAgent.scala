@@ -169,6 +169,7 @@ class RideHailAgent(
 
   when(Uninitialized) {
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
+      beamVehicles.put(vehicle.id, vehicle)
       vehicle.becomeDriver(self)
       eventsManager.processEvent(
         new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_tnc_driver")

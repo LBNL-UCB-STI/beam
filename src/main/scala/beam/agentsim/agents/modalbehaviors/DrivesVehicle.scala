@@ -23,14 +23,11 @@ import beam.router.osm.TollCalculator
 import beam.sim.HasServices
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{
-  LinkEnterEvent,
-  LinkLeaveEvent,
-  VehicleEntersTrafficEvent,
-  VehicleLeavesTrafficEvent
-}
+import org.matsim.api.core.v01.events.{LinkEnterEvent, LinkLeaveEvent, VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
+
+import scala.collection.mutable
 
 /**
   * @author dserdiuk on 7/29/17.
@@ -57,8 +54,6 @@ object DrivesVehicle {
 
   case class StopDrivingIfNoPassengerOnBoardReply(success: Boolean, requestId: Int, tick: Int)
 
-  case object GetBeamVehicleState
-
 }
 
 trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with Stash {
@@ -67,7 +62,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
   protected val parkingManager: ActorRef
   protected val tollCalculator: TollCalculator
   private var tollsAccumulated = 0.0
-  var currentBeamVehicle: BeamVehicle = _
+  var beamVehicles: mutable.Map[Id[BeamVehicle], BeamVehicle] = mutable.Map()
+  def currentBeamVehicle = beamVehicles(stateData.currentVehicle.head)
 
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime, toll: Double)
 
@@ -564,18 +560,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           )
         )
         .asInstanceOf[T]
-
-    case ev @ Event(GetBeamVehicleState, data) =>
-      log.debug("state(DrivesVehicle.drivingBehavior): {}", ev)
-      // val currentLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
-      // as fuel is updated only at end of leg, might not be fully accurate - if want to do more accurate, will need to update fuel during leg
-      // also position is not accurate (TODO: interpolate?)
-
-      //      val lastLocationVisited = SpaceTime(new Coord(0, 0), 0) // TODO: don't ask for this here - TNC should keep track of it?
-      // val lastLocationVisited = currentLeg.travelPath.endPoint
-
-      sender() ! BeamVehicleStateUpdate(currentBeamVehicle.id, currentBeamVehicle.getState)
-      stay()
 
     case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
       log.debug("DrivesVehicle.StopDrivingIfNoPassengerOnBoard -> unhandled + {}", stateName)
