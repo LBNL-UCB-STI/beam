@@ -7,6 +7,7 @@ import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import beam.agentsim.Resource.{Boarded, NotAvailable, TryToBoardVehicle}
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.Token
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
@@ -34,8 +35,7 @@ class FixedNonReservingVehicleFleet(val parkingManager: ActorRef, val locations:
         Id.createVehicleId("fixed-non-reserving-vehicle-fleet-" + ix),
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType,
-        exclusiveAccess = false
+        BeamVehicleType.defaultCarBeamVehicleType
       )
       vehicle.manager = Some(self)
       vehicle.spaceTime = SpaceTime(location, 0)
@@ -64,7 +64,9 @@ class FixedNonReservingVehicleFleet(val parkingManager: ActorRef, val locations:
       boundingBox.expandBy(500.0)
 
       val nearbyVehicles = availableVehiclesIndex.query(boundingBox).asScala.toVector.asInstanceOf[Vector[BeamVehicle]]
-      sender ! MobilityStatusResponse(nearbyVehicles.take(5))
+      sender ! MobilityStatusResponse(nearbyVehicles.take(5).map { vehicle =>
+        Token(vehicle.id, self, vehicle.toStreetVehicle)
+      })
 
     case TryToBoardVehicle(vehicleId, who) =>
       availableVehicles.get(vehicleId) match {
@@ -77,7 +79,7 @@ class FixedNonReservingVehicleFleet(val parkingManager: ActorRef, val locations:
           if (!removed) {
             log.error("Didn't find a vehicle in my spatial index, at the location I thought it would be.")
           }
-          who ! Boarded
+          who ! Boarded(vehicle)
           println("Checked out " + vehicleId)
         case None =>
           who ! NotAvailable

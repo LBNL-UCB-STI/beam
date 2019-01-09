@@ -9,6 +9,7 @@ import akka.pattern.pipe
 import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, VehicleOrToken}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.vehicles.BeamVehicle
@@ -76,7 +77,7 @@ object HouseholdActor {
   case class MobilityStatusInquiry(whereWhen: SpaceTime)
   case class ReleaseVehicle(vehicle: BeamVehicle)
 
-  case class MobilityStatusResponse(streetVehicle: Vector[BeamVehicle])
+  case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken])
 
   /**
     * Implementation of intra-household interaction in BEAM using actors.
@@ -202,7 +203,7 @@ object HouseholdActor {
         availableVehicles = availableVehicles match {
           case firstVehicle :: rest =>
             firstVehicle.becomeDriver(sender)
-            sender() ! MobilityStatusResponse(Vector(firstVehicle))
+            sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)))
             rest
           case Nil =>
             sender() ! MobilityStatusResponse(Vector())

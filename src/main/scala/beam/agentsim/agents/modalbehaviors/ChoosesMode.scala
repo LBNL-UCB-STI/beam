@@ -32,6 +32,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import akka.pattern._
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token, VehicleOrToken}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -214,16 +215,16 @@ trait ChoosesMode {
       }
 
       def filterStreetVehiclesForQuery(
-        streetVehicles: Vector[BeamVehicle],
+        streetVehicles: Vector[StreetVehicle],
         byMode: BeamMode
-      ): Vector[BeamVehicle] = {
+      ): Vector[StreetVehicle] = {
         choosesModeData.personData.currentTourPersonalVehicle match {
           case Some(personalVeh) =>
             // We already have a vehicle we're using on this tour, so filter down to that
             streetVehicles.filter(_.id == personalVeh)
           case None =>
             // Otherwise, filter by mode
-            streetVehicles.filter(_.toStreetVehicle.mode == byMode)
+            streetVehicles.filter(_.mode == byMode)
         }
       }
 
@@ -254,7 +255,7 @@ trait ChoosesMode {
           }
           parkingRequestId = makeRequestWith(
             Vector(TRANSIT),
-            newlyAvailableBeamVehicles.map(_.toStreetVehicle) :+ bodyStreetVehicle,
+            newlyAvailableBeamVehicles.map(_.streetVehicle) :+ bodyStreetVehicle,
             withParking = willRequestDrivingRoute
           )
         case Some(WALK) =>
@@ -272,7 +273,7 @@ trait ChoosesMode {
           maybeLeg.map(l => (l, l.getRoute)) match {
             case Some((l, r: NetworkRoute)) =>
               val maybeVehicle =
-                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles, mode).headOption
+                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), mode).headOption
               maybeVehicle match {
                 case Some(vehicle) =>
                   val linkIds = new ArrayBuffer[Int](2 + r.getLinkIds.size())
@@ -300,7 +301,7 @@ trait ChoosesMode {
                   router ! EmbodyWithCurrentTravelTime(
                     leg,
                     vehicle.id,
-                    vehicle.beamVehicleType.id,
+                    vehicle.vehicleTypeId,
                     mustParkAtEnd = true,
                     destinationForSplitting = Some(beamServices.geo.utm2Wgs(nextAct.getCoord))
                   )
@@ -318,7 +319,7 @@ trait ChoosesMode {
             case _ =>
               parkingRequestId = makeRequestWith(
                 Vector(),
-                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles, mode).map(_.toStreetVehicle) :+ bodyStreetVehicle,
+                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), mode) :+ bodyStreetVehicle,
                 withParking = mode == CAR
               )
               responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = mode == CAR)
@@ -335,7 +336,7 @@ trait ChoosesMode {
               // actual location of transit station
               makeRequestWith(
                 Vector(TRANSIT),
-                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles, CAR).map(_.toStreetVehicle) :+ bodyStreetVehicle,
+                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), CAR) :+ bodyStreetVehicle,
                 withParking = false
               )
               responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = false)
@@ -344,7 +345,7 @@ trait ChoosesMode {
               parkingRequestId = makeRequestWith(
                 Vector(TRANSIT),
                 newlyAvailableBeamVehicles
-                  .map(_.toStreetVehicle)
+                  .map(_.streetVehicle)
                   .filter(_.id == currentTourPersonalVehicle) :+ bodyStreetVehicle,
                 streetVehiclesIntermodalUse = Egress,
                 withParking = true
@@ -864,10 +865,9 @@ trait ChoosesMode {
       val (personalVehiclesUsed, personVehiclesNotUsed) = data.availablePersonalStreetVehicles
         .partition(vehicle => chosenTrip.vehiclesInTrip.contains(vehicle.id))
 
-      personVehiclesNotUsed.foreach { veh =>
-        if (veh.exclusiveAccess) {
-          veh.manager.get ! ReleaseVehicle(veh)
-        }
+      personVehiclesNotUsed.collect {
+        case ActualVehicle(vehicle) =>
+          vehicle.manager.get ! ReleaseVehicle(vehicle)
       }
       scheduler ! CompletionNotice(
         triggerId,
@@ -901,7 +901,7 @@ object ChoosesMode {
     rideHail2TransitAccessInquiryId: Option[Int] = None,
     rideHail2TransitEgressResult: Option[RideHailResponse] = None,
     rideHail2TransitEgressInquiryId: Option[Int] = None,
-    availablePersonalStreetVehicles: Vector[BeamVehicle] = Vector(),
+    availablePersonalStreetVehicles: Vector[VehicleOrToken] = Vector(),
     expectedMaxUtilityOfLatestChoice: Option[Double] = None,
     isWithinTripReplanning: Boolean = false
   ) extends PersonData {

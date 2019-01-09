@@ -8,6 +8,7 @@ import akka.pattern.pipe
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.util.Timeout
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
@@ -42,7 +43,7 @@ class InexhaustibleReservingVehicleFleet(val parkingManager: ActorRef) extends A
         .collect {
           case ParkingInquiryResponse(stall, _) =>
             vehicle.useParkingStall(stall)
-            MobilityStatusResponse(Vector(vehicle))
+            MobilityStatusResponse(Vector(ActualVehicle(vehicle)))
         } pipeTo sender
 
     case ReleaseVehicle(_) =>

@@ -34,6 +34,16 @@ import scala.collection.mutable
   */
 object DrivesVehicle {
 
+  sealed trait VehicleOrToken {
+    def id: Id[BeamVehicle]
+    def streetVehicle: StreetVehicle
+  }
+  case class ActualVehicle(vehicle: BeamVehicle) extends VehicleOrToken {
+    override def id: Id[BeamVehicle] = vehicle.id
+    override def streetVehicle: StreetVehicle = vehicle.toStreetVehicle
+  }
+  case class Token(override val id: Id[BeamVehicle], manager: ActorRef, override val streetVehicle: StreetVehicle) extends VehicleOrToken
+
   case class StartLegTrigger(tick: Int, beamLeg: BeamLeg) extends Trigger
 
   case class EndLegTrigger(tick: Int) extends Trigger
@@ -62,8 +72,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
   protected val parkingManager: ActorRef
   protected val tollCalculator: TollCalculator
   private var tollsAccumulated = 0.0
-  var beamVehicles: mutable.Map[Id[BeamVehicle], BeamVehicle] = mutable.Map()
-  def currentBeamVehicle = beamVehicles(stateData.currentVehicle.head)
+  var beamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
+  def currentBeamVehicle = beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
 
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime, toll: Double)
 

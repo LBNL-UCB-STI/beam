@@ -21,7 +21,7 @@ object Resource {
 
   case class TryToBoardVehicle(what: Id[BeamVehicle], who: ActorRef)
 
-  case object Boarded
+  case class Boarded(vehicle: BeamVehicle)
 
   case object NotAvailable
 
