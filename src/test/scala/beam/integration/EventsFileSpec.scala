@@ -2,6 +2,7 @@ package beam.integration
 
 import java.io.File
 
+import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.TollRevenueAnalysis
 import beam.integration.ReadEvents._
@@ -126,14 +127,13 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
             assert(leg.getRoute.isInstanceOf[NetworkRoute])
           }
       }
-      if (experiencedPlan.getPlanElements.get(1).asInstanceOf[Leg].getMode == "car") {
-        assert(
-          experiencedPlan.getPlanElements
-            .get(experiencedPlan.getPlanElements.size - 2)
-            .asInstanceOf[Leg]
-            .getMode == "car",
-          "If I leave home by car, I must get home by car: " + person.getId
-        )
+      val beamPlan = BeamPlan(experiencedPlan)
+      beamPlan.tours.foreach { tour =>
+        if (tour.trips.size > 1) {
+          if (tour.trips.head.leg.get.getMode == "car") {
+            assert(tour.trips.last.leg.get.getMode == "car", "If I leave home by car, I must get home by car: " + person.getId)
+          }
+        }
       }
     }
   }
