@@ -109,7 +109,8 @@ object BeamOutputDataDescriptionGenerator {
     RideHailTripDistanceOutputs,
     TripDurationOutputs,
     BiasErrorGraphDataOutputs,
-    BiasNormalizedErrorGraphDataOutputs
+    BiasNormalizedErrorGraphDataOutputs,
+    RideHailFleetInitializer
   )
 
 }
@@ -337,6 +338,8 @@ object StopWatchOutputs extends OutputDataDescriptor {
 }
 
 object SummaryStatsOutputs extends OutputDataDescriptor {
+
+  val ON_DEMAND_RIDE = "onDemandRide"
 
   /**
     * Get description of fields written to the output files.

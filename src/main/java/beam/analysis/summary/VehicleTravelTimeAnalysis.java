@@ -60,12 +60,13 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
         } else if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
             Map<String, String> eventAttributes = event.getAttributes();
             String mode = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
+            String vehicleTypes = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
             double travelDurationInSec = (Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME)) -
                     Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME)));
             int numOfPassengers = Integer.parseInt(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
             int seatingCapacity = Integer.parseInt(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_SEATING_CAPACITY));
 
-            secondsTraveledByVehicleType.merge(mode, travelDurationInSec, Double::sum);
+            secondsTraveledByVehicleType.merge(vehicleTypes, travelDurationInSec, Double::sum);
 
             if (AgentSimToPhysSimPlanConverter.isPhyssimMode(mode)) {
 

@@ -123,7 +123,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     private static final String graphTitle = "Ride Hail Waiting Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (frequencies)";
-    static final String fileName = "rideHailWaitingStats";
+    static final String fileName = "rideHailWaitingHistogram";
     static final String rideHailIndividualWaitingTimesFileBaseName = "rideHailIndividualWaitingTimes";
     private boolean writeGraph;
     private List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
@@ -157,6 +157,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         numOfTrips = 0;
         rideHailCount = 0;
         totalPTWaitingTime = 0.0;
+        ptWaiting.clear();
         rideHailWaiting.clear();
         hoursTimesMap.clear();
         rideHailWaitingIndividualStatList.clear();
@@ -341,6 +342,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     private List<Double> getCategories() {
 
         List<Double> listOfBounds = new ArrayList<>();
+        listOfBounds.add(2.0);
         listOfBounds.add(5.0);
         listOfBounds.add(10.0);
         listOfBounds.add(20.0);

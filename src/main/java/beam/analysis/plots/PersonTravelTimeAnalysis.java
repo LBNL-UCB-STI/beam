@@ -1,6 +1,7 @@
 package beam.analysis.plots;
 
 import beam.analysis.IterationSummaryAnalysis;
+import beam.sim.SummaryStatsOutputs;
 import com.google.common.base.CaseFormat;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
@@ -181,7 +182,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     public Map<String, Double> getSummaryStats() {
 
         return hourlyPersonTravelTimes.entrySet().stream().collect(Collectors.toMap(
-                e -> "personTravelTime_" + e.getKey().toString(),
+                e -> "personTravelTime_" + e.getKey().toString().replaceAll(RideHailWaitingAnalysis.RIDE_HAIL, SummaryStatsOutputs.ON_DEMAND_RIDE()),
                 e -> e.getValue().values().stream().flatMapToDouble(
                         times -> times.stream().mapToDouble(Double::doubleValue)
                 ).sum()
