@@ -182,7 +182,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     public Map<String, Double> getSummaryStats() {
 
         return hourlyPersonTravelTimes.entrySet().stream().collect(Collectors.toMap(
-                e -> "personTravelTime_" + e.getKey().toString().replaceAll(RideHailWaitingAnalysis.RIDE_HAIL, SummaryStatsOutputs.ON_DEMAND_RIDE()),
+                e -> "personTravelTime_" + SummaryStatsOutputs.convertRideHailToOnDemandRide(e.getKey().toString()),
 
                 e -> e.getValue() != null ? e.getValue().values().stream().flatMapToDouble(times -> times.stream().mapToDouble(Double::doubleValue)).sum() : 0
         ));

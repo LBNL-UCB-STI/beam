@@ -43,7 +43,7 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
             break;
         }
         String statType = String.format("total%s_%s", costType, mode);
-        personCostByCostType.merge(statType.replaceAll(RideHailWaitingAnalysis.RIDE_HAIL, SummaryStatsOutputs.ON_DEMAND_RIDE()), cost, (d1, d2) -> d1 + d2);
+        personCostByCostType.merge(SummaryStatsOutputs.convertRideHailToOnDemandRide(statType), cost, (d1, d2) -> d1 + d2);
         personCostCount.merge(statType, 1, Integer::sum);
       }
     }
@@ -80,13 +80,13 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
     Modes.BeamMode$.MODULE$.allModes().foreach(mode -> {
       Double cost = 0.0;
       for (String costType : costTypes) {
-        String statType = String.format("total%s_%s", costType, mode.value().replaceAll(RideHailWaitingAnalysis.RIDE_HAIL, SummaryStatsOutputs.ON_DEMAND_RIDE()));
+        String statType = String.format("total%s_%s", costType, SummaryStatsOutputs.convertRideHailToOnDemandRide(mode.value()));
         if(personCostCount.containsKey(statType)){
           cost = personCostByCostType.get(statType) / personCostCount.get(statType);
         }
-        personCostByCostType.put(statType.replaceAll(RideHailWaitingAnalysis.RIDE_HAIL, SummaryStatsOutputs.ON_DEMAND_RIDE()), cost);
+        personCostByCostType.put(SummaryStatsOutputs.convertRideHailToOnDemandRide(mode.value()), cost);
       }
-      return null; // could this cause an issue????????????????????????????????????????????????
+      return null;
     });
     activityTypeCount.keySet().stream().forEach( key ->
           personCostByCostType.put(key, personCostByActivityType.get(key) == null ? 0 : personCostByActivityType.get(key) / activityTypeCount.get(key))

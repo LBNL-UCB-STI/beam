@@ -341,6 +341,9 @@ object SummaryStatsOutputs extends OutputDataDescriptor {
 
   val ON_DEMAND_RIDE = "onDemandRide"
 
+  def convertRideHailToOnDemandRide(mode: String): String =
+    mode.replaceAll(RideHailWaitingAnalysis.RIDE_HAIL, SummaryStatsOutputs.ON_DEMAND_RIDE)
+
   /**
     * Get description of fields written to the output files.
     *
