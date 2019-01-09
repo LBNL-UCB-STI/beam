@@ -114,8 +114,9 @@ class TransitDriverAgent(
       )
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
       val schedule = data.passengerSchedule.addLegs(legs)
+      currentBeamVehicle = vehicle
       goto(WaitingToDrive) using data
-        .copy(currentVehicle = Vector(vehicle.id), currentVehicleToken = vehicle)
+        .copy(currentVehicle = Vector(vehicle.id))
         .withPassengerSchedule(schedule)
         .asInstanceOf[TransitDriverData] replying
       CompletionNotice(

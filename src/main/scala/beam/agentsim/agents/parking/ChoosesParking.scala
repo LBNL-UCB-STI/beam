@@ -74,8 +74,8 @@ trait ChoosesParking extends {
       goto(WaitingToDrive) using data
 
     case Event(StateTimeout, data) =>
-      parkingManager ! ReleaseParkingStall(data.currentVehicleToken.stall.get.id)
-      data.currentVehicleToken.unsetParkingStall()
+      parkingManager ! ReleaseParkingStall(currentBeamVehicle.stall.get.id)
+      currentBeamVehicle.unsetParkingStall()
       releaseTickAndTriggerId()
       goto(WaitingToDrive) using data
   }
@@ -85,7 +85,7 @@ trait ChoosesParking extends {
         beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
       val nextLeg =
         data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
-      data.currentVehicleToken.setReservedParkingStall(Some(stall))
+      currentBeamVehicle.setReservedParkingStall(Some(stall))
 
       data.currentVehicle.head
 
@@ -117,8 +117,8 @@ trait ChoosesParking extends {
         // get route from customer to stall, add body for backup in case car route fails
         val carStreetVeh =
           StreetVehicle(
-            data.currentVehicleToken.id,
-            data.currentVehicleToken.beamVehicleType.id,
+            currentBeamVehicle.id,
+            currentBeamVehicle.beamVehicleType.id,
             currentPointUTM,
             CAR,
             asDriver = true
@@ -204,10 +204,10 @@ trait ChoosesParking extends {
         .takeWhile(_.beamLeg != nextLeg) ++ newRestOfTrip
       val newPassengerSchedule = PassengerSchedule().addLegs(Vector(newRestOfTrip.head.beamLeg))
 
-      val (newVehicle, newVehicleToken) = if (leg1.beamLeg.mode == CAR || data.currentVehicleToken.id == body.id) {
-        (data.currentVehicle, data.currentVehicleToken)
+      val (newVehicle, newVehicleToken) = if (leg1.beamLeg.mode == CAR || currentBeamVehicle.id == body.id) {
+        (data.currentVehicle, currentBeamVehicle)
       } else {
-        data.currentVehicleToken.unsetDriver()
+        currentBeamVehicle.unsetDriver()
         eventsManager.processEvent(
           new PersonLeavesVehicleEvent(tick, id, data.currentVehicle.head)
         )
@@ -223,14 +223,13 @@ trait ChoosesParking extends {
           )
         )
       )
-
+      currentBeamVehicle = newVehicleToken
       goto(WaitingToDrive) using data.copy(
         currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
         restOfCurrentTrip = newRestOfTrip.toList,
         passengerSchedule = newPassengerSchedule,
         currentLegPassengerScheduleIndex = 0,
         currentVehicle = newVehicle,
-        currentVehicleToken = newVehicleToken
       )
   }
 

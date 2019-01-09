@@ -56,7 +56,7 @@ trait ChoosesMode {
       nextStateData match {
         // If I am already on a tour in a vehicle, only that vehicle is available to me
         case ChoosesModeData(
-            BasePersonData(_, _, _, _, _, _, Some(vehicle), _, _, _, _),
+            BasePersonData(_, _, _, _, _, Some(vehicle), _, _, _, _),
             _,
             _,
             _,
@@ -78,7 +78,7 @@ trait ChoosesMode {
           self ! MobilityStatusResponse(Vector(vehicle))
         // Only need to get available street vehicles from household if our mode requires such a vehicle
         case ChoosesModeData(
-            BasePersonData(_, _, _, _, _, None | Some(CAR | BIKE | DRIVE_TRANSIT), _, _, _, _, _),
+            BasePersonData(_, _, _, _, None | Some(CAR | BIKE | DRIVE_TRANSIT), _, _, _, _, _),
             currentLocation,
             _,
             _,
@@ -877,13 +877,8 @@ trait ChoosesMode {
           )
         )
       )
-      goto(WaitingForDeparture) using data.personData.copy(
-        currentTrip = Some(chosenTrip),
-        restOfCurrentTrip = chosenTrip.legs.toList,
-        currentTourMode = data.personData.currentTourMode
-          .orElse(Some(chosenTrip.tripClassifier)),
-        currentTourPersonalVehicle = data.personData.currentTourPersonalVehicle.orElse(personalVehiclesUsed.headOption)
-      )
+      goto(WaitingForDeparture) using data.personData.copy(currentTrip = Some(chosenTrip), restOfCurrentTrip = chosenTrip.legs.toList, currentTourMode = data.personData.currentTourMode
+          .orElse(Some(chosenTrip.tripClassifier)), currentTourPersonalVehicle = data.personData.currentTourPersonalVehicle.orElse(personalVehiclesUsed.headOption))
   }
 }
 
@@ -928,7 +923,6 @@ object ChoosesMode {
       )
 
     override def hasParkingBehaviors: Boolean = true
-    override def currentVehicleToken: BeamVehicle = personData.currentVehicleToken
   }
 
   case class ChoosesModeResponsePlaceholders(
