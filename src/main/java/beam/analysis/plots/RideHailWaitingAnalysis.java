@@ -240,7 +240,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     @Override
     public Map<String, Double> getSummaryStats() {
         return new HashMap<String, Double>() {{
-            put("averageRideHailWaitTimeInSec", waitTimeSum / max(rideHailCount, 1));
+            put("averageOnDemandRideWaitTimeInSec", waitTimeSum / max(rideHailCount, 1));
             put("averageMTWaitingTimeInSec", totalPTWaitingTime / max(numOfTrips, 1));
         }};
     }

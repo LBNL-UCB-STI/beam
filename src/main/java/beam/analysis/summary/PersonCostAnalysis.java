@@ -80,13 +80,13 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
     Modes.BeamMode$.MODULE$.allModes().foreach(mode -> {
       Double cost = 0.0;
       for (String costType : costTypes) {
-        String statType = String.format("total%s_%s", costType, mode.value().replaceAll(RideHailWaitingAnalysis.RIDE_HAIL, SummaryStatsOutputs.ON_DEMAND_RIDE()));
+        String statType = String.format("total%s_%s", costType, mode.value());
         if(personCostCount.containsKey(statType)){
           cost = personCostByCostType.get(statType) / personCostCount.get(statType);
         }
-        personCostByCostType.put(statType, cost);
+        personCostByCostType.put(statType.replaceAll(RideHailWaitingAnalysis.RIDE_HAIL, SummaryStatsOutputs.ON_DEMAND_RIDE()), cost);
       }
-      return null;
+      return null; // could this cause an issue????????????????????????????????????????????????
     });
     activityTypeCount.keySet().stream().forEach(key ->
       personCostByCostType.put(key, personCostByActivityType.get(key)/ activityTypeCount.get(key))
