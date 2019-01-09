@@ -2,7 +2,9 @@ package beam.analysis.summary;
 
 import beam.agentsim.events.PersonCostEvent;
 import beam.analysis.IterationSummaryAnalysis;
+import beam.analysis.plots.RideHailWaitingAnalysis;
 import beam.router.Modes;
+import beam.sim.SummaryStatsOutputs;
 import org.matsim.api.core.v01.events.ActivityStartEvent;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonDepartureEvent;
@@ -78,7 +80,7 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
     Modes.BeamMode$.MODULE$.allModes().foreach(mode -> {
       Double cost = 0.0;
       for (String costType : costTypes) {
-        String statType = String.format("total%s_%s", costType, mode.value());
+        String statType = String.format("total%s_%s", costType, mode.value().replaceAll(RideHailWaitingAnalysis.RIDE_HAIL, SummaryStatsOutputs.ON_DEMAND_RIDE()));
         if(personCostCount.containsKey(statType)){
           cost = personCostByCostType.get(statType) / personCostCount.get(statType);
         }
