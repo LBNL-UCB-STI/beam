@@ -145,7 +145,7 @@ class RideHailFleetInitializer extends LazyLogging {
     */
   def writeFleetData(beamServices: BeamServices, fleetData: List[FleetData]): Unit = {
     try {
-      if(beamServices.matsimServices == null || beamServices.matsimServices.getControlerIO == null) return
+      if (beamServices.matsimServices == null || beamServices.matsimServices.getControlerIO == null) return
       val filePath = beamServices.matsimServices.getControlerIO
         .getIterationFilename(
           beamServices.matsimServices.getIterationNumber,

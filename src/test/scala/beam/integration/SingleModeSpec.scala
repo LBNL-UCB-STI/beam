@@ -42,14 +42,14 @@ import scala.collection.mutable
 import scala.language.postfixOps
 
 class SingleModeSpec
-  extends TestKit(
-    ActorSystem(
-      "single-mode-test",
-      ConfigFactory
-        .load()
-        .withValue("akka.test.timefactor", ConfigValueFactory.fromAnyRef(10))
+    extends TestKit(
+      ActorSystem(
+        "single-mode-test",
+        ConfigFactory
+          .load()
+          .withValue("akka.test.timefactor", ConfigValueFactory.fromAnyRef(10))
+      )
     )
-  )
     with WordSpecLike
     with Matchers
     with ImplicitSender
@@ -152,12 +152,12 @@ class SingleModeSpec
       scenario.getPopulation.getPersons
         .values()
         .forEach { person =>
-        {
-          person.getSelectedPlan.getPlanElements.asScala.collect {
-            case leg: Leg =>
-              leg.setMode("walk")
+          {
+            person.getSelectedPlan.getPlanElements.asScala.collect {
+              case leg: Leg =>
+                leg.setMode("walk")
+            }
           }
-        }
         }
       val events = mutable.ListBuffer[Event]()
       val eventsManager = EventsUtils.createEventsManager()
@@ -237,26 +237,26 @@ class SingleModeSpec
       scenario.getPopulation.getPersons
         .values()
         .forEach { person =>
-        {
-          val newPlanElements = person.getSelectedPlan.getPlanElements.asScala.collect {
-            case activity: Activity if activity.getType == "Home" =>
-              Seq(activity, scenario.getPopulation.getFactory.createLeg("drive_transit"))
-            case activity: Activity =>
-              Seq(activity)
-            case leg: Leg =>
-              Nil
-          }.flatten
-          if (newPlanElements.last.isInstanceOf[Leg]) {
-            newPlanElements.remove(newPlanElements.size - 1)
+          {
+            val newPlanElements = person.getSelectedPlan.getPlanElements.asScala.collect {
+              case activity: Activity if activity.getType == "Home" =>
+                Seq(activity, scenario.getPopulation.getFactory.createLeg("drive_transit"))
+              case activity: Activity =>
+                Seq(activity)
+              case leg: Leg =>
+                Nil
+            }.flatten
+            if (newPlanElements.last.isInstanceOf[Leg]) {
+              newPlanElements.remove(newPlanElements.size - 1)
+            }
+            person.getSelectedPlan.getPlanElements.clear()
+            newPlanElements.foreach {
+              case activity: Activity =>
+                person.getSelectedPlan.addActivity(activity)
+              case leg: Leg =>
+                person.getSelectedPlan.addLeg(leg)
+            }
           }
-          person.getSelectedPlan.getPlanElements.clear()
-          newPlanElements.foreach {
-            case activity: Activity =>
-              person.getSelectedPlan.addActivity(activity)
-            case leg: Leg =>
-              person.getSelectedPlan.addLeg(leg)
-          }
-        }
         }
       val events = mutable.ListBuffer[Event]()
       val eventsManager = EventsUtils.createEventsManager()
@@ -314,12 +314,12 @@ class SingleModeSpec
       scenario.getPopulation.getPersons
         .values()
         .forEach { person =>
-        {
-          person.getSelectedPlan.getPlanElements.asScala.collect {
-            case leg: Leg =>
-              leg.setMode("car")
+          {
+            person.getSelectedPlan.getPlanElements.asScala.collect {
+              case leg: Leg =>
+                leg.setMode("car")
+            }
           }
-        }
         }
       val eventsManager = EventsUtils.createEventsManager()
       //          eventsManager.addHandler(
