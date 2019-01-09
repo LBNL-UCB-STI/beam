@@ -2,9 +2,7 @@ package beam.analysis.summary;
 
 import beam.agentsim.events.PersonCostEvent;
 import beam.analysis.IterationSummaryAnalysis;
-import beam.analysis.plots.RideHailWaitingAnalysis;
 import beam.router.Modes;
-import beam.sim.SummaryStatsOutputs;
 import org.matsim.api.core.v01.events.ActivityStartEvent;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonDepartureEvent;
@@ -43,7 +41,7 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
             break;
         }
         String statType = String.format("total%s_%s", costType, mode);
-        personCostByCostType.merge(SummaryStatsOutputs.convertRideHailToOnDemandRide(statType), cost, (d1, d2) -> d1 + d2);
+        personCostByCostType.merge(statType, cost, Double::sum);
         personCostCount.merge(statType, 1, Integer::sum);
       }
     }
@@ -80,16 +78,16 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
     Modes.BeamMode$.MODULE$.allModes().foreach(mode -> {
       Double cost = 0.0;
       for (String costType : costTypes) {
-        String statType = String.format("total%s_%s", costType, SummaryStatsOutputs.convertRideHailToOnDemandRide(mode.value()));
+        String statType = String.format("total%s_%s", costType, mode.value());
         if(personCostCount.containsKey(statType)){
           cost = personCostByCostType.get(statType) / personCostCount.get(statType);
         }
-        personCostByCostType.put(SummaryStatsOutputs.convertRideHailToOnDemandRide(mode.value()), cost);
+        personCostByCostType.put(mode.value(), cost);
       }
       return null;
     });
-    activityTypeCount.keySet().stream().forEach( key ->
-          personCostByCostType.put(key, personCostByActivityType.get(key) == null ? 0 : personCostByActivityType.get(key) / activityTypeCount.get(key))
+    activityTypeCount.keySet().forEach(key ->
+          personCostByCostType.put(key, personCostByActivityType.getOrDefault(key, 0D) / activityTypeCount.get(key))
 
     );
     return personCostByCostType;
