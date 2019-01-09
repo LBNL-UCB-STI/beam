@@ -60,7 +60,9 @@ trait ChoosesParking extends {
       stay using data
     case Event(StateTimeout, data: BasePersonData) =>
       val (tick, _) = releaseTickAndTriggerId()
-      val stall = currentBeamVehicle.stall.getOrElse(throw new RuntimeException(log.format("My vehicle {} is not parked.", currentBeamVehicle.id)))
+      val stall = currentBeamVehicle.stall.getOrElse(
+        throw new RuntimeException(log.format("My vehicle {} is not parked.", currentBeamVehicle.id))
+      )
       parkingManager ! ReleaseParkingStall(stall.id)
       val nextLeg = data.passengerSchedule.schedule.head._1
       val distance = beamServices.geo.distUTMInMeters(stall.locationUTM, nextLeg.travelPath.endPoint.loc)

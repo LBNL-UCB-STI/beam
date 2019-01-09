@@ -23,7 +23,12 @@ import beam.router.osm.TollCalculator
 import beam.sim.HasServices
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{LinkEnterEvent, LinkLeaveEvent, VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
+import org.matsim.api.core.v01.events.{
+  LinkEnterEvent,
+  LinkLeaveEvent,
+  VehicleEntersTrafficEvent,
+  VehicleLeavesTrafficEvent
+}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
@@ -42,7 +47,8 @@ object DrivesVehicle {
     override def id: Id[BeamVehicle] = vehicle.id
     override def streetVehicle: StreetVehicle = vehicle.toStreetVehicle
   }
-  case class Token(override val id: Id[BeamVehicle], manager: ActorRef, override val streetVehicle: StreetVehicle) extends VehicleOrToken
+  case class Token(override val id: Id[BeamVehicle], manager: ActorRef, override val streetVehicle: StreetVehicle)
+      extends VehicleOrToken
 
   case class StartLegTrigger(tick: Int, beamLeg: BeamLeg) extends Trigger
 
@@ -379,7 +385,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         data.currentVehicle.headOption match {
           case Some(currentVehicleUnderControl) =>
             assert(
-              currentBeamVehicle.id == currentVehicleUnderControl, currentBeamVehicle.id + " " + currentVehicleUnderControl)
+              currentBeamVehicle.id == currentVehicleUnderControl,
+              currentBeamVehicle.id + " " + currentVehicleUnderControl
+            )
             currentBeamVehicle.stall.foreach { theStall =>
               parkingManager ! ReleaseParkingStall(theStall.id)
             }

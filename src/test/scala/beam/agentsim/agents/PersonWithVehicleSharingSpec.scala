@@ -6,7 +6,8 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.{ask, pipe}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
-import beam.agentsim.Resource.{Boarded, NotAvailable, TryToBoardVehicle}
+import beam.agentsim.Resource.{Boarded, NotAvailable, NotifyVehicleIdle, TryToBoardVehicle}
+import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeIncentive
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
@@ -53,7 +54,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.ExecutionContext
 
 class PersonWithVehicleSharingSpec
@@ -66,6 +67,7 @@ class PersonWithVehicleSharingSpec
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
+        akka.test.timefactor = 2
         """
           )
           .withFallback(testConfig("test/input/beamville/beam.conf"))
@@ -259,6 +261,229 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[PersonArrivalEvent]
       events.expectMsgType[ActivityStartEvent]
 
+      householdActor ! Finish
+
+      expectMsgType[CompletionNotice]
+    }
+
+    it("should not feel compelled to keep driving a shared car for the whole tour") {
+      val events = TestProbe()
+      val eventsManager = new EventsManagerImpl()
+      eventsManager.addHandler(
+        new BasicEventHandler {
+          override def handleEvent(event: Event): Unit = {
+            events.ref ! event
+          }
+        }
+      )
+      val vehicleId = Id.createVehicleId("car-dummyAgent")
+      val household = householdsFactory.createHousehold(hoseHoldDummyId)
+      val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+
+      val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), vehicleId, withRoute = false)
+      population.addPerson(person)
+
+      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+      val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
+      scenario.setPopulation(population)
+      scenario.setLocked()
+      ScenarioUtils.loadScenario(scenario)
+      when(beamSvc.matsimServices.getScenario).thenReturn(scenario)
+
+      val scheduler = TestActorRef[BeamAgentScheduler](
+        SchedulerProps(
+          beamConfig,
+          stopTick = 24 * 60 * 60,
+          maxWindow = 10,
+          new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
+        )
+      )
+
+      val mockRouter = TestProbe()
+      val mockSharedVehicleFleet = TestProbe()
+      val mockRideHailingManager = TestProbe()
+      val householdActor = TestActorRef[HouseholdActor](
+        Props(
+          new HouseholdActor(
+            beamSvc,
+            _ => modeChoiceCalculator,
+            scheduler,
+            networkCoordinator.transportNetwork,
+            tollCalculator,
+            mockRouter.ref,
+            mockRideHailingManager.ref,
+            parkingManager,
+            eventsManager,
+            population,
+            household,
+            Map(),
+            new Coord(0.0, 0.0),
+            sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref)
+          )
+        )
+      )
+
+      scheduler ! StartSchedule(0)
+
+      // The agent will ask me for vehicles it can use,
+      // since I am the manager of a shared vehicle fleet.
+      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28800)))
+
+      // I give it a car to use.
+      val vehicle = new BeamVehicle(
+        vehicleId,
+        new Powertrain(0.0),
+        None,
+        BeamVehicleType.defaultCarBeamVehicleType
+      )
+      vehicle.manager = Some(mockSharedVehicleFleet.ref)
+      (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
+        .collect {
+          case ParkingInquiryResponse(stall, _) =>
+            vehicle.setReservedParkingStall(Some(stall))
+            vehicle.useParkingStall(stall)
+            MobilityStatusResponse(Vector(ActualVehicle(vehicle)))
+        } pipeTo mockSharedVehicleFleet.lastSender
+
+      val routingRequest = mockRouter.expectMsgType[RoutingRequest]
+      mockRouter.lastSender ! RoutingResponse(
+        itineraries = Vector(
+          EmbodiedBeamTrip(
+            legs = Vector(
+              EmbodiedBeamLeg(
+                beamLeg = BeamLeg(
+                  startTime = 28800,
+                  mode = BeamMode.WALK,
+                  duration = 50,
+                  travelPath = BeamPath(
+                    linkIds = Vector(1, 2),
+                    linkTravelTime = Vector(50, 50),
+                    transitStops = None,
+                    startPoint = SpaceTime(0.0, 0.0, 28800),
+                    endPoint = SpaceTime(0.01, 0.0, 28950),
+                    distanceInM = 1000D
+                  )
+                ),
+                beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                asDriver = true,
+                cost = 0.0,
+                unbecomeDriverOnCompletion = false
+              ),
+              EmbodiedBeamLeg(
+                beamLeg = BeamLeg(
+                  startTime = 28950,
+                  mode = BeamMode.CAR,
+                  duration = 50,
+                  travelPath = BeamPath(
+                    linkIds = Vector(3, 4),
+                    linkTravelTime = Vector(50, 50),
+                    transitStops = None,
+                    startPoint = SpaceTime(0.01, 0.0, 28950),
+                    endPoint = SpaceTime(0.01, 0.01, 29000),
+                    distanceInM = 1000D
+                  )
+                ),
+                beamVehicleId = vehicle.id,
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                asDriver = true,
+                cost = 0.0,
+                unbecomeDriverOnCompletion = true
+              )
+            )
+          )
+        ),
+        requestId = Some(routingRequest.requestId),
+        staticRequestId = java.util.UUID.randomUUID().hashCode()
+      )
+
+      events.expectMsgType[ModeChoiceEvent]
+      events.expectMsgType[ActivityEndEvent]
+      events.expectMsgType[PersonDepartureEvent]
+
+      events.expectMsgType[PersonEntersVehicleEvent]
+      events.expectMsgType[VehicleEntersTrafficEvent]
+      events.expectMsgType[LinkLeaveEvent]
+      events.expectMsgType[LinkEnterEvent]
+      events.expectMsgType[VehicleLeavesTrafficEvent]
+      events.expectMsgType[PathTraversalEvent]
+
+      events.expectMsgType[PersonEntersVehicleEvent]
+      events.expectMsgType[LeavingParkingEvent]
+      events.expectMsgType[VehicleEntersTrafficEvent]
+      events.expectMsgType[LinkLeaveEvent]
+      events.expectMsgType[LinkEnterEvent]
+      events.expectMsgType[VehicleLeavesTrafficEvent]
+      events.expectMsgType[PathTraversalEvent]
+      events.expectMsgType[ParkEvent]
+      events.expectMsgType[PersonLeavesVehicleEvent]
+
+      mockSharedVehicleFleet.expectMsgType[NotifyVehicleIdle]
+
+      events.expectMsgType[VehicleEntersTrafficEvent]
+      events.expectMsgType[VehicleLeavesTrafficEvent]
+      events.expectMsgType[PathTraversalEvent]
+
+      events.expectMsgType[PersonLeavesVehicleEvent]
+      events.expectMsgType[TeleportationArrivalEvent]
+
+      events.expectMsgType[PersonArrivalEvent]
+      events.expectMsgType[ActivityStartEvent]
+
+      // Agent will ask about the car (will not take it for granted that it is there)
+      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.01, 0.01, 61200)))
+      // I give it a _different_ car to use.
+      val vehicle2 = new BeamVehicle(
+        vehicleId,
+        new Powertrain(0.0),
+        None,
+        BeamVehicleType.defaultCarBeamVehicleType
+      )
+      vehicle2.manager = Some(mockSharedVehicleFleet.ref)
+      (parkingManager ? parkingInquiry(SpaceTime(0.01, 0.01, 61200)))
+        .collect {
+          case ParkingInquiryResponse(stall, _) =>
+            vehicle2.setReservedParkingStall(Some(stall))
+            vehicle2.useParkingStall(stall)
+            MobilityStatusResponse(Vector(ActualVehicle(vehicle2)))
+        } pipeTo mockSharedVehicleFleet.lastSender
+
+
+      val routingRequest2 = mockRouter.expectMsgType[RoutingRequest]
+      println(routingRequest2)
+      mockRouter.lastSender ! RoutingResponse(
+        itineraries = Vector(
+          EmbodiedBeamTrip(
+            legs = Vector(
+              EmbodiedBeamLeg(
+                beamLeg = BeamLeg(
+                  startTime = 61200,
+                  mode = BeamMode.CAR,
+                  duration = 40,
+                  travelPath = BeamPath(
+                    linkIds = Vector(4, 3, 2, 1),
+                    linkTravelTime = Vector(10, 10, 10, 10),
+                    transitStops = None,
+                    startPoint = SpaceTime(0.01, 0.01, 61200),
+                    endPoint = SpaceTime(0.0, 0.0, 61240),
+                    distanceInM = 1000D
+                  )
+                ),
+                beamVehicleId = vehicle2.id,
+                vehicle2.beamVehicleType.id,
+                asDriver = true,
+                cost = 0.0,
+                unbecomeDriverOnCompletion = true
+              )
+            )
+          )
+        ),
+        requestId = Some(routingRequest.requestId),
+        staticRequestId = java.util.UUID.randomUUID().hashCode()
+      )
+      val modeChoiceEvent = events.expectMsgType[ModeChoiceEvent]
+      assert(modeChoiceEvent.chosenTrip.tripClassifier == CAR)
+
       expectMsgType[CompletionNotice]
     }
 
@@ -321,7 +546,7 @@ class PersonWithVehicleSharingSpec
       val mockRouter = TestProbe()
       val mockRideHailingManager = TestProbe()
 
-      TestActorRef[HouseholdActor](
+      val householdAgent = TestActorRef[HouseholdActor](
         new HouseholdActor(
           beamSvc,
           _ => modeChoiceCalculator,
@@ -382,7 +607,9 @@ class PersonWithVehicleSharingSpec
       person1EntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
       mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28820)))
-      mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector(Token(car1.id, car1.manager.get, car1.toStreetVehicle)))
+      mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(
+        Vector(Token(car1.id, car1.manager.get, car1.toStreetVehicle))
+      )
       mockRouter.expectMsgPF() {
         case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _, _, _) =>
           assert(vehicleId == car1.id, "Agent should ask for route with the car I gave it.")
@@ -441,6 +668,8 @@ class PersonWithVehicleSharingSpec
           )
       }
 
+      expectNoMessage() // TODO: Remove this and observe a race condition -- scheduler doesn't clear triggers
+      householdAgent ! Finish // Not interested in the rest of the day
       expectMsgType[CompletionNotice]
     }
 
@@ -473,6 +702,19 @@ class PersonWithVehicleSharingSpec
     workActivity.setEndTime(61200) //5:00:00 PM
     workActivity.setCoord(new Coord(0.01, 0.01))
     plan.addActivity(workActivity)
+    val leg2 = PopulationUtils.createLeg("car")
+    if (withRoute) {
+      val route = RouteUtils.createLinkNetworkRouteImpl(
+        Id.createLinkId(2),
+        Array(Id.createLinkId(1)),
+        Id.createLinkId(0)
+      )
+      leg2.setRoute(route)
+    }
+    plan.addLeg(leg2)
+    val homeActivity2 = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
+    homeActivity2.setCoord(new Coord(0.0, 0.0))
+    plan.addActivity(homeActivity2)
     person.addPlan(plan)
     person
   }

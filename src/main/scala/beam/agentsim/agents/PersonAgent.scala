@@ -465,7 +465,7 @@ class PersonAgent(
      */
     case Event(
         TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit), triggerId),
-        data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle,  _, _, _, _, _, _)
+        data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _)
         ) =>
       logDebug(s"PersonLeavesVehicle: $vehicleToExit")
       eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, vehicleToExit))
@@ -572,18 +572,12 @@ class PersonAgent(
       def nextState: FSM.State[BeamAgentState, PersonData] = {
         val currentVehicleForNextState =
           if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
-            val vehicleId = if (nextLeg.isHumanBodyVehicle) {
-              body.id
-            } else {
-              currentTourPersonalVehicle.get
-            }
-            assert(vehicleId == nextLeg.beamVehicleId)
-            beamVehicles(vehicleId) match {
+            beamVehicles(nextLeg.beamVehicleId) match {
               case Token(_, manager, _) =>
-                manager ! TryToBoardVehicle(vehicleId, self)
+                manager ! TryToBoardVehicle(nextLeg.beamVehicleId, self)
                 return goto(TryingToBoardVehicle)
-              case ActualVehicle(_) =>
-                // That's fine, continue
+              case _: ActualVehicle =>
+              // That's fine, continue
             }
             eventsManager.processEvent(
               new PersonEntersVehicleEvent(

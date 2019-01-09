@@ -1,11 +1,13 @@
 package beam.agentsim.agents.modalbehaviors
 
 import akka.actor.FSM
+import akka.pattern._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{ChoosingMode, _}
 import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode._
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token, VehicleOrToken}
 import beam.agentsim.agents.ridehail.{RideHailInquiry, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -31,9 +33,6 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
-import akka.pattern._
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token, VehicleOrToken}
-
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
@@ -650,6 +649,15 @@ trait ChoosesMode {
     }
   }
 
+  def mustBeDrivenHome(vehicle: VehicleOrToken): Boolean = {
+    vehicle match {
+      case ActualVehicle(beamVehicle) =>
+        beamVehicle.manager.contains(context.parent) // is a household vehicle
+      case _: Token =>
+        false // is not a household vehicle
+    }
+  }
+
   def completeChoiceIfReady: PartialFunction[State, State] = {
     case FSM.State(
         _,
@@ -862,10 +870,10 @@ trait ChoosesMode {
         )
       )
 
-      val (personalVehiclesUsed, personVehiclesNotUsed) = data.availablePersonalStreetVehicles
+      val (vehiclesUsed, vehiclesNotUsed) = data.availablePersonalStreetVehicles
         .partition(vehicle => chosenTrip.vehiclesInTrip.contains(vehicle.id))
 
-      personVehiclesNotUsed.collect {
+      vehiclesNotUsed.collect {
         case ActualVehicle(vehicle) =>
           vehicle.manager.get ! ReleaseVehicle(vehicle)
       }
@@ -878,8 +886,14 @@ trait ChoosesMode {
           )
         )
       )
-      goto(WaitingForDeparture) using data.personData.copy(currentTrip = Some(chosenTrip), restOfCurrentTrip = chosenTrip.legs.toList, currentTourMode = data.personData.currentTourMode
-          .orElse(Some(chosenTrip.tripClassifier)), currentTourPersonalVehicle = data.personData.currentTourPersonalVehicle.orElse(personalVehiclesUsed.headOption.map(_.id)))
+      goto(WaitingForDeparture) using data.personData.copy(
+        currentTrip = Some(chosenTrip),
+        restOfCurrentTrip = chosenTrip.legs.toList,
+        currentTourMode = data.personData.currentTourMode
+          .orElse(Some(chosenTrip.tripClassifier)),
+        currentTourPersonalVehicle =
+          data.personData.currentTourPersonalVehicle.orElse(vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id))
+      )
   }
 }
 
