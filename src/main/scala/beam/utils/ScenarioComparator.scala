@@ -284,7 +284,7 @@ object VehicleComparator extends Comparator[BeamVehicle] {
 
   override def compare(v1: BeamVehicle, v2: BeamVehicle): Int = {
     if (v1.getId == v2.getId
-        && v1.houseHoldId.get.equals(v2.houseHoldId.get)
+        && v1.householdId.get.equals(v2.householdId.get)
         && v1.beamVehicleType.equals(v2.beamVehicleType)) 0
     else 1
   }

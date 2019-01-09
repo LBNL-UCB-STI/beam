@@ -105,12 +105,12 @@ object BeamVehicleUtils {
     beamServices.privateVehicles.foreach {
       case (k: Id[BeamVehicle], v: BeamVehicle) => {
 
-        var hVehicles: java.util.List[Id[Vehicle]] = vehicles.get(v.houseHoldId.get)
+        var hVehicles: java.util.List[Id[Vehicle]] = vehicles.get(v.householdId.get)
         if (hVehicles == null) {
           hVehicles = new java.util.ArrayList[Id[Vehicle]]()
         }
         hVehicles.add(Id.createVehicleId(k.toString))
-        vehicles.put(v.houseHoldId.get, hVehicles)
+        vehicles.put(v.householdId.get, hVehicles)
 
       }
     }

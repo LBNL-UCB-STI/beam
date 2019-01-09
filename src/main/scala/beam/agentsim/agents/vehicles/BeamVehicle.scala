@@ -41,7 +41,7 @@ class BeamVehicle(
   val powerTrain: Powertrain,
   val initialMatsimAttributes: Option[ObjectAttributes],
   val beamVehicleType: BeamVehicleType,
-  val houseHoldId: Option[Id[Household]]
+  val householdId: Option[Id[Household]]
 ) extends Resource[BeamVehicle]
     with StrictLogging {
 

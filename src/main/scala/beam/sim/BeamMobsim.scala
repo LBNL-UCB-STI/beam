@@ -333,15 +333,15 @@ class BeamMobsim @Inject()(
                     .map(new Powertrain(_))
                     .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
 
-              val rideHailBeamVehicle = new BeamVehicle(
-                rideHailVehicleId,
-                powertrain,
-                None,
-                ridehailBeamVehicleType,
-                None
-              )
-              beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
-              rideHailBeamVehicle.registerResource(rideHailManager)
+                  val rideHailBeamVehicle = new BeamVehicle(
+                    rideHailVehicleId,
+                    powertrain,
+                    None,
+                    ridehailBeamVehicleType,
+                    None
+                  )
+                  beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
+                  rideHailBeamVehicle.registerResource(rideHailManager)
 
                   rideHailManager ! BeamVehicleStateUpdate(
                     rideHailBeamVehicle.getId,

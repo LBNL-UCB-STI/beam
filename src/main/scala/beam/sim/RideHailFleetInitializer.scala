@@ -107,7 +107,8 @@ class RideHailFleetInitializer extends LazyLogging {
                   Id.create(fleetData.id, classOf[BeamVehicle]),
                   powertrain,
                   None,
-                  vehicleType
+                  vehicleType,
+                  None
                 )
                 // map fleet data to the respective vehicle
                 Some(fleetData -> beamVehicle)
