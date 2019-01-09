@@ -241,7 +241,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     public Map<String, Double> getSummaryStats() {
         return new HashMap<String, Double>() {{
             put("averageRideHailWaitTimeInSec", waitTimeSum / max(rideHailCount, 1));
-            put("averagePTWaitingTimeInSec", totalPTWaitingTime / max(numOfTrips, 1));
+            put("averageMTWaitingTimeInSec", totalPTWaitingTime / max(numOfTrips, 1));
         }};
     }
 
