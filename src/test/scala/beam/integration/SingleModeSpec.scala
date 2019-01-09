@@ -1,5 +1,6 @@
 package beam.integration
 
+import java.io.File
 import java.time.ZonedDateTime
 
 import akka.actor._
@@ -21,12 +22,13 @@ import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamMobsim, BeamServices}
 import beam.utils.DateUtils
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.TestConfigUtils.testOutputDir
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent}
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Id, Scenario}
-import org.matsim.core.controler.MatsimServices
+import org.matsim.core.controler.{MatsimServices, OutputDirectoryHierarchy}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsManagerImpl, EventsUtils}
 import org.matsim.core.scenario.ScenarioUtils
@@ -40,20 +42,23 @@ import scala.collection.mutable
 import scala.language.postfixOps
 
 class SingleModeSpec
-    extends TestKit(
-      ActorSystem(
-        "single-mode-test",
-        ConfigFactory
-          .load()
-          .withValue("akka.test.timefactor", ConfigValueFactory.fromAnyRef(10))
-      )
+  extends TestKit(
+    ActorSystem(
+      "single-mode-test",
+      ConfigFactory
+        .load()
+        .withValue("akka.test.timefactor", ConfigValueFactory.fromAnyRef(10))
     )
+  )
     with WordSpecLike
     with Matchers
     with ImplicitSender
     with MockitoSugar
     with BeforeAndAfterAll
     with Inside {
+
+  private val BASE_PATH = new File("").getAbsolutePath
+  private val OUTPUT_DIR_PATH = BASE_PATH + "/" + testOutputDir + "single-mode-test"
 
   var router: ActorRef = _
   var geo: GeoUtils = _
@@ -73,11 +78,16 @@ class SingleModeSpec
       BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
     }
 
+    val overwriteExistingFiles =
+      OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles
+    val outputDirectoryHierarchy =
+      new OutputDirectoryHierarchy(OUTPUT_DIR_PATH, overwriteExistingFiles)
+
     services = mock[BeamServices](withSettings().stubOnly())
     when(services.beamConfig).thenReturn(beamConfig)
-//    when(services.matsimServices).thenReturn(mock[MatsimServices])
-//    when(services.matsimServices.getScenario).thenReturn(mock[Scenario])
-//    when(services.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
+    when(services.matsimServices).thenReturn(mock[MatsimServices])
+    when(services.matsimServices.getControlerIO).thenReturn(outputDirectoryHierarchy)
+    //    when(services.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(services.tazTreeMap).thenReturn(BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file))
     when(services.vehicleTypes).thenReturn(vehicleTypes)
     when(services.vehicles).thenReturn(TrieMap[Id[BeamVehicle], BeamVehicle]())
@@ -109,7 +119,7 @@ class SingleModeSpec
     tollCalculator = new TollCalculator(beamConfig)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
-
+    when(services.matsimServices.getScenario).thenReturn(scenario)
     scenario.getPopulation.getPersons.values.asScala.foreach(PersonTestUtil.putDefaultBeamAttributes)
     router = system.actorOf(
       BeamRouter.props(
@@ -142,12 +152,12 @@ class SingleModeSpec
       scenario.getPopulation.getPersons
         .values()
         .forEach { person =>
-          {
-            person.getSelectedPlan.getPlanElements.asScala.collect {
-              case leg: Leg =>
-                leg.setMode("walk")
-            }
+        {
+          person.getSelectedPlan.getPlanElements.asScala.collect {
+            case leg: Leg =>
+              leg.setMode("walk")
           }
+        }
         }
       val events = mutable.ListBuffer[Event]()
       val eventsManager = EventsUtils.createEventsManager()
@@ -227,26 +237,26 @@ class SingleModeSpec
       scenario.getPopulation.getPersons
         .values()
         .forEach { person =>
-          {
-            val newPlanElements = person.getSelectedPlan.getPlanElements.asScala.collect {
-              case activity: Activity if activity.getType == "Home" =>
-                Seq(activity, scenario.getPopulation.getFactory.createLeg("drive_transit"))
-              case activity: Activity =>
-                Seq(activity)
-              case leg: Leg =>
-                Nil
-            }.flatten
-            if (newPlanElements.last.isInstanceOf[Leg]) {
-              newPlanElements.remove(newPlanElements.size - 1)
-            }
-            person.getSelectedPlan.getPlanElements.clear()
-            newPlanElements.foreach {
-              case activity: Activity =>
-                person.getSelectedPlan.addActivity(activity)
-              case leg: Leg =>
-                person.getSelectedPlan.addLeg(leg)
-            }
+        {
+          val newPlanElements = person.getSelectedPlan.getPlanElements.asScala.collect {
+            case activity: Activity if activity.getType == "Home" =>
+              Seq(activity, scenario.getPopulation.getFactory.createLeg("drive_transit"))
+            case activity: Activity =>
+              Seq(activity)
+            case leg: Leg =>
+              Nil
+          }.flatten
+          if (newPlanElements.last.isInstanceOf[Leg]) {
+            newPlanElements.remove(newPlanElements.size - 1)
           }
+          person.getSelectedPlan.getPlanElements.clear()
+          newPlanElements.foreach {
+            case activity: Activity =>
+              person.getSelectedPlan.addActivity(activity)
+            case leg: Leg =>
+              person.getSelectedPlan.addLeg(leg)
+          }
+        }
         }
       val events = mutable.ListBuffer[Event]()
       val eventsManager = EventsUtils.createEventsManager()
@@ -304,12 +314,12 @@ class SingleModeSpec
       scenario.getPopulation.getPersons
         .values()
         .forEach { person =>
-          {
-            person.getSelectedPlan.getPlanElements.asScala.collect {
-              case leg: Leg =>
-                leg.setMode("car")
-            }
+        {
+          person.getSelectedPlan.getPlanElements.asScala.collect {
+            case leg: Leg =>
+              leg.setMode("car")
           }
+        }
         }
       val eventsManager = EventsUtils.createEventsManager()
       //          eventsManager.addHandler(
