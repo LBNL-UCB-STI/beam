@@ -259,8 +259,7 @@ class BeamSim @Inject()(
         out.write(
           keys
             .map { key =>
-              val stat = stats.getOrElse(key, "")
-              if (stat == null) 0 else stat
+              stats.getOrElse(key, 0)
             }
             .mkString(",")
         )
