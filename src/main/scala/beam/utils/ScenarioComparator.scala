@@ -14,8 +14,8 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
 import com.google.inject.Injector
 import com.typesafe.config.ConfigValueFactory
-import org.matsim.api.core.v01.{Id, Scenario}
-import org.matsim.api.core.v01.population.{Person, Plan, PlanElement}
+import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.{Person, Plan}
 import org.matsim.core.controler.ControlerI
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.households.Household
@@ -121,15 +121,29 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
       override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
       override val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
       override var personHouseholds: Map[Id[Person], Household] = Map()
+
+      // TODO Fix me once `TrieMap` is removed
       val fuelTypePrices: TrieMap[FuelType, Double] =
-        BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
+        TrieMap(BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toSeq: _*)
+
+      // TODO Fix me once `TrieMap` is removed
       val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
-        BeamServices.readBeamVehicleTypeFile(
-          beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile,
-          fuelTypePrices
+        TrieMap(
+          BeamServices
+            .readBeamVehicleTypeFile(
+              beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile,
+              fuelTypePrices
+            )
+            .toSeq: _*
         )
+
+      // TODO Fix me once `TrieMap` is removed
       val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
-        BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
+        TrieMap(
+          BeamServices
+            .readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
+            .toSeq: _*
+        )
 
       override def startNewIteration(): Unit = throw new Exception("???")
 
@@ -155,7 +169,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
     beamServices
   }
 
-  def logScenario(scenario: MutableScenario) = {
+  def logScenario(scenario: MutableScenario): Unit = {
     println("Scenario is loaded " + scenario.toString)
 
     println("HouseHolds")
@@ -186,7 +200,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
     println("--")
   }
 
-  def logBeamVehicles(beamServices: BeamServices) = {
+  def logBeamVehicles(beamServices: BeamServices): Unit = {
     println("BeamVehicles")
     beamServices.vehicles.foreach {
       case (vId: Id[BeamVehicle], v: BeamVehicle) => {
