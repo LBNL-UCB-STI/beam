@@ -90,10 +90,10 @@ class ScenarioReaderCsv(var scenario: MutableScenario, var beamServices: BeamSer
       householdFilePath,
       scenario,
       beamServices,
-      householdPersons.par,
-      units.par,
-      buildings.par,
-      parcelAttrs.par
+      householdPersons,
+      units,
+      buildings,
+      parcelAttrs
     )
 
     logger.info("Total households loaded {}", scenario.getHouseholds.getHouseholds.size())
@@ -239,10 +239,10 @@ object ScenarioReaderCsv {
     filePath: String,
     scenario: MutableScenario,
     beamServices: BeamServices,
-    householdPersons: ParTrieMap[Id[Household], ListBuffer[Id[Person]]],
-    units: ParTrieMap[String, java.util.Map[String, String]],
-    buildings: ParTrieMap[String, java.util.Map[String, String]],
-    parcelAttrs: ParTrieMap[String, java.util.Map[String, String]]
+    householdPersons: TrieMap[Id[Household], ListBuffer[Id[Person]]],
+    units: TrieMap[String, java.util.Map[String, String]],
+    buildings: TrieMap[String, java.util.Map[String, String]],
+    parcelAttrs: TrieMap[String, java.util.Map[String, String]]
   ): Unit = {
 
     val scenarioHouseholdAttributes = scenario.getHouseholds.getHouseholdAttributes
