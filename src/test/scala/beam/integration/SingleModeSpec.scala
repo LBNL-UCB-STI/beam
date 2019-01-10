@@ -1,5 +1,6 @@
 package beam.integration
 
+import java.io.File
 import java.time.ZonedDateTime
 
 import akka.actor._
@@ -21,12 +22,13 @@ import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamMobsim, BeamServices}
 import beam.utils.DateUtils
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.TestConfigUtils.testOutputDir
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent}
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Id, Scenario}
-import org.matsim.core.controler.MatsimServices
+import org.matsim.core.controler.{MatsimServices, OutputDirectoryHierarchy}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsManagerImpl, EventsUtils}
 import org.matsim.core.scenario.ScenarioUtils
@@ -55,6 +57,9 @@ class SingleModeSpec
     with BeforeAndAfterAll
     with Inside {
 
+  private val BASE_PATH = new File("").getAbsolutePath
+  private val OUTPUT_DIR_PATH = BASE_PATH + "/" + testOutputDir + "single-mode-test"
+
   var router: ActorRef = _
   var geo: GeoUtils = _
   var scenario: Scenario = _
@@ -73,11 +78,16 @@ class SingleModeSpec
       BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
     }
 
+    val overwriteExistingFiles =
+      OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles
+    val outputDirectoryHierarchy =
+      new OutputDirectoryHierarchy(OUTPUT_DIR_PATH, overwriteExistingFiles)
+
     services = mock[BeamServices](withSettings().stubOnly())
     when(services.beamConfig).thenReturn(beamConfig)
-//    when(services.matsimServices).thenReturn(mock[MatsimServices])
-//    when(services.matsimServices.getScenario).thenReturn(mock[Scenario])
-//    when(services.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
+    when(services.matsimServices).thenReturn(mock[MatsimServices])
+    when(services.matsimServices.getControlerIO).thenReturn(outputDirectoryHierarchy)
+    //    when(services.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(services.tazTreeMap).thenReturn(BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file))
     when(services.vehicleTypes).thenReturn(vehicleTypes)
     when(services.vehicles).thenReturn(TrieMap[Id[BeamVehicle], BeamVehicle]())
@@ -109,7 +119,7 @@ class SingleModeSpec
     tollCalculator = new TollCalculator(beamConfig)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
-
+    when(services.matsimServices.getScenario).thenReturn(scenario)
     scenario.getPopulation.getPersons.values.asScala.foreach(PersonTestUtil.putDefaultBeamAttributes)
     router = system.actorOf(
       BeamRouter.props(
