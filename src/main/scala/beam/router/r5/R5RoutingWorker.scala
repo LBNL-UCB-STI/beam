@@ -193,8 +193,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   val numOfThreads: Int =
     if (Runtime.getRuntime.availableProcessors() <= 2) 1
     else Runtime.getRuntime.availableProcessors() - 2
-  private val execSvc: ExecutorService = Executors.newFixedThreadPool(numOfThreads,
-    new ThreadFactoryBuilder().setDaemon(true).setNameFormat("r5-routing-worker-%d").build())
+  private val execSvc: ExecutorService = Executors.newFixedThreadPool(
+    numOfThreads,
+    new ThreadFactoryBuilder().setDaemon(true).setNameFormat("r5-routing-worker-%d").build()
+  )
   implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(execSvc)
 
   val tickTask: Cancellable =
