@@ -262,7 +262,7 @@ class ZonalParkingManager(
 
   // TODO make these distributions more custom to the TAZ and stall type
   def sampleLocationForStall(taz: TAZ, attrib: StallAttributes): Location = {
-    val radius = math.sqrt(taz.area) / 2
+    val radius = math.sqrt(taz.areaInSquareMeters) / 2
     val lambda = 0.01
     val deltaRadiusX = -math.log(1 - (1 - math.exp(-lambda * radius)) * rand.nextDouble()) / lambda
     val deltaRadiusY = -math.log(1 - (1 - math.exp(-lambda * radius)) * rand.nextDouble()) / lambda
