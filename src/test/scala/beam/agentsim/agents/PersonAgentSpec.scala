@@ -270,7 +270,7 @@ class PersonAgentSpec
       assert(request1.streetVehiclesUseIntermodalUse == AccessAndEgress)
       personActor ! RoutingResponse(
         itineraries = Vector(),
-        requestId = java.util.UUID.randomUUID().hashCode()
+        requestId = request1.requestId
       )
 
       // This is the regular routing request.
@@ -303,7 +303,7 @@ class PersonAgentSpec
             )
           )
         ),
-        requestId = java.util.UUID.randomUUID().hashCode()
+        requestId = request2.requestId
       )
 
       expectMsgType[ModeChoiceEvent]
