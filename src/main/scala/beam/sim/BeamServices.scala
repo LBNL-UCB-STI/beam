@@ -8,7 +8,6 @@ import java.util.concurrent.TimeUnit
 import akka.actor.ActorRef
 import akka.util.Timeout
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
-import beam.agentsim.agents.choice.mode.ModeIncentive._
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.FuelType
@@ -21,29 +20,20 @@ import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.metrics.Metrics
-import beam.sim.vehicles.VehiclesAdjustment
-import beam.utils.{BeamVehicleUtils, DateUtils, FileUtils}
+import beam.utils.{DateUtils, FileUtils}
 import com.google.inject.{ImplementedBy, Inject, Injector}
-import org.matsim.api.core.v01.population.{Activity, Person, Plan, Population}
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler._
-import org.matsim.core.population.PopulationUtils
-import org.matsim.core.scenario.MutableScenario
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.households.{Household, HouseholdsFactoryImpl, Income, IncomeImpl}
-import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
+import org.matsim.households.Household
+import org.matsim.vehicles.Vehicle
 import org.slf4j.LoggerFactory
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
-import scala.collection.JavaConverters._
-import scala.collection.Iterator
 import scala.collection.concurrent.TrieMap
-import scala.collection.immutable.List
-import scala.collection.mutable.ListBuffer
-import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Random
 
 /**
   */
@@ -90,15 +80,11 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
     ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
   )
 
-  val rideHailTransitModes =
-    if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("all")) {
-      BeamMode.transitModes.toSeq
-    } else if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("mass")) {
-      BeamMode.massTransitModes.toSeq
-    } else {
+  val rideHailTransitModes: Seq[BeamMode] =
+    if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("all")) BeamMode.transitModes else if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("mass")) BeamMode.massTransitModes else {
       beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.toUpperCase
         .split(",")
-        .map(BeamMode.fromString(_))
+        .map(BeamMode.fromString)
         .toSeq
     }
 
@@ -108,23 +94,28 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
 
   val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
-  val agencyAndRouteByVehicleIds = TrieMap()
+  val agencyAndRouteByVehicleIds: TrieMap[
+    Id[Vehicle],
+    (String, String)
+  ] = TrieMap()
   var personHouseholds: Map[Id[Person], Household] = Map()
 
+  // TODO Fix me once `TrieMap` is removed
   val fuelTypePrices: TrieMap[FuelType, Double] =
-    readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
+    TrieMap(readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toSeq : _*)
 
+  // TODO Fix me once `TrieMap` is removed
   val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
     maybeScaleTransit(
-      readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
+      TrieMap(readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices) .toSeq : _*)
     )
-
+  // TODO Fix me once `TrieMap` is removed
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
     beamConfig.beam.agentsim.agents.population.useVehicleSampling match {
       case true =>
         TrieMap[Id[BeamVehicle], BeamVehicle]()
       case false =>
-        readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
+        TrieMap(readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq : _*)
     }
 
   var matsimServices: MatsimServices = _
@@ -171,7 +162,7 @@ object BeamServices {
   private val logger = LoggerFactory.getLogger(this.getClass)
   implicit val askTimeout: Timeout = Timeout(FiniteDuration(5L, TimeUnit.SECONDS))
 
-  var vehicleCounter = 1;
+  var vehicleCounter = 1
 
   val defaultTazTreeMap: TAZTreeMap = {
     val tazQuadTree: QuadTree[TAZ] = new QuadTree(-1, -1, 1, 1)
@@ -198,10 +189,10 @@ object BeamServices {
 
   def readVehiclesFile(
     filePath: String,
-    vehiclesTypeMap: TrieMap[Id[BeamVehicleType], BeamVehicleType]
-  ): TrieMap[Id[BeamVehicle], BeamVehicle] = {
+    vehiclesTypeMap: scala.collection.Map[Id[BeamVehicleType], BeamVehicleType]
+  ): scala.collection.Map[Id[BeamVehicle], BeamVehicle] = {
 
-    readCsvFileByLine(filePath, TrieMap[Id[BeamVehicle], BeamVehicle]()) {
+    readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicle], BeamVehicle]()) {
       case (line, acc) =>
         val vehicleIdString = line.get("vehicleId")
         val vehicleId = Id.create(vehicleIdString, classOf[BeamVehicle])
@@ -223,11 +214,10 @@ object BeamServices {
         acc += ((vehicleId, beamVehicle))
         acc
     }
-
   }
 
-  def readFuelTypeFile(filePath: String): TrieMap[FuelType, Double] = {
-    readCsvFileByLine(filePath, TrieMap[FuelType, Double]()) {
+  def readFuelTypeFile(filePath: String): scala.collection.Map[FuelType, Double] = {
+    readCsvFileByLine(filePath, scala.collection.mutable.HashMap[FuelType, Double]()) {
       case (line, z) =>
         val fuelType = FuelType.fromString(line.get("fuelTypeId"))
         val priceInDollarsPerMJoule = line.get("priceInDollarsPerMJoule").toDouble
@@ -237,11 +227,11 @@ object BeamServices {
 
   def readBeamVehicleTypeFile(
     filePath: String,
-    fuelTypePrices: TrieMap[FuelType, Double]
-  ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
+    fuelTypePrices: scala.collection.Map[FuelType, Double]
+  ): scala.collection.Map[Id[BeamVehicleType], BeamVehicleType] = {
 
-    val vehicleTypes = readCsvFileByLine(filePath, TrieMap[Id[BeamVehicleType], BeamVehicleType]()) {
-      case (line, z) =>
+    val vehicleTypes = readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicleType], BeamVehicleType]()) {
+      case (line: util.Map[String, String], z) =>
         val vIdString = line.get("vehicleTypeId")
         val vehicleTypeId = Id.create(vIdString, classOf[BeamVehicleType])
         val seatingCapacity = line.get("seatingCapacity").trim.toInt

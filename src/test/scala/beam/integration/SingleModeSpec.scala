@@ -11,7 +11,6 @@ import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, ModeIncentive, PtFares}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.router.BeamRouter
 import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
@@ -22,11 +21,9 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamMobsim, BeamServices}
 import beam.utils.DateUtils
-import beam.utils.TestConfigUtils.testConfig
-import beam.utils.TestConfigUtils.testOutputDir
+import beam.utils.TestConfigUtils.{testConfig, testOutputDir}
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent}
-import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.controler.{MatsimServices, OutputDirectoryHierarchy}
@@ -37,6 +34,7 @@ import org.matsim.vehicles.Vehicle
 import org.mockito.Mockito._
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
+
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -74,9 +72,8 @@ class SingleModeSpec
     beamConfig = BeamConfig(config)
 
     val vehicleTypes = {
-      val fuelTypes: TrieMap[FuelType, Double] =
-        BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
-      BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
+      val fuelTypes = BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
+      TrieMap(BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes).toSeq :_*)
     }
 
     val overwriteExistingFiles =
@@ -95,7 +92,7 @@ class SingleModeSpec
     when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
     when(services.ptFares).thenReturn(PtFares(List[FareRule]()))
     when(services.privateVehicles).thenReturn {
-      BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
+      TrieMap(BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq :_*)
     }
 
     geo = new GeoUtilsImpl(services)

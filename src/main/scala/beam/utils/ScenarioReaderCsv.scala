@@ -14,25 +14,23 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.collection.parallel.mutable.ParTrieMap
 
 class ScenarioReaderCsv(var scenario: MutableScenario, var beamServices: BeamServices, val delimiter: String = ",")
     extends LazyLogging {
 
-  val scenarioFolder = beamServices.beamConfig.beam.agentsim.agents.population.beamPopulationDirectory
+  val scenarioFolder: String = beamServices.beamConfig.beam.agentsim.agents.population.beamPopulationDirectory
 
-  val buildingFilePath = scenarioFolder + "/buildings.csv"
-  val personFilePath = scenarioFolder + "/persons.csv"
-  val householdFilePath = scenarioFolder + "/households.csv"
+  val buildingFilePath: String = scenarioFolder + "/buildings.csv"
+  val personFilePath: String = scenarioFolder + "/persons.csv"
+  val householdFilePath: String = scenarioFolder + "/households.csv"
 
-  val planFilePath = scenarioFolder + "/plans.csv"
-  val unitFilePath = scenarioFolder + "/units.csv"
-  val parcelAttrFilePath = scenarioFolder + "/parcel_attr.csv"
+  val planFilePath: String = scenarioFolder + "/plans.csv"
+  val unitFilePath: String = scenarioFolder + "/units.csv"
+  val parcelAttrFilePath: String = scenarioFolder + "/parcel_attr.csv"
 
-  def loadScenario() = {
+  def loadScenario(): Unit = {
 
     scenario.getPopulation.getPersons.clear()
     scenario.getPopulation.getPersonAttributes.clear()
@@ -116,7 +114,7 @@ class ScenarioReaderCsv(var scenario: MutableScenario, var beamServices: BeamSer
     logger.info("The scenario loading is completed..")
   }
 
-  def removeHouseholdVehicles(household: Household) = {
+  def removeHouseholdVehicles(household: Household): Unit = {
     household.getVehicleIds.forEach(
       vehicleId => beamServices.privateVehicles.remove(Id.create(vehicleId.toString, classOf[BeamVehicle]))
     )
@@ -126,7 +124,7 @@ class ScenarioReaderCsv(var scenario: MutableScenario, var beamServices: BeamSer
 object ScenarioReaderCsv {
   private val logger = LoggerFactory.getLogger(this.getClass)
 
-  var vehicleCounter = 1;
+  var vehicleCounter = 1
 
   def readPersonsFile(
     filePath: String,
