@@ -25,7 +25,7 @@ class RideHailFleetInitializer extends LazyLogging {
     beamServices: BeamServices
   ): List[(FleetData, BeamVehicle)] = {
     val filePath = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.filename
-    readCSVAsRideHailAgent(
+    readFleetFromCSV(
       filePath,
       beamServices
     )
@@ -36,7 +36,7 @@ class RideHailFleetInitializer extends LazyLogging {
     * @param filePath path to the csv file
     * @return list of [[beam.agentsim.agents.ridehail.RideHailAgent]] objects
     */
-  private def readCSVAsRideHailAgent(
+  private def readFleetFromCSV(
     filePath: String,
     beamServices: BeamServices
   ): List[(FleetData, BeamVehicle)] = {

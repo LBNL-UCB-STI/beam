@@ -171,11 +171,11 @@ class RideHailManager(
 
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
+  val vehicleManager: RideHailVehicleManager = new RideHailVehicleManager(this, boundingBox)
+
   /**
     * Customer inquiries awaiting reservation confirmation.
     */
-  val vehicleManager: RideHailVehicleManager = new RideHailVehicleManager(this, boundingBox)
-
   lazy val travelProposalCache: Cache[String, TravelProposal] = {
     CacheBuilder
       .newBuilder()
