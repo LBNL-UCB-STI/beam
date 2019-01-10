@@ -270,9 +270,9 @@ object BeamServices {
 
   private def getVehicleCategory(vehicleCategory: String): VehicleCategory = {
     vehicleCategory match {
-      case "car"      => BeamVehicleType.Car
-      case "bike"     => BeamVehicleType.Bike
-      case "ridehail" => BeamVehicleType.RideHail
+      case vc if vc.equalsIgnoreCase("car")      => BeamVehicleType.Car
+      case vc if vc.equalsIgnoreCase("bike")     => BeamVehicleType.Bike
+      case vc if vc.equalsIgnoreCase("ridehail") => BeamVehicleType.RideHail
       case _          => throw new RuntimeException("Invalid vehicleCategory")
     }
   }

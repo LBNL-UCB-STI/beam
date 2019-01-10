@@ -109,13 +109,22 @@ object BeamVehicleType {
     beamVehicleId.toString.startsWith("bike")
 
   def getMode(beamVehicle: BeamVehicle): BeamMode = {
-    beamVehicle.beamVehicleType.vehicleTypeId match {
+    beamVehicle.beamVehicleType.vehicleCategory match {
       //TODO complete list
-      case vid if vid.toLowerCase.contains("bike")     => BIKE
-      case vid if vid.toLowerCase.contains("ridehail") => RIDE_HAIL
-      case vid if vid.toLowerCase.contains("car")      => CAR
-
+      case Some(Bike)     => BIKE
+      case Some(RideHail) => RIDE_HAIL
+      case Some(Car)      => CAR
+      case _              => NONE
     }
+
+//  def getMode(beamVehicle: BeamVehicle): BeamMode = {
+//    beamVehicle.beamVehicleType.vehicleTypeId match {
+//      //TODO complete list
+//      case vid if vid.toLowerCase.contains("bike")     => BIKE
+//      case vid if vid.toLowerCase.contains("ridehail") => RIDE_HAIL
+//      case vid if vid.toLowerCase.contains("car")      => CAR
+//
+//    }
 //
 //    beamVehicle.beamVehicleType.vehicleCategory match {
 //      //TODO complete list
