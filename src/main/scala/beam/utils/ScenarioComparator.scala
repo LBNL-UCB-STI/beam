@@ -124,18 +124,26 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
 
       // TODO Fix me once `TrieMap` is removed
       val fuelTypePrices: TrieMap[FuelType, Double] =
-        TrieMap(BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toSeq :_*)
+        TrieMap(BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toSeq: _*)
 
       // TODO Fix me once `TrieMap` is removed
       val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
-        TrieMap(BeamServices.readBeamVehicleTypeFile(
-          beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile,
-          fuelTypePrices
-        ).toSeq :_*)
+        TrieMap(
+          BeamServices
+            .readBeamVehicleTypeFile(
+              beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile,
+              fuelTypePrices
+            )
+            .toSeq: _*
+        )
 
       // TODO Fix me once `TrieMap` is removed
       val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
-        TrieMap(BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq :_*)
+        TrieMap(
+          BeamServices
+            .readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
+            .toSeq: _*
+        )
 
       override def startNewIteration(): Unit = throw new Exception("???")
 

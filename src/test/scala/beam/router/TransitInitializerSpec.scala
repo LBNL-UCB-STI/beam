@@ -64,7 +64,11 @@ class TransitInitializerSpec extends WordSpecLike with Matchers with MockitoSuga
     )
     val vehicleTypes = {
       val fuelTypes = BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
-      TrieMap(BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes).toSeq :_*)
+      TrieMap(
+        BeamServices
+          .readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
+          .toSeq: _*
+      )
     }
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.vehicleTypes).thenReturn(vehicleTypes)

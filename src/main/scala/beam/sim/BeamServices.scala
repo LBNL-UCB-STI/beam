@@ -81,7 +81,10 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   )
 
   val rideHailTransitModes: Seq[BeamMode] =
-    if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("all")) BeamMode.transitModes else if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("mass")) BeamMode.massTransitModes else {
+    if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("all")) BeamMode.transitModes
+    else if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("mass"))
+      BeamMode.massTransitModes
+    else {
       beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.toUpperCase
         .split(",")
         .map(BeamMode.fromString)
@@ -94,6 +97,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
 
   val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
+
   val agencyAndRouteByVehicleIds: TrieMap[
     Id[Vehicle],
     (String, String)
@@ -102,20 +106,23 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   // TODO Fix me once `TrieMap` is removed
   val fuelTypePrices: TrieMap[FuelType, Double] =
-    TrieMap(readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toSeq : _*)
+    TrieMap(readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toSeq: _*)
 
   // TODO Fix me once `TrieMap` is removed
   val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
     maybeScaleTransit(
-      TrieMap(readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices) .toSeq : _*)
+      TrieMap(
+        readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices).toSeq: _*
+      )
     )
+
   // TODO Fix me once `TrieMap` is removed
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
     beamConfig.beam.agentsim.agents.population.useVehicleSampling match {
       case true =>
         TrieMap[Id[BeamVehicle], BeamVehicle]()
       case false =>
-        TrieMap(readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq : _*)
+        TrieMap(readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq: _*)
     }
 
   var matsimServices: MatsimServices = _
@@ -230,49 +237,50 @@ object BeamServices {
     fuelTypePrices: scala.collection.Map[FuelType, Double]
   ): scala.collection.Map[Id[BeamVehicleType], BeamVehicleType] = {
 
-    val vehicleTypes = readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicleType], BeamVehicleType]()) {
-      case (line: util.Map[String, String], z) =>
-        val vIdString = line.get("vehicleTypeId")
-        val vehicleTypeId = Id.create(vIdString, classOf[BeamVehicleType])
-        val seatingCapacity = line.get("seatingCapacity").trim.toInt
-        val standingRoomCapacity = line.get("standingRoomCapacity").trim.toInt
-        val lengthInMeter = line.get("lengthInMeter").trim.toDouble
-        val primaryFuelTypeId = line.get("primaryFuelType")
-        val primaryFuelType = FuelType.fromString(primaryFuelTypeId)
-        val primaryFuelConsumptionInJoulePerMeter = line.get("primaryFuelConsumptionInJoulePerMeter").trim.toDouble
-        val primaryFuelCapacityInJoule = line.get("primaryFuelCapacityInJoule").trim.toDouble
-        val secondaryFuelTypeId = Option(line.get("secondaryFuelType"))
-        val secondaryFuelType = secondaryFuelTypeId.map(FuelType.fromString(_))
-        val secondaryFuelConsumptionInJoule =
-          Option(line.get("secondaryFuelConsumptionInJoulePerMeter")).map(_.toDouble)
-        val secondaryFuelCapacityInJoule = Option(line.get("secondaryFuelCapacityInJoule")).map(_.toDouble)
-        val automationLevel = Option(line.get("automationLevel"))
-        val maxVelocity = Option(line.get("maxVelocity")).map(_.toDouble)
-        val passengerCarUnit = Option(line.get("passengerCarUnit")).map(_.toDouble).getOrElse(1d)
-        val rechargeLevel2RateLimitInWatts = Option(line.get("rechargeLevel2RateLimitInWatts")).map(_.toDouble)
-        val rechargeLevel3RateLimitInWatts = Option(line.get("rechargeLevel3RateLimitInWatts")).map(_.toDouble)
-        val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
+    val vehicleTypes =
+      readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicleType], BeamVehicleType]()) {
+        case (line: util.Map[String, String], z) =>
+          val vIdString = line.get("vehicleTypeId")
+          val vehicleTypeId = Id.create(vIdString, classOf[BeamVehicleType])
+          val seatingCapacity = line.get("seatingCapacity").trim.toInt
+          val standingRoomCapacity = line.get("standingRoomCapacity").trim.toInt
+          val lengthInMeter = line.get("lengthInMeter").trim.toDouble
+          val primaryFuelTypeId = line.get("primaryFuelType")
+          val primaryFuelType = FuelType.fromString(primaryFuelTypeId)
+          val primaryFuelConsumptionInJoulePerMeter = line.get("primaryFuelConsumptionInJoulePerMeter").trim.toDouble
+          val primaryFuelCapacityInJoule = line.get("primaryFuelCapacityInJoule").trim.toDouble
+          val secondaryFuelTypeId = Option(line.get("secondaryFuelType"))
+          val secondaryFuelType = secondaryFuelTypeId.map(FuelType.fromString(_))
+          val secondaryFuelConsumptionInJoule =
+            Option(line.get("secondaryFuelConsumptionInJoulePerMeter")).map(_.toDouble)
+          val secondaryFuelCapacityInJoule = Option(line.get("secondaryFuelCapacityInJoule")).map(_.toDouble)
+          val automationLevel = Option(line.get("automationLevel"))
+          val maxVelocity = Option(line.get("maxVelocity")).map(_.toDouble)
+          val passengerCarUnit = Option(line.get("passengerCarUnit")).map(_.toDouble).getOrElse(1d)
+          val rechargeLevel2RateLimitInWatts = Option(line.get("rechargeLevel2RateLimitInWatts")).map(_.toDouble)
+          val rechargeLevel3RateLimitInWatts = Option(line.get("rechargeLevel3RateLimitInWatts")).map(_.toDouble)
+          val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
 
-        val bvt = BeamVehicleType(
-          vIdString,
-          seatingCapacity,
-          standingRoomCapacity,
-          lengthInMeter,
-          primaryFuelType,
-          primaryFuelConsumptionInJoulePerMeter,
-          primaryFuelCapacityInJoule,
-          secondaryFuelType,
-          secondaryFuelConsumptionInJoule,
-          secondaryFuelCapacityInJoule,
-          automationLevel,
-          maxVelocity,
-          passengerCarUnit,
-          rechargeLevel2RateLimitInWatts,
-          rechargeLevel3RateLimitInWatts,
-          vehicleCategory
-        )
-        z += ((vehicleTypeId, bvt))
-    }
+          val bvt = BeamVehicleType(
+            vIdString,
+            seatingCapacity,
+            standingRoomCapacity,
+            lengthInMeter,
+            primaryFuelType,
+            primaryFuelConsumptionInJoulePerMeter,
+            primaryFuelCapacityInJoule,
+            secondaryFuelType,
+            secondaryFuelConsumptionInJoule,
+            secondaryFuelCapacityInJoule,
+            automationLevel,
+            maxVelocity,
+            passengerCarUnit,
+            rechargeLevel2RateLimitInWatts,
+            rechargeLevel3RateLimitInWatts,
+            vehicleCategory
+          )
+          z += ((vehicleTypeId, bvt))
+      }
     vehicleTypes
   }
 

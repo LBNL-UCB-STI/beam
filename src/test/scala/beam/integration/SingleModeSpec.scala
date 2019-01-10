@@ -73,7 +73,11 @@ class SingleModeSpec
 
     val vehicleTypes = {
       val fuelTypes = BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
-      TrieMap(BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes).toSeq :_*)
+      TrieMap(
+        BeamServices
+          .readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
+          .toSeq: _*
+      )
     }
 
     val overwriteExistingFiles =
@@ -92,7 +96,9 @@ class SingleModeSpec
     when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
     when(services.ptFares).thenReturn(PtFares(List[FareRule]()))
     when(services.privateVehicles).thenReturn {
-      TrieMap(BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq :_*)
+      TrieMap(
+        BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq: _*
+      )
     }
 
     geo = new GeoUtilsImpl(services)
