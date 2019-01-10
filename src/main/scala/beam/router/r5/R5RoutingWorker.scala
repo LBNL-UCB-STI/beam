@@ -3,8 +3,7 @@ package beam.router.r5
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneId, ZoneOffset, ZonedDateTime}
 import java.util
-import java.util.UUID
-import java.util.concurrent.Executors
+import java.util.concurrent.{ExecutorService, Executors}
 
 import akka.actor._
 import akka.pattern._
@@ -17,34 +16,34 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.Modes._
+import beam.router._
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator._
 import beam.router.model.BeamLeg._
-import beam.router.model.RoutingModel.{LinksTimesDistances}
+import beam.router.model.RoutingModel.LinksTimesDistances
 import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
 import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
-import beam.router._
 import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.reflection.ReflectionUtils
 import beam.utils._
+import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile._
 import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
+import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.google.inject.Injector
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
-import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.ControlerI
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
@@ -196,8 +195,11 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   val numOfThreads: Int =
     if (Runtime.getRuntime.availableProcessors() <= 2) 1
     else Runtime.getRuntime.availableProcessors() - 2
-  implicit val executionContext: ExecutionContext =
-    ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(numOfThreads))
+  private val execSvc: ExecutorService = Executors.newFixedThreadPool(
+    numOfThreads,
+    new ThreadFactoryBuilder().setDaemon(true).setNameFormat("r5-routing-worker-%d").build()
+  )
+  implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(execSvc)
 
   val tickTask: Cancellable =
     context.system.scheduler.schedule(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
