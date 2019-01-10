@@ -369,6 +369,7 @@ class PersonAgentSpec
       plan.addActivity(workActivity)
       person.addPlan(plan)
       population.addPerson(person)
+      population.getPersonAttributes.putAttribute(person.getId.toString, "rank",1.asInstanceOf[Object])
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
       val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
       scenario.setPopulation(population)
@@ -426,7 +427,7 @@ class PersonAgentSpec
             )
           )
         ),
-        requestId = java.util.UUID.randomUUID().hashCode()
+        requestId = embodyRequest.id
       )
 
       expectMsgType[ModeChoiceEvent]

@@ -2,7 +2,7 @@ package beam.agentsim.agents.vehicles
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType._
-import beam.agentsim.agents.vehicles.VehicleCategory.{Undefined, VehicleCategory}
+import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car, MediumDutyPassenger, Undefined, VehicleCategory}
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
@@ -51,7 +51,8 @@ object BeamVehicleType {
       Food,
       53,
       2.21e6,
-      None
+      None,
+      vehicleCategory = Body
     )
 
   val defaultBicycleBeamVehicleType: BeamVehicleType = BeamVehicleType(
@@ -62,7 +63,8 @@ object BeamVehicleType {
     Food,
     defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter / 5.0, // 5x more efficient than walking
     defaultHumanBodyBeamVehicleType.primaryFuelCapacityInJoule, // same capacity as human body
-    None
+    None,
+    vehicleCategory = Bike
   )
 
   val powerTrainForHumanBody: Powertrain = new Powertrain(
@@ -78,7 +80,8 @@ object BeamVehicleType {
       10,
       Diesel,
       25829.7,
-      30000000000.0
+      30000000000.0,
+      vehicleCategory = MediumDutyPassenger
     )
 
   val defaultCarBeamVehicleType: BeamVehicleType = BeamVehicleType(
@@ -89,7 +92,8 @@ object BeamVehicleType {
     Gasoline,
     3656.0,
     3655980000.0,
-    None
+    None,
+    vehicleCategory = Car
   )
 
   def isHumanVehicle(beamVehicleId: Id[Vehicle]): Boolean =
