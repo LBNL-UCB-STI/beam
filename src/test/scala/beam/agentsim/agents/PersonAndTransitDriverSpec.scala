@@ -171,14 +171,16 @@ class PersonAndTransitDriverSpec
         id = busId,
         powerTrain = new Powertrain(0.0),
         initialMatsimAttributes = None,
-        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
+        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
       val tramId = Id.createVehicleId("my_tram")
       val tram = new BeamVehicle(
         id = tramId,
         powerTrain = new Powertrain(0.0),
         initialMatsimAttributes = None,
-        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
+        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
+        null
       )
 
       vehicles.put(bus.id, bus)
@@ -394,7 +396,7 @@ class PersonAndTransitDriverSpec
             )
           )
         ),
-        staticRequestId = java.util.UUID.randomUUID().hashCode()
+        requestId = java.util.UUID.randomUUID().hashCode()
       )
 
       personEvents.expectMsgType[ModeChoiceEvent]

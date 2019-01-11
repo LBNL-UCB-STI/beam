@@ -734,7 +734,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         String csvFileName = event.getServices().getControlerIO().getOutputFilename(dataFileBaseName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
 
-            String heading = "Iteration,rideHailRevenue,averageRideHailWaitingTimeInSeconds,totalRideHailWaitingTimeInSeconds,passengerVKT,repositioningVKT,deadHeadingVKT,averageSurgePriceLevel,maxSurgePriceLevel,reservationCount";
+            String heading = "Iteration,onDemandRideRevenue,averageOnDemandRideWaitingTimeInSeconds,totalOnDemandRideWaitingTimeInSeconds,passengerVKT,repositioningVKT,deadHeadingVKT,averageSurgePriceLevel,maxSurgePriceLevel,reservationCount";
             out.write(heading);
             out.newLine();
             for (Integer key : GraphUtils.RIDE_HAIL_REVENUE_MAP.keySet()) {

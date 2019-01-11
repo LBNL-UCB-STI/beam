@@ -41,7 +41,7 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
             break;
         }
         String statType = String.format("total%s_%s", costType, mode);
-        personCostByCostType.merge(statType, cost, (d1, d2) -> d1 + d2);
+        personCostByCostType.merge(statType, cost, Double::sum);
         personCostCount.merge(statType, 1, Integer::sum);
       }
     }
@@ -86,8 +86,9 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
       }
       return null;
     });
-    activityTypeCount.keySet().stream().forEach(key ->
-      personCostByCostType.put(key, personCostByActivityType.get(key)/ activityTypeCount.get(key))
+    activityTypeCount.keySet().forEach(key ->
+          personCostByCostType.put(key, personCostByActivityType.getOrDefault(key, 0D) / activityTypeCount.get(key))
+
     );
     return personCostByCostType;
   }

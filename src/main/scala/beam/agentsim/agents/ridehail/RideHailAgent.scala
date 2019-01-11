@@ -5,6 +5,7 @@ import akka.actor.{ActorRef, Props, Stash}
 import beam.agentsim.Resource.{NotifyVehicleIdle, ReleaseParkingStall}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
+import beam.agentsim.agents.choice.mode.Range
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
@@ -15,7 +16,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTrig
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
-import beam.sim.BeamServices
+import beam.sim.{BeamServices, Geofence}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -33,15 +34,21 @@ object RideHailAgent {
     eventsManager: EventsManager,
     parkingManager: ActorRef,
     rideHailAgentId: Id[RideHailAgent],
+    rideHailManagerId: Id[RideHailManager],
     vehicle: BeamVehicle,
-    location: Coord
+    location: Coord,
+    shifts: Option[List[Range]],
+    geofence: Option[Geofence]
   ) =
     Props(
       new RideHailAgent(
         rideHailAgentId,
+        rideHailManagerId,
         scheduler,
         vehicle,
         location,
+        shifts,
+        geofence,
         eventsManager,
         parkingManager,
         services,
@@ -121,9 +128,12 @@ object RideHailAgent {
 
 class RideHailAgent(
   override val id: Id[RideHailAgent],
+  rideHailManagerId: Id[RideHailManager],
   val scheduler: ActorRef,
   vehicle: BeamVehicle,
   initialLocation: Coord,
+  shifts: Option[List[Range]],
+  geofence: Option[Geofence],
   val eventsManager: EventsManager,
   val parkingManager: ActorRef,
   val beamServices: BeamServices,

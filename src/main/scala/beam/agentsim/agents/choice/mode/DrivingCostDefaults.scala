@@ -11,13 +11,21 @@ import org.matsim.api.core.v01.Id
 object DrivingCostDefaults {
   val zero: Double = 0
 
-  def estimateFuelCost(leg: BeamLeg, vehicleTypeId: Id[BeamVehicleType], beamServices: BeamServices): Double = {
-    // TODO: Why can this be empty?
-    val maybeBeamVehicleType = beamServices.vehicleTypes.get(vehicleTypeId)
-    val beamVehicleType = maybeBeamVehicleType.getOrElse(BeamVehicleType.defaultCarBeamVehicleType)
-    val distance = leg.travelPath.distanceInM
-    if (null != beamVehicleType && null != beamVehicleType.primaryFuelType && 0.0 != beamVehicleType.primaryFuelConsumptionInJoulePerMeter) {
-      (distance * beamVehicleType.primaryFuelConsumptionInJoulePerMeter * beamVehicleType.primaryFuelType.priceInDollarsPerMJoule) / 1000000
+  def estimateFuelCost(leg: BeamLeg, vehicleId: Id[Vehicle], beamServices: BeamServices): Double = {
+    if (beamServices.vehicles != null && beamServices.vehicles.contains(vehicleId)) {
+      val vehicle = beamServices.vehicles(vehicleId)
+      val distance = leg.travelPath.distanceInM
+      if (null != vehicle && null != vehicle.beamVehicleType && null != vehicle.beamVehicleType.primaryFuelType && 0.0 != vehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter) {
+        if (beamServices.fuelTypePrices.keySet.contains(vehicle.beamVehicleType.primaryFuelType)) {
+          (distance * vehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter * beamServices.fuelTypePrices(
+            vehicle.beamVehicleType.primaryFuelType
+          )) / 1000000.0
+        } else {
+          zero
+        }
+      } else {
+        zero
+      }
     } else {
       0 //TODO
     }

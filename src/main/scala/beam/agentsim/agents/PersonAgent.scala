@@ -21,7 +21,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTrig
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, NONE, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, NO_MODE, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
@@ -299,7 +299,7 @@ class PersonAgent(
                   .get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
                   case leg: Leg =>
                     BeamMode.fromString(leg.getMode) match {
-                      case NONE =>
+                      case NO_MODE =>
                         None
                       case anyOther: BeamMode =>
                         Some(anyOther)

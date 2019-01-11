@@ -229,6 +229,23 @@ object HouseholdActor {
         log.debug("Remaining: {}", context.children)
       }
     }
+    private def getModeFromHouseholdVehicle(beamVehicle: BeamVehicle) = {
+      beamVehicle.beamVehicleType.vehicleCategory match {
+        case Bike =>
+          BIKE
+        case Car =>
+          CAR
+        case _ =>
+          log.warning(
+            s"Initializing household {}, a vehicle with Id {} of vehicle type {} is not a recognized category of vehicle ({}) to be used by a household. Ignoring this vehicle.",
+            id,
+            beamVehicle.id,
+            beamVehicle.beamVehicleType.vehicleTypeId,
+            beamVehicle.beamVehicleType.vehicleCategory
+          )
+          NO_MODE
+      }
+    }
   }
 
 }

@@ -233,7 +233,7 @@ class RideHailManager(
     CacheBuilder
       .newBuilder()
       .maximumSize(
-        (10 * beamServices.beamConfig.beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation * beamServices.beamConfig.beam.agentsim.numAgents).toLong
+        (10 * beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation * beamServices.beamConfig.beam.agentsim.numAgents).toLong
       )
       .expireAfterWrite(1, TimeUnit.MINUTES)
       .build()
@@ -504,10 +504,10 @@ class RideHailManager(
      * so we add these to the allocation buffer and then resume the allocation process.
      */
     case RoutingResponses(tick, responses)
-        if reservationIdToRequest.contains(routeRequestIdToRideHailRequestId(responses.head.staticRequestId)) =>
+        if reservationIdToRequest.contains(routeRequestIdToRideHailRequestId(responses.head.requestId)) =>
       numPendingRoutingRequestsForReservations = numPendingRoutingRequestsForReservations - responses.size
       responses.foreach { routeResponse =>
-        val request = reservationIdToRequest(routeRequestIdToRideHailRequestId(routeResponse.staticRequestId))
+        val request = reservationIdToRequest(routeRequestIdToRideHailRequestId(routeResponse.requestId))
         rideHailResourceAllocationManager.addRouteForRequestToBuffer(request, routeResponse)
       }
       self ! ContinueBufferedRideHailRequests(tick)
@@ -518,9 +518,9 @@ class RideHailManager(
      * for a single occupant trip.
      */
     case RoutingResponses(_, responses)
-        if inquiryIdToInquiryAndResponse.contains(routeRequestIdToRideHailRequestId(responses.head.staticRequestId)) =>
+        if inquiryIdToInquiryAndResponse.contains(routeRequestIdToRideHailRequestId(responses.head.requestId)) =>
       val (request, singleOccupantQuoteAndPoolingInfo) = inquiryIdToInquiryAndResponse(
-        routeRequestIdToRideHailRequestId(responses.head.staticRequestId)
+        routeRequestIdToRideHailRequestId(responses.head.requestId)
       )
 
       // If any response contains no RIDE_HAIL legs, then the router failed
@@ -560,7 +560,7 @@ class RideHailManager(
         request.customer.personRef.get ! RideHailResponse(request, Some(travelProposal))
       }
       inquiryIdToInquiryAndResponse.remove(request.requestId)
-      responses.foreach(rResp => routeRequestIdToRideHailRequestId.remove(rResp.staticRequestId))
+      responses.foreach(rResp => routeRequestIdToRideHailRequestId.remove(rResp.requestId))
 
     case reserveRide @ RideHailRequest(ReserveRide, _, _, _, _, _, _, _) =>
       handleReservationRequest(reserveRide)
@@ -773,7 +773,7 @@ class RideHailManager(
       case inquiryResponse @ SingleOccupantQuoteAndPoolingInfo(agentLocation, poolingInfo) =>
         inquiryIdToInquiryAndResponse.put(inquiry.requestId, (inquiry, inquiryResponse))
         val routingRequests = createRoutingRequestsToCustomerAndDestination(inquiry.departAt, inquiry, agentLocation)
-        routingRequests.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.staticRequestId, inquiry.requestId))
+        routingRequests.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId, inquiry.requestId))
         requestRoutes(inquiry.departAt, routingRequests)
     }
   }
@@ -946,7 +946,7 @@ class RideHailManager(
               // Client has requested routes
               reservationIdToRequest.put(request.requestId, request)
               routesRequired.foreach(
-                rReq => routeRequestIdToRideHailRequestId.put(rReq.staticRequestId, request.requestId)
+                rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId, request.requestId)
               )
               allRoutesRequired = allRoutesRequired ++ routesRequired
             case alloc @ VehicleMatchedToCustomers(request, rideHailAgentLocation, pickDropIdWithRoutes)
@@ -1076,7 +1076,7 @@ class RideHailManager(
           if (itins2Cust.nonEmpty) {
             val modRHA2Cust: IndexedSeq[EmbodiedBeamTrip] =
               itins2Cust.map(l => l.copy(legs = l.legs.map(c => c.copy(asDriver = true)))).toIndexedSeq
-            val rideHailAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust, routingRequest.staticRequestId)
+            val rideHailAgent2CustomerResponseMod = RoutingResponse(modRHA2Cust, routingRequest.requestId)
 
             // TODO: extract creation of route to separate method?
             val passengerSchedule = PassengerSchedule().addLegs(

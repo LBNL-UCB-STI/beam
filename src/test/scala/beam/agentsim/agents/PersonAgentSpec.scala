@@ -266,8 +266,7 @@ class PersonAgentSpec
       assert(request1.streetVehiclesUseIntermodalUse == AccessAndEgress)
       personActor ! RoutingResponse(
         itineraries = Vector(),
-        requestId = Some(request1.requestId),
-        staticRequestId = java.util.UUID.randomUUID().hashCode()
+        requestId = request1.requestId
       )
 
       // This is the regular routing request.
@@ -345,14 +344,16 @@ class PersonAgentSpec
         id = busId,
         powerTrain = new Powertrain(0.0),
         initialMatsimAttributes = None,
-        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
+        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
+        null
       )
       val tramId = Id.createVehicleId("my_tram")
       val tram = new BeamVehicle(
         id = tramId,
         powerTrain = new Powertrain(0.0),
         initialMatsimAttributes = None,
-        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
+        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
 
       vehicles.put(bus.id, bus)
@@ -534,7 +535,7 @@ class PersonAgentSpec
             )
           )
         ),
-        staticRequestId = java.util.UUID.randomUUID().hashCode()
+        requestId = java.util.UUID.randomUUID().hashCode()
       )
 
       events.expectMsgType[ModeChoiceEvent]
