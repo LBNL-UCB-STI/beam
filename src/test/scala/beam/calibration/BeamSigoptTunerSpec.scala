@@ -42,12 +42,12 @@ class BeamSigoptTunerSpec extends WordSpecLike with Matchers with BeforeAndAfter
           val expParams = experimentData.experiment.getParameters
           // First is the rideHailParams
           val rideHailParams = expParams.iterator.next
-          rideHailParams.getName equals "beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation"
+          rideHailParams.getName equals "beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation"
           rideHailParams.getBounds.getMax equals 0.1
           rideHailParams.getBounds.getMin equals 0.001
           // Second is transitCapacityParams
           val transitCapacityParams = expParams.iterator.next
-          transitCapacityParams.getName equals "beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation"
+          transitCapacityParams.getName equals "beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation"
           transitCapacityParams.getBounds.getMax equals 0.1
           transitCapacityParams.getBounds.getMin equals 0.001
         }

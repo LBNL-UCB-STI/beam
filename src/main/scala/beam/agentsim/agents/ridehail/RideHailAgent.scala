@@ -6,6 +6,7 @@ import beam.agentsim.Resource.CheckInResource
 import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
+import beam.agentsim.agents.choice.mode.Range
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
   EndLegTrigger,
@@ -27,7 +28,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.model.RoutingModel
 import beam.router.osm.TollCalculator
-import beam.sim.BeamServices
+import beam.sim.{BeamServices, Geofence}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -45,15 +46,21 @@ object RideHailAgent {
     eventsManager: EventsManager,
     parkingManager: ActorRef,
     rideHailAgentId: Id[RideHailAgent],
+    rideHailManagerId: Id[RideHailManager],
     vehicle: BeamVehicle,
-    location: Coord
+    location: Coord,
+    shifts: Option[List[Range]],
+    geofence: Option[Geofence]
   ) =
     Props(
       new RideHailAgent(
         rideHailAgentId,
+        rideHailManagerId,
         scheduler,
         vehicle,
         location,
+        shifts,
+        geofence,
         eventsManager,
         parkingManager,
         services,
@@ -93,35 +100,36 @@ object RideHailAgent {
 
   case class ModifyPassengerSchedule(
     updatedPassengerSchedule: PassengerSchedule,
+    tick: Int,
     reservationRequestId: Option[Int] = None
   )
 
   case class ModifyPassengerScheduleAck(
     reservationRequestId: Option[Int] = None,
     triggersToSchedule: Vector[ScheduleTrigger],
-    vehicleId: Id[Vehicle]
+    vehicleId: Id[Vehicle],
+    tick: Int
   )
 
-  case class Interrupt(interruptId: Id[Interrupt], tick: Double)
+  case class Interrupt(interruptId: Id[Interrupt], tick: Int)
 
   case class Resume()
 
   sealed trait InterruptReply {
     val interruptId: Id[Interrupt]
     val vehicleId: Id[Vehicle]
-    val tick: Double
+    val tick: Int
   }
 
   case class InterruptedWhileDriving(
     interruptId: Id[Interrupt],
     vehicleId: Id[Vehicle],
-    tick: Double,
+    tick: Int,
     passengerSchedule: PassengerSchedule,
     currentPassengerScheduleIndex: Int,
   ) extends InterruptReply
 
-  case class InterruptedWhileIdle(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Double)
-      extends InterruptReply
+  case class InterruptedWhileIdle(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Int) extends InterruptReply
 
   case object Idle extends BeamAgentState
 
@@ -131,9 +139,12 @@ object RideHailAgent {
 
 class RideHailAgent(
   override val id: Id[RideHailAgent],
+  rideHailManagerId: Id[RideHailManager],
   val scheduler: ActorRef,
   vehicle: BeamVehicle,
   initialLocation: Coord,
+  shifts: Option[List[Range]],
+  geofence: Option[Geofence],
   val eventsManager: EventsManager,
   val parkingManager: ActorRef,
   val beamServices: BeamServices,
@@ -271,7 +282,7 @@ class RideHailAgent(
   }
 
   when(IdleInterrupted) {
-    case ev @ Event(ModifyPassengerSchedule(updatedPassengerSchedule, requestId), data) =>
+    case ev @ Event(ModifyPassengerSchedule(updatedPassengerSchedule, tick, requestId), data) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
       // i.e. for what time it is. For now, we just believe it that time is not running backwards.
@@ -290,7 +301,8 @@ class RideHailAgent(
         .asInstanceOf[RideHailAgentData] replying ModifyPassengerScheduleAck(
         requestId,
         triggerToSchedule,
-        vehicle.id
+        vehicle.id,
+        tick
       )
     case ev @ Event(Resume(), _) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
@@ -329,7 +341,7 @@ class RideHailAgent(
         .withPassengerSchedule(PassengerSchedule())
         .withCurrentLegPassengerScheduleIndex(0)
         .asInstanceOf[RideHailAgentData]
-    case ev @ Event(ModifyPassengerSchedule(_, _), _) =>
+    case ev @ Event(ModifyPassengerSchedule(_, _, _), _) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       stash()
       stay()

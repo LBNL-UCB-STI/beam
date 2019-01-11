@@ -10,12 +10,14 @@ import beam.router.Modes.BeamMode.CAR
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.google.inject.Inject
-import org.jfree.data.category.{CategoryDataset, DefaultCategoryDataset}
+import org.jfree.chart.plot.CategoryPlot
+import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.IterationEndsEvent
 
 import scala.collection.mutable.Map
+import collection.JavaConverters._
 
 case class DelayInLength(delay: Double, length: Int)
 
@@ -35,18 +37,17 @@ class DelayMetricAnalysis @Inject()(
   private var linkTravelsCount: Map[String, Int] = Map()
   private var linkAverageDelay: Map[String, DelayInLength] = Map()
 
-  private val bins = Array(0, 100, 250, 500, 1000, 2000, 3000)
-  private val legends = Array("0-100", "100-250", "250-500", "500-1000", "1000-2000", "2000-3000", "3000+")
+  private val bins = Array(0, 500, 1000, 2000, 3000)
+  private val legends = Array("0-500", "500-1000", "1000-2000", "2000-3000", "3000+")
   private val capacitiesDelay = scala.collection.mutable.Map[Int, Double]()
-  val dataset = new DefaultCategoryDataset
-
+  private val delayAveragePerKMDataset = new DefaultCategoryDataset
+  private val delayTotalByLinkCapacityDataset = new DefaultCategoryDataset
   private val fileName = "delayTotalByLinkCapacity"
-  private val xAxisName = "capacity bins"
-  private val yAxisName = "vehicle delay (hour)"
-  private val graphTitle = "Delay Metric Analysis"
-  private val xAxisAverageGraphName = "Iteration(s)"
-  private val yAxisAverageGraphName = " Average Delay Intensity (sec/km)"
-  private val averageGraphTitle = "Delay Average per kilometer Analysis"
+  private val xAxisName = "Iteration (s)"
+  private val yAxisName = "Total Delay (hour)"
+  private val graphTitle = "Total Delay by Binned Link Capacity"
+  private val yAxisAverageGraphName = "Average Delay Intensity (sec/km)"
+  private val averageGraphTitle = "Average Delay per Kilometer"
   var totalTravelTime = 0.0
 
   /**
@@ -63,7 +64,7 @@ class DelayMetricAnalysis @Inject()(
           val linkTravelTimes = pathTraversalEvent.getLinkTravelTimes.split(",").map(_.toInt)
           assert(linkIds.length == linkTravelTimes.length)
 
-          if (linkIds.length > 0) {
+          if (linkIds.nonEmpty) {
             for (index <- linkIds.indices) {
               val linkId = linkIds(index)
               val freeLength = networkLinks.get(Id.createLinkId(linkId)).getLength
@@ -83,10 +84,8 @@ class DelayMetricAnalysis @Inject()(
                 linkTravelsCount(linkId) = linkTravelsCount.getOrElse(linkId, 0) + 1
 
                 linkAverageDelay(linkId) = DelayInLength(
-                  (linkTravelsCount.get(linkId).get * cumulativeDelay.get(linkId).get) / cumulativeLength
-                    .get(linkId)
-                    .get,
-                  linkTravelsCount.get(linkId).get
+                  (linkTravelsCount(linkId) * cumulativeDelay(linkId)) / cumulativeLength(linkId),
+                  linkTravelsCount(linkId)
                 ) //calculate average of link delay for further calculating weighted average
 
               } else if (freeFlowDelay >= -1) {
@@ -110,22 +109,21 @@ class DelayMetricAnalysis @Inject()(
     totalTravelTime = 0
   }
 
-  def categoryDelayCapacityDataset(): CategoryDataset = {
+  def categoryDelayCapacityDataset(iteration: Int): Unit = {
     cumulativeDelay.keySet foreach { linkId =>
-      val delay = cumulativeDelay.get(linkId).getOrElse(0.0)
+      val delay = cumulativeDelay.getOrElse(linkId, 0.0)
       val capacity = networkLinks.get(Id.createLinkId(linkId)).getCapacity
+
       val bin = largeset(capacity)
-      val capacityDelay = capacitiesDelay.get(bin).getOrElse(0.0)
+      val capacityDelay = capacitiesDelay.getOrElse(bin, 0.0)
       capacitiesDelay(bin) = delay + capacityDelay
     }
 
-    val dataset = new DefaultCategoryDataset
     for (index <- bins.indices) {
       val bin = bins(index)
       val capacityBin: Double = capacitiesDelay.getOrElse(bin, 0)
-      dataset.addValue(capacityBin / 3600, 0, legends(index))
+      delayTotalByLinkCapacityDataset.addValue(capacityBin / 3600, legends(index), iteration)
     }
-    dataset
   }
 
   // getting the bin for capacity
@@ -142,29 +140,33 @@ class DelayMetricAnalysis @Inject()(
     val avg = linkAverageDelay.values.map(delayInLength => delayInLength.delay).sum / linkAverageDelay.values
       .map(delayInLength => delayInLength.length)
       .sum
-    dataset.addValue(avg, 0, iteration)
+    delayAveragePerKMDataset.addValue(avg, 0, iteration)
   }
 
   def generateDelayAnalysis(event: IterationEndsEvent): Unit = {
-    val dataset = categoryDelayCapacityDataset()
-    if (dataset != null) {
-      createDelayCapacityGraph(dataset, event.getIteration, fileName)
+    categoryDelayCapacityDataset(event.getIteration)
+    if (delayTotalByLinkCapacityDataset != null) {
+      createDelayCapacityGraph(fileName)
     }
     averageDelayDataset(event)
     createDelayAveragePerKilometerGraph()
   }
 
-  def createDelayCapacityGraph(dataset: CategoryDataset, iterationNumber: Int, fileName: String): Unit = {
+  def createDelayCapacityGraph(fileName: String): Unit = {
     val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
-      dataset,
+      delayTotalByLinkCapacityDataset,
       graphTitle,
       xAxisName,
       yAxisName,
       fileName + ".png",
-      false
+      true
     )
+
+    val plot: CategoryPlot = chart.getCategoryPlot
+    GraphUtils.plotLegendItems(plot, legends.toList.asJava, delayTotalByLinkCapacityDataset.getRowCount)
+
     val graphImageFile =
-      GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".png")
+      GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(fileName + ".png")
     GraphUtils.saveJFreeChartAsPNG(
       chart,
       graphImageFile,
@@ -176,9 +178,9 @@ class DelayMetricAnalysis @Inject()(
   def createDelayAveragePerKilometerGraph(): Unit = {
     val fileName = controlerIO.getOutputFilename("delayAveragePerKilometer.png")
     val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
-      dataset,
+      delayAveragePerKMDataset,
       averageGraphTitle,
-      xAxisAverageGraphName,
+      xAxisName,
       yAxisAverageGraphName,
       fileName,
       false
