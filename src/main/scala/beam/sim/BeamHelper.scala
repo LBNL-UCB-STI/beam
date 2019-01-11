@@ -6,6 +6,7 @@ import java.util.Properties
 import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
@@ -51,7 +52,7 @@ trait BeamHelper extends LazyLogging {
       .action(
         (value, args) =>
           args.copy(
-            config = Try(BeamConfigUtils.parseFileSubstitutingInputDirectory(value)).toOption,
+            config = Some(BeamConfigUtils.parseFileSubstitutingInputDirectory(value)),
             configLocation = Option(value)
         )
       )
@@ -244,7 +245,7 @@ trait BeamHelper extends LazyLogging {
     }
     assert(
       !isConfigArgRequired || (isConfigArgRequired && parsedArgs.config.isDefined),
-      "Beam config is a required, Please provide a valid configuration file."
+      "Please provide a valid configuration file."
     )
     val configLocation = parsedArgs.configLocation.get
 
@@ -359,7 +360,20 @@ trait BeamHelper extends LazyLogging {
     scenario.setNetwork(networkCoordinator.network)
 
     val beamServices = injector.getInstance(classOf[BeamServices])
+
+    //
+    val beamConfig = beamServices.beamConfig
+    var useCSVFiles
+      : Boolean = beamConfig.beam.agentsim.agents.population.beamPopulationDirectory != null && !beamConfig.beam.agentsim.agents.population.beamPopulationDirectory
+      .isEmpty()
+
+    if (useCSVFiles) {
+      val csvScenarioLoader = new ScenarioReaderCsv(scenario, beamServices)
+      csvScenarioLoader.loadScenario()
+    }
+
     samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices)
+
     run(beamServices)
 
     (scenario.getConfig, outputDir)
@@ -409,21 +423,6 @@ trait BeamHelper extends LazyLogging {
     beamWarmStart.warmStartPopulation(matsimConfig)
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-
-    // TODO ASIF
-    // If ours is set we will use that and if in addition matsim is set too then give a warning so that we can remove that from config
-    if (beamConfig.beam.agentsim.agents.population.beamPopulationFile != null && !beamConfig.beam.agentsim.agents.population.beamPopulationFile.isEmpty) {
-
-      val planReaderCsv: PlanReaderCsv = new PlanReaderCsv()
-      val population = planReaderCsv.readPlansFromCSV(beamConfig.beam.agentsim.agents.population.beamPopulationFile)
-      scenario.setPopulation(population)
-
-      if (beamConfig.matsim.modules.plans.inputPlansFile != null && !beamConfig.matsim.modules.plans.inputPlansFile.isEmpty) {
-        logger.warn(
-          "The config file has specified two plans file as input: beam.agentsim.agents.population.beamPopulationFile and matsim.modules.plans.inputPlansFile. The beamPopulationFile will be used, unset the beamPopulationFile if you would rather use the inputPlansFile, or unset the inputPlansFile to avoid this warning."
-        )
-      }
-    }
 
     (scenario, outputDirectory, networkCoordinator)
   }

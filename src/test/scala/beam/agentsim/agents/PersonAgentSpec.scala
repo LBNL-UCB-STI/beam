@@ -270,8 +270,7 @@ class PersonAgentSpec
       assert(request1.streetVehiclesUseIntermodalUse == AccessAndEgress)
       personActor ! RoutingResponse(
         itineraries = Vector(),
-        requestId = Some(request1.requestId),
-        staticRequestId = java.util.UUID.randomUUID().hashCode()
+        requestId = request1.requestId
       )
 
       // This is the regular routing request.
@@ -304,8 +303,7 @@ class PersonAgentSpec
             )
           )
         ),
-        requestId = Some(request2.requestId),
-        staticRequestId = java.util.UUID.randomUUID().hashCode()
+        requestId = request2.requestId
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -342,7 +340,8 @@ class PersonAgentSpec
         vehicleId,
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType
+        BeamVehicleType.defaultCarBeamVehicleType,
+        null
       )
       vehicles.put(vehicleId, beamVehicle)
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -370,6 +369,7 @@ class PersonAgentSpec
       plan.addActivity(workActivity)
       person.addPlan(plan)
       population.addPerson(person)
+      population.getPersonAttributes.putAttribute(person.getId.toString, "rank", 1.asInstanceOf[Object])
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
       val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
       scenario.setPopulation(population)
@@ -427,7 +427,7 @@ class PersonAgentSpec
             )
           )
         ),
-        staticRequestId = java.util.UUID.randomUUID().hashCode()
+        requestId = embodyRequest.id
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -483,14 +483,16 @@ class PersonAgentSpec
         id = busId,
         powerTrain = new Powertrain(0.0),
         initialMatsimAttributes = None,
-        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
+        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
+        null
       )
       val tramId = Id.createVehicleId("my_tram")
       val tram = new BeamVehicle(
         id = tramId,
         powerTrain = new Powertrain(0.0),
         initialMatsimAttributes = None,
-        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
+        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
 
       vehicles.put(bus.getId, bus)
@@ -670,7 +672,7 @@ class PersonAgentSpec
             )
           )
         ),
-        staticRequestId = java.util.UUID.randomUUID().hashCode()
+        requestId = java.util.UUID.randomUUID().hashCode()
       )
 
       events.expectMsgType[ModeChoiceEvent]

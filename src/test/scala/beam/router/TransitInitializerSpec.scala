@@ -1,13 +1,11 @@
 package beam.router
 
-import beam.agentsim.agents.vehicles.FuelType
 import beam.integration.IntegrationSpecCommon
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.conveyal.r5.transit.RouteInfo
 import com.typesafe.config.ConfigValueFactory
-import org.matsim.api.core.v01.Id
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{Matchers, WordSpecLike}
@@ -65,9 +63,12 @@ class TransitInitializerSpec extends WordSpecLike with Matchers with MockitoSuga
         )
     )
     val vehicleTypes = {
-      val fuelTypes: TrieMap[Id[FuelType], FuelType] =
-        BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
-      BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
+      val fuelTypes = BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
+      TrieMap(
+        BeamServices
+          .readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
+          .toSeq: _*
+      )
     }
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.vehicleTypes).thenReturn(vehicleTypes)
