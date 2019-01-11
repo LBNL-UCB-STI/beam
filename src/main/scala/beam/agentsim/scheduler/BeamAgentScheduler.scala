@@ -273,7 +273,7 @@ class BeamAgentScheduler(
             log.error("RideHailingManager is slow")
           } else if (times == 50) {
             throw RideHailingManagerIsExtremelySlowException(
-              "RideHailingManager is extremly slow"
+              "RideHailingManager is extremely slow"
             )
           }
         }

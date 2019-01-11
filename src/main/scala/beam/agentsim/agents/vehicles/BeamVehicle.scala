@@ -16,6 +16,7 @@ import beam.sim.common.GeoUtils.{Straight, TurningDirection}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.households.Household
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.vehicles.Vehicle
 
@@ -39,7 +40,8 @@ class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
   val initialMatsimAttributes: Option[ObjectAttributes],
-  val beamVehicleType: BeamVehicleType
+  val beamVehicleType: BeamVehicleType,
+  val householdId: Option[Id[Household]]
 ) extends Resource[BeamVehicle]
     with StrictLogging {
 

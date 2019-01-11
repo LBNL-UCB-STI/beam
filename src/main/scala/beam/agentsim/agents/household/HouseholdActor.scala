@@ -6,12 +6,13 @@ import beam.agentsim.ResourceManager.{NotifyVehicleResourceIdle, VehicleManager}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
+import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Car}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
-import beam.router.Modes.BeamMode.CAR
+import beam.router.Modes.BeamMode.{BIKE, CAR, NO_MODE}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
@@ -158,7 +159,8 @@ object HouseholdActor {
         bodyVehicleIdFromPerson,
         BeamVehicleType.powerTrainForHumanBody,
         None,
-        BeamVehicleType.defaultHumanBodyBeamVehicleType
+        BeamVehicleType.defaultHumanBodyBeamVehicleType,
+        None
       )
       newBodyVehicle.registerResource(personRef)
       beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
@@ -261,7 +263,7 @@ object HouseholdActor {
         // Assign to requesting individual if mode is available
         availableStreetVehicles
           .filter(
-            veh => isModeAvailableForPerson(population.getPersons.get(personId), veh.id, veh.mode)
+            veh => isModeAvailableForPerson(population.getPersons.get(personId), veh.mode)
           )
           .filter { theveh =>
             // also make sure there isn't another driver using this vehicle
@@ -356,9 +358,9 @@ object HouseholdActor {
           val person = population.getPersons.get(memberId)
 
           // Should never reserve for person who doesn't have mode available to them
-          val mode = BeamVehicleType.getMode(vehicles(vehicleId))
+          val mode = getModeFromHouseholdVehicle(vehicles(vehicleId))
 
-          if (isModeAvailableForPerson(person, vehicleId, mode)) {
+          if (isModeAvailableForPerson(person, mode)) {
             _reservedForPerson += (memberId -> vehicleId)
           }
         } else if (i < _vehicles.size) {
@@ -370,14 +372,30 @@ object HouseholdActor {
       //Initialize all vehicles to have a stationary trajectory starting at time zero
       val initialLocation = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
 
-      for { veh <- _vehicles } yield {
-        //TODO following mode should match exhaustively
-        val mode = BeamVehicleType.getMode(vehicles(veh))
+      for { vehId <- _vehicles } yield {
+        val mode = getModeFromHouseholdVehicle(vehicles(vehId))
 
         _vehicleToStreetVehicle +=
-          (veh -> StreetVehicle(veh, initialLocation, mode, asDriver = true))
+          (vehId -> StreetVehicle(vehId, initialLocation, mode, asDriver = true))
       }
 
+    }
+    private def getModeFromHouseholdVehicle(beamVehicle: BeamVehicle) = {
+      beamVehicle.beamVehicleType.vehicleCategory match {
+        case Bike =>
+          BIKE
+        case Car =>
+          CAR
+        case _ =>
+          log.warning(
+            s"Initializing household {}, a vehicle with Id {} of vehicle type {} is not a recognized category of vehicle ({}) to be used by a household. Ignoring this vehicle.",
+            id,
+            beamVehicle.id,
+            beamVehicle.beamVehicleType.vehicleTypeId,
+            beamVehicle.beamVehicleType.vehicleCategory
+          )
+          NO_MODE
+      }
     }
   }
 

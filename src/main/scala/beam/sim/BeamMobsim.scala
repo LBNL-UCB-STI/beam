@@ -337,7 +337,8 @@ class BeamMobsim @Inject()(
                     rideHailVehicleId,
                     powertrain,
                     None,
-                    ridehailBeamVehicleType
+                    ridehailBeamVehicleType,
+                    None
                   )
                   beamServices.vehicles += (rideHailVehicleId -> rideHailBeamVehicle)
                   rideHailBeamVehicle.registerResource(rideHailManager)
@@ -444,7 +445,7 @@ class BeamMobsim @Inject()(
             }
           }
           log.info("Initialized {} people", beamServices.personRefs.size)
-          log.info("Initialized {} personal vehicles", scenario.getVehicles.getVehicles.size())
+          log.info("Initialized {} personal vehicles", beamServices.privateVehicles.size)
           log.info("Initialized {} ride hailing agents", numRideHailAgents)
 
           Await.result(beamServices.beamRouter ? InitTransit(scheduler, parkingManager), timeout.duration)
