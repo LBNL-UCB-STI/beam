@@ -43,7 +43,7 @@ trait ChoosesMode {
   val dummyRHVehicle =
     StreetVehicle(
       Id.create("dummyRH", classOf[Vehicle]),
-      BeamVehicleType.defaultCarBeamVehicleType.id,
+      BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
       SpaceTime(0.0, 0.0, 0),
       CAR,
       asDriver = false
@@ -131,7 +131,7 @@ trait ChoosesMode {
 
       val bodyStreetVehicle = StreetVehicle(
         body.id,
-        BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+        BeamVehicleType.defaultHumanBodyBeamVehicleType.vehicleTypeId,
         currentPersonLocation,
         WALK,
         asDriver = true
@@ -469,7 +469,7 @@ trait ChoosesMode {
             val startLeg = EmbodiedBeamLeg(
               BeamLeg.dummyWalk(trip.legs.head.beamLeg.startTime),
               body.id,
-              BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+              BeamVehicleType.defaultHumanBodyBeamVehicleType.vehicleTypeId,
               asDriver = true,
               0,
               unbecomeDriverOnCompletion = false
@@ -482,7 +482,7 @@ trait ChoosesMode {
             val endLeg = EmbodiedBeamLeg(
               BeamLeg.dummyWalk(trip.legs.last.beamLeg.endTime),
               body.id,
-              BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+              BeamVehicleType.defaultHumanBodyBeamVehicleType.vehicleTypeId,
               asDriver = true,
               0,
               unbecomeDriverOnCompletion = true

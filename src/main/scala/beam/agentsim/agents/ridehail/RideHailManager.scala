@@ -213,7 +213,7 @@ class RideHailManager(
     }
 
   private val ridehailBeamVehicleTypeId: Id[BeamVehicleType] = Id
-    .create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId, classOf[BeamVehicleType])
+    .create(beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId, classOf[BeamVehicleType])
 
   val ridehailBeamVehicleType = beamServices.vehicleTypes
     .getOrElse(ridehailBeamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
@@ -288,7 +288,7 @@ class RideHailManager(
   var currentlyProcessingTimeoutTrigger: Option[TriggerWithId] = None
 
   private val numRideHailAgents = math.round(
-    beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation
+    beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation
   )
 
   private val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
@@ -299,10 +299,10 @@ class RideHailManager(
   RandomUtils.shuffle(scenario.getPopulation.getPersons.values().asScala, rand).take(numRideHailAgents.toInt).foreach {
     person =>
       val rideInitialLocation: Coord =
-        beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name match {
+        beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.name match {
           case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_HOME =>
             val radius =
-              beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.home.radiusInMeters
+              beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
             new Coord(
               beam.agentsim.agents.Population.personInitialLocation(person).getX + radius * (rand.nextDouble() - 0.5),
               beam.agentsim.agents.Population.personInitialLocation(person).getY + radius * (rand.nextDouble() - 0.5)
@@ -361,8 +361,11 @@ class RideHailManager(
         eventsManager,
         parkingManager,
         rideHailAgentPersonId,
+        Id.create("RHM",classOf[RideHailManager]),
         rideHailBeamVehicle,
-        rideInitialLocation
+        rideInitialLocation,
+        None,
+        None
       )
       val driver = context.actorOf(rideHailAgentProps, rideHailName)
       context.watch(driver)
@@ -371,7 +374,7 @@ class RideHailManager(
         RideHailAgentLocation(
           driver,
           rideHailBeamVehicle.id,
-          rideHailBeamVehicle.beamVehicleType.id,
+          rideHailBeamVehicle.beamVehicleType.vehicleTypeId,
           SpaceTime(rideInitialLocation, 0)
         )
       if (modifyPassengerScheduleManager.noPendingReservations(rideHailBeamVehicle.id)) {
@@ -443,7 +446,7 @@ class RideHailManager(
 
       val beamVehicle = resources(agentsim.vehicleId2BeamVehicleId(vehicleId))
       val rideHailAgentLocation =
-        RideHailAgentLocation(beamVehicle.driver.get, vehicleId, beamVehicle.beamVehicleType.id, whenWhere)
+        RideHailAgentLocation(beamVehicle.driver.get, vehicleId, beamVehicle.beamVehicleType.vehicleTypeId, whenWhere)
       vehicleManager.vehicleState.put(vehicleId, beamVehicleState)
 
       if (modifyPassengerScheduleManager

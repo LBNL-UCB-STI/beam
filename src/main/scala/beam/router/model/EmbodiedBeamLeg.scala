@@ -25,7 +25,7 @@ object EmbodiedBeamLeg {
     EmbodiedBeamLeg(
       BeamLeg.dummyWalk(start),
       bodyId,
-      BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+      BeamVehicleType.defaultHumanBodyBeamVehicleType.vehicleTypeId,
       asDriver = true,
       0,
       unbecomeDriverOnCompletion = isLastLeg

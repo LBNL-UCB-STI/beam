@@ -96,27 +96,27 @@ object BeamVehicleUtils {
       .headOption
   }
 
-  def prePopulateVehiclesByHouseHold(
-    beamServices: BeamServices
-  ): java.util.Map[Id[Household], java.util.List[Id[Vehicle]]] = {
-
-    val vehicles: java.util.Map[Id[Household], java.util.List[Id[Vehicle]]] = new util.TreeMap()
-
-    beamServices.privateVehicles.foreach {
-      case (k: Id[BeamVehicle], v: BeamVehicle) => {
-
-        var hVehicles: java.util.List[Id[Vehicle]] = vehicles.get(v.householdId.get)
-        if (hVehicles == null) {
-          hVehicles = new java.util.ArrayList[Id[Vehicle]]()
-        }
-        hVehicles.add(Id.createVehicleId(k.toString))
-        vehicles.put(v.householdId.get, hVehicles)
-
-      }
-    }
-
-    vehicles
-  }
+//  def prePopulateVehiclesByHouseHold(
+//    beamServices: BeamServices
+//  ): java.util.Map[Id[Household], java.util.List[Id[Vehicle]]] = {
+//
+//    val vehicles: java.util.Map[Id[Household], java.util.List[Id[Vehicle]]] = new util.TreeMap()
+//
+//    beamServices.privateVehicles.foreach {
+//      case (k: Id[BeamVehicle], v: BeamVehicle) => {
+//
+//        var hVehicles: java.util.List[Id[Vehicle]] = vehicles.get(v.householdId.get)
+//        if (hVehicles == null) {
+//          hVehicles = new java.util.ArrayList[Id[Vehicle]]()
+//        }
+//        hVehicles.add(Id.createVehicleId(k.toString))
+//        vehicles.put(v.householdId.get, hVehicles)
+//
+//      }
+//    }
+//
+//    vehicles
+//  }
 
   def getBeamVehicle(vehicle: Vehicle, household: Household, beamVehicleType: BeamVehicleType): BeamVehicle = {
 

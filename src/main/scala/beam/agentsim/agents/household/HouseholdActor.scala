@@ -13,11 +13,13 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Vehicle
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Car}
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
+import beam.router.Modes.BeamMode.{BIKE, CAR, NO_MODE}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
@@ -237,8 +239,7 @@ object HouseholdActor {
           CAR
         case _ =>
           log.warning(
-            s"Initializing household {}, a vehicle with Id {} of vehicle type {} is not a recognized category of vehicle ({}) to be used by a household. Ignoring this vehicle.",
-            id,
+            s"A vehicle with Id {} of vehicle type {} is not a recognized category of vehicle ({}) to be used by a household. Ignoring this vehicle.",
             beamVehicle.id,
             beamVehicle.beamVehicleType.vehicleTypeId,
             beamVehicle.beamVehicleType.vehicleCategory

@@ -17,6 +17,7 @@ import beam.sim.common.GeoUtils.{Straight, TurningDirection}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.households.Household
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.vehicles.Vehicle
 
@@ -38,8 +39,8 @@ class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
   val initialMatsimAttributes: Option[ObjectAttributes],
-  val beamVehicleType: BeamVehicleType,
-) extends StrictLogging {
+  val beamVehicleType: BeamVehicleType
+                 ) extends StrictLogging {
 
   var manager: Option[ActorRef] = None
 
@@ -160,7 +161,7 @@ class BeamVehicle(
     )
 
   def toStreetVehicle: StreetVehicle =
-    StreetVehicle(id, beamVehicleType.id, spaceTime, BeamMode.CAR, true)
+    StreetVehicle(id, beamVehicleType.vehicleTypeId, spaceTime, BeamMode.CAR, true)
 
 }
 

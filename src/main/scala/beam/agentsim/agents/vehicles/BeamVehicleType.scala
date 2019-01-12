@@ -13,7 +13,7 @@ import org.matsim.vehicles.Vehicle
   * @author saf
   */
 case class BeamVehicleType(
-  vehicleTypeId: String,
+  vehicleTypeId: Id[BeamVehicleType],
   seatingCapacity: Int,
   standingRoomCapacity: Int,
   lengthInMeter: Double,
@@ -32,17 +32,6 @@ case class BeamVehicleType(
 )
 
 object BeamVehicleType {
-
-  //TODO
-  val defaultBicycleBeamVehicleType: BeamVehicleType = BeamVehicleType(
-    Id.create("BIKE-TYPE-DEFAULT", classOf[BeamVehicleType]),
-    0,
-    0,
-    0,
-    null,
-    0,
-    0
-  )
 
   // Consumption rate: https://www.brianmac.co.uk/energyexp.htm
   // 400 calories/hour == 400k J/hr @ 7km/hr or 2m/s == 55 J/m
@@ -63,7 +52,7 @@ object BeamVehicleType {
     )
 
   val defaultBicycleBeamVehicleType: BeamVehicleType = BeamVehicleType(
-    BIKE_TYPE_DEFAULT,
+    Id.create("BIKE-TYPE-DEFAULT", classOf[BeamVehicleType]),
     1,
     0,
     1.5,
@@ -81,7 +70,7 @@ object BeamVehicleType {
   // Transit default based on Diesel Bus
   val defaultTransitBeamVehicleType: BeamVehicleType =
     BeamVehicleType(
-      TRANSIT_TYPE_DEFAULT,
+      Id.create("TRANSIT_TYPE_DEFAULT", classOf[BeamVehicleType]),
       50,
       50,
       10,

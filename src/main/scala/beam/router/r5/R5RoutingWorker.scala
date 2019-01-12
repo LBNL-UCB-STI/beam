@@ -742,7 +742,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   EmbodiedBeamLeg(
                     beamLeg,
                     beamLeg.travelPath.transitStops.get.vehicleId,
-                    BeamVehicleType.defaultTransitBeamVehicleType.id,
+                    BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
                     asDriver = false,
                     cost,
                     unbecomeDriverOnCompletion = false

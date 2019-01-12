@@ -1,18 +1,17 @@
 package beam.sim
 
 import java.awt.Color
-import java.lang.Double
-import java.util
 import java.util.Random
 import java.util.concurrent.TimeUnit
-import java.util.stream.Stream
+
 import akka.actor.Status.Success
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, Props, Terminated, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.{BeamAgent, Population}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
@@ -25,15 +24,17 @@ import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
 import beam.sim.vehiclesharing.{FixedNonReservingVehicleFleet, InexhaustibleReservingVehicleFleet}
 import beam.utils._
+import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.Activity
-import org.matsim.api.core.v01.{Coord, Scenario}
+import org.matsim.api.core.v01.population.{Activity, Person}
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.utils.misc.Time
+
 import scala.collection.JavaConverters._
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -94,8 +95,6 @@ class BeamMobsim @Inject()(
           context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
           context.watch(scheduler)
 
-          beamServices.vehicles.clear() // important to purge data from previous iteration
-
           private val envelopeInUTM =
             beamServices.geo.wgs2Utm(transportNetwork.streetLayer.envelope)
           envelopeInUTM.expandBy(beamServices.beamConfig.beam.spatial.boundingBoxBuffer)
@@ -108,18 +107,25 @@ class BeamMobsim @Inject()(
           context.watch(parkingManager)
 
           private val rideHailManager = context.actorOf(
-            RideHailManager.props(
-              beamServices,
-              scheduler,
-              beamServices.beamRouter,
-              parkingManager,
-              envelopeInUTM,
-              rideHailSurgePricingManager,
-              rideHailIterationHistory.oscillationAdjustedTNCIterationStats
-            ),
-            "RideHailManager"
+            Props(
+              new RideHailManager(
+                beamServices,
+                transportNetwork,
+                tollCalculator,
+                scenario,
+                eventsManager,
+                scheduler,
+                beamServices.beamRouter,
+                parkingManager,
+                envelopeInUTM,
+                rideHailSurgePricingManager,
+                rideHailIterationHistory.oscillationAdjustedTNCIterationStats
+              ),
+              "RideHailManager"
+            )
           )
           context.watch(rideHailManager)
+
 
           private val vehicleTypeId: Id[BeamVehicleType] = Id
             .create(
