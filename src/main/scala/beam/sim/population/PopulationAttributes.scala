@@ -44,10 +44,10 @@ object HouseholdAttributes {
       household.getMemberIds.size(),
       household.getVehicleIds.asScala
         .map(id => vehicles(id))
-        .count(_.beamVehicleType.id.toString.toLowerCase.contains("car")),
+        .count(_.beamVehicleType.vehicleTypeId.toString.toLowerCase.contains("car")),
       household.getVehicleIds.asScala
         .map(id => vehicles(id))
-        .count(_.beamVehicleType.id.toString.toLowerCase.contains("bike"))
+        .count(_.beamVehicleType.vehicleTypeId.toString.toLowerCase.contains("bike"))
     )
   }
 }

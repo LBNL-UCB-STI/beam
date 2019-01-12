@@ -259,8 +259,7 @@ class TransitInitializer(
           beamVehicleId,
           powertrain,
           None,
-          vehicleType,
-          None
+          vehicleType
         ) // TODO: implement fuel level later as needed
         Some(vehicle)
       case _ =>

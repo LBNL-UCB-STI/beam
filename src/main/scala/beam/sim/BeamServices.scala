@@ -52,6 +52,8 @@ trait BeamServices {
   val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)]
   var personHouseholds: Map[Id[Person], Household]
 
+  val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
+
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
   val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType]
   val fuelTypePrices: TrieMap[FuelType, Double]
@@ -213,7 +215,7 @@ object BeamServices {
 
         val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
-        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, householdId)
+        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType)
         acc += ((vehicleId, beamVehicle))
         acc
     }
@@ -258,7 +260,7 @@ object BeamServices {
           val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
 
           val bvt = BeamVehicleType(
-            vIdString,
+            Id.create(vIdString,classOf[BeamVehicleType]),
             seatingCapacity,
             standingRoomCapacity,
             lengthInMeter,
