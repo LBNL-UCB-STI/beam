@@ -224,7 +224,7 @@ class PersonWithVehicleSharingSpec
                   travelPath = embodyRequest.leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
                 ),
                 beamVehicleId = vehicleId,
-                beamVehicleTypeId = vehicle.beamVehicleType.id,
+                beamVehicleTypeId = vehicle.beamVehicleType.vehicleTypeId,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -232,7 +232,7 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        staticRequestId = java.util.UUID.randomUUID().hashCode()
+        requestId = embodyRequest.id
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -352,7 +352,7 @@ class PersonWithVehicleSharingSpec
 
       val routingRequest = mockRouter.expectMsgType[RoutingRequest]
       mockRouter.lastSender ! RoutingResponse(
-        itineraries = Vector(
+         Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -370,7 +370,7 @@ class PersonWithVehicleSharingSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
@@ -390,7 +390,7 @@ class PersonWithVehicleSharingSpec
                   )
                 ),
                 beamVehicleId = vehicle.id,
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -398,8 +398,7 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = Some(routingRequest.requestId),
-        staticRequestId = java.util.UUID.randomUUID().hashCode()
+        requestId = routingRequest.requestId
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -457,7 +456,7 @@ class PersonWithVehicleSharingSpec
       val routingRequest2 = mockRouter.expectMsgType[RoutingRequest]
       println(routingRequest2)
       mockRouter.lastSender ! RoutingResponse(
-        itineraries = Vector(
+        Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -475,7 +474,7 @@ class PersonWithVehicleSharingSpec
                   )
                 ),
                 beamVehicleId = vehicle2.id,
-                vehicle2.beamVehicleType.id,
+                vehicle2.beamVehicleType.vehicleTypeId,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -483,8 +482,7 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = Some(routingRequest.requestId),
-        staticRequestId = java.util.UUID.randomUUID().hashCode()
+        requestId = routingRequest.requestId
       )
       val modeChoiceEvent = events.expectMsgType[ModeChoiceEvent]
       assert(modeChoiceEvent.chosenTrip.tripClassifier == CAR)
@@ -596,7 +594,7 @@ class PersonWithVehicleSharingSpec
           )
           mockRouter.lastSender ! RoutingResponse(
             Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            staticRequestId = java.util.UUID.randomUUID().hashCode()
+            requestId = java.util.UUID.randomUUID().hashCode()
           )
       }
 
@@ -631,7 +629,7 @@ class PersonWithVehicleSharingSpec
           )
           mockRouter.lastSender ! RoutingResponse(
             Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            staticRequestId = java.util.UUID.randomUUID().hashCode()
+            requestId = java.util.UUID.randomUUID().hashCode()
           )
       }
 
@@ -669,7 +667,7 @@ class PersonWithVehicleSharingSpec
           )
           mockRouter.lastSender ! RoutingResponse(
             Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            staticRequestId = java.util.UUID.randomUUID().hashCode()
+            requestId = java.util.UUID.randomUUID().hashCode()
           )
       }
 

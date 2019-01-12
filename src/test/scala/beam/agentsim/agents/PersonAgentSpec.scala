@@ -274,7 +274,7 @@ class PersonAgentSpec
       val request2 = expectMsgType[RoutingRequest]
       assert(request2.streetVehiclesUseIntermodalUse == Access)
       personActor ! RoutingResponse(
-        itineraries = Vector(
+        Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -292,7 +292,7 @@ class PersonAgentSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+                BeamVehicleType.defaultHumanBodyBeamVehicleType.vehicleTypeId,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -300,8 +300,7 @@ class PersonAgentSpec
             )
           )
         ),
-        requestId = Some(request2.requestId),
-        staticRequestId = java.util.UUID.randomUUID().hashCode()
+        requestId = request2.requestId
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -344,16 +343,14 @@ class PersonAgentSpec
         id = busId,
         powerTrain = new Powertrain(0.0),
         initialMatsimAttributes = None,
-        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
-        null
+        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
       )
       val tramId = Id.createVehicleId("my_tram")
       val tram = new BeamVehicle(
         id = tramId,
         powerTrain = new Powertrain(0.0),
         initialMatsimAttributes = None,
-        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
-        None
+        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
       )
 
       vehicles.put(bus.id, bus)
@@ -374,7 +371,7 @@ class PersonAgentSpec
           )
         ),
         beamVehicleId = busId,
-        BeamVehicleType.defaultTransitBeamVehicleType.id,
+        BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
         asDriver = false,
         cost = 2.75,
         unbecomeDriverOnCompletion = false
@@ -394,7 +391,7 @@ class PersonAgentSpec
           )
         ),
         beamVehicleId = busId,
-        BeamVehicleType.defaultTransitBeamVehicleType.id,
+        BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
         asDriver = false,
         cost = 0.0,
         unbecomeDriverOnCompletion = false
@@ -414,7 +411,7 @@ class PersonAgentSpec
           )
         ),
         beamVehicleId = tramId,
-        BeamVehicleType.defaultTransitBeamVehicleType.id,
+        BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
         asDriver = false,
         cost = 1.0, // $1 fare
         unbecomeDriverOnCompletion = false
@@ -504,7 +501,7 @@ class PersonAgentSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
@@ -527,7 +524,7 @@ class PersonAgentSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false

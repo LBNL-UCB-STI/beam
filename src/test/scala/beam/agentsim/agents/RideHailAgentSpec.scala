@@ -228,8 +228,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0), /*vehicle*/ None,
-          BeamVehicleType.defaultCarBeamVehicleType,
-          null
+          BeamVehicleType.defaultCarBeamVehicleType
         )
       beamVehicle.manager = Some(self)
       vehicles.put(vehicleId, beamVehicle)
@@ -299,8 +298,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0), /*vehicle,*/ None,
-          BeamVehicleType.defaultCarBeamVehicleType,
-          None
+          BeamVehicleType.defaultCarBeamVehicleType
         )
       beamVehicle.manager = Some(self)
       vehicles.put(vehicleId, beamVehicle)

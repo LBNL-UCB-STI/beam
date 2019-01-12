@@ -195,7 +195,7 @@ class PersonWithCarPlanSpec
                   travelPath = embodyRequest.leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
                 ),
                 beamVehicleId = vehicleId,
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -203,7 +203,7 @@ class PersonWithCarPlanSpec
             )
           )
         ),
-        staticRequestId = java.util.UUID.randomUUID().hashCode()
+        requestId = embodyRequest.id
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -323,14 +323,14 @@ class PersonWithCarPlanSpec
                 travelPath = leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
               ),
               beamVehicleId = vehicleId,
-              BeamVehicleType.defaultTransitBeamVehicleType.id,
+              BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
               asDriver = true,
               cost = 0.0,
               unbecomeDriverOnCompletion = true
             )
             lastSender ! RoutingResponse(
               Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-              staticRequestId = java.util.UUID.randomUUID().hashCode()
+              requestId = java.util.UUID.randomUUID().hashCode()
             )
         }
       }
@@ -407,7 +407,7 @@ class PersonWithCarPlanSpec
 
       val routingRequest = expectMsgType[RoutingRequest]
       personActor ! RoutingResponse(
-        itineraries = Vector(
+        Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -425,7 +425,7 @@ class PersonWithCarPlanSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
@@ -445,7 +445,7 @@ class PersonWithCarPlanSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("car-1"),
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -453,8 +453,7 @@ class PersonWithCarPlanSpec
             )
           )
         ),
-        requestId = Some(routingRequest.requestId),
-        staticRequestId = java.util.UUID.randomUUID().hashCode()
+        requestId = routingRequest.requestId
       )
 
       expectMsgType[ModeChoiceEvent]

@@ -171,16 +171,14 @@ class PersonAndTransitDriverSpec
         id = busId,
         powerTrain = new Powertrain(0.0),
         initialMatsimAttributes = None,
-        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
-        None
+        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
       )
       val tramId = Id.createVehicleId("my_tram")
       val tram = new BeamVehicle(
         id = tramId,
         powerTrain = new Powertrain(0.0),
         initialMatsimAttributes = None,
-        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType,
-        null
+        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
       )
 
       vehicles.put(bus.id, bus)
@@ -201,7 +199,7 @@ class PersonAndTransitDriverSpec
           )
         ),
         beamVehicleId = busId,
-        BeamVehicleType.defaultTransitBeamVehicleType.id,
+        BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
         asDriver = false,
         cost = 2.75,
         unbecomeDriverOnCompletion = false
@@ -221,7 +219,7 @@ class PersonAndTransitDriverSpec
           )
         ),
         beamVehicleId = busId,
-        BeamVehicleType.defaultTransitBeamVehicleType.id,
+        BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
         asDriver = false,
         cost = 0.0,
         unbecomeDriverOnCompletion = false
@@ -241,7 +239,7 @@ class PersonAndTransitDriverSpec
           )
         ),
         beamVehicleId = tramId,
-        BeamVehicleType.defaultTransitBeamVehicleType.id,
+        BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
         asDriver = false,
         cost = 0.0,
         unbecomeDriverOnCompletion = false
@@ -365,7 +363,7 @@ class PersonAndTransitDriverSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
@@ -388,7 +386,7 @@ class PersonAndTransitDriverSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false

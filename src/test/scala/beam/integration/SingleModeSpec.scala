@@ -11,6 +11,7 @@ import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, ModeIncentive, PtFares}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.events.PathTraversalEvent
 import beam.router.BeamRouter
 import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
@@ -23,7 +24,7 @@ import beam.sim.{BeamMobsim, BeamServices}
 import beam.utils.DateUtils
 import beam.utils.TestConfigUtils.{testConfig, testOutputDir}
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
-import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent}
+import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.controler.{MatsimServices, OutputDirectoryHierarchy}
@@ -123,7 +124,7 @@ class SingleModeSpec
     scenario = ScenarioUtils.loadScenario(matsimConfig)
 
     scenario.getPopulation.getPersons.values.asScala
-      .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.availableModes))
+      .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allBeamModes))
     router = system.actorOf(
       BeamRouter.props(
         services,

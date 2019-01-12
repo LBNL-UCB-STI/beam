@@ -163,7 +163,7 @@ class RouterPerformanceSpec
             Vector(
               StreetVehicle(
                 Id.createVehicleId("116378-2"),
-                BeamVehicleType.defaultCarBeamVehicleType.id,
+                BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
                 new SpaceTime(origin, 0),
                 CAR,
                 asDriver = true
@@ -211,7 +211,7 @@ class RouterPerformanceSpec
                 streetVehicles = Vector(
                   StreetVehicle(
                     Id.createVehicleId("116378-2"),
-                    BeamVehicleType.defaultCarBeamVehicleType.id,
+                    BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
                     new SpaceTime(origin, time),
                     mode,
                     asDriver = true
@@ -222,7 +222,7 @@ class RouterPerformanceSpec
                 streetVehicles = Vector(
                   StreetVehicle(
                     Id.createVehicleId("body-116378-2"),
-                    BeamVehicleType.defaultCarBeamVehicleType.id,
+                    BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
                     new SpaceTime(new Coord(origin.getX, origin.getY), time),
                     WALK,
                     asDriver = true
