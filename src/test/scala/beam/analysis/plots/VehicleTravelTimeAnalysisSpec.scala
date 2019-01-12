@@ -1,4 +1,4 @@
-package beam.agentsim.agents.ridehail
+package beam.analysis.plots
 
 import beam.analysis.summary.VehicleTravelTimeAnalysis
 import org.scalatest.Matchers

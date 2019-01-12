@@ -1,4 +1,4 @@
-package beam.agentsim.agents.ridehail
+package beam.analysis.plots
 
 import java.{lang, util}
 

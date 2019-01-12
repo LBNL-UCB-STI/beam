@@ -1,4 +1,4 @@
-package beam.agentsim.agents.ridehail
+package beam.analysis.plots
 
 import beam.analysis.summary.PersonCostAnalysis
 import org.scalatest.Matchers
@@ -13,7 +13,7 @@ class PersonCostAnalysisSpec extends GenericAnalysisSpec with Matchers {
   }
 
   "Person cost analyser " must {
-    "calculate acerage trip expense" in {
+    "calculate average trip expense" in {
       assert(summaryStats.get("averageTripExpenditure") > 0.3)
     }
 
