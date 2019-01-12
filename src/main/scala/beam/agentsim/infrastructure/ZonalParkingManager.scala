@@ -189,8 +189,6 @@ class ZonalParkingManager(
       val preferredChargingType: ChargingType = inquiry.chargingPreference match {
         case NoNeed => NoCharger
         case _ => UltraFast
-          // TODO: does our inquiry need our preferred charging type?
-          // TODO: does charging type logic cascade to lower-speed when available?
       }
 
       // before committing to a search, we test if the closest taz meets our need
@@ -216,8 +214,7 @@ class ZonalParkingManager(
           case Some(stall) =>
             stall
           case None =>
-            selectStall(inquiry, 500.0, preferredChargingType)
-
+            searchForStall(inquiry, startSearchRadius = 500.0, maxSearchRadius = 16000.0)
         },
         inquiry.requestId,
         inquiry.reserveStall
@@ -290,49 +287,84 @@ class ZonalParkingManager(
   }
 
 
+  def parkingAlternativeFrom(inquiry: ParkingInquiry, chargingType: ChargingType, taz: TAZ, indexForFind: IndexForFind, stallValues: StallValues): ParkingAlternative = {
+        val attrib = StallAttributes(indexForFind.tazId, indexForFind.parkingType, indexForFind.pricingModel, chargingType, Any)
+        val stallLoc = sampleLocationForStall(taz, attrib)
+        val walkingDistance = beamServices.geo.distUTMInMeters(stallLoc, inquiry.destinationUtm)
+        val valueOfTimeSpentWalking = walkingDistance / 1.4 / 3600.0 * inquiry.attributesOfIndividual.valueOfTime // 1.4 m/s avg. walk
+      val cost = calculateCost(
+        attrib,
+        stallValues.feeInCents,
+        inquiry.arrivalTime,
+        inquiry.parkingDuration
+      )
+        ParkingAlternative(attrib, stallLoc, cost, cost + valueOfTimeSpentWalking, stallValues)
+  }
 
-  def selectStall(inquiry: ParkingInquiry, startSearchRadius: Double, chargingType: ChargingType): ParkingStall = {
+  /**
+    * performs a recursive search for parking stalls based on the attributes of the ParkingInquiry
+    * @param inquiry a parking inquiry
+    * @param startSearchRadius initial search radius. at each search expansion, this is doubled
+    * @param maxSearchRadius cancel search when we exceed this radius
+    * @param reservedParkingType conduct search for an agency or for anyone
+    * @return the optimal parking stall for this inquiry based on our ranking. if no stalls were found, construct a fresh (expensive) stall
+    */
+  def searchForStall(inquiry: ParkingInquiry, startSearchRadius: Double, maxSearchRadius: Double, reservedParkingType: ReservedParkingType = Any): ParkingStall = {
 
     @tailrec
-    def _search(ignoredTazIds: Set[Id[TAZTreeMap.TAZ]] = Set(), searchRadius: Double = startSearchRadius): Option[ParkingStall] = {
-      if (searchRadius > ZonalParkingManager.maxSearchRadius) None
+    def _search(innerSearchMin: Double = 0D, innerSearchMax: Double = startSearchRadius): Option[ParkingStall] = {
+      if (innerSearchMax > maxSearchRadius) None
       else {
-        // find all TAZs within the (new) search radius
-        val nearbyTAZsWithDistances = findTAZsWithinDistance(inquiry.destinationUtm, searchRadius, ZonalParkingManager.maxSearchRadius)
-
-        // TODO: replace with foldLeft into an Option[ParkingAlternative] with a maximizing comparator on _.rankingWeight
-        // this would replace the sort
-        val allOptions: Vector[ParkingAlternative] = nearbyTAZsWithDistances.flatMap { taz =>
-          val found = indexer.find(taz._1.tazId, Public, ParkingStall.Any)
-          val foundAfter = found.map {
-            case (indexForFind, stallValues) =>
-              val attrib = StallAttributes(indexForFind.tazId, indexForFind.parkingType, indexForFind.pricingModel, chargingType, Any)
-              val stallLoc = sampleLocationForStall(taz._1, attrib)
-              val walkingDistance = beamServices.geo.distUTMInMeters(stallLoc, inquiry.destinationUtm)
-              val valueOfTimeSpentWalking = walkingDistance / 1.4 / 3600.0 * inquiry.attributesOfIndividual.valueOfTime // 1.4 m/s avg. walk
-            val cost = calculateCost(
-              attrib,
-              stallValues.feeInCents,
-              inquiry.arrivalTime,
-              inquiry.parkingDuration
-            )
-              ParkingAlternative(attrib, stallLoc, cost, cost + valueOfTimeSpentWalking, stallValues)
-          }.toVector
-          foundAfter
+        // find all TAZs in the (next) concentric ring from searchMin to searchMax
+        val tazRing: Iterable[(TAZ, IndexForFind, StallValues, ChargingType)] = {
+          for {
+            taz <- beamServices.tazTreeMap.tazQuadTree.getRing(inquiry.destinationUtm.getX, inquiry.destinationUtm.getY, innerSearchMin, innerSearchMax).asScala
+            chargingType <- ZonalParkingManager.validChargingTypesFor(inquiry.chargingPreference)
+            (idx, stallValues) <- indexer.find(taz.tazId, Public, ParkingStall.Any) // does chargingType get tossed in here? how would that affect indexer.find()?
+          } yield {
+            (taz, idx, stallValues, chargingType)
+          }
         }
 
-        val stallOption = for {
-          best <- allOptions.sortBy(_.rankingWeight).headOption
-          createdNewStall <- maybeCreateNewStall(best.stallAttributes, best.location, best.cost, Some(best.stallValues))
-        } yield { createdNewStall }
+        // if we found any, we want to find the best one, based on our rankingWeight
+        val bestOption: Option[ParkingAlternative] = tazRing.foldLeft(Option.empty[ParkingAlternative]) { (bestOption, current) =>
+          val (taz, indexForFind, stallValues, chargingType) = current
+
+          // calculate the rankingWeight by finding valueOfTimeSpentWalking and applying the calculateCost cost function
+          val attrib = StallAttributes(indexForFind.tazId, indexForFind.parkingType, indexForFind.pricingModel, chargingType, reservedParkingType)
+          val stallLoc = sampleLocationForStall(taz, attrib)
+          val walkingDistance = beamServices.geo.distUTMInMeters(stallLoc, inquiry.destinationUtm)
+          val valueOfTimeSpentWalking = walkingDistance / 1.4 / 3600.0 * inquiry.attributesOfIndividual.valueOfTime // 1.4 m/s avg. walk
+          val cost = calculateCost(
+            attrib,
+            stallValues.feeInCents,
+            inquiry.arrivalTime,
+            inquiry.parkingDuration
+          )
+
+          // keep our best-ranked ParkingAlternative
+          bestOption match {
+            case None =>
+              Some(ParkingAlternative(attrib, stallLoc, cost, cost + valueOfTimeSpentWalking, stallValues))
+            case Some(best) =>
+              if (best.rankingWeight > (cost + valueOfTimeSpentWalking)) { // should we add charging rate to this ranking?  - ChargingType.getChargerPowerInKW(chargingType)
+                  // current becomes best here
+                  Some(ParkingAlternative(attrib, stallLoc, cost, cost + valueOfTimeSpentWalking, stallValues))
+              } else {
+                  // best stays best yo
+                  Some(best)
+              }
+          }
+        }
+
+        // if we found our best ParkingAlternative, transform it into a new stall
+        val stallOption = bestOption.flatMap{ best => maybeCreateNewStall(best.stallAttributes, best.location, best.cost, Some(best.stallValues))}
 
         if (stallOption.isDefined) {
-          // return a stall
           stallOption
         } else {
-          val nextIgnoredTazIds: Set[Id[TAZTreeMap.TAZ]] = nearbyTAZsWithDistances.map{_._1.tazId}.toSet ++ ignoredTazIds
-          val nextSearchRadius = searchRadius * 2.0D
-          _search(nextIgnoredTazIds, nextSearchRadius)
+          // expand the search
+          _search(innerSearchMax, innerSearchMax * 2.0D)
         }
       }
     }
@@ -340,7 +372,7 @@ class ZonalParkingManager(
     _search() match {
       case Some(stall) => stall
       case None =>
-        // if no stall found, repeat with larger search distance for TAZs or create one very expensive
+        // if no stall found create one very expensive stall
         stallNum = stallNum + 1
         new ParkingStall(
           Id.create(stallNum, classOf[ParkingStall]),
@@ -349,7 +381,6 @@ class ZonalParkingManager(
           1000.0,
           Some(defaultStallValues)
         )
-
     }
   }
 
@@ -492,4 +523,15 @@ object ZonalParkingManager {
   }
 
   val maxSearchRadius = 10e3
+
+  /**
+    * maps a charging preference to a collection of valid charging types which can accommodate that preference
+    * @param chargingPreference a driver's preference
+    * @return types of charging which are appropriate for their preference
+    */
+  def validChargingTypesFor(chargingPreference: ChargingPreference): Seq[ChargingType] = chargingPreference match {
+    case NoNeed => Seq(NoCharger)
+    case Opportunistic => Seq(Level1, Level2, DCFast, UltraFast)
+    case MustCharge => Seq(Level1, Level2, DCFast, UltraFast)
+  }
 }
