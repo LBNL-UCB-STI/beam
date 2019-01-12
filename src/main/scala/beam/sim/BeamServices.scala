@@ -260,7 +260,7 @@ object BeamServices {
           val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
 
           val bvt = BeamVehicleType(
-            Id.create(vIdString,classOf[BeamVehicleType]),
+            Id.create(vIdString, classOf[BeamVehicleType]),
             seatingCapacity,
             standingRoomCapacity,
             lengthInMeter,

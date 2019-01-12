@@ -352,7 +352,7 @@ class PersonWithVehicleSharingSpec
 
       val routingRequest = mockRouter.expectMsgType[RoutingRequest]
       mockRouter.lastSender ! RoutingResponse(
-         Vector(
+        Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(

@@ -9,7 +9,11 @@ import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, Dead
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, NotifyIterationEnds, RideHailRepositioningTrigger}
+import beam.agentsim.agents.ridehail.RideHailManager.{
+  BufferedRideHailRequestsTrigger,
+  NotifyIterationEnds,
+  RideHailRepositioningTrigger
+}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.{BeamAgent, Population}
@@ -109,22 +113,21 @@ class BeamMobsim @Inject()(
           private val rideHailManager = context.actorOf(
             Props(
               classOf[RideHailManager],
-                beamServices,
-                transportNetwork,
-                tollCalculator,
-                scenario,
-                eventsManager,
-                scheduler,
-                beamServices.beamRouter,
-                parkingManager,
-                envelopeInUTM,
-                rideHailSurgePricingManager,
-                rideHailIterationHistory.oscillationAdjustedTNCIterationStats
-              ),
-              "RideHailManager"
+              beamServices,
+              transportNetwork,
+              tollCalculator,
+              scenario,
+              eventsManager,
+              scheduler,
+              beamServices.beamRouter,
+              parkingManager,
+              envelopeInUTM,
+              rideHailSurgePricingManager,
+              rideHailIterationHistory.oscillationAdjustedTNCIterationStats
+            ),
+            "RideHailManager"
           )
           context.watch(rideHailManager)
-
 
           private val vehicleTypeId: Id[BeamVehicleType] = Id
             .create(
@@ -172,9 +175,8 @@ class BeamMobsim @Inject()(
                   Props(new FixedNonReservingVehicleFleet(parkingManager, initialSharedVehicleLocations)),
                   "fixed-non-reserving-vehicle-fleet"
                 )
-          )
+            )
           sharedVehicleFleets.foreach(context.watch)
-
 
           private val population = context.actorOf(
             Population.props(

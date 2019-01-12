@@ -52,7 +52,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
         0,
         BeamPath(Vector(1, 2, 3, 4, 5), Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)
       ),
-      Id.createVehicleId(13), 
+      Id.createVehicleId(13),
       BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
       asDriver = true,
       0,

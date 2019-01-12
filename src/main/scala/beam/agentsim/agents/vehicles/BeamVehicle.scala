@@ -40,7 +40,7 @@ class BeamVehicle(
   val powerTrain: Powertrain,
   val initialMatsimAttributes: Option[ObjectAttributes],
   val beamVehicleType: BeamVehicleType
-                 ) extends StrictLogging {
+) extends StrictLogging {
 
   var manager: Option[ActorRef] = None
 

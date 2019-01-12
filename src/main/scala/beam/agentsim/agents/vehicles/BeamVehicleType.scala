@@ -13,22 +13,22 @@ import org.matsim.vehicles.Vehicle
   * @author saf
   */
 case class BeamVehicleType(
-                            id: Id[BeamVehicleType],
-                            seatingCapacity: Int,
-                            standingRoomCapacity: Int,
-                            lengthInMeter: Double,
-                            primaryFuelType: FuelType,
-                            primaryFuelConsumptionInJoulePerMeter: Double,
-                            primaryFuelCapacityInJoule: Double,
-                            secondaryFuelType: Option[FuelType] = None,
-                            secondaryFuelConsumptionInJoulePerMeter: Option[Double] = None,
-                            secondaryFuelCapacityInJoule: Option[Double] = None,
-                            automationLevel: Option[String] = None,
-                            maxVelocity: Option[Double] = None,
-                            passengerCarUnit: Double = 1,
-                            rechargeLevel2RateLimitInWatts: Option[Double] = None,
-                            rechargeLevel3RateLimitInWatts: Option[Double] = None,
-                            vehicleCategory: VehicleCategory = Undefined
+  id: Id[BeamVehicleType],
+  seatingCapacity: Int,
+  standingRoomCapacity: Int,
+  lengthInMeter: Double,
+  primaryFuelType: FuelType,
+  primaryFuelConsumptionInJoulePerMeter: Double,
+  primaryFuelCapacityInJoule: Double,
+  secondaryFuelType: Option[FuelType] = None,
+  secondaryFuelConsumptionInJoulePerMeter: Option[Double] = None,
+  secondaryFuelCapacityInJoule: Option[Double] = None,
+  automationLevel: Option[String] = None,
+  maxVelocity: Option[Double] = None,
+  passengerCarUnit: Double = 1,
+  rechargeLevel2RateLimitInWatts: Option[Double] = None,
+  rechargeLevel3RateLimitInWatts: Option[Double] = None,
+  vehicleCategory: VehicleCategory = Undefined
 )
 
 object BeamVehicleType {
