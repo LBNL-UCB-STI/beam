@@ -196,10 +196,6 @@ class BeamMobsim @Inject()(
           context.watch(population)
           Await.result(population ? Identify(0), timeout.duration)
 
-          private val numRideHailAgents = math.round(
-            beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation
-          )
-
           val rand: Random =
             new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
@@ -244,7 +240,6 @@ class BeamMobsim @Inject()(
 
           log.info("Initialized {} people", beamServices.personRefs.size)
           log.info("Initialized {} personal vehicles", beamServices.privateVehicles.size)
-          log.info("Initialized {} ride hailing agents", numRideHailAgents)
 
           Await.result(beamServices.beamRouter ? InitTransit(scheduler, parkingManager), timeout.duration)
 
