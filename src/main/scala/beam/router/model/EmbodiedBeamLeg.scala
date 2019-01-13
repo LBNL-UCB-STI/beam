@@ -7,6 +7,7 @@ import org.matsim.vehicles.Vehicle
 case class EmbodiedBeamLeg(
   beamLeg: BeamLeg,
   beamVehicleId: Id[Vehicle],
+  beamVehicleTypeId: Id[BeamVehicleType],
   asDriver: Boolean,
   cost: Double,
   unbecomeDriverOnCompletion: Boolean,
@@ -24,6 +25,7 @@ object EmbodiedBeamLeg {
     EmbodiedBeamLeg(
       BeamLeg.dummyWalk(start),
       bodyId,
+      BeamVehicleType.defaultHumanBodyBeamVehicleType.vehicleTypeId,
       asDriver = true,
       0,
       unbecomeDriverOnCompletion = isLastLeg

@@ -1,14 +1,13 @@
 package beam.agentsim.agents.parking
 
-import akka.actor.FSM.Failure
 import akka.pattern.{ask, pipe}
-import beam.agentsim.Resource.CheckInResource
+import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
-import beam.agentsim.agents.vehicles.PassengerSchedule
+import beam.agentsim.agents.vehicles.{BeamVehicleType, PassengerSchedule}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
@@ -46,7 +45,6 @@ trait ChoosesParking extends {
         personData.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId).last
 
       parkingManager ! ParkingInquiry(
-        id,
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.startPoint.loc),
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc),
         nextActivity(personData).get.getType,
@@ -60,41 +58,24 @@ trait ChoosesParking extends {
     case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
       stash()
       stay using data
-    case Event(StateTimeout, data @ BasePersonData(_, _, _, _, _, _, _, _, _, _)) =>
-      if (data.currentVehicle.isEmpty) {
-        stop(Failure(s"Cannot release parking spot when data.currentVehicle is empty for person $id"))
-      } else {
-        val (tick, _) = releaseTickAndTriggerId()
-        val veh = beamServices
-          .vehicles(data.currentVehicle.head)
-
-        veh.stall.foreach { stall =>
-          parkingManager ! CheckInResource(
-            beamServices.vehicles(data.currentVehicle.head).stall.get.id,
-            None
-          )
-          //        val tick: Double = _currentTick.getOrElse(0)
-          val nextLeg = data.passengerSchedule.schedule.head._1
-          val distance = beamServices.geo.distUTMInMeters(
-            stall.locationUTM,
-            nextLeg.travelPath.endPoint.loc
-          ) //nextLeg.travelPath.endPoint.loc
-          val cost = stall.cost
-          val energyCharge: Double = 0.0 //TODO
-          val timeCost: Double = scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF
-          val score = calculateScore(distance, cost, energyCharge, timeCost)
-          eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, id, veh.id))
-        }
-        veh.unsetParkingStall()
-        goto(WaitingToDrive) using data
-      }
+    case Event(StateTimeout, data: BasePersonData) =>
+      val (tick, _) = releaseTickAndTriggerId()
+      val stall = currentBeamVehicle.stall.getOrElse(
+        throw new RuntimeException(log.format("My vehicle {} is not parked.", currentBeamVehicle.id))
+      )
+      parkingManager ! ReleaseParkingStall(stall.id)
+      val nextLeg = data.passengerSchedule.schedule.head._1
+      val distance = beamServices.geo.distUTMInMeters(stall.locationUTM, nextLeg.travelPath.endPoint.loc)
+      val energyCharge: Double = 0.0 //TODO
+      val timeCost: Double = scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF
+      val score = calculateScore(distance, stall.cost, energyCharge, timeCost)
+      eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, id, currentBeamVehicle.id))
+      currentBeamVehicle.unsetParkingStall()
+      goto(WaitingToDrive) using data
 
     case Event(StateTimeout, data) =>
-      parkingManager ! CheckInResource(
-        beamServices.vehicles(data.currentVehicle.head).stall.get.id,
-        None
-      )
-      beamServices.vehicles(data.currentVehicle.head).unsetParkingStall()
+      parkingManager ! ReleaseParkingStall(currentBeamVehicle.stall.get.id)
+      currentBeamVehicle.unsetParkingStall()
       releaseTickAndTriggerId()
       goto(WaitingToDrive) using data
   }
@@ -104,7 +85,7 @@ trait ChoosesParking extends {
         beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
       val nextLeg =
         data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
-      beamServices.vehicles(data.currentVehicle.head).setReservedParkingStall(Some(stall))
+      currentBeamVehicle.setReservedParkingStall(Some(stall))
 
       data.currentVehicle.head
 
@@ -135,9 +116,15 @@ trait ChoosesParking extends {
 
         // get route from customer to stall, add body for backup in case car route fails
         val carStreetVeh =
-          StreetVehicle(data.currentVehicle.head, currentPointUTM, CAR, asDriver = true)
+          StreetVehicle(
+            currentBeamVehicle.id,
+            currentBeamVehicle.beamVehicleType.vehicleTypeId,
+            currentPointUTM,
+            CAR,
+            asDriver = true
+          )
         val bodyStreetVeh =
-          StreetVehicle(data.currentVehicle.last, currentPointUTM, WALK, asDriver = true)
+          StreetVehicle(body.id, body.beamVehicleType.vehicleTypeId, currentPointUTM, WALK, asDriver = true)
         val veh2StallRequest = RoutingRequest(
           currentLocUTM,
           stall.locationUTM,
@@ -156,7 +143,8 @@ trait ChoosesParking extends {
           Vector(),
           Vector(
             StreetVehicle(
-              data.currentVehicle.last,
+              body.id,
+              body.beamVehicleType.vehicleTypeId,
               SpaceTime(stall.locationUTM, currentPoint.time),
               WALK,
               asDriver = true
@@ -176,7 +164,7 @@ trait ChoosesParking extends {
       }
     case Event(
         (routingResponse1: RoutingResponse, routingResponse2: RoutingResponse),
-        data @ BasePersonData(_, _, _, _, _, _, _, _, _, _)
+        data: BasePersonData
         ) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
       val nextLeg =
@@ -186,7 +174,14 @@ trait ChoosesParking extends {
       var (leg1, leg2) = if (!routingResponse1.itineraries.exists(_.tripClassifier == CAR)) {
         logDebug(s"no CAR leg returned by router, assuming parking spot is at destination")
         (
-          EmbodiedBeamLeg(nextLeg, data.currentVehicle.head, true, 0.0, true),
+          EmbodiedBeamLeg(
+            nextLeg,
+            data.currentVehicle.head,
+            BeamVehicleType.defaultHumanBodyBeamVehicleType.vehicleTypeId,
+            true,
+            0.0,
+            true
+          ),
           routingResponse2.itineraries.head.legs.head
         )
       } else {
@@ -209,16 +204,14 @@ trait ChoosesParking extends {
         .takeWhile(_.beamLeg != nextLeg) ++ newRestOfTrip
       val newPassengerSchedule = PassengerSchedule().addLegs(Vector(newRestOfTrip.head.beamLeg))
 
-      val currVehicle = beamServices.vehicles(data.currentVehicle.head)
-
-      val newVehicle = if (leg1.beamLeg.mode == CAR || currVehicle.id == bodyId) {
-        data.currentVehicle
+      val (newVehicle, newVehicleToken) = if (leg1.beamLeg.mode == CAR || currentBeamVehicle.id == body.id) {
+        (data.currentVehicle, currentBeamVehicle)
       } else {
-        currVehicle.unsetDriver()
+        currentBeamVehicle.unsetDriver()
         eventsManager.processEvent(
           new PersonLeavesVehicleEvent(tick, id, data.currentVehicle.head)
         )
-        data.currentVehicle.drop(1)
+        (data.currentVehicle.drop(1), body)
       }
 
       scheduler ! CompletionNotice(
@@ -230,13 +223,12 @@ trait ChoosesParking extends {
           )
         )
       )
-
       goto(WaitingToDrive) using data.copy(
         currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
         restOfCurrentTrip = newRestOfTrip.toList,
         passengerSchedule = newPassengerSchedule,
         currentLegPassengerScheduleIndex = 0,
-        currentVehicle = newVehicle
+        currentVehicle = newVehicle,
       )
   }
 

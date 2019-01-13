@@ -1,8 +1,6 @@
 package beam.agentsim.infrastructure
 
 import akka.actor.Actor
-import beam.agentsim.ResourceManager
-import beam.agentsim.agents.PersonAgent
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ParkingStall.{ChargingPreference, ReservedParkingType}
 import beam.router.BeamRouter.Location
@@ -14,12 +12,10 @@ import org.matsim.vehicles.Vehicle
 abstract class ParkingManager(
   parkingStockAttributes: ParkingStockAttributes
 ) extends Actor
-    with ResourceManager[ParkingStall] {}
 
 object ParkingManager {
 
   case class ParkingInquiry(
-    customerId: Id[PersonAgent],
     customerLocationUtm: Location,
     destinationUtm: Location,
     activityType: String,

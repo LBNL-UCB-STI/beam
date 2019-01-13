@@ -147,19 +147,15 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
 
       override def startNewIteration(): Unit = throw new Exception("???")
 
-      override protected def injector: Injector = throw new Exception("???")
+      def injector: Injector = throw new Exception("???")
 
       override def matsimServices_=(x$1: org.matsim.core.controler.MatsimServices): Unit = ???
-
-      override def rideHailIterationHistoryActor_=(x$1: akka.actor.ActorRef): Unit = ???
 
       override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap =
         beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
       override val modeIncentives: ModeIncentive = ???
 
       override def matsimServices: org.matsim.core.controler.MatsimServices = ???
-
-      override def rideHailIterationHistoryActor: akka.actor.ActorRef = ???
 
       override val rideHailTransitModes: Seq[Modes.BeamMode] = ???
       override val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = ???
@@ -297,8 +293,7 @@ object HouseHoldComparator extends Comparator[Household] {
 object VehicleComparator extends Comparator[BeamVehicle] {
 
   override def compare(v1: BeamVehicle, v2: BeamVehicle): Int = {
-    if (v1.getId == v2.getId
-        && v1.householdId.get.equals(v2.householdId.get)
+    if (v1.id == v2.id
         && v1.beamVehicleType.equals(v2.beamVehicleType)) 0
     else 1
   }

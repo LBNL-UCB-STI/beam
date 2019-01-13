@@ -1,5 +1,6 @@
 package beam.router
 
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode
 import beam.router.model.RoutingModel
@@ -21,6 +22,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
         BeamPath(Vector(1, 2, 3, 4, 5), Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)
       ),
       Id.createVehicleId(13),
+      BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
       asDriver = true,
       0,
       unbecomeDriverOnCompletion = true
@@ -51,6 +53,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
         BeamPath(Vector(1, 2, 3, 4, 5), Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)
       ),
       Id.createVehicleId(13),
+      BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
       asDriver = true,
       0,
       unbecomeDriverOnCompletion = true
@@ -80,6 +83,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
         BeamPath(Vector(1, 2), Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)
       ),
       Id.createVehicleId(13),
+      BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
       asDriver = true,
       0,
       unbecomeDriverOnCompletion = true
@@ -98,6 +102,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
     val leg = EmbodiedBeamLeg(
       BeamLeg(0, BeamMode.CAR, 0, BeamPath(Vector(1), Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
       Id.createVehicleId(13),
+      BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
       asDriver = true,
       0,
       unbecomeDriverOnCompletion = true
@@ -115,6 +120,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
     val leg = EmbodiedBeamLeg(
       beamLeg = BeamLeg(0, BeamMode.CAR, 0, BeamPath(Vector(), Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
       beamVehicleId = Id.createVehicleId(13),
+      BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
       asDriver = true,
       cost = 0,
       unbecomeDriverOnCompletion = true
@@ -131,6 +137,7 @@ class RoutingModelSpec extends FlatSpec with Matchers {
     val leg = EmbodiedBeamLeg(
       beamLeg = BeamLeg(0, BeamMode.CAR, 0, BeamPath(Vector(), Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
       beamVehicleId = Id.createVehicleId(13),
+      BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
       asDriver = true,
       cost = 0,
       unbecomeDriverOnCompletion = true

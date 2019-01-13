@@ -1,32 +1,36 @@
 package beam.agentsim.agents.household
 
-import akka.actor.{ActorLogging, ActorRef, Props, Terminated}
-import beam.agentsim.Resource.{CheckInResource, NotifyResourceInUse}
-import beam.agentsim.ResourceManager.{NotifyVehicleResourceIdle, VehicleManager}
+import java.util.concurrent.TimeUnit
+
+import akka.actor.SupervisorStrategy.Stop
+import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
+import akka.pattern.ask
+import akka.pattern.pipe
+import akka.util.Timeout
+import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, VehicleOrToken}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Car}
-import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
+import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.Modes.BeamMode.{BIKE, CAR, NO_MODE}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.plan.sampling.AvailableModeUtils.isModeAvailableForPerson
 import com.conveyal.r5.transit.TransportNetwork
-import com.eaio.uuid.UUIDGen
-import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households
 import org.matsim.households.Household
-import org.matsim.vehicles.Vehicle
 
-import scala.collection.mutable
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext}
 
 object HouseholdActor {
 
@@ -47,10 +51,10 @@ object HouseholdActor {
     parkingManager: ActorRef,
     eventsManager: EventsManager,
     population: org.matsim.api.core.v01.population.Population,
-    householdId: Id[Household],
     matSimHousehold: Household,
     houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle],
-    homeCoord: Coord
+    homeCoord: Coord,
+    sharedVehicleFleets: Vector[ActorRef] = Vector()
   ): Props = {
     Props(
       new HouseholdActor(
@@ -64,21 +68,18 @@ object HouseholdActor {
         parkingManager,
         eventsManager,
         population,
-        householdId,
         matSimHousehold,
         houseHoldVehicles,
-        homeCoord
+        homeCoord,
+        sharedVehicleFleets
       )
     )
   }
 
-  case class MobilityStatusInquiry(inquiryId: Id[MobilityStatusInquiry], personId: Id[Person])
+  case class MobilityStatusInquiry(whereWhen: SpaceTime)
+  case class ReleaseVehicle(vehicle: BeamVehicle)
 
-  case class ReleaseVehicleReservation(personId: Id[Person], vehId: Id[Vehicle])
-
-  case class MobilityStatusResponse(streetVehicle: Vector[StreetVehicle])
-
-  case class InitializeRideHailAgent(b: Id[Person])
+  case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken])
 
   /**
     * Implementation of intra-household interaction in BEAM using actors.
@@ -105,12 +106,20 @@ object HouseholdActor {
     parkingManager: ActorRef,
     eventsManager: EventsManager,
     val population: org.matsim.api.core.v01.population.Population,
-    id: Id[households.Household],
     val household: Household,
     vehicles: Map[Id[BeamVehicle], BeamVehicle],
-    homeCoord: Coord
-  ) extends VehicleManager
+    homeCoord: Coord,
+    sharedVehicleFleets: Vector[ActorRef] = Vector()
+  ) extends Actor
       with ActorLogging {
+
+    private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+    private implicit val executionContext: ExecutionContext = context.dispatcher
+    override val supervisorStrategy: OneForOneStrategy =
+      OneForOneStrategy(maxNrOfRetries = 0) {
+        case _: Exception      => Stop
+        case _: AssertionError => Stop
+      }
 
     if (beamServices.beamConfig.beam.experimental.optimizer.enabled) {
       //Create the solver actor
@@ -130,8 +139,6 @@ object HouseholdActor {
 
       val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
 
-      val bodyVehicleIdFromPerson = BeamVehicle.createId(person.getId, Some("body"))
-
       modeChoiceCalculator.valuesOfTime += (GeneralizedVot -> attributes.valueOfTime)
 
       val personRef: ActorRef = context.actorOf(
@@ -148,133 +155,62 @@ object HouseholdActor {
           person.getId,
           household,
           person.getSelectedPlan,
-          bodyVehicleIdFromPerson
+          sharedVehicleFleets
         ),
         person.getId.toString
       )
       context.watch(personRef)
 
-      // Every Person gets a HumanBodyVehicle
-      val newBodyVehicle = new BeamVehicle(
-        bodyVehicleIdFromPerson,
-        BeamVehicleType.powerTrainForHumanBody,
-        None,
-        BeamVehicleType.defaultHumanBodyBeamVehicleType,
-        None
-      )
-      newBodyVehicle.registerResource(personRef)
-      beamServices.vehicles += ((bodyVehicleIdFromPerson, newBodyVehicle))
-
       schedulerRef ! ScheduleTrigger(InitializeTrigger(0), personRef)
       beamServices.personRefs += ((person.getId, personRef))
-
     }
 
-    override val resources: mutable.Map[Id[BeamVehicle], BeamVehicle] = mutable.Map()
-    resources ++ vehicles
+    // Pipe the household's vehicles through the parking agent.
+    // They will become available once they are parked.
+    // In principle, agents at 0 in the morning may not find their
+    // household's vehicle yet for a split-second.
+    for (veh <- vehicles.values) {
+      veh.manager = Some(self)
+      veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
+      parkingManager ? ParkingInquiry(
+        homeCoord,
+        homeCoord,
+        "home",
+        AttributesOfIndividual.EMPTY,
+        NoNeed,
+        0,
+        0
+      ) collect {
+        case ParkingInquiryResponse(stall, _) =>
+          veh.useParkingStall(stall)
+          ReleaseVehicle(veh)
+      } pipeTo self
+    }
 
-    /**
-      * Available [[Vehicle]]s in [[Household]].
-      */
-    val _vehicles: Vector[Id[BeamVehicle]] =
-      vehicles.keys.toVector //.map(x => Id.createVehicleId(x))
-
-    /**
-      * Current [[Vehicle]] assignments.
-      */
-    private val _availableVehicles: mutable.Set[Id[Vehicle]] = mutable.Set()
-
-    /**
-      * These [[Vehicle]]s cannot be assigned to other agents.
-      */
-    private val _reservedForPerson: mutable.Map[Id[Person], Id[Vehicle]] = mutable.Map()
-
-    /**
-      * Vehicles that are currently checked out to traveling agents.
-      */
-    private val _checkedOutVehicles: mutable.Map[Id[Vehicle], Id[Person]] = mutable.Map()
-
-    /**
-      * Mapping of [[Vehicle]] to [[StreetVehicle]]
-      */
-    private val _vehicleToStreetVehicle: mutable.Map[Id[BeamVehicle], StreetVehicle] = mutable.Map()
-
-    // Initial vehicle assignments.
-    initializeHouseholdVehicles()
-
-    override def findResource(vehicleId: Id[BeamVehicle]): Option[BeamVehicle] =
-      resources.get(vehicleId)
+    private var availableVehicles: List[BeamVehicle] = Nil
 
     override def receive: Receive = {
 
-      case NotifyVehicleResourceIdle(
-          vId,
-          whenWhere,
-          _,
-          _,
-          _
-          ) =>
+      case NotifyVehicleIdle(vId, whenWhere, _, _, _) =>
         val vehId = vId.asInstanceOf[Id[BeamVehicle]]
-        _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere.get, CAR, asDriver = true))
-        log.debug("updated vehicle {} with location {}", vehId, whenWhere.get)
+        vehicles(vehId).spaceTime = whenWhere
+        log.debug("updated vehicle {} with location {}", vehId, whenWhere)
 
-      case NotifyResourceInUse(vId, whenWhere) =>
-        val vehId = vId.asInstanceOf[Id[BeamVehicle]]
-        _vehicleToStreetVehicle += (vehId -> StreetVehicle(vehId, whenWhere, CAR, asDriver = true))
+      case ReleaseVehicle(vehicle) =>
+        vehicle.unsetDriver()
+        availableVehicles = vehicle :: availableVehicles
+        log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
 
-      case CheckInResource(vehicleId, _) =>
-        checkInVehicleResource(vehicleId.asInstanceOf[Id[BeamVehicle]])
-
-      case ReleaseVehicleReservation(personId, vehId) =>
-        /*
-         * Remove the mapping in _reservedForPerson if it exists. If the vehicle is not checked out, make available to all.
-         */
-        _reservedForPerson.get(personId) match {
-          case Some(vehicleId) if vehicleId == vehId =>
-            log.debug("Vehicle {} is now available for anyone in household {}", vehicleId, id)
-            _reservedForPerson.remove(personId)
-          case _ =>
+      case MobilityStatusInquiry(_) =>
+        availableVehicles = availableVehicles match {
+          case firstVehicle :: rest =>
+            firstVehicle.becomeDriver(sender)
+            sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)))
+            rest
+          case Nil =>
+            sender() ! MobilityStatusResponse(Vector())
+            Nil
         }
-        if (!_checkedOutVehicles.contains(vehId)) _availableVehicles.add(vehId)
-
-      case MobilityStatusInquiry(_, personId) =>
-        // We give first priority to an already checkout out vehicle
-        val alreadyCheckedOutVehicle = lookupCheckedOutVehicle(personId)
-
-        val availableStreetVehicles = if (alreadyCheckedOutVehicle.isEmpty) {
-          // Second priority is a reserved vehicle
-          val reservedVeh = lookupReservedVehicle(personId)
-          if (reservedVeh.isEmpty) {
-            // Lastly we search for available vehicles but limit to one per mode
-            val anyAvailableVehicles = lookupAvailableVehicles()
-            // Filter only by available modes
-            anyAvailableVehicles
-              .groupBy(_.mode)
-              .map(_._2.head)
-              .toVector
-
-          } else {
-            reservedVeh
-          }
-        } else {
-          alreadyCheckedOutVehicle
-        }
-
-        // Assign to requesting individual if mode is available
-        availableStreetVehicles
-          .filter(
-            veh => isModeAvailableForPerson(population.getPersons.get(personId), veh.mode)
-          )
-          .filter { theveh =>
-            // also make sure there isn't another driver using this vehicle
-            val existingDriver = beamServices.vehicles(theveh.id).driver
-            existingDriver.isEmpty || existingDriver.get.path.toString.contains(personId.toString)
-          }
-          .foreach { x =>
-            _availableVehicles.remove(x.id)
-            _checkedOutVehicles.put(x.id, personId)
-          }
-        sender() ! MobilityStatusResponse(availableStreetVehicles)
 
       case Finish =>
         context.children.foreach(_ ! Finish)
@@ -295,91 +231,6 @@ object HouseholdActor {
         log.debug("Remaining: {}", context.children)
       }
     }
-
-    private def checkInVehicleResource(vehicleId: Id[Vehicle]): Unit = {
-      /*
-       * If the resource is checked out, remove. If the resource is not reserved to an individual, make available to all.
-       */
-      val personIDOpt = _checkedOutVehicles.remove(vehicleId)
-      personIDOpt match {
-        case Some(personId) =>
-          _reservedForPerson.get(personId) match {
-            case None =>
-              _availableVehicles.add(vehicleId)
-            case Some(_) =>
-          }
-        case None =>
-          if (!_reservedForPerson.values.toSet.contains(vehicleId)) {
-            _availableVehicles.add(vehicleId)
-          }
-      }
-      log.debug("Resource {} is now available again", vehicleId)
-    }
-
-    // This will sort by rank in ascending order so #1 rank is first in the list, if rank is undefined, it will be last
-    // in list
-
-    private def lookupAvailableVehicles(): Vector[StreetVehicle] =
-      Vector(
-        for {
-          availableVehicle       <- _availableVehicles
-          availableStreetVehicle <- _vehicleToStreetVehicle.get(availableVehicle)
-        } yield availableStreetVehicle
-      ).flatten
-
-    private def lookupReservedVehicle(person: Id[Person]): Vector[StreetVehicle] = {
-      _reservedForPerson.get(person) match {
-        case Some(availableVehicle) =>
-          Vector(_vehicleToStreetVehicle(availableVehicle))
-        case None =>
-          Vector()
-      }
-    }
-
-    private def lookupCheckedOutVehicle(person: Id[Person]): Vector[StreetVehicle] = {
-      (for ((veh, per) <- _checkedOutVehicles if per == person) yield {
-        _vehicleToStreetVehicle(veh)
-      }).toVector
-    }
-
-    private def initializeHouseholdVehicles(): Unit = {
-      // Add the vehicles to resources managed by this ResourceManager.
-
-      vehicles.foreach(idAndVeh => resources.put(idAndVeh._1, idAndVeh._2))
-      // Initial assignments
-
-      for (i <- _vehicles.indices.toSet ++ household.rankedMembers.indices.toSet) {
-        if (i < _vehicles.size & i < household.rankedMembers.size) {
-
-          val memberId: Id[Person] = household
-            .rankedMembers(i)
-            .memberId
-          val vehicleId: Id[Vehicle] = _vehicles(i)
-          val person = population.getPersons.get(memberId)
-
-          // Should never reserve for person who doesn't have mode available to them
-          val mode = getModeFromHouseholdVehicle(vehicles(vehicleId))
-
-          if (isModeAvailableForPerson(person, mode)) {
-            _reservedForPerson += (memberId -> vehicleId)
-          }
-        } else if (i < _vehicles.size) {
-          _availableVehicles += _vehicles(i)
-        }
-      }
-
-      //Initial locations and trajectories
-      //Initialize all vehicles to have a stationary trajectory starting at time zero
-      val initialLocation = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
-
-      for { vehId <- _vehicles } yield {
-        val mode = getModeFromHouseholdVehicle(vehicles(vehId))
-
-        _vehicleToStreetVehicle +=
-          (vehId -> StreetVehicle(vehId, initialLocation, mode, asDriver = true))
-      }
-
-    }
     private def getModeFromHouseholdVehicle(beamVehicle: BeamVehicle) = {
       beamVehicle.beamVehicleType.vehicleCategory match {
         case Bike =>
@@ -388,8 +239,7 @@ object HouseholdActor {
           CAR
         case _ =>
           log.warning(
-            s"Initializing household {}, a vehicle with Id {} of vehicle type {} is not a recognized category of vehicle ({}) to be used by a household. Ignoring this vehicle.",
-            id,
+            s"A vehicle with Id {} of vehicle type {} is not a recognized category of vehicle ({}) to be used by a household. Ignoring this vehicle.",
             beamVehicle.id,
             beamVehicle.beamVehicleType.vehicleTypeId,
             beamVehicle.beamVehicleType.vehicleCategory
@@ -397,16 +247,6 @@ object HouseholdActor {
           NO_MODE
       }
     }
-  }
-
-  object MobilityStatusInquiry {
-
-    // Smart constructor for MSI
-    def mobilityStatusInquiry(personId: Id[Person]) =
-      MobilityStatusInquiry(
-        Id.create(UUIDGen.createTime(UUIDGen.newTime()).toString, classOf[MobilityStatusInquiry]),
-        personId
-      )
   }
 
 }

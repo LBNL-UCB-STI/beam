@@ -16,7 +16,6 @@ import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices.{getTazTreeMap, readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
-import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.metrics.Metrics
@@ -39,7 +38,7 @@ import scala.concurrent.duration.FiniteDuration
   */
 
 @ImplementedBy(classOf[BeamServicesImpl])
-trait BeamServices extends ActorInject {
+trait BeamServices {
   val controler: ControlerI
   val beamConfig: BeamConfig
 
@@ -49,11 +48,11 @@ trait BeamServices extends ActorInject {
 
   var beamRouter: ActorRef
   val rideHailTransitModes: Seq[BeamMode]
-  var rideHailIterationHistoryActor: ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
-  val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
   val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)]
   var personHouseholds: Map[Id[Person], Household]
+
+  val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
 
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
   val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType]
@@ -134,7 +133,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   def clearAll(): Unit = {
     personRefs.clear
-    vehicles.clear()
   }
 
   def startNewIteration(): Unit = {
@@ -217,7 +215,7 @@ object BeamServices {
 
         val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
-        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, householdId)
+        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType)
         acc += ((vehicleId, beamVehicle))
         acc
     }
@@ -262,7 +260,7 @@ object BeamServices {
           val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
 
           val bvt = BeamVehicleType(
-            vIdString,
+            Id.create(vIdString, classOf[BeamVehicleType]),
             seatingCapacity,
             standingRoomCapacity,
             lengthInMeter,

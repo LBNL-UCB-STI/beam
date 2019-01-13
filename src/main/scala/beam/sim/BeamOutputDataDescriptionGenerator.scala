@@ -97,7 +97,6 @@ object BeamOutputDataDescriptionGenerator {
     RideHailWaitingAnalysisObject,
     GraphSurgePricingObject,
     RideHailingWaitingSingleAnalysisObject,
-    BeamMobsim,
     StopWatchOutputs,
     ScoreStatsOutputs,
     SummaryStatsOutputs,

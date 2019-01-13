@@ -11,6 +11,7 @@ import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, ModeIncentive, PtFares}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.events.PathTraversalEvent
 import beam.router.BeamRouter
 import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
@@ -23,7 +24,7 @@ import beam.sim.{BeamMobsim, BeamServices}
 import beam.utils.DateUtils
 import beam.utils.TestConfigUtils.{testConfig, testOutputDir}
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
-import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent}
+import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.controler.{MatsimServices, OutputDirectoryHierarchy}
@@ -92,7 +93,6 @@ class SingleModeSpec
     //    when(services.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(services.tazTreeMap).thenReturn(BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file))
     when(services.vehicleTypes).thenReturn(vehicleTypes)
-    when(services.vehicles).thenReturn(TrieMap[Id[BeamVehicle], BeamVehicle]())
     when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
     when(services.ptFares).thenReturn(PtFares(List[FareRule]()))
     when(services.privateVehicles).thenReturn {
@@ -109,7 +109,6 @@ class SingleModeSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
-    when(services.vehicles).thenReturn(new TrieMap[Id[BeamVehicle], BeamVehicle])
     when(services.modeChoiceCalculatorFactory)
       .thenReturn((_: AttributesOfIndividual) => new ModeChoiceUniformRandom(services))
     val personRefs = TrieMap[Id[Person], ActorRef]()
@@ -123,8 +122,9 @@ class SingleModeSpec
     tollCalculator = new TollCalculator(beamConfig)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
-    when(services.matsimServices.getScenario).thenReturn(scenario)
-    scenario.getPopulation.getPersons.values.asScala.foreach(PersonTestUtil.putDefaultBeamAttributes)
+
+    scenario.getPopulation.getPersons.values.asScala
+      .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allBeamModes))
     router = system.actorOf(
       BeamRouter.props(
         services,
@@ -326,17 +326,20 @@ class SingleModeSpec
           }
         }
       val eventsManager = EventsUtils.createEventsManager()
-      //          eventsManager.addHandler(
-      //            new BasicEventHandler {
-      //              override def handleEvent(event: Event): Unit = {
-      //                event match {
-      //                  case event: PathTraversalEvent if event.getAttributes.get("amount_paid").toDouble != 0.0 =>
-      //                    println(event)
-      //                  case _ =>
-      //                }
-      //              }
-      //            }
-      //          )
+      val events = mutable.ListBuffer[Event]()
+      eventsManager.addHandler(
+        new BasicEventHandler {
+          override def handleEvent(event: Event): Unit = {
+            event match {
+              case event @ (_: PersonDepartureEvent | _: ActivityEndEvent | _: PathTraversalEvent |
+                  _: PersonEntersVehicleEvent) =>
+                events += event
+              case _ =>
+            }
+          }
+        }
+      )
+
       val mobsim = new BeamMobsim(
         services,
         networkCoordinator.transportNetwork,
@@ -348,6 +351,10 @@ class SingleModeSpec
         new RideHailIterationHistory()
       )
       mobsim.run()
+      events.collect {
+        case event: PersonDepartureEvent =>
+          assert(event.getLegMode == "car" || event.getLegMode == "be_a_tnc_driver")
+      }
     }
   }
 

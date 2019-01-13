@@ -340,7 +340,7 @@ object ScenarioReaderCsv {
           val v = VehicleUtils.getFactory.createVehicle(Id.createVehicleId(vehicleCounter), vt)
           vehicleIds.add(v.getId)
           val bv = BeamVehicleUtils.getBeamVehicle(v, objHousehold, bvt)
-          scenarioVehicles.put(bv.getId, bv)
+          scenarioVehicles.put(bv.id, bv)
 
           vehicleCounter = vehicleCounter + 1
         }
