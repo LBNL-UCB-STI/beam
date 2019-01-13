@@ -2,7 +2,7 @@ package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorRef
 import beam.agentsim.agents.PersonAgent
-import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumptionData}
+import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -104,7 +104,7 @@ class BeamVehicle(
     val distanceInMeters = beamLeg.travelPath.distanceInM
     val network =
       if (beamServices.matsimServices != null) Some(beamServices.matsimServices.getScenario.getNetwork) else None
-    val fuelConsumption: Option[List[FuelConsumptionData]] = network map (
+    val fuelConsumption = network map (
       n => BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, n)
     )
     fuelLevelInJoules match {
@@ -207,10 +207,11 @@ object BeamVehicle {
     beamLeg: BeamLeg,
     vehicleType: BeamVehicleType,
     network: Network
-  ): List[FuelConsumptionData] = {
+  ): IndexedSeq[FuelConsumptionData] = {
     if (beamLeg.mode.isTransit & !Modes.isOnStreetTransit(beamLeg.mode)) {
-      List()
+      Vector.empty
     } else {
+      val networkLinks = network.getLinks
       val linkIds = beamLeg.travelPath.linkIds
       val linkTravelTimes: IndexedSeq[Int] = beamLeg.travelPath.linkTravelTime
       // generate the link arrival times for each link ,by adding cumulative travel times of previous links
@@ -225,13 +226,13 @@ object BeamVehicle {
             })
         }
       }
-      val nextLinkIds = linkIds.toList.takeRight(linkIds.size - 1)
+      val nextLinkIds = linkIds.takeRight(linkIds.size - 1)
       linkIds.zipWithIndex.map { idAndIdx =>
         val id = idAndIdx._1
         val idx = idAndIdx._2
         val travelTime = linkTravelTimes(idx)
         val arrivalTime = linkArrivalTimes(idx)
-        val currentLink: Option[Link] = Option(network.getLinks.get(Id.createLinkId(id)))
+        val currentLink: Option[Link] = Option(networkLinks.get(Id.createLinkId(id)))
         val averageSpeed = try {
           if (travelTime > 0) currentLink.map(_.getLength).getOrElse(0.0) / travelTime else 0
         } catch {
@@ -239,7 +240,7 @@ object BeamVehicle {
         }
         // get the next link , and calculate the direction to be taken based on the angle between the two links
         val nextLink = if (idx < nextLinkIds.length) {
-          Some(network.getLinks.get(Id.createLinkId(nextLinkIds(idx))))
+          Some(networkLinks.get(Id.createLinkId(nextLinkIds(idx))))
         } else {
           currentLink
         }
@@ -265,8 +266,7 @@ object BeamVehicle {
           turnAtLinkEnd = turnAtLinkEnd,
           numberOfStops = numStops
         )
-      }.toList
+      }
     }
   }
-
 }
