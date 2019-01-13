@@ -115,7 +115,7 @@ class TimeDependentRoutingSpec
           0.0
         )
       )
-      router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), BeamVehicleType.defaultCarBeamVehicleType.id)
+      router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId)
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.head.beamLegs().head.duration == 70)
       // R5 travel time, but less than what's in R5's routing response (see vv),
@@ -131,7 +131,7 @@ class TimeDependentRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -152,7 +152,7 @@ class TimeDependentRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -173,7 +173,7 @@ class TimeDependentRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -203,7 +203,7 @@ class TimeDependentRoutingSpec
         Vector(
           StreetVehicle(
             vehicleId,
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -238,7 +238,7 @@ class TimeDependentRoutingSpec
           Vector(
             StreetVehicle(
               Id.createVehicleId("car"),
-              BeamVehicleType.defaultCarBeamVehicleType.id,
+              BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
               new SpaceTime(new Coord(origin.getX, origin.getY), time),
               Modes.BeamMode.CAR,
               asDriver = true
@@ -259,7 +259,7 @@ class TimeDependentRoutingSpec
         0,
         BeamPath(Vector(1, 2, 3, 4), Vector(), None, SpaceTime(0.0, 0.0, 28800), SpaceTime(1.0, 1.0, 28900), 1000.0)
       )
-      router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), BeamVehicleType.defaultCarBeamVehicleType.id)
+      router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId)
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.head.beamLegs().head.duration == 2000) // Contains two full links (excluding 1 and 4)
     }

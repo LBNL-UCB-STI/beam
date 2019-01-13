@@ -107,7 +107,7 @@ class TollRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -168,7 +168,7 @@ class TollRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -204,7 +204,7 @@ class TollRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("body"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true
