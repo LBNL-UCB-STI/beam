@@ -110,7 +110,7 @@ TAZs, Scaling, and Physsim Tuning::
    beam.physsim.jdeqsim.agentSimPhysSimInterfaceDebugger.enabled = false
    beam.physsim.skipPhysSim = false
 
-* agentsim.taz.file: path to a file specifying the centroid of each TAZ. For performance BEAM approximates TAZ boundaries based on a nearest-centroid approach. The area of each centroid is also necessary to approximate average travel distances within each TAZ (used in parking choice process).
+* agentsim.taz.file: path to a file specifying the centroid of each TAZ. For performance BEAM approximates TAZ boundaries based on a nearest-centroid approach. The area of each centroid (in m^2) is also necessary to approximate average travel distances within each TAZ (used in parking choice process).
 * taz.parking: path to a file specifying the parking and charging infrastructure. If any TAZ contained in the taz file is not specified in the parking file, then ulimited free parking is assumed.
 * tuning.transitCapacity: Scale the number of seats per transit vehicle... actual seats are rounded to nearest whole number. Applies uniformly to all transit vehilces.
 * tuning.transitPrice: Scale the price of riding on transit. Applies uniformly to all transit trips.

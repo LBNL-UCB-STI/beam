@@ -135,7 +135,8 @@ class PersonWithCarPlanSpec
         vehicleId,
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -203,7 +204,7 @@ class PersonWithCarPlanSpec
             )
           )
         ),
-        staticRequestId = java.util.UUID.randomUUID().hashCode()
+        requestId = java.util.UUID.randomUUID().hashCode()
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -260,13 +261,15 @@ class PersonWithCarPlanSpec
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
       val car2 = new BeamVehicle(
         Id.createVehicleId("car-2"),
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -330,7 +333,7 @@ class PersonWithCarPlanSpec
             )
             lastSender ! RoutingResponse(
               Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-              staticRequestId = java.util.UUID.randomUUID().hashCode()
+              requestId = java.util.UUID.randomUUID().hashCode()
             )
         }
       }
@@ -360,7 +363,8 @@ class PersonWithCarPlanSpec
         vehicleId,
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -407,7 +411,7 @@ class PersonWithCarPlanSpec
 
       val routingRequest = expectMsgType[RoutingRequest]
       personActor ! RoutingResponse(
-        itineraries = Vector(
+        Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -453,8 +457,7 @@ class PersonWithCarPlanSpec
             )
           )
         ),
-        requestId = Some(routingRequest.requestId),
-        staticRequestId = java.util.UUID.randomUUID().hashCode()
+        routingRequest.requestId
       )
 
       expectMsgType[ModeChoiceEvent]

@@ -47,7 +47,7 @@ class RepositioningLowWaitingTimes(
         val minDemandPercentageInRadius =
           repositioningConfig.minDemandPercentageInRadius
 
-        //if (firstRepositioningOfDay && tick > 0 && rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialLocation.name.equalsIgnoreCase(RideHailManager.INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER)) {
+        //if (firstRepositioningOfDay && tick > 0 && rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.name.equalsIgnoreCase(RideHailManager.INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER)) {
         // allow more aggressive repositioning at start of day
         //minimumNumberOfIdlingVehiclesThresholdForRepositioning = 0
         //  repositionCircleRadiusInMeters = 100 * 1000

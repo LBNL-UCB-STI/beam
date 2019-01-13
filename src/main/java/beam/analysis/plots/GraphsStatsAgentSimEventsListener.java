@@ -10,12 +10,10 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
-import org.matsim.core.controler.events.ShutdownEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -122,12 +120,13 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
 
     }
 
+    private final static String ON_DEMAND_RIDE = "onDemandRide";
     @Override
     public Map<String, Double> getSummaryStats() {
         return statsFactory.getSummaryAnalysis().stream()
                 .map(IterationSummaryAnalysis::getSummaryStats)
                 .map(Map::entrySet)
                 .flatMap(Collection::stream)
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+                .collect(Collectors.toMap(e -> e.getKey().replaceAll(RideHailWaitingAnalysis.RIDE_HAIL, ON_DEMAND_RIDE), Map.Entry::getValue));
     }
 }

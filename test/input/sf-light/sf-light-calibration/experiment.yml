@@ -91,10 +91,10 @@ factors:
     levels:
     - name: Low
       params:
-        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.1
+        beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation: 0.1
     - name: High
       params:
-        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.5
+        beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation: 0.5
 
   - title: walkIntercept
     levels:

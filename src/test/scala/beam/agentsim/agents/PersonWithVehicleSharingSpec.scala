@@ -202,7 +202,8 @@ class PersonWithVehicleSharingSpec
         vehicleId,
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
       vehicle.manager = Some(mockSharedVehicleFleet.ref)
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
@@ -232,7 +233,7 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        staticRequestId = java.util.UUID.randomUUID().hashCode()
+        requestId = java.util.UUID.randomUUID().hashCode()
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -339,7 +340,8 @@ class PersonWithVehicleSharingSpec
         vehicleId,
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
       vehicle.manager = Some(mockSharedVehicleFleet.ref)
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
@@ -398,8 +400,7 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = Some(routingRequest.requestId),
-        staticRequestId = java.util.UUID.randomUUID().hashCode()
+        requestId = java.util.UUID.randomUUID().hashCode()
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -443,7 +444,8 @@ class PersonWithVehicleSharingSpec
         vehicleId,
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
       vehicle2.manager = Some(mockSharedVehicleFleet.ref)
       (parkingManager ? parkingInquiry(SpaceTime(0.01, 0.01, 61200)))
@@ -483,8 +485,7 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = Some(routingRequest.requestId),
-        staticRequestId = java.util.UUID.randomUUID().hashCode()
+        requestId = java.util.UUID.randomUUID().hashCode()
       )
       val modeChoiceEvent = events.expectMsgType[ModeChoiceEvent]
       assert(modeChoiceEvent.chosenTrip.tripClassifier == CAR)
@@ -499,7 +500,8 @@ class PersonWithVehicleSharingSpec
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
       car1.manager = Some(mockSharedVehicleFleet.ref)
 
@@ -596,7 +598,7 @@ class PersonWithVehicleSharingSpec
           )
           mockRouter.lastSender ! RoutingResponse(
             Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            staticRequestId = java.util.UUID.randomUUID().hashCode()
+            requestId = java.util.UUID.randomUUID().hashCode()
           )
       }
 
@@ -631,7 +633,7 @@ class PersonWithVehicleSharingSpec
           )
           mockRouter.lastSender ! RoutingResponse(
             Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            staticRequestId = java.util.UUID.randomUUID().hashCode()
+            requestId = java.util.UUID.randomUUID().hashCode()
           )
       }
 
@@ -669,7 +671,7 @@ class PersonWithVehicleSharingSpec
           )
           mockRouter.lastSender ! RoutingResponse(
             Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            staticRequestId = java.util.UUID.randomUUID().hashCode()
+            requestId = java.util.UUID.randomUUID().hashCode()
           )
       }
 

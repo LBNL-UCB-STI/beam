@@ -35,7 +35,8 @@ class FixedNonReservingVehicleFleet(val parkingManager: ActorRef, val locations:
         Id.createVehicleId("fixed-non-reserving-vehicle-fleet-" + ix),
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
       vehicle.manager = Some(self)
       vehicle.spaceTime = SpaceTime(location, 0)

@@ -17,7 +17,13 @@ object DrivingCostDefaults {
     val beamVehicleType = maybeBeamVehicleType.getOrElse(BeamVehicleType.defaultCarBeamVehicleType)
     val distance = leg.travelPath.distanceInM
     if (null != beamVehicleType && null != beamVehicleType.primaryFuelType && 0.0 != beamVehicleType.primaryFuelConsumptionInJoulePerMeter) {
-      (distance * beamVehicleType.primaryFuelConsumptionInJoulePerMeter * beamVehicleType.primaryFuelType.priceInDollarsPerMJoule) / 1000000
+      if (beamServices.fuelTypePrices.keySet.contains(beamVehicleType.primaryFuelType)) {
+        (distance * beamVehicleType.primaryFuelConsumptionInJoulePerMeter * beamServices.fuelTypePrices(
+          beamVehicleType.primaryFuelType
+        )) / 1000000.0
+      } else {
+        zero
+      }
     } else {
       0 //TODO
     }

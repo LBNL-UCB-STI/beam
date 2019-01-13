@@ -3,14 +3,15 @@ package beam.router.r5
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneId, ZoneOffset, ZonedDateTime}
 import java.util
-import java.util.concurrent.Executors
+import java.util.concurrent.{ExecutorService, Executors}
 
 import akka.actor._
 import akka.pattern._
 import beam.agentsim.agents.choice.mode.{DrivingCostDefaults, ModeIncentive, PtFares}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, WALK}
@@ -37,6 +38,8 @@ import com.conveyal.r5.profile._
 import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
+import com.google.common.util.concurrent.ThreadFactoryBuilder
+import com.google.inject.Injector
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.population.Person
@@ -90,7 +93,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       matsimConfig.controler.setOutputDirectory(outputDirectory)
       matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-      val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
+      val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
       networkCoordinator.init()
       scenario.setNetwork(networkCoordinator.network)
       val network = networkCoordinator.network
@@ -108,18 +111,32 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
         override val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = TrieMap()
         override var personHouseholds: Map[Id[Person], Household] = Map()
-        val fuelTypes: TrieMap[Id[FuelType], FuelType] =
-          BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
+        // TODO Fix me once `TrieMap` is removed
+        val fuelTypePrices: TrieMap[FuelType, Double] =
+          TrieMap(BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toSeq: _*)
+
+        // TODO Fix me once `TrieMap` is removed
         val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
-          BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
+          TrieMap(
+            BeamServices
+              .readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
+              .toSeq: _*
+          )
+
+        // TODO Fix me once `TrieMap` is removed
         val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
-          BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
+          TrieMap(
+            BeamServices
+              .readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
+              .toSeq: _*
+          )
+
         override val modeIncentives: ModeIncentive =
           ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.file)
         override val ptFares: PtFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.file)
         override def startNewIteration(): Unit = throw new Exception("???")
         override def matsimServices_=(x$1: org.matsim.core.controler.MatsimServices): Unit = ???
-        override val rideHailTransitModes = BeamMode.massTransitModes
+        override val rideHailTransitModes: List[BeamMode] = BeamMode.massTransitModes
         override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap =
           beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
 
@@ -179,8 +196,11 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   val numOfThreads: Int =
     if (Runtime.getRuntime.availableProcessors() <= 2) 1
     else Runtime.getRuntime.availableProcessors() - 2
-  implicit val executionContext: ExecutionContext =
-    ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(numOfThreads))
+  private val execSvc: ExecutorService = Executors.newFixedThreadPool(
+    numOfThreads,
+    new ThreadFactoryBuilder().setDaemon(true).setNameFormat("r5-routing-worker-%d").build()
+  )
+  implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(execSvc)
 
   val tickTask: Cancellable =
     context.system.scheduler.schedule(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
@@ -271,7 +291,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
           calcRoute(request)
-            .copy(requestId = Some(request.requestId), staticRequestId = request.staticRequestId)
+            .copy(requestId = request.requestId)
         }
       }
       eventualResponse.onComplete {
@@ -775,19 +795,17 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         )
         RoutingResponse(
           embodiedTrips :+ dummyTrip,
-          routingRequest.staticRequestId,
-          Some(routingRequest.requestId)
+          routingRequest.requestId
         )
       } else {
         //        log.debug("Not adding a dummy walk route since agent has no body.")
         RoutingResponse(
           embodiedTrips,
-          routingRequest.staticRequestId,
-          Some(routingRequest.requestId)
+          routingRequest.requestId
         )
       }
     } else {
-      RoutingResponse(embodiedTrips, routingRequest.staticRequestId, Some(routingRequest.requestId))
+      RoutingResponse(embodiedTrips, routingRequest.requestId)
     }
   }
 
@@ -810,7 +828,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       theTravelPath.duration,
       travelPath = theTravelPath
     )
-    var splitLegs = if (mustParkAtEnd && r5Leg.mode == LegMode.CAR) {
+    val splitLegs = if (mustParkAtEnd && r5Leg.mode == LegMode.CAR) {
       splitLegForParking(theLeg, None)
     } else {
       Vector(theLeg)

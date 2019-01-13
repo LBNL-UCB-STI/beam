@@ -20,7 +20,7 @@ object AvailableModeUtils {
 
   class AllowAllModes extends PermissibleModesCalculator {
     override def getPermissibleModes(plan: Plan): util.Collection[String] = {
-      JavaConverters.asJavaCollection(BeamMode.availableModes.map(_.toString))
+      JavaConverters.asJavaCollection(BeamMode.allBeamModes.map(_.toString))
     }
   }
 
@@ -42,7 +42,6 @@ object AvailableModeUtils {
 
   def isModeAvailableForPerson[T <: BeamMode](
     person: Person,
-    vehicleId: Id[Vehicle],
     mode: BeamMode
   ): Boolean = {
     AvailableModeUtils.availableModesForPerson(person).contains(mode)

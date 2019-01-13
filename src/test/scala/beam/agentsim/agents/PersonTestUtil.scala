@@ -18,6 +18,7 @@ object PersonTestUtil {
         None
       )
     )
+    person.getCustomAttributes.put("rank", 1.asInstanceOf[Object])
   }
 
 }

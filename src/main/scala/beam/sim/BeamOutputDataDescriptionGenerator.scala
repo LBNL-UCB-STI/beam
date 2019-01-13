@@ -2,8 +2,6 @@ package beam.sim
 
 import java.io.{BufferedWriter, FileWriter, IOException}
 
-import scala.collection.JavaConverters._
-
 import akka.actor.ActorSystem
 import beam.agentsim.agents.ridehail
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
@@ -19,6 +17,8 @@ import com.google.inject.Inject
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.ControlerEvent
+
+import scala.collection.JavaConverters._
 
 /**
   * Generate data descriptions table for all output file generating classes.
@@ -112,7 +112,8 @@ object BeamOutputDataDescriptionGenerator {
     RideHailTripDistanceOutputs,
     TripDurationOutputs,
     BiasErrorGraphDataOutputs,
-    BiasNormalizedErrorGraphDataOutputs
+    BiasNormalizedErrorGraphDataOutputs,
+    RideHailFleetInitializer
   )
 
 }

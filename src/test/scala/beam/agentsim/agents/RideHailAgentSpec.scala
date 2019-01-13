@@ -9,7 +9,7 @@ import beam.agentsim.Resource.{NotifyVehicleIdle, ReleaseParkingStall}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent.DrivingInterrupted
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDriving
-import beam.agentsim.agents.ridehail.RideHailAgent
+import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager}
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule, VehiclePersonId}
@@ -153,7 +153,7 @@ class RideHailAgentSpec
     it("should drive around when I tell him to") {
       val vehicleId = Id.createVehicleId(1)
       val beamVehicle =
-        new BeamVehicle(vehicleId, new Powertrain(0.0), None, BeamVehicleType.defaultCarBeamVehicleType)
+        new BeamVehicle(vehicleId, new Powertrain(0.0), None, BeamVehicleType.defaultCarBeamVehicleType, null)
       beamVehicle.manager = Some(self)
       vehicles.put(vehicleId, beamVehicle)
 
@@ -169,9 +169,12 @@ class RideHailAgentSpec
       val rideHailAgent = TestFSMRef(
         new RideHailAgent(
           Id.create("1", classOf[RideHailAgent]),
+          Id.create("1", classOf[RideHailManager]),
           scheduler,
           beamVehicle,
           new Coord(0.0, 0.0),
+          None,
+          None,
           eventsManager,
           zonalParkingManager,
           services,
@@ -225,7 +228,8 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0), /*vehicle*/ None,
-          BeamVehicleType.defaultCarBeamVehicleType
+          BeamVehicleType.defaultCarBeamVehicleType,
+          null
         )
       beamVehicle.manager = Some(self)
       vehicles.put(vehicleId, beamVehicle)
@@ -242,9 +246,12 @@ class RideHailAgentSpec
       val rideHailAgent = TestFSMRef(
         new RideHailAgent(
           Id.create("1", classOf[RideHailAgent]),
+          Id.create("1", classOf[RideHailManager]),
           scheduler,
           beamVehicle,
           new Coord(0.0, 0.0),
+          None,
+          None,
           eventsManager,
           zonalParkingManager,
           services,
@@ -292,7 +299,8 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0), /*vehicle,*/ None,
-          BeamVehicleType.defaultCarBeamVehicleType
+          BeamVehicleType.defaultCarBeamVehicleType,
+          None
         )
       beamVehicle.manager = Some(self)
       vehicles.put(vehicleId, beamVehicle)
@@ -309,9 +317,12 @@ class RideHailAgentSpec
       val rideHailAgent = TestFSMRef(
         new RideHailAgent(
           Id.create("1", classOf[RideHailAgent]),
+          Id.create("1", classOf[RideHailManager]),
           scheduler,
           beamVehicle,
           new Coord(0.0, 0.0),
+          None,
+          None,
           eventsManager,
           zonalParkingManager,
           services,

@@ -31,7 +31,8 @@ class InexhaustibleReservingVehicleFleet(val parkingManager: ActorRef) extends A
         Id.createVehicleId("inexhaustible-shared-vehicle-fleet-" + nextVehicleIndex),
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
       nextVehicleIndex += 1
       vehicle.manager = Some(self)
