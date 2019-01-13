@@ -378,7 +378,7 @@ class RideHailManager(
           eventsManager,
           parkingManager,
           rideHailAgentPersonId,
-          Id.create("RideHailManager", classOf[RideHailManager]),
+          self,
           rideHailBeamVehicle,
           rideInitialLocation,
           None,
@@ -427,7 +427,7 @@ class RideHailManager(
           eventsManager,
           parkingManager,
           rideHailAgentId,
-          rideHailManagerId,
+          self,
           beamVehicle,
           new Coord(fleetData.initialLocationX, fleetData.initialLocationY),
           fleetData.shifts.map(RideHailFleetInitializer.generateRanges),
@@ -456,7 +456,6 @@ class RideHailManager(
         }
         modifyPassengerScheduleManager
           .checkInResource(rideHailAgentLocation.vehicleId, Some(rideHailAgentLocation.currentLocationUTM), None)
-        scheduler ! ScheduleTrigger(InitializeTrigger(0), rideHailAgentRef)
 
         rideHailinitialLocationSpatialPlot
           .addString(StringToPlot(s"${rideHailAgentId}", rideHailAgentLocation.currentLocationUTM.loc, Color.RED, 20))
