@@ -13,7 +13,7 @@ import org.matsim.vehicles.Vehicle
   * @author saf
   */
 case class BeamVehicleType(
-  id: Id[BeamVehicleType],
+  vehicleTypeId: Id[BeamVehicleType],
   seatingCapacity: Int,
   standingRoomCapacity: Int,
   lengthInMeter: Double,

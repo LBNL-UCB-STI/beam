@@ -27,7 +27,7 @@ class MultiModalRoutingSpec extends AbstractSfLightSpec {
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
-            BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+            BeamVehicleType.defaultHumanBodyBeamVehicleType.vehicleTypeId,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true
