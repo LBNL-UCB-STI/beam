@@ -34,7 +34,7 @@ object RideHailAgent {
     eventsManager: EventsManager,
     parkingManager: ActorRef,
     rideHailAgentId: Id[RideHailAgent],
-    rideHailManagerId: Id[RideHailManager],
+    rideHailManager: ActorRef,
     vehicle: BeamVehicle,
     location: Coord,
     shifts: Option[List[Range]],
@@ -43,7 +43,7 @@ object RideHailAgent {
     Props(
       new RideHailAgent(
         rideHailAgentId,
-        rideHailManagerId,
+        rideHailManager,
         scheduler,
         vehicle,
         location,
@@ -128,7 +128,7 @@ object RideHailAgent {
 
 class RideHailAgent(
   override val id: Id[RideHailAgent],
-  rideHailManagerId: Id[RideHailManager],
+  rideHailManager: ActorRef,
   val scheduler: ActorRef,
   vehicle: BeamVehicle,
   initialLocation: Coord,
@@ -176,6 +176,7 @@ class RideHailAgent(
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
       beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
       vehicle.becomeDriver(self)
+      vehicle.manager = Some(rideHailManager)
       eventsManager.processEvent(
         new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_tnc_driver")
       )
