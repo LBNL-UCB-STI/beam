@@ -2,11 +2,13 @@ package beam.sim
 
 import java.io.FileNotFoundException
 
+import akka.actor.Props
 import beam.agentsim.agents.choice.mode.Range
+import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
-import beam.sim.RideHailFleetInitializer.FleetData
+import beam.sim.RideHailFleetInitializer.RideHailAgentData
 import beam.utils.{FileUtils, OutputDataDescriptor}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
@@ -23,7 +25,7 @@ class RideHailFleetInitializer extends LazyLogging {
     */
   def init(
     beamServices: BeamServices
-  ): List[(FleetData, BeamVehicle)] = {
+  ): List[(RideHailAgentData, BeamVehicle)] = {
     val filePath = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.filename
     readFleetFromCSV(
       filePath,
@@ -39,7 +41,7 @@ class RideHailFleetInitializer extends LazyLogging {
   private def readFleetFromCSV(
     filePath: String,
     beamServices: BeamServices
-  ): List[(FleetData, BeamVehicle)] = {
+  ): List[(RideHailAgentData, BeamVehicle)] = {
     try {
       //read csv data from the given file path
       val bufferedSource = Source.fromFile(filePath)
@@ -66,7 +68,7 @@ class RideHailFleetInitializer extends LazyLogging {
         val invalidIndices: Map[String, Int] = keyIndices.filter(k => k._2 == -1)
         // validate for any missing fields and throw an error (if any)
         if (invalidIndices.isEmpty) {
-          val rideHailAgents: Seq[(FleetData, BeamVehicle)] =
+          val rideHailAgents: Seq[(RideHailAgentData, BeamVehicle)] =
             //for each data entry in the csv file
             bufferedSource.getLines().toList.drop(1).map(s => s.split(",")).flatMap { row =>
               try {
@@ -81,7 +83,7 @@ class RideHailFleetInitializer extends LazyLogging {
                   if (row(keyIndices.getOrElse(attr_geofenceRadius, -1)).isEmpty) None
                   else Some(row(keyIndices.getOrElse(attr_geofenceRadius, -1)).toDouble)
 
-                val fleetData: FleetData = FleetData(
+                val fleetData: RideHailAgentData = RideHailAgentData(
                   id = row(keyIndices.getOrElse(attr_id, -1)),
                   rideHailManagerId = row(keyIndices.getOrElse(attr_rideHailManagerId, -1)),
                   vehicleType = row(keyIndices.getOrElse(attr_vehicleType, -1)),
@@ -126,15 +128,15 @@ class RideHailFleetInitializer extends LazyLogging {
         }
       } else {
         logger.error(s"Input file is empty - $filePath")
-        List.empty[(FleetData, BeamVehicle)]
+        List.empty[(RideHailAgentData, BeamVehicle)]
       }
     } catch {
       case fne: FileNotFoundException =>
         logger.error(s"No file found at path - $filePath", fne)
-        List.empty[(FleetData, BeamVehicle)]
+        List.empty[(RideHailAgentData, BeamVehicle)]
       case e: Exception =>
         logger.error("Error while reading an entry of ride-hail-fleet.csv as RideHailAgent : " + e.getMessage, e)
-        List.empty[(FleetData, BeamVehicle)]
+        List.empty[(RideHailAgentData, BeamVehicle)]
     }
   }
 
@@ -143,7 +145,7 @@ class RideHailFleetInitializer extends LazyLogging {
     * @param beamServices beam services isntance
     * @param fleetData data to be written
     */
-  def writeFleetData(beamServices: BeamServices, fleetData: List[FleetData]): Unit = {
+  def writeFleetData(beamServices: BeamServices, fleetData: List[RideHailAgentData]): Unit = {
     try {
       if (beamServices.matsimServices == null || beamServices.matsimServices.getControlerIO == null) return
       val filePath = beamServices.matsimServices.getControlerIO
@@ -151,7 +153,7 @@ class RideHailFleetInitializer extends LazyLogging {
           beamServices.matsimServices.getIterationNumber,
           RideHailFleetInitializer.outputFileBaseName + ".csv.gz"
         )
-      val fileHeader = classOf[FleetData].getDeclaredFields.map(_.getName).mkString(", ")
+      val fileHeader = classOf[RideHailAgentData].getDeclaredFields.map(_.getName).mkString(", ")
       val data = fleetData map { f =>
         f.productIterator.map(f => if (f == None) "" else f) mkString ", "
       } mkString "\n"
@@ -161,6 +163,7 @@ class RideHailFleetInitializer extends LazyLogging {
         logger.error("Error while writing procedurally initialized ride hail fleet data to csv ", e)
     }
   }
+
 
 }
 
@@ -218,7 +221,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor {
     * @param shifts time shifts for the vehicle , usually a stringified collection of time ranges
     * @param geofence geo fence values
     */
-  case class FleetData(
+  case class RideHailAgentData(
     id: String,
     rideHailManagerId: String,
     vehicleType: String,

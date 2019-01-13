@@ -80,7 +80,7 @@ class FixedNonReservingVehicleFleet(val parkingManager: ActorRef, val locations:
             log.error("Didn't find a vehicle in my spatial index, at the location I thought it would be.")
           }
           who ! Boarded(vehicle)
-          println("Checked out " + vehicleId)
+//          println("Checked out " + vehicleId)
         case None =>
           who ! NotAvailable
       }
@@ -91,7 +91,7 @@ class FixedNonReservingVehicleFleet(val parkingManager: ActorRef, val locations:
         new Envelope(new Coordinate(vehicle.spaceTime.loc.getX, vehicle.spaceTime.loc.getY)),
         vehicle
       )
-      println("Checked in " + vehicle.id)
+//      println("Checked in " + vehicle.id)
 
   }
 
