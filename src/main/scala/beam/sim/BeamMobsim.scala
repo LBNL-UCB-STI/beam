@@ -289,9 +289,7 @@ class BeamMobsim @Inject()(
               startSegment("agentsim-events", "agentsim")
 
               population ! Finish
-              val future = rideHailManager.ask(NotifyIterationEnds())
-              Await.ready(future, timeout.duration).value
-              context.stop(rideHailManager)
+              rideHailManager ! Finish
               context.stop(scheduler)
               context.stop(errorListener)
               context.stop(parkingManager)
