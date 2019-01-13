@@ -35,7 +35,7 @@ import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.RideHailFleetInitializer.RideHailAgentData
-import beam.sim.{BeamServices, HasServices, OutputDataDescription, RideHailFleetInitializer}
+import beam.sim._
 import beam.utils._
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
@@ -336,14 +336,18 @@ class RideHailManager(
               null
           }
 
-        fleetData = fleetData :+ createRideHailVehicleAndAgent(person.getId.toString,rideInitialLocation)
+        fleetData = fleetData :+ createRideHailVehicleAndAgent(person.getId.toString,rideInitialLocation, None, None)
       }
 
       new RideHailFleetInitializer().writeFleetData(beamServices, fleetData)
 
     case "FILE" =>
-      new RideHailFleetInitializer().init(beamServices) foreach { case (fleetData, beamVehicle) =>
-        createRideHailVehicleAndAgent(fleetData.id.split("-")(1),new Coord(fleetData.initialLocationX,fleetData.initialLocationY))
+      new RideHailFleetInitializer().init(beamServices) foreach { fleetData =>
+        createRideHailVehicleAndAgent(fleetData.id.split("-")(1),
+          new Coord(fleetData.initialLocationX,fleetData.initialLocationY),
+          fleetData.shifts.map(_.split(";").map(beam.sim.common.Range(_)).toList),
+          fleetData.geofence
+        )
       }
     case _ =>
       log.error(
@@ -891,7 +895,7 @@ class RideHailManager(
 
   }
 
-  def createRideHailVehicleAndAgent(rideHailAgentIdentifier: String, rideInitialLocation: Coord): RideHailAgentData = {
+  def createRideHailVehicleAndAgent(rideHailAgentIdentifier: String, rideInitialLocation: Coord, shifts: Option[List[beam.sim.common.Range]], geofence: Option[Geofence]): RideHailAgentData = {
     val rideHailAgentName = s"rideHailAgent-${rideHailAgentIdentifier}"
     val rideHailVehicleId = BeamVehicle.createId(rideHailAgentIdentifier, Some("rideHailVehicle"))
     val ridehailBeamVehicleTypeId =
@@ -909,9 +913,9 @@ class RideHailManager(
     val rideHailBeamVehicle = new BeamVehicle(
       rideHailVehicleId,
       powertrain,
-      None,
       ridehailBeamVehicleType
     )
+    rideHailBeamVehicle.spaceTime = SpaceTime((rideInitialLocation,0))
     rideHailBeamVehicle.manager = Some(self)
     resources += (rideHailVehicleId -> rideHailBeamVehicle)
     vehicleManager.vehicleState.put(rideHailBeamVehicle.id, rideHailBeamVehicle.getState)
@@ -927,8 +931,8 @@ class RideHailManager(
       self,
       rideHailBeamVehicle,
       rideInitialLocation,
-      None,
-      None
+      shifts,
+      geofence
     )
 
     val rideHailAgentRef: ActorRef =

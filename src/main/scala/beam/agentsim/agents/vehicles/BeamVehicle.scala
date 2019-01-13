@@ -38,7 +38,6 @@ import org.matsim.vehicles.Vehicle
 class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
-  val initialMatsimAttributes: Option[ObjectAttributes],
   val beamVehicleType: BeamVehicleType
 ) extends StrictLogging {
 

@@ -58,7 +58,6 @@ class BicycleFactory(scenario: Scenario, beamServices: BeamServices) {
           new BeamVehicle(
             bicycleId,
             powertrain,
-            None,
             beamVehicleType
           )
         )

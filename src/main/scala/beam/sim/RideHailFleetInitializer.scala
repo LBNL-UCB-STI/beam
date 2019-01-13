@@ -3,12 +3,12 @@ package beam.sim
 import java.io.FileNotFoundException
 
 import akka.actor.Props
-import beam.agentsim.agents.choice.mode.Range
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.sim.RideHailFleetInitializer.RideHailAgentData
+import beam.sim.common.Range
 import beam.utils.{FileUtils, OutputDataDescriptor}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
@@ -25,7 +25,7 @@ class RideHailFleetInitializer extends LazyLogging {
     */
   def init(
     beamServices: BeamServices
-  ): List[(RideHailAgentData, BeamVehicle)] = {
+  ): List[RideHailAgentData] = {
     val filePath = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.filename
     readFleetFromCSV(
       filePath,
@@ -41,7 +41,7 @@ class RideHailFleetInitializer extends LazyLogging {
   private def readFleetFromCSV(
     filePath: String,
     beamServices: BeamServices
-  ): List[(RideHailAgentData, BeamVehicle)] = {
+  ): List[RideHailAgentData] = {
     try {
       //read csv data from the given file path
       val bufferedSource = Source.fromFile(filePath)
@@ -68,7 +68,7 @@ class RideHailFleetInitializer extends LazyLogging {
         val invalidIndices: Map[String, Int] = keyIndices.filter(k => k._2 == -1)
         // validate for any missing fields and throw an error (if any)
         if (invalidIndices.isEmpty) {
-          val rideHailAgents: Seq[(RideHailAgentData, BeamVehicle)] =
+          val rideHailAgents: Seq[RideHailAgentData] =
             //for each data entry in the csv file
             bufferedSource.getLines().toList.drop(1).map(s => s.split(",")).flatMap { row =>
               try {
@@ -98,21 +98,7 @@ class RideHailFleetInitializer extends LazyLogging {
                     else Some(row(keyIndices.getOrElse(attr_shifts, -1))),
                   geofence = Some(Geofence(geofenceX, geofenceY, geofenceRadius))
                 )
-                val vehicleTypeId = Id.create(fleetData.vehicleType, classOf[BeamVehicleType])
-                val vehicleType =
-                  beamServices.vehicleTypes.getOrElse(vehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
-                val powertrain = Option(vehicleType.primaryFuelConsumptionInJoulePerMeter)
-                  .map(new Powertrain(_))
-                  .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
-                //generate the beam vehicle object from the data read from the input file
-                val beamVehicle = new BeamVehicle(
-                  Id.create(fleetData.id, classOf[BeamVehicle]),
-                  powertrain,
-                  None,
-                  vehicleType
-                )
-                // map fleet data to the respective vehicle
-                Some(fleetData -> beamVehicle)
+                Some(fleetData)
               } catch {
                 case e: Exception =>
                   logger
@@ -128,15 +114,15 @@ class RideHailFleetInitializer extends LazyLogging {
         }
       } else {
         logger.error(s"Input file is empty - $filePath")
-        List.empty[(RideHailAgentData, BeamVehicle)]
+        List.empty[RideHailAgentData]
       }
     } catch {
       case fne: FileNotFoundException =>
         logger.error(s"No file found at path - $filePath", fne)
-        List.empty[(RideHailAgentData, BeamVehicle)]
+        List.empty[RideHailAgentData]
       case e: Exception =>
         logger.error("Error while reading an entry of ride-hail-fleet.csv as RideHailAgent : " + e.getMessage, e)
-        List.empty[(RideHailAgentData, BeamVehicle)]
+        List.empty[RideHailAgentData]
     }
   }
 

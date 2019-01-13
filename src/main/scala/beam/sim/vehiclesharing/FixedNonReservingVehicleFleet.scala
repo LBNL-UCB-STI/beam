@@ -34,7 +34,6 @@ class FixedNonReservingVehicleFleet(val parkingManager: ActorRef, val locations:
       val vehicle = new BeamVehicle(
         Id.createVehicleId("fixed-non-reserving-vehicle-fleet-" + ix),
         new Powertrain(0.0),
-        None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
       vehicle.manager = Some(self)

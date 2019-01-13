@@ -195,7 +195,6 @@ class PersonAgent(
   val body = new BeamVehicle(
     BeamVehicle.createId(id, Some("body")),
     BeamVehicleType.powerTrainForHumanBody,
-    None,
     BeamVehicleType.defaultHumanBodyBeamVehicleType
   )
   body.manager = Some(self)

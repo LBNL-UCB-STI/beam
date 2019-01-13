@@ -342,14 +342,12 @@ class PersonAgentSpec
       val bus = new BeamVehicle(
         id = busId,
         powerTrain = new Powertrain(0.0),
-        initialMatsimAttributes = None,
         beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
       )
       val tramId = Id.createVehicleId("my_tram")
       val tram = new BeamVehicle(
         id = tramId,
         powerTrain = new Powertrain(0.0),
-        initialMatsimAttributes = None,
         beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
       )
 
