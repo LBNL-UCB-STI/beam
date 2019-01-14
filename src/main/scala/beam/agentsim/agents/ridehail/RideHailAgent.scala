@@ -2,7 +2,7 @@ package beam.agentsim.agents.ridehail
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props, Stash}
-import beam.agentsim.Resource.{NotifyVehicleIdle, ReleaseParkingStall}
+import beam.agentsim.Resource.{NotifyVehicleIdle, NotifyVehicleOutOfService, ReleaseParkingStall}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
@@ -204,7 +204,7 @@ class RideHailAgent(
           Some(triggerId)
         )
         holdTickAndTriggerId(tick,triggerId)
-        goto(Idle) replying CompletionNotice(triggerId) using data
+        goto(Idle) using data
           .copy(currentVehicle = Vector(vehicle.id))
       }else{
         val nextShiftStartTime = shifts.get.head.lowerBound
@@ -214,8 +214,8 @@ class RideHailAgent(
       }
   }
   when(Offline){
-    case Event(TriggerWithId(StartShiftTrigger(tick),triggerId),RideHailAgentData(_,_,_,_,thisShift::remaining)) =>
-      log.debug("state(RideHailingAgent.Offline): starting shift")
+    case Event(TriggerWithId(StartShiftTrigger(tick),triggerId),_) =>
+      log.debug("state(RideHailingAgent.Offline): starting shift {}",id)
       rideHailManager ! NotifyVehicleIdle(vehicle.id,
         vehicle.spaceTime,
         PassengerSchedule(),
@@ -223,8 +223,7 @@ class RideHailAgent(
         Some(triggerId)
       )
       holdTickAndTriggerId(tick,triggerId)
-      goto(Idle) replying CompletionNotice(triggerId,Vector(ScheduleTrigger(EndShiftTrigger(thisShift.upperBound),self))) using stateData
-        .copy(remainingShifts = remaining)
+      goto(Idle)
   }
 
   when(Idle) {
@@ -234,6 +233,7 @@ class RideHailAgent(
       }else{
         Vector(ScheduleTrigger(StartShiftTrigger(remaining.head.lowerBound),self))
       }
+      rideHailManager ! NotifyVehicleOutOfService(vehicle.id)
       goto(Offline) replying CompletionNotice(triggerId,newShiftToSchedule) using stateData
         .copy(remainingShifts = remaining)
     case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
@@ -244,10 +244,17 @@ class RideHailAgent(
             triggerId: Option[Long],
             newTriggers: Seq[ScheduleTrigger]
           ),
-          _
+          data
         ) =>
       log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
-      handleNotifyVehicleResourceIdleReply(triggerId, newTriggers)
+      data.remainingShifts.isEmpty match{
+        case true =>
+          handleNotifyVehicleResourceIdleReply(triggerId, newTriggers)
+          stay
+        case false =>
+          handleNotifyVehicleResourceIdleReply(triggerId, newTriggers :+ ScheduleTrigger(EndShiftTrigger(data.remainingShifts.head.upperBound),self))
+          stay using data.copy(remainingShifts = data.remainingShifts.tail)
+      }
     case ev @ Event(
           TriggerWithId(EndRefuelTrigger(tick, sessionStart, energyInJoules), triggerId),
           data
@@ -325,14 +332,15 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       stay() replying InterruptedWhileIdle(interruptId, vehicle.id, tick)
     case ev @ Event(
-          NotifyVehicleResourceIdleReply(
-            triggerId: Option[Long],
-            newTriggers: Seq[ScheduleTrigger]
-          ),
-          _
-        ) =>
+    NotifyVehicleResourceIdleReply(
+    triggerId: Option[Long],
+    newTriggers: Seq[ScheduleTrigger]
+    ),
+    data @ RideHailAgentData(_,_,_,_,thisShift::remaining)
+    ) =>
       log.debug("state(RideHailingAgent.IdleInterrupted.NotifyVehicleResourceIdleReply): {}", ev)
-      handleNotifyVehicleResourceIdleReply(triggerId, newTriggers)
+      handleNotifyVehicleResourceIdleReply(triggerId, newTriggers :+ ScheduleTrigger(EndShiftTrigger(thisShift.upperBound),self))
+      stay using data.copy(remainingShifts = remaining)
   }
 
   when(PassengerScheduleEmpty) {
@@ -374,7 +382,7 @@ class RideHailAgent(
   def handleNotifyVehicleResourceIdleReply(
     receivedtriggerId: Option[Long],
     newTriggers: Seq[ScheduleTrigger]
-  ): State = {
+  ): Unit = {
     _currentTriggerId match {
       case Some(_) =>
         val (_, triggerId) = releaseTickAndTriggerId()
@@ -391,7 +399,6 @@ class RideHailAgent(
       case None =>
         log.error("RHA {}: was expecting to release a triggerId but None found", id)
     }
-    stay()
   }
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))

@@ -345,7 +345,7 @@ class RideHailManager(
       new RideHailFleetInitializer().init(beamServices) foreach { fleetData =>
         createRideHailVehicleAndAgent(fleetData.id.split("-")(1),
           new Coord(fleetData.initialLocationX,fleetData.initialLocationY),
-          fleetData.shifts.map(_.split(";").map(beam.sim.common.Range(_)).toList),
+          fleetData.shifts,
           fleetData.geofence
         )
       }
@@ -393,6 +393,9 @@ class RideHailManager(
         case Terminated(_) =>
           dieIfNoChildren()
       }
+
+    case  NotifyVehicleOutOfService(vehicleId) =>
+      vehicleManager.putOutOfService(vehicleManager.getRideHailAgentLocation(vehicleId))
 
     case ev @ NotifyVehicleIdle(
           vId,
@@ -895,7 +898,7 @@ class RideHailManager(
 
   }
 
-  def createRideHailVehicleAndAgent(rideHailAgentIdentifier: String, rideInitialLocation: Coord, shifts: Option[List[beam.sim.common.Range]], geofence: Option[Geofence]): RideHailAgentData = {
+  def createRideHailVehicleAndAgent(rideHailAgentIdentifier: String, rideInitialLocation: Coord, shifts: Option[String], geofence: Option[Geofence]): RideHailAgentData = {
     val rideHailAgentName = s"rideHailAgent-${rideHailAgentIdentifier}"
     val rideHailVehicleId = BeamVehicle.createId(rideHailAgentIdentifier, Some("rideHailVehicle"))
     val ridehailBeamVehicleTypeId =
@@ -931,7 +934,7 @@ class RideHailManager(
       self,
       rideHailBeamVehicle,
       rideInitialLocation,
-      shifts,
+      shifts.map(_.split(";").map(beam.sim.common.Range(_)).toList),
       geofence
     )
 
@@ -939,6 +942,10 @@ class RideHailManager(
       context.actorOf(rideHailAgentProps, rideHailAgentName)
     context.watch(rideHailAgentRef)
     scheduler ! ScheduleTrigger(InitializeTrigger(0), rideHailAgentRef)
+
+    val agentLocation = RideHailAgentLocation(rideHailAgentRef,rideHailBeamVehicle.id,ridehailBeamVehicleTypeId,SpaceTime(rideInitialLocation,0))
+    // Put the agent out of service and let the agent tell us when it's Idle (aka ready for service)
+    vehicleManager.putOutOfService(agentLocation)
 
     rideHailinitialLocationSpatialPlot
       .addString(StringToPlot(s"${rideHailAgentIdentifier}", rideInitialLocation, Color.RED, 20))
@@ -952,8 +959,8 @@ class RideHailManager(
       vehicleType = rideHailBeamVehicle.beamVehicleType.toString,
       initialLocationX = rideInitialLocation.getX,
       initialLocationY = rideInitialLocation.getY,
-      shifts = None,
-      geofence = None
+      shifts = shifts,
+      geofence = geofence
     )
   }
 
