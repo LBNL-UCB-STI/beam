@@ -7,11 +7,7 @@ import beam.agentsim.agents.PersonAgent.{DrivingData, PassengerScheduleEmpty, Ve
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
-import beam.agentsim.agents.vehicles.VehicleProtocol.{
-  BecomeDriverOfVehicleSuccess,
-  DriverAlreadyAssigned,
-  NewDriverAlreadyControllingVehicle
-}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -35,6 +31,7 @@ object TransitDriverAgent {
     transportNetwork: TransportNetwork,
     tollCalculator: TollCalculator,
     eventsManager: EventsManager,
+    actorEventsManager: ActorRef,
     parkingManager: ActorRef,
     transitDriverId: Id[TransitDriverAgent],
     vehicle: BeamVehicle,
@@ -47,6 +44,7 @@ object TransitDriverAgent {
         transportNetwork,
         tollCalculator,
         eventsManager,
+        actorEventsManager,
         parkingManager,
         transitDriverId,
         vehicle,
@@ -90,6 +88,7 @@ class TransitDriverAgent(
   val transportNetwork: TransportNetwork,
   val tollCalculator: TollCalculator,
   val eventsManager: EventsManager,
+  val actorEventsManager: ActorRef,
   val parkingManager: ActorRef,
   val transitDriverId: Id[TransitDriverAgent],
   val vehicle: BeamVehicle,
@@ -121,11 +120,8 @@ class TransitDriverAgent(
             )
           )
         case NewDriverAlreadyControllingVehicle | BecomeDriverOfVehicleSuccess =>
-          eventsManager.processEvent(
-            new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_transit_driver")
-          )
-          eventsManager
-            .processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
+          actorEventsManager ! new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_transit_driver")
+          actorEventsManager ! new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id)
           val schedule = data.passengerSchedule.addLegs(legs)
           goto(WaitingToDrive) using data
             .copy(currentVehicle = Vector(vehicle.id))

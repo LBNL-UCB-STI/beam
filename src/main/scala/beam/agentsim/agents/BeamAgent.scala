@@ -30,6 +30,7 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash with HasTick
 
   val scheduler: ActorRef
   val eventsManager: EventsManager
+  val actorEventsManager: ActorRef
 
   protected implicit val timeout: util.Timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
 

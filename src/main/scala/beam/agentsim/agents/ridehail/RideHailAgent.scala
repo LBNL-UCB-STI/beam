@@ -8,25 +8,15 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.choice.mode.Range
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
-  EndLegTrigger,
-  EndRefuelTrigger,
-  StartLegTrigger,
-  StartRefuelTrigger
-}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{EndLegTrigger, EndRefuelTrigger, StartLegTrigger, StartRefuelTrigger}
 import beam.agentsim.agents.ridehail.RideHailAgent._
-import beam.agentsim.agents.vehicles.VehicleProtocol.{
-  BecomeDriverOfVehicleSuccess,
-  DriverAlreadyAssigned,
-  NewDriverAlreadyControllingVehicle
-}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.{RefuelEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.model.RoutingModel
 import beam.router.osm.TollCalculator
 import beam.sim.{BeamServices, Geofence}
 import com.conveyal.r5.transit.TransportNetwork
@@ -44,6 +34,7 @@ object RideHailAgent {
     transportNetwork: TransportNetwork,
     tollCalculator: TollCalculator,
     eventsManager: EventsManager,
+    actorEventsManager: ActorRef,
     parkingManager: ActorRef,
     rideHailAgentId: Id[RideHailAgent],
     rideHailManagerId: Id[RideHailManager],
@@ -62,6 +53,7 @@ object RideHailAgent {
         shifts,
         geofence,
         eventsManager,
+        actorEventsManager,
         parkingManager,
         services,
         transportNetwork,
@@ -146,6 +138,7 @@ class RideHailAgent(
   shifts: Option[List[Range]],
   geofence: Option[Geofence],
   val eventsManager: EventsManager,
+  val actorEventsManager: ActorRef,
   val parkingManager: ActorRef,
   val beamServices: BeamServices,
   val transportNetwork: TransportNetwork,
@@ -196,10 +189,10 @@ class RideHailAgent(
           )
         case NewDriverAlreadyControllingVehicle | BecomeDriverOfVehicleSuccess =>
           vehicle.checkInResource(Some(SpaceTime(initialLocation, tick)), context.dispatcher)
-          eventsManager.processEvent(
+          actorEventsManager !(
             new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_tnc_driver")
           )
-          eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
+          actorEventsManager !(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
           goto(Idle) replying CompletionNotice(triggerId) using data
             .copy(currentVehicle = Vector(vehicle.id))
       }
@@ -229,7 +222,7 @@ class RideHailAgent(
           val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
           log.debug("Ending refuel session for {}", theVehicle.id)
           theVehicle.addFuel(energyInJoules)
-          eventsManager.processEvent(
+          actorEventsManager !  (
             new RefuelEvent(
               tick,
               theVehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(theVehicle.stall.get.locationUTM)),

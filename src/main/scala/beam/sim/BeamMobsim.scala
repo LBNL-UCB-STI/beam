@@ -6,23 +6,15 @@ import java.util
 import java.util.Random
 import java.util.concurrent.TimeUnit
 import java.util.stream.Stream
+
 import akka.actor.Status.Success
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, Props, Terminated}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleStateUpdate
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTrigger,
-  NotifyIterationEnds,
-  RideHailRepositioningTrigger
-}
-import beam.agentsim.agents.ridehail.{
-  RideHailAgent,
-  RideHailIterationHistory,
-  RideHailManager,
-  RideHailSurgePricingManager
-}
+import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, NotifyIterationEnds, RideHailRepositioningTrigger}
+import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
@@ -31,7 +23,7 @@ import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
-import beam.router.BeamRouter.{InitTransit, UpdateTravelTimeLocal, UpdateTravelTimeRemote}
+import beam.router.BeamRouter.InitTransit
 import beam.router.FreeFlowTravelTime
 import beam.router.osm.TollCalculator
 import beam.sim.metrics.MetricsSupport
@@ -44,7 +36,6 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
@@ -84,7 +75,12 @@ class BeamMobsim @Inject()(
   var debugActorWithTimerActorRef: ActorRef = _
   var debugActorWithTimerCancellable: Cancellable = _
 
+  val actorEventsManager: ActorRef = Await.result(actorSystem.actorSelection("/user/ActorEventsManager").resolveOne(5.seconds), 5.seconds)
+  println(actorEventsManager)
+
   final val fileBaseName = "rideHailInitialLocation"
+
+
   /*
     var rideHailSurgePricingManager: RideHailSurgePricingManager = injector.getInstance(classOf[BeamServices])
     new RideHailSurgePricingManager(beamServices.beamConfig,beamServices.taz);*/
@@ -213,7 +209,8 @@ class BeamMobsim @Inject()(
               beamServices.beamRouter,
               rideHailManager,
               parkingManager,
-              eventsManager
+              eventsManager,
+              actorEventsManager
             ),
             "population"
           )
@@ -354,6 +351,7 @@ class BeamMobsim @Inject()(
                     transportNetwork,
                     tollCalculator,
                     eventsManager,
+                    actorEventsManager,
                     parkingManager,
                     rideHailAgentPersonId,
                     Id.create("RideHailManager", classOf[RideHailManager]),
@@ -410,6 +408,7 @@ class BeamMobsim @Inject()(
                     transportNetwork,
                     tollCalculator,
                     eventsManager,
+                    actorEventsManager,
                     parkingManager,
                     rideHailAgentId,
                     rideHailManagerId,

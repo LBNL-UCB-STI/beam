@@ -38,7 +38,8 @@ class Population(
   val router: ActorRef,
   val rideHailManager: ActorRef,
   val parkingManager: ActorRef,
-  val eventsManager: EventsManager
+  val eventsManager: EventsManager,
+  val actorEventsManager: ActorRef,
 ) extends Actor
     with ActorLogging {
 
@@ -133,6 +134,7 @@ class Population(
               rideHailManager,
               parkingManager,
               eventsManager,
+              actorEventsManager,
               scenario.getPopulation,
               household.getId,
               household,
@@ -219,7 +221,8 @@ object Population {
     router: ActorRef,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
-    eventsManager: EventsManager
+    eventsManager: EventsManager,
+    actorEventsManager: ActorRef,
   ): Props = {
     Props(
       new Population(
@@ -231,7 +234,8 @@ object Population {
         router,
         rideHailManager,
         parkingManager,
-        eventsManager
+        eventsManager,
+        actorEventsManager
       )
     )
   }

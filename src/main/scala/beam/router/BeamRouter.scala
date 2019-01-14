@@ -5,18 +5,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.{Status, Success}
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  Address,
-  Cancellable,
-  ExtendedActorSystem,
-  Props,
-  RelativeActorPath,
-  RootActorPath,
-  Stash
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, Address, Cancellable, ExtendedActorSystem, Props, RelativeActorPath, RootActorPath, Stash}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
@@ -32,8 +21,6 @@ import beam.router.model._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
 import beam.sim.BeamServices
-import beam.sim.metrics.MetricsPrinter
-import beam.sim.metrics.MetricsPrinter.Subscribe
 import beam.sim.population.AttributesOfIndividual
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
@@ -55,6 +42,7 @@ class BeamRouter(
   network: Network,
   scenario: Scenario,
   eventsManager: EventsManager,
+  actorEventsManager: ActorRef,
   transitVehicles: Vehicles,
   fareCalculator: FareCalculator,
   tollCalculator: TollCalculator
@@ -410,6 +398,7 @@ class BeamRouter(
             transportNetwork,
             tollCalculator,
             eventsManager,
+            actorEventsManager,
             parkingManager,
             transitDriverId,
             vehicle,
@@ -496,6 +485,7 @@ object BeamRouter {
     network: Network,
     scenario: Scenario,
     eventsManager: EventsManager,
+    actorEventsManager: ActorRef,
     transitVehicles: Vehicles,
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator
@@ -509,6 +499,7 @@ object BeamRouter {
         network,
         scenario,
         eventsManager,
+        actorEventsManager,
         transitVehicles,
         fareCalculator,
         tollCalculator
