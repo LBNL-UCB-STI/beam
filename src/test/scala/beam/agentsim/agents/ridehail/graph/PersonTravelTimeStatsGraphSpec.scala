@@ -139,12 +139,13 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
         }
       }
 
-      val testConfig = baseConfig.withValue(
-        "beam.outputs.events.overrideWritingLevels",
+      val testConfig = baseConfig
+        .withValue(
+        "beam.outputs.events.eventsToWrite",
         ConfigValueFactory.fromAnyRef(
-          "org.matsim.api.core.v01.events.PersonArrivalEvent:VERBOSE,org.matsim.api.core.v01.events.PersonDepartureEvent:VERBOSE"
+          s"${baseConfig.getString("beam.outputs.events.eventsToWrite")},PersonArrivalEvent,PersonDepartureEvent"
         )
-      )
+      ).resolve()
 
       GraphRunHelper(
         new AbstractModule() {
