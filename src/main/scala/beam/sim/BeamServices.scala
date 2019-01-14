@@ -54,7 +54,7 @@ trait BeamServices {
 
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
   val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType]
-  val fuelTypePrices: TrieMap[FuelType, Double]
+  val fuelTypePrices: Map[FuelType, Double]
 
   var matsimServices: MatsimServices
   val tazTreeMap: TAZTreeMap
@@ -99,9 +99,8 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   ] = TrieMap()
   var personHouseholds: Map[Id[Person], Household] = Map()
 
-  // TODO Fix me once `TrieMap` is removed
-  val fuelTypePrices: TrieMap[FuelType, Double] =
-    TrieMap(readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toSeq: _*)
+  val fuelTypePrices: Map[FuelType, Double] =
+    readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
 
   // TODO Fix me once `TrieMap` is removed
   val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =

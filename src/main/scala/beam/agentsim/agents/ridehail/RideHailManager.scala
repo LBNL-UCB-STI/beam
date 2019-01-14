@@ -208,7 +208,10 @@ class RideHailManager(
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy(maxNrOfRetries = 0) {
-      case _: Exception      => Stop
+      case e: Exception      => {
+        println(e)
+        Stop
+      }
       case _: AssertionError => Stop
     }
 
