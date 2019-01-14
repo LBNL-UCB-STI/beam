@@ -12,18 +12,13 @@ object DrivingCostDefaults {
   val zero: Double = 0
 
   def estimateFuelCost(leg: BeamLeg, vehicleTypeId: Id[BeamVehicleType], beamServices: BeamServices): Double = {
-    // TODO: Why can this be empty?
     val maybeBeamVehicleType = beamServices.vehicleTypes.get(vehicleTypeId)
     val beamVehicleType = maybeBeamVehicleType.getOrElse(BeamVehicleType.defaultCarBeamVehicleType)
     val distance = leg.travelPath.distanceInM
     if (null != beamVehicleType && null != beamVehicleType.primaryFuelType && 0.0 != beamVehicleType.primaryFuelConsumptionInJoulePerMeter) {
-      if (beamServices.fuelTypePrices.keySet.contains(beamVehicleType.primaryFuelType)) {
-        (distance * beamVehicleType.primaryFuelConsumptionInJoulePerMeter * beamServices.fuelTypePrices(
-          beamVehicleType.primaryFuelType
-        )) / 1000000.0
-      } else {
-        zero
-      }
+      (distance * beamVehicleType.primaryFuelConsumptionInJoulePerMeter * beamServices.fuelTypePrices(
+        beamVehicleType.primaryFuelType
+      )) / 1000000
     } else {
       0 //TODO
     }
