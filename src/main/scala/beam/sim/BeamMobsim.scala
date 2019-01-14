@@ -140,16 +140,16 @@ class BeamMobsim @Inject()(
 
         private val sharedVehicleFleets =
           Vector(
-            context
-              .actorOf(
-                Props(new InexhaustibleReservingVehicleFleet(parkingManager)),
-                "inexhaustible-shared-vehicle-fleet"
-              ),
-            context
-              .actorOf(
-                Props(new FixedNonReservingVehicleFleet(parkingManager, initialSharedVehicleLocations)),
-                "fixed-non-reserving-vehicle-fleet"
-              ),
+//            context
+//              .actorOf(
+//                Props(new InexhaustibleReservingVehicleFleet(parkingManager)),
+//                "inexhaustible-shared-vehicle-fleet"
+//              ),
+//            context
+//              .actorOf(
+//                Props(new FixedNonReservingVehicleFleet(parkingManager, initialSharedVehicleLocations)),
+//                "fixed-non-reserving-vehicle-fleet"
+//              ),
           )
         sharedVehicleFleets.foreach(context.watch)
 
