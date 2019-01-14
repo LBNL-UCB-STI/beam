@@ -355,7 +355,8 @@ class SingleModeSpec
       mobsim.run()
       events.collect {
         case event: PersonDepartureEvent =>
-          assert(event.getLegMode == "car" || event.getLegMode == "be_a_tnc_driver")
+          // Not everybody has a car
+          assert(event.getLegMode == "walk" || event.getLegMode == "car" || event.getLegMode == "be_a_tnc_driver")
       }
     }
   }
