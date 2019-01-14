@@ -1,32 +1,31 @@
 package beam.agentsim.agents.ridehail
 
+import java.util.UUID
+
 import beam.agentsim.agents.vehicles.VehiclePersonId
 import beam.router.BeamRouter.Location
-import beam.router.RoutingModel.{BeamTime, DiscreteTime}
 import org.apache.commons.lang.builder.HashCodeBuilder
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
 case class RideHailRequest(
   requestType: RideHailRequestType,
   customer: VehiclePersonId,
-  pickUpLocation: Location,
-  departAt: BeamTime,
-  destination: Location
+  pickUpLocationUTM: Location,
+  departAt: Int,
+  destinationUTM: Location,
+  asPooled: Boolean = false,
+  groupedWithOtherRequests: List[RideHailRequest] = List(),
+  requestId: Int = UUID.randomUUID().hashCode()
 ) {
-  /**
-   * Returns a unique identifiable value based on the fields. Field requestType should not be part of the hash.
-   * @return hashCode(customer, pickUpLocation, departAt, destination)
-   */
-  lazy val requestId: Int = {
-    new HashCodeBuilder()
-      .append(customer)
-      .append(pickUpLocation)
-      .append(departAt)
-      .append(destination)
-      .toHashCode
-  }
+
+  def addSubRequest(subRequest: RideHailRequest): RideHailRequest =
+    this.copy(requestId = this.requestId, groupedWithOtherRequests = this.groupedWithOtherRequests :+ subRequest)
+  override def equals(that: Any) = this.requestId == that.asInstanceOf[RideHailRequest].requestId
+  override def hashCode: Int = requestId
+  override def toString: String =
+    s"RideHailRequest(id: $requestId, type: $requestType, customer: ${customer.personId}, pickup: $pickUpLocationUTM, time: $departAt, dest: $destinationUTM)"
 }
 
 object RideHailRequest {
@@ -35,7 +34,7 @@ object RideHailRequest {
     RideHailInquiry,
     VehiclePersonId(Id.create("dummy", classOf[Vehicle]), Id.create("dummy", classOf[Person])),
     new Coord(Double.NaN, Double.NaN),
-    DiscreteTime(Int.MaxValue),
+    Int.MaxValue,
     new Coord(Double.NaN, Double.NaN)
   )
 }

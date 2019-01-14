@@ -48,19 +48,23 @@ class RideHailNetworkAPI {
   }
 
   def getFreeFlowTravelTime(linkId: Int): Option[Double] = {
-    getLinks() match {
+    getLinks match {
       case Some(links) =>
-        Some(links.get(Id.createLinkId(linkId.toString)).asInstanceOf[Link].getFreespeed)
+        Some(links.get(Id.createLinkId(linkId.toString)).getFreespeed)
       case None => None
+    }
+  }
+
+  // TODO: make integers
+  def getLinks: Option[util.Map[Id[Link], _ <: Link]] = {
+    matsimNetwork match {
+      case Some(network) => Some(network.getLinks)
+      case None          => None
     }
   }
 
   def getFromLinkIds(linkId: Int): Vector[Int] = {
     convertLinkIdsToVector(getMATSimLink(linkId).getFromNode.getInLinks.keySet()) // Id[Link].toString
-  }
-
-  def getToLinkIds(linkId: Int): Vector[Int] = {
-    convertLinkIdsToVector(getMATSimLink(linkId).getToNode.getOutLinks.keySet()) // Id[Link].toString
   }
 
   def convertLinkIdsToVector(set: util.Set[Id[Link]]): Vector[Int] = {
@@ -80,6 +84,10 @@ class RideHailNetworkAPI {
     matsimNetwork.get.getLinks.get(Id.createLinkId(linkId))
   }
 
+  def getToLinkIds(linkId: Int): Vector[Int] = {
+    convertLinkIdsToVector(getMATSimLink(linkId).getToNode.getOutLinks.keySet()) // Id[Link].toString
+  }
+
   def getLinkCoord(linkId: Int): Coord = {
     matsimNetwork.get.getLinks.get(Id.createLinkId(linkId)).getCoord
   }
@@ -90,14 +98,6 @@ class RideHailNetworkAPI {
 
   def getToNodeCoordinate(linkId: Int): Coord = {
     matsimNetwork.get.getLinks.get(Id.createLinkId(linkId)).getToNode.getCoord
-  }
-
-  // TODO: make integers
-  def getLinks(): Option[util.Map[Id[Link], _ <: Link]] = {
-    matsimNetwork match {
-      case Some(network) => Some(network.getLinks)
-      case None          => None
-    }
   }
 
   def getClosestLink(coord: Coord): Option[Link] = {

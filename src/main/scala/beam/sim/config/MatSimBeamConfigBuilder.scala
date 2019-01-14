@@ -78,8 +78,7 @@ class MatSimBeamConfigBuilder(beamConf: Config) extends LazyLogging {
                   list.unwrapped()
                   val unwrappedParamSets = list.asScala
                     .map(
-                      paramSet =>
-                        paramSet.unwrapped().asInstanceOf[java.util.Map[String, _]].asScala
+                      paramSet => paramSet.unwrapped().asInstanceOf[java.util.Map[String, _]].asScala
                     )
                     .toList
                   unwrappedParamSets.foreach(parameterSet => {

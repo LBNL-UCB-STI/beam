@@ -13,11 +13,11 @@ import scala.collection.Searching.{Found, InsertionPoint, _}
 
 object Trajectory {
 
-  @Inject
-  var beamConfig: BeamConfig = _
-
   lazy val transformer: CoordinateTransformation = TransformationFactory
     .getCoordinateTransformation(TransformationFactory.WGS84, defaultCoordinateSystem)
+
+  @Inject
+  var beamConfig: BeamConfig = _
 
   def defaultCoordinateSystem: String = beamConfig.beam.spatial.localCRS
 
@@ -36,18 +36,11 @@ class Trajectory(val path: Vector[SpaceTime]) {
 
   def coordinateSystem: String = defaultCoordinateSystem
 
-  protected[agentsim] def append(newTrajectory: Trajectory): Unit = {
-    this.synchronized {
-      _path = _path ++ newTrajectory._path
-    }
-  }
-
-  def location(time: Double): SpaceTime = {
+  def location(time: Int): SpaceTime = {
     require(_path.nonEmpty)
-    val timeL = Math.floor(time).toLong
-    _path.search[SpaceTime](SpaceTime(0, 0, timeL))(SpaceTime.orderingByTime) match {
+    _path.search[SpaceTime](SpaceTime(0, 0, time))(SpaceTime.orderingByTime) match {
       case found: Found =>
-        SpaceTime(_path(found.foundIndex).loc, timeL)
+        SpaceTime(_path(found.foundIndex).loc, time)
       case InsertionPoint(closestIndex) =>
         //closestPosition = [0, array.len ]
         //TODO: consider some cache for interpolated coords because it's heavy process
@@ -55,8 +48,7 @@ class Trajectory(val path: Vector[SpaceTime]) {
     }
   }
 
-  private def interpolateLocation(time: Double, closestPosition: Int) = {
-    val timeL = Math.floor(time).toLong
+  private def interpolateLocation(time: Int, closestPosition: Int) = {
     if (closestPosition > -1 && closestPosition < _path.size) {
       val (prev, next) =
         (Math.max(0, closestPosition - 1), Math.min(closestPosition + 1, _path.length))
@@ -68,18 +60,18 @@ class Trajectory(val path: Vector[SpaceTime]) {
         .interpolate(timeFunction, xFunc)
       val yInterpolator = new LinearInterpolator()
         .interpolate(timeFunction, yFunc)
-      SpaceTime(xInterpolator.value(time), yInterpolator.value(time), timeL)
+      SpaceTime(xInterpolator.value(time), yInterpolator.value(time), time)
     } else if (closestPosition == _path.size) {
-      SpaceTime(_path.last.loc, timeL)
+      SpaceTime(_path.last.loc, time)
     } else if (_path.nonEmpty) {
-      SpaceTime(_path.head.loc, timeL)
+      SpaceTime(_path.head.loc, time)
     } else {
-      SpaceTime(_path.head.loc, timeL)
+      SpaceTime(_path.head.loc, time)
     }
   }
 
-  def computePath(time: Double): Double = {
-    val searchFor = SpaceTime(0, 0, Math.floor(time).toLong)
+  def computePath(time: Int): Double = {
+    val searchFor = SpaceTime(0, 0, time)
     val currentPath = _path.search[SpaceTime](searchFor)(SpaceTime.orderingByTime) match {
       case Found(foundIndex) =>
         val spaceTimes = _path.slice(0, Math.min(foundIndex + 1, _path.length))
@@ -98,5 +90,9 @@ class Trajectory(val path: Vector[SpaceTime]) {
         distance
       })
       .sum
+  }
+
+  protected[agentsim] def append(newTrajectory: Trajectory): Unit = {
+    _path ++= newTrajectory._path
   }
 }

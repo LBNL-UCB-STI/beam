@@ -2,26 +2,24 @@ package beam.scoring
 
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoiceModel}
-import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent}
-import beam.router.RoutingModel.EmbodiedBeamTrip
+import beam.router.model.EmbodiedBeamTrip
+import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, MapStringDouble}
 import javax.inject.Inject
-import org.apache.log4j.Logger
 import org.matsim.api.core.v01.events.Event
-import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan}
-import org.matsim.core.config.groups.PlanCalcScoreConfigGroup
+import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
+import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
-    extends ScoringFunctionFactory {
+class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends ScoringFunctionFactory {
 
-  private val log = Logger.getLogger(classOf[BeamScoringFunctionFactory])
+  private val log = LoggerFactory.getLogger(classOf[BeamScoringFunctionFactory])
 
-  val lccm = new LatentClassChoiceModel(beamServices)
+  lazy val lccm = new LatentClassChoiceModel(beamServices)
 
   override def createNewScoringFunction(person: Person): ScoringFunction = {
     new ScoringFunction {
@@ -35,6 +33,8 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
           case modeChoiceEvent: ModeChoiceEvent =>
             trips.append(modeChoiceEvent.chosenTrip)
           case _: ReplanningEvent =>
+            // FIXME? If this happens often, maybe we can optimize it:
+            // trips is list buffer meaning removing is O(n)
             trips.remove(trips.size - 1)
           case leavingParkingEvent: LeavingParkingEvent =>
             leavingParkingEventScore += leavingParkingEvent.score
@@ -54,7 +54,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
 
         val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributes)
         val scoreOfThisOutcomeGivenMyClass =
-          trips.map(trip => modeChoiceCalculator.utilityOf(trip)).sum
+          trips.map(trip => modeChoiceCalculator.utilityOf(trip, attributes)).sum
 
         val scoreOfBeingInClassGivenThisOutcome =
           if (beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
@@ -71,9 +71,12 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
               .toMap
               .mapValues(
                 modeChoiceCalculatorForStyle =>
-                  trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip)).sum
+                  trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip, attributes)).sum
               )
-            log.debug(vectorOfUtilities)
+              .toArray
+              .toMap // to force computation DO NOT TOUCH IT, because here is call-by-name and it's lazy which will hold a lot of memory !!! :)
+
+            log.debug(vectorOfUtilities.toString())
             person.getSelectedPlan.getAttributes
               .putAttribute("scores", MapStringDouble(vectorOfUtilities))
 
@@ -81,9 +84,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
 
             val logsum = Option(
               math.log(
-                person
-                  .getPlans()
-                  .asScala
+                person.getPlans.asScala.view
                   .map(
                     plan =>
                       plan.getAttributes

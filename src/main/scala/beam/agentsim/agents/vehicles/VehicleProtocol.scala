@@ -8,12 +8,16 @@ import org.matsim.vehicles.Vehicle
 
 object VehicleProtocol {
 
-  case object BecomeDriverOfVehicleSuccessAck
+  sealed trait BecomeDriverResponse
 
-  case class DriverAlreadyAssigned(vehicleId: Id[Vehicle], currentDriver: ActorRef)
+  case class DriverAlreadyAssigned(currentDriver: ActorRef) extends BecomeDriverResponse
 
   case class RemovePassengerFromTrip(passId: VehiclePersonId)
 
-  case class StreetVehicle(id: Id[Vehicle], location: SpaceTime, mode: BeamMode, asDriver: Boolean)
+  case class StreetVehicle(id: Id[Vehicle], locationUTM: SpaceTime, mode: BeamMode, asDriver: Boolean)
+
+  case object BecomeDriverOfVehicleSuccess extends BecomeDriverResponse
+
+  case object NewDriverAlreadyControllingVehicle extends BecomeDriverResponse
 
 }

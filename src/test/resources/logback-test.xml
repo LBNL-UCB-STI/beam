@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <layout class="ch.qos.logback.classic.PatternLayout">
+            <Pattern>
+                %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
+            </Pattern>
+        </layout>
+    </appender>
+
+    <root level="error">
+        <appender-ref ref="STDOUT" />
+    </root>
+
+    <logger name="com.conveyal.r5" level="error"
+            additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="org.matsim" level="error"
+            additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter" level="ERROR" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <Logger name="org.reflections" level="ERROR" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+
+    <Logger name="org.matsim.core.controler.corelisteners.DumpDataAtEndImpl" level="OFF" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+
+</configuration>

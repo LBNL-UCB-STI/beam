@@ -8,7 +8,7 @@ Developer's Guide
    ^^^^^^^^^^
 
 Repositories
-^^^^^^^^^^^^^
+^^^^^^^^^^^^
 The beam repository on github `is here. <https://github.com/LBNL-UCB-STI/beam>`_
 
 The convention for merging into the master branch is that master needs to be pass all tests and at least one other active BEAM developer needs to review your changes before merging. Please do this by creating a pull request from any new feature branches into master. We also encourage you to create pull requests early in your development cycle which gives other's an opportunity to observe and/or provide feedback in real time. When you are ready for a review, invite one or more through the pull request. 
@@ -87,11 +87,12 @@ File: :code:`~/Library/LaunchAgents/setenv.BEAM_OUTPUT.plist`::
 GIT-LFS Configuration
 ^^^^^^^^^^^^^^^^^^^^^
 
-The installation process for git-lfs(v2.3.4, latest installer has some issue with node-git-lfs) client is vey simple and document in detail on `github guide`_ for Mac, windows and Linux.
+The installation process for git-lfs client(`v2.3.4`_, latest installer has some issue with node-git-lfs) is very simple. For detailed documentation please consult `github guide`_ for Mac, windows and Linux.
 
+.. _v2.3.4: https://github.com/git-lfs/git-lfs/releases/tag/v2.3.4
 .. _github guide: https://help.github.com/articles/installing-git-large-file-storage/
 
-To verify successful installation execute following command::
+To verify successful installation, run following command::
 
     $ git lfs install
     Git LFS initialized.
@@ -99,12 +100,70 @@ To verify successful installation execute following command::
 To confirm that you have installed the correct version of client run the following command::
 
    $ git lfs env
-   
-To replaces the text pointers with the actual files run the following command(if it requests credentials, use any username and leave the password empty)::
+
+It will print out the installed version, and please make sure it is `git-lfs/2.3.4`.
+
+To update the text pointers with the actual contents of files, run the following command (if it requests credentials, use any username and leave the password empty)::
 
    $ git lfs pull
    Git LFS: (98 of 123 files) 343.22 MB / 542.18 MB
    
+GIT-LFS timeout - how to proceed
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Sometimes it is possible to face a timeout issue when trying to push huge files. The steps below can be followed:
+
+#. Connect to some EC2 server inside the same Amazon S3 region: us-east-2
+
+#. Copy the file to the server using scp::
+
+   $ scp -i mykey.pem somefile.txt remote_username@machine.us-east-2.compute.amazonaws.com:/tmp
+
+#. Clone the repository as usual (make sure git and git-lfs are properly installed)
+
+#. Just push the files as usual
+
+Keeping Production Data out of Master Branch
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Production versus test data. Any branch beginning with "production" or "application" will contain data in the "production/" subfolder. This data should stay in that branch and not be merged into master. To keep the data out, the easiest practice is to simply keep merges one-way from master into the production branch and not vice versa.
+
+However, sometimes troubleshooting / debugging / development happens on a production branch. The cleanest way to get changes to source code or other non-production files back into master is the following.
+
+Checkout your production branch::
+
+  git checkout production-branch
+
+Bring branch even with master::
+
+  git merge master
+
+Resolve conflicts if needed
+
+Capture the files that are different now between production and master::
+
+  git diff --name-only HEAD master > diff-with-master.txt
+
+You have created a file "diff-with-master.txt" containing a listing of every file that is different.
+
+IMPORTANT!!!! -- Edit the file diff-with-master.txt and remove all production-related data (this typically will be all files underneath "production" sub-directory.
+
+Checkout master::
+
+  git checkout master
+
+Create a new branch off of master, this is where you will stage the files to then merge back into master::
+
+  git checkout -b new-branch-with-changes-4ci
+
+Do a file by file checkout of all differing files from production branch onto master::
+
+  cat diff-with-master.txt | xargs git checkout production-branch --
+
+Note, if any of our diffs include the deletion of a file on your production branch, then you will need to remove (i.e. with "git remove" these before you do the above "checkout" step and you should also remove them from the diff-with-master.txt"). If you don't do this, you will see an error message ("did not match any file(s) known to git.") and the checkout command will not be completed.
+
+Finally, commit the files that were checked out of the production branch, push, and go create your pull request!
+
+
 Automated Cloud Deployment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -329,3 +388,137 @@ This code marks the test with `com.beam.tags.Periodic` tag. You can also specify
 You can find details about scheduling a continuous integration build under DevOps section `Configure Periodic Jobs`_.
 
 .. _Configure Periodic Jobs: http://beam.readthedocs.io/en/latest/devops.html#configure-periodic-jobs
+
+Scala tips
+^^^^^^^^^^
+Scala Collection
+~~~~~~~~~~~~~~~~
+
+Use ``mutable`` buffer instead of ``immutable var``:
+****************************************************
+
+::
+
+   // Before
+   var buffer = scala.collection.immutable.Vector.empty[Int]
+   buffer = buffer :+ 1
+   buffer = buffer :+ 2
+
+   // After
+   val buffer = scala.collection.mutable.ArrayBuffer.empty[Int]
+   buffer += 1
+   buffer += 2
+   
+**Additionally note that, for the best performance, use mutable inside of methods, but return an immutable**
+
+   val mutableList = scala.collection.mutable.MutableList(1,2)
+   mutableList += 3
+   mutableList.toList //returns scala.collection.immutable.List
+                      //or return mutableList but explicitly set the method return type to 
+                      //a common, assumed immutable one from scala.collection (more dangerous)
+
+Don’t create temporary collections, use `view`_:
+************************************************
+
+::
+
+   val seq: Seq[Int] = Seq(1, 2, 3, 4, 5)
+
+   // Before
+   seq.map(x => x + 2).filter(x => x % 2 == 0).sum
+
+   // After
+   seq.view.map(x => x + 2).filter(x => x % 2 == 0).sum
+
+Don’t emulate ``collectFirst`` and ``collect``:
+***********************************************
+
+::
+
+   // collectFirst
+   // Get first number >= 4
+   val seq: Seq[Int] = Seq(1, 2, 10, 20)
+   val predicate: Int => Boolean = (x: Int)  => { x >= 4 }
+
+   // Before
+   seq.filter(predicate).headOption
+
+   // After
+   seq.collectFirst { case num if predicate(num) => num }
+
+   // collect
+   // Get first char of string, if it's longer than 3
+   val s: Seq[String] = Seq("C#", "C++", "C", "Scala", "Haskel")
+   val predicate: String => Boolean = (s: String)  => { s.size > 3 }
+
+   // Before
+   s.filter(predicate).map { s => s.head }
+
+   // After
+   s.collect { case curr if predicate(curr) => curr.head }
+
+Prefer ``nonEmpty`` over ``size > 0``:
+**************************************
+
+::
+ 
+  //Before
+  (1 to x).size > 0
+  
+  //After
+  (1 to x).nonEmpty
+  
+  //nonEmpty shortcircuits as soon as the first element is encountered
+
+Prefer not to use ``_1, _2,...`` for ``Tuple`` to improve readability:
+**********************************************************************
+
+::
+
+   // Get odd elements of sequence s
+   val predicate: Int => Boolean = (idx: Int)  => { idx % 2 == 1 }
+   val s: Seq[String] = Seq("C#", "C++", "C", "Scala", "Haskel")
+
+   // Before
+   s.zipWithIndex.collect {
+       case x if predicate(x._2) => x._1   // what is _1 or _2 ??
+   }
+
+   // After
+   s.zipWithIndex.collect {
+       case (s, idx) if predicate(idx) => s
+   }
+
+   // Use destructuring bindings to extract values from tuple
+   val tuple = ("Hello", 5)
+
+   // Before
+   val str = tuple._1
+   val len = tuple._2
+
+   // After
+   val (str, len) = tuple
+
+Great article about `Scala Collection tips and tricks`_, must read
+******************************************************************
+
+Use lazy logging
+~~~~~~~~~~~~~~~~
+
+When you log, prefer to use API which are lazy. If you use
+``scala logging``, you have `it for free`_. When use ``ActorLogging`` in
+Akka, you should not use `string interpolation`_, but use method with
+replacement arguments:
+
+::
+
+   // Before
+   log.debug(s"Hello: $name")
+
+   // After
+   log.debug("Hello: {}", name)
+
+.. _view:  https://www.scala-lang.org/blog/2017/11/28/view-based-collections.html
+.. _Scala Collection tips and tricks: https://pavelfatin.com/scala-collections-tips-and-tricks/#sequences-rewriting
+.. _it for free: https://github.com/lightbend/scala-logging#scala-logging-
+.. _string interpolation: https://docs.scala-lang.org/overviews/core/string-interpolation.html

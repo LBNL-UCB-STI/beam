@@ -20,6 +20,7 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
     private final OutputDirectoryHierarchy controlerIO;
     private final int writeEventsInterval;
     private CSVWriter csvWriter;
+    static final String fileBaseName = "expectedMaxUtilityHeatMap";
     private BufferedWriter bufferedWriter;
     private boolean writeDataInThisIteration = false;
 
@@ -29,7 +30,6 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
         this.writeEventsInterval = writeEventsInterval;
         eventsManager.addHandler(this);
     }
-
 
     @Override
     public void handleEvent(Event event) {
@@ -72,19 +72,19 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
 
     }
 
-
     @Override
     public void reset(int iteration) {
         if (this.csvWriter != null) {
             this.csvWriter.closeFile();
         }
 
-        writeDataInThisIteration = iteration % writeEventsInterval == 0;
+        writeDataInThisIteration = writeEventsInterval > 0 && iteration % writeEventsInterval == 0;
 
         if (writeDataInThisIteration) {
-            this.csvWriter = new CSVWriter(controlerIO.getIterationFilename(iteration, "expectedMaxUtilityHeatMap.csv"));
+            this.csvWriter = new CSVWriter(controlerIO.getIterationFilename(iteration, fileBaseName + ".csv"));
             this.bufferedWriter = this.csvWriter.getBufferedWriter();
             printColumnHeaders();
         }
     }
+
 }

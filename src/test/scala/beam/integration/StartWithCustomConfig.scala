@@ -1,30 +1,19 @@
 package beam.integration
-
-import java.io.File
-
+import beam.integration.ReadEvents.{fromFile, _}
 import beam.sim.BeamHelper
 import beam.sim.config.BeamConfig
 import com.typesafe.config.{Config, ConfigValueFactory}
 
-class StartWithCustomConfig(val config: Config)
-    extends EventsFileHandlingCommon
-    with IntegrationSpecCommon
-    with BeamHelper {
+class StartWithCustomConfig(val config: Config) extends IntegrationSpecCommon with BeamHelper {
 
-  val conf =
+  lazy val (matsimConfig, _) = runBeamWithConfig(
     config.withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(0))
-  val beamConfig = BeamConfig(conf)
+  )
 
-  val (matsimConfig, _) = runBeamWithConfig(conf)
+  lazy val groupedCount =
+    fromFile(getEventsFilePath(matsimConfig, BeamConfig(config).beam.outputs.events.fileOutputFormats).getPath)
+      .filter(_.getEventType == "ModeChoice")
+      .groupBy(_.getAttributes.get("mode"))
+      .map { case (k, v) => (k, v.size) }
 
-  val file: File = getEventsFilePath(matsimConfig, beamConfig.beam.outputs.events.fileOutputFormats)
-
-  val eventsReader: ReadEvents = new ReadEventsBeam
-
-  val listValueTagEventFile =
-    eventsReader.getListTagsFrom(file.getPath, tagToReturn = "mode", eventType = Some("ModeChoice"))
-
-  val groupedCount = listValueTagEventFile
-    .groupBy(s => s)
-    .map { case (k, v) => (k, v.size) }
 }

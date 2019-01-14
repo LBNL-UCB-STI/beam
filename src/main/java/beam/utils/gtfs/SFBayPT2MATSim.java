@@ -34,7 +34,7 @@ public class SFBayPT2MATSim {
     private String apiKey;
 
     public SFBayPT2MATSim() {
-        outputDir = BEAM_CONFIG.beam().routing().gtfs().outputDir();
+//        outputDir = BEAM_CONFIG.beam().routing().gtfs().outputDir();
 //        apiKey = BEAM_CONFIG.beam().routing().gtfs().apiKey();
     }
 
@@ -56,7 +56,10 @@ public class SFBayPT2MATSim {
             try {
                 TransitDataDownloader DOWNLOADER = TransitDataDownloader.getInstance(this.apiKey);
                 DOWNLOADER.getGTFSZip(opPathName, opKey).get();
-            } catch (InterruptedException | ExecutionException e) {
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                e.printStackTrace();
+            } catch(ExecutionException e) {
                 e.printStackTrace();
             }
         }
@@ -92,7 +95,7 @@ public class SFBayPT2MATSim {
                 // [1] which service ids should be used.
                 "dayWithMostTrips",
                 // [2] the output coordinate system
-                BEAM_CONFIG.beam().routing().gtfs().crs(),
+                BEAM_CONFIG.beam().spatial().localCRS(),
                 // [3] output transit schedule file
                 String.format("%s%s/%s_UnmappedTransitSchedule.xml.gz", outputDir, agency, agencyId),
                 // [4] output default vehicles file (optional)

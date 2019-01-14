@@ -8,11 +8,7 @@ import org.scalatest.{Matchers, WordSpecLike}
   * Created by fdariasm on 29/08/2017
   *
   */
-class TransitPriceSpec
-    extends WordSpecLike
-    with Matchers
-    with BeamHelper
-    with IntegrationSpecCommon {
+class TransitPriceSpec extends WordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
 
   "Running beam with modeChoice ModeChoiceMultinomialLogit and increasing transitPrice value" must {
     "create more entries for mode choice transit as value increases" in {
@@ -22,8 +18,8 @@ class TransitPriceSpec
           new StartWithCustomConfig(
             baseConfig
               .withValue(
-                "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
-                ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
+                TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+                ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
               )
               .withValue("beam.agentsim.tuning.transitPrice", ConfigValueFactory.fromAnyRef(tc))
           ).groupedCount

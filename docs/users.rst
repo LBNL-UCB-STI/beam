@@ -1,6 +1,6 @@
 
 User's Guide
-=================
+============
 
 Getting Started
 ---------------
@@ -16,20 +16,26 @@ System Requirements
 * Java Runtime Environment 1.8
 * To verify your JRE: https://www.java.com/en/download/help/version_manual.xml
 * To download JRE 1.8 (AKA JRE 8): http://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html
-* We also recommend downloading Senozon VIA and obtaining a Free License: https://via.senozon.com/download
+* We also recommend downloading the VIA vizualization app and obtaining a free or paid license: https://simunto.com/via/
 
 Installing
 ^^^^^^^^^^
 
-Download `BEAM v0.5`_.
+Download `BEAM v0.6.2`_.
 
-.. _BEAM v0.5: https://github.com/LBNL-UCB-STI/beam/releases/download/v0.5.0/beam-gui.zip
+.. _BEAM v0.6.2: https://github.com/LBNL-UCB-STI/beam/releases/download/v0.6.2/beam-gui-v0.6.2.zip
 
 After you unzip the archive, you will see a directory that looks like this when partially expanded: 
 
 .. image:: _static/figs/beam-gui-files.png
 
+Create an environment variable `PWD` and point it to the root of this directory.
+
+PWD=/path/to/beam/folder
+
 For Windows, double click `bin/beam-gui.bat`, on UNIX-like systems, double-click `bin/beam-gui`.
+
+
 
 Running BEAM
 ^^^^^^^^^^^^
@@ -37,7 +43,7 @@ The BEAM GUI app is the simplest way to run the model. It looks like this:
 
 .. image:: _static/figs/beam-gui.png
 
-Use "Choose" to select a configuration file from your file system. Choose `test/input/beamville/beam.conf`.
+Use "Choose" to select a configuration file from your file system. Choose `input/beamville/beam.conf`.
 
 Click "Run BEAM". 
 
@@ -45,7 +51,7 @@ You will see output appear in the console. Congrats, you're running BEAM!
 
 Click "Open" next to the Output Directory text box and you should see results appear in a sub-folder called "beamville_%DATE_TIME%".
 
-You can also run bean using command line with a gradle task and configuration need to provide in `appArgs` (as gradle argument). To run for beamville, following command need to execute::
+If you want greater control over BEAM or the ability to customize classes, you should checkout of the full BEAM repository from Github and then you can run beam using from the command line with a gradle task (you will need to install gradle on your system)::
 
   ./gradlew :run -PappArgs="['--config', 'test/input/beamville/beam.conf']"
 
@@ -57,12 +63,14 @@ The `beamville` test scenario is a toy network consisting of a 4 x 4 block gridd
 
 .. image:: _static/figs/beamville-net.png
 
-The `sf-light` scenario is based on the City of San Francisco, including the SF Muni public transit service and a range of sample populations from 500 to 25,000 agents.
+The `sf-light` scenario is based on the City of San Francisco, including the SF Muni public transit service and a range of sample populations from 1000 to 25,000 agents.
 
 .. image:: _static/figs/sf-light.png
 
 Inputs
 ^^^^^^^
+
+For more detailed inputs documentation, see :ref:`model-inputs`.
 
 BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the `R5 requirements`_. The following is a brief overview of the minimum requirements needed to conduct a BEAM run. 
 
@@ -72,16 +80,15 @@ BEAM follows the `MATSim convention`_ for most of the inputs required to run a s
 * A configuration file (e.g. `beam.conf`)
 * The person population and corresponding attributes files (e.g. `population.xml` and `populationAttributes.xml`)
 * The household population and corresponding attributes files (e.g. `households.xml` and `householdAttributes.xml`)
-* The personal vehicle fleet (e.g. `vehicles.xml`)
-* The definition of vehicle types for the public transit fleet (e.g. `transitVehicles.xml`)
-* The mode choice parameters file (e.g. `modeChoiceParameters.xml`)
+* The personal vehicle fleet (e.g. `vehicles.csv`)
+* The definition of vehicle types including for personal vehicles and the public transit fleet (e.g. `vehicleTypes.csv`)
 * A directory containing network and transit data used by R5 (e.g. `r5/`)
 * The open street map network (e.g. `r5/beamville.osm`)
 * GTFS archives, one for each transit agency (e.g. `r5/bus.zip`)
 
 Outputs
 ^^^^^^^
-At the conclusion of a BEAM run using the default `beamville` scenario, you will see outputs written to the location as listed in the "Output Directory" text box. The files you in the output sub-folder should look like this when the run is complete:
+At the conclusion of a BEAM run using the default `beamville` scenario, you will see outputs written to the location as listed in the "Output Directory" text box. The files in the output sub-folder should look like this when the run is complete:
 
 .. image:: _static/figs/beamville-outputs.png
 
@@ -175,4 +182,266 @@ It's better to create a new sub-folder folder (e.g. 'calibration' or 'experiment
 The ExperimentGenerator will create a sub-folder next to experiment.yml named `runs` which will include all of the data needed to run the experiment along with a shell script to execute a local run. The generator also creates an `experiments.csv` file next to experiment.yml with a mapping between experimental group name, the level name and the value of the params associated with each level. 
 
 Within each run sub-folder you will find the generated BEAM config file (based on beamTemplateConfPath), any files from the template engine (e.g. `modeChoiceParameters.xml`) with all placeholders properly substituted, and a `runBeam.sh` executable which can be used to execute an individual simulation. The outputs of each simulation will appear in the `output` subfolder next to runBeam.sh
+
+Calibration
+-----------
+
+This section describes calibrating BEAM simulation outputs to achieve real-world targets (e.g., volumetric traffic
+counts, mode splits, transit boarding/alighting, etc.). A large number of parameters affect simulation behavior in
+complex ways such that grid-search tuning methods would be extremely time-consuming. Instead, BEAM uses SigOpt_,
+which uses Bayesian optimization to rapidly tune scenarios as well as analyze the sensitivity of target metrics to
+parameters.
+
+Optimization-based Calibration Principles
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+At a high level, the SigOpt service seeks to find the *optimal value*, :math:`p^*` of an *objective*,
+:math:`f_0: \mathbb{R}^n\rightarrow\mathbb{R}`, which is a function of a vector of *decision variables*
+:math:`x\in\mathbb{R}^n` subject to *constraints*, :math:`f_i: \mathbb{R}^n\rightarrow\mathbb{R}, i=1,\ldots,m`.
+
+In our calibration problem, :math:`p^*` represents the value of a *metric* representing an aggregate measure of some
+deviation of simulated values from real-world values. Decision variables are hyperparameters defined in the `.conf`
+file used to configure a BEAM simulation. The constraints in this problem are the bounds within which it is believed
+that the SigOpt optimization algorithm should search. The calibration problem is solved by selecting values of the
+hyperparameters that minimize the output of the objective function.
+
+Operationally, for each calibration attempt, BEAM creates an `Experiment` using specified `Parameter` variables,
+their `Bounds`s, and the number of workers (applicable only when using parallel calibration execution) using the
+SigOpt API. The experiment is assigned a unique ID and then receives a `Suggestion` (parameter values to simulate)
+from the SigOpt API, which assigns a value for each `Parameter`. Once the simulation has completed, the metric (an
+implementation of the `beam.calibration.api.ObjectiveFunction` interface) is evaluated, providing an `Observation`
+to the SigOpt API. This completes one iteration of the calibration cycle. At the start of the next iteration new
+`Suggestion` is returned by SigOpt and the simulation is re-run with the new parameter values. This process continues
+for the number of iterations specified in a command-line argument.
+
+ Note: that this is a different type of iteration from the number of iterations of a run of BEAM itself.
+ Users may wish to run BEAM for several iterations of the co-evolutionary plan modification loop prior to
+ evaluating the metric.
+
+SigOpt Setup
+^^^^^^^^^^^^
+
+Complete the following steps in order to prepare your simulation scenarios for calibration with SigOpt:
+
+1. `Sign up`_ for a SigOpt account (note that students and academic researchers may be able to take
+advantage of `educational pricing`_ options).
+
+2. `Log-in`_ to the SigOpt web interface.
+
+3. Under the `API Tokens`_ menu, retrieve the **API Token** and **Development Token** add the tokens as
+environmental variables in your execution environment with the keys `SIGOPT_API_TOKEN` and `SIGOPT_DEV_API_TOKEN`.
+
+
+Configuration
+^^^^^^^^^^^^^
+
+Prepare YML File
+~~~~~~~~~~~~~~~~
+
+Configuring a BEAM scenario for calibration proceeds in much the same way as it does for an experiment using the
+`Experiment Manager`_. In fact, with some minor adjustments, the `YAML` text file used to define experiments
+has the same general structure as the one used to specify tuning hyperparameters and ranges for calibration
+(see example file beam/test/input/beamville/example-calibration/experiment.yml)::
+
+  title: this is the name of the SigOpt experiment
+  beamTemplateConfPath: the config file to be used for the experiments
+  modeChoiceTemplate: mode choice template file
+  numWorkers: this defines for a remote run, how many parallel runs should be executed (number of machines to be started)
+  params:
+   ### ---- run template env variables ---####
+   EXPERIMENT_MAX_RAM: 16g (might be removed in future)
+   S3_OUTPUT_PATH_SUFFIX: "sf-light" (might be removed in future)
+   DROP_OUTPUT_ONCOMPLETE: "true" (might be removed in future)
+   IS_PARALLEL: "false" (might be removed in future)
+
+  runName: instance name for remote run
+  beamBranch: branch name
+  beamCommit: commit hash
+  deployMode: "execute"
+  executeClass: "beam.calibration.RunCalibration"
+  beamBatch: "false"
+  shutdownWait: "15"
+  shutdownBehavior: "stop"
+  s3Backup: "true"
+  maxRAM: "140g"
+  region: "us-west-2"
+  instanceType: "m4.16xlarge"
+
+The major exceptions are the following:
+
+* Factors may have only a single numeric parameter, which may (at the moment) only take two levels (High and Low).
+These act as bounds on the values that SigOpt will try for a particular decision variable.
+
+* The level of parallelism is controlled by a new parameter in the header called `numberOfWorkers`. Setting its value
+above 1 permits running calibrations in parallel in response to multiple concurrent open `Suggestions`.
+
+Create Experiment
+~~~~~~~~~~~~~~~~~
+
+Use `beam.calibration.utils.CreateExperiment` to create a new SigOpt experiment. Two inputs are needed for this:
+a `YAML` file and a `benchmark.csv` file (this second parameter might be removed in the near future, as not needed).
+
+After running the script you should be able to see the newly created experiment in the SigOpt web interface and
+the experiment id is also printed out in the console.
+
+Set in Config
+~~~~~~~~~~~~~
+
+One must also select the appropriate implementation of the `ObjectiveFunction` interface in the `.conf` file
+pointed to in the `YAML`, which implicitly defines the metric and input files.
+Several example implementations are provided such as `ModeChoiceObjectiveFunction`. This implementation
+compares modes used at the output of the simulation with benchmark values. To optimize this objective, it is necessary
+to have a set of comparison benchmark values, which are placed in the same directory as other calibration files::
+
+  beam.calibration.objectiveFunction = "ModeChoiceObjectiveFunction_AbsolutErrorWithPreferrenceForModeDiversity"
+  beam.calibration.mode.benchmarkFileLoc=${beam.inputDirectory}"/calibration/benchmark.csv"
+
+(Needed for scoring funtions which try to match mode share).
+
+Execution
+^^^^^^^^^
+
+Execution of a calibration experiment requires running the `beam.calibration.RunCalibration` class using the
+following arguments:
+
+--experiments   production/application-sfbay/calibration/experiment_counts_calibration.yml
+
+--benchmark     Location of the benchmark file (production/applicaion-sfbay/calibration/benchmark.csv)
+
+--num_iters     Number of SigOpt iterations to be conducted (in series).
+
+--experiment_id     If an `experimentID` has already been defined, add it here to continue an experiment or put
+"None" to start a new experiment.
+
+--run_type      Can be local or remote
+
+
+Manage Experiment
+^^^^^^^^^^^^^^^^^
+
+As the number of open suggestions for an experiment is limited (10 in our case), we sometimes might need to cleanup
+suggestions maually using `beam.calibration.utils.DeleteSuggestion` script to both delete specific and all open
+suggestions (e.g. if there was an exception during all runs and need to restart).
+
+
+
+.. _SigOpt: http://sigopt.com
+.. _Sign up: http://sigopt.com/pricing
+.. _educational pricing: http://sigopt.com/edu
+.. _Log-in: http://app.sigopt.com/login
+.. _API Tokens: http://app.sigopt.com/tokens/info
+
+Timezones and GTFS
+------------------
+There is a subtle requirement in BEAM related to timezones that is easy to miss and cause problems. 
+
+BEAM uses the R5 router, which was designed as a stand-alone service either for doing accessibility analysis or as a point to point trip planner. R5 was designed with public transit at the top of the developers' minds, so they infer the time zone of the region being modeled from the "timezone" field in the "agency.txt" file in the first GTFS data archive that is parsed during the network building process.
+
+Therefore, if no GTFS data is provided to R5, it cannot infer the locate timezone and it then assumes UTC. 
+
+Meanwhile, there is a parameter in beam, "beam.routing.baseDate" that is used to ensure that routing requests to R5 are send with the appropriate timestamp. This allows you to run BEAM using any sub-schedule in your GTFS archive. I.e. if your base date is a weekday, R5 will use the weekday schedules for transit, if it's a weekend day, then the weekend schedules will be used. 
+
+The time zone in the baseDate parameter (e.g. for PST one might use "2016-10-17T00:00:00-07:00") must match the time zone in the GTFS archive(s) provided to R5.
+
+As a default, we provide a "dummy" GTFS data archive that is literally empty of any transit schedules, but is still a valid GTFS archive. This archive happens to have a time zone of Los Angeles. You can download a copy of this archive here:
+
+https://www.dropbox.com/s/2tfbhxuvmep7wf7/dummy.zip?dl=1
+
+But in general, if you use your own GTFS data for your region, then you may need to change this baseDate parameter to reflect the local time zone there. Look for the "timezone" field in the "agency.txt" data file in the GTFS archive. 
+
+The date specified by the baseDate parameter must fall within the schedule of all GTFS archives included in the R5 sub-directory. See the "calendar.txt" data file in the GTFS archive and make sure your baseDate is within the "start_date" and "end_date" fields folder across all GTFS inputs. If this is not the case, you can either change baseDate or you can change the GTFS data, expanding the date ranges... the particular dates chosen are arbitrary and will have no other impact on the simulation results.
+
+One more word of caution. If you make changes to GTFS data, then make sure your properly zip the data back into an archive. You do this by selecting all of the individual text files and then right-click-compress. Do not compress the folder containing the GTFS files, if you do this, R5 will fail to read your data and will do so without any warning or errors.
+
+Finally, any time you make a changes to either the GTFS inputs or the OSM network inputs, then you need to delete the file "network.dat" under the "r5" sub-directory. This will signal to the R5 library to re-build the network.
+
+
+Converting a MATSim Scenario to Run with BEAM
+---------------------------------------------
+
+The following MATSim input data are required to complete the conversion process:
+
+* Matsim network file: (e.g. network.xml)
+* Matsim plans (or population) file: (e.g. population.xml)
+* A download of OpenStreetMap data for a region that includes your region of interest. Should be in pbf format. For North American downloads: http://download.geofabrik.de/north-america.html
+
+The following inputs are optional and only recommended if your MATSim scenario has a constrained vehicle stock (i.e. not every person owns a vehicle):
+
+* Matsim vehicle definition (e.g. vehicles.xml) 
+* Travel Analysis Zone shapefile for the region, (e.g. as can be downloaded from https://www.census.gov/geo/maps-data/data/cbf/cbf_taz.html)
+
+Finally, this conversion can only be done with a clone of the full BEAM repository. Gradle commands will **not** work with releases: https://github.com/LBNL-UCB-STI/beam/releases
+
+Conversion Instructions
+^^^^^^^^^^^^^^^^^^^^^^^
+Note that we use the MATSim Sioux Falls scenario as an example. The data for this scenario are already in the BEAM repository under "test/input/siouxfalls". We recommend that you follow the steps in this guide with that data to produce a working BEAM Sioux Falls scenario and then attempt to do the process with your own data.
+
+1. Create a folder for your scenario in project directory under test/input (e.g: test/input/siouxfalls)
+
+2. Create a sub-directory to your scenario directory and name it "conversion-input" (exact name required) 
+   
+3. Create a another sub-directory and name it "r5". 
+
+4. Copy the MATSim input data to the conversion-input directory.
+
+5. Copy the BEAM config file from test/input/beamville/beam.conf into the scenario directory and rename to your scenario (e.g. test/input/siouxfalls/siouxfalls.conf)
+
+6. Make the following edits to siouxfalls.conf (or your scenario name, replace Sioux Falls names below with appropriate names from your case):
+
+* Do a global search/replace and search for "beamville" and replace with your scenario name (e.g. "siouxfalls").
+   
+* matsim.conversion.scenarioDirectory = "test/input/siouxfalls"
+
+* matsim.conversion.populationFile = "Siouxfalls_population.xml" (just the file name, assumed to be under conversion-input)
+
+* matsim.conversion.matsimNetworkFile = "Siouxfalls_network_PT.xml"  (just the file name, assumed to be under conversion-input)
+
+* matsim.conversion.generateVehicles = true (If true -- common -- the conversion will use the population data to generate default vehicles, one per agent)
+
+* matsim.conversion.vehiclesFile = "Siouxfalls_vehicles.xml" (optional, if generateVehicles is false, specify the matsim vehicles file name, assumed to be under conversion-input)
+
+* matsim.conversion.defaultHouseholdIncome (an integer to be used for default household incomes of all agents)
+
+* matsim.conversion.osmFile = "south-dakota-latest.osm.pbf" (the Open Street Map source data file that should be clipped to the scenario network, assumed to be under conversion-input)
+
+* matsim.conversion.shapeConfig.shapeFile (file name shape file package, e.g: for shape file name tz46_d00, there should be following files: tz46_d00.shp, tz46_d00.dbf, tz46_d00.shx)
+
+* matsim.conversion.shapeConfig.tazIdFieldName (e.g. "TZ46_D00_I", the field name of the TAZ ID in the shape file)
+
+* beam.spatial.localCRS = "epsg:26914" (the local EPSG CRS used for distance calculations, should be in units of meters and should be the CRS used in the network, population and shape files)
+
+* beam.routing.r5.mNetBuilder.toCRS = "epsg:26914" (same as above)
+
+* beam.spatial.boundingBoxBuffer = 10000 (meters to pad bounding box around the MATSim network when clipping the OSM network)
+
+* The BEAM parameter beam.routing.baseDate has a time zone (e.g. for PST one might use "2016-10-17T00:00:00-07:00"). This time zone must match the time zone in the GTFS data provided to the R5 router. As a default, we provide the latest GTFS data from the City of Sioux Falls ("siouxareametro-sd-us.zip". downloaded from transitland.org) with a timezone of America/Central. But in general, if you use your own GTFS data for your region, then you may need to change this baseDate parameter to reflect the local time zone there. Look for the "timezone" field in the "agency.txt" data file in the GTFS archive. Finally, the date specified by the baseDate parameter must fall within the schedule of all GTFS archives included in the R5 sub-directory. See the "calendar.txt" data file in the GTFS archive and make sure your baseDate is within the "start_date" and "end_date" fields folder across all GTFS inputs. If this is not the case, you can either change baseDate or you can change the GTFS data, expanding the date ranges... the particular dates chosen are arbitrary and will have no other impact on the simulation results.
+
+8. Run the conversion tool
+
+* Open command line in beam root directory and run the following command, replace [/path/to/conf/file] with the path to your config file: gradlew matsimConversion -PconfPath=[/path/to/conf/file]
+
+The tool should produce the following outputs:
+
+* householdAttributes.xml
+* households.xml
+* population.xml
+* populationAttributes.xml
+* taz-centers.csv
+* transitVehicles.xml
+* vehicles.xml
+
+9. Run OSMOSIS 
+
+The console output should contain a command for the osmosis tool, a command line utility that allows you manipulate OSM data. If you don't have osmosis installed, download and install from: https://wiki.openstreetmap.org/wiki/Osmosis
+
+Copy the osmosis command generated by conversion tool and run from the command line from within the BEAM project directory:
+
+   osmosis --read-pbf file=/path/to/osm/file/south-dakota-latest.osm.pbf --bounding-box top=43.61080226522504 left=-96.78138443934351 bottom=43.51447260628691 right=-96.6915507011093 completeWays=yes completeRelations=yes clipIncompleteEntities=true --write-pbf file=/path/to/dest-osm.pbf
+
+10. Run BEAM
+
+* Main class to execute: beam.sim.RunBeam
+* VM Options: -Xmx2g (or more if a large scenario)
+* Program arguments, path to beam config file from above, (e.g. --config "test/input/siouxfalls/siouxfalls.conf")
+* Environment variables: PWD=/path/to/beam/folder
+
 

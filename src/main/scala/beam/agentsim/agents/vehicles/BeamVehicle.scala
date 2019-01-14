@@ -3,13 +3,23 @@ package beam.agentsim.agents.vehicles
 import akka.actor.ActorRef
 import beam.agentsim.Resource
 import beam.agentsim.agents.PersonAgent
+import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumptionData}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.infrastructure.ParkingStall
-import org.apache.log4j.Logger
-import org.matsim.api.core.v01.Id
+import beam.agentsim.infrastructure.ParkingStall.ChargingType
+import beam.router.Modes
+import beam.router.model.BeamLeg
+import beam.sim.BeamServices
+import beam.sim.common.GeoUtils
+import beam.sim.common.GeoUtils.{Straight, TurningDirection}
+import com.typesafe.scalalogging.StrictLogging
+import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.utils.objectattributes.ObjectAttributes
-import org.matsim.vehicles.{Vehicle, VehicleType}
+import org.matsim.vehicles.Vehicle
+
+import scala.collection.JavaConverters._
 
 /**
   * A [[BeamVehicle]] is a state container __administered__ by a driver ([[PersonAgent]]
@@ -26,19 +36,14 @@ import org.matsim.vehicles.{Vehicle, VehicleType}
 
 // TODO: safety for
 class BeamVehicle(
+  val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
-  val matSimVehicle: Vehicle,
   val initialMatsimAttributes: Option[ObjectAttributes],
-  val beamVehicleType: BeamVehicleType,
-  var fuelLevel: Option[Double],
-  val fuelCapacityInJoules: Option[Double]
-) extends Resource[BeamVehicle] {
-  val log: Logger = Logger.getLogger(classOf[BeamVehicle])
+  val beamVehicleType: BeamVehicleType
+) extends Resource[BeamVehicle]
+    with StrictLogging {
 
-  /**
-    * Identifier for this vehicle
-    */
-  val id: Id[Vehicle] = matSimVehicle.getId
+  var fuelLevelInJoules: Option[Double] = Some(beamVehicleType.primaryFuelCapacityInJoule)
 
   /**
     * The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
@@ -47,10 +52,10 @@ class BeamVehicle(
     * of the vehicle as a physical property.
     */
   var driver: Option[ActorRef] = None
+  var driverId: Option[String] = None
 
+  var reservedStall: Option[ParkingStall] = None
   var stall: Option[ParkingStall] = None
-
-  def getType: VehicleType = matSimVehicle.getType
 
   override def getId: Id[BeamVehicle] = id
 
@@ -59,6 +64,7 @@ class BeamVehicle(
     */
   def unsetDriver(): Unit = {
     driver = None
+    driverId = None
   }
 
   /**
@@ -69,34 +75,91 @@ class BeamVehicle(
     * @param newDriverRef incoming driver
     */
   def becomeDriver(
-    newDriverRef: ActorRef
-  ): Either[DriverAlreadyAssigned, BecomeDriverOfVehicleSuccessAck.type] = {
+    newDriverRef: ActorRef,
+    newDriverId: String
+  ): BecomeDriverResponse = {
     if (driver.isEmpty) {
-      driver = Option(newDriverRef)
-      Right(BecomeDriverOfVehicleSuccessAck)
+      driver = Some(newDriverRef)
+      driverId = Some(newDriverId)
+      BecomeDriverOfVehicleSuccess
+    } else if (driver.get.path.compareTo(newDriverRef.path) == 0) {
+      NewDriverAlreadyControllingVehicle
     } else {
-      Left(DriverAlreadyAssigned(id, driver.get))
+      DriverAlreadyAssigned(driver.get)
     }
   }
 
-  def useParkingStall(newStall: ParkingStall) = {
+  def setReservedParkingStall(newStall: Option[ParkingStall]): Unit = {
+    reservedStall = newStall
+  }
+
+  def useParkingStall(newStall: ParkingStall): Unit = {
     stall = Some(newStall)
   }
 
-  def unsetParkingStall() = {
+  def unsetParkingStall(): Unit = {
     stall = None
   }
 
-  def useFuel(distanceInMeters: Double): Unit = fuelLevel foreach { fLevel =>
-    fuelLevel = Some(
-      fLevel - powerTrain
-        .estimateConsumptionInJoules(distanceInMeters) / fuelCapacityInJoules.get
+  def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): Double = {
+    val distanceInMeters = beamLeg.travelPath.distanceInM
+    val network =
+      if (beamServices.matsimServices != null) Some(beamServices.matsimServices.getScenario.getNetwork) else None
+    val fuelConsumption: Option[List[FuelConsumptionData]] = network map (
+      n => BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, n)
     )
+    fuelLevelInJoules match {
+      case Some(fLevel) =>
+        val energyConsumed = fuelConsumption match {
+          case Some(consumption) => powerTrain.estimateConsumptionInJoules(consumption)
+          case None              => powerTrain.estimateConsumptionInJoules(distanceInMeters)
+        }
+        if (fLevel < energyConsumed) {
+          logger.warn(
+            "Vehicle {} does not have sufficient fuel to travel {} m, only enough for {} m, setting fuel level to 0",
+            id,
+            distanceInMeters,
+            fLevel / powerTrain.estimateConsumptionInJoules(1)
+          )
+        }
+        fuelLevelInJoules = Some(Math.max(fLevel - energyConsumed, 0.0))
+        energyConsumed
+      case None =>
+        0.0
+    }
   }
 
-  def addFuel(fuelInJoules: Double): Unit = fuelLevel foreach { fLevel =>
-    fuelLevel = Some(fLevel + fuelInJoules / fuelCapacityInJoules.get)
+  def addFuel(fuelInJoules: Double): Unit = fuelLevelInJoules foreach { fLevel =>
+    fuelLevelInJoules = Some(fLevel + fuelInJoules)
   }
+
+  /**
+    *
+    * @return refuelingDuration
+    */
+  def refuelingSessionDurationAndEnergyInJoules(): (Long, Double) = {
+    stall match {
+      case Some(theStall) =>
+        ChargingType.calculateChargingSessionLengthAndEnergyInJoules(
+          theStall.attributes.chargingType,
+          fuelLevelInJoules.get,
+          beamVehicleType.primaryFuelCapacityInJoule,
+          beamVehicleType.rechargeLevel2RateLimitInWatts,
+          beamVehicleType.rechargeLevel3RateLimitInWatts,
+          None
+        )
+      case None =>
+        (0, 0.0) // if we are not parked, no refueling can occur
+    }
+  }
+
+  def getState: BeamVehicleState =
+    BeamVehicleState(
+      fuelLevelInJoules.getOrElse(Double.NaN),
+      fuelLevelInJoules.getOrElse(Double.NaN) / powerTrain.estimateConsumptionInJoules(1),
+      driver,
+      stall
+    )
 
 }
 
@@ -104,4 +167,101 @@ object BeamVehicle {
 
   def noSpecialChars(theString: String): String =
     theString.replaceAll("[\\\\|\\\\^]+", ":")
+
+  def createId[A](id: Id[A], prefix: Option[String] = None): Id[BeamVehicle] = {
+    Id.create(s"${prefix.map(_ + "-").getOrElse("")}${id.toString}", classOf[BeamVehicle])
+  }
+
+  case class BeamVehicleState(
+    fuelLevel: Double,
+    remainingRangeInM: Double,
+    driver: Option[ActorRef],
+    stall: Option[ParkingStall]
+  )
+
+  case class FuelConsumptionData(
+    linkId: Int,
+    linkCapacity: Double,
+    linkLength: Double,
+    averageSpeed: Double,
+    freeFlowSpeed: Double,
+    linkArrivalTime: Long,
+    vehicleId: String,
+    vehicleType: BeamVehicleType,
+    turnAtLinkEnd: TurningDirection,
+    numberOfStops: Int
+  )
+
+  /**
+    * Organizes the fuel consumption data table
+    * @param beamLeg Instance of beam leg
+    * @param network the transport network instance
+    * @return list of fuel consumption objects generated
+    */
+  def collectFuelConsumptionData(
+    beamLeg: BeamLeg,
+    vehicleType: BeamVehicleType,
+    network: Network
+  ): List[FuelConsumptionData] = {
+    if (beamLeg.mode.isTransit & !Modes.isOnStreetTransit(beamLeg.mode)) {
+      List()
+    } else {
+      val linkIds = beamLeg.travelPath.linkIds
+      val linkTravelTimes: IndexedSeq[Int] = beamLeg.travelPath.linkTravelTime
+      // generate the link arrival times for each link ,by adding cumulative travel times of previous links
+      val linkArrivalTimes: Seq[Int] = for (i <- linkTravelTimes.indices) yield {
+        i match {
+          case 0 => beamLeg.startTime
+          case _ =>
+            beamLeg.startTime + (try {
+              linkTravelTimes(i - 1)
+            } catch {
+              case _: Exception => 0
+            })
+        }
+      }
+      val nextLinkIds = linkIds.toList.takeRight(linkIds.size - 1)
+      linkIds.zipWithIndex.map { idAndIdx =>
+        val id = idAndIdx._1
+        val idx = idAndIdx._2
+        val travelTime = linkTravelTimes(idx)
+        val arrivalTime = linkArrivalTimes(idx)
+        val currentLink: Option[Link] = Option(network.getLinks.get(Id.createLinkId(id)))
+        val averageSpeed = try {
+          if (travelTime > 0) currentLink.map(_.getLength).getOrElse(0.0) / travelTime else 0
+        } catch {
+          case _: Exception => 0.0
+        }
+        // get the next link , and calculate the direction to be taken based on the angle between the two links
+        val nextLink = if (idx < nextLinkIds.length) {
+          Some(network.getLinks.get(Id.createLinkId(nextLinkIds(idx))))
+        } else {
+          currentLink
+        }
+        val turnAtLinkEnd = currentLink match {
+          case Some(curLink) =>
+            GeoUtils.getDirection(GeoUtils.vectorFromLink(curLink), GeoUtils.vectorFromLink(nextLink.get))
+          case None =>
+            Straight
+        }
+        val numStops = turnAtLinkEnd match {
+          case Straight => 0
+          case _        => 1
+        }
+        FuelConsumptionData(
+          linkId = id,
+          linkCapacity = currentLink.map(_.getCapacity).getOrElse(0),
+          linkLength = currentLink.map(_.getLength).getOrElse(0),
+          averageSpeed = averageSpeed,
+          freeFlowSpeed = currentLink.map(_.getFreespeed).getOrElse(0),
+          linkArrivalTime = arrivalTime,
+          vehicleId = id.toString,
+          vehicleType = vehicleType,
+          turnAtLinkEnd = turnAtLinkEnd,
+          numberOfStops = numStops
+        )
+      }.toList
+    }
+  }
+
 }

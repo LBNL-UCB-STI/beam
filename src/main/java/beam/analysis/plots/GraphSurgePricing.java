@@ -2,6 +2,8 @@ package beam.analysis.plots;
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager;
 import beam.agentsim.agents.ridehail.SurgePriceBin;
+import beam.sim.OutputDataDescription;
+import beam.utils.OutputDataDescriptor;
 import com.google.inject.Inject;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
@@ -59,6 +61,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     private String revenueGraphImageFile = "";
     private String revenueCsvFileName = "";
     private RideHailSurgePricingManager surgePricingManager;
+    private final boolean writeGraph;
 
     @Inject
     public GraphSurgePricing(RideHailSurgePricingManager surgePricingManager) {
@@ -69,6 +72,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         min = null;
 
         numberOfTimeBins = this.surgePricingManager.numberOfTimeBins();
+        this.writeGraph = surgePricingManager.beamServices().beamConfig().beam().outputs().writeGraphs();
     }
 
     @Override
@@ -84,7 +88,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
         graphImageFile = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.png");
         surgePricingCsvFileName = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.csv");
-        surgePricingAndRevenueWithTaz = odh.getIterationFilename(iNo, "taz_rideHailSurgePriceLevel.csv");
+        surgePricingAndRevenueWithTaz = odh.getIterationFilename(iNo, "tazRideHailSurgePriceLevel.csv");
         revenueGraphImageFile = odh.getIterationFilename(iNo, "rideHailRevenue.png");
         revenueCsvFileName = odh.getIterationFilename(iNo, "rideHailRevenue.csv");
 
@@ -104,20 +108,24 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
             List<String> categoriesKeys = getCategoriesKeys(transformedBins, true);
             double[][] dataset = getDataset(true);
             writePriceSurgeCsv(dataset, categoriesKeys, true);
-            drawGraph(dataset, categoriesKeys, true);
-
-            drawHistogram(dataset, categoriesKeys, true);
+            if (writeGraph) {
+                drawGraph(dataset, categoriesKeys, true);
+                drawHistogram(dataset, categoriesKeys, true);
+            }
         } else {
 
             List<String> categoriesKeys = getCategoriesKeys(transformedBins, false);
             double[][] dataset = getDataset(false);
             writePriceSurgeCsv(dataset, categoriesKeys, false);
-            drawGraph(dataset, categoriesKeys, false);
+            if (writeGraph) {
+                drawGraph(dataset, categoriesKeys, false);
+                drawHistogram(dataset, categoriesKeys, true);
+            }
 
-            drawHistogram(dataset, categoriesKeys, true);
         }
-
-        drawRevenueGraph(revenueDataSet);
+        if (writeGraph) {
+            drawRevenueGraph(revenueDataSet);
+        }
 
         writeTazCsv(tazDataset);
 
@@ -532,7 +540,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         JFreeChart chart = ChartFactory.createHistogram("", null, null, histogramDataset,
                 PlotOrientation.VERTICAL, true, true, false);
 
-        String fileName = graphImageFile.replace(".png", "_histogram.png");
+        String fileName = graphImageFile.replace(".png", "Histogram.png");
         //GraphUtils.plotLegendItems(plot, _categoriesKeys, dataset.getRowCount());
 
         try {
@@ -541,4 +549,5 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
             ioe.printStackTrace();
         }
     }
+
 }

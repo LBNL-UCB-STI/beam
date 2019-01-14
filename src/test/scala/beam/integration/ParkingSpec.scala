@@ -1,64 +1,64 @@
 package beam.integration
 
-import scala.collection.immutable.Queue
-import scala.collection.mutable.ArrayBuffer
+import java.io.File
 
-import org.matsim.api.core.v01.events.Event
-import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
-import org.matsim.core.events.handler.BasicEventHandler
-
+import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
+import beam.integration.ReadEvents._
+import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
+import org.apache.commons.io.FileUtils
+import org.matsim.api.core.v01.events.Event
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
-import beam.agentsim.events.{
-  LeavingParkingEventAttrs,
-  ModeChoiceEvent,
-  ParkEventAttrs,
-  PathTraversalEvent
-}
-import beam.sim.BeamHelper
+import scala.collection.mutable.ArrayBuffer
 
-class ParkingSpec
-    extends WordSpecLike
-    with BeforeAndAfterAll
-    with Matchers
-    with BeamHelper
-    with IntegrationSpecCommon
-    with EventsFileHandlingCommon {
+class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with BeamHelper with IntegrationSpecCommon {
 
-  def collectEvents(filePath: String): Queue[Event] = {
-    var events: Queue[Event] = Queue()
-    val handler = new BasicEventHandler {
-      def handleEvent(event: Event): Unit = {
-        events = events :+ event
-      }
-    }
-    val eventsMan = EventsUtils.createEventsManager()
-    eventsMan.addHandler(handler)
-
-    val reader = new MatsimEventsReader(eventsMan)
-    reader.readFile(filePath)
-
-    events
-  }
-
-  def runAndCollectEvents(parkingScenario: String): Queue[Event] = {
+  def runAndCollectEvents(parkingScenario: String): Seq[Event] = {
     runAndCollectForIterations(parkingScenario, 1).head
   }
 
-  def runAndCollectForIterations(parkingScenario: String, iterations: Int): Seq[Queue[Event]] = {
+  def runAndCollectForIterations(parkingScenario: String, iterations: Int): Seq[Seq[Event]] = {
     val config = baseConfig
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
-      .withValue("beam.routing.transitOnStreetNetwork", ConfigValueFactory.fromAnyRef("true"))
+      .withValue(
+        TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+        ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept",
+        ConfigValueFactory.fromAnyRef(1.0)
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept",
+        ConfigValueFactory.fromAnyRef(0.0)
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept",
+        ConfigValueFactory.fromAnyRef(0.0)
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_transit_intercept",
+        ConfigValueFactory.fromAnyRef(0.0)
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept",
+        ConfigValueFactory.fromAnyRef(0.0)
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept",
+        ConfigValueFactory.fromAnyRef(-5.0)
+      )
+      .withValue(
+        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept",
+        ConfigValueFactory.fromAnyRef(0.0)
+      )
+      .withValue("matsim.modules.strategy.ModuleProbability_1", ConfigValueFactory.fromAnyRef(0.3))
+      .withValue("matsim.modules.strategy.ModuleProbability_2", ConfigValueFactory.fromAnyRef(0.7))
       .withValue(
         "beam.agentsim.taz.parking",
-        ConfigValueFactory.fromAnyRef(s"test/input/beamville/taz-parking-$parkingScenario.csv")
+        ConfigValueFactory.fromAnyRef(s"test/input/beamville/parking/taz-parking-$parkingScenario.csv")
       )
-      .withValue(
-        "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
-        ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogit")
-      )
-//      .withValue("beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept", ConfigValueFactory.fromAnyRef(50))
       .withValue(
         "beam.outputs.events.overrideWritingLevels",
         ConfigValueFactory.fromAnyRef(
@@ -71,23 +71,35 @@ class ParkingSpec
       )
       .resolve()
 
-    val matsimConfig = runBeamWithConfig(config)._1
-    val queueEvents = ArrayBuffer[Queue[Event]]()
+    val (matsimConfig, outputDirectory) = runBeamWithConfig(config)
+
+    val queueEvents = ArrayBuffer[Seq[Event]]()
     for (i <- 0 until iterations) {
       val filePath = getEventsFilePath(matsimConfig, "xml", i).getAbsolutePath
-      queueEvents.append(collectEvents(filePath))
+      queueEvents.append(ReadEvents.fromFile(filePath).toSeq)
     }
+
+    val outputDirectoryFile = new File(outputDirectory)
+    FileUtils.copyDirectory(outputDirectoryFile, new File(s"${outputDirectory}_$parkingScenario"))
+
     queueEvents
   }
 
-  lazy val limitedEvents = runAndCollectForIterations("limited", 10)
-  lazy val defaultEvents = runAndCollectForIterations("default", 10)
-  lazy val expensiveEvents = runAndCollectForIterations("expensive", 10)
-  lazy val emptyEvents = runAndCollectForIterations("empty", 10)
+  private lazy val limitedEvents = runAndCollectForIterations("limited", 4)
+  private lazy val defaultEvents = runAndCollectForIterations("default", 4)
+  private lazy val expensiveEvents = runAndCollectForIterations("expensive", 4)
+  private lazy val emptyEvents = runAndCollectForIterations("empty", 4)
 
-  val filterForCarMode: Seq[Event] => Int = { events =>
+  val countForPathTraversalAndCarMode: Seq[Event] => Int = { events =>
     events.count { e =>
       val mMode = Option(e.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE))
+      e.getEventType.equals(ModeChoiceEvent.EVENT_TYPE) && mMode.exists(_.equals("car"))
+    }
+  }
+
+  val countForModeChoiceAndCarMode: Seq[Event] => Int = { events =>
+    events.count { e =>
+      val mMode = Option(e.getAttributes.get(ModeChoiceEvent.ATTRIBUTE_MODE))
       e.getEventType.equals(ModeChoiceEvent.EVENT_TYPE) && mMode.exists(_.equals("car"))
     }
   }
@@ -137,7 +149,8 @@ class ParkingSpec
                 ParkEventAttrs.ATTRIBUTE_PARKING_TYPE,
                 ParkEventAttrs.ATTRIBUTE_PRICING_MODEL,
                 ParkEventAttrs.ATTRIBUTE_CHARGING_TYPE
-              ).forall { k => evA.getAttributes.get(k).equals(evB.getAttributes.get(k))
+              ).forall { k =>
+                evA.getAttributes.get(k).equals(evB.getAttributes.get(k))
               }
               val parkBeforeLeaving = evA.getAttributes.get("time").toDouble < evB.getAttributes
                 .get("time")
@@ -194,11 +207,11 @@ class ParkingSpec
     }
 
     "expensive parking should reduce driving" in {
-      val expensiveModeChoiceCarCount = expensiveEvents.map(filterForCarMode)
-      val defaultModeChoiceCarCount = defaultEvents.map(filterForCarMode)
+      val expensiveModeChoiceCarCount = expensiveEvents.map(countForPathTraversalAndCarMode)
+      val defaultModeChoiceCarCount = defaultEvents.map(countForPathTraversalAndCarMode)
 
-      println(s"Default iterations $defaultModeChoiceCarCount")
-      println(s"Expensive iterations $expensiveModeChoiceCarCount")
+      logger.debug("Default iterations ", defaultModeChoiceCarCount.mkString(","))
+      logger.debug("Expensive iterations ", expensiveModeChoiceCarCount.mkString(","))
 
       defaultModeChoiceCarCount
         .takeRight(5)
@@ -206,52 +219,27 @@ class ParkingSpec
     }
 
     "empty parking access should reduce driving" in {
-      val emptyModeChoiceCarCount = emptyEvents.map(filterForCarMode)
-      val defaultModeChoiceCarCount = defaultEvents.map(filterForCarMode)
+      val emptyModeChoiceCarCount = emptyEvents.map(countForPathTraversalAndCarMode)
+      val defaultModeChoiceCarCount = defaultEvents.map(countForPathTraversalAndCarMode)
 
-      println(s"Default iterations $defaultModeChoiceCarCount")
-      println(s"Empty iterations $emptyModeChoiceCarCount")
+      logger.debug("Default iterations", defaultModeChoiceCarCount.mkString(","))
+      logger.debug("Empty iterations", emptyModeChoiceCarCount.mkString(","))
 
       defaultModeChoiceCarCount
         .takeRight(5)
         .sum should be > emptyModeChoiceCarCount.takeRight(5).sum
     }
 
-    "limited parking access should reduce driving" in {
-      val limitedModeChoiceCarCount = limitedEvents.map(filterForCarMode)
-      val defaultModeChoiceCarCount = defaultEvents.map(filterForCarMode)
+    "limited parking access should reduce driving" ignore {
+      val limitedModeChoiceCarCount = limitedEvents.map(countForPathTraversalAndCarMode)
+      val defaultModeChoiceCarCount = defaultEvents.map(countForPathTraversalAndCarMode)
 
-      println(s"Default iterations $defaultModeChoiceCarCount")
-      println(s"Limited iterations $limitedModeChoiceCarCount")
+      logger.debug(s"Default iterations ${defaultModeChoiceCarCount.mkString(",")}")
+      logger.debug(s"Limited iterations ${limitedModeChoiceCarCount.mkString(",")}")
 
       defaultModeChoiceCarCount
         .takeRight(5)
         .sum should be > limitedModeChoiceCarCount.takeRight(5).sum
-
-    }
-
-    "limited parking access should increase walking distances" ignore {
-      def filterPathTraversalForWalk(e: Event): Boolean = {
-        PathTraversalEvent.EVENT_TYPE.equals(e.getEventType) &&
-        "walk".equalsIgnoreCase(e.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE))
-      }
-      val defaultPathTraversalEvents = defaultEvents.head.filter(filterPathTraversalForWalk)
-
-      val defaultPathLength = defaultPathTraversalEvents.foldLeft(0.0) {
-        case (acc, ev) =>
-          val currLength = ev.getAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH).toDouble
-          acc + currLength
-      } / defaultPathTraversalEvents.size
-
-      val limitedPathTraversalEvents = limitedEvents.head.filter(filterPathTraversalForWalk)
-
-      val limitedPathLength = limitedPathTraversalEvents.foldLeft(0.0) {
-        case (acc, ev) =>
-          val currLength = ev.getAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH).toDouble
-          acc + currLength
-      } / limitedPathTraversalEvents.size
-
-      limitedPathLength should be > defaultPathLength
     }
   }
 }

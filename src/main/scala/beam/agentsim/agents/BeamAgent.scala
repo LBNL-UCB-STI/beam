@@ -14,31 +14,29 @@ object BeamAgent {
   // states
   trait BeamAgentState
 
+  case class TerminatedPrematurelyEvent(actorRef: ActorRef, reason: FSM.Reason, tick: Option[Int])
+
   case object Uninitialized extends BeamAgentState
 
   case object Initialized extends BeamAgentState
 
   case object Finish
 
-  case class TerminatedPrematurelyEvent(actorRef: ActorRef, reason: FSM.Reason)
-
 }
 
-case class InitializeTrigger(tick: Double) extends Trigger
+case class InitializeTrigger(tick: Int) extends Trigger
 
-trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
+trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash with HasTickAndTrigger {
 
   val scheduler: ActorRef
   val eventsManager: EventsManager
 
+  protected implicit val timeout: util.Timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
+
   def id: Id[_]
 
-  protected implicit val timeout: util.Timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
-  protected var _currentTriggerId: Option[Long] = None
-  protected var _currentTick: Option[Double] = None
-
   onTermination {
-    case event @ StopEvent(reason @ (FSM.Failure(_) | FSM.Shutdown), _, _) =>
+    case event @ StopEvent(reason @ (FSM.Failure(_) | FSM.Shutdown), currentState, _) =>
       reason match {
         case FSM.Shutdown =>
           log.error(
@@ -46,31 +44,30 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
           )
         case _ =>
       }
-      log.error(event.toString)
+      log.error("State: {} Event: {}", currentState, event.toString)
       log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
-      context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason))
-  }
-
-  def holdTickAndTriggerId(tick: Double, triggerId: Long): Unit = {
-    if (_currentTriggerId.isDefined || _currentTick.isDefined)
-      throw new IllegalStateException(
-        s"Expected both _currentTick and _currentTriggerId to be 'None' but found ${_currentTick} and ${_currentTriggerId} instead, respectively."
-      )
-
-    _currentTick = Some(tick)
-    _currentTriggerId = Some(triggerId)
-  }
-
-  def releaseTickAndTriggerId(): (Double, Long) = {
-    val theTuple = (_currentTick.get, _currentTriggerId.get)
-    _currentTick = None
-    _currentTriggerId = None
-    theTuple
+      context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason, _currentTick))
   }
 
   def logPrefix(): String
 
-  def logWithFullPrefix(msg: String): String = {
+  def logInfo(msg: => String): Unit = {
+    log.info("{} {}", getPrefix, msg)
+  }
+
+  def logWarn(msg: => String): Unit = {
+    log.warning("{} {}", getPrefix, msg)
+  }
+
+  def logError(msg: => String): Unit = {
+    log.error("{} {}", getPrefix, msg)
+  }
+
+  def logDebug(msg: => String): Unit = {
+    log.debug("{} {}", getPrefix, msg)
+  }
+
+  def getPrefix: String = {
     val tickStr = _currentTick match {
       case Some(theTick) =>
         s"Tick:${theTick.toString} "
@@ -83,23 +80,7 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
       case None =>
         ""
     }
-    s"$tickStr${triggerStr}State:$stateName ${logPrefix()}$msg"
-  }
-
-  def logInfo(msg: String): Unit = {
-    log.info(s"${logWithFullPrefix(msg)}")
-  }
-
-  def logWarn(msg: String): Unit = {
-    log.warning(s"${logWithFullPrefix(msg)}")
-  }
-
-  def logError(msg: String): Unit = {
-    log.error(s"${logWithFullPrefix(msg)}")
-  }
-
-  def logDebug(msg: String): Unit = {
-    log.debug(s"${logWithFullPrefix(msg)}")
+    s"$tickStr${triggerStr}State:$stateName ${logPrefix()}"
   }
 
 }

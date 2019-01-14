@@ -8,9 +8,7 @@ import org.matsim.core.events.handler.BasicEventHandler
 
 import scala.collection.mutable
 
-class RideHailDebugEventHandler(eventsManager: EventsManager)
-    extends BasicEventHandler
-    with LazyLogging {
+class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEventHandler with LazyLogging {
 
   eventsManager.addHandler(this)
 
@@ -18,6 +16,24 @@ class RideHailDebugEventHandler(eventsManager: EventsManager)
 
   override def handleEvent(event: Event): Unit = {
     collectRideHailEvents(event)
+  }
+
+  private def collectRideHailEvents(event: Event) = {
+
+    event.getEventType match {
+      case PersonEntersVehicleEvent.EVENT_TYPE | PersonLeavesVehicleEvent.EVENT_TYPE =>
+        val person = event.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON)
+        val vehicle = event.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
+        if (vehicle.contains("rideHail") && !person.contains("rideHail"))
+          rideHailEvents += event
+
+      case PathTraversalEvent.EVENT_TYPE =>
+        val vehicle = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
+        if (vehicle.contains("rideHail"))
+          rideHailEvents += event
+
+      case _ =>
+    }
   }
 
   override def reset(iteration: Int): Unit = {
@@ -48,7 +64,9 @@ class RideHailDebugEventHandler(eventsManager: EventsManager)
             if (events.nonEmpty) {
               vehicleAbnormalities :+ RideHailAbnormality(vehicle, event)
               logger.debug(
-                s".RideHail: vehicle $vehicle already has person and another enters - $event"
+                ".RideHail: vehicle {} already has person and another enters - {}",
+                vehicle,
+                event
               )
             }
 
@@ -63,16 +81,18 @@ class RideHailDebugEventHandler(eventsManager: EventsManager)
 
             vehicleEvents.get(vehicle) match {
               // if person enters ride hail vehicle then number of passengers > 0 in ride hail vehicle
-              case Some(enterEvents)
-                  if numPassengers == 0 && enterEvents.count(_.getTime == departure) > 0 =>
+              case Some(enterEvents) if numPassengers == 0 && enterEvents.count(_.getTime == departure) > 0 =>
                 vehicleAbnormalities :+ RideHailAbnormality(vehicle, event)
-                logger.debug(s"RideHail: vehicle $vehicle with zero passenger - $event")
+                logger.debug("RideHail: vehicle {} with zero passenger - {}", vehicle, event)
 
               // if person doesn't enters ride hail vehicle then number of passengers = 0 in ride hail vehicle
               case None if numPassengers > 0 =>
                 vehicleAbnormalities :+ RideHailAbnormality(vehicle, event)
                 logger.debug(
-                  s"RideHail: vehicle $vehicle with $numPassengers passenger but no enterVehicle encountered - $event"
+                  "RideHail: vehicle {} with {} passenger but no enterVehicle encountered - {}",
+                  vehicle,
+                  numPassengers,
+                  event
                 )
 
               case _ =>
@@ -100,8 +120,7 @@ class RideHailDebugEventHandler(eventsManager: EventsManager)
 
     vehicleEvents.foreach(
       _._2.foreach(
-        event =>
-          logger.debug(s"RideHail: Person enters vehicle but no leaves event encountered. $event")
+        event => logger.debug("RideHail: Person enters vehicle but no leaves event encountered. {}", event)
       )
     )
 
@@ -110,72 +129,12 @@ class RideHailDebugEventHandler(eventsManager: EventsManager)
     vehicleAbnormalities
   }
 
-  private def collectRideHailEvents(event: Event) = {
-
-    event.getEventType match {
-      case PersonEntersVehicleEvent.EVENT_TYPE | PersonLeavesVehicleEvent.EVENT_TYPE =>
-        val person = event.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON)
-        val vehicle = event.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
-        if (vehicle.contains("rideHail") && !person.contains("rideHail"))
-          rideHailEvents += event
-
-      case PathTraversalEvent.EVENT_TYPE =>
-        val vehicle = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
-        if (vehicle.contains("rideHail"))
-          rideHailEvents += event
-
-      case _ =>
-    }
-  }
-
   private def sortEvents(): Unit = {
 
-    rideHailEvents = rideHailEvents.sorted(compareEventsV3)
+    rideHailEvents = rideHailEvents.sorted(compareEvents)
   }
 
-  private def compareEventsV1(e1: Event, e2: Event): Boolean = {
-    if (e1.getEventType == e2.getEventType && e1.getEventType == PathTraversalEvent.EVENT_TYPE) {
-
-      val e1Depart = e1.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
-      val e2Depart = e2.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
-
-      if (e1Depart != e2Depart) {
-
-        return e1Depart < e1Depart
-
-      } else {
-        val e1Arrival = e1.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
-        val e2Arrival = e2.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
-
-        return e1Arrival < e2Arrival
-      }
-    }
-
-    e1.getTime < e2.getTime
-  }
-
-  private def compareEventsV2(e1: Event, e2: Event): Boolean = {
-    if (e1.getEventType == e2.getEventType && e1.getEventType == PathTraversalEvent.EVENT_TYPE) {
-
-      val e1Depart = e1.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
-      val e2Depart = e2.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
-
-      if (e1Depart != e2Depart) {
-
-        e1Depart < e1Depart
-
-      } else {
-        val e1Arrival = e1.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
-        val e2Arrival = e2.getAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toLong
-
-        e1Arrival < e2Arrival
-      }
-    } else {
-      e1.getTime < e2.getTime
-    }
-  }
-
-  private def compareEventsV3(e1: Event, e2: Event): Int = {
+  private def compareEvents(e1: Event, e2: Event): Int = {
     val t1 = e1.getAttributes
       .getOrDefault(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME, s"${e1.getTime}")
       .toDouble

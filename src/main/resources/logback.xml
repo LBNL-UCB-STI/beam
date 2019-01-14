@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <layout class="ch.qos.logback.classic.PatternLayout">
+            <Pattern>
+                %d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n
+            </Pattern>
+        </layout>
+    </appender>
+
+    <root level="info">
+        <appender-ref ref="STDOUT"/>
+    </root>
+
+    <logger name="com.conveyal.r5" level="error"
+            additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="org.matsim" level="error"
+            additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter" level="ERROR" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <Logger name="org.reflections" level="ERROR" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+
+    <Logger name="beam.agentsim.agents.TransitDriverAgent" level="ERROR" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+
+    <Logger name="beam.router.r5.R5RoutingWorker" level="INFO" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+    <!--<Logger name="beam.agentsim.agents.vehicles.BeamVehicle" level="error" additivity="false">-->
+        <!--<appender-ref ref="STDOUT"/>-->
+
+    <!--<Logger name="beam.agentsim.agents.PersonAgent" level="error" additivity="false">-->
+        <!--<appender-ref ref="STDOUT"/>-->
+    <!--</Logger>-->
+
+    <!--<Logger name="beam.agentsim.agents.ridehail" level="error" additivity="false">-->
+        <!--<appender-ref ref="STDOUT"/>-->
+    <!--</Logger>-->
+
+    <!--<Logger name="beam.agentsim.agents.modalbehaviors.DrivesVehicle" level="error" additivity="false">-->
+        <!--<appender-ref ref="STDOUT"/>-->
+    <!--</Logger>-->
+
+    <!--<Logger name="beam.agentsim.agents.ridehail.RideHailAgent" level="error" additivity="false">-->
+        <!--<appender-ref ref="STDOUT"/>-->
+    <!--</Logger>-->
+
+    <!--<Logger name="beam.agentsim.agents.ridehail.TNCIterationStats" level="error" additivity="false">-->
+        <!--<appender-ref ref="STDOUT"/>-->
+    <!--</Logger>-->
+
+    <!--<Logger name="beam.agentsim.agents.ridehail.allocation.RepositioningLowWaitingTimes" level="error" additivity="false">-->
+        <!--<appender-ref ref="STDOUT"/>-->
+    <!--</Logger>-->
+
+    <Logger name="beam.agentsim.agents.ridehail.RideHailModifyPassengerScheduleManager" level="error" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+
+    <Logger name="beam.utils.DebugActorWithTimer" level="error" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+
+    <Logger name="org.matsim.core.controler.corelisteners.DumpDataAtEndImpl" level="OFF">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+
+    <Logger name="beam.calibration" level="Info" additivity="false">
+        <appender-ref ref="STDOUT"/>
+
+    </Logger>
+
+    <Logger name="beam.router.BeamRouter" level="ERROR" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+
+</configuration>

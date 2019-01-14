@@ -1,6 +1,5 @@
 package beam.sim
 
-import beam.agentsim.agents.vehicles.BeamVehicleType.BicycleVehicle
 import beam.replanning.SwitchModalityStyle
 import javax.inject.Inject
 import org.matsim.api.core.v01.{Id, Scenario}
@@ -16,7 +15,7 @@ import scala.util.Random
 class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
 
   override def run(): Unit = {
-    keepOnlyActivities()
+//    keepOnlyActivities()
     assignInitialModalityStyles()
 
   }

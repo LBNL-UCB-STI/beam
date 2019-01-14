@@ -6,7 +6,6 @@ import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.Resource._
-import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.events.SpaceTime
 import org.matsim.api.core.v01.{Id, Identifiable}
 
@@ -30,11 +29,10 @@ object Resource {
 
   case class NotifyResourceInUse(resourceId: Id[_], whenWhere: SpaceTime)
 
-  case class NotifyResourceIdle(
-    resourceId: Id[_],
-    whenWhere: SpaceTime,
-    passengerSchedule: PassengerSchedule
-  )
+  trait NotifyResourceIdle {
+    def resourceId: Id[_]
+    def whenWhere: Option[SpaceTime]
+  }
 
   case class AssignManager(managerRef: ActorRef)
 

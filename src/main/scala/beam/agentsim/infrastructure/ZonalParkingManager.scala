@@ -1,28 +1,27 @@
 package beam.agentsim.infrastructure
 
-import java.io.FileWriter
+import java.io.{File, FileWriter}
 import java.nio.file.{Files, Paths}
 import java.util
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource._
-import beam.agentsim.agents.PersonAgent
-import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager._
 import beam.agentsim.infrastructure.ParkingStall._
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.agentsim.infrastructure.ZonalParkingManager.ParkingAlternative
 import beam.router.BeamRouter.Location
+import beam.sim.common.GeoUtils
 import beam.sim.{BeamServices, HasServices}
-import beam.utils.CsvUtils
-import org.matsim.api.core.v01.Id
-import org.supercsv.cellprocessor.ift.CellProcessor
-import org.supercsv.io.{CsvMapReader, CsvMapWriter, ICsvMapReader, ICsvMapWriter}
-import org.supercsv.prefs.CsvPreference
+import beam.utils.FileUtils
+import org.matsim.api.core.v01.{Coord, Id}
 import org.supercsv.cellprocessor.constraint.NotNull
+import org.supercsv.cellprocessor.ift.CellProcessor
+import org.supercsv.io.{CsvMapReader, CsvMapWriter, ICsvMapWriter}
+import org.supercsv.prefs.CsvPreference
 
-import scala.collection.mutable
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.util.Random
 
 class ZonalParkingManager(
@@ -30,112 +29,153 @@ class ZonalParkingManager(
   val beamRouter: ActorRef,
   parkingStockAttributes: ParkingStockAttributes
 ) extends ParkingManager(parkingStockAttributes)
-    with HasServices {
-  override val resources: mutable.Map[Id[ParkingStall], ParkingStall] =
-    collection.mutable.Map[Id[ParkingStall], ParkingStall]()
+    with HasServices
+    with ActorLogging {
+  override val resources: mutable.Map[Id[ParkingStall], ParkingStall] = mutable.Map()
   val pooledResources: mutable.Map[StallAttributes, StallValues] = mutable.Map()
-  var stallnum = 0
+  var totalStallsInUse = 0
+  var stallNum = 0
+  val rand = new Random()
 
   val pathResourceCSV: String = beamServices.beamConfig.beam.agentsim.taz.parking
 
-  val defaultStallAtrrs = StallAttributes(
+  val defaultStallAttributes = StallAttributes(
     Id.create("NA", classOf[TAZ]),
     NoOtherExists,
     FlatFee,
     NoCharger,
     ParkingStall.Any
   )
-  val defaultStallValues = StallValues(Int.MaxValue, 0)
+  def defaultStallValues: StallValues = StallValues(Int.MaxValue, 0)
+  def defaultRideHailStallValues: StallValues = StallValues(0, 0)
 
-  for {
-    taz          <- beamServices.tazTreeMap.tazQuadTree.values().asScala
-    parkingType  <- List(Residential, Workplace, Public)
-    pricingModel <- List(Free, FlatFee, Block)
-    chargingType <- List(NoCharger, Level1, Level2, DCFast, UltraFast)
-    reservedFor  <- List(ParkingStall.Any, ParkingStall.RideHailManager)
-  } yield {
-    pooledResources.put(
-      StallAttributes(taz.tazId, parkingType, pricingModel, chargingType, reservedFor),
-      defaultStallValues
-    )
+  val depotStallLocationType: DepotStallLocationType =
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelLocationType match {
+      case "AtRequestLocation" =>
+        AtRequestLocation
+      case "AtTAZCenter" =>
+        AtTAZCenter
+      case _ =>
+        AtRequestLocation
+    }
+
+  def fillInDefaultPooledResources(): Unit = {
+    // First do general parking and charging for personal vehicles
+    for {
+      taz          <- beamServices.tazTreeMap.tazQuadTree.values().asScala
+      parkingType  <- List(Residential, Workplace, Public)
+      pricingModel <- List(FlatFee, Block)
+      chargingType <- List(NoCharger, Level1, Level2, DCFast, UltraFast)
+      reservedFor  <- List(ParkingStall.Any)
+    } yield {
+      val attrib = StallAttributes(taz.tazId, parkingType, pricingModel, chargingType, reservedFor)
+      addToPoolResource(attrib, defaultStallValues)
+    }
+    // Now do parking/charging for ride hail fleet
+    for {
+      taz          <- beamServices.tazTreeMap.tazQuadTree.values().asScala
+      parkingType  <- List(Workplace)
+      pricingModel <- List(FlatFee)
+      chargingType <- List(Level2, DCFast, UltraFast)
+      reservedFor  <- List(ParkingStall.RideHailManager)
+    } yield {
+      val attrib = StallAttributes(taz.tazId, parkingType, pricingModel, chargingType, reservedFor)
+      addToPoolResource(attrib, defaultRideHailStallValues)
+    }
   }
 
-  if (Files.exists(Paths.get(beamServices.beamConfig.beam.agentsim.taz.parking))) {
-    readCsvFile(pathResourceCSV).foreach(f => {
-      pooledResources.update(f._1, f._2)
-    })
-  } else {
-    //Used to generate csv file
-    parkingStallToCsv(pooledResources, pathResourceCSV) // use to generate initial csv from above data
+  def addToPoolResource(key: StallAttributes, value: StallValues): Unit = {
+    pooledResources.put(key, value)
   }
 
-  // Make a very big pool of NA stalls used to return to agents when there are no alternatives left
-  pooledResources.put(defaultStallAtrrs, defaultStallValues)
+  def updatePooledResources(): Unit = {
+    if (Files.exists(Paths.get(beamServices.beamConfig.beam.agentsim.taz.parking))) {
+      readCsvFile(pathResourceCSV).foreach(f => {
+        pooledResources.update(f._1, f._2)
+      })
+    } else {
+      //Used to generate csv file
+      parkingStallToCsv(pooledResources, pathResourceCSV) // use to generate initial csv from above data
+    }
+    // Make a very big pool of NA stalls used to return to agents when there are no alternatives left
+    addToPoolResource(defaultStallAttributes, defaultStallValues)
+  }
+
+  fillInDefaultPooledResources()
+  updatePooledResources()
+
+  val indexer: IndexerForZonalParkingManager = new IndexerForZonalParkingManager(pooledResources.toMap)
 
   override def receive: Receive = {
-    case RegisterResource(stallId: Id[ParkingStall]) =>
+    case RegisterResource =>
     // For Zonal Parking, stalls are created internally
 
-    case NotifyResourceInUse(stallId: Id[ParkingStall], whenWhere) =>
+    case NotifyResourceInUse =>
     // Irrelevant for parking
 
-    case CheckInResource(stallId: Id[ParkingStall], availableIn: Option[SpaceTime]) =>
-      val stall = resources(stallId)
-      val stallValues = pooledResources(stall.attributes)
+    case CheckInResource(resourceId, _) =>
+      val stallId = resourceId.asInstanceOf[Id[ParkingStall]]
+      if (resources.contains(stallId)) {
+        val stall = resources(stallId)
+        val stallValues = pooledResources(stall.attributes)
+        stallValues._numStalls += 1
+        totalStallsInUse -= 1
 
-      pooledResources.update(
-        stall.attributes,
-        stallValues.copy(numStalls = stallValues.numStalls + 1)
-      )
-      resources.remove(stall.id)
+        resources.remove(stall.id)
+        if (log.isDebugEnabled) {
+          log.debug("CheckInResource with {} available stalls ", getAvailableStalls)
+        }
+      }
 
-    case CheckOutResource(_) =>
+    case CheckOutResource =>
       // Because the ZonalParkingManager is in charge of deciding which stalls to assign, this should never be received
       throw new RuntimeException(
         "Illegal use of CheckOutResource, ZonalParkingManager is responsible for checking out stalls in fleet."
       )
 
-    case inquiry @ DepotParkingInquiry(location: Location, reservedFor: ReservedParkingType) =>
-      val mNearestTaz = findTAZsWithDistances(location, 1000.0).headOption
-      val mStalls = mNearestTaz.flatMap {
-        case (taz, _) =>
-          pooledResources.find {
-            case (attr, values) =>
-              attr.tazId.equals(taz.tazId) &&
-              attr.reservedFor.equals(reservedFor) &&
-              values.numStalls > 0
+    case inquiry: DepotParkingInquiry =>
+      if (log.isDebugEnabled) {
+        log.debug("DepotParkingInquiry with {} available stalls ", getAvailableStalls)
+      }
+      val tAZsWithDists = findTAZsWithinDistance(inquiry.customerLocationUtm, 10000.0, 20000.0)
+      val maybeFoundStalls = indexer.filter(tAZsWithDists, inquiry.reservedFor)
+
+      val maybeParkingAttributes = maybeFoundStalls.flatMap {
+        _.keys.toVector
+          .sortBy { attrs =>
+            ChargingType.getChargerPowerInKW(attrs.chargingType)
           }
+          .reverse
+          .headOption
+      }
+      val maybeParkingStall = maybeParkingAttributes.flatMap { attrib =>
+        // Location is either TAZ center or random withing 5km of driver location
+        val newLocation = depotStallLocationType match {
+          case AtTAZCenter if beamServices.tazTreeMap.getTAZ(attrib.tazId).isDefined =>
+            beamServices.tazTreeMap.getTAZ(attrib.tazId).get.coord
+          case _ =>
+            inquiry.customerLocationUtm
+        }
+        maybeCreateNewStall(attrib, newLocation, 0.0, maybeFoundStalls.get.get(attrib))
       }
 
-      val mParkingStall = mStalls.flatMap {
-        case (attr, values) =>
-          maybeCreateNewStall(attr, location, 0.0, Some(values))
-      }
-
-      mParkingStall.foreach { stall =>
+      maybeParkingStall.foreach { stall =>
         resources.put(stall.id, stall)
         val stallValues = pooledResources(stall.attributes)
-        pooledResources.update(
-          stall.attributes,
-          stallValues.copy(numStalls = stallValues.numStalls - 1)
-        )
+        totalStallsInUse += 1
+        stallValues._numStalls -= 1
+      }
+      if (log.isDebugEnabled) {
+        log.debug("DepotParkingInquiry reserved stall: {}", maybeParkingStall)
+        log.debug("DepotParkingInquiry {} available stalls ", getAvailableStalls)
       }
 
-      sender() ! DepotParkingInquiryResponse(mParkingStall)
+      val response = DepotParkingInquiryResponse(maybeParkingStall, inquiry.requestId)
+      sender() ! response
 
-    case inquiry @ ParkingInquiry(
-          customerId: Id[PersonAgent],
-          customerLocationUtm: Location,
-          destinationUtm: Location,
-          activityType: String,
-          valueOfTime: Double,
-          chargingPreference: ChargingPreference,
-          arrivalTime: Long,
-          parkingDuration: Double,
-          reservedFor: ReservedParkingType
-        ) =>
-      val nearbyTazsWithDistances = findTAZsWithDistances(destinationUtm, 500.0)
-      val preferredType = activityType match {
+    case inquiry: ParkingInquiry =>
+      val nearbyTAZsWithDistances = findTAZsWithinDistance(inquiry.destinationUtm, 500.0, 16000.0)
+      val preferredType = inquiry.activityType match {
         case act if act.equalsIgnoreCase("home") => Residential
         case act if act.equalsIgnoreCase("work") => Workplace
         case _                                   => Public
@@ -144,34 +184,46 @@ class ZonalParkingManager(
       /*
        * To save time avoiding route calculations, we look for the trivial case: nearest TAZ with activity type matching available parking type.
        */
-      val maybeDominantSpot = if (chargingPreference == NoNeed) {
-        maybeCreateNewStall(
-          StallAttributes(
-            nearbyTazsWithDistances.head._1.tazId,
-            preferredType,
-            Free,
-            NoCharger,
-            reservedFor
-          ),
-          destinationUtm,
-          0.0,
+      val maybeFoundStall = nearbyTAZsWithDistances.size match {
+        case 0 =>
           None
-        )
-      } else {
-        None
+        case _ =>
+          val tazId = nearbyTAZsWithDistances.head._1.tazId
+          indexer.find(tazId, preferredType, inquiry.reservedFor).headOption
+      }
+      val maybeDominantSpot = maybeFoundStall match {
+        case Some((idx, stallValue)) if inquiry.chargingPreference == NoNeed =>
+          maybeCreateNewStall(
+            StallAttributes(
+              nearbyTAZsWithDistances.head._1.tazId,
+              preferredType,
+              idx.pricingModel,
+              NoCharger,
+              inquiry.reservedFor
+            ),
+            inquiry.destinationUtm,
+            0.0,
+            Some(stallValue.copy()) // let's send a copy to be in safe
+          )
+        case _ =>
+          None
       }
 
-      respondWithStall(maybeDominantSpot match {
-        case Some(stall) =>
-          stall
-        case None =>
-          chargingPreference match {
-            case NoNeed =>
-              selectPublicStall(inquiry, 500.0)
-            case _ =>
-              selectStallWithCharger(inquiry, 500.0)
-          }
-      })
+      respondWithStall(
+        maybeDominantSpot match {
+          case Some(stall) =>
+            stall
+          case None =>
+            inquiry.chargingPreference match {
+              case NoNeed =>
+                selectPublicStall(inquiry, 500.0)
+              case _ =>
+                selectStallWithCharger(inquiry, 500.0)
+            }
+        },
+        inquiry.requestId,
+        inquiry.reserveStall
+      )
   }
 
   private def maybeCreateNewStall(
@@ -182,10 +234,10 @@ class ZonalParkingManager(
     reservedFor: ReservedParkingType = ParkingStall.Any
   ): Option[ParkingStall] = {
     if (pooledResources(attrib).numStalls > 0) {
-      stallnum = stallnum + 1
+      stallNum = stallNum + 1
       Some(
         new ParkingStall(
-          Id.create(stallnum, classOf[ParkingStall]),
+          Id.create(stallNum, classOf[ParkingStall]),
           attrib,
           atLocation,
           withCost,
@@ -197,25 +249,26 @@ class ZonalParkingManager(
     }
   }
 
-  def respondWithStall(stall: ParkingStall): Unit = {
-    resources.put(stall.id, stall)
-    val stallValues = pooledResources(stall.attributes)
-    pooledResources.update(
-      stall.attributes,
-      stallValues.copy(numStalls = stallValues.numStalls - 1)
-    )
-    sender() ! ParkingInquiryResponse(stall)
+  def respondWithStall(stall: ParkingStall, requestId: Int, reserveStall: Boolean): Unit = {
+    if (reserveStall) {
+      resources.put(stall.id, stall)
+      val stallValues = pooledResources(stall.attributes)
+      totalStallsInUse += 1
+      if (totalStallsInUse % 1000 == 0) log.debug(s"Parking stalls in use: {}", totalStallsInUse)
+      stallValues._numStalls -= 1
+    }
+    sender() ! ParkingInquiryResponse(stall, requestId)
   }
 
   // TODO make these distributions more custom to the TAZ and stall type
   def sampleLocationForStall(taz: TAZ, attrib: StallAttributes): Location = {
-    val rand = new Random()
     val radius = math.sqrt(taz.area) / 2
-    val lambda = 1
-    val deltaRadius = -math.log(1 - (1 - math.exp(-lambda * radius)) * rand.nextDouble()) / lambda
+    val lambda = 0.01
+    val deltaRadiusX = -math.log(1 - (1 - math.exp(-lambda * radius)) * rand.nextDouble()) / lambda
+    val deltaRadiusY = -math.log(1 - (1 - math.exp(-lambda * radius)) * rand.nextDouble()) / lambda
 
-    val x = taz.coord.getX + deltaRadius
-    val y = taz.coord.getY + deltaRadius
+    val x = taz.coord.getX + deltaRadiusX
+    val y = taz.coord.getY + deltaRadiusY
     new Location(x, y)
     //new Location(taz.coord.getX + rand.nextDouble() * 500.0 - 250.0, taz.coord.getY + rand.nextDouble() * 500.0 - 250.0)
   }
@@ -229,36 +282,32 @@ class ZonalParkingManager(
     parkingDuration: Double
   ): Double = {
     attrib.pricingModel match {
-      case Free    => 0.0
       case FlatFee => feeInCents.toDouble / 100.0
       case Block   => parkingDuration / 3600.0 * (feeInCents.toDouble / 100.0)
     }
   }
 
-  def selectPublicStall(inquiry: ParkingInquiry, searchRadius: Double): ParkingStall = {
-    val nearbyTazsWithDistances = findTAZsWithDistances(inquiry.destinationUtm, searchRadius)
-    val allOptions: Vector[ParkingAlternative] = nearbyTazsWithDistances.flatMap { taz =>
-      Vector(Free, FlatFee, Block).flatMap { pricingModel =>
-        val attrib =
-          StallAttributes(taz._1.tazId, Public, pricingModel, NoCharger, ParkingStall.Any)
-        val stallValues = pooledResources(attrib)
-        if (stallValues.numStalls > 0) {
+  def selectPublicStall(inquiry: ParkingInquiry, startSearchRadius: Double): ParkingStall = {
+    val nearbyTAZsWithDistances =
+      findTAZsWithinDistance(inquiry.destinationUtm, startSearchRadius, ZonalParkingManager.maxSearchRadius)
+    val allOptions: Vector[ParkingAlternative] = nearbyTAZsWithDistances.flatMap { taz =>
+      val found = indexer.find(taz._1.tazId, Public, ParkingStall.Any)
+      val foundAfter = found.map {
+        case (indexForFind, stallValues) =>
+          val attrib =
+            StallAttributes(indexForFind.tazId, indexForFind.parkingType, indexForFind.pricingModel, NoCharger, Any)
           val stallLoc = sampleLocationForStall(taz._1, attrib)
-          val walkingDistance = beamServices.geo.distInMeters(stallLoc, inquiry.destinationUtm)
-          val valueOfTimeSpentWalking = walkingDistance / 1.4 / 3600.0 * inquiry.valueOfTime // 1.4 m/s avg. walk
+          val walkingDistance = beamServices.geo.distUTMInMeters(stallLoc, inquiry.destinationUtm)
+          val valueOfTimeSpentWalking = walkingDistance / 1.4 / 3600.0 * inquiry.attributesOfIndividual.valueOfTime // 1.4 m/s avg. walk
           val cost = calculateCost(
             attrib,
             stallValues.feeInCents,
             inquiry.arrivalTime,
             inquiry.parkingDuration
           )
-          Vector(
-            ParkingAlternative(attrib, stallLoc, cost, cost + valueOfTimeSpentWalking, stallValues)
-          )
-        } else {
-          Vector[ParkingAlternative]()
-        }
-      }
+          ParkingAlternative(attrib, stallLoc, cost, cost + valueOfTimeSpentWalking, stallValues)
+      }.toVector
+      foundAfter
     }
     val chosenStall = allOptions.sortBy(_.rankingWeight).headOption match {
       case Some(alternative) =>
@@ -274,39 +323,35 @@ class ZonalParkingManager(
     chosenStall match {
       case Some(stall) => stall
       case None =>
-        if (searchRadius * 2.0 > ZonalParkingManager.maxSearchRadius) {
-          stallnum = stallnum + 1
+        if (startSearchRadius * 2.0 > ZonalParkingManager.maxSearchRadius) {
+          stallNum = stallNum + 1
           new ParkingStall(
-            Id.create(stallnum, classOf[ParkingStall]),
-            defaultStallAtrrs,
+            Id.create(stallNum, classOf[ParkingStall]),
+            defaultStallAttributes,
             inquiry.destinationUtm,
             1000.0,
             Some(defaultStallValues)
           )
         } else {
-          selectPublicStall(inquiry, searchRadius * 2.0)
+          selectPublicStall(inquiry, startSearchRadius * 2.0)
         }
     }
   }
 
-  def findTAZsWithDistances(searchCenter: Location, startRadius: Double): Vector[(TAZ, Double)] = {
-    var nearbyTazs: Vector[TAZ] = Vector()
+  def findTAZsWithinDistance(searchCenter: Location, startRadius: Double, maxRadius: Double): Vector[(TAZ, Double)] = {
+    var nearbyTAZs: Vector[TAZ] = Vector()
     var searchRadius = startRadius
-    while (nearbyTazs.isEmpty) {
-      if (searchRadius > ZonalParkingManager.maxSearchRadius) {
-        throw new RuntimeException(
-          "Parking search radius has reached 10,000 km and found no TAZs, possible map projection error?"
-        )
-      }
-      nearbyTazs = beamServices.tazTreeMap.tazQuadTree
+    while (nearbyTAZs.isEmpty && searchRadius <= maxRadius) {
+      nearbyTAZs = beamServices.tazTreeMap.tazQuadTree
         .getDisk(searchCenter.getX, searchCenter.getY, searchRadius)
         .asScala
         .toVector
       searchRadius = searchRadius * 2.0
     }
-    nearbyTazs
-      .zip(nearbyTazs.map { taz =>
-        beamServices.geo.distInMeters(taz.coord, searchCenter)
+    nearbyTAZs
+      .zip(nearbyTAZs.map { taz =>
+        // Note, this assumes both TAZs and SearchCenter are in local coordinates, and therefore in units of meters
+        GeoUtils.distFormula(taz.coord, searchCenter)
       })
       .sortBy(_._2)
   }
@@ -314,11 +359,11 @@ class ZonalParkingManager(
   def selectStallWithCharger(inquiry: ParkingInquiry, startRadius: Double): ParkingStall = ???
 
   def readCsvFile(filePath: String): mutable.Map[StallAttributes, StallValues] = {
-    var mapReader: ICsvMapReader = null
     val res: mutable.Map[StallAttributes, StallValues] = mutable.Map()
-    try {
-      mapReader =
-        new CsvMapReader(CsvUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
+
+    FileUtils.using(
+      new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
+    ) { mapReader =>
       val header = mapReader.getHeader(true)
       var line: java.util.Map[String, String] = mapReader.read(header: _*)
       while (null != line) {
@@ -340,10 +385,6 @@ class ZonalParkingManager(
 
         line = mapReader.read(header: _*)
       }
-
-    } finally {
-      if (null != mapReader)
-        mapReader.close()
     }
     res
   }
@@ -361,8 +402,9 @@ class ZonalParkingManager(
   ): Unit = {
     var mapWriter: ICsvMapWriter = null
     try {
-      mapWriter =
-        new CsvMapWriter(new FileWriter(writeDestinationPath), CsvPreference.STANDARD_PREFERENCE)
+      val destinationFile = new File(writeDestinationPath)
+      destinationFile.getParentFile.mkdirs()
+      mapWriter = new CsvMapWriter(new FileWriter(destinationFile), CsvPreference.STANDARD_PREFERENCE)
 
       val header = Array[String](
         "taz",
@@ -370,10 +412,12 @@ class ZonalParkingManager(
         "pricingModel",
         "chargingType",
         "numStalls",
-        "feeInCents"
+        "feeInCents",
+        "reservedFor"
       ) //, "parkingId"
       val processors = Array[CellProcessor](
         new NotNull(), // Id (must be unique)
+        new NotNull(),
         new NotNull(),
         new NotNull(),
         new NotNull(),
@@ -386,14 +430,15 @@ class ZonalParkingManager(
       val resourcesWithId = (pooledResources zip range).toSeq
         .sortBy(_._2)
 
-      for (((attrs, values), id) <- resourcesWithId) {
-        val tazToWrite = new util.HashMap[String, Object]();
+      for (((attrs, values), _) <- resourcesWithId) {
+        val tazToWrite = new util.HashMap[String, Object]()
         tazToWrite.put(header(0), attrs.tazId)
         tazToWrite.put(header(1), attrs.parkingType.toString)
         tazToWrite.put(header(2), attrs.pricingModel.toString)
         tazToWrite.put(header(3), attrs.chargingType.toString)
         tazToWrite.put(header(4), "" + values.numStalls)
         tazToWrite.put(header(5), "" + values.feeInCents)
+        tazToWrite.put(header(6), "" + attrs.reservedFor.toString)
         //        tazToWrite.put(header(6), "" + values.parkingId.getOrElse(Id.create(id, classOf[StallValues])))
         mapWriter.write(tazToWrite, header, processors)
       }
@@ -402,6 +447,13 @@ class ZonalParkingManager(
         mapWriter.close()
       }
     }
+  }
+
+  private def getAvailableStalls: Long = {
+    pooledResources
+      .filter(_._1.reservedFor == RideHailManager)
+      .map(_._2.numStalls.toLong)
+      .sum
   }
 }
 
@@ -422,5 +474,5 @@ object ZonalParkingManager {
     Props(new ZonalParkingManager(beamServices, beamRouter, parkingStockAttributes))
   }
 
-  val maxSearchRadius = 10e6
+  val maxSearchRadius = 10e3
 }

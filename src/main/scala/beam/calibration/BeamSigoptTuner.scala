@@ -1,67 +1,24 @@
 package beam.calibration
 
-import java.io.File
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.Paths
 
+import beam.calibration.BeamSigoptTuner._
+import beam.calibration.Bounded._
 import beam.experiment._
+import beam.utils.OptionalUtils.JavaOptionals._
 import com.google.common.collect.Lists
 import com.sigopt.Sigopt
 import com.sigopt.exception.SigoptException
 import com.sigopt.model._
 import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.JavaConverters
-
-case class SigoptExperimentData(
-  experimentDef: ExperimentDef,
-  experimentPath: File,
-  benchmarkFileLoc: String,
-  development: Boolean = false
-) {
-
-  lazy val projectRoot: Path = {
-    if (System.getenv("BEAM_ROOT") != null) {
-      Paths.get(System.getenv("BEAM_ROOT"))
-    } else {
-      Paths.get("./").toAbsolutePath.getParent
-    }
-  }
-
-  val baseConfig: Config =
-    ConfigFactory.parseFile(Paths.get(experimentDef.getHeader.getBeamTemplateConfPath).toFile)
-
-  val experiment: Experiment = BeamSigoptTuner.createOrFetchExperiment(experimentDef, development)
-
-  val isParallel: Boolean = experimentDef.header.isParallel
-
-}
-
-object SigoptExperimentData {
-
-  def apply(
-    experimentLoc: String,
-    benchmarkFileLoc: String,
-    development: Boolean
-  ): SigoptExperimentData = {
-
-    val experimentPath: Path = new File(experimentLoc).toPath.toAbsolutePath
-
-    if (!Files.exists(experimentPath)) {
-      throw new IllegalArgumentException(s"Experiments file is missing: $experimentPath")
-    }
-
-    SigoptExperimentData(
-      BeamSigoptTuner.loadExperimentDef(experimentPath.toFile),
-      experimentPath.toFile,
-      benchmarkFileLoc,
-      development
-    )
-  }
-}
+import scala.util.Try
 
 object BeamSigoptTuner {
 
-  import Bounded._
+  val client = new Client(Sigopt.clientToken)
 
   // Fields //
 
@@ -73,41 +30,30 @@ object BeamSigoptTuner {
     * @throws SigoptException If the experiment cannot be created, this exception is thrown.
     */
   @throws[SigoptException]
-  def createOrFetchExperiment(
-    experimentDef: ExperimentDef,
+  def fetchExperiment(
+    experimentId: String,
     development: Boolean = false
-  ): Experiment = {
-    val client = new Client(Sigopt.clientToken)
-    val header = experimentDef.getHeader
-    val experimentId = header.getTitle
+  ): Option[Experiment] = {
+
     val experimentList = Experiment.list().call().getData
     val optExperiment = experimentList.stream
       .filter(
-        (experiment: Experiment) =>
-          experiment.getName == experimentId & experiment.getDevelopment == development
+        (experiment: Experiment) => experiment.getId == experimentId & experiment.getDevelopment == development
       )
       .findFirst
-    optExperiment.orElse(createExperiment(experimentDef))
+    optExperiment.toOption
   }
 
   @throws[SigoptException]
-  private def createExperiment(implicit experimentDef: ExperimentDef): Experiment = {
+  def createExperiment(implicit experimentDef: ExperimentDef): Experiment = {
     val header = experimentDef.getHeader
     val experimentId = header.getTitle
-    val factors = JavaConverters.asScalaIterator(experimentDef.getFactors.iterator()).seq
+    val factors = JavaConverters.asScalaIterator(experimentDef.factors.iterator()).seq
     val parameters =
       Lists.newArrayList(JavaConverters.asJavaIterator(factors.flatMap(factorToParameters)))
-    Experiment.create
-      .data(new Experiment.Builder().name(experimentId).parameters(parameters).build)
-      .call
-
-  }
-
-  def loadExperimentDef(experimentFileLoc: File): ExperimentDef = {
-    val experiment = ExperimentGenerator.loadExperimentDefs(experimentFileLoc)
-    ExperimentGenerator.validateExperimentConfig(experiment)
-
-    experiment
+    val experiment: Experiment = new Experiment.Builder().name(experimentId).parameters(parameters).build
+    val expCall = Experiment.create.data(experiment)
+    expCall.call()
   }
 
   /**
@@ -136,13 +82,15 @@ object BeamSigoptTuner {
 
       val parameter = new Parameter.Builder().name(paramName)
 
+      //println(maxValue)
+
       // Build bounds
       maxValue match {
-        case _: Double =>
+        case x if x.isInstanceOf[Double] =>
           parameter
             .bounds(getBounds(minValue.asInstanceOf[Double], maxValue.asInstanceOf[Double]))
             .`type`("double")
-        case _: Int =>
+        case x if x.isInstanceOf[Int] =>
           parameter
             .`type`("int")
             .bounds(getBounds(minValue.asInstanceOf[Int], maxValue.asInstanceOf[Int]))

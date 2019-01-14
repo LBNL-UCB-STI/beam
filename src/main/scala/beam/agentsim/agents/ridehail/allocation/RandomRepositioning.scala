@@ -8,11 +8,8 @@ import org.matsim.vehicles.Vehicle
 class RandomRepositioning(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
 
-  override def proposeVehicleAllocation(
-    vehicleAllocationRequest: VehicleAllocationRequest
-  ): Option[VehicleAllocation] = {
-    None
-  }
+  // Only override proposeVehicleAllocation if you wish to do something different from closest euclidean vehicle
+  //  override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): VehicleAllocationResponse
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
 
@@ -20,11 +17,11 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
       rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.repositioningShare
     val fleetSize = rideHailManager.resources.size
     val numVehiclesToReposition = (repositioningShare * fleetSize).toInt
-    if (rideHailManager.getIdleVehicles.size >= 2) {
-      val origin = rideHailManager.getIdleVehicles.values.toVector
+    if (rideHailManager.vehicleManager.getIdleVehicles.size >= 2) {
+      val origin = rideHailManager.vehicleManager.getIdleVehicles.values.toVector
       val destination = scala.util.Random.shuffle(origin)
       (for ((o, d) <- origin zip destination)
-        yield (o.vehicleId, d.currentLocation.loc))
+        yield (o.vehicleId, d.currentLocationUTM.loc))
         .splitAt(numVehiclesToReposition)
         ._1
     } else {

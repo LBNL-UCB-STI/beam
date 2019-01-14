@@ -8,6 +8,7 @@ import com.conveyal.r5.streets.{Split, StreetLayer}
 import com.google.inject.{ImplementedBy, Inject}
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.network.Link
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 
 /**
@@ -35,17 +36,11 @@ trait GeoUtils extends HasServices {
   def utm2Wgs(spacetime: SpaceTime): SpaceTime = SpaceTime(utm2Wgs(spacetime.loc), spacetime.time)
 
   def utm2Wgs(coord: Coord): Coord = {
-    //TODO fix this monstrosity
-    if (coord.getX > 1.0 | coord.getX < -0.0) {
-      utm2Wgs.transform(coord)
-    } else {
-      coord
-    }
+    utm2Wgs.transform(coord)
   }
 
-  //TODO this is a hack, but we need a general purpose, failsafe way to get distances out of Coords regardless of their projection
-  def distInMeters(coord1: Coord, coord2: Coord): Double = {
-    distLatLon2Meters(utm2Wgs(coord1), utm2Wgs(coord2))
+  def distUTMInMeters(coord1: Coord, coord2: Coord): Double = {
+    Math.sqrt(Math.pow(coord1.getX - coord2.getX, 2.0) + Math.pow(coord1.getY - coord2.getY, 2.0))
   }
 
   def distLatLon2Meters(coord1: Coord, coord2: Coord): Double =
@@ -64,19 +59,19 @@ trait GeoUtils extends HasServices {
   }
 
   def coordOfR5Edge(streetLayer: StreetLayer, edgeId: Int): Coord = {
-    var theEdge = streetLayer.edgeStore.getCursor(edgeId)
+    val theEdge = streetLayer.edgeStore.getCursor(edgeId)
     new Coord(theEdge.getGeometry.getCoordinate.x, theEdge.getGeometry.getCoordinate.y)
   }
 
   def snapToR5Edge(
     streetLayer: StreetLayer,
-    coord: Coord,
+    coordWGS: Coord,
     maxRadius: Double = 1E5,
     streetMode: StreetMode = StreetMode.WALK
   ): Coord = {
-    val theSplit = getR5Split(streetLayer, coord, maxRadius, streetMode)
+    val theSplit = getR5Split(streetLayer, coordWGS, maxRadius, streetMode)
     if (theSplit == null) {
-      coord
+      coordWGS
     } else {
       new Coord(theSplit.fixedLon.toDouble / 1.0E7, theSplit.fixedLat.toDouble / 1.0E7)
     }
@@ -126,6 +121,10 @@ object GeoUtils {
     }
   }
 
+  def distFormula(coord1: Coord, coord2: Coord): Double = {
+    Math.sqrt(Math.pow(coord1.getX - coord2.getX, 2.0) + Math.pow(coord1.getY - coord2.getY, 2.0))
+  }
+
   def distLatLon2Meters(x1: Double, y1: Double, x2: Double, y2: Double): Double = {
     //    http://stackoverflow.com/questions/837872/calculate-distance-in-meters-when-you-know-longitude-and-latitude-in-java
     val earthRadius = 6371000
@@ -138,6 +137,65 @@ object GeoUtils {
     val dist = earthRadius * c
     dist
 
+  }
+
+  sealed trait TurningDirection
+  case object Straight extends TurningDirection
+  case object SoftLeft extends TurningDirection
+  case object Left extends TurningDirection
+  case object HardLeft extends TurningDirection
+  case object SoftRight extends TurningDirection
+  case object Right extends TurningDirection
+  case object HardRight extends TurningDirection
+
+  /**
+    * Get the desired direction to be taken , based on the angle between the coordinates
+    * @param source source coordinates
+    * @param destination destination coordinates
+    * @return Direction to be taken ( L / SL / HL / R / HR / SR / S)
+    */
+  def getDirection(source: Coord, destination: Coord): TurningDirection = {
+    val radians = computeAngle(source, destination)
+    radians match {
+      case _ if radians < 0.174533 || radians >= 6.10865 => Straight
+      case _ if radians >= 0.174533 & radians < 1.39626  => SoftLeft
+      case _ if radians >= 1.39626 & radians < 1.74533   => Left
+      case _ if radians >= 1.74533 & radians < 3.14159   => HardLeft
+      case _ if radians >= 3.14159 & radians < 4.53785   => HardRight
+      case _ if radians >= 4.53785 & radians < 4.88692   => Right
+      case _ if radians >= 4.88692 & radians < 6.10865   => SoftRight
+      case _                                             => Straight
+    }
+  }
+
+  /**
+    * Generate the vector coordinates from the link nodes
+    * @param link link in the network
+    * @return vector coordinates
+    */
+  def vectorFromLink(link: Link): Coord = {
+    new Coord(
+      link.getToNode.getCoord.getX - link.getFromNode.getCoord.getX,
+      link.getToNode.getCoord.getY - link.getFromNode.getCoord.getY
+    )
+  }
+
+  /**
+    * Computes the angle between two coordinates
+    * @param source source coordinates
+    * @param destination destination coordinates
+    * @return angle between the coordinates (in radians).
+    */
+  def computeAngle(source: Coord, destination: Coord): Double = {
+    val rad = Math.atan2(
+      source.getX * destination.getY - source.getY * destination.getX,
+      source.getX * destination.getX - source.getY * destination.getY
+    )
+    if (rad < 0) {
+      rad + 3.141593 * 2.0
+    } else {
+      rad
+    }
   }
 }
 

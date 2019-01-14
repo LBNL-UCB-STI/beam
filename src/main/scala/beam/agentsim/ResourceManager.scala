@@ -1,7 +1,10 @@
 package beam.agentsim
 
 import akka.actor.Actor
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.Resource.NotifyResourceIdle
+import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
+import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
+import beam.agentsim.events.SpaceTime
 import org.matsim.api.core.v01.Id
 
 /*
@@ -39,5 +42,13 @@ object ResourceManager {
     * Concrete implementation that manages Resources of type [[BeamVehicle]]
     */
   trait VehicleManager extends Actor with ResourceManager[BeamVehicle]
+
+  case class NotifyVehicleResourceIdle(
+    override val resourceId: Id[_],
+    override val whenWhere: Option[SpaceTime],
+    passengerSchedule: PassengerSchedule,
+    beamVehicleState: BeamVehicleState,
+    triggerId: Option[Long] // triggerId is included to facilitate debugging
+  ) extends NotifyResourceIdle
 
 }

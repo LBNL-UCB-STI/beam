@@ -1,11 +1,11 @@
 package beam.integration.ridehail
 
-import beam.router.r5.NetworkCoordinator
-import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.agentsim.agents.ridehail.allocation.RideHailResourceAllocationManager
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.{BeamHelper, BeamServices}
+import beam.sim.config.BeamConfig
+import beam.sim.population.DefaultPopulationAdjustment
 import beam.utils.FileUtils
-import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.ConfigValueFactory
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
@@ -15,48 +15,40 @@ import org.scalatest.FlatSpec
 import org.scalatest.mockito.MockitoSugar
 
 class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with MockitoSugar {
-// TODO: include events handling as with : RideHailPassengersEventsSpec
-  it should "be able to run for 1 iteration without exceptions" in {
-    val config = testConfig("test/input/beamville/beam.conf")
-      .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
-      .withValue(
-        "beam.agentsim.agents.rideHail.allocationManager.name",
-        ConfigValueFactory.fromAnyRef(
-          "Test_beam.integration.ridehail.allocation.ImmediateDispatchWithOverwrite"
-        )
-      )
-      .withValue(
-        "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
-        ConfigValueFactory.fromAnyRef("ModeChoiceRideHailIfAvailable")
-      )
-      .withValue(
-        "beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation",
-        ConfigValueFactory.fromAnyRef(0.1)
-      )
-      .withValue("beam.debug.skipOverBadActors",ConfigValueFactory.fromAnyRef(true))
-      .resolve()
-    val configBuilder = new MatSimBeamConfigBuilder(config)
-    val matsimConfig = configBuilder.buildMatSamConf()
-    matsimConfig.controler().setLastIteration(0)
-    matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
+
+  // dummy change
+  // TODO: include events handling as with : RideHailPassengersEventsSpec
+  it should "be able to run for 1 iteration without exceptions" ignore {
+    val config = RideHailTestHelper.buildConfig(RideHailResourceAllocationManager.IMMEDIATE_DISPATCH_WITH_OVERWRITE)
+
+    val matsimConfig = RideHailTestHelper.buildMatsimConfig(config)
+
     val beamConfig = BeamConfig(config)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
-    val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-    val networkCoordinator = new NetworkCoordinator(beamConfig)
+
+    val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
+
+    val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     scenario.setNetwork(networkCoordinator.network)
+
     val iterationCounter = mock[IterationEndsListener]
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
       new AbstractModule() {
         override def install(): Unit = {
-          install(module(config, scenario, networkCoordinator.transportNetwork))
+          install(module(config, scenario, networkCoordinator))
           addControlerListenerBinding().toInstance(iterationCounter)
         }
       }
     )
-    val controler = injector.getInstance(classOf[BeamServices]).controler
-    controler.run()
+
+    val services = injector.getInstance(classOf[BeamServices])
+    DefaultPopulationAdjustment(services).update(scenario)
+    val controller = services.controler
+    controller.run()
+
     verify(iterationCounter, times(1)).notifyIterationEnds(any())
   }
 

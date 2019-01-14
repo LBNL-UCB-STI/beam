@@ -6,89 +6,6 @@ import com.typesafe.config.{Config, ConfigValueFactory}
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.{Matchers, WordSpecLike}
 
-import scala.xml.transform.{RewriteRule, RuleTransformer}
-import scala.xml.{Elem, Node}
-
-object MultinomialCustomConfigSpec {
-  case class Utility(name: String, utype: String, value: String)
-
-  class CustomAlternative(alternativeName: String, utilityValues: Seq[Utility])
-      extends RewriteRule {
-    override def transform(n: Node): Seq[Node] = n match {
-      case elem: Elem
-          if elem.label == "alternative" && elem.attributes
-            .exists(m => m.value.text.equals(alternativeName)) =>
-        val utilityChild = utilityValues.map { uv =>
-          <param name={uv.name} type={uv.utype}>{uv.value}</param>
-        }
-        val utility = <utility>{utilityChild}</utility>
-        elem.copy(child = utility)
-      case n => n
-    }
-  }
-
-  def fullXml(parameters: Node) = <modeChoices>
-      <lccm>
-        <name>Latent Class Choice Model</name>
-        <parameters>lccm-long.csv</parameters>
-      </lccm>
-      <mnl>
-        <name>Multinomial Logit</name>
-        <parameters>
-          {parameters}
-        </parameters>
-      </mnl>
-    </modeChoices>
-
-  val baseXml = <multinomialLogit name="mnl">
-    <alternative name="car">
-      <utility>
-        <param name="intercept" type="INTERCEPT">0.0</param>
-        <param name="cost" type="MULTIPLIER">-0.5</param>
-        <param name="time" type="MULTIPLIER">-0.001</param>
-      </utility>
-    </alternative>
-    <alternative name="walk_transit">
-      <utility>
-        <param name="intercept" type="INTERCEPT">0.0</param>
-        <param name="cost" type="MULTIPLIER">-0.5</param>
-        <param name="time" type="MULTIPLIER">-0.001</param>
-        <param name="transfer" type="MULTIPLIER">-1.4</param>
-      </utility>
-    </alternative>
-    <alternative name="drive_transit">
-      <utility>
-        <param name="intercept" type="INTERCEPT">0.0</param>
-        <param name="cost" type="MULTIPLIER">-0.5</param>
-        <param name="time" type="MULTIPLIER">-0.001</param>
-        <param name="transfer" type="MULTIPLIER">-1.4</param>
-      </utility>
-    </alternative>
-    <alternative name="ride_hail">
-      <utility>
-        <param name="intercept" type="INTERCEPT">0.0</param>
-        <param name="cost" type="MULTIPLIER">-0.5</param>
-        <param name="time" type="MULTIPLIER">-0.001</param>
-      </utility>
-    </alternative>
-    <alternative name="walk">
-      <utility>
-        <param name="intercept" type="INTERCEPT">0.0</param>
-        <param name="cost" type="MULTIPLIER">-0.5</param>
-        <param name="time" type="MULTIPLIER">-0.001</param>
-      </utility>
-    </alternative>
-    <alternative name="bike">
-      <utility>
-        <param name="intercept" type="INTERCEPT">0.0</param>
-        <param name="cost" type="MULTIPLIER">-0.5</param>
-        <param name="time" type="MULTIPLIER">-0.001</param>
-      </utility>
-    </alternative>
-  </multinomialLogit>
-
-}
-
 class MultinomialCustomConfigSpec
     extends WordSpecLike
     with Matchers
@@ -97,65 +14,35 @@ class MultinomialCustomConfigSpec
     with LazyLogging {
 
   "Running beam with Multinomial ModeChoice custom config" must {
-    "Prefer mode choice car type in positive values than negative values " ignore {
-
-      val transformer1 = new RuleTransformer(
-        new MultinomialCustomConfigSpec.CustomAlternative(
-          BeamMode.CAR.value,
-          Seq(
-            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100.0"),
-            MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100.0"),
-            MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100.0")
-          )
-        )
-      )
-
-      val transformer2 = new RuleTransformer(
-        new MultinomialCustomConfigSpec.CustomAlternative(
-          BeamMode.CAR.value,
-          Seq(
-            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "-100"),
-            MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "-100"),
-            MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "-100")
-          )
-        )
-      )
-
-      val transformed1 = transformer1(MultinomialCustomConfigSpec.baseXml)
-      val transformed2 = transformer2(MultinomialCustomConfigSpec.baseXml)
-
-      val routeConfig1 =
-        MultinomialCustomConfigSpec.fullXml(transformed1).toString()
-      val routeConfig2 =
-        MultinomialCustomConfigSpec.fullXml(transformed2).toString()
+    "Prefer mode choice car type in positive values than negative values " in {
 
       val config1: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
-          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+          ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
-          ConfigValueFactory.fromAnyRef(routeConfig1)
+          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept",
+          ConfigValueFactory.fromAnyRef(100)
         )
         .resolve()
 
       val config2: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
-          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+          ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
-          ConfigValueFactory.fromAnyRef(routeConfig2)
+          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept",
+          ConfigValueFactory.fromAnyRef(-100)
         )
         .resolve()
 
       val carConfigPositive = new StartWithCustomConfig(config1)
       val carConfigNegative = new StartWithCustomConfig(config2)
 
-      val countPositive = carConfigPositive.groupedCount.getOrElse(BeamMode.CAR.value, 0);
-      val countNegative = carConfigNegative.groupedCount.getOrElse(BeamMode.CAR.value, 0);
+      val countPositive = carConfigPositive.groupedCount.getOrElse(BeamMode.CAR.value, 0)
+      val countNegative = carConfigNegative.groupedCount.getOrElse(BeamMode.CAR.value, 0)
 
       logger.debug("CAR __________>")
       logger.debug(s"Positive: $countPositive")
@@ -165,197 +52,93 @@ class MultinomialCustomConfigSpec
       countPositive should be >= countNegative
     }
 
-    "Prefer mode choice bike type in positive values than negative values " ignore {
-
-      val transformer1 = new RuleTransformer(
-        new MultinomialCustomConfigSpec.CustomAlternative(
-          BeamMode.BIKE.value,
-          Seq(
-            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100"),
-            MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100"),
-            MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100")
-          )
-        )
-      )
-
-      val transformer2 = new RuleTransformer(
-        new MultinomialCustomConfigSpec.CustomAlternative(
-          BeamMode.BIKE.value,
-          Seq(
-            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "-100"),
-            MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "-100"),
-            MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "-100")
-          )
-        )
-      )
-
-      val transformed1 = transformer1(MultinomialCustomConfigSpec.baseXml)
-      val transformed2 = transformer2(MultinomialCustomConfigSpec.baseXml)
-
-      val routeConfig1 =
-        MultinomialCustomConfigSpec.fullXml(transformed1).toString()
-      val routeConfig2 =
-        MultinomialCustomConfigSpec.fullXml(transformed2).toString()
+    "Prefer mode choice bike type in positive values than negative values " in {
 
       val config1: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
-          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+          ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
-          ConfigValueFactory.fromAnyRef(routeConfig1)
+          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept",
+          ConfigValueFactory.fromAnyRef(100)
         )
         .resolve()
 
       val config2: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
-          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+          ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
-          ConfigValueFactory.fromAnyRef(routeConfig2)
+          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept",
+          ConfigValueFactory.fromAnyRef(-100)
         )
         .resolve()
 
       val bikeConfigPositive = new StartWithCustomConfig(config1)
       val bikeConfigNegative = new StartWithCustomConfig(config2)
 
-      val countPositive =
-        bikeConfigPositive.groupedCount.get("bike").getOrElse(0);
-      val countNegative =
-        bikeConfigNegative.groupedCount.get("bike").getOrElse(0);
-
-//      println("Bike __________>")
-//      println("Positive: " + countPositive)
-//      println("Negative: " + countNegative)
-//      println("__________________________________")
+      val countPositive = bikeConfigPositive.groupedCount.getOrElse("bike", 0)
+      val countNegative = bikeConfigNegative.groupedCount.getOrElse("bike", 0)
 
       countPositive should be >= countNegative
     }
 
-    "Prefer mode choice ride hailing type in positive values than negative values " ignore {
-
-      val transformer1 = new RuleTransformer(
-        new MultinomialCustomConfigSpec.CustomAlternative(
-          BeamMode.RIDE_HAIL.value,
-          Seq(
-            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100"),
-            MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100"),
-            MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100")
-          )
-        )
-      )
-
-      val transformer2 = new RuleTransformer(
-        new MultinomialCustomConfigSpec.CustomAlternative(
-          BeamMode.RIDE_HAIL.value,
-          Seq(
-            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "-100"),
-            MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "-100"),
-            MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "-100")
-          )
-        )
-      )
-
-      val transformed1 = transformer1(MultinomialCustomConfigSpec.baseXml)
-      val transformed2 = transformer2(MultinomialCustomConfigSpec.baseXml)
-
-      val routeConfig1 =
-        MultinomialCustomConfigSpec.fullXml(transformed1).toString()
-      val routeConfig2 =
-        MultinomialCustomConfigSpec.fullXml(transformed2).toString()
+    "Prefer mode choice ride hailing type in positive values than negative values " in {
 
       val config1: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
-          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+          ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
-          ConfigValueFactory.fromAnyRef(routeConfig1)
+          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept",
+          ConfigValueFactory.fromAnyRef(100)
         )
         .resolve()
 
       val config2: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
-          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+          ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
-          ConfigValueFactory.fromAnyRef(routeConfig2)
+          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept",
+          ConfigValueFactory.fromAnyRef(-100)
         )
         .resolve()
 
       val rideConfigPositive = new StartWithCustomConfig(config1)
       val rideConfigNegative = new StartWithCustomConfig(config2)
 
-      val countPositive =
-        rideConfigPositive.groupedCount.getOrElse(BeamMode.RIDE_HAIL.value, 0);
-      val countNegative =
-        rideConfigNegative.groupedCount.getOrElse(BeamMode.RIDE_HAIL.value, 0);
-
-//      println("Ride Hailing __________>")
-//      println("Positive: " + countPositive)
-//      println("Negative: " + countNegative)
-//      println("__________________________________")
+      val countPositive = rideConfigPositive.groupedCount.getOrElse(BeamMode.RIDE_HAIL.value, 0)
+      val countNegative = rideConfigNegative.groupedCount.getOrElse(BeamMode.RIDE_HAIL.value, 0)
 
       countPositive should be >= countNegative
     }
 
-    "Prefer mode choice drive_transit type in positive values than negative values " ignore {
-
-      val transformer1 = new RuleTransformer(
-        new MultinomialCustomConfigSpec.CustomAlternative(
-          BeamMode.DRIVE_TRANSIT.value,
-          Seq(
-            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100"),
-            MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100"),
-            MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100")
-          )
-        )
-      )
-
-      val transformer2 = new RuleTransformer(
-        new MultinomialCustomConfigSpec.CustomAlternative(
-          BeamMode.DRIVE_TRANSIT.value,
-          Seq(
-            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "-100"),
-            MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "-100"),
-            MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "-100")
-          )
-        )
-      )
-
-      val transformed1 = transformer1(MultinomialCustomConfigSpec.baseXml)
-      val transformed2 = transformer2(MultinomialCustomConfigSpec.baseXml)
-
-      val routeConfig1 =
-        MultinomialCustomConfigSpec.fullXml(transformed1).toString()
-      val routeConfig2 =
-        MultinomialCustomConfigSpec.fullXml(transformed2).toString()
+    "Prefer mode choice drive_transit type in positive values than negative values " in {
 
       val config1: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
-          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+          ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
-          ConfigValueFactory.fromAnyRef(routeConfig1)
+          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept",
+          ConfigValueFactory.fromAnyRef(100)
         )
         .resolve()
 
       val config2: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
-          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+          ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
-          ConfigValueFactory.fromAnyRef(routeConfig2)
+          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept",
+          ConfigValueFactory.fromAnyRef(-100)
         )
         .resolve()
 
@@ -363,84 +146,42 @@ class MultinomialCustomConfigSpec
       val transitConfigNegative = new StartWithCustomConfig(config2)
 
       val countPositive =
-        transitConfigPositive.groupedCount.getOrElse(BeamMode.DRIVE_TRANSIT.value, 0);
+        transitConfigPositive.groupedCount.getOrElse(BeamMode.DRIVE_TRANSIT.value, 0)
       val countNegative =
-        transitConfigNegative.groupedCount.getOrElse(BeamMode.DRIVE_TRANSIT.value, 0);
-
-//      println("Transit __________>")
-//      println("Positive: " + countPositive)
-//      println("Negative: " + countNegative)
-//      println("__________________________________")
+        transitConfigNegative.groupedCount.getOrElse(BeamMode.DRIVE_TRANSIT.value, 0)
 
       countPositive should be >= countNegative
     }
 
-    "Prefer mode choice walk type in positive values than negative values " ignore {
-
-      val transformer1 = new RuleTransformer(
-        new MultinomialCustomConfigSpec.CustomAlternative(
-          BeamMode.WALK.value,
-          Seq(
-            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "100"),
-            MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "100"),
-            MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "100")
-          )
-        )
-      )
-
-      val transformer2 = new RuleTransformer(
-        new MultinomialCustomConfigSpec.CustomAlternative(
-          BeamMode.WALK.value,
-          Seq(
-            MultinomialCustomConfigSpec.Utility("intercept", "INTERCEPT", "-100"),
-            MultinomialCustomConfigSpec.Utility("cost", "MULTIPLIER", "-100"),
-            MultinomialCustomConfigSpec.Utility("time", "MULTIPLIER", "-100")
-          )
-        )
-      )
-
-      val transformed1 = transformer1(MultinomialCustomConfigSpec.baseXml)
-      val transformed2 = transformer2(MultinomialCustomConfigSpec.baseXml)
-
-      val routeConfig1 =
-        MultinomialCustomConfigSpec.fullXml(transformed1).toString()
-      val routeConfig2 =
-        MultinomialCustomConfigSpec.fullXml(transformed2).toString()
+    "Prefer mode choice walk type in positive values than negative values " in {
 
       val config1: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
-          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+          ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
-          ConfigValueFactory.fromAnyRef(routeConfig1)
+          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept",
+          ConfigValueFactory.fromAnyRef(100)
         )
         .resolve()
 
       val config2: Config = baseConfig
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceClass",
-          ConfigValueFactory.fromAnyRef("ModeChoiceMultinomialLogitTest")
+          TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+          ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.modeChoiceParametersFile",
-          ConfigValueFactory.fromAnyRef(routeConfig2)
+          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept",
+          ConfigValueFactory.fromAnyRef(-100)
         )
         .resolve()
 
       val walkConfigPositive = new StartWithCustomConfig(config1)
       val walkConfigNegative = new StartWithCustomConfig(config2)
 
-      val countPositive =
-        walkConfigPositive.groupedCount.getOrElse(BeamMode.WALK.value, 0);
-      val countNegative =
-        walkConfigNegative.groupedCount.getOrElse(BeamMode.WALK.value, 0);
-
-//      println("WAlk __________>")
-//      println("Positive: " + countPositive)
-//      println("Negative: " + countNegative)
-//      println("__________________________________")
+      val countPositive = walkConfigPositive.groupedCount.getOrElse(BeamMode.WALK.value, 0)
+      val countNegative = walkConfigNegative.groupedCount.getOrElse(BeamMode.WALK.value, 0)
 
       countPositive should be >= countNegative
     }

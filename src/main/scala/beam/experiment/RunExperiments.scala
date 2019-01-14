@@ -14,7 +14,7 @@ class RunExperiments extends App with BeamHelper {
 
     stream.forEach(fileName => {
       logger.info(s"Going to run config $fileName")
-      runBeamWithConfigFile(fileName.toString)
+      runBeamUsing(Array("--config", fileName.toString))
     })
   } catch {
     case e: IOException =>
