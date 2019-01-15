@@ -6,7 +6,7 @@ import java.util.Random
 import java.util.concurrent.TimeUnit
 
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Stash, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Stash, Terminated}
 import akka.event.LoggingReceive
 import akka.pattern._
 import akka.util.Timeout
@@ -215,28 +215,20 @@ class RideHailManager(
       case _: AssertionError => Stop
     }
 
-  private val ridehailBeamVehicleTypeId: Id[BeamVehicleType] = Id
-    .create(
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
-      classOf[BeamVehicleType]
-    )
-
-  private val vehicleTypeId: Id[BeamVehicleType] = Id
-    .create(
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
-      classOf[BeamVehicleType]
-    )
-  beamServices.vehicleTypes.get(vehicleTypeId) match {
-    case Some(rhVehType) =>
-      if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= rhVehType.primaryFuelCapacityInJoule / rhVehType.primaryFuelConsumptionInJoulePerMeter * 0.8) {
-        log.error(
-          "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
-        )
-      }
-    case None =>
-      log.error(
+  private val vehicleType = beamServices.vehicleTypes
+    .getOrElse(
+      Id.create(
+        beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+        classOf[BeamVehicleType]
+      ),
+      throw new RuntimeException(
         "Ride Hail vehicle type (param: beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId) could not be found"
       )
+    )
+  if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= vehicleType.primaryFuelCapacityInJoule / vehicleType.primaryFuelConsumptionInJoulePerMeter * 0.8) {
+    throw new RuntimeException(
+      "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
+    )
   }
 
   /**
@@ -406,7 +398,7 @@ class RideHailManager(
           fleetData = fleetData :+ RideHailFleetInitializer.FleetData(
             id = rideHailBeamVehicle.id.toString,
             rideHailManagerId = "",
-            vehicleType = vehicleTypeId.toString,
+            vehicleType = vehicleType.id.toString,
             initialLocationX = rideInitialLocation.getX,
             initialLocationY = rideInitialLocation.getY,
             shifts = None,

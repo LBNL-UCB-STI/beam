@@ -86,6 +86,7 @@ class SingleModeSpec
       OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles
     val outputDirectoryHierarchy =
       new OutputDirectoryHierarchy(OUTPUT_DIR_PATH, overwriteExistingFiles)
+    outputDirectoryHierarchy.createIterationDirectory(0)
 
     services = mock[BeamServices](withSettings().stubOnly())
     when(services.beamConfig).thenReturn(beamConfig)
