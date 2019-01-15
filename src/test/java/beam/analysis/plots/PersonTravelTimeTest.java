@@ -8,6 +8,7 @@ import org.matsim.api.core.v01.events.PersonDepartureEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.collections.Tuple;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -49,26 +50,26 @@ public class PersonTravelTimeTest {
 
     private double[][] statsComputed;
 
-//    @Test
+    @Test
     public void testShouldPassShouldReturnAvgTimeForSpecificHour() {
         /**
          * 0 index represent CAR count
-         * 1 index represent DriveTran count
-         * 2 index represent RideHail count
-         * 3 index represent Walk count
-         * 4 index represent WalkTran count
+         * 1 index represent RideHail count
+         * 2 index represent Walk count
+         * 3 index represent WalkTran count
          *
          */
 
-        int expectedResultOfMode[] = {3, 38, 4, 32, 17};
+        // int expectedResultOfMode[] = {3, 38, 4, 32, 17};
+        int expectedResultOfMode[] = {2, 3, 31, 15};
         int actualResultOfMode[] = {
                 (int) Math.ceil(statsComputed[0][6]),
                 (int) Math.ceil(statsComputed[1][6]),
                 (int) Math.ceil(statsComputed[2][6]),
-                (int) Math.ceil(statsComputed[3][6]),
-                (int) Math.ceil(statsComputed[4][6])
+                (int) Math.ceil(statsComputed[3][6])
         };
-        assert(expectedResultOfMode.equals(actualResultOfMode));
+
+        assert(Arrays.equals(expectedResultOfMode , actualResultOfMode));
     }
 
 
