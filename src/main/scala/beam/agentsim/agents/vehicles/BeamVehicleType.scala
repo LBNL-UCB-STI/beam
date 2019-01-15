@@ -2,7 +2,7 @@ package beam.agentsim.agents.vehicles
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType._
-import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car, MediumDutyPassenger, Undefined, VehicleCategory}
+import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car, MediumDutyPassenger, VehicleCategory}
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
@@ -28,7 +28,7 @@ case class BeamVehicleType(
   passengerCarUnit: Double = 1,
   rechargeLevel2RateLimitInWatts: Option[Double] = None,
   rechargeLevel3RateLimitInWatts: Option[Double] = None,
-  vehicleCategory: VehicleCategory = Undefined
+  vehicleCategory: VehicleCategory
 )
 
 object BeamVehicleType {
@@ -128,11 +128,10 @@ object VehicleCategory {
   case object MediumDutyPassenger extends VehicleCategory
   case object LightDutyTruck extends VehicleCategory
   case object HeavyDutyTruck extends VehicleCategory
-  case object Undefined extends VehicleCategory
 
   def fromString(value: String): VehicleCategory = {
-    Vector(Body, Bike, Car, MediumDutyPassenger, LightDutyTruck, HeavyDutyTruck, Undefined)
+    Vector(Body, Bike, Car, MediumDutyPassenger, LightDutyTruck, HeavyDutyTruck)
       .find(_.toString.equalsIgnoreCase(value))
-      .getOrElse(Undefined)
+      .get
   }
 }
