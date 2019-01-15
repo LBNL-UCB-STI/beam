@@ -50,7 +50,7 @@ object HouseholdActor {
     matSimHousehold: Household,
     houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle],
     homeCoord: Coord,
-    sharedVehicleFleets: Vector[ActorRef] = Vector()
+    sharedVehicleFleets: Seq[ActorRef] = Vector()
   ): Props = {
     Props(
       new HouseholdActor(
@@ -105,7 +105,7 @@ object HouseholdActor {
     val household: Household,
     vehicles: Map[Id[BeamVehicle], BeamVehicle],
     homeCoord: Coord,
-    sharedVehicleFleets: Vector[ActorRef] = Vector()
+    sharedVehicleFleets: Seq[ActorRef] = Vector()
   ) extends Actor
       with ActorLogging {
 

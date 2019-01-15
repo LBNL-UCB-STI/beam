@@ -1,25 +1,10 @@
 package beam.sim
 
 import java.awt.Color
-import java.lang.Double
-import java.util
-import java.util.Random
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Success
-import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  ActorSystem,
-  Cancellable,
-  DeadLetter,
-  Identify,
-  OneForOneStrategy,
-  Props,
-  Terminated
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, Props, Terminated}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
@@ -30,12 +15,13 @@ import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
-import beam.router.BeamRouter.{InitTransit, UpdateTravelTimeLocal, UpdateTravelTimeRemote}
+import beam.router.BeamRouter.InitTransit
 import beam.router.FreeFlowTravelTime
 import beam.router.osm.TollCalculator
+import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
-import beam.sim.vehiclesharing.{FixedNonReservingVehicleFleet, InexhaustibleReservingVehicleFleet}
+import beam.sim.vehiclesharing.Fleets
 import beam.utils._
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
@@ -43,12 +29,10 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.utils.misc.Time
 
-import scala.collection.JavaConverters._
-import scala.concurrent.{Await, ExecutionContext}
+import scala.concurrent.Await
 import scala.concurrent.duration._
 
 /**
@@ -75,6 +59,7 @@ class BeamMobsim @Inject()(
 
   var debugActorWithTimerActorRef: ActorRef = _
   var debugActorWithTimerCancellable: Cancellable = _
+  private val config: Beam.Agentsim = beamServices.beamConfig.beam.agentsim
 
   override def run(): Unit = {
     logger.info("Starting Iteration")
@@ -97,7 +82,7 @@ class BeamMobsim @Inject()(
             classOf[BeamAgentScheduler],
             beamServices.beamConfig,
             Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime).toInt,
-            beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
+            config.schedulerParallelismWindow,
             new StuckFinder(beamServices.beamConfig.beam.debug.stuckAgentDetection)
           ),
           "scheduler"
@@ -146,26 +131,9 @@ class BeamMobsim @Inject()(
           )
         }
 
-        def initialSharedVehicleLocations =
-          scenario.getPopulation.getPersons
-            .values()
-            .asScala
-            .map(Population.personInitialLocation)
-
-        // TODO: Make configurable.
-        private val sharedVehicleFleets =
-          Vector(
-//            context
-//              .actorOf(
-//                Props(new InexhaustibleReservingVehicleFleet(parkingManager)),
-//                "inexhaustible-shared-vehicle-fleet"
-//              ),
-//            context
-//              .actorOf(
-//                Props(new FixedNonReservingVehicleFleet(parkingManager, initialSharedVehicleLocations)),
-//                "fixed-non-reserving-vehicle-fleet"
-//              ),
-          )
+        private val sharedVehicleFleets = config.agents.vehicles.sharedFleets.map { id =>
+          context.actorOf(Fleets.lookup(id).props(scenario, parkingManager), id)
+        }
         sharedVehicleFleets.foreach(context.watch)
 
         private val population = context.actorOf(
@@ -303,9 +271,9 @@ class BeamMobsim @Inject()(
         }
 
         private def scheduleRideHailManagerTimerMessages(): Unit = {
-          if (beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds > 0)
+          if (config.agents.rideHail.allocationManager.repositionTimeoutInSeconds > 0)
             scheduler ! ScheduleTrigger(RideHailRepositioningTrigger(0), rideHailManager)
-          if (beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0)
+          if (config.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0)
             scheduler ! ScheduleTrigger(BufferedRideHailRequestsTrigger(0), rideHailManager)
         }
 

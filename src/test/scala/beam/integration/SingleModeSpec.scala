@@ -10,9 +10,8 @@ import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, ModeIncentive, PtFares}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType}
-import beam.agentsim.events.PathTraversalEvent
 import beam.agentsim.agents.vehicles.FuelType.FuelType
+import beam.agentsim.events.PathTraversalEvent
 import beam.router.BeamRouter
 import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
@@ -24,7 +23,7 @@ import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamMobsim, BeamServices}
 import beam.utils.DateUtils
 import beam.utils.TestConfigUtils.{testConfig, testOutputDir}
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Id, Scenario}
@@ -47,8 +46,11 @@ class SingleModeSpec
       ActorSystem(
         "single-mode-test",
         ConfigFactory
-          .load()
-          .withValue("akka.test.timefactor", ConfigValueFactory.fromAnyRef(10))
+          .parseString("""
+              akka.test.timefactor = 10
+              beam.agentsim.agents.vehicles.sharedFleets = ["inexhaustible-reserving"]
+            """)
+          .withFallback(testConfig("test/input/sf-light/sf-light.conf"))
       )
     )
     with WordSpecLike
@@ -70,8 +72,7 @@ class SingleModeSpec
   var tollCalculator: TollCalculator = _
 
   override def beforeAll: Unit = {
-    val config = testConfig("test/input/sf-light/sf-light.conf")
-    beamConfig = BeamConfig(config)
+    beamConfig = BeamConfig(system.settings.config)
 
     val vehicleTypes = {
       val fuelTypes = BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
@@ -123,7 +124,7 @@ class SingleModeSpec
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     tollCalculator = new TollCalculator(beamConfig)
-    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+    val matsimConfig = new MatSimBeamConfigBuilder(system.settings.config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
     when(services.matsimServices.getScenario).thenReturn(scenario)
     scenario.getPopulation.getPersons.values.asScala
@@ -356,7 +357,9 @@ class SingleModeSpec
       mobsim.run()
       events.collect {
         case event: PersonDepartureEvent =>
-          // Not everybody has a car
+          // Wr still get some failing car routes.
+          // TODO: Find root cause, fix, and remove "walk" here.
+          // See SfLightRouterSpec.
           assert(event.getLegMode == "walk" || event.getLegMode == "car" || event.getLegMode == "be_a_tnc_driver")
       }
     }

@@ -22,8 +22,10 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class FixedNonReservingVehicleFleet(val parkingManager: ActorRef, val locations: Iterable[Coord])
-    extends Actor
+private[vehiclesharing] class FixedNonReservingFleetManager(
+  val parkingManager: ActorRef,
+  val locations: Iterable[Coord]
+) extends Actor
     with ActorLogging {
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
@@ -81,7 +83,7 @@ class FixedNonReservingVehicleFleet(val parkingManager: ActorRef, val locations:
             log.error("Didn't find a vehicle in my spatial index, at the location I thought it would be.")
           }
           who ! Boarded(vehicle)
-          println("Checked out " + vehicleId)
+          log.debug("Checked out " + vehicleId)
         case None =>
           who ! NotAvailable
       }
@@ -92,7 +94,7 @@ class FixedNonReservingVehicleFleet(val parkingManager: ActorRef, val locations:
         new Envelope(new Coordinate(vehicle.spaceTime.loc.getX, vehicle.spaceTime.loc.getY)),
         vehicle
       )
-      println("Checked in " + vehicle.id)
+      log.debug("Checked in " + vehicle.id)
 
   }
 
