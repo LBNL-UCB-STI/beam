@@ -48,7 +48,6 @@ class SingleModeSpec
         ConfigFactory
           .parseString("""
               akka.test.timefactor = 10
-              beam.agentsim.agents.vehicles.sharedFleets = ["inexhaustible-reserving"]
             """)
           .withFallback(testConfig("test/input/sf-light/sf-light.conf"))
       )

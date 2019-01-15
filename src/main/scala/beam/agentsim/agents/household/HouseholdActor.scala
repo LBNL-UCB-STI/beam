@@ -2,12 +2,14 @@ package beam.agentsim.agents.household
 
 import java.util.concurrent.TimeUnit
 
+import akka.actor.Status.Success
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
+import beam.agentsim.agents.PersonAgent.ActivityStartTrigger
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, VehicleOrToken}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
@@ -16,7 +18,8 @@ import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
-import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
+import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
@@ -26,7 +29,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households
 import org.matsim.households.Household
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 object HouseholdActor {
 
@@ -74,6 +77,7 @@ object HouseholdActor {
 
   case class MobilityStatusInquiry(whereWhen: SpaceTime)
   case class ReleaseVehicle(vehicle: BeamVehicle)
+  case class ReleaseVehicleAndReply(vehicle: BeamVehicle)
 
   case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken])
 
@@ -117,6 +121,8 @@ object HouseholdActor {
         case _: AssertionError => Stop
       }
 
+    schedulerRef ! ScheduleTrigger(InitializeTrigger(0), self)
+
     if (beamServices.beamConfig.beam.experimental.optimizer.enabled) {
       //Create the solver actor
       val solver = context.actorOf(beam.agentsim.agents.household.HouseholdSolverActor.props)
@@ -130,62 +136,64 @@ object HouseholdActor {
 
     implicit val pop: org.matsim.api.core.v01.population.Population = population
 
-    household.members.foreach { person =>
-      val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
-
-      val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
-
-      modeChoiceCalculator.valuesOfTime += (GeneralizedVot -> attributes.valueOfTime)
-
-      val personRef: ActorRef = context.actorOf(
-        PersonAgent.props(
-          schedulerRef,
-          beamServices,
-          modeChoiceCalculator,
-          transportNetwork,
-          tollCalculator,
-          router,
-          rideHailManager,
-          parkingManager,
-          eventsManager,
-          person.getId,
-          household,
-          person.getSelectedPlan,
-          sharedVehicleFleets
-        ),
-        person.getId.toString
-      )
-      context.watch(personRef)
-
-      schedulerRef ! ScheduleTrigger(InitializeTrigger(0), personRef)
-      beamServices.personRefs += ((person.getId, personRef))
-    }
-
-    // Pipe the household's vehicles through the parking agent.
-    // They will become available once they are parked.
-    // In principle, agents at 0 in the morning may not find their
-    // household's vehicle yet for a split-second.
-    for (veh <- vehicles.values) {
-      veh.manager = Some(self)
-      veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
-      parkingManager ? ParkingInquiry(
-        homeCoord,
-        homeCoord,
-        "home",
-        AttributesOfIndividual.EMPTY,
-        NoNeed,
-        0,
-        0
-      ) collect {
-        case ParkingInquiryResponse(stall, _) =>
-          veh.useParkingStall(stall)
-          ReleaseVehicle(veh)
-      } pipeTo self
-    }
-
     private var availableVehicles: List[BeamVehicle] = Nil
 
     override def receive: Receive = {
+
+      case TriggerWithId(InitializeTrigger(_), triggerId) =>
+        household.members.foreach { person =>
+          val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
+
+          val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
+
+          modeChoiceCalculator.valuesOfTime += (GeneralizedVot -> attributes.valueOfTime)
+
+          val personRef: ActorRef = context.actorOf(
+            PersonAgent.props(
+              schedulerRef,
+              beamServices,
+              modeChoiceCalculator,
+              transportNetwork,
+              tollCalculator,
+              router,
+              rideHailManager,
+              parkingManager,
+              eventsManager,
+              person.getId,
+              household,
+              person.getSelectedPlan,
+              sharedVehicleFleets
+            ),
+            person.getId.toString
+          )
+          context.watch(personRef)
+
+          schedulerRef ! ScheduleTrigger(InitializeTrigger(0), personRef)
+          beamServices.personRefs += ((person.getId, personRef))
+        }
+
+        // Pipe my cars through the parking manager
+        // and complete initialization only when I got them all.
+        Future
+          .sequence(vehicles.values.map { veh =>
+            veh.manager = Some(self)
+            veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
+            parkingManager ? ParkingInquiry(
+              homeCoord,
+              homeCoord,
+              "home",
+              AttributesOfIndividual.EMPTY,
+              NoNeed,
+              0,
+              0
+            ) flatMap {
+              case ParkingInquiryResponse(stall, _) =>
+                veh.useParkingStall(stall)
+                self ? ReleaseVehicleAndReply(veh)
+            }
+          })
+          .map(_ => CompletionNotice(triggerId, Vector()))
+          .pipeTo(sender())
 
       case NotifyVehicleIdle(vId, whenWhere, _, _, _) =>
         val vehId = vId.asInstanceOf[Id[BeamVehicle]]
@@ -197,9 +205,16 @@ object HouseholdActor {
         availableVehicles = vehicle :: availableVehicles
         log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
 
+      case ReleaseVehicleAndReply(vehicle) =>
+        vehicle.unsetDriver()
+        availableVehicles = vehicle :: availableVehicles
+        log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
+        sender() ! Success
+
       case MobilityStatusInquiry(_) =>
         availableVehicles = availableVehicles match {
           case firstVehicle :: rest =>
+            log.debug("Vehicle {} is now taken", firstVehicle.id)
             firstVehicle.becomeDriver(sender)
             sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)))
             rest
