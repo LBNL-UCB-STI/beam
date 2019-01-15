@@ -8,7 +8,18 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Success
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, OneForOneStrategy, Props, Terminated}
+import akka.actor.{
+  Actor,
+  ActorLogging,
+  ActorRef,
+  ActorSystem,
+  Cancellable,
+  DeadLetter,
+  Identify,
+  OneForOneStrategy,
+  Props,
+  Terminated
+}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
