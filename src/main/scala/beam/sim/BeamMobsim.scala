@@ -124,6 +124,7 @@ class BeamMobsim @Inject()(
           "RideHailManager"
         )
         context.watch(rideHailManager)
+        Await.result(rideHailManager ? Identify(0), timeout.duration)
 
         if (beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
           debugActorWithTimerActorRef = context.actorOf(Props(classOf[DebugActorWithTimer], rideHailManager, scheduler))
