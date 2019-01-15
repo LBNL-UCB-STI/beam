@@ -37,11 +37,16 @@
         <appender-ref ref="STDOUT"/>
     </Logger>
 
-    <Logger name="beam.router.r5.R5RoutingWorker" level="INFO" additivity="false">
+    <Logger name="beam.router.r5.R5RoutingWorker" level="debug" additivity="false">
         <appender-ref ref="STDOUT"/>
     </Logger>
-    <!--<Logger name="beam.agentsim.agents.vehicles.BeamVehicle" level="error" additivity="false">-->
-        <!--<appender-ref ref="STDOUT"/>-->
+    <Logger name="beam.agentsim.agents" level="debug" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+    <Logger name="beam.agentsim.infrastructure.ZonalParkingManager" level="debug" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+
 
     <!--<Logger name="beam.agentsim.agents.PersonAgent" level="error" additivity="false">-->
         <!--<appender-ref ref="STDOUT"/>-->

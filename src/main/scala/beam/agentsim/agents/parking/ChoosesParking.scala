@@ -8,20 +8,23 @@ import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
-import beam.agentsim.agents.vehicles.PassengerSchedule
+import beam.agentsim.agents.vehicles.{BeamVehicleType, PassengerSchedule}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
-import beam.agentsim.infrastructure.ParkingStall.NoNeed
+import beam.agentsim.infrastructure.ParkingStall.{ChargingPreference, MustCharge, NoNeed, Opportunistic}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.model.{BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.R5RoutingWorker
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
+import org.matsim.vehicles.Vehicle
 
 import scala.concurrent.duration.Duration
+import scala.util.Random
 
 /**
   * BEAM
@@ -37,6 +40,21 @@ object ChoosesParking {
 trait ChoosesParking extends {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
+  def getPreferredChargingOptions(beamVehicleType: BeamVehicleType): ChargingPreference = { //todo make this charging price dependent
+
+    val res = beamVehicleType.vehicleTypeId.toLowerCase match { //we only need to check for charging if we have ev
+      case "bev" | "phev" => { //todo fancy decision model for a) charging need b) plugs (evTypes datamodel adaptions)
+        if (Random.nextBoolean()) MustCharge else Opportunistic
+      }
+      case _ => NoNeed
+    }
+
+    log.debug(s"Send parking inquiry charging preference: $res")
+
+    return res
+
+  }
+
   onTransition {
     case ReadyToChooseParking -> ChoosingParkingSpot =>
       val personData = stateData.asInstanceOf[BasePersonData]
@@ -51,7 +69,9 @@ trait ChoosesParking extends {
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc),
         nextActivity(personData).get.getType,
         attributes,
-        NoNeed,
+        getPreferredChargingOptions(
+          beamServices.vehicles(personData.currentVehicle.head).beamVehicleType
+        ),
         lastLeg.beamLeg.endTime,
         nextActivity(personData).get.getEndTime - lastLeg.beamLeg.endTime.toDouble
       )
@@ -80,7 +100,7 @@ trait ChoosesParking extends {
             nextLeg.travelPath.endPoint.loc
           ) //nextLeg.travelPath.endPoint.loc
           val cost = stall.cost
-          val energyCharge: Double = 0.0 //TODO
+          val energyCharge: Double = 0.0 //Todo
           val timeCost: Double = scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF
           val score = calculateScore(distance, cost, energyCharge, timeCost)
           eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, id, veh.id))
