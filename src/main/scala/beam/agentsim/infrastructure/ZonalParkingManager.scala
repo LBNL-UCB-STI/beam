@@ -108,6 +108,7 @@ class ZonalParkingManager(
   val indexer: IndexerForZonalParkingManager = new IndexerForZonalParkingManager(pooledResources.toMap)
 
   override def receive: Receive = {
+
     case RegisterResource =>
     // For Zonal Parking, stalls are created internally
 
@@ -179,6 +180,8 @@ class ZonalParkingManager(
 
 
     case inquiry: ParkingInquiry =>
+
+      log.debug("Received parking inquiry: {}", inquiry);
 
       val preferredParkingType: ParkingStall.ParkingType = inquiry.activityType match {
         case act if act.equalsIgnoreCase("home") => Residential
