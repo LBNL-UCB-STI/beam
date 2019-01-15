@@ -141,6 +141,7 @@ class BeamMobsim @Inject()(
             .asScala
             .map(Population.personInitialLocation)
 
+        // TODO: Make configurable.
         private val sharedVehicleFleets =
           Vector(
 //            context
