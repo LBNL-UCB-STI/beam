@@ -78,8 +78,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
   protected val parkingManager: ActorRef
   protected val tollCalculator: TollCalculator
   private var tollsAccumulated = 0.0
-  var beamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
-  def currentBeamVehicle = beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
+  protected val beamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
+  protected def currentBeamVehicle = beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
 
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime, toll: Double)
 
