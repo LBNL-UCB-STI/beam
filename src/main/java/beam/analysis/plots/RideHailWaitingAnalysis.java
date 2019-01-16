@@ -4,6 +4,7 @@ import beam.agentsim.events.ModeChoiceEvent;
 import beam.analysis.IterationSummaryAnalysis;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
 import beam.sim.config.BeamConfig;
+import beam.utils.DebugLib;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -241,6 +242,11 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
 
         writeToCSV(event.getIteration(), data.getFirst());
         writeRideHailWaitingIndividualStatCSV(event.getIteration());
+
+        double[][] singleStatsData = computeGraphDataSingleStats(hoursSingleTimesMap);
+        CategoryDataset singleStatsDataset = DatasetUtilities.createCategoryDataset("", "", singleStatsData);
+        if (writeGraph)
+            createSingleStatsGraph(singleStatsDataset, event.getIteration());
         writeRideHailWaitingSingleStatCSV(event.getIteration(), hoursSingleTimesMap);
     }
 
@@ -276,6 +282,17 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private double[][] computeGraphDataSingleStats(Map<Integer, Double> stat) {
+        double[][] data = new double[1][numberOfTimeBins];
+        for (Integer key : stat.keySet()) {
+            if (key >= data[0].length) {
+                DebugLib.emptyFunctionForSettingBreakPoint();
+            }
+            data[0][key] = stat.get(key);
+        }
+        return data;
     }
 
     private void writeRideHailWaitingSingleStatCSV(int iteration, Map<Integer, Double> hourModeFrequency) {
@@ -348,6 +365,15 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".png");
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
+
+    private void createSingleStatsGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, rideHailWaitingSingleStatsFileBaseName + ".png", false);
+        GraphUtils.setColour(chart, 1);
+        // Writing graph to image file
+        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, rideHailWaitingSingleStatsFileBaseName + ".png");
+        GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+    }
+
 
     private void writeToCSV(int iterationNumber, Map<Integer, Map<Double, Integer>> hourModeFrequency) {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");
