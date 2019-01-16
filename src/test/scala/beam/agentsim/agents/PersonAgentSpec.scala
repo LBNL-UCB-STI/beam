@@ -54,7 +54,6 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 import scala.collection.concurrent.TrieMap
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
-import org.mockito.ArgumentMatchers._
 
 class PersonAgentSpec
     extends TestKit(
@@ -252,19 +251,18 @@ class PersonAgentSpec
           new Coord(0.0, 0.0)
         )
       )
-      val personActor = householdActor.getSingleChild(person.getId.toString)
 
       scheduler ! StartSchedule(0)
 
       // The agent will ask for a ride, and we will answer.
       val inquiry = expectMsgType[RideHailRequest]
-      personActor ! RideHailResponse(inquiry, None, None)
+      lastSender ! RideHailResponse(inquiry, None, None)
 
       // This is the ridehail to transit request.
       // We don't provide an option.
       val request1 = expectMsgType[RoutingRequest]
       assert(request1.streetVehiclesUseIntermodalUse == AccessAndEgress)
-      personActor ! RoutingResponse(
+      lastSender ! RoutingResponse(
         itineraries = Vector(),
         requestId = request1.requestId
       )
@@ -273,8 +271,8 @@ class PersonAgentSpec
       // We provide an option.
       val request2 = expectMsgType[RoutingRequest]
       assert(request2.streetVehiclesUseIntermodalUse == Access)
-      personActor ! RoutingResponse(
-        Vector(
+      lastSender ! RoutingResponse(
+        itineraries = Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -476,10 +474,10 @@ class PersonAgentSpec
           homeCoord = new Coord(0.0, 0.0)
         )
       )
-      val personActor = householdActor.getSingleChild(person.getId.toString)
       scheduler ! StartSchedule(0)
 
       expectMsgType[RoutingRequest]
+      val personActor = lastSender
       lastSender ! RoutingResponse(
         itineraries = Vector(
           EmbodiedBeamTrip(

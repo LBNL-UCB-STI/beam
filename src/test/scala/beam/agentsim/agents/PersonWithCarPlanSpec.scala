@@ -16,7 +16,7 @@ import beam.agentsim.events._
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerProps, StartSchedule}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
@@ -135,7 +135,8 @@ class PersonWithCarPlanSpec
         vehicleId,
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -179,13 +180,12 @@ class PersonWithCarPlanSpec
           )
         )
       )
-      val personActor = householdActor.getSingleChild(person.getId.toString)
 
       scheduler ! StartSchedule(0)
 
       // The agent will ask for current travel times for a route it already knows.
       val embodyRequest = expectMsgType[EmbodyWithCurrentTravelTime]
-      personActor ! RoutingResponse(
+      lastSender ! RoutingResponse(
         Vector(
           EmbodiedBeamTrip(
             legs = Vector(
@@ -260,13 +260,15 @@ class PersonWithCarPlanSpec
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
       val car2 = new BeamVehicle(
         Id.createVehicleId("car-2"),
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -360,7 +362,8 @@ class PersonWithCarPlanSpec
         vehicleId,
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -401,12 +404,10 @@ class PersonWithCarPlanSpec
           new Coord(0.0, 0.0)
         )
       )
-      val personActor = householdActor.getSingleChild(person.getId.toString)
-
       scheduler ! StartSchedule(0)
 
       val routingRequest = expectMsgType[RoutingRequest]
-      personActor ! RoutingResponse(
+      lastSender ! RoutingResponse(
         Vector(
           EmbodiedBeamTrip(
             legs = Vector(
@@ -453,7 +454,7 @@ class PersonWithCarPlanSpec
             )
           )
         ),
-        requestId = routingRequest.requestId
+        routingRequest.requestId
       )
 
       expectMsgType[ModeChoiceEvent]

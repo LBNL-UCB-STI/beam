@@ -38,8 +38,7 @@ import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, _}
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
-import beam.sim.RideHailFleetInitializer.RideHailAgentData
-import beam.sim._
+import beam.sim.{BeamServices, HasServices, OutputDataDescription, RideHailFleetInitializer}
 import beam.utils._
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
@@ -209,21 +208,25 @@ class RideHailManager(
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy(maxNrOfRetries = 0) {
-      case _: Exception      => Stop
+      case e: Exception => {
+        println(e)
+        Stop
+      }
       case _: AssertionError => Stop
     }
 
-  private val ridehailBeamVehicleTypeId: Id[BeamVehicleType] = Id
-    .create(
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
-      classOf[BeamVehicleType]
+  private val vehicleType = beamServices.vehicleTypes
+    .getOrElse(
+      Id.create(
+        beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+        classOf[BeamVehicleType]
+      ),
+      throw new RuntimeException(
+        "Ride Hail vehicle type (param: beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId) could not be found"
+      )
     )
-
-  val ridehailBeamVehicleType = beamServices.vehicleTypes
-    .getOrElse(ridehailBeamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
-
-  if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= ridehailBeamVehicleType.primaryFuelCapacityInJoule / ridehailBeamVehicleType.primaryFuelConsumptionInJoulePerMeter * 0.8) {
-    log.error(
+  if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= vehicleType.primaryFuelCapacityInJoule / vehicleType.primaryFuelConsumptionInJoulePerMeter * 0.8) {
+    throw new RuntimeException(
       "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
     )
   }

@@ -202,7 +202,8 @@ class PersonWithVehicleSharingSpec
         vehicleId,
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
       vehicle.manager = Some(mockSharedVehicleFleet.ref)
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
@@ -339,7 +340,8 @@ class PersonWithVehicleSharingSpec
         vehicleId,
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
       vehicle.manager = Some(mockSharedVehicleFleet.ref)
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
@@ -442,7 +444,8 @@ class PersonWithVehicleSharingSpec
         vehicleId,
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
       vehicle2.manager = Some(mockSharedVehicleFleet.ref)
       (parkingManager ? parkingInquiry(SpaceTime(0.01, 0.01, 61200)))
@@ -497,7 +500,8 @@ class PersonWithVehicleSharingSpec
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
         None,
-        BeamVehicleType.defaultCarBeamVehicleType
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
       car1.manager = Some(mockSharedVehicleFleet.ref)
 

@@ -1,6 +1,6 @@
 package beam.agentsim.agents.modalbehaviors
 
-import akka.actor.FSM
+import akka.actor.{ActorRef, FSM}
 import akka.pattern._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{ChoosingMode, _}
@@ -103,10 +103,15 @@ trait ChoosesMode {
             .sequence(vehicleManagers.map(_ ? MobilityStatusInquiry(currentLocation)))
             .map(
               listOfResponses =>
-                MobilityStatusResponse(listOfResponses.collect {
-                  case MobilityStatusResponse(vehicles) =>
-                    vehicles
-                }.flatten)
+                MobilityStatusResponse(
+                  listOfResponses
+                    .collect {
+                      case MobilityStatusResponse(vehicles) =>
+                        vehicles
+                    }
+                    .flatten
+                    .toVector
+              )
             ) pipeTo self
         // Otherwise, send empty list to self
         case _ =>

@@ -33,7 +33,7 @@ class Population(
   val router: ActorRef,
   val rideHailManager: ActorRef,
   val parkingManager: ActorRef,
-  val sharedVehicleFleets: Vector[ActorRef],
+  val sharedVehicleFleets: Seq[ActorRef],
   val eventsManager: EventsManager
 ) extends Actor
     with ActorLogging {
@@ -184,7 +184,7 @@ object Population {
     router: ActorRef,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
-    sharedVehicleFleets: Vector[ActorRef],
+    sharedVehicleFleets: Seq[ActorRef],
     eventsManager: EventsManager
   ): Props = {
     Props(

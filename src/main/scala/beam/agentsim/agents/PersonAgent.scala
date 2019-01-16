@@ -14,8 +14,8 @@ import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, Releasi
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.events._
+import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.infrastructure.ParkingManager.ParkingInquiryResponse
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
@@ -56,7 +56,7 @@ object PersonAgent {
     personId: Id[PersonAgent],
     household: Household,
     plan: Plan,
-    sharedVehicleFleets: Vector[ActorRef]
+    sharedVehicleFleets: Seq[ActorRef]
   ): Props = {
     Props(
       new PersonAgent(
@@ -186,7 +186,7 @@ class PersonAgent(
   val matsimPlan: Plan,
   val parkingManager: ActorRef,
   val tollCalculator: TollCalculator,
-  val sharedVehicleFleets: Vector[ActorRef] = Vector()
+  val sharedVehicleFleets: Seq[ActorRef] = Vector()
 ) extends DrivesVehicle[PersonData]
     with ChoosesMode
     with ChoosesParking

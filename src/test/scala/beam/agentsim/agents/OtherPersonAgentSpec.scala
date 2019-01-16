@@ -305,10 +305,10 @@ class OtherPersonAgentSpec
           new Coord(0.0, 0.0)
         )
       )
-      val personActor = householdActor.getSingleChild(person.getId.toString)
       scheduler ! StartSchedule(0)
 
       expectMsgType[RoutingRequest]
+      val personActor = lastSender
 
       scheduler ! ScheduleTrigger(
         BoardVehicleTrigger(28800, busLeg.beamVehicleId),
