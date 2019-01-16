@@ -37,7 +37,7 @@ import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 
 import scala.collection.JavaConverters._
-import scala.collection.{JavaConverters, immutable, mutable}
+import scala.collection.{immutable, mutable, JavaConverters}
 import scala.util.{Random, Try}
 
 case class SynthHousehold(
@@ -314,9 +314,10 @@ class SpatialSampler(sampleShape: String) {
     while (features.hasNext) {
       val feature = features.next()
       val popPct = feature.getAttribute("pop_pct").asInstanceOf[Double]
-      distributionList += new Pair[SimpleFeature,java.lang.Double](feature,popPct)
+      distributionList += new Pair[SimpleFeature, java.lang.Double](feature, popPct)
     }
-    new EnumeratedDistribution[SimpleFeature](rng,JavaConverters.bufferAsJavaList(distributionList))
+//    if(distributionList.map(_.getValue).sum > 0) {}
+    new EnumeratedDistribution[SimpleFeature](rng, JavaConverters.bufferAsJavaList(distributionList))
   }
   def getSample: SimpleFeature = distribution.sample()
 }
@@ -430,8 +431,7 @@ object PlansSampler {
     sourceCRS: CoordinateReferenceSystem
   ): Vector[SynthHousehold] = {
 
-
-    if(spatialSampler == null) {
+    if (spatialSampler == null) {
       val aoi: Geometry = new QuadTreeBuilder(wgsConverter.get)
         .geometryUnionFromShapefile(aoiFeatures, sourceCRS)
       synthHouseholds
@@ -440,13 +440,13 @@ object PlansSampler {
     } else {
       val tract2HH = synthHouseholds.groupBy(f => f.tract)
       val synthHHs = mutable.Buffer[SynthHousehold]()
-      (0 to sampleNumber).foreach {
-        _ => {
+      (0 to sampleNumber).foreach { _ =>
+        {
           val sampleFeature = spatialSampler.getSample
           val sampleTract = sampleFeature.getAttribute("TRACTCE").asInstanceOf[String].toInt
           var hh = Random.shuffle(tract2HH(sampleTract)).take(1).head
 
-          while(synthHHs.exists(_.householdId.equals(hh.householdId))){
+          while (synthHHs.exists(_.householdId.equals(hh.householdId))) {
             hh = Random.shuffle(tract2HH(sampleTract)).take(1).head
           }
           synthHHs += hh
@@ -466,7 +466,7 @@ object PlansSampler {
 
     val availableModes = permissibleModes
       .fold("") { (addend, modeString) =>
-        if(PersonUtils.getAge(person) < 16 && CAR.value.equalsIgnoreCase(modeString))
+        if (PersonUtils.getAge(person) < 16 && CAR.value.equalsIgnoreCase(modeString))
           addend
         else
           addend.concat(modeString.toLowerCase() + ",")
@@ -527,7 +527,7 @@ object PlansSampler {
 
         val hasWorkAct = plan.getPlanElements.asScala.exists {
           case activity: Activity => activity.getType.equalsIgnoreCase("Work")
-          case _ => false
+          case _                  => false
         }
         if (synthPerson.age > 18 || !hasWorkAct) {
 
