@@ -463,7 +463,10 @@ object PlansSampler {
 
     val availableModes = permissibleModes
       .fold("") { (addend, modeString) =>
-        addend.concat(modeString.toLowerCase() + ",")
+        if(PersonUtils.getAge(person) < 16 && CAR.value.equalsIgnoreCase(modeString))
+          addend
+        else
+          addend.concat(modeString.toLowerCase() + ",")
       }
       .stripSuffix(",")
 
