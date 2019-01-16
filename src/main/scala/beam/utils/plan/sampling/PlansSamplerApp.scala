@@ -38,7 +38,7 @@ import org.opengis.referencing.crs.CoordinateReferenceSystem
 
 import scala.collection.JavaConverters._
 import scala.collection.{JavaConverters, immutable, mutable}
-import scala.util.Random
+import scala.util.{Random, Try}
 
 case class SynthHousehold(
   householdId: Id[Household],
@@ -361,7 +361,7 @@ object PlansSampler {
     ScenarioUtils.loadScenario(sc)
     shapeFileReader.readFileAndInitialize(args(1))
 
-    spatialSampler = new SpatialSampler(args(1))
+    spatialSampler = Try(new SpatialSampler(args(1))).getOrElse(null)
     val sourceCrs = MGC.getCRS(args(7))
 
     wgsConverter = Some(WGSConverter(args(7), args(8)))
@@ -430,28 +430,31 @@ object PlansSampler {
     sourceCRS: CoordinateReferenceSystem
   ): Vector[SynthHousehold] = {
 
-//    val aoi: Geometry = new QuadTreeBuilder(wgsConverter.get)
-//      .geometryUnionFromShapefile(aoiFeatures, sourceCRS)
-//    synthHouseholds
-//      .filter(hh => aoi.contains(MGC.coord2Point(hh.coord)))
-//      .take(sampleNumber)
 
-    val tract2HH = synthHouseholds.groupBy(f => f.tract)
-    val synthHHs = mutable.Buffer[SynthHousehold]()
-    (0 to sampleNumber).foreach {
-      _ => {
-        val sampleFeature = spatialSampler.getSample
-        val sampleTract = sampleFeature.getAttribute("TRACTCE").asInstanceOf[String].toInt
-        var hh = Random.shuffle(tract2HH(sampleTract)).take(1).head
+    if(spatialSampler == null) {
+      val aoi: Geometry = new QuadTreeBuilder(wgsConverter.get)
+        .geometryUnionFromShapefile(aoiFeatures, sourceCRS)
+      synthHouseholds
+        .filter(hh => aoi.contains(MGC.coord2Point(hh.coord)))
+        .take(sampleNumber)
+    } else {
+      val tract2HH = synthHouseholds.groupBy(f => f.tract)
+      val synthHHs = mutable.Buffer[SynthHousehold]()
+      (0 to sampleNumber).foreach {
+        _ => {
+          val sampleFeature = spatialSampler.getSample
+          val sampleTract = sampleFeature.getAttribute("TRACTCE").asInstanceOf[String].toInt
+          var hh = Random.shuffle(tract2HH(sampleTract)).take(1).head
 
-        while(synthHHs.exists(_.householdId.equals(hh.householdId))){
-          hh = Random.shuffle(tract2HH(sampleTract)).take(1).head
+          while(synthHHs.exists(_.householdId.equals(hh.householdId))){
+            hh = Random.shuffle(tract2HH(sampleTract)).take(1).head
+          }
+          synthHHs += hh
         }
-        synthHHs += hh
       }
-    }
 
-    synthHHs.toVector
+      synthHHs.toVector
+    }
   }
 
   def addModeExclusions(person: Person): AnyRef = {
@@ -524,6 +527,7 @@ object PlansSampler {
 
         val hasWorkAct = plan.getPlanElements.asScala.exists {
           case activity: Activity => activity.getType.equalsIgnoreCase("Work")
+          case _ => false
         }
         if (synthPerson.age > 18 || !hasWorkAct) {
 
