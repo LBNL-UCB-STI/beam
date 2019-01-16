@@ -3,7 +3,6 @@ package beam.router.r5
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneId, ZoneOffset, ZonedDateTime}
 import java.util
-import java.util.Map
 import java.util.concurrent.{ExecutorService, Executors}
 
 import akka.actor._
@@ -1448,31 +1447,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 }
 
 object R5RoutingWorker {
-  def processTravelTime(someTime: Some[TravelTime], links: util.Collection[_ <: Link], maxHour: Int, beamServices: BeamServices): Option[TravelTime] = {
-
-    prevTravelTimes match {
-      case Some(prevTT) => {
-        // calculate the average
-        val currTT: TravelTime = someTime.get
-        val ttAvgMap = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeAvgArray(links, currTT, prevTT, maxHour)
-
-        val tt = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamServices.beamConfig.beam.agentsim.timeBinSize, ttAvgMap)
-        Some(tt)
-      }
-      case None => None
-    }
-
-  }
-
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447 // 1 mile per hour
-
   var prevTravelTimes: Option[TravelTime] = None
-
-  def setPrevTravelTimes(travelTimes: Option[TravelTime]) = {
-    prevTravelTimes = travelTimes
-  }
-
-  def getPrevTravelTimes = prevTravelTimes
 
   def props(
     beamServices: BeamServices,
@@ -1556,4 +1532,27 @@ object R5RoutingWorker {
       )
     )
   }
+
+  def processTravelTime(someTime: Some[TravelTime], links: util.Collection[_ <: Link], maxHour: Int, beamServices: BeamServices): Option[TravelTime] = {
+
+    prevTravelTimes match {
+      case Some(prevTT) => {
+        // calculate the average
+        val currTT: TravelTime = someTime.get
+        val ttAvgMap = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeAvgArray(links, currTT, prevTT, maxHour)
+
+        val tt = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamServices.beamConfig.beam.agentsim.timeBinSize, ttAvgMap)
+        Some(tt)
+      }
+      case None => None
+    }
+
+  }
+
+  def setPrevTravelTimes(travelTimes: Option[TravelTime]) = {
+    prevTravelTimes = travelTimes
+  }
+
+  def getPrevTravelTimes = prevTravelTimes
+
 }
