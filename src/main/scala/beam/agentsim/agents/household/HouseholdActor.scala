@@ -19,7 +19,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
-import beam.router.Modes.BeamMode.{BIKE, CAR, NO_MODE}
+import beam.router.Modes.BeamMode.{BIKE, CAR}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
@@ -29,7 +29,6 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households
 import org.matsim.households.Household
 
-import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext}
 
 object HouseholdActor {
