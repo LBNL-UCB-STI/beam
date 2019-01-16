@@ -11,6 +11,7 @@ import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.FuelType
+import beam.agentsim.agents.vehicles.VehicleCategory.Undefined
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
@@ -241,7 +242,7 @@ object BeamServices {
       readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicleType], BeamVehicleType]()) {
         case (line: util.Map[String, String], z) =>
           val vIdString = line.get("vehicleTypeId")
-          val vehicleTypeId = Id.create(vIdString, classOf[BeamVehicleType])
+          val vehicleTypeId: Id[BeamVehicleType] = Id.create(vIdString, classOf[BeamVehicleType])
           val seatingCapacity = line.get("seatingCapacity").trim.toInt
           val standingRoomCapacity = line.get("standingRoomCapacity").trim.toInt
           val lengthInMeter = line.get("lengthInMeter").trim.toDouble
@@ -261,6 +262,17 @@ object BeamServices {
           val rechargeLevel3RateLimitInWatts = Option(line.get("rechargeLevel3RateLimitInWatts")).map(_.toDouble)
           val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
 
+          // This is a hack, hope we can fix files soon...
+          val fixedVehicleCategory =(vehicleCategory, vIdString) match {
+            case (Undefined, typeId) if typeId.toLowerCase == "car" || typeId.toLowerCase == "bike" =>
+              val newVehicleCategory =  if (typeId.toLowerCase == "car") VehicleCategory.Car else VehicleCategory.Bike
+              logger.warn(s"vehicleTypeId '$vehicleTypeId' will be used as vehicleCategory. Old value: $vehicleCategory, New value: $newVehicleCategory")
+              newVehicleCategory
+            case _ =>
+              vehicleCategory
+          }
+
+
           val bvt = BeamVehicleType(
             vIdString,
             seatingCapacity,
@@ -277,7 +289,7 @@ object BeamServices {
             passengerCarUnit,
             rechargeLevel2RateLimitInWatts,
             rechargeLevel3RateLimitInWatts,
-            vehicleCategory
+            fixedVehicleCategory
           )
           z += ((vehicleTypeId, bvt))
       }
