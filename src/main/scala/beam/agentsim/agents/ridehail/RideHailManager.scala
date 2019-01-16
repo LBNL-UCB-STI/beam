@@ -19,7 +19,11 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{
+  CouldNotFindRouteToCustomer,
+  DriverNotFoundError,
+  RideHailVehicleTakenError
+}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -298,7 +302,8 @@ class RideHailManager(
 
   beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.initType match {
     case "PROCEDURAL" =>
-      var fleetData: List[RideHailFleetInitializer.RideHailAgentData] = List.empty[RideHailFleetInitializer.RideHailAgentData]
+      var fleetData: List[RideHailFleetInitializer.RideHailAgentData] =
+        List.empty[RideHailFleetInitializer.RideHailAgentData]
       val persons: Iterable[Person] =
         RandomUtils.shuffle(scenario.getPopulation.getPersons.values().asScala, rand)
       persons.view.take(numRideHailAgents.toInt).foreach { person =>
@@ -336,15 +341,16 @@ class RideHailManager(
               null
           }
 
-        fleetData = fleetData :+ createRideHailVehicleAndAgent(person.getId.toString,rideInitialLocation, None, None)
+        fleetData = fleetData :+ createRideHailVehicleAndAgent(person.getId.toString, rideInitialLocation, None, None)
       }
 
       new RideHailFleetInitializer().writeFleetData(beamServices, fleetData)
 
     case "FILE" =>
       new RideHailFleetInitializer().init(beamServices) foreach { fleetData =>
-        createRideHailVehicleAndAgent(fleetData.id.split("-")(1),
-          new Coord(fleetData.initialLocationX,fleetData.initialLocationY),
+        createRideHailVehicleAndAgent(
+          fleetData.id.split("-")(1),
+          new Coord(fleetData.initialLocationX, fleetData.initialLocationY),
           fleetData.shifts,
           fleetData.geofence
         )
@@ -394,7 +400,7 @@ class RideHailManager(
           dieIfNoChildren()
       }
 
-    case  NotifyVehicleOutOfService(vehicleId) =>
+    case NotifyVehicleOutOfService(vehicleId) =>
       vehicleManager.putOutOfService(vehicleManager.getRideHailAgentLocation(vehicleId))
 
     case ev @ NotifyVehicleIdle(
@@ -898,7 +904,12 @@ class RideHailManager(
 
   }
 
-  def createRideHailVehicleAndAgent(rideHailAgentIdentifier: String, rideInitialLocation: Coord, shifts: Option[String], geofence: Option[Geofence]): RideHailAgentData = {
+  def createRideHailVehicleAndAgent(
+    rideHailAgentIdentifier: String,
+    rideInitialLocation: Coord,
+    shifts: Option[String],
+    geofence: Option[Geofence]
+  ): RideHailAgentData = {
     val rideHailAgentName = s"rideHailAgent-${rideHailAgentIdentifier}"
     val rideHailVehicleId = BeamVehicle.createId(rideHailAgentIdentifier, Some("rideHailVehicle"))
     val ridehailBeamVehicleTypeId =
@@ -918,7 +929,7 @@ class RideHailManager(
       powertrain,
       ridehailBeamVehicleType
     )
-    rideHailBeamVehicle.spaceTime = SpaceTime((rideInitialLocation,0))
+    rideHailBeamVehicle.spaceTime = SpaceTime((rideInitialLocation, 0))
     rideHailBeamVehicle.manager = Some(self)
     resources += (rideHailVehicleId -> rideHailBeamVehicle)
     vehicleManager.vehicleState.put(rideHailBeamVehicle.id, rideHailBeamVehicle.getState)
@@ -943,7 +954,12 @@ class RideHailManager(
     context.watch(rideHailAgentRef)
     scheduler ! ScheduleTrigger(InitializeTrigger(0), rideHailAgentRef)
 
-    val agentLocation = RideHailAgentLocation(rideHailAgentRef,rideHailBeamVehicle.id,ridehailBeamVehicleTypeId,SpaceTime(rideInitialLocation,0))
+    val agentLocation = RideHailAgentLocation(
+      rideHailAgentRef,
+      rideHailBeamVehicle.id,
+      ridehailBeamVehicleTypeId,
+      SpaceTime(rideInitialLocation, 0)
+    )
     // Put the agent out of service and let the agent tell us when it's Idle (aka ready for service)
     vehicleManager.putOutOfService(agentLocation)
 

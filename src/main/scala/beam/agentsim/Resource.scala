@@ -19,7 +19,7 @@ object Resource {
     beamVehicleState: BeamVehicleState,
     triggerId: Option[Long] // triggerId is included to facilitate debugging
   )
- case class NotifyVehicleOutOfService(vehicleId: Id[BeamVehicle])
+  case class NotifyVehicleOutOfService(vehicleId: Id[BeamVehicle])
 
   case class TryToBoardVehicle(what: Id[BeamVehicle], who: ActorRef)
 

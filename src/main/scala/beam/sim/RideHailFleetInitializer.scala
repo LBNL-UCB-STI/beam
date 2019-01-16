@@ -150,7 +150,6 @@ class RideHailFleetInitializer extends LazyLogging {
     }
   }
 
-
 }
 
 object RideHailFleetInitializer extends OutputDataDescriptor {

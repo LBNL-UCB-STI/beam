@@ -104,12 +104,10 @@ class Population(
               .asInstanceOf[Double]
           )
 
-          val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = household.getVehicleIds.asScala
-            .map { vid =>
-              val bvid = BeamVehicle.createId(vid)
-              bvid -> beamServices.privateVehicles(bvid)
-            }
-            .toMap
+          val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = household.getVehicleIds.asScala.map { vid =>
+            val bvid = BeamVehicle.createId(vid)
+            bvid -> beamServices.privateVehicles(bvid)
+          }.toMap
           val householdActor = context.actorOf(
             HouseholdActor.props(
               beamServices,
