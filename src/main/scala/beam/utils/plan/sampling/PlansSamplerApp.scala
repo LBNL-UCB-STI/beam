@@ -2,12 +2,16 @@ package beam.utils.plan.sampling
 
 import java.util
 
+import beam.router.Modes.BeamMode.CAR
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PopulationAttrib.Rank
 import beam.utils.scripts.PopulationWriterCSV
 import com.vividsolutions.jts.geom.{Envelope, Geometry, GeometryCollection, GeometryFactory, Point}
 import enumeratum.EnumEntry._
 import enumeratum._
+import org.apache.commons.math3.distribution.EnumeratedDistribution
+import org.apache.commons.math3.random.MersenneTwister
+import org.apache.commons.math3.util.Pair
 import org.geotools.geometry.jts.JTS
 import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.population.{Activity, Person, Plan, Population}
@@ -32,8 +36,8 @@ import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 
-import scala.collection.{immutable, JavaConverters}
 import scala.collection.JavaConverters._
+import scala.collection.{JavaConverters, immutable, mutable}
 import scala.util.Random
 
 case class SynthHousehold(
@@ -300,6 +304,23 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
   }
 }
 
+class SpatialSampler(sampleShape: String) {
+  val shapeFileReader: ShapeFileReader = new ShapeFileReader
+  shapeFileReader.readFileAndInitialize(sampleShape)
+  val rng = new MersenneTwister(75710052) // Random.org
+  val distribution: EnumeratedDistribution[SimpleFeature] = {
+    val features = shapeFileReader.getFeatureCollection.features()
+    val distributionList = mutable.Buffer[Pair[SimpleFeature, java.lang.Double]]()
+    while (features.hasNext) {
+      val feature = features.next()
+      val popPct = feature.getAttribute("pop_pct").asInstanceOf[Double]
+      distributionList += new Pair[SimpleFeature,java.lang.Double](feature,popPct)
+    }
+    new EnumeratedDistribution[SimpleFeature](rng,JavaConverters.bufferAsJavaList(distributionList))
+  }
+  def getSample: SimpleFeature = distribution.sample()
+}
+
 object PlansSampler {
 
   import HasXY._
@@ -329,6 +350,7 @@ object PlansSampler {
   private var pop = Vector[Person]()
   var outDir: String = ""
   var sampleNumber: Int = 0
+  var spatialSampler: SpatialSampler = _
 
   def init(args: Array[String]): Unit = {
     conf.plans.setInputFile(args(0))
@@ -338,6 +360,8 @@ object PlansSampler {
     sc.setLocked()
     ScenarioUtils.loadScenario(sc)
     shapeFileReader.readFileAndInitialize(args(1))
+
+    spatialSampler = new SpatialSampler(args(1))
     val sourceCrs = MGC.getCRS(args(7))
 
     wgsConverter = Some(WGSConverter(args(7), args(8)))
@@ -406,12 +430,28 @@ object PlansSampler {
     sourceCRS: CoordinateReferenceSystem
   ): Vector[SynthHousehold] = {
 
-    val aoi: Geometry = new QuadTreeBuilder(wgsConverter.get)
-      .geometryUnionFromShapefile(aoiFeatures, sourceCRS)
+//    val aoi: Geometry = new QuadTreeBuilder(wgsConverter.get)
+//      .geometryUnionFromShapefile(aoiFeatures, sourceCRS)
+//    synthHouseholds
+//      .filter(hh => aoi.contains(MGC.coord2Point(hh.coord)))
+//      .take(sampleNumber)
 
-    synthHouseholds
-      .filter(hh => aoi.contains(MGC.coord2Point(hh.coord)))
-      .take(sampleNumber)
+    val tract2HH = synthHouseholds.groupBy(f => f.tract)
+    val synthHHs = mutable.Buffer[SynthHousehold]()
+    (0 to sampleNumber).foreach {
+      _ => {
+        val sampleFeature = spatialSampler.getSample
+        val sampleTract = sampleFeature.getAttribute("TRACTCE").asInstanceOf[String].toInt
+        var hh = Random.shuffle(tract2HH(sampleTract)).take(1).head
+
+        while(synthHHs.exists(_.householdId.equals(hh.householdId))){
+          hh = Random.shuffle(tract2HH(sampleTract)).take(1).head
+        }
+        synthHHs += hh
+      }
+    }
+
+    synthHHs.toVector
   }
 
   def addModeExclusions(person: Person): AnyRef = {
