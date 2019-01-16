@@ -160,7 +160,7 @@ class BeamVehicle(
     )
 
   def toStreetVehicle: StreetVehicle =
-    StreetVehicle(id, beamVehicleType.vehicleTypeId, spaceTime, BeamMode.CAR, true)
+    StreetVehicle(id, beamVehicleType.id, spaceTime, BeamMode.CAR, true)
 
 }
 

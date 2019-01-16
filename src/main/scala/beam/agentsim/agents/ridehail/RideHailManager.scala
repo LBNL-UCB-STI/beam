@@ -19,11 +19,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -38,7 +34,8 @@ import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, _}
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
-import beam.sim.{BeamServices, HasServices, OutputDataDescription, RideHailFleetInitializer}
+import beam.sim.RideHailFleetInitializer.RideHailAgentInputData
+import beam.sim._
 import beam.utils._
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
@@ -305,8 +302,8 @@ class RideHailManager(
 
   beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.initType match {
     case "PROCEDURAL" =>
-      var fleetData: List[RideHailFleetInitializer.RideHailAgentData] =
-        List.empty[RideHailFleetInitializer.RideHailAgentData]
+      var fleetData: List[RideHailFleetInitializer.RideHailAgentInputData] =
+        List.empty[RideHailFleetInitializer.RideHailAgentInputData]
       val persons: Iterable[Person] =
         RandomUtils.shuffle(scenario.getPopulation.getPersons.values().asScala, rand)
       persons.view.take(numRideHailAgents.toInt).foreach { person =>
@@ -420,7 +417,7 @@ class RideHailManager(
 
       val beamVehicle = resources(agentsim.vehicleId2BeamVehicleId(vehicleId))
       val rideHailAgentLocation =
-        RideHailAgentLocation(beamVehicle.driver.get, vehicleId, beamVehicle.beamVehicleType.vehicleTypeId, whenWhere)
+        RideHailAgentLocation(beamVehicle.driver.get, vehicleId, beamVehicle.beamVehicleType.id, whenWhere)
       vehicleManager.vehicleState.put(vehicleId, beamVehicleState)
 
       if (modifyPassengerScheduleManager
@@ -912,7 +909,7 @@ class RideHailManager(
     rideInitialLocation: Coord,
     shifts: Option[String],
     geofence: Option[Geofence]
-  ): RideHailAgentData = {
+  ): RideHailAgentInputData = {
     val rideHailAgentName = s"rideHailAgent-${rideHailAgentIdentifier}"
     val rideHailVehicleId = BeamVehicle.createId(rideHailAgentIdentifier, Some("rideHailVehicle"))
     val ridehailBeamVehicleTypeId =
@@ -972,7 +969,7 @@ class RideHailManager(
       .addAgentWithCoord(
         RideHailAgentInitCoord(rideHailAgentPersonId, rideInitialLocation)
       )
-    RideHailAgentData(
+    RideHailAgentInputData(
       id = rideHailBeamVehicle.id.toString,
       rideHailManagerId = "",
       vehicleType = rideHailBeamVehicle.beamVehicleType.toString,

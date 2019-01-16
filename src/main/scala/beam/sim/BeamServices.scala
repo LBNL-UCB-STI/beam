@@ -52,8 +52,6 @@ trait BeamServices {
   val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)]
   var personHouseholds: Map[Id[Person], Household]
 
-  val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
-
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
   val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType]
   val fuelTypePrices: Map[FuelType, Double]
@@ -159,6 +157,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
       case None => vehicleTypes
     }
   }
+
 }
 
 object BeamServices {
