@@ -16,7 +16,6 @@ public class StatsFactory {
     public enum StatsType {
         RideHailWaiting,
         RideHailWaitingTaz,
-        RideHailingWaitingSingle,
         ModeChosen,
         PersonVehicleTransition,
         PersonTravelTime,
@@ -77,8 +76,6 @@ public class StatsFactory {
                 return new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation(), beamConfig);
             case RideHailWaitingTaz:
                 return new RideHailWaitingTazAnalysis(beamServices);
-            case RideHailingWaitingSingle:
-                return new RideHailingWaitingSingleAnalysis(beamConfig, new RideHailingWaitingSingleAnalysis.RideHailingWaitingSingleComputation());
             case ModeChosen:
                 return new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation(), beamConfig);
             case PersonVehicleTransition:
