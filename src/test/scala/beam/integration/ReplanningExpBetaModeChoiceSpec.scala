@@ -23,14 +23,15 @@ class ReplanningExpBetaModeChoiceSpec
     with IntegrationSpecCommon {
 
   private lazy val config: Config = baseConfig
-    .withValue("matsim.modules.strategy.maxAgentPlanMemorySize", ConfigValueFactory.fromAnyRef(4))
-    .withValue("matsim.modules.strategy.Module_1", ConfigValueFactory.fromAnyRef("SelectExpBeta"))
-    .withValue("matsim.modules.strategy.Module_2", ConfigValueFactory.fromAnyRef("ClearRoutes"))
-    .withValue("matsim.modules.strategy.Module_3", ConfigValueFactory.fromAnyRef("ClearModes"))
-    .withValue("matsim.modules.strategy.ModuleProbability_1", ConfigValueFactory.fromAnyRef(0.8))
-    .withValue("matsim.modules.strategy.ModuleProbability_2", ConfigValueFactory.fromAnyRef(0.0))
-    .withValue("matsim.modules.strategy.ModuleProbability_3", ConfigValueFactory.fromAnyRef(0.2))
-    .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(20))
+    .withValue("beam.replanning.maxAgentPlanMemorySize", ConfigValueFactory.fromAnyRef(4))
+    .withValue("beam.replanning.Module_1", ConfigValueFactory.fromAnyRef("SelectExpBeta"))
+    .withValue("beam.replanning.Module_2", ConfigValueFactory.fromAnyRef("ClearRoutes"))
+    .withValue("beam.replanning.Module_3", ConfigValueFactory.fromAnyRef("ClearModes"))
+    .withValue("beam.replanning.ModuleProbability_1", ConfigValueFactory.fromAnyRef(0.8))
+    .withValue("beam.replanning.ModuleProbability_2", ConfigValueFactory.fromAnyRef(0.0))
+    .withValue("beam.replanning.ModuleProbability_3", ConfigValueFactory.fromAnyRef(0.2))
+    .withValue("beam.replanning.ModuleProbability_3", ConfigValueFactory.fromAnyRef(0.2))
+    .withValue("beam.agentsim.lastIteration", ConfigValueFactory.fromAnyRef(20))
     .resolve()
 
   lazy val beamConfig = BeamConfig(config)

@@ -53,8 +53,8 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
         "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept",
         ConfigValueFactory.fromAnyRef(0.0)
       )
-      .withValue("matsim.modules.strategy.ModuleProbability_1", ConfigValueFactory.fromAnyRef(0.3))
-      .withValue("matsim.modules.strategy.ModuleProbability_2", ConfigValueFactory.fromAnyRef(0.7))
+      .withValue("beam.replanning.ModuleProbability_1", ConfigValueFactory.fromAnyRef(0.3))
+      .withValue("beam.replanning.ModuleProbability_2", ConfigValueFactory.fromAnyRef(0.7))
       .withValue(
         "beam.agentsim.taz.parking",
         ConfigValueFactory.fromAnyRef(s"test/input/beamville/parking/taz-parking-$parkingScenario.csv")
