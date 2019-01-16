@@ -2,19 +2,17 @@ package beam.sim
 
 import java.io.{BufferedWriter, FileWriter, IOException}
 
-import scala.collection.JavaConverters._
-
 import akka.actor.ActorSystem
-import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.analysis.physsim.{PhyssimCalcLinkSpeedDistributionStatsObject, PhyssimCalcLinkSpeedStatsObject}
 import beam.analysis.plots._
-import beam.analysis.via.{ExpectedMaxUtilityHeatMap, ExpectedMaxUtilityHeatMapObject}
 import beam.utils.OutputDataDescriptor
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.ControlerEvent
+
+import scala.collection.JavaConverters._
 
 /**
   * Generate data descriptions table for all output file generating classes.
@@ -338,8 +336,6 @@ object StopWatchOutputs extends OutputDataDescriptor {
 }
 
 object SummaryStatsOutputs extends OutputDataDescriptor {
-
-  val ON_DEMAND_RIDE = "onDemandRide"
 
   /**
     * Get description of fields written to the output files.
