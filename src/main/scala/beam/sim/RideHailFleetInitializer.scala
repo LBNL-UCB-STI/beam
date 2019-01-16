@@ -107,7 +107,8 @@ class RideHailFleetInitializer extends LazyLogging {
                   Id.create(fleetData.id, classOf[BeamVehicle]),
                   powertrain,
                   None,
-                  vehicleType
+                  vehicleType,
+                  None
                 )
                 // map fleet data to the respective vehicle
                 Some(fleetData -> beamVehicle)
@@ -145,8 +146,12 @@ class RideHailFleetInitializer extends LazyLogging {
     */
   def writeFleetData(beamServices: BeamServices, fleetData: List[FleetData]): Unit = {
     try {
+      if (beamServices.matsimServices == null || beamServices.matsimServices.getControlerIO == null) return
       val filePath = beamServices.matsimServices.getControlerIO
-        .getIterationFilename(beamServices.iterationNumber, RideHailFleetInitializer.outputFileBaseName + ".csv.gz")
+        .getIterationFilename(
+          beamServices.matsimServices.getIterationNumber,
+          RideHailFleetInitializer.outputFileBaseName + ".csv.gz"
+        )
       val fileHeader = classOf[FleetData].getDeclaredFields.map(_.getName).mkString(", ")
       val data = fleetData map { f =>
         f.productIterator.map(f => if (f == None) "" else f) mkString ", "
