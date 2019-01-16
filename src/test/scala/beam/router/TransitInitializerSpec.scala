@@ -18,7 +18,7 @@ class TransitInitializerSpec extends WordSpecLike with Matchers with MockitoSuga
 
     "return SUV, based on agency[217] and route[1342] map" in {
       val expectedType = "SUV"
-      val actualType = transitInitializer.getVehicleType(routeInfo("217", "1342"), BeamMode.BUS).vehicleTypeId.toString
+      val actualType = transitInitializer.getVehicleType(routeInfo("217", "1342"), BeamMode.BUS).id.toString
 
       actualType shouldEqual expectedType
     }
@@ -26,7 +26,7 @@ class TransitInitializerSpec extends WordSpecLike with Matchers with MockitoSuga
     "return RAIL-DEFAULT, based on agency[DEFAULT] " in {
       val expectedType = "RAIL-DEFAULT"
       val actualType =
-        transitInitializer.getVehicleType(routeInfo("DEFAULT", "dummy"), BeamMode.RAIL).vehicleTypeId.toString
+        transitInitializer.getVehicleType(routeInfo("DEFAULT", "dummy"), BeamMode.RAIL).id.toString
 
       actualType shouldEqual expectedType
     }
@@ -34,14 +34,14 @@ class TransitInitializerSpec extends WordSpecLike with Matchers with MockitoSuga
     "return BUS-DEFAULT, as a default vehicle type" in {
       val expectedType = "BUS-DEFAULT"
       val actualType =
-        transitInitializer.getVehicleType(routeInfo("dummy", "dummy"), BeamMode.BUS).vehicleTypeId.toString
+        transitInitializer.getVehicleType(routeInfo("dummy", "dummy"), BeamMode.BUS).id.toString
 
       actualType shouldEqual expectedType
     }
 
     "not be BUS-AC, as vehicleTypes doesn't have it" in {
       val expectedType = "BUS-AC"
-      val actualType = transitInitializer.getVehicleType(routeInfo("217", "1350"), BeamMode.BUS).vehicleTypeId.toString
+      val actualType = transitInitializer.getVehicleType(routeInfo("217", "1350"), BeamMode.BUS).id.toString
 
       actualType should not be expectedType
     }

@@ -134,9 +134,7 @@ class PersonWithCarPlanSpec
       val beamVehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        None,
-        BeamVehicleType.defaultCarBeamVehicleType,
-        None
+        BeamVehicleType.defaultCarBeamVehicleType
       )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -195,7 +193,7 @@ class PersonWithCarPlanSpec
                   travelPath = embodyRequest.leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
                 ),
                 beamVehicleId = vehicleId,
-                BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -259,16 +257,12 @@ class PersonWithCarPlanSpec
       val car1 = new BeamVehicle(
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
-        None,
-        BeamVehicleType.defaultCarBeamVehicleType,
-        None
+        BeamVehicleType.defaultCarBeamVehicleType
       )
       val car2 = new BeamVehicle(
         Id.createVehicleId("car-2"),
         new Powertrain(0.0),
-        None,
-        BeamVehicleType.defaultCarBeamVehicleType,
-        None
+        BeamVehicleType.defaultCarBeamVehicleType
       )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -325,7 +319,7 @@ class PersonWithCarPlanSpec
                 travelPath = leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
               ),
               beamVehicleId = vehicleId,
-              BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
+              BeamVehicleType.defaultTransitBeamVehicleType.id,
               asDriver = true,
               cost = 0.0,
               unbecomeDriverOnCompletion = true
@@ -361,9 +355,7 @@ class PersonWithCarPlanSpec
       val beamVehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        None,
-        BeamVehicleType.defaultCarBeamVehicleType,
-        None
+        BeamVehicleType.defaultCarBeamVehicleType
       )
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -426,7 +418,7 @@ class PersonWithCarPlanSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
@@ -446,7 +438,7 @@ class PersonWithCarPlanSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("car-1"),
-                BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true

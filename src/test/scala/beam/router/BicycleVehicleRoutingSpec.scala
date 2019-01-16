@@ -107,7 +107,7 @@ class BicycleVehicleRoutingSpec
       router ! EmbodyWithCurrentTravelTime(
         leg,
         Id.createVehicleId(1),
-        BeamVehicleType.defaultBicycleBeamVehicleType.vehicleTypeId
+        BeamVehicleType.defaultBicycleBeamVehicleType.id
       )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.head.beamLegs().head.duration == 285)
