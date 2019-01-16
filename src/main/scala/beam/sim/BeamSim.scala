@@ -70,7 +70,8 @@ class BeamSim @Inject()(
   val summaryData = new mutable.HashMap[String, mutable.Map[Int, Double]]()
 
 
-  val actorEventsManager: ActorRef = actorSystem.actorOf(ActorEventsManager.props(eventsManager), "ActorEventsManager")
+  val actorEventsManager: ActorRef = actorSystem.actorOf(ActorEventsManager.props(eventsManager).withDispatcher("pinned-dispatcher-for-event-manager"),
+    "ActorEventsManager")
   println(actorEventsManager)
 
   override def notifyStartup(event: StartupEvent): Unit = {
