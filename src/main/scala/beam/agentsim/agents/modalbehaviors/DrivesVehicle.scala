@@ -13,24 +13,18 @@ import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.events.{ParkEvent, PathTraversalEvent, SpaceTime}
+import beam.agentsim.events.{ActorEventsManager, ParkEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, TRANSIT}
+import beam.router.Modes.BeamMode.TRANSIT
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.sim.HasServices
-import beam.utils.TravelTimeUtils
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.{Id, Scenario}
-import org.matsim.api.core.v01.events.{
-  LinkEnterEvent,
-  LinkLeaveEvent,
-  VehicleEntersTrafficEvent,
-  VehicleLeavesTrafficEvent
-}
+import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.events.{VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
@@ -148,10 +142,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         }
       }
 
-      processLinkEvents(data.currentVehicle.head, currentLeg)
+      actorEventsManager ! ActorEventsManager.Message.ProcessLinkEvents(data.currentVehicle.head, currentLeg)
 
       logDebug("PathTraversal")
-      eventsManager.processEvent(
+      actorEventsManager !(
         new VehicleLeavesTrafficEvent(
           tick,
           id.asInstanceOf[Id[Person]],
@@ -164,7 +158,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
       val tollOnCurrentLeg = toll(currentLeg)
       tollsAccumulated += tollOnCurrentLeg
-      eventsManager.processEvent(
+      actorEventsManager !(
         new PathTraversalEvent(
           tick,
           currentVehicleUnderControl,
@@ -323,7 +317,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         nextNotifyVehicleResourceIdle
       )
 
-      eventsManager.processEvent(
+      actorEventsManager !(
         new VehicleLeavesTrafficEvent(
           stopTick,
           id.asInstanceOf[Id[Person]],
@@ -336,7 +330,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
       val tollOnCurrentLeg = toll(currentLeg)
       tollsAccumulated += tollOnCurrentLeg
-      eventsManager.processEvent(
+      actorEventsManager !(
         new PathTraversalEvent(
           stopTick,
           currentVehicleUnderControl,
@@ -408,7 +402,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
             )
           }
           .toVector
-        eventsManager.processEvent(
+        actorEventsManager !(
           new VehicleEntersTrafficEvent(
             tick,
             Id.createPersonId(id),
@@ -627,24 +621,24 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     }
   }
 
-  def processLinkEvents(vehicleId: Id[Vehicle], leg: BeamLeg): Unit = {
-    val path = leg.travelPath
-    if (path.linkTravelTime.nonEmpty) {
-      // FIXME once done with debugging, make this code faster
-      // We don't need the travel time for the last link, so we drop it (dropRight(1))
-      val avgTravelTimeWithoutLast = path.linkTravelTime.dropRight(1)
-      val links = path.linkIds
-      val linksWithTime = links.sliding(2).zip(avgTravelTimeWithoutLast.iterator)
-
-      var curTime = leg.startTime
-      linksWithTime.foreach {
-        case (Seq(from, to), timeAtNode) =>
-          curTime = curTime + timeAtNode
-          eventsManager.processEvent(new LinkLeaveEvent(curTime, vehicleId, Id.createLinkId(from)))
-          eventsManager.processEvent(new LinkEnterEvent(curTime, vehicleId, Id.createLinkId(to)))
-      }
-    }
-  }
+//  def processLinkEvents(vehicleId: Id[Vehicle], leg: BeamLeg): Unit = {
+//    val path = leg.travelPath
+//    if (path.linkTravelTime.nonEmpty) {
+//      // FIXME once done with debugging, make this code faster
+//      // We don't need the travel time for the last link, so we drop it (dropRight(1))
+//      val avgTravelTimeWithoutLast = path.linkTravelTime.dropRight(1)
+//      val links = path.linkIds
+//      val linksWithTime = links.sliding(2).zip(avgTravelTimeWithoutLast.iterator)
+//
+//      var curTime = leg.startTime
+//      linksWithTime.foreach {
+//        case (Seq(from, to), timeAtNode) =>
+//          curTime = curTime + timeAtNode
+//          eventsManager.processEvent(new LinkLeaveEvent(curTime, vehicleId, Id.createLinkId(from)))
+//          eventsManager.processEvent(new LinkEnterEvent(curTime, vehicleId, Id.createLinkId(to)))
+//      }
+//    }
+//  }
 
   private def toll(leg: BeamLeg) = {
     if (leg.mode == BeamMode.CAR)

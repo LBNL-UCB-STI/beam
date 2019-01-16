@@ -17,8 +17,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.{CAR, WALK}
-import beam.router.model.{BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.r5.R5RoutingWorker
+import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 
 import scala.concurrent.duration.Duration
@@ -83,7 +82,7 @@ trait ChoosesParking extends {
           val energyCharge: Double = 0.0 //TODO
           val timeCost: Double = scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF
           val score = calculateScore(distance, cost, energyCharge, timeCost)
-          eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, id, veh.id))
+          actorEventsManager !(new LeavingParkingEvent(tick, stall, score, id, veh.id))
         }
         veh.unsetParkingStall()
         goto(WaitingToDrive) using data
@@ -215,7 +214,7 @@ trait ChoosesParking extends {
         data.currentVehicle
       } else {
         currVehicle.unsetDriver()
-        eventsManager.processEvent(
+        actorEventsManager !(
           new PersonLeavesVehicleEvent(tick, id, data.currentVehicle.head)
         )
         data.currentVehicle.drop(1)

@@ -15,25 +15,21 @@ import beam.agentsim.agents.vehicles.{VehiclePersonId, _}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall
-import beam.agentsim.infrastructure.ParkingStall.{Any, NoCharger, NoNeed}
+import beam.agentsim.infrastructure.ParkingStall.{Any, NoNeed}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
-import beam.agentsim.scheduler.Trigger
-import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter._
 import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
-import beam.router.model.RoutingModel._
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.R5RoutingWorker
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.plan.sampling.AvailableModeUtils._
+import org.matsim.api.core.v01.population.Leg
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.GenTraversableOnce
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
@@ -791,7 +787,7 @@ trait ChoosesMode {
         }
       }
 
-      eventsManager.processEvent(
+      actorEventsManager ! (
         new ModeChoiceEvent(
           tick,
           id,
