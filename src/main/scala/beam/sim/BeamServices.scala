@@ -87,7 +87,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
       beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.toUpperCase
         .split(",")
         .map(BeamMode.fromString)
-        .toSeq
+        .toSeq.flatten
     }
 
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _

@@ -91,7 +91,6 @@ object HouseholdActor {
     * Any agent in a mode choice situation must send a [[MobilityStatusInquiry]] to the [[HouseholdActor]]. The
     *
     * @author dserdiuk/sfeygin
-    * @param id       this [[Household]]'s unique identifier.
     * @param vehicles the [[BeamVehicle]]s managed by this [[Household]].
     * @see [[ChoosesMode]]
     */
@@ -238,13 +237,9 @@ object HouseholdActor {
         case Car =>
           CAR
         case _ =>
-          log.warning(
-            s"A vehicle with Id {} of vehicle type {} is not a recognized category of vehicle ({}) to be used by a household. Ignoring this vehicle.",
-            beamVehicle.id,
-            beamVehicle.beamVehicleType.vehicleTypeId,
-            beamVehicle.beamVehicleType.vehicleCategory
+          throw new RuntimeException(
+            s"A vehicle with Id ${beamVehicle.id} of vehicle type ${beamVehicle.beamVehicleType.vehicleTypeId} is not a recognized category of vehicle (${beamVehicle.beamVehicleType.vehicleCategory}) to be used by a household. Ignoring this vehicle."
           )
-          NO_MODE
       }
     }
   }

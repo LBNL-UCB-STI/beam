@@ -297,12 +297,7 @@ class PersonAgent(
                 _experiencedBeamPlan.getPlanElements
                   .get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
                   case leg: Leg =>
-                    BeamMode.fromString(leg.getMode) match {
-                      case NO_MODE =>
-                        None
-                      case anyOther: BeamMode =>
-                        Some(anyOther)
-                    }
+                    BeamMode.fromString(leg.getMode)
                   case _ => None
                 }
               )
