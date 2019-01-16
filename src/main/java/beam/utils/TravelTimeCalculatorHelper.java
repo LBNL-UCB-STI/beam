@@ -68,6 +68,28 @@ public class TravelTimeCalculatorHelper {
         return result;
     }
 
+    public static Map<String, double[]> GetLinkIdToTravelTimeAvgArray(Collection<? extends Link> links, TravelTime travelTime1, TravelTime travelTime2, int maxHour) {
+        long start = System.currentTimeMillis();
+        Map<String, double[]> result = new HashMap<>();
+        for (Link link : links) {
+            Id<Link> linkId = link.getId();
+            double[] times = new double[maxHour];
+            for (int hour = 0; hour < maxHour; hour++) {
+                int hourInSeconds = hour * 3600;
+                double t1 = travelTime1.getLinkTravelTime(link, hourInSeconds, null, null);
+                double t2 = travelTime2.getLinkTravelTime(link, hourInSeconds, null, null);
+
+                times[hour] = (t1 + t2)/2;
+            }
+            result.put(linkId.toString(), times);
+
+        }
+        long end = System.currentTimeMillis();
+        long diff = end - start;
+        log.info("GetLinkIdToTravelTimeArray for {} links with maxHour = {} executed in {} ms", links.size(), maxHour, diff);
+        return result;
+    }
+
     public static TravelTime CreateTravelTimeCalculator(int timeBinSizeInSeconds, Map<String, double[]> linkIdToTravelTimeData) {
         return new TravelTimePerHour(timeBinSizeInSeconds, linkIdToTravelTimeData);
     }
