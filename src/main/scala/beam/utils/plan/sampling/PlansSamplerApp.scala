@@ -518,47 +518,57 @@ object PlansSampler {
       for ((plan, idx) <- selectedPlans.zipWithIndex) {
         val synthPerson = sh.individuals.toVector(idx)
         val newPersonId = synthPerson.indId
-        val newPerson = newPop.getFactory.createPerson(newPersonId)
-        newPop.addPerson(newPerson)
-        spHH.getMemberIds.add(newPersonId)
-        newPopAttributes
-          .putAttribute(newPersonId.toString, Rank.entryName, ranks(idx))
 
-        // Create a new plan for household member based on selected plan of first person
-        val newPlan = PopulationUtils.createPlan(newPerson)
-        newPerson.addPlan(newPlan)
-        PopulationUtils.copyFromTo(plan, newPlan)
-        val homeActs = newPlan.getPlanElements.asScala
-          .collect { case activity: Activity if activity.getType.equalsIgnoreCase("Home") => activity }
-
-        homePlan match {
-          case None =>
-            homePlan = Some(newPlan)
-            val homeCoord = homeActs.head.getCoord
-            newHHAttributes.putAttribute(hhId.toString, HomeCoordX.entryName, homeCoord.getX)
-            newHHAttributes.putAttribute(hhId.toString, HomeCoordY.entryName, homeCoord.getY)
-            newHHAttributes.putAttribute(hhId.toString, HousingType.entryName, "House")
-            snapPlanActivityLocsToNearestLink(newPlan)
-
-          case Some(hp) =>
-            val firstAct = PopulationUtils.getFirstActivity(hp)
-            val firstActCoord = firstAct.getCoord
-            for (act <- homeActs) {
-              act.setCoord(firstActCoord)
-            }
-            snapPlanActivityLocsToNearestLink(newPlan)
+        val hasWorkAct = plan.getPlanElements.asScala.exists {
+          case activity: Activity => activity.getType.equalsIgnoreCase("Work")
         }
+        if (synthPerson.age > 18 || !hasWorkAct) {
 
-        PersonUtils.setAge(newPerson, synthPerson.age)
-        val sex = if (synthPerson.sex == 0) { "M" } else { "F" }
-        // TODO: Include non-binary gender if data available
-        PersonUtils.setSex(newPerson, sex)
-        newPopAttributes
-          .putAttribute(newPerson.getId.toString, "valueOfTime", synthPerson.valueOfTime)
-        newPopAttributes.putAttribute(newPerson.getId.toString, "income", synthPerson.income)
-        addModeExclusions(newPerson)
+          val newPerson = newPop.getFactory.createPerson(newPersonId)
+          newPop.addPerson(newPerson)
+          spHH.getMemberIds.add(newPersonId)
+          newPopAttributes
+            .putAttribute(newPersonId.toString, Rank.entryName, ranks(idx))
+
+          // Create a new plan for household member based on selected plan of first person
+          val newPlan = PopulationUtils.createPlan(newPerson)
+          newPerson.addPlan(newPlan)
+          PopulationUtils.copyFromTo(plan, newPlan)
+          val homeActs = newPlan.getPlanElements.asScala
+            .collect { case activity: Activity if activity.getType.equalsIgnoreCase("Home") => activity }
+
+          homePlan match {
+            case None =>
+              homePlan = Some(newPlan)
+              val homeCoord = homeActs.head.getCoord
+              newHHAttributes.putAttribute(hhId.toString, HomeCoordX.entryName, homeCoord.getX)
+              newHHAttributes.putAttribute(hhId.toString, HomeCoordY.entryName, homeCoord.getY)
+              newHHAttributes.putAttribute(hhId.toString, HousingType.entryName, "House")
+              snapPlanActivityLocsToNearestLink(newPlan)
+
+            case Some(hp) =>
+              val firstAct = PopulationUtils.getFirstActivity(hp)
+              val firstActCoord = firstAct.getCoord
+              for (act <- homeActs) {
+                act.setCoord(firstActCoord)
+              }
+              snapPlanActivityLocsToNearestLink(newPlan)
+          }
+
+          PersonUtils.setAge(newPerson, synthPerson.age)
+          val sex = if (synthPerson.sex == 0) {
+            "M"
+          } else {
+            "F"
+          }
+          // TODO: Include non-binary gender if data available
+          PersonUtils.setSex(newPerson, sex)
+          newPopAttributes
+            .putAttribute(newPerson.getId.toString, "valueOfTime", synthPerson.valueOfTime)
+          newPopAttributes.putAttribute(newPerson.getId.toString, "income", synthPerson.income)
+          addModeExclusions(newPerson)
+        }
       }
-
     })
 
     counter.printCounter()
