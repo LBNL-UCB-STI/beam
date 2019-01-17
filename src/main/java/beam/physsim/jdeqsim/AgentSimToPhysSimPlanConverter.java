@@ -175,19 +175,19 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         //################################################################################################################
         Collection<? extends Link> links = agentSimScenario.getNetwork().getLinks().values();
         int maxHour = (int) TimeUnit.SECONDS.toHours(agentSimScenario.getConfig().travelTimeCalculator().getMaxTime());
-        TravelTime tt = travelTimeCalculator.getLinkTravelTimes();
+        TravelTime travelTimes = travelTimeCalculator.getLinkTravelTimes();
         Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(links,
-                tt, maxHour);
+                travelTimes, maxHour);
 
-        if(beamConfig.beam().routing().startingIterationForTravelTimesMSA() == iterationNumber){
+        if(beamConfig.beam().routing().startingIterationForTravelTimesMSA() >= iterationNumber){
             map = processTravelTime(links, map, maxHour);
-            tt = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), map);
+            travelTimes = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), map);
         }
 
         router.tell(new BeamRouter.TryToSerialize(map), ActorRef.noSender());
         router.tell(new BeamRouter.UpdateTravelTimeRemote(map), ActorRef.noSender());
         //################################################################################################################
-        router.tell(new BeamRouter.UpdateTravelTimeLocal(tt), ActorRef.noSender());
+        router.tell(new BeamRouter.UpdateTravelTimeLocal(travelTimes), ActorRef.noSender());
 
         completableFutures.add(CompletableFuture.runAsync(() -> {
             linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);
