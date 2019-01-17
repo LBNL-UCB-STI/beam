@@ -35,6 +35,7 @@ import org.matsim.core.mobsim.jdeqsim.Road;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.population.PopulationUtils;
 import org.matsim.core.population.routes.RouteUtils;
+import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.scenario.MutableScenario;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
@@ -65,6 +66,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
     private Scenario agentSimScenario;
     private Population jdeqsimPopulation;
+    private TravelTime previousTravelTime;
+
 
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
@@ -174,13 +177,17 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         int maxHour = (int) TimeUnit.SECONDS.toHours(agentSimScenario.getConfig().travelTimeCalculator().getMaxTime());
         Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(links,
                 travelTimeCalculator.getLinkTravelTimes(), maxHour);
-
-        BeamRouter.IterationAndMaxHour iterationAndMaxHour = new BeamRouter.IterationAndMaxHour(iterationNumber, maxHour);
-        router.tell(iterationAndMaxHour, ActorRef.noSender());
+        if(beamConfig.beam().routing().startingIterationForTravelTimesMSA() == iterationNumber){
+            map = processTravelTime(links, map, maxHour);
+        }
         router.tell(new BeamRouter.TryToSerialize(map), ActorRef.noSender());
         router.tell(new BeamRouter.UpdateTravelTimeRemote(map), ActorRef.noSender());
         //################################################################################################################
-        router.tell(new BeamRouter.UpdateTravelTimeLocal(travelTimeCalculator.getLinkTravelTimes()), ActorRef.noSender());
+        TravelTime tt = travelTimeCalculator.getLinkTravelTimes();
+        if(beamConfig.beam().routing().startingIterationForTravelTimesMSA() == iterationNumber){
+            tt = processTravelTime(links, tt, maxHour);
+        }
+        router.tell(new BeamRouter.UpdateTravelTimeLocal(tt), ActorRef.noSender());
 
         completableFutures.add(CompletableFuture.runAsync(() -> {
             linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);
@@ -360,5 +367,31 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     public Map<String, Double> getSummaryStats() {
         return new HashMap<>();
     }
-}
 
+
+    ////
+    public TravelTime processTravelTime(Collection<? extends Link> links, TravelTime currentTravelTime, int maxHour){
+        if(previousTravelTime == null){
+            previousTravelTime = currentTravelTime;
+            return currentTravelTime;
+        }else{
+            Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeAvgArray(links, currentTravelTime, previousTravelTime, maxHour);
+
+            TravelTime tt = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), map);
+            return tt;
+        }
+    }
+
+    public Map<String, double[]> processTravelTime(Collection<? extends Link> links, Map<String, double[]> currentTravelTimeMap, int maxHour){
+
+        TravelTime currentTravelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), currentTravelTimeMap);
+
+        if(previousTravelTime == null){
+            previousTravelTime = currentTravelTime;
+            return currentTravelTimeMap;
+        }else{
+            Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeAvgArray(links, currentTravelTime, previousTravelTime, maxHour);
+            return map;
+        }
+    }
+}
