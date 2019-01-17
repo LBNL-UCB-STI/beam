@@ -140,26 +140,23 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
           (id, parkEventsWithoutLast zip leavingParkEventsWithoutFirst)
       }
 
-      val isSameArrivalAndDeparture = res.forall {
+      res.collect {
         case (_, array) =>
-          array.forall {
+          array.foreach {
             case (evA, evB) =>
-              val sameParking = List(
+              List(
                 ParkEventAttrs.ATTRIBUTE_PARKING_TAZ,
                 ParkEventAttrs.ATTRIBUTE_PARKING_TYPE,
                 ParkEventAttrs.ATTRIBUTE_PRICING_MODEL,
                 ParkEventAttrs.ATTRIBUTE_CHARGING_TYPE
-              ).forall { k =>
-                evA.getAttributes.get(k).equals(evB.getAttributes.get(k))
+              ).foreach { k =>
+                evA.getAttributes.get(k) should equal(evB.getAttributes.get(k))
               }
-              val parkBeforeLeaving = evA.getAttributes.get("time").toDouble < evB.getAttributes
+              evA.getAttributes.get("time").toDouble should be <= evB.getAttributes
                 .get("time")
                 .toDouble
-              sameParking && parkBeforeLeaving
           }
       }
-
-      isSameArrivalAndDeparture shouldBe true
     }
 
     "Park event should be thrown after last path traversal" in {

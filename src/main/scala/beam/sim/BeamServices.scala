@@ -16,7 +16,6 @@ import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices.{getTazTreeMap, readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
-import beam.sim.akkaguice.ActorInject
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.metrics.Metrics
@@ -39,7 +38,7 @@ import scala.concurrent.duration.FiniteDuration
   */
 
 @ImplementedBy(classOf[BeamServicesImpl])
-trait BeamServices extends ActorInject {
+trait BeamServices {
   val controler: ControlerI
   val beamConfig: BeamConfig
 
@@ -49,15 +48,13 @@ trait BeamServices extends ActorInject {
 
   var beamRouter: ActorRef
   val rideHailTransitModes: Seq[BeamMode]
-  var rideHailIterationHistoryActor: ActorRef
   val personRefs: TrieMap[Id[Person], ActorRef]
-  val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
   val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)]
   var personHouseholds: Map[Id[Person], Household]
 
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
   val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType]
-  val fuelTypePrices: TrieMap[FuelType, Double]
+  val fuelTypePrices: Map[FuelType, Double]
 
   var matsimServices: MatsimServices
   val tazTreeMap: TAZTreeMap
@@ -96,17 +93,14 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   var rideHailIterationHistoryActor: ActorRef = _
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
 
-  val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
-
   val agencyAndRouteByVehicleIds: TrieMap[
     Id[Vehicle],
     (String, String)
   ] = TrieMap()
   var personHouseholds: Map[Id[Person], Household] = Map()
 
-  // TODO Fix me once `TrieMap` is removed
-  val fuelTypePrices: TrieMap[FuelType, Double] =
-    TrieMap(readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toSeq: _*)
+  val fuelTypePrices: Map[FuelType, Double] =
+    readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
 
   // TODO Fix me once `TrieMap` is removed
   val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
@@ -134,7 +128,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   def clearAll(): Unit = {
     personRefs.clear
-    vehicles.clear()
   }
 
   def startNewIteration(): Unit = {
@@ -240,8 +233,7 @@ object BeamServices {
     val vehicleTypes =
       readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicleType], BeamVehicleType]()) {
         case (line: util.Map[String, String], z) =>
-          val vIdString = line.get("vehicleTypeId")
-          val vehicleTypeId = Id.create(vIdString, classOf[BeamVehicleType])
+          val vehicleTypeId = Id.create(line.get("vehicleTypeId"), classOf[BeamVehicleType])
           val seatingCapacity = line.get("seatingCapacity").trim.toInt
           val standingRoomCapacity = line.get("standingRoomCapacity").trim.toInt
           val lengthInMeter = line.get("lengthInMeter").trim.toDouble
@@ -262,7 +254,7 @@ object BeamServices {
           val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
 
           val bvt = BeamVehicleType(
-            vIdString,
+            vehicleTypeId,
             seatingCapacity,
             standingRoomCapacity,
             lengthInMeter,
