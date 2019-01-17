@@ -4,7 +4,7 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigValueFactory}
 
 trait IntegrationSpecCommon {
-  private val LAST_ITER_CONF_PATH = "matsim.modules.controler.lastIteration"
+  private val LAST_ITER_CONF_PATH = "beam.agentsim.lastIteration"
 
   protected var totalIterations: Int = 1
 
