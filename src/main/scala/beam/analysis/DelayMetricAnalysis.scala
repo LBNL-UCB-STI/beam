@@ -1,23 +1,25 @@
 package beam.analysis
 
-import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.{Id, Scenario}
-import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.api.core.v01.events.Event
+import java.util
+
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.Modes.BeamMode.CAR
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.google.inject.Inject
+import com.typesafe.scalalogging.LazyLogging
 import org.jfree.chart.plot.CategoryPlot
 import org.jfree.data.category.DefaultCategoryDataset
+import org.matsim.api.core.v01.events.Event
+import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.IterationEndsEvent
+import org.matsim.core.events.handler.BasicEventHandler
 
-import scala.collection.mutable.Map
-import collection.JavaConverters._
+import scala.collection.JavaConverters._
 
 case class DelayInLength(delay: Double, length: Int)
 
@@ -31,11 +33,26 @@ class DelayMetricAnalysis @Inject()(
     with LazyLogging {
 
   eventsManager.addHandler(this)
-  private val networkLinks = scenario.getNetwork.getLinks
-  private val cumulativeDelay: Map[String, Double] = Map()
-  private val cumulativeLength: Map[String, Double] = Map()
-  private var linkTravelsCount: Map[String, Int] = Map()
-  private var linkAverageDelay: Map[String, DelayInLength] = Map()
+  private val networkLinks: Map[Id[Link], Link] = scenario.getNetwork.getLinks.asScala.toMap
+  logger.info(s"Build networkLinks with size: ${networkLinks.size}")
+
+  val linkId2Index: Map[Id[Link], Int] = networkLinks.keys.zipWithIndex.toMap
+  logger.info(s"Build linkId2Index with size: ${linkId2Index.size}")
+
+  val index2LinkId: Array[Id[Link]] = networkLinks.keys.zipWithIndex.map { case (k, _) => k }.toArray
+  logger.info(s"Build index2LinkId with size: ${index2LinkId.size}")
+
+  // private val cumulativeDelay: mutable.Map[String, Double] = mutable.Map()
+  private val cumulativeDelay: Array[Double] = Array.ofDim[Double](linkId2Index.size)
+
+  // private val cumulativeLength: mutable.Map[String, Double] = mutable.Map()
+  private val cumulativeLength: Array[Double] = Array.ofDim[Double](linkId2Index.size)
+
+  //  private var linkTravelsCount: mutable.Map[String, Int] = mutable.Map()
+  private var linkTravelsCount: Array[Int]  = Array.ofDim[Int](linkId2Index.size)
+
+  // private var linkAverageDelay: mutable.Map[String, DelayInLength] = mutable.Map()
+  private var linkAverageDelay: Array[DelayInLength] = Array.ofDim[DelayInLength](linkId2Index.size)
 
   private val bins = Array(0, 500, 1000, 2000, 3000)
   private val legends = Array("0-500", "500-1000", "1000-2000", "2000-3000", "3000+")
@@ -78,27 +95,29 @@ class DelayMetricAnalysis @Inject()(
   }
 
   def process(linkId: String, travelTime: Double): Unit = {
-    val link = networkLinks.get(Id.createLinkId(linkId))
+    val id = Id.createLinkId(linkId)
+    val link = networkLinks(id)
+    val offset = linkId2Index(id)
     val freeLength = link.getLength
     val freeSpeed = link.getFreespeed
     var freeFlowDelay = travelTime - (freeLength / freeSpeed).round.toInt
     if (freeFlowDelay >= 0) {
-      val existingFreeFlowDelay = cumulativeDelay.getOrElse(linkId, 0.0)
-      val existingLinkLength = cumulativeLength.getOrElse(linkId, 0.0)
+      val existingFreeFlowDelay = cumulativeDelay(offset)
+      val existingLinkLength = cumulativeLength(offset)
 
       val delay = freeFlowDelay + existingFreeFlowDelay
-      cumulativeDelay(linkId) = delay
+      cumulativeDelay(offset) = delay
 
       val len = freeLength + existingLinkLength
-      cumulativeLength(linkId) = len
+      cumulativeLength(offset) = len
 
       totalTravelTime += travelTime
 
-      val travelsCount = linkTravelsCount.getOrElse(linkId, 0) + 1
-      linkTravelsCount(linkId) = travelsCount
+      val travelsCount = linkTravelsCount(offset) + 1
+      linkTravelsCount(offset) = travelsCount
 
       //calculate average of link delay for further calculating weighted average
-      linkAverageDelay(linkId) = DelayInLength((travelsCount * delay) / len, travelsCount)
+      linkAverageDelay(offset) = DelayInLength((travelsCount * delay) / len, travelsCount)
 
     } else if (freeFlowDelay >= -1) {
       freeFlowDelay = 0
@@ -108,18 +127,18 @@ class DelayMetricAnalysis @Inject()(
   }
 
   override def reset(iteration: Int): Unit = {
-    cumulativeDelay.clear
-    cumulativeLength.clear
-    linkTravelsCount.clear
-    linkAverageDelay.clear
+    util.Arrays.fill(cumulativeDelay, 0.0)
+    util.Arrays.fill(cumulativeLength, 0.0)
+    util.Arrays.fill(linkTravelsCount, 0)
+    linkAverageDelay = Array.ofDim[DelayInLength](linkId2Index.size)
     capacitiesDelay.clear
     totalTravelTime = 0
   }
 
   def categoryDelayCapacityDataset(iteration: Int): Unit = {
-    cumulativeDelay.keySet foreach { linkId =>
-      val delay = cumulativeDelay.getOrElse(linkId, 0.0)
-      val capacity = networkLinks.get(Id.createLinkId(linkId)).getCapacity
+    cumulativeDelay.zipWithIndex.foreach { case (delay, index) =>
+      val linkId = index2LinkId(index)
+      val capacity = networkLinks(linkId).getCapacity
 
       val bin = largeset(capacity)
       val capacityDelay = capacitiesDelay.getOrElse(bin, 0.0)
@@ -144,9 +163,10 @@ class DelayMetricAnalysis @Inject()(
   // calculating weighted average
   def averageDelayDataset(event: IterationEndsEvent) {
     val iteration = event.getIteration
-    val avg = linkAverageDelay.values.map(delayInLength => delayInLength.delay).sum / linkAverageDelay.values
-      .map(delayInLength => delayInLength.length)
-      .sum
+    val nonNull = linkAverageDelay.filter(x => x != null)
+    val sumDelay = nonNull.view.map(delayInLength => delayInLength.delay).sum
+    val sumLength =  nonNull.view.map(delayInLength => delayInLength.length).sum
+    val avg = sumDelay / sumLength
     delayAveragePerKMDataset.addValue(avg, 0, iteration)
   }
 
@@ -200,6 +220,6 @@ class DelayMetricAnalysis @Inject()(
     )
   }
 
-  def getTotalDelay: Double = cumulativeDelay.values.sum
+  def getTotalDelay: Double = cumulativeDelay.sum
 
 }
