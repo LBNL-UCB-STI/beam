@@ -234,6 +234,7 @@ object BeamServices {
     val vehicleTypes =
       readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicleType], BeamVehicleType]()) {
         case (line: util.Map[String, String], z) =>
+          val vIdString = line.get("vehicleTypeId")
           val vehicleTypeId = Id.create(line.get("vehicleTypeId"), classOf[BeamVehicleType])
           val seatingCapacity = line.get("seatingCapacity").trim.toInt
           val standingRoomCapacity = line.get("standingRoomCapacity").trim.toInt
