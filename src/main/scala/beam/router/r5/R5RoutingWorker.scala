@@ -190,7 +190,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     })
   }
 
-
   val WorkerParameters(
     beamServices,
     transportNetwork,
@@ -1451,6 +1450,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 object R5RoutingWorker {
 
   var iterationAndMaxHour: IterationAndMaxHour = _
+
   def setIterationAndMaxHour(itAndMaxHour: IterationAndMaxHour): Unit = {
     iterationAndMaxHour = itAndMaxHour
   }
@@ -1541,7 +1541,11 @@ object R5RoutingWorker {
     )
   }
 
-  def processTravelTime(someTime: Some[TravelTime], links: util.Collection[_ <: Link], beamServices: BeamServices): Option[TravelTime] = {
+  def processTravelTime(
+    someTime: Some[TravelTime],
+    links: util.Collection[_ <: Link],
+    beamServices: BeamServices
+  ): Option[TravelTime] = {
 
     val useMSAAfterIteration = beamServices.beamConfig.beam.routing.useMsaAfterIteration
 
@@ -1549,11 +1553,15 @@ object R5RoutingWorker {
       case Some(prevTT) => {
         // calculate the average
         val currTT: TravelTime = someTime.get
-        val ttAvgMap = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeAvgArray(links, currTT, prevTT, iterationAndMaxHour.maxHour)
+        val ttAvgMap =
+          TravelTimeCalculatorHelper.GetLinkIdToTravelTimeAvgArray(links, currTT, prevTT, iterationAndMaxHour.maxHour)
 
-        val tt = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamServices.beamConfig.beam.agentsim.timeBinSize, ttAvgMap)
+        val tt = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(
+          beamServices.beamConfig.beam.agentsim.timeBinSize,
+          ttAvgMap
+        )
 
-        if(useMSAAfterIteration == iterationAndMaxHour.it){
+        if (useMSAAfterIteration == iterationAndMaxHour.it) {
           setPrevTravelTimes(someTime)
         }
         Some(tt)
@@ -1562,7 +1570,7 @@ object R5RoutingWorker {
 
         println("useMSAAfterIteration {}", useMSAAfterIteration)
         println("itAndMaxHour {}", iterationAndMaxHour)
-        if(iterationAndMaxHour != null && useMSAAfterIteration == iterationAndMaxHour.it){
+        if (iterationAndMaxHour != null && useMSAAfterIteration == iterationAndMaxHour.it) {
           setPrevTravelTimes(someTime)
         }
         None
