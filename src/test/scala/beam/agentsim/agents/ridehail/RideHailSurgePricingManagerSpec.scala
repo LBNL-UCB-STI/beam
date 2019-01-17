@@ -34,7 +34,6 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
     val matsimServices = mock[MatsimServices]
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
     when(theServices.tazTreeMap).thenReturn(tazTreeMap)
     val geo = new GeoUtilsImpl(theServices)

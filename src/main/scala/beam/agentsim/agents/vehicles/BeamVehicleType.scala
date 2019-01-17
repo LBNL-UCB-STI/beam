@@ -13,7 +13,7 @@ import org.matsim.vehicles.Vehicle
   * @author saf
   */
 case class BeamVehicleType(
-  vehicleTypeId: String,
+  id: Id[BeamVehicleType],
   seatingCapacity: Int,
   standingRoomCapacity: Int,
   lengthInMeter: Double,
@@ -32,10 +32,6 @@ case class BeamVehicleType(
 )
 
 object BeamVehicleType {
-  val BODY_TYPE_DEFAULT = "BODY_TYPE_DEFAULT"
-  val BIKE_TYPE_DEFAULT = "BIKE_TYPE_DEFAULT"
-  val CAR_TYPE_DEFAULT = "CAR_TYPE_DEFAULT"
-  val TRANSIT_TYPE_DEFAULT = "TRANSIT_TYPE_DEFAULT"
 
   // Consumption rate: https://www.brianmac.co.uk/energyexp.htm
   // 400 calories/hour == 400k J/hr @ 7km/hr or 2m/s == 55 J/m
@@ -44,7 +40,7 @@ object BeamVehicleType {
   // Assume walking a marathon is max per day
   val defaultHumanBodyBeamVehicleType: BeamVehicleType =
     BeamVehicleType(
-      BODY_TYPE_DEFAULT,
+      Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
       0,
       0,
       0.5,
@@ -56,7 +52,7 @@ object BeamVehicleType {
     )
 
   val defaultBicycleBeamVehicleType: BeamVehicleType = BeamVehicleType(
-    BIKE_TYPE_DEFAULT,
+    Id.create("BIKE_TYPE_DEFAULT", classOf[BeamVehicleType]),
     1,
     0,
     1.5,
@@ -74,7 +70,7 @@ object BeamVehicleType {
   // Transit default based on Diesel Bus
   val defaultTransitBeamVehicleType: BeamVehicleType =
     BeamVehicleType(
-      TRANSIT_TYPE_DEFAULT,
+      Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
       50,
       50,
       10,
@@ -85,7 +81,7 @@ object BeamVehicleType {
     )
 
   val defaultCarBeamVehicleType: BeamVehicleType = BeamVehicleType(
-    CAR_TYPE_DEFAULT,
+    Id.create("CAR-TYPE-DEFAULT", classOf[BeamVehicleType]),
     4,
     0,
     4.5,

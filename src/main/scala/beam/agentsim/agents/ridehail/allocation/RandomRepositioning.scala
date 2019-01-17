@@ -15,7 +15,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
     val repositioningShare =
       rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.repositioningShare
-    val fleetSize = rideHailManager.resources.size
+    val fleetSize = rideHailManager.fleetSize
     val numVehiclesToReposition = (repositioningShare * fleetSize).toInt
     if (rideHailManager.vehicleManager.getIdleVehicles.size >= 2) {
       val origin = rideHailManager.vehicleManager.getIdleVehicles.values.toVector
