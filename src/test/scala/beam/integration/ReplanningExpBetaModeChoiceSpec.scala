@@ -31,7 +31,8 @@ class ReplanningExpBetaModeChoiceSpec
       |   {type = strategysettings, disableAfterIteration = -1, strategyName = ClearModes , weight = 0.2}
       | ]
       |}
-    """.stripMargin)
+    """.stripMargin
+  )
 
   private lazy val config: Config = baseConfig
     .withValue("matsim.modules.strategy.maxAgentPlanMemorySize", ConfigValueFactory.fromAnyRef(4))

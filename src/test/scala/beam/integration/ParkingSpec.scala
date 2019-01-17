@@ -27,7 +27,8 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
         |   {type = strategysettings, disableAfterIteration = -1, strategyName = ClearRoutes , weight = 0.7},
         | ]
         |}
-      """.stripMargin)
+      """.stripMargin
+    )
 
     val config = baseConfig
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
