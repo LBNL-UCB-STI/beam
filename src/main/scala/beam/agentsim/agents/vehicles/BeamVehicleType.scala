@@ -107,7 +107,7 @@ object BeamVehicleType {
 
   def isTransitVehicle(beamVehicleId: Id[Vehicle]): Boolean =
     List("bus", "train", "subway", "tram", "rail", "cable_car", "ferry")
-        .exists(beamVehicleId.toString.startsWith)
+        .exists(beamVehicleId.toString.toLowerCase.startsWith)
 
 }
 

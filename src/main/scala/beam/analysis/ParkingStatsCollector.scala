@@ -1,4 +1,5 @@
 package beam.analysis
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.{LeavingParkingEvent, LeavingParkingEventAttrs, ModeChoiceEvent}
 import beam.analysis.plots.{GraphAnalysis, GraphsStatsAgentSimEventsListener}
 import beam.router.Modes.BeamMode
@@ -57,8 +58,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
       // If the person enters a transit vehicle , then stop tracking the person
       //TODO check if the vehicle is a transit type vehicle or not based on vehicle Id
       case personEntersVehicleEvent: PersonEntersVehicleEvent =>
-        if (personDepartures.contains(personEntersVehicleEvent.getPersonId) && personEntersVehicleEvent.getVehicleId.toString
-          .equals("transit")) {
+        if (personDepartures.contains(personEntersVehicleEvent.getPersonId) && BeamVehicleType.isTransitVehicle(personEntersVehicleEvent.getVehicleId)) {
           personDepartures.remove(personEntersVehicleEvent.getPersonId)
         }
       // When the tracked person , enter a vehicle and leaves the parking area
