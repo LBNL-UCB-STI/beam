@@ -378,6 +378,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeAvgArray(links, currentTravelTime, previousTravelTime, maxHour);
 
             TravelTime tt = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), map);
+            previousTravelTime = currentTravelTime;
             return tt;
         }
     }
@@ -391,6 +392,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             return currentTravelTimeMap;
         }else{
             Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeAvgArray(links, currentTravelTime, previousTravelTime, maxHour);
+            previousTravelTime = currentTravelTime;
             return map;
         }
     }
