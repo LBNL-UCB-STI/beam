@@ -1,26 +1,25 @@
 package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorRef
-import beam.agentsim.Resource
 import beam.agentsim.agents.PersonAgent
-import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumptionData}
+import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.VehicleProtocol._
+import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.ParkingStall.ChargingType
 import beam.router.Modes
+import beam.router.Modes.BeamMode
 import beam.router.model.BeamLeg
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import beam.sim.common.GeoUtils.{Straight, TurningDirection}
 import com.typesafe.scalalogging.StrictLogging
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.{Link, Network}
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households.Household
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.vehicles.Vehicle
-
-import scala.collection.JavaConverters._
 
 /**
   * A [[BeamVehicle]] is a state container __administered__ by a driver ([[PersonAgent]]
@@ -42,8 +41,11 @@ class BeamVehicle(
   val initialMatsimAttributes: Option[ObjectAttributes],
   val beamVehicleType: BeamVehicleType,
   val householdId: Option[Id[Household]]
-) extends Resource[BeamVehicle]
-    with StrictLogging {
+) extends StrictLogging {
+
+  var manager: Option[ActorRef] = None
+
+  var spaceTime: SpaceTime = _
 
   var fuelLevelInJoules: Option[Double] = Some(beamVehicleType.primaryFuelCapacityInJoule)
 
@@ -54,40 +56,36 @@ class BeamVehicle(
     * of the vehicle as a physical property.
     */
   var driver: Option[ActorRef] = None
-  var driverId: Option[String] = None
 
   var reservedStall: Option[ParkingStall] = None
   var stall: Option[ParkingStall] = None
-
-  override def getId: Id[BeamVehicle] = id
 
   /**
     * Called by the driver.
     */
   def unsetDriver(): Unit = {
     driver = None
-    driverId = None
   }
 
   /**
     * Only permitted if no driver is currently set. Driver has full autonomy in vehicle, so only
     * a call of [[unsetDriver]] will remove the driver.
-    * Send back appropriate response to caller depending on protocol.
     *
-    * @param newDriverRef incoming driver
+    * @param newDriver incoming driver
     */
-  def becomeDriver(
-    newDriverRef: ActorRef,
-    newDriverId: String
-  ): BecomeDriverResponse = {
+  def becomeDriver(newDriver: ActorRef): Unit = {
     if (driver.isEmpty) {
-      driver = Some(newDriverRef)
-      driverId = Some(newDriverId)
-      BecomeDriverOfVehicleSuccess
-    } else if (driver.get.path.compareTo(newDriverRef.path) == 0) {
-      NewDriverAlreadyControllingVehicle
+      driver = Some(newDriver)
     } else {
-      DriverAlreadyAssigned(driver.get)
+      // This is _always_ a programming error.
+      // A BeamVehicle is only a data structure, not an Actor.
+      // It must be ensured externally, by other means, that only one agent can access
+      // it at any time, e.g. by using a ResourceManager etc.
+      // Also, this exception is only a "best effort" error detection.
+      // Technically, it can also happen that it is _not_ thrown in the failure case,
+      // as this method is not synchronized.
+      // Don't try to catch this exception.
+      throw new RuntimeException("Trying to set a driver where there already is one.")
     }
   }
 
@@ -107,7 +105,7 @@ class BeamVehicle(
     val distanceInMeters = beamLeg.travelPath.distanceInM
     val network =
       if (beamServices.matsimServices != null) Some(beamServices.matsimServices.getScenario.getNetwork) else None
-    val fuelConsumption: Option[List[FuelConsumptionData]] = network map (
+    val fuelConsumption = network map (
       n => BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, n)
     )
     fuelLevelInJoules match {
@@ -163,6 +161,9 @@ class BeamVehicle(
       stall
     )
 
+  def toStreetVehicle: StreetVehicle =
+    StreetVehicle(id, beamVehicleType.id, spaceTime, BeamMode.CAR, true)
+
 }
 
 object BeamVehicle {
@@ -204,10 +205,11 @@ object BeamVehicle {
     beamLeg: BeamLeg,
     vehicleType: BeamVehicleType,
     network: Network
-  ): List[FuelConsumptionData] = {
+  ): IndexedSeq[FuelConsumptionData] = {
     if (beamLeg.mode.isTransit & !Modes.isOnStreetTransit(beamLeg.mode)) {
-      List()
+      Vector.empty
     } else {
+      val networkLinks = network.getLinks
       val linkIds = beamLeg.travelPath.linkIds
       val linkTravelTimes: IndexedSeq[Int] = beamLeg.travelPath.linkTravelTime
       // generate the link arrival times for each link ,by adding cumulative travel times of previous links
@@ -222,13 +224,13 @@ object BeamVehicle {
             })
         }
       }
-      val nextLinkIds = linkIds.toList.takeRight(linkIds.size - 1)
+      val nextLinkIds = linkIds.takeRight(linkIds.size - 1)
       linkIds.zipWithIndex.map { idAndIdx =>
         val id = idAndIdx._1
         val idx = idAndIdx._2
         val travelTime = linkTravelTimes(idx)
         val arrivalTime = linkArrivalTimes(idx)
-        val currentLink: Option[Link] = Option(network.getLinks.get(Id.createLinkId(id)))
+        val currentLink: Option[Link] = Option(networkLinks.get(Id.createLinkId(id)))
         val averageSpeed = try {
           if (travelTime > 0) currentLink.map(_.getLength).getOrElse(0.0) / travelTime else 0
         } catch {
@@ -236,7 +238,7 @@ object BeamVehicle {
         }
         // get the next link , and calculate the direction to be taken based on the angle between the two links
         val nextLink = if (idx < nextLinkIds.length) {
-          Some(network.getLinks.get(Id.createLinkId(nextLinkIds(idx))))
+          Some(networkLinks.get(Id.createLinkId(nextLinkIds(idx))))
         } else {
           currentLink
         }
@@ -262,8 +264,7 @@ object BeamVehicle {
           turnAtLinkEnd = turnAtLinkEnd,
           numberOfStops = numStops
         )
-      }.toList
+      }
     }
   }
-
 }

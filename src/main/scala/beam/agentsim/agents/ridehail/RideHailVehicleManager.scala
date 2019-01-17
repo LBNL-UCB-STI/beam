@@ -14,6 +14,8 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.Vehicle
+import beam.agentsim.agents.ridehail.RideHailVehicleManager._
+import beam.agentsim.agents.vehicles.BeamVehicleType
 
 import scala.collection.mutable
 import collection.JavaConverters._
@@ -151,7 +153,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     availableRideHailVehicles
   }
 
-  def getServiceStatusOf(vehicleId: Id[Vehicle]): RideHailServiceStatus = {
+  def getServiceStatusOf(vehicleId: Id[Vehicle]): RideHailVehicleManager.RideHailServiceStatus = {
     if (availableRideHailVehicles.contains(vehicleId)) {
       Available
     } else if (inServiceRideHailVehicles.contains(vehicleId)) {
@@ -167,7 +169,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
   def updateLocationOfAgent(
     vehicleId: Id[Vehicle],
     whenWhere: SpaceTime,
-    serviceStatus: RideHailServiceStatus
+    serviceStatus: RideHailVehicleManager.RideHailServiceStatus
   ) = {
     serviceStatus match {
       case Available =>
@@ -292,11 +294,12 @@ object RideHailVehicleManager {
   case class RideHailAgentLocation(
     rideHailAgent: ActorRef,
     vehicleId: Id[Vehicle],
+    vehicleTypeId: Id[BeamVehicleType],
     currentLocationUTM: SpaceTime
   ) {
 
     def toStreetVehicle: StreetVehicle = {
-      StreetVehicle(vehicleId, currentLocationUTM, CAR, asDriver = true)
+      StreetVehicle(vehicleId, vehicleTypeId, currentLocationUTM, CAR, asDriver = true)
     }
   }
 
