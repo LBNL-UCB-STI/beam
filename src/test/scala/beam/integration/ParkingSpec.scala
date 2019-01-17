@@ -5,7 +5,7 @@ import java.io.File
 import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
 import beam.integration.ReadEvents._
 import beam.sim.BeamHelper
-import com.typesafe.config.ConfigValueFactory
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.apache.commons.io.FileUtils
 import org.matsim.api.core.v01.events.Event
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -19,6 +19,17 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
   }
 
   def runAndCollectForIterations(parkingScenario: String, iterations: Int): Seq[Seq[Event]] = {
+    val param = ConfigFactory.parseString(
+      """
+        |{
+        | matsim.modules.strategy.parameterset = [
+        |   {type = strategysettings, disableAfterIteration = -1, strategyName = SelectExpBeta , weight = 0.3},
+        |   {type = strategysettings, disableAfterIteration = -1, strategyName = ClearRoutes , weight = 0.7},
+        | ]
+        |}
+      """.stripMargin
+    )
+
     val config = baseConfig
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue(
@@ -69,6 +80,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
         "matsim.modules.controler.lastIteration",
         ConfigValueFactory.fromAnyRef(iterations)
       )
+      .withFallback(param)
       .resolve()
 
     val (matsimConfig, outputDirectory) = runBeamWithConfig(config)
@@ -140,26 +152,23 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
           (id, parkEventsWithoutLast zip leavingParkEventsWithoutFirst)
       }
 
-      val isSameArrivalAndDeparture = res.forall {
+      res.collect {
         case (_, array) =>
-          array.forall {
+          array.foreach {
             case (evA, evB) =>
-              val sameParking = List(
+              List(
                 ParkEventAttrs.ATTRIBUTE_PARKING_TAZ,
                 ParkEventAttrs.ATTRIBUTE_PARKING_TYPE,
                 ParkEventAttrs.ATTRIBUTE_PRICING_MODEL,
                 ParkEventAttrs.ATTRIBUTE_CHARGING_TYPE
-              ).forall { k =>
-                evA.getAttributes.get(k).equals(evB.getAttributes.get(k))
+              ).foreach { k =>
+                evA.getAttributes.get(k) should equal(evB.getAttributes.get(k))
               }
-              val parkBeforeLeaving = evA.getAttributes.get("time").toDouble < evB.getAttributes
+              evA.getAttributes.get("time").toDouble should be <= evB.getAttributes
                 .get("time")
                 .toDouble
-              sameParking && parkBeforeLeaving
           }
       }
-
-      isSameArrivalAndDeparture shouldBe true
     }
 
     "Park event should be thrown after last path traversal" in {

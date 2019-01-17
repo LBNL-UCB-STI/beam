@@ -5,8 +5,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
-import beam.agentsim.Resource.{CheckInResource, RegisterResource}
-import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
+import beam.agentsim.Resource.{NotifyVehicleIdle, ReleaseParkingStall}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent.DrivingInterrupted
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDriving
@@ -66,7 +65,6 @@ class RideHailAgentSpec
   lazy val services: BeamServices = {
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.beamConfig).thenReturn(config)
-    when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
     val geo = new GeoUtilsImpl(theServices)
     when(theServices.geo).thenReturn(geo)
@@ -81,12 +79,9 @@ class RideHailAgentSpec
   describe("A RideHailAgent") {
 
     def moveTo30000(scheduler: ActorRef, rideHailAgent: ActorRef) = {
-      expectMsgType[RegisterResource]
-
       scheduler ! ScheduleTrigger(InitializeTrigger(0), rideHailAgent)
       scheduler ! ScheduleTrigger(TestTrigger(28800), self)
       scheduler ! StartSchedule(0)
-      expectMsgType[CheckInResource] // Idle agent is idle
       expectMsgType[PersonDepartureEvent] // Departs..
       expectMsgType[PersonEntersVehicleEvent] // ..enters vehicle
 
@@ -159,7 +154,7 @@ class RideHailAgentSpec
       val vehicleId = Id.createVehicleId(1)
       val beamVehicle =
         new BeamVehicle(vehicleId, new Powertrain(0.0), None, BeamVehicleType.defaultCarBeamVehicleType, null)
-      beamVehicle.registerResource(self)
+      beamVehicle.manager = Some(self)
       vehicles.put(vehicleId, beamVehicle)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
@@ -203,8 +198,6 @@ class RideHailAgentSpec
       scheduler ! ScheduleTrigger(TestTrigger(50000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
 
-//      expectMsgType[NotifyResourceIdle]
-
       expectMsgType[VehicleLeavesTrafficEvent]
 
       expectMsgType[PathTraversalEvent]
@@ -213,12 +206,9 @@ class RideHailAgentSpec
       trigger = expectMsgType[TriggerWithId] // NotifyLegStartTrigger
       scheduler ! CompletionNotice(trigger.triggerId)
 
-      // expectMsgType[NotifyResourceIdle]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
-      expectMsgType[NotifyVehicleResourceIdle]
-      //expectMsgType[NotifyVehicleResourceIdleReply]
-//      expectMsgType[CheckInResource]
+      expectMsgType[NotifyVehicleIdle]
 
       trigger = expectMsgType[TriggerWithId] // NotifyLegEndTrigger
       scheduler ! CompletionNotice(trigger.triggerId)
@@ -241,7 +231,7 @@ class RideHailAgentSpec
           BeamVehicleType.defaultCarBeamVehicleType,
           null
         )
-      beamVehicle.registerResource(self)
+      beamVehicle.manager = Some(self)
       vehicles.put(vehicleId, beamVehicle)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
@@ -294,7 +284,7 @@ class RideHailAgentSpec
       expectMsgType[PathTraversalEvent]
 //      expectMsgType[CheckInResource]
 
-      expectMsgType[NotifyVehicleResourceIdle]
+      expectMsgType[NotifyVehicleIdle]
 
       trigger = expectMsgType[TriggerWithId] // 50000
       scheduler ! CompletionNotice(trigger.triggerId)
@@ -312,7 +302,7 @@ class RideHailAgentSpec
           BeamVehicleType.defaultCarBeamVehicleType,
           None
         )
-      beamVehicle.registerResource(self)
+      beamVehicle.manager = Some(self)
       vehicles.put(vehicleId, beamVehicle)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
