@@ -175,18 +175,18 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         //################################################################################################################
         Collection<? extends Link> links = agentSimScenario.getNetwork().getLinks().values();
         int maxHour = (int) TimeUnit.SECONDS.toHours(agentSimScenario.getConfig().travelTimeCalculator().getMaxTime());
+        TravelTime tt = travelTimeCalculator.getLinkTravelTimes();
         Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(links,
-                travelTimeCalculator.getLinkTravelTimes(), maxHour);
+                tt, maxHour);
+
         if(beamConfig.beam().routing().startingIterationForTravelTimesMSA() == iterationNumber){
             map = processTravelTime(links, map, maxHour);
+            tt = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), map);
         }
+
         router.tell(new BeamRouter.TryToSerialize(map), ActorRef.noSender());
         router.tell(new BeamRouter.UpdateTravelTimeRemote(map), ActorRef.noSender());
         //################################################################################################################
-        TravelTime tt = travelTimeCalculator.getLinkTravelTimes();
-        if(beamConfig.beam().routing().startingIterationForTravelTimesMSA() == iterationNumber){
-            tt = processTravelTime(links, tt, maxHour);
-        }
         router.tell(new BeamRouter.UpdateTravelTimeLocal(tt), ActorRef.noSender());
 
         completableFutures.add(CompletableFuture.runAsync(() -> {
@@ -370,19 +370,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
 
     ////
-    public TravelTime processTravelTime(Collection<? extends Link> links, TravelTime currentTravelTime, int maxHour){
-        if(previousTravelTime == null){
-            previousTravelTime = currentTravelTime;
-            return currentTravelTime;
-        }else{
-            Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeAvgArray(links, currentTravelTime, previousTravelTime, maxHour);
-
-            TravelTime tt = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), map);
-            previousTravelTime = currentTravelTime;
-            return tt;
-        }
-    }
-
     public Map<String, double[]> processTravelTime(Collection<? extends Link> links, Map<String, double[]> currentTravelTimeMap, int maxHour){
 
         TravelTime currentTravelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), currentTravelTimeMap);
