@@ -443,7 +443,7 @@ object BeamRouter {
 
   case class TryToSerialize(obj: Object)
   case class UpdateTravelTimeRemote(linkIdToTravelTimePerHour: java.util.Map[String, Array[Double]])
-
+  case class IterationAndMaxHour(it: Int, maxHour: Int)
   /**
     * It is use to represent a request object
     *

@@ -190,6 +190,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     })
   }
 
+
   val WorkerParameters(
     beamServices,
     transportNetwork,
@@ -314,8 +315,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       eventualResponse pipeTo sender
       askForMoreWork()
 
+    case itAndMaxHour: IterationAndMaxHour => R5RoutingWorker.setIterationAndMaxHour(itAndMaxHour)
     case UpdateTravelTimeLocal(travelTime) =>
-      maybeTravelTime = R5RoutingWorker.processTravelTime(Some(travelTime), links.values(), 24, beamServices)
+      maybeTravelTime = R5RoutingWorker.processTravelTime(Some(travelTime), links.values(), beamServices)
       log.info(s"{} UpdateTravelTimeLocal. Set new travel time", getNameAndHashCode)
       cache.invalidateAll()
       askForMoreWork()
@@ -323,7 +325,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     case UpdateTravelTimeRemote(map) =>
       val travelTimeCalc =
         TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamServices.beamConfig.beam.agentsim.timeBinSize, map)
-      maybeTravelTime = R5RoutingWorker.processTravelTime(Some(travelTimeCalc), links.values(), 24, beamServices)
+      maybeTravelTime = R5RoutingWorker.processTravelTime(Some(travelTimeCalc), links.values(), beamServices)
       log.info(
         s"{} UpdateTravelTimeRemote. Set new travel time from map with size {}",
         getNameAndHashCode,
@@ -1447,6 +1449,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 }
 
 object R5RoutingWorker {
+
+  var iterationAndMaxHour: IterationAndMaxHour = _
+  def setIterationAndMaxHour(itAndMaxHour: IterationAndMaxHour): Unit = {
+    iterationAndMaxHour = itAndMaxHour
+  }
+
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447 // 1 mile per hour
   var prevTravelTimes: Option[TravelTime] = None
 
@@ -1533,18 +1541,32 @@ object R5RoutingWorker {
     )
   }
 
-  def processTravelTime(someTime: Some[TravelTime], links: util.Collection[_ <: Link], maxHour: Int, beamServices: BeamServices): Option[TravelTime] = {
+  def processTravelTime(someTime: Some[TravelTime], links: util.Collection[_ <: Link], beamServices: BeamServices): Option[TravelTime] = {
+
+    val useMSAAfterIteration = beamServices.beamConfig.beam.routing.useMsaAfterIteration
 
     prevTravelTimes match {
       case Some(prevTT) => {
         // calculate the average
         val currTT: TravelTime = someTime.get
-        val ttAvgMap = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeAvgArray(links, currTT, prevTT, maxHour)
+        val ttAvgMap = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeAvgArray(links, currTT, prevTT, iterationAndMaxHour.maxHour)
 
         val tt = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamServices.beamConfig.beam.agentsim.timeBinSize, ttAvgMap)
+
+        if(useMSAAfterIteration == iterationAndMaxHour.it){
+          setPrevTravelTimes(someTime)
+        }
         Some(tt)
       }
-      case None => None
+      case None => {
+
+        println("useMSAAfterIteration {}", useMSAAfterIteration)
+        println("itAndMaxHour {}", iterationAndMaxHour)
+        if(iterationAndMaxHour != null && useMSAAfterIteration == iterationAndMaxHour.it){
+          setPrevTravelTimes(someTime)
+        }
+        None
+      }
     }
 
   }

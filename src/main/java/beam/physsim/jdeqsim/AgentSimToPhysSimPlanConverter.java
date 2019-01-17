@@ -9,6 +9,7 @@ import beam.analysis.physsim.PhyssimCalcLinkStats;
 import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.calibration.impl.example.CountsObjectiveFunction;
 import beam.router.BeamRouter;
+import beam.router.r5.R5RoutingWorker$;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
@@ -173,6 +174,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         int maxHour = (int) TimeUnit.SECONDS.toHours(agentSimScenario.getConfig().travelTimeCalculator().getMaxTime());
         Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(links,
                 travelTimeCalculator.getLinkTravelTimes(), maxHour);
+
+        BeamRouter.IterationAndMaxHour iterationAndMaxHour = new BeamRouter.IterationAndMaxHour(iterationNumber, maxHour);
+        router.tell(iterationAndMaxHour, ActorRef.noSender());
         router.tell(new BeamRouter.TryToSerialize(map), ActorRef.noSender());
         router.tell(new BeamRouter.UpdateTravelTimeRemote(map), ActorRef.noSender());
         //################################################################################################################
