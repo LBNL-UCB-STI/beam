@@ -5,7 +5,7 @@ import java.io.File
 import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEventAttrs, PathTraversalEvent}
 import beam.integration.ReadEvents._
 import beam.sim.BeamHelper
-import com.typesafe.config.ConfigValueFactory
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.apache.commons.io.FileUtils
 import org.matsim.api.core.v01.events.Event
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -19,6 +19,16 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
   }
 
   def runAndCollectForIterations(parkingScenario: String, iterations: Int): Seq[Seq[Event]] = {
+    val param = ConfigFactory.parseString(
+      """
+        |{
+        | matsim.modules.strategy.parameterset = [
+        |   {type = strategysettings, disableAfterIteration = -1, strategyName = SelectExpBeta , weight = 0.3},
+        |   {type = strategysettings, disableAfterIteration = -1, strategyName = ClearRoutes , weight = 0.7},
+        | ]
+        |}
+      """.stripMargin)
+
     val config = baseConfig
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue(
@@ -53,8 +63,8 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
         "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept",
         ConfigValueFactory.fromAnyRef(0.0)
       )
-      .withValue("beam.replanning.ModuleProbability_1", ConfigValueFactory.fromAnyRef(0.3))
-      .withValue("beam.replanning.ModuleProbability_2", ConfigValueFactory.fromAnyRef(0.7))
+      .withValue("matsim.modules.strategy.ModuleProbability_1", ConfigValueFactory.fromAnyRef(0.3))
+      .withValue("matsim.modules.strategy.ModuleProbability_2", ConfigValueFactory.fromAnyRef(0.7))
       .withValue(
         "beam.agentsim.taz.parking",
         ConfigValueFactory.fromAnyRef(s"test/input/beamville/parking/taz-parking-$parkingScenario.csv")
@@ -69,6 +79,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
         "matsim.modules.controler.lastIteration",
         ConfigValueFactory.fromAnyRef(iterations)
       )
+      .withFallback(param)
       .resolve()
 
     val (matsimConfig, outputDirectory) = runBeamWithConfig(config)
