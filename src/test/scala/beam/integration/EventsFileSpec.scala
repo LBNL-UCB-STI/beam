@@ -2,6 +2,7 @@ package beam.integration
 
 import java.io.File
 
+import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.TollRevenueAnalysis
 import beam.integration.ReadEvents._
@@ -39,7 +40,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
   it should "contain the same train trips entries" in {
     tripsFromEvents("SUBWAY-DEFAULT") should contain theSameElementsAs
     tripsFromGtfs(new File("test/input/beamville/r5/train/trips.txt"))
-//    tripsFromGtfs(new File("test/input/beamville/r5/train-freq/trips.txt"))
+    tripsFromGtfs(new File("test/input/beamville/r5/train-freq/trips.txt"))
   }
 
   private def tripsFromEvents(vehicleType: String) = {
@@ -125,6 +126,17 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
           if (leg.getMode == CAR.matsimMode) {
             assert(leg.getRoute.isInstanceOf[NetworkRoute])
           }
+      }
+      val beamPlan = BeamPlan(experiencedPlan)
+      beamPlan.tours.foreach { tour =>
+        if (tour.trips.size > 1) {
+          if (tour.trips.head.leg.get.getMode == "car") {
+            assert(
+              tour.trips.last.leg.get.getMode == "car",
+              "If I leave home by car, I must get home by car: " + person.getId
+            )
+          }
+        }
       }
     }
   }

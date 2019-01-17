@@ -14,12 +14,10 @@ import org.matsim.vehicles.Vehicle
 abstract class ParkingManager(
   parkingStockAttributes: ParkingStockAttributes
 ) extends Actor
-    with ResourceManager[ParkingStall] {}
 
 object ParkingManager {
 
   case class ParkingInquiry(
-    customerId: Id[PersonAgent],
     customerLocationUtm: Location,
     destinationUtm: Location,
     activityType: String,
