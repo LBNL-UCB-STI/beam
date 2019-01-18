@@ -5,24 +5,13 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.{Status, Success}
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  Address,
-  Cancellable,
-  ExtendedActorSystem,
-  Props,
-  RelativeActorPath,
-  RootActorPath,
-  Stash
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, Address, Cancellable, ExtendedActorSystem, Props, RelativeActorPath, RootActorPath, Stash}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
 import akka.util.Timeout
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter._
@@ -32,9 +21,8 @@ import beam.router.model._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
 import beam.sim.BeamServices
-import beam.sim.metrics.MetricsPrinter
-import beam.sim.metrics.MetricsPrinter.Subscribe
 import beam.sim.population.AttributesOfIndividual
+import beam.utils.IdGeneratorImpl
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.romix.akka.serialization.kryo.KryoSerializer
@@ -464,7 +452,7 @@ object BeamRouter {
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
     mustParkAtEnd: Boolean = false
   ) {
-    lazy val requestId: Int = UUID.randomUUID().hashCode()
+    val requestId: Int = IdGeneratorImpl.nextId
     lazy val timeValueOfMoney
       : Double = attributesOfIndividual.fold(360.0)(3600.0 / _.valueOfTime) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
   }
@@ -483,7 +471,6 @@ object BeamRouter {
     itineraries: Seq[EmbodiedBeamTrip],
     requestId: Int
   ) {
-    lazy val responseId: Int = UUID.randomUUID().hashCode()
   }
 
   object RoutingResponse {
