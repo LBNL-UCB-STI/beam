@@ -62,7 +62,7 @@ public class PathTraversalEvent extends Event {
     private String linkTravelTimes;
 
     public PathTraversalEvent(double time, Id<Vehicle> vehicleId, String driverId, BeamVehicleType vehicleType, Integer numPass, BeamLeg beamLeg, double fuelConsumed, double endLegFuelLevel, double amountPaid) {
-        this(time, vehicleId, driverId,  vehicleType.vehicleTypeId(), beamLeg.mode().value(), numPass, endLegFuelLevel,
+        this(time, vehicleId, driverId,  vehicleType.id().toString(), beamLeg.mode().value(), numPass, endLegFuelLevel,
                 (int)(vehicleType.seatingCapacity()  + vehicleType.standingRoomCapacity()),
                 (vehicleType.primaryFuelType() == null) ? "" : vehicleType.primaryFuelType().toString(), fuelConsumed,
                 beamLeg.travelPath().distanceInM(), beamLeg.travelPath().linkIds().mkString(","), beamLeg.travelPath().linkTravelTime().mkString(","), beamLeg.startTime(), beamLeg.endTime(),

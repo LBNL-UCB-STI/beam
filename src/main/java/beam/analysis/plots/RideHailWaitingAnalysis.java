@@ -171,9 +171,8 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
 
     @Override
     public void processStats(Event event) {
-
-        Map<String, String> eventAttributes = event.getAttributes();
         if (event instanceof ModeChoiceEvent) {
+            Map<String, String> eventAttributes = event.getAttributes();
             String mode = eventAttributes.get("mode");
 
             if (mode.equalsIgnoreCase(RIDE_HAIL)) {
@@ -190,7 +189,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
             }
 
         } else if (event instanceof PersonEntersVehicleEvent) {
-
+            Map<String, String> eventAttributes = event.getAttributes();
             PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent) event;
             Id<Person> personId = personEntersVehicleEvent.getPersonId();
             String pId = personId.toString();

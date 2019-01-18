@@ -7,7 +7,7 @@ class PtFaresSpec extends FlatSpec with BeforeAndAfterAll {
   var ptf: PtFares = _
 
   override def beforeAll(): Unit = {
-    ptf = PtFares(loadPtFares("test/input/beamville/ptFares.csv"))
+    ptf = PtFares(loadPtFares("test/input/beamville/test-data/ptFares-Expensive.csv"))
   }
 
   "PtFare of agency bus and route B2 for all ages" should " be $1" in {
