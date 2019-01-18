@@ -70,23 +70,30 @@ public class TravelTimeCalculatorHelper {
 
     public static Map<String, double[]> GetLinkIdToTravelTimeAvgArray(Collection<? extends Link> links, TravelTime travelTime1, TravelTime travelTime2, int maxHour) {
         long start = System.currentTimeMillis();
-        Map<String, double[]> result = new HashMap<>();
-        for (Link link : links) {
-            Id<Link> linkId = link.getId();
-            double[] times = new double[maxHour];
-            for (int hour = 0; hour < maxHour; hour++) {
-                int hourInSeconds = hour * 3600;
-                double t1 = travelTime1.getLinkTravelTime(link, hourInSeconds, null, null);
-                double t2 = travelTime2.getLinkTravelTime(link, hourInSeconds, null, null);
+        Map<String, double[]> res1 = GetLinkIdToTravelTimeArray(links, travelTime1, maxHour);
+        Map<String, double[]> res2 = GetLinkIdToTravelTimeArray(links, travelTime2, maxHour);
+        assert res1.size() == res2.size();
 
-                times[hour] = (t1 + t2)/2;
-            }
-            result.put(linkId.toString(), times);
-
-        }
+        Map<String, double[]> result = AverageTravelTimesMap(res1, res2, maxHour);
         long end = System.currentTimeMillis();
         long diff = end - start;
-        log.info("GetLinkIdToTravelTimeArray for {} links with maxHour = {} executed in {} ms", links.size(), maxHour, diff);
+        log.info("GetLinkIdToTravelTimeAvgArray for {} links with maxHour = {} executed in {} ms", links.size(), maxHour, diff);
+        return result;
+    }
+
+    public static Map<String, double[]> AverageTravelTimesMap(Map<String, double[]> res1, Map<String, double[]> res2, int maxHour) {
+        Map<String, double[]> result = new HashMap<>();
+        for (String linkId : res1.keySet()) {
+            double[] times1 = res1.get(linkId);
+            double[] times2 = res2.get(linkId);
+            double[] times = new double[maxHour];
+            for (int hour = 0; hour < maxHour; hour++) {
+                double t1 = times1[hour];
+                double t2 = times2[hour];
+                times[hour] = (t1 + t2) / 2;
+            }
+            result.put(linkId, times);
+        }
         return result;
     }
 
