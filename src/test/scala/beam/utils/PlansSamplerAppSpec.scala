@@ -41,7 +41,7 @@ class PlansSamplerAppSpec extends WordSpecLike with Matchers {
         attributes.toString.split(";")(0).stripPrefix("key="),
         "available-modes"
       ) should equal(
-        "car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway"
+        "car,ride_hail,ride_hail_transit,bike,walk,walk_transit,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway"
       )
     }
 
