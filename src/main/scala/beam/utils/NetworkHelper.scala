@@ -13,6 +13,8 @@ case class LinkWithIndex(link: Link, index: Int)
 
 trait NetworkHelper {
   def totalNumberOfLinks: Int
+  def getLinkWithIndexUnsafe(linkId: String): LinkWithIndex
+  def getLinkIdUnsafe(index: Int): String
   def getLinkWithIndex(linkId: String): Option[LinkWithIndex]
   def getLinkId(index: Int): Option[String]
 }
@@ -43,15 +45,23 @@ class NetworkHelperImpl @Inject()(network: Network) extends NetworkHelper with L
   def totalNumberOfLinks: Int = index2LinkId.length
 
   def getLinkWithIndex(linkId: String): Option[LinkWithIndex] = {
-    Option(linkId2LinkWithIndex.get(linkId))
+    Option(getLinkWithIndexUnsafe(linkId))
   }
 
   def getLinkId(index: Int): Option[String] = {
+    Option(getLinkIdUnsafe(index))
+  }
+
+  def getLinkWithIndexUnsafe(linkId: String): LinkWithIndex = {
+    linkId2LinkWithIndex.get(linkId)
+  }
+
+  def getLinkIdUnsafe(index: Int): String = {
     if (index >= index2LinkId.length || index < 0) {
-      logger.warn(s"getLinkId for $index, when index2LinkId length is ${index2LinkId.length}, will return None!")
-      None
+      logger.error(s"getLinkId for $index, when index2LinkId length is ${index2LinkId.length}, will return None!")
+      null
     } else {
-      Option(index2LinkId(index))
+      index2LinkId(index)
     }
   }
 }

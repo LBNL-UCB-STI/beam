@@ -76,12 +76,8 @@ class DelayMetricAnalysis @Inject()(
             var index = 0
             while (index < linkIds.length) {
               val linkId = linkIds(index)
-              networkHelper.getLinkWithIndex(linkId) match {
-                case Some(v) =>
-                  process(v, linkTravelTimes(index))
-                case None =>
-                  logger.warn(s"Can't find LinkWithIndex for link with id '$linkId'")
-              }
+              val linkWithIndex = networkHelper.getLinkWithIndexUnsafe(linkId)
+              process(linkWithIndex, linkTravelTimes(index))
               index += 1
             }
           }
@@ -133,20 +129,12 @@ class DelayMetricAnalysis @Inject()(
   def categoryDelayCapacityDataset(iteration: Int): Unit = {
     cumulativeDelay.zipWithIndex.foreach {
       case (delay, index) =>
-        networkHelper.getLinkId(index) match {
-          case Some(linkId) =>
-            networkHelper.getLinkWithIndex(linkId) match {
-              case Some(linkWithIndex) =>
-                val capacity = linkWithIndex.link.getCapacity
-                val bin = largeset(capacity)
-                val capacityDelay = capacitiesDelay.getOrElse(bin, 0.0)
-                capacitiesDelay(bin) = delay + capacityDelay
-              case None =>
-                logger.error(s"Can't get linkWithIndex for the index $index and linkId $linkId")
-            }
-          case None =>
-            logger.error(s"Can't get link id for the index $index")
-        }
+        val linkId = networkHelper.getLinkIdUnsafe(index)
+        val linkWithIndex = networkHelper.getLinkWithIndexUnsafe(linkId)
+        val capacity = linkWithIndex.link.getCapacity
+        val bin = largeset(capacity)
+        val capacityDelay = capacitiesDelay.getOrElse(bin, 0.0)
+        capacitiesDelay(bin) = delay + capacityDelay
     }
 
     for (index <- bins.indices) {
