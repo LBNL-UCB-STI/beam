@@ -2,7 +2,9 @@ package beam.utils.plan.sampling
 
 import java.util
 
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode.CAR
+import beam.utils.BeamVehicleUtils
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PopulationAttrib.Rank
 import beam.utils.scripts.PopulationWriterCSV
@@ -37,8 +39,9 @@ import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 
 import scala.collection.JavaConverters._
-import scala.collection.{immutable, mutable, JavaConverters}
+import scala.collection.{JavaConverters, immutable, mutable}
 import scala.util.{Random, Try}
+import scala.util.control.Breaks._
 
 case class SynthHousehold(
   householdId: Id[Household],
@@ -307,7 +310,7 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
 class SpatialSampler(sampleShape: String) {
   val shapeFileReader: ShapeFileReader = new ShapeFileReader
   shapeFileReader.readFileAndInitialize(sampleShape)
-  val rng = new MersenneTwister(75710052) // Random.org
+  val rng = new MersenneTwister(7571452) // Random.org
   val distribution: EnumeratedDistribution[SimpleFeature] = {
     val features = shapeFileReader.getFeatureCollection.features()
     val distributionList = mutable.Buffer[Pair[SimpleFeature, java.lang.Double]]()
@@ -356,7 +359,7 @@ object PlansSampler {
   def init(args: Array[String]): Unit = {
     conf.plans.setInputFile(args(0))
     conf.network.setInputFile(args(2))
-    conf.vehicles.setVehiclesFile(args(4))
+
     sampleNumber = args(5).toInt
     sc.setLocked()
     ScenarioUtils.loadScenario(sc)
@@ -438,6 +441,7 @@ object PlansSampler {
         .filter(hh => aoi.contains(MGC.coord2Point(hh.coord)))
         .take(sampleNumber)
     } else {
+
       val tract2HH = synthHouseholds.groupBy(f => f.tract)
       val synthHHs = mutable.Buffer[SynthHousehold]()
       (0 to sampleNumber).foreach { _ =>
@@ -476,14 +480,36 @@ object PlansSampler {
     newPopAttributes.putAttribute(person.getId.toString, availableModeString, availableModes)
   }
 
+  def filterPopulationActivities() {
+    val factory = newPop.getFactory
+    newPop.getPersons.asScala.values.foreach { person =>
+      val origPlan = person.getPlans.asScala.head
+      person.getPlans.clear()
+      val newPlan = factory.createPlan()
+      person.addPlan(newPlan)
+      for {pe <- origPlan.getPlanElements.asScala if pe.isInstanceOf[Activity]} yield {
+        val oldActivity = pe.asInstanceOf[Activity]
+        if (oldActivity.getType.contains("Pt")) {
+          //
+        } else {
+          val actCoord = new Coord(oldActivity.getCoord.getX, oldActivity.getCoord.getY)
+          val activity = factory.createActivityFromCoord(oldActivity.getType, actCoord)
+          activity.setEndTime(oldActivity.getEndTime)
+          newPlan.addActivity(activity)
+        }
+
+      }
+
+    }
+  }
+
   def run(): Unit = {
 
-    val carVehicleType =
-      JavaConverters
-        .collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values())
-        .head
+    val carVehicleType = BeamVehicleUtils.beamVehicleTypeToMatsimVehicleType(BeamVehicleType.defaultCarBeamVehicleType)
+
     newVehicles.addVehicleType(carVehicleType)
-    synthHouseholds.foreach(sh => {
+
+    breakable{ synthHouseholds.foreach(sh => {
       val numPersons = sh.individuals.length
       val N = if (numPersons * 2 > 0) {
         numPersons * 2
@@ -576,8 +602,11 @@ object PlansSampler {
           addModeExclusions(newPerson)
         }
       }
-    })
+     if(newPop.getPersons.size()>sampleNumber)
+       break()
+    })}
 
+    filterPopulationActivities()
     counter.printCounter()
     counter.reset()
 
