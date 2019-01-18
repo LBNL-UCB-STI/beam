@@ -3,6 +3,7 @@ package beam.analysis.plots;
 import beam.agentsim.events.ReserveRideHailEvent;
 import beam.agentsim.infrastructure.TAZTreeMap;
 import beam.sim.BeamServices;
+import beam.utils.MathUtils;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
@@ -14,6 +15,12 @@ import org.matsim.core.utils.io.IOUtils;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.DoubleStream;
+
+import scala.collection.Iterator;
+import scala.collection.JavaConverters;
+import scala.collection.JavaConverters.*;
+import scala.collection.convert.Decorators;
 
 public class RideHailWaitingTazAnalysis implements GraphAnalysis {
     private Map<String, Event> rideHailWaitingQueue = new HashMap<>();
@@ -96,11 +103,12 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
             out.write(heading);
             out.newLine();
             dataMap.forEach((k,v) -> {
-                DoubleSummaryStatistics stats = v.stream()
-                        .mapToDouble(x -> x)
+                DoubleStream valuesAsDouble = v.stream()
+                        .mapToDouble(x -> x);
+                DoubleSummaryStatistics stats = valuesAsDouble
                         .summaryStatistics();
                 String line = k.getFirst() + "," + k.getSecond().toString() + "," + stats.getAverage() + "," +
-                        (stats.getMax() + stats.getMin())/2 + "," + 0 + "," + 0 + "," + 0;
+                        MathUtils.mean(v) + "," + 0 + "," + 0 + "," + 0;
                 try {
                     out.write(line);
                     out.newLine();
