@@ -2,7 +2,7 @@ package beam.integration
 
 import beam.sim.BeamHelper
 import beam.sim.config.BeamConfig
-import com.typesafe.config.{Config, ConfigValueFactory}
+import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.scenario.ScenarioUtils
@@ -22,6 +22,18 @@ class ReplanningExpBetaModeChoiceSpec
     with BeamHelper
     with IntegrationSpecCommon {
 
+  val param = ConfigFactory.parseString(
+    """
+      |{
+      | matsim.modules.strategy.parameterset = [
+      |   {type = strategysettings, disableAfterIteration = -1, strategyName = SelectExpBeta , weight = 0.8},
+      |   {type = strategysettings, disableAfterIteration = -1, strategyName = ClearRoutes , weight = 0.0},
+      |   {type = strategysettings, disableAfterIteration = -1, strategyName = ClearModes , weight = 0.2}
+      | ]
+      |}
+    """.stripMargin
+  )
+
   private lazy val config: Config = baseConfig
     .withValue("matsim.modules.strategy.maxAgentPlanMemorySize", ConfigValueFactory.fromAnyRef(4))
     .withValue("matsim.modules.strategy.Module_1", ConfigValueFactory.fromAnyRef("SelectExpBeta"))
@@ -31,6 +43,7 @@ class ReplanningExpBetaModeChoiceSpec
     .withValue("matsim.modules.strategy.ModuleProbability_2", ConfigValueFactory.fromAnyRef(0.0))
     .withValue("matsim.modules.strategy.ModuleProbability_3", ConfigValueFactory.fromAnyRef(0.2))
     .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(20))
+    .withFallback(param)
     .resolve()
 
   lazy val beamConfig = BeamConfig(config)
@@ -50,7 +63,7 @@ class ReplanningExpBetaModeChoiceSpec
       it5PlansCount should be < it10PlansCount
     }
 
-    "increase test scores over iterations" ignore {
+    "increase test scores over iterations" in {
       val allAvgAvg = Range(0, 20).map(getAvgAvgScore(_).get)
       val lowestOfFirst10 = allAvgAvg.take(10).min
       val avgOfLast5 = allAvgAvg.takeRight(5).sum / 5

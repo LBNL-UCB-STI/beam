@@ -2,12 +2,16 @@ package beam.utils.plan.sampling
 
 import java.util
 
+import beam.router.Modes.BeamMode.CAR
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PopulationAttrib.Rank
 import beam.utils.scripts.PopulationWriterCSV
 import com.vividsolutions.jts.geom.{Envelope, Geometry, GeometryCollection, GeometryFactory, Point}
 import enumeratum.EnumEntry._
 import enumeratum._
+import org.apache.commons.math3.distribution.EnumeratedDistribution
+import org.apache.commons.math3.random.MersenneTwister
+import org.apache.commons.math3.util.Pair
 import org.geotools.geometry.jts.JTS
 import org.geotools.referencing.CRS
 import org.matsim.api.core.v01.population.{Activity, Person, Plan, Population}
@@ -32,9 +36,9 @@ import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 
-import scala.collection.{immutable, JavaConverters}
 import scala.collection.JavaConverters._
-import scala.util.Random
+import scala.collection.{immutable, mutable, JavaConverters}
+import scala.util.{Random, Try}
 
 case class SynthHousehold(
   householdId: Id[Household],
@@ -300,6 +304,24 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
   }
 }
 
+class SpatialSampler(sampleShape: String) {
+  val shapeFileReader: ShapeFileReader = new ShapeFileReader
+  shapeFileReader.readFileAndInitialize(sampleShape)
+  val rng = new MersenneTwister(75710052) // Random.org
+  val distribution: EnumeratedDistribution[SimpleFeature] = {
+    val features = shapeFileReader.getFeatureCollection.features()
+    val distributionList = mutable.Buffer[Pair[SimpleFeature, java.lang.Double]]()
+    while (features.hasNext) {
+      val feature = features.next()
+      val popPct = feature.getAttribute("pop_pct").asInstanceOf[Double]
+      distributionList += new Pair[SimpleFeature, java.lang.Double](feature, popPct)
+    }
+//    if(distributionList.map(_.getValue).sum > 0) {}
+    new EnumeratedDistribution[SimpleFeature](rng, JavaConverters.bufferAsJavaList(distributionList))
+  }
+  def getSample: SimpleFeature = distribution.sample()
+}
+
 object PlansSampler {
 
   import HasXY._
@@ -329,6 +351,7 @@ object PlansSampler {
   private var pop = Vector[Person]()
   var outDir: String = ""
   var sampleNumber: Int = 0
+  var spatialSampler: SpatialSampler = _
 
   def init(args: Array[String]): Unit = {
     conf.plans.setInputFile(args(0))
@@ -338,6 +361,8 @@ object PlansSampler {
     sc.setLocked()
     ScenarioUtils.loadScenario(sc)
     shapeFileReader.readFileAndInitialize(args(1))
+
+    spatialSampler = Try(new SpatialSampler(args(1))).getOrElse(null)
     val sourceCrs = MGC.getCRS(args(7))
 
     wgsConverter = Some(WGSConverter(args(7), args(8)))
@@ -406,12 +431,30 @@ object PlansSampler {
     sourceCRS: CoordinateReferenceSystem
   ): Vector[SynthHousehold] = {
 
-    val aoi: Geometry = new QuadTreeBuilder(wgsConverter.get)
-      .geometryUnionFromShapefile(aoiFeatures, sourceCRS)
+    if (spatialSampler == null) {
+      val aoi: Geometry = new QuadTreeBuilder(wgsConverter.get)
+        .geometryUnionFromShapefile(aoiFeatures, sourceCRS)
+      synthHouseholds
+        .filter(hh => aoi.contains(MGC.coord2Point(hh.coord)))
+        .take(sampleNumber)
+    } else {
+      val tract2HH = synthHouseholds.groupBy(f => f.tract)
+      val synthHHs = mutable.Buffer[SynthHousehold]()
+      (0 to sampleNumber).foreach { _ =>
+        {
+          val sampleFeature = spatialSampler.getSample
+          val sampleTract = sampleFeature.getAttribute("TRACTCE").asInstanceOf[String].toInt
+          var hh = Random.shuffle(tract2HH(sampleTract)).take(1).head
 
-    synthHouseholds
-      .filter(hh => aoi.contains(MGC.coord2Point(hh.coord)))
-      .take(sampleNumber)
+          while (synthHHs.exists(_.householdId.equals(hh.householdId))) {
+            hh = Random.shuffle(tract2HH(sampleTract)).take(1).head
+          }
+          synthHHs += hh
+        }
+      }
+
+      synthHHs.toVector
+    }
   }
 
   def addModeExclusions(person: Person): AnyRef = {
@@ -423,7 +466,10 @@ object PlansSampler {
 
     val availableModes = permissibleModes
       .fold("") { (addend, modeString) =>
-        addend.concat(modeString.toLowerCase() + ",")
+        if (PersonUtils.getAge(person) < 16 && CAR.value.equalsIgnoreCase(modeString))
+          addend
+        else
+          addend.concat(modeString.toLowerCase() + ",")
       }
       .stripSuffix(",")
 
@@ -478,47 +524,58 @@ object PlansSampler {
       for ((plan, idx) <- selectedPlans.zipWithIndex) {
         val synthPerson = sh.individuals.toVector(idx)
         val newPersonId = synthPerson.indId
-        val newPerson = newPop.getFactory.createPerson(newPersonId)
-        newPop.addPerson(newPerson)
-        spHH.getMemberIds.add(newPersonId)
-        newPopAttributes
-          .putAttribute(newPersonId.toString, Rank.entryName, ranks(idx))
 
-        // Create a new plan for household member based on selected plan of first person
-        val newPlan = PopulationUtils.createPlan(newPerson)
-        newPerson.addPlan(newPlan)
-        PopulationUtils.copyFromTo(plan, newPlan)
-        val homeActs = newPlan.getPlanElements.asScala
-          .collect { case activity: Activity if activity.getType.equalsIgnoreCase("Home") => activity }
-
-        homePlan match {
-          case None =>
-            homePlan = Some(newPlan)
-            val homeCoord = homeActs.head.getCoord
-            newHHAttributes.putAttribute(hhId.toString, HomeCoordX.entryName, homeCoord.getX)
-            newHHAttributes.putAttribute(hhId.toString, HomeCoordY.entryName, homeCoord.getY)
-            newHHAttributes.putAttribute(hhId.toString, HousingType.entryName, "House")
-            snapPlanActivityLocsToNearestLink(newPlan)
-
-          case Some(hp) =>
-            val firstAct = PopulationUtils.getFirstActivity(hp)
-            val firstActCoord = firstAct.getCoord
-            for (act <- homeActs) {
-              act.setCoord(firstActCoord)
-            }
-            snapPlanActivityLocsToNearestLink(newPlan)
+        val hasWorkAct = plan.getPlanElements.asScala.exists {
+          case activity: Activity => activity.getType.equalsIgnoreCase("Work")
+          case _                  => false
         }
+        if (synthPerson.age > 18 || !hasWorkAct) {
 
-        PersonUtils.setAge(newPerson, synthPerson.age)
-        val sex = if (synthPerson.sex == 0) { "M" } else { "F" }
-        // TODO: Include non-binary gender if data available
-        PersonUtils.setSex(newPerson, sex)
-        newPopAttributes
-          .putAttribute(newPerson.getId.toString, "valueOfTime", synthPerson.valueOfTime)
-        newPopAttributes.putAttribute(newPerson.getId.toString, "income", synthPerson.income)
-        addModeExclusions(newPerson)
+          val newPerson = newPop.getFactory.createPerson(newPersonId)
+          newPop.addPerson(newPerson)
+          spHH.getMemberIds.add(newPersonId)
+          newPopAttributes
+            .putAttribute(newPersonId.toString, Rank.entryName, ranks(idx))
+
+          // Create a new plan for household member based on selected plan of first person
+          val newPlan = PopulationUtils.createPlan(newPerson)
+          newPerson.addPlan(newPlan)
+          PopulationUtils.copyFromTo(plan, newPlan)
+          val homeActs = newPlan.getPlanElements.asScala
+            .collect { case activity: Activity if activity.getType.equalsIgnoreCase("Home") => activity }
+
+          homePlan match {
+            case None =>
+              homePlan = Some(newPlan)
+              val homeCoord = homeActs.head.getCoord
+              newHHAttributes.putAttribute(hhId.toString, HomeCoordX.entryName, homeCoord.getX)
+              newHHAttributes.putAttribute(hhId.toString, HomeCoordY.entryName, homeCoord.getY)
+              newHHAttributes.putAttribute(hhId.toString, HousingType.entryName, "House")
+              snapPlanActivityLocsToNearestLink(newPlan)
+
+            case Some(hp) =>
+              val firstAct = PopulationUtils.getFirstActivity(hp)
+              val firstActCoord = firstAct.getCoord
+              for (act <- homeActs) {
+                act.setCoord(firstActCoord)
+              }
+              snapPlanActivityLocsToNearestLink(newPlan)
+          }
+
+          PersonUtils.setAge(newPerson, synthPerson.age)
+          val sex = if (synthPerson.sex == 0) {
+            "M"
+          } else {
+            "F"
+          }
+          // TODO: Include non-binary gender if data available
+          PersonUtils.setSex(newPerson, sex)
+          newPopAttributes
+            .putAttribute(newPerson.getId.toString, "valueOfTime", synthPerson.valueOfTime)
+          newPopAttributes.putAttribute(newPerson.getId.toString, "income", synthPerson.income)
+          addModeExclusions(newPerson)
+        }
       }
-
     })
 
     counter.printCounter()
@@ -556,6 +613,14 @@ object PlansSampler {
   * -PappArgs="['production/application-sfbay/population.xml.gz', 'production/application-sfbay/shape/bayarea_county_dissolve_4326.shp',
   * 'production/application-sfbay/physsim-network.xml', 'test/input/sf-light/ind_X_hh_out.csv.gz',
   * 'production/application-sfbay/vehicles.xml.gz', '413187', production/application-sfbay/samples', 'epsg:4326', 'epsg:26910']"
+  *
+  * for siouxfalls
+  * test/input/siouxfalls/conversion-input/Siouxfalls_population.xml
+  * test/input/siouxfalls/conversion-input/sf_pop_pct/sioux_falls_population_counts_by_census_block_dissolved.shp
+  * test/input/siouxfalls/conversion-input/Siouxfalls_network_PT.xml
+  * test/input/siouxfalls/conversion-input/ind_X_hh_out.csv.gz
+  * test/input/siouxfalls/conversion-input/transitVehicles.xml
+  * 15000 test/input/siouxfalls/samples/15k epsg:4326 epsg:26914
   */
 object PlansSamplerApp extends App {
   val sampler = PlansSampler

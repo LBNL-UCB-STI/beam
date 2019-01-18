@@ -37,7 +37,6 @@ class ScenarioReaderCsv(var scenario: MutableScenario, var beamServices: BeamSer
     scenario.getHouseholds.getHouseholds.clear()
     scenario.getHouseholds.getHouseholdAttributes.clear()
 
-    beamServices.vehicles.clear()
     beamServices.privateVehicles.clear()
     /////
 
@@ -336,11 +335,11 @@ object ScenarioReaderCsv {
 
         val vehicleIds = new java.util.ArrayList[Id[Vehicle]]
         vehicleTypes.foreach { bvt =>
-          val vt = VehicleUtils.getFactory.createVehicleType(Id.create(bvt.vehicleTypeId, classOf[VehicleType]))
+          val vt = VehicleUtils.getFactory.createVehicleType(Id.create(bvt.id, classOf[VehicleType]))
           val v = VehicleUtils.getFactory.createVehicle(Id.createVehicleId(vehicleCounter), vt)
           vehicleIds.add(v.getId)
           val bv = BeamVehicleUtils.getBeamVehicle(v, objHousehold, bvt)
-          scenarioVehicles.put(bv.getId, bv)
+          scenarioVehicles.put(bv.id, bv)
 
           vehicleCounter = vehicleCounter + 1
         }
