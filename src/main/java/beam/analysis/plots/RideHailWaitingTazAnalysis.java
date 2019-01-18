@@ -17,11 +17,6 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.DoubleStream;
 
-import scala.collection.Iterator;
-import scala.collection.JavaConverters;
-import scala.collection.JavaConverters.*;
-import scala.collection.convert.Decorators;
-
 public class RideHailWaitingTazAnalysis implements GraphAnalysis {
     private Map<String, Event> rideHailWaitingQueue = new HashMap<>();
     private Map<Tuple<Integer,Id<TAZTreeMap.TAZ>>, List<Double>> binWaitingTimesMap = new HashMap<>();
