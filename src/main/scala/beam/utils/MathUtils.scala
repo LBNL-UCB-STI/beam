@@ -22,7 +22,7 @@ object MathUtils {
     * @param list the list of data
     * @return mean of the given list
     */
-  def mean(list: java.util.List[java.lang.Double]): Double = {
+  def median(list: java.util.List[java.lang.Double]): Double = {
     if (list.isEmpty) {
       0
     } else {
