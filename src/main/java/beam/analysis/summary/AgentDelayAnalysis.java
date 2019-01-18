@@ -16,7 +16,7 @@ public class AgentDelayAnalysis implements IterationSummaryAnalysis {
     private DelayMetricAnalysis delayMetricAnalysis;
 
     public AgentDelayAnalysis(EventsManager eventsManager, Scenario scenario , OutputDirectoryHierarchy controlerIO , BeamServices services, BeamConfig beamConfig) {
-        delayMetricAnalysis = new DelayMetricAnalysis(eventsManager, controlerIO , services , scenario, beamConfig );
+        delayMetricAnalysis = new DelayMetricAnalysis(eventsManager, controlerIO , services , services.networkHelper(), beamConfig );
         if (eventsManager != null) eventsManager.addHandler(delayMetricAnalysis);
     }
 

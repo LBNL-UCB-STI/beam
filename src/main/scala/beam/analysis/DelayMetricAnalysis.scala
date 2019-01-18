@@ -7,15 +7,12 @@ import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.Modes.BeamMode.CAR
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
-import com.google.common.collect.Maps
+import beam.utils.{LinkWithIndex, NetworkHelper}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.commons.collections4.MapUtils
 import org.jfree.chart.plot.CategoryPlot
 import org.jfree.data.category.DefaultCategoryDataset
-import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.events.Event
-import org.matsim.api.core.v01.network.Link
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -25,44 +22,28 @@ import scala.collection.JavaConverters._
 
 case class DelayInLength(delay: Double, length: Int)
 
-case class LinkWithIndex(link: Link, index: Int)
-
 class DelayMetricAnalysis @Inject()(
   eventsManager: EventsManager,
   controlerIO: OutputDirectoryHierarchy,
   services: BeamServices,
-  scenario: Scenario,
+  networkHelper: NetworkHelper,
   beamConfig: BeamConfig
 ) extends BasicEventHandler
     with LazyLogging {
 
   eventsManager.addHandler(this)
-  private val linkIdWithLink: Array[util.Map.Entry[String, LinkWithIndex]] = scenario.getNetwork.getLinks
-    .entrySet()
-    .asScala
-    .zipWithIndex
-    .map { case(x, index) =>
-      Maps.immutableEntry[String, LinkWithIndex](x.getKey.toString, LinkWithIndex(x.getValue, index))
-    }
-    .toArray
-  val linkId2LinkWithIndex: util.Map[String, LinkWithIndex] = MapUtils.putAll(new util.HashMap[String, LinkWithIndex](),
-    linkIdWithLink.asInstanceOf[Array[AnyRef]])
-  logger.info(s"Build linkId2LinkWithIndex with size: ${linkId2LinkWithIndex.size} of type ${linkId2LinkWithIndex.getClass}")
-
-  val index2LinkId: Array[String] = linkIdWithLink.map(k => k.getKey)
-  logger.info(s"Build index2LinkId with size: ${index2LinkId.size}")
 
   // private val cumulativeDelay: mutable.Map[String, Double] = mutable.Map()
-  private val cumulativeDelay: Array[Double] = Array.ofDim[Double](index2LinkId.size)
+  private val cumulativeDelay: Array[Double] = Array.ofDim[Double](networkHelper.totalNumberOfLinks)
 
   // private val cumulativeLength: mutable.Map[String, Double] = mutable.Map()
-  private val cumulativeLength: Array[Double] = Array.ofDim[Double](index2LinkId.size)
+  private val cumulativeLength: Array[Double] = Array.ofDim[Double](networkHelper.totalNumberOfLinks)
 
   //  private var linkTravelsCount: mutable.Map[String, Int] = mutable.Map()
-  private var linkTravelsCount: Array[Int]  = Array.ofDim[Int](index2LinkId.size)
+  private var linkTravelsCount: Array[Int] = Array.ofDim[Int](networkHelper.totalNumberOfLinks)
 
   // private var linkAverageDelay: mutable.Map[String, DelayInLength] = mutable.Map()
-  private var linkAverageDelay: Array[DelayInLength] = Array.ofDim[DelayInLength](index2LinkId.size)
+  private var linkAverageDelay: Array[DelayInLength] = Array.ofDim[DelayInLength](networkHelper.totalNumberOfLinks)
 
   private val bins = Array(0, 500, 1000, 2000, 3000)
   private val legends = Array("0-500", "500-1000", "1000-2000", "2000-3000", "3000+")
@@ -95,7 +76,12 @@ class DelayMetricAnalysis @Inject()(
             var index = 0
             while (index < linkIds.length) {
               val linkId = linkIds(index)
-              process(linkId, linkTravelTimes(index))
+              networkHelper.getLinkWithIndex(linkId) match {
+                case Some(v) =>
+                  process(v, linkTravelTimes(index))
+                case None =>
+                  logger.warn(s"Can't find LinkWithIndex for link with id '$linkId'")
+              }
               index += 1
             }
           }
@@ -104,8 +90,7 @@ class DelayMetricAnalysis @Inject()(
     }
   }
 
-  def process(linkId: String, travelTime: Double): Unit = {
-    val linkWithIndex = linkId2LinkWithIndex.get(linkId)
+  def process(linkWithIndex: LinkWithIndex, travelTime: Double): Unit = {
     val link = linkWithIndex.link
     val index = linkWithIndex.index
     val freeLength = link.getLength
@@ -140,20 +125,28 @@ class DelayMetricAnalysis @Inject()(
     util.Arrays.fill(cumulativeDelay, 0.0)
     util.Arrays.fill(cumulativeLength, 0.0)
     util.Arrays.fill(linkTravelsCount, 0)
-    linkAverageDelay = Array.ofDim[DelayInLength](index2LinkId.size)
+    linkAverageDelay = Array.ofDim[DelayInLength](networkHelper.totalNumberOfLinks)
     capacitiesDelay.clear
     totalTravelTime = 0
   }
 
   def categoryDelayCapacityDataset(iteration: Int): Unit = {
-    cumulativeDelay.zipWithIndex.foreach { case (delay, index) =>
-      val linkId = index2LinkId(index)
-      val link = linkId2LinkWithIndex.get(linkId).link
-      val capacity = link.getCapacity
-
-      val bin = largeset(capacity)
-      val capacityDelay = capacitiesDelay.getOrElse(bin, 0.0)
-      capacitiesDelay(bin) = delay + capacityDelay
+    cumulativeDelay.zipWithIndex.foreach {
+      case (delay, index) =>
+        networkHelper.getLinkId(index) match {
+          case Some(linkId) =>
+            networkHelper.getLinkWithIndex(linkId) match {
+              case Some(linkWithIndex) =>
+                val capacity = linkWithIndex.link.getCapacity
+                val bin = largeset(capacity)
+                val capacityDelay = capacitiesDelay.getOrElse(bin, 0.0)
+                capacitiesDelay(bin) = delay + capacityDelay
+              case None =>
+                logger.error(s"Can't get linkWithIndex for the index $index and linkId $linkId")
+            }
+          case None =>
+            logger.error(s"Can't get link id for the index $index")
+        }
     }
 
     for (index <- bins.indices) {
@@ -176,7 +169,7 @@ class DelayMetricAnalysis @Inject()(
     val iteration = event.getIteration
     val nonNull = linkAverageDelay.filter(x => x != null)
     val sumDelay = nonNull.view.map(delayInLength => delayInLength.delay).sum
-    val sumLength =  nonNull.view.map(delayInLength => delayInLength.length).sum
+    val sumLength = nonNull.view.map(delayInLength => delayInLength.length).sum
     val avg = sumDelay / sumLength
     delayAveragePerKMDataset.addValue(avg, 0, iteration)
   }
