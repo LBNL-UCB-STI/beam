@@ -23,7 +23,7 @@ import scala.util.Random
 class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with MockitoSugar {
 
   val testConfigFileName = "test/input/beamville/beam.conf"
-  val config: Config = testConfig(testConfigFileName)
+  val config: Config = testConfig(testConfigFileName).resolve()
   val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
   lazy val beamConfig: BeamConfig = BeamConfig(config)

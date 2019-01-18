@@ -90,7 +90,7 @@ class RouterPerformanceSpec
   override def beforeAll(configMap: ConfigMap): Unit = {
     val confPath =
       configMap.getWithDefault("config", "test/input/sf-light/sf-light.conf")
-    config = testConfig(confPath)
+    config = testConfig(confPath).resolve()
     val beamConfig = BeamConfig(config)
 
     val services: BeamServices = mock[BeamServices](withSettings().stubOnly())

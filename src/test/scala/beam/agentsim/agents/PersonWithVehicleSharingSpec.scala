@@ -75,7 +75,7 @@ class PersonWithVehicleSharingSpec
         akka.test.timefactor = 2
         """
           )
-          .withFallback(testConfig("test/input/beamville/beam.conf"))
+          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
     with FunSpecLike

@@ -50,6 +50,7 @@ class WarmStartRoutingSpec
       ActorSystem(
         "WarmStartRoutingSpec",
         testConfig("test/input/beamville/beam.conf")
+          .resolve()
           .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
           .withValue(
             "beam.warmStart.path",
