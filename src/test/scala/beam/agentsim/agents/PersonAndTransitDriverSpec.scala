@@ -20,6 +20,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.WALK_TRANSIT
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
@@ -89,7 +90,6 @@ class PersonAndTransitDriverSpec
     when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
     when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.vehicles).thenReturn(vehicles)
     when(theServices.personRefs).thenReturn(personRefs)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(theServices))
@@ -183,8 +183,8 @@ class PersonAndTransitDriverSpec
         null
       )
 
-      vehicles.put(bus.getId, bus)
-      vehicles.put(tram.getId, tram)
+      vehicles.put(bus.id, bus)
+      vehicles.put(tram.id, tram)
 
       val busLeg = EmbodiedBeamLeg(
         BeamLeg(
@@ -201,6 +201,7 @@ class PersonAndTransitDriverSpec
           )
         ),
         beamVehicleId = busId,
+        BeamVehicleType.defaultTransitBeamVehicleType.id,
         asDriver = false,
         cost = 2.75,
         unbecomeDriverOnCompletion = false
@@ -220,6 +221,7 @@ class PersonAndTransitDriverSpec
           )
         ),
         beamVehicleId = busId,
+        BeamVehicleType.defaultTransitBeamVehicleType.id,
         asDriver = false,
         cost = 0.0,
         unbecomeDriverOnCompletion = false
@@ -239,6 +241,7 @@ class PersonAndTransitDriverSpec
           )
         ),
         beamVehicleId = tramId,
+        BeamVehicleType.defaultTransitBeamVehicleType.id,
         asDriver = false,
         cost = 0.0,
         unbecomeDriverOnCompletion = false
@@ -296,15 +299,13 @@ class PersonAndTransitDriverSpec
 
       val busDriver = router.getSingleChild("TransitDriverAgent-my_bus")
       val tramDriver = router.getSingleChild("TransitDriverAgent-my_tram")
-      bus.becomeDriver(busDriver, "TransitDriverAgent-my_bus")
-      tram.becomeDriver(tramDriver, "TransitDriverAgent-my_tram")
       scheduler ! ScheduleTrigger(InitializeTrigger(0), busDriver)
       scheduler ! ScheduleTrigger(InitializeTrigger(10000), tramDriver)
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
-      putDefaultBeamAttributes(person)
+      putDefaultBeamAttributes(person, Vector(WALK_TRANSIT))
       val plan = PopulationUtils.getFactory.createPlan()
       val homeActivity = PopulationUtils.createActivityFromCoord("home", new Coord(166321.9, 1568.87))
       homeActivity.setEndTime(20000)
@@ -336,13 +337,12 @@ class PersonAndTransitDriverSpec
           parkingManager = parkingManager,
           eventsManager = eventsManager,
           population = population,
-          id = household.getId,
           household = household,
           vehicles = Map(),
           homeCoord = new Coord(0.0, 0.0)
         )
       )
-      val personActor = householdActor.getSingleChild(person.getId.toString)
+
       scheduler ! StartSchedule(0)
 
       expectMsgType[RoutingRequest]
@@ -365,6 +365,7 @@ class PersonAndTransitDriverSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
@@ -387,6 +388,7 @@ class PersonAndTransitDriverSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false

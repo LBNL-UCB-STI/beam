@@ -12,9 +12,7 @@ case class ParkingStall(
   locationUTM: Location,
   cost: Double,
   stallValues: Option[StallValues]
-) extends Resource[ParkingStall] {
-  override def getId: Id[ParkingStall] = id
-}
+)
 
 object ParkingStall {
   val emptyId = Id.create("NA", classOf[ParkingStall])

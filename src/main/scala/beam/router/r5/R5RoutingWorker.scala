@@ -58,7 +58,6 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
 case class WorkerParameters(
@@ -110,12 +109,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         )
         override var beamRouter: ActorRef = _
         override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
-        override val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
         override val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = TrieMap()
         override var personHouseholds: Map[Id[Person], Household] = Map()
-        // TODO Fix me once `TrieMap` is removed
-        val fuelTypePrices: TrieMap[FuelType, Double] =
-          TrieMap(BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toSeq: _*)
+        val fuelTypePrices: Map[FuelType, Double] =
+          BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
 
         // TODO Fix me once `TrieMap` is removed
         val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
@@ -136,23 +133,13 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override val modeIncentives: ModeIncentive =
           ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.file)
         override val ptFares: PtFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.file)
-        override protected def injectActor[A <: Actor](implicit factory: ActorRefFactory, tag: ClassTag[A]): ActorRef =
-          super.injectActor
         override def startNewIteration(): Unit = throw new Exception("???")
-
-        override protected def injector: Injector = throw new Exception("???")
-
         override def matsimServices_=(x$1: org.matsim.core.controler.MatsimServices): Unit = ???
-
-        override def rideHailIterationHistoryActor_=(x$1: akka.actor.ActorRef): Unit = ???
         override val rideHailTransitModes: List[BeamMode] = BeamMode.massTransitModes
-
         override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap =
           beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
 
         override def matsimServices: org.matsim.core.controler.MatsimServices = ???
-
-        override def rideHailIterationHistoryActor: akka.actor.ActorRef = ???
       }
 
       val defaultTravelTimeByLink = (time: Int, linkId: Int, mode: StreetMode) => {
@@ -335,6 +322,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     case EmbodyWithCurrentTravelTime(
         leg: BeamLeg,
         vehicleId: Id[Vehicle],
+        vehicleTypeId: Id[BeamVehicleType],
         embodyRequestId: Int,
         mustParkAtEnd: Boolean,
         destinationForSplitting: Option[Coord]
@@ -366,7 +354,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           destinationForSplitting
         )
         val fuelAndTollCostPerLeg = legPair.map { beamLeg =>
-          val fuelCost = DrivingCostDefaults.estimateFuelCost(beamLeg, vehicleId, beamServices)
+          val fuelCost = DrivingCostDefaults.estimateFuelCost(beamLeg, vehicleTypeId, beamServices)
           val toll = if (beamLeg.mode == CAR) {
             val osm = beamLeg.travelPath.linkIds.toVector.map { e =>
               transportNetwork.streetLayer.edgeStore
@@ -381,6 +369,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           EmbodiedBeamLeg(
             legPair.head,
             vehicleId,
+            vehicleTypeId,
             asDriver = true,
             fuelAndTollCostPerLeg.head,
             unbecomeDriverOnCompletion = false
@@ -388,6 +377,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           EmbodiedBeamLeg(
             legPair.last,
             vehicleId,
+            vehicleTypeId,
             asDriver = true,
             fuelAndTollCostPerLeg.last,
             unbecomeDriverOnCompletion = true
@@ -403,6 +393,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           EmbodiedBeamLeg(
             leg.copy(duration = duration.toInt),
             vehicleId,
+            vehicleTypeId,
             asDriver = true,
             0,
             unbecomeDriverOnCompletion = true
@@ -750,6 +741,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   EmbodiedBeamLeg(
                     beamLeg,
                     beamLeg.travelPath.transitStops.get.vehicleId,
+                    BeamVehicleType.defaultTransitBeamVehicleType.id,
                     asDriver = false,
                     cost,
                     unbecomeDriverOnCompletion = false
@@ -760,14 +752,20 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   (beamLeg.mode != CAR && beamLeg.mode != WALK) ||
                   (beamLeg.mode == WALK && index == tripWithFares.trip.legs.size - 1))
                   if (beamLeg.mode == WALK) {
-                    val body =
-                      routingRequest.streetVehicles.find(_.mode == WALK).get
-                    EmbodiedBeamLeg(beamLeg, body.id, body.asDriver, 0.0, unbecomeDriverAtComplete)
+                    val body = routingRequest.streetVehicles.find(_.mode == WALK).get
+                    EmbodiedBeamLeg(beamLeg, body.id, body.vehicleTypeId, body.asDriver, 0.0, unbecomeDriverAtComplete)
                   } else {
                     if (beamLeg.mode == CAR) {
-                      cost = cost + DrivingCostDefaults.estimateFuelCost(beamLeg, vehicle.id, beamServices)
+                      cost = cost + DrivingCostDefaults.estimateFuelCost(beamLeg, vehicle.vehicleTypeId, beamServices)
                     }
-                    EmbodiedBeamLeg(beamLeg, vehicle.id, vehicle.asDriver, cost, unbecomeDriverAtComplete)
+                    EmbodiedBeamLeg(
+                      beamLeg,
+                      vehicle.id,
+                      vehicle.vehicleTypeId,
+                      vehicle.asDriver,
+                      cost,
+                      unbecomeDriverAtComplete
+                    )
                   }
                 }
               }
@@ -791,7 +789,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           beamServices.geo.utm2Wgs(new Coord(routingRequest.originUTM.getX, routingRequest.originUTM.getY)),
           beamServices.geo.utm2Wgs(new Coord(routingRequest.destinationUTM.getX, routingRequest.destinationUTM.getY)),
           routingRequest.departureTime,
-          maybeBody.get.id,
+          maybeBody.get,
           beamServices
         )
         RoutingResponse(
@@ -1516,14 +1514,15 @@ object R5RoutingWorker {
     origin: Location,
     dest: Location,
     atTime: Int,
-    bodyId: Id[Vehicle],
+    body: StreetVehicle,
     beamServices: BeamServices
   ): EmbodiedBeamTrip = {
     EmbodiedBeamTrip(
       Vector(
         EmbodiedBeamLeg(
           createBushwackingBeamLeg(atTime, origin, dest, beamServices),
-          bodyId,
+          body.id,
+          body.vehicleTypeId,
           asDriver = true,
           0,
           unbecomeDriverOnCompletion = false
