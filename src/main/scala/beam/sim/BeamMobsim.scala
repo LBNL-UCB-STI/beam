@@ -1,6 +1,5 @@
 package beam.sim
 
-import java.awt.Color
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Success
@@ -26,8 +25,7 @@ import beam.utils._
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.Activity
-import org.matsim.api.core.v01.{Coord, Scenario}
+import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.utils.misc.Time
@@ -153,10 +151,6 @@ class BeamMobsim @Inject()(
         )
         context.watch(population)
         Await.result(population ? Identify(0), timeout.duration)
-
-        log.info("Initialized {} people", beamServices.personRefs.size)
-        log.info("Initialized {} personal vehicles", scenario.getVehicles.getVehicles.size())
-
         Await.result(beamServices.beamRouter ? InitTransit(scheduler, parkingManager), timeout.duration)
 
         log.info("Transit schedule has been initialized")
