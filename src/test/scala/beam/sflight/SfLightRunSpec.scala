@@ -10,7 +10,7 @@ import beam.sim.{BeamHelper, BeamServices}
 import beam.tags.{ExcludeRegular, Periodic}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.handler.BasicEventHandler
@@ -41,9 +41,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
           |beam.outputs.events.fileOutputFormats = xml
           |beam.agentsim.lastIteration = 0
         """.stripMargin)
-        .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf").resolve())
-        .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
-        .withValue("beam.agentsim.lastIteration", ConfigValueFactory.fromAnyRef(0))
+        .withFallback(testConfig("test/input/sf-light/sf-light-0.5k.conf"))
         .resolve()
       val configBuilder = new MatSimBeamConfigBuilder(config)
       val matsimConfig = configBuilder.buildMatSamConf()
@@ -52,7 +50,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
 
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-      val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
+      val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
       networkCoordinator.loadNetwork()
       networkCoordinator.convertFrequenciesToTrips()
       scenario.setNetwork(networkCoordinator.network)
