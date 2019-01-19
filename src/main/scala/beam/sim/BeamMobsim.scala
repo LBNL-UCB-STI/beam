@@ -154,43 +154,6 @@ class BeamMobsim @Inject()(
         context.watch(population)
         Await.result(population ? Identify(0), timeout.duration)
 
-        val activityLocationsSpatialPlot = new SpatialPlot(1100, 1100, 50)
-
-        if (beamServices.matsimServices != null) {
-
-          scenario.getPopulation.getPersons
-            .values()
-            .forEach(
-              x =>
-                x.getSelectedPlan.getPlanElements.forEach {
-                  case z: Activity =>
-                    activityLocationsSpatialPlot.addPoint(PointToPlot(z.getCoord, Color.RED, 10))
-                  case _ =>
-              }
-            )
-
-          scenario.getPopulation.getPersons
-            .values()
-            .forEach(
-              x => {
-                val personInitialLocation: Coord =
-                  x.getSelectedPlan.getPlanElements
-                    .iterator()
-                    .next()
-                    .asInstanceOf[Activity]
-                    .getCoord
-                activityLocationsSpatialPlot
-                  .addPoint(PointToPlot(personInitialLocation, Color.BLUE, 10))
-              }
-            )
-
-          if (beamServices.beamConfig.beam.outputs.writeGraphs) {
-            activityLocationsSpatialPlot.writeImage(
-              beamServices.matsimServices.getControlerIO
-                .getIterationFilename(beamServices.iterationNumber, "activityLocations.png")
-            )
-          }
-        }
         log.info("Initialized {} people", beamServices.personRefs.size)
         log.info("Initialized {} personal vehicles", scenario.getVehicles.getVehicles.size())
 
