@@ -649,7 +649,7 @@ class PersonAgent(
       val resRequest = ReservationRequest(
         legSegment.head.beamLeg,
         legSegment.last.beamLeg,
-        VehiclePersonId(legSegment.head.beamVehicleId, id)
+        VehiclePersonId(legSegment.head.beamVehicleId, id, self)
       )
       TransitDriverAgent.selectByVehicleId(legSegment.head.beamVehicleId) ! resRequest
       goto(WaitingForReservationConfirmation)
@@ -663,7 +663,7 @@ class PersonAgent(
 
       rideHailManager ! RideHailRequest(
         ReserveRide,
-        VehiclePersonId(body.id, id, Some(self)),
+        VehiclePersonId(body.id, id, self),
         beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint.loc),
         departAt,
         beamServices.geo.wgs2Utm(legSegment.last.beamLeg.travelPath.endPoint.loc),

@@ -32,7 +32,7 @@ object RideHailRequest {
 
   val DUMMY = RideHailRequest(
     RideHailInquiry,
-    VehiclePersonId(Id.create("dummy", classOf[Vehicle]), Id.create("dummy", classOf[Person])),
+    VehiclePersonId(Id.create("dummy", classOf[Vehicle]), Id.create("dummy", classOf[Person]), null),
     new Coord(Double.NaN, Double.NaN),
     Int.MaxValue,
     new Coord(Double.NaN, Double.NaN)

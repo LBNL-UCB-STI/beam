@@ -49,7 +49,6 @@ trait BeamServices {
 
   var beamRouter: ActorRef
   val rideHailTransitModes: Seq[BeamMode]
-  val personRefs: TrieMap[Id[Person], ActorRef]
   val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)]
   var personHouseholds: Map[Id[Person], Household]
 
@@ -92,8 +91,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
   var beamRouter: ActorRef = _
   var rideHailIterationHistoryActor: ActorRef = _
-  val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
-
   val agencyAndRouteByVehicleIds: TrieMap[
     Id[Vehicle],
     (String, String)
@@ -127,12 +124,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val modeIncentives = ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.file)
   val ptFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.file)
 
-  def clearAll(): Unit = {
-    personRefs.clear
-  }
-
   def startNewIteration(): Unit = {
-    clearAll()
     iterationNumber += 1
     Metrics.iterationNumber = iterationNumber
   }
