@@ -2,6 +2,7 @@ package beam.agentsim.agents.ridehail
 
 import java.util.UUID
 
+import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.VehiclePersonId
 import beam.router.BeamRouter.Location
 import org.apache.commons.lang.builder.HashCodeBuilder
@@ -32,7 +33,7 @@ object RideHailRequest {
 
   val DUMMY = RideHailRequest(
     RideHailInquiry,
-    VehiclePersonId(Id.create("dummy", classOf[Vehicle]), Id.create("dummy", classOf[Person]), null),
+    VehiclePersonId(Id.create("dummy", classOf[Vehicle]), Id.create("dummy", classOf[Person]), ActorRef.noSender),
     new Coord(Double.NaN, Double.NaN),
     Int.MaxValue,
     new Coord(Double.NaN, Double.NaN)
