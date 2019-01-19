@@ -26,7 +26,6 @@ import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
@@ -627,12 +626,10 @@ class PersonAgent(
     // TRANSIT but too late
     case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _))
         if nextLeg.beamLeg.startTime < _currentTick.get =>
-      // We've missed the bus. This occurs when the actual ride hail trip takes much longer than planned (based on the
-      // initial inquiry). So we replan but change tour mode to WALK_TRANSIT since we've already done our ride hail portion.
-      ExponentialLazyLogging.logger.warn(
-        "Missed transit pickup during a ride_hail_transit trip, late by {} sec",
-        _currentTick.get - nextLeg.beamLeg.startTime
-      )
+      // We've missed the bus. This occurs when something takes longer than planned (based on the
+      // initial inquiry). So we replan but change tour mode to WALK_TRANSIT since we've already done our non-transit
+      // portion.
+      log.debug("Missed transit pickup, late by {} sec", _currentTick.get - nextLeg.beamLeg.startTime)
 
       goto(ChoosingMode) using ChoosesModeData(
         personData = data.copy(currentTourMode = Some(WALK_TRANSIT)),
