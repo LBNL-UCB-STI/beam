@@ -91,6 +91,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
   var beamRouter: ActorRef = _
   var rideHailIterationHistoryActor: ActorRef = _
+
   val agencyAndRouteByVehicleIds: TrieMap[
     Id[Vehicle],
     (String, String)

@@ -5,7 +5,6 @@ import java.util.UUID
 import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.VehiclePersonId
 import beam.router.BeamRouter.Location
-import org.apache.commons.lang.builder.HashCodeBuilder
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
