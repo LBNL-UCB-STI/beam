@@ -34,6 +34,7 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
 
   it should "have same actstart as endstart events for persons when using ridehail replacement in DummyRideHailDispatchWithBufferingRequests" ignore {
     val config = testConfig("test/input/beamville/beam.conf")
+      .resolve()
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue(
         "beam.agentsim.agents.rideHail.allocationManager.name",
@@ -63,6 +64,7 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
 
   it should "have different actstart and endstart events for persons when NOT using ridehail replacement in DummyRideHailDispatchWithBufferingRequestsWithoutReplacement" ignore {
     val config = testConfig("test/input/beamville/beam.conf")
+      .resolve()
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue(
         "beam.agentsim.agents.rideHail.allocationManager.name",

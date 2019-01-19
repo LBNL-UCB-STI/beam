@@ -65,7 +65,7 @@ class PersonAndTransitDriverSpec
         akka.loglevel = debug
         """
           )
-          .withFallback(testConfig("test/input/beamville/beam.conf"))
+          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
     with FunSpecLike

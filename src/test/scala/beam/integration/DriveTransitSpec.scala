@@ -26,6 +26,7 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
   "DriveTransit trips" must {
     "run to completion" taggedAs (Periodic, ExcludeRegular) ignore { //TODO need vehicle input dta
       val config = testConfig("test/input/sf-light/sf-light-1k.conf")
+        .resolve()
         .withValue(
           TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
           ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
