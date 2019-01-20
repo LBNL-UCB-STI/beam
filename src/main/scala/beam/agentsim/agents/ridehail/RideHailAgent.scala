@@ -155,9 +155,9 @@ class RideHailAgent(
       stash()
       stay()
 
-    case Event(TriggerWithId(EndShiftTrigger(_), _), _) =>
-      stash()
-      stay()
+    case Event(TriggerWithId(EndShiftTrigger(tick), triggerId), _) =>
+      // Wait five minutes
+      stay() replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndShiftTrigger(tick + 300),self)))
 
     case ev @ Event(TriggerWithId(EndLegTrigger(_), triggerId), _) =>
       log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
@@ -180,6 +180,10 @@ class RideHailAgent(
       )
       stay()
 
+  }
+  onTransition {
+    case _ -> _ =>
+      unstashAll()
   }
 
   override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
@@ -208,7 +212,7 @@ class RideHailAgent(
         )
         holdTickAndTriggerId(tick, triggerId)
         goto(Idle) using data
-          .copy(currentVehicle = Vector(vehicle.id))
+          .copy(currentVehicle = Vector(vehicle.id), remainingShifts = shifts.get)
       } else {
         val nextShiftStartTime = shifts.get.head.lowerBound
         goto(Offline) replying CompletionNotice(
@@ -228,6 +232,9 @@ class RideHailAgent(
         vehicle.getState,
         Some(triggerId)
       )
+      if(tick > 40000){
+        val i = 0
+      }
       holdTickAndTriggerId(tick, triggerId)
       goto(Idle)
   }
@@ -235,16 +242,15 @@ class RideHailAgent(
   when(Idle) {
     case Event(
         TriggerWithId(EndShiftTrigger(tick), triggerId),
-        RideHailAgentData(_, _, _, _, thisShift :: remaining)
+        data @ RideHailAgentData(_, _, _, _, _)
         ) =>
-      val newShiftToSchedule = if (remaining.isEmpty) {
+      val newShiftToSchedule = if (data.remainingShifts.size < 1) {
         Vector()
       } else {
-        Vector(ScheduleTrigger(StartShiftTrigger(remaining.head.lowerBound), self))
+        Vector(ScheduleTrigger(StartShiftTrigger(data.remainingShifts.head.lowerBound), self))
       }
       rideHailManager ! NotifyVehicleOutOfService(vehicle.id)
-      goto(Offline) replying CompletionNotice(triggerId, newShiftToSchedule) using stateData
-        .copy(remainingShifts = remaining)
+      goto(Offline) replying CompletionNotice(triggerId, newShiftToSchedule)
     case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
       log.debug("state(RideHailingAgent.Idle): {}", ev)
       goto(IdleInterrupted) replying InterruptedWhileIdle(interruptId, vehicle.id, tick)
