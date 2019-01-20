@@ -212,7 +212,7 @@ class RideHailAgent(
         )
         holdTickAndTriggerId(tick, triggerId)
         goto(Idle) using data
-          .copy(currentVehicle = Vector(vehicle.id), remainingShifts = shifts.get)
+          .copy(currentVehicle = Vector(vehicle.id), remainingShifts = shifts.getOrElse(List()))
       } else {
         val nextShiftStartTime = shifts.get.head.lowerBound
         goto(Offline) replying CompletionNotice(
