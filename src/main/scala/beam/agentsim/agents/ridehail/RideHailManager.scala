@@ -351,10 +351,10 @@ class RideHailManager(
     case "FILE" =>
       new RideHailFleetInitializer().init(beamServices) foreach { fleetData =>
         createRideHailVehicleAndAgent(
-          fleetData.id.split("-")(1),
+          fleetData.id.split("-").toList.tail.mkString("-"),
           new Coord(fleetData.initialLocationX, fleetData.initialLocationY),
           fleetData.shifts,
-          fleetData.geofence
+          fleetData.toGeofence
         )
       }
     case _ =>
@@ -978,7 +978,9 @@ class RideHailManager(
       initialLocationX = rideInitialLocation.getX,
       initialLocationY = rideInitialLocation.getY,
       shifts = shifts,
-      geofence = geofence
+      geofenceX = geofence.map(fence => fence.geofenceX),
+      geofenceY = geofence.map(fence => fence.geofenceY),
+      geofenceRadius = geofence.map(fence => fence.geofenceRadius)
     )
   }
 

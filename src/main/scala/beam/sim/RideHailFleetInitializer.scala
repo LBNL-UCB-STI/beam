@@ -70,7 +70,7 @@ class RideHailFleetInitializer extends LazyLogging {
         if (invalidIndices.isEmpty) {
           val rideHailAgents: Seq[RideHailAgentInputData] =
             //for each data entry in the csv file
-            bufferedSource.getLines().toList.drop(1).map(s => s.split(",")).flatMap { row =>
+            bufferedSource.getLines().toList.map(s => s.split(",", -1)).flatMap { row =>
               try {
                 //generate the FleetData object from the csv entry
                 val geofenceX =
@@ -96,7 +96,9 @@ class RideHailFleetInitializer extends LazyLogging {
                   shifts =
                     if (row(keyIndices.getOrElse(attr_shifts, -1)).isEmpty) None
                     else Some(row(keyIndices.getOrElse(attr_shifts, -1))),
-                  geofence = Some(Geofence(geofenceX, geofenceY, geofenceRadius))
+                  geofenceX = geofenceX,
+                  geofenceY = geofenceY,
+                  geofenceRadius = geofenceRadius
                 )
                 Some(fleetData)
               } catch {
@@ -204,7 +206,9 @@ object RideHailFleetInitializer extends OutputDataDescriptor {
     * @param initialLocationX x-coordinate of the initial location of the ride hail vehicle
     * @param initialLocationY y-coordinate of the initial location of the ride hail vehicle
     * @param shifts time shifts for the vehicle , usually a stringified collection of time ranges
-    * @param geofence geo fence values
+    * @param geofenceX geo fence values
+    * @param geofenceY geo fence values
+    * @param geofenceRadius geo fence values
     */
   case class RideHailAgentInputData(
     id: String,
@@ -213,8 +217,19 @@ object RideHailFleetInitializer extends OutputDataDescriptor {
     initialLocationX: Double,
     initialLocationY: Double,
     shifts: Option[String],
-    geofence: Option[Geofence]
-  )
+    geofenceX: Option[Double],
+    geofenceY: Option[Double],
+    geofenceRadius: Option[Double]
+  ) {
+    def toGeofence: Option[Geofence] = {
+      if(geofenceX.isDefined && geofenceY.isDefined && geofenceRadius.isDefined){
+        Some(Geofence(geofenceX.get,geofenceY.get,geofenceRadius.get))
+      }else{
+        None
+      }
+    }
+
+  }
 
   /**
     * Get description of fields written to the output files.
@@ -314,7 +329,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor {
 }
 
 case class Geofence(
-  geofenceX: Option[Double],
-  geofenceY: Option[Double],
-  geofenceRadius: Option[Double]
+  geofenceX: Double,
+  geofenceY: Double,
+  geofenceRadius: Double
 )

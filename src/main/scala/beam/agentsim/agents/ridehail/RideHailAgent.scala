@@ -223,7 +223,7 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.Offline): starting shift {}", id)
       rideHailManager ! NotifyVehicleIdle(
         vehicle.id,
-        vehicle.spaceTime,
+        vehicle.spaceTime.copy(time = tick),
         PassengerSchedule(),
         vehicle.getState,
         Some(triggerId)
