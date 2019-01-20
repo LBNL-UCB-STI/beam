@@ -145,13 +145,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       )
 
       data.passengerSchedule.schedule(currentLeg).alighters.foreach { pv =>
-        beamServices.personRefs.get(pv.personId).foreach { personRef =>
-          logDebug(s"Scheduling AlightVehicleTrigger for Person $personRef")
-          scheduler ! ScheduleTrigger(
-            AlightVehicleTrigger(tick, data.currentVehicle.head),
-            personRef
-          )
-        }
+        logDebug(s"Scheduling AlightVehicleTrigger for Person $pv.personRef")
+        scheduler ! ScheduleTrigger(
+          AlightVehicleTrigger(tick, data.currentVehicle.head),
+          pv.personRef
+        )
       }
 
       processLinkEvents(data.currentVehicle.head, currentLeg)
@@ -401,7 +399,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           .map { personVehicle =>
             ScheduleTrigger(
               BoardVehicleTrigger(tick, data.currentVehicle.head),
-              beamServices.personRefs(personVehicle.personId)
+              personVehicle.personRef
             )
           }
           .toVector

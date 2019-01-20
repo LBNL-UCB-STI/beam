@@ -1,15 +1,11 @@
 package beam.agentsim.agents.ridehail
 
-import akka.actor.ActorRef
-import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.Config
-import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.Person
 import org.matsim.core.controler.MatsimServices
 import org.matsim.core.utils.misc.Time
 import org.mockito.Mockito._
@@ -17,15 +13,12 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{Matchers, WordSpecLike}
 
 import scala.collection.JavaConverters._
-import scala.collection.concurrent.TrieMap
 import scala.util.Random
 
 class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with MockitoSugar {
 
   val testConfigFileName = "test/input/beamville/beam.conf"
   val config: Config = testConfig(testConfigFileName).resolve()
-  val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
-  val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
   lazy val beamConfig: BeamConfig = BeamConfig(config)
   lazy val tazTreeMap: TAZTreeMap = TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.file)
 
@@ -34,7 +27,6 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
     val matsimServices = mock[MatsimServices]
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.personRefs).thenReturn(personRefs)
     when(theServices.tazTreeMap).thenReturn(tazTreeMap)
     val geo = new GeoUtilsImpl(theServices)
     when(theServices.geo).thenReturn(geo)
