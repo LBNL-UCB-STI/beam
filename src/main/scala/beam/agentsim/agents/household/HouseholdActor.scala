@@ -9,7 +9,6 @@ import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.PersonAgent.ActivityStartTrigger
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, VehicleOrToken}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
@@ -168,7 +167,6 @@ object HouseholdActor {
           context.watch(personRef)
 
           schedulerRef ! ScheduleTrigger(InitializeTrigger(0), personRef)
-          beamServices.personRefs += ((person.getId, personRef))
         }
 
         // Pipe my cars through the parking manager

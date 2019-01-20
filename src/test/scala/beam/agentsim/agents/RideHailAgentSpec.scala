@@ -5,12 +5,12 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
-import beam.agentsim.Resource.{NotifyVehicleIdle, ReleaseParkingStall}
+import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent.DrivingInterrupted
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDriving
-import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager}
 import beam.agentsim.agents.ridehail.RideHailAgent._
+import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule, VehiclePersonId}
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
@@ -29,7 +29,6 @@ import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
-import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
@@ -60,12 +59,10 @@ class RideHailAgentSpec
   lazy val eventsManager = new EventsManagerImpl()
 
   private val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
-  private val personRefs = TrieMap[Id[Person], ActorRef]()
 
   lazy val services: BeamServices = {
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.beamConfig).thenReturn(config)
-    when(theServices.personRefs).thenReturn(personRefs)
     val geo = new GeoUtilsImpl(theServices)
     when(theServices.geo).thenReturn(geo)
     theServices
@@ -119,7 +116,7 @@ class RideHailAgentSpec
           )
         )
         .addPassenger(
-          VehiclePersonId(Id.createVehicleId(1), Id.createPersonId(1)),
+          VehiclePersonId(Id.createVehicleId(1), Id.createPersonId(1), self),
           Seq(
             BeamLeg(
               38800,
@@ -136,7 +133,6 @@ class RideHailAgentSpec
             )
           )
         )
-      personRefs.put(Id.createPersonId(1), self) // I will mock the passenger
       rideHailAgent ! Interrupt(Id.create("1", classOf[Interrupt]), 30000)
       expectMsgClass(classOf[InterruptedWhileIdle])
       //expectMsg(InterruptedWhileIdle(_,_))

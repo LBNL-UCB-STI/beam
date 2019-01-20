@@ -506,7 +506,7 @@ class RideHailManager(
           request.customer.personId,
           request.requestId
         )
-        request.customer.personRef.get ! RideHailResponse(
+        request.customer.personRef ! RideHailResponse(
           request,
           None,
           Some(CouldNotFindRouteToCustomer)
@@ -533,7 +533,7 @@ class RideHailManager(
         )
         travelProposalCache.put(request.requestId.toString, travelProposal)
 
-        request.customer.personRef.get ! RideHailResponse(request, Some(travelProposal))
+        request.customer.personRef ! RideHailResponse(request, Some(travelProposal))
       }
       inquiryIdToInquiryAndResponse.remove(request.requestId)
       responses.foreach(rResp => routeRequestIdToRideHailRequestId.remove(rResp.requestId))
@@ -745,7 +745,7 @@ class RideHailManager(
     rideHailResourceAllocationManager.respondToInquiry(inquiry) match {
       case NoVehiclesAvailable =>
         log.debug("{} -- NoVehiclesAvailable", inquiry.requestId)
-        inquiry.customer.personRef.get ! RideHailResponse(inquiry, None, Some(DriverNotFoundError))
+        inquiry.customer.personRef ! RideHailResponse(inquiry, None, Some(DriverNotFoundError))
       case inquiryResponse @ SingleOccupantQuoteAndPoolingInfo(agentLocation, poolingInfo) =>
         inquiryIdToInquiryAndResponse.put(inquiry.requestId, (inquiry, inquiryResponse))
         val routingRequests = createRoutingRequestsToCustomerAndDestination(inquiry.departAt, inquiry, agentLocation)
@@ -873,12 +873,12 @@ class RideHailManager(
 
         if (processBufferedRequestsOnTimeout) {
           modifyPassengerScheduleManager.addTriggersToSendWithCompletion(finalTriggersToSchedule)
-          response.request.customer.personRef.get ! response.copy(triggersToSchedule = Vector())
+          response.request.customer.personRef ! response.copy(triggersToSchedule = Vector())
           response.request.groupedWithOtherRequests.foreach { subReq =>
-            subReq.customer.personRef.get ! response.copy(triggersToSchedule = Vector())
+            subReq.customer.personRef ! response.copy(triggersToSchedule = Vector())
           }
         } else {
-          response.request.customer.personRef.get ! response.copy(
+          response.request.customer.personRef ! response.copy(
             triggersToSchedule = finalTriggersToSchedule
           )
         }
@@ -899,7 +899,7 @@ class RideHailManager(
     rideHailResourceAllocationManager.addRequestToBuffer(request)
 
     if (processBufferedRequestsOnTimeout) {
-      request.customer.personRef.get ! DelayedRideHailResponse
+      request.customer.personRef ! DelayedRideHailResponse
     } else {
       findAllocationsAndProcess(request.departAt)
     }
@@ -1058,11 +1058,11 @@ class RideHailManager(
       modifyPassengerScheduleManager.addTriggerToSendWithCompletion(
         ScheduleTrigger(
           RideHailResponseTrigger(tick, theResponse),
-          request.customer.personRef.get
+          request.customer.personRef
         )
       )
     } else {
-      request.customer.personRef.get ! theResponse
+      request.customer.personRef ! theResponse
     }
     rideHailResourceAllocationManager.removeRequestFromBuffer(request)
   }

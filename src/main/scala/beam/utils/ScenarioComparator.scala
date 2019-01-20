@@ -110,7 +110,6 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
       override var beamRouter: ActorRef = _
-      override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
       override var personHouseholds: Map[Id[Person], Household] = Map()
 
       // TODO Fix me once `TrieMap` is removed
