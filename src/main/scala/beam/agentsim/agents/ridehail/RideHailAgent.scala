@@ -151,9 +151,9 @@ class RideHailAgent(
     with Stash {
 
   val myUnhandled: StateFunction = {
-    case Event(TriggerWithId(StartShiftTrigger(_), _), _) =>
-      stash()
-      stay()
+    case Event(TriggerWithId(StartShiftTrigger(tick), triggerId), _) =>
+      // Wait five minutes
+      stay() replying CompletionNotice(triggerId, Vector(ScheduleTrigger(StartShiftTrigger(tick + 300),self)))
 
     case Event(TriggerWithId(EndShiftTrigger(tick), triggerId), _) =>
       // Wait five minutes
