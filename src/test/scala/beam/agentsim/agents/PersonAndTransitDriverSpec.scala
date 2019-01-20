@@ -3,7 +3,6 @@ package beam.agentsim.agents
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
-import akka.testkit.TestActor.RealMessage
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.PersonTestUtil._
@@ -65,7 +64,7 @@ class PersonAndTransitDriverSpec
         akka.loglevel = debug
         """
           )
-          .withFallback(testConfig("test/input/beamville/beam.conf"))
+          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
     with FunSpecLike
@@ -392,7 +391,7 @@ class PersonAndTransitDriverSpec
             )
           )
         ),
-        requestId = java.util.UUID.randomUUID().hashCode()
+        requestId = 1
       )
 
       personEvents.expectMsgType[ModeChoiceEvent]

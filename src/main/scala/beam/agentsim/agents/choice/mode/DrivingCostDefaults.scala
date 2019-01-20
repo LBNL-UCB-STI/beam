@@ -4,7 +4,6 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.model.{BeamLeg, EmbodiedBeamTrip}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
-import org.matsim.vehicles.Vehicle
 
 /**
   * BEAM

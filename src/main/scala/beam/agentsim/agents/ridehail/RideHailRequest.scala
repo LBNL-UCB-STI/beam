@@ -1,10 +1,8 @@
 package beam.agentsim.agents.ridehail
 
-import java.util.UUID
-
 import beam.agentsim.agents.vehicles.VehiclePersonId
 import beam.router.BeamRouter.Location
-import org.apache.commons.lang.builder.HashCodeBuilder
+import beam.utils.RideHailRequestIdGenerator
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
@@ -17,7 +15,7 @@ case class RideHailRequest(
   destinationUTM: Location,
   asPooled: Boolean = false,
   groupedWithOtherRequests: List[RideHailRequest] = List(),
-  requestId: Int = UUID.randomUUID().hashCode()
+  requestId: Int = RideHailRequestIdGenerator.nextId
 ) {
 
   def addSubRequest(subRequest: RideHailRequest): RideHailRequest =

@@ -6,7 +6,6 @@ import java.util.Properties
 import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
@@ -17,7 +16,7 @@ import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
-import beam.sim.population.{PopulationAdjustment}
+import beam.sim.population.PopulationAdjustment
 import beam.utils._
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
@@ -45,7 +44,6 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
-import scala.util.Try
 
 trait BeamHelper extends LazyLogging {
   private val argsParser = new scopt.OptionParser[Arguments]("beam") {

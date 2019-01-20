@@ -75,7 +75,7 @@ class PersonWithVehicleSharingSpec
         akka.test.timefactor = 2
         """
           )
-          .withFallback(testConfig("test/input/beamville/beam.conf"))
+          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
     with FunSpecLike
@@ -201,7 +201,9 @@ class PersonWithVehicleSharingSpec
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        BeamVehicleType.defaultCarBeamVehicleType
+        None,
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
       vehicle.manager = Some(mockSharedVehicleFleet.ref)
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
@@ -231,7 +233,7 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = embodyRequest.id
+        requestId = 1
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -337,7 +339,9 @@ class PersonWithVehicleSharingSpec
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        BeamVehicleType.defaultCarBeamVehicleType
+        None,
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
       vehicle.manager = Some(mockSharedVehicleFleet.ref)
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
@@ -350,7 +354,7 @@ class PersonWithVehicleSharingSpec
 
       val routingRequest = mockRouter.expectMsgType[RoutingRequest]
       mockRouter.lastSender ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -396,7 +400,7 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = routingRequest.requestId
+        requestId = 1
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -439,7 +443,9 @@ class PersonWithVehicleSharingSpec
       val vehicle2 = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        BeamVehicleType.defaultCarBeamVehicleType
+        None,
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
       vehicle2.manager = Some(mockSharedVehicleFleet.ref)
       (parkingManager ? parkingInquiry(SpaceTime(0.01, 0.01, 61200)))
@@ -453,7 +459,7 @@ class PersonWithVehicleSharingSpec
       val routingRequest2 = mockRouter.expectMsgType[RoutingRequest]
       println(routingRequest2)
       mockRouter.lastSender ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -479,7 +485,7 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = routingRequest.requestId
+        requestId = 1
       )
       val modeChoiceEvent = events.expectMsgType[ModeChoiceEvent]
       assert(modeChoiceEvent.chosenTrip.tripClassifier == CAR)
@@ -493,7 +499,9 @@ class PersonWithVehicleSharingSpec
       val car1 = new BeamVehicle(
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
-        BeamVehicleType.defaultCarBeamVehicleType
+        None,
+        BeamVehicleType.defaultCarBeamVehicleType,
+        None
       )
       car1.manager = Some(mockSharedVehicleFleet.ref)
 
@@ -590,7 +598,7 @@ class PersonWithVehicleSharingSpec
           )
           mockRouter.lastSender ! RoutingResponse(
             Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = java.util.UUID.randomUUID().hashCode()
+            requestId = 1
           )
       }
 
@@ -625,7 +633,7 @@ class PersonWithVehicleSharingSpec
           )
           mockRouter.lastSender ! RoutingResponse(
             Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = java.util.UUID.randomUUID().hashCode()
+            requestId = 1
           )
       }
 
@@ -646,7 +654,7 @@ class PersonWithVehicleSharingSpec
 
       // agent has no car available, so will ask for new route
       mockRouter.expectMsgPF() {
-        case RoutingRequest(_, _, _, _, streetVehicles, _, _, _) =>
+        case RoutingRequest(_, _, _, _, streetVehicles, _, _, _, _) =>
           val body = streetVehicles.find(_.mode == WALK).get
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = BeamLeg(
@@ -663,7 +671,7 @@ class PersonWithVehicleSharingSpec
           )
           mockRouter.lastSender ! RoutingResponse(
             Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = java.util.UUID.randomUUID().hashCode()
+            requestId = 1
           )
       }
 

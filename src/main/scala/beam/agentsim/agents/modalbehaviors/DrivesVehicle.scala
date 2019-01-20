@@ -78,8 +78,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
   protected val parkingManager: ActorRef
   protected val tollCalculator: TollCalculator
   private var tollsAccumulated = 0.0
-  var beamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
-  def currentBeamVehicle = beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
+  protected val beamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
+  protected def currentBeamVehicle = beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
 
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime, toll: Double)
 
@@ -211,7 +211,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 .drop(data.currentLegPassengerScheduleIndex)
                 .head
             val distance =
-              beamServices.geo.distUTMInMeters(stall.locationUTM, nextLeg.travelPath.endPoint.loc)
+              beamServices.geo
+                .distUTMInMeters(stall.locationUTM, beamServices.geo.wgs2Utm(nextLeg.travelPath.endPoint.loc))
             eventsManager
               .processEvent(new ParkEvent(tick, stall, distance, currentBeamVehicle.id)) // nextLeg.endTime -> to fix repeated path traversal
           }

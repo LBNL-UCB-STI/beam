@@ -9,6 +9,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.{BeamVehicle, BicycleFactory}
+import beam.agentsim.vehicleId2BeamVehicleId
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
@@ -104,10 +105,13 @@ class Population(
               .asInstanceOf[Double]
           )
 
-          val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = household.getVehicleIds.asScala.map { vid =>
-            val bvid = BeamVehicle.createId(vid)
-            bvid -> beamServices.privateVehicles(bvid)
-          }.toMap
+          val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
+            .collectionAsScalaIterable(household.getVehicleIds)
+            .map { vid =>
+              val bvid = BeamVehicle.createId(vid)
+              bvid -> beamServices.privateVehicles(bvid)
+            }
+            .toMap
           val householdActor = context.actorOf(
             HouseholdActor.props(
               beamServices,

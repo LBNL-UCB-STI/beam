@@ -67,7 +67,7 @@ class PersonAgentSpec
         akka.loglevel = debug
         """
           )
-          .withFallback(testConfig("test/input/beamville/beam.conf"))
+          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
     with FunSpecLike
@@ -528,7 +528,7 @@ class PersonAgentSpec
             )
           )
         ),
-        requestId = java.util.UUID.randomUUID().hashCode()
+        requestId = 1
       )
 
       events.expectMsgType[ModeChoiceEvent]

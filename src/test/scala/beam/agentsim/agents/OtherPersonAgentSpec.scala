@@ -64,7 +64,7 @@ class OtherPersonAgentSpec
   akka.log-dead-letters = 10
   akka.actor.debug.fsm = true
   akka.loglevel = debug
-  """).withFallback(testConfig("test/input/beamville/beam.conf"))
+  """).withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
     with FunSpecLike
@@ -367,7 +367,7 @@ class OtherPersonAgentSpec
             )
           )
         ),
-        java.util.UUID.randomUUID().hashCode()
+        requestId = 1
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -428,7 +428,7 @@ class OtherPersonAgentSpec
             )
           )
         ),
-        java.util.UUID.randomUUID().hashCode()
+        1
       )
       expectMsgType[ModeChoiceEvent]
 

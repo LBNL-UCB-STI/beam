@@ -228,7 +228,7 @@ trait ChoosesParking extends {
         restOfCurrentTrip = newRestOfTrip.toList,
         passengerSchedule = newPassengerSchedule,
         currentLegPassengerScheduleIndex = 0,
-        currentVehicle = newVehicle
+        currentVehicle = newVehicle,
       )
   }
 
