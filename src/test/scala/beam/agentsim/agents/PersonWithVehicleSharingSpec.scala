@@ -230,7 +230,7 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = java.util.UUID.randomUUID().hashCode()
+        requestId = 1
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -397,7 +397,7 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = java.util.UUID.randomUUID().hashCode()
+        requestId = 1
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -482,7 +482,7 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = java.util.UUID.randomUUID().hashCode()
+        requestId = 1
       )
       val modeChoiceEvent = events.expectMsgType[ModeChoiceEvent]
       assert(modeChoiceEvent.chosenTrip.tripClassifier == CAR)
@@ -595,7 +595,7 @@ class PersonWithVehicleSharingSpec
           )
           mockRouter.lastSender ! RoutingResponse(
             Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = java.util.UUID.randomUUID().hashCode()
+            requestId = 1
           )
       }
 
@@ -630,7 +630,7 @@ class PersonWithVehicleSharingSpec
           )
           mockRouter.lastSender ! RoutingResponse(
             Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = java.util.UUID.randomUUID().hashCode()
+            requestId = 1
           )
       }
 
@@ -668,7 +668,7 @@ class PersonWithVehicleSharingSpec
           )
           mockRouter.lastSender ! RoutingResponse(
             Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = java.util.UUID.randomUUID().hashCode()
+            requestId = 1
           )
       }
 

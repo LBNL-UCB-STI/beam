@@ -530,7 +530,7 @@ class PersonAgentSpec
             )
           )
         ),
-        requestId = java.util.UUID.randomUUID().hashCode()
+        requestId = 1
       )
 
       events.expectMsgType[ModeChoiceEvent]

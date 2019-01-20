@@ -368,7 +368,7 @@ class OtherPersonAgentSpec
             )
           )
         ),
-        java.util.UUID.randomUUID().hashCode()
+        requestId = 1
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -429,7 +429,7 @@ class OtherPersonAgentSpec
             )
           )
         ),
-        java.util.UUID.randomUUID().hashCode()
+        1
       )
       expectMsgType[ModeChoiceEvent]
 

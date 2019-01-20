@@ -200,7 +200,7 @@ class PersonWithCarPlanSpec
             )
           )
         ),
-        requestId = java.util.UUID.randomUUID().hashCode()
+        requestId = 1
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -329,7 +329,7 @@ class PersonWithCarPlanSpec
             )
             lastSender ! RoutingResponse(
               Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-              requestId = java.util.UUID.randomUUID().hashCode()
+              requestId = 1
             )
         }
       }

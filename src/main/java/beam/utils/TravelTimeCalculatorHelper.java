@@ -1,5 +1,6 @@
 package beam.utils;
 
+import beam.utils.logging.ExponentialLoggerWrapperImpl;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.population.Person;
@@ -18,6 +19,7 @@ public class TravelTimeCalculatorHelper {
 
         private final Map<Id<Link>, double[]> _linkIdToTravelTimeArray;
         private final int _timeBinSizeInSeconds;
+        private int numWarnings = 0;
 
         public TravelTimePerHour(int timeBinSizeInSeconds, Map<String, double[]> linkIdToTravelTimeData) {
             _timeBinSizeInSeconds = timeBinSizeInSeconds;
@@ -32,13 +34,17 @@ public class TravelTimeCalculatorHelper {
             Id<Link> linkId = link.getId();
             double[] timePerHour = _linkIdToTravelTimeArray.get(linkId);
             if (null == timePerHour){
-                log.warn("Can't find travel times for link '{}'", linkId);
+                if(ExponentialLoggerWrapperImpl.isNumberPowerOfTwo(++numWarnings)){
+                    log.warn("Can't find travel times for link '{}'", linkId);
+                }
                 return link.getFreespeed();
             }
             int idx = getOffset(time);
             if (idx >= timePerHour.length) {
-                log.warn("Got offset which is out of array for the link {}. Something wrong. idx: {}, time: {},  _timeBinSizeInSeconds: '{}'",
-                        linkId, idx, time, _timeBinSizeInSeconds);
+                if(ExponentialLoggerWrapperImpl.isNumberPowerOfTwo(++numWarnings)) {
+                    log.warn("Got offset which is out of array for the link {}. Something wrong. idx: {}, time: {},  _timeBinSizeInSeconds: '{}'",
+                            linkId, idx, time, _timeBinSizeInSeconds);
+                }
                 return link.getFreespeed();
             }
             return timePerHour[idx];
