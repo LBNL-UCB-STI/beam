@@ -108,7 +108,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     private void preparePhysSimForNewIteration() {
         jdeqsimPopulation = PopulationUtils.createPopulation(agentSimScenario.getConfig());
-            }
+    }
 
 
     private void setupActorsAndRunPhysSim(int iterationNumber) {
@@ -179,9 +179,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(links,
                 travelTimes, maxHour);
 
-        if(beamConfig.beam().routing().startingIterationForTravelTimesMSA() >= iterationNumber){
+        Integer startingIterationForTravelTimesMSA = beamConfig.beam().routing().startingIterationForTravelTimesMSA();
+        if(startingIterationForTravelTimesMSA <= iterationNumber){
             map = processTravelTime(links, map, maxHour);
-            travelTimes = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), map);
+            travelTimes = previousTravelTime;
         }
 
         router.tell(new BeamRouter.TryToSerialize(map), ActorRef.noSender());
@@ -371,15 +372,17 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     ////
     public Map<String, double[]> processTravelTime(Collection<? extends Link> links, Map<String, double[]> currentTravelTimeMap, int maxHour){
-
-        TravelTime currentTravelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), currentTravelTimeMap);
+        int binSize = beamConfig.beam().agentsim().timeBinSize();
+        TravelTime currentTravelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(binSize, currentTravelTimeMap);
 
         if(previousTravelTime == null){
             previousTravelTime = currentTravelTime;
             return currentTravelTimeMap;
         }else{
             Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeAvgArray(links, currentTravelTime, previousTravelTime, maxHour);
-            previousTravelTime = currentTravelTime;
+            TravelTime averageTravelTimes = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(binSize, map);
+
+            previousTravelTime = averageTravelTimes;
             return map;
         }
     }
