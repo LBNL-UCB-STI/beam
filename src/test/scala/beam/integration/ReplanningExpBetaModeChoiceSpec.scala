@@ -64,7 +64,7 @@ class ReplanningExpBetaModeChoiceSpec
       it5PlansCount should be < it10PlansCount
     }
 
-    "increase test scores over iterations" in {
+    "increase test scores over iterations" ignore {
       val allAvgAvg = Range(0, 25).map(getAvgAvgScore(_).get)
       val lowestOfFirst10 = allAvgAvg.take(15).min
       val avgOfLast5 = allAvgAvg.takeRight(5).sum / 5
