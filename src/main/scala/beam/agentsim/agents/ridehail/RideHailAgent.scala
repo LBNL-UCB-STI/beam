@@ -153,11 +153,11 @@ class RideHailAgent(
   val myUnhandled: StateFunction = {
     case Event(TriggerWithId(StartShiftTrigger(tick), triggerId), _) =>
       // Wait five minutes
-      stay() replying CompletionNotice(triggerId, Vector(ScheduleTrigger(StartShiftTrigger(tick + 300),self)))
+      stay() replying CompletionNotice(triggerId, Vector(ScheduleTrigger(StartShiftTrigger(tick + 300), self)))
 
     case Event(TriggerWithId(EndShiftTrigger(tick), triggerId), _) =>
       // Wait five minutes
-      stay() replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndShiftTrigger(tick + 300),self)))
+      stay() replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndShiftTrigger(tick + 300), self)))
 
     case ev @ Event(TriggerWithId(EndLegTrigger(_), triggerId), _) =>
       log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
@@ -232,7 +232,7 @@ class RideHailAgent(
         vehicle.getState,
         Some(triggerId)
       )
-      if(tick > 40000){
+      if (tick > 40000) {
         val i = 0
       }
       holdTickAndTriggerId(tick, triggerId)
