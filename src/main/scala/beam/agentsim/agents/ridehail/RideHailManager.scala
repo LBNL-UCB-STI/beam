@@ -187,6 +187,7 @@ object RideHailManager {
 }
 
 class RideHailManager(
+  val id: Id[RideHailManager],
   val beamServices: BeamServices,
   val transportNetwork: TransportNetwork,
   val tollCalculator: TollCalculator,
@@ -972,8 +973,8 @@ class RideHailManager(
       )
     RideHailAgentInputData(
       id = rideHailBeamVehicle.id.toString,
-      rideHailManagerId = "",
-      vehicleType = rideHailBeamVehicle.beamVehicleType.toString,
+      rideHailManagerId = id.toString,
+      vehicleType = rideHailBeamVehicle.beamVehicleType.id.toString,
       initialLocationX = rideInitialLocation.getX,
       initialLocationY = rideInitialLocation.getY,
       shifts = shifts,

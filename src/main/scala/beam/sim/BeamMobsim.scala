@@ -27,7 +27,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.Activity
-import org.matsim.api.core.v01.{Coord, Scenario}
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.utils.misc.Time
@@ -104,6 +104,7 @@ class BeamMobsim @Inject()(
         private val rideHailManager = context.actorOf(
           Props(
             new RideHailManager(
+              Id.create("GlobalRHM",classOf[RideHailManager]),
               beamServices,
               transportNetwork,
               tollCalculator,
