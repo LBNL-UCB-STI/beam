@@ -126,7 +126,7 @@ class RideHailFleetInitializer extends LazyLogging {
     * @param beamServices beam services isntance
     * @param fleetData data to be written
     */
-  def writeFleetData(beamServices: BeamServices, fleetData: Seq[FleetData]): Unit = {
+  def writeFleetData(beamServices: BeamServices, fleetData: Seq[RideHailAgentInputData]): Unit = {
     try {
       if (beamServices.matsimServices == null || beamServices.matsimServices.getControlerIO == null) return
       val filePath = beamServices.matsimServices.getControlerIO
