@@ -134,9 +134,7 @@ class PersonWithCarPlanSpec
       val beamVehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        None,
-        BeamVehicleType.defaultCarBeamVehicleType,
-        None
+        BeamVehicleType.defaultCarBeamVehicleType
       )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -259,16 +257,12 @@ class PersonWithCarPlanSpec
       val car1 = new BeamVehicle(
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
-        None,
-        BeamVehicleType.defaultCarBeamVehicleType,
-        None
+        BeamVehicleType.defaultCarBeamVehicleType
       )
       val car2 = new BeamVehicle(
         Id.createVehicleId("car-2"),
         new Powertrain(0.0),
-        None,
-        BeamVehicleType.defaultCarBeamVehicleType,
-        None
+        BeamVehicleType.defaultCarBeamVehicleType
       )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -361,9 +355,7 @@ class PersonWithCarPlanSpec
       val beamVehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        None,
-        BeamVehicleType.defaultCarBeamVehicleType,
-        None
+        BeamVehicleType.defaultCarBeamVehicleType
       )
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
