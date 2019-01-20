@@ -281,7 +281,7 @@ object VehiclesDataConversion extends App {
       Seq(vehicle \@ "id", vehicle \@ "type")
     }
     val beamVehiclesPath = new File(
-"/Users/sfeygi/current_code/scala/projects/beam_competitions/fixed-data/sioux_faux/sample/15k/vehicles.csv"
+"/Users/sfeygi/current_code/scala/projects/beam_competitions/fixed-data/sioux_faux/sample/1k/vehicles.csv"
     ).toString
     writeCsvFile(beamVehiclesPath, vehicles, beamVehicleTitles)
     vehicles
