@@ -57,7 +57,9 @@ object ModeIncentive {
   object Incentive {
 
     def apply(mode: String, age: String, income: String, amount: String): Incentive = new Incentive(
-      BeamMode.fromString(mode),
+      if(mode.equals("OnDemand_ride")){
+        BeamMode.RIDE_HAIL
+      }else{BeamMode.fromString(mode)},
       Range(age),
       Range(income),
       Try(amount.toDouble).getOrElse(0D)
