@@ -25,7 +25,6 @@ object BeamVehicleUtils {
     new BeamVehicle(
       beamVehicleId,
       powertrain,
-      None,
       bvt
     )
   }
@@ -122,7 +121,7 @@ object BeamVehicleUtils {
     val bvId = Id.create(vehicle.getId, classOf[BeamVehicle])
     val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
 
-    val beamVehicle = new BeamVehicle(bvId, powerTrain, None, beamVehicleType)
+    val beamVehicle = new BeamVehicle(bvId, powerTrain, beamVehicleType)
 
     beamVehicle
   }

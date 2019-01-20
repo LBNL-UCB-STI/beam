@@ -108,13 +108,11 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
         )
         override var beamRouter: ActorRef = _
-        override val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
         override val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
         override val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = TrieMap()
         override var personHouseholds: Map[Id[Person], Household] = Map()
-        // TODO Fix me once `TrieMap` is removed
-        val fuelTypePrices: TrieMap[FuelType, Double] =
-          TrieMap(BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toSeq: _*)
+        val fuelTypePrices: Map[FuelType, Double] =
+          BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
 
         // TODO Fix me once `TrieMap` is removed
         val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
@@ -137,7 +135,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override val ptFares: PtFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.file)
         override def startNewIteration(): Unit = throw new Exception("???")
         override def matsimServices_=(x$1: org.matsim.core.controler.MatsimServices): Unit = ???
-        override val rideHailTransitModes = BeamMode.massTransitModes
+        override val rideHailTransitModes: List[BeamMode] = BeamMode.massTransitModes
         override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap =
           beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
 
@@ -743,7 +741,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   EmbodiedBeamLeg(
                     beamLeg,
                     beamLeg.travelPath.transitStops.get.vehicleId,
-                    BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
+                    BeamVehicleType.defaultTransitBeamVehicleType.id,
                     asDriver = false,
                     cost,
                     unbecomeDriverOnCompletion = false

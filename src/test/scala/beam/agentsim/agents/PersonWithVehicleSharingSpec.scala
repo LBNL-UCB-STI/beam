@@ -201,7 +201,6 @@ class PersonWithVehicleSharingSpec
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
       vehicle.manager = Some(mockSharedVehicleFleet.ref)
@@ -224,7 +223,7 @@ class PersonWithVehicleSharingSpec
                   travelPath = embodyRequest.leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
                 ),
                 beamVehicleId = vehicleId,
-                beamVehicleTypeId = vehicle.beamVehicleType.vehicleTypeId,
+                beamVehicleTypeId = vehicle.beamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -338,7 +337,6 @@ class PersonWithVehicleSharingSpec
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
       vehicle.manager = Some(mockSharedVehicleFleet.ref)
@@ -370,7 +368,7 @@ class PersonWithVehicleSharingSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
@@ -390,7 +388,7 @@ class PersonWithVehicleSharingSpec
                   )
                 ),
                 beamVehicleId = vehicle.id,
-                BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -441,7 +439,6 @@ class PersonWithVehicleSharingSpec
       val vehicle2 = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
       vehicle2.manager = Some(mockSharedVehicleFleet.ref)
@@ -474,7 +471,7 @@ class PersonWithVehicleSharingSpec
                   )
                 ),
                 beamVehicleId = vehicle2.id,
-                vehicle2.beamVehicleType.vehicleTypeId,
+                vehicle2.beamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -496,7 +493,6 @@ class PersonWithVehicleSharingSpec
       val car1 = new BeamVehicle(
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
-        None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
       car1.manager = Some(mockSharedVehicleFleet.ref)

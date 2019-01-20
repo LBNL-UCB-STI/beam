@@ -33,7 +33,7 @@ class Population(
   val router: ActorRef,
   val rideHailManager: ActorRef,
   val parkingManager: ActorRef,
-  val sharedVehicleFleets: Vector[ActorRef],
+  val sharedVehicleFleets: Seq[ActorRef],
   val eventsManager: EventsManager
 ) extends Actor
     with ActorLogging {
@@ -104,12 +104,10 @@ class Population(
               .asInstanceOf[Double]
           )
 
-          val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = household.getVehicleIds.asScala
-            .map { vid =>
-              val bvid = BeamVehicle.createId(vid)
-              bvid -> beamServices.privateVehicles(bvid)
-            }
-            .toMap
+          val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = household.getVehicleIds.asScala.map { vid =>
+            val bvid = BeamVehicle.createId(vid)
+            bvid -> beamServices.privateVehicles(bvid)
+          }.toMap
           val householdActor = context.actorOf(
             HouseholdActor.props(
               beamServices,
@@ -186,7 +184,7 @@ object Population {
     router: ActorRef,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
-    sharedVehicleFleets: Vector[ActorRef],
+    sharedVehicleFleets: Seq[ActorRef],
     eventsManager: EventsManager
   ): Props = {
     Props(

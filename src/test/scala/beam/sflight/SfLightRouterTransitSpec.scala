@@ -49,7 +49,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with Lazy
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(origin, time),
             WALK,
             asDriver = true
@@ -85,14 +85,14 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with Lazy
                 Vector(
                   StreetVehicle(
                     Id.createVehicleId("116378-2"),
-                    BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
+                    BeamVehicleType.defaultCarBeamVehicleType.id,
                     new SpaceTime(origin, 0),
                     CAR,
                     asDriver = true
                   ),
                   StreetVehicle(
                     Id.createVehicleId("body-116378-2"),
-                    BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
+                    BeamVehicleType.defaultCarBeamVehicleType.id,
                     new SpaceTime(new Coord(origin.getX, origin.getY), time),
                     WALK,
                     asDriver = true
@@ -126,7 +126,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with Lazy
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(origin, time),
             WALK,
             asDriver = true
@@ -152,7 +152,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with Lazy
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(origin, time),
             WALK,
             asDriver = true

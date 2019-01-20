@@ -38,7 +38,6 @@ import org.matsim.vehicles.Vehicle
 class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
-  val initialMatsimAttributes: Option[ObjectAttributes],
   val beamVehicleType: BeamVehicleType
 ) extends StrictLogging {
 
@@ -161,7 +160,7 @@ class BeamVehicle(
     )
 
   def toStreetVehicle: StreetVehicle =
-    StreetVehicle(id, beamVehicleType.vehicleTypeId, spaceTime, BeamMode.CAR, true)
+    StreetVehicle(id, beamVehicleType.id, spaceTime, BeamMode.CAR, true)
 
 }
 
@@ -171,8 +170,9 @@ object BeamVehicle {
     theString.replaceAll("[\\\\|\\\\^]+", ":")
 
   def createId[A](id: Id[A], prefix: Option[String] = None): Id[BeamVehicle] = {
-    createId(id.toString,prefix)
+    createId(id.toString, prefix)
   }
+
   def createId[A](id: String, prefix: Option[String]): Id[BeamVehicle] = {
     Id.create(s"${prefix.map(_ + "-").getOrElse("")}${id}", classOf[BeamVehicle])
   }

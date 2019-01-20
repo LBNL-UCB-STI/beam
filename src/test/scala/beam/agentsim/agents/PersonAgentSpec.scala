@@ -54,7 +54,6 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 import scala.collection.concurrent.TrieMap
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
-import org.mockito.ArgumentMatchers._
 
 class PersonAgentSpec
     extends TestKit(
@@ -252,19 +251,18 @@ class PersonAgentSpec
           new Coord(0.0, 0.0)
         )
       )
-      val personActor = householdActor.getSingleChild(person.getId.toString)
 
       scheduler ! StartSchedule(0)
 
       // The agent will ask for a ride, and we will answer.
       val inquiry = expectMsgType[RideHailRequest]
-      personActor ! RideHailResponse(inquiry, None, None)
+      lastSender ! RideHailResponse(inquiry, None, None)
 
       // This is the ridehail to transit request.
       // We don't provide an option.
       val request1 = expectMsgType[RoutingRequest]
       assert(request1.streetVehiclesUseIntermodalUse == AccessAndEgress)
-      personActor ! RoutingResponse(
+      lastSender ! RoutingResponse(
         itineraries = Vector(),
         requestId = request1.requestId
       )
@@ -273,8 +271,8 @@ class PersonAgentSpec
       // We provide an option.
       val request2 = expectMsgType[RoutingRequest]
       assert(request2.streetVehiclesUseIntermodalUse == Access)
-      personActor ! RoutingResponse(
-        Vector(
+      lastSender ! RoutingResponse(
+        itineraries = Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -292,7 +290,7 @@ class PersonAgentSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultHumanBodyBeamVehicleType.vehicleTypeId,
+                BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -342,14 +340,12 @@ class PersonAgentSpec
       val bus = new BeamVehicle(
         id = busId,
         powerTrain = new Powertrain(0.0),
-        initialMatsimAttributes = None,
         beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
       )
       val tramId = Id.createVehicleId("my_tram")
       val tram = new BeamVehicle(
         id = tramId,
         powerTrain = new Powertrain(0.0),
-        initialMatsimAttributes = None,
         beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
       )
 
@@ -371,7 +367,7 @@ class PersonAgentSpec
           )
         ),
         beamVehicleId = busId,
-        BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
+        BeamVehicleType.defaultTransitBeamVehicleType.id,
         asDriver = false,
         cost = 2.75,
         unbecomeDriverOnCompletion = false
@@ -391,7 +387,7 @@ class PersonAgentSpec
           )
         ),
         beamVehicleId = busId,
-        BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
+        BeamVehicleType.defaultTransitBeamVehicleType.id,
         asDriver = false,
         cost = 0.0,
         unbecomeDriverOnCompletion = false
@@ -411,7 +407,7 @@ class PersonAgentSpec
           )
         ),
         beamVehicleId = tramId,
-        BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
+        BeamVehicleType.defaultTransitBeamVehicleType.id,
         asDriver = false,
         cost = 1.0, // $1 fare
         unbecomeDriverOnCompletion = false
@@ -478,10 +474,10 @@ class PersonAgentSpec
           homeCoord = new Coord(0.0, 0.0)
         )
       )
-      val personActor = householdActor.getSingleChild(person.getId.toString)
       scheduler ! StartSchedule(0)
 
       expectMsgType[RoutingRequest]
+      val personActor = lastSender
       lastSender ! RoutingResponse(
         itineraries = Vector(
           EmbodiedBeamTrip(
@@ -501,7 +497,7 @@ class PersonAgentSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
@@ -524,7 +520,7 @@ class PersonAgentSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false

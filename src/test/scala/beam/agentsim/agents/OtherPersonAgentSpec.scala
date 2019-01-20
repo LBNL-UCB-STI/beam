@@ -146,13 +146,11 @@ class OtherPersonAgentSpec
       val bus = new BeamVehicle(
         beamVehicleId,
         new Powertrain(0.0),
-        None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
       val tram = new BeamVehicle(
         Id.createVehicleId("my_tram"),
         new Powertrain(0.0),
-        None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
 
@@ -174,7 +172,7 @@ class OtherPersonAgentSpec
           )
         ),
         Id.createVehicleId("my_bus"),
-        BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
+        BeamVehicleType.defaultCarBeamVehicleType.id,
         asDriver = false,
         0,
         unbecomeDriverOnCompletion = false
@@ -194,7 +192,7 @@ class OtherPersonAgentSpec
           )
         ),
         Id.createVehicleId("my_bus"),
-        BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
+        BeamVehicleType.defaultCarBeamVehicleType.id,
         asDriver = false,
         0,
         unbecomeDriverOnCompletion = false
@@ -214,7 +212,7 @@ class OtherPersonAgentSpec
           )
         ),
         Id.createVehicleId("my_tram"),
-        BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
+        BeamVehicleType.defaultCarBeamVehicleType.id,
         asDriver = false,
         0,
         unbecomeDriverOnCompletion = false
@@ -234,7 +232,7 @@ class OtherPersonAgentSpec
           )
         ),
         Id.createVehicleId("my_tram"),
-        BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
+        BeamVehicleType.defaultCarBeamVehicleType.id,
         asDriver = false,
         0,
         unbecomeDriverOnCompletion = false
@@ -305,10 +303,10 @@ class OtherPersonAgentSpec
           new Coord(0.0, 0.0)
         )
       )
-      val personActor = householdActor.getSingleChild(person.getId.toString)
       scheduler ! StartSchedule(0)
 
       expectMsgType[RoutingRequest]
+      val personActor = lastSender
 
       scheduler ! ScheduleTrigger(
         BoardVehicleTrigger(28800, busLeg.beamVehicleId),
@@ -338,7 +336,7 @@ class OtherPersonAgentSpec
                   )
                 ),
                 Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultHumanBodyBeamVehicleType.vehicleTypeId,
+                BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
                 asDriver = true,
                 0,
                 unbecomeDriverOnCompletion = false
@@ -361,7 +359,7 @@ class OtherPersonAgentSpec
                   )
                 ),
                 Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultHumanBodyBeamVehicleType.vehicleTypeId,
+                BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
                 asDriver = true,
                 0,
                 unbecomeDriverOnCompletion = false
@@ -422,7 +420,7 @@ class OtherPersonAgentSpec
                   )
                 ),
                 Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultHumanBodyBeamVehicleType.vehicleTypeId,
+                BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
                 asDriver = true,
                 0,
                 unbecomeDriverOnCompletion = false

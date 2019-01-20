@@ -8,6 +8,7 @@ import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.choice.mode.PtFares
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.integration.IntegrationSpecCommon
@@ -18,6 +19,7 @@ import beam.router.gtfs.FareCalculator.BeamFareSegment
 import beam.router.model.RoutingModel
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
+import beam.sim.BeamServices.readFuelTypeFile
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
@@ -93,6 +95,8 @@ class WarmStartRoutingSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
+    when(services.vehicleTypes).thenReturn(TrieMap[Id[BeamVehicleType], BeamVehicleType]())
+    when(services.fuelTypePrices).thenReturn(Map[FuelType, Double]().withDefaultValue(0.0))
     var networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
@@ -174,7 +178,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -196,7 +200,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -230,7 +234,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -251,7 +255,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -282,7 +286,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -302,7 +306,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -328,7 +332,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -360,7 +364,7 @@ class WarmStartRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(origin, time),
             Modes.BeamMode.CAR,
             asDriver = true

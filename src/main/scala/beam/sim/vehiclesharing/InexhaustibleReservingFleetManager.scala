@@ -17,7 +17,9 @@ import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.Id
 
-class InexhaustibleReservingVehicleFleet(val parkingManager: ActorRef) extends Actor with ActorLogging {
+private[vehiclesharing] class InexhaustibleReservingFleetManager(val parkingManager: ActorRef)
+    extends Actor
+    with ActorLogging {
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
@@ -30,7 +32,6 @@ class InexhaustibleReservingVehicleFleet(val parkingManager: ActorRef) extends A
       val vehicle = new BeamVehicle(
         Id.createVehicleId("inexhaustible-shared-vehicle-fleet-" + nextVehicleIndex),
         new Powertrain(0.0),
-        None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
       nextVehicleIndex += 1

@@ -52,11 +52,9 @@ trait BeamServices {
   val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)]
   var personHouseholds: Map[Id[Person], Household]
 
-  val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
-
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
   val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType]
-  val fuelTypePrices: TrieMap[FuelType, Double]
+  val fuelTypePrices: Map[FuelType, Double]
 
   var matsimServices: MatsimServices
   val tazTreeMap: TAZTreeMap
@@ -88,6 +86,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
         .split(",")
         .map(BeamMode.fromString)
         .toSeq
+        .flatten
     }
 
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
@@ -95,17 +94,14 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   var rideHailIterationHistoryActor: ActorRef = _
   val personRefs: TrieMap[Id[Person], ActorRef] = TrieMap()
 
-  val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap()
-
   val agencyAndRouteByVehicleIds: TrieMap[
     Id[Vehicle],
     (String, String)
   ] = TrieMap()
   var personHouseholds: Map[Id[Person], Household] = Map()
 
-  // TODO Fix me once `TrieMap` is removed
-  val fuelTypePrices: TrieMap[FuelType, Double] =
-    TrieMap(readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toSeq: _*)
+  val fuelTypePrices: Map[FuelType, Double] =
+    readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
 
   // TODO Fix me once `TrieMap` is removed
   val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
@@ -161,6 +157,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
       case None => vehicleTypes
     }
   }
+
 }
 
 object BeamServices {
@@ -215,7 +212,7 @@ object BeamServices {
 
         val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
-        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType)
+        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, vehicleType)
         acc += ((vehicleId, beamVehicle))
         acc
     }
@@ -238,8 +235,7 @@ object BeamServices {
     val vehicleTypes =
       readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicleType], BeamVehicleType]()) {
         case (line: util.Map[String, String], z) =>
-          val vIdString = line.get("vehicleTypeId")
-          val vehicleTypeId = Id.create(vIdString, classOf[BeamVehicleType])
+          val vehicleTypeId = Id.create(line.get("vehicleTypeId"), classOf[BeamVehicleType])
           val seatingCapacity = line.get("seatingCapacity").trim.toInt
           val standingRoomCapacity = line.get("standingRoomCapacity").trim.toInt
           val lengthInMeter = line.get("lengthInMeter").trim.toDouble
@@ -260,7 +256,7 @@ object BeamServices {
           val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
 
           val bvt = BeamVehicleType(
-            Id.create(vIdString, classOf[BeamVehicleType]),
+            vehicleTypeId,
             seatingCapacity,
             standingRoomCapacity,
             lengthInMeter,

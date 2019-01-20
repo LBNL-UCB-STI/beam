@@ -14,14 +14,14 @@ import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, Releasi
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.events._
+import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.infrastructure.ParkingManager.ParkingInquiryResponse
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, NO_MODE, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
@@ -56,7 +56,7 @@ object PersonAgent {
     personId: Id[PersonAgent],
     household: Household,
     plan: Plan,
-    sharedVehicleFleets: Vector[ActorRef]
+    sharedVehicleFleets: Seq[ActorRef]
   ): Props = {
     Props(
       new PersonAgent(
@@ -186,7 +186,7 @@ class PersonAgent(
   val matsimPlan: Plan,
   val parkingManager: ActorRef,
   val tollCalculator: TollCalculator,
-  val sharedVehicleFleets: Vector[ActorRef] = Vector()
+  val sharedVehicleFleets: Seq[ActorRef] = Vector()
 ) extends DrivesVehicle[PersonData]
     with ChoosesMode
     with ChoosesParking
@@ -195,7 +195,6 @@ class PersonAgent(
   val body = new BeamVehicle(
     BeamVehicle.createId(id, Some("body")),
     BeamVehicleType.powerTrainForHumanBody,
-    None,
     BeamVehicleType.defaultHumanBodyBeamVehicleType
   )
   body.manager = Some(self)
@@ -298,12 +297,7 @@ class PersonAgent(
                 _experiencedBeamPlan.getPlanElements
                   .get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
                   case leg: Leg =>
-                    BeamMode.fromString(leg.getMode) match {
-                      case NO_MODE =>
-                        None
-                      case anyOther: BeamMode =>
-                        Some(anyOther)
-                    }
+                    BeamMode.fromString(leg.getMode)
                   case _ => None
                 }
               )

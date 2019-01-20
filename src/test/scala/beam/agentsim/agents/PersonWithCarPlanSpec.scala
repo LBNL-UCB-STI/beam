@@ -16,7 +16,7 @@ import beam.agentsim.events._
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerProps, StartSchedule}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
@@ -134,7 +134,6 @@ class PersonWithCarPlanSpec
       val beamVehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
 
@@ -179,13 +178,12 @@ class PersonWithCarPlanSpec
           )
         )
       )
-      val personActor = householdActor.getSingleChild(person.getId.toString)
 
       scheduler ! StartSchedule(0)
 
       // The agent will ask for current travel times for a route it already knows.
       val embodyRequest = expectMsgType[EmbodyWithCurrentTravelTime]
-      personActor ! RoutingResponse(
+      lastSender ! RoutingResponse(
         Vector(
           EmbodiedBeamTrip(
             legs = Vector(
@@ -195,7 +193,7 @@ class PersonWithCarPlanSpec
                   travelPath = embodyRequest.leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
                 ),
                 beamVehicleId = vehicleId,
-                BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -259,13 +257,11 @@ class PersonWithCarPlanSpec
       val car1 = new BeamVehicle(
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
-        None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
       val car2 = new BeamVehicle(
         Id.createVehicleId("car-2"),
         new Powertrain(0.0),
-        None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
 
@@ -323,7 +319,7 @@ class PersonWithCarPlanSpec
                 travelPath = leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
               ),
               beamVehicleId = vehicleId,
-              BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
+              BeamVehicleType.defaultTransitBeamVehicleType.id,
               asDriver = true,
               cost = 0.0,
               unbecomeDriverOnCompletion = true
@@ -359,7 +355,6 @@ class PersonWithCarPlanSpec
       val beamVehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        None,
         BeamVehicleType.defaultCarBeamVehicleType
       )
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -401,12 +396,10 @@ class PersonWithCarPlanSpec
           new Coord(0.0, 0.0)
         )
       )
-      val personActor = householdActor.getSingleChild(person.getId.toString)
-
       scheduler ! StartSchedule(0)
 
       val routingRequest = expectMsgType[RoutingRequest]
-      personActor ! RoutingResponse(
+      lastSender ! RoutingResponse(
         Vector(
           EmbodiedBeamTrip(
             legs = Vector(
@@ -425,7 +418,7 @@ class PersonWithCarPlanSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
@@ -445,7 +438,7 @@ class PersonWithCarPlanSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("car-1"),
-                BeamVehicleType.defaultTransitBeamVehicleType.vehicleTypeId,
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -453,7 +446,7 @@ class PersonWithCarPlanSpec
             )
           )
         ),
-        requestId = routingRequest.requestId
+        routingRequest.requestId
       )
 
       expectMsgType[ModeChoiceEvent]

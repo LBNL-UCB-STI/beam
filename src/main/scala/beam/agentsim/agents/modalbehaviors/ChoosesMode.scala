@@ -1,6 +1,6 @@
 package beam.agentsim.agents.modalbehaviors
 
-import akka.actor.FSM
+import akka.actor.{ActorRef, FSM}
 import akka.pattern._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{ChoosingMode, _}
@@ -43,7 +43,7 @@ trait ChoosesMode {
   val dummyRHVehicle =
     StreetVehicle(
       Id.create("dummyRH", classOf[Vehicle]),
-      BeamVehicleType.defaultCarBeamVehicleType.vehicleTypeId,
+      BeamVehicleType.defaultCarBeamVehicleType.id,
       SpaceTime(0.0, 0.0, 0),
       CAR,
       asDriver = false
@@ -103,10 +103,15 @@ trait ChoosesMode {
             .sequence(vehicleManagers.map(_ ? MobilityStatusInquiry(currentLocation)))
             .map(
               listOfResponses =>
-                MobilityStatusResponse(listOfResponses.collect {
-                  case MobilityStatusResponse(vehicles) =>
-                    vehicles
-                }.flatten)
+                MobilityStatusResponse(
+                  listOfResponses
+                    .collect {
+                      case MobilityStatusResponse(vehicles) =>
+                        vehicles
+                    }
+                    .flatten
+                    .toVector
+              )
             ) pipeTo self
         // Otherwise, send empty list to self
         case _ =>
@@ -131,7 +136,7 @@ trait ChoosesMode {
 
       val bodyStreetVehicle = StreetVehicle(
         body.id,
-        BeamVehicleType.defaultHumanBodyBeamVehicleType.vehicleTypeId,
+        BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
         currentPersonLocation,
         WALK,
         asDriver = true
@@ -469,7 +474,7 @@ trait ChoosesMode {
             val startLeg = EmbodiedBeamLeg(
               BeamLeg.dummyWalk(trip.legs.head.beamLeg.startTime),
               body.id,
-              BeamVehicleType.defaultHumanBodyBeamVehicleType.vehicleTypeId,
+              BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
               asDriver = true,
               0,
               unbecomeDriverOnCompletion = false
@@ -482,7 +487,7 @@ trait ChoosesMode {
             val endLeg = EmbodiedBeamLeg(
               BeamLeg.dummyWalk(trip.legs.last.beamLeg.endTime),
               body.id,
-              BeamVehicleType.defaultHumanBodyBeamVehicleType.vehicleTypeId,
+              BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
               asDriver = true,
               0,
               unbecomeDriverOnCompletion = true
