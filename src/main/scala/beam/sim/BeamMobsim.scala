@@ -103,7 +103,7 @@ class BeamMobsim @Inject()(
         private val rideHailManager = context.actorOf(
           Props(
             new RideHailManager(
-              Id.create("GlobalRHM",classOf[RideHailManager]),
+              Id.create("GlobalRHM", classOf[RideHailManager]),
               beamServices,
               transportNetwork,
               tollCalculator,

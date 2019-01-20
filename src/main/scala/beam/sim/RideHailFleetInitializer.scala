@@ -40,9 +40,9 @@ class RideHailFleetInitializer extends LazyLogging {
   ): List[RideHailAgentInputData] = {
     try {
       //read csv data from the given file path
-      val bufferedSource: BufferedSource = if(filePath.endsWith(".gz")) {
+      val bufferedSource: BufferedSource = if (filePath.endsWith(".gz")) {
         Source.fromInputStream(new GZIPInputStream(new BufferedInputStream(new FileInputStream(filePath))))
-      }else{
+      } else {
         Source.fromFile(filePath)
       }
       val data = bufferedSource.getLines()
@@ -221,10 +221,11 @@ object RideHailFleetInitializer extends OutputDataDescriptor {
     geofenceY: Option[Double],
     geofenceRadius: Option[Double]
   ) {
+
     def toGeofence: Option[Geofence] = {
-      if(geofenceX.isDefined && geofenceY.isDefined && geofenceRadius.isDefined){
-        Some(Geofence(geofenceX.get,geofenceY.get,geofenceRadius.get))
-      }else{
+      if (geofenceX.isDefined && geofenceY.isDefined && geofenceRadius.isDefined) {
+        Some(Geofence(geofenceX.get, geofenceY.get, geofenceRadius.get))
+      } else {
         None
       }
     }
