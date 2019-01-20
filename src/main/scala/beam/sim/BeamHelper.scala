@@ -17,7 +17,7 @@ import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationAdjustment
-import beam.utils.{NetworkHelper, _}
+import beam.utils._
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
@@ -33,7 +33,6 @@ import org.matsim.core.config.Config
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
-import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.households.Household
@@ -53,7 +52,7 @@ trait BeamHelper extends LazyLogging {
           args.copy(
             config = Some(BeamConfigUtils.parseFileSubstitutingInputDirectory(value)),
             configLocation = Option(value)
-        )
+          )
       )
       .validate(
         value =>
@@ -93,9 +92,9 @@ trait BeamHelper extends LazyLogging {
       .action((value, args) => args.copy(useLocalWorker = Some(value)))
       .text(
         "Boolean determining whether to use a local worker. " +
-        "If cluster is NOT enabled this defaults to true and cannot be false. " +
-        "If cluster is specified then this defaults to false and must be explicitly set to true. " +
-        "NOTE: For cluster, this will ONLY be checked if cluster-type=master"
+          "If cluster is NOT enabled this defaults to true and cannot be false. " +
+          "If cluster is specified then this defaults to false and must be explicitly set to true. " +
+          "NOTE: For cluster, this will ONLY be checked if cluster-type=master"
       )
 
     checkConfig(
@@ -109,9 +108,9 @@ trait BeamHelper extends LazyLogging {
   }
 
   private def updateConfigForClusterUsing(
-    parsedArgs: Arguments,
-    config: TypesafeConfig
-  ): TypesafeConfig = {
+                                           parsedArgs: Arguments,
+                                           config: TypesafeConfig
+                                         ): TypesafeConfig = {
     (for {
       seedAddress <- parsedArgs.seedAddress
       nodeHost    <- parsedArgs.nodeHost
@@ -130,9 +129,9 @@ trait BeamHelper extends LazyLogging {
   }
 
   private def embedSelectArgumentsIntoConfig(
-    parsedArgs: Arguments,
-    config: TypesafeConfig
-  ): TypesafeConfig = {
+                                              parsedArgs: Arguments,
+                                              config: TypesafeConfig
+                                            ): TypesafeConfig = {
     config.withFallback(
       ConfigFactory.parseMap(
         (
@@ -153,17 +152,16 @@ trait BeamHelper extends LazyLogging {
               )
             else Map.empty[String, Any]
           }
-        ).asJava
+          ).asJava
       )
     )
   }
 
   def module(
-    typesafeConfig: TypesafeConfig,
-    scenario: Scenario,
-    networkCoordinator: NetworkCoordinator,
-    networkHelper: NetworkHelper
-  ): com.google.inject.Module =
+              typesafeConfig: TypesafeConfig,
+              scenario: Scenario,
+              networkCoordinator: NetworkCoordinator
+            ): com.google.inject.Module =
     AbstractModule.`override`(
       ListBuffer(new AbstractModule() {
         override def install(): Unit = {
@@ -184,8 +182,6 @@ trait BeamHelper extends LazyLogging {
         mapper.registerModule(DefaultScalaModule)
 
         override def install(): Unit = {
-          // This code will be executed 3 times due to this https://github.com/LBNL-UCB-STI/matsim/blob/master/matsim/src/main/java/org/matsim/core/controler/Injector.java#L99:L101
-          // createMapBindingsForType is called 3 times. Be careful not to do expensive operations here
           val beamConfig = BeamConfig(typesafeConfig)
 
           bind(classOf[BeamConfig]).toInstance(beamConfig)
@@ -227,18 +223,28 @@ trait BeamHelper extends LazyLogging {
             )
           )
 
-          bind(classOf[NetworkHelper]).toInstance(networkHelper)
-
           bind(classOf[RideHailIterationHistory]).asEagerSingleton()
           bind(classOf[TollCalculator]).asEagerSingleton()
 
           // Override EventsManager
-          bind(classOf[EventsManager]).to(classOf[EventsManagerImpl]).asEagerSingleton()
+          bind(classOf[EventsManager]).to(classOf[LoggingParallelEventsManager]).asEagerSingleton()
+
         }
       }
     )
 
   def runBeamUsing(args: Array[String], isConfigArgRequired: Boolean = true): Unit = {
+    val (parsedArgs, config) = prepareConfig(args, isConfigArgRequired)
+
+    parsedArgs.clusterType match {
+      case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
+      case _ =>
+        val (_, outputDirectory) = runBeamWithConfig(config)
+        postRunActivity(parsedArgs.configLocation.get, config, outputDirectory)
+    }
+  }
+
+  def prepareConfig(args: Array[String], isConfigArgRequired: Boolean): (Arguments, TypesafeConfig) = {
     val parsedArgs = argsParser.parse(args, init = Arguments()) match {
       case Some(pArgs) => pArgs
       case None =>
@@ -250,21 +256,14 @@ trait BeamHelper extends LazyLogging {
       !isConfigArgRequired || (isConfigArgRequired && parsedArgs.config.isDefined),
       "Please provide a valid configuration file."
     )
-    val configLocation = parsedArgs.configLocation.get
 
-    ConfigConsistencyComparator(configLocation)
+    ConfigConsistencyComparator(parsedArgs.configLocation.get)
 
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
       if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
       else parsedArgs.config.get
     }).resolve()
-
-    parsedArgs.clusterType match {
-      case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
-      case _ =>
-        val (_, outputDirectory) = runBeamWithConfig(config)
-        postRunActivity(configLocation, config, outputDirectory)
-    }
+    (parsedArgs, config)
   }
 
   private def postRunActivity(configLocation: String, config: TypesafeConfig, outputDirectory: String) = {
@@ -275,7 +274,7 @@ trait BeamHelper extends LazyLogging {
     props.store(out, "Simulation out put props.")
     val beamConfig = BeamConfig(config)
     if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
-          .equalsIgnoreCase("ModeChoiceLCCM")) {
+      .equalsIgnoreCase("ModeChoiceLCCM")) {
       Files.copy(
         Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile),
         Paths.get(
@@ -355,7 +354,7 @@ trait BeamHelper extends LazyLogging {
 
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
-      module(config, scenario, networkCoordinator, new NetworkHelperImpl(networkCoordinator.network))
+      module(config, scenario, networkCoordinator)
     )
 
     networkCoordinator.convertFrequenciesToTrips()
@@ -367,7 +366,7 @@ trait BeamHelper extends LazyLogging {
     //
     val beamConfig = beamServices.beamConfig
     var useCSVFiles
-      : Boolean = beamConfig.beam.agentsim.agents.population.beamPopulationDirectory != null && !beamConfig.beam.agentsim.agents.population.beamPopulationDirectory
+    : Boolean = beamConfig.beam.agentsim.agents.population.beamPopulationDirectory != null && !beamConfig.beam.agentsim.agents.population.beamPopulationDirectory
       .isEmpty()
 
     if (useCSVFiles) {
@@ -437,11 +436,11 @@ trait BeamHelper extends LazyLogging {
 
   // sample population (beamConfig.beam.agentsim.numAgents - round to nearest full household)
   def samplePopulation(
-    scenario: MutableScenario,
-    beamConfig: BeamConfig,
-    matsimConfig: Config,
-    beamServices: BeamServices
-  ): Unit = {
+                        scenario: MutableScenario,
+                        beamConfig: BeamConfig,
+                        matsimConfig: Config,
+                        beamServices: BeamServices
+                      ): Unit = {
     if (scenario.getPopulation.getPersons.size() > beamConfig.beam.agentsim.numAgents) {
       val notSelectedHouseholdIds = mutable.Set[Id[Household]]()
       val notSelectedVehicleIds = mutable.Set[Id[Vehicle]]()
@@ -500,14 +499,14 @@ trait BeamHelper extends LazyLogging {
 
 case class MapStringDouble(data: Map[String, Double])
 case class Arguments(
-  configLocation: Option[String] = None,
-  config: Option[TypesafeConfig] = None,
-  clusterType: Option[ClusterType] = None,
-  nodeHost: Option[String] = None,
-  nodePort: Option[String] = None,
-  seedAddress: Option[String] = None,
-  useLocalWorker: Option[Boolean] = None
-) {
+                      configLocation: Option[String] = None,
+                      config: Option[TypesafeConfig] = None,
+                      clusterType: Option[ClusterType] = None,
+                      nodeHost: Option[String] = None,
+                      nodePort: Option[String] = None,
+                      seedAddress: Option[String] = None,
+                      useLocalWorker: Option[Boolean] = None
+                    ) {
   val useCluster: Boolean = clusterType.isDefined
 }
 
