@@ -49,7 +49,7 @@ trait ChoosesMode {
       asDriver = false
     )
 
-  def bodyVehiclePersonId = VehiclePersonId(body.id, id, Some(self))
+  def bodyVehiclePersonId = VehiclePersonId(body.id, id, self)
 
   onTransition {
     case _ -> ChoosingMode =>
