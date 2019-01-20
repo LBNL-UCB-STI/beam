@@ -9,5 +9,4 @@ object TestConfigUtils {
     BeamConfigUtils
       .parseFileSubstitutingInputDirectory(conf)
       .withValue("beam.outputs.baseOutputDirectory", ConfigValueFactory.fromAnyRef(testOutputDir))
-      .resolve()
 }

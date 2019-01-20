@@ -13,7 +13,7 @@ class TollCalculatorSpec extends WordSpecLike {
   "Using beamville as input" when {
     val beamvillePath: Path = Paths.get("test", "input", "beamville", "r5")
     val beamvilleTollCalc =
-      new TollCalculator(BeamConfig(testConfig("test/input/beamville/beam.conf")))
+      new TollCalculator(BeamConfig(testConfig("test/input/beamville/beam.conf").resolve()))
     "calculate toll for a single trunk road, it" should {
       "return value $1." in {
         assert(beamvilleTollCalc.calcTollByOsmIds(Vector(109)) == 1.0)

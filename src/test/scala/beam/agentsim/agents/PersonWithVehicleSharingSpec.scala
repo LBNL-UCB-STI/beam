@@ -75,7 +75,7 @@ class PersonWithVehicleSharingSpec
         akka.test.timefactor = 2
         """
           )
-          .withFallback(testConfig("test/input/beamville/beam.conf"))
+          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
     with FunSpecLike
@@ -654,7 +654,7 @@ class PersonWithVehicleSharingSpec
 
       // agent has no car available, so will ask for new route
       mockRouter.expectMsgPF() {
-        case RoutingRequest(_, _, _, _, streetVehicles, _, _, _) =>
+        case RoutingRequest(_, _, _, _, streetVehicles, _, _, _, _) =>
           val body = streetVehicles.find(_.mode == WALK).get
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = BeamLeg(

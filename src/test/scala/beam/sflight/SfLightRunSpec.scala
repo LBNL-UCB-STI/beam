@@ -10,7 +10,7 @@ import beam.sim.{BeamHelper, BeamServices}
 import beam.tags.{ExcludeRegular, Periodic}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.{Config, ConfigValueFactory}
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.handler.BasicEventHandler
@@ -36,9 +36,12 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
 
   "SF Light" must {
     "run 1k scenario for one iteration and at least one person chooses car mode" in {
-      val config = testConfig("test/input/sf-light/sf-light-1k.conf")
-        .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
-        .withValue("beam.agentsim.lastIteration", ConfigValueFactory.fromAnyRef(0))
+      val config = ConfigFactory
+        .parseString("""
+          |beam.outputs.events.fileOutputFormats = xml
+          |beam.agentsim.lastIteration = 0
+        """.stripMargin)
+        .withFallback(testConfig("test/input/sf-light/sf-light-0.5k.conf"))
         .resolve()
       val configBuilder = new MatSimBeamConfigBuilder(config)
       val matsimConfig = configBuilder.buildMatSamConf()
@@ -47,7 +50,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
 
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-      val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
+      val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
       networkCoordinator.loadNetwork()
       networkCoordinator.convertFrequenciesToTrips()
       scenario.setNetwork(networkCoordinator.network)
@@ -83,6 +86,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
       val totalIterations = configMap.getWithDefault("iterations", "1").toInt
       logger.info(s"Starting test with config [$confPath] and iterations [$totalIterations]")
       val baseConf = testConfig(confPath)
+        .resolve()
         .withValue(LAST_ITER_CONF_PATH, ConfigValueFactory.fromAnyRef(totalIterations - 1))
       baseConf.getInt(LAST_ITER_CONF_PATH) should be(totalIterations - 1)
       val conf = baseConf

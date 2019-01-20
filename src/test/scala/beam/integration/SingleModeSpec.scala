@@ -49,7 +49,7 @@ class SingleModeSpec
           .parseString("""
               akka.test.timefactor = 10
             """)
-          .withFallback(testConfig("test/input/sf-light/sf-light.conf"))
+          .withFallback(testConfig("test/input/sf-light/sf-light.conf").resolve())
       )
     )
     with WordSpecLike
