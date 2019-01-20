@@ -1,6 +1,7 @@
 package beam.sim
 
-import java.io.FileNotFoundException
+import java.io.{BufferedInputStream, FileInputStream, FileNotFoundException}
+import java.util.zip.GZIPInputStream
 
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.sim.RideHailFleetInitializer.RideHailAgentInputData
@@ -9,7 +10,7 @@ import beam.utils.{FileUtils, OutputDataDescriptor}
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.mutable
-import scala.io.Source
+import scala.io.{BufferedSource, Source}
 
 class RideHailFleetInitializer extends LazyLogging {
 
@@ -39,7 +40,11 @@ class RideHailFleetInitializer extends LazyLogging {
   ): List[RideHailAgentInputData] = {
     try {
       //read csv data from the given file path
-      val bufferedSource = Source.fromFile(filePath)
+      val bufferedSource: BufferedSource = if(filePath.endsWith(".gz")) {
+        Source.fromInputStream(new GZIPInputStream(new BufferedInputStream(new FileInputStream(filePath))))
+      }else{
+        Source.fromFile(filePath)
+      }
       val data = bufferedSource.getLines()
       // if the file is empty proceed , else throw an error
       if (data.nonEmpty) {
