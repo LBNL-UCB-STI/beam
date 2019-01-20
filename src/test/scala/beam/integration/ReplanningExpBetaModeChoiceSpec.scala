@@ -26,9 +26,10 @@ class ReplanningExpBetaModeChoiceSpec
     """
       |{
       | matsim.modules.strategy.parameterset = [
-      |   {type = strategysettings, disableAfterIteration = -1, strategyName = SelectExpBeta , weight = 0.8},
       |   {type = strategysettings, disableAfterIteration = -1, strategyName = ClearRoutes , weight = 0.0},
       |   {type = strategysettings, disableAfterIteration = -1, strategyName = ClearModes , weight = 0.2}
+      |   {type = strategysettings, disableAfterIteration = -1, strategyName = TimeMutator , weight = 0.0},
+      |   {type = strategysettings, disableAfterIteration = -1, strategyName = SelectExpBeta , weight = 0.8},
       | ]
       |}
     """.stripMargin
