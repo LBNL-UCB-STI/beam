@@ -354,14 +354,20 @@ class RideHailAgent(
             triggerId: Option[Long],
             newTriggers: Seq[ScheduleTrigger]
           ),
-          data @ RideHailAgentData(_, _, _, _, thisShift :: remaining)
+          data @ RideHailAgentData(_, _, _, _, _)
         ) =>
       log.debug("state(RideHailingAgent.IdleInterrupted.NotifyVehicleResourceIdleReply): {}", ev)
-      handleNotifyVehicleResourceIdleReply(
-        triggerId,
-        newTriggers :+ ScheduleTrigger(EndShiftTrigger(thisShift.upperBound), self)
-      )
-      stay using data.copy(remainingShifts = remaining)
+      data.remainingShifts.isEmpty match {
+        case true =>
+          handleNotifyVehicleResourceIdleReply(triggerId, newTriggers)
+          stay
+        case false =>
+          handleNotifyVehicleResourceIdleReply(
+            triggerId,
+            newTriggers :+ ScheduleTrigger(EndShiftTrigger(data.remainingShifts.head.upperBound), self)
+          )
+          stay using data.copy(remainingShifts = data.remainingShifts.tail)
+      }
   }
 
   when(PassengerScheduleEmpty) {
