@@ -484,7 +484,7 @@ object BeamRouter {
   )
 
   object RoutingResponse {
-    val dummyRoutingResponse = Some(RoutingResponse(Vector(), java.util.UUID.randomUUID().hashCode()))
+    val dummyRoutingResponse = Some(RoutingResponse(Vector(), IdGeneratorImpl.nextId))
   }
 
   def props(

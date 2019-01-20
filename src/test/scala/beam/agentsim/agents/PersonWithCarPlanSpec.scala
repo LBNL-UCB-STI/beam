@@ -16,7 +16,7 @@ import beam.agentsim.events._
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
@@ -203,7 +203,7 @@ class PersonWithCarPlanSpec
             )
           )
         ),
-        requestId = java.util.UUID.randomUUID().hashCode()
+        requestId = 1
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -332,7 +332,7 @@ class PersonWithCarPlanSpec
             )
             lastSender ! RoutingResponse(
               Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-              requestId = java.util.UUID.randomUUID().hashCode()
+              requestId = 1
             )
         }
       }
