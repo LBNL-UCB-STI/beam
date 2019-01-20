@@ -29,7 +29,8 @@ public class StatsFactory {
         AgentDelay,
         AboveCapacityPtUsageDuration,
         TollRevenue,
-        AgencyRevenue
+        AgencyRevenue,
+        ParkingDelay
     }
 
     private final BeamConfig beamConfig;
@@ -104,6 +105,8 @@ public class StatsFactory {
                 return new TollRevenueAnalysis();
             case AgencyRevenue:
                 return new AgencyRevenueAnalysis();
+            case ParkingDelay:
+                return new ParkingStatsCollector(beamServices);
             default:
                 return null;
         }
