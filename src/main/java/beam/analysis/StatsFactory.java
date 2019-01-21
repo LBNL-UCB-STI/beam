@@ -95,8 +95,6 @@ public class StatsFactory {
                 return new MotorizedVehicleMilesTraveledAnalysis(beamServices.vehicleTypes().keySet());
             case NumberOfVehicles:
                 return new NumberOfVehiclesAnalysis();
-            case AgentDelay:
-                return new AgentDelayAnalysis(beamServices.matsimServices().getEvents(), beamServices.matsimServices().getScenario(), beamServices.matsimServices().getControlerIO() , beamServices,beamConfig);
             case PersonCost:
                 return new PersonCostAnalysis();
             case AboveCapacityPtUsageDuration:
