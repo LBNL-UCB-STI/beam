@@ -104,7 +104,7 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
                 DoubleSummaryStatistics stats = valuesAsDouble
                         .summaryStatistics();
                 String line = k.getFirst() + "," + k.getSecond().toString() + "," + stats.getAverage() + "," +
-                        MathUtils.median(v) + "," + 0 + "," + 0 + "," + 0;
+                        MathUtils.median(v) + "," + stats.getCount() + "," + 0 + "," + 0;
                 try {
                     out.write(line);
                     out.newLine();
