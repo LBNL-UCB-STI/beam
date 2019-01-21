@@ -41,65 +41,57 @@ class TriggerMeasurer(val cfg: BeamConfig.Beam.Debug.TriggerMeasurer) extends La
   val rideHailManagerName: String = "RideHailManager"
 
   def sent(t: TriggerWithId, actor: ActorRef): Unit = {
-    if (cfg.enabled) {
-      triggerWithIdToStartTime.put(t, System.nanoTime())
-
-      val triggerClazz = t.trigger.getClass
-      actorToTriggerMessages.get(actor) match {
-        case Some(triggerTypeToOccur) =>
-          triggerTypeToOccur.get(triggerClazz) match {
-            case Some(current) =>
-              triggerTypeToOccur.update(triggerClazz, current + 1)
-            case None =>
-              triggerTypeToOccur.put(triggerClazz, 1)
-          }
-        case None =>
-          actorToTriggerMessages.put(actor, mutable.Map[Class[_], Int](triggerClazz -> 1))
-      }
+    triggerWithIdToStartTime.put(t, System.nanoTime())
+    val triggerClazz = t.trigger.getClass
+    actorToTriggerMessages.get(actor) match {
+      case Some(triggerTypeToOccur) =>
+        triggerTypeToOccur.get(triggerClazz) match {
+          case Some(current) =>
+            triggerTypeToOccur.update(triggerClazz, current + 1)
+          case None =>
+            triggerTypeToOccur.put(triggerClazz, 1)
+        }
+      case None =>
+        actorToTriggerMessages.put(actor, mutable.Map[Class[_], Int](triggerClazz -> 1))
     }
   }
 
   def resolved(t: TriggerWithId): Unit = {
-    if (cfg.enabled) {
-
-      triggerWithIdToStartTime.get(t) match {
-        case Some(startTime) =>
-          val stopTime = System.nanoTime()
-          val diff = TimeUnit.NANOSECONDS.toMillis(stopTime - startTime)
-          val triggerClass = t.trigger.getClass
-          triggerTypeToOccurrence.get(triggerClass) match {
-            case Some(buffer) =>
-              buffer.append(diff)
-            case None =>
-              val buffer = ArrayBuffer[Long](diff)
-              triggerTypeToOccurrence.put(triggerClass, buffer)
-          }
-        case None =>
-          logger.error(s"Can't find $t in triggerWithIdToStartTime")
-      }
+    triggerWithIdToStartTime.get(t) match {
+      case Some(startTime) =>
+        val stopTime = System.nanoTime()
+        val diff = TimeUnit.NANOSECONDS.toMillis(stopTime - startTime)
+        val triggerClass = t.trigger.getClass
+        triggerTypeToOccurrence.get(triggerClass) match {
+          case Some(buffer) =>
+            buffer.append(diff)
+          case None =>
+            val buffer = ArrayBuffer[Long](diff)
+            triggerTypeToOccurrence.put(triggerClass, buffer)
+        }
+      case None =>
+        logger.error(s"Can't find $t in triggerWithIdToStartTime")
     }
   }
 
   def getStat: String = {
-    if (cfg.enabled) {
-      val sb = new mutable.StringBuilder()
-      val nl = System.lineSeparator()
-      triggerTypeToOccurrence.foreach {
-        case (clazz, buf) =>
-          val s = Statistics(buf.map(_.toDouble))
-          sb.append(s"${nl}Type: $clazz${nl}Stats: $s$nl".stripMargin)
-      }
+    val sb = new mutable.StringBuilder()
+    val nl = System.lineSeparator()
+    triggerTypeToOccurrence.foreach {
+      case (clazz, buf) =>
+        val s = Statistics(buf.map(_.toDouble))
+        sb.append(s"${nl}Type: $clazz${nl}Stats: $s$nl".stripMargin)
+    }
 
-      sb.append(s"${nl}Max number of trigger messages per actor type${nl}")
-      getMaxPerActorType.foreach {
-        case (actorType, triggetTypeToMaxMsgs) =>
-          val s = triggetTypeToMaxMsgs.map { case (key, v) => s"\t\t${key} => $v$nl" }.mkString
-          val str = s"""\t$actorType => ${triggetTypeToMaxMsgs.map { case (_, v) => v }.sum}
+    sb.append(s"${nl}Max number of trigger messages per actor type${nl}")
+    getMaxPerActorType.foreach {
+      case (actorType, triggetTypeToMaxMsgs) =>
+        val s = triggetTypeToMaxMsgs.map { case (key, v) => s"\t\t${key} => $v$nl" }.mkString
+        val str = s"""\t$actorType => ${triggetTypeToMaxMsgs.map { case (_, v) => v }.sum}
         |$s""".stripMargin
-          sb.append(str)
-      }
-      sb.toString()
-    } else ""
+        sb.append(str)
+    }
+    sb.toString()
   }
 
   def asStuckAgentDetectionConfig: String = {
@@ -185,8 +177,6 @@ class TriggerMeasurer(val cfg: BeamConfig.Beam.Debug.TriggerMeasurer) extends La
 
   private def getType(actorRef: ActorRef): String = {
     if (actorRef.path.parent.name == "router" && actorRef.path.name.indexOf("TransitDriverAgent-") != -1) {
-//      val idx = actorRef.path.name.indexOf("TransitDriverAgent-")
-//      val vehicleTypeAndOther = actorRef.path.name.substring(idx + "TransitDriverAgent-".length)
       transitDriverAgentName
     } else if (actorRef.path.parent.name == "population" || actorRef.path.parent.parent.name == "population") {
       populationName
