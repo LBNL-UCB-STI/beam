@@ -5,6 +5,7 @@ import java.nio.file.{Files, Paths}
 
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.router.Modes.BeamMode
+import beam.sim.common._
 import beam.sim.population.AttributesOfIndividual
 
 import scala.collection.mutable.ListBuffer

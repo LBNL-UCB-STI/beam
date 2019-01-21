@@ -47,8 +47,6 @@ object Modes {
 
     override val values: immutable.IndexedSeq[BeamMode] = findValues
 
-    case object NO_MODE extends BeamMode(value = "no_mode", None, "")
-
     // Driving / Automobile-like (hailed rides are a bit of a hybrid)
 
     case object CAR extends BeamMode(value = "car", Some(Left(LegMode.CAR)), TransportMode.car)
@@ -119,15 +117,15 @@ object Modes {
     val massTransitModes: List[BeamMode] = List(FERRY, TRANSIT, RAIL, SUBWAY, TRAM)
 
     val allModes: List[BeamMode] =
-      List(RIDE_HAIL, CAR, WALK, TRANSIT, RIDE_HAIL_TRANSIT, DRIVE_TRANSIT, WALK_TRANSIT)
+      List(RIDE_HAIL, CAR, WALK, TRANSIT, RIDE_HAIL_TRANSIT, DRIVE_TRANSIT, WALK_TRANSIT, BIKE)
 
-    def fromString(stringMode: String): BeamMode = {
+    def fromString(stringMode: String): Option[BeamMode] = {
       if (stringMode.equals("")) {
-        NO_MODE
+        None
       } else if (stringMode.equalsIgnoreCase("drive")) {
-        CAR
+        Some(CAR)
       } else {
-        BeamMode.withValue(stringMode)
+        Some(BeamMode.withValue(stringMode))
       }
     }
   }

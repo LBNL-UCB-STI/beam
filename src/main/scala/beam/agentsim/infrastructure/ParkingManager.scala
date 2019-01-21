@@ -1,8 +1,6 @@
 package beam.agentsim.infrastructure
 
 import akka.actor.Actor
-import beam.agentsim.ResourceManager
-import beam.agentsim.agents.PersonAgent
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ParkingStall.{ChargingPreference, ReservedParkingType}
 import beam.router.BeamRouter.Location
