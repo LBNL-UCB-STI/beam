@@ -1,17 +1,20 @@
 package beam.analysis
+import java.util
+
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.{LeavingParkingEvent, LeavingParkingEventAttrs, ModeChoiceEvent}
 import beam.analysis.plots.{GraphAnalysis, GraphsStatsAgentSimEventsListener}
 import beam.router.Modes.BeamMode
-import beam.sim.BeamServices
-import beam.utils.FileUtils
+import beam.sim.{BeamServices, OutputDataDescription}
+import beam.utils.{FileUtils, OutputDataDescriptor}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{Event, PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.controler.events.IterationEndsEvent
-
+import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.language.postfixOps
 
 /**
   * Collects the inbound and outbound parking overhead times and cost stats.
@@ -130,4 +133,33 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
     parkingTimeByBinAndTaz.clear()
   }
 
+}
+
+object ParkingStatsCollector extends OutputDataDescriptor {
+
+  /**
+    * Get description of fields written to the output files.
+    *
+    * @return list of data description objects
+    */
+  override def getOutputDataDescriptions: util.List[OutputDataDescription] = {
+
+    val outputFileBaseName = "parkingStats"
+    val filePath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
+      .getIterationFilename(0, outputFileBaseName + ".csv")
+    val outputDirPath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+    val relativePath: String = filePath.replace(outputDirPath, "")
+    val outputDataDescription =
+      OutputDataDescription(classOf[ParkingStatsCollector].getSimpleName.dropRight(1), relativePath, "", "")
+    List(
+      "timeBin"                     -> "Bin in a day",
+      "TAZ"                         -> "Central point of the parking location",
+      "outboundParkingOverheadTime" -> "Time taken by the person to depart , park vehicle and leave the parking area",
+      "inboundParkingOverheadTime"  -> "Time taken by the person to walk from the parked car to the destination",
+      "inboundParkingOverheadCost"  -> "Vehicle parking cost"
+    ) map {
+      case (header, description) =>
+        outputDataDescription.copy(field = header, description = description)
+    } asJava
+  }
 }
