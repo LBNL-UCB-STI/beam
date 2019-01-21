@@ -2,55 +2,68 @@ package beam.utils
 import beam.analysis.DelayMetricAnalysis
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamHelper
-import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.utils.reflection.ReflectionUtils
-import com.conveyal.r5.streets.StreetLayer
+import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
-import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 
-object EventReplayer extends BeamHelper{
+import scala.collection.mutable.ArrayBuffer
+
+object EventReplayer extends BeamHelper {
+
   def main(args: Array[String]): Unit = {
     val path = """C:\temp\0.events.xml"""
-    val (_, config) = prepareConfig(args, true)
-
+    // Initialization
+    val (_, config) = prepareConfig(args, isConfigArgRequired = true)
     val beamConfig = BeamConfig(config)
-    val outputDirectory = FileUtils.getConfigOutputFile(
-      beamConfig.beam.outputs.baseOutputDirectory,
-      beamConfig.beam.agentsim.simulationName,
-      beamConfig.beam.outputs.addTimestampToOutputDirectory
-    )
-    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
-    matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
-    ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
-    LoggingUtil.createFileLogger(outputDirectory)
-    matsimConfig.controler.setOutputDirectory(outputDirectory)
-    matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
-    val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.init()
-    scenario.setNetwork(networkCoordinator.network)
     val network = networkCoordinator.network
-    val transportNetwork = networkCoordinator.transportNetwork
 
     val networkHelper = new NetworkHelperImpl(network)
     println("Initialized network")
 
+    println("Reading events...")
+    val events = readEvents(path)
+
+    val eventHandler: BasicEventHandler =
+      new DelayMetricAnalysis(EventsUtils.createEventsManager(), null, networkHelper)
+
+    val maxIter = 1
     val s = System.currentTimeMillis()
+    var iter: Int = 1
+    while (iter <= maxIter) {
+      var i: Int = 0
+      while (i < events.length) {
+        eventHandler.handleEvent(events(i))
+        i += 1
+      }
+      iter += 1
+    }
+    val e = System.currentTimeMillis()
+    val total = e - s
+    val avg = total.toDouble / maxIter
+
+    println(
+      s"DelayMetricAnalysis processed ${events.size}. Total time $total ms, average $avg ms, number of iterations $maxIter"
+    )
+  }
+  private def readEvents(path: String): IndexedSeq[Event] = {
     val eventsManager = EventsUtils.createEventsManager()
     var numOfEvents: Int = 0
-    val arr = new Array[Event](16356210)
-    println("Allocated array")
+    val buf = new ArrayBuffer[Event]()
     eventsManager.addHandler(new BasicEventHandler {
       def handleEvent(event: Event): Unit = {
-        arr(numOfEvents) = event
+        if (event.getEventType == "PathTraversal") {
+          // Do something with need `PathTraversalEvent`
+          // buf += new PathTraversalEvent(event.getTime, event.getAttributes)
+        }
+        buf += event
         numOfEvents += 1
       }
     })
-    val d = new DelayMetricAnalysis(eventsManager, null, null,  networkHelper, beamConfig)
     new MatsimEventsReader(eventsManager).readFile(path)
-    val e = System.currentTimeMillis()
-    println(s"DelayMetricAnalysis processed in ${e - s} ms. numOfEvents: $numOfEvents")
+    println(s"Read $numOfEvents from '$path'")
+    buf
   }
 }
