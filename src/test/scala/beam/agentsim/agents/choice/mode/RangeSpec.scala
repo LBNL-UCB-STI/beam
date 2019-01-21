@@ -1,5 +1,6 @@
 package beam.agentsim.agents.choice.mode
 import org.scalatest.FlatSpec
+import beam.sim.common.Range
 
 class RangeSpec extends FlatSpec {
 

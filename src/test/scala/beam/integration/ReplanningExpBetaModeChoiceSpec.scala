@@ -43,7 +43,7 @@ class ReplanningExpBetaModeChoiceSpec
     .withValue("matsim.modules.strategy.ModuleProbability_1", ConfigValueFactory.fromAnyRef(0.8))
     .withValue("matsim.modules.strategy.ModuleProbability_2", ConfigValueFactory.fromAnyRef(0.1))
     .withValue("matsim.modules.strategy.ModuleProbability_3", ConfigValueFactory.fromAnyRef(0.1))
-    .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(25))
+    .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(10))
     .withFallback(param)
     .resolve()
 
@@ -64,13 +64,6 @@ class ReplanningExpBetaModeChoiceSpec
       it5PlansCount should be < it10PlansCount
     }
 
-    "increase test scores over iterations" ignore {
-      val allAvgAvg = Range(0, 25).map(getAvgAvgScore(_).get)
-      val lowestOfFirst10 = allAvgAvg.take(15).min
-      val avgOfLast5 = allAvgAvg.takeRight(5).sum / 5
-
-      lowestOfFirst10 should be < avgOfLast5
-    }
   }
 
   private def getTotalPlans(iterationNum: Int) = {

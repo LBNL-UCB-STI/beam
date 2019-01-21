@@ -165,7 +165,7 @@ object Population {
     houseHoldVehicles
       .map({ id =>
         makeHouseholdVehicle(beamServices.privateVehicles, id) match {
-          case Right(vehicle) => vehicleId2BeamVehicleId(id) -> vehicle
+          case Right(vehicle) => beam.agentsim.vehicleId2BeamVehicleId(id) -> vehicle
           case Left(e)        => throw e
         }
       })

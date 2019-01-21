@@ -11,7 +11,6 @@ import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.FuelType
-import beam.agentsim.agents.vehicles.VehicleCategory.Undefined
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
@@ -88,6 +87,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
         .split(",")
         .map(BeamMode.fromString)
         .toSeq
+        .flatten
     }
 
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
@@ -153,9 +153,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
     }
   }
 
-  private val _networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
-
-  def networkHelper: NetworkHelper = _networkHelper
 }
 
 object BeamServices {
@@ -210,7 +207,7 @@ object BeamServices {
 
         val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
-        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, None, vehicleType, householdId)
+        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, vehicleType)
         acc += ((vehicleId, beamVehicle))
         acc
     }
@@ -254,18 +251,6 @@ object BeamServices {
           val rechargeLevel3RateLimitInWatts = Option(line.get("rechargeLevel3RateLimitInWatts")).map(_.toDouble)
           val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
 
-          // This is a hack, hope we can fix files soon...
-          val fixedVehicleCategory = (vehicleCategory, vIdString) match {
-            case (Undefined, typeId) if typeId.toLowerCase == "car" || typeId.toLowerCase == "bike" =>
-              val newVehicleCategory = if (typeId.toLowerCase == "car") VehicleCategory.Car else VehicleCategory.Bike
-              logger.warn(
-                s"vehicleTypeId '$vehicleTypeId' will be used as vehicleCategory. Old value: $vehicleCategory, New value: $newVehicleCategory"
-              )
-              newVehicleCategory
-            case _ =>
-              vehicleCategory
-          }
-
           val bvt = BeamVehicleType(
             vehicleTypeId,
             seatingCapacity,
@@ -282,7 +267,7 @@ object BeamServices {
             passengerCarUnit,
             rechargeLevel2RateLimitInWatts,
             rechargeLevel3RateLimitInWatts,
-            fixedVehicleCategory
+            vehicleCategory
           )
           z += ((vehicleTypeId, bvt))
       }
