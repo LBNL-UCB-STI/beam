@@ -1,7 +1,6 @@
 package beam.agentsim.agents.ridehail.allocation
 
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.InterruptIfNoPassengerOnBoardReply
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, PoolingInfo}
+import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
 import beam.agentsim.agents.vehicles.VehiclePersonId
@@ -11,8 +10,6 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
-
-import scala.collection.mutable
 
 abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager) extends LazyLogging {
 
@@ -175,12 +172,6 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    */
   def reservationCompletionNotice(personId: Id[Person], vehicleId: Id[Vehicle]): Unit = {}
 
-  /*
-   * This is deprecated.
-   */
-  def handleRideCancellationReply(reply: InterruptIfNoPassengerOnBoardReply): Unit = {
-    logger.trace("default implementation handleRideCancellationReply executed")
-  }
 }
 
 object RideHailResourceAllocationManager {

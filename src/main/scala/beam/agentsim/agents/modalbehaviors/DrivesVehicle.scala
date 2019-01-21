@@ -66,10 +66,6 @@ object DrivesVehicle {
 
   case class BeamVehicleStateUpdate(id: Id[Vehicle], vehicleState: BeamVehicleState)
 
-  case class InterruptIfNoPassengerOnBoard(tick: Int, requestId: Int)
-
-  case class InterruptIfNoPassengerOnBoardReply(success: Boolean, requestId: Int, tick: Int)
-
 }
 
 trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with Stash {
@@ -82,32 +78,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
   protected def currentBeamVehicle = beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
 
   case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime, toll: Double)
-
-  private def handleStopDrivingIfNoPassengerOnBoard(
-    tick: Int,
-    requestId: Int,
-    data: T
-  ): State = {
-    println("handleStopDrivingIfNoPassengerOnBoard:" + stateName)
-    data.passengerSchedule.schedule.keys
-      .drop(data.currentLegPassengerScheduleIndex)
-      .headOption match {
-      case Some(currentLeg) =>
-        println(currentLeg)
-        if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
-          log.info("stopping vehicle: {}", id)
-          goto(DrivingInterrupted) replying InterruptIfNoPassengerOnBoardReply(
-            success = true,
-            requestId,
-            tick
-          )
-        } else {
-          stay() replying InterruptIfNoPassengerOnBoardReply(success = false, requestId, tick)
-        }
-      case None =>
-        stay()
-    }
-  }
 
   var nextNotifyVehicleResourceIdle: Option[NotifyVehicleIdle] = None
 
@@ -256,26 +226,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         data.currentLegPassengerScheduleIndex
       )
 
-    case ev @ Event(InterruptIfNoPassengerOnBoard(tick, requestId), data) =>
-      log.debug("state(DrivesVehicle.Driving): {}", ev)
-      data.passengerSchedule.schedule.keys.view
-        .drop(data.currentLegPassengerScheduleIndex)
-        .headOption match {
-        case Some(currentLeg) =>
-          if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
-            log.info("stopping vehicle: {}", id)
-            goto(DrivingInterrupted) replying InterruptIfNoPassengerOnBoardReply(
-              success = true,
-              requestId,
-              tick
-            )
-
-          } else {
-            stay() replying InterruptIfNoPassengerOnBoardReply(success = false, requestId, tick)
-          }
-        case None =>
-          stay()
-      }
   }
 
   when(DrivingInterrupted) {
@@ -457,10 +407,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       }
 
       stay()
-
-    case Event(InterruptIfNoPassengerOnBoard(tick, requestId), data) =>
-      handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
-
   }
 
   when(WaitingToDriveInterrupted) {
@@ -577,13 +523,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           )
         )
         .asInstanceOf[T]
-
-    case Event(InterruptIfNoPassengerOnBoard(tick, requestId), data) =>
-      log.debug("DrivesVehicle.StopDrivingIfNoPassengerOnBoard -> unhandled + {}", stateName)
-
-      handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
-    //stay()
-
   }
 
   private def hasRoomFor(
@@ -591,7 +530,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     req: ReservationRequest,
     vehicle: BeamVehicle
   ) = {
-//    val vehicleCap = vehicle.getType
     val fullCap = vehicle.beamVehicleType.seatingCapacity + vehicle.beamVehicleType.standingRoomCapacity
     passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).forall { entry =>
       entry._2.riders.size < fullCap

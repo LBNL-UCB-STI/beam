@@ -486,19 +486,6 @@ class RideHailManager(
   log.info("Initialized {} ride hailing agents", numRideHailAgents)
 
   override def receive: Receive = LoggingReceive {
-    case ev @ InterruptIfNoPassengerOnBoardReply(success, requestId, tick) =>
-      Option(travelProposalCache.getIfPresent(requestId.toString)) match {
-        case Some(travelProposal) =>
-          if (success) {
-            travelProposal.rideHailAgentLocation.rideHailAgent ! StopDriving(tick)
-            travelProposal.rideHailAgentLocation.rideHailAgent ! Resume()
-          }
-          rideHailResourceAllocationManager.handleRideCancellationReply(ev)
-
-        case None =>
-          log.error("request not found: {}", ev)
-      }
-
     case Finish =>
       surgePricingManager.incrementIteration()
       context.children.foreach(_ ! Finish)
@@ -855,24 +842,6 @@ class RideHailManager(
         routingRequests.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId, inquiry.requestId))
         requestRoutes(inquiry.departAt, routingRequests)
     }
-  }
-
-  def attemptToCancelCurrentRideRequest(tick: Int, requestId: Int): Unit = {
-    Option(travelProposalCache.getIfPresent(requestId.toString)) match {
-      case Some(travelProposal) =>
-        log.debug(
-          "trying to stop vehicle: {}, tick: {}",
-          travelProposal.rideHailAgentLocation.vehicleId,
-          tick
-        )
-        travelProposal.rideHailAgentLocation.rideHailAgent ! InterruptIfNoPassengerOnBoard(
-          tick,
-          requestId
-        )
-
-      case None =>
-    }
-
   }
 
   def createRoutingRequestsToCustomerAndDestination(
