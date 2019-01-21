@@ -40,7 +40,7 @@ import scala.language.postfixOps
 
 class TollRoutingSpec
     extends TestKit(
-      ActorSystem("TollRoutingSpec", testConfig("test/input/beamville/beam.conf"))
+      ActorSystem("TollRoutingSpec", testConfig("test/input/beamville/beam.conf").resolve())
     )
     with WordSpecLike
     with Matchers
