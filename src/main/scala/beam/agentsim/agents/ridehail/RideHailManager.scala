@@ -343,8 +343,13 @@ class RideHailManager(
               val y = quadTreeBounds.miny
               new Coord(x, y)
             case unknown =>
-              log.error(s"unknown rideHail.initialLocation $unknown")
-              null
+              log.error(s"unknown rideHail.initialLocation $unknown, assuming HOME")
+              val radius =
+                beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
+              new Coord(
+                personInitialLocation.getX + radius * (rand.nextDouble() - 0.5),
+                personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
+              )
           }
 
         fleetData = fleetData :+ createRideHailVehicleAndAgent(person.getId.toString, rideInitialLocation, None, None)
