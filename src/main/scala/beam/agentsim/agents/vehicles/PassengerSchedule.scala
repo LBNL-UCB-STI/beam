@@ -75,7 +75,7 @@ object PassengerSchedule {
 case class VehiclePersonId(
   vehicleId: Id[Vehicle],
   personId: Id[Person],
-  personRef: Option[ActorRef] = None
+  personRef: ActorRef
 )
 
 case class Manifest(

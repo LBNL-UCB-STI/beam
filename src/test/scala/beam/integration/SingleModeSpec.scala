@@ -25,7 +25,7 @@ import beam.utils.DateUtils
 import beam.utils.TestConfigUtils.{testConfig, testOutputDir}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
-import org.matsim.api.core.v01.population.{Activity, Leg, Person}
+import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.controler.{MatsimServices, OutputDirectoryHierarchy}
 import org.matsim.core.events.handler.BasicEventHandler
@@ -49,7 +49,7 @@ class SingleModeSpec
           .parseString("""
               akka.test.timefactor = 10
             """)
-          .withFallback(testConfig("test/input/sf-light/sf-light.conf"))
+          .withFallback(testConfig("test/input/sf-light/sf-light.conf").resolve())
       )
     )
     with WordSpecLike
@@ -92,7 +92,6 @@ class SingleModeSpec
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.matsimServices).thenReturn(mock[MatsimServices])
     when(services.matsimServices.getControlerIO).thenReturn(outputDirectoryHierarchy)
-    //    when(services.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(services.tazTreeMap).thenReturn(BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file))
     when(services.vehicleTypes).thenReturn(vehicleTypes)
     when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
@@ -114,8 +113,6 @@ class SingleModeSpec
     )
     when(services.modeChoiceCalculatorFactory)
       .thenReturn((_: AttributesOfIndividual) => new ModeChoiceUniformRandom(services))
-    val personRefs = TrieMap[Id[Person], ActorRef]()
-    when(services.personRefs).thenReturn(personRefs)
     when(services.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()

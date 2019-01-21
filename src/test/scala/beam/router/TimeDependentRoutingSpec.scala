@@ -44,7 +44,7 @@ import scala.language.postfixOps
 
 class TimeDependentRoutingSpec
     extends TestKit(
-      ActorSystem("TimeDependentRoutingSpec", testConfig("test/input/beamville/beam.conf"))
+      ActorSystem("TimeDependentRoutingSpec", testConfig("test/input/beamville/beam.conf").resolve())
     )
     with WordSpecLike
     with Matchers

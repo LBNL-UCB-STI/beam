@@ -1,6 +1,6 @@
 package beam.agentsim.agents.vehicles
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.router.Modes.BeamMode.WALK
 import beam.router.model.{BeamLeg, BeamPath}
@@ -41,7 +41,7 @@ class PassengerScheduleTest
       val leg = BeamLeg(0, WALK, 1, BeamPath.empty)
 
       val passengerSchedule: PassengerSchedule = PassengerSchedule()
-        .addPassenger(VehiclePersonId(vehicleId, passengerPersonId), Vector(leg))
+        .addPassenger(VehiclePersonId(vehicleId, passengerPersonId, ActorRef.noSender), Vector(leg))
 
       passengerSchedule.schedule.size should be(1)
       passengerSchedule.schedule(leg).riders.size should ===(1)
@@ -58,7 +58,7 @@ class PassengerScheduleTest
       val leg3 = BeamLeg(2, WALK, 1, BeamPath.empty)
 
       val passengerSchedule: PassengerSchedule = PassengerSchedule()
-        .addPassenger(VehiclePersonId(vehicleId, passengerPersonId), Vector(leg1, leg2, leg3))
+        .addPassenger(VehiclePersonId(vehicleId, passengerPersonId, ActorRef.noSender), Vector(leg1, leg2, leg3))
 
       passengerSchedule.schedule.size should ===(3)
 
@@ -87,8 +87,8 @@ class PassengerScheduleTest
       val leg3 = BeamLeg(2, WALK, 1, BeamPath.empty)
 
       val passengerSchedule: PassengerSchedule = PassengerSchedule()
-        .addPassenger(VehiclePersonId(vehicleId1, passengerPersonId), Vector(leg1, leg2, leg3))
-        .addPassenger(VehiclePersonId(vehicleId2, passengerPersonId2), Vector(leg2, leg3))
+        .addPassenger(VehiclePersonId(vehicleId1, passengerPersonId, ActorRef.noSender), Vector(leg1, leg2, leg3))
+        .addPassenger(VehiclePersonId(vehicleId2, passengerPersonId2, ActorRef.noSender), Vector(leg2, leg3))
 
       passengerSchedule.schedule.size should ===(3)
 
