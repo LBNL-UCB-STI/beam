@@ -530,7 +530,10 @@ class PersonAgent(
           currentTourMode = None, // Have to give up my mode as well, perhaps there's no option left for driving.
           currentTourPersonalVehicle = None
         ),
-        SpaceTime(basePersonData.restOfCurrentTrip.head.beamLeg.travelPath.startPoint.loc, _currentTick.get)
+        SpaceTime(
+          beamServices.geo.wgs2Utm(basePersonData.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc,
+          _currentTick.get
+        )
       )
   }
 
