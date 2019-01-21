@@ -4,6 +4,7 @@ import beam.agentsim.events.ReserveRideHailEvent;
 import beam.agentsim.infrastructure.TAZTreeMap;
 import beam.sim.BeamServices;
 import beam.utils.MathUtils;
+import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
@@ -58,8 +59,8 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
                 //process and add the waiting time to the total time spent by all the passengers on waiting for a ride hail
                 ReserveRideHailEvent reserveRideHailEvent = (ReserveRideHailEvent) rideHailWaitingQueue.get(_personId);
                 Map<String, String> reserveRideHailEventAttributes = reserveRideHailEvent.getAttributes();
-                TAZTreeMap.TAZ pickUpLocationTAZ = beamServices.tazTreeMap().getTAZ(Double.parseDouble(reserveRideHailEventAttributes.get("startX")),
-                        Double.parseDouble(reserveRideHailEventAttributes.get("startY")));
+                Coord pickUpCorod = beamServices.geo().wgs2Utm(new Coord(Double.parseDouble(reserveRideHailEventAttributes.get("startX")),Double.parseDouble(reserveRideHailEventAttributes.get("startY"))));
+                TAZTreeMap.TAZ pickUpLocationTAZ = beamServices.tazTreeMap().getTAZ(pickUpCorod.getX(),pickUpCorod.getY());
                 double waitingTime = personEntersVehicleEvent.getTime() - reserveRideHailEvent.getTime();
                 processRideHailWaitingTimesAndTaz(reserveRideHailEvent, waitingTime,pickUpLocationTAZ);
                 // Remove the passenger from the waiting queue , as the passenger entered the vehicle.
