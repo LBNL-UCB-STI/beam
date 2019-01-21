@@ -59,7 +59,6 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
           personDepartures.put(personDepartureEvent.getPersonId, Some(personDepartureEvent.getTime))
         }
       // If the person enters a transit vehicle , then stop tracking the person
-      //TODO check if the vehicle is a transit type vehicle or not based on vehicle Id
       case personEntersVehicleEvent: PersonEntersVehicleEvent =>
         if (personDepartures.contains(personEntersVehicleEvent.getPersonId) && BeamVehicleType.isTransitVehicle(
               personEntersVehicleEvent.getVehicleId
