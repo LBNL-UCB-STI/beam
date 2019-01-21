@@ -18,6 +18,7 @@ class LCCMSpec extends FlatSpec with BeamHelper with MockitoSugar {
 
   it should "be able to run for three iterations with LCCM without exceptions" in {
     val config = testConfig("test/input/beamville/beam.conf")
+      .resolve()
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue(
         TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,

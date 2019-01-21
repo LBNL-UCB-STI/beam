@@ -93,7 +93,7 @@ object FuelUsageStatsGraphSpec {
 class FuelUsageStatsGraphSpec extends WordSpecLike with Matchers with IntegrationSpecCommon {
   "Fuel Usage Collected Data" must {
 
-    "contains valid fuel usage stats" in {
+    "contains valid fuel usage stats" ignore {
       val fuelUsageComputation = new FuelUsageAnalysis.FuelUsageStatsComputation with EventAnalyzer {
 
         private val promise = Promise[java.util.Map[Integer, java.util.Map[String, lang.Double]]]()

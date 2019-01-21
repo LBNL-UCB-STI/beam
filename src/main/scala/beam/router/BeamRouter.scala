@@ -320,10 +320,10 @@ class BeamRouter(
         worker ! work
       case embodyWithCurrentTravelTime: EmbodyWithCurrentTravelTime =>
         outstandingWorkIdToOriginalSenderMap.put(
-          embodyWithCurrentTravelTime.id,
+          embodyWithCurrentTravelTime.requestId,
           originalSender
         )
-        outstandingWorkIdToTimeSent.put(embodyWithCurrentTravelTime.id, getCurrentTime)
+        outstandingWorkIdToTimeSent.put(embodyWithCurrentTravelTime.requestId, getCurrentTime)
         worker ! work
       case _ =>
         log.warning(
@@ -430,7 +430,7 @@ object BeamRouter {
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
     vehicleTypeId: Id[BeamVehicleType],
-    id: Int = UUID.randomUUID().hashCode(),
+    requestId: Int = IdGeneratorImpl.nextId,
     mustParkAtEnd: Boolean = false,
     destinationForSplitting: Option[Coord] = None
   )
@@ -461,9 +461,9 @@ object BeamRouter {
     streetVehicles: IndexedSeq[StreetVehicle],
     attributesOfIndividual: Option[AttributesOfIndividual] = None,
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
-    mustParkAtEnd: Boolean = false
+    mustParkAtEnd: Boolean = false,
+    requestId: Int = IdGeneratorImpl.nextId
   ) {
-    val requestId: Int = IdGeneratorImpl.nextId
     lazy val timeValueOfMoney
       : Double = attributesOfIndividual.fold(360.0)(3600.0 / _.valueOfTime) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
   }
@@ -481,10 +481,10 @@ object BeamRouter {
   case class RoutingResponse(
     itineraries: Seq[EmbodiedBeamTrip],
     requestId: Int
-  ) {}
+  )
 
   object RoutingResponse {
-    val dummyRoutingResponse = Some(RoutingResponse(Vector(), java.util.UUID.randomUUID().hashCode()))
+    val dummyRoutingResponse = Some(RoutingResponse(Vector(), IdGeneratorImpl.nextId))
   }
 
   def props(

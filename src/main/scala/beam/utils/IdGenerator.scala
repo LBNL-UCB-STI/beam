@@ -12,3 +12,11 @@ object IdGeneratorImpl extends IdGenerator {
     id.getAndIncrement()
   }
 }
+
+object RideHailRequestIdGenerator extends IdGenerator {
+  private val id: AtomicInteger = new AtomicInteger(0)
+
+  def nextId: Int = {
+    id.getAndIncrement()
+  }
+}

@@ -64,7 +64,7 @@ class OtherPersonAgentSpec
   akka.log-dead-letters = 10
   akka.actor.debug.fsm = true
   akka.loglevel = debug
-  """).withFallback(testConfig("test/input/beamville/beam.conf"))
+  """).withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
     with FunSpecLike
@@ -81,8 +81,6 @@ class OtherPersonAgentSpec
   val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
     TrieMap[Id[BeamVehicle], BeamVehicle]()
 
-  lazy val personRefs: TrieMap[Id[Person], ActorRef] =
-    TrieMap[Id[Person], ActorRef]()
   lazy val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
   lazy val beamSvc: BeamServices = {
@@ -91,7 +89,6 @@ class OtherPersonAgentSpec
     when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
     when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(theServices.beamConfig).thenReturn(config)
-    when(theServices.personRefs).thenReturn(personRefs)
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     val geo = new GeoUtilsImpl(theServices)
     when(theServices.geo).thenReturn(geo)
@@ -371,7 +368,7 @@ class OtherPersonAgentSpec
             )
           )
         ),
-        java.util.UUID.randomUUID().hashCode()
+        requestId = 1
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -432,7 +429,7 @@ class OtherPersonAgentSpec
             )
           )
         ),
-        java.util.UUID.randomUUID().hashCode()
+        1
       )
       expectMsgType[ModeChoiceEvent]
 
