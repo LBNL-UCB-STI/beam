@@ -26,9 +26,10 @@ class ReplanningExpBetaModeChoiceSpec
     """
       |{
       | matsim.modules.strategy.parameterset = [
-      |   {type = strategysettings, disableAfterIteration = -1, strategyName = SelectExpBeta , weight = 0.8},
       |   {type = strategysettings, disableAfterIteration = -1, strategyName = ClearRoutes , weight = 0.0},
       |   {type = strategysettings, disableAfterIteration = -1, strategyName = ClearModes , weight = 0.2}
+      |   {type = strategysettings, disableAfterIteration = -1, strategyName = TimeMutator , weight = 0.0},
+      |   {type = strategysettings, disableAfterIteration = -1, strategyName = SelectExpBeta , weight = 0.8},
       | ]
       |}
     """.stripMargin
@@ -40,9 +41,9 @@ class ReplanningExpBetaModeChoiceSpec
     .withValue("matsim.modules.strategy.Module_2", ConfigValueFactory.fromAnyRef("ClearRoutes"))
     .withValue("matsim.modules.strategy.Module_3", ConfigValueFactory.fromAnyRef("ClearModes"))
     .withValue("matsim.modules.strategy.ModuleProbability_1", ConfigValueFactory.fromAnyRef(0.8))
-    .withValue("matsim.modules.strategy.ModuleProbability_2", ConfigValueFactory.fromAnyRef(0.0))
-    .withValue("matsim.modules.strategy.ModuleProbability_3", ConfigValueFactory.fromAnyRef(0.2))
-    .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(20))
+    .withValue("matsim.modules.strategy.ModuleProbability_2", ConfigValueFactory.fromAnyRef(0.1))
+    .withValue("matsim.modules.strategy.ModuleProbability_3", ConfigValueFactory.fromAnyRef(0.1))
+    .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(25))
     .withFallback(param)
     .resolve()
 
@@ -64,8 +65,8 @@ class ReplanningExpBetaModeChoiceSpec
     }
 
     "increase test scores over iterations" ignore {
-      val allAvgAvg = Range(0, 20).map(getAvgAvgScore(_).get)
-      val lowestOfFirst10 = allAvgAvg.take(10).min
+      val allAvgAvg = Range(0, 25).map(getAvgAvgScore(_).get)
+      val lowestOfFirst10 = allAvgAvg.take(15).min
       val avgOfLast5 = allAvgAvg.takeRight(5).sum / 5
 
       lowestOfFirst10 should be < avgOfLast5

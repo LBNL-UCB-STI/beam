@@ -2,7 +2,7 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorSystem, Props}
 import akka.pattern.{ask, pipe}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
@@ -58,7 +58,6 @@ import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
-import scala.collection.concurrent.TrieMap
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.ExecutionContext
 
@@ -75,7 +74,7 @@ class PersonWithVehicleSharingSpec
         akka.test.timefactor = 2
         """
           )
-          .withFallback(testConfig("test/input/beamville/beam.conf"))
+          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
     with FunSpecLike
@@ -87,7 +86,6 @@ class PersonWithVehicleSharingSpec
   private implicit val executionContext: ExecutionContext = system.dispatcher
   private lazy val beamConfig = BeamConfig(system.settings.config)
 
-  private val personRefs = TrieMap[Id[Person], ActorRef]()
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
   private val tollCalculator = new TollCalculator(beamConfig)
@@ -98,7 +96,6 @@ class PersonWithVehicleSharingSpec
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.personRefs).thenReturn(personRefs)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(theServices))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
@@ -233,7 +230,7 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = java.util.UUID.randomUUID().hashCode()
+        requestId = 1
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -400,7 +397,7 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = java.util.UUID.randomUUID().hashCode()
+        requestId = 1
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -485,7 +482,7 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = java.util.UUID.randomUUID().hashCode()
+        requestId = 1
       )
       val modeChoiceEvent = events.expectMsgType[ModeChoiceEvent]
       assert(modeChoiceEvent.chosenTrip.tripClassifier == CAR)
@@ -598,7 +595,7 @@ class PersonWithVehicleSharingSpec
           )
           mockRouter.lastSender ! RoutingResponse(
             Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = java.util.UUID.randomUUID().hashCode()
+            requestId = 1
           )
       }
 
@@ -633,7 +630,7 @@ class PersonWithVehicleSharingSpec
           )
           mockRouter.lastSender ! RoutingResponse(
             Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = java.util.UUID.randomUUID().hashCode()
+            requestId = 1
           )
       }
 
@@ -654,7 +651,7 @@ class PersonWithVehicleSharingSpec
 
       // agent has no car available, so will ask for new route
       mockRouter.expectMsgPF() {
-        case RoutingRequest(_, _, _, _, streetVehicles, _, _, _) =>
+        case RoutingRequest(_, _, _, _, streetVehicles, _, _, _, _) =>
           val body = streetVehicles.find(_.mode == WALK).get
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = BeamLeg(
@@ -671,7 +668,7 @@ class PersonWithVehicleSharingSpec
           )
           mockRouter.lastSender ! RoutingResponse(
             Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = java.util.UUID.randomUUID().hashCode()
+            requestId = 1
           )
       }
 

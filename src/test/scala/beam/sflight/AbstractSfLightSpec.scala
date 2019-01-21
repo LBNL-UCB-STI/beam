@@ -52,7 +52,7 @@ class AbstractSfLightSpec
   var scenario: Scenario = _
 
   val confPath = "test/input/sf-light/sf-light.conf"
-  lazy val config = testConfig(confPath)
+  lazy val config = testConfig(confPath).resolve()
   lazy val beamConfig = BeamConfig(config)
   // Have to mock some things to get the router going
   lazy val services: BeamServices = mock[BeamServices](withSettings().stubOnly())

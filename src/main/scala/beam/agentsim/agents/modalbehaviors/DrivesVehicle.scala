@@ -145,13 +145,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       )
 
       data.passengerSchedule.schedule(currentLeg).alighters.foreach { pv =>
-        beamServices.personRefs.get(pv.personId).foreach { personRef =>
-          logDebug(s"Scheduling AlightVehicleTrigger for Person $personRef")
-          scheduler ! ScheduleTrigger(
-            AlightVehicleTrigger(tick, data.currentVehicle.head),
-            personRef
-          )
-        }
+        logDebug(s"Scheduling AlightVehicleTrigger for Person $pv.personRef")
+        scheduler ! ScheduleTrigger(
+          AlightVehicleTrigger(tick, data.currentVehicle.head),
+          pv.personRef
+        )
       }
 
       processLinkEvents(data.currentVehicle.head, currentLeg)
@@ -211,7 +209,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
                 .drop(data.currentLegPassengerScheduleIndex)
                 .head
             val distance =
-              beamServices.geo.distUTMInMeters(stall.locationUTM, nextLeg.travelPath.endPoint.loc)
+              beamServices.geo
+                .distUTMInMeters(stall.locationUTM, beamServices.geo.wgs2Utm(nextLeg.travelPath.endPoint.loc))
             eventsManager
               .processEvent(new ParkEvent(tick, stall, distance, currentBeamVehicle.id)) // nextLeg.endTime -> to fix repeated path traversal
           }
@@ -400,7 +399,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           .map { personVehicle =>
             ScheduleTrigger(
               BoardVehicleTrigger(tick, data.currentVehicle.head),
-              beamServices.personRefs(personVehicle.personId)
+              personVehicle.personRef
             )
           }
           .toVector

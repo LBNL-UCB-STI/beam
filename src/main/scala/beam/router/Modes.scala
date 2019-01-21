@@ -114,7 +114,7 @@ object Modes {
 
     val transitModes =
       Seq(BUS, FUNICULAR, GONDOLA, CABLE_CAR, FERRY, TRAM, TRANSIT, RAIL, SUBWAY)
-    val allBeamModes: Seq[BeamMode] = Seq(CAR, RIDE_HAIL, BIKE) ++ transitModes
+    val allBeamModes: Seq[BeamMode] = Seq(CAR, RIDE_HAIL, RIDE_HAIL_TRANSIT, BIKE, WALK, WALK_TRANSIT) ++ transitModes
 
     val massTransitModes: List[BeamMode] = List(FERRY, TRANSIT, RAIL, SUBWAY, TRAM)
 

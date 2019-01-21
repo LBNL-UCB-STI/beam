@@ -101,6 +101,10 @@ object BeamVehicleType {
   def isBicycleVehicle(beamVehicleId: Id[Vehicle]): Boolean =
     beamVehicleId.toString.startsWith("bike")
 
+  def isTransitVehicle(beamVehicleId: Id[Vehicle]): Boolean =
+    List("bus", "train", "subway", "tram", "rail", "cable_car", "ferry")
+      .exists(beamVehicleId.toString.toLowerCase.startsWith)
+
 }
 
 object FuelType {
