@@ -5,7 +5,6 @@ import org.scalatest.Matchers
 
 class PersonCostAnalysisSpec extends GenericAnalysisSpec with Matchers {
 
-
   override def beforeAll(): Unit = {
     super.beforeAll()
 
