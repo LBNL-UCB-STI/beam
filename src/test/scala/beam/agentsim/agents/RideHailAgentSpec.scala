@@ -82,7 +82,7 @@ class RideHailAgentSpec
       expectMsgType[PersonDepartureEvent] // Departs..
       expectMsgType[PersonEntersVehicleEvent] // ..enters vehicle
       val notify = expectMsgType[NotifyVehicleIdle]
-      rideHailAgent ! NotifyVehicleResourceIdleReply(notify.triggerId,Vector())
+      rideHailAgent ! NotifyVehicleResourceIdleReply(notify.triggerId, Vector())
 
       val trigger = expectMsgType[TriggerWithId] // 28800
       scheduler ! ScheduleTrigger(TestTrigger(30000), self)
