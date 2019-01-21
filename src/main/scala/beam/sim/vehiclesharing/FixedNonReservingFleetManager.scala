@@ -47,7 +47,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       val vehicle = new BeamVehicle(
         Id.createVehicleId(self.path.name + "-" + ix),
         new Powertrain(0.0),
-        BeamVehicleType.defaultCarBeamVehicleType
+        vehicleType
       )
       vehicle.manager = Some(self)
       vehicle.spaceTime = SpaceTime(location, 0)
