@@ -26,8 +26,8 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
   private val personDepartures: mutable.LinkedHashMap[Id[Person], Option[Double]] =
     mutable.LinkedHashMap.empty[Id[Person], Option[Double]]
   // Stores parking overhead times grouped by the time bin and parking taz
-  private val parkingTimeByBinAndTaz: mutable.LinkedHashMap[(Int, String), List[Double]] =
-    mutable.LinkedHashMap.empty[(Int, String), List[Double]]
+  private val parkingStatsByBinAndTaz: mutable.LinkedHashMap[(Int, String), ParkingStatsCollector.ParkingStats] =
+    mutable.LinkedHashMap.empty[(Int, String), ParkingStatsCollector.ParkingStats]
   private val fileBaseName = "parkingStats"
 
   /**
@@ -35,7 +35,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
     * @param event an iteration end event.
     */
   override def createGraph(event: IterationEndsEvent): Unit = {
-    writeToCsv(event.getIteration, parkingTimeByBinAndTaz)
+    writeToCsv(event.getIteration, parkingStatsByBinAndTaz)
   }
 
   /**
@@ -61,8 +61,8 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
       // If the person enters a transit vehicle , then stop tracking the person
       case personEntersVehicleEvent: PersonEntersVehicleEvent =>
         if (personDepartures.contains(personEntersVehicleEvent.getPersonId) && BeamVehicleType.isTransitVehicle(
-          personEntersVehicleEvent.getVehicleId
-        )) {
+              personEntersVehicleEvent.getVehicleId
+            )) {
           personDepartures.remove(personEntersVehicleEvent.getPersonId)
         }
       // When the tracked person , enter a vehicle and leaves the parking area
@@ -91,9 +91,15 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
       val leavingParkingEventAttributes = leavingParkingEvent.getAttributes
       val parkingTaz = leavingParkingEventAttributes.get(LeavingParkingEventAttrs.ATTRIBUTE_PARKING_TAZ)
       val hourOfEvent = (leavingParkingEvent.getTime / 3600).toInt
-      var parkingTimes = parkingTimeByBinAndTaz.getOrElse(hourOfEvent -> parkingTaz, List.empty)
-      parkingTimes = parkingTimes :+ outboundParkingOverheadTime
-      parkingTimeByBinAndTaz.put(hourOfEvent -> parkingTaz, parkingTimes)
+      val parkingStats = parkingStatsByBinAndTaz.getOrElse(
+        hourOfEvent -> parkingTaz,
+        ParkingStatsCollector.ParkingStats(List.empty, List.empty, List.empty)
+      )
+      val outboundParkingTimes = parkingStats.outboundParkingTimeOverhead :+ outboundParkingOverheadTime
+      parkingStatsByBinAndTaz.put(
+        hourOfEvent -> parkingTaz,
+        parkingStats.copy(outboundParkingTimeOverhead = outboundParkingTimes)
+      )
     } catch {
       case e: Exception => logger.error("Error while processing the parking stats : " + e.getMessage, e)
     }
@@ -102,21 +108,24 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
   /**
     * Write the collected parking stats data to a csv file.
     * @param iterationNumber the current iteration
-    * @param parkingTimeByBinAndTaz parking overhead times grouped by the time bin and parking taz
+    * @param parkingStatsByBinAndTaz parking overhead times grouped by the time bin and parking taz
     */
   private def writeToCsv(
-                          iterationNumber: Int,
-                          parkingTimeByBinAndTaz: mutable.LinkedHashMap[(Int, String), List[Double]]
-                        ) = {
+    iterationNumber: Int,
+    parkingStatsByBinAndTaz: mutable.LinkedHashMap[(Int, String), ParkingStatsCollector.ParkingStats]
+  ) = {
     try {
       val header = "timeBin,TAZ,outboundParkingOverheadTime,inboundParkingOverheadTime,inboundParkingOverheadCost"
       val csvFilePath =
         GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileBaseName + ".csv")
       val inboundParkingOverheadTime = 0
       val inboundParkingOverheadCost = 0
-      val data = parkingTimeByBinAndTaz map {
-        case ((bin, taz), parkingOverheadTimes) =>
-          bin + "," + taz + "," + parkingOverheadTimes.sum / parkingOverheadTimes.size + "," + inboundParkingOverheadTime + "," + inboundParkingOverheadCost
+      val data = parkingStatsByBinAndTaz map {
+        case ((bin, taz), parkingStats) =>
+          bin + "," + taz + "," +
+          parkingStats.outboundParkingTimeOverhead.sum / parkingStats.outboundParkingTimeOverhead.size + "," +
+          inboundParkingOverheadTime + "," +
+          inboundParkingOverheadCost
       } mkString "\n"
       FileUtils.writeToFile(csvFilePath, Some(header), data, None)
     } catch {
@@ -129,16 +138,18 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
     */
   override def resetStats(): Unit = {
     personDepartures.clear()
-    parkingTimeByBinAndTaz.clear()
+    parkingStatsByBinAndTaz.clear()
   }
 
 }
 
 object ParkingStatsCollector extends OutputDataDescriptor {
 
-  case class ParkingStats(outboundParkingTimeOverhead: Option[Double],
-                          inboundParkingTimeOverhead: Option[Double],
-                          inboundParkingCostOverhead: Option[Double])
+  case class ParkingStats(
+    outboundParkingTimeOverhead: List[Double],
+    inboundParkingTimeOverhead: List[Double],
+    inboundParkingCostOverhead: List[Double]
+  )
 
   /**
     * Get description of fields written to the output files.
