@@ -11,6 +11,7 @@ import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 trait NetworkCoordinator extends LazyLogging {
 
@@ -96,6 +97,21 @@ trait NetworkCoordinator extends LazyLogging {
       }
     }
     transportNetwork.transitLayer.hasFrequencies = false
+  }
+
+  def estimateInUseFleet(): Unit = {
+    val tripFleetSizeMap = mutable.HashMap.empty[String,Int]
+    transportNetwork.transitLayer.tripPatterns.asScala.foreach { tp =>
+      val activeFleet: mutable.HashSet[String] = mutable.HashSet.empty
+      if (tp.hasSchedules) {
+        tp.tripSchedules.asScala.toVector foreach { ts =>
+        //Todo track vehicle between first arrival to last departure
+          val firstArrival: Int = ts.arrivals(0)
+          val lastDeparture: Int = ts.departures(ts.getNStops)
+        }
+      }
+      tripFleetSizeMap.put(tp.routeId,activeFleet.size)
+    }
   }
 
 }
