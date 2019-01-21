@@ -25,9 +25,7 @@ object BeamVehicleUtils {
     new BeamVehicle(
       beamVehicleId,
       powertrain,
-      None,
-      bvt,
-      null
+      bvt
     )
   }
 
@@ -96,34 +94,34 @@ object BeamVehicleUtils {
       .headOption
   }
 
-  def prePopulateVehiclesByHouseHold(
-    beamServices: BeamServices
-  ): java.util.Map[Id[Household], java.util.List[Id[Vehicle]]] = {
-
-    val vehicles: java.util.Map[Id[Household], java.util.List[Id[Vehicle]]] = new util.TreeMap()
-
-    beamServices.privateVehicles.foreach {
-      case (k: Id[BeamVehicle], v: BeamVehicle) => {
-
-        var hVehicles: java.util.List[Id[Vehicle]] = vehicles.get(v.householdId.get)
-        if (hVehicles == null) {
-          hVehicles = new java.util.ArrayList[Id[Vehicle]]()
-        }
-        hVehicles.add(Id.createVehicleId(k.toString))
-        vehicles.put(v.householdId.get, hVehicles)
-
-      }
-    }
-
-    vehicles
-  }
+//  def prePopulateVehiclesByHouseHold(
+//    beamServices: BeamServices
+//  ): java.util.Map[Id[Household], java.util.List[Id[Vehicle]]] = {
+//
+//    val vehicles: java.util.Map[Id[Household], java.util.List[Id[Vehicle]]] = new util.TreeMap()
+//
+//    beamServices.privateVehicles.foreach {
+//      case (k: Id[BeamVehicle], v: BeamVehicle) => {
+//
+//        var hVehicles: java.util.List[Id[Vehicle]] = vehicles.get(v.householdId.get)
+//        if (hVehicles == null) {
+//          hVehicles = new java.util.ArrayList[Id[Vehicle]]()
+//        }
+//        hVehicles.add(Id.createVehicleId(k.toString))
+//        vehicles.put(v.householdId.get, hVehicles)
+//
+//      }
+//    }
+//
+//    vehicles
+//  }
 
   def getBeamVehicle(vehicle: Vehicle, household: Household, beamVehicleType: BeamVehicleType): BeamVehicle = {
 
     val bvId = Id.create(vehicle.getId, classOf[BeamVehicle])
     val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
 
-    val beamVehicle = new BeamVehicle(bvId, powerTrain, None, beamVehicleType, Some(household.getId))
+    val beamVehicle = new BeamVehicle(bvId, powerTrain, beamVehicleType)
 
     beamVehicle
   }
