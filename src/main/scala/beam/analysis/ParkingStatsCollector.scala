@@ -61,8 +61,8 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
       // If the person enters a transit vehicle , then stop tracking the person
       case personEntersVehicleEvent: PersonEntersVehicleEvent =>
         if (personDepartures.contains(personEntersVehicleEvent.getPersonId) && BeamVehicleType.isTransitVehicle(
-              personEntersVehicleEvent.getVehicleId
-            )) {
+          personEntersVehicleEvent.getVehicleId
+        )) {
           personDepartures.remove(personEntersVehicleEvent.getPersonId)
         }
       // When the tracked person , enter a vehicle and leaves the parking area
@@ -105,9 +105,9 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
     * @param parkingTimeByBinAndTaz parking overhead times grouped by the time bin and parking taz
     */
   private def writeToCsv(
-    iterationNumber: Int,
-    parkingTimeByBinAndTaz: mutable.LinkedHashMap[(Int, String), List[Double]]
-  ) = {
+                          iterationNumber: Int,
+                          parkingTimeByBinAndTaz: mutable.LinkedHashMap[(Int, String), List[Double]]
+                        ) = {
     try {
       val header = "timeBin,TAZ,outboundParkingOverheadTime,inboundParkingOverheadTime,inboundParkingOverheadCost"
       val csvFilePath =
@@ -135,6 +135,10 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
 }
 
 object ParkingStatsCollector extends OutputDataDescriptor {
+
+  case class ParkingStats(outboundParkingTimeOverhead: Option[Double],
+                          inboundParkingTimeOverhead: Option[Double],
+                          inboundParkingCostOverhead: Option[Double])
 
   /**
     * Get description of fields written to the output files.
