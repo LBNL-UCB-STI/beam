@@ -66,9 +66,9 @@ object DrivesVehicle {
 
   case class BeamVehicleStateUpdate(id: Id[Vehicle], vehicleState: BeamVehicleState)
 
-  case class StopDrivingIfNoPassengerOnBoard(tick: Int, requestId: Int)
+  case class InterruptIfNoPassengerOnBoard(tick: Int, requestId: Int)
 
-  case class StopDrivingIfNoPassengerOnBoardReply(success: Boolean, requestId: Int, tick: Int)
+  case class InterruptIfNoPassengerOnBoardReply(success: Boolean, requestId: Int, tick: Int)
 
 }
 
@@ -96,13 +96,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         println(currentLeg)
         if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
           log.info("stopping vehicle: {}", id)
-          goto(DrivingInterrupted) replying StopDrivingIfNoPassengerOnBoardReply(
+          goto(DrivingInterrupted) replying InterruptIfNoPassengerOnBoardReply(
             success = true,
             requestId,
             tick
           )
         } else {
-          stay() replying StopDrivingIfNoPassengerOnBoardReply(success = false, requestId, tick)
+          stay() replying InterruptIfNoPassengerOnBoardReply(success = false, requestId, tick)
         }
       case None =>
         stay()
@@ -256,7 +256,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         data.currentLegPassengerScheduleIndex
       )
 
-    case ev @ Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
+    case ev @ Event(InterruptIfNoPassengerOnBoard(tick, requestId), data) =>
       log.debug("state(DrivesVehicle.Driving): {}", ev)
       data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
@@ -264,14 +264,14 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         case Some(currentLeg) =>
           if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
             log.info("stopping vehicle: {}", id)
-            goto(DrivingInterrupted) replying StopDrivingIfNoPassengerOnBoardReply(
+            goto(DrivingInterrupted) replying InterruptIfNoPassengerOnBoardReply(
               success = true,
               requestId,
               tick
             )
 
           } else {
-            stay() replying StopDrivingIfNoPassengerOnBoardReply(success = false, requestId, tick)
+            stay() replying InterruptIfNoPassengerOnBoardReply(success = false, requestId, tick)
           }
         case None =>
           stay()
@@ -458,7 +458,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
       stay()
 
-    case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
+    case Event(InterruptIfNoPassengerOnBoard(tick, requestId), data) =>
       handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
 
   }
@@ -578,7 +578,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         )
         .asInstanceOf[T]
 
-    case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
+    case Event(InterruptIfNoPassengerOnBoard(tick, requestId), data) =>
       log.debug("DrivesVehicle.StopDrivingIfNoPassengerOnBoard -> unhandled + {}", stateName)
 
       handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)

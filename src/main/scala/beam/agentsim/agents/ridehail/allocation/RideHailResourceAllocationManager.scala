@@ -1,6 +1,6 @@
 package beam.agentsim.agents.ridehail.allocation
 
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.InterruptIfNoPassengerOnBoardReply
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, PoolingInfo}
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
@@ -178,7 +178,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   /*
    * This is deprecated.
    */
-  def handleRideCancellationReply(reply: StopDrivingIfNoPassengerOnBoardReply): Unit = {
+  def handleRideCancellationReply(reply: InterruptIfNoPassengerOnBoardReply): Unit = {
     logger.trace("default implementation handleRideCancellationReply executed")
   }
 }

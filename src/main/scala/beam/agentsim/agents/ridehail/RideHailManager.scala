@@ -486,7 +486,7 @@ class RideHailManager(
   log.info("Initialized {} ride hailing agents", numRideHailAgents)
 
   override def receive: Receive = LoggingReceive {
-    case ev @ StopDrivingIfNoPassengerOnBoardReply(success, requestId, tick) =>
+    case ev @ InterruptIfNoPassengerOnBoardReply(success, requestId, tick) =>
       Option(travelProposalCache.getIfPresent(requestId.toString)) match {
         case Some(travelProposal) =>
           if (success) {
@@ -865,7 +865,7 @@ class RideHailManager(
           travelProposal.rideHailAgentLocation.vehicleId,
           tick
         )
-        travelProposal.rideHailAgentLocation.rideHailAgent ! StopDrivingIfNoPassengerOnBoard(
+        travelProposal.rideHailAgentLocation.rideHailAgent ! InterruptIfNoPassengerOnBoard(
           tick,
           requestId
         )
