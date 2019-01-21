@@ -7,7 +7,7 @@ import beam.sim.population.PopulationAdjustment.AVAILABLE_MODES
 import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.handler.BasicEventHandler
@@ -22,10 +22,43 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
         |beam.outputs.events.fileOutputFormats = xml
         |beam.physsim.skipPhysSim = true
         |beam.agentsim.lastIteration = 0
-        |beam.agentsim.agents.vehicles.sharedFleets = [inexhaustible-reserving]
-      """.stripMargin)
+        |beam.agentsim.agents.vehicles.sharedFleets = [
+        | {
+        |    name = "inexhaustible-reserving"
+        |    managerType = "inexhaustible-reserving"
+        |    inexhaustible-reserving {
+        |      vehicleTypeId = "sharedCar"
+        |    }
+        | }
+        |]
+        """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
+    runCarSharingTest(config)
+  }
+
+  "Running a car-sharing-only scenario with one car per person at home" must "result in everybody driving" in {
+    val config = ConfigFactory
+      .parseString("""
+        |beam.outputs.events.fileOutputFormats = xml
+        |beam.physsim.skipPhysSim = true
+        |beam.agentsim.lastIteration = 0
+        |beam.agentsim.agents.vehicles.sharedFleets = [
+        | {
+        |    name = "fixed-non-reserving"
+        |    managerType = "fixed-non-reserving"
+        |    fixed-non-reserving {
+        |      vehicleTypeId = "sharedCar"
+        |    }
+        | }
+        |]
+        """.stripMargin)
+      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .resolve()
+    runCarSharingTest(config)
+  }
+
+  private def runCarSharingTest(config: Config): Unit = {
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
     val beamConfig = BeamConfig(config)
@@ -79,4 +112,5 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
     assume(trips != 0, "Something's wildly broken, I am not seeing any trips.")
     assert(nonCarTrips == 0, "Someone wasn't driving even though everybody wants to and cars abound.")
   }
+
 }
