@@ -135,9 +135,7 @@ class BeamSim @Inject()(
     delayMetricAnalysis = new DelayMetricAnalysis(
       eventsManager,
       event.getServices.getControlerIO,
-      beamServices,
-      networkHelper,
-      beamServices.beamConfig
+      networkHelper
     )
 
     // report inconsistencies in output:

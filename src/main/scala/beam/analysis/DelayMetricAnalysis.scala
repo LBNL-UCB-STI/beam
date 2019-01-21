@@ -5,8 +5,6 @@ import java.util
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.Modes.BeamMode.CAR
-import beam.sim.BeamServices
-import beam.sim.config.BeamConfig
 import beam.utils.{LinkWithIndex, NetworkHelper}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -25,24 +23,18 @@ case class DelayInLength(delay: Double, length: Int)
 class DelayMetricAnalysis @Inject()(
   eventsManager: EventsManager,
   controlerIO: OutputDirectoryHierarchy,
-  services: BeamServices,
-  networkHelper: NetworkHelper,
-  beamConfig: BeamConfig
+  networkHelper: NetworkHelper
 ) extends BasicEventHandler
     with LazyLogging {
 
   eventsManager.addHandler(this)
 
-  // private val cumulativeDelay: mutable.Map[String, Double] = mutable.Map()
   private val cumulativeDelay: Array[Double] = Array.ofDim[Double](networkHelper.totalNumberOfLinks)
 
-  // private val cumulativeLength: mutable.Map[String, Double] = mutable.Map()
   private val cumulativeLength: Array[Double] = Array.ofDim[Double](networkHelper.totalNumberOfLinks)
 
-  //  private var linkTravelsCount: mutable.Map[String, Int] = mutable.Map()
   private var linkTravelsCount: Array[Int] = Array.ofDim[Int](networkHelper.totalNumberOfLinks)
 
-  // private var linkAverageDelay: mutable.Map[String, DelayInLength] = mutable.Map()
   private var linkAverageDelay: Array[DelayInLength] = Array.ofDim[DelayInLength](networkHelper.totalNumberOfLinks)
 
   private val bins = Array(0, 500, 1000, 2000, 3000)
