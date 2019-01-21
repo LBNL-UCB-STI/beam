@@ -18,9 +18,9 @@ object MathUtils {
   }
 
   /**
-    * Calculates the mean for the given collection
+    * Calculates the median for the given collection
     * @param list the list of data
-    * @return mean of the given list
+    * @return median of the given list
     */
   def median(list: java.util.List[java.lang.Double]): Double = {
     if (list.isEmpty) {
