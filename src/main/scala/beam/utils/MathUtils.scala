@@ -18,7 +18,7 @@ object MathUtils {
   }
 
   /**
-    * Calculates the median for the given collection
+    * Calculates the median for the given collection of doubles
     * @param list the list of data
     * @return median of the given list
     */
