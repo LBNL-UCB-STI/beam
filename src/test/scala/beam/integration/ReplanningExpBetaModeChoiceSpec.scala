@@ -43,7 +43,7 @@ class ReplanningExpBetaModeChoiceSpec
     .withValue("matsim.modules.strategy.ModuleProbability_1", ConfigValueFactory.fromAnyRef(0.8))
     .withValue("matsim.modules.strategy.ModuleProbability_2", ConfigValueFactory.fromAnyRef(0.1))
     .withValue("matsim.modules.strategy.ModuleProbability_3", ConfigValueFactory.fromAnyRef(0.1))
-    .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(20))
+    .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(10))
     .withFallback(param)
     .resolve()
 
