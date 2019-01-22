@@ -352,14 +352,6 @@ class BeamAgentScheduler(
             log.info(finalStr)
           }
         }
-        if (beamConfig.beam.debug.triggerMeasurer.enabled && beamConfig.beam.debug.triggerMeasurer.writeStuckAgentDetectionConfig) {
-          val jsonConf = triggerMeasurer.asStuckAgentDetectionConfig
-          log.info(
-            "Auto-generated stuck agent detection config (might need to tune it manually, especially `markAsStuckAfterMs`):"
-          )
-          val finalStr = System.lineSeparator() + jsonConf + System.lineSeparator()
-          log.info(finalStr)
-        }
 
         // In BeamMobsim all rideHailAgents receive a 'Finish' message. If we also send a message from here to rideHailAgent, dead letter is reported, as at the time the second
         // Finish is sent to rideHailAgent, it is already stopped.
