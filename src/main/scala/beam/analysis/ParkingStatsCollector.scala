@@ -107,7 +107,6 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
        */
       case parkEvent: ParkEvent =>
         if (personParkingStatsTracker.contains(parkEvent.getPersonId)) {
-          logger.info("Parking stats [ParkEvent]  : " + (parkEvent.getPersonId -> parkEvent.getAttributes.keySet()))
           val personParkingStats = personParkingStatsTracker.getOrElse(
             parkEvent.getPersonId,
             ParkingStatsCollector.PersonParkingStats(None, None, None, None)
