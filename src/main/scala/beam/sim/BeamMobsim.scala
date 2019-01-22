@@ -60,6 +60,7 @@ class BeamMobsim @Inject()(
   var debugActorWithTimerCancellable: Cancellable = _
   private val config: Beam.Agentsim = beamServices.beamConfig.beam.agentsim
 
+  // This trick here because we created actorEventsManager in `BeamSim.scala`
   val actorEventsManager: ActorRef =
     Await.result(actorSystem.actorSelection("/user/ActorEventsManager").resolveOne(5.seconds), 5.seconds)
   println(actorEventsManager)
