@@ -13,23 +13,23 @@ class PersonCostAnalysisSpec extends GenericAnalysisSpec with Matchers {
 
   "Person cost analyser " must {
     "calculate average trip expense" in {
-      assert(summaryStats.get("averageTripExpenditure") > 0.3)
+      summaryStats.get("averageTripExpenditure") should not be 0
     }
 
     "calculate total cost" in {
       print(summaryStats)
-      assert(summaryStats.get("totalCost_ride_hail") > 55.0)
-      assert(summaryStats.get("totalCost_car") > 8.0)
+      summaryStats.get("totalCost_ride_hail") should not be 0
+      summaryStats.get("totalCost_car") should not be 0
       /*{totalToll_ride_hail=0.0,
       totalIncentive_car=0.0}*/
     }
 
     "calculate total ride_hail incentive" in {
-      assert(summaryStats.get("totalIncentive_ride_hail") > 96.0)
+      summaryStats.get("totalIncentive_ride_hail") should not be 0
     }
 
     "calculate total car toll" in {
-      assert(summaryStats.get("totalToll_car") > 5.0)
+      summaryStats.get("totalToll_car") should not be 0
     }
   }
 }
