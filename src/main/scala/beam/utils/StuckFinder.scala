@@ -17,6 +17,7 @@ import scala.collection.mutable.ArrayBuffer
 class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
   private var tickValue: Int = -1
   private var lastUpdatedTime: Long = 0
+  private var numCriticalStuckMessages = 0
 
   private val actorToTriggerMessages: mutable.Map[ActorRef, mutable.Map[Class[_], Int]] =
     mutable.Map[ActorRef, mutable.Map[Class[_], Int]]()
@@ -65,7 +66,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
     if (cfg.enabled) {
       updateTickIfNeeded(st.triggerWithId.trigger.tick)
       if (isNew && cfg.checkMaxNumberOfMessagesEnabled)
-        checkIfExiceedMaxNumOfMsgPerActorType(st)
+        checkIfExceedMaxNumOfMsgPerActorType(st)
       class2Helper
         .get(toKey(st))
         .foreach { helper =>
@@ -140,7 +141,10 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
       val diff = System.currentTimeMillis() - lastUpdatedTime
       val isStuck = diff > cfg.overallSimulationTimeoutMs
       if (isStuck) {
-        logger.error(s"Critical. No progress in overall simulation for last $diff ms")
+        numCriticalStuckMessages = numCriticalStuckMessages + 1
+        if (beam.utils.logging.ExponentialLoggerWrapperImpl.isNumberPowerOfTwo(numCriticalStuckMessages)) {
+          logger.error(s"Critical. No progress in overall simulation for last $diff ms")
+        }
       }
     }
   }
@@ -160,7 +164,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
     }
   }
 
-  private def checkIfExiceedMaxNumOfMsgPerActorType(st: ScheduledTrigger): Unit = {
+  private def checkIfExceedMaxNumOfMsgPerActorType(st: ScheduledTrigger): Unit = {
     val actor = st.agent
     val triggerClazz = st.triggerWithId.trigger.getClass
     val msgCount = updateAndGetNumOfTriggerMessagesPerActor(actor, triggerClazz)
@@ -228,7 +232,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
   private def getActorType(actorRef: ActorRef): String = {
     if (actorRef.path.parent.name == "router" && actorRef.path.name.indexOf("TransitDriverAgent-") != -1) {
       "TransitDriverAgent"
-    } else if (actorRef.path.parent.parent.name == "population") {
+    } else if (actorRef.path.parent.name == "population" || actorRef.path.parent.parent.name == "population") {
       "Population"
     } else if (actorRef.path.name.contains("rideHailAgent-")) {
       "RideHailAgent"

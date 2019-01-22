@@ -1,6 +1,7 @@
 package beam.agentsim.agents.ridehail.allocation
 
-import beam.agentsim.agents.ridehail.RideHailManager.{PoolingInfo, RideHailAgentLocation}
+import beam.agentsim.agents.ridehail.RideHailManager.{PoolingInfo}
+import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -16,7 +17,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
   val tempPickDropStore: mutable.Map[Int, PickDropIdAndLeg] = mutable.Map()
 
   override def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
-    rideHailManager
+    rideHailManager.vehicleManager
       .getClosestIdleVehiclesWithinRadiusByETA(
         inquiry.pickUpLocationUTM,
         rideHailManager.radiusInMeters,
@@ -54,17 +55,17 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
       } else {
         // Make sure vehicle still available
         val vehicleId = routeResponses.head.itineraries.head.legs.head.beamVehicleId
-        if (rideHailManager.getIdleVehicles.contains(vehicleId) && !alreadyAllocated.contains(vehicleId)) {
+        if (rideHailManager.vehicleManager.getIdleVehicles.contains(vehicleId) && !alreadyAllocated.contains(vehicleId)) {
           alreadyAllocated = alreadyAllocated + vehicleId
           val pickDropIdAndLegs = routeResponses.map { rResp =>
             tempPickDropStore
-              .remove(rResp.staticRequestId)
+              .remove(rResp.requestId)
               .getOrElse(PickDropIdAndLeg(request.customer, None))
               .copy(leg = rResp.itineraries.head.legs.headOption)
           }
           allocResponses = allocResponses :+ VehicleMatchedToCustomers(
             request,
-            rideHailManager.getIdleVehicles(vehicleId),
+            rideHailManager.vehicleManager.getIdleVehicles(vehicleId),
             pickDropIdAndLegs
           )
         } else {
@@ -79,7 +80,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
       twoToPool.size match {
         case 1 =>
           val request = twoToPool.head
-          rideHailManager
+          rideHailManager.vehicleManager
             .getClosestIdleVehiclesWithinRadiusByETA(
               request.pickUpLocationUTM,
               rideHailManager.radiusInMeters,
@@ -105,7 +106,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
           val routingResponses1 = vehicleAllocationRequest.requests(request1)
           val request2 = twoToPool.last
           val routingResponses2 = vehicleAllocationRequest.requests(request2)
-          rideHailManager
+          rideHailManager.vehicleManager
             .getClosestIdleVehiclesWithinRadiusByETA(
               request1.pickUpLocationUTM,
               rideHailManager.radiusInMeters,
@@ -140,6 +141,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
     var startTime = tick
     var rideHailVehicleAtOrigin = StreetVehicle(
       rideHailLocation.vehicleId,
+      rideHailLocation.vehicleTypeId,
       SpaceTime((rideHailLocation.currentLocationUTM.loc, startTime)),
       CAR,
       asDriver = false
@@ -155,10 +157,15 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         Vector(rideHailVehicleAtOrigin)
       )
       routeReqs = routeReqs :+ routeReq2Pickup
-      tempPickDropStore.put(routeReq2Pickup.staticRequestId, PickDropIdAndLeg(req.customer, None))
+      tempPickDropStore.put(routeReq2Pickup.requestId, PickDropIdAndLeg(req.customer, None))
 
-      rideHailVehicleAtOrigin =
-        StreetVehicle(rideHailLocation.vehicleId, SpaceTime((req.pickUpLocationUTM, startTime)), CAR, asDriver = false)
+      rideHailVehicleAtOrigin = StreetVehicle(
+        rideHailLocation.vehicleId,
+        rideHailLocation.vehicleTypeId,
+        SpaceTime((req.pickUpLocationUTM, startTime)),
+        CAR,
+        asDriver = false
+      )
     }
 
     // Dropoffs next
@@ -171,10 +178,15 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         Vector(rideHailVehicleAtOrigin)
       )
       routeReqs = routeReqs :+ routeReq2Dropoff
-      tempPickDropStore.put(routeReq2Dropoff.staticRequestId, PickDropIdAndLeg(req.customer, None))
+      tempPickDropStore.put(routeReq2Dropoff.requestId, PickDropIdAndLeg(req.customer, None))
 
-      rideHailVehicleAtOrigin =
-        StreetVehicle(rideHailLocation.vehicleId, SpaceTime((req.destinationUTM, startTime)), CAR, asDriver = false)
+      rideHailVehicleAtOrigin = StreetVehicle(
+        rideHailLocation.vehicleId,
+        rideHailLocation.vehicleTypeId,
+        SpaceTime((req.destinationUTM, startTime)),
+        CAR,
+        asDriver = false
+      )
     }
 
     routeReqs

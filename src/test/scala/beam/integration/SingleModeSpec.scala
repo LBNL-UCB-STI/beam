@@ -1,5 +1,6 @@
 package beam.integration
 
+import java.io.File
 import java.time.ZonedDateTime
 
 import akka.actor._
@@ -9,7 +10,8 @@ import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, ModeIncentive, PtFares}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.{BeamVehicle, FuelType}
+import beam.agentsim.agents.vehicles.FuelType.FuelType
+import beam.agentsim.events.PathTraversalEvent
 import beam.router.BeamRouter
 import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
@@ -20,13 +22,12 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamMobsim, BeamServices}
 import beam.utils.DateUtils
-import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
-import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent}
-import org.matsim.api.core.v01.network.Network
-import org.matsim.api.core.v01.population.{Activity, Leg, Person}
+import beam.utils.TestConfigUtils.{testConfig, testOutputDir}
+import com.typesafe.config.ConfigFactory
+import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
+import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.api.core.v01.{Id, Scenario}
-import org.matsim.core.controler.MatsimServices
+import org.matsim.core.controler.{MatsimServices, OutputDirectoryHierarchy}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsManagerImpl, EventsUtils}
 import org.matsim.core.scenario.ScenarioUtils
@@ -34,6 +35,7 @@ import org.matsim.vehicles.Vehicle
 import org.mockito.Mockito._
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
+
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -44,8 +46,10 @@ class SingleModeSpec
       ActorSystem(
         "single-mode-test",
         ConfigFactory
-          .load()
-          .withValue("akka.test.timefactor", ConfigValueFactory.fromAnyRef(10))
+          .parseString("""
+              akka.test.timefactor = 10
+            """)
+          .withFallback(testConfig("test/input/sf-light/sf-light.conf").resolve())
       )
     )
     with WordSpecLike
@@ -54,6 +58,9 @@ class SingleModeSpec
     with MockitoSugar
     with BeforeAndAfterAll
     with Inside {
+
+  private val BASE_PATH = new File("").getAbsolutePath
+  private val OUTPUT_DIR_PATH = BASE_PATH + "/" + testOutputDir + "single-mode-test"
 
   var router: ActorRef = _
   var geo: GeoUtils = _
@@ -64,28 +71,37 @@ class SingleModeSpec
   var tollCalculator: TollCalculator = _
 
   override def beforeAll: Unit = {
-    val config = testConfig("test/input/sf-light/sf-light.conf")
-    beamConfig = BeamConfig(config)
+    beamConfig = BeamConfig(system.settings.config)
 
     val vehicleTypes = {
-      val fuelTypes: TrieMap[Id[FuelType], FuelType] =
-        BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
-      BeamServices.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
+      val fuelTypes = BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
+      TrieMap(
+        BeamServices
+          .readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
+          .toSeq: _*
+      )
     }
+
+    val overwriteExistingFiles =
+      OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles
+    val outputDirectoryHierarchy =
+      new OutputDirectoryHierarchy(OUTPUT_DIR_PATH, overwriteExistingFiles)
+    outputDirectoryHierarchy.createIterationDirectory(0)
 
     services = mock[BeamServices](withSettings().stubOnly())
     when(services.beamConfig).thenReturn(beamConfig)
-//    when(services.matsimServices).thenReturn(mock[MatsimServices])
-//    when(services.matsimServices.getScenario).thenReturn(mock[Scenario])
-//    when(services.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
+    when(services.matsimServices).thenReturn(mock[MatsimServices])
+    when(services.matsimServices.getControlerIO).thenReturn(outputDirectoryHierarchy)
     when(services.tazTreeMap).thenReturn(BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file))
     when(services.vehicleTypes).thenReturn(vehicleTypes)
-    when(services.vehicles).thenReturn(TrieMap[Id[BeamVehicle], BeamVehicle]())
     when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
     when(services.ptFares).thenReturn(PtFares(List[FareRule]()))
     when(services.privateVehicles).thenReturn {
-      BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
+      TrieMap(
+        BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq: _*
+      )
     }
+    when(services.fuelTypePrices).thenReturn(Map[FuelType, Double]().withDefaultValue(0.0))
 
     geo = new GeoUtilsImpl(services)
     when(services.geo).thenReturn(geo)
@@ -95,11 +111,8 @@ class SingleModeSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
-    when(services.vehicles).thenReturn(new TrieMap[Id[BeamVehicle], BeamVehicle])
     when(services.modeChoiceCalculatorFactory)
       .thenReturn((_: AttributesOfIndividual) => new ModeChoiceUniformRandom(services))
-    val personRefs = TrieMap[Id[Person], ActorRef]()
-    when(services.personRefs).thenReturn(personRefs)
     when(services.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
@@ -107,10 +120,11 @@ class SingleModeSpec
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     tollCalculator = new TollCalculator(beamConfig)
-    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+    val matsimConfig = new MatSimBeamConfigBuilder(system.settings.config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
-
-    scenario.getPopulation.getPersons.values.asScala.foreach(PersonTestUtil.putDefaultBeamAttributes)
+    when(services.matsimServices.getScenario).thenReturn(scenario)
+    scenario.getPopulation.getPersons.values.asScala
+      .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allModes))
     router = system.actorOf(
       BeamRouter.props(
         services,
@@ -312,17 +326,20 @@ class SingleModeSpec
           }
         }
       val eventsManager = EventsUtils.createEventsManager()
-      //          eventsManager.addHandler(
-      //            new BasicEventHandler {
-      //              override def handleEvent(event: Event): Unit = {
-      //                event match {
-      //                  case event: PathTraversalEvent if event.getAttributes.get("amount_paid").toDouble != 0.0 =>
-      //                    println(event)
-      //                  case _ =>
-      //                }
-      //              }
-      //            }
-      //          )
+      val events = mutable.ListBuffer[Event]()
+      eventsManager.addHandler(
+        new BasicEventHandler {
+          override def handleEvent(event: Event): Unit = {
+            event match {
+              case event @ (_: PersonDepartureEvent | _: ActivityEndEvent | _: PathTraversalEvent |
+                  _: PersonEntersVehicleEvent) =>
+                events += event
+              case _ =>
+            }
+          }
+        }
+      )
+
       val mobsim = new BeamMobsim(
         services,
         networkCoordinator.transportNetwork,
@@ -334,6 +351,13 @@ class SingleModeSpec
         new RideHailIterationHistory()
       )
       mobsim.run()
+      events.collect {
+        case event: PersonDepartureEvent =>
+          // Wr still get some failing car routes.
+          // TODO: Find root cause, fix, and remove "walk" here.
+          // See SfLightRouterSpec.
+          assert(event.getLegMode == "walk" || event.getLegMode == "car" || event.getLegMode == "be_a_tnc_driver")
+      }
     }
   }
 

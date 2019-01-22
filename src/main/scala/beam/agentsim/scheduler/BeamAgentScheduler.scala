@@ -131,7 +131,7 @@ class BeamAgentScheduler(
   private var startSender: ActorRef = _
   private var nowInSeconds: Int = 0
 
-  private val triggerMeasurer: TriggerMeasurer = new TriggerMeasurer
+  private val triggerMeasurer: TriggerMeasurer = new TriggerMeasurer(beamConfig.beam.debug.triggerMeasurer)
 
   private var startedAt: Deadline = _
   // Event stream state and cleanup management
@@ -273,7 +273,7 @@ class BeamAgentScheduler(
             log.error("RideHailingManager is slow")
           } else if (times == 50) {
             throw RideHailingManagerIsExtremelySlowException(
-              "RideHailingManager is extremly slow"
+              "RideHailingManager is extremely slow"
             )
           }
         }
@@ -337,6 +337,14 @@ class BeamAgentScheduler(
           log.info(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
         } else {
           log.debug(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
+        }
+        if (beamConfig.beam.debug.triggerMeasurer.enabled && beamConfig.beam.debug.triggerMeasurer.writeStuckAgentDetectionConfig) {
+          val jsonConf = triggerMeasurer.asStuckAgentDetectionConfig
+          log.info(
+            "Auto-generated stuck agent detection config (might need to tune it manually, especially `markAsStuckAfterMs`):"
+          )
+          val finalStr = System.lineSeparator() + jsonConf + System.lineSeparator()
+          log.info(finalStr)
         }
 
         // In BeamMobsim all rideHailAgents receive a 'Finish' message. If we also send a message from here to rideHailAgent, dead letter is reported, as at the time the second

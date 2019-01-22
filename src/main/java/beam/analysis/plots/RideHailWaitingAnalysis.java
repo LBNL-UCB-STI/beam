@@ -123,7 +123,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     private static final String graphTitle = "Ride Hail Waiting Histogram";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Waiting Time (frequencies)";
-    static final String fileName = "rideHailWaitingStats";
+    static final String fileName = "rideHailWaitingHistogram";
     static final String rideHailIndividualWaitingTimesFileBaseName = "rideHailIndividualWaitingTimes";
     private boolean writeGraph;
     private List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
@@ -157,6 +157,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         numOfTrips = 0;
         rideHailCount = 0;
         totalPTWaitingTime = 0.0;
+        ptWaiting.clear();
         rideHailWaiting.clear();
         hoursTimesMap.clear();
         rideHailWaitingIndividualStatList.clear();
@@ -164,9 +165,8 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
 
     @Override
     public void processStats(Event event) {
-
-        Map<String, String> eventAttributes = event.getAttributes();
         if (event instanceof ModeChoiceEvent) {
+            Map<String, String> eventAttributes = event.getAttributes();
             String mode = eventAttributes.get("mode");
 
             if (mode.equalsIgnoreCase(RIDE_HAIL)) {
@@ -183,7 +183,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
             }
 
         } else if (event instanceof PersonEntersVehicleEvent) {
-
+            Map<String, String> eventAttributes = event.getAttributes();
             PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent) event;
             Id<Person> personId = personEntersVehicleEvent.getPersonId();
             String pId = personId.toString();
@@ -239,8 +239,8 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     @Override
     public Map<String, Double> getSummaryStats() {
         return new HashMap<String, Double>() {{
-            put("averageRideHailWaitTimeInSec", waitTimeSum / max(rideHailCount, 1));
-            put("averagePTWaitingTimeInSec", totalPTWaitingTime / max(numOfTrips, 1));
+            put("averageOnDemandRideWaitTimeInSec", waitTimeSum / max(rideHailCount, 1));
+            put("averageMTWaitingTimeInSec", totalPTWaitingTime / max(numOfTrips, 1));
         }};
     }
 
@@ -341,6 +341,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     private List<Double> getCategories() {
 
         List<Double> listOfBounds = new ArrayList<>();
+        listOfBounds.add(2.0);
         listOfBounds.add(5.0);
         listOfBounds.add(10.0);
         listOfBounds.add(20.0);

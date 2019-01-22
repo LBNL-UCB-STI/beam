@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.events.handling.BeamEventsHandling
+import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
@@ -16,7 +17,7 @@ import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
-import beam.sim.population.{PopulationAdjustment}
+import beam.sim.population.PopulationAdjustment
 import beam.utils._
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
@@ -33,6 +34,7 @@ import org.matsim.core.config.Config
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
+import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.households.Household
@@ -43,7 +45,6 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
-import scala.util.Try
 
 trait BeamHelper extends LazyLogging {
   private val argsParser = new scopt.OptionParser[Arguments]("beam") {
@@ -51,7 +52,7 @@ trait BeamHelper extends LazyLogging {
       .action(
         (value, args) =>
           args.copy(
-            config = Try(BeamConfigUtils.parseFileSubstitutingInputDirectory(value)).toOption,
+            config = Some(BeamConfigUtils.parseFileSubstitutingInputDirectory(value)),
             configLocation = Option(value)
         )
       )
@@ -191,6 +192,7 @@ trait BeamHelper extends LazyLogging {
 
           addControlerListenerBinding().to(classOf[BeamSim])
 
+          addControlerListenerBinding().to(classOf[ActivityLocationPlotter])
           addControlerListenerBinding().to(classOf[GraphSurgePricing])
           bind(classOf[BeamOutputDataDescriptionGenerator])
           addControlerListenerBinding().to(classOf[RideHailRevenueAnalysis])
@@ -244,7 +246,7 @@ trait BeamHelper extends LazyLogging {
     }
     assert(
       !isConfigArgRequired || (isConfigArgRequired && parsedArgs.config.isDefined),
-      "Beam config is a required, Please provide a valid configuration file."
+      "Please provide a valid configuration file."
     )
     val configLocation = parsedArgs.configLocation.get
 
@@ -359,7 +361,20 @@ trait BeamHelper extends LazyLogging {
     scenario.setNetwork(networkCoordinator.network)
 
     val beamServices = injector.getInstance(classOf[BeamServices])
+
+    //
+    val beamConfig = beamServices.beamConfig
+    var useCSVFiles
+      : Boolean = beamConfig.beam.agentsim.agents.population.beamPopulationDirectory != null && !beamConfig.beam.agentsim.agents.population.beamPopulationDirectory
+      .isEmpty()
+
+    if (useCSVFiles) {
+      val csvScenarioLoader = new ScenarioReaderCsv(scenario, beamServices)
+      csvScenarioLoader.loadScenario()
+    }
+
     samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices)
+
     run(beamServices)
 
     (scenario.getConfig, outputDir)
@@ -409,21 +424,6 @@ trait BeamHelper extends LazyLogging {
     beamWarmStart.warmStartPopulation(matsimConfig)
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-
-    // TODO ASIF
-    // If ours is set we will use that and if in addition matsim is set too then give a warning so that we can remove that from config
-    if (beamConfig.beam.agentsim.agents.population.beamPopulationFile != null && !beamConfig.beam.agentsim.agents.population.beamPopulationFile.isEmpty) {
-
-      val planReaderCsv: PlanReaderCsv = new PlanReaderCsv()
-      val population = planReaderCsv.readPlansFromCSV(beamConfig.beam.agentsim.agents.population.beamPopulationFile)
-      scenario.setPopulation(population)
-
-      if (beamConfig.matsim.modules.plans.inputPlansFile != null && !beamConfig.matsim.modules.plans.inputPlansFile.isEmpty) {
-        logger.warn(
-          "The config file has specified two plans file as input: beam.agentsim.agents.population.beamPopulationFile and matsim.modules.plans.inputPlansFile. The beamPopulationFile will be used, unset the beamPopulationFile if you would rather use the inputPlansFile, or unset the inputPlansFile to avoid this warning."
-        )
-      }
-    }
 
     (scenario, outputDirectory, networkCoordinator)
   }

@@ -6,6 +6,8 @@ import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.choice.mode.PtFares
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
+import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
@@ -18,6 +20,7 @@ import beam.router.model.RoutingModel
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
+import beam.sim.BeamServices.readFuelTypeFile
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.utils.DateUtils
@@ -41,7 +44,7 @@ import scala.language.postfixOps
 
 class TimeDependentRoutingSpec
     extends TestKit(
-      ActorSystem("TimeDependentRoutingSpec", testConfig("test/input/beamville/beam.conf"))
+      ActorSystem("TimeDependentRoutingSpec", testConfig("test/input/beamville/beam.conf").resolve())
     )
     with WordSpecLike
     with Matchers
@@ -68,6 +71,8 @@ class TimeDependentRoutingSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
+    when(services.vehicleTypes).thenReturn(TrieMap[Id[BeamVehicleType], BeamVehicleType]())
+    when(services.fuelTypePrices).thenReturn(Map[FuelType, Double]().withDefaultValue(0.0))
     networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
@@ -114,7 +119,7 @@ class TimeDependentRoutingSpec
           0.0
         )
       )
-      router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1))
+      router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), BeamVehicleType.defaultCarBeamVehicleType.id)
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.head.beamLegs().head.duration == 70)
       // R5 travel time, but less than what's in R5's routing response (see vv),
@@ -130,6 +135,7 @@ class TimeDependentRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -150,6 +156,7 @@ class TimeDependentRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -170,6 +177,7 @@ class TimeDependentRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -199,6 +207,7 @@ class TimeDependentRoutingSpec
         Vector(
           StreetVehicle(
             vehicleId,
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -233,6 +242,7 @@ class TimeDependentRoutingSpec
           Vector(
             StreetVehicle(
               Id.createVehicleId("car"),
+              BeamVehicleType.defaultCarBeamVehicleType.id,
               new SpaceTime(new Coord(origin.getX, origin.getY), time),
               Modes.BeamMode.CAR,
               asDriver = true
@@ -253,7 +263,7 @@ class TimeDependentRoutingSpec
         0,
         BeamPath(Vector(1, 2, 3, 4), Vector(), None, SpaceTime(0.0, 0.0, 28800), SpaceTime(1.0, 1.0, 28900), 1000.0)
       )
-      router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1))
+      router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), BeamVehicleType.defaultCarBeamVehicleType.id)
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.head.beamLegs().head.duration == 2000) // Contains two full links (excluding 1 and 4)
     }
