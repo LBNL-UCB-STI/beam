@@ -69,12 +69,6 @@ class BeamSim @Inject()(
   var metricsPrinter: ActorRef = actorSystem.actorOf(MetricsPrinter.props())
   val summaryData = new mutable.HashMap[String, mutable.Map[Int, Double]]()
 
-  val actorEventsManager: ActorRef = actorSystem.actorOf(
-    ActorEventsManager.props(eventsManager).withDispatcher("pinned-dispatcher-for-event-manager"),
-    "ActorEventsManager"
-  )
-  println(actorEventsManager)
-
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
       beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
@@ -84,6 +78,11 @@ class BeamSim @Inject()(
     metricsPrinter ! Subscribe("counter", "**")
     metricsPrinter ! Subscribe("histogram", "**")
 
+    val actorEventsManager: ActorRef = actorSystem.actorOf(
+      ActorEventsManager.props(eventsManager).withDispatcher("pinned-dispatcher-for-event-manager"),
+      "ActorEventsManager"
+    )
+
     val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
@@ -91,7 +90,6 @@ class BeamSim @Inject()(
         transportNetwork,
         scenario.getNetwork,
         scenario,
-        eventsManager,
         actorEventsManager,
         scenario.getTransitVehicles,
         fareCalculator,

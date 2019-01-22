@@ -65,38 +65,45 @@ class DelayMetricAnalysis @Inject()(
           assert(linkIds.length == linkTravelTimes.length)
 
           if (linkIds.nonEmpty) {
-            for (index <- linkIds.indices) {
+            var index = 0
+            while (index < linkIds.length) {
               val linkId = linkIds(index)
-              val freeLength = networkLinks.get(Id.createLinkId(linkId)).getLength
-              val freeSpeed = networkLinks.get(Id.createLinkId(linkId)).getFreespeed
-              val travelTime = linkTravelTimes(index)
-              var freeFlowDelay = travelTime - (freeLength / freeSpeed).round.toInt
-
-              if (freeFlowDelay >= 0) {
-
-                val existingFreeFlowDelay = cumulativeDelay.getOrElse(linkId, 0.0)
-                val existingLinkLength = cumulativeLength.getOrElse(linkId, 0.0)
-
-                cumulativeDelay(linkId) = freeFlowDelay + existingFreeFlowDelay
-                cumulativeLength(linkId) = freeLength + existingLinkLength
-                totalTravelTime += travelTime
-
-                linkTravelsCount(linkId) = linkTravelsCount.getOrElse(linkId, 0) + 1
-
-                linkAverageDelay(linkId) = DelayInLength(
-                  (linkTravelsCount(linkId) * cumulativeDelay(linkId)) / cumulativeLength(linkId),
-                  linkTravelsCount(linkId)
-                ) //calculate average of link delay for further calculating weighted average
-
-              } else if (freeFlowDelay >= -1) {
-                freeFlowDelay = 0
-              } else {
-                logger.warn(" The delay is negative and the delay = " + freeFlowDelay)
-              }
+              process(linkId, linkTravelTimes(index))
+              index += 1
             }
           }
         }
       case _ =>
+    }
+  }
+
+  def process(linkId: String, travelTime: Double): Unit = {
+    val link = networkLinks.get(Id.createLinkId(linkId))
+    val freeLength = link.getLength
+    val freeSpeed = link.getFreespeed
+    var freeFlowDelay = travelTime - (freeLength / freeSpeed).round.toInt
+    if (freeFlowDelay >= 0) {
+      val existingFreeFlowDelay = cumulativeDelay.getOrElse(linkId, 0.0)
+      val existingLinkLength = cumulativeLength.getOrElse(linkId, 0.0)
+
+      val delay = freeFlowDelay + existingFreeFlowDelay
+      cumulativeDelay(linkId) = delay
+
+      val len = freeLength + existingLinkLength
+      cumulativeLength(linkId) = len
+
+      totalTravelTime += travelTime
+
+      val travelsCount = linkTravelsCount.getOrElse(linkId, 0) + 1
+      linkTravelsCount(linkId) = travelsCount
+
+      //calculate average of link delay for further calculating weighted average
+      linkAverageDelay(linkId) = DelayInLength((travelsCount * delay) / len, travelsCount)
+
+    } else if (freeFlowDelay >= -1) {
+      freeFlowDelay = 0
+    } else {
+      logger.warn(" The delay is negative and the delay = " + freeFlowDelay)
     }
   }
 

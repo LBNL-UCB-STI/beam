@@ -7,25 +7,18 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Identify, OneForOneStrategy, P
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.Population.InitParkingVehicles
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.{BeamVehicle, BicycleFactory}
-import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
-import beam.agentsim.infrastructure.ParkingStall.NoNeed
-import beam.agentsim.vehicleId2BeamVehicleId
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
-import beam.sim.population.AttributesOfIndividual
 import beam.utils.BeamVehicleUtils.makeHouseholdVehicle
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
-import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.{Await, Future}
 
@@ -38,8 +31,8 @@ class Population(
   val router: ActorRef,
   val rideHailManager: ActorRef,
   val parkingManager: ActorRef,
-  val eventsManager: EventsManager,
-  val actorEventsManager: ActorRef,
+  val sharedVehicleFleets: Seq[ActorRef],
+  actorEventsManager: ActorRef
 ) extends Actor
     with ActorLogging {
 
@@ -52,8 +45,6 @@ class Population(
     }
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  private val initParkingVeh: ListBuffer[ActorRef] = mutable.ListBuffer()
-
   private val personToHouseholdId: mutable.Map[Id[Person], Id[Household]] =
     mutable.Map()
   scenario.getHouseholds.getHouseholds.forEach { (householdId, matSimHousehold) =>
@@ -61,7 +52,6 @@ class Population(
       .map(personId => personId -> householdId)
   }
 
-  // Init households before RHA.... RHA vehicles will initially be managed by households
   initHouseholds()
 
   override def receive: PartialFunction[Any, Unit] = {
@@ -69,14 +59,11 @@ class Population(
     // Do nothing
     case Finish =>
       context.children.foreach(_ ! Finish)
-      initParkingVeh.foreach(context.stop)
-      initParkingVeh.clear()
       dieIfNoChildren()
       context.become {
         case Terminated(_) =>
           dieIfNoChildren()
       }
-    case InitParkingVehicles =>
   }
 
   def dieIfNoChildren(): Unit = {
@@ -122,7 +109,6 @@ class Population(
               bvid -> beamServices.privateVehicles(bvid)
             }
             .toMap
-          householdVehicles.foreach(x => beamServices.vehicles.update(x._1, x._2))
           val householdActor = context.actorOf(
             HouseholdActor.props(
               beamServices,
@@ -133,44 +119,15 @@ class Population(
               router,
               rideHailManager,
               parkingManager,
-              eventsManager,
               actorEventsManager,
               scenario.getPopulation,
-              household.getId,
               household,
               householdVehicles,
-              homeCoord
+              homeCoord,
+              sharedVehicleFleets
             ),
             household.getId.toString
           )
-
-          householdVehicles.values.foreach { veh =>
-            veh.manager = Some(householdActor)
-          }
-
-          householdVehicles.foreach {
-            vehicle =>
-              val initParkingVehicle = context.actorOf(Props(new Actor with ActorLogging {
-                parkingManager ! ParkingInquiry(
-                  Id.createPersonId("atHome"),
-                  homeCoord,
-                  homeCoord,
-                  "home",
-                  AttributesOfIndividual.EMPTY,
-                  NoNeed,
-                  0,
-                  0
-                ) //TODO personSelectedPlan.getType is null
-
-                def receive: Receive = {
-                  case ParkingInquiryResponse(stall, _) =>
-                    vehicle._2.useParkingStall(stall)
-                    context.stop(self)
-                  //TODO deal with timeouts and errors
-                }
-              }))
-              initParkingVeh append initParkingVehicle
-          }
 
           context.watch(householdActor)
           householdActor ? Identify(0)
@@ -205,12 +162,19 @@ object Population {
     houseHoldVehicles
       .map({ id =>
         makeHouseholdVehicle(beamServices.privateVehicles, id) match {
-          case Right(vehicle) => vehicleId2BeamVehicleId(id) -> vehicle
+          case Right(vehicle) => beam.agentsim.vehicleId2BeamVehicleId(id) -> vehicle
           case Left(e)        => throw e
         }
       })
       .toMap
   }
+
+  def personInitialLocation(person: Person): Coord =
+    person.getSelectedPlan.getPlanElements
+      .iterator()
+      .next()
+      .asInstanceOf[Activity]
+      .getCoord
 
   def props(
     scenario: Scenario,
@@ -221,8 +185,8 @@ object Population {
     router: ActorRef,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
-    eventsManager: EventsManager,
-    actorEventsManager: ActorRef,
+    sharedVehicleFleets: Seq[ActorRef],
+    actorEventsManager: ActorRef
   ): Props = {
     Props(
       new Population(
@@ -234,12 +198,9 @@ object Population {
         router,
         rideHailManager,
         parkingManager,
-        eventsManager,
+        sharedVehicleFleets,
         actorEventsManager
       )
     )
   }
-
-  case object InitParkingVehicles
-
 }

@@ -22,7 +22,7 @@ class BicycleFactory(scenario: Scenario, beamServices: BeamServices) {
 
     beamServices.vehicleTypes += (
       (
-        Id.create(beamVehicleType.vehicleTypeId, classOf[BeamVehicleType]),
+        Id.create(beamVehicleType.id, classOf[BeamVehicleType]),
         beamVehicleType
       )
     )
@@ -58,9 +58,7 @@ class BicycleFactory(scenario: Scenario, beamServices: BeamServices) {
           new BeamVehicle(
             bicycleId,
             powertrain,
-            None,
-            beamVehicleType,
-            Some(household.getId)
+            beamVehicleType
           )
         )
       )

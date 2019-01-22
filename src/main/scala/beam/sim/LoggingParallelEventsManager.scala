@@ -52,7 +52,7 @@ class LoggingParallelEventsManager @Inject()(config: Config) extends EventsManag
     tryLog("afterSimStep", eventManager.afterSimStep(time))
   }
   override def finishProcessing(): Unit = {
-    tryLog("finishProcessing", eventManager.finishProcessing())
+    val s = System.currentTimeMillis()
     isFinished.set(true)
     logger.info("Set `isFinished` to true")
     dedicatedHandler.foreach { f =>
@@ -60,7 +60,10 @@ class LoggingParallelEventsManager @Inject()(config: Config) extends EventsManag
       Await.result(f, 1000.seconds)
       logger.info("dedicatedHandler future finished.")
     }
-    logger.debug(s"Overall processed events: ${numOfEvents.get()}")
+    tryLog("finishProcessing", eventManager.finishProcessing())
+    val e = System.currentTimeMillis()
+    logger.info(s"finishProcessing executed in ${e - s} ms")
+    logger.info(s"Overall processed events: ${numOfEvents.get()}")
   }
 
   private def tryLog(what: String, body: => Unit): Unit = {

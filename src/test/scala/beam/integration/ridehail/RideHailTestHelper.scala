@@ -10,6 +10,7 @@ object RideHailTestHelper {
 
   def buildConfig(allocationManagerName: String): Config = {
     val config = testConfig("test/input/beamville/beam.conf")
+      .resolve()
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue(
         "beam.agentsim.agents.rideHail.allocationManager.name",
