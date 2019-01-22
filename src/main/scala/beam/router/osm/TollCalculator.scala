@@ -5,10 +5,10 @@ import java.nio.file.{Files, Path, Paths}
 
 import beam.router.model.BeamPath
 import beam.router.osm.TollCalculator.Toll
+import beam.sim.common.Range
 import beam.sim.config.BeamConfig
 import com.conveyal.osmlib.OSM
 import com.typesafe.scalalogging.LazyLogging
-import beam.agentsim.agents.choice.mode.Range
 import javax.inject.Inject
 
 import scala.collection.JavaConverters._
