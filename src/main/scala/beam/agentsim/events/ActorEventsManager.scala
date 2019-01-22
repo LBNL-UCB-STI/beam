@@ -1,4 +1,5 @@
 package beam.agentsim.events
+
 import akka.actor.{Actor, Props}
 import beam.agentsim.events.ActorEventsManager.Message.ProcessLinkEvents
 import beam.router.model.BeamLeg
@@ -9,18 +10,21 @@ import org.matsim.vehicles.Vehicle
 
 object ActorEventsManager {
   sealed trait Message
+
   object Message {
     case class ProcessLinkEvents(vehicleId: Id[Vehicle], leg: BeamLeg) extends Message
   }
 
   def props(eventsManager: EventsManager): Props = Props(new ActorEventsManager(eventsManager))
 }
+
 class ActorEventsManager(val eventsManager: EventsManager) extends Actor {
-   def receive: Receive = {
-     case e:Event =>
-       eventsManager.processEvent(e)
-     case ple: ProcessLinkEvents =>
-       processLinkEvents(ple.vehicleId, ple.leg)
+
+  def receive: Receive = {
+    case e: Event =>
+      eventsManager.processEvent(e)
+    case ple: ProcessLinkEvents =>
+      processLinkEvents(ple.vehicleId, ple.leg)
   }
 
   def processLinkEvents(vehicleId: Id[Vehicle], leg: BeamLeg): Unit = {

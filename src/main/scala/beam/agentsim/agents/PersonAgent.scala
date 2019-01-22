@@ -14,7 +14,11 @@ import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail._
-import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{
+  BecomeDriverOfVehicleSuccess,
+  DriverAlreadyAssigned,
+  NewDriverAlreadyControllingVehicle
+}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.events.{AgencyRevenueEvent, PersonCostEvent, ReplanningEvent, ReserveRideHailEvent}
@@ -324,23 +328,19 @@ class PersonAgent(
         ) =>
       // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
       // hail a ride. We stay at the party until our Uber is there.
-      actorEventsManager !(
-        new ActivityEndEvent(
-          tick,
-          id,
-          currentActivity(data).getLinkId,
-          currentActivity(data).getFacilityId,
-          currentActivity(data).getType
-        )
+      actorEventsManager ! new ActivityEndEvent(
+        tick,
+        id,
+        currentActivity(data).getLinkId,
+        currentActivity(data).getFacilityId,
+        currentActivity(data).getType
       )
       assert(currentActivity(data).getLinkId != null)
-      actorEventsManager !(
-        new PersonDepartureEvent(
-          tick,
-          id,
-          currentActivity(data).getLinkId,
-          currentTrip.tripClassifier.value
-        )
+      actorEventsManager ! new PersonDepartureEvent(
+        tick,
+        id,
+        currentActivity(data).getLinkId,
+        currentTrip.tripClassifier.value
       )
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using data.copy(hasDeparted = true)
@@ -366,7 +366,7 @@ class PersonAgent(
     data: BasePersonData
   ): State = {
     logDebug(s"replanning because ${error.errorCode}")
-    actorEventsManager ! (new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
+    actorEventsManager ! new ReplanningEvent(_currentTick.get, Id.createPersonId(id))
     goto(ChoosingMode) using ChoosesModeData(
       data.copy(currentTourMode = None),
       currentLocation = Some(beamServices.geo.wgs2Utm(data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint)),
@@ -384,7 +384,7 @@ class PersonAgent(
         data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _)
         ) =>
       logDebug(s"replanning because ${firstErrorResponse.errorCode}")
-      actorEventsManager ! (new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
+      actorEventsManager ! new ReplanningEvent(_currentTick.get, Id.createPersonId(id))
       goto(ChoosingMode) using ChoosesModeData(
         data,
         currentLocation = Some(beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint)),
@@ -426,7 +426,7 @@ class PersonAgent(
         data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _)
         ) =>
       logDebug(s"PersonEntersVehicle: $vehicleToEnter")
-      actorEventsManager !(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
+      actorEventsManager ! new PersonEntersVehicleEvent(tick, id, vehicleToEnter)
 
       val mode = data.currentTrip.get.tripClassifier
 
@@ -435,18 +435,16 @@ class PersonAgent(
               vehicleToEnter
             )) {
           val agencyId = beamServices.agencyAndRouteByVehicleIds.get(vehicleToEnter).get._1
-          actorEventsManager !(new AgencyRevenueEvent(tick, agencyId, currentLeg.cost))
+          actorEventsManager ! new AgencyRevenueEvent(tick, agencyId, currentLeg.cost)
         }
 
-        actorEventsManager !(
-          new PersonCostEvent(
-            tick,
-            id,
-            mode.value,
-            0.0, // incentive applies to a whole trip and is accounted for at Arrival
-            0.0, // only drivers pay tolls, if a toll is in the fare it's still a fare
-            currentLeg.cost
-          )
+        actorEventsManager ! new PersonCostEvent(
+          tick,
+          id,
+          mode.value,
+          0.0, // incentive applies to a whole trip and is accounted for at Arrival
+          0.0, // only drivers pay tolls, if a toll is in the fare it's still a fare
+          currentLeg.cost
         )
       }
 
@@ -464,7 +462,7 @@ class PersonAgent(
         data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _)
         ) =>
       logDebug(s"PersonLeavesVehicle: $vehicleToExit")
-      actorEventsManager !(new PersonLeavesVehicleEvent(tick, id, vehicleToExit))
+      actorEventsManager ! new PersonLeavesVehicleEvent(tick, id, vehicleToExit)
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using data.copy(
         restOfCurrentTrip = restOfCurrentTrip.dropWhile(leg => leg.beamVehicleId == vehicleToExit),
@@ -478,15 +476,13 @@ class PersonAgent(
       val (tick, triggerId) = releaseTickAndTriggerId()
       val netTripCosts = data.currentTripCosts // This includes tolls because it comes from leg.cost
       if (toll > 0.0 || netTripCosts > 0.0)
-        actorEventsManager !(
-          new PersonCostEvent(
-            tick,
-            matsimPlan.getPerson.getId,
-            data.restOfCurrentTrip.head.beamLeg.mode.value,
-            0.0,
-            toll,
-            netTripCosts // Again, includes tolls but "net" here means actual money paid by the person
-          )
+        actorEventsManager ! new PersonCostEvent(
+          tick,
+          matsimPlan.getPerson.getId,
+          data.restOfCurrentTrip.head.beamLeg.mode.value,
+          0.0,
+          toll,
+          netTripCosts // Again, includes tolls but "net" here means actual money paid by the person
         )
       if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
         val theVehicle = beamServices.vehicles(data.currentVehicle.head)
@@ -499,9 +495,7 @@ class PersonAgent(
             )
           case None =>
         }
-        actorEventsManager !(
-          new PersonLeavesVehicleEvent(tick, Id.createPersonId(id), data.currentVehicle.head)
-        )
+        actorEventsManager ! new PersonLeavesVehicleEvent(tick, Id.createPersonId(id), data.currentVehicle.head)
       }
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using data.copy(
@@ -523,7 +517,7 @@ class PersonAgent(
       log.debug("ReadyToChooseParking, restoftrip: {}", theRestOfCurrentTrip.toString())
       goto(ChoosingParkingSpot) using data.copy(
         restOfCurrentTrip = theRestOfCurrentTrip,
-        currentTripCosts = (currentCost + completedLeg.cost)
+        currentTripCosts = currentCost + completedLeg.cost
       )
   }
 
@@ -591,12 +585,10 @@ class PersonAgent(
               )
               Some(currentVehicle)
             case BecomeDriverOfVehicleSuccess =>
-              actorEventsManager !(
-                new PersonEntersVehicleEvent(
-                  currentTick,
-                  Id.createPersonId(id),
-                  nextLeg.beamVehicleId
-                )
+              actorEventsManager ! new PersonEntersVehicleEvent(
+                currentTick,
+                Id.createPersonId(id),
+                nextLeg.beamVehicleId
               )
               Some(nextLeg.beamVehicleId +: currentVehicle)
           }
@@ -662,14 +654,12 @@ class PersonAgent(
         nextLeg.isPooledTrip
       )
 
-      actorEventsManager ! (
-        new ReserveRideHailEvent(
-          _currentTick.getOrElse(departAt).toDouble,
-          id,
-          departAt,
-          nextLeg.beamLeg.travelPath.startPoint.loc,
-          legSegment.last.beamLeg.travelPath.endPoint.loc
-        )
+      actorEventsManager ! new ReserveRideHailEvent(
+        _currentTick.getOrElse(departAt).toDouble,
+        id,
+        departAt,
+        nextLeg.beamLeg.travelPath.startPoint.loc,
+        legSegment.last.beamLeg.travelPath.endPoint.loc
       )
 
       goto(WaitingForReservationConfirmation)
@@ -712,38 +702,30 @@ class PersonAgent(
           // We currently get large unaccountable differences in round trips, e.g. work -> home may
           // be twice as long as home -> work. Probably due to long links, and the location of the activity
           // on the link being undefined.
-          actorEventsManager !(
-            new TeleportationArrivalEvent(
-              tick,
-              id,
-              currentTrip.legs.map(l => l.beamLeg.travelPath.distanceInM).sum
-            )
+          actorEventsManager ! new TeleportationArrivalEvent(
+            tick,
+            id,
+            currentTrip.legs.map(l => l.beamLeg.travelPath.distanceInM).sum
           )
           assert(activity.getLinkId != null)
-          actorEventsManager !(
-            new PersonArrivalEvent(tick, id, activity.getLinkId, currentTrip.tripClassifier.value)
-          )
+          actorEventsManager ! new PersonArrivalEvent(tick, id, activity.getLinkId, currentTrip.tripClassifier.value)
           val incentive = beamServices.modeIncentives.computeIncentive(attributes, currentTrip.tripClassifier)
           if (incentive > 0.0)
-            actorEventsManager !(
-              new PersonCostEvent(
-                tick,
-                id,
-                currentTrip.tripClassifier.value,
-                incentive,
-                0.0,
-                0.0 // the cost as paid by person has already been accounted for, this event is just about the incentive
-              )
-            )
-
-          actorEventsManager !(
-            new ActivityStartEvent(
+            actorEventsManager ! new PersonCostEvent(
               tick,
               id,
-              activity.getLinkId,
-              activity.getFacilityId,
-              activity.getType
+              currentTrip.tripClassifier.value,
+              incentive,
+              0.0,
+              0.0 // the cost as paid by person has already been accounted for, this event is just about the incentive
             )
+
+          actorEventsManager ! new ActivityStartEvent(
+            tick,
+            id,
+            activity.getLinkId,
+            activity.getFacilityId,
+            activity.getType
           )
           scheduler ! CompletionNotice(
             triggerId,

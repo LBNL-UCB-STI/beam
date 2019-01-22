@@ -13,8 +13,17 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.BeamVehicleStateUpdate
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, NotifyIterationEnds, RideHailRepositioningTrigger}
-import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
+import beam.agentsim.agents.ridehail.RideHailManager.{
+  BufferedRideHailRequestsTrigger,
+  NotifyIterationEnds,
+  RideHailRepositioningTrigger
+}
+import beam.agentsim.agents.ridehail.{
+  RideHailAgent,
+  RideHailIterationHistory,
+  RideHailManager,
+  RideHailSurgePricingManager
+}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
@@ -75,11 +84,11 @@ class BeamMobsim @Inject()(
   var debugActorWithTimerActorRef: ActorRef = _
   var debugActorWithTimerCancellable: Cancellable = _
 
-  val actorEventsManager: ActorRef = Await.result(actorSystem.actorSelection("/user/ActorEventsManager").resolveOne(5.seconds), 5.seconds)
+  val actorEventsManager: ActorRef =
+    Await.result(actorSystem.actorSelection("/user/ActorEventsManager").resolveOne(5.seconds), 5.seconds)
   println(actorEventsManager)
 
   final val fileBaseName = "rideHailInitialLocation"
-
 
   /*
     var rideHailSurgePricingManager: RideHailSurgePricingManager = injector.getInstance(classOf[BeamServices])

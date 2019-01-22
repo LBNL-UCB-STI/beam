@@ -82,7 +82,7 @@ trait ChoosesParking extends {
           val energyCharge: Double = 0.0 //TODO
           val timeCost: Double = scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF
           val score = calculateScore(distance, cost, energyCharge, timeCost)
-          actorEventsManager !(new LeavingParkingEvent(tick, stall, score, id, veh.id))
+          actorEventsManager ! new LeavingParkingEvent(tick, stall, score, id, veh.id)
         }
         veh.unsetParkingStall()
         goto(WaitingToDrive) using data
@@ -214,9 +214,7 @@ trait ChoosesParking extends {
         data.currentVehicle
       } else {
         currVehicle.unsetDriver()
-        actorEventsManager !(
-          new PersonLeavesVehicleEvent(tick, id, data.currentVehicle.head)
-        )
+        actorEventsManager ! new PersonLeavesVehicleEvent(tick, id, data.currentVehicle.head)
         data.currentVehicle.drop(1)
       }
 

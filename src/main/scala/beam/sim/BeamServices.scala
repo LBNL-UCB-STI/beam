@@ -263,15 +263,16 @@ object BeamServices {
           val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
 
           // This is a hack, hope we can fix files soon...
-          val fixedVehicleCategory =(vehicleCategory, vIdString) match {
+          val fixedVehicleCategory = (vehicleCategory, vIdString) match {
             case (Undefined, typeId) if typeId.toLowerCase == "car" || typeId.toLowerCase == "bike" =>
-              val newVehicleCategory =  if (typeId.toLowerCase == "car") VehicleCategory.Car else VehicleCategory.Bike
-              logger.warn(s"vehicleTypeId '$vehicleTypeId' will be used as vehicleCategory. Old value: $vehicleCategory, New value: $newVehicleCategory")
+              val newVehicleCategory = if (typeId.toLowerCase == "car") VehicleCategory.Car else VehicleCategory.Bike
+              logger.warn(
+                s"vehicleTypeId '$vehicleTypeId' will be used as vehicleCategory. Old value: $vehicleCategory, New value: $newVehicleCategory"
+              )
               newVehicleCategory
             case _ =>
               vehicleCategory
           }
-
 
           val bvt = BeamVehicleType(
             vIdString,

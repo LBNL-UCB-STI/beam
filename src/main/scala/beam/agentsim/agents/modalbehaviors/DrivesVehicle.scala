@@ -145,34 +145,30 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       actorEventsManager ! ActorEventsManager.Message.ProcessLinkEvents(data.currentVehicle.head, currentLeg)
 
       logDebug("PathTraversal")
-      actorEventsManager !(
-        new VehicleLeavesTrafficEvent(
-          tick,
-          id.asInstanceOf[Id[Person]],
-          Id.createLinkId(currentLeg.travelPath.linkIds.lastOption.getOrElse(Int.MinValue).toString),
-          data.currentVehicle.head,
-          "car",
-          0.0
-        )
+      actorEventsManager ! new VehicleLeavesTrafficEvent(
+        tick,
+        id.asInstanceOf[Id[Person]],
+        Id.createLinkId(currentLeg.travelPath.linkIds.lastOption.getOrElse(Int.MinValue).toString),
+        data.currentVehicle.head,
+        "car",
+        0.0
       )
 
       val tollOnCurrentLeg = toll(currentLeg)
       tollsAccumulated += tollOnCurrentLeg
-      actorEventsManager !(
-        new PathTraversalEvent(
-          tick,
-          currentVehicleUnderControl,
-          beamServices.vehicles(currentVehicleUnderControl).driverId.getOrElse(""),
-          beamServices.vehicles(currentVehicleUnderControl).beamVehicleType,
-          data.passengerSchedule.schedule(currentLeg).riders.size,
-          currentLeg,
-          fuelConsumed,
-          beamServices
-            .vehicles(currentVehicleUnderControl)
-            .fuelLevelInJoules
-            .getOrElse(-1.0),
-          tollOnCurrentLeg
-        )
+      actorEventsManager ! new PathTraversalEvent(
+        tick,
+        currentVehicleUnderControl,
+        beamServices.vehicles(currentVehicleUnderControl).driverId.getOrElse(""),
+        beamServices.vehicles(currentVehicleUnderControl).beamVehicleType,
+        data.passengerSchedule.schedule(currentLeg).riders.size,
+        currentLeg,
+        fuelConsumed,
+        beamServices
+          .vehicles(currentVehicleUnderControl)
+          .fuelLevelInJoules
+          .getOrElse(-1.0),
+        tollOnCurrentLeg
       )
 
       if (!isLastLeg) {
@@ -317,34 +313,30 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         nextNotifyVehicleResourceIdle
       )
 
-      actorEventsManager !(
-        new VehicleLeavesTrafficEvent(
-          stopTick,
-          id.asInstanceOf[Id[Person]],
-          null,
-          data.currentVehicle.head,
-          "car",
-          0.0
-        )
+      actorEventsManager ! new VehicleLeavesTrafficEvent(
+        stopTick,
+        id.asInstanceOf[Id[Person]],
+        null,
+        data.currentVehicle.head,
+        "car",
+        0.0
       )
 
       val tollOnCurrentLeg = toll(currentLeg)
       tollsAccumulated += tollOnCurrentLeg
-      actorEventsManager !(
-        new PathTraversalEvent(
-          stopTick,
-          currentVehicleUnderControl,
-          beamServices.vehicles(currentVehicleUnderControl).driverId.getOrElse(""),
-          beamServices.vehicles(currentVehicleUnderControl).beamVehicleType,
-          data.passengerSchedule.schedule(currentLeg).riders.size,
-          updatedBeamLeg,
-          fuelConsumed,
-          beamServices
-            .vehicles(currentVehicleUnderControl)
-            .fuelLevelInJoules
-            .getOrElse(-1.0),
-          tollOnCurrentLeg
-        )
+      actorEventsManager ! new PathTraversalEvent(
+        stopTick,
+        currentVehicleUnderControl,
+        beamServices.vehicles(currentVehicleUnderControl).driverId.getOrElse(""),
+        beamServices.vehicles(currentVehicleUnderControl).beamVehicleType,
+        data.passengerSchedule.schedule(currentLeg).riders.size,
+        updatedBeamLeg,
+        fuelConsumed,
+        beamServices
+          .vehicles(currentVehicleUnderControl)
+          .fuelLevelInJoules
+          .getOrElse(-1.0),
+        tollOnCurrentLeg
       )
 
       self ! PassengerScheduleEmptyMessage(
@@ -402,15 +394,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
             )
           }
           .toVector
-        actorEventsManager !(
-          new VehicleEntersTrafficEvent(
-            tick,
-            Id.createPersonId(id),
-            Id.createLinkId(newLeg.travelPath.linkIds.headOption.getOrElse(Int.MinValue).toString),
-            data.currentVehicle.head,
-            "car",
-            1.0
-          )
+        actorEventsManager ! new VehicleEntersTrafficEvent(
+          tick,
+          Id.createPersonId(id),
+          Id.createLinkId(newLeg.travelPath.linkIds.headOption.getOrElse(Int.MinValue).toString),
+          data.currentVehicle.head,
+          "car",
+          1.0
         )
         // Produce link events for this trip (the same ones as in PathTraversalEvent).
         //TODO make sure the traveTimes here are updating with each iteration

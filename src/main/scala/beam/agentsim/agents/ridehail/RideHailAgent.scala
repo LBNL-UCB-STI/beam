@@ -8,9 +8,18 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.choice.mode.Range
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{EndLegTrigger, EndRefuelTrigger, StartLegTrigger, StartRefuelTrigger}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
+  EndLegTrigger,
+  EndRefuelTrigger,
+  StartLegTrigger,
+  StartRefuelTrigger
+}
 import beam.agentsim.agents.ridehail.RideHailAgent._
-import beam.agentsim.agents.vehicles.VehicleProtocol.{BecomeDriverOfVehicleSuccess, DriverAlreadyAssigned, NewDriverAlreadyControllingVehicle}
+import beam.agentsim.agents.vehicles.VehicleProtocol.{
+  BecomeDriverOfVehicleSuccess,
+  DriverAlreadyAssigned,
+  NewDriverAlreadyControllingVehicle
+}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.{RefuelEvent, SpaceTime}
@@ -189,10 +198,13 @@ class RideHailAgent(
           )
         case NewDriverAlreadyControllingVehicle | BecomeDriverOfVehicleSuccess =>
           vehicle.checkInResource(Some(SpaceTime(initialLocation, tick)), context.dispatcher)
-          actorEventsManager !(
-            new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_tnc_driver")
+          actorEventsManager ! new PersonDepartureEvent(
+            tick,
+            Id.createPersonId(id),
+            Id.createLinkId(""),
+            "be_a_tnc_driver"
           )
-          actorEventsManager !(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
+          actorEventsManager ! new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id)
           goto(Idle) replying CompletionNotice(triggerId) using data
             .copy(currentVehicle = Vector(vehicle.id))
       }
@@ -222,14 +234,12 @@ class RideHailAgent(
           val theVehicle = beamServices.vehicles(currentVehicleUnderControl)
           log.debug("Ending refuel session for {}", theVehicle.id)
           theVehicle.addFuel(energyInJoules)
-          actorEventsManager !  (
-            new RefuelEvent(
-              tick,
-              theVehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(theVehicle.stall.get.locationUTM)),
-              energyInJoules,
-              tick - sessionStart,
-              theVehicle.id
-            )
+          actorEventsManager ! new RefuelEvent(
+            tick,
+            theVehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(theVehicle.stall.get.locationUTM)),
+            energyInJoules,
+            tick - sessionStart,
+            theVehicle.id
           )
           parkingManager ! CheckInResource(theVehicle.stall.get.id, None)
           val whenWhere = Some(SpaceTime(theVehicle.stall.get.locationUTM, tick))
