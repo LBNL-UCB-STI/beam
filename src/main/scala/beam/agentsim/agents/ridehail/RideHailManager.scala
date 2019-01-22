@@ -17,7 +17,7 @@ import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
-import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, RideHailAgentLocation}
+import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.allocation._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{
   CouldNotFindRouteToCustomer,
@@ -308,11 +308,11 @@ class RideHailManager(
 
   beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.initType match {
     case "PROCEDURAL" =>
-      var fleetData: List[RideHailFleetInitializer.RideHailAgentInputData] =
-        List.empty[RideHailFleetInitializer.RideHailAgentInputData]
-      val persons: Iterable[Person] =
-        RandomUtils.shuffle(scenario.getPopulation.getPersons.values().asScala, rand)
-      persons.view.take(numRideHailAgents.toInt).foreach { person =>
+      val persons: Iterable[Person] = RandomUtils
+        .shuffle(scenario.getPopulation.getPersons.values().asScala, rand)
+        .take(numRideHailAgents.toInt)
+      val fleetData: ArrayBuffer[RideHailFleetInitializer.RideHailAgentInputData] = new ArrayBuffer(persons.size)
+      persons.foreach { person =>
         val personInitialLocation: Coord =
           person.getSelectedPlan.getPlanElements
             .iterator()
@@ -352,7 +352,7 @@ class RideHailManager(
               )
           }
 
-        fleetData = fleetData :+ createRideHailVehicleAndAgent(person.getId.toString, rideInitialLocation, None, None)
+        fleetData += createRideHailVehicleAndAgent(person.getId.toString, rideInitialLocation, None, None)
       }
 
       new RideHailFleetInitializer().writeFleetData(beamServices, fleetData)
