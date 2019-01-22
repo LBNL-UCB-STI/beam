@@ -26,7 +26,6 @@ public class StatsFactory {
         MotorizedVehicleMilesTraveled,
         VehicleHoursTraveled,
         NumberOfVehicles,
-        AgentDelay,
         AboveCapacityPtUsageDuration,
         TollRevenue,
         AgencyRevenue,
