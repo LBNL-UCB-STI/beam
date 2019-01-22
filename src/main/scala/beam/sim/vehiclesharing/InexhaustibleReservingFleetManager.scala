@@ -39,9 +39,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
       val vehicle = new BeamVehicle(
         Id.createVehicleId(self.path.name + "-" + nextVehicleIndex),
         new Powertrain(0.0),
-        None,
-        vehicleType,
-        None
+        vehicleType
       )
       nextVehicleIndex += 1
       vehicle.manager = Some(self)

@@ -4,6 +4,7 @@ import java.io.FileNotFoundException
 import java.nio.file.{Files, Paths}
 
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
+import beam.sim.common.Range
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ListBuffer

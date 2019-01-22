@@ -1138,7 +1138,8 @@ object BeamConfig {
             "addTimestampToOutputDirectory"
           ),
           baseOutputDirectory =
-            if (c.hasPathOrNull("baseOutputDirectory")) c.getString("baseOutputDirectory") else "output",
+            if (c.hasPathOrNull("baseOutputDirectory")) c.getString("baseOutputDirectory")
+            else "/Users/critter/Documents/beam/beam-output/",
           defaultWriteInterval = if (c.hasPathOrNull("defaultWriteInterval")) c.getInt("defaultWriteInterval") else 1,
           displayPerformanceTimings = c.hasPathOrNull("displayPerformanceTimings") && c.getBoolean(
             "displayPerformanceTimings"
@@ -1774,11 +1775,32 @@ object BeamConfig {
         Module_2: java.lang.String,
         Module_3: java.lang.String,
         Module_4: java.lang.String,
+        fractionOfIterationsToDisableInnovation: scala.Int,
         maxAgentPlanMemorySize: scala.Int,
+        parameterset: scala.List[BeamConfig.Matsim.Modules.Strategy.Parameterset$Elm],
         planSelectorForRemoval: java.lang.String
       )
 
       object Strategy {
+        case class Parameterset$Elm(
+          disableAfterIteration: scala.Int,
+          strategyName: java.lang.String,
+          `type`: java.lang.String,
+          weight: scala.Double
+        )
+
+        object Parameterset$Elm {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Matsim.Modules.Strategy.Parameterset$Elm = {
+            BeamConfig.Matsim.Modules.Strategy.Parameterset$Elm(
+              disableAfterIteration =
+                if (c.hasPathOrNull("disableAfterIteration")) c.getInt("disableAfterIteration") else -1,
+              strategyName = if (c.hasPathOrNull("strategyName")) c.getString("strategyName") else "ClearRoutes",
+              `type` = if (c.hasPathOrNull("type")) c.getString("type") else "strategysettings",
+              weight = if (c.hasPathOrNull("weight")) c.getDouble("weight") else 0.1
+            )
+          }
+        }
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Matsim.Modules.Strategy = {
           BeamConfig.Matsim.Modules.Strategy(
@@ -1792,12 +1814,29 @@ object BeamConfig {
             Module_2 = if (c.hasPathOrNull("Module_2")) c.getString("Module_2") else "ClearRoutes",
             Module_3 = if (c.hasPathOrNull("Module_3")) c.getString("Module_3") else "ClearModes",
             Module_4 = if (c.hasPathOrNull("Module_4")) c.getString("Module_4") else "TimeMutator",
+            fractionOfIterationsToDisableInnovation =
+              if (c.hasPathOrNull("fractionOfIterationsToDisableInnovation"))
+                c.getInt("fractionOfIterationsToDisableInnovation")
+              else 999999,
             maxAgentPlanMemorySize =
               if (c.hasPathOrNull("maxAgentPlanMemorySize")) c.getInt("maxAgentPlanMemorySize") else 5,
+            parameterset = $_LBeamConfig_Matsim_Modules_Strategy_Parameterset$Elm(c.getList("parameterset")),
             planSelectorForRemoval =
               if (c.hasPathOrNull("planSelectorForRemoval")) c.getString("planSelectorForRemoval")
               else "WorstPlanForRemovalSelector"
           )
+        }
+        private def $_LBeamConfig_Matsim_Modules_Strategy_Parameterset$Elm(
+          cl: com.typesafe.config.ConfigList
+        ): scala.List[BeamConfig.Matsim.Modules.Strategy.Parameterset$Elm] = {
+          import scala.collection.JavaConverters._
+          cl.asScala
+            .map(
+              cv =>
+                BeamConfig.Matsim.Modules.Strategy
+                  .Parameterset$Elm(cv.asInstanceOf[com.typesafe.config.ConfigObject].toConfig)
+            )
+            .toList
         }
       }
 
