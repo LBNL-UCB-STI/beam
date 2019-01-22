@@ -62,12 +62,11 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
         modeChoice match {
           case BeamMode.CAR.value | BeamMode.DRIVE_TRANSIT.value =>
             // start tracking the person
-            if(!personParkingStatsTracker.contains(modeChoiceEvent.getPersonId)) {
+            if (!personParkingStatsTracker.contains(modeChoiceEvent.getPersonId)) {
               personParkingStatsTracker.put(
                 modeChoiceEvent.getPersonId,
                 ParkingStatsCollector.PersonParkingStats(None, None, None, None)
               )
-              logger.info("Tracker : " + modeChoiceEvent.getPersonId.toString)
             }
           case _ =>
         }
@@ -100,7 +99,6 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
               )) {
           //stop tracking the person
           personParkingStatsTracker.remove(personEntersVehicleEvent.getPersonId)
-          logger.info("Removed person : " + personEntersVehicleEvent.getPersonId)
         }
 
       /*
@@ -109,6 +107,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
        */
       case parkEvent: ParkEvent =>
         if (personParkingStatsTracker.contains(parkEvent.getPersonId)) {
+          logger.info("Parking stats [ParkEvent]  : " + (parkEvent.getPersonId -> parkEvent.getAttributes.keySet()))
           val personParkingStats = personParkingStatsTracker.getOrElse(
             parkEvent.getPersonId,
             ParkingStatsCollector.PersonParkingStats(None, None, None, None)
@@ -120,11 +119,6 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
               logger.error("Error while reading cost attribute and converting it to double : " + e.getMessage, e)
               None
           }
-          logger.info("Parking stats [ParkEvent]  : " + (parkEvent.getPersonId.toString -> personParkingStats.copy(
-            parkingTime = Some(parkEvent.getTime),
-            parkingCost = parkingCost,
-            parkingTAZId = Option(parkEvent.getAttributes.get(ParkEventAttrs.ATTRIBUTE_PARKING_TAZ))
-          )))
           //store the parking time + parking cost + parking TAZ for the person
           personParkingStatsTracker.put(
             parkEvent.getPersonId,
@@ -157,13 +151,14 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
         val pathTraversalEventAttributes = pathTraversalEvent.getAttributes
         val driverId: Option[String] = Option(pathTraversalEventAttributes.get(PathTraversalEvent.ATTRIBUTE_DRIVER_ID))
         driverId match {
-          case Some(id) =>
-            val personParkingStats = personParkingStatsTracker.getOrElse(
-              Id.createPersonId(id),
-              ParkingStatsCollector.PersonParkingStats(None, None, None, None)
-            )
-//            logger.info("Parking stats [PathTraversalEvent]  : " + (Id.createPersonId(id).toString -> personParkingStats))
-            processParkingStats(pathTraversalEvent, personParkingStats)
+          case Some(dId) =>
+            if (personParkingStatsTracker.contains(Id.createPersonId(dId))) {
+              val personParkingStats = personParkingStatsTracker.getOrElse(
+                Id.createPersonId(dId),
+                ParkingStatsCollector.PersonParkingStats(None, None, None, None)
+              )
+              processParkingStats(pathTraversalEvent, personParkingStats)
+            }
           case None =>
             logger.error(s"No driver id attribute defined for the PathTraversalEvent")
         }
@@ -217,8 +212,6 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
             // Calculate the inbound parking overhead time
             val inboundParkingTime: Double = try {
               val arrivalTime = pathTraversalEventAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME).toDouble
-              logger.info("Passed Parking time  : " + personParkingStats.parkingTime.get)
-              logger.info("Arrival time   : " + arrivalTime)
               arrivalTime - personParkingStats.parkingTime.get
             } catch {
               case e: Exception =>
