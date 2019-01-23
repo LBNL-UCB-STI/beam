@@ -19,7 +19,7 @@ class RideHailNumDriversSpec extends WordSpecLike with Matchers with BeamHelper 
                 ConfigValueFactory.fromAnyRef("ModeChoiceRideHailIfAvailable")
               )
               .withValue(
-                "beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation",
+                "beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation",
                 ConfigValueFactory.fromAnyRef(tc)
               )
           ).groupedCount

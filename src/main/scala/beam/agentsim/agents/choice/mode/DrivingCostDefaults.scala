@@ -1,10 +1,9 @@
 package beam.agentsim.agents.choice.mode
 
-import beam.router.Modes.BeamMode.CAR
-import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.router.model.{BeamLeg, EmbodiedBeamTrip}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
-import org.matsim.vehicles.Vehicle
 
 /**
   * BEAM
@@ -12,22 +11,17 @@ import org.matsim.vehicles.Vehicle
 object DrivingCostDefaults {
   val zero: Double = 0
 
-  def estimateFuelCost(leg: BeamLeg, vehicleId: Id[Vehicle], beamServices: BeamServices): Double = {
-    if (beamServices.vehicles != null && beamServices.vehicles.contains(vehicleId)) {
-      val vehicle = beamServices.vehicles(vehicleId)
-      val distance = leg.travelPath.distanceInM
-      if (null != vehicle && null != vehicle.beamVehicleType && null != vehicle.beamVehicleType.primaryFuelType && 0.0 != vehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter) {
-        (distance * vehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter * vehicle.beamVehicleType.primaryFuelType.priceInDollarsPerMJoule) / 1000000.0
-      } else {
-        zero
-      }
+  def estimateFuelCost(leg: BeamLeg, vehicleTypeId: Id[BeamVehicleType], beamServices: BeamServices): Double = {
+    val maybeBeamVehicleType = beamServices.vehicleTypes.get(vehicleTypeId)
+    val beamVehicleType = maybeBeamVehicleType.getOrElse(BeamVehicleType.defaultCarBeamVehicleType)
+    val distance = leg.travelPath.distanceInM
+    if (null != beamVehicleType && null != beamVehicleType.primaryFuelType && 0.0 != beamVehicleType.primaryFuelConsumptionInJoulePerMeter) {
+      (distance * beamVehicleType.primaryFuelConsumptionInJoulePerMeter * beamServices.fuelTypePrices(
+        beamVehicleType.primaryFuelType
+      )) / 1000000
     } else {
-      zero
+      0 //TODO
     }
-  }
-
-  def estimateFuelCost(leg: EmbodiedBeamLeg, beamServices: BeamServices): Double = {
-    estimateFuelCost(leg.beamLeg, leg.beamVehicleId, beamServices)
   }
 
   def estimateDrivingCost(
@@ -37,7 +31,7 @@ object DrivingCostDefaults {
 
     alternatives.map { alt =>
       if (alt.costEstimate == zero) {
-        alt.legs.map(estimateFuelCost(_, beamServices)).sum
+        alt.legs.map(leg => estimateFuelCost(leg.beamLeg, leg.beamVehicleTypeId, beamServices)).sum
       } else {
         zero
       }

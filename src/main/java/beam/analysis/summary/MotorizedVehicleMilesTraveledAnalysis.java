@@ -27,7 +27,7 @@ public class MotorizedVehicleMilesTraveledAnalysis implements IterationSummaryAn
             double lengthInMeters = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
 
             milesTraveledByVehicleType.merge(vehicleType, lengthInMeters, (d1, d2) -> d1 + d2);
-            if (!vehicleType.equalsIgnoreCase(BeamVehicleType.BODY_TYPE_DEFAULT()) && !vehicleType.equalsIgnoreCase(BeamVehicleType.BIKE_TYPE_DEFAULT())) {
+            if (!vehicleType.equalsIgnoreCase(BeamVehicleType.defaultHumanBodyBeamVehicleType().toString()) && !vehicleType.equalsIgnoreCase(BeamVehicleType.defaultBicycleBeamVehicleType().toString())) {
                 milesTraveledByVehicleType.merge("total", lengthInMeters, (d1, d2) -> d1 + d2);
             }
 

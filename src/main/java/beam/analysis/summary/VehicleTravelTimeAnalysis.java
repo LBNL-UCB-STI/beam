@@ -4,6 +4,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationSummaryAnalysis;
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter;
+import beam.utils.NetworkHelper;
 import com.google.common.collect.Lists;
 import org.apache.commons.collections4.ListUtils;
 import org.matsim.api.core.v01.Id;
@@ -27,6 +28,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
     private Map<String, Double> secondsTraveledByVehicleType = new HashMap<>();
 	private scala.collection.Set<Id<BeamVehicleType>> vehicleTypes;
     private Scenario scenario;
+    private NetworkHelper networkHelper;
 
     private double totalVehicleTrafficDelay = 0.0;
     private Set<String> buses = new HashSet<>();
@@ -44,8 +46,9 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
     private Map<String, List<Double>> personIdDelays = new HashMap<>();
     private Map<String, List<String>> personsByVehicleIds = new HashMap<>();
 
-    public VehicleTravelTimeAnalysis(Scenario scenario, scala.collection.Set<Id<BeamVehicleType>> vehicleTypes) {
+    public VehicleTravelTimeAnalysis(Scenario scenario, NetworkHelper networkHelper, scala.collection.Set<Id<BeamVehicleType>> vehicleTypes) {
         this.scenario = scenario;
+        this.networkHelper = networkHelper;
 		this.vehicleTypes = vehicleTypes;
     }
 
@@ -60,22 +63,22 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
         } else if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
             Map<String, String> eventAttributes = event.getAttributes();
             String mode = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
+            String vehicleTypes = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
             double travelDurationInSec = (Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME)) -
                     Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME)));
             int numOfPassengers = Integer.parseInt(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
             int seatingCapacity = Integer.parseInt(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_SEATING_CAPACITY));
 
-            secondsTraveledByVehicleType.merge(mode, travelDurationInSec, Double::sum);
+            secondsTraveledByVehicleType.merge(vehicleTypes, travelDurationInSec, Double::sum);
 
             if (AgentSimToPhysSimPlanConverter.isPhyssimMode(mode)) {
 
                 double freeFlowDuration = 0.0;
                 Map<Id<Link>, ? extends Link> linksMap;
                 if (scenario != null) {
-                    linksMap = scenario.getNetwork().getLinks();
                     String links[] = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS).split(",");
                     for (String linkId : links) {
-                        Link link = linksMap.get(Id.createLinkId(linkId));
+                        Link link = networkHelper.getLinkWithIndexUnsafe(linkId).link();
                         if (link != null) {
                             double freeFlowLength = link.getLength();
                             double freeFlowSpeed = link.getFreespeed();

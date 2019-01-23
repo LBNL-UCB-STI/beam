@@ -6,7 +6,7 @@ import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices}
-import beam.utils.FileUtils
+import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
 import org.matsim.api.core.v01.events.{Event, PersonEntersVehicleEvent, PersonLeavesVehicleEvent}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
@@ -35,9 +35,11 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
         ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
       scenario.setNetwork(networkCoordinator.network)
 
+      val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
+
       val injector = org.matsim.core.controler.Injector.createInjector(
         scenario.getConfig,
-        module(baseConfig, scenario, networkCoordinator)
+        module(baseConfig, scenario, networkCoordinator, networkHelper)
       )
 
       val beamServices: BeamServices =

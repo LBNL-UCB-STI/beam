@@ -10,6 +10,7 @@ object RideHailTestHelper {
 
   def buildConfig(allocationManagerName: String): Config = {
     val config = testConfig("test/input/beamville/beam.conf")
+      .resolve()
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue(
         "beam.agentsim.agents.rideHail.allocationManager.name",
@@ -20,7 +21,7 @@ object RideHailTestHelper {
         ConfigValueFactory.fromAnyRef("ModeChoiceRideHailIfAvailable")
       )
       .withValue(
-        "beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation",
+        "beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation",
         ConfigValueFactory.fromAnyRef(0.1)
       )
       .withValue(

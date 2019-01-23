@@ -20,7 +20,7 @@ object AvailableModeUtils {
 
   class AllowAllModes extends PermissibleModesCalculator {
     override def getPermissibleModes(plan: Plan): util.Collection[String] = {
-      JavaConverters.asJavaCollection(BeamMode.availableModes.map(_.toString))
+      JavaConverters.asJavaCollection(BeamMode.allBeamModes.map(_.toString))
     }
   }
 
@@ -29,20 +29,14 @@ object AvailableModeUtils {
   }
 
   def availableModesForPerson(person: Person): Seq[BeamMode] = {
-    val availModes = person.getCustomAttributes
+    person.getCustomAttributes
       .get("beam-attributes")
       .asInstanceOf[AttributesOfIndividual]
-      .availableModes :+ WALK :+ WALK_TRANSIT :+ DRIVE_TRANSIT
-    if (availModes.contains(RIDE_HAIL)) {
-      availModes :+ RIDE_HAIL_TRANSIT
-    } else {
-      availModes
-    }
+      .availableModes
   }
 
   def isModeAvailableForPerson[T <: BeamMode](
     person: Person,
-    vehicleId: Id[Vehicle],
     mode: BeamMode
   ): Boolean = {
     AvailableModeUtils.availableModesForPerson(person).contains(mode)

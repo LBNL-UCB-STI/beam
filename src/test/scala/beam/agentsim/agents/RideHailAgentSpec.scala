@@ -5,13 +5,12 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
 import akka.util.Timeout
-import beam.agentsim.Resource.{CheckInResource, RegisterResource}
-import beam.agentsim.ResourceManager.NotifyVehicleResourceIdle
+import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent.DrivingInterrupted
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDriving
-import beam.agentsim.agents.ridehail.RideHailAgent
 import beam.agentsim.agents.ridehail.RideHailAgent._
+import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule, VehiclePersonId}
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
@@ -30,7 +29,6 @@ import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
-import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
@@ -48,7 +46,7 @@ class RideHailAgentSpec
   akka.log-dead-letters = 10
   akka.actor.debug.fsm = true
   akka.loglevel = debug
-  """).withFallback(testConfig("test/input/beamville/beam.conf"))
+  """).withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
     with FunSpecLike
@@ -61,13 +59,10 @@ class RideHailAgentSpec
   lazy val eventsManager = new EventsManagerImpl()
 
   private val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
-  private val personRefs = TrieMap[Id[Person], ActorRef]()
 
   lazy val services: BeamServices = {
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.beamConfig).thenReturn(config)
-    when(theServices.vehicles).thenReturn(vehicles)
-    when(theServices.personRefs).thenReturn(personRefs)
     val geo = new GeoUtilsImpl(theServices)
     when(theServices.geo).thenReturn(geo)
     theServices
@@ -81,14 +76,13 @@ class RideHailAgentSpec
   describe("A RideHailAgent") {
 
     def moveTo30000(scheduler: ActorRef, rideHailAgent: ActorRef) = {
-      expectMsgType[RegisterResource]
-
       scheduler ! ScheduleTrigger(InitializeTrigger(0), rideHailAgent)
       scheduler ! ScheduleTrigger(TestTrigger(28800), self)
       scheduler ! StartSchedule(0)
-      expectMsgType[CheckInResource] // Idle agent is idle
       expectMsgType[PersonDepartureEvent] // Departs..
       expectMsgType[PersonEntersVehicleEvent] // ..enters vehicle
+      val notify = expectMsgType[NotifyVehicleIdle]
+      rideHailAgent ! NotifyVehicleResourceIdleReply(notify.triggerId, Vector())
 
       val trigger = expectMsgType[TriggerWithId] // 28800
       scheduler ! ScheduleTrigger(TestTrigger(30000), self)
@@ -124,7 +118,7 @@ class RideHailAgentSpec
           )
         )
         .addPassenger(
-          VehiclePersonId(Id.createVehicleId(1), Id.createPersonId(1)),
+          VehiclePersonId(Id.createVehicleId(1), Id.createPersonId(1), self),
           Seq(
             BeamLeg(
               38800,
@@ -141,7 +135,6 @@ class RideHailAgentSpec
             )
           )
         )
-      personRefs.put(Id.createPersonId(1), self) // I will mock the passenger
       rideHailAgent ! Interrupt(Id.create("1", classOf[Interrupt]), 30000)
       expectMsgClass(classOf[InterruptedWhileIdle])
       //expectMsg(InterruptedWhileIdle(_,_))
@@ -158,8 +151,8 @@ class RideHailAgentSpec
     it("should drive around when I tell him to") {
       val vehicleId = Id.createVehicleId(1)
       val beamVehicle =
-        new BeamVehicle(vehicleId, new Powertrain(0.0), None, BeamVehicleType.defaultCarBeamVehicleType)
-      beamVehicle.registerResource(self)
+        new BeamVehicle(vehicleId, new Powertrain(0.0), BeamVehicleType.defaultCarBeamVehicleType)
+      beamVehicle.manager = Some(self)
       vehicles.put(vehicleId, beamVehicle)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
@@ -174,9 +167,12 @@ class RideHailAgentSpec
       val rideHailAgent = TestFSMRef(
         new RideHailAgent(
           Id.create("1", classOf[RideHailAgent]),
+          self,
           scheduler,
           beamVehicle,
           new Coord(0.0, 0.0),
+          None,
+          None,
           eventsManager,
           zonalParkingManager,
           services,
@@ -200,8 +196,6 @@ class RideHailAgentSpec
       scheduler ! ScheduleTrigger(TestTrigger(50000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
 
-//      expectMsgType[NotifyResourceIdle]
-
       expectMsgType[VehicleLeavesTrafficEvent]
 
       expectMsgType[PathTraversalEvent]
@@ -210,12 +204,9 @@ class RideHailAgentSpec
       trigger = expectMsgType[TriggerWithId] // NotifyLegStartTrigger
       scheduler ! CompletionNotice(trigger.triggerId)
 
-      // expectMsgType[NotifyResourceIdle]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
-      expectMsgType[NotifyVehicleResourceIdle]
-      //expectMsgType[NotifyVehicleResourceIdleReply]
-//      expectMsgType[CheckInResource]
+      expectMsgType[NotifyVehicleIdle]
 
       trigger = expectMsgType[TriggerWithId] // NotifyLegEndTrigger
       scheduler ! CompletionNotice(trigger.triggerId)
@@ -234,10 +225,10 @@ class RideHailAgentSpec
       val beamVehicle =
         new BeamVehicle(
           vehicleId,
-          new Powertrain(0.0), /*vehicle*/ None,
+          new Powertrain(0.0),
           BeamVehicleType.defaultCarBeamVehicleType
         )
-      beamVehicle.registerResource(self)
+      beamVehicle.manager = Some(self)
       vehicles.put(vehicleId, beamVehicle)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
@@ -252,9 +243,12 @@ class RideHailAgentSpec
       val rideHailAgent = TestFSMRef(
         new RideHailAgent(
           Id.create("1", classOf[RideHailAgent]),
+          self,
           scheduler,
           beamVehicle,
           new Coord(0.0, 0.0),
+          None,
+          None,
           eventsManager,
           zonalParkingManager,
           services,
@@ -287,7 +281,7 @@ class RideHailAgentSpec
       expectMsgType[PathTraversalEvent]
 //      expectMsgType[CheckInResource]
 
-      expectMsgType[NotifyVehicleResourceIdle]
+      expectMsgType[NotifyVehicleIdle]
 
       trigger = expectMsgType[TriggerWithId] // 50000
       scheduler ! CompletionNotice(trigger.triggerId)
@@ -301,10 +295,10 @@ class RideHailAgentSpec
       val beamVehicle =
         new BeamVehicle(
           vehicleId,
-          new Powertrain(0.0), /*vehicle,*/ None,
+          new Powertrain(0.0),
           BeamVehicleType.defaultCarBeamVehicleType
         )
-      beamVehicle.registerResource(self)
+      beamVehicle.manager = Some(self)
       vehicles.put(vehicleId, beamVehicle)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
@@ -319,9 +313,12 @@ class RideHailAgentSpec
       val rideHailAgent = TestFSMRef(
         new RideHailAgent(
           Id.create("1", classOf[RideHailAgent]),
+          self,
           scheduler,
           beamVehicle,
           new Coord(0.0, 0.0),
+          None,
+          None,
           eventsManager,
           zonalParkingManager,
           services,
