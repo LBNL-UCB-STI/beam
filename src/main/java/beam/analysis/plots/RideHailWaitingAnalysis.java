@@ -4,6 +4,7 @@ import beam.agentsim.events.ModeChoiceEvent;
 import beam.analysis.IterationSummaryAnalysis;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
 import beam.sim.config.BeamConfig;
+import beam.utils.DebugLib;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -125,24 +126,27 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     private static final String yAxisTitle = "Waiting Time (frequencies)";
     static final String fileName = "rideHailWaitingHistogram";
     static final String rideHailIndividualWaitingTimesFileBaseName = "rideHailIndividualWaitingTimes";
+    private static final String rideHailWaitingSingleStatsFileBaseName = "rideHailWaitingSingleStats";
+    private double lastMaximumTime = 0;
     private boolean writeGraph;
     private List<RideHailWaitingIndividualStat> rideHailWaitingIndividualStatList = new ArrayList<>();
     private Map<String, Event> rideHailWaiting = new HashMap<>();
     private Map<String, Double> ptWaiting = new HashMap<>();
     private Map<Integer, List<Double>> hoursTimesMap = new HashMap<>();
+    private Map<Integer, Double> hoursSingleTimesMap = new HashMap<>();
     private double waitTimeSum = 0;   //sum of all wait times experienced by customers
     private int rideHailCount = 0;   //later used to calculate average wait time experienced by customers
     private double totalPTWaitingTime = 0.0;
     private int numOfTrips = 0;
     private final StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation;
 
-    private static int numberOfTimeBins = 30;
+    private static int numberOfTimeBins;
 
     public RideHailWaitingAnalysis(StatsComputation<Tuple<List<Double>, Map<Integer, List<Double>>>, Tuple<Map<Integer, Map<Double, Integer>>, double[][]>> statComputation,
                                    BeamConfig beamConfig) {
         this.statComputation = statComputation;
         this.writeGraph = beamConfig.beam().outputs().writeGraphs();
-        final int timeBinSize = beamConfig.beam().outputs().stats().binSize();
+        final int timeBinSize = beamConfig.beam().agentsim().timeBinSize();
 
         String endTime = beamConfig.matsim().modules().qsim().endTime();
         Double _endTime = Time.parseTime(endTime);
@@ -157,9 +161,11 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         numOfTrips = 0;
         rideHailCount = 0;
         totalPTWaitingTime = 0.0;
+        lastMaximumTime = 0;
         ptWaiting.clear();
         rideHailWaiting.clear();
         hoursTimesMap.clear();
+        hoursSingleTimesMap.clear();
         rideHailWaitingIndividualStatList.clear();
     }
 
@@ -195,6 +201,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailWaiting.get(pId);
                 double difference = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime();
                 processRideHailWaitingTimes(modeChoiceEvent, difference);
+                processRideHailingSingleWaitingTimes(modeChoiceEvent,difference);
 
                 // Building the RideHailWaitingIndividualStat List
                 RideHailWaitingIndividualStat rideHailWaitingIndividualStat = new RideHailWaitingIndividualStat();
@@ -234,6 +241,12 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
 
         writeToCSV(event.getIteration(), data.getFirst());
         writeRideHailWaitingIndividualStatCSV(event.getIteration());
+
+        double[][] singleStatsData = computeGraphDataSingleStats(hoursSingleTimesMap);
+        CategoryDataset singleStatsDataset = DatasetUtilities.createCategoryDataset("", "", singleStatsData);
+        if (writeGraph)
+            createSingleStatsGraph(singleStatsDataset, event.getIteration());
+        writeRideHailWaitingSingleStatCSV(event.getIteration(), hoursSingleTimesMap);
     }
 
     @Override
@@ -270,6 +283,36 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         }
     }
 
+    private double[][] computeGraphDataSingleStats(Map<Integer, Double> stat) {
+        double[][] data = new double[1][numberOfTimeBins];
+        for (Integer key : stat.keySet()) {
+            if (key >= data[0].length) {
+                DebugLib.emptyFunctionForSettingBreakPoint();
+            }
+            data[0][key] = stat.get(key);
+        }
+        return data;
+    }
+
+    private void writeRideHailWaitingSingleStatCSV(int iteration, Map<Integer, Double> hourModeFrequency) {
+        String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, rideHailWaitingSingleStatsFileBaseName + ".csv");
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
+            String heading = "WaitingTime(sec),Hour";
+            out.write(heading);
+            out.newLine();
+            for (int i = 0; i < numberOfTimeBins; i++) {
+                Double inner = hourModeFrequency.get(i);
+                String line = (inner == null) ? "0" : "" + Math.round(inner * 100.0) / 100.0;
+                line += "," + (i + 1);
+                out.write(line);
+                out.newLine();
+            }
+            out.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private void processRideHailWaitingTimes(Event event, double waitingTime) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
 
@@ -283,6 +326,22 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         this.waitTimeSum += waitingTime;
         this.rideHailCount++;
         hoursTimesMap.put(hour, timeList);
+    }
+
+    private void processRideHailingSingleWaitingTimes(Event event, double waitingTime) {
+        int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
+
+        if (waitingTime > lastMaximumTime) {
+            lastMaximumTime = waitingTime;
+        }
+
+        Double timeList = hoursSingleTimesMap.get(hour);
+        if (timeList == null) {
+            timeList = waitingTime;
+        } else {
+            timeList += waitingTime;
+        }
+        hoursSingleTimesMap.put(hour, timeList);
     }
 
     private CategoryDataset buildModesFrequencyDatasetForGraph(double[][] dataset) {
@@ -305,6 +364,15 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
         String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".png");
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
+
+    private void createSingleStatsGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisTitle, yAxisTitle, rideHailWaitingSingleStatsFileBaseName + ".png", false);
+        GraphUtils.setColour(chart, 1);
+        // Writing graph to image file
+        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, rideHailWaitingSingleStatsFileBaseName + ".png");
+        GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+    }
+
 
     private void writeToCSV(int iterationNumber, Map<Integer, Map<Double, Integer>> hourModeFrequency) {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName + ".csv");

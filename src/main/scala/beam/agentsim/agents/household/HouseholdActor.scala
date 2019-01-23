@@ -90,7 +90,6 @@ object HouseholdActor {
     * Any agent in a mode choice situation must send a [[MobilityStatusInquiry]] to the [[HouseholdActor]]. The
     *
     * @author dserdiuk/sfeygin
-    * @param id       this [[Household]]'s unique identifier.
     * @param vehicles the [[BeamVehicle]]s managed by this [[Household]].
     * @see [[ChoosesMode]]
     */

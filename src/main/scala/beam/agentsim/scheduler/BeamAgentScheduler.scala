@@ -131,7 +131,11 @@ class BeamAgentScheduler(
   private var startSender: ActorRef = _
   private var nowInSeconds: Int = 0
 
-  private val triggerMeasurer: TriggerMeasurer = new TriggerMeasurer
+  private val maybeTriggerMeasurer: Option[TriggerMeasurer] = if (beamConfig.beam.debug.triggerMeasurer.enabled) {
+    Some(new TriggerMeasurer(beamConfig.beam.debug.triggerMeasurer))
+  } else {
+    None
+  }
 
   private var startedAt: Deadline = _
   // Event stream state and cleanup management
@@ -201,7 +205,7 @@ class BeamAgentScheduler(
         awaitingResponse.remove(completionTickOpt.get, st)
         stuckFinder.removeByKey(st)
         triggerIdToScheduledTrigger -= triggerId
-        triggerMeasurer.resolved(trigger.triggerWithId)
+        maybeTriggerMeasurer.foreach(_.resolved(trigger.triggerWithId))
       }
       triggerIdToTick -= triggerId
       if (started) doSimStep(nowInSeconds)
@@ -307,7 +311,7 @@ class BeamAgentScheduler(
           stuckFinder.add(System.currentTimeMillis(), scheduledTrigger, true)
 
           triggerIdToScheduledTrigger.put(triggerWithId.triggerId, scheduledTrigger)
-          triggerMeasurer.sent(triggerWithId, scheduledTrigger.agent)
+          maybeTriggerMeasurer.foreach(_.sent(triggerWithId, scheduledTrigger.agent))
           scheduledTrigger.agent ! triggerWithId
         }
         if (awaitingResponse.isEmpty || (nowInSeconds + 1) - awaitingResponse
@@ -333,10 +337,20 @@ class BeamAgentScheduler(
         log.info(
           s"Stopping BeamAgentScheduler @ tick $nowInSeconds. Iteration $currentIter executed in ${duration.toSeconds} seconds"
         )
-        if (beamConfig.beam.outputs.displayPerformanceTimings) {
-          log.info(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
-        } else {
+        maybeTriggerMeasurer.foreach { triggerMeasurer =>
+          if (beamConfig.beam.outputs.displayPerformanceTimings) {
+            log.info(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
+          }
           log.debug(s"Statistics about trigger: ${System.lineSeparator()} ${triggerMeasurer.getStat}")
+
+          if (beamConfig.beam.debug.triggerMeasurer.writeStuckAgentDetectionConfig) {
+            val jsonConf = triggerMeasurer.asStuckAgentDetectionConfig
+            log.info(
+              "Auto-generated stuck agent detection config (might need to tune it manually, especially `markAsStuckAfterMs`):"
+            )
+            val finalStr = System.lineSeparator() + jsonConf + System.lineSeparator()
+            log.info(finalStr)
+          }
         }
 
         // In BeamMobsim all rideHailAgents receive a 'Finish' message. If we also send a message from here to rideHailAgent, dead letter is reported, as at the time the second

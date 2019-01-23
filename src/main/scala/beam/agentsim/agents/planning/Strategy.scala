@@ -9,6 +9,6 @@ object Strategy {
 
   sealed trait Strategy
 
-  case class ModeChoiceStrategy(mode: BeamMode) extends Strategy
+  case class ModeChoiceStrategy(mode: Option[BeamMode]) extends Strategy
 
 }

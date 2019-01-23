@@ -21,7 +21,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTrig
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, NO_MODE, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
@@ -194,9 +194,7 @@ class PersonAgent(
   val body = new BeamVehicle(
     BeamVehicle.createId(id, Some("body")),
     BeamVehicleType.powerTrainForHumanBody,
-    None,
-    BeamVehicleType.defaultHumanBodyBeamVehicleType,
-    None
+    BeamVehicleType.defaultHumanBodyBeamVehicleType
   )
   body.manager = Some(self)
   beamVehicles.put(body.id, ActualVehicle(body))
@@ -298,12 +296,7 @@ class PersonAgent(
                 _experiencedBeamPlan.getPlanElements
                   .get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
                   case leg: Leg =>
-                    BeamMode.fromString(leg.getMode) match {
-                      case NO_MODE =>
-                        None
-                      case anyOther: BeamMode =>
-                        Some(anyOther)
-                    }
+                    BeamMode.fromString(leg.getMode)
                   case _ => None
                 }
               )
@@ -537,7 +530,10 @@ class PersonAgent(
           currentTourMode = None, // Have to give up my mode as well, perhaps there's no option left for driving.
           currentTourPersonalVehicle = None
         ),
-        SpaceTime(basePersonData.restOfCurrentTrip.head.beamLeg.travelPath.startPoint.loc, _currentTick.get)
+        SpaceTime(
+          beamServices.geo.wgs2Utm(basePersonData.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc,
+          _currentTick.get
+        )
       )
   }
 

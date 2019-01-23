@@ -1,7 +1,7 @@
 package beam.sim.vehicles
 import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.agents.vehicles.VehicleCategory.{Undefined, VehicleCategory}
+import beam.agentsim.agents.vehicles.VehicleCategory.{VehicleCategory}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Coord
 
