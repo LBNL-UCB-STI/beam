@@ -169,6 +169,7 @@ object HouseholdActor {
 
           schedulerRef ! ScheduleTrigger(InitializeTrigger(0), personRef)
         }
+
         // If any of my vehicles are CAVs then go through scheduling process
         val CAVIds = vehicles.filter(_._2.beamVehicleType.automationLevel>3).map(_._2).toList
         if(CAVIds.size>0){
@@ -176,7 +177,7 @@ object HouseholdActor {
           val scheduler = new HouseholdCAVScheduling(householdPlans, CAVIds, 15*60, HouseholdCAVScheduling.computeSkim(householdPlans))
           val optimalPlan = scheduler().sortWith(_.cost < _.cost).head.cavFleetSchedule
           optimalPlan.foreach{cavSchedule =>
-            cavSchedule.cav.id
+//            cavSchedule.cav.id
             cavSchedule.schedule.map{ mobilityServiceRequest =>
               mobilityServiceRequest.tag match{
                 case Pickup =>

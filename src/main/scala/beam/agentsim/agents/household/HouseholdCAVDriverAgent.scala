@@ -5,7 +5,6 @@ import akka.actor.FSM.Failure
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.PersonAgent.{DrivingData, PassengerScheduleEmpty, VehicleStack, WaitingToDrive}
-import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.household.HouseholdCAVDriverAgent.HouseholdCAVDriverData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, StartLegTrigger}
@@ -13,7 +12,9 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.BeamLeg
+import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
+import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -26,7 +27,9 @@ class HouseholdCAVDriverAgent(
   val beamServices: BeamServices,
   val eventsManager: EventsManager,
   val parkingManager: ActorRef,
-  val vehicle: BeamVehicle
+  val vehicle: BeamVehicle,
+  val transportNetwork: TransportNetwork,
+  val tollCalculator: TollCalculator
 ) extends DrivesVehicle[HouseholdCAVDriverData] {
 
   override val id: Id[HouseholdCAVDriverAgent] = driverId
@@ -71,7 +74,6 @@ class HouseholdCAVDriverAgent(
   override def logPrefix(): String = s"TransitDriverAgent:$id "
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))
-
 }
 
 object HouseholdCAVDriverAgent {
@@ -83,7 +85,9 @@ object HouseholdCAVDriverAgent {
              eventsManager: EventsManager,
              parkingManager: ActorRef,
              vehicle: BeamVehicle,
-             legs: Seq[BeamLeg]
+             legs: Seq[BeamLeg],
+             transportNetwork: TransportNetwork,
+             tollCalculator: TollCalculator
            ): Props = {
     Props(
       new HouseholdCAVDriverAgent(
@@ -92,7 +96,9 @@ object HouseholdCAVDriverAgent {
         services,
         eventsManager,
         parkingManager,
-        vehicle
+        vehicle,
+        transportNetwork,
+        tollCalculator
       )
     )
   }
