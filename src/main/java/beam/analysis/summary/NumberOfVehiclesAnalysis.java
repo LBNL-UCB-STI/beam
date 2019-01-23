@@ -2,17 +2,25 @@ package beam.analysis.summary;
 
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationSummaryAnalysis;
+import beam.sim.BeamServices;
+import beam.sim.config.BeamConfig;
+import com.conveyal.r5.transit.TransportNetwork;
 import org.matsim.api.core.v01.events.Event;
 
+import javax.inject.Inject;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class NumberOfVehiclesAnalysis implements IterationSummaryAnalysis {
+public class NumberOfVehiclesAnalysis implements IterationSummaryAnalysis{
     private Map<String, Integer> numberOfVehiclesByType = new HashMap<>();
     private HashSet<String> uniqueVehicleIds = new HashSet<>();
+    private BeamServices beamServices;
 
+    public NumberOfVehiclesAnalysis(BeamServices services){
+       beamServices = services;
+    }
     @Override
     public void processStats(Event event) {
         if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
