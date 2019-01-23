@@ -9,7 +9,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
-import beam.agentsim.agents.{BeamAgent, Population}
+import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -25,7 +25,8 @@ import beam.utils._
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.Scenario
+import org.matsim.api.core.v01.population.Activity
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.utils.misc.Time
@@ -102,6 +103,7 @@ class BeamMobsim @Inject()(
         private val rideHailManager = context.actorOf(
           Props(
             new RideHailManager(
+              Id.create("GlobalRHM", classOf[RideHailManager]),
               beamServices,
               transportNetwork,
               tollCalculator,
@@ -129,10 +131,11 @@ class BeamMobsim @Inject()(
           )
         }
 
-        private val sharedVehicleFleets = config.agents.vehicles.sharedFleets.map { id =>
-          context.actorOf(Fleets.lookup(id).props(scenario, parkingManager), id)
+        private val sharedVehicleFleets = config.agents.vehicles.sharedFleets.map { fleetConfig =>
+          context.actorOf(Fleets.lookup(fleetConfig).props(beamServices, parkingManager), fleetConfig.name)
         }
         sharedVehicleFleets.foreach(context.watch)
+        sharedVehicleFleets.foreach(scheduler ! ScheduleTrigger(InitializeTrigger(0), _))
 
         private val population = context.actorOf(
           Population.props(
