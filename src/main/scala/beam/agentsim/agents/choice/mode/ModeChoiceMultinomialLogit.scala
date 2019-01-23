@@ -93,7 +93,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     val transitFareDefaults =
       TransitFareDefaults.estimateTransitFares(alternatives)
     val gasolineCostDefaults =
-      DrivingCostDefaults.estimateDrivingCost(alternatives, beamServices)
+      DrivingCost.estimateDrivingCost(alternatives, beamServices)
     val rideHailDefaults = RideHailDefaults.estimateRideHailCost(alternatives)
 
     alternatives.zipWithIndex.map { altAndIdx =>

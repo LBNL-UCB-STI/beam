@@ -188,7 +188,7 @@ class ModeChoiceLCCM(
     val transitFareDefaults: Seq[Double] =
       TransitFareDefaults.estimateTransitFares(alternatives)
     val gasolineCostDefaults: Seq[Double] =
-      DrivingCostDefaults.estimateDrivingCost(alternatives, beamServices)
+      DrivingCost.estimateDrivingCost(alternatives, beamServices)
     val modeChoiceAlternatives: Seq[ModeChoiceData] =
       alternatives.zipWithIndex.map { altAndIdx =>
         val totalCost = altAndIdx._1.tripClassifier match {

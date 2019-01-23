@@ -237,6 +237,8 @@ object BeamServices {
           val primaryFuelType = FuelType.fromString(primaryFuelTypeId)
           val primaryFuelConsumptionInJoulePerMeter = line.get("primaryFuelConsumptionInJoulePerMeter").trim.toDouble
           val primaryFuelCapacityInJoule = line.get("primaryFuelCapacityInJoule").trim.toDouble
+          val monetaryCostPerMeter: Double = Option(line.get("monetaryCostPerMeter")).map(_.toDouble).getOrElse(0d)
+          val monetaryCostPerSecond: Double = Option(line.get("monetaryCostPerSecond")).map(_.toDouble).getOrElse(0d)
           val secondaryFuelTypeId = Option(line.get("secondaryFuelType"))
           val secondaryFuelType = secondaryFuelTypeId.map(FuelType.fromString(_))
           val secondaryFuelConsumptionInJoule =
@@ -257,6 +259,8 @@ object BeamServices {
             primaryFuelType,
             primaryFuelConsumptionInJoulePerMeter,
             primaryFuelCapacityInJoule,
+            monetaryCostPerMeter,
+            monetaryCostPerSecond,
             secondaryFuelType,
             secondaryFuelConsumptionInJoule,
             secondaryFuelCapacityInJoule,
