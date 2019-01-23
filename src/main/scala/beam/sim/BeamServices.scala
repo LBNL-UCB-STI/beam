@@ -19,7 +19,7 @@ import beam.sim.BeamServices.{getTazTreeMap, readBeamVehicleTypeFile, readFuelTy
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.metrics.Metrics
-import beam.utils.{DateUtils, FileUtils, NetworkHelper}
+import beam.utils.{DateUtils, FileUtils}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.{ImplementedBy, Inject, Injector}
 import org.matsim.api.core.v01.population.Person
@@ -154,10 +154,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
       case None => vehicleTypes
     }
   }
-
-  private val _networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
-
-  def networkHelper: NetworkHelper = _networkHelper
 
 }
 

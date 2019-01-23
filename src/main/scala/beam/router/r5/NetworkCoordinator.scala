@@ -97,9 +97,12 @@ trait NetworkCoordinator extends LazyLogging {
       }
     }
     transportNetwork.transitLayer.hasFrequencies = false
+    estimateInUseFleet
   }
 
   def estimateInUseFleet(): Unit = {
+    val startStopsByTime: mutable.PriorityQueue[IdAndTime] = mutable.PriorityQueue[IdAndTime]()(Ordering.by(IdAndTimeOrder))
+    val tripVehiclesEnRoute = mutable.HashMap.empty[String,mutable.Set[String]]
     val tripFleetSizeMap = mutable.HashMap.empty[String,Int]
     transportNetwork.transitLayer.tripPatterns.asScala.foreach { tp =>
       val activeFleet: mutable.HashSet[String] = mutable.HashSet.empty
@@ -107,11 +110,28 @@ trait NetworkCoordinator extends LazyLogging {
         tp.tripSchedules.asScala.toVector foreach { ts =>
         //Todo track vehicle between first arrival to last departure
           val firstArrival: Int = ts.arrivals(0)
-          val lastDeparture: Int = ts.departures(ts.getNStops)
+          val lastDeparture: Int = ts.departures(ts.getNStops-1)
+          startStopsByTime.enqueue(IdAndTime(firstArrival,ts.tripId, tp.routeId))
+          startStopsByTime.enqueue(IdAndTime(lastDeparture,ts.tripId, tp.routeId))
         }
       }
-      tripFleetSizeMap.put(tp.routeId,activeFleet.size)
+      tripFleetSizeMap.put(tp.routeId,0)
+    }
+    while(startStopsByTime.iterator.hasNext){
+      val nextId = startStopsByTime.dequeue()
+      if(!tripVehiclesEnRoute.contains(nextId.route)){
+        tripVehiclesEnRoute.put(nextId.route,mutable.Set())
+      }
+      val theSet = tripVehiclesEnRoute.get(nextId.route).get
+      if(theSet.contains(nextId.id)){
+        tripFleetSizeMap.put(nextId.route,Math.max(theSet.size,tripFleetSizeMap.get(nextId.route).get))
+        theSet.remove(nextId.id)
+      }else{
+        theSet.add(nextId.id)
+      }
     }
   }
+  case class IdAndTime(time: Int, id: String, route: String)
+  def IdAndTimeOrder(d: IdAndTime) = -d.time
 
 }
