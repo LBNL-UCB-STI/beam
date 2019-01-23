@@ -7,7 +7,7 @@ import java.util.concurrent.{ExecutorService, Executors}
 
 import akka.actor._
 import akka.pattern._
-import beam.agentsim.agents.choice.mode.{DrivingCostDefaults, ModeIncentive, PtFares}
+import beam.agentsim.agents.choice.mode.{DrivingCost, ModeIncentive, PtFares}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -354,7 +354,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           destinationForSplitting
         )
         val fuelAndTollCostPerLeg = legPair.map { beamLeg =>
-          val fuelCost = DrivingCostDefaults.estimateFuelCost(beamLeg, vehicleTypeId, beamServices)
+          val fuelCost = DrivingCost.estimateDrivingCost(beamLeg, vehicleTypeId, beamServices)
           val toll = if (beamLeg.mode == CAR) {
             val osm = beamLeg.travelPath.linkIds.toVector.map { e =>
               transportNetwork.streetLayer.edgeStore
@@ -756,7 +756,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                     EmbodiedBeamLeg(beamLeg, body.id, body.vehicleTypeId, body.asDriver, 0.0, unbecomeDriverAtComplete)
                   } else {
                     if (beamLeg.mode == CAR) {
-                      cost = cost + DrivingCostDefaults.estimateFuelCost(beamLeg, vehicle.vehicleTypeId, beamServices)
+                      cost = cost + DrivingCost
+                        .estimateDrivingCost(beamLeg, vehicle.vehicleTypeId, beamServices)
                     }
                     EmbodiedBeamLeg(
                       beamLeg,
