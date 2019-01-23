@@ -120,15 +120,14 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
     controler.run()
 
     val sharedCarType = services.vehicleTypes(sharedCarTypeId)
-    assume(sharedCarType.monetaryCostPerSecond > 0,
-      "I defined a per-time price for my car type.")
-    assume(trips != 0,
-      "Something's wildly broken, I am not seeing any trips.")
+    assume(sharedCarType.monetaryCostPerSecond > 0, "I defined a per-time price for my car type.")
+    assume(trips != 0, "Something's wildly broken, I am not seeing any trips.")
 
-    assert(sharedCarTravelTime > 0,
-      "Aggregate shared car travel time must not be zero.")
-    assert(personCost >= sharedCarTravelTime * sharedCarType.monetaryCostPerSecond,
-      "People are paying less than my price.")
+    assert(sharedCarTravelTime > 0, "Aggregate shared car travel time must not be zero.")
+    assert(
+      personCost >= sharedCarTravelTime * sharedCarType.monetaryCostPerSecond,
+      "People are paying less than my price."
+    )
     assert(nonCarTrips == 0, "Someone wasn't driving even though everybody wants to and cars abound.")
   }
 
