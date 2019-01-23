@@ -16,7 +16,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
   it should "generate four plans with 4/6/3/1 requests each" in {
     val plans = scenario1()
     val timeWindow = 15 * 60
-    val skim = computeSkim(plans)
+    val skim = HouseholdCAVScheduling.computeSkim(plans)
     val algo = new HouseholdCAVScheduling(plans, 1, timeWindow, skim)
     val schedules = algo().sortWith(_.cost < _.cost)
     schedules should have length 4
@@ -25,25 +25,6 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
         y => y.schedule should (((have length 4 or have length 6) or have length 3) or have length 1)
       )
     }
-  }
-
-  def computeSkim(plans: List[BeamPlan]): Map[Coord, Map[Coord, Double]] = {
-    var skim = Map[Coord, Map[Coord, Double]]()
-    var activitySet = Set[Coord]()
-    for (plan <- plans) {
-      for (act <- plan.activities) {
-        activitySet += act.getCoord
-      }
-    }
-    for (actSrc <- activitySet) {
-      skim = skim + (actSrc -> Map[Coord, Double]())
-      for (actDst <- activitySet) {
-        //TODO replace with BEAM GeoUtils
-        val travelTime: Double = CoordUtils.calcEuclideanDistance(actSrc, actDst) * 60
-        skim = skim + (actSrc -> (skim(actSrc) ++ Map(actDst -> travelTime)))
-      }
-    }
-    skim
   }
 
   def scenario1(): List[BeamPlan] = {

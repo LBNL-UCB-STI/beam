@@ -1,17 +1,19 @@
 package beam.agentsim.agents.household
 import beam.agentsim.agents.planning.BeamPlan
-import org.matsim.api.core.v01.Coord
-
+import beam.agentsim.agents.vehicles.BeamVehicle
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population._
+import org.matsim.core.utils.geometry.CoordUtils
+import org.matsim.vehicles.Vehicle
 
 import scala.collection.immutable.Map
 import scala.collection.immutable.List
 
 sealed trait MobilityServiceRequestType
-case object MSRPickup extends MobilityServiceRequestType
-case object MSRDropoff extends MobilityServiceRequestType
-case object MSRRelocation extends MobilityServiceRequestType
-case object MSRInit extends MobilityServiceRequestType
+case object Pickup extends MobilityServiceRequestType
+case object Dropoff extends MobilityServiceRequestType
+case object Relocation extends MobilityServiceRequestType
+case object Init extends MobilityServiceRequestType
 
 case class MobilityServiceRequest(
   person: Option[Person],
@@ -37,7 +39,7 @@ class HouseholdPlansToMSR(plans: List[BeamPlan]) {
           activity,
           activity.getStartTime,
           0.0,
-          MSRDropoff
+          Dropoff
         )
       if (!activity.getEndTime.isInfinity && !activity.getEndTime.isNaN)
         requests = requests :+ new MobilityServiceRequest(
@@ -45,7 +47,7 @@ class HouseholdPlansToMSR(plans: List[BeamPlan]) {
           activity,
           activity.getEndTime,
           0.0,
-          MSRPickup
+          Pickup
         )
     }
   }
@@ -56,16 +58,16 @@ class HouseholdPlansToMSR(plans: List[BeamPlan]) {
 
 class HouseholdCAVScheduling(
   plans: List[BeamPlan],
-  fleetSize: Int,
+  cavVehicles: List[BeamVehicle],
   timeWindow: Double,
   skim: Map[Coord, Map[Coord, Double]]
 ) {
-  private var fleet = List[HouseholdCAV]()
+  private var fleet = cavVehicles.map(veh => HouseholdCAV(veh.id,veh.beamVehicleType.seatingCapacity))
   private var feasibleSchedules = List[HouseholdSchedule]()
 
-  case class HouseholdCAV(id: Int, maxOccupancy: Int)
+  case class HouseholdCAV(id: Id[BeamVehicle], maxOccupancy: Int)
 
-  class CAVSchedule(val schedule: List[MobilityServiceRequest], cav: HouseholdCAV, val cost: Double, occupancy: Int) {
+  class CAVSchedule(val schedule: List[MobilityServiceRequest], val cav: HouseholdCAV, val cost: Double, val occupancy: Int) {
     var feasible: Boolean = true
 
     def check(request: MobilityServiceRequest): Option[CAVSchedule] = {
@@ -75,31 +77,31 @@ class HouseholdCAVScheduling(
       val newCost = cost + newDeltaTime
       var newCavSchedule: Option[CAVSchedule] = None
       request.tag match {
-        case MSRPickup =>
+        case Pickup =>
           if (occupancy == 0 && newDeltaTime < -1 * timeWindow) {
             val relocationRequest =
-              new MobilityServiceRequest(None, request.activity, request.time - 1, newDeltaTime, MSRRelocation)
-            val newRequest = new MobilityServiceRequest(request.person, request.activity, request.time, 0, MSRPickup)
+              new MobilityServiceRequest(None, request.activity, request.time - 1, newDeltaTime, Relocation)
+            val newRequest = new MobilityServiceRequest(request.person, request.activity, request.time, 0, Pickup)
             newCavSchedule = Some(
               new CAVSchedule(schedule :+ relocationRequest :+ newRequest, cav, newCost, occupancy + 1)
             )
           } else if (occupancy < cav.maxOccupancy && math.abs(newDeltaTime) <= timeWindow) {
             val newRequest =
-              new MobilityServiceRequest(request.person, request.activity, request.time, newDeltaTime, MSRPickup)
+              new MobilityServiceRequest(request.person, request.activity, request.time, newDeltaTime, Pickup)
             newCavSchedule = Some(new CAVSchedule(schedule :+ newRequest, cav, newCost, occupancy + 1))
           } else {
             // Dead End, Not going down this branch
           }
-        case MSRDropoff =>
+        case Dropoff =>
           val index = schedule.lastIndexWhere(_.person == request.person)
-          if (index < 0 || schedule(index).tag != MSRPickup) {
+          if (index < 0 || schedule(index).tag != Pickup) {
             // Dead End, Not going down this branch
           } else if (math.abs(newDeltaTime) > timeWindow) {
             // Current Schedule unfeasible, to be marked for removal
             feasible = false
           } else {
             val newRequest =
-              new MobilityServiceRequest(request.person, request.activity, request.time, newDeltaTime, MSRDropoff)
+              new MobilityServiceRequest(request.person, request.activity, request.time, newDeltaTime, Dropoff)
             newCavSchedule = Some(new CAVSchedule(schedule :+ newRequest, cav, newCost, occupancy - 1))
             feasible = false
           }
@@ -151,15 +153,10 @@ class HouseholdCAVScheduling(
     // extract potential household CAV requests from plans
     val householdRequests = new HouseholdPlansToMSR(plans);
 
-    // set up the household fleet
-    for (i <- 0 until fleetSize) {
-      fleet = fleet :+ HouseholdCAV(i, 4) //TODO probably to be extracted from Attr Map
-    }
-
     // deploy the fleet or set up the initial household schedule
     var emptyFleetSchedule = List[CAVSchedule]()
     fleet.foreach(
-      x =>
+      veh =>
         emptyFleetSchedule = emptyFleetSchedule :+ new CAVSchedule(
           List[MobilityServiceRequest](
             new MobilityServiceRequest(
@@ -167,10 +164,10 @@ class HouseholdCAVScheduling(
               householdRequests.requests.head.activity,
               householdRequests.requests.head.time - 1,
               1,
-              MSRInit
+              Init
             )
           ),
-          x,
+          veh,
           0,
           0
       ) // initial Cost and Occupancy
@@ -192,4 +189,25 @@ class HouseholdCAVScheduling(
     feasibleSchedules
   }
 
+}
+
+object HouseholdCAVScheduling{
+  def computeSkim(plans: List[BeamPlan]): Map[Coord, Map[Coord, Double]] = {
+    var skim = Map[Coord, Map[Coord, Double]]()
+    var activitySet = Set[Coord]()
+    for (plan <- plans) {
+      for (act <- plan.activities) {
+        activitySet += act.getCoord
+      }
+    }
+    for (actSrc <- activitySet) {
+      skim = skim + (actSrc -> Map[Coord, Double]())
+      for (actDst <- activitySet) {
+        //TODO replace with BEAM GeoUtils
+        val travelTime: Double = CoordUtils.calcEuclideanDistance(actSrc, actDst) * 60
+        skim = skim + (actSrc -> (skim(actSrc) ++ Map(actDst -> travelTime)))
+      }
+    }
+    skim
+  }
 }

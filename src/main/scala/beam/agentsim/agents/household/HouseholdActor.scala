@@ -12,6 +12,7 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, VehicleOrToken}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
+import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
@@ -167,6 +168,25 @@ object HouseholdActor {
           context.watch(personRef)
 
           schedulerRef ! ScheduleTrigger(InitializeTrigger(0), personRef)
+        }
+        // If any of my vehicles are CAVs then go through scheduling process
+        val CAVIds = vehicles.filter(_._2.beamVehicleType.automationLevel>3).map(_._2).toList
+        if(CAVIds.size>0){
+          val householdPlans = household.members.map(person => BeamPlan(person.getSelectedPlan)).toList
+          val scheduler = new HouseholdCAVScheduling(householdPlans, CAVIds, 15*60, HouseholdCAVScheduling.computeSkim(householdPlans))
+          val optimalPlan = scheduler().sortWith(_.cost < _.cost).head.cavFleetSchedule
+          optimalPlan.foreach{cavSchedule =>
+            cavSchedule.cav.id
+            cavSchedule.schedule.map{ mobilityServiceRequest =>
+              mobilityServiceRequest.tag match{
+                case Pickup =>
+                case Dropoff =>
+                case Relocation =>
+                case Init =>
+              }
+            }
+          }
+          val i = 0
         }
 
         // Pipe my cars through the parking manager
