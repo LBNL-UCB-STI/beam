@@ -5,7 +5,7 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.population.PopulationAdjustment.AVAILABLE_MODES
 import beam.sim.{BeamHelper, BeamServices}
-import beam.utils.FileUtils
+import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.events.Event
@@ -67,6 +67,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
     val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
+    val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
     scenario.setNetwork(networkCoordinator.network)
     var nonCarTrips = 0
     var trips = 0
@@ -74,7 +75,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
       scenario.getConfig,
       new AbstractModule() {
         override def install(): Unit = {
-          install(module(config, scenario, networkCoordinator))
+          install(module(config, scenario, networkCoordinator, networkHelper))
           addEventHandlerBinding().toInstance(new BasicEventHandler {
             override def handleEvent(event: Event): Unit = {
               event match {
