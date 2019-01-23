@@ -26,7 +26,6 @@ public class StatsFactory {
         MotorizedVehicleMilesTraveled,
         VehicleHoursTraveled,
         NumberOfVehicles,
-        AgentDelay,
         AboveCapacityPtUsageDuration,
         TollRevenue,
         AgencyRevenue,
@@ -90,13 +89,12 @@ public class StatsFactory {
             case DeadHeading:
                 return new DeadHeadingAnalysis(writeGraphs);
             case VehicleHoursTraveled:
-                return new VehicleTravelTimeAnalysis(beamServices.matsimServices().getScenario(), beamServices.vehicleTypes().keySet());
+                return new VehicleTravelTimeAnalysis(beamServices.matsimServices().getScenario(),
+                        beamServices.networkHelper(), beamServices.vehicleTypes().keySet());
             case MotorizedVehicleMilesTraveled:
                 return new MotorizedVehicleMilesTraveledAnalysis(beamServices.vehicleTypes().keySet());
             case NumberOfVehicles:
                 return new NumberOfVehiclesAnalysis();
-            case AgentDelay:
-                return new AgentDelayAnalysis(beamServices.matsimServices().getEvents(), beamServices.matsimServices().getScenario(), beamServices.matsimServices().getControlerIO() , beamServices,beamConfig);
             case PersonCost:
                 return new PersonCostAnalysis();
             case AboveCapacityPtUsageDuration:

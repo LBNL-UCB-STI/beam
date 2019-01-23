@@ -39,7 +39,6 @@ import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.google.common.util.concurrent.ThreadFactoryBuilder
-import com.google.inject.Injector
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.population.Person
@@ -139,6 +138,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
 
         override def matsimServices: org.matsim.core.controler.MatsimServices = ???
+
+        override def networkHelper: NetworkHelper = ???
       }
 
       val defaultTravelTimeByLink = (time: Int, linkId: Int, mode: StreetMode) => {
