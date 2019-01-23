@@ -58,7 +58,6 @@ trait BeamServices {
 
   var matsimServices: MatsimServices
   val tazTreeMap: TAZTreeMap
-  var transportNetwork: TransportNetwork
   val modeIncentives: ModeIncentive
   val ptFares: PtFares
   var iterationNumber: Int = -1
@@ -77,8 +76,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
     ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
     ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
   )
-
-  var transportNetwork: TransportNetwork = injector.getInstance(classOf[TransportNetwork])
 
   val rideHailTransitModes: Seq[BeamMode] =
     if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("all")) BeamMode.transitModes
