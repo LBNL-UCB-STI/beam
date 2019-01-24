@@ -16,7 +16,7 @@ case object Relocation extends MobilityServiceRequestType
 case object Init extends MobilityServiceRequestType
 
 case class MobilityServiceRequest(
-  person: Option[Person],
+  person: Option[Id[Person]],
   activity: Activity,
   time: Double,
   deltaTime: Double,
@@ -24,35 +24,34 @@ case class MobilityServiceRequest(
 ) {
   override def toString =
     s"$tag{ ${person match {
-      case Some(x) => x.getId
+      case Some(x) => x.toString
       case None    => "NA"
     }}|${activity.getType}|${(time / 3600).toInt}:${((time % 3600) / 60).toInt}:${(time % 60).toInt}|ocp:$deltaTime }"
 }
 
-class HouseholdPlansToMSR(plans: List[BeamPlan]) {
+class HouseholdPlansToMSR(plans: List[BeamPlan], skim: Map[Coord, Map[Coord, Double]]) {
   var requests = List[MobilityServiceRequest]()
   for (plan <- plans) {
-    for (activity <- plan.activities) {
-      if (!activity.getStartTime.isInfinity && !activity.getStartTime.isNaN)
-        requests = requests :+ new MobilityServiceRequest(
-          Some(plan.getPerson),
-          activity,
-          activity.getStartTime,
-          0.0,
-          Dropoff
-        )
-      if (!activity.getEndTime.isInfinity && !activity.getEndTime.isNaN)
-        requests = requests :+ new MobilityServiceRequest(
-          Some(plan.getPerson),
-          activity,
-          activity.getEndTime,
-          0.0,
-          Pickup
-        )
+    plan.activities.sliding(2).foreach{ activityTuple =>
+      requests = requests :+ new MobilityServiceRequest(
+        Some(plan.getPerson.getId),
+        activityTuple(1),
+        activityTuple(0).getEndTime + skim(activityTuple(0).getCoord)(activityTuple(1).getCoord),
+        0.0,
+        Dropoff
+      )
+    }
+    plan.activities.dropRight(1).foreach{ activity =>
+      requests = requests :+ new MobilityServiceRequest(
+        Some(plan.getPerson.getId),
+        activity,
+        activity.getEndTime,
+        0.0,
+        Pickup
+      )
     }
   }
   requests = requests.sortWith(_.time < _.time)
-  def apply(): List[MobilityServiceRequest] = { requests }
   override def toString = s"${requests}"
 }
 
@@ -151,7 +150,7 @@ class HouseholdCAVScheduling(
   def apply(): List[HouseholdSchedule] = {
 
     // extract potential household CAV requests from plans
-    val householdRequests = new HouseholdPlansToMSR(plans);
+    val householdRequests = new HouseholdPlansToMSR(plans, skim);
 
     // deploy the fleet or set up the initial household schedule
     var emptyFleetSchedule = List[CAVSchedule]()
@@ -175,7 +174,7 @@ class HouseholdCAVScheduling(
     feasibleSchedules = feasibleSchedules :+ new HouseholdSchedule(emptyFleetSchedule)
 
     // extract all possible schedule combinations
-    for (request <- householdRequests()) {
+    for (request <- householdRequests.requests) {
       var householdSchedulesToAdd = List[HouseholdSchedule]()
       var householdSchedulesToDelete = List[HouseholdSchedule]()
       for (schedule <- feasibleSchedules) {

@@ -23,6 +23,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
+import beam.utils.RandomUtils
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -178,7 +179,13 @@ object HouseholdActor {
           val optimalPlan = scheduler().sortWith(_.cost < _.cost).head.cavFleetSchedule
           optimalPlan.foreach{cavSchedule =>
 //            cavSchedule.cav.id
+            // We create a passenger schedule for every sequence of movements up until the next pick-up which would be the
+            // start of a new passenger schedule (this ensures the vehicle isn't dispatched to pick-up until a person is ready)
+
+            val splitByPickup = RandomUtils.multispan(cavSchedule.schedule,(request: MobilityServiceRequest) => request.tag != Pickup)
+
             cavSchedule.schedule.map{ mobilityServiceRequest =>
+//              mobilityServiceRequest.person
               mobilityServiceRequest.tag match{
                 case Pickup =>
                 case Dropoff =>
@@ -187,7 +194,7 @@ object HouseholdActor {
               }
             }
           }
-          val i = 0
+          //TODO we need to route and dispatch any repositioning that starts out the schedule
         }
 
         // Pipe my cars through the parking manager
