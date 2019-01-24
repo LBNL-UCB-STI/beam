@@ -105,7 +105,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
       override lazy val controler: ControlerI = ???
       override val beamConfig: BeamConfig = BeamConfig(config)
       override lazy val geo: beam.sim.common.GeoUtils = new GeoUtilsImpl(this)
-      override var transportNetwork = DefaultNetworkCoordinator(beamConfig).transportNetwork
+      val transportNetwork = DefaultNetworkCoordinator(beamConfig).transportNetwork
       override var modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator = _
       override val dates: DateUtils = DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
