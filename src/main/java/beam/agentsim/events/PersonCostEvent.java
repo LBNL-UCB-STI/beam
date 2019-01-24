@@ -58,6 +58,10 @@ public class PersonCostEvent extends Event implements HasPersonId {
         return personId;
     }
 
+    public double getNetCost() {
+        return netCost;
+    }
+
     @Override
     public Map<String, String> getAttributes() {
         Map<String, String> attr = attributes.get();

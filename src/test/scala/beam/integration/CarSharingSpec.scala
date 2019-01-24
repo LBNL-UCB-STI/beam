@@ -1,13 +1,15 @@
 package beam.integration
-import beam.agentsim.events.ModeChoiceEvent
+import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, PersonCostEvent}
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.population.PopulationAdjustment.AVAILABLE_MODES
 import beam.sim.{BeamHelper, BeamServices}
-import beam.utils.FileUtils
+import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory}
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.handler.BasicEventHandler
@@ -15,6 +17,8 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.{FlatSpec, Matchers}
 
 class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
+
+  private val sharedCarTypeId = Id.create("sharedCar", classOf[BeamVehicleType])
 
   "Running a car-sharing-only scenario with abundant cars" must "result in everybody driving" in {
     val config = ConfigFactory
@@ -67,22 +71,29 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
     val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
+    val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
     scenario.setNetwork(networkCoordinator.network)
     var nonCarTrips = 0
     var trips = 0
+    var sharedCarTravelTime = 0
+    var personCost = 0d
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
       new AbstractModule() {
         override def install(): Unit = {
-          install(module(config, scenario, networkCoordinator))
+          install(module(config, scenario, networkCoordinator, networkHelper))
           addEventHandlerBinding().toInstance(new BasicEventHandler {
             override def handleEvent(event: Event): Unit = {
               event match {
-                case modeChoiceEvent: ModeChoiceEvent =>
+                case e: ModeChoiceEvent =>
                   trips = trips + 1
-                  if (modeChoiceEvent.getAttributes.get("mode") != "car") {
+                  if (e.getAttributes.get("mode") != "car") {
                     nonCarTrips = nonCarTrips + 1
                   }
+                case e: PathTraversalEvent if e.getVehicleType == sharedCarTypeId.toString =>
+                  sharedCarTravelTime = sharedCarTravelTime + (e.getArrivalTime.toInt - e.getDepartureTime.toInt)
+                case e: PersonCostEvent =>
+                  personCost = personCost + e.getNetCost
                 case _ =>
               }
             }
@@ -109,7 +120,15 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
     val controler = services.controler
     controler.run()
 
+    val sharedCarType = services.vehicleTypes(sharedCarTypeId)
+    assume(sharedCarType.monetaryCostPerSecond > 0, "I defined a per-time price for my car type.")
     assume(trips != 0, "Something's wildly broken, I am not seeing any trips.")
+
+    assert(sharedCarTravelTime > 0, "Aggregate shared car travel time must not be zero.")
+    assert(
+      personCost >= sharedCarTravelTime * sharedCarType.monetaryCostPerSecond,
+      "People are paying less than my price."
+    )
     assert(nonCarTrips == 0, "Someone wasn't driving even though everybody wants to and cars abound.")
   }
 

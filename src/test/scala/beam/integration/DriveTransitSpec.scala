@@ -5,7 +5,7 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices}
 import beam.tags.{ExcludeRegular, Periodic}
-import beam.utils.FileUtils
+import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent, PersonDepartureEvent}
@@ -53,13 +53,16 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
       val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
       networkCoordinator.loadNetwork()
       scenario.setNetwork(networkCoordinator.network)
+
+      val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
+
       var nDepartures = 0
       var nArrivals = 0
       val injector = org.matsim.core.controler.Injector.createInjector(
         scenario.getConfig,
         new AbstractModule() {
           override def install(): Unit = {
-            install(module(config, scenario, networkCoordinator))
+            install(module(config, scenario, networkCoordinator, networkHelper))
             addEventHandlerBinding().toInstance(new BasicEventHandler {
               override def handleEvent(event: Event): Unit = {
                 event match {
