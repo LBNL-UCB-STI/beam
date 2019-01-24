@@ -181,12 +181,12 @@ object VehiclesDataConversion extends App {
     val vehiclesFile = args(0)
     val transitVehiclesFile = args(1)
     val outputDir = args(2)
-    val csvFileOutputFile = args(3)
+    val csvFileOutput= args(3)
 
-    generateVehiclesData(vehiclesFile, transitVehiclesFile, outputDir)
+    generateVehiclesData(vehiclesFile, transitVehiclesFile, outputDir, csvFileOutput)
   }
 
-  def generateVehiclesData(vehiclesFile: String, transitFile: String, outputDir: String) = {
+  def generateVehiclesData(vehiclesFile: String, transitFile: String, outputDir: String,csvFileOutput:String) = {
     generateFuelTypesDefaults(outputDir)
 
     val vehiclesDoc = XML.loadFile(vehiclesFile)
@@ -196,7 +196,7 @@ object VehiclesDataConversion extends App {
     val transitVehicleTypes = generateVehicleTypesFromSource(transitDoc \\ "vehicleType")
 
     generateVehicleTypesDefaults(outputDir, vehicleTypes ++ transitVehicleTypes)
-    generateVehiclesDataFromSource(outputDir, vehiclesDoc)
+    generateVehiclesDataFromSource(outputDir, vehiclesDoc, csvFileOutput)
   }
 
   def generateFuelTypesDefaults(scenarioDirectory: String): Unit = {
@@ -279,7 +279,7 @@ object VehiclesDataConversion extends App {
 
 
 
-  def generateVehiclesDataFromSource(scenarioDirectory: String, vehiclesDoc: Elem): Seq[Seq[String]] = {
+  def generateVehiclesDataFromSource(scenarioDirectory: String, vehiclesDoc: Elem, csvFileOutput:String): Seq[Seq[String]] = {
     val vehicles = (vehiclesDoc \ "vehicle").map { vehicle =>
       Seq(vehicle \@ "id", vehicle \@ "type")
     }

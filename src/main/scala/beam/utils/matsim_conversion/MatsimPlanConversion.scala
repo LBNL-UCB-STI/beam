@@ -32,7 +32,7 @@ object MatsimPlanConversion {
       val vehiclesDoc = XML.loadFile(vehiclesFile)
       val vehicleTypes = VehiclesDataConversion.generateVehicleTypesFromSource(vehiclesDoc \\ "vehicleType")
       VehiclesDataConversion.generateVehicleTypesDefaults(conversionConfig.scenarioDirectory, vehicleTypes)
-      VehiclesDataConversion.generateVehiclesDataFromSource(conversionConfig.scenarioDirectory, vehiclesDoc)
+      VehiclesDataConversion.generateVehiclesDataFromSource(conversionConfig.scenarioDirectory, vehiclesDoc,"")
     }
 
     val houseHolds =
