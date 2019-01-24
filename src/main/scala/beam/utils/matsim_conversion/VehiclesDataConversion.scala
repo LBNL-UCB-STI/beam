@@ -175,12 +175,13 @@ object VehiclesDataConversion extends App {
     ),
   )
 
-  if (null == args || args.length < 3) {
+  if (null == args || args.length < 4) {
     println("Please include parameters: /path/to/vehicles.xml /path/to/transitVehicles.xml /outputDirectory/path")
   } else {
     val vehiclesFile = args(0)
     val transitVehiclesFile = args(1)
     val outputDir = args(2)
+    val csvFileOutputFile = args(3)
 
     generateVehiclesData(vehiclesFile, transitVehiclesFile, outputDir)
   }
@@ -276,12 +277,14 @@ object VehiclesDataConversion extends App {
     }
   }
 
+
+
   def generateVehiclesDataFromSource(scenarioDirectory: String, vehiclesDoc: Elem): Seq[Seq[String]] = {
     val vehicles = (vehiclesDoc \ "vehicle").map { vehicle =>
       Seq(vehicle \@ "id", vehicle \@ "type")
     }
     val beamVehiclesPath = new File(
-"/Users/sfeygi/current_code/scala/projects/beam_competitions/fixed-data/sioux_faux/sample/15k/vehicles.csv"
+csvFileOutput
     ).toString
     writeCsvFile(beamVehiclesPath, vehicles, beamVehicleTitles)
     vehicles
