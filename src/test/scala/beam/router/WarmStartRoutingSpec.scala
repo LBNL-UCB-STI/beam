@@ -16,16 +16,14 @@ import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.CAR
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
-import beam.router.model.RoutingModel
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
-import beam.sim.BeamServices.readFuelTypeFile
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices, BeamWarmStart}
 import beam.utils.TestConfigUtils.testConfig
-import beam.utils.{DateUtils, FileUtils}
+import beam.utils.{DateUtils, FileUtils, NetworkHelper, NetworkHelperImpl}
 import com.typesafe.config.{Config, ConfigValueFactory}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
@@ -135,12 +133,14 @@ class WarmStartRoutingSpec
     networkCoordinator = new DefaultNetworkCoordinator(BeamConfig(iterationConfig))
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
+    val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
+
     scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     val injector = org.matsim.core.controler.Injector.createInjector(
       matsimConfig,
       new AbstractModule() {
         override def install(): Unit = {
-          install(module(iterationConfig, scenario, networkCoordinator))
+          install(module(iterationConfig, scenario, networkCoordinator, networkHelper))
         }
       }
     )
