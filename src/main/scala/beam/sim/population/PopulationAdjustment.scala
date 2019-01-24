@@ -38,7 +38,7 @@ trait PopulationAdjustment extends LazyLogging {
 
           val availableModes: Seq[BeamMode] = Option(
             personAttributes.getAttribute(person.getId.toString, "available-modes")
-          ).fold(BeamMode.allModes)(
+          ).fold(BeamMode.allBeamModes.seq)(
             attr => availableModeParser(attr.toString)
           )
           val income = Try { personAttributes.getAttribute(person.getId.toString, "income") } match {
