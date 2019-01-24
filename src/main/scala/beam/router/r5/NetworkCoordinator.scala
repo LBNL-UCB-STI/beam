@@ -21,9 +21,12 @@ trait NetworkCoordinator extends LazyLogging {
 
   var network: Network
 
+  val tripFleetSizeMap: mutable.HashMap[String, Integer] = mutable.HashMap.empty[String, Integer]
+
   protected def preprocessing(): Unit
 
   def init(): Unit = {
+    tripFleetSizeMap.clear()
     preprocessing()
     loadNetwork()
     postProcessing()
@@ -101,30 +104,30 @@ trait NetworkCoordinator extends LazyLogging {
   }
 
   def estimateInUseFleet(): Unit = {
-    val startStopsByTime: mutable.PriorityQueue[IdAndTime] = mutable.PriorityQueue[IdAndTime]()(Ordering.by(IdAndTimeOrder))
-    val tripVehiclesEnRoute = mutable.HashMap.empty[String,mutable.Set[String]]
-    val tripFleetSizeMap = mutable.HashMap.empty[String,Int]
+    val startStopsByTime: mutable.PriorityQueue[IdAndTime] =
+      mutable.PriorityQueue[IdAndTime]()(Ordering.by(IdAndTimeOrder))
+    val tripVehiclesEnRoute = mutable.HashMap.empty[String, mutable.Set[String]]
     transportNetwork.transitLayer.tripPatterns.asScala.foreach { tp =>
       if (tp.hasSchedules) {
         tp.tripSchedules.asScala.toVector foreach { ts =>
           val firstArrival: Int = ts.arrivals(0)
-          val lastDeparture: Int = ts.departures(ts.getNStops-1)
-          startStopsByTime.enqueue(IdAndTime(firstArrival,ts.tripId, tp.routeId))
-          startStopsByTime.enqueue(IdAndTime(lastDeparture,ts.tripId, tp.routeId))
+          val lastDeparture: Int = ts.departures(ts.getNStops - 1)
+          startStopsByTime.enqueue(IdAndTime(firstArrival, ts.tripId, tp.routeId))
+          startStopsByTime.enqueue(IdAndTime(lastDeparture, ts.tripId, tp.routeId))
         }
       }
-      tripFleetSizeMap.put(tp.routeId,0)
+      tripFleetSizeMap.put(tp.routeId, 0)
     }
-    while(startStopsByTime.iterator.hasNext){
+    while (startStopsByTime.iterator.hasNext) {
       val nextId = startStopsByTime.dequeue()
-      if(!tripVehiclesEnRoute.contains(nextId.route)){
-        tripVehiclesEnRoute.put(nextId.route,mutable.Set())
+      if (!tripVehiclesEnRoute.contains(nextId.route)) {
+        tripVehiclesEnRoute.put(nextId.route, mutable.Set())
       }
       val theSet = tripVehiclesEnRoute(nextId.route)
-      if(theSet.contains(nextId.id)){
-        tripFleetSizeMap.put(nextId.route,Math.max(theSet.size, tripFleetSizeMap(nextId.route)))
+      if (theSet.contains(nextId.id)) {
+        tripFleetSizeMap.put(nextId.route, Math.max(theSet.size, tripFleetSizeMap(nextId.route)))
         theSet.remove(nextId.id)
-      }else{
+      } else {
         theSet.add(nextId.id)
       }
     }
