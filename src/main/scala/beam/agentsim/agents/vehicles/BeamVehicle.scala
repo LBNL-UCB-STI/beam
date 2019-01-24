@@ -109,8 +109,10 @@ class BeamVehicle(
     fuelLevelInJoules match {
       case Some(fLevel) =>
         val energyConsumed = fuelConsumption match {
-          case Some(consumption) => powerTrain.estimateConsumptionInJoules(consumption)
-          case None              => powerTrain.estimateConsumptionInJoules(distanceInMeters)
+          case Some(consumption) if !Modes.isRailTransport(beamLeg.mode) =>
+            powerTrain.estimateConsumptionInJoules(consumption)
+          case _              =>
+            powerTrain.estimateConsumptionInJoules(distanceInMeters)
         }
         if (fLevel < energyConsumed) {
           logger.warn(

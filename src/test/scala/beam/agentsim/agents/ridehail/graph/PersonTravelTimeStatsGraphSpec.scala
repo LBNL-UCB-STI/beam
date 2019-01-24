@@ -1,15 +1,12 @@
 package beam.agentsim.agents.ridehail.graph
 import java.{lang, util}
 
-import beam.agentsim.agents.ridehail.graph.PersonTravelTimeStatsGraphSpec.{
-  PersonTravelTimeStatsGraph,
-  StatsValidationHandler
-}
+import beam.agentsim.agents.ridehail.graph.PersonTravelTimeStatsGraphSpec.{PersonTravelTimeStatsGraph, StatsValidationHandler}
 import beam.analysis.plots.PersonTravelTimeAnalysis
 import beam.integration.IntegrationSpecCommon
 import beam.utils.MathUtils
 import com.google.inject.Provides
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import com.typesafe.config.{ConfigValueFactory}
 import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent, PersonDepartureEvent}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.AbstractModule
@@ -17,10 +14,10 @@ import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.utils.collections.Tuple
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.{AsyncFlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Promise
 
 object PersonTravelTimeStatsGraphSpec {
@@ -99,14 +96,14 @@ object PersonTravelTimeStatsGraphSpec {
   }
 }
 
-class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with IntegrationSpecCommon {
+class PersonTravelTimeStatsGraphSpec extends AsyncFlatSpec  with ScalaFutures with Matchers with IntegrationSpecCommon {
 
-  "Person Travel Time Graph Collected Data" must {
+  "Person Travel Time Graph Collected Data" should "contains valid travel time stats" in {
 
-    "contains valid travel time stats" in {
+      val promiseStats = Promise[Map[String,Double]]()
+      val promiseModes = Promise[Map[String, Double]]()
+
       val travelTimeComputation = new PersonTravelTimeAnalysis.PersonTravelTimeComputation with EventAnalyzer {
-
-        private val promise = Promise[util.Map[String, util.Map[Integer, util.List[lang.Double]]]]()
 
         override def compute(
           stat: util.Map[
@@ -114,29 +111,26 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
             util.Map[Integer, util.List[lang.Double]]
           ]
         ): Tuple[util.List[String], Tuple[Array[Array[Double]], java.lang.Double]] = {
-          promise.success(stat)
+          val all = stat.asScala.map {
+            case (mode, times) =>
+              mode -> MathUtils.roundDouble(times.asScala.values.flatMap(_.asScala).map(_.toDouble).sum)
+          }
+          promiseStats.success(all.toMap)
           super.compute(stat)
         }
-
         override def eventFile(iteration: Int): Unit = {
           val handler = new StatsValidationHandler
           parseEventFile(iteration, handler)
-          promise.future.foreach { a =>
-            val modes = handler.counterValue
-              .groupBy(_._1)
-              .map {
-                case (mode, ms) =>
-                  mode -> MathUtils.roundDouble(ms.map(_._2).sum)
-              }
-
-            val all = a.asScala.map {
-              case (mode, times) =>
-                mode -> MathUtils.roundDouble(times.asScala.values.flatMap(_.asScala).map(_.toDouble).sum)
+          val modes = handler.counterValue
+            .groupBy(_._1)
+            .map {
+              case (mode, ms) =>
+                mode -> MathUtils.roundDouble(ms.map(_._2).sum)
             }
-//            handler.isEmpty shouldBe true
-            modes shouldEqual all
-          }
+
+          promiseModes.success(modes)
         }
+
       }
 
       val testConfig = baseConfig
@@ -163,6 +157,12 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
         },
         testConfig
       ).run()
+
+      for {
+        stats <- promiseStats.future
+        modes <- promiseModes.future
+      } yield {
+        modes should be(stats)
+      }
     }
-  }
 }
