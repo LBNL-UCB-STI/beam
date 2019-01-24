@@ -97,7 +97,7 @@ trait NetworkCoordinator extends LazyLogging {
       }
     }
     transportNetwork.transitLayer.hasFrequencies = false
-    estimateInUseFleet
+    estimateInUseFleet()
   }
 
   def estimateInUseFleet(): Unit = {
@@ -105,10 +105,8 @@ trait NetworkCoordinator extends LazyLogging {
     val tripVehiclesEnRoute = mutable.HashMap.empty[String,mutable.Set[String]]
     val tripFleetSizeMap = mutable.HashMap.empty[String,Int]
     transportNetwork.transitLayer.tripPatterns.asScala.foreach { tp =>
-      val activeFleet: mutable.HashSet[String] = mutable.HashSet.empty
       if (tp.hasSchedules) {
         tp.tripSchedules.asScala.toVector foreach { ts =>
-        //Todo track vehicle between first arrival to last departure
           val firstArrival: Int = ts.arrivals(0)
           val lastDeparture: Int = ts.departures(ts.getNStops-1)
           startStopsByTime.enqueue(IdAndTime(firstArrival,ts.tripId, tp.routeId))
@@ -122,9 +120,9 @@ trait NetworkCoordinator extends LazyLogging {
       if(!tripVehiclesEnRoute.contains(nextId.route)){
         tripVehiclesEnRoute.put(nextId.route,mutable.Set())
       }
-      val theSet = tripVehiclesEnRoute.get(nextId.route).get
+      val theSet = tripVehiclesEnRoute(nextId.route)
       if(theSet.contains(nextId.id)){
-        tripFleetSizeMap.put(nextId.route,Math.max(theSet.size,tripFleetSizeMap.get(nextId.route).get))
+        tripFleetSizeMap.put(nextId.route,Math.max(theSet.size, tripFleetSizeMap(nextId.route)))
         theSet.remove(nextId.id)
       }else{
         theSet.add(nextId.id)
