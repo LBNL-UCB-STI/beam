@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.events.handling.BeamEventsHandling
+import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
@@ -16,8 +17,8 @@ import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
-import beam.sim.population.{PopulationAdjustment}
-import beam.utils._
+import beam.sim.population.PopulationAdjustment
+import beam.utils.{NetworkHelper, _}
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
@@ -33,6 +34,7 @@ import org.matsim.core.config.Config
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
+import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.households.Household
@@ -43,7 +45,6 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
-import scala.util.Try
 
 trait BeamHelper extends LazyLogging {
   private val argsParser = new scopt.OptionParser[Arguments]("beam") {
@@ -161,7 +162,8 @@ trait BeamHelper extends LazyLogging {
   def module(
     typesafeConfig: TypesafeConfig,
     scenario: Scenario,
-    networkCoordinator: NetworkCoordinator
+    networkCoordinator: NetworkCoordinator,
+    networkHelper: NetworkHelper
   ): com.google.inject.Module =
     AbstractModule.`override`(
       ListBuffer(new AbstractModule() {
@@ -183,6 +185,8 @@ trait BeamHelper extends LazyLogging {
         mapper.registerModule(DefaultScalaModule)
 
         override def install(): Unit = {
+          // This code will be executed 3 times due to this https://github.com/LBNL-UCB-STI/matsim/blob/master/matsim/src/main/java/org/matsim/core/controler/Injector.java#L99:L101
+          // createMapBindingsForType is called 3 times. Be careful not to do expensive operations here
           val beamConfig = BeamConfig(typesafeConfig)
 
           bind(classOf[BeamConfig]).toInstance(beamConfig)
@@ -191,6 +195,7 @@ trait BeamHelper extends LazyLogging {
 
           addControlerListenerBinding().to(classOf[BeamSim])
 
+          addControlerListenerBinding().to(classOf[ActivityLocationPlotter])
           addControlerListenerBinding().to(classOf[GraphSurgePricing])
           bind(classOf[BeamOutputDataDescriptionGenerator])
           addControlerListenerBinding().to(classOf[RideHailRevenueAnalysis])
@@ -224,6 +229,8 @@ trait BeamHelper extends LazyLogging {
             )
           )
 
+          bind(classOf[NetworkHelper]).toInstance(networkHelper)
+
           bind(classOf[RideHailIterationHistory]).asEagerSingleton()
           bind(classOf[TollCalculator]).asEagerSingleton()
 
@@ -235,6 +242,17 @@ trait BeamHelper extends LazyLogging {
     )
 
   def runBeamUsing(args: Array[String], isConfigArgRequired: Boolean = true): Unit = {
+    val (parsedArgs, config) = prepareConfig(args, isConfigArgRequired)
+
+    parsedArgs.clusterType match {
+      case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
+      case _ =>
+        val (_, outputDirectory) = runBeamWithConfig(config)
+        postRunActivity(parsedArgs.configLocation.get, config, outputDirectory)
+    }
+  }
+
+  def prepareConfig(args: Array[String], isConfigArgRequired: Boolean): (Arguments, TypesafeConfig) = {
     val parsedArgs = argsParser.parse(args, init = Arguments()) match {
       case Some(pArgs) => pArgs
       case None =>
@@ -246,21 +264,14 @@ trait BeamHelper extends LazyLogging {
       !isConfigArgRequired || (isConfigArgRequired && parsedArgs.config.isDefined),
       "Please provide a valid configuration file."
     )
-    val configLocation = parsedArgs.configLocation.get
 
-    ConfigConsistencyComparator(configLocation)
+    ConfigConsistencyComparator(parsedArgs.configLocation.get)
 
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
       if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
       else parsedArgs.config.get
     }).resolve()
-
-    parsedArgs.clusterType match {
-      case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
-      case _ =>
-        val (_, outputDirectory) = runBeamWithConfig(config)
-        postRunActivity(configLocation, config, outputDirectory)
-    }
+    (parsedArgs, config)
   }
 
   private def postRunActivity(configLocation: String, config: TypesafeConfig, outputDirectory: String) = {
@@ -349,9 +360,11 @@ trait BeamHelper extends LazyLogging {
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
     val (scenario, outputDir, networkCoordinator) = setupBeamWithConfig(config)
 
+    val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
+
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
-      module(config, scenario, networkCoordinator)
+      module(config, scenario, networkCoordinator, networkHelper)
     )
 
     networkCoordinator.convertFrequenciesToTrips()
@@ -359,7 +372,20 @@ trait BeamHelper extends LazyLogging {
     scenario.setNetwork(networkCoordinator.network)
 
     val beamServices = injector.getInstance(classOf[BeamServices])
+
+    //
+    val beamConfig = beamServices.beamConfig
+    var useCSVFiles
+      : Boolean = beamConfig.beam.agentsim.agents.population.beamPopulationDirectory != null && !beamConfig.beam.agentsim.agents.population.beamPopulationDirectory
+      .isEmpty()
+
+    if (useCSVFiles) {
+      val csvScenarioLoader = new ScenarioReaderCsv(scenario, beamServices)
+      csvScenarioLoader.loadScenario()
+    }
+
     samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices)
+
     run(beamServices)
 
     (scenario.getConfig, outputDir)
@@ -409,21 +435,6 @@ trait BeamHelper extends LazyLogging {
     beamWarmStart.warmStartPopulation(matsimConfig)
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-
-    // TODO ASIF
-    // If ours is set we will use that and if in addition matsim is set too then give a warning so that we can remove that from config
-    if (beamConfig.beam.agentsim.agents.population.beamPopulationFile != null && !beamConfig.beam.agentsim.agents.population.beamPopulationFile.isEmpty) {
-
-      val planReaderCsv: PlanReaderCsv = new PlanReaderCsv()
-      val population = planReaderCsv.readPlansFromCSV(beamConfig.beam.agentsim.agents.population.beamPopulationFile)
-      scenario.setPopulation(population)
-
-      if (beamConfig.matsim.modules.plans.inputPlansFile != null && !beamConfig.matsim.modules.plans.inputPlansFile.isEmpty) {
-        logger.warn(
-          "The config file has specified two plans file as input: beam.agentsim.agents.population.beamPopulationFile and matsim.modules.plans.inputPlansFile. The beamPopulationFile will be used, unset the beamPopulationFile if you would rather use the inputPlansFile, or unset the inputPlansFile to avoid this warning."
-        )
-      }
-    }
 
     (scenario, outputDirectory, networkCoordinator)
   }

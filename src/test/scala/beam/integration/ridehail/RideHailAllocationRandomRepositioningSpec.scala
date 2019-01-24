@@ -5,7 +5,7 @@ import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.config.BeamConfig
 import beam.sim.population.DefaultPopulationAdjustment
-import beam.utils.FileUtils
+import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
@@ -31,13 +31,14 @@ class RideHailAllocationRandomRepositioningSpec extends FlatSpec with BeamHelper
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     scenario.setNetwork(networkCoordinator.network)
+    val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
     val iterationCounter = mock[IterationEndsListener]
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
       new AbstractModule() {
         override def install(): Unit = {
-          install(module(config, scenario, networkCoordinator))
+          install(module(config, scenario, networkCoordinator, networkHelper))
           addControlerListenerBinding().toInstance(iterationCounter)
         }
       }

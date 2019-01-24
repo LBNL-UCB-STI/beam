@@ -43,7 +43,7 @@ public class ModeChosenGraphTest {
             stats = stat.getFirst();
             return super.compute(stat);
         }
-    }, BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf")) );
+    }, BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve()) );
 
     @Before
     public void setUpClass() {

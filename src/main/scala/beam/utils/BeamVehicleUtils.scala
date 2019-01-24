@@ -1,8 +1,12 @@
 package beam.utils
 
+import java.util
+
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
+import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, VehicleType, Vehicles}
 
 import scala.collection.JavaConverters
@@ -21,7 +25,6 @@ object BeamVehicleUtils {
     new BeamVehicle(
       beamVehicleId,
       powertrain,
-      None,
       bvt
     )
   }
@@ -91,4 +94,35 @@ object BeamVehicleUtils {
       .headOption
   }
 
+//  def prePopulateVehiclesByHouseHold(
+//    beamServices: BeamServices
+//  ): java.util.Map[Id[Household], java.util.List[Id[Vehicle]]] = {
+//
+//    val vehicles: java.util.Map[Id[Household], java.util.List[Id[Vehicle]]] = new util.TreeMap()
+//
+//    beamServices.privateVehicles.foreach {
+//      case (k: Id[BeamVehicle], v: BeamVehicle) => {
+//
+//        var hVehicles: java.util.List[Id[Vehicle]] = vehicles.get(v.householdId.get)
+//        if (hVehicles == null) {
+//          hVehicles = new java.util.ArrayList[Id[Vehicle]]()
+//        }
+//        hVehicles.add(Id.createVehicleId(k.toString))
+//        vehicles.put(v.householdId.get, hVehicles)
+//
+//      }
+//    }
+//
+//    vehicles
+//  }
+
+  def getBeamVehicle(vehicle: Vehicle, household: Household, beamVehicleType: BeamVehicleType): BeamVehicle = {
+
+    val bvId = Id.create(vehicle.getId, classOf[BeamVehicle])
+    val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
+
+    val beamVehicle = new BeamVehicle(bvId, powerTrain, beamVehicleType)
+
+    beamVehicle
+  }
 }
