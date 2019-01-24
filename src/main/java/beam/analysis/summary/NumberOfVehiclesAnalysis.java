@@ -27,7 +27,7 @@ public class NumberOfVehiclesAnalysis implements IterationSummaryAnalysis{
             Map<String, String> eventAttributes = event.getAttributes();
             String vehicleId = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
             if(BeamVehicleType.isTransitVehicle(Id.createVehicleId(vehicleId))) {
-                numberOfVehiclesByType = JavaConverters.mapAsJavaMap(beamServices.networkTripFleetSizes());
+                JavaConverters.mapAsJavaMap(beamServices.networkTripFleetSizes()).forEach((k,v) -> numberOfVehiclesByType.put(k,v));
             } else {
                 if (uniqueVehicleIds.add(vehicleId)) {
                     String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
