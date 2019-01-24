@@ -453,7 +453,11 @@ object PlansSampler {
           while (synthHHs.exists(_.householdId.equals(hh.householdId))) {
             hh = Random.shuffle(tract2HH(sampleTract)).take(1).head
           }
-          synthHHs += hh
+          if(hh.individuals.length!=0) {
+            synthHHs += hh
+          }else{
+            println(s"empty household! ${hh.householdId}")
+          }
         }
       }
 
@@ -600,6 +604,8 @@ object PlansSampler {
             .putAttribute(newPerson.getId.toString, "valueOfTime", synthPerson.valueOfTime)
           newPopAttributes.putAttribute(newPerson.getId.toString, "income", synthPerson.income)
           addModeExclusions(newPerson)
+        }else{
+          println(synthPerson.age)
         }
       }
      if(newPop.getPersons.size()>sampleNumber)
