@@ -13,13 +13,15 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Vehicle
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.BeamPlan
+import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
+import beam.agentsim.agents.{HasTickAndTrigger, InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.router.BeamRouter.RoutingResponse
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
@@ -30,6 +32,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households
 import org.matsim.households.Household
 
+import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
 
 object HouseholdActor {
@@ -111,6 +114,7 @@ object HouseholdActor {
     homeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector()
   ) extends Actor
+      with HasTickAndTrigger
       with ActorLogging {
 
     private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
@@ -140,7 +144,7 @@ object HouseholdActor {
 
     override def receive: Receive = {
 
-      case TriggerWithId(InitializeTrigger(_), triggerId) =>
+      case TriggerWithId(InitializeTrigger(tick), triggerId) =>
         household.members.foreach { person =>
           val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
 
@@ -177,48 +181,26 @@ object HouseholdActor {
           val householdPlans = household.members.map(person => BeamPlan(person.getSelectedPlan)).toList
           val scheduler = new HouseholdCAVScheduling(householdPlans, CAVIds, 15*60, HouseholdCAVScheduling.computeSkim(householdPlans))
           val optimalPlan = scheduler().sortWith(_.cost < _.cost).head.cavFleetSchedule
-          optimalPlan.foreach{cavSchedule =>
-//            cavSchedule.cav.id
-            // We create a passenger schedule for every sequence of movements up until the next pick-up which would be the
-            // start of a new passenger schedule (this ensures the vehicle isn't dispatched to pick-up until a person is ready)
+          val routingRequests = optimalPlan.map { cavSchedule =>
+            cavSchedule.toRoutingRequests(beamServices).flatten
+          }.flatten
 
-            val splitByPickup = RandomUtils.multispan(cavSchedule.schedule,(request: MobilityServiceRequest) => request.tag != Pickup)
-
-            cavSchedule.schedule.map{ mobilityServiceRequest =>
-//              mobilityServiceRequest.person
-              mobilityServiceRequest.tag match{
-                case Pickup =>
-                case Dropoff =>
-                case Relocation =>
-                case Init =>
-              }
-            }
-          }
-          //TODO we need to route and dispatch any repositioning that starts out the schedule
+          holdTickAndTriggerId(tick,triggerId)
+          Future
+            .sequence(routingRequests.map(akka.pattern.ask(router, _).mapTo[RoutingResponse]))
+            .map(RoutingResponses(tick, _)) pipeTo self
+        }else{
+          completeInitialization(triggerId)
         }
 
-        // Pipe my cars through the parking manager
-        // and complete initialization only when I got them all.
-        Future
-          .sequence(vehicles.values.map { veh =>
-            veh.manager = Some(self)
-            veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
-            parkingManager ? ParkingInquiry(
-              homeCoord,
-              homeCoord,
-              "home",
-              AttributesOfIndividual.EMPTY,
-              NoNeed,
-              0,
-              0
-            ) flatMap {
-              case ParkingInquiryResponse(stall, _) =>
-                veh.useParkingStall(stall)
-                self ? ReleaseVehicleAndReply(veh)
-            }
-          })
-          .map(_ => CompletionNotice(triggerId, Vector()))
-          .pipeTo(sender())
+      case RoutingResponses(tick, routingResponses) =>
+    //            cavSchedule.cav.id
+    // We create a passenger schedule for every sequence of movements up until the next pick-up which would be the
+    // start of a new passenger schedule (this ensures the vehicle isn't dispatched to pick-up until a person is ready)
+    //            val splitByPickup = RandomUtils.multiSpan(cavSchedule.schedule)(_.tag != Pickup)
+        val (_, triggerId) = releaseTickAndTriggerId()
+        completeInitialization(triggerId)
+
 
       case NotifyVehicleIdle(vId, whenWhere, _, _, _) =>
         val vehId = vId.asInstanceOf[Id[BeamVehicle]]
@@ -258,6 +240,31 @@ object HouseholdActor {
 
       case Terminated(_) =>
       // Do nothing
+    }
+
+    def completeInitialization(triggerId: Long): Unit = {
+      // Pipe my cars through the parking manager
+      // and complete initialization only when I got them all.
+      Future
+        .sequence(vehicles.values.map { veh =>
+          veh.manager = Some(self)
+          veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
+          parkingManager ? ParkingInquiry(
+            homeCoord,
+            homeCoord,
+            "home",
+            AttributesOfIndividual.EMPTY,
+            NoNeed,
+            0,
+            0
+          ) flatMap {
+            case ParkingInquiryResponse(stall, _) =>
+              veh.useParkingStall(stall)
+              self ? ReleaseVehicleAndReply(veh)
+          }
+        })
+        .map(_ => CompletionNotice(triggerId, Vector()))
+        .pipeTo(schedulerRef)
     }
 
     def dieIfNoChildren(): Unit = {

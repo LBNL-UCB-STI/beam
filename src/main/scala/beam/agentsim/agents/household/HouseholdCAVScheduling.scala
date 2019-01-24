@@ -1,6 +1,11 @@
 package beam.agentsim.agents.household
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.events.SpaceTime
+import beam.router.BeamRouter.RoutingRequest
+import beam.router.Modes.BeamMode.CAV
+import beam.sim.BeamServices
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population._
 import org.matsim.core.utils.geometry.CoordUtils
@@ -61,12 +66,12 @@ class HouseholdCAVScheduling(
   timeWindow: Double,
   skim: Map[Coord, Map[Coord, Double]]
 ) {
-  private var fleet = cavVehicles.map(veh => HouseholdCAV(veh.id,veh.beamVehicleType.seatingCapacity))
+  private var fleet = cavVehicles
   private var feasibleSchedules = List[HouseholdSchedule]()
 
   case class HouseholdCAV(id: Id[BeamVehicle], maxOccupancy: Int)
 
-  class CAVSchedule(val schedule: List[MobilityServiceRequest], val cav: HouseholdCAV, val cost: Double, val occupancy: Int) {
+  class CAVSchedule(val schedule: List[MobilityServiceRequest], val cav: BeamVehicle, val cost: Double, val occupancy: Int) {
     var feasible: Boolean = true
 
     def check(request: MobilityServiceRequest): Option[CAVSchedule] = {
@@ -84,7 +89,7 @@ class HouseholdCAVScheduling(
             newCavSchedule = Some(
               new CAVSchedule(schedule :+ relocationRequest :+ newRequest, cav, newCost, occupancy + 1)
             )
-          } else if (occupancy < cav.maxOccupancy && math.abs(newDeltaTime) <= timeWindow) {
+          } else if (occupancy < cav.beamVehicleType.seatingCapacity && math.abs(newDeltaTime) <= timeWindow) {
             val newRequest =
               new MobilityServiceRequest(request.person, request.activity, request.time, newDeltaTime, Pickup)
             newCavSchedule = Some(new CAVSchedule(schedule :+ newRequest, cav, newCost, occupancy + 1))
@@ -107,6 +112,25 @@ class HouseholdCAVScheduling(
         case _ => // No Action
       }
       newCavSchedule
+    }
+    def toRoutingRequests(beamServices: BeamServices): List[Option[RoutingRequest]] = {
+      schedule.sliding(2).map{ wayPoints =>
+        val orig = wayPoints(0)
+        val dest = wayPoints(1)
+        if(beamServices.geo.distUTMInMeters(orig.activity.getCoord,dest.activity.getCoord) < 50){
+          // We ignore this in favor of creating a dummy car log
+          None
+        }else{
+          val origin = SpaceTime(orig.activity.getCoord,math.round(orig.activity.getEndTime).toInt)
+          Some(RoutingRequest(
+            orig.activity.getCoord,
+            dest.activity.getCoord,
+            origin.time,
+            IndexedSeq(),
+            IndexedSeq(StreetVehicle(Id.create(cav.id.toString,classOf[Vehicle]), cav.beamVehicleType.id,origin,CAV,true))
+          ))
+        }
+      }.toList
     }
     override def toString = {
       var output = s"\tcav-id:${cav.id} | cost:$cost \n\t\t"
