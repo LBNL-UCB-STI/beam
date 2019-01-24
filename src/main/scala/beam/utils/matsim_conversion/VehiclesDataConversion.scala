@@ -8,6 +8,7 @@ import beam.utils.FileUtils
 import org.supercsv.io.CsvMapWriter
 import org.supercsv.prefs.CsvPreference
 
+import scala.util.Try
 import scala.xml.{Elem, NodeSeq, XML}
 
 object VehiclesDataConversion extends App {
@@ -226,7 +227,7 @@ object VehiclesDataConversion extends App {
       val standingCap = vt \ "capacity" \\ "standingRoom" \@ "persons"
       val length = vt \\ "length" \@ "meter"
       val fuelType = (vt \ "engineInformation" \\ "fuelType").text
-      val litersPerMeter = (vt \ "engineInformation" \\ "gasConsumption" \@ "literPerMeter").toDouble
+      val litersPerMeter = Try((vt \ "engineInformation" \\ "gasConsumption" \@ "literPerMeter").toDouble).getOrElse(0D)
       val joulesPerMeter = Powertrain.litersPerMeterToJoulesPerMeter(fuelType, litersPerMeter)
 
       Seq(
@@ -279,8 +280,8 @@ object VehiclesDataConversion extends App {
     val vehicles = (vehiclesDoc \ "vehicle").map { vehicle =>
       Seq(vehicle \@ "id", vehicle \@ "type")
     }
-    val beamVehiclesPath = new File(
-      "C:\\Users\\sidfe\\current_code\\scala\\BeamCompetitions\\fixed-data\\siouxfalls\\sample\\1k\\vehicles.csv"
+    val beamVehiclesPath = new File(scenarioDirectory +
+      "/vehicles.csv"
     ).toString
     writeCsvFile(beamVehiclesPath, vehicles, beamVehicleTitles)
     vehicles
