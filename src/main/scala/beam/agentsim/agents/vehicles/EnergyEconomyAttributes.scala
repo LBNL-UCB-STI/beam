@@ -32,11 +32,6 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
     */
   class Powertrain(joulesPerMeter: Double) {
 
-    def estimateConsumptionAt(trajectory: Trajectory, time: Int): Double = {
-      val path = trajectory.computePath(time)
-      joulesPerMeter * path
-    }
-
     def estimateConsumptionInJoules(distanceInMeters: Double): Double = {
       joulesPerMeter * distanceInMeters
     }

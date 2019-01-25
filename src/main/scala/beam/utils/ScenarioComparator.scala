@@ -8,7 +8,6 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.Modes
-import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -22,7 +21,6 @@ import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.mutable
 import scala.util.control.Breaks
 
 object ScenarioComparator extends App with Comparator[MutableScenario] {
@@ -150,9 +148,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
       override val rideHailTransitModes: Seq[Modes.BeamMode] = ???
       override val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = ???
       override val ptFares: PtFares = ???
-      override def setNetworkTripFleetSizes(
-        tripFleetSizeMap: mutable.HashMap[String, Integer]
-      ): Unit = {}
+      override def networkHelper: NetworkHelper = ???
     }
 
     beamServices

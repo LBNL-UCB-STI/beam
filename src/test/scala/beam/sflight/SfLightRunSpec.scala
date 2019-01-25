@@ -8,7 +8,7 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices}
 import beam.tags.{ExcludeRegular, Periodic}
-import beam.utils.FileUtils
+import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.matsim.api.core.v01.events.Event
@@ -53,13 +53,15 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
       val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
       networkCoordinator.loadNetwork()
       networkCoordinator.convertFrequenciesToTrips()
+      val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
       scenario.setNetwork(networkCoordinator.network)
+
       var nCarTrips = 0
       val injector = org.matsim.core.controler.Injector.createInjector(
         scenario.getConfig,
         new AbstractModule() {
           override def install(): Unit = {
-            install(module(config, scenario, networkCoordinator))
+            install(module(config, scenario, networkCoordinator, networkHelper))
             addEventHandlerBinding().toInstance(new BasicEventHandler {
               override def handleEvent(event: Event): Unit = {
                 event match {

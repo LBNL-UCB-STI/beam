@@ -18,7 +18,7 @@ import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationAdjustment
-import beam.utils._
+import beam.utils.{NetworkHelper, _}
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
@@ -162,7 +162,8 @@ trait BeamHelper extends LazyLogging {
   def module(
     typesafeConfig: TypesafeConfig,
     scenario: Scenario,
-    networkCoordinator: NetworkCoordinator
+    networkCoordinator: NetworkCoordinator,
+    networkHelper: NetworkHelper
   ): com.google.inject.Module =
     AbstractModule.`override`(
       ListBuffer(new AbstractModule() {
@@ -184,6 +185,8 @@ trait BeamHelper extends LazyLogging {
         mapper.registerModule(DefaultScalaModule)
 
         override def install(): Unit = {
+          // This code will be executed 3 times due to this https://github.com/LBNL-UCB-STI/matsim/blob/master/matsim/src/main/java/org/matsim/core/controler/Injector.java#L99:L101
+          // createMapBindingsForType is called 3 times. Be careful not to do expensive operations here
           val beamConfig = BeamConfig(typesafeConfig)
 
           bind(classOf[BeamConfig]).toInstance(beamConfig)
@@ -226,6 +229,8 @@ trait BeamHelper extends LazyLogging {
             )
           )
 
+          bind(classOf[NetworkHelper]).toInstance(networkHelper)
+
           bind(classOf[RideHailIterationHistory]).asEagerSingleton()
           bind(classOf[TollCalculator]).asEagerSingleton()
 
@@ -237,6 +242,17 @@ trait BeamHelper extends LazyLogging {
     )
 
   def runBeamUsing(args: Array[String], isConfigArgRequired: Boolean = true): Unit = {
+    val (parsedArgs, config) = prepareConfig(args, isConfigArgRequired)
+
+    parsedArgs.clusterType match {
+      case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
+      case _ =>
+        val (_, outputDirectory) = runBeamWithConfig(config)
+        postRunActivity(parsedArgs.configLocation.get, config, outputDirectory)
+    }
+  }
+
+  def prepareConfig(args: Array[String], isConfigArgRequired: Boolean): (Arguments, TypesafeConfig) = {
     val parsedArgs = argsParser.parse(args, init = Arguments()) match {
       case Some(pArgs) => pArgs
       case None =>
@@ -248,21 +264,14 @@ trait BeamHelper extends LazyLogging {
       !isConfigArgRequired || (isConfigArgRequired && parsedArgs.config.isDefined),
       "Please provide a valid configuration file."
     )
-    val configLocation = parsedArgs.configLocation.get
 
-    ConfigConsistencyComparator(configLocation)
+    ConfigConsistencyComparator(parsedArgs.configLocation.get)
 
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
       if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
       else parsedArgs.config.get
     }).resolve()
-
-    parsedArgs.clusterType match {
-      case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
-      case _ =>
-        val (_, outputDirectory) = runBeamWithConfig(config)
-        postRunActivity(configLocation, config, outputDirectory)
-    }
+    (parsedArgs, config)
   }
 
   private def postRunActivity(configLocation: String, config: TypesafeConfig, outputDirectory: String) = {
@@ -351,9 +360,11 @@ trait BeamHelper extends LazyLogging {
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
     val (scenario, outputDir, networkCoordinator) = setupBeamWithConfig(config)
 
+    val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
+
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
-      module(config, scenario, networkCoordinator)
+      module(config, scenario, networkCoordinator, networkHelper)
     )
 
     networkCoordinator.convertFrequenciesToTrips()

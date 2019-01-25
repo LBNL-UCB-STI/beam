@@ -17,8 +17,6 @@ import beam.sim.common.GeoUtils.{Straight, TurningDirection}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.{Link, Network}
-import org.matsim.households.Household
-import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.vehicles.Vehicle
 
 /**
@@ -45,7 +43,7 @@ class BeamVehicle(
 
   var spaceTime: SpaceTime = _
 
-  var fuelLevelInJoules: Option[Double] = Some(beamVehicleType.primaryFuelCapacityInJoule)
+  var fuelLevelInJoules = beamVehicleType.primaryFuelCapacityInJoule
 
   /**
     * The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
@@ -101,34 +99,23 @@ class BeamVehicle(
 
   def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): Double = {
     val distanceInMeters = beamLeg.travelPath.distanceInM
-    val network =
-      if (beamServices.matsimServices != null) Some(beamServices.matsimServices.getScenario.getNetwork) else None
-    val fuelConsumption = network map (
-      n => BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, n)
-    )
-    fuelLevelInJoules match {
-      case Some(fLevel) =>
-        val energyConsumed = fuelConsumption match {
-          case Some(consumption) => powerTrain.estimateConsumptionInJoules(consumption)
-          case None              => powerTrain.estimateConsumptionInJoules(distanceInMeters)
-        }
-        if (fLevel < energyConsumed) {
-          logger.warn(
-            "Vehicle {} does not have sufficient fuel to travel {} m, only enough for {} m, setting fuel level to 0",
-            id,
-            distanceInMeters,
-            fLevel / powerTrain.estimateConsumptionInJoules(1)
-          )
-        }
-        fuelLevelInJoules = Some(Math.max(fLevel - energyConsumed, 0.0))
-        energyConsumed
-      case None =>
-        0.0
+    val network = beamServices.matsimServices.getScenario.getNetwork
+    val fuelConsumption = BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, network)
+    val energyConsumed = powerTrain.estimateConsumptionInJoules(fuelConsumption)
+    if (fuelLevelInJoules < energyConsumed) {
+      logger.warn(
+        "Vehicle {} does not have sufficient fuel to travel {} m, only enough for {} m, setting fuel level to 0",
+        id,
+        distanceInMeters,
+        fuelLevelInJoules / powerTrain.estimateConsumptionInJoules(1)
+      )
     }
+    fuelLevelInJoules = Math.max(fuelLevelInJoules - energyConsumed, 0.0)
+    energyConsumed
   }
 
-  def addFuel(fuelInJoules: Double): Unit = fuelLevelInJoules foreach { fLevel =>
-    fuelLevelInJoules = Some(fLevel + fuelInJoules)
+  def addFuel(fuelInJoules: Double): Unit = {
+    fuelLevelInJoules = fuelLevelInJoules + fuelInJoules
   }
 
   /**
@@ -140,7 +127,7 @@ class BeamVehicle(
       case Some(theStall) =>
         ChargingType.calculateChargingSessionLengthAndEnergyInJoules(
           theStall.attributes.chargingType,
-          fuelLevelInJoules.get,
+          fuelLevelInJoules,
           beamVehicleType.primaryFuelCapacityInJoule,
           beamVehicleType.rechargeLevel2RateLimitInWatts,
           beamVehicleType.rechargeLevel3RateLimitInWatts,
@@ -153,8 +140,8 @@ class BeamVehicle(
 
   def getState: BeamVehicleState =
     BeamVehicleState(
-      fuelLevelInJoules.getOrElse(Double.NaN),
-      fuelLevelInJoules.getOrElse(Double.NaN) / powerTrain.estimateConsumptionInJoules(1),
+      fuelLevelInJoules,
+      fuelLevelInJoules / powerTrain.estimateConsumptionInJoules(1),
       driver,
       stall
     )
