@@ -1,7 +1,10 @@
 package beam.agentsim.agents.ridehail.graph
 import java.{lang, util}
 
-import beam.agentsim.agents.ridehail.graph.PersonTravelTimeStatsGraphSpec.{PersonTravelTimeStatsGraph, StatsValidationHandler}
+import beam.agentsim.agents.ridehail.graph.PersonTravelTimeStatsGraphSpec.{
+  PersonTravelTimeStatsGraph,
+  StatsValidationHandler
+}
 import beam.analysis.plots.PersonTravelTimeAnalysis
 import beam.integration.IntegrationSpecCommon
 import beam.utils.MathUtils
@@ -96,73 +99,74 @@ object PersonTravelTimeStatsGraphSpec {
   }
 }
 
-class PersonTravelTimeStatsGraphSpec extends AsyncFlatSpec  with ScalaFutures with Matchers with IntegrationSpecCommon {
+class PersonTravelTimeStatsGraphSpec extends AsyncFlatSpec with ScalaFutures with Matchers with IntegrationSpecCommon {
 
   "Person Travel Time Graph Collected Data" should "contains valid travel time stats" in {
 
-      val promiseStats = Promise[Map[String,Double]]()
-      val promiseModes = Promise[Map[String, Double]]()
+    val promiseStats = Promise[Map[String, Double]]()
+    val promiseModes = Promise[Map[String, Double]]()
 
-      val travelTimeComputation = new PersonTravelTimeAnalysis.PersonTravelTimeComputation with EventAnalyzer {
+    val travelTimeComputation = new PersonTravelTimeAnalysis.PersonTravelTimeComputation with EventAnalyzer {
 
-        override def compute(
-          stat: util.Map[
-            String,
-            util.Map[Integer, util.List[lang.Double]]
-          ]
-        ): Tuple[util.List[String], Tuple[Array[Array[Double]], java.lang.Double]] = {
-          val all = stat.asScala.map {
-            case (mode, times) =>
-              mode -> MathUtils.roundDouble(times.asScala.values.flatMap(_.asScala).map(_.toDouble).sum)
+      override def compute(
+        stat: util.Map[
+          String,
+          util.Map[Integer, util.List[lang.Double]]
+        ]
+      ): Tuple[util.List[String], Tuple[Array[Array[Double]], java.lang.Double]] = {
+        val all = stat.asScala.map {
+          case (mode, times) =>
+            mode -> MathUtils.roundDouble(times.asScala.values.flatMap(_.asScala).map(_.toDouble).sum)
+        }
+        promiseStats.success(all.toMap)
+        super.compute(stat)
+      }
+      override def eventFile(iteration: Int): Unit = {
+        val handler = new StatsValidationHandler
+        parseEventFile(iteration, handler)
+        val modes = handler.counterValue
+          .groupBy(_._1)
+          .map {
+            case (mode, ms) =>
+              mode -> MathUtils.roundDouble(ms.map(_._2).sum)
           }
-          promiseStats.success(all.toMap)
-          super.compute(stat)
-        }
-        override def eventFile(iteration: Int): Unit = {
-          val handler = new StatsValidationHandler
-          parseEventFile(iteration, handler)
-          val modes = handler.counterValue
-            .groupBy(_._1)
-            .map {
-              case (mode, ms) =>
-                mode -> MathUtils.roundDouble(ms.map(_._2).sum)
-            }
 
-          promiseModes.success(modes)
-        }
-
+        promiseModes.success(modes)
       }
 
-      val testConfig = baseConfig
-        .withValue(
+    }
+
+    val testConfig = baseConfig
+      .withValue(
         "beam.outputs.events.eventsToWrite",
         ConfigValueFactory.fromAnyRef(
           s"${baseConfig.getString("beam.outputs.events.eventsToWrite")},PersonArrivalEvent,PersonDepartureEvent"
         )
-      ).resolve()
+      )
+      .resolve()
 
-      GraphRunHelper(
-        new AbstractModule() {
-          override def install(): Unit = {
-            addControlerListenerBinding().to(classOf[PersonTravelTimeStatsGraph])
-          }
+    GraphRunHelper(
+      new AbstractModule() {
+        override def install(): Unit = {
+          addControlerListenerBinding().to(classOf[PersonTravelTimeStatsGraph])
+        }
 
-          @Provides def provideGraph(
-            eventsManager: EventsManager
-          ): PersonTravelTimeStatsGraph = {
-            val graph = new PersonTravelTimeStatsGraph(travelTimeComputation)
-            eventsManager.addHandler(graph)
-            graph
-          }
-        },
-        testConfig
-      ).run()
+        @Provides def provideGraph(
+          eventsManager: EventsManager
+        ): PersonTravelTimeStatsGraph = {
+          val graph = new PersonTravelTimeStatsGraph(travelTimeComputation)
+          eventsManager.addHandler(graph)
+          graph
+        }
+      },
+      testConfig
+    ).run()
 
-      for {
-        stats <- promiseStats.future
-        modes <- promiseModes.future
-      } yield {
-        modes should be(stats)
-      }
+    for {
+      stats <- promiseStats.future
+      modes <- promiseModes.future
+    } yield {
+      modes should be(stats)
     }
+  }
 }

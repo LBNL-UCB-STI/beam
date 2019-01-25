@@ -101,8 +101,10 @@ class BeamVehicle(
     val distanceInMeters = beamLeg.travelPath.distanceInM
     val network = beamServices.matsimServices.getScenario.getNetwork
     val fuelConsumption = BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, network)
-    val energyConsumed = if(Modes.isRailTransport(beamLeg.mode))
-      powerTrain.estimateConsumptionInJoules(distanceInMeters) else powerTrain.estimateConsumptionInJoules(fuelConsumption)
+    val energyConsumed =
+      if (Modes.isRailTransport(beamLeg.mode))
+        powerTrain.estimateConsumptionInJoules(distanceInMeters)
+      else powerTrain.estimateConsumptionInJoules(fuelConsumption)
 
     if (fuelLevelInJoules < energyConsumed) {
       logger.warn(

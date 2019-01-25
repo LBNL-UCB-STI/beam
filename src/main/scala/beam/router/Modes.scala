@@ -175,7 +175,7 @@ object Modes {
         transitMode match {
           case TransitModes.SUBWAY =>
             true
-          case TransitModes.RAIL=>
+          case TransitModes.RAIL =>
             true
           case _ =>
             false
