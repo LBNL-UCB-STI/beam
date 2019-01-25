@@ -141,6 +141,7 @@ object HouseholdActor {
     implicit val pop: org.matsim.api.core.v01.population.Population = population
 
     private var availableVehicles: List[BeamVehicle] = Nil
+    private var cavPlan: List[CAVSchedule] = List()
 
     override def receive: Receive = {
 
@@ -180,7 +181,9 @@ object HouseholdActor {
         if(CAVIds.size>0){
           val householdPlans = household.members.map(person => BeamPlan(person.getSelectedPlan)).toList
           val scheduler = new HouseholdCAVScheduling(householdPlans, CAVIds, 15*60, HouseholdCAVScheduling.computeSkim(householdPlans))
-          val optimalPlan = scheduler().sortWith(_.cost < _.cost).head.cavFleetSchedule
+//          val optimalPlan = scheduler().sortWith(_.cost < _.cost).head.cavFleetSchedule
+          val optimalPlan = scheduler().sortWith(_.cavFleetSchedule.map(_.schedule.size).sum > _.cavFleetSchedule.map(_.schedule.size).sum).head.cavFleetSchedule
+          cavPlan = optimalPlan
           val routingRequests = optimalPlan.map { cavSchedule =>
             cavSchedule.toRoutingRequests(beamServices).flatten
           }.flatten

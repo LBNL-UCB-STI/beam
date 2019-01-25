@@ -71,106 +71,6 @@ class HouseholdCAVScheduling(
 
   case class HouseholdCAV(id: Id[BeamVehicle], maxOccupancy: Int)
 
-  class CAVSchedule(val schedule: List[MobilityServiceRequest], val cav: BeamVehicle, val cost: Double, val occupancy: Int) {
-    var feasible: Boolean = true
-
-    def check(request: MobilityServiceRequest): Option[CAVSchedule] = {
-      val travelTime = skim(schedule.last.activity.getCoord)(request.activity.getCoord)
-      val arrivalTime = schedule.last.time + schedule.last.deltaTime + travelTime
-      val newDeltaTime = arrivalTime - request.time
-      val newCost = cost + newDeltaTime
-      var newCavSchedule: Option[CAVSchedule] = None
-      request.tag match {
-        case Pickup =>
-          if (occupancy == 0 && newDeltaTime < -1 * timeWindow) {
-            val relocationRequest =
-              new MobilityServiceRequest(None, request.activity, request.time - 1, newDeltaTime, Relocation)
-            val newRequest = new MobilityServiceRequest(request.person, request.activity, request.time, 0, Pickup)
-            newCavSchedule = Some(
-              new CAVSchedule(schedule :+ relocationRequest :+ newRequest, cav, newCost, occupancy + 1)
-            )
-          } else if (occupancy < cav.beamVehicleType.seatingCapacity && math.abs(newDeltaTime) <= timeWindow) {
-            val newRequest =
-              new MobilityServiceRequest(request.person, request.activity, request.time, newDeltaTime, Pickup)
-            newCavSchedule = Some(new CAVSchedule(schedule :+ newRequest, cav, newCost, occupancy + 1))
-          } else {
-            // Dead End, Not going down this branch
-          }
-        case Dropoff =>
-          val index = schedule.lastIndexWhere(_.person == request.person)
-          if (index < 0 || schedule(index).tag != Pickup) {
-            // Dead End, Not going down this branch
-          } else if (math.abs(newDeltaTime) > timeWindow) {
-            // Current Schedule unfeasible, to be marked for removal
-            feasible = false
-          } else {
-            val newRequest =
-              new MobilityServiceRequest(request.person, request.activity, request.time, newDeltaTime, Dropoff)
-            newCavSchedule = Some(new CAVSchedule(schedule :+ newRequest, cav, newCost, occupancy - 1))
-            feasible = false
-          }
-        case _ => // No Action
-      }
-      newCavSchedule
-    }
-    def toRoutingRequests(beamServices: BeamServices): List[Option[RoutingRequest]] = {
-      schedule.sliding(2).map{ wayPoints =>
-        val orig = wayPoints(0)
-        val dest = wayPoints(1)
-        if(beamServices.geo.distUTMInMeters(orig.activity.getCoord,dest.activity.getCoord) < 50){
-          // We ignore this in favor of creating a dummy car log
-          None
-        }else{
-          val origin = SpaceTime(orig.activity.getCoord,math.round(orig.activity.getEndTime).toInt)
-          Some(RoutingRequest(
-            orig.activity.getCoord,
-            dest.activity.getCoord,
-            origin.time,
-            IndexedSeq(),
-            IndexedSeq(StreetVehicle(Id.create(cav.id.toString,classOf[Vehicle]), cav.beamVehicleType.id,origin,CAV,true))
-          ))
-        }
-      }.toList
-    }
-    override def toString = {
-      var output = s"\tcav-id:${cav.id} | cost:$cost \n\t\t"
-      schedule.sortWith(_.time < _.time).foreach { i =>
-        output += s"${i}\n\t\t"
-      }
-      output
-    }
-  }
-
-  class HouseholdSchedule(val cavFleetSchedule: List[CAVSchedule]) {
-    var feasible: Boolean = true
-    var cost: Double = 0
-    cavFleetSchedule.foreach { x =>
-      cost += x.cost
-    }
-
-    def check(request: MobilityServiceRequest): List[HouseholdSchedule] = {
-      var newHouseholdSchedule = List[HouseholdSchedule]()
-      for (cavSchedule <- cavFleetSchedule) {
-        cavSchedule.check(request) match {
-          case Some(x) =>
-            newHouseholdSchedule = newHouseholdSchedule :+ new HouseholdSchedule(
-              (cavFleetSchedule.filter(_ != cavSchedule)) :+ x
-            )
-          case None => //Nothing to do here
-        }
-        feasible = feasible && cavSchedule.feasible
-      }
-      newHouseholdSchedule
-    }
-    override def toString = {
-      var output = s"Household Schedule - COST:${cost}.\n"
-      cavFleetSchedule.foreach { i =>
-        output += s"${i}\n"
-      }
-      output
-    }
-  }
-
   def apply(): List[HouseholdSchedule] = {
 
     // extract potential household CAV requests from plans
@@ -212,6 +112,105 @@ class HouseholdCAVScheduling(
     feasibleSchedules
   }
 
+}
+
+class HouseholdSchedule(val cavFleetSchedule: List[CAVSchedule]) {
+  var feasible: Boolean = true
+  var cost: Double = 0
+  cavFleetSchedule.foreach { x =>
+    cost += x.cost
+  }
+
+  def check(request: MobilityServiceRequest,skim: Map[Coord,Map[Coord,Double]], timeWindow: Double): List[HouseholdSchedule] = {
+    var newHouseholdSchedule = List[HouseholdSchedule]()
+    for (cavSchedule <- cavFleetSchedule) {
+      cavSchedule.check(request,skim,timeWindow) match {
+        case Some(x) =>
+          newHouseholdSchedule = newHouseholdSchedule :+ new HouseholdSchedule(
+            (cavFleetSchedule.filter(_ != cavSchedule)) :+ x
+          )
+        case None => //Nothing to do here
+      }
+      feasible = feasible && cavSchedule.feasible
+    }
+    newHouseholdSchedule
+  }
+  override def toString = {
+    var output = s"Household Schedule - COST:${cost}.\n"
+    cavFleetSchedule.foreach { i =>
+      output += s"${i}\n"
+    }
+    output
+  }
+}
+class CAVSchedule(val schedule: List[MobilityServiceRequest], val cav: BeamVehicle, val cost: Double, val occupancy: Int) {
+  var feasible: Boolean = true
+
+  def check(request: MobilityServiceRequest, skim: Map[Coord,Map[Coord,Double]], timeWindow: Double): Option[CAVSchedule] = {
+    val travelTime = skim(schedule.last.activity.getCoord)(request.activity.getCoord)
+    val arrivalTime = schedule.last.time + schedule.last.deltaTime + travelTime
+    val newDeltaTime = arrivalTime - request.time
+    val newCost = cost + newDeltaTime
+    var newCavSchedule: Option[CAVSchedule] = None
+    request.tag match {
+      case Pickup =>
+        if (occupancy == 0 && newDeltaTime < -1 * timeWindow) {
+          val relocationRequest =
+            new MobilityServiceRequest(None, request.activity, request.time - 1, newDeltaTime, Relocation)
+          val newRequest = new MobilityServiceRequest(request.person, request.activity, request.time, 0, Pickup)
+          newCavSchedule = Some(
+            new CAVSchedule(schedule :+ relocationRequest :+ newRequest, cav, newCost, occupancy + 1)
+          )
+        } else if (occupancy < cav.beamVehicleType.seatingCapacity && math.abs(newDeltaTime) <= timeWindow) {
+          val newRequest =
+            new MobilityServiceRequest(request.person, request.activity, request.time, newDeltaTime, Pickup)
+          newCavSchedule = Some(new CAVSchedule(schedule :+ newRequest, cav, newCost, occupancy + 1))
+        } else {
+          // Dead End, Not going down this branch
+        }
+      case Dropoff =>
+        val index = schedule.lastIndexWhere(_.person == request.person)
+        if (index < 0 || schedule(index).tag != Pickup) {
+          // Dead End, Not going down this branch
+        } else if (math.abs(newDeltaTime) > timeWindow) {
+          // Current Schedule unfeasible, to be marked for removal
+          feasible = false
+        } else {
+          val newRequest =
+            new MobilityServiceRequest(request.person, request.activity, request.time, newDeltaTime, Dropoff)
+          newCavSchedule = Some(new CAVSchedule(schedule :+ newRequest, cav, newCost, occupancy - 1))
+          feasible = false
+        }
+      case _ => // No Action
+    }
+    newCavSchedule
+  }
+  def toRoutingRequests(beamServices: BeamServices): List[Option[RoutingRequest]] = {
+    schedule.sliding(2).filter(_.size>1).map{ wayPoints =>
+      val orig = wayPoints(0)
+      val dest = wayPoints(1)
+      if(beamServices.geo.distUTMInMeters(orig.activity.getCoord,dest.activity.getCoord) < 50){
+        // We ignore this in favor of creating a dummy car log
+        None
+      }else{
+        val origin = SpaceTime(orig.activity.getCoord,math.round(orig.activity.getEndTime).toInt)
+        Some(RoutingRequest(
+          orig.activity.getCoord,
+          dest.activity.getCoord,
+          origin.time,
+          IndexedSeq(),
+          IndexedSeq(StreetVehicle(Id.create(cav.id.toString,classOf[Vehicle]), cav.beamVehicleType.id,origin,CAV,true))
+        ))
+      }
+    }.toList
+  }
+  override def toString = {
+    var output = s"\tcav-id:${cav.id} | cost:$cost \n\t\t"
+    schedule.sortWith(_.time < _.time).foreach { i =>
+      output += s"${i}\n\t\t"
+    }
+    output
+  }
 }
 
 object HouseholdCAVScheduling{
