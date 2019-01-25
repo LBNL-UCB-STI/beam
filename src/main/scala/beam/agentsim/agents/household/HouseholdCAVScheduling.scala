@@ -1,4 +1,6 @@
 package beam.agentsim.agents.household
+import java.util.concurrent.atomic.AtomicInteger
+
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -25,7 +27,8 @@ case class MobilityServiceRequest(
   activity: Activity,
   time: Double,
   deltaTime: Double,
-  tag: MobilityServiceRequestType
+  tag: MobilityServiceRequestType,
+  routingRequestId: Option[Int] = None
 ) {
   override def toString =
     s"$tag{ ${person match {
@@ -185,24 +188,28 @@ class CAVSchedule(val schedule: List[MobilityServiceRequest], val cav: BeamVehic
     }
     newCavSchedule
   }
-  def toRoutingRequests(beamServices: BeamServices): List[Option[RoutingRequest]] = {
-    schedule.sliding(2).filter(_.size>1).map{ wayPoints =>
+  def toRoutingRequests(beamServices: BeamServices): (List[Option[RoutingRequest]], CAVSchedule) = {
+    var newMobilityRequests = List[MobilityServiceRequest]()
+    var requestList = schedule.sliding(2).filter(_.size>1).map{ wayPoints =>
       val orig = wayPoints(0)
       val dest = wayPoints(1)
       if(beamServices.geo.distUTMInMeters(orig.activity.getCoord,dest.activity.getCoord) < 50){
-        // We ignore this in favor of creating a dummy car log
+        // We ignore this in favor of creating a dummy car leg
         None
       }else{
         val origin = SpaceTime(orig.activity.getCoord,math.round(orig.activity.getEndTime).toInt)
-        Some(RoutingRequest(
+        val routingRequest = RoutingRequest(
           orig.activity.getCoord,
           dest.activity.getCoord,
           origin.time,
           IndexedSeq(),
           IndexedSeq(StreetVehicle(Id.create(cav.id.toString,classOf[Vehicle]), cav.beamVehicleType.id,origin,CAV,true))
-        ))
+        )
+        newMobilityRequests = newMobilityRequests :+ orig.copy(routingRequestId = Some(routingRequest.requestId))
+        Some(routingRequest)
       }
     }.toList
+    (requestList, new CAVSchedule(newMobilityRequests, cav, cost, occupancy))
   }
   override def toString = {
     var output = s"\tcav-id:${cav.id} | cost:$cost \n\t\t"

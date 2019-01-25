@@ -78,6 +78,8 @@ class HouseholdCAVDriverAgent(
 
 object HouseholdCAVDriverAgent {
 
+  def idFromVehicleId(vehId: Id[BeamVehicle]) = Id.create(s"cavDriver-$vehId", classOf[HouseholdCAVDriverAgent])
+
   def props(
              driverId: Id[HouseholdCAVDriverAgent],
              scheduler: ActorRef,

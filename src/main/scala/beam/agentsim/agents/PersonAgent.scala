@@ -171,6 +171,7 @@ object PersonAgent {
 
   case object DrivingInterrupted extends Traveling
 
+  def bodyVehicleIdFromPersonID(id: Id[Person]) = BeamVehicle.createId(id, Some("body"))
 }
 
 class PersonAgent(
@@ -192,7 +193,7 @@ class PersonAgent(
     with Stash {
 
   val body = new BeamVehicle(
-    BeamVehicle.createId(id, Some("body")),
+    bodyVehicleIdFromPersonID(id),
     BeamVehicleType.powerTrainForHumanBody,
     BeamVehicleType.defaultHumanBodyBeamVehicleType
   )
