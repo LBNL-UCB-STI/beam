@@ -10,7 +10,7 @@ import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
 
 /**HasPersonId is added as Matsim ScoringFunction for population requires it**/
-class ParkEvent(time: Double, stall: ParkingStall, distance: Double, vehId: Id[Vehicle],driverId : Id[Person])
+class ParkEvent(time: Double, stall: ParkingStall, distance: Double, vehId: Id[Vehicle], driverId: Id[Person])
     extends Event(time)
     with ParkEventAttrs
     with HasPersonId {
