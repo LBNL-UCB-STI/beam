@@ -21,6 +21,7 @@ import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 import scala.util.control.Breaks
 
 object ScenarioComparator extends App with Comparator[MutableScenario] {
@@ -149,6 +150,9 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
       override val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = ???
       override val ptFares: PtFares = ???
       override def networkHelper: NetworkHelper = ???
+      override def setNetworkTripFleetSizes(
+        tripFleetSizeMap: mutable.HashMap[String, Integer]
+      ): Unit = {}
     }
 
     beamServices
