@@ -319,7 +319,7 @@ class SpatialSampler(sampleShape: String) {
       val popPct = feature.getAttribute("pop_pct").asInstanceOf[Double]
       distributionList += new Pair[SimpleFeature, java.lang.Double](feature, popPct)
     }
-//    if(distributionList.map(_.getValue).sum > 0) {}
+    //    if(distributionList.map(_.getValue).sum > 0) {}
     new EnumeratedDistribution[SimpleFeature](rng, JavaConverters.bufferAsJavaList(distributionList))
   }
   def getSample: SimpleFeature = distribution.sample()
