@@ -102,7 +102,7 @@ class HouseholdCAVScheduling(
       var householdSchedulesToAdd = List[HouseholdSchedule]()
       var householdSchedulesToDelete = List[HouseholdSchedule]()
       for (schedule <- feasibleSchedules) {
-        householdSchedulesToAdd ++= schedule.check(request)
+        householdSchedulesToAdd ++= schedule.check(request,skim,timeWindow)
         if (!schedule.feasible) {
           householdSchedulesToDelete = householdSchedulesToDelete :+ schedule
         }
