@@ -177,7 +177,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         data.passengerSchedule.schedule(currentLeg).riders.size,
         currentLeg,
         fuelConsumed,
-        currentBeamVehicle.fuelLevelInJoules.getOrElse(-1.0),
+        currentBeamVehicle.fuelLevelInJoules,
         tollOnCurrentLeg
       )
 
@@ -337,7 +337,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         data.passengerSchedule.schedule(currentLeg).riders.size,
         updatedBeamLeg,
         fuelConsumed,
-        currentBeamVehicle.fuelLevelInJoules.getOrElse(-1.0),
+        currentBeamVehicle.fuelLevelInJoules,
         tollOnCurrentLeg
       )
 

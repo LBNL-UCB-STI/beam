@@ -19,11 +19,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -52,6 +48,7 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -306,11 +303,11 @@ class RideHailManager(
 
   beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.initType match {
     case "PROCEDURAL" =>
-      var fleetData: List[RideHailFleetInitializer.RideHailAgentInputData] =
-        List.empty[RideHailFleetInitializer.RideHailAgentInputData]
-      val persons: Iterable[Person] =
-        RandomUtils.shuffle(scenario.getPopulation.getPersons.values().asScala, rand)
-      persons.view.take(numRideHailAgents.toInt).foreach { person =>
+      val persons: Iterable[Person] = RandomUtils
+        .shuffle(scenario.getPopulation.getPersons.values().asScala, rand)
+        .take(numRideHailAgents.toInt)
+      val fleetData: ArrayBuffer[RideHailFleetInitializer.RideHailAgentInputData] = new ArrayBuffer(persons.size)
+      persons.foreach { person =>
         val personInitialLocation: Coord =
           person.getSelectedPlan.getPlanElements
             .iterator()
@@ -350,7 +347,7 @@ class RideHailManager(
               )
           }
 
-        fleetData = fleetData :+ createRideHailVehicleAndAgent(person.getId.toString, rideInitialLocation, None, None)
+        fleetData += createRideHailVehicleAndAgent(person.getId.toString, rideInitialLocation, None, None)
       }
 
       new RideHailFleetInitializer().writeFleetData(beamServices, fleetData)

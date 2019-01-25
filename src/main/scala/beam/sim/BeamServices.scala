@@ -19,7 +19,7 @@ import beam.sim.BeamServices.{getTazTreeMap, readBeamVehicleTypeFile, readFuelTy
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.metrics.Metrics
-import beam.utils.{DateUtils, FileUtils}
+import beam.utils.{DateUtils, FileUtils, NetworkHelper}
 import com.google.inject.{ImplementedBy, Inject, Injector}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
@@ -62,6 +62,8 @@ trait BeamServices {
   var iterationNumber: Int = -1
 
   def startNewIteration()
+
+  def networkHelper: NetworkHelper
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
@@ -151,6 +153,9 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
     }
   }
 
+  private val _networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
+
+  def networkHelper: NetworkHelper = _networkHelper
 }
 
 object BeamServices {
@@ -237,6 +242,8 @@ object BeamServices {
           val primaryFuelType = FuelType.fromString(primaryFuelTypeId)
           val primaryFuelConsumptionInJoulePerMeter = line.get("primaryFuelConsumptionInJoulePerMeter").trim.toDouble
           val primaryFuelCapacityInJoule = line.get("primaryFuelCapacityInJoule").trim.toDouble
+          val monetaryCostPerMeter: Double = Option(line.get("monetaryCostPerMeter")).map(_.toDouble).getOrElse(0d)
+          val monetaryCostPerSecond: Double = Option(line.get("monetaryCostPerSecond")).map(_.toDouble).getOrElse(0d)
           val secondaryFuelTypeId = Option(line.get("secondaryFuelType"))
           val secondaryFuelType = secondaryFuelTypeId.map(FuelType.fromString(_))
           val secondaryFuelConsumptionInJoule =
@@ -257,6 +264,8 @@ object BeamServices {
             primaryFuelType,
             primaryFuelConsumptionInJoulePerMeter,
             primaryFuelCapacityInJoule,
+            monetaryCostPerMeter,
+            monetaryCostPerSecond,
             secondaryFuelType,
             secondaryFuelConsumptionInJoule,
             secondaryFuelCapacityInJoule,
