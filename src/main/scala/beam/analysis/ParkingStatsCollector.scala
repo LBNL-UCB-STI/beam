@@ -177,8 +177,6 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
             parkEvent.getPersonId,
             ParkingStatsCollector.EMPTY_PERSON_INBOUND_STATS
           )
-          logger.info("Inbound stats collected for : " + personInboundParkingStatsTracker.keySet)
-          logger.info("Add park time for : " + parkEvent.getPersonId + " -> " + parkEvent.getTime)
           //store the parking time + parking cost for the person
           personInboundParkingStatsTracker.put(
             parkEvent.getPersonId,
@@ -212,7 +210,6 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
                     )
                     None
                 }
-                logger.info("Add arrival time for : " + dId + " -> " + arrivalTime.getOrElse(0D))
                 //process the collected inbound stats for the person
                 processInboundParkingStats(dId, personInboundParkingStats.copy(arrivalTime = arrivalTime))
                 //stop tracking the person for inbound stats
