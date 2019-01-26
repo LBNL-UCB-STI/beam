@@ -15,4 +15,10 @@ object ProfilingUtils {
     val endTime = System.currentTimeMillis()
     endTime - startTime
   }
+
+  def timed[U](what: String, work: => U, logger: String => Unit): U = {
+    val (r, time) = timed(work)
+    logger(s"$what executed in $time ms")
+    r
+  }
 }
