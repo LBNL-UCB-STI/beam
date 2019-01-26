@@ -17,12 +17,15 @@ import org.apache.commons.collections4.MapUtils
 
 import scala.collection.JavaConverters._
 import scala.io.Source
+import scala.util.Try
+import scala.util.control.NonFatal
 
 class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
+  import beam.utils.FileUtils._
 
   private val tollsByLinkId: java.util.Map[Int, Array[Toll]] =
-    readTollPrices(config.beam.agentsim.toll.file) //.withDefaultValue(Vector())
-  private val tollsByWayId: java.util.Map[Int, Array[Toll]] = readFromCacheFileOrOSM() // .withDefaultValue(Vector())
+    readTollPrices(config.beam.agentsim.toll.file)
+  private val tollsByWayId: java.util.Map[Int, Array[Toll]] = readFromCacheFileOrOSM()
 
   logger.info("tollsByLinkId size: {}", tollsByLinkId.size)
   logger.info("tollsByWayId size: {}", tollsByWayId.size)
@@ -33,17 +36,6 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
       osmIds.map(tollsByWayId.get)
         .filter(toll => toll != null)
         .map(toll => applyTimeDependentTollAtTime(toll, 0)).sum
-
-//      var i = 0
-//      var sum: Double = 0
-//      while (i < osmIds.size) {
-//        val toll = tollsByLinkId.get(osmIds(i))
-//        if (toll != null) {
-//          sum += applyTimeDependentTollAtTime(toll, 0)
-//        }
-//        i += 1
-//      }
-//      sum
     }
   }
 
@@ -64,16 +56,6 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
   }
   private def applyTimeDependentTollAtTime(tolls: Array[Toll], time: Int): Double = {
     tolls.filter(toll => toll.timeRange.has(time)).map(toll => toll.amount).sum
-
-//    var i: Int = 0
-//    var total: Double = 0.0
-//    while (i < tolls.length) {
-//      val toll = tolls(i)
-//      if (toll.timeRange.has(time)) total += toll.amount
-//      i += 1
-//    }
-//    total
-    // tolls.view.filter(toll => toll.timeRange.has(time)).map(toll => toll.amount).sum
   }
 
   private def readTollPrices(tollPricesFile: String): java.util.Map[Int, Array[Toll]] = {
@@ -100,17 +82,29 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
   def readFromCacheFileOrOSM(): java.util.Map[Int, Array[Toll]] = {
     val dataDirectory: Path = Paths.get(config.beam.routing.r5.directory)
     val cacheFile = dataDirectory.resolve("tolls.dat").toFile
-    if (cacheFile.exists()) {
-      new ObjectInputStream(new FileInputStream(cacheFile))
-        .readObject()
-        .asInstanceOf[java.util.Map[Int, Array[Toll]]]
-    } else {
-      val ways = fromDirectory()
-      val stream = new ObjectOutputStream(new FileOutputStream(cacheFile))
-      stream.writeObject(ways)
-      stream.close()
-      ways
+    val chachedWays = if (cacheFile.exists()) {
+      try {
+        using(new ObjectInputStream(new FileInputStream(cacheFile))) { stream =>
+          Some(stream.readObject().asInstanceOf[java.util.Map[Int, Array[Toll]]])
+        }
+      }
+      catch {
+        case NonFatal(ex) =>
+          logger.warn(s"Could not read cached data from '${cacheFile.getAbsolutePath}. Going to re-create cache", ex)
+          Some(readFromDatAndCreateCache(cacheFile))
+      }
     }
+    else None
+    chachedWays.getOrElse(readFromDatAndCreateCache(cacheFile))
+  }
+
+  def readFromDatAndCreateCache(cacheFile: File): util.Map[Int, Array[Toll]] = {
+    Try(cacheFile.delete())
+    val ways = fromDirectory()
+    using(new ObjectOutputStream(new FileOutputStream(cacheFile))) { stream =>
+      stream.writeObject(ways)
+    }
+    ways
   }
 
   def fromDirectory(): java.util.Map[Int, Array[Toll]] = {
