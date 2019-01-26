@@ -1,13 +1,13 @@
 package beam.agentsim.agents.household
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.vehicles.BeamVehicle
-import org.matsim.api.core.v01.{Coord, Id}
+import beam.router.Modes.BeamMode
 import org.matsim.api.core.v01.population._
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.geometry.CoordUtils
-import org.matsim.vehicles.Vehicle
+import org.matsim.households.Household
 
-import scala.collection.immutable.Map
-import scala.collection.immutable.List
+import scala.collection.immutable.{List, Map}
 
 sealed trait MobilityServiceRequestType
 case object Pickup extends MobilityServiceRequestType
@@ -26,51 +26,113 @@ case class MobilityServiceRequest(
     s"$tag{ ${person match {
       case Some(x) => x.toString
       case None    => "NA"
-    }}|${activity.getType}|${(time / 3600).toInt}:${((time % 3600) / 60).toInt}:${(time % 60).toInt}|ocp:$deltaTime }"
+    }}|${activity.getType}|${(time / 3600).toInt}:${((time % 3600) / 60).toInt}:${(time % 60).toInt}|delta:$deltaTime }"
 }
 
-class HouseholdPlansToMSR(plans: List[BeamPlan], skim: Map[Coord, Map[Coord, Double]]) {
-  var requests = List[MobilityServiceRequest]()
-  for (plan <- plans) {
-    plan.activities.sliding(2).foreach{ activityTuple =>
-      requests = requests :+ new MobilityServiceRequest(
-        Some(plan.getPerson.getId),
-        activityTuple(1),
-        activityTuple(0).getEndTime + skim(activityTuple(0).getCoord)(activityTuple(1).getCoord),
-        0.0,
-        Dropoff
-      )
+object DefaultMode {
+
+  def get(legOption: Option[Leg], nbVehicles: Int): BeamMode = {
+    // TODO: delete the code if the simulation does not break due a None in Option[Leg]
+    val beamModeOption = legOption match {
+      case Some(leg) => BeamMode.fromString(leg.getMode)
+      case None      => None
     }
-    plan.activities.dropRight(1).foreach{ activity =>
-      requests = requests :+ new MobilityServiceRequest(
+
+    // If the mode is undefined and no available household is available, agent will be considered as using pt as a base mode
+    // If the default mode is car and no available household is available, agent will be still be considered using car as a base mode
+    // TODO: an agent cannot drive a car if it does not have a driving license
+    val defaultMode = beamModeOption match {
+      case Some(beamMode) => beamMode
+      case None           => if (nbVehicles <= 0) BeamMode.TRANSIT else BeamMode.CAR
+    }
+
+    defaultMode
+  }
+}
+
+class HouseholdPlansToMSR(
+  val householdPlans: List[BeamPlan],
+  var householdNbOfVehicles: Int,
+  val skim: Map[BeamMode, Map[Coord, Map[Coord, Double]]]
+) {
+  // cost = total travel times of all members of the household
+  var cost: Double = 0
+
+  var requests = List[MobilityServiceRequest]()
+  householdPlans.foreach { plan =>
+    var counter = householdNbOfVehicles
+    var usedCar = false
+
+    // iterating over trips and (1) compute cost (2) get pick up requests (3) get dropoff requests
+    plan.trips.sliding(2).foreach { tripTuple =>
+      val startActivity = tripTuple(0).activity
+      val endActivity = tripTuple(1).activity
+      val legTrip = tripTuple(1).leg
+      val defaultMode = DefaultMode.get(legTrip, counter)
+      val defaultTravelTime = skim(defaultMode)(startActivity.getCoord)(endActivity.getCoord)
+
+      defaultMode match {
+        case BeamMode.CAR => usedCar = true
+        case _            => None
+      }
+
+      // increment cost
+      cost += defaultTravelTime
+
+      // identifying pickups
+      requests = new MobilityServiceRequest(
         Some(plan.getPerson.getId),
-        activity,
-        activity.getEndTime,
+        startActivity,
+        startActivity.getEndTime,
         0.0,
         Pickup
-      )
+      ) :: requests
+
+      // identifying dropoffs
+      requests = new MobilityServiceRequest(
+        Some(plan.getPerson.getId),
+        endActivity,
+        startActivity.getEndTime + skim(defaultMode)(startActivity.getCoord)(endActivity.getCoord),
+        0.0,
+        Dropoff
+      ) :: requests
     }
+
+    // one less available vehicle if it is used by a member of the household
+    if (usedCar) counter -= 1
   }
+
   requests = requests.sortWith(_.time < _.time)
   override def toString = s"${requests}"
 }
 
 class HouseholdCAVScheduling(
-  plans: List[BeamPlan],
-  cavVehicles: List[BeamVehicle],
-  timeWindow: Double,
-  skim: Map[Coord, Map[Coord, Double]]
+  val population: org.matsim.api.core.v01.population.Population,
+  val household: Household,
+  val cavVehicles: List[BeamVehicle],
+  val timeWindow: Double
 ) {
-  private var fleet = cavVehicles.map(veh => HouseholdCAV(veh.id,veh.beamVehicleType.seatingCapacity))
+  import beam.agentsim.agents.memberships.Memberships.RankedGroup._
+  private implicit val pop: org.matsim.api.core.v01.population.Population = population
+  private val householdPlans = household.members.map(person => BeamPlan(person.getSelectedPlan)).toList
+  private val householdFleet = cavVehicles.map(veh => HouseholdCAV(veh.id, veh.beamVehicleType.seatingCapacity))
   private var feasibleSchedules = List[HouseholdSchedule]()
+  private val skim = HouseholdCAVScheduling.computeSkim(householdPlans)
+  // extract potential household CAV requests from plans
+  val householdRequests = new HouseholdPlansToMSR(householdPlans, householdFleet.size, skim);
 
   case class HouseholdCAV(id: Id[BeamVehicle], maxOccupancy: Int)
 
-  class CAVSchedule(val schedule: List[MobilityServiceRequest], val cav: HouseholdCAV, val cost: Double, val occupancy: Int) {
+  class CAVSchedule(
+    val schedule: List[MobilityServiceRequest],
+    val cav: HouseholdCAV,
+    val cost: Double,
+    val occupancy: Int
+  ) {
     var feasible: Boolean = true
 
     def check(request: MobilityServiceRequest): Option[CAVSchedule] = {
-      val travelTime = skim(schedule.last.activity.getCoord)(request.activity.getCoord)
+      val travelTime = skim(BeamMode.CAR)(schedule.last.activity.getCoord)(request.activity.getCoord)
       val arrivalTime = schedule.last.time + schedule.last.deltaTime + travelTime
       val newDeltaTime = arrivalTime - request.time
       val newCost = cost + newDeltaTime
@@ -147,14 +209,12 @@ class HouseholdCAVScheduling(
     }
   }
 
-  def apply(): List[HouseholdSchedule] = {
+  // get k lowest scored schedules
+  def apply(k: Int): List[HouseholdSchedule] = {
 
-    // extract potential household CAV requests from plans
-    val householdRequests = new HouseholdPlansToMSR(plans, skim);
-
-    // deploy the fleet or set up the initial household schedule
+    // deploy the householdFleet or set up the initial household schedule
     var emptyFleetSchedule = List[CAVSchedule]()
-    fleet.foreach(
+    householdFleet.foreach(
       veh =>
         emptyFleetSchedule = emptyFleetSchedule :+ new CAVSchedule(
           List[MobilityServiceRequest](
@@ -185,26 +245,43 @@ class HouseholdCAVScheduling(
       }
       feasibleSchedules = feasibleSchedules.diff(householdSchedulesToDelete) ++ householdSchedulesToAdd
     }
-    feasibleSchedules
+    return feasibleSchedules.sortWith(_.cost < _.cost).take(k)
   }
 
 }
 
-object HouseholdCAVScheduling{
-  def computeSkim(plans: List[BeamPlan]): Map[Coord, Map[Coord, Double]] = {
-    var skim = Map[Coord, Map[Coord, Double]]()
+object HouseholdCAVScheduling {
+
+  def computeSkim(plans: List[BeamPlan]): Map[BeamMode, Map[Coord, Map[Coord, Double]]] = {
+
+    var skim: Map[BeamMode, Map[Coord, Map[Coord, Double]]] = Map(
+      BeamMode.CAR     -> Map[Coord, Map[Coord, Double]](),
+      BeamMode.TRANSIT -> Map[Coord, Map[Coord, Double]]()
+    )
+
     var activitySet = Set[Coord]()
     for (plan <- plans) {
       for (act <- plan.activities) {
         activitySet += act.getCoord
       }
     }
+
     for (actSrc <- activitySet) {
-      skim = skim + (actSrc -> Map[Coord, Double]())
+      skim = Map(
+        BeamMode.CAR     -> (skim(BeamMode.CAR) ++ Map(actSrc     -> Map[Coord, Double]())),
+        BeamMode.TRANSIT -> (skim(BeamMode.TRANSIT) ++ Map(actSrc -> Map[Coord, Double]()))
+      )
       for (actDst <- activitySet) {
         //TODO replace with BEAM GeoUtils
-        val travelTime: Double = CoordUtils.calcEuclideanDistance(actSrc, actDst) * 60
-        skim = skim + (actSrc -> (skim(actSrc) ++ Map(actDst -> travelTime)))
+        val eucDistance: Double = CoordUtils.calcEuclideanDistance(actSrc, actDst)
+        skim = Map(
+          BeamMode.CAR -> (skim(BeamMode.CAR) ++ Map(
+            actSrc -> (skim(BeamMode.CAR)(actSrc) ++ Map(actDst -> eucDistance * 60))
+          )),
+          BeamMode.TRANSIT -> (skim(BeamMode.TRANSIT) ++ Map(
+            actSrc -> (skim(BeamMode.TRANSIT)(actSrc) ++ Map(actDst -> eucDistance * 120))
+          ))
+        )
       }
     }
     skim

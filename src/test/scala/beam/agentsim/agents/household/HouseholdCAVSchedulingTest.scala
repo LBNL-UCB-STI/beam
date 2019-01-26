@@ -1,35 +1,45 @@
 package beam.agentsim.agents.household
-import beam.agentsim.agents.planning.BeamPlan
-import org.matsim.api.core.v01.{Coord, Id}
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import org.matsim.api.core.v01.population.{Activity, Person, Plan}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.population.PopulationUtils
-import org.matsim.core.utils.geometry.CoordUtils
+import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.collection.immutable.{List, Map}
+import scala.collection.immutable.List
+import scala.collection.{mutable, JavaConverters}
 
 class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
 
   behavior of "HouseholdCAVScheduling"
 
   it should "generate four plans with 4/6/3/1 requests each" in {
-    val plans = scenario1()
-    val timeWindow = 15 * 60
-    val skim = HouseholdCAVScheduling.computeSkim(plans)
-    val algo = new HouseholdCAVScheduling(plans, 1, timeWindow, skim)
-    val schedules = algo().sortWith(_.cost < _.cost)
+    implicit val pop: org.matsim.api.core.v01.population.Population =
+      PopulationUtils.createPopulation(ConfigUtils.createConfig())
+    //val skim = HouseholdCAVScheduling.computeSkim(plans)
+
+    val cavs = List[BeamVehicle](
+      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), BeamVehicleType.defaultCarBeamVehicleType)
+    )
+    val household: Household = scenario1(cavs)
+
+    val algo = new HouseholdCAVScheduling(pop, household, cavs, 15 * 60)
+    val schedules = algo(5)
     schedules should have length 4
     schedules.foreach { x =>
       x.cavFleetSchedule.foreach(
         y => y.schedule should (((have length 4 or have length 6) or have length 3) or have length 1)
       )
     }
+    println(schedules)
   }
 
-  def scenario1(): List[BeamPlan] = {
-    val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
-    val P: Person = population.getFactory.createPerson(Id.createPersonId("p-0-1"))
+  def scenario1(cavs: List[BeamVehicle])(implicit pop: org.matsim.api.core.v01.population.Population): Household = {
+    val p: Person = pop.getFactory.createPerson(Id.createPersonId("p-0-1"))
+    pop.addPerson(p)
+
     val homeCoord = new Coord(0, 0)
     val H11: Activity = PopulationUtils.createActivityFromCoord("home", homeCoord)
     H11.setEndTime(8.5 * 3600)
@@ -38,12 +48,18 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     W1.setEndTime(17 * 3600)
     val H12: Activity = PopulationUtils.createActivityFromCoord("home", homeCoord)
     H12.setStartTime(17.5 * 3600)
-    val plan: Plan = population.getFactory.createPlan()
-    plan.setPerson(P)
+    val plan: Plan = pop.getFactory.createPlan()
+    plan.setPerson(p)
     plan.addActivity(H11)
     plan.addActivity(W1)
     plan.addActivity(H12)
-    List[BeamPlan](BeamPlan(plan))
+    p.addPlan(plan)
+    //List[BeamPlan](BeamPlan(plan))
+
+    val household = new HouseholdsFactoryImpl().createHousehold(Id.create("dummy", classOf[Household]))
+    household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(p.getId)))
+    household.setVehicleIds(JavaConverters.seqAsJavaList(cavs.map(veh => veh.toStreetVehicle.id)))
+    household
   }
 
 //  def scenario2(householdId: String): List[BeamPlan] = {
