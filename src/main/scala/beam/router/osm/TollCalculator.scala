@@ -33,9 +33,11 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
   def calcTollByOsmIds(osmIds: IndexedSeq[Long]): Double = {
     if (osmIds.isEmpty || tollsByWayId.isEmpty) 0
     else {
-      osmIds.map(tollsByWayId.get)
+      osmIds
+        .map(tollsByWayId.get)
         .filter(toll => toll != null)
-        .map(toll => applyTimeDependentTollAtTime(toll, 0)).sum
+        .map(toll => applyTimeDependentTollAtTime(toll, 0))
+        .sum
     }
   }
 
@@ -87,14 +89,12 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
         using(new ObjectInputStream(new FileInputStream(cacheFile))) { stream =>
           Some(stream.readObject().asInstanceOf[java.util.Map[Int, Array[Toll]]])
         }
-      }
-      catch {
+      } catch {
         case NonFatal(ex) =>
           logger.warn(s"Could not read cached data from '${cacheFile.getAbsolutePath}. Going to re-create cache", ex)
           Some(readFromDatAndCreateCache(cacheFile))
       }
-    }
-    else None
+    } else None
     chachedWays.getOrElse(readFromDatAndCreateCache(cacheFile))
   }
 
