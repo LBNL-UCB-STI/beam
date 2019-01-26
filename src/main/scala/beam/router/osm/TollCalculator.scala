@@ -25,7 +25,7 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
 
   private val tollsByLinkId: java.util.Map[Int, Array[Toll]] =
     readTollPrices(config.beam.agentsim.toll.file)
-  private val tollsByWayId: java.util.Map[Int, Array[Toll]] = readFromCacheFileOrOSM()
+  private val tollsByWayId: java.util.Map[Long, Array[Toll]] = readFromCacheFileOrOSM()
 
   logger.info("tollsByLinkId size: {}", tollsByLinkId.size)
   logger.info("tollsByWayId size: {}", tollsByWayId.size)
@@ -81,13 +81,13 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
     }
   }
 
-  def readFromCacheFileOrOSM(): java.util.Map[Int, Array[Toll]] = {
+  def readFromCacheFileOrOSM(): java.util.Map[Long, Array[Toll]] = {
     val dataDirectory: Path = Paths.get(config.beam.routing.r5.directory)
     val cacheFile = dataDirectory.resolve("tolls.dat").toFile
     val chachedWays = if (cacheFile.exists()) {
       try {
         using(new ObjectInputStream(new FileInputStream(cacheFile))) { stream =>
-          Some(stream.readObject().asInstanceOf[java.util.Map[Int, Array[Toll]]])
+          Some(stream.readObject().asInstanceOf[java.util.Map[Long, Array[Toll]]])
         }
       } catch {
         case NonFatal(ex) =>
@@ -98,7 +98,7 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
     chachedWays.getOrElse(readFromDatAndCreateCache(cacheFile))
   }
 
-  def readFromDatAndCreateCache(cacheFile: File): util.Map[Int, Array[Toll]] = {
+  def readFromDatAndCreateCache(cacheFile: File): util.Map[Long, Array[Toll]] = {
     Try(cacheFile.delete())
     val ways = fromDirectory()
     using(new ObjectOutputStream(new FileOutputStream(cacheFile))) { stream =>
@@ -107,8 +107,8 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
     ways
   }
 
-  def fromDirectory(): java.util.Map[Int, Array[Toll]] = {
-    def loadOSM(osmSourceFile: File): java.util.Map[Int, Array[Toll]] = {
+  def fromDirectory(): java.util.Map[Long, Array[Toll]] = {
+    def loadOSM(osmSourceFile: File): java.util.Map[Long, Array[Toll]] = {
       // Load OSM data into MapDB
       val dir = osmSourceFile.getParentFile
       val osm = new OSM(new File(dir, "osm.mapdb").getPath)
@@ -119,7 +119,7 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
       ways
     }
 
-    def readTolls(osm: OSM): java.util.Map[Int, Array[Toll]] = {
+    def readTolls(osm: OSM): java.util.Map[Long, Array[Toll]] = {
       val arr = osm.ways.asScala.toSeq.flatMap {
         case (id, way) if way.tags != null =>
           val tolls = way.tags.asScala
@@ -127,10 +127,10 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
             .map(chargeTag => parseTolls(chargeTag.value))
             .getOrElse(Nil)
             .toArray
-          if (tolls.nonEmpty) Some(Maps.immutableEntry[Int, Array[Toll]](id.toInt, tolls)) else None
+          if (tolls.nonEmpty) Some(Maps.immutableEntry[Long, Array[Toll]](id, tolls)) else None
         case _ => None
       }.toArray
-      MapUtils.putAll(new util.HashMap[Int, Array[Toll]](), arr.asInstanceOf[Array[AnyRef]])
+      MapUtils.putAll(new util.HashMap[Long, Array[Toll]](), arr.asInstanceOf[Array[AnyRef]])
     }
 
     Paths
