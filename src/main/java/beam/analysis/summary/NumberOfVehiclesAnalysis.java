@@ -15,11 +15,11 @@ public class NumberOfVehiclesAnalysis implements IterationSummaryAnalysis {
 
     @Override
     public void processStats(Event event) {
-        if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
-            Map<String, String> eventAttributes = event.getAttributes();
-            String vehicleId = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+        if (event instanceof PathTraversalEvent) {
+            PathTraversalEvent pte = (PathTraversalEvent)event;
+            String vehicleId = pte.vehicleId().toString();
             if(uniqueVehicleIds.add(vehicleId)) {
-                String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
+                String vehicleType = pte.vehicleType().toString();
                 numberOfVehiclesByType.merge(vehicleType, 1, (d1, d2) -> d1 + d2);
             }
         }

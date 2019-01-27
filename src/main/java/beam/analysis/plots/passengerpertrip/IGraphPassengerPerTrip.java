@@ -1,5 +1,6 @@
 package beam.analysis.plots.passengerpertrip;
 
+import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.plots.GraphUtils;
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
 import org.jfree.chart.JFreeChart;
@@ -24,7 +25,7 @@ public interface IGraphPassengerPerTrip {
 
     String getLegendText(int i);
 
-    void collectEvent(Event event, Map<String, String> attributes);
+    void collectEvent(PathTraversalEvent event);
 
     void process(IterationEndsEvent event) throws IOException;
     CategoryDataset getCategoryDataSet();

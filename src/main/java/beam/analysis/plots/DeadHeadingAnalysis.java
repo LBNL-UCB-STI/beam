@@ -74,8 +74,8 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
 
     @Override
     public void processStats(Event event) {
-        if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE))
-            processDeadHeading(event);
+        if (event instanceof PathTraversalEvent)
+            processDeadHeading((PathTraversalEvent)event);
     }
 
     @Override
@@ -119,10 +119,10 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     private void processDeadHeading(Event event) {
 
         // Process Event for "tnc_passenger_per_trip.png" graph
-        processEventForTncDeadheadingDistanceGraph(event);
+        processEventForTncDeadheadingDistanceGraph((PathTraversalEvent)event);
 
         // Process Event for "tnc_deadheading_distance.png" graph
-        processEventForTncPassengerPerTripGraph(event);
+        processEventForTncPassengerPerTripGraph((PathTraversalEvent)event);
     }
 
     private void processDeadHeadingDistanceRemainingRepositionings() {
@@ -151,7 +151,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                     for (int i = 0; i < m; i++) {
 
                         Event oldEvent = vehicleHourData.get(i);
-                        Double length2 = Double.parseDouble(oldEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LENGTH));
+                        Double length2 = ((PathTraversalEvent)oldEvent).legLength();
 
                         updateDeadHeadingTNCMap(length2, hourKey, -1);
                     }
@@ -162,17 +162,16 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         vehicleEvents.clear();
     }
 
-    private void processEventForTncDeadheadingDistanceGraph(Event event) {
+    private void processEventForTncDeadheadingDistanceGraph(PathTraversalEvent event) {
 
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
-        Map<String, String> attributes = event.getAttributes();
-        String mode = attributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
-        String vehicle_id = attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+        String mode = event.mode().value();
+        String vehicle_id = event.vehicleId().toString();
         String graphName = getGraphNameAgainstModeAndVehicleId(mode, vehicle_id);
-        Integer _num_passengers = getPathTraversalEventNumOfPassengers(attributes);
+        Integer _num_passengers = event.numPass();
 
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
-            Double length = Double.parseDouble(attributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
+            Double length = event.legLength();
 
             if (_num_passengers > 0) {
 
@@ -198,14 +197,14 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                         for (int i = 0; i < m; i++) {
 
                             Event oldEvent = vehicleHourData.get(i);
-                            Double length2 = Double.parseDouble(oldEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LENGTH));
+                            Double length2 = ((PathTraversalEvent)oldEvent).legLength();
 
                             updateDeadHeadingTNCMap(length2, hourKey, -1);
                         }
 
                         if (k == (n - 1)) {
                             Event oldEvent = vehicleHourData.get(m);
-                            Double length2 = Double.parseDouble(oldEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LENGTH));
+                            Double length2 =((PathTraversalEvent)oldEvent).legLength();
 
                             updateDeadHeadingTNCMap(length2, hourKey, 0);
                         }
@@ -360,7 +359,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
 
                         Event oldEvent = vehicleHourData.get(i);
 
-                        String mode = oldEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
+                        String mode =  ((PathTraversalEvent)oldEvent).mode().value();
                         String graphName = getGraphNameAgainstModeAndVehicleId(mode, vid);
 
                         updateNumPassengerInDeadHeadingsMap(hourKey, graphName, -1);
@@ -372,13 +371,12 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         vehicleEventsCache.clear();
     }
 
-    private void processEventForTncPassengerPerTripGraph(Event event) {
+    private void processEventForTncPassengerPerTripGraph(PathTraversalEvent event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
-        Map<String, String> attributes = event.getAttributes();
-        String mode = attributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
-        String vehicle_id = attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+        String mode = event.mode().value();
+        String vehicle_id =  event.vehicleId().toString();
         String graphName = getGraphNameAgainstModeAndVehicleId(mode, vehicle_id);
-        Integer _num_passengers = getPathTraversalEventNumOfPassengers(attributes);
+        Integer _num_passengers = event.numPass();
         boolean validCase = isValidCase(graphName, _num_passengers);
 
         // Process Event for "tnc_passenger_per_trip.png" graph
@@ -677,17 +675,6 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         return legendItemList;
     }
 
-    private Integer getPathTraversalEventNumOfPassengers(Map<String, String> eventAttributes) {
-        String num_passengers = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS);
-        Integer _num_passengers = null;
-        try {
-            _num_passengers = Integer.parseInt(num_passengers);
-        } catch (NumberFormatException nfe) {
-            nfe.printStackTrace();
-        }
-        return _num_passengers;
-    }
-
     private String getGraphNameAgainstModeAndVehicleId(String mode, String vehicle_id) {
         String graphName = mode;
         if (mode.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR) && vehicle_id.contains(GraphsStatsAgentSimEventsListener.RIDE)) {
@@ -771,19 +758,19 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     public void collectEvents(Event event) {
         String type = event.getEventType();
         // We care only about PathTraversalEvent!
-        if (!type.equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE))
+        if (!(event instanceof PathTraversalEvent))
             return;
 
-        Map<String, String> attributes = event.getAttributes();
-        String mode = getEventMode(attributes);
-        String vehicleId = getVehicleId(attributes);
+        PathTraversalEvent pte = (PathTraversalEvent)event;
+        String mode = pte.mode().value();
+        String vehicleId = pte.vehicleId().toString();
 
         if (mode.equalsIgnoreCase("car") && !vehicleId.contains("ride")) {
             IGraphPassengerPerTrip graph = passengerPerTripMap.get("car");
             if (graph == null) {
                 graph = new CarPassengerPerTrip("car");
             }
-            graph.collectEvent(event, attributes);
+            graph.collectEvent(pte);
 
             passengerPerTripMap.put("car", graph);
 
@@ -792,7 +779,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
             if (graph == null) {
                 graph = new TncPassengerPerTrip();
             }
-            graph.collectEvent(event, attributes);
+            graph.collectEvent(pte);
 
             passengerPerTripMap.put("tnc", graph);
         } else {
@@ -801,21 +788,13 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                 if (graph == null) {
                     graph = new GenericPassengerPerTrip(mode);
                 }
-                graph.collectEvent(event, attributes);
+                graph.collectEvent(pte);
                 passengerPerTripMap.put(mode, graph);
             }
         }
     }
 
     Map<String, IGraphPassengerPerTrip> passengerPerTripMap = new HashMap<>();
-
-    private String getVehicleId(Map<String, String> attributes) {
-        return attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
-    }
-
-    private String getEventMode(Map<String, String> attributes) {
-        return attributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
-    }
 
     @Override
     public List<OutputDataDescription> getOutputDataDescriptions() {

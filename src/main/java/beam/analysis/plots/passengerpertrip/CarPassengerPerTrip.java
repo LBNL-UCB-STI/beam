@@ -28,7 +28,7 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
     }
 
     @Override
-    public void collectEvent(Event event, Map<String, String> attributes) {
+    public void collectEvent(PathTraversalEvent event) {
 
         eventCounter++;
 
@@ -36,7 +36,7 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
         maxHour = maxHour < h ? h : maxHour;
 
 
-        Integer numPassengers = Integer.parseInt(attributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
+        Integer numPassengers = event.numPass();
 
         Map<Integer, Integer> eventFrequencyBin = numPassengerToEventFrequencyBin.get(numPassengers);
         if(eventFrequencyBin == null){

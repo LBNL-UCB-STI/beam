@@ -25,7 +25,7 @@ public class FuelUsageGraphTest {
 
         @Override
         public void handleEvent(Event event) {
-            if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
+            if (event instanceof PathTraversalEvent ) {
                 fuelUsageStats.processStats(event);
             }
         }
