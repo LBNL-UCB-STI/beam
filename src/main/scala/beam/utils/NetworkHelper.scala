@@ -20,7 +20,9 @@ class NetworkHelperImpl @Inject()(network: Network) extends NetworkHelper with L
 
   def getLinkUnsafe(linkId: Int): Link = {
     if (linkId >= allLinks.length || linkId < 0) {
-      logger.error(s"getLinkUnsafe for $linkId, when allLinks length is ${allLinks.length}!")
+      logger.error(
+        s"getLinkUnsafe for $linkId, when allLinks length is ${allLinks.length} and MaxLinkId is $maxLinkId!"
+      )
       null
     } else {
       allLinks(linkId)
@@ -35,8 +37,8 @@ class NetworkHelperImpl @Inject()(network: Network) extends NetworkHelper with L
         (link.getId.toString.toInt, link.asInstanceOf[Link])
       }
       .toArray
-    val (maxLinkId, link) = allLinks.maxBy { case (linkId, link) => linkId }
-    logger.info(s"Total number of links: ${allLinks.length}, MaxLinkId: $maxLinkId.")
+    val (maxLinkId, _) = allLinks.maxBy { case (linkId, _) => linkId }
+    logger.info(s"Total number of links is ${allLinks.length} and MaxLinkId is $maxLinkId.")
     val links = Array.ofDim[Link](maxLinkId + 1)
     allLinks.foreach {
       case (linkId, link) =>
