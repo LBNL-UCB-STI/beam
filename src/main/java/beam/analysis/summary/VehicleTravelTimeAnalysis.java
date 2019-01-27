@@ -75,6 +75,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
                 double freeFlowDuration = 0.0;
                 Map<Id<Link>, ? extends Link> linksMap;
                 if (scenario != null) {
+                    // FIXME Is there any better way to to have `Object` ??
                     for (Object linkIdObj : pte.linkIdsJava()) {
                         int linkId = (int)linkIdObj;
                         Link link = networkHelper.getLinkWithIndexUnsafe(Integer.toString(linkId)).link();

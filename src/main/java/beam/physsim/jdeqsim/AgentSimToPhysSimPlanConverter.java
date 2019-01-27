@@ -314,6 +314,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private Leg createLeg(String mode,  List<Object> links, double departureTime) {
         List<Id<Link>> linkIds = new ArrayList<>();
 
+        // FIXME Is there any better way not to have `Object`??
         for (Object link : links) {
             Id<Link> linkId = Id.createLinkId((int)link);
             linkIds.add(linkId);

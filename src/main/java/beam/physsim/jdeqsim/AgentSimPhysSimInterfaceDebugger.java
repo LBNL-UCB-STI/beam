@@ -27,12 +27,13 @@ public class AgentSimPhysSimInterfaceDebugger {
     }
 
     private void exploreAdjacentLinkConnectivity(Event event) {
+        // FIXME Is this used on productioin or only for debug purpose?
         Map<String, String> eventAttributes = event.getAttributes();
-        String mode_ = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
-        String links_ = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
-        String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
-        String vehicleId_ = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
-        double fuel = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_FUEL));
+        String mode_ = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE());
+        String links_ = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS());
+        String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE());
+        String vehicleId_ = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID());
+        double fuel = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_FUEL()));
 
         if (mode_.equalsIgnoreCase("subway")) {
             DebugLib.emptyFunctionForSettingBreakPoint();
