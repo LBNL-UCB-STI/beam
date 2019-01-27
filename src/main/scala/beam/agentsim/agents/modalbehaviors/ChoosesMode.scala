@@ -792,36 +792,39 @@ trait ChoosesMode {
               goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(cavTrip))
 
             case _ =>
-          }
-          // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
-          val originalWalkTripLeg =
-            routingResponse.itineraries.find(_.tripClassifier == WALK) match {
-              case Some(originalWalkTrip) =>
-                originalWalkTrip.legs.head
-              case None =>
-                R5RoutingWorker
-                  .createBushwackingTrip(
-                    beamServices.geo.utm2Wgs(currentPersonLocation.loc),
-                    beamServices.geo.utm2Wgs(nextAct.getCoord),
-                    _currentTick.get,
-                    body.toStreetVehicle,
-                    beamServices
-                  )
-                  .legs
-                  .head
-            }
-          val expensiveWalkTrip = EmbodiedBeamTrip(
-            Vector(originalWalkTripLeg.copy(cost = 100))
-          )
+              // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
+              val originalWalkTripLeg =
+                routingResponse.itineraries.find(_.tripClassifier == WALK) match {
+                  case Some(originalWalkTrip) =>
+                    originalWalkTrip.legs.head
+                  case None =>
+                    R5RoutingWorker
+                      .createBushwackingTrip(
+                        beamServices.geo.utm2Wgs(currentPersonLocation.loc),
+                        beamServices.geo.utm2Wgs(nextAct.getCoord),
+                        _currentTick.get,
+                        body.toStreetVehicle,
+                        beamServices
+                      )
+                      .legs
+                      .head
+                }
+              val expensiveWalkTrip = EmbodiedBeamTrip(
+                Vector(originalWalkTripLeg.copy(cost = 100))
+              )
 
-          goto(FinishingModeChoice) using choosesModeData.copy(
-            pendingChosenTrip = Some(expensiveWalkTrip)
-          )
+              goto(FinishingModeChoice) using choosesModeData.copy(
+                pendingChosenTrip = Some(expensiveWalkTrip)
+              )
+          }
       }
   }
 
   when(FinishingModeChoice, stateTimeout = Duration.Zero) {
     case Event(StateTimeout, data: ChoosesModeData) =>
+      if(id.toString.equals("1")){
+        val i = 0
+      }
       val chosenTrip = data.pendingChosenTrip.get
       val (tick, triggerId) = releaseTickAndTriggerId()
       // Write start and end links of chosen route into Activities.

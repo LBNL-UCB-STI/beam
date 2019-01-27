@@ -5,7 +5,7 @@ import akka.actor.{ActorRef, FSM, Props, Stash}
 import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicle
+import beam.agentsim.agents.household.HouseholdActor.{CAVPickupConfirmed, ReadyForCAVPickup, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
@@ -21,7 +21,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTrig
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, CAV, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
@@ -31,7 +31,6 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
-import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
 import scala.concurrent.duration._
@@ -53,7 +52,7 @@ object PersonAgent {
     parkingManager: ActorRef,
     eventsManager: EventsManager,
     personId: Id[PersonAgent],
-    household: Household,
+    householdRef: ActorRef,
     plan: Plan,
     sharedVehicleFleets: Seq[ActorRef]
   ): Props = {
@@ -70,6 +69,7 @@ object PersonAgent {
         plan,
         parkingManager,
         tollCalculator,
+        householdRef,
         sharedVehicleFleets
       )
     )
@@ -186,6 +186,7 @@ class PersonAgent(
   val matsimPlan: Plan,
   val parkingManager: ActorRef,
   val tollCalculator: TollCalculator,
+  val householdRef: ActorRef,
   val sharedVehicleFleets: Seq[ActorRef] = Vector()
 ) extends DrivesVehicle[PersonData]
     with ChoosesMode
@@ -413,6 +414,9 @@ class PersonAgent(
         data @ BasePersonData(_, _, _, _, _, _, _, _, _, _)
         ) =>
       handleFailedRideHailReservation(error, response, data)
+    // CAV Pickup SUCCESS
+    case Event(CAVPickupConfirmed(triggersToSchedule), data: BasePersonData) =>
+      handleSuccessfulReservation(triggersToSchedule, data)
   }
 
   when(Waiting) {
@@ -615,7 +619,7 @@ class PersonAgent(
         goto(stateToGo) using data.copy(
           passengerSchedule = newPassengerSchedule,
           currentLegPassengerScheduleIndex = 0,
-          currentVehicle = currentVehicleForNextState,
+          currentVehicle = currentVehicleForNextState
         )
       }
       nextState
@@ -649,7 +653,7 @@ class PersonAgent(
       goto(WaitingForReservationConfirmation)
     // RIDE_HAIL
     case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _))
-        if nextLeg.isRideHail =>
+      if nextLeg.isRideHail =>
       val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(
         leg => leg.beamVehicleId == nextLeg.beamVehicleId
       )
@@ -673,8 +677,13 @@ class PersonAgent(
           legSegment.last.beamLeg.travelPath.endPoint.loc
         )
       )
-
       goto(WaitingForReservationConfirmation)
+    // CAV
+    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _))
+        if nextLeg.beamLeg.mode == CAV =>
+      householdRef ! ReadyForCAVPickup(id,_currentTick.get)
+      goto(WaitingForReservationConfirmation)
+
     case Event(StateTimeout, BasePersonData(_, _, _ :: _, _, _, _, _, _, _, _)) =>
       val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)

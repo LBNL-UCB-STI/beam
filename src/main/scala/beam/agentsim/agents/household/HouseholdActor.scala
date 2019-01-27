@@ -14,7 +14,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Vehicle
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.agents.ridehail.RideHailAgent.ModifyPassengerSchedule
+import beam.agentsim.agents.ridehail.RideHailAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck}
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
 import beam.agentsim.agents.{HasTickAndTrigger, InitializeTrigger, PersonAgent}
@@ -86,8 +86,9 @@ object HouseholdActor {
   case class MobilityStatusInquiry(personId: Id[Person], whereWhen: SpaceTime)
   case class ReleaseVehicle(vehicle: BeamVehicle)
   case class ReleaseVehicleAndReply(vehicle: BeamVehicle)
-
   case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken])
+  case class ReadyForCAVPickup(personId: Id[Person], tick: Int)
+  case class CAVPickupConfirmed(triggersToSchedule: Vector[ScheduleTrigger])
 
   /**
     * Implementation of intra-household interaction in BEAM using actors.
@@ -148,6 +149,7 @@ object HouseholdActor {
     private var cavPlans: List[CAVSchedule] = List()
     private var cavPassengerSchedules: Map[BeamVehicle,List[PassengerSchedule]] = Map()
     private var personToCav: Map[Id[Person],BeamVehicle] = Map()
+    private var personsReadyForPickup: Set[Id[Person]] = Set()
     private var memberVehiclePersonIds: Map[Id[Person],VehiclePersonId] = Map()
 
     override def receive: Receive = {
@@ -172,7 +174,6 @@ object HouseholdActor {
             )
             context.watch(cavDriverRef)
             schedulerRef ! ScheduleTrigger(InitializeTrigger(0), cavDriverRef)
-            cav.driver = Some(cavDriverRef)
             cav.manager = Some(self)
           }
           val householdBeamPlans = household.members.map(person => BeamPlan(person.getSelectedPlan)).toList
@@ -225,7 +226,7 @@ object HouseholdActor {
               parkingManager,
               eventsManager,
               person.getId,
-              household,
+              self,
               person.getSelectedPlan,
               sharedVehicleFleets
             ),
@@ -267,16 +268,20 @@ object HouseholdActor {
         val (_, triggerId) = releaseTickAndTriggerId()
         completeInitialization(triggerId)
 
-
       case NotifyVehicleIdle(vId, whenWhere, _, _, _) =>
         val vehId = vId.asInstanceOf[Id[BeamVehicle]]
         vehicles(vehId).spaceTime = whenWhere
         log.debug("updated vehicle {} with location {}", vehId, whenWhere)
 
       case ReleaseVehicle(vehicle) =>
-        vehicle.unsetDriver()
-        availableVehicles = vehicle :: availableVehicles
-        log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
+        if(vehicle.beamVehicleType.automationLevel > 3){
+          //TODO update cav schedule and re-dispatch this vehicle if necessary
+          val i = 0
+        }else{
+          vehicle.unsetDriver()
+          availableVehicles = vehicle :: availableVehicles
+          log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
+        }
 
       case ReleaseVehicleAndReply(vehicle) =>
         vehicle.unsetDriver()
@@ -301,6 +306,26 @@ object HouseholdActor {
             }
         }
 
+      case ReadyForCAVPickup(personId,tick) =>
+        personToCav.get(personId) match {
+          case Some(cav) =>
+            // we are expecting the person to be picked up next so we dispatch the vehicle
+            val (nextSchedule::remainingSchedules) = cavPassengerSchedules(cav)
+            if(tick > nextSchedule.schedule.head._1.startTime)log.warning("Person is late for CAV pickup...")
+            cav.driver.get ! ModifyPassengerSchedule(nextSchedule,
+              nextSchedule.schedule.head._1.startTime,
+              Some(personId.toString.toInt)
+            )
+
+          case None =>
+            // we hold this person and will dispatch the vehicle when it is ready
+            personsReadyForPickup = personsReadyForPickup + personId
+        }
+
+      case ModifyPassengerScheduleAck(requestId,triggersToSchedule,_,_) =>
+        val personId = Id.create(requestId.get.toString,classOf[Person])
+        memberVehiclePersonIds(personId).personRef ! CAVPickupConfirmed(triggersToSchedule)
+
       case Finish =>
         context.children.foreach(_ ! Finish)
         dieIfNoChildren()
@@ -317,7 +342,7 @@ object HouseholdActor {
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.
       Future
-        .sequence(vehicles.values.map { veh =>
+        .sequence(vehicles.filter(keyVal => !cavPassengerSchedules.contains(keyVal._2)).values.map { veh =>
           veh.manager = Some(self)
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           parkingManager ? ParkingInquiry(
@@ -348,3 +373,4 @@ object HouseholdActor {
   }
 
 }
+

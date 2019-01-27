@@ -5,9 +5,11 @@ import akka.actor.FSM.Failure
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.PersonAgent.{DrivingData, PassengerScheduleEmpty, VehicleStack, WaitingToDrive}
+import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicle
 import beam.agentsim.agents.household.HouseholdCAVDriverAgent.HouseholdCAVDriverData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, StartLegTrigger}
+import beam.agentsim.agents.ridehail.RideHailAgent.{Idle, ModifyPassengerSchedule, ModifyPassengerScheduleAck}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -53,7 +55,8 @@ class HouseholdCAVDriverAgent(
         new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_household_cav_driver")
       )
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-      goto(WaitingToDrive) using data
+      vehicle.driver = Some(self)
+      goto(Idle) using data
         .copy(currentVehicle = Vector(vehicle.id))
         .asInstanceOf[HouseholdCAVDriverData] replying
       CompletionNotice(
@@ -61,10 +64,35 @@ class HouseholdCAVDriverAgent(
         Vector()
       )
   }
+  when(Idle){
+    case ev @ Event(ModifyPassengerSchedule(updatedPassengerSchedule, tick, requestId), data) =>
+      log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
+      // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
+      // i.e. for what time it is. For now, we just believe it that time is not running backwards.
+      log.debug("updating Passenger schedule - vehicleId({}): {}", id, updatedPassengerSchedule)
+      val triggerToSchedule = Vector(
+        ScheduleTrigger(
+          StartLegTrigger(
+            updatedPassengerSchedule.schedule.firstKey.startTime,
+            updatedPassengerSchedule.schedule.firstKey
+          ),
+          self
+        )
+      )
+      goto(WaitingToDrive) using data
+        .withPassengerSchedule(updatedPassengerSchedule)
+        .asInstanceOf[HouseholdCAVDriverData] replying ModifyPassengerScheduleAck(
+        requestId,
+        triggerToSchedule,
+        vehicle.id,
+        tick
+      )
+  }
 
   when(PassengerScheduleEmpty) {
     case Event(PassengerScheduleEmptyMessage(_, _), _) =>
-      stay
+      vehicle.manager.get ! ReleaseVehicle(vehicle)
+      goto(Idle)
     case Event(TriggerWithId(KillTrigger(_), triggerId), _) =>
       scheduler ! CompletionNotice(triggerId)
       stop
