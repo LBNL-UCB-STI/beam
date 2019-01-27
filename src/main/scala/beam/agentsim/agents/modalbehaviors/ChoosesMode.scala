@@ -268,6 +268,9 @@ trait ChoosesMode {
         case Some(WALK_TRANSIT) =>
           responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle), withParking = false)
+        case Some(CAV) =>
+          // This is the do nothing scenario
+          responsePlaceholders = makeResponsePlaceholders()
         case Some(mode @ (CAR | BIKE)) =>
           val maybeLeg = _experiencedBeamPlan.getPlanElements
             .get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {

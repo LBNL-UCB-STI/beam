@@ -28,6 +28,7 @@ case class MobilityServiceRequest(
   time: Double,
   deltaTime: Double,
   tag: MobilityServiceRequestType,
+  nextActivity: Option[Activity] = None,
   routingRequestId: Option[Int] = None
 ) {
   override def toString =
@@ -49,14 +50,17 @@ class HouseholdPlansToMSR(plans: List[BeamPlan], skim: Map[Coord, Map[Coord, Dou
         Dropoff
       )
     }
-    plan.activities.dropRight(1).foreach{ activity =>
-      requests = requests :+ new MobilityServiceRequest(
-        Some(plan.getPerson.getId),
-        activity,
-        activity.getEndTime,
-        0.0,
-        Pickup
-      )
+    plan.activities.sliding(2).foreach{ activityTuple =>
+      if(activityTuple.size==2){
+        requests = requests :+ new MobilityServiceRequest(
+          Some(plan.getPerson.getId),
+          activityTuple(0),
+          activityTuple(0).getEndTime,
+          0.0,
+          Pickup,
+          nextActivity = Some(activityTuple(1))
+        )
+      }
     }
   }
   requests = requests.sortWith(_.time < _.time)
@@ -160,13 +164,13 @@ class CAVSchedule(val schedule: List[MobilityServiceRequest], val cav: BeamVehic
         if (occupancy == 0 && newDeltaTime < -1 * timeWindow) {
           val relocationRequest =
             new MobilityServiceRequest(None, request.activity, request.time - 1, newDeltaTime, Relocation)
-          val newRequest = new MobilityServiceRequest(request.person, request.activity, request.time, 0, Pickup)
+          val newRequest = new MobilityServiceRequest(request.person, request.activity, request.time, 0, Pickup, request.nextActivity)
           newCavSchedule = Some(
             new CAVSchedule(schedule :+ relocationRequest :+ newRequest, cav, newCost, occupancy + 1)
           )
         } else if (occupancy < cav.beamVehicleType.seatingCapacity && math.abs(newDeltaTime) <= timeWindow) {
           val newRequest =
-            new MobilityServiceRequest(request.person, request.activity, request.time, newDeltaTime, Pickup)
+            new MobilityServiceRequest(request.person, request.activity, request.time, newDeltaTime, Pickup, request.nextActivity)
           newCavSchedule = Some(new CAVSchedule(schedule :+ newRequest, cav, newCost, occupancy + 1))
         } else {
           // Dead End, Not going down this branch

@@ -32,6 +32,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.population.PopulationUtils
 import org.matsim.households
 import org.matsim.households.Household
 
@@ -146,11 +147,65 @@ object HouseholdActor {
     private var availableVehicles: List[BeamVehicle] = Nil
     private var cavPlans: List[CAVSchedule] = List()
     private var cavPassengerSchedules: Map[BeamVehicle,List[PassengerSchedule]] = Map()
+    private var personToCav: Map[Id[Person],BeamVehicle] = Map()
     private var memberVehiclePersonIds: Map[Id[Person],VehiclePersonId] = Map()
 
     override def receive: Receive = {
 
       case TriggerWithId(InitializeTrigger(tick), triggerId) =>
+        // If any of my vehicles are CAVs then go through scheduling process
+        val cavs = vehicles.filter(_._2.beamVehicleType.automationLevel>3).map(_._2).toList
+        if(cavs.size>0) {
+          cavs.foreach { cav =>
+            val cavDriverRef: ActorRef = context.actorOf(
+              HouseholdCAVDriverAgent.props(
+                HouseholdCAVDriverAgent.idFromVehicleId(cav.id),
+                schedulerRef,
+                beamServices,
+                eventsManager,
+                parkingManager,
+                cav,
+                Seq(),
+                transportNetwork,
+                tollCalculator
+              )
+            )
+            context.watch(cavDriverRef)
+            schedulerRef ! ScheduleTrigger(InitializeTrigger(0), cavDriverRef)
+            cav.driver = Some(cavDriverRef)
+            cav.manager = Some(self)
+          }
+          val householdBeamPlans = household.members.map(person => BeamPlan(person.getSelectedPlan)).toList
+          val householdMatsimPlans = household.members.map(person => (person.getId -> person.getSelectedPlan)).toMap
+          val cavScheduler = new HouseholdCAVScheduling(householdBeamPlans, cavs, 15 * 60, HouseholdCAVScheduling.computeSkim(householdBeamPlans))
+          //          val optimalPlan = cavScheduler().sortWith(_.cost < _.cost).head.cavFleetSchedule
+          val optimalPlan = cavScheduler().sortWith(_.cavFleetSchedule.map(_.schedule.size).sum > _.cavFleetSchedule.map(_.schedule.size).sum).head.cavFleetSchedule
+          val requestsAndUpdatedPlans = optimalPlan.map {
+            _.toRoutingRequests(beamServices)
+          }
+          val routingRequests = requestsAndUpdatedPlans.map {
+            _._1.flatten
+          }.flatten
+          cavPlans = requestsAndUpdatedPlans.map(_._2)
+          val memberMap = household.members.map(person => (person.getId -> person)).toMap
+          optimalPlan.foreach { plan =>
+            val i = 0
+            personToCav = personToCav + (plan.schedule.find(_.tag == Pickup).get.person.get -> plan.cav)
+            plan.schedule.foreach { cavPlan =>
+              if(cavPlan.tag == Pickup){
+                val oldPlan = householdMatsimPlans(cavPlan.person.get)
+                val newPlan = BeamPlan.addOrReplaceLegBetweenActivities(oldPlan,PopulationUtils.createLeg("cav"),cavPlan.activity,cavPlan.nextActivity.get)
+                memberMap(cavPlan.person.get).addPlan(newPlan)
+                memberMap(cavPlan.person.get).setSelectedPlan(newPlan)
+                memberMap(cavPlan.person.get).removePlan(oldPlan)
+              }
+            }
+          }
+          holdTickAndTriggerId(tick, triggerId)
+          Future
+            .sequence(routingRequests.map(akka.pattern.ask(router, _).mapTo[RoutingResponse]))
+            .map(RoutingResponses(tick, _)) pipeTo self
+        }
         household.members.foreach { person =>
           val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
 
@@ -182,44 +237,7 @@ object HouseholdActor {
 
           schedulerRef ! ScheduleTrigger(InitializeTrigger(0), personRef)
         }
-
-        // If any of my vehicles are CAVs then go through scheduling process
-        val cavs = vehicles.filter(_._2.beamVehicleType.automationLevel>3).map(_._2).toList
-        if(cavs.size>0){
-          cavs.foreach{cav =>
-            val cavDriverRef: ActorRef = context.actorOf(
-              HouseholdCAVDriverAgent.props(
-                HouseholdCAVDriverAgent.idFromVehicleId(cav.id),
-                schedulerRef,
-                beamServices,
-                eventsManager,
-                parkingManager,
-                cav,
-                Seq(),
-                transportNetwork,
-                tollCalculator
-              )
-            )
-            context.watch(cavDriverRef)
-            schedulerRef ! ScheduleTrigger(InitializeTrigger(0), cavDriverRef)
-            cav.driver = Some(cavDriverRef)
-            cav.manager = Some(self)
-          }
-          val householdPlans = household.members.map(person => BeamPlan(person.getSelectedPlan)).toList
-          val cavScheduler = new HouseholdCAVScheduling(householdPlans, cavs, 15*60, HouseholdCAVScheduling.computeSkim(householdPlans))
-//          val optimalPlan = cavScheduler().sortWith(_.cost < _.cost).head.cavFleetSchedule
-          val optimalPlan = cavScheduler().sortWith(_.cavFleetSchedule.map(_.schedule.size).sum > _.cavFleetSchedule.map(_.schedule.size).sum).head.cavFleetSchedule
-          val requestsAndUpdatedPlans = optimalPlan.map { _.toRoutingRequests(beamServices) }
-          val routingRequests = requestsAndUpdatedPlans.map{_._1.flatten}.flatten
-          cavPlans = requestsAndUpdatedPlans.map(_._2)
-
-          holdTickAndTriggerId(tick,triggerId)
-          Future
-            .sequence(routingRequests.map(akka.pattern.ask(router, _).mapTo[RoutingResponse]))
-            .map(RoutingResponses(tick, _)) pipeTo self
-        }else{
-          completeInitialization(triggerId)
-        }
+        if(cavs.isEmpty)completeInitialization(triggerId)
 
       case RoutingResponses(tick, routingResponses) =>
         // Index the responsed by Id
@@ -243,7 +261,7 @@ object HouseholdActor {
         cavPassengerSchedules.foreach { cavAndSchedules =>
           val nextSchedule = cavAndSchedules._2.head
           if(nextSchedule.schedule.map(_._2.riders.size).sum == 0){
-            cavAndSchedules._1.driver ! ModifyPassengerSchedule(nextSchedule,tick)
+            cavAndSchedules._1.driver.get ! ModifyPassengerSchedule(nextSchedule,tick)
           }
         }
         val (_, triggerId) = releaseTickAndTriggerId()

@@ -1,5 +1,7 @@
 package beam.agentsim.agents.household
 import beam.agentsim.agents.planning.BeamPlan
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.{Activity, Person, Plan}
 import org.matsim.core.config.ConfigUtils
@@ -17,7 +19,11 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val plans = scenario1()
     val timeWindow = 15 * 60
     val skim = HouseholdCAVScheduling.computeSkim(plans)
-    val algo = new HouseholdCAVScheduling(plans, 1, timeWindow, skim)
+    val cavVehicle = new BeamVehicle(Id.create("cav",classOf[BeamVehicle]),
+      BeamVehicleType.powerTrainForHumanBody,
+      BeamVehicleType.defaultCarBeamVehicleType
+    )
+    val algo = new HouseholdCAVScheduling(plans, List(cavVehicle), timeWindow, skim)
     val schedules = algo().sortWith(_.cost < _.cost)
     schedules should have length 4
     schedules.foreach { x =>
