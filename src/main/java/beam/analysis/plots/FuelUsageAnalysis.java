@@ -104,7 +104,7 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
 
     private void processFuelUsage(PathTraversalEvent event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
-        String vehicleType = event.vehicleType().toString();
+        String vehicleType = event.vehicleType();
         String originalMode = event.mode().value();
         String vehicleId = event.vehicleId().toString();
         double lengthInMeters = event.legLength();

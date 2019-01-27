@@ -63,7 +63,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
         } else if (event instanceof PathTraversalEvent) {
             PathTraversalEvent pte = (PathTraversalEvent) event;
             String mode = pte.mode().value();
-            String vehicleTypes = pte.vehicleType().toString();
+            String vehicleTypes = pte.vehicleType();
             double travelDurationInSec = pte.arrivalTime() - pte.departureTime();
             int numOfPassengers = pte.numPass();
             int seatingCapacity = pte.seatingCapacity();

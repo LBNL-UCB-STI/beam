@@ -23,7 +23,7 @@ public class MotorizedVehicleMilesTraveledAnalysis implements IterationSummaryAn
     public void processStats(Event event) {
         if (event instanceof PathTraversalEvent) {
             PathTraversalEvent pte = (PathTraversalEvent)event;
-            String vehicleType = pte.vehicleType().toString();
+            String vehicleType = pte.vehicleType();
             double lengthInMeters = pte.legLength();
 
             milesTraveledByVehicleType.merge(vehicleType, lengthInMeters, (d1, d2) -> d1 + d2);

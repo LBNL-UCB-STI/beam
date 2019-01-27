@@ -17,7 +17,10 @@ class PathTraversalEvent(
   val time: Double,
   val vehicleId: Id[Vehicle],
   val driverId: String,
-  val vehicleType: BeamVehicleType,
+  val vehicleType: String,
+  val seatingCapacity: Int,
+  val standingRoomCapacity: Int,
+  val fuelType: String,
   val numPass: Int,
   val departureTime: Int,
   val arrivalTime: Int,
@@ -35,13 +38,9 @@ class PathTraversalEvent(
 ) extends Event(time) {
   import PathTraversalEvent._
 
-  def capacity: Int = vehicleType.seatingCapacity + vehicleType.standingRoomCapacity
-
-  def fuelType: String = Option(vehicleType.primaryFuelType).map(_.toString).getOrElse("")
+  def capacity: Int = seatingCapacity + standingRoomCapacity
 
   def linkIdsJava: util.List[Int] = linkIds.asJava
-
-  def seatingCapacity: Int = vehicleType.seatingCapacity
 
   override def getEventType: String = "PathTraversal"
 
@@ -49,12 +48,12 @@ class PathTraversalEvent(
     new AtomicReference[util.Map[String, String]](Collections.emptyMap())
 
   override def getAttributes: util.Map[String, String] = {
-    var attr = attributes.get();
+    var attr = attributes.get()
     if (attr == Collections.EMPTY_MAP) {
       attr = super.getAttributes()
       attr.put(ATTRIBUTE_VEHICLE_ID, vehicleId.toString)
       attr.put(ATTRIBUTE_DRIVER_ID, driverId)
-      attr.put(ATTRIBUTE_VEHICLE_TYPE, vehicleType.toString)
+      attr.put(ATTRIBUTE_VEHICLE_TYPE, vehicleType)
       attr.put(ATTRIBUTE_LENGTH, legLength.toString)
       attr.put(ATTRIBUTE_NUM_PASS, numPass.toString)
 
@@ -119,7 +118,10 @@ object PathTraversalEvent {
       time = time,
       vehicleId = vehicleId,
       driverId = driverId,
-      vehicleType = vehicleType,
+      vehicleType = vehicleType.id.toString,
+      seatingCapacity = vehicleType.seatingCapacity,
+      standingRoomCapacity = vehicleType.standingRoomCapacity,
+      fuelType = vehicleType.primaryFuelType.toString,
       numPass = numPass,
       departureTime = beamLeg.startTime,
       arrivalTime = beamLeg.endTime,

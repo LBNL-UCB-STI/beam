@@ -333,14 +333,13 @@ class RideHailIterationsStatsCollector(
     }
   }
 
-  private def calculateStats(pathTraversalEvent: PathTraversalEvent): Unit = {
+  private def calculateStats(event: PathTraversalEvent): Unit = {
 
-    processPathTraversalEvent(pathTraversalEvent)
+    processPathTraversalEvent(event)
 
-    val attr = pathTraversalEvent.getAttributes
-    val mode = attr.get(PathTraversalEvent.ATTRIBUTE_MODE)
-    val vehicleId = attr.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
-    val numPass = attr.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toInt
+    val mode = event.mode.value
+    val vehicleId = event.vehicleId.toString
+    val numPass = event.numPass
 
     if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHail")) {
       if (numPass > 0) {
@@ -348,7 +347,7 @@ class RideHailIterationsStatsCollector(
       } else if (vehicles.getOrElse(vehicleId, -1) < 0) {
         vehicles.put(vehicleId, 0)
       }
-      collectIdlingVehicles(vehicleId, pathTraversalEvent)
+      collectIdlingVehicles(vehicleId, event)
     }
   }
 

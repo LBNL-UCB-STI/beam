@@ -19,7 +19,7 @@ public class NumberOfVehiclesAnalysis implements IterationSummaryAnalysis {
             PathTraversalEvent pte = (PathTraversalEvent)event;
             String vehicleId = pte.vehicleId().toString();
             if(uniqueVehicleIds.add(vehicleId)) {
-                String vehicleType = pte.vehicleType().toString();
+                String vehicleType = pte.vehicleType();
                 numberOfVehiclesByType.merge(vehicleType, 1, (d1, d2) -> d1 + d2);
             }
         }
