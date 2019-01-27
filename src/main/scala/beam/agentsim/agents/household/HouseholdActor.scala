@@ -83,7 +83,7 @@ object HouseholdActor {
     )
   }
 
-  case class MobilityStatusInquiry(whereWhen: SpaceTime)
+  case class MobilityStatusInquiry(personId: Id[Person], whereWhen: SpaceTime)
   case class ReleaseVehicle(vehicle: BeamVehicle)
   case class ReleaseVehicleAndReply(vehicle: BeamVehicle)
 
@@ -284,16 +284,21 @@ object HouseholdActor {
         log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
         sender() ! Success
 
-      case MobilityStatusInquiry(_) =>
-        availableVehicles = availableVehicles match {
-          case firstVehicle :: rest =>
-            log.debug("Vehicle {} is now taken", firstVehicle.id)
-            firstVehicle.becomeDriver(sender)
-            sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)))
-            rest
-          case Nil =>
-            sender() ! MobilityStatusResponse(Vector())
-            Nil
+      case MobilityStatusInquiry(personId,_) =>
+        personToCav.get(personId) match {
+          case Some(cav) =>
+            sender() ! MobilityStatusResponse(Vector(ActualVehicle(cav)))
+          case None =>
+            availableVehicles = availableVehicles match {
+              case firstVehicle :: rest =>
+                log.debug("Vehicle {} is now taken", firstVehicle.id)
+                firstVehicle.becomeDriver(sender)
+                sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)))
+                rest
+              case Nil =>
+                sender() ! MobilityStatusResponse(Vector())
+                Nil
+            }
         }
 
       case Finish =>

@@ -571,7 +571,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             )
           }
         } else {
-          Some(dummyWalk(routingRequest.departureTime))
+          Some(dummyLeg(routingRequest.departureTime))
         }
       } else {
         None
@@ -1284,7 +1284,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     // Optionally add a Dummy walk BeamLeg to the end of that trip
     if (isRouteForPerson && access.mode != LegMode.WALK) {
       if (!isTransit)
-        legsWithFares += LegWithFare(dummyWalk(legsWithFares.last.leg.endTime), 0.0)
+        legsWithFares += LegWithFare(dummyLeg(legsWithFares.last.leg.endTime), 0.0)
     }
 
     if (isTransit) {
@@ -1345,7 +1345,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         val egress = option.egress.get(itinerary.connection.egress)
         legsWithFares ++= buildStreetBasedLegs(egress, arrivalTime, routingRequest.mustParkAtEnd)
         if (isRouteForPerson && egress.mode != LegMode.WALK)
-          legsWithFares += LegWithFare(dummyWalk(arrivalTime + egress.duration), 0.0)
+          legsWithFares += LegWithFare(dummyLeg(arrivalTime + egress.duration), 0.0)
       }
     }
     maybeUseVehicleOnEgress.foreach { legWithFare =>
@@ -1354,7 +1354,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       legsWithFares += LegWithFare(updatedLeg, legWithFare.fare)
     }
     if (maybeUseVehicleOnEgress.nonEmpty && isRouteForPerson) {
-      legsWithFares += LegWithFare(dummyWalk(legsWithFares.last.leg.endTime), 0.0)
+      legsWithFares += LegWithFare(dummyLeg(legsWithFares.last.leg.endTime), 0.0)
     }
     // TODO is it correct way to find first non-dummy leg
     val fistNonDummyLeg = legsWithFares.collectFirst {

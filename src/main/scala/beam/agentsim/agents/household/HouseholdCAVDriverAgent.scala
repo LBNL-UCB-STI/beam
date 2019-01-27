@@ -49,7 +49,6 @@ class HouseholdCAVDriverAgent(
     case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
       logDebug(s" $id has been initialized, going to Waiting state")
       beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
-      vehicle.becomeDriver(self)
       eventsManager.processEvent(
         new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_household_cav_driver")
       )

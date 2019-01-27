@@ -44,8 +44,8 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
 
 object BeamLeg {
 
-  def dummyWalk(startTime: Int): BeamLeg =
-    new BeamLeg(0, WALK, 0, BeamPath(Vector(), Vector(), None, SpaceTime.zero, SpaceTime.zero, 0))
+  def dummyLeg(startTime: Int, mode: BeamMode = WALK): BeamLeg =
+    new BeamLeg(0, mode, 0, BeamPath(Vector(), Vector(), None, SpaceTime.zero, SpaceTime.zero, 0))
       .updateStartTime(startTime)
 
   def makeLegsConsistent(legs: List[BeamLeg]): List[BeamLeg] = {
