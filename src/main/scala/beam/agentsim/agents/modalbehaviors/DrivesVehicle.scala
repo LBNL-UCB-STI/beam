@@ -169,7 +169,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       val tollOnCurrentLeg = toll(currentLeg)
       tollsAccumulated += tollOnCurrentLeg
       eventsManager.processEvent(
-        new PathTraversalEvent(
+        PathTraversalEvent(
           tick,
           currentVehicleUnderControl,
           id.toString,
@@ -332,7 +332,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       val tollOnCurrentLeg = toll(currentLeg)
       tollsAccumulated += tollOnCurrentLeg
       eventsManager.processEvent(
-        new PathTraversalEvent(
+        PathTraversalEvent(
           stopTick,
           currentVehicleUnderControl,
           id.toString,
