@@ -19,10 +19,10 @@ public class PersonCostEvent extends Event implements HasPersonId {
     public static final String ATTRIBUTE_NET_COST = "netCost";
 
     private final Id<Person> personId;
-    private String mode;
-    private double incentive;
-    private double tollCost;
-    private double netCost;
+    private final String mode;
+    private final double incentive;
+    private final double tollCost;
+    private final double netCost;
 
     private final AtomicReference<Map<String, String>> attributes;
 
