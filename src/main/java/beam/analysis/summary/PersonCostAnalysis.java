@@ -23,21 +23,21 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
   @Override
   public void processStats(Event event) {
     if (event instanceof PersonCostEvent || event.getEventType().equalsIgnoreCase(PersonCostEvent.EVENT_TYPE)) {
-      Map<String, String> attributes = event.getAttributes();
-      String mode = attributes.get(PersonCostEvent.ATTRIBUTE_MODE);
+      PersonCostEvent pce = (PersonCostEvent)event;
+      String mode = pce.getMode();
       Double cost = 0.0;
       for (String costType : costTypes) {
         switch (costType) {
           case "Cost":
-            cost = Double.parseDouble(attributes.get(PersonCostEvent.ATTRIBUTE_NET_COST));
+            cost = pce.getNetCost();
             totalNetCost += cost;
-            personIdCost.put(attributes.get(PersonCostEvent.ATTRIBUTE_PERSON), cost);
+            personIdCost.put(pce.getPersonId().toString(), cost);
             break;
           case "Incentive":
-            cost = Double.parseDouble(attributes.get(PersonCostEvent.ATTRIBUTE_INCENTIVE));
+            cost = pce.getIncentive();
             break;
           case "Toll":
-            cost = Double.parseDouble(attributes.get(PersonCostEvent.ATTRIBUTE_TOLL_COST));
+            cost = pce.getTollCost();
             break;
         }
         String statType = String.format("total%s_%s", costType, mode);
@@ -49,10 +49,10 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
       numberOfTrips++;
     }
     if (event instanceof ActivityStartEvent || event.getEventType().equalsIgnoreCase(ActivityStartEvent.EVENT_TYPE)) {
-      Map<String, String> attributes = event.getAttributes();
-      String personId = attributes.get(ActivityStartEvent.ATTRIBUTE_PERSON);
+      ActivityStartEvent ase = (ActivityStartEvent) event;
+      String personId = ase.getPersonId().toString();
       if(personIdCost.containsKey(personId)){
-        String actType = attributes.get(ActivityStartEvent.ATTRIBUTE_ACTTYPE);
+        String actType = ase.getActType();
         String statType = String.format("averageTripExpenditure_%s", actType);
         double cost = personIdCost.get(personId);
         personCostByActivityType.merge(statType, cost, (d1, d2) -> d1 + d2);
