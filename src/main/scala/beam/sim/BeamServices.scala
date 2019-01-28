@@ -255,6 +255,8 @@ object BeamServices {
           val rechargeLevel2RateLimitInWatts = Option(line.get("rechargeLevel2RateLimitInWatts")).map(_.toDouble)
           val rechargeLevel3RateLimitInWatts = Option(line.get("rechargeLevel3RateLimitInWatts")).map(_.toDouble)
           val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
+          val caccEnabled = Option(line.get("caccEnabled")).map(_.toBoolean).getOrElse(false)
+
 
           val bvt = BeamVehicleType(
             vehicleTypeId,
@@ -274,7 +276,8 @@ object BeamServices {
             passengerCarUnit,
             rechargeLevel2RateLimitInWatts,
             rechargeLevel3RateLimitInWatts,
-            vehicleCategory
+            vehicleCategory,
+            caccEnabled
           )
           z += ((vehicleTypeId, bvt))
       }

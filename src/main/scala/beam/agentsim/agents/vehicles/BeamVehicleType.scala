@@ -30,7 +30,8 @@ case class BeamVehicleType(
   passengerCarUnit: Double = 1,
   rechargeLevel2RateLimitInWatts: Option[Double] = None,
   rechargeLevel3RateLimitInWatts: Option[Double] = None,
-  vehicleCategory: VehicleCategory
+  vehicleCategory: VehicleCategory,
+  caccEnabled: Boolean = false
 )
 
 object BeamVehicleType {
