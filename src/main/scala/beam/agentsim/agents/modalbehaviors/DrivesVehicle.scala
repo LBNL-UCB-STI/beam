@@ -212,7 +212,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               beamServices.geo
                 .distUTMInMeters(stall.locationUTM, beamServices.geo.wgs2Utm(nextLeg.travelPath.endPoint.loc))
             eventsManager
-              .processEvent(new ParkEvent(tick, stall, distance, currentBeamVehicle.id, id.asInstanceOf[Id[Person]])) // nextLeg.endTime -> to fix repeated path traversal
+              .processEvent(new ParkEvent(tick, stall, distance, currentBeamVehicle.id, id.toString)) // nextLeg.endTime -> to fix repeated path traversal
           }
           currentBeamVehicle.setReservedParkingStall(None)
         }

@@ -10,12 +10,11 @@ import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
 
 /**HasPersonId is added as Matsim ScoringFunction for population requires it**/
-class ParkEvent(time: Double, stall: ParkingStall, distance: Double, vehId: Id[Vehicle], driverId: Id[Person])
+class ParkEvent(time: Double, stall: ParkingStall, distance: Double, vehId: Id[Vehicle], driverId: String)
     extends Event(time)
-    with ParkEventAttrs
-    with HasPersonId {
+    with ParkEventAttrs {
 
-  override def getPersonId: Id[Person] = driverId
+  def getDriverId: String = driverId
 
   override def getEventType: String = ParkEventAttrs.EVENT_TYPE
 
@@ -24,14 +23,6 @@ class ParkEvent(time: Double, stall: ParkingStall, distance: Double, vehId: Id[V
 
     attr.put(ParkEventAttrs.ATTRIBUTE_DISTANCE, distance.toString)
     attr.put(ParkEventAttrs.ATTRIBUTE_VEHICLE_ID, vehId.toString)
-
-//    for{
-//      stallValues <- stall.stallValues
-//      parkingId <- stallValues.parkingId
-//    } yield{
-//      attr.put(ParkEventAttrs.ATTRIBUTE_PARKING_ID, parkingId.toString)
-//    }
-
     attr.put(ParkEventAttrs.ATTRIBUTE_COST, stall.cost.toString)
     attr.put(ParkEventAttrs.ATTRIBUTE_LOCATION_X, stall.locationUTM.getX.toString)
     attr.put(ParkEventAttrs.ATTRIBUTE_LOCATION_Y, stall.locationUTM.getY.toString)
