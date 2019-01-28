@@ -357,7 +357,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         val fuelAndTollCostPerLeg = legPair.map { beamLeg =>
           val fuelCost = DrivingCost.estimateDrivingCost(beamLeg, vehicleTypeId, beamServices)
           val toll = if (beamLeg.mode == CAR) {
-            val osm = beamLeg.travelPath.linkIds.toVector.map { e =>
+            val osm = beamLeg.travelPath.linkIds.map { e =>
               transportNetwork.streetLayer.edgeStore
                 .getCursor(e)
                 .getOSMID
