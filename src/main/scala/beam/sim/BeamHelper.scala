@@ -373,7 +373,7 @@ trait BeamHelper extends LazyLogging {
 
     val beamServices = injector.getInstance(classOf[BeamServices])
 
-    beamServices.setNetworkTripFleetSizes(networkCoordinator.tripFleetSizeMap)
+    beamServices.setTransitFleetSizes(networkCoordinator.tripFleetSizeMap)
 
     val beamConfig = beamServices.beamConfig
     var useCSVFiles

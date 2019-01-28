@@ -65,8 +65,8 @@ trait BeamServices {
   def startNewIteration()
 
   def networkHelper: NetworkHelper
-  var networkTripFleetSizes: mutable.HashMap[String, Integer] = mutable.HashMap.empty
-  def setNetworkTripFleetSizes(tripFleetSizeMap: mutable.HashMap[String, Integer])
+  var transitFleetSizes: mutable.HashMap[String, Integer] = mutable.HashMap.empty
+  def setTransitFleetSizes(tripFleetSizeMap: mutable.HashMap[String, Integer])
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
@@ -156,8 +156,8 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
     }
   }
 
-  override def setNetworkTripFleetSizes(tripFleetSizeMap: mutable.HashMap[String, Integer]): Unit = {
-    this.networkTripFleetSizes = tripFleetSizeMap
+  override def setTransitFleetSizes(tripFleetSizeMap: mutable.HashMap[String, Integer]): Unit = {
+    this.transitFleetSizes = tripFleetSizeMap
   }
 
   private val _networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])

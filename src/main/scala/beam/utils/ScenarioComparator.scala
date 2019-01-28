@@ -150,7 +150,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
       override val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = ???
       override val ptFares: PtFares = ???
       override def networkHelper: NetworkHelper = ???
-      override def setNetworkTripFleetSizes(
+      override def setTransitFleetSizes(
         tripFleetSizeMap: mutable.HashMap[String, Integer]
       ): Unit = {}
     }

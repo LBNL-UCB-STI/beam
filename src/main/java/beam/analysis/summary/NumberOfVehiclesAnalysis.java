@@ -26,14 +26,10 @@ public class NumberOfVehiclesAnalysis implements IterationSummaryAnalysis{
         if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
             Map<String, String> eventAttributes = event.getAttributes();
             String vehicleId = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
-            if(BeamVehicleType.isTransitVehicle(Id.createVehicleId(vehicleId))) {
-                JavaConverters.mapAsJavaMap(beamServices.networkTripFleetSizes()).forEach((k,v) -> numberOfVehiclesByType.put(k,v));
-            } else {
-                if (uniqueVehicleIds.add(vehicleId)) {
+            if (uniqueVehicleIds.add(vehicleId)) {
                     String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
                     numberOfVehiclesByType.merge(vehicleType, 1, (d1, d2) -> d1 + d2);
                 }
-            }
         }
     }
 
@@ -45,6 +41,7 @@ public class NumberOfVehiclesAnalysis implements IterationSummaryAnalysis{
 
     @Override
     public Map<String, Double> getSummaryStats() {
+        JavaConverters.mapAsJavaMap(beamServices.transitFleetSizes()).forEach((k,v) -> numberOfVehiclesByType.put(k,v));
         return numberOfVehiclesByType.entrySet().stream().collect(Collectors.toMap(
                 e -> "numberOfVehicles_" + e.getKey(),
                 e -> e.getValue().doubleValue()

@@ -140,7 +140,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override def matsimServices: org.matsim.core.controler.MatsimServices = ???
 
         override def networkHelper: NetworkHelper = ???
-        override def setNetworkTripFleetSizes(
+        override def setTransitFleetSizes(
           tripFleetSizeMap: mutable.HashMap[String, Integer]
         ): Unit = {}
       }
