@@ -406,11 +406,11 @@ object ParkingStatsCollector extends OutputDataDescriptor {
     val outputDataDescription =
       OutputDataDescription(classOf[ParkingStatsCollector].getSimpleName.dropRight(1), relativePath, "", "")
     List(
-      "timeBin"                     -> "Bin in a day",
-      "TAZ"                         -> "Central point of the parking location",
-      "outboundParkingOverheadTime" -> "Time taken by the person to depart , park vehicle and leave the parking area",
-      "inboundParkingOverheadTime"  -> "Time taken by the person to walk from the parked car to the destination",
-      "inboundParkingOverheadCost"  -> "Vehicle parking cost"
+      "timeBin"                     -> "Time bin represented by the lower bound of the interval",
+      "TAZ"                         -> "Zone summarizing all parking events",
+      "outboundParkingOverheadTime" -> "Time required to walk to the parked vehicle",
+      "inboundParkingOverheadTime"  -> "Time required to walk from the parked vehicle to the destination. This metric does not include extra time spend driving to the parking space.",
+      "inboundParkingOverheadCost"  -> "Cost for parking fees"
     ) map {
       case (header, description) =>
         outputDataDescription.copy(field = header, description = description)
