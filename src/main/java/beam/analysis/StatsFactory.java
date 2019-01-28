@@ -42,8 +42,11 @@ public class StatsFactory {
     }
 
     public BeamAnalysis getAnalysis(StatsType statsType) {
-        BeamAnalysis stats = beamStatsMap.getOrDefault(statsType, createStats(statsType));
-        beamStatsMap.putIfAbsent(statsType, stats);
+        BeamAnalysis stats = beamStatsMap.get(statsType);
+        if (stats == null) {
+            stats = createStats(statsType);
+            beamStatsMap.put(statsType, stats);
+        }
         return stats;
     }
 
