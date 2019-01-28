@@ -78,7 +78,6 @@ object PtFares {
     val lines = Try(Source.fromFile(ptFaresFile).getLines().toList.tail).getOrElse(List())
     for (line <- lines) {
       val row = line.split(",")
-
       if (row.length == 4) fareRules += FareRule(row(0), row(1), row(2), row(3))
     }
     fareRules.toList
