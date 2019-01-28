@@ -1,6 +1,6 @@
 package beam.agentsim.events.handling;
 
-import beam.agentsim.events.PathTraversalEvent$;
+import beam.agentsim.events.PathTraversalEvent;
 import beam.sim.BeamServices;
 import beam.utils.DebugLib;
 import org.matsim.api.core.v01.events.Event;
@@ -107,15 +107,17 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
     private void registerClass(Class cla) {
         // PathTraversalEvent class is from scala, so we have to have special treatment for them
         // scala's val and var are not actual fields, but methods (getters and setters)
-        if (cla == PathTraversalEvent$.class) {
+        if (cla == PathTraversalEvent.class) {
             for(Method method : cla.getDeclaredMethods()) {
                 String name = method.getName();
                 if ((name.startsWith("ATTRIBUTE_") && (eventTypeToLog == null || !name.startsWith("ATTRIBUTE_TYPE"))) ||
                         (name.startsWith("VERBOSE_") && (eventTypeToLog == null || !name.startsWith("VERBOSE_")))
                 ) {
                     try {
-                        attributeToColumnIndexMapping.put(name, 0);
-                    } catch (IllegalArgumentException e) {
+                        // Call static method
+                        String value = (String)method.invoke(null);
+                        attributeToColumnIndexMapping.put(value, 0);
+                    } catch (Exception e) {
                         e.printStackTrace();
                     }
                 }

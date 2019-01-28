@@ -123,7 +123,7 @@ class BeamEventsLogger {
                         eventClass = ParkEvent.class;
                         break;
                     case "PathTraversalEvent":
-                        eventClass = PathTraversalEvent$.class;
+                        eventClass = PathTraversalEvent.class;
                         break;
                     case "PersonArrivalEvent":
                         eventClass = PersonArrivalEvent.class;
