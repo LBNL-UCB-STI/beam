@@ -373,7 +373,8 @@ trait BeamHelper extends LazyLogging {
 
     val beamServices = injector.getInstance(classOf[BeamServices])
 
-    //
+    beamServices.setTransitFleetSizes(networkCoordinator.tripFleetSizeMap)
+
     val beamConfig = beamServices.beamConfig
     var useCSVFiles
       : Boolean = beamConfig.beam.agentsim.agents.population.beamPopulationDirectory != null && !beamConfig.beam.agentsim.agents.population.beamPopulationDirectory
@@ -422,6 +423,7 @@ trait BeamHelper extends LazyLogging {
     val outConf = Paths.get(outputDirectory, "beam.conf")
     Files.write(outConf, config.root().render(ConfigRenderOptions.concise()).getBytes)
     logger.info("Config [{}] copied to {}.", beamConfig.beam.agentsim.simulationName, outConf)
+
     val networkCoordinator: NetworkCoordinator =
       if (Files.exists(Paths.get(beamConfig.beam.agentsim.scenarios.frequencyAdjustmentFile))) {
         FrequencyAdjustingNetworkCoordinator(beamConfig)

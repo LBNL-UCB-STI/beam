@@ -32,6 +32,7 @@ import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
 
 /**
@@ -64,6 +65,8 @@ trait BeamServices {
   def startNewIteration()
 
   def networkHelper: NetworkHelper
+  var transitFleetSizes: mutable.HashMap[String, Integer] = mutable.HashMap.empty
+  def setTransitFleetSizes(tripFleetSizeMap: mutable.HashMap[String, Integer])
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
@@ -151,6 +154,10 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
         }
       case None => vehicleTypes
     }
+  }
+
+  override def setTransitFleetSizes(tripFleetSizeMap: mutable.HashMap[String, Integer]): Unit = {
+    this.transitFleetSizes = tripFleetSizeMap
   }
 
   private val _networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
