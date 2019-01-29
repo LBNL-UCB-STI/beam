@@ -44,6 +44,7 @@ trait PopulationAdjustment extends LazyLogging {
           val income = Try { personAttributes.getAttribute(person.getId.toString, "income") } match {
             case scala.util.Success(value)     => Option(value.asInstanceOf[Double])
             case scala.util.Failure(exception) => Some(0.0)
+
           }
           val modalityStyle =
             Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style"))
@@ -111,6 +112,11 @@ trait PopulationAdjustment extends LazyLogging {
   protected def updatePopulation(scenario: Scenario): MPopulation
 
   protected def addMode(population: MPopulation, personId: String, mode: String): Unit = {
+    val personAttributes = population.getPersonAttributes
+    val excludedModes =
+      Option(personAttributes.getAttribute(personId, PopulationAdjustment.EXCLUDED_MODES))
+        .map(_.asInstanceOf[String].trim)
+        .getOrElse("")
     val modes = population.getPersonAttributes
       .getAttribute(personId, "beam-attributes")
       .asInstanceOf[AttributesOfIndividual]
