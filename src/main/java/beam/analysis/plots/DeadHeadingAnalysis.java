@@ -168,7 +168,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         String mode = event.mode().value();
         String vehicle_id = event.vehicleId().toString();
         String graphName = getGraphNameAgainstModeAndVehicleId(mode, vehicle_id);
-        Integer _num_passengers = event.numPass();
+        Integer _num_passengers = event.numberOfPassengers();
 
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
             Double length = event.legLength();
@@ -376,7 +376,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         String mode = event.mode().value();
         String vehicle_id =  event.vehicleId().toString();
         String graphName = getGraphNameAgainstModeAndVehicleId(mode, vehicle_id);
-        Integer _num_passengers = event.numPass();
+        Integer _num_passengers = event.numberOfPassengers();
         boolean validCase = isValidCase(graphName, _num_passengers);
 
         // Process Event for "tnc_passenger_per_trip.png" graph

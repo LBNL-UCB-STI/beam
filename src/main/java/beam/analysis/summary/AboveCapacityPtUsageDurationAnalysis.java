@@ -21,7 +21,7 @@ public class AboveCapacityPtUsageDurationAnalysis implements GraphAnalysis, Iter
     public void processStats(Event event) {
         if (event instanceof PathTraversalEvent) {
             PathTraversalEvent pte = (PathTraversalEvent)event;
-            Integer numberOfPassengers = pte.numPass();
+            Integer numberOfPassengers = pte.numberOfPassengers();
             Integer seatingCapacity = pte.seatingCapacity();
             int departureTime = pte.departureTime();
             int arrivalTime = pte.arrivalTime();

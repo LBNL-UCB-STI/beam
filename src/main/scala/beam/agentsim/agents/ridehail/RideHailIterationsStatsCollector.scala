@@ -315,7 +315,7 @@ class RideHailIterationsStatsCollector(
 
     val mode = event.mode.value
     val vehicleId = event.vehicleId.toString
-    val numPass = event.numPass
+    val numPass = event.numberOfPassengers
 
     if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHail")) {
       if (numPass > 0) {
@@ -329,7 +329,7 @@ class RideHailIterationsStatsCollector(
 
   private def processPathTraversalEvent(pathTraversalEvent: PathTraversalEvent): Unit = {
     val vehicleId = pathTraversalEvent.vehicleId.toString
-    val numPassengers = pathTraversalEvent.numPass
+    val numPassengers = pathTraversalEvent.numberOfPassengers
 
     rideHailEventsTuples.get(vehicleId) match {
       case Some((modeChoiceEvent, personEntersVehicleEvent)) =>

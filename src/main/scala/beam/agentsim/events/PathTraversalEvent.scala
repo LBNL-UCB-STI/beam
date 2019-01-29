@@ -21,7 +21,7 @@ class PathTraversalEvent(
   val seatingCapacity: Int,
   val standingRoomCapacity: Int,
   val fuelType: String,
-  val numPass: Int,
+  val numberOfPassengers: Int,
   val departureTime: Int,
   val arrivalTime: Int,
   val mode: BeamMode,
@@ -55,7 +55,7 @@ class PathTraversalEvent(
       attr.put(ATTRIBUTE_DRIVER_ID, driverId)
       attr.put(ATTRIBUTE_VEHICLE_TYPE, vehicleType)
       attr.put(ATTRIBUTE_LENGTH, legLength.toString)
-      attr.put(ATTRIBUTE_NUM_PASS, numPass.toString)
+      attr.put(ATTRIBUTE_NUM_PASS, numberOfPassengers.toString)
 
       attr.put(ATTRIBUTE_DEPARTURE_TIME, departureTime.toString)
       attr.put(ATTRIBUTE_ARRIVAL_TIME, arrivalTime.toString)
@@ -122,7 +122,7 @@ object PathTraversalEvent {
       seatingCapacity = vehicleType.seatingCapacity,
       standingRoomCapacity = vehicleType.standingRoomCapacity,
       fuelType = vehicleType.primaryFuelType.toString,
-      numPass = numPass,
+      numberOfPassengers = numPass,
       departureTime = beamLeg.startTime,
       arrivalTime = beamLeg.endTime,
       mode = beamLeg.mode,

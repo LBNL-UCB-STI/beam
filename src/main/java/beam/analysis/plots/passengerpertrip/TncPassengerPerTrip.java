@@ -35,7 +35,7 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
         int hour = getEventHour(event.getTime());
         String mode = event.mode().value();
         String vehicle_id = event.vehicleId().toString();
-        Integer _num_passengers = event.numPass();
+        Integer _num_passengers = event.numberOfPassengers();
 
         passengerCounter = passengerCounter + _num_passengers;
 
