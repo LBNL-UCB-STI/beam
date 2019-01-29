@@ -7,6 +7,7 @@ import beam.sim.BeamServices;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 
+import javax.inject.Inject;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -19,7 +20,7 @@ public class NumberOfVehiclesAnalysis implements IterationSummaryAnalysis{
     private BeamServices beamServices;
 
     public NumberOfVehiclesAnalysis(BeamServices services){
-        beamServices = services;
+       beamServices = services;
     }
     @Override
     public void processStats(Event event) {
