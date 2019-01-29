@@ -25,9 +25,10 @@ trait PopulationAdjustment extends LazyLogging {
           Option(personAttributes.getAttribute(person.getId.toString, "valueOfTime"))
             .map(_.asInstanceOf[Double])
             .getOrElse(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
-        val excludedModes = Option(personAttributes.getAttribute(person.getId.toString, PopulationAdjustment.EXCLUDED_MODES))
-          .map(_.asInstanceOf[String].trim)
-          .getOrElse("")
+        val excludedModes =
+          Option(personAttributes.getAttribute(person.getId.toString, PopulationAdjustment.EXCLUDED_MODES))
+            .map(_.asInstanceOf[String].trim)
+            .getOrElse("")
         val availableModes: Seq[BeamMode] = if (excludedModes.isEmpty) {
           BeamMode.allBeamModes
         } else {
@@ -104,7 +105,9 @@ trait PopulationAdjustment extends LazyLogging {
   protected def addMode(population: MPopulation, personId: String, mode: String): Unit = {
     val personAttributes = population.getPersonAttributes
     val excludedModes =
-      Option(personAttributes.getAttribute(personId, PopulationAdjustment.EXCLUDED_MODES)).map(_.asInstanceOf[String].trim).getOrElse("")
+      Option(personAttributes.getAttribute(personId, PopulationAdjustment.EXCLUDED_MODES))
+        .map(_.asInstanceOf[String].trim)
+        .getOrElse("")
     val modes = population.getPersonAttributes
       .getAttribute(personId, "beam-attributes")
       .asInstanceOf[AttributesOfIndividual]
