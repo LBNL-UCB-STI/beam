@@ -2,6 +2,7 @@ package beam.integration
 
 import java.io.File
 
+import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.TollRevenueAnalysis
 import beam.integration.ReadEvents._
@@ -33,13 +34,13 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
   it should "contain the same bus trips entries" in {
     tripsFromEvents("BUS-DEFAULT") should contain theSameElementsAs
-    tripsFromGtfs(new File("test/input/beamville/r5/bus/trips.txt"))
+    tripsFromGtfs(new File("test/input/beamville/r5/bus-freq/trips.txt"))
   }
 
   it should "contain the same train trips entries" in {
     tripsFromEvents("SUBWAY-DEFAULT") should contain theSameElementsAs
-    tripsFromGtfs(new File("test/input/beamville/r5/train/trips.txt"))
-//    tripsFromGtfs(new File("test/input/beamville/r5/train-freq/trips.txt"))
+//    tripsFromGtfs(new File("test/input/beamville/r5/train/trips.txt"))
+    tripsFromGtfs(new File("test/input/beamville/r5/train-freq/trips.txt"))
   }
 
   private def tripsFromEvents(vehicleType: String) = {
@@ -58,15 +59,13 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
   }
 
   it should "contain same pathTraversal defined at stop times file for bus input file" in {
-    stopToStopLegsFromEventsByTrip("BUS-DEFAULT") should contain theSameElementsAs
-    stopToStopLegsFromGtfsByTrip("test/input/beamville/r5/bus/stop_times.txt")
+    stopToStopLegsFromEventsByTrip("BUS-DEFAULT").keys should contain theSameElementsAs
+    stopToStopLegsFromGtfsByTrip("test/input/beamville/r5/bus-freq/stop_times.txt").keys
   }
 
-  // FIXME: Adapt to frequency unrolling. :-(
-  it should "contain same pathTraversal defined at stop times file for train input file" ignore {
-    stopToStopLegsFromEventsByTrip("SUBWAY-DEFAULT") should contain theSameElementsAs
-    stopToStopLegsFromGtfsByTrip("test/input/beamville/r5/train/stop_times.txt") ++
-    stopToStopLegsFromGtfsByTrip("test/input/beamville/r5/train-freq/stop_times.txt")
+  it should "contain same pathTraversal defined at stop times file for train input file" in {
+    stopToStopLegsFromEventsByTrip("SUBWAY-DEFAULT").keys should contain theSameElementsAs
+    stopToStopLegsFromGtfsByTrip("test/input/beamville/r5/train-freq/stop_times.txt").keys
   }
 
   private def stopToStopLegsFromEventsByTrip(vehicleType: String) = {
@@ -125,6 +124,17 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
           if (leg.getMode == CAR.matsimMode) {
             assert(leg.getRoute.isInstanceOf[NetworkRoute])
           }
+      }
+      val beamPlan = BeamPlan(experiencedPlan)
+      beamPlan.tours.foreach { tour =>
+        if (tour.trips.size > 1) {
+          if (tour.trips.head.leg.get.getMode == "car") {
+            assert(
+              tour.trips.last.leg.get.getMode == "car",
+              "If I leave home by car, I must get home by car: " + person.getId
+            )
+          }
+        }
       }
     }
   }

@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 public class StatsFactory {
     public enum StatsType {
         RideHailWaiting,
-        RideHailingWaitingSingle,
+        RideHailWaitingTaz,
         ModeChosen,
         PersonVehicleTransition,
         PersonTravelTime,
@@ -23,13 +23,13 @@ public class StatsFactory {
         RealizedMode,
         FuelUsage,
         DeadHeading,
-        VehicleMilesTraveled,
+        MotorizedVehicleMilesTraveled,
         VehicleHoursTraveled,
         NumberOfVehicles,
-        AgentDelay,
         AboveCapacityPtUsageDuration,
         TollRevenue,
-        AgencyRevenue
+        AgencyRevenue,
+        ParkingDelay
     }
 
     private final BeamConfig beamConfig;
@@ -74,8 +74,8 @@ public class StatsFactory {
         switch (statsType) {
             case RideHailWaiting:
                 return new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation(), beamConfig);
-            case RideHailingWaitingSingle:
-                return new RideHailingWaitingSingleAnalysis(beamConfig, new RideHailingWaitingSingleAnalysis.RideHailingWaitingSingleComputation());
+            case RideHailWaitingTaz:
+                return new RideHailWaitingTazAnalysis(beamServices);
             case ModeChosen:
                 return new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation(), beamConfig);
             case PersonVehicleTransition:
@@ -89,13 +89,12 @@ public class StatsFactory {
             case DeadHeading:
                 return new DeadHeadingAnalysis(writeGraphs);
             case VehicleHoursTraveled:
-                return new VehicleTravelTimeAnalysis();
-            case VehicleMilesTraveled:
-                return new VehicleMilesTraveledAnalysis();
+                return new VehicleTravelTimeAnalysis(beamServices.matsimServices().getScenario(),
+                        beamServices.networkHelper(), beamServices.vehicleTypes().keySet());
+            case MotorizedVehicleMilesTraveled:
+                return new MotorizedVehicleMilesTraveledAnalysis(beamServices.vehicleTypes().keySet());
             case NumberOfVehicles:
-                return new NumberOfVehiclesAnalysis();
-            case AgentDelay:
-                return new AgentDelayAnalysis(beamServices.matsimServices().getEvents(), beamServices.matsimServices().getScenario());
+                return new NumberOfVehiclesAnalysis(beamServices);
             case PersonCost:
                 return new PersonCostAnalysis();
             case AboveCapacityPtUsageDuration:
@@ -104,6 +103,8 @@ public class StatsFactory {
                 return new TollRevenueAnalysis();
             case AgencyRevenue:
                 return new AgencyRevenueAnalysis();
+            case ParkingDelay:
+                return new ParkingStatsCollector(beamServices);
             default:
                 return null;
         }

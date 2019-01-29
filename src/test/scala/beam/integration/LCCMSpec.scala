@@ -4,7 +4,7 @@ import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices}
-import beam.utils.FileUtils
+import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.core.controler.AbstractModule
@@ -18,6 +18,7 @@ class LCCMSpec extends FlatSpec with BeamHelper with MockitoSugar {
 
   it should "be able to run for three iterations with LCCM without exceptions" in {
     val config = testConfig("test/input/beamville/beam.conf")
+      .resolve()
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue(
         TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
@@ -35,12 +36,15 @@ class LCCMSpec extends FlatSpec with BeamHelper with MockitoSugar {
     val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     scenario.setNetwork(networkCoordinator.network)
+
+    val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
+
     val iterationCounter = mock[IterationEndsListener]
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
       new AbstractModule() {
         override def install(): Unit = {
-          install(module(config, scenario, networkCoordinator))
+          install(module(config, scenario, networkCoordinator, networkHelper))
           addControlerListenerBinding().toInstance(iterationCounter)
         }
       }

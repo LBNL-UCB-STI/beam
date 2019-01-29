@@ -4,9 +4,11 @@ import java.time.ZonedDateTime
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
-import beam.agentsim.agents.choice.mode.PtFares
+import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
+import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
@@ -14,7 +16,6 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
-import beam.router.model.RoutingModel
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
@@ -39,7 +40,7 @@ import scala.language.postfixOps
 
 class TollRoutingSpec
     extends TestKit(
-      ActorSystem("TollRoutingSpec", testConfig("test/input/beamville/beam.conf"))
+      ActorSystem("TollRoutingSpec", testConfig("test/input/beamville/beam.conf").resolve())
     )
     with WordSpecLike
     with Matchers
@@ -62,14 +63,16 @@ class TollRoutingSpec
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.geo).thenReturn(new GeoUtilsImpl(services))
     when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
-    when(services.ptFares).thenReturn(PtFares(Map[String, List[FareRule]]()))
-    when(services.vehicles).thenReturn(TrieMap[Id[BeamVehicle], BeamVehicle]())
+    when(services.ptFares).thenReturn(PtFares(List[FareRule]()))
+    when(services.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(services.dates).thenReturn(
       DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
+    when(services.vehicleTypes).thenReturn(TrieMap[Id[BeamVehicleType], BeamVehicleType]())
+    when(services.fuelTypePrices).thenReturn(Map[FuelType, Double]().withDefaultValue(0.0))
     networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
@@ -105,6 +108,7 @@ class TollRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -165,6 +169,7 @@ class TollRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -200,6 +205,7 @@ class TollRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("body"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true

@@ -6,6 +6,7 @@ import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.choice.mode.PtFares
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
+import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
@@ -51,7 +52,7 @@ class AbstractSfLightSpec
   var scenario: Scenario = _
 
   val confPath = "test/input/sf-light/sf-light.conf"
-  lazy val config = testConfig(confPath)
+  lazy val config = testConfig(confPath).resolve()
   lazy val beamConfig = BeamConfig(config)
   // Have to mock some things to get the router going
   lazy val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
@@ -67,10 +68,11 @@ class AbstractSfLightSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
-    when(services.vehicles).thenReturn(new TrieMap[Id[BeamVehicle], BeamVehicle])
     when(services.vehicleTypes).thenReturn(new TrieMap[Id[BeamVehicleType], BeamVehicleType])
     when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
-    when(services.ptFares).thenReturn(PtFares(Map[String, List[FareRule]]()))
+    when(services.ptFares).thenReturn(PtFares(List[FareRule]()))
+    when(services.vehicleTypes).thenReturn(TrieMap[Id[BeamVehicleType], BeamVehicleType]())
+    when(services.fuelTypePrices).thenReturn(Map[FuelType, Double]().withDefaultValue(0.0))
     val networkCoordinator: DefaultNetworkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()

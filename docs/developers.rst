@@ -8,7 +8,7 @@ Developer's Guide
    ^^^^^^^^^^
 
 Repositories
-^^^^^^^^^^^^^
+^^^^^^^^^^^^
 The beam repository on github `is here. <https://github.com/LBNL-UCB-STI/beam>`_
 
 The convention for merging into the master branch is that master needs to be pass all tests and at least one other active BEAM developer needs to review your changes before merging. Please do this by creating a pull request from any new feature branches into master. We also encourage you to create pull requests early in your development cycle which gives other's an opportunity to observe and/or provide feedback in real time. When you are ready for a review, invite one or more through the pull request. 
@@ -108,6 +108,20 @@ To update the text pointers with the actual contents of files, run the following
    $ git lfs pull
    Git LFS: (98 of 123 files) 343.22 MB / 542.18 MB
    
+GIT-LFS timeout - how to proceed
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Sometimes it is possible to face a timeout issue when trying to push huge files. The steps below can be followed:
+
+#. Connect to some EC2 server inside the same Amazon S3 region: us-east-2
+
+#. Copy the file to the server using scp::
+
+   $ scp -i mykey.pem somefile.txt remote_username@machine.us-east-2.compute.amazonaws.com:/tmp
+
+#. Clone the repository as usual (make sure git and git-lfs are properly installed)
+
+#. Just push the files as usual
+
 Keeping Production Data out of Master Branch
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -444,7 +458,7 @@ Don’t emulate ``collectFirst`` and ``collect``:
    s.collect { case curr if predicate(curr) => curr.head }
 
 Prefer ``nonEmpty`` over ``size > 0``:
-*************************************
+**************************************
 
 ::
  

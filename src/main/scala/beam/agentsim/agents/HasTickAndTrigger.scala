@@ -21,4 +21,6 @@ trait HasTickAndTrigger {
     theTuple
   }
 
+  def getCurrentTick: Option[Int] = _currentTick
+
 }

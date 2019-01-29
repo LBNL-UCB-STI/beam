@@ -7,7 +7,7 @@ import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoi
 import beam.agentsim.agents.choice.mode.ModeChoiceLCCM.ModeChoiceData
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{BIKE, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
@@ -187,19 +187,13 @@ class ModeChoiceLCCM(
   ): Vector[ModeChoiceData] = {
     val transitFareDefaults: Seq[Double] =
       TransitFareDefaults.estimateTransitFares(alternatives)
-    val gasolineCostDefaults: Seq[Double] =
-      DrivingCostDefaults.estimateDrivingCost(alternatives, beamServices)
     val modeChoiceAlternatives: Seq[ModeChoiceData] =
       alternatives.zipWithIndex.map { altAndIdx =>
         val totalCost = altAndIdx._1.tripClassifier match {
           case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
-            (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice + gasolineCostDefaults(
-              altAndIdx._2
-            )
+            (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice
           case RIDE_HAIL =>
             altAndIdx._1.costEstimate * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice
-          case CAR =>
-            altAndIdx._1.costEstimate + gasolineCostDefaults(altAndIdx._2)
           case _ =>
             altAndIdx._1.costEstimate
         }

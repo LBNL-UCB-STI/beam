@@ -2,13 +2,8 @@ package beam.sim
 
 import java.io.{BufferedWriter, FileWriter, IOException}
 
-import scala.collection.JavaConverters._
-
-import akka.actor.ActorSystem
-import beam.agentsim.agents.ridehail.RideHailSurgePricingManager
 import beam.analysis.physsim.{PhyssimCalcLinkSpeedDistributionStatsObject, PhyssimCalcLinkSpeedStatsObject}
 import beam.analysis.plots._
-import beam.analysis.via.{ExpectedMaxUtilityHeatMap, ExpectedMaxUtilityHeatMapObject}
 import beam.utils.OutputDataDescriptor
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
@@ -16,11 +11,12 @@ import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.ControlerEvent
 
+import scala.collection.JavaConverters._
+
 /**
   * Generate data descriptions table for all output file generating classes.
   */
 class BeamOutputDataDescriptionGenerator @Inject()(
-  private val actorSystem: ActorSystem,
   private val transportNetwork: TransportNetwork,
   private val beamServices: BeamServices,
   private val eventsManager: EventsManager,
@@ -99,7 +95,6 @@ object BeamOutputDataDescriptionGenerator {
     RideHailWaitingAnalysisObject,
     GraphSurgePricingObject,
     RideHailingWaitingSingleAnalysisObject,
-    BeamMobsim,
     StopWatchOutputs,
     ScoreStatsOutputs,
     SummaryStatsOutputs,
@@ -109,7 +104,8 @@ object BeamOutputDataDescriptionGenerator {
     RideHailTripDistanceOutputs,
     TripDurationOutputs,
     BiasErrorGraphDataOutputs,
-    BiasNormalizedErrorGraphDataOutputs
+    BiasNormalizedErrorGraphDataOutputs,
+    RideHailFleetInitializer
   )
 
 }
@@ -475,40 +471,40 @@ object SummaryStatsOutputs extends OutputDataDescriptor {
       OutputDataDescription(
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
-        "totalCostIncludingSubsidy_walk_transit",
-        "Total cost (including subsidy) paid by the passenger to reach destination by walking to transit and then transit to destination"
+        "totalCostIncludingIncentive_walk_transit",
+        "Total cost (including incentive) paid by the passenger to reach destination by walking to transit and then transit to destination"
       )
     )
     list.add(
       OutputDataDescription(
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
-        "totalCostIncludingSubsidy_ride_hail",
-        "Total cost (including subsidy) paid by the passenger to reach destination on a ride hail"
+        "totalCostIncludingIncentive_ride_hail",
+        "Total cost (including incentive) paid by the passenger to reach destination on a ride hail"
       )
     )
     list.add(
       OutputDataDescription(
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
-        "totalSubsidy_drive_transit",
-        "Total subsidy amount paid to passenger to reach destination by driving to transit and then transit to destination"
+        "totalIncentive_drive_transit",
+        "Total incentive amount paid to passenger to reach destination by driving to transit and then transit to destination"
       )
     )
     list.add(
       OutputDataDescription(
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
-        "totalSubsidy_ride_hail",
-        "Total subsidy amount paid to passenger to reach destination by ride hail"
+        "totalIncentive_ride_hail",
+        "Total incentive amount paid to passenger to reach destination by ride hail"
       )
     )
     list.add(
       OutputDataDescription(
         this.getClass.getSimpleName.dropRight(1),
         relativePath,
-        "totalSubsidy_walk_transit",
-        "Total subsidy amount paid to passenger to reach destination by walking to transit and then transit to destination"
+        "totalIncentive_walk_transit",
+        "Total incentive amount paid to passenger to reach destination by walking to transit and then transit to destination"
       )
     )
     list.add(

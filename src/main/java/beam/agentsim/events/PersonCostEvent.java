@@ -14,23 +14,23 @@ public class PersonCostEvent extends Event implements HasPersonId {
     public final static String EVENT_TYPE = "PersonCost";
     public final static String ATTRIBUTE_PERSON = "person";
     public final static String ATTRIBUTE_MODE = "mode";
-    public static final String ATTRIBUTE_SUBSIDY = "subsidy";
+    public static final String ATTRIBUTE_INCENTIVE = "incentive";
     public static final String ATTRIBUTE_TOLL_COST = "tollCost";
     public static final String ATTRIBUTE_NET_COST = "netCost";
 
     private final Id<Person> personId;
     private String mode;
-    private double subsidy;
+    private double incentive;
     private double tollCost;
     private double netCost;
 
     private final AtomicReference<Map<String, String>> attributes;
 
-    public PersonCostEvent(final double time, final Id<Person> personId, String mode, double subsidy, double tollCost, double netCost) {
+    public PersonCostEvent(final double time, final Id<Person> personId, String mode, double incentive, double tollCost, double netCost) {
         super(time);
         this.personId = personId;
         this.mode = mode;
-        this.subsidy = subsidy;
+        this.incentive = incentive;
         this.tollCost = tollCost;
         this.netCost = netCost;
         this.attributes = new AtomicReference<>(Collections.emptyMap());
@@ -41,7 +41,7 @@ public class PersonCostEvent extends Event implements HasPersonId {
             Map<String, String> attr = event.getAttributes();
             return new PersonCostEvent(event.getTime(), Id.createPersonId(attr.get(ATTRIBUTE_PERSON)),
                     attr.get(ATTRIBUTE_MODE),
-                    Double.parseDouble(attr.get(ATTRIBUTE_SUBSIDY)),
+                    Double.parseDouble(attr.get(ATTRIBUTE_INCENTIVE)),
                     Double.parseDouble(attr.get(ATTRIBUTE_TOLL_COST)),
                     Double.parseDouble(attr.get(ATTRIBUTE_NET_COST)));
         }
@@ -58,6 +58,10 @@ public class PersonCostEvent extends Event implements HasPersonId {
         return personId;
     }
 
+    public double getNetCost() {
+        return netCost;
+    }
+
     @Override
     public Map<String, String> getAttributes() {
         Map<String, String> attr = attributes.get();
@@ -67,7 +71,7 @@ public class PersonCostEvent extends Event implements HasPersonId {
 
         attr.put(ATTRIBUTE_PERSON, personId.toString());
         attr.put(ATTRIBUTE_MODE, mode);
-        attr.put(ATTRIBUTE_SUBSIDY, Double.toString(subsidy));
+        attr.put(ATTRIBUTE_INCENTIVE, Double.toString(incentive));
         attr.put(ATTRIBUTE_TOLL_COST, Double.toString(tollCost));
         attr.put(ATTRIBUTE_NET_COST, Double.toString(netCost));
 

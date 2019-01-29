@@ -11,6 +11,7 @@ trait IntegrationSpecCommon {
   val configFileName = "test/input/beamville/beam.conf"
 
   lazy val baseConfig: Config = testConfig(configFileName)
+    .resolve()
     .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
     .withValue(LAST_ITER_CONF_PATH, ConfigValueFactory.fromAnyRef(totalIterations - 1))
     .resolve
