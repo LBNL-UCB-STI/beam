@@ -74,13 +74,14 @@ public class JDEQSimulation implements Mobsim {
 		// use same for doing analysis on how many vehicles are on network which are caccs
 		//
 
-		List<Boolean> caccEnabledList = isCACCVehicle.values().stream().collect(Collectors.toList());
 
-		int i = 0;
 		for (Person person : this.scenario.getPopulation().getPersons().values()) {
 
-			boolean isCaccEnabled = i < caccEnabledList.size() ? caccEnabledList.get(i++) : false;
 
+			if(isCACCVehicle.get(person.getId().toString()) == null){
+				System.out.println("person not found in caccmap isCACCVehicle " + person.getId().toString());
+			}
+			boolean isCaccEnabled = isCACCVehicle.get(person.getId().toString());
 			new Vehicle(scheduler, person, activityDurationInterpretation, isCaccEnabled); // the vehicle registers itself to the scheduler
 		}
 

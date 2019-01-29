@@ -236,6 +236,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         Map<String, Boolean> map = new TreeMap<>();
         scala.collection.Iterator<BeamVehicle> iterator = beamServices.privateVehicles().valuesIterator();
 
+
+
         while(iterator.hasNext()){
             BeamVehicle beamVehicle = iterator.next();
             if(beamVehicle.beamVehicleType().caccEnabled() == true){
