@@ -173,15 +173,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
       .flatMap { m =>
         m.get(getActorType(actor))
       }
-      .getOrElse {
-        logger.warn(
-          "Can't get max number of messages with trigger class '{}' for actor '{}' which has type '{}'",
-          triggerClazz,
-          actor,
-          getActorType(actor)
-        )
-        Int.MaxValue
-      }
+      .getOrElse(Int.MaxValue)
     if (msgCount > maxMsgPerActorType) {
       exceedMaxNumberOfMessages.append(st)
       logger.warn(

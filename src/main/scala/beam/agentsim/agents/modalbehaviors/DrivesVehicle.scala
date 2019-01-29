@@ -177,7 +177,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           data.passengerSchedule.schedule(currentLeg).riders.size,
           currentLeg,
           fuelConsumed,
-          currentBeamVehicle.fuelLevelInJoules.getOrElse(-1.0),
+          currentBeamVehicle.fuelLevelInJoules,
           tollOnCurrentLeg
         )
       )
@@ -212,7 +212,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               beamServices.geo
                 .distUTMInMeters(stall.locationUTM, beamServices.geo.wgs2Utm(nextLeg.travelPath.endPoint.loc))
             eventsManager
-              .processEvent(new ParkEvent(tick, stall, distance, currentBeamVehicle.id)) // nextLeg.endTime -> to fix repeated path traversal
+              .processEvent(new ParkEvent(tick, stall, distance, currentBeamVehicle.id, id.toString)) // nextLeg.endTime -> to fix repeated path traversal
           }
           currentBeamVehicle.setReservedParkingStall(None)
         }
@@ -340,7 +340,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           data.passengerSchedule.schedule(currentLeg).riders.size,
           updatedBeamLeg,
           fuelConsumed,
-          currentBeamVehicle.fuelLevelInJoules.getOrElse(-1.0),
+          currentBeamVehicle.fuelLevelInJoules,
           tollOnCurrentLeg
         )
       )
