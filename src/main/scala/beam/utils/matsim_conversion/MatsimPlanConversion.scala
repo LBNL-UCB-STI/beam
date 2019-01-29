@@ -83,7 +83,7 @@ object MatsimPlanConversion {
     val popAttrs = persons.zipWithIndex map {
       case (person, _) =>
         <object id={s"${person.attribute("id").get.toString()}"}>
-          <attribute name="available-modes" class="java.lang.String">car,ride_hail,bike,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway,tram,ride_hail_transit</attribute>
+          <attribute name="excluded-modes" class="java.lang.String"></attribute>
         <attribute name="rank" class="java.lang.Integer">1</attribute>
       </object>
     }
