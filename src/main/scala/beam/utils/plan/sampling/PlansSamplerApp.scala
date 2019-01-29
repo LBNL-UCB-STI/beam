@@ -3,7 +3,7 @@ package beam.utils.plan.sampling
 import java.util
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.router.Modes.BeamMode.CAR
+import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT}
 import beam.utils.BeamVehicleUtils
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PopulationAttrib.Rank
@@ -473,12 +473,11 @@ object PlansSampler {
 
     val availableModes = permissibleModes
       .fold("") { (addend, modeString) =>
-        if (PersonUtils.getAge(person) < 16 && CAR.value.equalsIgnoreCase(modeString))
+        if (PersonUtils.getAge(person) < 16 && (CAR.value.equalsIgnoreCase(modeString) || DRIVE_TRANSIT.value.equalsIgnoreCase(modeString)))
           addend
         else
           addend.concat(modeString.toLowerCase() + ",")
-      }
-      .stripSuffix(",")
+      }.stripSuffix(",")
 
     newPopAttributes.putAttribute(person.getId.toString, availableModeString, availableModes)
   }
