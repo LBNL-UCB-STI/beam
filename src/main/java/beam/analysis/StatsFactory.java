@@ -42,12 +42,7 @@ public class StatsFactory {
     }
 
     public BeamAnalysis getAnalysis(StatsType statsType) {
-        BeamAnalysis stats = beamStatsMap.get(statsType);
-        if (stats == null) {
-            stats = createStats(statsType);
-            beamStatsMap.put(statsType, stats);
-        }
-        return stats;
+        return beamStatsMap.computeIfAbsent(statsType, this::createStats);
     }
 
     public Collection<BeamAnalysis> getBeamAnalysis() {
