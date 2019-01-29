@@ -4,7 +4,7 @@ User's Guide
 
 Getting Started
 ---------------
-The following guide is designed as a demonstration of using BEAM and involves running the model as an executable on a scaled population and transportation system. This is the ideal place to familiarize yourself with the basics of configuring and running BEAM as well as doing small scale tests and analysis. 
+The following guide is designed as a demonstration of using BEAM and involves running the model on a scaled population and transportation system. This is the ideal place to familiarize yourself with the basics of configuring and running BEAM as well as doing small scale tests and analysis. 
 
 For more advanced utilization or to contribute to the BEAM project, see the :ref:`developers-guide`.
 
@@ -13,51 +13,52 @@ System Requirements
 
 * At least 8GB RAM
 * Windows, Mac OSX, Linux
-* Java Runtime Environment 1.8
+* Java Runtime Environment or Java Development Kit 1.8
 * To verify your JRE: https://www.java.com/en/download/help/version_manual.xml
 * To download JRE 1.8 (AKA JRE 8): http://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html
 * We also recommend downloading the VIA vizualization app and obtaining a free or paid license: https://simunto.com/via/
+* Git installed
+
 
 Installing
 ^^^^^^^^^^
 
-Download `BEAM v0.6.2`_.
+Install gradle: https://gradle.org/install/
 
-.. _BEAM v0.6.2: https://github.com/LBNL-UCB-STI/beam/releases/download/v0.6.2/beam-gui-v0.6.2.zip
+Clone the beam repository::
 
-After you unzip the archive, you will see a directory that looks like this when partially expanded: 
+   git clone git@github.com:LBNL-UCB-STI/beam.git
 
-.. image:: _static/figs/beam-gui-files.png
+Change directories into that repository::
 
-Create an environment variable `PWD` and point it to the root of this directory.
+   cd beam
 
-PWD=/path/to/beam/folder
+Now checkout the latest stable version of BEAM, v0.7.0::
 
-For Windows, double click `bin/beam-gui.bat`, on UNIX-like systems, double-click `bin/beam-gui`.
+   git checkout v0.7.0
 
+
+Run the gradle command to compile BEAM, this will also downloaded all required dependencies automatically::
+
+   gradle classes
+
+Now you're ready to run BEAM! 
 
 
 Running BEAM
 ^^^^^^^^^^^^
-The BEAM GUI app is the simplest way to run the model. It looks like this:
+Inside of the respository is a folder 'test/input' containing several scenarios and configurations you can experiment with.
 
-.. image:: _static/figs/beam-gui.png
-
-Use "Choose" to select a configuration file from your file system. Choose `input/beamville/beam.conf`.
-
-Click "Run BEAM". 
-
-You will see output appear in the console. Congrats, you're running BEAM! 
-
-Click "Open" next to the Output Directory text box and you should see results appear in a sub-folder called "beamville_%DATE_TIME%".
-
-If you want greater control over BEAM or the ability to customize classes, you should checkout of the full BEAM repository from Github and then you can run beam using from the command line with a gradle task (you will need to install gradle on your system)::
+The simplest, smallest, and fastest is the beamville scenario (described below). Try to run beamville with this command::
 
   ./gradlew :run -PappArgs="['--config', 'test/input/beamville/beam.conf']"
 
+The outputs are written to the 'output' directory, should see results appear in a sub-folder called "beamville_%DATE_TIME%".
+
+
 Scenarios
 ^^^^^^^^^
-We have provided two scenarios for you to explore under the `input` directory.
+We have provided two scenarios for you to explore under the `test/input` directory.
 
 The `beamville` test scenario is a toy network consisting of a 4 x 4 block gridded road network, a light rail transit agency, a bus transit agency, and a population of ~50 agents.
 
@@ -72,7 +73,7 @@ Inputs
 
 For more detailed inputs documentation, see :ref:`model-inputs`.
 
-BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the `R5 requirements`_. The following is a brief overview of the minimum requirements needed to conduct a BEAM run. 
+BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though some inputs files can alternatively be provided in CSV instead of XML format. Also, the road network and transit system inputs are based on the `R5 requirements`_. The following is a brief overview of the minimum requirements needed to conduct a BEAM run. 
 
 .. _MATSim convention: http://archive.matsim.org/docs
 .. _R5 requirements: https://github.com/conveyal/r5
@@ -88,7 +89,7 @@ BEAM follows the `MATSim convention`_ for most of the inputs required to run a s
 
 Outputs
 ^^^^^^^
-At the conclusion of a BEAM run using the default `beamville` scenario, you will see outputs written to the location as listed in the "Output Directory" text box. The files in the output sub-folder should look like this when the run is complete:
+At the conclusion of a BEAM run using the default `beamville` scenario, the output files in the should look like this when the run is complete:
 
 .. image:: _static/figs/beamville-outputs.png
 
@@ -102,7 +103,7 @@ Model Config
 To get started, we will focus your attention on a few of the most commonly used and useful configuration parameters that control beam::
 
   # Ride Hailing Params
-  beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation=0.05
+  beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation=0.05
   beam.agentsim.agents.rideHail.defaultCostPerMile=1.25
   beam.agentsim.agents.rideHail.defaultCostPerMinute=0.75
   # Scaling and Tuning Params; 1.0 results in no scaling
