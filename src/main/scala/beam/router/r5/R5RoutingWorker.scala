@@ -51,6 +51,7 @@ import org.matsim.vehicles.{Vehicle, Vehicles}
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
+import scala.collection.immutable.HashMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
@@ -103,6 +104,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override lazy val controler: ControlerI = ???
         override val beamConfig: BeamConfig = BeamConfig(config)
         override lazy val geo: GeoUtils = new GeoUtilsImpl(this)
+        val transportNetwork = networkCoordinator.transportNetwork
         override var modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator = _
         override val dates: DateUtils = DateUtils(
           ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
@@ -142,6 +144,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override def matsimServices: org.matsim.core.controler.MatsimServices = ???
 
         override def networkHelper: NetworkHelper = netHelper
+        override def setTransitFleetSizes(
+          tripFleetSizeMap: mutable.HashMap[String, Integer]
+        ): Unit = {}
       }
 
       val defaultTravelTimeByLink = (time: Int, linkId: Int, mode: StreetMode) => {
@@ -347,7 +352,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         val fuelAndTollCostPerLeg = legPair.map { beamLeg =>
           val fuelCost = DrivingCost.estimateDrivingCost(beamLeg, vehicleTypeId, beamServices)
           val toll = if (beamLeg.mode == CAR) {
-            val osm = beamLeg.travelPath.linkIds.toVector.map { e =>
+            val osm = beamLeg.travelPath.linkIds.map { e =>
               transportNetwork.streetLayer.edgeStore
                 .getCursor(e)
                 .getOSMID
