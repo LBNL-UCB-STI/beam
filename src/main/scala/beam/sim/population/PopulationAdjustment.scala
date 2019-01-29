@@ -5,15 +5,13 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.sim.population.PopulationAdjustment.AVAILABLE_MODES
-import beam.utils.plan.sampling.AvailableModeUtils.availableModeParser
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Population => MPopulation}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.population.PersonUtils
 import org.matsim.utils.objectattributes.ObjectAttributes
 
-import scala.collection.JavaConverters
-import scala.util.Try
+import scala.collection.JavaConverters._
 
 trait PopulationAdjustment extends LazyLogging {
 
@@ -21,31 +19,24 @@ trait PopulationAdjustment extends LazyLogging {
 
   def updateAttributes(population: MPopulation): MPopulation = {
     val personAttributes: ObjectAttributes = population.getPersonAttributes
-
-    JavaConverters
-      .mapAsScalaMap(population.getPersons)
+    population
+      .getPersons
+      .asScala
       .values
       .map { person =>
-        {
-
           val valueOfTime: Double =
-            personAttributes.getAttribute(person.getId.toString, "valueOfTime") match {
-              case null =>
-                beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
-              case specifiedVot =>
-                specifiedVot.asInstanceOf[Double]
+            Option(personAttributes.getAttribute(person.getId.toString, "valueOfTime")).map(_.asInstanceOf[Double]).getOrElse(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
+          val excludedModes = Option(personAttributes.getAttribute(person.getId.toString, "excluded-modes")).map(_.asInstanceOf[String].trim).getOrElse("")
+          val availableModes: Seq[BeamMode] = if(excludedModes.isEmpty) {
+            BeamMode.allBeamModes
+          } else {
+            val excludedModesArray = excludedModes.split(",")
+            BeamMode.allBeamModes filterNot { mode =>
+              excludedModesArray.exists(em => em.equalsIgnoreCase(mode.toString))
             }
-
-          val availableModes: Seq[BeamMode] = Option(
-            personAttributes.getAttribute(person.getId.toString, "available-modes")
-          ).fold(BeamMode.allBeamModes)(
-            attr => availableModeParser(attr.toString)
-          )
-          val income = Try { personAttributes.getAttribute(person.getId.toString, "income") } match {
-            case scala.util.Success(value)     => Option(value.asInstanceOf[Double])
-            case scala.util.Failure(exception) => Some(0.0)
           }
-          val modalityStyle =
+        val income = Option(personAttributes.getAttribute(person.getId.toString, "income")).map(_.asInstanceOf[Double]).getOrElse(0D)
+        val modalityStyle =
             Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style"))
               .map(_.asInstanceOf[String])
 
@@ -63,12 +54,9 @@ trait PopulationAdjustment extends LazyLogging {
               availableModes,
               valueOfTime,
               Option(PersonUtils.getAge(person)),
-              income
+              Some(income)
             )
-
           person.getCustomAttributes.put("beam-attributes", attributes)
-
-        }
       }
     population
   }
