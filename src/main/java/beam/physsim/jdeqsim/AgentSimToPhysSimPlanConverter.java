@@ -1,6 +1,7 @@
 package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
+import beam.agentsim.agents.vehicles.BeamVehicle;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationStatsProvider;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedDistributionStats;
@@ -8,6 +9,7 @@ import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimCalcLinkStats;
 import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.calibration.impl.example.CountsObjectiveFunction;
+import beam.physsim.jdeqsim.cacc.travelTimeFunctions.CACCTravelTimeFunctionA;
 import beam.router.BeamRouter;
 import beam.router.r5.R5RoutingWorker$;
 import beam.sim.BeamServices;
@@ -64,6 +66,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private final ActorRef router;
     private final OutputDirectoryHierarchy controlerIO;
     private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
+    private BeamServices beamServices;
     private Scenario agentSimScenario;
     private Population jdeqsimPopulation;
     private TravelTime previousTravelTime;
@@ -85,6 +88,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                                           BeamServices beamServices) {
 
         eventsManager.addHandler(this);
+        this.beamServices = beamServices;
         this.controlerIO = controlerIO;
         this.router = beamServices.beamRouter();
         this.beamConfig = beamServices.beamConfig();
@@ -135,7 +139,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         config.setFlowCapacityFactor(beamConfig.beam().physsim().flowCapacityFactor());
         config.setStorageCapacityFactor(beamConfig.beam().physsim().storageCapacityFactor());
         config.setSimulationEndTime(beamConfig.matsim().modules().qsim().endTime());
-        JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
+        //JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
+
+        Map<String, Boolean> caccVehicles = getCaccVehicles(beamServices);
+        beam.physsim.jdeqsim.cacc.sim.JDEQSimulation jdeqSimulation = new beam.physsim.jdeqsim.cacc.sim.JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccVehicles, new CACCTravelTimeFunctionA());
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents,  agentSimScenario.getConfig().travelTimeCalculator());
 
@@ -222,6 +229,23 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             }
         }
 
+    }
+
+    private Map<String, Boolean> getCaccVehicles(BeamServices beamServices) {
+
+        Map<String, Boolean> map = new TreeMap<>();
+        scala.collection.Iterator<BeamVehicle> iterator = beamServices.privateVehicles().valuesIterator();
+
+        while(iterator.hasNext()){
+            BeamVehicle beamVehicle = iterator.next();
+            if(beamVehicle.beamVehicleType().caccEnabled() == true){
+
+                map.put(beamVehicle.id().toString(), true);
+            }else{
+                map.put(beamVehicle.id().toString(), false);
+            }
+        }
+        return  map;
     }
 
     private boolean shouldWritePhysSimEvents(int iterationNumber) {

@@ -33,7 +33,7 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
         double numCACC = 0;
         for (org.matsim.core.mobsim.jdeqsim.Vehicle vehicle : carsOnTheRoad) {
-            if (isCACCVehicle.get(vehicle.getOwnerPerson().getId().toString())) {
+            if (isCACCVehicle.containsKey(vehicle.getOwnerPerson().getId().toString()) && isCACCVehicle.get(vehicle.getOwnerPerson().getId().toString())) {
                 numCACC++;
             }
         }
