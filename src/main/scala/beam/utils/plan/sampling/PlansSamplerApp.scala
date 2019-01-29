@@ -403,7 +403,7 @@ object PlansSampler {
 
   private def getClosestNPlans(spCoord: Coord, n: Int, withoutWork: Boolean = false): Set[Plan] = {
     val closestPlan = getClosestPlan(spCoord)
-    var col = Set(closestPlan)
+    var col =  if (withoutWork && !hasNoWorkAct(closestPlan)) Set[Plan]() else Set(closestPlan)
 
     var radius = CoordUtils.calcEuclideanDistance(
       spCoord,
