@@ -8,6 +8,7 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.Modes
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -104,6 +105,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
       override lazy val controler: ControlerI = ???
       override val beamConfig: BeamConfig = BeamConfig(config)
       override lazy val geo: beam.sim.common.GeoUtils = new GeoUtilsImpl(this)
+      val transportNetwork = DefaultNetworkCoordinator(beamConfig).transportNetwork
       override var modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator = _
       override val dates: DateUtils = DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
