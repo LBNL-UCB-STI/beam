@@ -7,7 +7,7 @@ import java.util.concurrent.{ExecutorService, Executors}
 
 import akka.actor._
 import akka.pattern._
-import beam.agentsim.agents.choice.mode.{DrivingCostDefaults, ModeIncentive, PtFares}
+import beam.agentsim.agents.choice.mode.{DrivingCost, ModeIncentive, PtFares}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -101,6 +101,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override lazy val controler: ControlerI = ???
         override val beamConfig: BeamConfig = BeamConfig(config)
         override lazy val geo: GeoUtils = new GeoUtilsImpl(this)
+        val transportNetwork = networkCoordinator.transportNetwork
         override var modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator = _
         override val dates: DateUtils = DateUtils(
           ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
@@ -140,6 +141,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override def matsimServices: org.matsim.core.controler.MatsimServices = ???
 
         override def networkHelper: NetworkHelper = ???
+        override def setTransitFleetSizes(
+          tripFleetSizeMap: mutable.HashMap[String, Integer]
+        ): Unit = {}
       }
 
       val defaultTravelTimeByLink = (time: Int, linkId: Int, mode: StreetMode) => {
@@ -354,9 +358,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           destinationForSplitting
         )
         val fuelAndTollCostPerLeg = legPair.map { beamLeg =>
-          val fuelCost = DrivingCostDefaults.estimateFuelCost(beamLeg, vehicleTypeId, beamServices)
+          val fuelCost = DrivingCost.estimateDrivingCost(beamLeg, vehicleTypeId, beamServices)
           val toll = if (beamLeg.mode == CAR) {
-            val osm = beamLeg.travelPath.linkIds.toVector.map { e =>
+            val osm = beamLeg.travelPath.linkIds.map { e =>
               transportNetwork.streetLayer.edgeStore
                 .getCursor(e)
                 .getOSMID
@@ -756,7 +760,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                     EmbodiedBeamLeg(beamLeg, body.id, body.vehicleTypeId, body.asDriver, 0.0, unbecomeDriverAtComplete)
                   } else {
                     if (beamLeg.mode == CAR) {
-                      cost = cost + DrivingCostDefaults.estimateFuelCost(beamLeg, vehicle.vehicleTypeId, beamServices)
+                      cost = cost + DrivingCost
+                        .estimateDrivingCost(beamLeg, vehicle.vehicleTypeId, beamServices)
                     }
                     EmbodiedBeamLeg(
                       beamLeg,
