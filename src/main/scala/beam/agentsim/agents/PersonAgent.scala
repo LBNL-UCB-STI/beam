@@ -290,18 +290,23 @@ class PersonAgent(
         case Some(nextAct) =>
           logDebug(s"wants to go to ${nextAct.getType} @ $tick")
           holdTickAndTriggerId(tick, triggerId)
+          val modeOfNextLeg =  _experiencedBeamPlan.getPlanElements
+            .get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
+            case leg: Leg =>
+              BeamMode.fromString(leg.getMode)
+            case _ => None
+          }
           goto(ChoosingMode) using ChoosesModeData(
             personData = data.copy(
+              // If the mode of the next leg is defined and is CAV, use it, otherwise,
               // If we don't have a current tour mode (i.e. are not on a tour aka at home),
               // use the mode of the next leg as the new tour mode.
-              currentTourMode = data.currentTourMode.orElse(
-                _experiencedBeamPlan.getPlanElements
-                  .get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
-                  case leg: Leg =>
-                    BeamMode.fromString(leg.getMode)
-                  case _ => None
-                }
-              )
+              currentTourMode = modeOfNextLeg match {
+                case Some(CAV) =>
+                  Some(CAV)
+                case _ =>
+                  data.currentTourMode.orElse(modeOfNextLeg)
+              }
             ),
             SpaceTime(currentActivity(data).getCoord, _currentTick.get)
           )

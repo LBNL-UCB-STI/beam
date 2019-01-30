@@ -78,7 +78,7 @@ trait ChoosesMode {
           self ! MobilityStatusResponse(Vector(beamVehicles(vehicle)))
         // Only need to get available street vehicles from household if our mode requires such a vehicle
         case ChoosesModeData(
-            BasePersonData(_, _, _, _, None | Some(CAR | CAV | BIKE | DRIVE_TRANSIT), _, _, _, _, _),
+            BasePersonData(currentActivityIndex, _, _, _, None | Some(CAR | CAV | BIKE | DRIVE_TRANSIT), _, _, _, _, _),
             currentLocation,
             _,
             _,
@@ -100,7 +100,8 @@ trait ChoosesMode {
           implicit val executionContext: ExecutionContext = context.system.dispatcher
           val vehicleManagers = context.parent +: sharedVehicleFleets
           Future
-            .sequence(vehicleManagers.map(_ ? MobilityStatusInquiry(id, currentLocation)))
+            .sequence(vehicleManagers.map(_ ? MobilityStatusInquiry(id, currentLocation, _experiencedBeamPlan
+              .activities(currentActivityIndex))))
             .map(
               listOfResponses =>
                 MobilityStatusResponse(
@@ -243,6 +244,9 @@ trait ChoosesMode {
       var parkingRequestId: Option[Int] = None
       // Form and send requests
 
+      if(id.toString.equals("3")){
+        val i = 0
+      }
       correctedCurrentTourMode match {
         case None =>
           if (hasRideHail) {

@@ -30,7 +30,7 @@ import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.RandomUtils
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.PopulationUtils
@@ -84,7 +84,7 @@ object HouseholdActor {
     )
   }
 
-  case class MobilityStatusInquiry(personId: Id[Person], whereWhen: SpaceTime)
+  case class MobilityStatusInquiry(personId: Id[Person], whereWhen: SpaceTime, originActivity: Activity)
   case class ReleaseVehicle(vehicle: BeamVehicle)
   case class ReleaseVehicleAndReply(vehicle: BeamVehicle)
   case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken])
@@ -149,7 +149,7 @@ object HouseholdActor {
     private var availableVehicles: List[BeamVehicle] = Nil
     private var cavPlans: List[CAVSchedule] = List()
     private var cavPassengerSchedules: Map[BeamVehicle,List[PassengerSchedule]] = Map()
-    private var personToCav: Map[Id[Person],BeamVehicle] = Map()
+    private var personToCav: Map[Id[Person],(Activity, BeamVehicle)] = Map()
     private var personsReadyForPickup: Set[Id[Person]] = Set()
     private var memberVehiclePersonIds: Map[Id[Person],VehiclePersonId] = Map()
 
@@ -192,7 +192,7 @@ object HouseholdActor {
           val memberMap = household.members.map(person => (person.getId -> person)).toMap
           optimalPlan.foreach { plan =>
             val i = 0
-            personToCav = personToCav + (plan.schedule.find(_.tag == Pickup).get.person.get -> plan.cav)
+            personToCav = personToCav + (plan.schedule.find(_.tag == Pickup).map(pers => (pers.person.get -> (pers.activity,plan.cav))).get)
             plan.schedule.foreach { cavPlan =>
               if(cavPlan.tag == Pickup){
                 val oldPlan = householdMatsimPlans(cavPlan.person.get)
@@ -290,11 +290,11 @@ object HouseholdActor {
         log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
         sender() ! Success
 
-      case MobilityStatusInquiry(personId,_) =>
+      case MobilityStatusInquiry(personId,_,originActivity) =>
         personToCav.get(personId) match {
-          case Some(cav) =>
-            sender() ! MobilityStatusResponse(Vector(ActualVehicle(cav)))
-          case None =>
+          case Some(cavAndActivity) if cavAndActivity._1.equals(originActivity) =>
+            sender() ! MobilityStatusResponse(Vector(ActualVehicle(cavAndActivity._2)))
+          case _ =>
             availableVehicles = availableVehicles match {
               case firstVehicle :: rest =>
                 log.debug("Vehicle {} is now taken", firstVehicle.id)
@@ -309,7 +309,7 @@ object HouseholdActor {
 
       case ReadyForCAVPickup(personId,tick) =>
         personToCav.get(personId) match {
-          case Some(cav) =>
+          case Some((_ , cav)) =>
             // we are expecting the person to be picked up next so we dispatch the vehicle
             val (nextSchedule::remainingSchedules) = cavPassengerSchedules(cav)
             if(tick > nextSchedule.schedule.head._1.startTime)log.warning("Person is late for CAV pickup...")

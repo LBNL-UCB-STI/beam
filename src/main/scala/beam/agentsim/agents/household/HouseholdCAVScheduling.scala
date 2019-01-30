@@ -32,7 +32,7 @@ case class MobilityServiceRequest(
   routingRequestId: Option[Int] = None
                                  ) {
   def this(req: MobilityServiceRequest, deltaTime: Double) =
-    this(req.person, req.activity, req.time, req.trip, req.tag, deltaTime)
+    this(req.person, req.activity, req.time, req.trip, req.tag, deltaTime, req.nextActivity)
   override def toString =
     s"$tag{ ${person match {
       case Some(x) => x.toString
@@ -89,7 +89,8 @@ object HouseholdTrips {
           startActivity.getEndTime,
           tripTuple(1),
           Pickup,
-          0.0
+          0.0,
+          nextActivity = Some(endActivity)
         ) :: requests
 
         // identifying dropoffs

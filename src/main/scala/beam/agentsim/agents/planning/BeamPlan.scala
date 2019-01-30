@@ -71,6 +71,8 @@ object BeamPlan {
     })
     newPlan.setPerson(plan.getPerson)
     newPlan.setType(plan.getType)
+    newPlan.getAttributes.putAttribute("modality-style",plan.getAttributes.getAttribute("modality-style"))
+    newPlan.setScore(plan.getScore)
     newPlan
   }
 }
