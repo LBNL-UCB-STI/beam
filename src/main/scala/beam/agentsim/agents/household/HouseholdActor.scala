@@ -24,6 +24,7 @@ import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.RoutingResponse
+import beam.router.Modes.BeamMode.{CAR, TRANSIT}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
@@ -178,9 +179,9 @@ object HouseholdActor {
           }
           val householdBeamPlans = household.members.map(person => BeamPlan(person.getSelectedPlan)).toList
           val householdMatsimPlans = household.members.map(person => (person.getId -> person.getSelectedPlan)).toMap
-          val cavScheduler = new HouseholdCAVScheduling(householdBeamPlans, cavs, 15 * 60, HouseholdCAVScheduling.computeSkim(householdBeamPlans))
+          val cavScheduler = new HouseholdCAVScheduling(beamServices.matsimServices.getScenario.getPopulation, household, cavs, 15 * 60, HouseholdCAVScheduling.computeSkim(householdBeamPlans,  Map(CAR -> 50 * 1000 / 3600, TRANSIT -> 40 * 1000 / 3600)))
           //          val optimalPlan = cavScheduler().sortWith(_.cost < _.cost).head.cavFleetSchedule
-          val optimalPlan = cavScheduler().sortWith(_.cavFleetSchedule.map(_.schedule.size).sum > _.cavFleetSchedule.map(_.schedule.size).sum).head.cavFleetSchedule
+          val optimalPlan = cavScheduler.getKBestSchedules(1).head.cavFleetSchedule
           val requestsAndUpdatedPlans = optimalPlan.map {
             _.toRoutingRequests(beamServices)
           }
