@@ -289,21 +289,16 @@ class CAVSchedule(
     var requestList = schedule.sliding(2).filter(_.size>1).map{ wayPoints =>
       val orig = wayPoints(0)
       val dest = wayPoints(1)
-      if(beamServices.geo.distUTMInMeters(orig.activity.getCoord,dest.activity.getCoord) < 50){
-        // We ignore this in favor of creating a dummy car leg
-        None
-      }else{
-        val origin = SpaceTime(orig.activity.getCoord,math.round(orig.activity.getEndTime).toInt)
-        val routingRequest = RoutingRequest(
-          orig.activity.getCoord,
-          dest.activity.getCoord,
-          origin.time,
-          IndexedSeq(),
-          IndexedSeq(StreetVehicle(Id.create(cav.id.toString,classOf[Vehicle]), cav.beamVehicleType.id,origin,CAV,true))
-        )
-        newMobilityRequests = newMobilityRequests :+ orig.copy(routingRequestId = Some(routingRequest.requestId))
-        Some(routingRequest)
-      }
+      val origin = SpaceTime(orig.activity.getCoord,math.round(orig.activity.getEndTime).toInt)
+      val routingRequest = RoutingRequest(
+        orig.activity.getCoord,
+        dest.activity.getCoord,
+        origin.time,
+        IndexedSeq(),
+        IndexedSeq(StreetVehicle(Id.create(cav.id.toString,classOf[Vehicle]), cav.beamVehicleType.id,origin,CAV,true))
+      )
+      newMobilityRequests = orig.copy(routingRequestId = Some(routingRequest.requestId)) +: newMobilityRequests
+      Some(routingRequest)
     }.toList
     (requestList, new CAVSchedule(newMobilityRequests, cav, occupancy))
   }
