@@ -174,6 +174,7 @@ object HouseholdActor {
               )
             )
             context.watch(cavDriverRef)
+            cav.spaceTime = SpaceTime(homeCoord,0)
             schedulerRef ! ScheduleTrigger(InitializeTrigger(0), cavDriverRef)
             cav.manager = Some(self)
           }
@@ -190,17 +191,16 @@ object HouseholdActor {
           }.flatten
           cavPlans = requestsAndUpdatedPlans.map(_._2)
           val memberMap = household.members.map(person => (person.getId -> person)).toMap
-          optimalPlan.foreach { plan =>
-            val i = 0
-            personToCav = personToCav + (plan.schedule.find(_.tag == Pickup).map(pers => (pers.person.get -> (pers.activity,plan.cav))).get)
-            plan.schedule.foreach { cavPlan =>
-              if(cavPlan.tag == Pickup){
-                val oldPlan = householdMatsimPlans(cavPlan.person.get)
-                val newPlan = BeamPlan.addOrReplaceLegBetweenActivities(oldPlan,PopulationUtils.createLeg("cav"),cavPlan.activity,cavPlan.nextActivity.get)
-                memberMap(cavPlan.person.get).addPlan(newPlan)
-                memberMap(cavPlan.person.get).setSelectedPlan(newPlan)
-                memberMap(cavPlan.person.get).removePlan(oldPlan)
-              }
+          val plan = requestsAndUpdatedPlans.head._2
+          val i = 0
+          personToCav = personToCav + (plan.schedule.find(_.tag == Pickup).map(pers => (pers.person.get -> (pers.activity,plan.cav))).get)
+          plan.schedule.foreach { cavPlan =>
+            if(cavPlan.tag == Pickup){
+              val oldPlan = householdMatsimPlans(cavPlan.person.get)
+              val newPlan = BeamPlan.addOrReplaceLegBetweenActivities(oldPlan,PopulationUtils.createLeg("cav"),cavPlan.activity,cavPlan.nextActivity.get)
+              memberMap(cavPlan.person.get).addPlan(newPlan)
+              memberMap(cavPlan.person.get).setSelectedPlan(newPlan)
+              memberMap(cavPlan.person.get).removePlan(oldPlan)
             }
           }
           holdTickAndTriggerId(tick, triggerId)

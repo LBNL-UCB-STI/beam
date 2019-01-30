@@ -501,6 +501,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     val isRouteForPerson = routingRequest.streetVehicles.exists(_.mode == WALK)
 
     def tripsForVehicle(vehicle: StreetVehicle): Seq[EmbodiedBeamTrip] = {
+      if(vehicle.locationUTM == null){
+        log.error("Vehicle has no location: {}",vehicle)
+      }
       /*
        * Our algorithm captures a few different patterns of travel. Two of these require extra routing beyond what we
        * call the "main" route calculation below. In both cases, we have a single main transit route
