@@ -7,7 +7,7 @@ import java.util.concurrent.ThreadLocalRandom
 import akka.actor.Status.Success
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ZonalParkingManagerSpec
@@ -90,7 +90,7 @@ class RouterPerformanceSpec
   override def beforeAll(configMap: ConfigMap): Unit = {
     val confPath =
       configMap.getWithDefault("config", "test/input/sf-light/sf-light.conf")
-    config = testConfig(confPath)
+    config = testConfig(confPath).resolve()
     val beamConfig = BeamConfig(config)
 
     val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
@@ -103,7 +103,6 @@ class RouterPerformanceSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
-    when(services.vehicles).thenReturn(new TrieMap[Id[BeamVehicle], BeamVehicle])
     val networkCoordinator: DefaultNetworkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
@@ -164,6 +163,7 @@ class RouterPerformanceSpec
             Vector(
               StreetVehicle(
                 Id.createVehicleId("116378-2"),
+                BeamVehicleType.defaultCarBeamVehicleType.id,
                 new SpaceTime(origin, 0),
                 CAR,
                 asDriver = true
@@ -211,6 +211,7 @@ class RouterPerformanceSpec
                 streetVehicles = Vector(
                   StreetVehicle(
                     Id.createVehicleId("116378-2"),
+                    BeamVehicleType.defaultCarBeamVehicleType.id,
                     new SpaceTime(origin, time),
                     mode,
                     asDriver = true
@@ -221,6 +222,7 @@ class RouterPerformanceSpec
                 streetVehicles = Vector(
                   StreetVehicle(
                     Id.createVehicleId("body-116378-2"),
+                    BeamVehicleType.defaultCarBeamVehicleType.id,
                     new SpaceTime(new Coord(origin.getX, origin.getY), time),
                     WALK,
                     asDriver = true

@@ -5,6 +5,7 @@ import java.nio.file.{Files, Paths}
 
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.router.Modes.BeamMode
+import beam.sim.common._
 import beam.sim.population.AttributesOfIndividual
 
 import scala.collection.mutable.ListBuffer
@@ -57,7 +58,7 @@ object ModeIncentive {
   object Incentive {
 
     def apply(mode: String, age: String, income: String, amount: String): Incentive = new Incentive(
-      BeamMode.fromString(mode),
+      BeamMode.fromString(mode).get,
       Range(age),
       Range(income),
       Try(amount.toDouble).getOrElse(0D)

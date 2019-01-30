@@ -1,18 +1,16 @@
 package beam.sim
 
-import java.io.FileNotFoundException
+import java.io.{BufferedInputStream, FileInputStream, FileNotFoundException}
+import java.util.zip.GZIPInputStream
 
-import beam.agentsim.agents.choice.mode.Range
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
-import beam.sim.RideHailFleetInitializer.FleetData
+import beam.sim.RideHailFleetInitializer.RideHailAgentInputData
+import beam.sim.common.Range
 import beam.utils.{FileUtils, OutputDataDescriptor}
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.Id
 
 import scala.collection.mutable
-import scala.io.Source
+import scala.io.{BufferedSource, Source}
 
 class RideHailFleetInitializer extends LazyLogging {
 
@@ -23,9 +21,9 @@ class RideHailFleetInitializer extends LazyLogging {
     */
   def init(
     beamServices: BeamServices
-  ): List[(FleetData, BeamVehicle)] = {
+  ): List[RideHailAgentInputData] = {
     val filePath = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.filename
-    readCSVAsRideHailAgent(
+    readFleetFromCSV(
       filePath,
       beamServices
     )
@@ -36,13 +34,17 @@ class RideHailFleetInitializer extends LazyLogging {
     * @param filePath path to the csv file
     * @return list of [[beam.agentsim.agents.ridehail.RideHailAgent]] objects
     */
-  private def readCSVAsRideHailAgent(
+  private def readFleetFromCSV(
     filePath: String,
     beamServices: BeamServices
-  ): List[(FleetData, BeamVehicle)] = {
+  ): List[RideHailAgentInputData] = {
     try {
       //read csv data from the given file path
-      val bufferedSource = Source.fromFile(filePath)
+      val bufferedSource: BufferedSource = if (filePath.endsWith(".gz")) {
+        Source.fromInputStream(new GZIPInputStream(new BufferedInputStream(new FileInputStream(filePath))))
+      } else {
+        Source.fromFile(filePath)
+      }
       val data = bufferedSource.getLines()
       // if the file is empty proceed , else throw an error
       if (data.nonEmpty) {
@@ -66,9 +68,9 @@ class RideHailFleetInitializer extends LazyLogging {
         val invalidIndices: Map[String, Int] = keyIndices.filter(k => k._2 == -1)
         // validate for any missing fields and throw an error (if any)
         if (invalidIndices.isEmpty) {
-          val rideHailAgents: Seq[(FleetData, BeamVehicle)] =
+          val rideHailAgents: Seq[RideHailAgentInputData] =
             //for each data entry in the csv file
-            bufferedSource.getLines().toList.drop(1).map(s => s.split(",")).flatMap { row =>
+            bufferedSource.getLines().toList.map(s => s.split(",", -1)).flatMap { row =>
               try {
                 //generate the FleetData object from the csv entry
                 val geofenceX =
@@ -81,7 +83,7 @@ class RideHailFleetInitializer extends LazyLogging {
                   if (row(keyIndices.getOrElse(attr_geofenceRadius, -1)).isEmpty) None
                   else Some(row(keyIndices.getOrElse(attr_geofenceRadius, -1)).toDouble)
 
-                val fleetData: FleetData = FleetData(
+                val fleetData: RideHailAgentInputData = RideHailAgentInputData(
                   id = row(keyIndices.getOrElse(attr_id, -1)),
                   rideHailManagerId = row(keyIndices.getOrElse(attr_rideHailManagerId, -1)),
                   vehicleType = row(keyIndices.getOrElse(attr_vehicleType, -1)),
@@ -94,23 +96,11 @@ class RideHailFleetInitializer extends LazyLogging {
                   shifts =
                     if (row(keyIndices.getOrElse(attr_shifts, -1)).isEmpty) None
                     else Some(row(keyIndices.getOrElse(attr_shifts, -1))),
-                  geofence = Some(Geofence(geofenceX, geofenceY, geofenceRadius))
+                  geofenceX = geofenceX,
+                  geofenceY = geofenceY,
+                  geofenceRadius = geofenceRadius
                 )
-                val vehicleTypeId = Id.create(fleetData.vehicleType, classOf[BeamVehicleType])
-                val vehicleType =
-                  beamServices.vehicleTypes.getOrElse(vehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
-                val powertrain = Option(vehicleType.primaryFuelConsumptionInJoulePerMeter)
-                  .map(new Powertrain(_))
-                  .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
-                //generate the beam vehicle object from the data read from the input file
-                val beamVehicle = new BeamVehicle(
-                  Id.create(fleetData.id, classOf[BeamVehicle]),
-                  powertrain,
-                  None,
-                  vehicleType
-                )
-                // map fleet data to the respective vehicle
-                Some(fleetData -> beamVehicle)
+                Some(fleetData)
               } catch {
                 case e: Exception =>
                   logger
@@ -126,15 +116,15 @@ class RideHailFleetInitializer extends LazyLogging {
         }
       } else {
         logger.error(s"Input file is empty - $filePath")
-        List.empty[(FleetData, BeamVehicle)]
+        List.empty[RideHailAgentInputData]
       }
     } catch {
       case fne: FileNotFoundException =>
         logger.error(s"No file found at path - $filePath", fne)
-        List.empty[(FleetData, BeamVehicle)]
+        List.empty[RideHailAgentInputData]
       case e: Exception =>
         logger.error("Error while reading an entry of ride-hail-fleet.csv as RideHailAgent : " + e.getMessage, e)
-        List.empty[(FleetData, BeamVehicle)]
+        List.empty[RideHailAgentInputData]
     }
   }
 
@@ -143,14 +133,15 @@ class RideHailFleetInitializer extends LazyLogging {
     * @param beamServices beam services isntance
     * @param fleetData data to be written
     */
-  def writeFleetData(beamServices: BeamServices, fleetData: List[FleetData]): Unit = {
+  def writeFleetData(beamServices: BeamServices, fleetData: Seq[RideHailAgentInputData]): Unit = {
     try {
+      if (beamServices.matsimServices == null || beamServices.matsimServices.getControlerIO == null) return
       val filePath = beamServices.matsimServices.getControlerIO
         .getIterationFilename(
           beamServices.matsimServices.getIterationNumber,
           RideHailFleetInitializer.outputFileBaseName + ".csv.gz"
         )
-      val fileHeader = classOf[FleetData].getDeclaredFields.map(_.getName).mkString(", ")
+      val fileHeader = classOf[RideHailAgentInputData].getDeclaredFields.map(_.getName).mkString(", ")
       val data = fleetData map { f =>
         f.productIterator.map(f => if (f == None) "" else f) mkString ", "
       } mkString "\n"
@@ -215,17 +206,31 @@ object RideHailFleetInitializer extends OutputDataDescriptor {
     * @param initialLocationX x-coordinate of the initial location of the ride hail vehicle
     * @param initialLocationY y-coordinate of the initial location of the ride hail vehicle
     * @param shifts time shifts for the vehicle , usually a stringified collection of time ranges
-    * @param geofence geo fence values
+    * @param geofenceX geo fence values
+    * @param geofenceY geo fence values
+    * @param geofenceRadius geo fence values
     */
-  case class FleetData(
+  case class RideHailAgentInputData(
     id: String,
     rideHailManagerId: String,
     vehicleType: String,
     initialLocationX: Double,
     initialLocationY: Double,
     shifts: Option[String],
-    geofence: Option[Geofence]
-  )
+    geofenceX: Option[Double],
+    geofenceY: Option[Double],
+    geofenceRadius: Option[Double]
+  ) {
+
+    def toGeofence: Option[Geofence] = {
+      if (geofenceX.isDefined && geofenceY.isDefined && geofenceRadius.isDefined) {
+        Some(Geofence(geofenceX.get, geofenceY.get, geofenceRadius.get))
+      } else {
+        None
+      }
+    }
+
+  }
 
   /**
     * Get description of fields written to the output files.
@@ -325,7 +330,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor {
 }
 
 case class Geofence(
-  geofenceX: Option[Double],
-  geofenceY: Option[Double],
-  geofenceRadius: Option[Double]
+  geofenceX: Double,
+  geofenceY: Double,
+  geofenceRadius: Double
 )

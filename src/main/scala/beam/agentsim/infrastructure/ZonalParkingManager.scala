@@ -32,7 +32,7 @@ class ZonalParkingManager(
 ) extends ParkingManager(parkingStockAttributes)
     with HasServices
     with ActorLogging {
-  override val resources: mutable.Map[Id[ParkingStall], ParkingStall] = mutable.Map()
+  val stalls: mutable.Map[Id[ParkingStall], ParkingStall] = mutable.Map()
   val pooledResources: mutable.Map[StallAttributes, StallValues] = mutable.Map()
   var totalStallsInUse = 0
   var stallNum = 0
@@ -108,35 +108,18 @@ class ZonalParkingManager(
   val indexer: IndexerForZonalParkingManager = new IndexerForZonalParkingManager(pooledResources.toMap)
 
   override def receive: Receive = {
-
-    case RegisterResource =>
-    // For Zonal Parking, stalls are created internally
-
-    case NotifyResourceInUse =>
-    // Irrelevant for parking
-
-
-    case CheckInResource(resourceId, _) =>
-      val stallId = resourceId.asInstanceOf[Id[ParkingStall]]
-      if (resources.contains(stallId)) {
-        val stall = resources(stallId)
+    case ReleaseParkingStall(stallId) =>
+      if (stalls.contains(stallId)) {
+        val stall = stalls(stallId)
         val stallValues = pooledResources(stall.attributes)
         stallValues._numStalls += 1
         totalStallsInUse -= 1
 
-        resources.remove(stall.id)
+        stalls.remove(stall.id)
         if (log.isDebugEnabled) {
           log.debug("CheckInResource with {} available stalls ", getAvailableStalls)
         }
       }
-
-
-    case CheckOutResource =>
-      // Because the ZonalParkingManager is in charge of deciding which stalls to assign, this should never be received
-      throw new RuntimeException(
-        "Illegal use of CheckOutResource, ZonalParkingManager is responsible for checking out stalls in fleet."
-      )
-
 
     case inquiry: DepotParkingInquiry =>
       if (log.isDebugEnabled) {
@@ -165,7 +148,7 @@ class ZonalParkingManager(
       }
 
       maybeParkingStall.foreach { stall =>
-        resources.put(stall.id, stall)
+        stalls.put(stall.id, stall)
         val stallValues = pooledResources(stall.attributes)
         totalStallsInUse += 1
         stallValues._numStalls -= 1
@@ -251,7 +234,7 @@ class ZonalParkingManager(
 
   def respondWithStall(stall: ParkingStall, requestId: Int, reserveStall: Boolean): Unit = {
     if (reserveStall) {
-      resources.put(stall.id, stall)
+      stalls.put(stall.id, stall)
       val stallValues = pooledResources(stall.attributes)
       totalStallsInUse += 1
       if (totalStallsInUse % 1000 == 0) log.debug(s"Parking stalls in use: {}", totalStallsInUse)
@@ -264,7 +247,7 @@ class ZonalParkingManager(
 
   // TODO make these distributions more custom to the TAZ and stall type
   def sampleLocationForStall(taz: TAZ, attrib: StallAttributes): Location = {
-    val radius = math.sqrt(taz.area) / 2
+    val radius = math.sqrt(taz.areaInSquareMeters) / 2
     val lambda = 0.01
     val deltaRadiusX = -math.log(1 - (1 - math.exp(-lambda * radius)) * rand.nextDouble()) / lambda
     val deltaRadiusY = -math.log(1 - (1 - math.exp(-lambda * radius)) * rand.nextDouble()) / lambda

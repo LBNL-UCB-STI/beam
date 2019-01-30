@@ -258,7 +258,6 @@ class TransitInitializer(
         val vehicle: BeamVehicle = new BeamVehicle(
           beamVehicleId,
           powertrain,
-          None,
           vehicleType
         ) // TODO: implement fuel level later as needed
         Some(vehicle)

@@ -59,7 +59,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
           alreadyAllocated = alreadyAllocated + vehicleId
           val pickDropIdAndLegs = routeResponses.map { rResp =>
             tempPickDropStore
-              .remove(rResp.staticRequestId)
+              .remove(rResp.requestId)
               .getOrElse(PickDropIdAndLeg(request.customer, None))
               .copy(leg = rResp.itineraries.head.legs.headOption)
           }
@@ -141,6 +141,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
     var startTime = tick
     var rideHailVehicleAtOrigin = StreetVehicle(
       rideHailLocation.vehicleId,
+      rideHailLocation.vehicleTypeId,
       SpaceTime((rideHailLocation.currentLocationUTM.loc, startTime)),
       CAR,
       asDriver = false
@@ -156,10 +157,15 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         Vector(rideHailVehicleAtOrigin)
       )
       routeReqs = routeReqs :+ routeReq2Pickup
-      tempPickDropStore.put(routeReq2Pickup.staticRequestId, PickDropIdAndLeg(req.customer, None))
+      tempPickDropStore.put(routeReq2Pickup.requestId, PickDropIdAndLeg(req.customer, None))
 
-      rideHailVehicleAtOrigin =
-        StreetVehicle(rideHailLocation.vehicleId, SpaceTime((req.pickUpLocationUTM, startTime)), CAR, asDriver = false)
+      rideHailVehicleAtOrigin = StreetVehicle(
+        rideHailLocation.vehicleId,
+        rideHailLocation.vehicleTypeId,
+        SpaceTime((req.pickUpLocationUTM, startTime)),
+        CAR,
+        asDriver = false
+      )
     }
 
     // Dropoffs next
@@ -172,10 +178,15 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         Vector(rideHailVehicleAtOrigin)
       )
       routeReqs = routeReqs :+ routeReq2Dropoff
-      tempPickDropStore.put(routeReq2Dropoff.staticRequestId, PickDropIdAndLeg(req.customer, None))
+      tempPickDropStore.put(routeReq2Dropoff.requestId, PickDropIdAndLeg(req.customer, None))
 
-      rideHailVehicleAtOrigin =
-        StreetVehicle(rideHailLocation.vehicleId, SpaceTime((req.destinationUTM, startTime)), CAR, asDriver = false)
+      rideHailVehicleAtOrigin = StreetVehicle(
+        rideHailLocation.vehicleId,
+        rideHailLocation.vehicleTypeId,
+        SpaceTime((req.destinationUTM, startTime)),
+        CAR,
+        asDriver = false
+      )
     }
 
     routeReqs

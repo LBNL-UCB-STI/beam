@@ -6,10 +6,15 @@
             <Pattern>
                 %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
             </Pattern>
+<!--
+            <Pattern>
+                %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} %X{akkaSource} - %msg%n
+            </Pattern>
+-->
         </layout>
     </appender>
 
-    <root level="error">
+    <root level="INFO">
         <appender-ref ref="STDOUT" />
     </root>
 
