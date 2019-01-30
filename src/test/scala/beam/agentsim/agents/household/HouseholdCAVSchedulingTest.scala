@@ -60,25 +60,25 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     println(schedules.size)
   }
 
-//  it should "generate four thousands and ninety six schedules" in {
-//    val config = ConfigUtils.createConfig()
-//    implicit val sc: org.matsim.api.core.v01.Scenario =
-//      ScenarioUtils.createScenario(config)
-//
-//    val cavs = List[BeamVehicle](
-//      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), BeamVehicleType.defaultCarBeamVehicleType)
-//    )
-//    val household: Household = scenario3(cavs)
-//
-//    val skim = getSkim(sc, household)
-//
-//    val algo = new HouseholdCAVScheduling(sc.getPopulation, household, cavs, 15 * 60, skim)
-//    val schedules = algo.getKBestSchedules(Integer.MAX_VALUE)
-//
-//    //schedules should have length 4096
-//    println("scenario3")
-//    println(schedules)
-//  }
+  it should "generate four thousands and ninety six schedules" in {
+    val config = ConfigUtils.createConfig()
+    implicit val sc: org.matsim.api.core.v01.Scenario =
+      ScenarioUtils.createScenario(config)
+
+    val cavs = List[BeamVehicle](
+      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), BeamVehicleType.defaultCarBeamVehicleType)
+    )
+    val household: Household = scenario3(cavs)
+
+    val skim = getSkim(sc, household)
+
+    val algo = new HouseholdCAVScheduling(sc.getPopulation, household, cavs, 15 * 60, skim)
+    val schedules = algo.getKBestSchedules(Integer.MAX_VALUE)
+
+    //schedules should have length 4096
+    println("scenario3")
+    println(schedules)
+  }
 
   // ******************
   // Scenarios
