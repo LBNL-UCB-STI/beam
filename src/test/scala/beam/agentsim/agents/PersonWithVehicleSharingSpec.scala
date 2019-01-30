@@ -11,12 +11,7 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeIncentive
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
-import beam.agentsim.agents.household.HouseholdActor.{
-  HouseholdActor,
-  MobilityStatusInquiry,
-  MobilityStatusResponse,
-  ReleaseVehicle
-}
+import beam.agentsim.agents.household.HouseholdActor.{HouseholdActor, MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -41,7 +36,7 @@ import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.TeleportationArrivalEvent
 import org.matsim.core.api.internal.HasPersonId
@@ -58,7 +53,7 @@ import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.ExecutionContext
 
 class PersonWithVehicleSharingSpec
@@ -192,7 +187,7 @@ class PersonWithVehicleSharingSpec
 
       // The agent will ask me for vehicles it can use,
       // since I am the manager of a shared vehicle fleet.
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28800)))
+      mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
 
       // I give it a car to use.
       val vehicle = new BeamVehicle(
@@ -328,7 +323,7 @@ class PersonWithVehicleSharingSpec
 
       // The agent will ask me for vehicles it can use,
       // since I am the manager of a shared vehicle fleet.
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28800)))
+      mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
 
       // I give it a car to use.
       val vehicle = new BeamVehicle(
@@ -431,7 +426,7 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[ActivityStartEvent]
 
       // Agent will ask about the car (will not take it for granted that it is there)
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.01, 0.01, 61200)))
+      mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
       // I give it a _different_ car to use.
       val vehicle2 = new BeamVehicle(
         vehicleId,
@@ -563,7 +558,7 @@ class PersonWithVehicleSharingSpec
 
       scheduler ! StartSchedule(0)
 
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28800)))
+      mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
         .collect {
           case ParkingInquiryResponse(stall, _) =>
@@ -602,7 +597,7 @@ class PersonWithVehicleSharingSpec
       // car
       person1EntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28820)))
+      mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(
         Vector(Token(car1.id, car1.manager.get, car1.toStreetVehicle))
       )
@@ -637,7 +632,7 @@ class PersonWithVehicleSharingSpec
       person2EntersVehicleEvents.expectNoMessage()
 
       mockSharedVehicleFleet.expectMsgPF() {
-        case MobilityStatusInquiry(SpaceTime(_, 28820)) =>
+        case MobilityStatusInquiry(_,SpaceTime(_, 28820),_) =>
       }
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector())
 

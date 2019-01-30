@@ -188,7 +188,8 @@ class PersonAgentSpec
           Id.create("dummyAgent", classOf[PersonAgent]),
           plan,
           parkingManager,
-          tollCalculator
+          tollCalculator,
+          self
         )
       )
 
