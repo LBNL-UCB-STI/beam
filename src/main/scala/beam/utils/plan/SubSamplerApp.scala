@@ -1,83 +1,84 @@
 package beam.utils.plan
 
 
-import java.io.{BufferedInputStream, File, FileInputStream}
-import java.nio.file.Paths
-import java.util.Locale
-import java.util.zip.GZIPInputStream
-
-import org.matsim.core.config.ConfigUtils
-import org.matsim.core.network.io.MatsimNetworkReader
-import org.matsim.core.population.io.{StreamingPopulationReader, StreamingPopulationWriter}
+import beam.utils.scripts.PopulationWriterCSV
+import org.matsim.api.core.v01.Scenario
+import org.matsim.core.config.{Config, ConfigUtils}
+import org.matsim.core.population.io.PopulationWriter
 import org.matsim.core.scenario.ScenarioUtils
-import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
-import org.matsim.core.utils.io.UnicodeInputStream
+import org.matsim.households.HouseholdsWriterV10
+import org.matsim.utils.objectattributes.ObjectAttributesXmlWriter
+import org.matsim.vehicles.VehicleWriterV1
 
-import scala.util.Try
+import scala.collection.JavaConverters._
+import scala.util.{Random, Try}
 
 
 object SubSamplerApp extends App {
 
-  def createSample(inputPopulationFile: File, networkFile: File, samplesize: Double, outputPopulationFile: File): Unit = {
-    val sc = ScenarioUtils.createMutableScenario(ConfigUtils.createConfig)
+  private def getConfig(sampleFile: String) = {
+    val conf = ConfigUtils.createConfig
 
+//    conf.network().setInputFile("test/input/sf-light/r5/physsim-network.xml")
 
-      if (networkFile != null) {
-        var fis: FileInputStream = null
-        var is: BufferedInputStream = null
+    conf.plans().setInputFile(s"$sampleFile/population.xml.gz")
+    conf.plans().setInputPersonAttributeFile(s"$sampleFile/populationAttributes.xml.gz")
 
-        try {
-          fis = new FileInputStream(networkFile)
-          is = if (networkFile.getName.toLowerCase(Locale.ROOT).endsWith(".gz")) new BufferedInputStream(new UnicodeInputStream(new GZIPInputStream(fis)))
-          else new BufferedInputStream(new UnicodeInputStream(fis))
-          println("Loading Network…")
-          new MatsimNetworkReader(sc.getNetwork).parse(is)
-        } finally {
-          if (fis != null) fis.close()
-          if (is != null) is.close()
-        }
-      }
+    conf.households().setInputFile(s"$sampleFile/households.xml.gz")
+    conf.households().setInputHouseholdAttributesFile(s"$sampleFile/householdAttributes.xml.gz")
 
-    //		Population pop = (Population) sc.getPopulation();
-    val reader = new StreamingPopulationReader(sc)
-//    StreamingDeprecated.setIsStreaming(reader, true)
-    var writer: StreamingPopulationWriter = null
-    try {
-      val utm2Wgs: GeotoolsTransformation =
-      new GeotoolsTransformation("epsg:4326", "epsg:26914")
-      writer = new StreamingPopulationWriter(utm2Wgs, samplesize)
-      writer.startStreaming(outputPopulationFile.getAbsolutePath)
-      val algo = writer
-      reader.addAlgorithm(algo)
+//    conf.vehicles().setVehiclesFile(s"$sampleFile/vehicles.csv.gz")
 
-        val fis = new FileInputStream(inputPopulationFile)
-        val is = if (inputPopulationFile.getName.toLowerCase(Locale.ROOT).endsWith(".gz")) new BufferedInputStream(new UnicodeInputStream(new GZIPInputStream(fis)))
-        else new BufferedInputStream(new UnicodeInputStream(fis))
-        try {
-          println("Creating Population Sample…")
-          reader.parse(is)
-        } finally {
-          if (fis != null) fis.close()
-          if (is != null) is.close()
-        }
+    conf
+  }
 
-    } catch {
-      case e: NullPointerException =>
-        throw new RuntimeException(e)
-    } finally if (writer != null) writer.closeStreaming()
+  def samplePopulation(conf: Config, sampleSize: Int): Scenario = {
+
+    val sc: Scenario = ScenarioUtils.loadScenario(conf)
+
+    val hhIds = sc.getHouseholds.getHouseholds.keySet().asScala
+    val hhIdsToRemove = Random.shuffle(hhIds).takeRight(hhIds.size - sampleSize)
+
+    hhIdsToRemove.foreach(id => {
+      val hh = sc.getHouseholds.getHouseholds.remove(id)
+      sc.getHouseholds.getHouseholdAttributes.removeAllAttributes(id.toString)
+
+      hh.getMemberIds.asScala.foreach(mId => {
+        sc.getPopulation.removePerson(mId)
+        sc.getPopulation.getPersonAttributes.removeAllAttributes(mId.toString)
+      })
+
+      hh.getVehicleIds.asScala.foreach(vId => {
+        sc.getVehicles.removeVehicle(vId)
+      })
+    })
+    sc
+  }
+
+  private def writeSample(outDir: String, sc: Scenario): Unit = {
+    new HouseholdsWriterV10(sc.getHouseholds).writeFile(s"$outDir/households.xml.gz")
+    new PopulationWriter(sc.getPopulation).write(s"$outDir/population.xml.gz")
+    PopulationWriterCSV(sc.getPopulation).write(s"$outDir/population.csv.gz")
+    new VehicleWriterV1(sc.getVehicles).writeFile(s"$outDir/vehicles.xml.gz")
+    new ObjectAttributesXmlWriter(sc.getHouseholds.getHouseholdAttributes)
+      .writeFile(s"$outDir/householdAttributes.xml.gz")
+    new ObjectAttributesXmlWriter(sc.getPopulation.getPersonAttributes)
+      .writeFile(s"$outDir/populationAttributes.xml.gz")
   }
 
 /*
-C:/Users/zeesh/project/BeamCompetitions/fixed-data/sioux_faux/sample/15k/population.xml.gz
-C:/Users/zeesh/project/BeamCompetitions/fixed-data/sioux_faux/r5/physsim-network.xml
-10 C:/Users/zeesh/project/BeamCompetitions/fixed-data/sioux_faux/sample/1.5k/population.xml.gz
-
-test/input/sf-light/sample/25k/population.xml.gz
-test/input/sf-light/r5/physsim-network.xml
-10 test/input/sf-light/sample/1.5k/population.xml.gz
+Params:
+test/input/sf-light/sample/25k
+1000
+test/input/sf-light/sample/1.5k
  */
 
-  val sampler = SubSamplerApp
+  val sampleFile = args(0)
+  val sampleSize = Try(args(1).toInt).getOrElse(1000)
+  val outDir = args(2)
 
-  sampler.createSample(Paths.get(args(0)).toFile, Paths.get(args(1)).toFile, Try(args(2).toDouble).getOrElse(50), Paths.get(args(3)).toFile)
+  val sampler = SubSamplerApp
+  val conf = getConfig(sampleFile)
+  val sc = sampler.samplePopulation(conf, sampleSize)
+  writeSample(outDir, sc)
 }
