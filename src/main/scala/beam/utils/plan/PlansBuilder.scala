@@ -23,7 +23,7 @@ import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlW
 import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 
 import scala.collection.JavaConverters._
-import scala.collection.{JavaConverters, immutable}
+import scala.collection.{immutable, JavaConverters}
 import scala.util.Random
 
 object PlansBuilder {
@@ -119,12 +119,12 @@ object PlansBuilder {
   }
 
   def addModeExclusions(person: Person): Unit = {
-    val excludedModes = PopulationAdjustment.getExcludedModes(newPop,person.getId.toString)
     val availableModes = modeAllocator
       .getPermissibleModes(person.getSelectedPlan)
       .asScala
-      .filterNot(pm => excludedModes.exists(em => em.equalsIgnoreCase(pm)))
-    PopulationAdjustment.setAvailableModes(newPop,person.getId.toString,availableModes.toSeq)
+    PopulationAdjustment.setAvailableModes(newPop, person.getId.toString, availableModes.toSeq)(
+      validateForExcludeModes = true
+    )
   }
 
   def run(): Unit = {
