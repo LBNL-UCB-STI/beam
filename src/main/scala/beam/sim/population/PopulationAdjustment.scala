@@ -72,31 +72,24 @@ trait PopulationAdjustment extends LazyLogging {
   }
 
   protected final def logModes(population: MPopulation): Unit = {
-    import scala.collection.JavaConverters._
-    logger.info("Modes' Availability:")
+    logger.info("Modes excluded:")
 
-    var allAgentshaveAttributes = true
-    population.getPersons
-      .keySet()
-      .asScala
-      .map(
-        personId => {
-          if (population.getPersonAttributes.getAttribute(personId.toString, AVAILABLE_MODES) != null) {
-            population.getPersonAttributes.getAttribute(personId.toString, AVAILABLE_MODES).toString.split(",")
-          } else {
-            allAgentshaveAttributes = false
-            Array[String]()
-          }
-        }
-      )
-      .toList
-      .flatten
-      .groupBy(identity)
-      .mapValues(_.size)
-      .foreach(t => logger.info(t.toString()))
+    var modes: Array[String] = Array.empty
+
+    val allAgentshaveAttributes = population.getPersons.asScala.forall { entry =>
+      val exModes = Option(
+        population.getPersonAttributes.getAttribute(entry._1.toString, PopulationAdjustment.EXCLUDED_MODES)
+      ).map(_.toString)
+      if (exModes.isDefined && exModes.get.nonEmpty)
+        modes = modes ++ exModes.get.split(",")
+      exModes.isDefined
+    }
+    modes
+      .groupBy(x => x)
+      .foreach(t => logger.info(s"${t._1} -> ${t._2.length}"))
 
     if (!allAgentshaveAttributes) {
-      logger.error("not all agents have person attributes - is attributes file missing?")
+      logger.error("Not all agents have person attributes - is attributes file missing ?")
     }
   }
 
