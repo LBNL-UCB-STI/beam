@@ -3,6 +3,7 @@ package beam.utils.plan
 import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Paths}
 
+import beam.sim.population.PopulationAdjustment
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PopulationAttrib.Rank
 import beam.utils.plan.sampling._
@@ -13,7 +14,6 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.population.io.PopulationWriter
 import org.matsim.core.population.{PersonUtils, PopulationUtils}
-import org.matsim.core.router.StageActivityTypesImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.misc.Counter
@@ -22,12 +22,11 @@ import org.matsim.households._
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 
-import scala.collection.{immutable, JavaConverters}
 import scala.collection.JavaConverters._
+import scala.collection.{JavaConverters, immutable}
 import scala.util.Random
 
 object PlansBuilder {
-  val availableModeString: String = "available-modes"
   val counter: Counter = new Counter("[" + this.getClass.getSimpleName + "] created household # ")
 
   var utmConverter: UTMConverter = _
@@ -119,20 +118,13 @@ object PlansBuilder {
     synthHouseholds ++= households
   }
 
-  def addModeExclusions(person: Person): AnyRef = {
-
-    val permissibleModes: Iterable[String] =
-      JavaConverters.collectionAsScalaIterable(
-        modeAllocator.getPermissibleModes(person.getSelectedPlan)
-      )
-
-    val availableModes = permissibleModes
-      .fold("") { (addend, modeString) =>
-        addend.concat(modeString.toLowerCase() + ",")
-      }
-      .stripSuffix(",")
-
-    newPopAttributes.putAttribute(person.getId.toString, availableModeString, availableModes)
+  def addModeExclusions(person: Person): Unit = {
+    val excludedModes = PopulationAdjustment.getExcludedModes(newPop,person.getId.toString)
+    val availableModes = modeAllocator
+      .getPermissibleModes(person.getSelectedPlan)
+      .asScala
+      .filterNot(pm => excludedModes.exists(em => em.equalsIgnoreCase(pm)))
+    PopulationAdjustment.setAvailableModes(newPop,person.getId.toString,availableModes.toSeq)
   }
 
   def run(): Unit = {
