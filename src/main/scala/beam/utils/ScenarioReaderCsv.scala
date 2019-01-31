@@ -54,7 +54,7 @@ class ScenarioReaderCsv(var scenario: MutableScenario, var beamServices: BeamSer
     val householdPersons = ScenarioReaderCsv.readPersonsFile(
       personFilePath,
       scenario.getPopulation,
-      BeamMode.allBeamModes.map(_.value).mkString(",")
+      ""
     )
 
     logger.info("Reading plans...")
@@ -129,7 +129,7 @@ object ScenarioReaderCsv {
   def readPersonsFile(
     filePath: String,
     population: Population,
-    modes: String
+    excludedModes: String
   ): Map[Id[Household], ListBuffer[Id[Person]]] = {
     val map = readCsvFileByLine(filePath, mutable.HashMap[Id[Household], ListBuffer[Id[Person]]]()) {
       case (line, acc) =>
