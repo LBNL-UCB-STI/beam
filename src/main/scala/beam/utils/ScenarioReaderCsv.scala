@@ -56,7 +56,7 @@ class ScenarioReaderCsv(var scenario: MutableScenario, var beamServices: BeamSer
     val householdPersons = ScenarioReaderCsv.readPersonsFile(
       personFilePath,
       scenario.getPopulation,
-      BeamMode.allBeamModes.map(_.value).mkString(",")
+      ""
     )
 
     logger.info("Reading plans...")
@@ -131,7 +131,7 @@ object ScenarioReaderCsv {
   def readPersonsFile(
     filePath: String,
     population: Population,
-    modes: String
+    excludedModes: String
   ): Map[Id[Household], ListBuffer[Id[Person]]] = {
     val map = BeamServices.readCsvFileByLine(filePath, mutable.HashMap[Id[Household], ListBuffer[Id[Person]]]()) {
       case (line, acc) =>
@@ -159,13 +159,7 @@ object ScenarioReaderCsv {
         population.getPersonAttributes.putAttribute(person.getId.toString, "householdId", household_id)
         population.getPersonAttributes.putAttribute(person.getId.toString, "rank", 0)
         population.getPersonAttributes.putAttribute(person.getId.toString, "age", age.toInt)
-        val attributesOfIndividual = PopulationAdjustment
-          .adjustBeamAttributes(population, person.getId.toString, modes.split(","))
-        population.getPersons
-          .get(person.getId)
-          .getCustomAttributes
-          .put(BEAM_ATTRIBUTES, attributesOfIndividual)
-        population.addPerson(person)
+        population.getPersonAttributes.putAttribute(person.getId.toString, "excluded-modes",excludedModes)
 
         val householdId: Id[Household] = Id.create(household_id, classOf[Household])
 
