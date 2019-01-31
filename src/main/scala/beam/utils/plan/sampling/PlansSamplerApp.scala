@@ -4,6 +4,7 @@ import java.util
 
 import beam.router.Modes.BeamMode.CAR
 import beam.sim.population.PopulationAdjustment
+import beam.sim.population.PopulationAdjustment.BEAM_ATTRIBUTES
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PopulationAttrib.Rank
 import beam.utils.scripts.PopulationWriterCSV
@@ -458,20 +459,16 @@ object PlansSampler {
   }
 
   def addModeExclusions(person: Person): Unit = {
-    val excludedModes = PopulationAdjustment.getExcludedModes(newPop, person.getId.toString)
-    val availableModes = modeAllocator
+    val filteredPermissibleModes = modeAllocator
       .getPermissibleModes(person.getSelectedPlan)
       .asScala
-      .filterNot(pm => {
-        if (PersonUtils.getAge(person) < 16 && pm.equalsIgnoreCase(CAR.toString))
-          true
-        else {
-          excludedModes.exists(em => em.equalsIgnoreCase(pm))
-        }
-      })
-    PopulationAdjustment.setAvailableModes(newPop, person.getId.toString, availableModes.toSeq)(
-      validateForExcludeModes = false
-    )
+      .filterNot(pm => PersonUtils.getAge(person) < 16 && pm.equalsIgnoreCase(CAR.toString))
+    val attributesOfIndividual =
+      PopulationAdjustment.adjustBeamAttributes(newPop, person.getId.toString, filteredPermissibleModes.toSeq)
+    newPop.getPersons
+      .get(person.getId)
+      .getCustomAttributes
+      .put(BEAM_ATTRIBUTES, attributesOfIndividual)
   }
 
   def run(): Unit = {

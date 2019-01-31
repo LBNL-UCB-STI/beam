@@ -4,7 +4,9 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.sim.population.PopulationAdjustment
+import beam.sim.population.PopulationAdjustment.BEAM_ATTRIBUTES
 import beam.sim.vehicles.VehiclesAdjustment
+import beam.utils.plan.PlansBuilder.newPop
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.{Person, Population}
@@ -157,9 +159,13 @@ object ScenarioReaderCsv {
         population.getPersonAttributes.putAttribute(person.getId.toString, "householdId", household_id)
         population.getPersonAttributes.putAttribute(person.getId.toString, "rank", 0)
         population.getPersonAttributes.putAttribute(person.getId.toString, "age", age.toInt)
-        PopulationAdjustment
-          .setAvailableModes(population, person.getId.toString, modes.split(","))(validateForExcludeModes = true)
-          .addPerson(person)
+        val attributesOfIndividual = PopulationAdjustment
+          .adjustBeamAttributes(population, person.getId.toString, modes.split(","))
+        population.getPersons
+          .get(person.getId)
+          .getCustomAttributes
+          .put(BEAM_ATTRIBUTES, attributesOfIndividual)
+        population.addPerson(person)
 
         val householdId: Id[Household] = Id.create(household_id, classOf[Household])
 

@@ -4,7 +4,9 @@ import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Paths}
 
 import beam.sim.population.PopulationAdjustment
+import beam.sim.population.PopulationAdjustment.BEAM_ATTRIBUTES
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
+import beam.utils.plan.sampling.PlansSampler.newPop
 import beam.utils.plan.sampling.PopulationAttrib.Rank
 import beam.utils.plan.sampling._
 import beam.utils.scripts.PopulationWriterCSV
@@ -119,12 +121,16 @@ object PlansBuilder {
   }
 
   def addModeExclusions(person: Person): Unit = {
-    val availableModes = modeAllocator
+    val permissibleModes = modeAllocator
       .getPermissibleModes(person.getSelectedPlan)
       .asScala
-    PopulationAdjustment.setAvailableModes(newPop, person.getId.toString, availableModes.toSeq)(
-      validateForExcludeModes = true
-    )
+    val attributesOfIndividual =
+      PopulationAdjustment.adjustBeamAttributes(newPop, person.getId.toString, permissibleModes.toSeq)
+    newPop.getPersons
+      .get(person.getId)
+      .getCustomAttributes
+      .put(BEAM_ATTRIBUTES, attributesOfIndividual)
+
   }
 
   def run(): Unit = {
