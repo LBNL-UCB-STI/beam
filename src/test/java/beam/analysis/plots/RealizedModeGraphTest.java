@@ -34,10 +34,10 @@ public class RealizedModeGraphTest {
         }
     }
 
-    private Map<Integer, Map<String, Integer>> stats;
+    private Map<Integer, Map<String, Double>> stats;
     private RealizedModeAnalysis realizedModeStats = new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation() {
         @Override
-        public double[][] compute(Tuple<Map<Integer, Map<String, Integer>>, Set<String>> stat) {
+        public double[][] compute(Tuple<Map<Integer, Map<String, Double>>, Set<String>> stat) {
             stats = stat.getFirst();
             return super.compute(stat);
         }
@@ -47,20 +47,21 @@ public class RealizedModeGraphTest {
     @Before
     public void setUpCRC() {
         createDummySimWithXML(new RealizedModeHandler(realizedModeStats));
+        realizedModeStats.updatePersonCount();
         realizedModeStats.buildModesFrequencyDataset();
     }
 
     @Test
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCUnitHour() {
 
-        int expectedWalkResult = 37;
-        int expectedCarResult = 3;
-        int expectedRideHailResult = 7;
+        Double expectedWalkResult = 37.0;
+        Double expectedCarResult = 3.0;
+        Double expectedRideHailResult = 7.0;
         int hour = 19;
 
-        int actaulWalkResult = stats.get(hour).get(WALK);
-        int actaulCarResult = stats.get(hour).get(CAR);
-        int actaulRideHailResult = stats.get(hour).get(RIDE_HAIL);
+        Double actaulWalkResult = stats.get(hour).get(WALK);
+        Double actaulCarResult = stats.get(hour).get(CAR);
+        Double actaulRideHailResult = stats.get(hour).get(RIDE_HAIL);
 
         assertEquals(expectedWalkResult, actaulWalkResult);
         assertEquals(expectedCarResult, actaulCarResult);
@@ -70,33 +71,22 @@ public class RealizedModeGraphTest {
     @Test
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCRCUnitHour() {
 
-        int expectedDriveTransitResult = 16;
-        int expectedCarResult = 2;
-        int expectedRideHailResult = 7;
-        int expectedWalkTransitResult = 20;
+        Double expectedDriveTransitResult = 16.0;
+        Double expectedCarResult = 2.0;
+        Double expectedRideHailResult = 9.0;
+        Double expectedWalkTransitResult = 22.0;
         int hour = 6;
 
-        int actaulDriveTransitResult = stats.get(hour).get(DRIVE_TRANS);
-        int actaulCarResult = stats.get(hour).get(CAR);
-        int actaulRideHailResult = stats.get(hour).get(RIDE_HAIL);
-        int actaulWalkTransitResult = stats.get(hour).get(WALK_TRANS);
+        Double actaulDriveTransitResult = stats.get(hour).get(DRIVE_TRANS);
+        Double actaulCarResult = stats.get(hour).get(CAR);
+        Double actaulRideHailResult = stats.get(hour).get(RIDE_HAIL);
+        Double actaulWalkTransitResult = stats.get(hour).get(WALK_TRANS);
 
         assertEquals(expectedDriveTransitResult, actaulDriveTransitResult);
         assertEquals(expectedCarResult, actaulCarResult);
         assertEquals(expectedRideHailResult, actaulRideHailResult);
         assertEquals(expectedWalkTransitResult, actaulWalkTransitResult);
 
-    }
-
-    @Test
-    public void testShouldPassShouldReturnModeChoseEventOccurrenceForNestedCRCRCUnitHour() {
-
-        int expectedRideHailResult = 2;
-        int hour = 10;
-
-        int actaulRideHailResult = stats.get(hour).get(RIDE_HAIL);
-
-        assertEquals(expectedRideHailResult, actaulRideHailResult);
     }
 
 }
