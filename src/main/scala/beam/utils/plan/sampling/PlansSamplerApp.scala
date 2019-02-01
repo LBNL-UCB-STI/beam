@@ -463,12 +463,7 @@ object PlansSampler {
       .getPermissibleModes(person.getSelectedPlan)
       .asScala
       .filterNot(pm => PersonUtils.getAge(person) < 16 && pm.equalsIgnoreCase(CAR.toString))
-    val attributesOfIndividual =
-      PopulationAdjustment.adjustBeamAttributes(newPop, person.getId.toString, filteredPermissibleModes.toSeq)
-    newPop.getPersons
-      .get(person.getId)
-      .getCustomAttributes
-      .put(BEAM_ATTRIBUTES, attributesOfIndividual)
+    AvailableModeUtils.setAvailableModesForPerson(person, newPop, filteredPermissibleModes.toSeq)
   }
 
   def run(): Unit = {

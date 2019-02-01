@@ -124,13 +124,7 @@ object PlansBuilder {
     val permissibleModes = modeAllocator
       .getPermissibleModes(person.getSelectedPlan)
       .asScala
-    val attributesOfIndividual =
-      PopulationAdjustment.adjustBeamAttributes(newPop, person.getId.toString, permissibleModes.toSeq)
-    newPop.getPersons
-      .get(person.getId)
-      .getCustomAttributes
-      .put(BEAM_ATTRIBUTES, attributesOfIndividual)
-
+    AvailableModeUtils.setAvailableModesForPerson(person, newPop, permissibleModes.toSeq)
   }
 
   def run(): Unit = {

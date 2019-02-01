@@ -13,6 +13,7 @@ import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.{AttributesOfIndividual, PopulationAdjustment}
+import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Person, Plan}
@@ -334,8 +335,8 @@ object PersonComparator extends Comparator[Person] {
           val age1 = o1.getPopulation.getPersonAttributes.getAttribute(pId.toString, "age")
           val age2 = o2.getPopulation.getPersonAttributes.getAttribute(pId.toString, "age")
 
-          val availableModes1 = PopulationAdjustment.getAvailableModes(o1.getPopulation, pId.toString)
-          val availableModes2 = PopulationAdjustment.getAvailableModes(o2.getPopulation, pId.toString)
+          val availableModes1 = AvailableModeUtils.availableModesForPerson(p)
+          val availableModes2 = AvailableModeUtils.availableModesForPerson(o2.getPopulation.getPersons.get(pId))
           /*age1 != age2 ||*/
           if (availableModes1 != availableModes2) {
             flag = 1
