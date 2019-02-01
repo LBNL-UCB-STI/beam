@@ -77,8 +77,7 @@ class SingleModeSpec
     val vehicleTypes = {
       val fuelTypes = readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
       TrieMap(
-        readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
-          .toSeq: _*
+        readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes).toSeq: _*
       )
     }
 
