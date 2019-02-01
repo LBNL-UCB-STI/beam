@@ -14,6 +14,7 @@ import org.matsim.core.mobsim.jdeqsim.util.Timer;
 
 import javax.inject.Inject;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,13 +75,14 @@ public class JDEQSimulation implements Mobsim {
 		// use same for doing analysis on how many vehicles are on network which are caccs
 		//
 
+		List<String> vehicleNotFound = new ArrayList<>();
 
 		for (Person person : this.scenario.getPopulation().getPersons().values()) {
 
 			boolean isCaccEnabled = false;
 			String personId = person.getId().toString();
 			if(isCACCVehicle.get(personId) == null){
-				System.out.println("Person not found in isCACCVehicle(map)" + personId);
+				vehicleNotFound.add(personId);
 			}else{
 				isCaccEnabled = isCACCVehicle.get(personId);
 			}
@@ -92,6 +94,8 @@ public class JDEQSimulation implements Mobsim {
 		scheduler.startSimulation();
 
 		t.endTimer();
+
+		log.info("Vehilces not found in the isCACCVehicle map -> total vehicles " + this.scenario.getPopulation().getPersons().values().size() + ", not found " + vehicleNotFound.size());
 		log.info("Time needed for one iteration (only JDEQSimulation part): " + t.getMeasuredTime() + "[ms]");
 		events.finishProcessing();
 	}
