@@ -77,11 +77,14 @@ public class JDEQSimulation implements Mobsim {
 
 		for (Person person : this.scenario.getPopulation().getPersons().values()) {
 
-
-			if(isCACCVehicle.get(person.getId().toString()) == null){
-				System.out.println("person not found in caccmap isCACCVehicle " + person.getId().toString());
+			boolean isCaccEnabled = false;
+			String personId = person.getId().toString();
+			if(isCACCVehicle.get(personId) == null){
+				System.out.println("Person not found in isCACCVehicle(map)" + personId);
+			}else{
+				isCaccEnabled = isCACCVehicle.get(personId);
 			}
-			boolean isCaccEnabled = isCACCVehicle.get(person.getId().toString());
+
 			new Vehicle(scheduler, person, activityDurationInterpretation, isCaccEnabled); // the vehicle registers itself to the scheduler
 		}
 
