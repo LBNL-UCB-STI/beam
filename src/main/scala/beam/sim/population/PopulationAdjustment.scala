@@ -4,7 +4,6 @@ import beam.agentsim
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
-import beam.sim.population.PopulationAdjustment.BEAM_ATTRIBUTES
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Population => MPopulation}
@@ -38,13 +37,9 @@ trait PopulationAdjustment extends LazyLogging {
             .getOrElse(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
         // Read excluded-modes set for the person and calculate the possible available modes for the person
         val excludedModes = AvailableModeUtils.getExcludedModesForPerson(population, person.getId.toString)
-        val availableModes: Seq[BeamMode] = if (excludedModes.isEmpty) {
-          BeamMode.allBeamModes
-        } else {
-          BeamMode.allBeamModes filterNot { mode =>
+        val availableModes: Seq[BeamMode] = BeamMode.allBeamModes filterNot { mode =>
             excludedModes.exists(em => em.equalsIgnoreCase(mode.toString))
           }
-        }
         // Read person attribute "income" and default it to 0 if not set
         val income = Option(personAttributes.getAttribute(person.getId.toString, "income"))
           .map(_.asInstanceOf[Double])
