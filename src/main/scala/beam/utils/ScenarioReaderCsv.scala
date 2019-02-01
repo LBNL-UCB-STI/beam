@@ -132,7 +132,7 @@ object ScenarioReaderCsv {
   def readPersonsFile(
     filePath: String,
     population: Population,
-    allModesAsCsv: String
+    availableModes: String
   ): Map[Id[Household], ListBuffer[Id[Person]]] = {
     val map = BeamServices.readCsvFileByLine(filePath, mutable.HashMap[Id[Household], ListBuffer[Id[Person]]]()) {
       case (line, acc) =>
@@ -160,7 +160,7 @@ object ScenarioReaderCsv {
         population.getPersonAttributes.putAttribute(person.getId.toString, "householdId", household_id)
         population.getPersonAttributes.putAttribute(person.getId.toString, "rank", 0)
         population.getPersonAttributes.putAttribute(person.getId.toString, "age", age.toInt)
-        AvailableModeUtils.setAvailableModesForPerson(person, population, allModesAsCsv.split(","))
+        AvailableModeUtils.setAvailableModesForPerson(person, population, availableModes.split(","))
 
         val householdId: Id[Household] = Id.create(household_id, classOf[Household])
 
