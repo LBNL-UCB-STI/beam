@@ -38,8 +38,8 @@ trait PopulationAdjustment extends LazyLogging {
         // Read excluded-modes set for the person and calculate the possible available modes for the person
         val excludedModes = AvailableModeUtils.getExcludedModesForPerson(population, person.getId.toString)
         val availableModes: Seq[BeamMode] = BeamMode.allBeamModes filterNot { mode =>
-            excludedModes.exists(em => em.equalsIgnoreCase(mode.toString))
-          }
+          excludedModes.exists(em => em.equalsIgnoreCase(mode.value))
+        }
         // Read person attribute "income" and default it to 0 if not set
         val income = Option(personAttributes.getAttribute(person.getId.toString, "income"))
           .map(_.asInstanceOf[Double])
@@ -224,46 +224,4 @@ object PopulationAdjustment extends LazyLogging {
       .asInstanceOf[AttributesOfIndividual]
   }
 
-//  @deprecated("use [[beam.utils.plan.sampling.AvailableModeUtils.getExcludedModesForPerson]]","")
-  def getExcludedModes(population: MPopulation, personId: String): Array[String] = {
-    Option(
-      population.getPersonAttributes.getAttribute(personId, PopulationAdjustment.EXCLUDED_MODES)
-    ).map(_.toString) match {
-      case Some(modes) =>
-        if (modes.isEmpty) {
-          Array.empty[String]
-        } else {
-          modes.split(",")
-        }
-      case None => Array.empty[String]
-    }
-  }
-
-//  @deprecated("use [[beam.utils.plan.sampling.AvailableModeUtils.availableModesForPerson]]","")
-  def getAvailableModes(population: MPopulation, personId: String): Seq[String] = {
-    getBeamAttributes(population, personId).availableModes
-      .map(_.toString.toLowerCase)
-  }
-
-//  @deprecated("use [[beam.utils.plan.sampling.AvailableModeUtils.setAvailableModesForPerson]]","")
-  def adjustBeamAttributes(
-    population: MPopulation,
-    personId: String,
-    permissibleModes: Seq[String]
-  ): AttributesOfIndividual = {
-    val attributesOfIndividual = getBeamAttributes(population, personId)
-    val excludedModes = getExcludedModes(population, personId)
-    val availableModes = if (excludedModes.nonEmpty) {
-      permissibleModes.filterNot(am => excludedModes.exists(em => em.equalsIgnoreCase(am)))
-    } else {
-      permissibleModes
-    }
-    try {
-      attributesOfIndividual.copy(availableModes = availableModes.map(f => BeamMode.withValue(f.toLowerCase)))
-    } catch {
-      case e: Exception =>
-        logger.error("Error while converting available mode string to respective Beam Mode Enums : " + e.getMessage, e)
-        attributesOfIndividual
-    }
-  }
 }
