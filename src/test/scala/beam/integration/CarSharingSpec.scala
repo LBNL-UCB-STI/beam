@@ -106,8 +106,8 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
 
     // Only driving allowed
     val population = scenario.getPopulation
-    val nonCarModes = BeamMode.allBeamModes map { mode =>
-      if (mode == BeamMode.CAR) "" else mode.toString.toLowerCase
+    val nonCarModes = BeamMode.allBeamModes flatMap { mode =>
+      if (mode == BeamMode.CAR) None else Some(mode.value.toLowerCase)
     } mkString ","
     population.getPersons.keySet.forEach { personId =>
       population.getPersonAttributes.putAttribute(personId.toString, EXCLUDED_MODES, nonCarModes)
