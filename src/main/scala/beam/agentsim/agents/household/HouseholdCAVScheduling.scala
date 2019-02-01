@@ -26,25 +26,33 @@ case class MobilityServiceRequest(
   activity: Activity,
   time: Double,
   trip: Trip,
+  defaultMode: BeamMode,
   tag: MobilityServiceRequestType,
-  deltaTime: Double,
+  serviceTime: Double,
   nextActivity: Option[Activity] = None,
   routingRequestId: Option[Int] = None
-                                 ) {
-  def this(req: MobilityServiceRequest, deltaTime: Double) =
-    this(req.person, req.activity, req.time, req.trip, req.tag, deltaTime, req.nextActivity)
+) {
+  def this(req: MobilityServiceRequest, serviceTime: Double) =
+    this(req.person, req.activity, req.time, req.trip, req.defaultMode, req.tag, serviceTime, req.nextActivity)
+
+  def formatTime(secs: Double): String = {
+    (s"${(secs / 3600).toInt}:${((secs % 3600) / 60).toInt}:${(secs % 60).toInt}")
+  }
   override def toString =
     s"$tag{ ${person match {
       case Some(x) => x.toString
       case None    => "NA"
-    }}|${activity.getType}|${(time / 3600).toInt}:${((time % 3600) / 60).toInt}:${(time % 60).toInt}|delta:$deltaTime }"
+    }}|${activity.getType}|${formatTime(time)}|serviceTime=>${formatTime(serviceTime)} }"
 }
 
 case class HouseholdTrips(
   requests: List[MobilityServiceRequest],
+  defaultTravelTime: Double,
   tripTravelTime: Map[Trip, Double],
   totalTravelTime: Double
 ) {
+  def this(hhTrips: HouseholdTrips, tripTT: Map[Trip, Double], totalTT: Double) =
+    this(hhTrips.requests, hhTrips.defaultTravelTime, tripTT, totalTT)
   override def toString = s"${requests}"
 }
 
@@ -53,23 +61,25 @@ object HouseholdTrips {
   def getInstance(
     householdPlans: List[BeamPlan],
     householdNbOfVehicles: Int,
+    pickupTimeWindow: Double,
+    dropoffTimeWindow: Double,
     skim: Map[BeamMode, Map[Coord, Map[Coord, Double]]]
   ): HouseholdTrips = {
     var requests = List[MobilityServiceRequest]()
-    var cost: Double = 0
-    var tripCost: Map[Trip, Double] = Map[Trip, Double]()
+    var totTravelTime: Double = 0
+    var tripTravelTime: Map[Trip, Double] = Map[Trip, Double]()
 
     householdPlans.foreach { plan =>
       var counter = householdNbOfVehicles
       var usedCar = false
 
-      // iterating over trips and (1) compute cost (2) get pick up requests (3) get dropoff requests
+      // iterating over trips and (1) compute totTravelTime (2) get pick up requests (3) get dropoff requests
       plan.trips.sliding(2).foreach { tripTuple =>
         val startActivity = tripTuple(0).activity
         val endActivity = tripTuple(1).activity
         val legTrip = tripTuple(1).leg
         val defaultMode = getDefaultMode(legTrip, counter)
-        val defaultTravelTime = skim(defaultMode)(startActivity.getCoord)(endActivity.getCoord)
+        val travelTime = skim(defaultMode)(startActivity.getCoord)(endActivity.getCoord)
 
         defaultMode match {
           case BeamMode.CAR => usedCar = true
@@ -77,30 +87,34 @@ object HouseholdTrips {
         }
 
         // keep trip travel time in memory
-        tripCost += (tripTuple(1) -> defaultTravelTime)
+        tripTravelTime += (tripTuple(1) -> travelTime)
 
-        // increment cost
-        cost += defaultTravelTime
+        // increment totTravelTime
+        totTravelTime += travelTime
 
         // identifying pickups
+        val pickupTime = startActivity.getEndTime
         requests = new MobilityServiceRequest(
           Some(plan.getPerson.getId),
           startActivity,
-          startActivity.getEndTime,
+          pickupTime,
           tripTuple(1),
+          defaultMode,
           Pickup,
-          0.0,
+          pickupTime,
           nextActivity = Some(endActivity)
         ) :: requests
 
         // identifying dropoffs
+        val dropoffTime = startActivity.getEndTime + skim(defaultMode)(startActivity.getCoord)(endActivity.getCoord)
         requests = new MobilityServiceRequest(
           Some(plan.getPerson.getId),
           endActivity,
-          startActivity.getEndTime + skim(defaultMode)(startActivity.getCoord)(endActivity.getCoord),
+          dropoffTime,
           tripTuple(1),
+          defaultMode,
           Dropoff,
-          0.0
+          dropoffTime
         ) :: requests
       }
 
@@ -108,8 +122,11 @@ object HouseholdTrips {
       if (usedCar) counter -= 1
     }
 
-    requests = requests.sortWith(_.time < _.time)
-    HouseholdTrips(requests, tripCost, cost)
+    // Sum(tDi - tPi) <= Sum(tauDi - tauPi) + (alpha + beta)|R|/2
+    val sumTimeWindows = (requests.size / 2) * (dropoffTimeWindow + pickupTimeWindow)
+
+    // adding a time window to the total travel time
+    HouseholdTrips(requests.sortWith(_.time < _.time), totTravelTime + sumTimeWindows, tripTravelTime, totTravelTime)
   }
 
   def getDefaultMode(legOption: Option[Leg], nbVehicles: Int): BeamMode = {
@@ -134,8 +151,9 @@ object HouseholdTrips {
 class HouseholdCAVScheduling(
   val population: org.matsim.api.core.v01.population.Population,
   val household: Household,
-  val cavVehicles: List[BeamVehicle],
-  val timeWindow: Double,
+  val householdVehicles: List[BeamVehicle],
+  val pickupTimeWindow: Double,
+  val dropoffTimeWindow: Double,
   val skim: Map[BeamMode, Map[Coord, Map[Coord, Double]]]
 ) {
   import beam.agentsim.agents.memberships.Memberships.RankedGroup._
@@ -144,16 +162,26 @@ class HouseholdCAVScheduling(
   private var feasibleSchedules: List[CAVFleetSchedule] = List[CAVFleetSchedule]()
 
   // extract potential household CAV requests from plans
-  private val householdRequests: HouseholdTrips = HouseholdTrips.getInstance(householdPlans, cavVehicles.size, skim)
+  private val householdRequests: HouseholdTrips =
+    HouseholdTrips.getInstance(householdPlans, householdVehicles.size, pickupTimeWindow, dropoffTimeWindow, skim)
 
   // **
   class CAVFleetSchedule(val cavFleetSchedule: List[CAVSchedule], val householdTrips: HouseholdTrips) {
     var feasible: Boolean = true
 
-    def check(request: MobilityServiceRequest,skim:  Map[BeamMode, Map[Coord, Map[Coord, Double]]], timeWindow: Double): List[CAVFleetSchedule] = {
+    def check(
+      request: MobilityServiceRequest,
+      skim: Map[BeamMode, Map[Coord, Map[Coord, Double]]]
+    ): List[CAVFleetSchedule] = {
       var newHouseholdSchedule = List[CAVFleetSchedule]()
       for (cavSchedule <- cavFleetSchedule) {
-        val result = cavSchedule.check(request, householdTrips, skim, timeWindow)
+        val timeWindow: Double = request.tag match {
+          case Pickup  => pickupTimeWindow
+          case Dropoff => dropoffTimeWindow
+          //TODO case Dropoff => request.defaultMode match { case BeamMode.CAR => dropoffTimeWindow case _ => 0}
+          case _ => 0
+        }
+        val result = cavSchedule.check(request, householdTrips, timeWindow, skim)
         result._1 match {
           case Some(x) =>
             newHouseholdSchedule = new CAVFleetSchedule(x :: (cavFleetSchedule.filter(_ != cavSchedule)), result._2) :: newHouseholdSchedule
@@ -164,7 +192,8 @@ class HouseholdCAVScheduling(
       newHouseholdSchedule
     }
     override def toString = {
-      var output = s"Household Schedule - COST: ${householdTrips.totalTravelTime}.\n"
+      var output =
+        s"Household Schedule | totalTT: ${householdTrips.totalTravelTime} | defaultTT: ${householdTrips.defaultTravelTime}.\n"
       cavFleetSchedule.foreach { i =>
         output += s"${i}\n"
       }
@@ -172,12 +201,10 @@ class HouseholdCAVScheduling(
     }
   }
 
-  // ******
-  // get k lowest scored schedules
-  def getKBestSchedules(k: Int): List[CAVFleetSchedule] = {
-
+  def getAllSchedules(): List[CAVFleetSchedule] = {
     // deploy the householdFleet or set up the initial household schedule
     var emptyFleetSchedule = List[CAVSchedule]()
+    val cavVehicles = householdVehicles.filter(_.beamVehicleType.automationLevel>3)
     cavVehicles.foreach(
       veh => // initial Cost and Occupancy
         emptyFleetSchedule = new CAVSchedule(
@@ -185,10 +212,11 @@ class HouseholdCAVScheduling(
             new MobilityServiceRequest(
               None,
               householdRequests.requests.head.activity,
-              householdRequests.requests.head.time - 1,
+              householdRequests.requests.head.time,
               householdRequests.requests.head.trip,
+              householdRequests.requests.head.defaultMode,
               Init,
-              1
+              householdRequests.requests.head.time
             )
           ),
           veh,
@@ -202,117 +230,168 @@ class HouseholdCAVScheduling(
       var householdSchedulesToAdd = List[CAVFleetSchedule]()
       var householdSchedulesToDelete = List[CAVFleetSchedule]()
       for (schedule <- feasibleSchedules) {
-        householdSchedulesToAdd ++= schedule.check(request,skim,timeWindow)
+        householdSchedulesToAdd ++= schedule.check(request, skim)
         if (!schedule.feasible) {
           householdSchedulesToDelete = schedule :: householdSchedulesToDelete
         }
       }
       feasibleSchedules = householdSchedulesToAdd ++ feasibleSchedules.diff(householdSchedulesToDelete)
     }
-    return feasibleSchedules.sortWith(_.householdTrips.totalTravelTime < _.householdTrips.totalTravelTime).take(k)
+    return feasibleSchedules
+  }
+
+  // ******
+  // get k lowest scored schedules
+  def getKBestSchedules(k: Int): List[CAVFleetSchedule] = {
+    return getAllSchedules().sortBy(_.householdTrips.totalTravelTime).take(k)
+  }
+
+  def getMostProductiveCAVSchedule(): CAVFleetSchedule = {
+    val maprank = getAllSchedules().map(x => x -> x.cavFleetSchedule.foldLeft(0)((a, b) => a + b.schedule.size)).toMap
+    val maxrank = maprank.maxBy(_._2)._2
+    maprank.filter(_._2 == maxrank).keys.toList.sortBy(_.householdTrips.totalTravelTime).take(1)(0)
   }
 
 }
+
 // **
 class CAVSchedule(
-                   val schedule: List[MobilityServiceRequest],
-                   val cav: BeamVehicle,
-                   val occupancy: Int
-                 ) {
+  val schedule: List[MobilityServiceRequest],
+  val cav: BeamVehicle,
+  val occupancy: Int
+) {
   var feasible: Boolean = true
 
   def check(
-             request: MobilityServiceRequest,
-             householdTrips: HouseholdTrips,
-             skim:  Map[BeamMode, Map[Coord, Map[Coord, Double]]], timeWindow: Double
-           ): (Option[CAVSchedule], HouseholdTrips) = {
+    request: MobilityServiceRequest,
+    householdTrips: HouseholdTrips,
+    timeWindow: Double,
+    skim: Map[BeamMode, Map[Coord, Map[Coord, Double]]]
+  ): (Option[CAVSchedule], HouseholdTrips) = {
     val travelTime = skim(BeamMode.CAR)(schedule.head.activity.getCoord)(request.activity.getCoord)
-    val arrivalTime = schedule.head.time + schedule.head.deltaTime + travelTime
-    val newDeltaTime = arrivalTime - request.time
+    val prevServiceTime = schedule.head.serviceTime
+    val serviceTime = prevServiceTime + travelTime
+    val upperBoundServiceTime = request.time + timeWindow
+    val lowerBoundServiceTime = request.time - timeWindow
     var newCavSchedule: Option[CAVSchedule] = None
     var newHouseholdTrips: HouseholdTrips = householdTrips
     request.tag match {
       case Pickup =>
-        if (occupancy == 0 && newDeltaTime < -1 * timeWindow) {
-          val relocationRequest = new MobilityServiceRequest(
-            None,
-            request.activity,
-            request.time - 1,
-            request.trip,
-            Relocation,
-            newDeltaTime
-          )
-          newCavSchedule = Some(
-            new CAVSchedule(
-              new MobilityServiceRequest(request, 0) :: relocationRequest :: schedule,
-              cav,
-              occupancy + 1
+        if (occupancy == 0) { // case of an empty cav
+          if (serviceTime > upperBoundServiceTime) {
+            // the empty cav arrives too late to pickup a passenger
+          } else {
+            var newSchedule = schedule
+            var newServiceTime = serviceTime
+            if (serviceTime < request.time) {
+              val relocationRequest = new MobilityServiceRequest(
+                None,
+                request.activity,
+                prevServiceTime,
+                request.trip,
+                BeamMode.CAV,
+                Relocation,
+                prevServiceTime
+              )
+              newSchedule = relocationRequest :: newSchedule
+              newServiceTime = request.time
+            }
+            newCavSchedule = Some(
+              new CAVSchedule(
+                new MobilityServiceRequest(request, newServiceTime) :: newSchedule,
+                cav,
+                occupancy + 1
+              )
             )
-          )
-        } else if (occupancy < cav.beamVehicleType.seatingCapacity && math.abs(newDeltaTime) <= timeWindow) {
-          newCavSchedule = Some(
-            new CAVSchedule(new MobilityServiceRequest(request, newDeltaTime) :: schedule, cav, occupancy + 1)
-          )
+          }
         } else {
-          // Dead End, Not going down this branch
+          if (serviceTime < lowerBoundServiceTime || lowerBoundServiceTime > upperBoundServiceTime) {
+            // the cav arrives either too early or too late to pickup another passenger
+          } else {
+            val newServiceTime = if (serviceTime < request.time) request.time else serviceTime
+            newCavSchedule = Some(
+              new CAVSchedule(
+                new MobilityServiceRequest(request, newServiceTime) :: schedule,
+                cav,
+                occupancy + 1
+              )
+            )
+          }
         }
+
       case Dropoff =>
         val index = schedule.indexWhere(_.person == request.person)
         if (index < 0 || schedule(index).tag != Pickup) {
-          // Dead End, Not going down this branch
-        } else if (math.abs(newDeltaTime) > timeWindow) {
-          // Current Schedule unfeasible, to be marked for removal
+          // cav cannot dropoff a non passenger
+        } else if (serviceTime < lowerBoundServiceTime || serviceTime > upperBoundServiceTime) {
+          // cav arriving too early or too late to the dropoff time
+          // since the agent is already a passenger, such a schedule should be marked unfeasible
+          // to avoid the agent to be picked up in the first place
           feasible = false
         } else {
-          val cavTripTravelTime = request.time + request.deltaTime - schedule(index).time
-          val newTotalTravelTime: Double = householdTrips.totalTravelTime - householdTrips.tripTravelTime(
+          val cavTripTravelTime = serviceTime - schedule(index).time // it includes the waiting time
+          val newTotalTravelTime = householdTrips.totalTravelTime - householdTrips.tripTravelTime(
             request.trip
           ) + cavTripTravelTime
-          if (newTotalTravelTime < householdTrips.totalTravelTime) {
+          if (newTotalTravelTime < householdTrips.defaultTravelTime) {
             newCavSchedule = Some(
-              new CAVSchedule(new MobilityServiceRequest(request, newDeltaTime) :: schedule, cav, occupancy - 1)
+              new CAVSchedule(
+                new MobilityServiceRequest(request, serviceTime) :: schedule,
+                cav,
+                occupancy - 1
+              )
             )
             newHouseholdTrips = new HouseholdTrips(
-              List[MobilityServiceRequest](),
+              householdTrips,
               householdTrips.tripTravelTime + (request.trip -> cavTripTravelTime),
               newTotalTravelTime
             )
           }
+          // whether the passenger successfully got dropped of or not, the current schedule
+          // should be marked unfeasible, since you wouldn't need a combination where a passenger
+          // never get dropped of.
           feasible = false
         }
-      case _ => // No Action
+      case _ => // no action
     }
     (newCavSchedule, newHouseholdTrips)
   }
+
   def toRoutingRequests(beamServices: BeamServices): (List[Option[RoutingRequest]], CAVSchedule) = {
     var newMobilityRequests = List[MobilityServiceRequest]()
-    var requestList = schedule.sliding(2).filter(_.size>1).map{ wayPoints =>
-      val orig = wayPoints(0)
-      val dest = wayPoints(1)
-      val origin = SpaceTime(orig.activity.getCoord,math.round(orig.activity.getEndTime).toInt)
-      val routingRequest = RoutingRequest(
-        orig.activity.getCoord,
-        dest.activity.getCoord,
-        origin.time,
-        IndexedSeq(),
-        IndexedSeq(StreetVehicle(Id.create(cav.id.toString,classOf[Vehicle]), cav.beamVehicleType.id,origin,CAV,true))
-      )
-      newMobilityRequests = orig.copy(routingRequestId = Some(routingRequest.requestId)) +: newMobilityRequests
-      Some(routingRequest)
-    }.toList
+    var requestList = schedule
+      .sliding(2)
+      .filter(_.size > 1)
+      .map { wayPoints =>
+        val orig = wayPoints(0)
+        val dest = wayPoints(1)
+        val origin = SpaceTime(orig.activity.getCoord, math.round(orig.activity.getEndTime).toInt)
+        val routingRequest = RoutingRequest(
+          orig.activity.getCoord,
+          dest.activity.getCoord,
+          origin.time,
+          IndexedSeq(),
+          IndexedSeq(
+            StreetVehicle(Id.create(cav.id.toString, classOf[Vehicle]), cav.beamVehicleType.id, origin, CAV, true)
+          )
+        )
+        newMobilityRequests = orig.copy(routingRequestId = Some(routingRequest.requestId)) +: newMobilityRequests
+        Some(routingRequest)
+      }
+      .toList
     (requestList, new CAVSchedule(newMobilityRequests, cav, occupancy))
   }
   override def toString = {
     var output = s"\tcav-id:${cav.id} \n\t\t"
-    schedule.sortWith(_.time < _.time).foreach { i =>
+    schedule.foreach { i =>
       output += s"${i}\n\t\t"
     }
     output
   }
 }
 
-
 object HouseholdCAVScheduling {
+
   def computeSkim(
     plans: List[BeamPlan],
     avgSpeed: Map[BeamMode, Double]
