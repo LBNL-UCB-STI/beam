@@ -91,6 +91,10 @@ object FileUtils extends LazyLogging {
     IOUtils.getBufferedReader(filePath)
   }
 
+  def writerToFile(filePath: String): java.io.BufferedWriter = {
+    IOUtils.getBufferedWriter(filePath)
+  }
+
   def downloadFile(source: String): Unit = {
     downloadFile(source, Paths.get(getTempDirectoryPath, getName(source)).toString)
   }

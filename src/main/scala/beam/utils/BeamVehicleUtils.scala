@@ -10,7 +10,7 @@ import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 import org.matsim.households.Household
-import org.matsim.vehicles.EngineInformation.{FuelType=>MatsimFuleType}
+import org.matsim.vehicles.EngineInformation.{FuelType => MatsimFuleType}
 import org.matsim.vehicles._
 import org.matsim.vehicles.{Vehicle, VehicleType, Vehicles}
 import org.supercsv.io.CsvMapReader
@@ -172,9 +172,9 @@ object BeamVehicleUtils {
 
   //TODO: Identify the vehicles by type in xml
   def makeHouseholdVehicle(
-                            beamVehicles: TrieMap[Id[BeamVehicle], BeamVehicle],
-                            id: Id[Vehicle]
-                          ): Either[IllegalArgumentException, BeamVehicle] = {
+    beamVehicles: TrieMap[Id[BeamVehicle], BeamVehicle],
+    id: Id[Vehicle]
+  ): Either[IllegalArgumentException, BeamVehicle] = {
 
     if (BeamVehicleType.isBicycleVehicle(id)) {
       Right(makeBicycle(id))
@@ -188,9 +188,9 @@ object BeamVehicleUtils {
   }
 
   def getVehicleTypeById(
-                          id: String,
-                          vehicleTypes: java.util.Map[Id[VehicleType], VehicleType]
-                        ): Option[VehicleType] = {
+    id: String,
+    vehicleTypes: java.util.Map[Id[VehicleType], VehicleType]
+  ): Option[VehicleType] = {
     JavaConverters
       .mapAsScalaMap(vehicleTypes)
       .filter(idAndType => idAndType._2.getId.toString.equalsIgnoreCase(id))
@@ -199,9 +199,9 @@ object BeamVehicleUtils {
   }
 
   def getVehicleTypeByDescription(
-                                   description: String,
-                                   vehicleTypes: java.util.Map[Id[VehicleType], VehicleType]
-                                 ): Option[VehicleType] = {
+    description: String,
+    vehicleTypes: java.util.Map[Id[VehicleType], VehicleType]
+  ): Option[VehicleType] = {
     JavaConverters
       .mapAsScalaMap(vehicleTypes)
       .filter(idAndType => idAndType._2.getDescription.equalsIgnoreCase(description))
@@ -210,8 +210,8 @@ object BeamVehicleUtils {
   }
 
 //  def prePopulateVehiclesByHouseHold(
-                                  //    beamServices: BeamServices
-                                  //  ): java.util.Map[Id[Household], java.util.List[Id[Vehicle]]] = {
+  //    beamServices: BeamServices
+  //  ): java.util.Map[Id[Household], java.util.List[Id[Vehicle]]] = {
 //
 //    val vehicles: java.util.Map[Id[Household], java.util.List[Id[Vehicle]]] = new util.TreeMap()
 //
@@ -245,14 +245,29 @@ object BeamVehicleUtils {
     val fuelConsumptionInJoulePerMeter = beamVehicleType.primaryFuelConsumptionInJoulePerMeter
     beamVehicleType.primaryFuelType match {
       case Biodiesel =>
-        new EngineInformationImpl(MatsimFuleType.biodiesel, fuelConsumptionInJoulePerMeter * 1 / BIODIESEL_JOULE_PER_LITER)
-      case Diesel => new EngineInformationImpl(MatsimFuleType.diesel, fuelConsumptionInJoulePerMeter * 1 / DIESEL_JOULE_PER_LITER)
-      case Gasoline => new EngineInformationImpl(MatsimFuleType.gasoline, fuelConsumptionInJoulePerMeter * 1 / GASOLINE_JOULE_PER_LITER)
-      case Electricity => new EngineInformationImpl(MatsimFuleType.electricity, fuelConsumptionInJoulePerMeter * 1 / ELECTRICITY_JOULE_PER_LITER)
-      case _ => new EngineInformationImpl(MatsimFuleType.gasoline, fuelConsumptionInJoulePerMeter * 1 / GASOLINE_JOULE_PER_LITER)
+        new EngineInformationImpl(
+          MatsimFuleType.biodiesel,
+          fuelConsumptionInJoulePerMeter * 1 / BIODIESEL_JOULE_PER_LITER
+        )
+      case Diesel =>
+        new EngineInformationImpl(MatsimFuleType.diesel, fuelConsumptionInJoulePerMeter * 1 / DIESEL_JOULE_PER_LITER)
+      case Gasoline =>
+        new EngineInformationImpl(
+          MatsimFuleType.gasoline,
+          fuelConsumptionInJoulePerMeter * 1 / GASOLINE_JOULE_PER_LITER
+        )
+      case Electricity =>
+        new EngineInformationImpl(
+          MatsimFuleType.electricity,
+          fuelConsumptionInJoulePerMeter * 1 / ELECTRICITY_JOULE_PER_LITER
+        )
+      case _ =>
+        new EngineInformationImpl(
+          MatsimFuleType.gasoline,
+          fuelConsumptionInJoulePerMeter * 1 / GASOLINE_JOULE_PER_LITER
+        )
     }
   }
-
 
   // From https://www.extension.iastate.edu/agdm/wholefarm/pdf/c6-87.pdf
   val GASOLINE_JOULE_PER_LITER = 34.8E6
@@ -260,9 +275,10 @@ object BeamVehicleUtils {
   val BIODIESEL_JOULE_PER_LITER = 35.2E6
   val ELECTRICITY_JOULE_PER_LITER = 1
 
-
   def beamVehicleTypeToMatsimVehicleType(beamVehicleType: BeamVehicleType): VehicleType = {
-    val matsimVehicleType = VehicleUtils.getFactory.createVehicleType(Id.create(beamVehicleType.vehicleCategory.toString, classOf[VehicleType]))
+    val matsimVehicleType = VehicleUtils.getFactory.createVehicleType(
+      Id.create(beamVehicleType.vehicleCategory.toString, classOf[VehicleType])
+    )
 
     val vehicleCapacity = new VehicleCapacityImpl()
     vehicleCapacity.setSeats(beamVehicleType.seatingCapacity)
