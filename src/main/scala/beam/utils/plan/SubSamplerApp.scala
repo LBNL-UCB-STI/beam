@@ -2,11 +2,11 @@ package beam.utils.plan
 
 import beam.utils.scripts.PopulationWriterCSV
 import beam.utils.{BeamVehicleUtils, FileUtils}
-import org.matsim.api.core.v01.Scenario
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.population.io.PopulationWriter
 import org.matsim.core.scenario.ScenarioUtils
-import org.matsim.households.HouseholdsWriterV10
+import org.matsim.households.{Household, HouseholdsWriterV10}
 import org.matsim.utils.objectattributes.ObjectAttributesXmlWriter
 import org.supercsv.io.CsvMapWriter
 import org.supercsv.prefs.CsvPreference
@@ -16,6 +16,10 @@ import scala.collection.mutable
 import scala.util.{Random, Try}
 
 object SubSamplerApp extends App {
+
+/*  val samplingApproach="Simple_Random_Sampling" // || "StratifiedSampling"
+
+  val simpleRandomSampling = "Simple_Random_Sampling"*/
 
   var vehicles: mutable.HashMap[String, java.util.Map[String, String]] = _
 
@@ -40,12 +44,72 @@ object SubSamplerApp extends App {
     conf
   }
 
+/*
+
+  def getHouseholdSimpleRandomSample(scenario: Scenario, sampleSize: Int) = {
+    val hhIds = sc.getHouseholds.getHouseholds.keySet().asScala
+
+    val randomizedHHIds = Random.shuffle(hhIds)
+
+    var numberOfAgentsInSample=0
+    var selectedHouseholds=randomizedHHIds.takeWhile{ hhId =>
+
+      numberOfAgentsInSample+=sc.getHouseholds.getHouseholds.get(hhId).getMemberIds.size()
+
+      numberOfAgentsInSample<sampleSize
+    }
+
+    List(selectedHouseholds)
+  }
+
+
+
+  def createHouseholdSpatialClusters(scenario: Scenario, households:  List[Set[Id[Household]]], numberOfClusters:Int) ={
+    // TODO: return multiple sets of same size clusters (spatial co-location)
+
+    // TODO: use grid if cluster hard
+
+
+
+    //
+
+    households
+  }
+
+  def splitByDistance(scenario: Scenario, households:  List[Set[Id[Household]]], numberOfClusters:Int)= {
+    // calculate distance travelled per day for all household members per day -> d_sum
+    // sort households by d_sum
+    // split into equal size groups: numberOfClusters
+
+    households
+  }
+
+
+  def splitByIncome()
+
+
+
+
+  def splitByAge
+*/
+
+
+
+
+
+
   def samplePopulation(conf: Config, sampleSize: Int): Scenario = {
 
     val sc: Scenario = ScenarioUtils.loadScenario(conf)
 
     val hhIds = sc.getHouseholds.getHouseholds.keySet().asScala
-    val hhIdsToRemove = Random.shuffle(hhIds).takeRight(Math.max(hhIds.size - sampleSize, 0))
+
+    /*if (samplingApproach == simpleRandomSampling){
+      //     val hhIdsToRemove = Random.shuffle(hhIds).takeRight(Math.max(hhIds.size - sampleSize, 0))
+    } else if (samplingApproach==stratifiedSample){
+
+    } else error*/
+
 
     hhIdsToRemove.foreach(id => {
       val hh = sc.getHouseholds.getHouseholds.remove(id)
