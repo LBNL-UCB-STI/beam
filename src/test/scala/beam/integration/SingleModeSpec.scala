@@ -21,7 +21,7 @@ import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamMobsim, BeamServices}
-import beam.utils.DateUtils
+import beam.utils.{DateUtils, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.{testConfig, testOutputDir}
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
 import com.typesafe.config.ConfigFactory
@@ -116,6 +116,9 @@ class SingleModeSpec
     networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
+
+    val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
+    when(services.networkHelper).thenReturn(networkHelper)
 
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     tollCalculator = new TollCalculator(beamConfig)
