@@ -16,7 +16,7 @@ object ProfilingUtils {
     endTime - startTime
   }
 
-  def timed[U](what: String, work: => U, logger: String => Unit): U = {
+  def timed[U](what: String, logger: String => Unit)(work: => U): U = {
     val (r, time) = timed(work)
     logger(s"$what executed in $time ms")
     r

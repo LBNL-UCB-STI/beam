@@ -14,7 +14,10 @@ trait NetworkHelper {
 }
 
 class NetworkHelperImpl @Inject()(network: Network) extends NetworkHelper with LazyLogging {
-  val (allLinks, maxLinkId) = timed("NetworkHelperImpl init", init(network), x => logger.info(x))
+
+  val (allLinks, maxLinkId) = timed("NetworkHelperImpl init", x => logger.info(x)) {
+    init(network)
+  }
 
   def getLink(linkId: Int): Option[Link] = Option(getLinkUnsafe(linkId))
 
