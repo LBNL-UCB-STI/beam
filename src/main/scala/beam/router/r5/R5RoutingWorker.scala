@@ -31,6 +31,7 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils._
+import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
@@ -114,22 +115,18 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = TrieMap()
         override var personHouseholds: Map[Id[Person], Household] = Map()
         val fuelTypePrices: Map[FuelType, Double] =
-          BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
+          readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
 
         // TODO Fix me once `TrieMap` is removed
         val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
           TrieMap(
-            BeamServices
-              .readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
-              .toSeq: _*
+            readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices).toSeq: _*
           )
 
         // TODO Fix me once `TrieMap` is removed
         val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
           TrieMap(
-            BeamServices
-              .readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
-              .toSeq: _*
+            readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq: _*
           )
 
         override val modeIncentives: ModeIncentive =

@@ -20,7 +20,6 @@ import beam.router.model.RoutingModel
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
-import beam.sim.BeamServices.readFuelTypeFile
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.utils.DateUtils
