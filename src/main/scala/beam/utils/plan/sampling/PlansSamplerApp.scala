@@ -3,7 +3,7 @@ package beam.utils.plan.sampling
 import java.util
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.router.Modes.BeamMode.CAR
+import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT}
 import beam.utils.BeamVehicleUtils
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PopulationAttrib.Rank
@@ -401,9 +401,9 @@ object PlansSampler {
     plan
   }
 
-  private def getClosestNPlans(spCoord: Coord, n: Int): Set[Plan] = {
+  private def getClosestNPlans(spCoord: Coord, n: Int, withoutWork: Boolean = false): Set[Plan] = {
     val closestPlan = getClosestPlan(spCoord)
-    var col = Set(closestPlan)
+    var col =  if (withoutWork && !hasNoWorkAct(closestPlan)) Set[Plan]() else Set(closestPlan)
 
     var radius = CoordUtils.calcEuclideanDistance(
       spCoord,
@@ -416,7 +416,7 @@ object PlansSampler {
         planQt.get.getDisk(spCoord.getX, spCoord.getY, radius)
       )
       for (plan <- candidates) {
-        if (!col.contains(plan)) {
+        if (!col.contains(plan) && (!withoutWork || hasNoWorkAct(plan))) {
           col ++= Vector(plan)
         }
       }
@@ -441,7 +441,6 @@ object PlansSampler {
         .filter(hh => aoi.contains(MGC.coord2Point(hh.coord)))
         .take(sampleNumber)
     } else {
-
       val tract2HH = synthHouseholds.groupBy(f => f.tract)
       val synthHHs = mutable.Buffer[SynthHousehold]()
       (0 to sampleNumber).foreach { _ =>
@@ -474,12 +473,11 @@ object PlansSampler {
 
     val availableModes = permissibleModes
       .fold("") { (addend, modeString) =>
-        if (PersonUtils.getAge(person) < 16 && CAR.value.equalsIgnoreCase(modeString))
+        if (PersonUtils.getAge(person) < 16 && (CAR.value.equalsIgnoreCase(modeString) || DRIVE_TRANSIT.value.equalsIgnoreCase(modeString)))
           addend
         else
           addend.concat(modeString.toLowerCase() + ",")
-      }
-      .stripSuffix(",")
+      }.stripSuffix(",")
 
     newPopAttributes.putAttribute(person.getId.toString, availableModeString, availableModes)
   }
@@ -515,7 +513,7 @@ object PlansSampler {
 
     breakable{ synthHouseholds.foreach(sh => {
       val numPersons = sh.individuals.length
-      val N = if (numPersons * 2 > 0) {
+      val N = if (numPersons > 0) {
         numPersons * 2
       } else {
         1
@@ -524,6 +522,7 @@ object PlansSampler {
       val closestPlans: Set[Plan] = getClosestNPlans(sh.coord, N)
 
       val selectedPlans = Random.shuffle(closestPlans).take(numPersons)
+      val plansWithoutWork = getClosestNPlans(sh.coord, numPersons, withoutWork = true)
 
       val hhId = sh.householdId
       val spHH = newHHFac.createHousehold(hhId)
@@ -555,62 +554,64 @@ object PlansSampler {
         val synthPerson = sh.individuals.toVector(idx)
         val newPersonId = synthPerson.indId
 
-        val hasWorkAct = plan.getPlanElements.asScala.exists {
-          case activity: Activity => activity.getType.equalsIgnoreCase("Work")
-          case _                  => false
-        }
-        if (synthPerson.age > 18 || !hasWorkAct) {
+        val newPerson = newPop.getFactory.createPerson(newPersonId)
+        newPop.addPerson(newPerson)
+        spHH.getMemberIds.add(newPersonId)
+        newPopAttributes
+          .putAttribute(newPersonId.toString, Rank.entryName, ranks(idx))
 
-          val newPerson = newPop.getFactory.createPerson(newPersonId)
-          newPop.addPerson(newPerson)
-          spHH.getMemberIds.add(newPersonId)
-          newPopAttributes
-            .putAttribute(newPersonId.toString, Rank.entryName, ranks(idx))
+        // Create a new plan for household member based on selected plan of first person
+        val newPlan = PopulationUtils.createPlan(newPerson)
+        newPerson.addPlan(newPlan)
 
-          // Create a new plan for household member based on selected plan of first person
-          val newPlan = PopulationUtils.createPlan(newPerson)
-          newPerson.addPlan(newPlan)
-          PopulationUtils.copyFromTo(plan, newPlan)
-          val homeActs = newPlan.getPlanElements.asScala
-            .collect { case activity: Activity if activity.getType.equalsIgnoreCase("Home") => activity }
-
-          homePlan match {
-            case None =>
-              homePlan = Some(newPlan)
-              val homeCoord = homeActs.head.getCoord
-              newHHAttributes.putAttribute(hhId.toString, HomeCoordX.entryName, homeCoord.getX)
-              newHHAttributes.putAttribute(hhId.toString, HomeCoordY.entryName, homeCoord.getY)
-              newHHAttributes.putAttribute(hhId.toString, HousingType.entryName, "House")
-              snapPlanActivityLocsToNearestLink(newPlan)
-
-            case Some(hp) =>
-              val firstAct = PopulationUtils.getFirstActivity(hp)
-              val firstActCoord = firstAct.getCoord
-              for (act <- homeActs) {
-                act.setCoord(firstActCoord)
-              }
-              snapPlanActivityLocsToNearestLink(newPlan)
+        val srcPlan = if (synthPerson.age > 18 || hasNoWorkAct(plan)) {
+          plan
+        } else {
+          Random.shuffle(plansWithoutWork).headOption match {
+            case Some(p) => p
+            case None    => plan
           }
-
-          PersonUtils.setAge(newPerson, synthPerson.age)
-          val sex = if (synthPerson.sex == 0) {
-            "M"
-          } else {
-            "F"
-          }
-          // TODO: Include non-binary gender if data available
-          PersonUtils.setSex(newPerson, sex)
-          newPopAttributes
-            .putAttribute(newPerson.getId.toString, "valueOfTime", synthPerson.valueOfTime)
-          newPopAttributes.putAttribute(newPerson.getId.toString, "income", synthPerson.income)
-          addModeExclusions(newPerson)
-        }else{
-          println(synthPerson.age)
         }
+        PopulationUtils.copyFromTo(srcPlan, newPlan)
+        val homeActs = newPlan.getPlanElements.asScala
+          .collect { case activity: Activity if activity.getType.equalsIgnoreCase("Home") => activity }
+
+        homePlan match {
+          case None =>
+            homePlan = Some(newPlan)
+            val homeCoord = homeActs.head.getCoord
+            newHHAttributes.putAttribute(hhId.toString, HomeCoordX.entryName, homeCoord.getX)
+            newHHAttributes.putAttribute(hhId.toString, HomeCoordY.entryName, homeCoord.getY)
+            newHHAttributes.putAttribute(hhId.toString, HousingType.entryName, "House")
+            snapPlanActivityLocsToNearestLink(newPlan)
+
+          case Some(hp) =>
+            val firstAct = PopulationUtils.getFirstActivity(hp)
+            val firstActCoord = firstAct.getCoord
+            for (act <- homeActs) {
+              act.setCoord(firstActCoord)
+            }
+            snapPlanActivityLocsToNearestLink(newPlan)
+        }
+
+        PersonUtils.setAge(newPerson, synthPerson.age)
+        val sex = if (synthPerson.sex == 0) {
+          "M"
+        } else {
+          "F"
+        }
+        // TODO: Include non-binary gender if data available
+        PersonUtils.setSex(newPerson, sex)
+        newPopAttributes
+          .putAttribute(newPerson.getId.toString, "valueOfTime", synthPerson.valueOfTime)
+        newPopAttributes.putAttribute(newPerson.getId.toString, "income", synthPerson.income)
+        addModeExclusions(newPerson)
       }
-     if(newPop.getPersons.size()>sampleNumber)
+
+      if(newPop.getPersons.size()>sampleNumber)
        break()
-    })}
+      })
+    }
 
     filterPopulationActivities()
     counter.printCounter()
@@ -627,6 +628,12 @@ object PlansSampler {
 
   }
 
+  private def hasNoWorkAct(plan: Plan) = {
+    !plan.getPlanElements.asScala.exists {
+      case activity: Activity => activity.getType.equalsIgnoreCase("Work")
+      case _                  => false
+    }
+  }
 }
 
 /**
@@ -651,7 +658,7 @@ object PlansSampler {
   *
   * for siouxfalls
   * test/input/siouxfalls/conversion-input/Siouxfalls_population.xml
-  * test/input/siouxfalls/conversion-input/sf_pop_pct/sioux_falls_population_counts_by_census_block_dissolved.shp
+  * test/input/siouxfalls/conversion-input/sioux_falls_population_counts_by_census_block_dissolved.shp
   * test/input/siouxfalls/conversion-input/Siouxfalls_network_PT.xml
   * test/input/siouxfalls/conversion-input/ind_X_hh_out.csv.gz
   * test/input/siouxfalls/conversion-input/transitVehicles.xml
