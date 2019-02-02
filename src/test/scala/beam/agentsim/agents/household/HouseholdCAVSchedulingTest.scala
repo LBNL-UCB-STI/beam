@@ -43,7 +43,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val skim = getSkim(sc, household)
 
     val algo = new HouseholdCAVScheduling(sc.getPopulation, household, cavs, 2, 2, skim)
-    val schedules = algo.getAllSchedules
+    val schedules = algo.getAllFeasibleSchedules
     schedules should have length 4
     schedules.foreach { x =>
       x.cavFleetSchedule should have length 1
