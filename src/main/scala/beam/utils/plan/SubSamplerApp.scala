@@ -45,22 +45,40 @@ object SubSamplerApp extends App {
   }
 
 
-  def getSimpleRandomSampleOfHouseholds(scenario: Scenario, sampleSize: Int): List[Set[Id[Household]]] = {
-    val randomizedHHIds = Random.shuffle(scenario.getHouseholds.getHouseholds.keySet().asScala)
+  def getSimpleRandomeSample(scenario: Scenario, hhIdSet:mutable.Set[Id[Household]],sampleSize: Int, hhSampling:Boolean): mutable.Set[Id[Household]]={
+    val randomizedHHIds = Random.shuffle(hhIdSet)
+    if (hhSampling){
 
-    var numberOfAgentsInSample = 0
-    val selectedHouseholds = randomizedHHIds.takeWhile { hhId =>
+      if (hhIdSet.size<sampleSize){
+        throw new RuntimeException("sampleSize larger than original data")
+      }
 
-      numberOfAgentsInSample += scenario.getHouseholds.getHouseholds.get(hhId).getMemberIds.size()
+      randomizedHHIds.takeRight(sampleSize)
+    } else {
 
-      numberOfAgentsInSample < sampleSize
+      var numberOfAgentsInSample = 0
+      val selectedHouseholds = randomizedHHIds.takeWhile { hhId =>
+
+        numberOfAgentsInSample += scenario.getHouseholds.getHouseholds.get(hhId).getMemberIds.size()
+
+        numberOfAgentsInSample < sampleSize
+      }
+
+      if (numberOfAgentsInSample<sampleSize){
+        throw new RuntimeException("sampleSize larger than original data")
+      }
+
+      selectedHouseholds
     }
-
-    List(selectedHouseholds.toSet)
   }
 
-  def getStratifiedSampleOfHousholds(scenario: Scenario, sampleSize: Int): List[Set[Id[Household]]] = {
-    List(scenario.getHouseholds.getHouseholds.keySet().asScala.toSet)
+
+  def getSimpleRandomSampleOfHouseholds(scenario: Scenario, sampleSize: Int): mutable.Set[Id[Household]] = {
+    getSimpleRandomeSample(scenario, scenario.getHouseholds.getHouseholds.keySet().asScala,sampleSize,false)
+  }
+
+  def getStratifiedSampleOfHousholds(scenario: Scenario, sampleSize: Int): mutable.Set[Id[Household]] = {
+    scenario.getHouseholds.getHouseholds.keySet().asScala
   }
 
 
@@ -167,8 +185,8 @@ object SubSamplerApp extends App {
   }
 
 
-  def splitByIncomeRange(scenario: Scenario,hhIds:mutable.Set[Id[Household]],intervals:Int, incomeRange: IncomeRange): List[mutable.Set[Id[Household]]]= {
-
+  def splitByIncomeRange(scenario: Scenario,hhIds:mutable.Set[Id[Household]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]]= {
+    val incomeRange=getIncomeInfo(scenario,hhIds)
 
 
   /*  hhIds: 1000 hhIds
@@ -180,25 +198,51 @@ object SubSamplerApp extends App {
     incomeRange1: minimum to minimum+delta
     incomeRange2: minimum+delta to minimum+2xdelta
     */
-    null
+    mutable.ListBuffer(hhIds)
   }
 
-  def splitByIncomeGroups(scenario: Scenario,hhSetList:List[mutable.Set[Id[Household]]],intervals:Int): List[mutable.Set[Id[Household]]] ={
-    var resultArray=new Array[mutable.Set[Id[Household]]](5)
-
+  def splitByIncomeGroups(scenario: Scenario,hhSetList:List[mutable.Set[Id[Household]]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]] ={
+    var resultList=mutable.ListBuffer[mutable.Set[Id[Household]]] ()
 
     for (hhSet <-hhSetList){
-      val incomeRange=getIncomeInfo(scenario,hhSet)
-
-
+      resultList++=splitByIncomeRange(scenario,hhSet,3)
     }
 
-    for (i <- 1 to intervals){
-      resultArray
-    }
-
-    null
+    resultList
   }
+
+
+
+  // TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!! sampleByHouseholdSize
+
+  def sample(scenario: Scenario,hhSetList:List[mutable.Set[Id[Household]]],sampleSize:Int):mutable.Set[Id[Household]]={
+    val resultSet=mutable.Set()
+    // determine, how many from each set we will need to pick!
+
+
+
+    val samplingRatio=sampleSize*1.0/scenario.getHouseholds.getHouseholds.keySet().size()
+
+
+    for (hhSet <- hhSetList) {
+      val numberOfSamplesToTakeFromSet=Math.ceil(hhSet.size*samplingRatio).toInt
+
+      if (hhSet.size<numberOfSamplesToTakeFromSet*20){
+        print("warning: set may be too small... to sample from")
+      }
+
+
+      resultSet++=getSimpleRandomeSample(scenario,hhSet,numberOfSamplesToTakeFromSet,true)
+    }
+
+
+    // rounding errors and similar are captured through this here
+    getSimpleRandomeSample(scenario,resultSet,sampleSize,false)
+  }
+
+  // print stats of sample read!!!
+  // e.g.
+
 
 
   /*
@@ -285,7 +329,7 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
    val list=splitPopulationInFourPartsSpatially(sc,averageHHCoord)
 
 
-    val hhIdsToRemove = hhIds.diff(hhIsSampled.flatten.toSet)
+    val hhIdsToRemove = hhIsSampled
 
     hhIdsToRemove.foreach(id => {
       val hh = sc.getHouseholds.getHouseholds.remove(id)
