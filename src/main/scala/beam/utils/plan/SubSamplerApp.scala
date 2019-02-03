@@ -2,7 +2,7 @@ package beam.utils.plan
 
 import beam.utils.scripts.PopulationWriterCSV
 import beam.utils.{BeamVehicleUtils, FileUtils}
-import org.matsim.api.core.v01.{Id, Scenario}
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.population.io.PopulationWriter
 import org.matsim.core.scenario.ScenarioUtils
@@ -14,6 +14,8 @@ import org.supercsv.prefs.CsvPreference
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.{Random, Try}
+
+case class IncomeRange(min: Double, max:Double)
 
 object SubSamplerApp extends App {
   val SIMPLE_RANDOM_SAMPLING = "simple"
@@ -61,6 +63,133 @@ object SubSamplerApp extends App {
     List(scenario.getHouseholds.getHouseholds.keySet().asScala.toSet)
   }
 
+
+  def printNumberOfHouseholdsInForQuadrants(scenario: Scenario, quadrantOriginCoord:Coord)= {
+    var quadUpperLeft=0
+    var quadUpperRight=0
+    var quadLowerLeft=0
+    var quadLowerRight=0
+
+    scenario.getHouseholds.getHouseholds.keySet.forEach { hhId =>
+
+      val x = scenario.getHouseholds.getHouseholdAttributes.getAttribute(hhId.toString,"homecoordx").toString.toDouble
+      val y = scenario.getHouseholds.getHouseholdAttributes.getAttribute(hhId.toString,"homecoordy").toString.toDouble
+
+      if (y > quadrantOriginCoord.getY){
+        if (x < quadrantOriginCoord.getX){
+          quadUpperLeft+=1
+        } else {
+          quadUpperRight+=1
+        }
+      } else {
+        if (x < quadrantOriginCoord.getX){
+          quadLowerLeft+=1
+        } else {
+          quadLowerRight+=1
+        }
+      }
+    }
+
+    print(s"printNumberOfHouseholdsInForQuadrants: quadUpperLeft: $quadUpperLeft, quadUpperRight: $quadUpperRight, quadLowerLeft: $quadLowerLeft, quadLowerRight: $quadLowerRight  ")
+
+  }
+
+  def getAverageCoordinateHouseholdsAndNumber(scenario: Scenario): Coord = {
+    var averageHHCoord:Option[Coord] = None
+
+
+    scenario.getHouseholds.getHouseholds.keySet.forEach { hhId =>
+
+      val x = scenario.getHouseholds.getHouseholdAttributes.getAttribute(hhId.toString,"homecoordx").toString.toDouble
+      val y = scenario.getHouseholds.getHouseholdAttributes.getAttribute(hhId.toString,"homecoordy").toString.toDouble
+
+      averageHHCoord = averageHHCoord match {
+        case None => Some(new Coord(x,y))
+        case Some(coordA) => Some(new Coord(coordA.getX +x,coordA.getY + y))
+      }
+
+      }
+
+
+    val numberHouseholds=scenario.getHouseholds.getHouseholds.keySet.size()
+    new Coord(averageHHCoord.get.getX/numberHouseholds,averageHHCoord.get.getY/numberHouseholds)
+  }
+
+
+  def splitPopulationInFourPartsSpatially(scenario: Scenario, quadrantOriginCoord:Coord): List[mutable.Set[Id[Household]]]={
+    var quadUpperLeft=scala.collection.mutable.Set[Id[Household]]()
+    var quadUpperRight=scala.collection.mutable.Set[Id[Household]]()
+    var quadLowerLeft=scala.collection.mutable.Set[Id[Household]]()
+    var quadLowerRight=scala.collection.mutable.Set[Id[Household]]()
+
+    scenario.getHouseholds.getHouseholds.keySet.forEach { hhId =>
+
+      val x = scenario.getHouseholds.getHouseholdAttributes.getAttribute(hhId.toString,"homecoordx").toString.toDouble
+      val y = scenario.getHouseholds.getHouseholdAttributes.getAttribute(hhId.toString,"homecoordy").toString.toDouble
+
+      if (y > quadrantOriginCoord.getY){
+        if (x < quadrantOriginCoord.getX){
+          quadUpperLeft+=hhId
+        } else {
+          quadUpperRight+=hhId
+        }
+      } else {
+        if (x < quadrantOriginCoord.getX){
+          quadLowerLeft+=hhId
+        } else {
+          quadLowerRight+=hhId
+        }
+      }
+    }
+
+    List(quadUpperLeft,quadUpperRight,quadLowerLeft,quadLowerRight)
+  }
+
+
+  def getIncomeInfo(scenario: Scenario,hhIds:mutable.Set[Id[Household]]):IncomeRange={
+
+    var minIncome=Double.MaxValue
+    var maxIncome=Double.MinValue
+    for (hhId <- hhIds){
+
+      val hh=scenario.getHouseholds.getHouseholds.get(hhId)
+      val income=hh.getIncome.getIncome
+      if (income>maxIncome){
+        maxIncome=income
+      }
+
+      if (income<minIncome){
+        minIncome=income
+      }
+    }
+
+    IncomeRange(minIncome,maxIncome)
+  }
+
+
+  def splitByIncomeRange(scenario: Scenario,hhIds:mutable.Set[Id[Household]],intervals:Int, incomeRange: IncomeRange): List[mutable.Set[Id[Household]]]= {
+
+    null
+  }
+
+  def splitByIncomeGroups(scenario: Scenario,hhSetList:List[mutable.Set[Id[Household]]],intervals:Int): List[mutable.Set[Id[Household]]] ={
+    var resultArray=new Array[mutable.Set[Id[Household]]](5)
+
+
+    for (hhSet <-hhSetList){
+      val incomeRange=getIncomeInfo(scenario,hhSet)
+
+
+    }
+
+    for (i <- 1 to intervals){
+      resultArray
+    }
+
+    null
+  }
+
+
   /*
 
     def createHouseholdSpatialClusters(scenario: Scenario, households:  List[Set[Id[Household]]], numberOfClusters:Int) ={
@@ -84,7 +213,34 @@ object SubSamplerApp extends App {
     }
 
 
-    def splitByIncome()
+      def splitByIncome(scenario: Scenario, households:  List[Set[Id[Household]]], numberOfClusters:Int): List[Set[Id[Household]]] {
+      // 10 sets (each set contains 100 housholdIds
+
+      // number of clusters =5
+
+
+      for each set: order by income the hh (set has still 100 housholdIds).
+
+      go through sorted list of housholdIds (sorged by income) and take 20 and put them in separate set.
+
+
+
+
+      // return: 50 sets (20 household ids)
+  }
+
+
+val newHHFac: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
+def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household]]], numberOfClusters:Int): List[Set[Id[Household]]] = {
+
+  households.flatMap(household => {
+  val set = Set(household.map(newHHFac.createHousehold(_))
+  .filter(_.getIncome!= null).toList
+  .sortWith(_.getIncome.getIncome > _.getIncome.getIncome)
+  .map(_.getId): _*)
+  set.sliding(set.size / numberOfClusters)
+})
+
 
 
 
@@ -107,6 +263,16 @@ object SubSamplerApp extends App {
     } else {
       throw new IllegalArgumentException(s"$samplingApproach is not a valid sampling approach.")
     }
+
+
+    val averageHHCoord=getAverageCoordinateHouseholdsAndNumber(sc)
+
+    print(s"getAverageCoordinateHouseholdsAndNumber: averageHHCoord (${averageHHCoord})")
+
+    printNumberOfHouseholdsInForQuadrants(sc,averageHHCoord)
+
+   val list=splitPopulationInFourPartsSpatially(sc,averageHHCoord)
+
 
     val hhIdsToRemove = hhIds.diff(hhIsSampled.flatten.toSet)
 
