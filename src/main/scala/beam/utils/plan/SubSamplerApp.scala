@@ -169,6 +169,17 @@ object SubSamplerApp extends App {
 
   def splitByIncomeRange(scenario: Scenario,hhIds:mutable.Set[Id[Household]],intervals:Int, incomeRange: IncomeRange): List[mutable.Set[Id[Household]]]= {
 
+
+
+  /*  hhIds: 1000 hhIds
+
+    interval= 5
+
+
+    val delta=(maximum-minimumIncome)/intervals
+    incomeRange1: minimum to minimum+delta
+    incomeRange2: minimum+delta to minimum+2xdelta
+    */
     null
   }
 
