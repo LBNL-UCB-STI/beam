@@ -13,6 +13,7 @@ import org.supercsv.prefs.CsvPreference
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.util.{Random, Try}
 
 case class IncomeRange(min: Double, max:Double)
@@ -78,7 +79,13 @@ object SubSamplerApp extends App {
   }
 
   def getStratifiedSampleOfHousholds(scenario: Scenario, sampleSize: Int): mutable.Set[Id[Household]] = {
-    scenario.getHouseholds.getHouseholds.keySet().asScala
+    var setList=splitPopulationInFourPartsSpatially(scenario, getAverageCoordinateHouseholds(scenario))
+
+
+    setList=splitByIncomeGroups(scenario,setList,3)
+
+    sample(scenario,setList,sampleSize)
+
   }
 
 
@@ -112,7 +119,7 @@ object SubSamplerApp extends App {
 
   }
 
-  def getAverageCoordinateHouseholdsAndNumber(scenario: Scenario): Coord = {
+  def getAverageCoordinateHouseholds(scenario: Scenario): Coord = {
     var averageHHCoord:Option[Coord] = None
 
 
@@ -134,7 +141,7 @@ object SubSamplerApp extends App {
   }
 
 
-  def splitPopulationInFourPartsSpatially(scenario: Scenario, quadrantOriginCoord:Coord): List[mutable.Set[Id[Household]]]={
+  def splitPopulationInFourPartsSpatially(scenario: Scenario, quadrantOriginCoord:Coord): ListBuffer[mutable.Set[Id[Household]]]={
     var quadUpperLeft=scala.collection.mutable.Set[Id[Household]]()
     var quadUpperRight=scala.collection.mutable.Set[Id[Household]]()
     var quadLowerLeft=scala.collection.mutable.Set[Id[Household]]()
@@ -160,7 +167,7 @@ object SubSamplerApp extends App {
       }
     }
 
-    List(quadUpperLeft,quadUpperRight,quadLowerLeft,quadLowerRight)
+    ListBuffer(quadUpperLeft,quadUpperRight,quadLowerLeft,quadLowerRight)
   }
 
 
@@ -189,23 +196,25 @@ object SubSamplerApp extends App {
     val incomeRange=getIncomeInfo(scenario,hhIds)
 
 
-  /*  hhIds: 1000 hhIds
+    val delta = (incomeRange.max - incomeRange.min) / intervals
+    val household = scenario.getHouseholds.getHouseholds
+    val hh = hhIds.map(household.get(_))
 
-    interval= 5
 
 
-    val delta=(maximum-minimumIncome)/intervals
-    incomeRange1: minimum to minimum+delta
-    incomeRange2: minimum+delta to minimum+2xdelta
-    */
-    mutable.ListBuffer(hhIds)
+
+    val result=Range.BigDecimal(incomeRange.min, incomeRange.max, delta).toList.map(
+      intervalStart => hh.filter(h => h.getIncome.getIncome >= intervalStart && h.getIncome.getIncome < intervalStart+delta).map(_.getId)
+    )
+
+    mutable.ListBuffer(result: _*)
   }
 
-  def splitByIncomeGroups(scenario: Scenario,hhSetList:List[mutable.Set[Id[Household]]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]] ={
+  def splitByIncomeGroups(scenario: Scenario,hhSetList:ListBuffer[mutable.Set[Id[Household]]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]] ={
     var resultList=mutable.ListBuffer[mutable.Set[Id[Household]]] ()
 
     for (hhSet <-hhSetList){
-      resultList++=splitByIncomeRange(scenario,hhSet,3)
+      resultList++=splitByIncomeRange(scenario,hhSet,intervals)
     }
 
     resultList
@@ -215,8 +224,8 @@ object SubSamplerApp extends App {
 
   // TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!! sampleByHouseholdSize
 
-  def sample(scenario: Scenario,hhSetList:List[mutable.Set[Id[Household]]],sampleSize:Int):mutable.Set[Id[Household]]={
-    val resultSet=mutable.Set()
+  def sample(scenario: Scenario,hhSetList:ListBuffer[mutable.Set[Id[Household]]],sampleSize:Int):mutable.Set[Id[Household]]={
+    val resultSet:mutable.Set[Id[Household]]=mutable.Set()
     // determine, how many from each set we will need to pick!
 
 
@@ -320,7 +329,7 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
     }
 
 
-    val averageHHCoord=getAverageCoordinateHouseholdsAndNumber(sc)
+    val averageHHCoord = getAverageCoordinateHouseholds(sc)
 
     print(s"getAverageCoordinateHouseholdsAndNumber: averageHHCoord (${averageHHCoord})")
 
