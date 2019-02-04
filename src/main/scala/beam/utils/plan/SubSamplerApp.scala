@@ -1,30 +1,64 @@
 package beam.utils.plan
 
+import java.util.stream.Collectors
+
 import beam.utils.scripts.PopulationWriterCSV
 import beam.utils.{BeamVehicleUtils, FileUtils}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.population.io.PopulationWriter
 import org.matsim.core.scenario.ScenarioUtils
-import org.matsim.households.{Household, HouseholdsWriterV10}
+import org.matsim.households.{Household, Households, HouseholdsWriterV10}
 import org.matsim.utils.objectattributes.ObjectAttributesXmlWriter
 import org.supercsv.io.CsvMapWriter
 import org.supercsv.prefs.CsvPreference
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.{Random, Try}
 
-case class IncomeRange(min: Double, max:Double)
+case class IncomeRange(min: Double, max: Double)
 
 object SubSamplerApp extends App {
+
+  case class HouseHoldCoordinate(x: Double, y: Double)
+
+  private sealed trait Quadrant
+
+  private case object UpperLeft extends Quadrant
+
+  private case object UpperRight extends Quadrant
+
+  private case object LowerLeft extends Quadrant
+
+  private case object LowerRight extends Quadrant
+
+  object Quadrant {
+
+    def from(hhCoordinate: HouseHoldCoordinate, quadrantOriginCoord: Coord): Quadrant = {
+      if (hhCoordinate.y > quadrantOriginCoord.getY) {
+        if (hhCoordinate.x < quadrantOriginCoord.getX) {
+          UpperLeft
+        } else {
+          UpperRight
+        }
+      } else {
+        if (hhCoordinate.x < quadrantOriginCoord.getX) {
+          LowerLeft
+        } else {
+          LowerRight
+        }
+      }
+
+    }
+  }
+
   val SIMPLE_RANDOM_SAMPLING = "simple"
   val STRATIFIED_SAMPLING = "stratified"
 
   var vehicles: mutable.HashMap[String, java.util.Map[String, String]] = _
 
-  private def getConfig(sampleDir: String) = {
+  private def getConfig(sampleDir: String): Config = {
     val conf = ConfigUtils.createConfig
 
     conf.plans().setInputFile(s"$sampleDir/population.xml.gz")
@@ -45,13 +79,17 @@ object SubSamplerApp extends App {
     conf
   }
 
-
-  def getSimpleRandomeSample(scenario: Scenario, hhIdSet:mutable.Set[Id[Household]],sampleSize: Int, hhSampling:Boolean): mutable.Set[Id[Household]]={
+  def getSimpleRandomSample(
+    scenario: Scenario,
+    hhIdSet: mutable.Set[Id[Household]],
+    sampleSize: Int,
+    hhSampling: Boolean
+  ): mutable.Set[Id[Household]] = {
     val randomizedHHIds = Random.shuffle(hhIdSet)
-    if (hhSampling){
+    if (hhSampling) {
 
-      if (hhIdSet.size<sampleSize){
-        throw new RuntimeException("sampleSize larger than original data")
+      if (hhIdSet.size < sampleSize) {
+        throw new IllegalArgumentException("sampleSize larger than original data")
       }
 
       randomizedHHIds.takeRight(sampleSize)
@@ -59,200 +97,195 @@ object SubSamplerApp extends App {
 
       var numberOfAgentsInSample = 0
       val selectedHouseholds = randomizedHHIds.takeWhile { hhId =>
-
         numberOfAgentsInSample += scenario.getHouseholds.getHouseholds.get(hhId).getMemberIds.size()
-
         numberOfAgentsInSample < sampleSize
       }
 
-      if (numberOfAgentsInSample<sampleSize){
-        throw new RuntimeException("sampleSize larger than original data")
+      if (numberOfAgentsInSample < sampleSize) {
+        throw new IllegalArgumentException("sampleSize larger than original data")
       }
 
       selectedHouseholds
     }
   }
 
-
   def getSimpleRandomSampleOfHouseholds(scenario: Scenario, sampleSize: Int): mutable.Set[Id[Household]] = {
-    getSimpleRandomeSample(scenario, scenario.getHouseholds.getHouseholds.keySet().asScala,sampleSize,false)
+    getSimpleRandomSample(
+      scenario,
+      scenario.getHouseholds.getHouseholds.keySet().asScala,
+      sampleSize,
+      hhSampling = false
+    )
   }
 
   def getStratifiedSampleOfHousholds(scenario: Scenario, sampleSize: Int): mutable.Set[Id[Household]] = {
-    var setList=splitPopulationInFourPartsSpatially(scenario, getAverageCoordinateHouseholds(scenario))
+    var setList = splitPopulationInFourPartsSpatially(scenario, getAverageCoordinateHouseholds(scenario))
 
+    setList = splitByIncomeGroups(scenario, setList, 3)
 
-    setList=splitByIncomeGroups(scenario,setList,3)
-
-    sample(scenario,setList,sampleSize)
+    sample(scenario, setList, sampleSize)
 
   }
 
+  private val HomeCoordinateX = "homecoordx"
 
-  def printNumberOfHouseholdsInForQuadrants(scenario: Scenario, quadrantOriginCoord:Coord)= {
-    var quadUpperLeft=0
-    var quadUpperRight=0
-    var quadLowerLeft=0
-    var quadLowerRight=0
+  private val HomeCoordinateY = "homecoordy"
 
-    scenario.getHouseholds.getHouseholds.keySet.forEach { hhId =>
-
-      val x = scenario.getHouseholds.getHouseholdAttributes.getAttribute(hhId.toString,"homecoordx").toString.toDouble
-      val y = scenario.getHouseholds.getHouseholdAttributes.getAttribute(hhId.toString,"homecoordy").toString.toDouble
-
-      if (y > quadrantOriginCoord.getY){
-        if (x < quadrantOriginCoord.getX){
-          quadUpperLeft+=1
-        } else {
-          quadUpperRight+=1
-        }
-      } else {
-        if (x < quadrantOriginCoord.getX){
-          quadLowerLeft+=1
-        } else {
-          quadLowerRight+=1
-        }
+  def loadHouseHoldCoordinates(households: Households): Seq[HouseHoldCoordinate] = {
+    households.getHouseholds.keySet
+      .stream()
+      .map { hhId =>
+        val x =
+          households.getHouseholdAttributes.getAttribute(hhId.toString, HomeCoordinateX).toString.toDouble
+        val y =
+          households.getHouseholdAttributes.getAttribute(hhId.toString, HomeCoordinateY).toString.toDouble
+        HouseHoldCoordinate(x, y)
       }
-    }
+      .collect(Collectors.toList)
+      .asScala
+  }
 
-    print(s"printNumberOfHouseholdsInForQuadrants: quadUpperLeft: $quadUpperLeft, quadUpperRight: $quadUpperRight, quadLowerLeft: $quadLowerLeft, quadLowerRight: $quadLowerRight  ")
+  def printNumberOfHouseholdsInForQuadrants(scenario: Scenario, quadrantOriginCoord: Coord): Unit = {
+    val elements = loadHouseHoldCoordinates(scenario.getHouseholds)
+      .map(coord => Quadrant.from(coord, quadrantOriginCoord))
+      .groupBy(identity)
+      .mapValues(_.size)
+
+    val message =
+      s"""printNumberOfHouseholdsInForQuadrants:
+         | quadUpperLeft: ${elements.getOrElse(UpperLeft, 0)}
+         | quadUpperRight: ${elements.getOrElse(UpperRight, 0)}
+         | quadLowerLeft: ${elements.getOrElse(LowerLeft, 0)}
+         | quadLowerRight: ${elements.getOrElse(LowerRight, 0)}
+      """.stripMargin
+    print(message)
 
   }
 
   def getAverageCoordinateHouseholds(scenario: Scenario): Coord = {
-    var averageHHCoord:Option[Coord] = None
-
-
-    scenario.getHouseholds.getHouseholds.keySet.forEach { hhId =>
-
-      val x = scenario.getHouseholds.getHouseholdAttributes.getAttribute(hhId.toString,"homecoordx").toString.toDouble
-      val y = scenario.getHouseholds.getHouseholdAttributes.getAttribute(hhId.toString,"homecoordy").toString.toDouble
-
-      averageHHCoord = averageHHCoord match {
-        case None => Some(new Coord(x,y))
-        case Some(coordA) => Some(new Coord(coordA.getX +x,coordA.getY + y))
-      }
-
-      }
-
-
-    val numberHouseholds=scenario.getHouseholds.getHouseholds.keySet.size()
-    new Coord(averageHHCoord.get.getX/numberHouseholds,averageHHCoord.get.getY/numberHouseholds)
+    val householdCoordinates = loadHouseHoldCoordinates(scenario.getHouseholds)
+    val avgX = householdCoordinates.map(_.x).sum / householdCoordinates.size
+    val avgY = householdCoordinates.map(_.y).sum / householdCoordinates.size
+    new Coord(avgX, avgY)
   }
 
-
-  def splitPopulationInFourPartsSpatially(scenario: Scenario, quadrantOriginCoord:Coord): ListBuffer[mutable.Set[Id[Household]]]={
-    var quadUpperLeft=scala.collection.mutable.Set[Id[Household]]()
-    var quadUpperRight=scala.collection.mutable.Set[Id[Household]]()
-    var quadLowerLeft=scala.collection.mutable.Set[Id[Household]]()
-    var quadLowerRight=scala.collection.mutable.Set[Id[Household]]()
+  def splitPopulationInFourPartsSpatially(
+    scenario: Scenario,
+    quadrantOriginCoord: Coord
+  ): ListBuffer[mutable.Set[Id[Household]]] = {
+    var quadUpperLeft = scala.collection.mutable.Set[Id[Household]]()
+    var quadUpperRight = scala.collection.mutable.Set[Id[Household]]()
+    var quadLowerLeft = scala.collection.mutable.Set[Id[Household]]()
+    var quadLowerRight = scala.collection.mutable.Set[Id[Household]]()
 
     scenario.getHouseholds.getHouseholds.keySet.forEach { hhId =>
+      val x =
+        scenario.getHouseholds.getHouseholdAttributes.getAttribute(hhId.toString, HomeCoordinateX).toString.toDouble
+      val y =
+        scenario.getHouseholds.getHouseholdAttributes.getAttribute(hhId.toString, HomeCoordinateY).toString.toDouble
 
-      val x = scenario.getHouseholds.getHouseholdAttributes.getAttribute(hhId.toString,"homecoordx").toString.toDouble
-      val y = scenario.getHouseholds.getHouseholdAttributes.getAttribute(hhId.toString,"homecoordy").toString.toDouble
-
-      if (y > quadrantOriginCoord.getY){
-        if (x < quadrantOriginCoord.getX){
-          quadUpperLeft+=hhId
+      if (y > quadrantOriginCoord.getY) {
+        if (x < quadrantOriginCoord.getX) {
+          quadUpperLeft += hhId
         } else {
-          quadUpperRight+=hhId
+          quadUpperRight += hhId
         }
       } else {
-        if (x < quadrantOriginCoord.getX){
-          quadLowerLeft+=hhId
+        if (x < quadrantOriginCoord.getX) {
+          quadLowerLeft += hhId
         } else {
-          quadLowerRight+=hhId
+          quadLowerRight += hhId
         }
       }
     }
 
-    ListBuffer(quadUpperLeft,quadUpperRight,quadLowerLeft,quadLowerRight)
+    ListBuffer(quadUpperLeft, quadUpperRight, quadLowerLeft, quadLowerRight)
   }
 
+  def getIncomeInfo(scenario: Scenario, hhIds: mutable.Set[Id[Household]]): IncomeRange = {
+    var minIncome = Double.MaxValue
+    var maxIncome = Double.MinValue
+    for (hhId <- hhIds) {
+      val hh = scenario.getHouseholds.getHouseholds.get(hhId)
 
-  def getIncomeInfo(scenario: Scenario,hhIds:mutable.Set[Id[Household]]):IncomeRange={
-
-    var minIncome=Double.MaxValue
-    var maxIncome=Double.MinValue
-    for (hhId <- hhIds){
-
-      val hh=scenario.getHouseholds.getHouseholds.get(hhId)
-      val income=hh.getIncome.getIncome
-      if (income>maxIncome){
-        maxIncome=income
+      val income = hh.getIncome.getIncome
+      if (income > maxIncome) {
+        maxIncome = income
       }
 
-      if (income<minIncome){
-        minIncome=income
+      if (income < minIncome) {
+        minIncome = income
       }
     }
 
-    IncomeRange(minIncome,maxIncome)
+    IncomeRange(minIncome, maxIncome)
   }
 
-
-  def splitByIncomeRange(scenario: Scenario,hhIds:mutable.Set[Id[Household]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]]= {
-    val incomeRange=getIncomeInfo(scenario,hhIds)
-
+  def splitByIncomeRange(
+    scenario: Scenario,
+    hhIds: mutable.Set[Id[Household]],
+    intervals: Int
+  ): mutable.ListBuffer[mutable.Set[Id[Household]]] = {
+    val incomeRange = getIncomeInfo(scenario, hhIds)
 
     val delta = (incomeRange.max - incomeRange.min) / intervals
     val household = scenario.getHouseholds.getHouseholds
     val hh = hhIds.map(household.get(_))
 
-
-
-
-    val result=Range.BigDecimal(incomeRange.min, incomeRange.max, delta).toList.map(
-      intervalStart => hh.filter(h => h.getIncome.getIncome >= intervalStart && h.getIncome.getIncome < intervalStart+delta).map(_.getId)
-    )
+    val result = Range
+      .BigDecimal(incomeRange.min, incomeRange.max, delta)
+      .toList
+      .map(
+        intervalStart =>
+          hh.filter(h => h.getIncome.getIncome >= intervalStart && h.getIncome.getIncome < intervalStart + delta)
+            .map(_.getId)
+      )
 
     mutable.ListBuffer(result: _*)
   }
 
-  def splitByIncomeGroups(scenario: Scenario,hhSetList:ListBuffer[mutable.Set[Id[Household]]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]] ={
-    var resultList=mutable.ListBuffer[mutable.Set[Id[Household]]] ()
+  def splitByIncomeGroups(
+    scenario: Scenario,
+    hhSetList: ListBuffer[mutable.Set[Id[Household]]],
+    intervals: Int
+  ): mutable.ListBuffer[mutable.Set[Id[Household]]] = {
+    var resultList = mutable.ListBuffer[mutable.Set[Id[Household]]]()
 
-    for (hhSet <-hhSetList){
-      resultList++=splitByIncomeRange(scenario,hhSet,intervals)
+    for (hhSet <- hhSetList) {
+      resultList ++= splitByIncomeRange(scenario, hhSet, intervals)
     }
 
     resultList
   }
 
-
-
   // TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!! sampleByHouseholdSize
 
-  def sample(scenario: Scenario,hhSetList:ListBuffer[mutable.Set[Id[Household]]],sampleSize:Int):mutable.Set[Id[Household]]={
-    val resultSet:mutable.Set[Id[Household]]=mutable.Set()
+  def sample(
+    scenario: Scenario,
+    hhSetList: ListBuffer[mutable.Set[Id[Household]]],
+    sampleSize: Int
+  ): mutable.Set[Id[Household]] = {
+    val resultSet: mutable.Set[Id[Household]] = mutable.Set()
     // determine, how many from each set we will need to pick!
 
-
-
-    val samplingRatio=sampleSize*1.0/scenario.getHouseholds.getHouseholds.keySet().size()
-
+    val samplingRatio = sampleSize * 1.0 / scenario.getHouseholds.getHouseholds.keySet().size()
 
     for (hhSet <- hhSetList) {
-      val numberOfSamplesToTakeFromSet=Math.ceil(hhSet.size*samplingRatio).toInt
+      val numberOfSamplesToTakeFromSet = Math.ceil(hhSet.size * samplingRatio).toInt
 
-      if (hhSet.size<numberOfSamplesToTakeFromSet*20){
+      if (hhSet.size < numberOfSamplesToTakeFromSet * 20) {
         print("warning: set may be too small... to sample from")
       }
 
-
-      resultSet++=getSimpleRandomeSample(scenario,hhSet,numberOfSamplesToTakeFromSet,true)
+      resultSet ++= getSimpleRandomSample(scenario, hhSet, numberOfSamplesToTakeFromSet, hhSampling = true)
     }
 
-
     // rounding errors and similar are captured through this here
-    getSimpleRandomeSample(scenario,resultSet,sampleSize,false)
+    getSimpleRandomSample(scenario, resultSet, sampleSize, hhSampling = false)
   }
 
   // print stats of sample read!!!
   // e.g.
-
-
 
   /*
 
@@ -310,49 +343,50 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
 
 
     def splitByAge
-  */
-
-
-
+   */
 
   def samplePopulation(conf: Config, sampleSize: Int): Scenario = {
 
     val sc: Scenario = ScenarioUtils.loadScenario(conf)
 
     val hhIds = sc.getHouseholds.getHouseholds.keySet().asScala
-    val hhIsSampled = if(samplingApproach == SIMPLE_RANDOM_SAMPLING) {
+    val hhIsSampled = if (samplingApproach == SIMPLE_RANDOM_SAMPLING) {
       getSimpleRandomSampleOfHouseholds(sc, sampleSize)
-    } else if(samplingApproach == STRATIFIED_SAMPLING) {
+    } else if (samplingApproach == STRATIFIED_SAMPLING) {
       getStratifiedSampleOfHousholds(sc, sampleSize)
     } else {
       throw new IllegalArgumentException(s"$samplingApproach is not a valid sampling approach.")
     }
 
-
     val averageHHCoord = getAverageCoordinateHouseholds(sc)
 
-    print(s"getAverageCoordinateHouseholdsAndNumber: averageHHCoord (${averageHHCoord})")
+    print(s"getAverageCoordinateHouseholdsAndNumber: averageHHCoord ($averageHHCoord)")
 
-    printNumberOfHouseholdsInForQuadrants(sc,averageHHCoord)
+    printNumberOfHouseholdsInForQuadrants(sc, averageHHCoord)
 
-   val list=splitPopulationInFourPartsSpatially(sc,averageHHCoord)
-
+    val list = splitPopulationInFourPartsSpatially(sc, averageHHCoord)
 
     val hhIdsToRemove = hhIsSampled
 
-    hhIdsToRemove.foreach(id => {
-      val hh = sc.getHouseholds.getHouseholds.remove(id)
-      sc.getHouseholds.getHouseholdAttributes.removeAllAttributes(id.toString)
+    hhIdsToRemove.foreach(
+      id => {
+        val hh = sc.getHouseholds.getHouseholds.remove(id)
+        sc.getHouseholds.getHouseholdAttributes.removeAllAttributes(id.toString)
 
-      hh.getMemberIds.asScala.foreach(mId => {
-        sc.getPopulation.removePerson(mId)
-        sc.getPopulation.getPersonAttributes.removeAllAttributes(mId.toString)
-      })
+        hh.getMemberIds.asScala.foreach(
+          mId => {
+            sc.getPopulation.removePerson(mId)
+            sc.getPopulation.getPersonAttributes.removeAllAttributes(mId.toString)
+          }
+        )
 
-      hh.getVehicleIds.asScala.foreach(vId => {
-        vehicles.remove(vId.toString)
-      })
-    })
+        hh.getVehicleIds.asScala.foreach(
+          vId => {
+            vehicles.remove(vId.toString)
+          }
+        )
+      }
+    )
     sc
   }
 
@@ -370,10 +404,12 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
       new CsvMapWriter(FileUtils.writerToFile(s"$outDir/vehicles.csv.gz"), CsvPreference.STANDARD_PREFERENCE, true)
     val header = vehicles.head._2.keySet().toArray(Array[String]())
     writer.writeHeader(header: _*)
-    vehicles.foreach(veh => {
-      writer.write(veh._2, header: _*)
-      writer.flush()
-    })
+    vehicles.foreach(
+      veh => {
+        writer.write(veh._2, header: _*)
+        writer.flush()
+      }
+    )
     writer.close()
   }
 
