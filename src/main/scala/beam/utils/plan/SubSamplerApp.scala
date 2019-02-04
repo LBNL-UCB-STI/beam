@@ -1,7 +1,5 @@
 package beam.utils.plan
 
-import java.util.stream.Collectors
-
 import beam.utils.scripts.PopulationWriterCSV
 import beam.utils.{BeamVehicleUtils, FileUtils}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -20,6 +18,10 @@ import scala.util.{Random, Try}
 case class IncomeRange(min: Double, max: Double)
 
 object SubSamplerApp extends App {
+
+  private val HomeCoordinateX = "homecoordx"
+
+  private val HomeCoordinateY = "homecoordy"
 
   private sealed trait Quadrant
 
@@ -126,10 +128,6 @@ object SubSamplerApp extends App {
     sample(scenario, setList2, sampleSize)
 
   }
-
-  private val HomeCoordinateX = "homecoordx"
-
-  private val HomeCoordinateY = "homecoordy"
 
   def loadHouseHoldCoordinates(households: Households): Seq[HouseHoldCoordinate] = {
     households.getHouseholds.keySet.asScala.map { hhId =>
