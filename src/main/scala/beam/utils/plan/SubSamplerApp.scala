@@ -1,7 +1,9 @@
 package beam.utils.plan
 
+import beam.sim.common.GeoUtils
 import beam.utils.scripts.PopulationWriterCSV
 import beam.utils.{BeamVehicleUtils, FileUtils}
+import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.population.io.PopulationWriter
@@ -81,12 +83,102 @@ object SubSamplerApp extends App {
   def getStratifiedSampleOfHousholds(scenario: Scenario, sampleSize: Int): mutable.Set[Id[Household]] = {
     var setList=splitPopulationInFourPartsSpatially(scenario, getAverageCoordinateHouseholds(scenario))
 
+    setList=splitByHHTravelDistance(scenario,setList,3)
+
+    setList=splitByNumberOfVehiclePerHousehold(scenario,setList,3)
+
+    setList=splitByNumberOfPeopleLivingInHousehold(scenario,setList,3)
 
     setList=splitByIncomeGroups(scenario,setList,3)
 
     sample(scenario,setList,sampleSize)
 
   }
+
+
+
+
+
+
+
+
+
+
+
+  def splitByNumberOfVehiclePerHousehold(scenario: Scenario,hhIds:mutable.Set[Id[Household]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]]= {
+    val household = scenario.getHouseholds.getHouseholds
+    val bucket = Math.ceil(hhIds.size.toDouble / intervals ).toInt
+    val result = hhIds.map(household.get(_)).toList.sortWith(_.getVehicleIds.size > _.getVehicleIds.size).map(_.getId).grouped(bucket)
+    result.map(list => mutable.Set(list : _*)).to[mutable.ListBuffer]
+  }
+
+  def splitByNumberOfVehiclePerHousehold(scenario: Scenario,hhSetList:ListBuffer[mutable.Set[Id[Household]]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]] ={
+    var resultList=mutable.ListBuffer[mutable.Set[Id[Household]]] ()
+
+    for (hhSet <-hhSetList){
+      resultList++=splitByNumberOfVehiclePerHousehold(scenario,hhSet,intervals)
+    }
+
+    resultList
+  }
+
+  def splitByNumberOfPeopleLivingInHousehold(scenario: Scenario,hhIds:mutable.Set[Id[Household]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]]= {
+    val household = scenario.getHouseholds.getHouseholds
+    val bucket = Math.ceil(hhIds.size.toDouble / intervals ).toInt
+    val result = hhIds.map(household.get(_)).toList.sortWith(_.getMemberIds.size > _.getMemberIds.size).map(_.getId).grouped(bucket)
+    result.map(list => mutable.Set(list : _*)).to[mutable.ListBuffer]
+  }
+
+
+  def splitByNumberOfPeopleLivingInHousehold(scenario: Scenario,hhSetList:ListBuffer[mutable.Set[Id[Household]]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]] ={
+    var resultList=mutable.ListBuffer[mutable.Set[Id[Household]]] ()
+
+    for (hhSet <-hhSetList){
+      resultList++=splitByNumberOfPeopleLivingInHousehold(scenario,hhSet,intervals)
+    }
+
+    resultList
+  }
+
+  def splitByHHTravelDistance(scenario: Scenario,hhIds:mutable.Set[Id[Household]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]]= {
+    val persons = scenario.getPopulation.getPersons
+    val households = scenario.getHouseholds.getHouseholds
+    val bucket = Math.ceil(hhIds.size.toDouble / intervals ).toInt
+    val result = hhIds.map(households.get(_)).toList.map {
+      household =>
+        val sum = household.getMemberIds.stream().mapToDouble { personId =>
+          val activity = persons.get(personId).getSelectedPlan.getPlanElements.asScala.filter(_.isInstanceOf[Activity]).map(_.asInstanceOf[Activity])
+          activity.zip(activity.takeRight(activity.size-1)).map(x => getDifference(x._1.getCoord, x._2.getCoord)).sum  //sum of individual person
+        }.sum    //sum of household(all members)
+        (household, sum)
+    }
+      .sortWith((x,y) => x._2 > y._2)  //sorting by sum(sum is 2nd item of tuple)
+      .map(_._1.getId)     //getting id from household tuple
+      .grouped(bucket)      //grouping by bucket
+    result.map(list => mutable.Set(list : _*)).to[mutable.ListBuffer]
+  }
+
+  def getDifference(coordX: Coord, coordY: Coord): Double = {
+    GeoUtils.distFormula(coordX, coordY)
+  }
+
+
+  def splitByHHTravelDistance(scenario: Scenario,hhSetList:ListBuffer[mutable.Set[Id[Household]]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]] ={
+    var resultList=mutable.ListBuffer[mutable.Set[Id[Household]]] ()
+
+    for (hhSet <-hhSetList){
+      resultList++=splitByHHTravelDistance(scenario,hhSet,intervals)
+    }
+
+    resultList
+  }
+
+
+
+
+
+
+
 
 
   def printNumberOfHouseholdsInForQuadrants(scenario: Scenario, quadrantOriginCoord:Coord)= {
