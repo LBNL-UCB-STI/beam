@@ -33,7 +33,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
     private double totalVehicleTrafficDelay = 0.0;
     private Set<String> buses = new HashSet<>();
     private double busCrowding = 0.0;
-    private long numOfTimesBusTaken = 0; 
+    private long numOfTimesBusTaken = 0;
 
     private int countOfHomeVehicle = 0;
     private int countOfWorkVehicle = 0;
