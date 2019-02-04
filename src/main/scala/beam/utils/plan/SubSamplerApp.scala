@@ -85,9 +85,9 @@ object SubSamplerApp extends App {
 
     setList=splitByHHTravelDistance(scenario,setList,3)
 
-    setList=splitByNumberOfVehiclePerHousehold(scenario,setList,3)
+    setList=splitByNumberOfVehiclePerHousehold(scenario,setList,2)
 
-    setList=splitByNumberOfPeopleLivingInHousehold(scenario,setList,3)
+    setList=splitByNumberOfPeopleLivingInHousehold(scenario,setList,2)
 
     setList=splitByIncomeGroups(scenario,setList,3)
 
@@ -284,22 +284,12 @@ object SubSamplerApp extends App {
   }
 
 
+
   def splitByIncomeRange(scenario: Scenario,hhIds:mutable.Set[Id[Household]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]]= {
-    val incomeRange=getIncomeInfo(scenario,hhIds)
-
-
-    val delta = (incomeRange.max - incomeRange.min) / intervals
     val household = scenario.getHouseholds.getHouseholds
-    val hh = hhIds.map(household.get(_))
-
-
-
-
-    val result=Range.BigDecimal(incomeRange.min, incomeRange.max, delta).toList.map(
-      intervalStart => hh.filter(h => h.getIncome.getIncome >= intervalStart && h.getIncome.getIncome < intervalStart+delta).map(_.getId)
-    )
-
-    mutable.ListBuffer(result: _*)
+    val bucket = Math.ceil(hhIds.size.toDouble / intervals ).toInt
+    val result = hhIds.map(household.get(_)).toList.sortWith(_.getIncome.getIncome > _.getIncome.getIncome).map(_.getId).grouped(bucket)
+    result.map(list => mutable.Set(list : _*)).to[mutable.ListBuffer]
   }
 
   def splitByIncomeGroups(scenario: Scenario,hhSetList:ListBuffer[mutable.Set[Id[Household]]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]] ={
