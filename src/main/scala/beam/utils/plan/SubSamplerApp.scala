@@ -26,7 +26,7 @@ object SubSamplerApp extends App {
 
   var vehicles: mutable.HashMap[String, java.util.Map[String, String]] = _
 
-  private def loadScenario(sampleDir: String) = {
+  def loadScenario(sampleDir: String) = {
     val conf = ConfigUtils.createConfig
 
     conf.plans().setInputFile(s"$sampleDir/population.xml.gz")
@@ -208,7 +208,7 @@ object SubSamplerApp extends App {
       }
     }
 
-    print(s"printNumberOfHouseholdsInForQuadrants: quadUpperLeft: $quadUpperLeft, quadUpperRight: $quadUpperRight, quadLowerLeft: $quadLowerLeft, quadLowerRight: $quadLowerRight  ")
+    println(s"printNumberOfHouseholdsInForQuadrants: quadUpperLeft: $quadUpperLeft, quadUpperRight: $quadUpperRight, quadLowerLeft: $quadLowerLeft, quadLowerRight: $quadLowerRight  ")
 
   }
 
@@ -320,7 +320,7 @@ object SubSamplerApp extends App {
       val numberOfSamplesToTakeFromSet=Math.ceil(hhSet.size*samplingRatio).toInt
 
       if (hhSet.size<numberOfSamplesToTakeFromSet*20){
-        print("warning: set may be too small... to sample from")
+        println("warning: set may be too small... to sample from")
       }
 
 
@@ -398,7 +398,7 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
 
 
 
-  def samplePopulation(sc: Scenario, sampleSize: Int): Scenario = {
+  def samplePopulation(sc: Scenario, samplingApproach: String, sampleSize: Int): Scenario = {
 
     val hhIds = sc.getHouseholds.getHouseholds.keySet().asScala
     val hhIsSampled = if(samplingApproach == SIMPLE_RANDOM_SAMPLING) {
@@ -438,6 +438,7 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
   }
 
   private def writeSample(sc: Scenario, outDir: String): Unit = {
+    FileUtils.createDirectoryIfNotExists(outDir)
     new HouseholdsWriterV10(sc.getHouseholds).writeFile(s"$outDir/households.xml.gz")
     new PopulationWriter(sc.getPopulation).write(s"$outDir/population.xml.gz")
     PopulationWriterCSV(sc.getPopulation).write(s"$outDir/population.csv.gz")
@@ -472,6 +473,6 @@ simple
   val samplingApproach = args(3).toLowerCase()
 
   val srcSc = loadScenario(sampleDir)
-  val sc = samplePopulation(srcSc, sampleSize)
+  val sc = samplePopulation(srcSc, samplingApproach, sampleSize)
   writeSample(sc, outDir)
 }
