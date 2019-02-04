@@ -177,7 +177,7 @@ class HouseholdCAVScheduling(
   }
 
   // ***
-  def getMostProductiveCAVSchedule(): CAVFleetSchedule = {
+  def getBestScheduleWithTheLongestCAVChain(): CAVFleetSchedule = {
     val maprank =
       getAllFeasibleSchedules().map(x => x -> x.cavFleetSchedule.foldLeft(0)((a, b) => a + b.schedule.size)).toMap
     val maxrank = maprank.maxBy(_._2)._2
@@ -201,13 +201,13 @@ class HouseholdCAVScheduling(
       }
       val feasibleOut = cavFleetSchedule.foldLeft(true) {
         case (feasible, cavSchedule) => {
-          val (scheduleOption, trips) = cavSchedule.check(request, householdTrips, timeWindow, skim)
+          val (scheduleOption, trips, isFeasible) = cavSchedule.check(request, householdTrips, timeWindow, skim)
           newHouseholdSchedule.prepend(
             scheduleOption.map(
               schedule => new CAVFleetSchedule(schedule :: cavFleetSchedule.filter(_ != cavSchedule), trips)
             )
           )
-          feasible && cavSchedule.feasible
+          feasible && isFeasible
         }
       }
       (newHouseholdSchedule.flatten.toList, feasibleOut)
@@ -235,101 +235,93 @@ class CAVSchedule(
   val cav: BeamVehicle,
   val occupancy: Int
 ) {
-  var feasible: Boolean = true
 
   def check(
     request: MobilityServiceRequest,
     householdTrips: HouseholdTrips,
     timeWindow: Double,
     skim: Map[BeamMode, Map[Coord, Map[Coord, Double]]]
-  ): (Option[CAVSchedule], HouseholdTrips) = {
+  ): (Option[CAVSchedule], HouseholdTrips, Boolean) = {
     val travelTime = skim(BeamMode.CAR)(schedule.head.activity.getCoord)(request.activity.getCoord)
     val prevServiceTime = schedule.head.serviceTime
     val serviceTime = prevServiceTime + travelTime
     val upperBoundServiceTime = request.time + timeWindow
     val lowerBoundServiceTime = request.time - timeWindow
+    val index = schedule.indexWhere(_.person == request.person)
+
     var newCavSchedule: Option[CAVSchedule] = None
     var newHouseholdTrips: HouseholdTrips = householdTrips
-    request.tag match {
-      case Pickup =>
-        if (occupancy == 0) { // case of an empty cav
-          if (serviceTime > upperBoundServiceTime) {
-            // the empty cav arrives too late to pickup a passenger
-          } else {
-            var newSchedule = schedule
-            var newServiceTime = serviceTime
-            if (serviceTime < request.time) {
-              val relocationRequest = new MobilityServiceRequest(
-                None,
-                request.activity,
-                prevServiceTime,
-                request.trip,
-                BeamMode.CAV,
-                Relocation,
-                prevServiceTime
-              )
-              newSchedule = relocationRequest :: newSchedule
-              newServiceTime = request.time
-            }
-            newCavSchedule = Some(
-              new CAVSchedule(
-                request.copy(serviceTime = newServiceTime) :: newSchedule,
-                cav,
-                occupancy + 1
-              )
-            )
-          }
-        } else {
-          if (serviceTime < lowerBoundServiceTime || lowerBoundServiceTime > upperBoundServiceTime) {
-            // the cav arrives either too early or too late to pickup another passenger
-          } else {
-            val newServiceTime = if (serviceTime < request.time) request.time else serviceTime
-            newCavSchedule = Some(
-              new CAVSchedule(
-                request.copy(serviceTime = newServiceTime) :: schedule,
-                cav,
-                occupancy + 1
-              )
-            )
-          }
-        }
+    var feasible: Boolean = true
 
-      case Dropoff =>
-        val index = schedule.indexWhere(_.person == request.person)
-        if (index < 0 || schedule(index).tag != Pickup) {
-          // cav cannot dropoff a non passenger
-        } else if (serviceTime < lowerBoundServiceTime || serviceTime > upperBoundServiceTime) {
-          // cav arriving too early or too late to the dropoff time
-          // since the agent is already a passenger, such a schedule should be marked unfeasible
-          // to avoid the agent to be picked up in the first place
-          feasible = false
-        } else {
-          val cavTripTravelTime = serviceTime - schedule(index).time // it includes the waiting time
-          val newTotalTravelTime = householdTrips.totalTravelTime - householdTrips.tripTravelTime(
-            request.trip
-          ) + cavTripTravelTime
-          if (newTotalTravelTime < householdTrips.defaultTravelTime) {
-            newCavSchedule = Some(
-              new CAVSchedule(
-                request.copy(serviceTime = serviceTime) :: schedule,
-                cav,
-                occupancy - 1
-              )
-            )
-            newHouseholdTrips = householdTrips.copy(
-              tripTravelTime = householdTrips.tripTravelTime + (request.trip -> cavTripTravelTime),
-              totalTravelTime = newTotalTravelTime
-            )
-          }
-          // whether the passenger successfully got dropped of or not, the current schedule
-          // should be marked unfeasible, since you wouldn't need a combination where a passenger
-          // never get dropped of.
-          feasible = false
+    request.tag match {
+      case Pickup if occupancy == 0 && serviceTime <= upperBoundServiceTime =>
+        // otherwise the empty cav arrives too late to pickup a passenger
+        var newSchedule = schedule
+        var newServiceTime = serviceTime
+        if (serviceTime < request.time) {
+          val relocationRequest = new MobilityServiceRequest(
+            None,
+            request.activity,
+            prevServiceTime,
+            request.trip,
+            BeamMode.CAV,
+            Relocation,
+            prevServiceTime
+          )
+          newSchedule = relocationRequest :: newSchedule
+          newServiceTime = request.time
         }
+        newCavSchedule = Some(
+          new CAVSchedule(
+            request.copy(serviceTime = newServiceTime) :: newSchedule,
+            cav,
+            occupancy + 1
+          )
+        )
+      case Pickup if occupancy != 0 && serviceTime >= lowerBoundServiceTime && serviceTime <= upperBoundServiceTime =>
+        // otherwise the cav arrives either too early or too late to pickup another passenger
+        val newServiceTime = if (serviceTime < request.time) request.time else serviceTime
+        newCavSchedule = Some(
+          new CAVSchedule(
+            request.copy(serviceTime = newServiceTime) :: schedule,
+            cav,
+            occupancy + 1
+          )
+        )
+      case Dropoff if index < 0 || schedule(index).tag != Pickup =>
+      // cav cannot dropoff a non passenger
+      case Dropoff if serviceTime < lowerBoundServiceTime || serviceTime > upperBoundServiceTime =>
+        // cav arriving too early or too late to the dropoff time
+        // since the agent is already a passenger, such a schedule should be marked unfeasible
+        // to avoid the agent to be picked up in the first place
+        feasible = false
+      case Dropoff =>
+        val cavTripTravelTime = serviceTime - schedule(index).time // it includes the waiting time
+        val newTotalTravelTime = householdTrips.totalTravelTime - householdTrips.tripTravelTime(
+          request.trip
+        ) + cavTripTravelTime
+        if (newTotalTravelTime < householdTrips.defaultTravelTime) {
+          newCavSchedule = Some(
+            new CAVSchedule(
+              request.copy(serviceTime = serviceTime) :: schedule,
+              cav,
+              occupancy - 1
+            )
+          )
+          newHouseholdTrips = householdTrips.copy(
+            tripTravelTime = householdTrips.tripTravelTime + (request.trip -> cavTripTravelTime),
+            totalTravelTime = newTotalTravelTime
+          )
+        }
+        // whether the passenger successfully got dropped of or not, the current schedule
+        // should be marked unfeasible, since you wouldn't need a combination where a passenger
+        // never get dropped of.
+        feasible = false
       case _ => // no action
     }
-    (newCavSchedule, newHouseholdTrips)
+    (newCavSchedule, newHouseholdTrips, feasible)
   }
+
   // ***
   def toRoutingRequests(beamServices: BeamServices): (List[Option[RoutingRequest]], CAVSchedule) = {
     var newMobilityRequests = List[MobilityServiceRequest]()
@@ -367,78 +359,6 @@ class CAVSchedule(
       .toString
   }
 }
-
-
-//def check(
-//request: MobilityServiceRequest,
-//householdTrips: HouseholdTrips,
-//timeWindow: Double,
-//skim: Map[BeamMode, Map[Coord, Map[Coord, Double]]]
-//): (Option[CAVSchedule], HouseholdTrips) = {
-//val travelTime = skim(BeamMode.CAR)(schedule.head.activity.getCoord)(request.activity.getCoord)
-//val prevServiceTime = schedule.head.serviceTime
-//val serviceTime = prevServiceTime + travelTime
-//val upperBoundServiceTime = request.time + timeWindow
-//val lowerBoundServiceTime = request.time - timeWindow
-//var newCavSchedule: Option[CAVSchedule] = None
-//var newHouseholdTrips: HouseholdTrips = householdTrips
-//val index = schedule.indexWhere(_.person == request.person)
-//request.tag match {
-//case Pickup if occupancy == 0 && serviceTime > upperBoundServiceTime => // the empty cav arrives too late to pickup a passenger
-//case Pickup =>
-//var newSchedule = schedule
-//var newServiceTime = serviceTime
-//if (serviceTime < request.time) {
-//val relocationRequest = new MobilityServiceRequest(
-//None,
-//request.activity,
-//prevServiceTime,
-//request.trip,
-//BeamMode.CAV,
-//Relocation,
-//prevServiceTime
-//)
-//newSchedule = relocationRequest :: newSchedule
-//newServiceTime = request.time
-//}
-//newCavSchedule = Some(
-//new CAVSchedule(
-//request.copy(serviceTime = newServiceTime) :: newSchedule,
-//cav,
-//occupancy + 1
-//)
-//)
-//case Dropoff if index < 0 || schedule(index).tag != Pickup                                 => // cav cannot dropoff a non passenger
-//case Dropoff if serviceTime < lowerBoundServiceTime || serviceTime > upperBoundServiceTime =>
-//// cav arriving too early or too late to the dropoff time
-//// since the agent is already a passenger, such a schedule should be marked unfeasible
-//// to avoid the agent to be picked up in the first place
-//feasible = false
-//case Dropoff =>
-//val cavTripTravelTime = serviceTime - schedule(index).time // it includes the waiting time
-//val newTotalTravelTime = householdTrips.totalTravelTime - householdTrips.tripTravelTime(
-//request.trip
-//) + cavTripTravelTime
-//if (newTotalTravelTime < householdTrips.defaultTravelTime) {
-//newCavSchedule = Some(
-//new CAVSchedule(
-//request.copy(serviceTime = serviceTime) :: schedule,
-//cav,
-//occupancy - 1
-//)
-//)
-//newHouseholdTrips = householdTrips.copy(
-//tripTravelTime = householdTrips.tripTravelTime + (request.trip -> cavTripTravelTime),
-//totalTravelTime = newTotalTravelTime
-//)
-//}
-//// whether the passenger successfully got dropped of or not, the current schedule
-//// should be marked unfeasible, since you wouldn't need a combination where a passenger
-//// never get dropped of.
-//feasible = false
-//case _ => // no action
-//}
-//(newCavSchedule, newHouseholdTrips)
 
 object HouseholdCAVScheduling {
 

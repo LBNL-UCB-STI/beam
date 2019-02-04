@@ -181,7 +181,7 @@ object HouseholdActor {
           val householdMatsimPlans = household.members.map(person => (person.getId -> person.getSelectedPlan)).toMap
           val cavScheduler = new HouseholdCAVScheduling(beamServices.matsimServices.getScenario.getPopulation, household, vehicles.values.toList, 5*60, 10*60, HouseholdCAVScheduling.computeSkim(householdBeamPlans,  Map(CAR -> 50 * 1000 / 3600, TRANSIT -> 40 * 1000 / 3600)))
           //          val optimalPlan = cavScheduler().sortWith(_.cost < _.cost).head.cavFleetSchedule
-          val optimalPlan = cavScheduler.getMostProductiveCAVSchedule.cavFleetSchedule
+          val optimalPlan = cavScheduler.getBestScheduleWithTheLongestCAVChain.cavFleetSchedule
           val requestsAndUpdatedPlans = optimalPlan.map {
             _.toRoutingRequests(beamServices)
           }
