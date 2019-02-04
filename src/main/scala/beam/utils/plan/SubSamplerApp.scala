@@ -26,7 +26,7 @@ object SubSamplerApp extends App {
 
   var vehicles: mutable.HashMap[String, java.util.Map[String, String]] = _
 
-  private def getConfig(sampleDir: String) = {
+  private def loadScenario(sampleDir: String) = {
     val conf = ConfigUtils.createConfig
 
     conf.plans().setInputFile(s"$sampleDir/population.xml.gz")
@@ -44,11 +44,12 @@ object SubSamplerApp extends App {
         val vehicleId = line.get("vehicleId")
         acc += ((vehicleId, line))
     }
-    conf
+
+    ScenarioUtils.loadScenario(conf)
   }
 
 
-  def getSimpleRandomeSample(scenario: Scenario, hhIdSet:mutable.Set[Id[Household]],sampleSize: Int, hhSampling:Boolean): mutable.Set[Id[Household]]={
+  def getSimpleRandomSample(scenario: Scenario, hhIdSet:mutable.Set[Id[Household]], sampleSize: Int, hhSampling:Boolean): mutable.Set[Id[Household]]={
     val randomizedHHIds = Random.shuffle(hhIdSet)
     if (hhSampling){
 
@@ -77,7 +78,7 @@ object SubSamplerApp extends App {
 
 
   def getSimpleRandomSampleOfHouseholds(scenario: Scenario, sampleSize: Int): mutable.Set[Id[Household]] = {
-    getSimpleRandomeSample(scenario, scenario.getHouseholds.getHouseholds.keySet().asScala,sampleSize,false)
+    getSimpleRandomSample(scenario, scenario.getHouseholds.getHouseholds.keySet().asScala,sampleSize,false)
   }
 
   def getStratifiedSampleOfHousholds(scenario: Scenario, sampleSize: Int): mutable.Set[Id[Household]] = {
@@ -323,12 +324,12 @@ object SubSamplerApp extends App {
       }
 
 
-      resultSet++=getSimpleRandomeSample(scenario,hhSet,numberOfSamplesToTakeFromSet,true)
+      resultSet++=getSimpleRandomSample(scenario,hhSet,numberOfSamplesToTakeFromSet,true)
     }
 
 
     // rounding errors and similar are captured through this here
-    getSimpleRandomeSample(scenario,resultSet,sampleSize,false)
+    getSimpleRandomSample(scenario,resultSet,sampleSize,false)
   }
 
   // print stats of sample read!!!
@@ -397,9 +398,7 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
 
 
 
-  def samplePopulation(conf: Config, sampleSize: Int): Scenario = {
-
-    val sc: Scenario = ScenarioUtils.loadScenario(conf)
+  def samplePopulation(sc: Scenario, sampleSize: Int): Scenario = {
 
     val hhIds = sc.getHouseholds.getHouseholds.keySet().asScala
     val hhIsSampled = if(samplingApproach == SIMPLE_RANDOM_SAMPLING) {
@@ -438,7 +437,7 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
     sc
   }
 
-  private def writeSample(outDir: String, sc: Scenario): Unit = {
+  private def writeSample(sc: Scenario, outDir: String): Unit = {
     new HouseholdsWriterV10(sc.getHouseholds).writeFile(s"$outDir/households.xml.gz")
     new PopulationWriter(sc.getPopulation).write(s"$outDir/population.xml.gz")
     PopulationWriterCSV(sc.getPopulation).write(s"$outDir/population.csv.gz")
@@ -464,6 +463,7 @@ Params:
 test/input/sf-light/sample/25k
 1000
 test/input/sf-light/sample/1.5k
+simple
    */
 
   val sampleDir = args(0)
@@ -471,8 +471,7 @@ test/input/sf-light/sample/1.5k
   val outDir = args(2)
   val samplingApproach = args(3).toLowerCase()
 
-  val sampler = SubSamplerApp
-  val conf = getConfig(sampleDir)
-  val sc = sampler.samplePopulation(conf, sampleSize)
-  writeSample(outDir, sc)
+  val srcSc = loadScenario(sampleDir)
+  val sc = samplePopulation(srcSc, sampleSize)
+  writeSample(sc, outDir)
 }
