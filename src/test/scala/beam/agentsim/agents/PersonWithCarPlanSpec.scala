@@ -2,7 +2,7 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{Acd
+import akka.actor.{Ac
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.PersonTestUtil._
