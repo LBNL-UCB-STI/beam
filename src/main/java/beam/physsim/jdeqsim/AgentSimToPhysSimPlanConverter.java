@@ -238,9 +238,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private Map<String, Boolean> getCaccVehicles(MutableScenario jdeqSimScenario, BeamServices beamServices) {
 
         Map<String, Boolean> map = new TreeMap<>();
-
         TrieMap<Id<BeamVehicleType>, BeamVehicleType> vehicleTypesMap = beamServices.vehicleTypes();
-
         Set<Id<Person>> personIds = jdeqSimScenario.getPopulation().getPersons().keySet();
         for(Id<Person> personId : personIds){
 
@@ -254,7 +252,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 String[] vehicleIdParts = vehicleId.toString().split(":");
                 String vehicleTypeKey = vehicleIdParts[0];
                 vehicleTypeKey = vehicleTypeKey.toLowerCase();
-
                 Id<BeamVehicleType> beamVehicleTypeId = Id.create(vehicleTypeKey, BeamVehicleType.class);
 
                 if(vehicleTypesMap.contains(beamVehicleTypeId)){
