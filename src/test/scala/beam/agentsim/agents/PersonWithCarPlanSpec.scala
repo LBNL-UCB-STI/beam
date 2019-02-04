@@ -123,7 +123,7 @@ class PersonWithCarPlanSpec
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
-            self ! event
+            self ! event 
           }
         }
       )
