@@ -411,13 +411,13 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
     }
 
 
-    val averageHHCoord = getAverageCoordinateHouseholds(sc)
+   // val averageHHCoord = getAverageCoordinateHouseholds(sc)
 
-    print(s"getAverageCoordinateHouseholdsAndNumber: averageHHCoord (${averageHHCoord})")
+   // print(s"getAverageCoordinateHouseholdsAndNumber: averageHHCoord (${averageHHCoord})")
 
-    printNumberOfHouseholdsInForQuadrants(sc,averageHHCoord)
+    //printNumberOfHouseholdsInForQuadrants(sc,averageHHCoord)
 
-   val list=splitPopulationInFourPartsSpatially(sc,averageHHCoord)
+   //val list=splitPopulationInFourPartsSpatially(sc,averageHHCoord)
 
 
     val hhIdsToRemove = hhIsSampled
