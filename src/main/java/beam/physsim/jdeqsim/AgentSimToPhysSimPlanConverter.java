@@ -2,6 +2,7 @@ package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
 import beam.agentsim.agents.vehicles.BeamVehicle;
+import beam.agentsim.agents.vehicles.BeamVehicleType;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationStatsProvider;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedDistributionStats;
@@ -41,8 +42,11 @@ import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.scenario.MutableScenario;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
+import org.matsim.vehicles.Vehicle;
+import org.matsim.vehicles.VehicleType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.collection.concurrent.TrieMap;
 
 import java.io.File;
 import java.util.*;
@@ -141,7 +145,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         config.setSimulationEndTime(beamConfig.matsim().modules().qsim().endTime());
         //JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
-        Map<String, Boolean> caccVehicles = getCaccVehicles(beamServices);
+        Map<String, Boolean> caccVehicles = getCaccVehicles(jdeqSimScenario, beamServices);
         beam.physsim.jdeqsim.cacc.sim.JDEQSimulation jdeqSimulation = new beam.physsim.jdeqsim.cacc.sim.JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccVehicles, new CACCTravelTimeFunctionA());
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents,  agentSimScenario.getConfig().travelTimeCalculator());
@@ -231,12 +235,53 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     }
 
-    private Map<String, Boolean> getCaccVehicles(BeamServices beamServices) {
+    private Map<String, Boolean> getCaccVehicles(MutableScenario jdeqSimScenario, BeamServices beamServices) {
 
         Map<String, Boolean> map = new TreeMap<>();
+
+        TrieMap<Id<BeamVehicleType>, BeamVehicleType> vehicleTypesMap = beamServices.vehicleTypes();
+
+        Set<Id<Person>> personIds = jdeqSimScenario.getPopulation().getPersons().keySet();
+        for(Id<Person> personId : personIds){
+
+            Id<BeamVehicle> vehicleId = Id.create(personId.toString(), BeamVehicle.class);
+
+            if(beamServices.privateVehicles().keySet().contains(vehicleId)){
+                BeamVehicle bv = beamServices.privateVehicles().get(vehicleId).get();
+                map.put(vehicleId.toString(), bv.beamVehicleType().caccEnabled());
+            }else {
+
+                String[] vehicleIdParts = vehicleId.toString().split(":");
+                String vehicleTypeKey = vehicleIdParts[0];
+                vehicleTypeKey = vehicleTypeKey.toLowerCase();
+
+                Id<BeamVehicleType> beamVehicleTypeId = Id.create(vehicleTypeKey, BeamVehicleType.class);
+
+                if(vehicleTypesMap.contains(beamVehicleTypeId)){
+                    map.put(vehicleId.toString(), vehicleTypesMap.get(beamVehicleTypeId).get().caccEnabled());
+                }else {
+
+                    switch (vehicleTypeKey) {
+                        case "bus":
+                            Id<BeamVehicleType> busDefault = Id.create("BUS-DEFAULT", BeamVehicleType.class);
+                            map.put(vehicleId.toString(), vehicleTypesMap.get(busDefault).get().caccEnabled());
+                            break;
+                        default:
+                            map.put(vehicleId.toString(), false);
+                            break;
+                    }
+                }
+            }
+        }
+
+        return map;
+    }
+
+    private Map<String, Boolean> getCaccVehicles(BeamServices beamServices) {
+
+        // Use the ids from the scenario -> population -> persons ids
+        Map<String, Boolean> map = new TreeMap<>();
         scala.collection.Iterator<BeamVehicle> iterator = beamServices.privateVehicles().valuesIterator();
-
-
 
         while(iterator.hasNext()){
             BeamVehicle beamVehicle = iterator.next();
