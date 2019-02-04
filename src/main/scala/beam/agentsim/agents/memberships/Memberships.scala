@@ -4,9 +4,9 @@ import beam.agentsim.agents.memberships.Memberships.RankedGroup.MemberWithRank
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Identifiable}
 import org.matsim.households.Household
-import scala.language.implicitConversions
 
 import scala.collection.JavaConverters
+import scala.language.implicitConversions
 
 object Memberships {
 
@@ -46,10 +46,16 @@ object Memberships {
       /**
         * Members sorted by rank.
         */
-      override val rankedMembers: Vector[MemberWithRank[Person]] = members.toVector
-        .map(mbr => MemberWithRank(mbr.getId, lookupMemberRank(mbr.getId)))
-        .sortWith(sortByRank)
+      override val rankedMembers: Vector[MemberWithRank[Person]] = {
 
+        members.toVector
+          .map { mbr =>
+            if (household.getId.toString.equals("1500-2015000440338-0")) {
+              println("debug")
+            }
+            MemberWithRank(mbr.getId, lookupMemberRank(mbr.getId))
+          }.sortWith(sortByRank)
+      }
     }
   }
 
