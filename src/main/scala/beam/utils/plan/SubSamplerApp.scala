@@ -52,7 +52,8 @@ object SubSamplerApp extends App {
 
 
   def getSimpleRandomSample(scenario: Scenario, hhIdSet:mutable.Set[Id[Household]], sampleSize: Int, hhSampling:Boolean): mutable.Set[Id[Household]]={
-    val randomizedHHIds = Random.shuffle(hhIdSet)
+    val r: Random = new Random(System.currentTimeMillis())
+    val randomizedHHIds = r.shuffle(hhIdSet)
     if (hhSampling){
 
       if (hhIdSet.size<sampleSize){
@@ -420,8 +421,8 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
 
    //val list=splitPopulationInFourPartsSpatially(sc,averageHHCoord)
 
-
-    val hhIdsToRemove = hhIsSampled
+println(hhIsSampled)
+    val hhIdsToRemove = hhIds.diff(hhIsSampled)
 
     hhIdsToRemove.foreach(id => {
       val hh = sc.getHouseholds.getHouseholds.remove(id)
@@ -463,7 +464,7 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
 
   def printStats(populationDir: String, sampleSize: Int): Unit = {
 
-    val srcSc = loadScenario(populationDir)
+    var srcSc = loadScenario(populationDir)
     val refCoord = getAverageCoordinateHouseholds(srcSc)
 
     val srcQuads = splitPopulationInFourPartsSpatially(srcSc, refCoord)
@@ -474,17 +475,20 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
 
     val simple = samplePopulation(srcSc, SIMPLE_RANDOM_SAMPLING, sampleSize)
     val simpleSize = simple.getHouseholds.getHouseholds.keySet.size
+    var scalingFactor = srcSize / simpleSize
     val simpleQuads = splitPopulationInFourPartsSpatially(simple, refCoord)
-    val simpleQuadSizes = simpleQuads.map(_.size)
+    val simpleQuadSizes = simpleQuads.map(_.size * scalingFactor)
     val simpleErr = simpleQuadSizes.zip(srcQuadSizes).map(p => math.abs(p._2 - p._1) ).sum
     println()
     println(s"Simple Random (households # $simpleSize):")
     println(s"Abs error: $simpleErr")
 
+    srcSc = loadScenario(populationDir)
     val stratified = samplePopulation(srcSc, STRATIFIED_SAMPLING, sampleSize)
     val stratifiedSize = stratified.getHouseholds.getHouseholds.keySet.size
+    scalingFactor = srcSize / stratifiedSize
     val stratifiedQuads = splitPopulationInFourPartsSpatially(stratified, refCoord)
-    val stratifiedQuadSizes = stratifiedQuads.map(_.size)
+    val stratifiedQuadSizes = stratifiedQuads.map(_.size * scalingFactor)
     val stratifiedErr = stratifiedQuadSizes.zip(srcQuadSizes).map(p => math.abs(p._2 - p._1) ).sum
     println()
     println(s"Stratified (households # $stratifiedSize):")
@@ -507,16 +511,16 @@ simple
 
   /*
   "..\\BeamCompetitions\\fixed-data\\sioux_faux\\sample\\15k"
-  150
+  1000
    */
 
   val sampleDir = args(0)
   val sampleSize = Try(args(1).toInt).getOrElse(1000)
-  val outDir = args(2)
-  val samplingApproach = args(3).toLowerCase()
+//  val outDir = args(2)
+//  val samplingApproach = args(3).toLowerCase()
 
   printStats(sampleDir, sampleSize)
 
-  generateSample(sampleDir, sampleSize, outDir, samplingApproach)
+//  generateSample(sampleDir, sampleSize, outDir, samplingApproach)
 
 }
