@@ -15,13 +15,13 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
 
     int eventCounter = 0;
     int maxHour = 0;
-    Integer maxPassengers = CAR_MAX_PASSENGERS;
+    final Integer maxPassengers = CAR_MAX_PASSENGERS;
 
-    String graphName;
+    final String graphName;
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# trips";
 
-    Map<Integer, Map<Integer, Integer>> numPassengerToEventFrequencyBin = new HashMap<>();
+    final Map<Integer, Map<Integer, Integer>> numPassengerToEventFrequencyBin = new HashMap<>();
 
     public CarPassengerPerTrip(String graphName){
         this.graphName = graphName;

@@ -34,17 +34,17 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     private static final String fileNameBase = "rideHail";
     private static final String dataFileBaseName = "rideHailStats";
     private static final int DEFAULT_OCCURRENCE = 1;
-    private static Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
-    private static Map<Integer, Map<Integer, Double>> deadHeadingsTnc0Map = new HashMap<>();
+    private static final Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
+    private static final Map<Integer, Map<Integer, Double>> deadHeadingsTnc0Map = new HashMap<>();
     private static int maxPassengersSeenOnGenericCase = 0;
-    private Map<String, Map<Integer, List<Event>>> vehicleEvents = new HashMap<>();
-    private Map<String, Map<Integer, List<Event>>> vehicleEventsCache = new HashMap<>();
+    private final Map<String, Map<Integer, List<Event>>> vehicleEvents = new HashMap<>();
+    private final Map<String, Map<Integer, List<Event>>> vehicleEventsCache = new HashMap<>();
     private Double passengerVkt = 0d;
     private Double deadHeadingVkt = 0d;
     private Double repositioningVkt = 0d;
     private int reservationCount = 0;
-    private boolean writeGraph;
-    private static List<String> excludeModes = Arrays.asList("car", "walk", "ride_hail", "subway");
+    private final boolean writeGraph;
+    private static final List<String> excludeModes = Arrays.asList("car", "walk", "ride_hail", "subway");
 
     public DeadHeadingAnalysis(boolean writeGraph){
         this.writeGraph = writeGraph;
@@ -807,7 +807,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         }
     }
 
-    Map<String, IGraphPassengerPerTrip> passengerPerTripMap = new HashMap<>();
+    final Map<String, IGraphPassengerPerTrip> passengerPerTripMap = new HashMap<>();
 
     private String getVehicleId(Map<String, String> attributes) {
         return attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
