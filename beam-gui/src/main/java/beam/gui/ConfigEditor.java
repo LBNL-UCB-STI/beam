@@ -42,10 +42,10 @@ public class ConfigEditor extends JFrame {
 
 	private static final boolean IS_MAC = System.getProperty("os.name").startsWith("Mac");
 
-	private JButton btnSave;
+	private final JButton btnSave;
 	private File configFile;
-	private JTextPane xmlPane;
-	private ConfigChangeListener configChangeListener;
+	private final JTextPane xmlPane;
+	private final ConfigChangeListener configChangeListener;
 
 	public ConfigEditor(File configFile, ConfigChangeListener configChangeListener) {
 		setTitle("Config Editor");
@@ -237,7 +237,7 @@ public class ConfigEditor extends JFrame {
 	public static class XmlEditorKit extends StyledEditorKit {
 
 		private static final long serialVersionUID = 2969169649596107757L;
-		private ViewFactory xmlViewFactory;
+		private final ViewFactory xmlViewFactory;
 
 		public XmlEditorKit() {
 			xmlViewFactory = new XmlViewFactory();
@@ -279,14 +279,14 @@ public class ConfigEditor extends JFrame {
 	 */
 	public static class XmlView extends PlainView {
 
-		private static HashMap<Pattern, Color> patternColors;
-		private static String TAG_PATTERN = "(</?[a-z\\-]*)\\s?>?";
-		private static String TAG_END_PATTERN = "(/>)";
-		private static String TAG_ATTRIBUTE_PATTERN = "\\s(\\w*)\\=";
-		private static String TAG_ATTRIBUTE_VALUE = "[a-z-]*\\=(\"[^\"]*\")";
-		private static String TAG_COMMENT = "(<!--.*-->)";
-		private static String TAG_CDATA_START = "(\\<!\\[CDATA\\[).*";
-		private static String TAG_CDATA_END = ".*(]]>)";
+		private static final HashMap<Pattern, Color> patternColors;
+		private static final String TAG_PATTERN = "(</?[a-z\\-]*)\\s?>?";
+		private static final String TAG_END_PATTERN = "(/>)";
+		private static final String TAG_ATTRIBUTE_PATTERN = "\\s(\\w*)\\=";
+		private static final String TAG_ATTRIBUTE_VALUE = "[a-z-]*\\=(\"[^\"]*\")";
+		private static final String TAG_COMMENT = "(<!--.*-->)";
+		private static final String TAG_CDATA_START = "(\\<!\\[CDATA\\[).*";
+		private static final String TAG_CDATA_END = ".*(]]>)";
 
 		static {
 			// NOTE: the order is important!
