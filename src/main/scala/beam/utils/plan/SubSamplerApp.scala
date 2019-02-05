@@ -3,6 +3,7 @@ package beam.utils.plan
 import java.util
 
 import beam.sim.common.GeoUtils
+import beam.utils.plan.SubSamplerApp.{conf, sampleSize}
 import beam.utils.scripts.PopulationWriterCSV
 import beam.utils.{BeamVehicleUtils, FileUtils}
 import org.matsim.api.core.v01.population.Activity
@@ -29,6 +30,16 @@ object SubSamplerApp extends App {
   var vehicles: mutable.HashMap[String, util.Map[String, String]] = _
 
   def loadScenario(sampleDir: String) = {
+    val conf: Config = createConfig(sampleDir)
+
+    ScenarioUtils.loadScenario(conf)
+  }
+
+  def loadScenario(conf: Config) = {
+    ScenarioUtils.loadScenario(conf)
+  }
+
+  private def createConfig(sampleDir: String) = {
     val conf = ConfigUtils.createConfig
 
     conf.plans().setInputFile(s"$sampleDir/population.xml.gz")
@@ -46,14 +57,11 @@ object SubSamplerApp extends App {
         val vehicleId = line.get("vehicleId")
         acc += ((vehicleId, line))
     }
-
-    ScenarioUtils.loadScenario(conf)
+    conf
   }
 
-
   def getSimpleRandomSample(scenario: Scenario, hhIdSet:mutable.Set[Id[Household]], sampleSize: Int, hhSampling:Boolean): Set[Id[Household]]={
-    val r: Random = new Random(System.currentTimeMillis())
-    val randomizedHHIds = r.shuffle(hhIdSet.toList)
+    val randomizedHHIds = Random.shuffle(hhIdSet.toList)
     if (hhSampling){
 
       if (hhIdSet.size<sampleSize){
@@ -74,8 +82,7 @@ object SubSamplerApp extends App {
       if (numberOfAgentsInSample<sampleSize){
         throw new RuntimeException("sampleSize larger than original data")
       }
-      println(randomizedHHIds)
-      println(selectedHouseholds)
+
       selectedHouseholds.toSet
     }
   }
@@ -97,17 +104,7 @@ object SubSamplerApp extends App {
     setList=splitByIncomeGroups(scenario,setList,3)
 
     sample(scenario,setList,sampleSize)
-
   }
-
-
-
-
-
-
-
-
-
 
 
   def splitByNumberOfVehiclePerHousehold(scenario: Scenario,hhIds:mutable.Set[Id[Household]],intervals:Int): ListBuffer[mutable.Set[Id[Household]]]= {
@@ -179,13 +176,6 @@ object SubSamplerApp extends App {
   }
 
 
-
-
-
-
-
-
-
   def printNumberOfHouseholdsInForQuadrants(scenario: Scenario, quadrantOriginCoord:Coord)= {
     var quadUpperLeft=0
     var quadUpperRight=0
@@ -231,7 +221,6 @@ object SubSamplerApp extends App {
       }
 
       }
-
 
     val numberHouseholds=scenario.getHouseholds.getHouseholds.keySet.size()
     new Coord(averageHHCoord.get.getX/numberHouseholds,averageHHCoord.get.getY/numberHouseholds)
@@ -287,8 +276,6 @@ object SubSamplerApp extends App {
 
     IncomeRange(minIncome,maxIncome)
   }
-
-
 
   def splitByIncomeRange(scenario: Scenario,hhIds:mutable.Set[Id[Household]],intervals:Int): ListBuffer[mutable.Set[Id[Household]]]= {
     val household = scenario.getHouseholds.getHouseholds
@@ -402,8 +389,8 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
 
 
 
-  def samplePopulation(sc: Scenario, samplingApproach: String, sampleSize: Int): Scenario = {
-
+  def samplePopulation(conf: Config, samplingApproach: String, sampleSize: Int): Scenario = {
+    val sc = loadScenario(conf)
     val hhIds = sc.getHouseholds.getHouseholds.keySet().asScala
     val hhIsSampled = if(samplingApproach == SIMPLE_RANDOM_SAMPLING) {
       getSimpleRandomSampleOfHouseholds(sc, sampleSize)
@@ -412,15 +399,6 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
     } else {
       throw new IllegalArgumentException(s"$samplingApproach is not a valid sampling approach.")
     }
-
-
-   // val averageHHCoord = getAverageCoordinateHouseholds(sc)
-
-   // print(s"getAverageCoordinateHouseholdsAndNumber: averageHHCoord (${averageHHCoord})")
-
-    //printNumberOfHouseholdsInForQuadrants(sc,averageHHCoord)
-
-   //val list=splitPopulationInFourPartsSpatially(sc,averageHHCoord)
 
     val hhIdsToRemove = hhIds.diff(hhIsSampled)
 
@@ -462,45 +440,72 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
     writer.close()
   }
 
-  def printStats(populationDir: String, sampleSize: Int): Unit = {
+  def stratifiedSampleWithStats(conf: Config, sampleSize: Int): Scenario = {
 
-    var srcSc = loadScenario(populationDir)
+    val srcSc = loadScenario(conf)
     val refCoord = getAverageCoordinateHouseholds(srcSc)
 
     val srcQuads = splitPopulationInFourPartsSpatially(srcSc, refCoord)
+    val srcAvgIncomes = splitByAvgIncomes(srcSc, 3)
+
+    println(srcAvgIncomes)
     val srcQuadSizes = srcQuads.map(_.size)
     val srcSize = srcSc.getHouseholds.getHouseholds.keySet.size
     var scalingFactor = 1
 
-      println(s"Population (households # $srcSize):")
-    for(i <- 1 to 10) {
-      val simple = samplePopulation(srcSc, SIMPLE_RANDOM_SAMPLING, sampleSize)
+    println(s"Population (households # $srcSize):")
+
+    var simpleSizeAgg = 0
+    val numOfRandomDraws = 5
+    val errors = for(i <- 1 to numOfRandomDraws) yield {
+      val simple = samplePopulation(conf, SIMPLE_RANDOM_SAMPLING, sampleSize)
       val simpleSize = simple.getHouseholds.getHouseholds.keySet.size
+      simpleSizeAgg += simpleSize
       scalingFactor = srcSize / simpleSize
       val simpleQuads = splitPopulationInFourPartsSpatially(simple, refCoord)
       val simpleQuadSizes = simpleQuads.map(_.size * scalingFactor)
       val simpleErr = simpleQuadSizes.zip(srcQuadSizes).map(p => math.abs(p._2 - p._1)).sum
-      println()
-      println(s"Simple Random (households # $simpleSize):")
-      println(s"Abs error: $simpleErr")
-      srcSc = loadScenario(populationDir)
+
+      val simpleAvgIncomes = splitByAvgIncomes(simple, 3)
+      val simpleIncomeErr = simpleAvgIncomes.zip(srcAvgIncomes).map(p => math.abs(p._2 - p._1)).sum / 3
+      //println(s"Abs   error: $simpleErr")
+      (simpleErr, simpleIncomeErr)
     }
+    val avgError = errors.map(_._1).sum/numOfRandomDraws
+    val avgIncomeError = errors.map(_._2).sum/numOfRandomDraws
+    println()
+    println(s"Simple Random (households # ${simpleSizeAgg/numOfRandomDraws}):")
+    println(s"Avg special error is: $avgError and income error is: $avgIncomeError")
 
-
-    val stratified = samplePopulation(srcSc, STRATIFIED_SAMPLING, sampleSize)
+    val stratified = samplePopulation(conf, STRATIFIED_SAMPLING, sampleSize)
     val stratifiedSize = stratified.getHouseholds.getHouseholds.keySet.size
     scalingFactor = srcSize / stratifiedSize
     val stratifiedQuads = splitPopulationInFourPartsSpatially(stratified, refCoord)
     val stratifiedQuadSizes = stratifiedQuads.map(_.size * scalingFactor)
     val stratifiedErr = stratifiedQuadSizes.zip(srcQuadSizes).map(p => math.abs(p._2 - p._1) ).sum
+
+    val stratifiedAvgIncomes = splitByAvgIncomes(stratified, 3)
+    val stratifiedIncomeErr = stratifiedAvgIncomes.zip(srcAvgIncomes).map(p => math.abs(p._2 - p._1)).sum / 3
     println()
     println(s"Stratified (households # $stratifiedSize):")
-    println(s"Abs error: $stratifiedErr")
+    println(s"Abs special error is: $stratifiedErr and income error is: $stratifiedIncomeErr")
+
+    stratified
   }
 
-  private def generateSample(sampleDir: String, sampleSize: Int, outDir: String, samplingApproach: String) = {
-    val srcSc = loadScenario(sampleDir)
-    val sc = samplePopulation(srcSc, samplingApproach, sampleSize)
+  private def splitByAvgIncomes(srcSc: Scenario, intervals: Int) = {
+    val households = srcSc.getHouseholds.getHouseholds
+    val srcAvgIncomes = splitByIncomeRange(srcSc, households.keySet().asScala, intervals)
+      .map(set => set.toList.map(hhId => households.get(hhId).getIncome.getIncome).sum / set.size)
+    srcAvgIncomes
+  }
+
+  private def generateSample(conf: Config, sampleSize: Int, outDir: String, samplingApproach: String): Unit = {
+    val sc = if(samplingApproach == STRATIFIED_SAMPLING) {
+      stratifiedSampleWithStats(conf, sampleSize)
+    } else {
+      samplePopulation(conf, samplingApproach, sampleSize)
+    }
     writeSample(sc, outDir)
   }
 
@@ -517,13 +522,13 @@ simple
   1000
    */
 
-  val sampleDir = args(0)
+  val populationDir = args(0)
   val sampleSize = Try(args(1).toInt).getOrElse(1000)
-//  val outDir = args(2)
-//  val samplingApproach = args(3).toLowerCase()
+  val outDir = args(2)
+  val samplingApproach = args(3).toLowerCase()
 
-  printStats(sampleDir, sampleSize)
+  val conf = createConfig(populationDir)
 
-//  generateSample(sampleDir, sampleSize, outDir, samplingApproach)
+  generateSample(conf, sampleSize, outDir, samplingApproach)
 
 }
