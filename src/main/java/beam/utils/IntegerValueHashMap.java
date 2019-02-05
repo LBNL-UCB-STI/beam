@@ -15,7 +15,7 @@ import java.util.Set;
  */
 public class IntegerValueHashMap<KeyClass> {
 
-    private HashMap<KeyClass, Integer> hm = new HashMap<>();
+    private final HashMap<KeyClass, Integer> hm = new HashMap<>();
     private int defaultStartValue = 0;
 
     public IntegerValueHashMap() {

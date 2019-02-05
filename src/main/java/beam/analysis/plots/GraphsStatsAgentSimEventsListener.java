@@ -39,7 +39,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
     private final StatsFactory statsFactory;
     private final BeamConfig beamConfig;
 
-    private Logger log = LoggerFactory.getLogger(GraphsStatsAgentSimEventsListener.class);
+    private final Logger log = LoggerFactory.getLogger(GraphsStatsAgentSimEventsListener.class);
 
     // No Arg Constructor
     public GraphsStatsAgentSimEventsListener(BeamServices services) {

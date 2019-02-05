@@ -21,20 +21,20 @@ public class Gui extends JFrame {
 
     private static final long serialVersionUID = 1L;
 
-    private JTextField txtConfigFilename;
-    private JTextField txtRam;
-    private JTextField txtJvmLocation;
-    private JTextField txtOutput;
+    private final JTextField txtConfigFilename;
+    private final JTextField txtRam;
+    private final JTextField txtJvmLocation;
+    private final JTextField txtOutput;
 
-    private JButton btnStartMatsim;
-    private JProgressBar progressBar;
-    private JTextArea textStdOut;
-    private JButton btnEdit;
+    private final JButton btnStartMatsim;
+    private final JProgressBar progressBar;
+    private final JTextArea textStdOut;
+    private final JButton btnEdit;
 
     private ExeRunner exeRunner = null;
 
     private PopulationSampler popSampler = null;
-    private JTextArea textErrOut;
+    private final JTextArea textErrOut;
 
     private File configFile;
     private File lastUsedDirectory;

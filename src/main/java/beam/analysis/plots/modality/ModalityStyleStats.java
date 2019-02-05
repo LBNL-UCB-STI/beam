@@ -21,8 +21,8 @@ public class ModalityStyleStats {
     private final String yAxisTitle;
     private final String fileName;
     private final String attributeName;
-    private Set<String> className;
-    private Map<Integer, Map<String, Double>> iterationVsModalityClassCount;
+    private final Set<String> className;
+    private final Map<Integer, Map<String, Double>> iterationVsModalityClassCount;
 
     public ModalityStyleStats() {
         className = new TreeSet<>();
