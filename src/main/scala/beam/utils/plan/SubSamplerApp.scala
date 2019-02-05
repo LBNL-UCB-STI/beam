@@ -51,16 +51,16 @@ object SubSamplerApp extends App {
   }
 
 
-  def getSimpleRandomSample(scenario: Scenario, hhIdSet:mutable.Set[Id[Household]], sampleSize: Int, hhSampling:Boolean): mutable.Set[Id[Household]]={
+  def getSimpleRandomSample(scenario: Scenario, hhIdSet:mutable.Set[Id[Household]], sampleSize: Int, hhSampling:Boolean): Set[Id[Household]]={
     val r: Random = new Random(System.currentTimeMillis())
-    val randomizedHHIds = r.shuffle(hhIdSet)
+    val randomizedHHIds = r.shuffle(hhIdSet.toList)
     if (hhSampling){
 
       if (hhIdSet.size<sampleSize){
         throw new RuntimeException("sampleSize larger than original data")
       }
 
-      randomizedHHIds.takeRight(sampleSize)
+      randomizedHHIds.takeRight(sampleSize).toSet
     } else {
 
       var numberOfAgentsInSample = 0
@@ -74,17 +74,18 @@ object SubSamplerApp extends App {
       if (numberOfAgentsInSample<sampleSize){
         throw new RuntimeException("sampleSize larger than original data")
       }
-
-      selectedHouseholds
+      println(randomizedHHIds)
+      println(selectedHouseholds)
+      selectedHouseholds.toSet
     }
   }
 
 
-  def getSimpleRandomSampleOfHouseholds(scenario: Scenario, sampleSize: Int): mutable.Set[Id[Household]] = {
+  def getSimpleRandomSampleOfHouseholds(scenario: Scenario, sampleSize: Int): Set[Id[Household]] = {
     getSimpleRandomSample(scenario, scenario.getHouseholds.getHouseholds.keySet().asScala,sampleSize,false)
   }
 
-  def getStratifiedSampleOfHousholds(scenario: Scenario, sampleSize: Int): mutable.Set[Id[Household]] = {
+  def getStratifiedSampleOfHousholds(scenario: Scenario, sampleSize: Int): Set[Id[Household]] = {
     var setList=splitPopulationInFourPartsSpatially(scenario, getAverageCoordinateHouseholds(scenario))
 
     setList=splitByHHTravelDistance(scenario,setList,3)
@@ -310,7 +311,7 @@ object SubSamplerApp extends App {
 
   // TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!! sampleByHouseholdSize
 
-  def sample(scenario: Scenario,hhSetList:ListBuffer[mutable.Set[Id[Household]]],sampleSize:Int):mutable.Set[Id[Household]]={
+  def sample(scenario: Scenario,hhSetList:ListBuffer[mutable.Set[Id[Household]]],sampleSize:Int): Set[Id[Household]]={
     val resultSet:mutable.Set[Id[Household]]=mutable.Set()
     // determine, how many from each set we will need to pick!
 
@@ -322,9 +323,9 @@ object SubSamplerApp extends App {
     for (hhSet <- hhSetList) {
       val numberOfSamplesToTakeFromSet=Math.ceil(hhSet.size*samplingRatio).toInt
 
-      if (hhSet.size<numberOfSamplesToTakeFromSet*20){
-        println("warning: set may be too small... to sample from")
-      }
+//      if (hhSet.size<numberOfSamplesToTakeFromSet*20){
+//        println("warning: set may be too small... to sample from")
+//      }
 
 
       resultSet++=getSimpleRandomSample(scenario,hhSet,numberOfSamplesToTakeFromSet,true)
@@ -421,7 +422,6 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
 
    //val list=splitPopulationInFourPartsSpatially(sc,averageHHCoord)
 
-println(hhIsSampled)
     val hhIdsToRemove = hhIds.diff(hhIsSampled)
 
     hhIdsToRemove.foreach(id => {
@@ -470,20 +470,23 @@ println(hhIsSampled)
     val srcQuads = splitPopulationInFourPartsSpatially(srcSc, refCoord)
     val srcQuadSizes = srcQuads.map(_.size)
     val srcSize = srcSc.getHouseholds.getHouseholds.keySet.size
+    var scalingFactor = 1
 
-    println(s"Population (households # $srcSize):")
+      println(s"Population (households # $srcSize):")
+    for(i <- 1 to 10) {
+      val simple = samplePopulation(srcSc, SIMPLE_RANDOM_SAMPLING, sampleSize)
+      val simpleSize = simple.getHouseholds.getHouseholds.keySet.size
+      scalingFactor = srcSize / simpleSize
+      val simpleQuads = splitPopulationInFourPartsSpatially(simple, refCoord)
+      val simpleQuadSizes = simpleQuads.map(_.size * scalingFactor)
+      val simpleErr = simpleQuadSizes.zip(srcQuadSizes).map(p => math.abs(p._2 - p._1)).sum
+      println()
+      println(s"Simple Random (households # $simpleSize):")
+      println(s"Abs error: $simpleErr")
+      srcSc = loadScenario(populationDir)
+    }
 
-    val simple = samplePopulation(srcSc, SIMPLE_RANDOM_SAMPLING, sampleSize)
-    val simpleSize = simple.getHouseholds.getHouseholds.keySet.size
-    var scalingFactor = srcSize / simpleSize
-    val simpleQuads = splitPopulationInFourPartsSpatially(simple, refCoord)
-    val simpleQuadSizes = simpleQuads.map(_.size * scalingFactor)
-    val simpleErr = simpleQuadSizes.zip(srcQuadSizes).map(p => math.abs(p._2 - p._1) ).sum
-    println()
-    println(s"Simple Random (households # $simpleSize):")
-    println(s"Abs error: $simpleErr")
 
-    srcSc = loadScenario(populationDir)
     val stratified = samplePopulation(srcSc, STRATIFIED_SAMPLING, sampleSize)
     val stratifiedSize = stratified.getHouseholds.getHouseholds.keySet.size
     scalingFactor = srcSize / stratifiedSize
