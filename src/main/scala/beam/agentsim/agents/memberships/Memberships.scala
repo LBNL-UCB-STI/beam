@@ -50,9 +50,6 @@ object Memberships {
 
         members.toVector
           .map { mbr =>
-            if (household.getId.toString.equals("1500-2015000440338-0")) {
-              println("debug")
-            }
             MemberWithRank(mbr.getId, lookupMemberRank(mbr.getId))
           }.sortWith(sortByRank)
       }
