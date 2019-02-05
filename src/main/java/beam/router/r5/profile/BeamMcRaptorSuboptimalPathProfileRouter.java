@@ -50,7 +50,7 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
     /**
      * the number of searches to run (approximately). We use a constrained random walk to get about this many searches.
      */
-    public final int NUMBER_OF_SEARCHES = 20;
+    public int NUMBER_OF_SEARCHES = 20;
     /**
      * Use a list for the iterations since we aren't sure how many there will be (we're using random sampling over the departure minutes)
      */
