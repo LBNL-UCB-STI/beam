@@ -290,7 +290,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         }
 
         int lengthOfDataSet = TNC_MAX_PASSENGERS + 2;
-        double dataSet[][] = new double[lengthOfDataSet][maxHour + 1];
+        double[][] dataSet = new double[lengthOfDataSet][maxHour + 1];
 
         //dataSet[0] = getDeadHeadingDataSetTnc0ModeOccurrencePerHour(maxHour, -1);
 
@@ -490,7 +490,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         } else {
             maxPassengers = maxPassengersSeenOnGenericCase;
         }
-        double dataSet[][];
+        double[][] dataSet;
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC) || graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR)) {
 
             int dataSetLength = maxPassengers + 2;
