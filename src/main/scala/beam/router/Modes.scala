@@ -167,24 +167,6 @@ object Modes {
     }
   }
 
-  def isRailTransport(beamMode: BeamMode): Boolean = {
-    beamMode.r5Mode match {
-      case Some(Left(_)) =>
-        false
-      case Some(Right(transitMode)) =>
-        transitMode match {
-          case TransitModes.SUBWAY =>
-            true
-          case TransitModes.RAIL =>
-            true
-          case _ =>
-            false
-        }
-      case _ =>
-        false
-    }
-  }
-
   def toR5StreetMode(mode: BeamMode): StreetMode = mode match {
     case BIKE => StreetMode.BICYCLE
     case WALK => StreetMode.WALK
