@@ -1,5 +1,7 @@
 package beam.utils.plan
 
+import java.util
+
 import beam.sim.common.GeoUtils
 import beam.utils.scripts.PopulationWriterCSV
 import beam.utils.{BeamVehicleUtils, FileUtils}
@@ -24,7 +26,7 @@ object SubSamplerApp extends App {
   val SIMPLE_RANDOM_SAMPLING = "simple"
   val STRATIFIED_SAMPLING = "stratified"
 
-  var vehicles: mutable.HashMap[String, java.util.Map[String, String]] = _
+  var vehicles: mutable.HashMap[String, util.Map[String, String]] = _
 
   def loadScenario(sampleDir: String) = {
     val conf = ConfigUtils.createConfig
@@ -38,7 +40,7 @@ object SubSamplerApp extends App {
     //    conf.vehicles().setVehiclesFile(s"$sampleDir/vehicles.csv.gz")
     vehicles = BeamVehicleUtils.readCsvFileByLine(
       s"$sampleDir/vehicles.csv.gz",
-      mutable.HashMap[String, java.util.Map[String, String]]()
+      mutable.HashMap[String, util.Map[String, String]]()
     ) {
       case (line, acc) =>
         val vehicleId = line.get("vehicleId")
@@ -106,14 +108,14 @@ object SubSamplerApp extends App {
 
 
 
-  def splitByNumberOfVehiclePerHousehold(scenario: Scenario,hhIds:mutable.Set[Id[Household]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]]= {
+  def splitByNumberOfVehiclePerHousehold(scenario: Scenario,hhIds:mutable.Set[Id[Household]],intervals:Int): ListBuffer[mutable.Set[Id[Household]]]= {
     val household = scenario.getHouseholds.getHouseholds
     val bucket = Math.ceil(hhIds.size.toDouble / intervals ).toInt
     val result = hhIds.map(household.get(_)).toList.sortWith(_.getVehicleIds.size > _.getVehicleIds.size).map(_.getId).grouped(bucket)
-    result.map(list => mutable.Set(list : _*)).to[mutable.ListBuffer]
+    result.map(list => mutable.Set(list : _*)).to[ListBuffer]
   }
 
-  def splitByNumberOfVehiclePerHousehold(scenario: Scenario,hhSetList:ListBuffer[mutable.Set[Id[Household]]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]] ={
+  def splitByNumberOfVehiclePerHousehold(scenario: Scenario,hhSetList:ListBuffer[mutable.Set[Id[Household]]],intervals:Int): ListBuffer[mutable.Set[Id[Household]]] ={
     var resultList=mutable.ListBuffer[mutable.Set[Id[Household]]] ()
 
     for (hhSet <-hhSetList){
@@ -123,15 +125,15 @@ object SubSamplerApp extends App {
     resultList
   }
 
-  def splitByNumberOfPeopleLivingInHousehold(scenario: Scenario,hhIds:mutable.Set[Id[Household]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]]= {
+  def splitByNumberOfPeopleLivingInHousehold(scenario: Scenario,hhIds:mutable.Set[Id[Household]],intervals:Int): ListBuffer[mutable.Set[Id[Household]]]= {
     val household = scenario.getHouseholds.getHouseholds
     val bucket = Math.ceil(hhIds.size.toDouble / intervals ).toInt
     val result = hhIds.map(household.get(_)).toList.sortWith(_.getMemberIds.size > _.getMemberIds.size).map(_.getId).grouped(bucket)
-    result.map(list => mutable.Set(list : _*)).to[mutable.ListBuffer]
+    result.map(list => mutable.Set(list : _*)).to[ListBuffer]
   }
 
 
-  def splitByNumberOfPeopleLivingInHousehold(scenario: Scenario,hhSetList:ListBuffer[mutable.Set[Id[Household]]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]] ={
+  def splitByNumberOfPeopleLivingInHousehold(scenario: Scenario,hhSetList:ListBuffer[mutable.Set[Id[Household]]],intervals:Int): ListBuffer[mutable.Set[Id[Household]]] ={
     var resultList=mutable.ListBuffer[mutable.Set[Id[Household]]] ()
 
     for (hhSet <-hhSetList){
@@ -141,7 +143,7 @@ object SubSamplerApp extends App {
     resultList
   }
 
-  def splitByHHTravelDistance(scenario: Scenario,hhIds:mutable.Set[Id[Household]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]]= {
+  def splitByHHTravelDistance(scenario: Scenario,hhIds:mutable.Set[Id[Household]],intervals:Int): ListBuffer[mutable.Set[Id[Household]]]= {
     val persons = scenario.getPopulation.getPersons
     val households = scenario.getHouseholds.getHouseholds
     val bucket = Math.ceil(hhIds.size.toDouble / intervals ).toInt
@@ -156,7 +158,7 @@ object SubSamplerApp extends App {
       .sortWith((x,y) => x._2 > y._2)  //sorting by sum(sum is 2nd item of tuple)
       .map(_._1.getId)     //getting id from household tuple
       .grouped(bucket)      //grouping by bucket
-    result.map(list => mutable.Set(list : _*)).to[mutable.ListBuffer]
+    result.map(list => mutable.Set(list : _*)).to[ListBuffer]
   }
 
   def getDifference(coordX: Coord, coordY: Coord): Double = {
@@ -164,7 +166,7 @@ object SubSamplerApp extends App {
   }
 
 
-  def splitByHHTravelDistance(scenario: Scenario,hhSetList:ListBuffer[mutable.Set[Id[Household]]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]] ={
+  def splitByHHTravelDistance(scenario: Scenario,hhSetList:ListBuffer[mutable.Set[Id[Household]]],intervals:Int): ListBuffer[mutable.Set[Id[Household]]] ={
     var resultList=mutable.ListBuffer[mutable.Set[Id[Household]]] ()
 
     for (hhSet <-hhSetList){
@@ -286,14 +288,14 @@ object SubSamplerApp extends App {
 
 
 
-  def splitByIncomeRange(scenario: Scenario,hhIds:mutable.Set[Id[Household]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]]= {
+  def splitByIncomeRange(scenario: Scenario,hhIds:mutable.Set[Id[Household]],intervals:Int): ListBuffer[mutable.Set[Id[Household]]]= {
     val household = scenario.getHouseholds.getHouseholds
     val bucket = Math.ceil(hhIds.size.toDouble / intervals ).toInt
     val result = hhIds.map(household.get(_)).toList.sortWith(_.getIncome.getIncome > _.getIncome.getIncome).map(_.getId).grouped(bucket)
-    result.map(list => mutable.Set(list : _*)).to[mutable.ListBuffer]
+    result.map(list => mutable.Set(list : _*)).to[ListBuffer]
   }
 
-  def splitByIncomeGroups(scenario: Scenario,hhSetList:ListBuffer[mutable.Set[Id[Household]]],intervals:Int): mutable.ListBuffer[mutable.Set[Id[Household]]] ={
+  def splitByIncomeGroups(scenario: Scenario,hhSetList:ListBuffer[mutable.Set[Id[Household]]],intervals:Int): ListBuffer[mutable.Set[Id[Household]]] ={
     var resultList=mutable.ListBuffer[mutable.Set[Id[Household]]] ()
 
     for (hhSet <-hhSetList){
@@ -459,6 +461,42 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
     writer.close()
   }
 
+  def printStats(populationDir: String, sampleSize: Int): Unit = {
+
+    val srcSc = loadScenario(populationDir)
+    val refCoord = getAverageCoordinateHouseholds(srcSc)
+
+    val srcQuads = splitPopulationInFourPartsSpatially(srcSc, refCoord)
+    val srcQuadSizes = srcQuads.map(_.size)
+    val srcSize = srcSc.getHouseholds.getHouseholds.keySet.size
+
+    println(s"Population (households # $srcSize):")
+
+    val simple = samplePopulation(srcSc, SIMPLE_RANDOM_SAMPLING, sampleSize)
+    val simpleSize = simple.getHouseholds.getHouseholds.keySet.size
+    val simpleQuads = splitPopulationInFourPartsSpatially(simple, refCoord)
+    val simpleQuadSizes = simpleQuads.map(_.size)
+    val simpleErr = simpleQuadSizes.zip(srcQuadSizes).map(p => math.abs(p._2 - p._1) ).sum
+    println()
+    println(s"Simple Random (households # $simpleSize):")
+    println(s"Abs error: $simpleErr")
+
+    val stratified = samplePopulation(srcSc, STRATIFIED_SAMPLING, sampleSize)
+    val stratifiedSize = stratified.getHouseholds.getHouseholds.keySet.size
+    val stratifiedQuads = splitPopulationInFourPartsSpatially(stratified, refCoord)
+    val stratifiedQuadSizes = stratifiedQuads.map(_.size)
+    val stratifiedErr = stratifiedQuadSizes.zip(srcQuadSizes).map(p => math.abs(p._2 - p._1) ).sum
+    println()
+    println(s"Stratified (households # $stratifiedSize):")
+    println(s"Abs error: $stratifiedErr")
+  }
+
+  private def generateSample(sampleDir: String, sampleSize: Int, outDir: String, samplingApproach: String) = {
+    val srcSc = loadScenario(sampleDir)
+    val sc = samplePopulation(srcSc, samplingApproach, sampleSize)
+    writeSample(sc, outDir)
+  }
+
   /*
 Params:
 test/input/sf-light/sample/25k
@@ -467,12 +505,18 @@ test/input/sf-light/sample/1.5k
 simple
    */
 
+  /*
+  "..\\BeamCompetitions\\fixed-data\\sioux_faux\\sample\\15k"
+  150
+   */
+
   val sampleDir = args(0)
   val sampleSize = Try(args(1).toInt).getOrElse(1000)
   val outDir = args(2)
   val samplingApproach = args(3).toLowerCase()
 
-  val srcSc = loadScenario(sampleDir)
-  val sc = samplePopulation(srcSc, samplingApproach, sampleSize)
-  writeSample(sc, outDir)
+  printStats(sampleDir, sampleSize)
+
+  generateSample(sampleDir, sampleSize, outDir, samplingApproach)
+
 }
