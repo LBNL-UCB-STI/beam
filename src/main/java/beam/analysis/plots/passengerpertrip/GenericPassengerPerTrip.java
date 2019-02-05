@@ -66,7 +66,7 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
 
         Integer maxPassengers = maxPassengersSeenOnGenericCase;
 
-        double dataSet[][];
+        double[][] dataSet;
 
 
         // This loop gives the loop over all the different passenger groups, which is 1 in other cases.

@@ -310,7 +310,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
             if (data == null) {
                 dataset[i] = new double[numberOfTimeBins];
             } else {
-                double arr[] = new double[numberOfTimeBins];
+                double[] arr = new double[numberOfTimeBins];
                 for (int j = 0; j < numberOfTimeBins; j++) {
                     Integer v = data.get(j);
                     if (v == null) {
@@ -337,7 +337,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         for (double key : categoriesList) {
 
             Map<Integer, Integer> data = transformedCategories.get(key);
-            double arr[] = new double[numberOfTimeBins];
+            double[] arr = new double[numberOfTimeBins];
             for (int j = 0; j < numberOfTimeBins; j++) {
                 Integer v = data.get(j);
                 if (v == null) {

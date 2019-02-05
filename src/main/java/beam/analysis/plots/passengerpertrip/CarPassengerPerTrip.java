@@ -54,7 +54,6 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
         numPassengerToEventFrequencyBin.put(numPassengers, eventFrequencyBin);
     }
 
-
     @Override
     public void process(IterationEndsEvent event) throws IOException {
 
@@ -65,9 +64,7 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
     @Override
     public CategoryDataset getCategoryDataSet() {
 
-
-
-        double dataSet[][] = new double[maxPassengers + 1][maxHour + 1];
+        double[][] dataSet = new double[maxPassengers + 1][maxHour + 1];
 
         for (int numberOfpassengers = 0; numberOfpassengers < maxPassengers + 1; numberOfpassengers++) {
             dataSet[numberOfpassengers] = getEventFrequenciesBinByNumberOfPassengers(numberOfpassengers, maxHour);
@@ -75,7 +72,6 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
 
         return DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
     }
-
 
     @Override
     public String getFileName(String extension) {
@@ -91,7 +87,6 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
     public String getLegendText(int i) {
         return Integer.toString(i);
     }
-
 
     private double[] getEventFrequenciesBinByNumberOfPassengers(int numberOfpassengers, int maxHour) {
         Map<Integer, Integer> eventFrequenciesBin = numPassengerToEventFrequencyBin.get(numberOfpassengers);
@@ -118,4 +113,3 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
         return numPassengers <= maxPassengers;
     }
 }
-
