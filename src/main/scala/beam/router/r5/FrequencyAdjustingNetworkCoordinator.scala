@@ -29,7 +29,8 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
       line.split(",")
     }.toSeq
     (for { row <- dataRows } yield {
-      FrequencyAdjustmentInput(row(0), row(1).toInt, row(2).toInt, row(3).toInt, row(4).toInt)
+      // We assume that we are provided with a route Id. We need to convert to tripId for R5 Scenario Builder
+      FrequencyAdjustmentInput(getTripIdForRouteId(row.head).trip_id, row(1).toInt, row(2).toInt, row(3).toInt, row(4).toInt)
     }).toSet
   }
 
@@ -59,6 +60,13 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
     }.head
   }
 
+  def getTripIdForRouteId(routeId: String): Trip = {
+    feeds.map { feed =>
+      val trips  = feed.trips.asScala
+      trips.values.groupBy(_.route_id)(routeId).head
+    }.head
+  }
+
   def adjustTripFrequency(adjustmentInput: FrequencyAdjustmentInput): AddTrips.PatternTimetable = {
 
     val entry = new AddTrips.PatternTimetable
@@ -71,7 +79,7 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
     entry.wednesday = entry.tuesday
     entry.thursday = entry.wednesday
     entry.friday = entry.thursday
-    entry.saturday = entry.friday
+    entry.saturday = false
     entry.sourceTrip = s"${feeds.head.feedId}:${adjustmentInput.tripId}"
     entry
   }
