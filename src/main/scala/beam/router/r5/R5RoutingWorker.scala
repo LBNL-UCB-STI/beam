@@ -31,6 +31,7 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils._
+import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
@@ -101,6 +102,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override lazy val controler: ControlerI = ???
         override val beamConfig: BeamConfig = BeamConfig(config)
         override lazy val geo: GeoUtils = new GeoUtilsImpl(this)
+        val transportNetwork = networkCoordinator.transportNetwork
         override var modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator = _
         override val dates: DateUtils = DateUtils(
           ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
@@ -110,22 +112,18 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = TrieMap()
         override var personHouseholds: Map[Id[Person], Household] = Map()
         val fuelTypePrices: Map[FuelType, Double] =
-          BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
+          readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
 
         // TODO Fix me once `TrieMap` is removed
         val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
           TrieMap(
-            BeamServices
-              .readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
-              .toSeq: _*
+            readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices).toSeq: _*
           )
 
         // TODO Fix me once `TrieMap` is removed
         val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
           TrieMap(
-            BeamServices
-              .readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
-              .toSeq: _*
+            readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq: _*
           )
 
         override val modeIncentives: ModeIncentive =
@@ -140,6 +138,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override def matsimServices: org.matsim.core.controler.MatsimServices = ???
 
         override def networkHelper: NetworkHelper = ???
+        override def setTransitFleetSizes(
+          tripFleetSizeMap: mutable.HashMap[String, Integer]
+        ): Unit = {}
       }
 
       val defaultTravelTimeByLink = (time: Int, linkId: Int, mode: StreetMode) => {
@@ -356,7 +357,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         val fuelAndTollCostPerLeg = legPair.map { beamLeg =>
           val fuelCost = DrivingCost.estimateDrivingCost(beamLeg, vehicleTypeId, beamServices)
           val toll = if (beamLeg.mode == CAR) {
-            val osm = beamLeg.travelPath.linkIds.toVector.map { e =>
+            val osm = beamLeg.travelPath.linkIds.map { e =>
               transportNetwork.streetLayer.edgeStore
                 .getCursor(e)
                 .getOSMID
