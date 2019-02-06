@@ -8,9 +8,11 @@ import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.conveyal.gtfs.GTFSFeed
 import com.conveyal.gtfs.model.Trip
+import com.conveyal.gtfs.stats.{FeedStats, PatternStats}
 import com.conveyal.r5.analyst.scenario.{AddTrips, AdjustFrequency, Scenario}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.network.Network
+import org.matsim.core.utils.io.IOUtils
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConverters._
@@ -29,8 +31,7 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
       line.split(",")
     }.toSeq
     (for { row <- dataRows } yield {
-      // We assume that we are provided with a route Id. We need to convert to tripId for R5 Scenario Builder
-      FrequencyAdjustmentInput(getTripIdForRouteId(row.head).trip_id, row(1).toInt, row(2).toInt, row(3).toInt, row(4).toInt)
+      FrequencyAdjustmentInput(row(0), row(1).toInt, row(2).toInt, row(3).toInt, row(4).toInt)
     }).toSet
   }
 
@@ -60,21 +61,14 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
     }.head
   }
 
-  def getTripIdForRouteId(routeId: String): Trip = {
-    feeds.map { feed =>
-      val trips  = feed.trips.asScala
-      trips.values.groupBy(_.route_id)(routeId).head
-    }.head
-  }
-
   def adjustTripFrequency(adjustmentInput: FrequencyAdjustmentInput): AddTrips.PatternTimetable = {
 
     val entry = new AddTrips.PatternTimetable
     entry.headwaySecs = adjustmentInput.headwaySecs
     entry.startTime = adjustmentInput.startTime
     entry.endTime = adjustmentInput.endTime
-    entry.sunday = true
-    entry.monday = entry.sunday
+    entry.sunday = false
+    entry.monday = true
     entry.tuesday = entry.monday
     entry.wednesday = entry.tuesday
     entry.thursday = entry.wednesday
@@ -122,5 +116,6 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
     this.transportNetwork =
       buildFrequencyAdjustmentScenario(this.frequencyData).applyToTransportNetwork(transportNetwork)
     convertFrequenciesToTrips()
+
   }
 }
