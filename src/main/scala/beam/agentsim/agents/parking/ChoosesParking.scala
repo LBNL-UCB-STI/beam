@@ -36,22 +36,6 @@ object ChoosesParking {
 
 trait ChoosesParking extends {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
-
-  def getPreferredChargingOptions(beamVehicleType: BeamVehicleType): ChargingPreference = { //todo make this charging price dependent
-
-    val res = beamVehicleType.vehicleTypeId.toLowerCase match { //we only need to check for charging if we have ev
-      case "bev" | "phev" => { //todo fancy decision model for a) charging need b) plugs (evTypes datamodel adaptions)
-        if (Random.nextBoolean()) MustCharge else Opportunistic
-      }
-      case _ => NoNeed
-    }
-
-    log.debug(s"Send parking inquiry charging preference: $res")
-
-    return res
-
-  }
-
   onTransition {
     case ReadyToChooseParking -> ChoosingParkingSpot =>
       val personData = stateData.asInstanceOf[BasePersonData]
@@ -65,9 +49,7 @@ trait ChoosesParking extends {
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc),
         nextActivity(personData).get.getType,
         attributes,
-        getPreferredChargingOptions(
-          beamServices.vehicles(personData.currentVehicle.head).beamVehicleType
-        ),
+        NoNeed,
         lastLeg.beamLeg.endTime,
         nextActivity(personData).get.getEndTime - lastLeg.beamLeg.endTime.toDouble
       )
