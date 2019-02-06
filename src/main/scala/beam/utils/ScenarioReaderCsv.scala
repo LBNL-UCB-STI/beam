@@ -55,7 +55,7 @@ class ScenarioReaderCsv(var scenario: MutableScenario, var beamServices: BeamSer
     val householdPersons = ScenarioReaderCsv.readPersonsFile(
       personFilePath,
       scenario.getPopulation,
-      BeamMode.allBeamModes.map(_.value).mkString(",")
+      BeamMode.allTripModes.map(_.value).mkString(",")
     )
 
     logger.info("Reading plans...")

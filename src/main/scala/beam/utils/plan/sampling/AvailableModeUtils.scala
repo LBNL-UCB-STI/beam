@@ -18,7 +18,7 @@ object AvailableModeUtils extends LazyLogging {
 
   class AllowAllModes extends PermissibleModesCalculator {
     override def getPermissibleModes(plan: Plan): util.Collection[String] = {
-      JavaConverters.asJavaCollection(BeamMode.allBeamModes.map(_.toString))
+      JavaConverters.asJavaCollection(BeamMode.allTripModes.map(_.toString))
     }
   }
 
