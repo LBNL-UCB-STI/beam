@@ -8,11 +8,9 @@ import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.conveyal.gtfs.GTFSFeed
 import com.conveyal.gtfs.model.Trip
-import com.conveyal.gtfs.stats.{FeedStats, PatternStats}
 import com.conveyal.r5.analyst.scenario.{AddTrips, AdjustFrequency, Scenario}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.network.Network
-import org.matsim.core.utils.io.IOUtils
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConverters._
@@ -31,7 +29,8 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
       line.split(",")
     }.toSeq
     (for { row <- dataRows } yield {
-      FrequencyAdjustmentInput(row(0), row(1).toInt, row(2).toInt, row(3).toInt, row(4).toInt)
+      // We assume that we are provided with a route Id. We need to convert to tripId for R5 Scenario Builder
+      FrequencyAdjustmentInput(getTripIdForRouteId(row.head).trip_id, row(1).toInt, row(2).toInt, row(3).toInt, row(4).toInt)
     }).toSet
   }
 
@@ -39,10 +38,12 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
     val scenario = new Scenario()
     val adjustmentsByRouteId: Map[String, Set[FrequencyAdjustmentInput]] =
       adjustmentInputs.groupBy(adjustment => s"${feeds.head.feedId}:${getTripForId(adjustment.tripId).route_id}")
+
     util.Arrays.asList(adjustmentsByRouteId.foreach {
       case (rid, adjustments) =>
         val adjustFrequency: AdjustFrequency = new AdjustFrequency
         adjustFrequency.route = rid
+        adjustFrequency.retainTripsOutsideFrequencyEntries = false
         val entries: util.Set[AddTrips.PatternTimetable] = adjustments.map { adjustmentInput =>
           adjustTripFrequency(adjustmentInput)
         }.asJava
@@ -55,9 +56,18 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
     scenario
   }
 
+
   def getTripForId(tripId: String): Trip = {
     feeds.map { feed =>
       feed.trips.asScala(tripId)
+    }.head
+  }
+
+  def getTripIdForRouteId(routeId: String): Trip = {
+    feeds.map { feed =>
+      val trips  = feed.trips.asScala
+
+      trips.values.groupBy(_.route_id)(routeId).head
     }.head
   }
 
@@ -69,10 +79,10 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
     entry.endTime = adjustmentInput.endTime
     entry.sunday = false
     entry.monday = true
-    entry.tuesday = entry.monday
-    entry.wednesday = entry.tuesday
-    entry.thursday = entry.wednesday
-    entry.friday = entry.thursday
+    entry.tuesday = true
+    entry.wednesday = true
+    entry.thursday = true
+    entry.friday = true
     entry.saturday = false
     entry.sourceTrip = s"${feeds.head.feedId}:${adjustmentInput.tripId}"
     entry
@@ -116,6 +126,5 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
     this.transportNetwork =
       buildFrequencyAdjustmentScenario(this.frequencyData).applyToTransportNetwork(transportNetwork)
     convertFrequenciesToTrips()
-
   }
 }
