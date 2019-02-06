@@ -498,7 +498,6 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
     val srcQuads = splitPopulationInFourPartsSpatially(srcSc, refCoord)
     val srcAvgIncomes = splitByAvgIncomes(srcSc, 3)
 
-    println(srcAvgIncomes)
     val srcQuadSizes = srcQuads.map(_.size)
     val srcSize = srcSc.getHouseholds.getHouseholds.keySet.size
     var scalingFactor = 1
@@ -514,33 +513,70 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
       scalingFactor = srcSize / simpleSize
       val simpleQuads = splitPopulationInFourPartsSpatially(simple, refCoord)
       val simpleQuadSizes = simpleQuads.map(_.size * scalingFactor)
-      val simpleErr = simpleQuadSizes.zip(srcQuadSizes).map(p => math.abs(p._2 - p._1)).sum
+      val simpleErr = simpleQuadSizes.zip(srcQuadSizes).map(p => math.abs(p._2 - p._1)/p._2.toDouble).sum / 4
 
       val simpleAvgIncomes = splitByAvgIncomes(simple, 3)
-      val simpleIncomeErr = simpleAvgIncomes.zip(srcAvgIncomes).map(p => math.abs(p._2 - p._1)).sum / 3
+      val simpleIncomeErr = simpleAvgIncomes.zip(srcAvgIncomes).map(p => math.abs(p._2 - p._1)/p._2).sum / 3
       //println(s"Abs   error: $simpleErr")
+      println(s"Abs spatial error is: $simpleErr and income error is: $simpleIncomeErr")
       (simpleErr, simpleIncomeErr)
     }
     val avgError = errors.map(_._1).sum / numOfRandomDraws
     val avgIncomeError = errors.map(_._2).sum / numOfRandomDraws
     println()
     println(s"Simple Random (households # ${simpleSizeAgg / numOfRandomDraws}):")
-    println(s"Avg special error is: $avgError and income error is: $avgIncomeError")
+    println(s"Avg spatial error is: $avgError and income error is: $avgIncomeError")
+
 
     val stratified = samplePopulation(conf, STRATIFIED_SAMPLING, sampleSize)
     val stratifiedSize = stratified.getHouseholds.getHouseholds.keySet.size
     scalingFactor = srcSize / stratifiedSize
     val stratifiedQuads = splitPopulationInFourPartsSpatially(stratified, refCoord)
     val stratifiedQuadSizes = stratifiedQuads.map(_.size * scalingFactor)
-    val stratifiedErr = stratifiedQuadSizes.zip(srcQuadSizes).map(p => math.abs(p._2 - p._1)).sum
+    val stratifiedErr = stratifiedQuadSizes.zip(srcQuadSizes).map(p => math.abs(p._2 - p._1)/p._2.toDouble).sum /4
 
     val stratifiedAvgIncomes = splitByAvgIncomes(stratified, 3)
-    val stratifiedIncomeErr = stratifiedAvgIncomes.zip(srcAvgIncomes).map(p => math.abs(p._2 - p._1)).sum / 3
+    val stratifiedIncomeErr = stratifiedAvgIncomes.zip(srcAvgIncomes).map(p => math.abs(p._2 - p._1)/p._2).sum / 3
     println()
     println(s"Stratified (households # $stratifiedSize):")
-    println(s"Abs special error is: $stratifiedErr and income error is: $stratifiedIncomeErr")
+    println(s"Abs spatial error is: $stratifiedErr and income error is: $stratifiedIncomeErr")
 
     stratified
+  }
+
+  def computeOptimalSampleByNDraws(conf: Config, sampleSize: Int, samplingApproach: String, numOfDraws: Int) = {
+    val population = loadScenario(conf)
+    val refCoord = getAverageCoordinateHouseholds(population)
+
+    val popQuads = splitPopulationInFourPartsSpatially(population, refCoord)
+    val popAvgIncomes = splitByAvgIncomes(population, 3)
+
+    val popQuadSizes = popQuads.map(_.size)
+    val popSize = population.getHouseholds.getHouseholds.keySet.size
+
+    var error = 100D
+    var finalSample: Scenario = null
+    for(i <- 1 to numOfDraws) {
+      val sample = samplePopulation(conf, samplingApproach, sampleSize)
+      val sampleActualSize = sample.getHouseholds.getHouseholds.keySet.size
+      val scalingFactor = popSize / sampleActualSize
+      val sampleQuads = splitPopulationInFourPartsSpatially(sample, refCoord)
+      val sampleQuadSizes = sampleQuads.map(_.size * scalingFactor)
+      val sampleSpatialErr = sampleQuadSizes.zip(popQuadSizes).map(p => math.abs(p._2 - p._1) / p._2.toDouble).sum / 4
+
+      val sampleAvgIncomes = splitByAvgIncomes(sample, 3)
+      val sampleIncomeErr = sampleAvgIncomes.zip(popAvgIncomes).map(p => math.abs(p._2 - p._1) / p._2).sum / 3
+
+      val sampleError = sampleSpatialErr + sampleIncomeErr
+      if(sampleError < error || finalSample == null) {
+        error = sampleError
+        finalSample = sample
+      }
+      println(s"Abs $samplingApproach error is: $sampleError (having spatial: $sampleSpatialErr and income: $sampleIncomeErr).")
+    }
+
+    println(s"Optimal sample has ${error * 100}% error.")
+    finalSample
   }
 
   private def splitByAvgIncomes(srcSc: Scenario, intervals: Int) = {
@@ -550,12 +586,13 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
     srcAvgIncomes
   }
 
-  private def generateSample(conf: Config, sampleSize: Int, outDir: String, samplingApproach: String): Unit = {
-    val sc = if (samplingApproach == STRATIFIED_SAMPLING) {
+  private def generateSample(conf: Config, sampleSize: Int, outDir: String, samplingApproach: String, numOfDraws: Int): Unit = {
+    val sc = computeOptimalSampleByNDraws(conf, sampleSize, samplingApproach, numOfDraws)
+      /*if (samplingApproach == STRATIFIED_SAMPLING) {
       stratifiedSampleWithStats(conf, sampleSize)
     } else {
       samplePopulation(conf, samplingApproach, sampleSize)
-    }
+    }*/
     writeSample(sc, outDir)
   }
 
@@ -576,9 +613,10 @@ simple
   val sampleSize = Try(args(1).toInt).getOrElse(1000)
   val outDir = args(2)
   val samplingApproach = args(3).toLowerCase()
+  val numOfDraws = Try(args(4).toInt).getOrElse(100)
 
   val conf = createConfig(populationDir)
 
-  generateSample(conf, sampleSize, outDir, samplingApproach)
+  generateSample(conf, sampleSize, outDir, samplingApproach, numOfDraws)
 
 }
