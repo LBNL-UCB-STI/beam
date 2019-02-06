@@ -3,6 +3,8 @@ package beam.utils.plan.sampling
 import java.util
 
 import beam.router.Modes.BeamMode.CAR
+import beam.sim.population.PopulationAdjustment
+import beam.sim.population.PopulationAdjustment.BEAM_ATTRIBUTES
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PopulationAttrib.Rank
 import beam.utils.scripts.PopulationWriterCSV
@@ -329,7 +331,6 @@ object PlansSampler {
 
   import HasXY._
 
-  val availableModeString: String = "available-modes"
   val counter: Counter = new Counter("[" + this.getClass.getSimpleName + "] created household # ")
 
   private var planQt: Option[QuadTree[Plan]] = None
@@ -460,23 +461,12 @@ object PlansSampler {
     }
   }
 
-  def addModeExclusions(person: Person): AnyRef = {
-
-    val permissibleModes: Iterable[String] =
-      JavaConverters.collectionAsScalaIterable(
-        modeAllocator.getPermissibleModes(person.getSelectedPlan)
-      )
-
-    val availableModes = permissibleModes
-      .fold("") { (addend, modeString) =>
-        if (PersonUtils.getAge(person) < 16 && CAR.value.equalsIgnoreCase(modeString))
-          addend
-        else
-          addend.concat(modeString.toLowerCase() + ",")
-      }
-      .stripSuffix(",")
-
-    newPopAttributes.putAttribute(person.getId.toString, availableModeString, availableModes)
+  def addModeExclusions(person: Person): Unit = {
+    val filteredPermissibleModes = modeAllocator
+      .getPermissibleModes(person.getSelectedPlan)
+      .asScala
+      .filterNot(pm => PersonUtils.getAge(person) < 16 && pm.equalsIgnoreCase(CAR.toString))
+    AvailableModeUtils.setAvailableModesForPerson(person, newPop, filteredPermissibleModes.toSeq)
   }
 
   def run(): Unit = {
