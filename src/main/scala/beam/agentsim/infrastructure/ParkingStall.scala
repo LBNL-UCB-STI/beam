@@ -3,6 +3,7 @@ package beam.agentsim.infrastructure
 import beam.agentsim.Resource
 import beam.agentsim.infrastructure.ParkingStall.{StallAttributes, StallValues}
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.agentsim.infrastructure.parking.charging.ChargingPoint
 import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.{Coord, Id}
 
@@ -19,7 +20,7 @@ object ParkingStall {
 
   val emptyParkingStall = ParkingStall(
     emptyId,
-    StallAttributes(TAZTreeMap.emptyTAZId, Public, FlatFee, NoCharger, Any),
+    StallAttributes(TAZTreeMap.emptyTAZId, Public, FlatFee, None, Any),
     new Coord(0.0, 0.0),
     0.0,
     None
@@ -29,7 +30,7 @@ object ParkingStall {
     tazId: Id[TAZ],
     parkingType: ParkingType,
     pricingModel: PricingModel,
-    chargingType: ChargingType,
+    chargingType: Option[ChargingPoint],
     reservedFor: ReservedParkingType
   )
 
@@ -60,89 +61,89 @@ object ParkingStall {
     }
   }
 
-  sealed trait ChargingType
-
-  case object NoCharger extends ChargingType
-
-  case object Level1 extends ChargingType
-
-  case object Level2 extends ChargingType
-
-  case object DCFast extends ChargingType
-
-  case object UltraFast extends ChargingType
-
-  object ChargingType {
-
-    def fromString(s: String): ChargingType = {
-      s match {
-        case "NoCharger" => NoCharger
-        case "Level1"    => Level1
-        case "Level2"    => Level2
-        case "DCFast"    => DCFast
-        case "UltraFast" => UltraFast
-        case _           => throw new RuntimeException("Invalid case")
-      }
-    }
-
-    def getChargerPowerInKW(chargerType: ChargingType): Double = {
-      chargerType match {
-        case NoCharger => 0.0
-        case Level1 =>
-          1.5
-        case Level2 =>
-          6.7
-        case DCFast =>
-          50.0
-        case UltraFast =>
-          250.0
-      }
-    }
-
-    def calculateChargingSessionLengthAndEnergyInJoules(
-      chargerType: ChargingType,
-      currentEnergyLevelInJoule: Double,
-      energyCapacityInJoule: Double,
-      level2VehicleChargingLimitInWatts: Option[Double],
-      level3VehicleChargingLimitInWatts: Option[Double],
-      sessionDurationLimit: Option[Long]
-    ): (Long, Double) = {
-      val vehicleChargingLimitActualInKW = chargerType match {
-        case NoCharger => 0.0
-        case chType if chType == Level1 || chType == Level2 =>
-          level2VehicleChargingLimitInWatts.getOrElse(Double.MaxValue) / 1000.0
-        case chType if chType == DCFast || chType == UltraFast =>
-          level3VehicleChargingLimitInWatts.getOrElse(Double.MaxValue) / 1000.0
-      }
-      val sessionLengthLimiter = sessionDurationLimit.getOrElse(Long.MaxValue)
-      val sessionLength = Math.min(
-        sessionLengthLimiter,
-        chargerType match {
-          case NoCharger => 0L
-          case chType if chType == Level1 || chType == Level2 =>
-            Math.round(
-              (energyCapacityInJoule - currentEnergyLevelInJoule) / 3.6e6 / Math
-                .min(vehicleChargingLimitActualInKW, getChargerPowerInKW(chargerType)) * 3600.0
-            )
-          case chType if chType == DCFast || chType == UltraFast =>
-            if (energyCapacityInJoule * 0.8 < currentEnergyLevelInJoule) {
-              0L
-            } else {
-              Math.round(
-                (energyCapacityInJoule * 0.8 - currentEnergyLevelInJoule) / 3.6e6 / Math
-                  .min(vehicleChargingLimitActualInKW, getChargerPowerInKW(chargerType)) * 3600.0
-              )
-            }
-        }
-      )
-      val sessionEnergyInJoules = sessionLength.toDouble / 3600.0 * Math.min(
-        vehicleChargingLimitActualInKW,
-        getChargerPowerInKW(chargerType)
-      ) * 3.6e6
-
-      (sessionLength, sessionEnergyInJoules)
-    }
-  }
+//  sealed trait ChargingType
+//
+//  case object NoCharger extends ChargingType
+//
+//  case object Level1 extends ChargingType
+//
+//  case object Level2 extends ChargingType
+//
+//  case object DCFast extends ChargingType
+//
+//  case object UltraFast extends ChargingType
+//
+//  object ChargingType {
+//
+//    def fromString(s: String): ChargingType = {
+//      s match {
+//        case "NoCharger" => NoCharger
+//        case "Level1"    => Level1
+//        case "Level2"    => Level2
+//        case "DCFast"    => DCFast
+//        case "UltraFast" => UltraFast
+//        case _           => throw new RuntimeException("Invalid case")
+//      }
+//    }
+//
+//    def getChargerPowerInKW(chargerType: ChargingType): Double = {
+//      chargerType match {
+//        case NoCharger => 0.0
+//        case Level1 =>
+//          1.5
+//        case Level2 =>
+//          6.7
+//        case DCFast =>
+//          50.0
+//        case UltraFast =>
+//          250.0
+//      }
+//    }
+//
+//    def calculateChargingSessionLengthAndEnergyInJoules(
+//      chargerType: ChargingType,
+//      currentEnergyLevelInJoule: Double,
+//      energyCapacityInJoule: Double,
+//      level2VehicleChargingLimitInWatts: Option[Double],
+//      level3VehicleChargingLimitInWatts: Option[Double],
+//      sessionDurationLimit: Option[Long]
+//    ): (Long, Double) = {
+//      val vehicleChargingLimitActualInKW = chargerType match {
+//        case NoCharger => 0.0
+//        case chType if chType == Level1 || chType == Level2 =>
+//          level2VehicleChargingLimitInWatts.getOrElse(Double.MaxValue) / 1000.0
+//        case chType if chType == DCFast || chType == UltraFast =>
+//          level3VehicleChargingLimitInWatts.getOrElse(Double.MaxValue) / 1000.0
+//      }
+//      val sessionLengthLimiter = sessionDurationLimit.getOrElse(Long.MaxValue)
+//      val sessionLength = Math.min(
+//        sessionLengthLimiter,
+//        chargerType match {
+//          case NoCharger => 0L
+//          case chType if chType == Level1 || chType == Level2 =>
+//            Math.round(
+//              (energyCapacityInJoule - currentEnergyLevelInJoule) / 3.6e6 / Math
+//                .min(vehicleChargingLimitActualInKW, getChargerPowerInKW(chargerType)) * 3600.0
+//            )
+//          case chType if chType == DCFast || chType == UltraFast =>
+//            if (energyCapacityInJoule * 0.8 < currentEnergyLevelInJoule) {
+//              0L
+//            } else {
+//              Math.round(
+//                (energyCapacityInJoule * 0.8 - currentEnergyLevelInJoule) / 3.6e6 / Math
+//                  .min(vehicleChargingLimitActualInKW, getChargerPowerInKW(chargerType)) * 3600.0
+//              )
+//            }
+//        }
+//      )
+//      val sessionEnergyInJoules = sessionLength.toDouble / 3600.0 * Math.min(
+//        vehicleChargingLimitActualInKW,
+//        getChargerPowerInKW(chargerType)
+//      ) * 3.6e6
+//
+//      (sessionLength, sessionEnergyInJoules)
+//    }
+//  }
 
   sealed trait ChargingPreference
   case object NoNeed extends ChargingPreference

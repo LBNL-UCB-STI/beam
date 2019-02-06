@@ -64,7 +64,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
     whenWhere.loc,
     "wherever",
     AttributesOfIndividual.EMPTY,
-    NoNeed,
+    None,
     0,
     0
   )

@@ -609,7 +609,7 @@ trait ChoosesMode {
       destinationInUTM,
       activityType,
       attributes,
-      NoNeed,
+      None,
       arrivalTime,
       duration,
       Any,
@@ -707,7 +707,7 @@ trait ChoosesMode {
           val fullItin = EmbodiedBeamTrip(
             (EmbodiedBeamLeg
               .dummyWalkLegAt(origLegs.head.beamLeg.startTime, body.id, false) +: origLegs :+ EmbodiedBeamLeg
-              .dummyWalkLegAt(origLegs.head.beamLeg.endTime, body.id, true)).toIndexedSeq
+              .dummyWalkLegAt(origLegs.head.beamLeg.endTime, body.id, true))
           )
           travelProposal.poolingInfo match {
             case Some(poolingInfo) =>

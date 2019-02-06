@@ -1,5 +1,7 @@
 package beam.agentsim.infrastructure.parking.charging
 
+sealed trait ChargingPreference
+
 object ChargingPreference {
 
   case class ChargingPreference(pref: Double)

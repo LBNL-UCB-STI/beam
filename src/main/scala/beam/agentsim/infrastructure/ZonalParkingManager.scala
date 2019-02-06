@@ -44,7 +44,7 @@ class ZonalParkingManager(
     Id.create("NA", classOf[TAZ]),
     NoOtherExists,
     FlatFee,
-    NoCharger,
+    None,
     ParkingStall.Any
   )
   def defaultStallValues: StallValues = StallValues(Int.MaxValue, 0)
@@ -164,7 +164,7 @@ class ZonalParkingManager(
 
     case inquiry: ParkingInquiry =>
 
-      log.debug("Received parking inquiry: {}", inquiry);
+      log.debug("Received parking inquiry: {}", inquiry)
 
       val preferredParkingType: ParkingStall.ParkingType = inquiry.activityType match {
         case act if act.equalsIgnoreCase("home") => Residential

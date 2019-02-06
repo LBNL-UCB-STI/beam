@@ -8,6 +8,7 @@ import beam.sim.population.AttributesOfIndividual
 import beam.utils.ParkingManagerIdGenerator
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
+import beam.agentsim.infrastructure.parking.charging.ChargingInquiryData.ChargingInquiryData
 
 abstract class ParkingManager(
   parkingStockAttributes: ParkingStockAttributes
@@ -20,7 +21,7 @@ object ParkingManager {
     destinationUtm: Location,
     activityType: String,
     attributesOfIndividual: AttributesOfIndividual,
-    chargingPreference: ChargingPreference,
+    chargingInquiryData: Option[ChargingInquiryData],
     arrivalTime: Long,
     parkingDuration: Double,
     reservedFor: ReservedParkingType = ParkingStall.Any,

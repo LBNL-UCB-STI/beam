@@ -1,11 +1,12 @@
 package beam.agentsim.infrastructure.parking.charging
-import beam.agentsim.infrastructure.parking.charging.ChargingPreference.ChargingPreference
 
 case object ChargingInquiryData {
 
-  def apply(data: Map[ChargingPoint, ChargingPreference]) = {
-    case data.isEmpty => None
-    case _            => ChargingInquiryData(data)
+  def apply(data: Map[ChargingPoint, ChargingPreference]): Option[ChargingInquiryData] = {
+    if (data == null || data.isEmpty)
+      None
+    else
+      Some(ChargingInquiryData(data))
   }
 
   case class ChargingInquiryData(data: Map[ChargingPoint, ChargingPreference]) {

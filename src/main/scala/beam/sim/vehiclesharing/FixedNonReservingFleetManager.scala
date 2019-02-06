@@ -129,7 +129,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
     whenWhere.loc,
     "wherever",
     AttributesOfIndividual.EMPTY,
-    NoNeed,
+    None,
     0,
     0
   )
