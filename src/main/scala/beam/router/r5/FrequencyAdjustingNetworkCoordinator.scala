@@ -43,6 +43,7 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
       case (rid, adjustments) =>
         val adjustFrequency: AdjustFrequency = new AdjustFrequency
         adjustFrequency.route = rid
+        adjustFrequency.retainTripsOutsideFrequencyEntries = true
         val entries: util.Set[AddTrips.PatternTimetable] = adjustments.map { adjustmentInput =>
           adjustTripFrequency(adjustmentInput)
         }.asJava
