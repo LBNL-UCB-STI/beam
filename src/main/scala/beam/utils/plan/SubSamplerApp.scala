@@ -39,7 +39,7 @@ object SubSamplerApp extends App {
     ScenarioUtils.loadScenario(conf)
   }
 
-  private def createConfig(sampleDir: String) = {
+  def createConfig(sampleDir: String) = {
     val conf = ConfigUtils.createConfig
 
     conf.plans().setInputFile(s"$sampleDir/population.xml.gz")

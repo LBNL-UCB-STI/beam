@@ -6,14 +6,15 @@ import org.scalatest.{Matchers, WordSpecLike}
 class SubSamplerAppSpec extends WordSpecLike with Matchers {
 
   "SubSamplerApp " must {
-    "stratified sample average < random average" ignore {
+    "stratified sample average < random average" in {
       val sampleDir = "test/input/sf-light/sample/25k"
       val sampleSize = 100
 
-      val srcSc = loadScenario(sampleDir)
+      val conf = createConfig(sampleDir)
+      val srcSc = loadScenario(conf)
       val avgSrc = getAverageCoordinateHouseholds(srcSc)
-      val avgSimple = getAverageCoordinateHouseholds(samplePopulation(srcSc, SIMPLE_RANDOM_SAMPLING, sampleSize))
-      val avgStratified = getAverageCoordinateHouseholds(samplePopulation(srcSc, STRATIFIED_SAMPLING, sampleSize))
+      val avgSimple = getAverageCoordinateHouseholds(samplePopulation(conf, SIMPLE_RANDOM_SAMPLING, sampleSize))
+      val avgStratified = getAverageCoordinateHouseholds(samplePopulation(conf, STRATIFIED_SAMPLING, sampleSize))
 
       val distSimple = getDifference(avgSrc, avgSimple)
       val distStratified = getDifference(avgSrc, avgStratified)
