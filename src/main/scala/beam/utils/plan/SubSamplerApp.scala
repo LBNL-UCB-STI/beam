@@ -486,6 +486,7 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
 
   private def writeSample(sc: Scenario, outDir: String): Unit = {
     FileUtils.createDirectoryIfNotExists(outDir)
+    println(s"  - Sample writing started at: $outDir")
     new HouseholdsWriterV10(sc.getHouseholds).writeFile(s"$outDir/households.xml.gz")
     new PopulationWriter(sc.getPopulation).write(s"$outDir/population.xml.gz")
     PopulationWriterCSV(sc.getPopulation).write(s"$outDir/population.csv.gz")
@@ -504,6 +505,7 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
       writer.flush()
     })
     writer.close()
+    println(s"  - Sample written at: $outDir")
   }
 
   def stratifiedSampleWithStats(conf: Config, sampleSize: Int): Scenario = {
@@ -559,7 +561,7 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
     stratified
   }
 
-  def computeOptimalSampleByNDraws(conf: Config, sampleSize: Int, samplingApproach: String, numOfDraws: Int) = {
+  def computeOptimalSampleByNDraws(conf: Config, sampleSize: Int, outDir: String, samplingApproach: String, numOfDraws: Int) = {
     val population = loadScenario(conf)
     val refCoord = getAverageCoordinateHouseholds(population)
 
@@ -595,13 +597,17 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
       val sampleNumOfMemErr = getPercentageError(popAvgNumOfMem, sampleAvgNumOfMem)
 
       val sampleError = sampleSpatialErr + sampleIncomeErr + sampleDistanceErr + sampleNumOfVehErr + sampleNumOfMemErr
+      println(
+        s"$i. Abs $samplingApproach error is: $sampleError (having spatial: $sampleSpatialErr, travel distance: $sampleDistanceErr, vehicles/hh: $sampleNumOfVehErr, members/hh: $sampleNumOfMemErr and income: $sampleIncomeErr)."
+      )
+
       if (sampleError < error || finalSample == null) {
         error = sampleError
+
+        writeSample(sample, outDir+s"/$i")
+
         finalSample = sample
       }
-      println(
-        s"Abs $samplingApproach error is: $sampleError (having spatial: $sampleSpatialErr, travel distance: $sampleDistanceErr, vehicles/hh: $sampleNumOfVehErr, members/hh: $sampleNumOfMemErr and income: $sampleIncomeErr)."
-      )
     }
 
     println(s"Optimal sample has ${error * 100}% error.")
@@ -650,13 +656,13 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
     samplingApproach: String,
     numOfDraws: Int
   ): Unit = {
-    val sc = computeOptimalSampleByNDraws(conf, sampleSize, samplingApproach, numOfDraws)
+    val sc = computeOptimalSampleByNDraws(conf, sampleSize, outDir, samplingApproach, numOfDraws)
     /*if (samplingApproach == STRATIFIED_SAMPLING) {
       stratifiedSampleWithStats(conf, sampleSize)
     } else {
       samplePopulation(conf, samplingApproach, sampleSize)
     }*/
-    writeSample(sc, outDir)
+//    writeSample(sc, outDir)
   }
 
   /*
@@ -672,6 +678,7 @@ simple
   1000
    */
 
+  val startWritingAfter = 10
   val populationDir = args(0)
   val sampleSize = Try(args(1).toInt).getOrElse(1000)
   val outDir = args(2)
@@ -680,8 +687,8 @@ simple
 
   val conf = createConfig(populationDir)
 
-//  generateSample(conf, sampleSize, outDir+"stratified", "stratified", 100)
-//  generateSample(conf, sampleSize, outDir+"/simple", "simple", 100)
+//  generateSample(conf, sampleSize, outDir+"/stratified", "stratified", numOfDraws)
+//  generateSample(conf, sampleSize, outDir+"/simple", "simple", numOfDraws)
   generateSample(conf, sampleSize, outDir, samplingApproach, numOfDraws)
 
 }
