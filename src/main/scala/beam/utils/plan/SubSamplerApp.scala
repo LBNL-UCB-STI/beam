@@ -169,10 +169,10 @@ object SubSamplerApp extends App {
   }
 
   def splitByHHTravelDistance(
-                               scenario: Scenario,
-                               hhIds: mutable.Set[Id[Household]],
-                               intervals: Int
-                             ): ListBuffer[mutable.Set[Id[Household]]] = {
+    scenario: Scenario,
+    hhIds: mutable.Set[Id[Household]],
+    intervals: Int
+  ): ListBuffer[mutable.Set[Id[Household]]] = {
     val result = splitWithHHTravelDistance(scenario, hhIds, intervals)
     result.map(_.map(_._1.getId))
   }
@@ -208,10 +208,11 @@ object SubSamplerApp extends App {
           .asScala
           .map {
             case a: Activity => a
-            case _ => null
+            case _           => null
           }
           .filter(_ != null)
-        activity.sliding(2)
+        activity
+          .sliding(2)
           .map(x => getDifference(x.head.getCoord, x.last.getCoord))
           .sum //sum of individual person
       }
@@ -628,15 +629,17 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
 
   private def splitByAvgNumberOfVehiclePerHousehold(srcSc: Scenario, intervals: Int) = {
     val households = srcSc.getHouseholds.getHouseholds
-    val srcAvgNumberOfVehiclePerHousehold = splitByNumberOfVehiclePerHousehold(srcSc, households.keySet().asScala, intervals)
-      .map(set => set.toList.map(hhId => households.get(hhId).getVehicleIds.size).sum.toDouble / set.size)
+    val srcAvgNumberOfVehiclePerHousehold =
+      splitByNumberOfVehiclePerHousehold(srcSc, households.keySet().asScala, intervals)
+        .map(set => set.toList.map(hhId => households.get(hhId).getVehicleIds.size).sum.toDouble / set.size)
     srcAvgNumberOfVehiclePerHousehold
   }
 
   private def splitByAvgNumberOfPeopleLivingInHousehold(srcSc: Scenario, intervals: Int) = {
     val households = srcSc.getHouseholds.getHouseholds
-    val srcAvgNumberOfMembersPerHousehold = splitByNumberOfPeopleLivingInHousehold(srcSc, households.keySet().asScala, intervals)
-      .map(set => set.toList.map(hhId => households.get(hhId).getMemberIds.size).sum.toDouble / set.size)
+    val srcAvgNumberOfMembersPerHousehold =
+      splitByNumberOfPeopleLivingInHousehold(srcSc, households.keySet().asScala, intervals)
+        .map(set => set.toList.map(hhId => households.get(hhId).getMemberIds.size).sum.toDouble / set.size)
     srcAvgNumberOfMembersPerHousehold
   }
 
