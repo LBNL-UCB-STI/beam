@@ -624,18 +624,18 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
     finalSample
   }
 
-  private def getPercentageError(popQuadSizes: ListBuffer[Double], sampleQuadSizes: ListBuffer[Double]) = {
+  def getPercentageError(popQuadSizes: ListBuffer[Double], sampleQuadSizes: ListBuffer[Double]) = {
     sampleQuadSizes.zip(popQuadSizes).map(p => math.abs(p._2 - p._1) / p._2).sum / popQuadSizes.size
   }
 
-  private def splitByAvgIncomes(srcSc: Scenario, intervals: Int) = {
+  def splitByAvgIncomes(srcSc: Scenario, intervals: Int) = {
     val households = srcSc.getHouseholds.getHouseholds
     val srcAvgIncomes = splitByIncomeRange(srcSc, households.keySet().asScala, intervals)
       .map(set => set.toList.map(hhId => households.get(hhId).getIncome.getIncome).sum / set.size)
     srcAvgIncomes
   }
 
-  private def splitByAvgHHTravelDistances(srcSc: Scenario, intervals: Int) = {
+  def splitByAvgHHTravelDistances(srcSc: Scenario, intervals: Int) = {
     val households = srcSc.getHouseholds.getHouseholds
     val persons = srcSc.getPopulation.getPersons
     val srcAvgDistances = splitWithHHTravelDistance(srcSc, households.keySet().asScala, intervals)
@@ -643,7 +643,7 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
     srcAvgDistances
   }
 
-  private def splitByAvgNumberOfVehiclePerHousehold(srcSc: Scenario, intervals: Int) = {
+  def splitByAvgNumberOfVehiclePerHousehold(srcSc: Scenario, intervals: Int) = {
     val households = srcSc.getHouseholds.getHouseholds
     val srcAvgNumberOfVehiclePerHousehold =
       splitByNumberOfVehiclePerHousehold(srcSc, households.keySet().asScala, intervals)
@@ -651,7 +651,7 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
     srcAvgNumberOfVehiclePerHousehold
   }
 
-  private def splitByAvgNumberOfPeopleLivingInHousehold(srcSc: Scenario, intervals: Int) = {
+  def splitByAvgNumberOfPeopleLivingInHousehold(srcSc: Scenario, intervals: Int) = {
     val households = srcSc.getHouseholds.getHouseholds
     val srcAvgNumberOfMembersPerHousehold =
       splitByNumberOfPeopleLivingInHousehold(srcSc, households.keySet().asScala, intervals)
