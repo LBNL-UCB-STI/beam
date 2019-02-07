@@ -225,7 +225,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
             modeCnt = new HashMap<>();
         }
         if(isUpdateExisting)
-            modeCnt.merge(mode, 1, Integer::sum);
+            modeCnt.put(mode,1);
         else {
             hourModeCount.clear();
             modeCnt.put(mode, 1);
