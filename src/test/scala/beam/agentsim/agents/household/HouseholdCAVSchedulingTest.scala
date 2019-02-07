@@ -50,7 +50,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     schedules should have length 4
     schedules.foreach { x =>
       x.cavFleetSchedule should have length 1
-      x.cavFleetSchedule(0).schedule should (((have length 4 or have length 6) or have length 3) or have length 1)
+      x.cavFleetSchedule.head.schedule should (((have length 4 or have length 6) or have length 3) or have length 1)
     }
     println(s"*** scenario 1 *** ${schedules.size} combinations")
     println(schedules)
@@ -72,18 +72,18 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val schedule = algo.getBestScheduleWithTheLongestCAVChain
 
     schedule.cavFleetSchedule should have length 1
-    schedule.cavFleetSchedule(0).schedule should have length 10
+    schedule.cavFleetSchedule.head.schedule should have length 10
     schedule
-      .cavFleetSchedule(0)
+      .cavFleetSchedule.head
       .schedule
       .filter(_.person.isDefined)
       .groupBy(_.person)
       .mapValues(_.size)
       .foldLeft(0)(_ + _._2) shouldBe 8
-    schedule.cavFleetSchedule(0).schedule(0).tag shouldBe a[Dropoff.type]
-    schedule.cavFleetSchedule(0).schedule(1).tag shouldBe a[Dropoff.type]
-    schedule.cavFleetSchedule(0).schedule(7).tag shouldBe a[Pickup.type]
-    schedule.cavFleetSchedule(0).schedule(8).tag shouldBe a[Pickup.type]
+    schedule.cavFleetSchedule.head.schedule(0).tag shouldBe a[Dropoff.type]
+    schedule.cavFleetSchedule.head.schedule(1).tag shouldBe a[Dropoff.type]
+    schedule.cavFleetSchedule.head.schedule(7).tag shouldBe a[Pickup.type]
+    schedule.cavFleetSchedule.head.schedule(8).tag shouldBe a[Pickup.type]
 
     println(s"*** scenario 2 *** ")
     println(schedule)
@@ -104,18 +104,18 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val algo = new HouseholdCAVScheduling(sc.getPopulation, household, vehicles, 15 * 60, 15 * 60, skim)
     val schedule = algo.getBestScheduleWithTheLongestCAVChain
     schedule.cavFleetSchedule should have length 1
-    schedule.cavFleetSchedule(0).schedule should have length 10
+    schedule.cavFleetSchedule.head.schedule should have length 10
     schedule
-      .cavFleetSchedule(0)
+      .cavFleetSchedule.head
       .schedule
       .filter(_.person.isDefined)
       .groupBy(_.person)
       .mapValues(_.size)
       .foldLeft(0)(_ + _._2) shouldBe 8
-    schedule.cavFleetSchedule(0).schedule(0).tag shouldBe a[Dropoff.type]
-    schedule.cavFleetSchedule(0).schedule(1).tag shouldBe a[Pickup.type]
-    schedule.cavFleetSchedule(0).schedule(7).tag shouldBe a[Pickup.type]
-    schedule.cavFleetSchedule(0).schedule(8).tag shouldBe a[Pickup.type]
+    schedule.cavFleetSchedule.head.schedule(0).tag shouldBe a[Dropoff.type]
+    schedule.cavFleetSchedule.head.schedule(1).tag shouldBe a[Pickup.type]
+    schedule.cavFleetSchedule.head.schedule(7).tag shouldBe a[Pickup.type]
+    schedule.cavFleetSchedule.head.schedule(8).tag shouldBe a[Pickup.type]
     println(s"*** scenario 3 ***")
     println(schedule)
   }
@@ -133,7 +133,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val skim = getSkim(sc, household)
 
     val algo = new HouseholdCAVScheduling(sc.getPopulation, household, vehicles, 10 * 60, 15 * 60, skim)
-    val schedules = algo.getBestScheduleWithTheLongestCAVChain()
+    val schedules = algo.getBestScheduleWithTheLongestCAVChain
     //schedules should have length 4096
     println(s"*** scenario 4 *** ")
     println(schedules)
