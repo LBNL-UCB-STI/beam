@@ -123,7 +123,7 @@ class SingleModeSpec
     scenario = ScenarioUtils.loadScenario(matsimConfig)
     when(services.matsimServices.getScenario).thenReturn(scenario)
     scenario.getPopulation.getPersons.values.asScala
-      .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allModes))
+      .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allTripModes))
     router = system.actorOf(
       BeamRouter.props(
         services,

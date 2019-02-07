@@ -69,21 +69,20 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private static PhyssimCalcLinkSpeedDistributionStats linkSpeedDistributionStatsGraph;
     private final ActorRef router;
     private final OutputDirectoryHierarchy controlerIO;
-    private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
-    private BeamServices beamServices;
-    private Scenario agentSimScenario;
+    private final Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
+    private final Scenario agentSimScenario;
     private Population jdeqsimPopulation;
     private TravelTime previousTravelTime;
-
+    private BeamServices beamServices;
 
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
-    private BeamConfig beamConfig;
-    private Random rand = MatsimRandom.getRandom();
+    private final BeamConfig beamConfig;
+    private final Random rand = MatsimRandom.getRandom();
 
-    private boolean agentSimPhysSimInterfaceDebuggerEnabled;
+    private final boolean agentSimPhysSimInterfaceDebuggerEnabled;
 
-    private List<CompletableFuture> completableFutures = new ArrayList<>();
+    private final List<CompletableFuture> completableFutures = new ArrayList<>();
 
     public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
                                           TransportNetwork transportNetwork,
