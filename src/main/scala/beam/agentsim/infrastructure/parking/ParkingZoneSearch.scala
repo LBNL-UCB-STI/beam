@@ -70,8 +70,8 @@ object ParkingZoneSearch {
         case Some(chargingData) =>
 
           val pref: Option[ChargingPreference] = for {
-            chargingType       <- parkingZone.chargingPoint
-            chargingPreference <- chargingData.data.get(chargingType)
+            chargingPoint       <- parkingZone.chargingPoint
+            chargingPreference <- chargingData.data.get(chargingPoint)
           } yield chargingPreference
 
           (parkingZoneId, costFunction(parkingZone, pref))
