@@ -106,7 +106,7 @@ class ChangeModeForTour(
   def distanceScaling(beamMode: BeamMode, distance: Double): Double = {
     beamMode match {
       case BeamMode.CAR =>
-        beamServices.fuelTypePrices(BeamVehicleType.defaultCarBeamVehicleType.primaryFuelType) * distance
+        BeamVehicleType.defaultCarBeamVehicleType.getCost(distance)
       case WALK => distance * 6 // MATSim Default
       case RIDE_HAIL =>
         distance * DefaultRideHailCostPerMile.toDouble * (1 / 1609.34) // 1 mile = 1609.34
@@ -242,7 +242,7 @@ class ChangeModeForTour(
     val availableModes: Seq[BeamMode] = Option(
       beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
         .getAttribute(person.getId.toString, "available-modes")
-    ).fold(BeamMode.allModes)(
+    ).fold(BeamMode.availableModes)(
       attr => availableModeParser(attr.toString)
     )
 
