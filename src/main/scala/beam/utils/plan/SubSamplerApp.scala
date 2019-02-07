@@ -496,15 +496,20 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
     new ObjectAttributesXmlWriter(sc.getPopulation.getPersonAttributes)
       .writeFile(s"$outDir/populationAttributes.xml.gz")
 
-    val writer =
-      new CsvMapWriter(FileUtils.writerToFile(s"$outDir/vehicles.csv.gz"), CsvPreference.STANDARD_PREFERENCE, true)
-    val header = vehicles.head._2.keySet().toArray(Array[String]())
-    writer.writeHeader(header: _*)
-    vehicles.foreach(veh => {
-      writer.write(veh._2, header: _*)
-      writer.flush()
-    })
-    writer.close()
+    try {
+      val writer =
+        new CsvMapWriter(FileUtils.writerToFile(s"$outDir/vehicles.csv.gz"), CsvPreference.STANDARD_PREFERENCE, true)
+      val header = Try(vehicles.head._2.keySet().toArray(Array[String]())).getOrElse(Array("vehicleTypeId","vehicleId"))
+      writer.writeHeader(header: _*)
+      vehicles.foreach(veh => {
+        writer.write(veh._2, header: _*)
+        writer.flush()
+      })
+      writer.close()
+    } catch {
+      case e: Exception =>
+        println("Error writing vehicles.csv.gz:"+ e.getMessage)
+    }
     println(s"  - Sample written at: $outDir")
   }
 
