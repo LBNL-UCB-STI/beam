@@ -176,7 +176,12 @@ object ParkingZoneSearch {
   }
 
 
-
+  /**
+    * write the loaded set of parking and charging options to an instance parking file
+    * @param stallSearch the search tree of available parking options
+    * @param stalls the stored ParkingZones
+    * @param writeDestinationPath a file path to write to
+    */
   def parkingStallToCsv(
     stallSearch: StallSearch,
     stalls: Array[ParkingZone],
