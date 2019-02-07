@@ -148,7 +148,7 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
       .flatMap(c => {
         c.split(" ")
           .headOption
-          .flatMap(token => try { Some(token.toDouble) } catch { case _ : Throwable => None })
+          .flatMap(token => try { Some(token.toDouble) } catch { case _: Throwable => None })
           .flatMap(token => Some(Toll(token, Range("[:]"))))
       })
   }
