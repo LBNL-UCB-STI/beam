@@ -127,10 +127,10 @@ object GeoUtils {
 
   def minkowskiDistFormula(coord1: Coord, coord2: Coord): Double = {
     // source: Rizwan Shahid et al, Comparison of distance measures in spatial analytical modeling for health service planning
-    val exponent: Double = 3/2.toDouble
+    val exponent: Double = 3 / 2.toDouble
     val a = Math.pow(Math.abs(coord1.getX - coord2.getX), exponent)
     val b = Math.pow(Math.abs(coord1.getY - coord2.getY), exponent)
-    Math.pow(a + b, 1/exponent)
+    Math.pow(a + b, 1 / exponent)
   }
 
   def distLatLon2Meters(x1: Double, y1: Double, x2: Double, y2: Double): Double = {

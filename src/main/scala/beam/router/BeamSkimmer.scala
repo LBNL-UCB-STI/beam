@@ -8,7 +8,8 @@ import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 
 case class TimeDistanceAndCost(timeAndCost: TimeAndCost, distance: Option[Int]) {
-  override def toString = s"[time:${timeAndCost.time.getOrElse("NA")}][cost:${timeAndCost.cost.getOrElse("NA")}][distance:${distance.getOrElse("NA")}]"
+  override def toString =
+    s"[time:${timeAndCost.time.getOrElse("NA")}][cost:${timeAndCost.cost.getOrElse("NA")}][distance:${distance.getOrElse("NA")}]"
 }
 
 //TODO to be validated against google api
@@ -44,19 +45,25 @@ class BeamSkimmer(services: Option[BeamServices] = None, scenario: org.matsim.ap
   ): TimeDistanceAndCost = {
 
     val speed = mode match {
-      case BeamMode.CAR => carSpeedMeterPerSec
+      case BeamMode.CAR     => carSpeedMeterPerSec
       case BeamMode.TRANSIT => transitSpeedMeterPerSec
-      case BeamMode.BIKE => bicycleSpeedMeterPerSec
-      case _ => walkSpeedMeterPerSec
+      case BeamMode.BIKE    => bicycleSpeedMeterPerSec
+      case _                => walkSpeedMeterPerSec
     }
     val travelDistance: Int = Math.ceil(GeoUtils.minkowskiDistFormula(origin, destination)).toInt
-    val travelTime: Int = Math.ceil(travelDistance / speed).toInt + ((travelDistance/trafficSignalSpacing).toInt*waitingTimeAtAnIntersection).toInt
-    val travelCost: Double = services.map(x =>
-      DrivingCostDefaults.estimateFuelCost(
-        new BeamLeg(departureTime, mode, travelTime, new BeamPath(null, null, None, null, null, travelDistance)),
-        vehicleTypeId,
-        x
-      )).getOrElse(0)
+    val travelTime: Int = Math
+      .ceil(travelDistance / speed)
+      .toInt + ((travelDistance / trafficSignalSpacing).toInt * waitingTimeAtAnIntersection).toInt
+    val travelCost: Double = services
+      .map(
+        x =>
+          DrivingCostDefaults.estimateFuelCost(
+            new BeamLeg(departureTime, mode, travelTime, new BeamPath(null, null, None, null, null, travelDistance)),
+            vehicleTypeId,
+            x
+        )
+      )
+      .getOrElse(0)
 
     new TimeDistanceAndCost(new TimeAndCost(Some(travelTime), Some(travelCost)), Some(travelDistance))
 
@@ -64,11 +71,18 @@ class BeamSkimmer(services: Option[BeamServices] = None, scenario: org.matsim.ap
 }
 
 object BeamSkimmer {
+
   def main(args: Array[String]): Unit = {
     val config = org.matsim.core.config.ConfigUtils.createConfig()
     val sc: org.matsim.api.core.v01.Scenario = org.matsim.core.scenario.ScenarioUtils.createScenario(config)
     val skimmer = new BeamSkimmer(scenario = sc)
-    val output = skimmer.getTimeDistanceAndCost(new Location(0,0), new Location(1600,500), 0, BeamMode.CAR, org.matsim.api.core.v01.Id.create[BeamVehicleType]("", classOf[BeamVehicleType]))
+    val output = skimmer.getTimeDistanceAndCost(
+      new Location(0, 0),
+      new Location(1600, 500),
+      0,
+      BeamMode.CAR,
+      org.matsim.api.core.v01.Id.create[BeamVehicleType]("", classOf[BeamVehicleType])
+    )
     println(output)
   }
 }
