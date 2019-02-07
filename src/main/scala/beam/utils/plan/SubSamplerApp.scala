@@ -48,6 +48,11 @@ object SubSamplerApp extends App {
     conf.households().setInputHouseholdAttributesFile(s"$sampleDir/householdAttributes.xml.gz")
 
     //    conf.vehicles().setVehiclesFile(s"$sampleDir/vehicles.csv.gz")
+    readVehicles(sampleDir)
+    conf
+  }
+
+  private def readVehicles(sampleDir: String) = {
     vehicles = BeamVehicleUtils.readCsvFileByLine(
       s"$sampleDir/vehicles.csv.gz",
       mutable.HashMap[String, util.Map[String, String]]()
@@ -56,7 +61,6 @@ object SubSamplerApp extends App {
         val vehicleId = line.get("vehicleId")
         acc += ((vehicleId, line))
     }
-    conf
   }
 
   def getSimpleRandomSample(
@@ -496,6 +500,7 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
     new ObjectAttributesXmlWriter(sc.getPopulation.getPersonAttributes)
       .writeFile(s"$outDir/populationAttributes.xml.gz")
 
+    readVehicles(populationDir)
     try {
       val writer =
         new CsvMapWriter(FileUtils.writerToFile(s"$outDir/vehicles.csv.gz"), CsvPreference.STANDARD_PREFERENCE, true)
