@@ -1,7 +1,6 @@
 package beam.physsim.jdeqsim;
 
 import akka.actor.ActorRef;
-import beam.agentsim.agents.vehicles.BeamVehicle;
 import beam.agentsim.agents.vehicles.BeamVehicleType;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationStatsProvider;
@@ -12,7 +11,6 @@ import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.calibration.impl.example.CountsObjectiveFunction;
 import beam.physsim.jdeqsim.cacc.travelTimeFunctions.CACCTravelTimeFunctionA;
 import beam.router.BeamRouter;
-import beam.router.r5.R5RoutingWorker$;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
@@ -32,7 +30,6 @@ import org.matsim.core.events.EventsManagerImpl;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.gbl.MatsimRandom;
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
-import org.matsim.core.mobsim.jdeqsim.JDEQSimulation;
 import org.matsim.core.mobsim.jdeqsim.Message;
 import org.matsim.core.mobsim.jdeqsim.Road;
 import org.matsim.core.network.NetworkUtils;
@@ -42,11 +39,8 @@ import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.scenario.MutableScenario;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
-import org.matsim.vehicles.Vehicle;
-import org.matsim.vehicles.VehicleType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.collection.concurrent.TrieMap;
 
 import java.io.File;
 import java.util.*;
@@ -83,6 +77,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private final boolean agentSimPhysSimInterfaceDebuggerEnabled;
 
     private final List<CompletableFuture> completableFutures = new ArrayList<>();
+
+    Map<String, Boolean> caccVehiclesMap = new TreeMap<>();
 
     public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
                                           TransportNetwork transportNetwork,
@@ -144,8 +140,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         config.setSimulationEndTime(beamConfig.matsim().modules().qsim().endTime());
         //JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
-        Map<String, Boolean> caccVehicles = getCaccVehicles(jdeqSimScenario, beamServices);
-        beam.physsim.jdeqsim.cacc.sim.JDEQSimulation jdeqSimulation = new beam.physsim.jdeqsim.cacc.sim.JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccVehicles, new CACCTravelTimeFunctionA());
+
+        beam.physsim.jdeqsim.cacc.sim.JDEQSimulation jdeqSimulation = new beam.physsim.jdeqsim.cacc.sim.JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccVehiclesMap, new CACCTravelTimeFunctionA());
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents,  agentSimScenario.getConfig().travelTimeCalculator());
 
@@ -234,63 +230,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     }
 
-    private Map<String, Boolean> getCaccVehicles(MutableScenario jdeqSimScenario, BeamServices beamServices) {
-
-        Map<String, Boolean> map = new TreeMap<>();
-        TrieMap<Id<BeamVehicleType>, BeamVehicleType> vehicleTypesMap = beamServices.vehicleTypes();
-        Set<Id<Person>> personIds = jdeqSimScenario.getPopulation().getPersons().keySet();
-        for(Id<Person> personId : personIds){
-
-            Id<BeamVehicle> vehicleId = Id.create(personId.toString(), BeamVehicle.class);
-
-            if(beamServices.privateVehicles().keySet().contains(vehicleId)){
-                BeamVehicle bv = beamServices.privateVehicles().get(vehicleId).get();
-                map.put(vehicleId.toString(), bv.beamVehicleType().caccEnabled());
-            }else {
-
-                String[] vehicleIdParts = vehicleId.toString().split(":");
-                String vehicleTypeKey = vehicleIdParts[0];
-                vehicleTypeKey = vehicleTypeKey.toLowerCase();
-                Id<BeamVehicleType> beamVehicleTypeId = Id.create(vehicleTypeKey, BeamVehicleType.class);
-
-                if(vehicleTypesMap.contains(beamVehicleTypeId)){
-                    map.put(vehicleId.toString(), vehicleTypesMap.get(beamVehicleTypeId).get().caccEnabled());
-                }else {
-
-                    switch (vehicleTypeKey) {
-                        case "bus":
-                            Id<BeamVehicleType> busDefault = Id.create("BUS-DEFAULT", BeamVehicleType.class);
-                            map.put(vehicleId.toString(), vehicleTypesMap.get(busDefault).get().caccEnabled());
-                            break;
-                        default:
-                            map.put(vehicleId.toString(), false);
-                            break;
-                    }
-                }
-            }
-        }
-
-        return map;
-    }
-
-    private Map<String, Boolean> getCaccVehicles(BeamServices beamServices) {
-
-        // Use the ids from the scenario -> population -> persons ids
-        Map<String, Boolean> map = new TreeMap<>();
-        scala.collection.Iterator<BeamVehicle> iterator = beamServices.privateVehicles().valuesIterator();
-
-        while(iterator.hasNext()){
-            BeamVehicle beamVehicle = iterator.next();
-            if(beamVehicle.beamVehicleType().caccEnabled() == true){
-
-                map.put(beamVehicle.id().toString(), true);
-            }else{
-                map.put(beamVehicle.id().toString(), false);
-            }
-        }
-        return  map;
-    }
-
     private boolean shouldWritePhysSimEvents(int iterationNumber) {
         return shouldWriteInIteration(iterationNumber, beamConfig.beam().physsim().writeEventsInterval());
     }
@@ -349,12 +288,18 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 double departureTime = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME));
                 String vehicleId = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
 
+                String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
+                Id<BeamVehicleType> beamVehicleTypeId = Id.create(vehicleType, BeamVehicleType.class);
+                boolean isCaccEnabled = beamServices.vehicleTypes().get(beamVehicleTypeId).get().isCaccEnabled();
+                caccVehiclesMap.put(vehicleId, isCaccEnabled);
+
                 Id<Person> personId = Id.createPersonId(vehicleId);
                 initializePersonAndPlanIfNeeded(personId);
 
                 // add previous activity and leg to plan
                 Person person = jdeqsimPopulation.getPersons().get(personId);
                 Plan plan = person.getSelectedPlan();
+
                 Leg leg = createLeg(CAR, links, departureTime);
 
                 if (leg == null) {
