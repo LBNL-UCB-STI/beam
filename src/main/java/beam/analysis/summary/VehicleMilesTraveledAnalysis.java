@@ -11,11 +11,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class MotorizedVehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
+public class VehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
     private Map<String, Double> milesTraveledByVehicleType = new HashMap<>();
     private Set<Id<BeamVehicleType>> vehicleTypes;
 
-    public MotorizedVehicleMilesTraveledAnalysis(Set<Id<BeamVehicleType>> vehicleTypes) {
+    public VehicleMilesTraveledAnalysis(Set<Id<BeamVehicleType>> vehicleTypes) {
         this.vehicleTypes = vehicleTypes;
     }
 
