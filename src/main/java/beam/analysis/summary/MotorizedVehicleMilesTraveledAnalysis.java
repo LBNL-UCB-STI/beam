@@ -27,12 +27,28 @@ public class MotorizedVehicleMilesTraveledAnalysis implements IterationSummaryAn
             double lengthInMeters = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
 
             milesTraveledByVehicleType.merge(vehicleType, lengthInMeters, (d1, d2) -> d1 + d2);
-            if (!vehicleType.equalsIgnoreCase(BeamVehicleType.defaultHumanBodyBeamVehicleType().toString()) && !vehicleType.equalsIgnoreCase(BeamVehicleType.defaultBicycleBeamVehicleType().toString())) {
+            if (isMotorizedMode(vehicleType)) {
                 milesTraveledByVehicleType.merge("total", lengthInMeters, (d1, d2) -> d1 + d2);
             }
 
         }
     }
+
+    private boolean isMotorizedMode(String vehicleType){
+        return !vehicleType.equalsIgnoreCase(BeamVehicleType.defaultHumanBodyBeamVehicleType().id().toString()) && !vehicleType.equalsIgnoreCase(BeamVehicleType.defaultBicycleBeamVehicleType().id().toString());
+    }
+
+    private String getTitle(String key){
+        String prefix=null;
+        if (key.contains("total")){
+            prefix= "motorizedVehicleMilesTraveled_";
+        } else {
+            prefix= "vehicleMilesTraveled_";
+        }
+
+        return prefix + key;
+    }
+
     @Override
     public void resetStats() {
         milesTraveledByVehicleType.clear();
@@ -41,7 +57,7 @@ public class MotorizedVehicleMilesTraveledAnalysis implements IterationSummaryAn
     @Override
     public Map<String, Double> getSummaryStats() {
         Map<String, Double> result = milesTraveledByVehicleType.entrySet().stream().collect(Collectors.toMap(
-                e -> "motorizedVehicleMilesTraveled_" + e.getKey(),
+                e -> getTitle(e.getKey()),
                 e -> e.getValue() * 0.000621371192 // unit conversion from meters to miles
         ));
 
