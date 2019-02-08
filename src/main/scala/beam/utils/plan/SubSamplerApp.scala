@@ -584,7 +584,7 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
     val popQuadSizes = popQuads.map(_.size.toDouble)
     val popSize = population.getHouseholds.getHouseholds.keySet.size
 
-    var error = 100D
+    var error = 0.1D
     var finalSample: Scenario = null
     for (i <- 1 to numOfDraws) {
       val sample = samplePopulation(conf, samplingApproach, sampleSize)
@@ -611,7 +611,7 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
         s"$i. Abs $samplingApproach error is: $sampleError (having spatial: $sampleSpatialErr, travel distance: $sampleDistanceErr, vehicles/hh: $sampleNumOfVehErr, members/hh: $sampleNumOfMemErr and income: $sampleIncomeErr)."
       )
 
-      if (sampleError < error || finalSample == null) {
+      if (sampleError < error) {
         error = sampleError
 
         writeSample(sample, outDir+s"/$i")

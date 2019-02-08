@@ -1,5 +1,6 @@
 package beam.utils.plan
 
+import java.nio.file.Paths
 import java.util
 
 import beam.utils.BeamVehicleUtils
@@ -80,7 +81,7 @@ object SubSampleVerifier extends App {
     )
   }
 
-  def verifyVehicles(sample: Scenario) = {
+  def verifyVehicles(sample: Scenario): Unit = {
     sample.getHouseholds.getHouseholds.values().forEach(
       _.getVehicleIds.forEach(vId => if(!vehicles.contains(vId.toString)) {
         println(s"Vehicle [$vId] is missing in sample.")
@@ -88,17 +89,31 @@ object SubSampleVerifier extends App {
     )
   }
 
+  private def verifySample(sampleDir: String, population: Scenario): Unit = {
+    val sample = loadScenario(sampleDir)
+    verifySample(population, sample)
+    verifyVehicles(sample)
+  }
+
   /*
   "..\\BeamCompetitions\\fixed-data\\sioux_faux\\sample\\15k"
-  "..\\BeamCompetitions\\fixed-data\\sioux_faux\\sample\\sub\\1k/stratified/95"
+  "..\\BeamCompetitions\\fixed-data\\sioux_faux\\sample\\sub\\1k/stratified/33"
+   batch (optional)
    */
 
   val populationDir = args(0)
   val sampleDir = args(1)
+  val batch = args.length == 3 && args(2).equalsIgnoreCase("batch")
 
   val population = loadScenario(populationDir)
-  val sample = loadScenario(sampleDir)
-
-  verifySample(population, sample)
-  verifyVehicles(sample)
+  if(batch) {
+    Paths.get(sampleDir).toFile.listFiles
+      .filter(_.isDirectory).foreach(f => {
+      val s = f.getAbsolutePath
+      println(s)
+      verifySample(s, population)
+    })
+  } else {
+    verifySample(sampleDir, population)
+  }
 }
