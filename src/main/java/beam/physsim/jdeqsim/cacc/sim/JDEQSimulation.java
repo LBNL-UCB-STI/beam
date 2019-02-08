@@ -21,60 +21,42 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 
-public class JDEQSimulation implements Mobsim {
+public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulation {
 
 	private final static Logger log = Logger.getLogger(JDEQSimulation.class);
 
-	private final JDEQSimConfigGroup config;
-	protected Scenario scenario;
-	private final EventsManager events;
+
 	////////CHANGES/////////
 	public static Map<String ,Boolean> isCACCVehicle;
 
 	Double caccShare = null;
 
+	EventsManager _events;
+	JDEQSimConfigGroup _config;
 
-	protected final PlansConfigGroup.ActivityDurationInterpretation activityDurationInterpretation;
+	Scheduler scheduler;
 
 	@Inject
 	public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, final Map<String, Boolean> isCACCVehicle, TravelTimeFunction travelTimeFunction) {
 
-		this.config = config;
-		this.scenario = scenario;
-		this.events = events;
-		this.isCACCVehicle = isCACCVehicle;
+		super(config, scenario, events);
 
-		this.activityDurationInterpretation = this.scenario.getConfig().plans().getActivityDurationInterpretation();
-		Message.setEventsManager(events);
-		Road.setConfig(config);
+		this.isCACCVehicle = isCACCVehicle;
 		Road.setTravelTimeFunction(travelTimeFunction);
 		this.caccShare = caccShare;
-	}
 
-	@Override
-	public void run() {
-		org.matsim.core.mobsim.jdeqsim.Road road;
-		events.initProcessing();
-		Timer t = new Timer();
-		t.startTimer();
+		this._events = events;
+		this._config = config;
 
-//		System.out.println("config.getSimulationEndTime() ->  " + config.getSimulationEndTime());
-		Scheduler scheduler = new Scheduler(new MessageQueue(), 2*config.getSimulationEndTime());
+		scheduler = new Scheduler(new MessageQueue(), _config.getSimulationEndTime());
 
-		HashMap<Id<Link>, org.matsim.core.mobsim.jdeqsim.Road> allRoads = new HashMap<>();
-		// initialize network
-
-		for (Link link : this.scenario.getNetwork().getLinks().values()) {
-			road = new Road(scheduler, link);
-			allRoads.put(link.getId(), road);
-		}
-
-		Road.setAllRoads(allRoads);
-
+		initializeRoads();
 		// TODO: remember which vehicles are cacc or provide from main program
 		// use same for doing analysis on how many vehicles are on network which are caccs
-		//
+		initializeVehicles();
+	}
 
+	private void initializeVehicles() {
 		List<String> vehicleNotFound = new ArrayList<>();
 
 		for (Person person : this.scenario.getPopulation().getPersons().values()) {
@@ -89,14 +71,34 @@ public class JDEQSimulation implements Mobsim {
 
 			new Vehicle(scheduler, person, activityDurationInterpretation, isCaccEnabled); // the vehicle registers itself to the scheduler
 		}
+		log.info("Vehilces not found in the isCACCVehicle map -> total vehicles " + this.scenario.getPopulation().getPersons().values().size() + ", not found " + vehicleNotFound.size());
+	}
+
+	private void initializeRoads() {
+		HashMap<Id<Link>, org.matsim.core.mobsim.jdeqsim.Road> allRoads = new HashMap<>();
+		// initialize network
+		org.matsim.core.mobsim.jdeqsim.Road road;
+		for (Link link : this.scenario.getNetwork().getLinks().values()) {
+			road = new Road(scheduler, link);
+			allRoads.put(link.getId(), road);
+		}
+		Road.setAllRoads(allRoads);
+	}
+
+	@Override
+	public void run() {
+
+		_events.initProcessing();
+		Timer t = new Timer();
+		t.startTimer();
+
 
 
 		scheduler.startSimulation();
 
 		t.endTimer();
 
-		log.info("Vehilces not found in the isCACCVehicle map -> total vehicles " + this.scenario.getPopulation().getPersons().values().size() + ", not found " + vehicleNotFound.size());
 		log.info("Time needed for one iteration (only JDEQSimulation part): " + t.getMeasuredTime() + "[ms]");
-		events.finishProcessing();
+		_events.finishProcessing();
 	}
 }
