@@ -791,7 +791,9 @@ trait ChoosesMode {
             case Some(CAV) =>
               // Special case, if you are using household CAV, no choice was necessary you just use this mode
               // Create a dummy trip to allow for processing by FinishingModeChoice
-              val cavStreetVehicle = choosesModeData.availablePersonalStreetVehicles.head.streetVehicle
+              val cavStreetVehicle = choosesModeData.availablePersonalStreetVehicles.headOption.getOrElse{
+                throw new RuntimeException(s"No available personal street vehicles for person $id")
+              }.streetVehicle
               val cavTrip = EmbodiedBeamTrip.dummyCAVAt(_currentTick.get,body.id,cavStreetVehicle.id,cavStreetVehicle.vehicleTypeId)
               goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(cavTrip))
 

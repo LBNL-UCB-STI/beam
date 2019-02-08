@@ -521,7 +521,7 @@ class PersonAgent(
       log.debug("ReadyToChooseParking, restoftrip: {}", theRestOfCurrentTrip.toString())
       goto(ChoosingParkingSpot) using data.copy(
         restOfCurrentTrip = theRestOfCurrentTrip,
-        currentTripCosts = currentCost + completedLeg.cost
+        currentTripCosts = currentCost + completedLeg.cost)
   }
 
   onTransition {

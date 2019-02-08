@@ -327,7 +327,7 @@ class CAVSchedule(
       .map { wayPoints =>
         val orig = wayPoints(0)
         val dest = wayPoints(1)
-        val origin = SpaceTime(orig.activity.getCoord, math.round(orig.activity.getEndTime).toInt)
+        val origin = SpaceTime(orig.activity.getCoord, math.round(orig.time).toInt)
         val routingRequest = RoutingRequest(
           orig.activity.getCoord,
           dest.activity.getCoord,

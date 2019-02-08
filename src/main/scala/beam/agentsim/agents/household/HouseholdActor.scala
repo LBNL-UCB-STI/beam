@@ -247,10 +247,9 @@ object HouseholdActor {
         // Create a passenger schedule for each CAV in the plan, split by passenger to be picked up
         cavPassengerSchedules = cavPlans.map{ cavSchedule =>
           val theLegsWithServiceRequest = cavSchedule.schedule.map{ serviceRequest =>
-            (indexedResponses(serviceRequest.routingRequestId.get).itineraries.head.legs.head.beamLeg,serviceRequest)
+            (indexedResponses(serviceRequest.routingRequestId.get).itineraries.head.legs.head.beamLeg,serviceRequest,serviceRequest.tag == Pickup)
           }
-          //TODO the split needs to happen before a positive result, not with the positive result, hmmmm
-          val splitByPickup = RandomUtils.multiSpan(theLegsWithServiceRequest)(_._2.tag != Pickup)
+          val splitByPickup = RandomUtils.multiSpan(theLegsWithServiceRequest)(_._3)
           val passengerSchedulesByPickup = splitByPickup.map{ subLegsWithServiceRequest =>
             var passengerSchedule = PassengerSchedule().addLegs(subLegsWithServiceRequest.map(_._1))
             subLegsWithServiceRequest.filter(_._2.person.isDefined).map{ legWithPassenger =>
@@ -276,8 +275,11 @@ object HouseholdActor {
 
       case ReleaseVehicle(vehicle) =>
         if(vehicle.beamVehicleType.automationLevel > 3){
-          //TODO update cav schedule and re-dispatch this vehicle if necessary
-          val i = 0
+          cavPassengerSchedules = cavPassengerSchedules + (vehicle -> cavPassengerSchedules(vehicle).tail)
+          val nextSchedule = cavPassengerSchedules(vehicle).head
+          if(nextSchedule.schedule.map(_._2.riders.size).sum == 0){
+            vehicle.driver.get ! ModifyPassengerSchedule(nextSchedule,nextSchedule.schedule.firstKey.startTime)
+          }
         }else{
           vehicle.unsetDriver()
           availableVehicles = vehicle :: availableVehicles
@@ -285,9 +287,12 @@ object HouseholdActor {
         }
 
       case ReleaseVehicleAndReply(vehicle) =>
-        vehicle.unsetDriver()
-        availableVehicles = vehicle :: availableVehicles
-        log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
+        //Only act if this is not a CAV
+        if(vehicle.beamVehicleType.automationLevel <= 3){
+          vehicle.unsetDriver()
+          availableVehicles = vehicle :: availableVehicles
+          log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
+        }
         sender() ! Success
 
       case MobilityStatusInquiry(personId,_,originActivity) =>
@@ -343,7 +348,7 @@ object HouseholdActor {
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.
       Future
-        .sequence(vehicles.filter(keyVal => !cavPassengerSchedules.contains(keyVal._2)).values.map { veh =>
+        .sequence(vehicles.values.map { veh =>
           veh.manager = Some(self)
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           parkingManager ? ParkingInquiry(
