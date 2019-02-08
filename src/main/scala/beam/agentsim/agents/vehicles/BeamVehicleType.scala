@@ -31,12 +31,12 @@ case class BeamVehicleType(
   rechargeLevel2RateLimitInWatts: Option[Double] = None,
   rechargeLevel3RateLimitInWatts: Option[Double] = None,
   vehicleCategory: VehicleCategory
-){
+) {
 
-  def isCaccEnabled : Boolean = {
+  def isCaccEnabled: Boolean = {
     automationLevel match {
       case Some(al) => {
-        if(al.toInt > 2) true
+        if (al.toInt > 2) true
         else false
       }
       case _ => false
