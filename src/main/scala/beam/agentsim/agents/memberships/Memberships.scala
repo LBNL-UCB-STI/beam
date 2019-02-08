@@ -51,7 +51,8 @@ object Memberships {
         members.toVector
           .map { mbr =>
             MemberWithRank(mbr.getId, lookupMemberRank(mbr.getId))
-          }.sortWith(sortByRank)
+          }
+          .sortWith(sortByRank)
       }
     }
   }
