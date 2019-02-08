@@ -36,7 +36,7 @@ case class BeamVehicleType(
   def isCaccEnabled: Boolean = {
     automationLevel match {
       case Some(al) => {
-        if (al.toInt > 2) true
+        if (al.toInt >= 1) true
         else false
       }
       case _ => false
