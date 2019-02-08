@@ -29,9 +29,15 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
       line.split(",")
     }.toSeq
     (for { row <- dataRows } yield {
-      val (startTime:Int, endTime:Int) = row(1).toInt->row(2).toInt
+      val (startTime: Int, endTime: Int) = row(1).toInt -> row(2).toInt
       // We assume that we are provided with a route Id. We need to convert to tripId for R5 Scenario Builder
-      FrequencyAdjustmentInput(getTripIdForRouteIdAtTime(row.head,startTime,endTime), row(1).toInt, row(2).toInt, row(3).toInt, row(4).toInt)
+      FrequencyAdjustmentInput(
+        getTripIdForRouteIdAtTime(row.head, startTime, endTime),
+        row(1).toInt,
+        row(2).toInt,
+        row(3).toInt,
+        row(4).toInt
+      )
     }).toSet
   }
 
@@ -57,20 +63,24 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
     scenario
   }
 
-
   def getTripForId(tripId: String): Trip = {
     feeds.map { feed =>
       feed.trips.asScala(tripId)
     }.head
   }
 
-  def getTripIdForRouteIdAtTime(routeId: String, startTime:Int, endTime:Int): String = {
+  def getTripIdForRouteIdAtTime(routeId: String, startTime: Int, endTime: Int): String = {
     feeds.map { feed =>
       val allTrips = feed.trips.asScala
       val routeTrips = allTrips.values.groupBy(_.route_id)(routeId)
-      val orderedFilteredStops = routeTrips.flatMap {trip=>
-        feed.getOrderedStopTimesForTrip(trip.trip_id).asScala.toVector
-      }.filter{stopTime=> stopTime.arrival_time >= startTime}.toVector
+      val orderedFilteredStops = routeTrips
+        .flatMap { trip =>
+          feed.getOrderedStopTimesForTrip(trip.trip_id).asScala.toVector
+        }
+        .filter { stopTime =>
+          stopTime.arrival_time >= startTime
+        }
+        .toVector
       orderedFilteredStops.head.trip_id
     }.head
   }
