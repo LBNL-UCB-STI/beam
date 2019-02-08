@@ -4,7 +4,7 @@ import java.nio.file.Paths
 import java.util
 
 import beam.utils.BeamVehicleUtils
-import beam.utils.plan.SubSamplerApp.{getAverageCoordinateHouseholds, splitPopulationInFourPartsSpatially, splitByAvgIncomes, splitByAvgHHTravelDistances, splitByAvgNumberOfVehiclePerHousehold,splitByAvgNumberOfPeopleLivingInHousehold, getPercentageError}
+import beam.utils.plan.SubSamplerApp._
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.scenario.ScenarioUtils
@@ -56,7 +56,6 @@ object SubSampleVerifier extends App {
     val popQuadSizes = popQuads.map(_.size.toDouble)
     val popSize = population.getHouseholds.getHouseholds.keySet.size
 
-
     val sampleActualSize = sample.getHouseholds.getHouseholds.keySet.size
     val scalingFactor = popSize / sampleActualSize.toDouble
     val sampleQuads = splitPopulationInFourPartsSpatially(sample, refCoord)
@@ -82,11 +81,16 @@ object SubSampleVerifier extends App {
   }
 
   def verifyVehicles(sample: Scenario): Unit = {
-    sample.getHouseholds.getHouseholds.values().forEach(
-      _.getVehicleIds.forEach(vId => if(!vehicles.contains(vId.toString)) {
-        println(s"Vehicle [$vId] is missing in sample.")
-      })
-    )
+    sample.getHouseholds.getHouseholds
+      .values()
+      .forEach(
+        _.getVehicleIds.forEach(
+          vId =>
+            if (!vehicles.contains(vId.toString)) {
+              println(s"Vehicle [$vId] is missing in sample.")
+          }
+        )
+      )
   }
 
   private def verifySample(sampleDir: String, population: Scenario): Unit = {
@@ -106,13 +110,17 @@ object SubSampleVerifier extends App {
   val batch = args.length == 3 && args(2).equalsIgnoreCase("batch")
 
   val population = loadScenario(populationDir)
-  if(batch) {
-    Paths.get(sampleDir).toFile.listFiles
-      .filter(_.isDirectory).foreach(f => {
-      val s = f.getAbsolutePath
-      println(s)
-      verifySample(s, population)
-    })
+  if (batch) {
+    Paths
+      .get(sampleDir)
+      .toFile
+      .listFiles
+      .filter(_.isDirectory)
+      .foreach(f => {
+        val s = f.getAbsolutePath
+        println(s)
+        verifySample(s, population)
+      })
   } else {
     verifySample(sampleDir, population)
   }

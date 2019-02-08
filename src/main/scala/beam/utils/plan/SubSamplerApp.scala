@@ -504,7 +504,8 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
     try {
       val writer =
         new CsvMapWriter(FileUtils.writerToFile(s"$outDir/vehicles.csv.gz"), CsvPreference.STANDARD_PREFERENCE, true)
-      val header = Try(vehicles.head._2.keySet().toArray(Array[String]())).getOrElse(Array("vehicleTypeId","vehicleId"))
+      val header =
+        Try(vehicles.head._2.keySet().toArray(Array[String]())).getOrElse(Array("vehicleTypeId", "vehicleId"))
       writer.writeHeader(header: _*)
       vehicles.foreach(veh => {
         writer.write(veh._2, header: _*)
@@ -513,7 +514,7 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
       writer.close()
     } catch {
       case e: Exception =>
-        println("Error writing vehicles.csv.gz:"+ e.getMessage)
+        println("Error writing vehicles.csv.gz:" + e.getMessage)
     }
     println(s"  - Sample written at: $outDir")
   }
@@ -571,7 +572,13 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
     stratified
   }
 
-  def computeOptimalSampleByNDraws(conf: Config, sampleSize: Int, outDir: String, samplingApproach: String, numOfDraws: Int) = {
+  def computeOptimalSampleByNDraws(
+    conf: Config,
+    sampleSize: Int,
+    outDir: String,
+    samplingApproach: String,
+    numOfDraws: Int
+  ) = {
     val population = loadScenario(conf)
     val refCoord = getAverageCoordinateHouseholds(population)
 
@@ -614,7 +621,7 @@ def splitByIncome(scenario: Scenario, households:  List[mutable.Set[Id[Household
       if (sampleError < error) {
         error = sampleError
 
-        writeSample(sample, outDir+s"/$i")
+        writeSample(sample, outDir + s"/$i")
 
         finalSample = sample
       }
