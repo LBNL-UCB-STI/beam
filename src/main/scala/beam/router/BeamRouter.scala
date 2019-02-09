@@ -431,8 +431,7 @@ object BeamRouter {
     vehicleId: Id[Vehicle],
     vehicleTypeId: Id[BeamVehicleType],
     requestId: Int = IdGeneratorImpl.nextId,
-    mustParkAtEnd: Boolean = false,
-    destinationForSplitting: Option[Coord] = None
+    mustParkAtEnd: Boolean = false
   )
   case class UpdateTravelTimeLocal(travelTime: TravelTime)
   case class R5Network(transportNetwork: TransportNetwork)

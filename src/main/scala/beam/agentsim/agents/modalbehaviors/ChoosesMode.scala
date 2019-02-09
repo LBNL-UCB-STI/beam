@@ -1,6 +1,6 @@
 package beam.agentsim.agents.modalbehaviors
 
-import akka.actor.{ActorRef, FSM}
+import akka.actor.FSM
 import akka.pattern._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{ChoosingMode, _}
@@ -40,6 +40,8 @@ import scala.concurrent.{ExecutionContext, Future}
   */
 trait ChoosesMode {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
+  private implicit val executionContext: ExecutionContext = context.dispatcher
+
   val dummyRHVehicle =
     StreetVehicle(
       Id.create("dummyRH", classOf[Vehicle]),
@@ -306,8 +308,7 @@ trait ChoosesMode {
                     leg,
                     vehicle.id,
                     vehicle.vehicleTypeId,
-                    mustParkAtEnd = true,
-                    destinationForSplitting = Some(beamServices.geo.utm2Wgs(nextAct.getCoord))
+                    mustParkAtEnd = true
                   )
                   parkingRequestId = requestParkingCost(
                     beamServices.geo.wgs2Utm(leg.travelPath.endPoint.loc),
@@ -467,7 +468,11 @@ trait ChoosesMode {
           )
         }
       stay() using newPersonData
-    case Event(theRouterResult: RoutingResponse, choosesModeData: ChoosesModeData) =>
+    case Event(response: RoutingResponse, choosesModeData: ChoosesModeData) =>
+      val theRouterResult = response.copy(itineraries = response.itineraries.map { it =>
+        it.copy(it.legs.flatMap(embodiedLeg =>
+          if (embodiedLeg.beamLeg.mode == CAR) splitLegForParking(embodiedLeg, None) else Vector(embodiedLeg)))
+      })
       val correctedItins = theRouterResult.itineraries
         .map { trip =>
           if (trip.legs.head.beamLeg.mode != WALK) {
@@ -546,6 +551,56 @@ trait ChoosesMode {
   }
 
   case object FinishingModeChoice extends BeamAgentState
+
+  private def splitLegForParking(leg: EmbodiedBeamLeg, destinationForSplitting: Option[Coord]) = {
+    val theLinkIds = leg.beamLeg.travelPath.linkIds
+    val indexFromEnd = destinationForSplitting match {
+      case Some(destForSplitting) =>
+        Math.min(
+          Math.max(
+            theLinkIds.reverse.indexWhere(
+              link =>
+                beamServices.geo
+                  .distLatLon2Meters(R5RoutingWorker.linkIdToCoord(link, transportNetwork), destForSplitting) >
+                  beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
+            ),
+            1
+          ),
+          theLinkIds.length - 1
+        )
+      case None =>
+        Math.min(
+          Math.max(
+            theLinkIds.reverse
+              .map(lengthOfLink)
+              .scanLeft(0.0)(_ + _)
+              .indexWhere(
+                _ > beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
+              ),
+            1
+          ),
+          theLinkIds.length - 1
+        )
+    }
+
+    val indexFromBeg = theLinkIds.length - indexFromEnd
+    val firstLeg = leg.copy(beamLeg = leg.beamLeg.copy(
+      travelPath = leg.beamLeg.travelPath.copy(
+        linkIds = theLinkIds.take(indexFromBeg),
+        linkTravelTime = leg.beamLeg.travelPath.linkTravelTime.take(indexFromBeg))),
+      unbecomeDriverOnCompletion = false)
+    val secondLeg = leg.copy(beamLeg = leg.beamLeg.copy(
+      travelPath = leg.beamLeg.travelPath.copy(
+        linkIds = theLinkIds.takeRight(indexFromEnd + 1),
+        linkTravelTime = leg.beamLeg.travelPath.linkTravelTime.takeRight(indexFromEnd + 1)),
+      startTime = firstLeg.beamLeg.startTime + firstLeg.beamLeg.duration))
+    Vector(firstLeg, secondLeg)
+  }
+
+  def lengthOfLink(linkId: Int): Double = {
+    val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+    edge.getLengthM
+  }
 
   def createRideHail2TransitItin(
     rideHail2TransitAccessResult: RideHailResponse,

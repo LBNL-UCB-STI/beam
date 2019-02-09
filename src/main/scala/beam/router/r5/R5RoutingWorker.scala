@@ -324,8 +324,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         vehicleId: Id[Vehicle],
         vehicleTypeId: Id[BeamVehicleType],
         embodyRequestId: Int,
-        mustParkAtEnd: Boolean,
-        destinationForSplitting: Option[Coord]
+        mustParkAtEnd: Boolean
         ) =>
       val travelTime = (time: Int, linkId: Int) =>
         maybeTravelTime match {
@@ -347,64 +346,19 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val duration = linkEvents
         .maxBy(e => e.getTime)
         .getTime - leg.startTime
-
-      val finalLegs = if (mustParkAtEnd) {
-        val legPair = splitLegForParking(
-          leg.copy(duration = duration.toInt, travelPath = leg.travelPath.copy(linkTravelTime = linkTimes)),
-          destinationForSplitting
-        )
-        val fuelAndTollCostPerLeg = legPair.map { beamLeg =>
-          val fuelCost = DrivingCost.estimateDrivingCost(beamLeg, vehicleTypeId, beamServices)
-          val toll = if (beamLeg.mode == CAR) {
-            val osm = beamLeg.travelPath.linkIds.map { e =>
-              transportNetwork.streetLayer.edgeStore
-                .getCursor(e)
-                .getOSMID
-            }
-            tollCalculator.calcTollByOsmIds(osm) + tollCalculator.calcTollByLinkIds(beamLeg.travelPath)
-          } else 0.0
-          fuelCost + toll
-        }
-        val embodiedPair = Vector(
-          EmbodiedBeamLeg(
-            legPair.head,
-            vehicleId,
-            vehicleTypeId,
-            asDriver = true,
-            fuelAndTollCostPerLeg.head,
-            unbecomeDriverOnCompletion = false
-          ),
-          EmbodiedBeamLeg(
-            legPair.last,
-            vehicleId,
-            vehicleTypeId,
-            asDriver = true,
-            fuelAndTollCostPerLeg.last,
-            unbecomeDriverOnCompletion = true
-          )
-        )
-        if (legPair.size == 1) {
-          Vector(embodiedPair.head)
-        } else {
-          embodiedPair
-        }
-      } else {
-        Vector(
-          EmbodiedBeamLeg(
-            leg.copy(duration = duration.toInt),
-            vehicleId,
-            vehicleTypeId,
-            asDriver = true,
-            0,
-            unbecomeDriverOnCompletion = true
-          )
-        )
-      }
-
       sender ! RoutingResponse(
         Vector(
           EmbodiedBeamTrip(
-            finalLegs
+            Vector(
+              EmbodiedBeamLeg(
+                leg.copy(duration = duration.toInt),
+                vehicleId,
+                vehicleTypeId,
+                asDriver = true,
+                0,
+                unbecomeDriverOnCompletion = true
+              )
+            )
           )
         ),
         embodyRequestId
@@ -828,77 +782,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       theTravelPath.duration,
       travelPath = theTravelPath
     )
-    val splitLegs = if (mustParkAtEnd && r5Leg.mode == LegMode.CAR) {
-      splitLegForParking(theLeg, None)
-    } else {
-      Vector(theLeg)
-    }
-    // assign toll to first part of the split
-    Vector(LegWithFare(splitLegs.head, toll)) ++ splitLegs.tail.map(leg => LegWithFare(leg, 0.0))
-  }
-
-  def splitLegForParking(leg: BeamLeg, destinationForSplitting: Option[Coord]): IndexedSeq[BeamLeg] = {
-    val theLinkIds = leg.travelPath.linkIds
-    if (theLinkIds.length <= 1) {
-      Vector(leg)
-    } else {
-      val originWithinSplittingDistance = destinationForSplitting match {
-        case Some(destForSplitting) =>
-          beamServices.geo
-            .distLatLon2Meters(destForSplitting, leg.travelPath.startPoint.loc) < beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
-        case None =>
-          leg.travelPath.distanceInM < beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
-      }
-      if (originWithinSplittingDistance) {
-        val firstLeg = updateLegWithCurrentTravelTime(leg.updateLinks(Vector(theLinkIds.head)))
-        val secondLeg = updateLegWithCurrentTravelTime(
-          leg
-            .updateLinks(theLinkIds)
-            .copy(startTime = firstLeg.startTime + firstLeg.duration)
-        )
-        Vector(firstLeg, secondLeg)
-      } else {
-        val indexFromEnd = destinationForSplitting match {
-          case Some(destForSplitting) =>
-            Math.min(
-              Math.max(
-                theLinkIds.reverse.indexWhere(
-                  link =>
-                    beamServices.geo
-                      .distLatLon2Meters(R5RoutingWorker.linkIdToCoord(link, transportNetwork), destForSplitting) >
-                    beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
-                ),
-                1
-              ),
-              theLinkIds.length - 1
-            )
-          case None =>
-            Math.min(
-              Math.max(
-                theLinkIds.reverse
-                  .map(lengthOfLink)
-                  .scanLeft(0.0)(_ + _)
-                  .indexWhere(
-                    _ > beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
-                  ),
-                1
-              ),
-              theLinkIds.length - 1
-            )
-        }
-
-        val indexFromBeg = theLinkIds.length - indexFromEnd
-        val firstLeg = updateLegWithCurrentTravelTime(
-          leg.updateLinks(theLinkIds.take(indexFromBeg))
-        )
-        val secondLeg = updateLegWithCurrentTravelTime(
-          leg
-            .updateLinks(theLinkIds.takeRight(indexFromEnd + 1))
-            .copy(startTime = firstLeg.startTime + firstLeg.duration)
-        )
-        Vector(firstLeg, secondLeg)
-      }
-    }
+    Vector(LegWithFare(theLeg, toll))
   }
 
   private def buildStreetPath(
@@ -920,8 +804,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       mode,
       transportNetwork.streetLayer
     )
-    val duration = linksTimesDistances.travelTimes.tail.sum // note we exclude the first link to keep with MATSim convention
-    val distance = linksTimesDistances.distances.tail.sum // note we exclude the first link to keep with MATSim convention
     BeamPath(
       activeLinkIds,
       linksTimesDistances.travelTimes,

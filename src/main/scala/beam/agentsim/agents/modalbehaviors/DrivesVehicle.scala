@@ -613,6 +613,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           curTime = curTime + timeAtNode
           eventsManager.processEvent(new LinkLeaveEvent(curTime, vehicleId, Id.createLinkId(from)))
           eventsManager.processEvent(new LinkEnterEvent(curTime, vehicleId, Id.createLinkId(to)))
+        case _ =>
+          println("Wurst")
       }
     }
   }
