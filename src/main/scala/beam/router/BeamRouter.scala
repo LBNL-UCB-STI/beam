@@ -430,8 +430,7 @@ object BeamRouter {
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
     vehicleTypeId: Id[BeamVehicleType],
-    requestId: Int = IdGeneratorImpl.nextId,
-    mustParkAtEnd: Boolean = false
+    requestId: Int = IdGeneratorImpl.nextId
   )
   case class UpdateTravelTimeLocal(travelTime: TravelTime)
   case class R5Network(transportNetwork: TransportNetwork)
@@ -460,7 +459,6 @@ object BeamRouter {
     streetVehicles: IndexedSeq[StreetVehicle],
     attributesOfIndividual: Option[AttributesOfIndividual] = None,
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
-    mustParkAtEnd: Boolean = false,
     requestId: Int = IdGeneratorImpl.nextId
   ) {
     lazy val timeValueOfMoney

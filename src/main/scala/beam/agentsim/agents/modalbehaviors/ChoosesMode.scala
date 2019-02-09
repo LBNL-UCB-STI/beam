@@ -176,8 +176,7 @@ trait ChoosesMode {
           Modes.filterForTransit(transitModes),
           vehicles,
           Some(attributes),
-          streetVehiclesIntermodalUse,
-          mustParkAtEnd = true
+          streetVehiclesIntermodalUse
         )
         if (withParking) {
           requestParkingCost(
@@ -307,8 +306,7 @@ trait ChoosesMode {
                   router ! EmbodyWithCurrentTravelTime(
                     leg,
                     vehicle.id,
-                    vehicle.vehicleTypeId,
-                    mustParkAtEnd = true
+                    vehicle.vehicleTypeId
                   )
                   parkingRequestId = requestParkingCost(
                     beamServices.geo.wgs2Utm(leg.travelPath.endPoint.loc),
