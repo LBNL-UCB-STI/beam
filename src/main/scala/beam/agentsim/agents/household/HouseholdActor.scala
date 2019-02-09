@@ -171,7 +171,8 @@ object HouseholdActor {
                 Seq(),
                 transportNetwork,
                 tollCalculator
-              )
+              ),
+              s"cavDriver-${cav.id.toString}"
             )
             context.watch(cavDriverRef)
             cav.spaceTime = SpaceTime(homeCoord,0)
@@ -265,6 +266,9 @@ object HouseholdActor {
             cavAndSchedules._1.driver.get ! ModifyPassengerSchedule(nextSchedule,tick)
           }
         }
+        // Add in a dummy passenger schedule at start of each to handle the intitilaization
+        // process that results in the first of the list being removed
+        cavPassengerSchedules = cavPassengerSchedules.map(vehAndSched => (vehAndSched._1,PassengerSchedule() +: vehAndSched._2))
         val (_, triggerId) = releaseTickAndTriggerId()
         completeInitialization(triggerId)
 
@@ -274,25 +278,10 @@ object HouseholdActor {
         log.debug("updated vehicle {} with location {}", vehId, whenWhere)
 
       case ReleaseVehicle(vehicle) =>
-        if(vehicle.beamVehicleType.automationLevel > 3){
-          cavPassengerSchedules = cavPassengerSchedules + (vehicle -> cavPassengerSchedules(vehicle).tail)
-          val nextSchedule = cavPassengerSchedules(vehicle).head
-          if(nextSchedule.schedule.map(_._2.riders.size).sum == 0){
-            vehicle.driver.get ! ModifyPassengerSchedule(nextSchedule,nextSchedule.schedule.firstKey.startTime)
-          }
-        }else{
-          vehicle.unsetDriver()
-          availableVehicles = vehicle :: availableVehicles
-          log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
-        }
+        handleReleaseVehicle(vehicle)
 
       case ReleaseVehicleAndReply(vehicle) =>
-        //Only act if this is not a CAV
-        if(vehicle.beamVehicleType.automationLevel <= 3){
-          vehicle.unsetDriver()
-          availableVehicles = vehicle :: availableVehicles
-          log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
-        }
+        handleReleaseVehicle(vehicle)
         sender() ! Success
 
       case MobilityStatusInquiry(personId,_,originActivity) =>
@@ -316,9 +305,10 @@ object HouseholdActor {
         personToCav.get(personId) match {
           case Some((_ , cav)) =>
             // we are expecting the person to be picked up next so we dispatch the vehicle
-            val (nextSchedule::remainingSchedules) = cavPassengerSchedules(cav)
+            var (nextSchedule::remainingSchedules) = cavPassengerSchedules(cav)
             if(tick > nextSchedule.schedule.head._1.startTime){
-              log.warning("Person is late for CAV pickup...")
+              log.warning("Person {} is late for pickup from CAV {} by {} seconds",personId,cav.id, tick - nextSchedule.schedule.head._1.startTime)
+              nextSchedule = nextSchedule.updateStartTimes(tick)
             }
             cav.driver.get ! ModifyPassengerSchedule(nextSchedule,
               nextSchedule.schedule.head._1.startTime,
@@ -344,6 +334,20 @@ object HouseholdActor {
 
       case Terminated(_) =>
       // Do nothing
+    }
+
+    def handleReleaseVehicle(vehicle: BeamVehicle) = {
+      if(vehicle.beamVehicleType.automationLevel > 3) {
+        cavPassengerSchedules = cavPassengerSchedules + (vehicle -> cavPassengerSchedules(vehicle).tail)
+        val nextSchedule = cavPassengerSchedules(vehicle).head
+        if (nextSchedule.schedule.map(_._2.riders.size).sum == 0) {
+          vehicle.driver.get ! ModifyPassengerSchedule(nextSchedule, nextSchedule.schedule.firstKey.startTime)
+        }
+      }else{
+        vehicle.unsetDriver()
+        availableVehicles = vehicle :: availableVehicles
+        log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
+      }
     }
 
     def completeInitialization(triggerId: Long): Unit = {

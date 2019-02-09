@@ -2,10 +2,11 @@ package beam.agentsim.agents.household
 
 import akka.actor.{ActorContext, ActorRef, ActorSelection, Props}
 import akka.actor.FSM.Failure
+import akka.actor.Status.Success
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.PersonAgent.{DrivingData, PassengerScheduleEmpty, VehicleStack, WaitingToDrive}
-import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicle
+import beam.agentsim.agents.household.HouseholdActor.{ReleaseVehicle, ReleaseVehicleAndReply}
 import beam.agentsim.agents.household.HouseholdCAVDriverAgent.HouseholdCAVDriverData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, StartLegTrigger}
@@ -81,6 +82,7 @@ class HouseholdCAVDriverAgent(
       )
       goto(WaitingToDrive) using data
         .withPassengerSchedule(updatedPassengerSchedule)
+        .withCurrentLegPassengerScheduleIndex(0)
         .asInstanceOf[HouseholdCAVDriverData] replying ModifyPassengerScheduleAck(
         requestId,
         triggerToSchedule,
@@ -91,8 +93,13 @@ class HouseholdCAVDriverAgent(
 
   when(PassengerScheduleEmpty) {
     case Event(PassengerScheduleEmptyMessage(_, _), _) =>
-      vehicle.manager.get ! ReleaseVehicle(vehicle)
+      vehicle.manager.get ! ReleaseVehicleAndReply(vehicle)
+      stay
+    case Event(Success, _) =>
+      val (_, triggerId) = releaseTickAndTriggerId()
+      scheduler ! CompletionNotice(triggerId)
       goto(Idle)
+
     case Event(TriggerWithId(KillTrigger(_), triggerId), _) =>
       scheduler ! CompletionNotice(triggerId)
       stop
