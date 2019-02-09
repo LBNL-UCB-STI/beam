@@ -193,10 +193,10 @@ object HouseholdActor {
           val memberMap = household.members.map(person => (person.getId -> person)).toMap
           val plan = requestsAndUpdatedPlans.head._2
           val i = 0
-          personToCav = personToCav + (plan.schedule.find(_.tag == Pickup).map(pers => (pers.person.get -> (pers.activity,plan.cav))).get)
+          personToCav = personToCav ++ (plan.schedule.filter(_.tag == Pickup).groupBy(_.person).map(pers => (pers._1.get -> (pers._2.head.activity,plan.cav))))
           plan.schedule.foreach { cavPlan =>
             if(cavPlan.tag == Pickup){
-              val oldPlan = householdMatsimPlans(cavPlan.person.get)
+              val oldPlan = memberMap(cavPlan.person.get).getSelectedPlan
               val newPlan = BeamPlan.addOrReplaceLegBetweenActivities(oldPlan,PopulationUtils.createLeg("cav"),cavPlan.activity,cavPlan.nextActivity.get)
               memberMap(cavPlan.person.get).addPlan(newPlan)
               memberMap(cavPlan.person.get).setSelectedPlan(newPlan)
@@ -246,7 +246,7 @@ object HouseholdActor {
         val indexedResponses = routingResponses.map(resp => (resp.requestId -> resp)).toMap
         // Create a passenger schedule for each CAV in the plan, split by passenger to be picked up
         cavPassengerSchedules = cavPlans.map{ cavSchedule =>
-          val theLegsWithServiceRequest = cavSchedule.schedule.map{ serviceRequest =>
+          val theLegsWithServiceRequest = cavSchedule.schedule.filter(_.routingRequestId.isDefined).map{ serviceRequest =>
             (indexedResponses(serviceRequest.routingRequestId.get).itineraries.head.legs.head.beamLeg,serviceRequest,serviceRequest.tag == Pickup)
           }
           val splitByPickup = RandomUtils.multiSpan(theLegsWithServiceRequest)(_._3)
@@ -317,7 +317,9 @@ object HouseholdActor {
           case Some((_ , cav)) =>
             // we are expecting the person to be picked up next so we dispatch the vehicle
             val (nextSchedule::remainingSchedules) = cavPassengerSchedules(cav)
-            if(tick > nextSchedule.schedule.head._1.startTime)log.warning("Person is late for CAV pickup...")
+            if(tick > nextSchedule.schedule.head._1.startTime){
+              log.warning("Person is late for CAV pickup...")
+            }
             cav.driver.get ! ModifyPassengerSchedule(nextSchedule,
               nextSchedule.schedule.head._1.startTime,
               Some(personId.toString.toInt)

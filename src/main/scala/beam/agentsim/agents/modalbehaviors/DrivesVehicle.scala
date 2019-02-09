@@ -201,6 +201,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           )
         }
       } else {
+        if(currentBeamVehicle.id.toString.equals("1")){
+          val i = 0
+        }
         if (data.hasParkingBehaviors) {
           currentBeamVehicle.reservedStall.foreach { stall =>
             currentBeamVehicle.useParkingStall(stall)
@@ -397,6 +400,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           .schedule(newLeg)
           .boarders
           .map { personVehicle =>
+            logDebug(s"Scheduling BoardVehicleTrigger at $tick for Person ${personVehicle.personId} into vehicle ${data.currentVehicle.head}")
             ScheduleTrigger(
               BoardVehicleTrigger(tick, data.currentVehicle.head),
               personVehicle.personRef

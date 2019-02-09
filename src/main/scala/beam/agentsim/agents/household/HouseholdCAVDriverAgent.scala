@@ -98,7 +98,7 @@ class HouseholdCAVDriverAgent(
       stop
   }
 
-  override def logPrefix(): String = s"TransitDriverAgent:$id "
+  override def logPrefix(): String = s"$id "
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))
 }

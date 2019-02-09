@@ -323,28 +323,34 @@ class CAVSchedule(
     var newMobilityRequests = List[MobilityServiceRequest]()
     val requestList = schedule
       .sliding(2)
-      .filter(_.size > 1)
+      .filter(req => req.size > 1)
       .map { wayPoints =>
         val orig = wayPoints(0)
-        val dest = wayPoints(1)
-        val origin = SpaceTime(orig.activity.getCoord, math.round(orig.time).toInt)
-        val routingRequest = RoutingRequest(
-          orig.activity.getCoord,
-          dest.activity.getCoord,
-          origin.time,
-          IndexedSeq(),
-          IndexedSeq(
-            StreetVehicle(
-              Id.create(cav.id.toString, classOf[Vehicle]),
-              cav.beamVehicleType.id,
-              origin,
-              CAV,
-              asDriver = true
+        orig.tag match {
+          case Dropoff =>
+            newMobilityRequests = orig +: newMobilityRequests
+            None
+          case _ =>
+            val dest = wayPoints(1)
+            val origin = SpaceTime(orig.activity.getCoord, math.round(orig.time).toInt)
+            val routingRequest = RoutingRequest(
+              orig.activity.getCoord,
+              dest.activity.getCoord,
+              origin.time,
+              IndexedSeq(),
+              IndexedSeq(
+                StreetVehicle(
+                  Id.create(cav.id.toString, classOf[Vehicle]),
+                  cav.beamVehicleType.id,
+                  origin,
+                  CAV,
+                  asDriver = true
+                )
+              )
             )
-          )
-        )
-        newMobilityRequests = orig.copy(routingRequestId = Some(routingRequest.requestId)) +: newMobilityRequests
-        Some(routingRequest)
+            newMobilityRequests = orig.copy(routingRequestId = Some(routingRequest.requestId)) +: newMobilityRequests
+            Some(routingRequest)
+          }
       }
       .toList
     (requestList, new CAVSchedule(newMobilityRequests, cav, occupancy))
