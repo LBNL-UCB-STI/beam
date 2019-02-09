@@ -159,7 +159,7 @@ class PersonAgentSpec
             new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
           )
         )
-      val parkingManager = system.actorOf(Props(new TrivialParkingManager), "ParkingManager")
+      val parkingManager = system.actorOf(Props(new TrivialParkingManager))
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       putDefaultBeamAttributes(person, Vector(WALK))
@@ -224,7 +224,7 @@ class PersonAgentSpec
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
-      val parkingManager = system.actorOf(Props(new TrivialParkingManager), "ParkingManager")
+      val parkingManager = system.actorOf(Props(new TrivialParkingManager))
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
@@ -435,7 +435,7 @@ class PersonAgentSpec
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
-      val parkingManager = system.actorOf(Props(new TrivialParkingManager), "ParkingManager")
+      val parkingManager = system.actorOf(Props(new TrivialParkingManager))
 
       bus.becomeDriver(
         Await.result(

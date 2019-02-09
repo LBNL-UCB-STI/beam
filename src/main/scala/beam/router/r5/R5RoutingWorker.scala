@@ -337,21 +337,17 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               StreetMode.valueOf(leg.mode.r5Mode.get.left.get.toString)
             )).toInt
       }
-      val linkEvents = RoutingModel.traverseStreetLeg(leg, vehicleId, travelTime)
-      val linkTimes = linkEvents
-        .drop(1)
-        .grouped(2)
-        .map(pair => Math.round(pair.last.getTime - pair.head.getTime).toInt)
-        .toIndexedSeq :+ 0
+      val updatedLeg = updateLegWithCurrentTravelTime(leg)
+      val linkEvents = RoutingModel.traverseStreetLeg(updatedLeg, vehicleId, travelTime)
       val duration = linkEvents
         .maxBy(e => e.getTime)
-        .getTime - leg.startTime
+        .getTime - updatedLeg.startTime
       sender ! RoutingResponse(
         Vector(
           EmbodiedBeamTrip(
             Vector(
               EmbodiedBeamLeg(
-                leg.copy(duration = duration.toInt),
+                updatedLeg.copy(duration = duration.toInt),
                 vehicleId,
                 vehicleTypeId,
                 asDriver = true,
