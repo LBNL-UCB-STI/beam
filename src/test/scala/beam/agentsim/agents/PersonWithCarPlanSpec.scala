@@ -308,7 +308,7 @@ class PersonWithCarPlanSpec
 
       for (i <- 0 to 1) {
         expectMsgPF() {
-          case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _, _, _) =>
+          case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _) =>
             val embodiedLeg = EmbodiedBeamLeg(
               beamLeg = leg.copy(
                 duration = 500,

@@ -469,7 +469,7 @@ trait ChoosesMode {
     case Event(response: RoutingResponse, choosesModeData: ChoosesModeData) =>
       val theRouterResult = response.copy(itineraries = response.itineraries.map { it =>
         it.copy(it.legs.flatMap(embodiedLeg =>
-          if (embodiedLeg.beamLeg.mode == CAR) splitLegForParking(embodiedLeg, None) else Vector(embodiedLeg)))
+          if (embodiedLeg.beamLeg.mode == CAR) splitLegForParking(embodiedLeg) else Vector(embodiedLeg)))
       })
       val correctedItins = theRouterResult.itineraries
         .map { trip =>
@@ -550,37 +550,12 @@ trait ChoosesMode {
 
   case object FinishingModeChoice extends BeamAgentState
 
-  private def splitLegForParking(leg: EmbodiedBeamLeg, destinationForSplitting: Option[Coord]) = {
+  private def splitLegForParking(leg: EmbodiedBeamLeg) = {
     val theLinkIds = leg.beamLeg.travelPath.linkIds
-    val indexFromEnd = destinationForSplitting match {
-      case Some(destForSplitting) =>
-        Math.min(
-          Math.max(
-            theLinkIds.reverse.indexWhere(
-              link =>
-                beamServices.geo
-                  .distLatLon2Meters(R5RoutingWorker.linkIdToCoord(link, transportNetwork), destForSplitting) >
-                  beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
-            ),
-            1
-          ),
-          theLinkIds.length - 1
-        )
-      case None =>
-        Math.min(
-          Math.max(
-            theLinkIds.reverse
-              .map(lengthOfLink)
-              .scanLeft(0.0)(_ + _)
-              .indexWhere(
-                _ > beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters
-              ),
-            1
-          ),
-          theLinkIds.length - 1
-        )
-    }
-
+    val indexFromEnd = theLinkIds.reverse
+      .map(lengthOfLink)
+      .scanLeft(0.0)(_ + _)
+      .indexWhere( _ > beamServices.beamConfig.beam.agentsim.thresholdForMakingParkingChoiceInMeters)
     val indexFromBeg = theLinkIds.length - indexFromEnd
     val firstLeg = leg.copy(beamLeg = leg.beamLeg.copy(
       travelPath = leg.beamLeg.travelPath.copy(
