@@ -28,9 +28,10 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
+import com.sun.tools.javac.util.ListBuffer
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.TeleportationArrivalEvent
 import org.matsim.core.config.ConfigUtils
@@ -40,12 +41,15 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.core.scenario.ScenarioUtils
+import org.matsim.core.scoring.{EventsToLegs, PersonExperiencedLeg}
+import org.matsim.core.scoring.EventsToLegs.LegHandler
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.collection.{JavaConverters, mutable}
 
 class PersonWithCarPlanSpec
@@ -140,6 +144,11 @@ class PersonWithCarPlanSpec
       ScenarioUtils.loadScenario(scenario)
       when(beamSvc.matsimServices.getScenario).thenReturn(scenario)
 
+      var experiencedLegs: ArrayBuffer[PersonExperiencedLeg] = ArrayBuffer()
+      val eventsToLegs = new EventsToLegs(scenario)
+      eventsToLegs.addLegHandler(leg => experiencedLegs += leg)
+      eventsManager.addHandler(eventsToLegs)
+
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           beamConfig,
@@ -225,7 +234,7 @@ class PersonWithCarPlanSpec
                   mode = BeamMode.CAR,
                   duration = 50,
                   travelPath = BeamPath(
-                    linkIds = Vector(3, 4, 5, 6, 7),
+                    linkIds = Vector(142, 60, 58, 62, 80),
                     linkTravelTime = Vector(50, 50, 50, 50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(parkingRoutingRequest.originUTM, parkingRoutingRequest.departureTime),
@@ -257,7 +266,7 @@ class PersonWithCarPlanSpec
                   mode = BeamMode.WALK,
                   duration = 50,
                   travelPath = BeamPath(
-                    linkIds = Vector(7, 6, 5, 4, 3),
+                    linkIds = Vector(80, 62, 58, 60, 142),
                     linkTravelTime = Vector(50, 50, 50, 50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(parkingLocation, walkFromParkingRoutingRequest.departureTime),
@@ -293,14 +302,6 @@ class PersonWithCarPlanSpec
       expectMsgType[PersonLeavesVehicleEvent]
 
       expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
 
@@ -311,6 +312,11 @@ class PersonWithCarPlanSpec
       expectMsgType[ActivityStartEvent]
 
       expectMsgType[CompletionNotice]
+
+      experiencedLegs.foreach { leg =>
+        println(leg)
+      }
+
     }
 
     it("should use another car when the car that is in the plan is taken") {
@@ -532,8 +538,6 @@ class PersonWithCarPlanSpec
 
       expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
 
@@ -571,7 +575,7 @@ class PersonWithCarPlanSpec
     val plan = PopulationUtils.getFactory.createPlan()
     val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
     homeActivity.setEndTime(28800) // 8:00:00 AM
-    homeActivity.setCoord(new Coord(0.0, 0.0))
+    homeActivity.setCoord(new Coord(166321.9, 1568.87))
     plan.addActivity(homeActivity)
     val leg = PopulationUtils.createLeg("car")
     if (withRoute) {
@@ -586,7 +590,7 @@ class PersonWithCarPlanSpec
     plan.addLeg(leg)
     val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
     workActivity.setEndTime(61200) //5:00:00 PM
-    workActivity.setCoord(new Coord(0.01, 0.01))
+    workActivity.setCoord(new Coord(166045.2, 2705.4))
     plan.addActivity(workActivity)
     person.addPlan(plan)
     person

@@ -402,8 +402,6 @@ class PersonWithVehicleSharingSpec
 
       events.expectMsgType[PersonEntersVehicleEvent]
       events.expectMsgType[VehicleEntersTrafficEvent]
-      events.expectMsgType[LinkLeaveEvent]
-      events.expectMsgType[LinkEnterEvent]
       events.expectMsgType[VehicleLeavesTrafficEvent]
       events.expectMsgType[PathTraversalEvent]
 

@@ -17,18 +17,13 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.TRANSIT
+import beam.router.Modes.BeamMode.{CAR, TRANSIT, WALK}
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.sim.HasServices
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{
-  LinkEnterEvent,
-  LinkLeaveEvent,
-  VehicleEntersTrafficEvent,
-  VehicleLeavesTrafficEvent
-}
+import org.matsim.api.core.v01.events.{LinkEnterEvent, LinkLeaveEvent, VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
@@ -152,7 +147,14 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         )
       }
 
-      processLinkEvents(data.currentVehicle.head, currentLeg)
+      // EventsToLegs fails for our way of reporting e.g. walk/car/walk trips,
+      // or any trips with multiple link-based vehicles where there isn't an
+      // activity in between.
+      // We help ourselves by not emitting link events for walking, but a better criterion
+      // would be to only emit link events for the "main" leg.
+      if (currentLeg.mode != WALK) {
+        processLinkEvents(data.currentVehicle.head, currentLeg)
+      }
 
       logDebug("PathTraversal")
       eventsManager.processEvent(
