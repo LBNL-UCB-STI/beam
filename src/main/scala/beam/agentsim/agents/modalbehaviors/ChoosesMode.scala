@@ -468,8 +468,13 @@ trait ChoosesMode {
       stay() using newPersonData
     case Event(response: RoutingResponse, choosesModeData: ChoosesModeData) =>
       val theRouterResult = response.copy(itineraries = response.itineraries.map { it =>
-        it.copy(it.legs.flatMap(embodiedLeg =>
-          if (embodiedLeg.beamLeg.mode == CAR) splitLegForParking(embodiedLeg) else Vector(embodiedLeg)))
+        it.copy(
+          it.legs.flatMap(
+            embodiedLeg =>
+              if (embodiedLeg.beamLeg.mode == CAR) splitLegForParking(embodiedLeg)
+              else Vector(embodiedLeg)
+          )
+        )
       })
       val correctedItins = theRouterResult.itineraries
         .map { trip =>
@@ -565,16 +570,24 @@ trait ChoosesMode {
       theLinkIds.length - 1
     )
     val indexFromBeg = theLinkIds.length - indexFromEnd
-    val firstLeg = leg.copy(beamLeg = leg.beamLeg.copy(
-      travelPath = leg.beamLeg.travelPath.copy(
-        linkIds = theLinkIds.take(indexFromBeg),
-        linkTravelTime = leg.beamLeg.travelPath.linkTravelTime.take(indexFromBeg))),
-      unbecomeDriverOnCompletion = false)
-    val secondLeg = leg.copy(beamLeg = leg.beamLeg.copy(
-      travelPath = leg.beamLeg.travelPath.copy(
-        linkIds = theLinkIds.takeRight(indexFromEnd + 1),
-        linkTravelTime = leg.beamLeg.travelPath.linkTravelTime.takeRight(indexFromEnd + 1)),
-      startTime = firstLeg.beamLeg.startTime + firstLeg.beamLeg.duration))
+    val firstLeg = leg.copy(
+      beamLeg = leg.beamLeg.copy(
+        travelPath = leg.beamLeg.travelPath.copy(
+          linkIds = theLinkIds.take(indexFromBeg),
+          linkTravelTime = leg.beamLeg.travelPath.linkTravelTime.take(indexFromBeg)
+        )
+      ),
+      unbecomeDriverOnCompletion = false
+    )
+    val secondLeg = leg.copy(
+      beamLeg = leg.beamLeg.copy(
+        travelPath = leg.beamLeg.travelPath.copy(
+          linkIds = theLinkIds.takeRight(indexFromEnd + 1),
+          linkTravelTime = leg.beamLeg.travelPath.linkTravelTime.takeRight(indexFromEnd + 1)
+        ),
+        startTime = firstLeg.beamLeg.startTime + firstLeg.beamLeg.duration
+      )
+    )
     Vector(firstLeg, secondLeg)
   }
 

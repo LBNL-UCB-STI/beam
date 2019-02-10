@@ -8,7 +8,8 @@ class TrivialParkingManager extends Actor {
 
   override def receive: Receive = {
     case request: ParkingInquiry =>
-      val stall = new ParkingStall(Id.create(nextStallNum, classOf[ParkingStall]), null, request.destinationUtm, 0.0, None)
+      val stall =
+        new ParkingStall(Id.create(nextStallNum, classOf[ParkingStall]), null, request.destinationUtm, 0.0, None)
       sender ! ParkingInquiryResponse(stall, request.requestId)
   }
 }
