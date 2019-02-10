@@ -306,7 +306,8 @@ object HouseholdActor {
           case Some((_ , cav)) =>
             // we are expecting the person to be picked up next so we dispatch the vehicle
             var (nextSchedule::remainingSchedules) = cavPassengerSchedules(cav)
-            if(tick > nextSchedule.schedule.head._1.startTime){
+            log.debug("Person {} ready for CAV who will pickup at {}",personId,nextSchedule.schedule.head._1.startTime)
+            if(tick != nextSchedule.schedule.head._1.startTime){
               log.warning("Person {} is late for pickup from CAV {} by {} seconds",personId,cav.id, tick - nextSchedule.schedule.head._1.startTime)
               nextSchedule = nextSchedule.updateStartTimes(tick)
             }
@@ -338,7 +339,9 @@ object HouseholdActor {
 
     def handleReleaseVehicle(vehicle: BeamVehicle) = {
       if(vehicle.beamVehicleType.automationLevel > 3) {
+        if(cavPassengerSchedules(vehicle).head.schedule.size>0)log.debug("Before updating CAV schedule, first trip at {}", cavPassengerSchedules(vehicle).head.schedule.head._1.startTime)
         cavPassengerSchedules = cavPassengerSchedules + (vehicle -> cavPassengerSchedules(vehicle).tail)
+        log.debug("After updating CAV schedule, first trip at {}", cavPassengerSchedules(vehicle).head.schedule.head._1.startTime)
         val nextSchedule = cavPassengerSchedules(vehicle).head
         if (nextSchedule.schedule.map(_._2.riders.size).sum == 0) {
           vehicle.driver.get ! ModifyPassengerSchedule(nextSchedule, nextSchedule.schedule.firstKey.startTime)
