@@ -522,7 +522,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
             }
         }
 
-        //System.out.println("Frequencies : " + Arrays.toString(frequencies));
+        //System.outWriter.println("Frequencies : " + Arrays.toString(frequencies));
 
         // Création des datasets
         HistogramDataset histogramDataset = new HistogramDataset();

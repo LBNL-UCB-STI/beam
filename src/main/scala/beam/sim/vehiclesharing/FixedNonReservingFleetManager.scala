@@ -96,7 +96,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
             log.error("Didn't find a vehicle in my spatial index, at the location I thought it would be.")
           }
           who ! Boarded(vehicle)
-          log.debug("Checked out " + vehicleId)
+          log.debug("Checked outWriter " + vehicleId)
         case None =>
           who ! NotAvailable
       }

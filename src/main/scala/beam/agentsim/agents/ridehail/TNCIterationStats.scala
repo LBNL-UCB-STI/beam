@@ -64,7 +64,7 @@ case class TNCIterationStats(
     val repositioningMethod = repositioningConfig.repositioningMethod // (TOP_SCORES | weighedKMeans)
     val keepMaxTopNScores = repositioningConfig.keepMaxTopNScores
     val minScoreThresholdForRepositioning =
-      repositioningConfig.minScoreThresholdForRepositioning // helps weed out unnecessary repositioning
+      repositioningConfig.minScoreThresholdForRepositioning // helps weed outWriter unnecessary repositioning
 
     val distanceWeight = repositioningConfig.distanceWeight
     val waitingTimeWeight = repositioningConfig.waitingTimeWeight
@@ -293,7 +293,7 @@ case class TNCIterationStats(
     )
     /*
 
-    //TODO: figure out issue with this code, why ERROR:
+    //TODO: figure outWriter issue with this code, why ERROR:
     more rideHailVehicle interruptions in process than should be possible: rideHailVehicle-22 -> further errors surpressed (debug later if this is still relevant)
     03:34:58.103 [beam-actor-system-akka.actor.default-dispatcher-9] ERROR beam.agentsim.agents.rideHail.RideHailManager -
     when enabled
