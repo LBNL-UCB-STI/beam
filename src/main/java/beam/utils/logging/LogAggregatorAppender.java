@@ -27,8 +27,6 @@ public class LogAggregatorAppender extends ConsoleAppender<ILoggingEvent> {
 
     @Override
     public void stop() {
-        System.out.println("########### Stop called");
-        System.out.println("########### Size of messages:" + allMessages.size());
         List<TextClusterable> points = allMessages.stream()
                 .map(TextClusterable::new)
                 .collect(Collectors.toList());
@@ -36,8 +34,8 @@ public class LogAggregatorAppender extends ConsoleAppender<ILoggingEvent> {
 
         Comparator<Cluster<TextClusterable>> comparator = Comparator.comparingInt(o -> o.getPoints().size());
         clusters.sort(comparator.reversed());
-        System.out.println("*** Number of clusters:" + clusters.size());
-        System.out.println("*** Number of stored messages:" + getAllSize(clusters));
+        System.out.println("*** Number of clusters: [" + clusters.size() + "]");
+        System.out.println("*** Number of stored messages: [" + getAllSize(clusters) + "]");
 
         for (Cluster<TextClusterable> cluster : clusters) {
             printCluster(cluster);
@@ -49,8 +47,10 @@ public class LogAggregatorAppender extends ConsoleAppender<ILoggingEvent> {
     private void printCluster(Cluster<TextClusterable> cluster) {
         List<TextClusterable> points = cluster.getPoints();
         String pattern = findPattern(points);
+        System.out.println();
         System.out.println("*** Clustered pattern: [" + pattern + "]");
         System.out.println("*** Repetitions: [" + points.size() + "]");
+        System.out.println();
     }
 
     private String findPattern(List<TextClusterable> points) {
