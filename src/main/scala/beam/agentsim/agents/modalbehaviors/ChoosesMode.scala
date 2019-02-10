@@ -575,7 +575,10 @@ trait ChoosesMode {
     val firstPath = leg.beamLeg.travelPath.copy(
       linkIds = theLinkIds.take(indexFromBeg),
       linkTravelTime = firstTravelTimes,
-      endPoint = leg.beamLeg.travelPath.endPoint.copy(time = leg.beamLeg.startTime + firstDuration)
+      endPoint = SpaceTime(
+        beamServices.geo.coordOfR5Edge(transportNetwork.streetLayer, theLinkIds(indexFromBeg)),
+        leg.beamLeg.startTime + firstDuration
+      )
     )
     val firstLeg = leg.copy(
       beamLeg = leg.beamLeg.copy(
