@@ -70,10 +70,11 @@ public class LogAggregatorAppender extends ConsoleAppender<ILoggingEvent> {
 
     @Override
     protected void append(final ILoggingEvent event) {
-        allMessages.add(event.getMessage());
         // TODO: workaround while stop method is not called
         if (event.getMessage().equals("STOP")) {
             stop();
+        } else {
+            allMessages.add(event.getMessage());
         }
     }
 
