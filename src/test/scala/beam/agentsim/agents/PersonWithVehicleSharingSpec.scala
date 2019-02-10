@@ -576,7 +576,7 @@ class PersonWithVehicleSharingSpec
         } pipeTo mockSharedVehicleFleet.lastSender
 
       mockRouter.expectMsgPF() {
-        case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _, _, _) =>
+        case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _) =>
           assert(vehicleId == car1.id, "Agent should ask for route with the car I gave it.")
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = leg.copy(
@@ -611,7 +611,7 @@ class PersonWithVehicleSharingSpec
         Vector(Token(car1.id, car1.manager.get, car1.toStreetVehicle))
       )
       mockRouter.expectMsgPF() {
-        case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _, _, _) =>
+        case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _) =>
           assert(vehicleId == car1.id, "Agent should ask for route with the car I gave it.")
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = leg.copy(
@@ -647,7 +647,7 @@ class PersonWithVehicleSharingSpec
 
       // agent has no car available, so will ask for new route
       mockRouter.expectMsgPF() {
-        case RoutingRequest(_, _, _, _, streetVehicles, _, _, _, _) =>
+        case RoutingRequest(_, _, _, _, streetVehicles, _, _, _) =>
           val body = streetVehicles.find(_.mode == WALK).get
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = BeamLeg(
