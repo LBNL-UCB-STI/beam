@@ -13,12 +13,12 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.{TAZTreeMap, TrivialParkingManager}
+import beam.agentsim.infrastructure.{AnotherTrivialParkingManager, TAZTreeMap, TrivialParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.CAR
+import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
@@ -46,7 +46,7 @@ import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 
 class PersonWithCarPlanSpec
     extends TestKit(
@@ -148,7 +148,8 @@ class PersonWithCarPlanSpec
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
-      val parkingManager = system.actorOf(Props(new TrivialParkingManager))
+      val parkingLocation = new Coord(167138.4, 1117.0)
+      val parkingManager = system.actorOf(Props(new AnotherTrivialParkingManager(parkingLocation)))
 
       val householdActor = TestActorRef[HouseholdActor](
         Props(
@@ -211,7 +212,78 @@ class PersonWithCarPlanSpec
       expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
+
+      val parkingRoutingRequest = expectMsgType[RoutingRequest]
+      println(parkingRoutingRequest)
+      lastSender ! RoutingResponse(
+        Vector(
+          EmbodiedBeamTrip(
+            legs = Vector(
+              EmbodiedBeamLeg(
+                beamLeg = BeamLeg(
+                  startTime = parkingRoutingRequest.departureTime,
+                  mode = BeamMode.CAR,
+                  duration = 50,
+                  travelPath = BeamPath(
+                    linkIds = Vector(3, 4, 5, 6, 7),
+                    linkTravelTime = Vector(50, 50, 50, 50, 50),
+                    transitStops = None,
+                    startPoint = SpaceTime(parkingRoutingRequest.originUTM, parkingRoutingRequest.departureTime),
+                    endPoint = SpaceTime(parkingLocation, parkingRoutingRequest.departureTime + 50),
+                    distanceInM = 1000D
+                  )
+                ),
+                beamVehicleId = Id.createVehicleId("car-1"),
+                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                asDriver = true,
+                cost = 0.0,
+                unbecomeDriverOnCompletion = true
+              )
+            )
+          )
+        ),
+        parkingRoutingRequest.requestId
+      )
+
+      val walkFromParkingRoutingRequest = expectMsgType[RoutingRequest]
+      println(walkFromParkingRoutingRequest)
+      lastSender ! RoutingResponse(
+        Vector(
+          EmbodiedBeamTrip(
+            legs = Vector(
+              EmbodiedBeamLeg(
+                beamLeg = BeamLeg(
+                  startTime = walkFromParkingRoutingRequest.departureTime,
+                  mode = BeamMode.WALK,
+                  duration = 50,
+                  travelPath = BeamPath(
+                    linkIds = Vector(7, 6, 5, 4, 3),
+                    linkTravelTime = Vector(50, 50, 50, 50, 50),
+                    transitStops = None,
+                    startPoint = SpaceTime(parkingLocation, walkFromParkingRoutingRequest.departureTime),
+                    endPoint = SpaceTime(walkFromParkingRoutingRequest.originUTM, walkFromParkingRoutingRequest.departureTime+50),
+                    distanceInM = 1000D
+                  )
+                ),
+                beamVehicleId = walkFromParkingRoutingRequest.streetVehicles.find(_.mode == WALK).get.id,
+                walkFromParkingRoutingRequest.streetVehicles.find(_.mode == WALK).get.vehicleTypeId,
+                asDriver = true,
+                cost = 0.0,
+                unbecomeDriverOnCompletion = true
+              )
+            )
+          )
+        ),
+        parkingRoutingRequest.requestId
+      )
+
       expectMsgType[VehicleEntersTrafficEvent]
+      expectMsgType[LinkLeaveEvent]
+      expectMsgType[LinkEnterEvent]
+      expectMsgType[LinkLeaveEvent]
+      expectMsgType[LinkEnterEvent]
+      expectMsgType[LinkLeaveEvent]
+      expectMsgType[LinkEnterEvent]
       expectMsgType[LinkLeaveEvent]
       expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
@@ -221,6 +293,14 @@ class PersonWithCarPlanSpec
       expectMsgType[PersonLeavesVehicleEvent]
 
       expectMsgType[VehicleEntersTrafficEvent]
+      expectMsgType[LinkLeaveEvent]
+      expectMsgType[LinkEnterEvent]
+      expectMsgType[LinkLeaveEvent]
+      expectMsgType[LinkEnterEvent]
+      expectMsgType[LinkLeaveEvent]
+      expectMsgType[LinkEnterEvent]
+      expectMsgType[LinkLeaveEvent]
+      expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
 

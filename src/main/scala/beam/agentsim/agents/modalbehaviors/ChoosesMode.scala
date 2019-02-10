@@ -570,22 +570,30 @@ trait ChoosesMode {
       theLinkIds.length - 1
     )
     val indexFromBeg = theLinkIds.length - indexFromEnd
+    val firstTravelTimes = leg.beamLeg.travelPath.linkTravelTime.take(indexFromBeg)
+    val firstDuration = firstTravelTimes.drop(1).sum
+    val firstPath = leg.beamLeg.travelPath.copy(
+      linkIds = theLinkIds.take(indexFromBeg),
+      linkTravelTime = firstTravelTimes,
+      endPoint = leg.beamLeg.travelPath.endPoint.copy(time = leg.beamLeg.startTime + firstDuration)
+    )
     val firstLeg = leg.copy(
       beamLeg = leg.beamLeg.copy(
-        travelPath = leg.beamLeg.travelPath.copy(
-          linkIds = theLinkIds.take(indexFromBeg),
-          linkTravelTime = leg.beamLeg.travelPath.linkTravelTime.take(indexFromBeg)
-        )
+        travelPath = firstPath,
+        duration = firstPath.linkTravelTime.drop(1).sum
       ),
       unbecomeDriverOnCompletion = false
     )
+    val secondPath = leg.beamLeg.travelPath.copy(
+      linkIds = theLinkIds.takeRight(indexFromEnd + 1),
+      linkTravelTime = leg.beamLeg.travelPath.linkTravelTime.takeRight(indexFromEnd + 1),
+      startPoint = firstPath.endPoint
+    )
     val secondLeg = leg.copy(
       beamLeg = leg.beamLeg.copy(
-        travelPath = leg.beamLeg.travelPath.copy(
-          linkIds = theLinkIds.takeRight(indexFromEnd + 1),
-          linkTravelTime = leg.beamLeg.travelPath.linkTravelTime.takeRight(indexFromEnd + 1)
-        ),
-        startTime = firstLeg.beamLeg.startTime + firstLeg.beamLeg.duration
+        travelPath = secondPath,
+        startTime = firstLeg.beamLeg.startTime + firstLeg.beamLeg.duration,
+        duration = secondPath.linkTravelTime.drop(1).sum
       )
     )
     Vector(firstLeg, secondLeg)
