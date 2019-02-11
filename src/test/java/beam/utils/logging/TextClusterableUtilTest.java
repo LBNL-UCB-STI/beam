@@ -7,7 +7,7 @@ import java.util.Random;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
-public class TextDistanceCalculatorUtilTest {
+public class TextClusterableUtilTest {
 
     private static final double DELTA = 0D;
 
