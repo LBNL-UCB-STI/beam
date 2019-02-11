@@ -206,14 +206,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         if (data.hasParkingBehaviors) {
           currentBeamVehicle.reservedStall.foreach { stall =>
             currentBeamVehicle.useParkingStall(stall)
-            val nextLeg =
-              data.passengerSchedule.schedule.keys.view
-                .drop(data.currentLegPassengerScheduleIndex)
-                .head
-            val destinationUTM = beamServices.geo.wgs2Utm(nextLeg.travelPath.endPoint.loc)
-            val distance = beamServices.geo.distUTMInMeters(stall.locationUTM, destinationUTM)
-            eventsManager
-              .processEvent(new ParkEvent(tick, stall, distance, currentBeamVehicle.id)) // nextLeg.endTime -> to fix repeated path traversal
+            eventsManager.processEvent(new ParkEvent(tick, stall, currentBeamVehicle.id)) // nextLeg.endTime -> to fix repeated path traversal
           }
           currentBeamVehicle.setReservedParkingStall(None)
         }

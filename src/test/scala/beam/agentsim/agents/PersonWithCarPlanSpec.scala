@@ -313,7 +313,6 @@ class PersonWithCarPlanSpec
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
       val parkEvent = expectMsgType[ParkEvent]
-      assert(parkEvent.distance === CoordUtils.calcEuclideanDistance(parkingLocation, workLocation) +- 1)
       expectMsgType[PersonCostEvent]
       expectMsgType[PersonLeavesVehicleEvent]
 

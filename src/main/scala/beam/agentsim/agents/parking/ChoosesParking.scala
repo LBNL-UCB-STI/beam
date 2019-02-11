@@ -108,7 +108,6 @@ trait ChoosesParking extends {
         goto(WaitingToDrive) using data
       } else {
         // Else the stall requires a diversion in travel, calc the new routes (in-vehicle to the stall and walking to the destination)
-        // In our routing requests we set mustParkAtEnd to false to prevent the router from splitting our routes for us
         import context.dispatcher
         val currentPoint = nextLeg.travelPath.startPoint
         val currentLocUTM = beamServices.geo.wgs2Utm(currentPoint.loc)
