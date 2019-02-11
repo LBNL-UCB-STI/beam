@@ -7,6 +7,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -24,15 +25,15 @@ public class LogAggregatorAppenderTest {
 
     @Test
     public void loadWarnings() throws Exception {
-        try (Stream<String> lines = getLines("/logaggregator/error.log")) {
-            lines.forEach(logger::info);
+        try (Stream<String> lines = getLines("/logaggregator/warn.log")) {
+            lines.forEach(logger::warn);
         }
     }
 
     @Test
     public void loadErrors() throws Exception {
         try (Stream<String> lines = getLines("/logaggregator/error.log")) {
-            lines.forEach(logger::info);
+            lines.forEach(logger::error);
         }
     }
 
@@ -43,8 +44,8 @@ public class LogAggregatorAppenderTest {
         }
     }
 
-    private Stream<String> getLines(String fileName) throws Exception {
-        URL url = getClass().getResource("/logaggregator/info.log");
+    private Stream<String> getLines(final String fileName) throws Exception {
+        URL url = getClass().getResource(fileName);
         Path path = Paths.get(url.toURI());
         return Files.lines(path);
     }
