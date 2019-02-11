@@ -16,7 +16,7 @@ import java.util.Set;
  */
 public class BeamEventsWriterCSV extends BeamEventsWriterBase {
 
-    private LinkedHashMap<String, Integer> attributeToColumnIndexMapping = new LinkedHashMap<>();
+    private final LinkedHashMap<String, Integer> attributeToColumnIndexMapping = new LinkedHashMap<>();
 
     BeamEventsWriterCSV(String outfilename, BeamEventsLogger eventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
         super(outfilename, eventLogger, beamServices, eventTypeToLog);

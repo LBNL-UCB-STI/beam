@@ -10,8 +10,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BUS, CAR, DRIVE_TRANSIT, FERRY, RAIL, RIDE_HAIL, SUBWAY, WALK, WALK_TRANSIT}
 import beam.sim.BeamServices
-import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
-import beam.utils.plan.sampling.AvailableModeUtils.availableModeParser
+import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes, PopulationAdjustment}
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.MersenneTwister
 import org.apache.commons.math3.util.Pair
@@ -239,12 +238,9 @@ class ChangeModeForTour(
           specifiedVot.asInstanceOf[Double]
       }
 
-    val availableModes: Seq[BeamMode] = Option(
-      beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
-        .getAttribute(person.getId.toString, "available-modes")
-    ).fold(BeamMode.allBeamModes)(
-      attr => availableModeParser(attr.toString)
-    )
+    val availableModes: Seq[BeamMode] = PopulationAdjustment
+      .getBeamAttributes(beamServices.matsimServices.getScenario.getPopulation, person.getId.toString)
+      .availableModes
 
     val income = Option(
       beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
