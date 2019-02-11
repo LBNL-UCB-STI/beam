@@ -1,5 +1,6 @@
 package beam.utils.logging;
 
+import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.ConsoleAppender;
 import org.apache.commons.math3.ml.clustering.Cluster;
@@ -74,8 +75,10 @@ public class LogAggregatorAppender extends ConsoleAppender<ILoggingEvent> {
         // TODO: workaround while stop method is not called
         if (event.getMessage().contains(stopMessage)) {
             stop();
-        } else {
+        } else if (event.getLevel().toInt() == Level.ERROR.toInt()) {
             allMessages.add(event.getMessage());
+        } else {
+            super.append(event);
         }
     }
 
