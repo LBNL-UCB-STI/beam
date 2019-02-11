@@ -222,6 +222,7 @@ object HouseholdActor {
             }
           }
           holdTickAndTriggerId(tick, triggerId)
+          log.debug("Household {} has CAV plans: \n{}",household.getId, plan.schedule)
           Future
             .sequence(routingRequests.map(akka.pattern.ask(router, _).mapTo[RoutingResponse]))
             .map(RoutingResponses(tick, _)) pipeTo self

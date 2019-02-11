@@ -36,7 +36,7 @@ case class MobilityServiceRequest(
     s"${(secs / 3600).toInt}:${((secs % 3600) / 60).toInt}:${(secs % 60).toInt}"
   }
   override def toString =
-    s"${formatTime(time)}|$tag{${person.getOrElse("na")}|${activity.getType}| => ${formatTime(serviceTime)}}"
+    s"${formatTime(time)}|$tag{${person.getOrElse("na")}|${activity.getType}| => ${formatTime(serviceTime)}}\n"
 }
 
 case class HouseholdTrips(
