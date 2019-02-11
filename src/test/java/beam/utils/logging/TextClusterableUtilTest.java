@@ -34,7 +34,7 @@ public class TextClusterableUtilTest {
     }
 
     @Test
-    public void doubleArrayCanBeFlattedToByteArrayAndViceVersa() {
+    public void doubleArrayCanBeFlattenedToByteArrayAndViceVersa() {
         // Arrange
         Random random = new Random();
         double[] doubles = new double[random.nextInt(20) + 1];
