@@ -42,10 +42,10 @@ public class ConfigEditor extends JFrame {
 
 	private static final boolean IS_MAC = System.getProperty("os.name").startsWith("Mac");
 
-	private final JButton btnSave;
+	private JButton btnSave;
 	private File configFile;
-	private final JTextPane xmlPane;
-	private final ConfigChangeListener configChangeListener;
+	private JTextPane xmlPane;
+	private ConfigChangeListener configChangeListener;
 
 	public ConfigEditor(File configFile, ConfigChangeListener configChangeListener) {
 		setTitle("Config Editor");
@@ -62,24 +62,24 @@ public class ConfigEditor extends JFrame {
 
 		GroupLayout groupLayout = new GroupLayout(getContentPane());
 		groupLayout.setHorizontalGroup(
-			groupLayout.createParallelGroup(Alignment.LEADING)
-				.addGroup(groupLayout.createSequentialGroup()
-					.addContainerGap()
-					.addComponent(this.btnSave)
-					.addPreferredGap(ComponentPlacement.RELATED)
-					.addComponent(btnSaveAs)
-					.addContainerGap(471, Short.MAX_VALUE))
-				.addComponent(scrollPane, Alignment.TRAILING, GroupLayout.DEFAULT_SIZE, 661, Short.MAX_VALUE)
+				groupLayout.createParallelGroup(Alignment.LEADING)
+						.addGroup(groupLayout.createSequentialGroup()
+								.addContainerGap()
+								.addComponent(this.btnSave)
+								.addPreferredGap(ComponentPlacement.RELATED)
+								.addComponent(btnSaveAs)
+								.addContainerGap(471, Short.MAX_VALUE))
+						.addComponent(scrollPane, Alignment.TRAILING, GroupLayout.DEFAULT_SIZE, 661, Short.MAX_VALUE)
 		);
 		groupLayout.setVerticalGroup(
-			groupLayout.createParallelGroup(Alignment.LEADING)
-				.addGroup(groupLayout.createSequentialGroup()
-					.addContainerGap()
-					.addGroup(groupLayout.createParallelGroup(Alignment.BASELINE)
-						.addComponent(this.btnSave)
-						.addComponent(btnSaveAs))
-					.addPreferredGap(ComponentPlacement.RELATED)
-					.addComponent(scrollPane, GroupLayout.DEFAULT_SIZE, 456, Short.MAX_VALUE))
+				groupLayout.createParallelGroup(Alignment.LEADING)
+						.addGroup(groupLayout.createSequentialGroup()
+								.addContainerGap()
+								.addGroup(groupLayout.createParallelGroup(Alignment.BASELINE)
+										.addComponent(this.btnSave)
+										.addComponent(btnSaveAs))
+								.addPreferredGap(ComponentPlacement.RELATED)
+								.addComponent(scrollPane, GroupLayout.DEFAULT_SIZE, 456, Short.MAX_VALUE))
 		);
 
 		this.xmlPane = new JTextPane();
@@ -237,7 +237,7 @@ public class ConfigEditor extends JFrame {
 	public static class XmlEditorKit extends StyledEditorKit {
 
 		private static final long serialVersionUID = 2969169649596107757L;
-		private final ViewFactory xmlViewFactory;
+		private ViewFactory xmlViewFactory;
 
 		public XmlEditorKit() {
 			xmlViewFactory = new XmlViewFactory();
@@ -279,14 +279,14 @@ public class ConfigEditor extends JFrame {
 	 */
 	public static class XmlView extends PlainView {
 
-		private static final HashMap<Pattern, Color> patternColors;
-		private static final String TAG_PATTERN = "(</?[a-z\\-]*)\\s?>?";
-		private static final String TAG_END_PATTERN = "(/>)";
-		private static final String TAG_ATTRIBUTE_PATTERN = "\\s(\\w*)\\=";
-		private static final String TAG_ATTRIBUTE_VALUE = "[a-z-]*\\=(\"[^\"]*\")";
-		private static final String TAG_COMMENT = "(<!--.*-->)";
-		private static final String TAG_CDATA_START = "(\\<!\\[CDATA\\[).*";
-		private static final String TAG_CDATA_END = ".*(]]>)";
+		private static HashMap<Pattern, Color> patternColors;
+		private static String TAG_PATTERN = "(</?[a-z\\-]*)\\s?>?";
+		private static String TAG_END_PATTERN = "(/>)";
+		private static String TAG_ATTRIBUTE_PATTERN = "\\s(\\w*)\\=";
+		private static String TAG_ATTRIBUTE_VALUE = "[a-z-]*\\=(\"[^\"]*\")";
+		private static String TAG_COMMENT = "(<!--.*-->)";
+		private static String TAG_CDATA_START = "(\\<!\\[CDATA\\[).*";
+		private static String TAG_CDATA_END = ".*(]]>)";
 
 		static {
 			// NOTE: the order is important!
@@ -314,7 +314,7 @@ public class ConfigEditor extends JFrame {
 
 		@Override
 		protected int drawUnselectedText(Graphics graphics, int x, int y, int p0,
-																		 int p1) throws BadLocationException {
+				int p1) throws BadLocationException {
 
 			Document doc = getDocument();
 			String text = doc.getText(p0, p1 - p0);
