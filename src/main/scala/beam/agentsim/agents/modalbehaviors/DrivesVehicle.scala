@@ -127,6 +127,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
       val fuelConsumed = currentBeamVehicle.useFuel(currentLeg, beamServices)
 
+      if(id.toString.equals("cavDriver-1")){
+        val i = 0
+      }
       if (isLastLeg) {
         nextNotifyVehicleResourceIdle = Some(
           NotifyVehicleIdle(
@@ -216,6 +219,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               .processEvent(new ParkEvent(tick, stall, distance, currentBeamVehicle.id)) // nextLeg.endTime -> to fix repeated path traversal
           }
           currentBeamVehicle.setReservedParkingStall(None)
+        }
+        if(id.toString.equals("cavDriver-1")){
+          val i = 0
         }
         holdTickAndTriggerId(tick, triggerId)
         self ! PassengerScheduleEmptyMessage(

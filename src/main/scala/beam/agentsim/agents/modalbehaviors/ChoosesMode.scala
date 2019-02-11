@@ -912,6 +912,9 @@ trait ChoosesMode {
 
       vehiclesNotUsed.collect {
         case ActualVehicle(vehicle) =>
+          if(vehicle.id.toString.equals("1")){
+            val i = 0
+          }
           vehicle.manager.get ! ReleaseVehicle(vehicle)
       }
       scheduler ! CompletionNotice(

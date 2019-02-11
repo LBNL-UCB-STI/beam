@@ -5,7 +5,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.CAV
+import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
@@ -177,8 +177,7 @@ class HouseholdCAVScheduling(
 
   // ***
   def getBestScheduleWithTheLongestCAVChain: CAVFleetSchedule = {
-    val maprank =
-      getAllFeasibleSchedules.map(x => x -> x.cavFleetSchedule.foldLeft(0)((a, b) => a + b.schedule.size)).toMap
+    val maprank = getAllFeasibleSchedules.map(x => x -> x.cavFleetSchedule.foldLeft(0)((a, b) => a + b.schedule.size)).toMap
     val maxrank = maprank.maxBy(_._2)._2
     maprank.filter(_._2 == maxrank).keys.toList.sortBy(_.householdTrips.totalTravelTime).take(1).head
   }
@@ -377,27 +376,26 @@ object HouseholdCAVScheduling {
       act  <- plan.activities
     } yield act.getCoord).toSet
 
-    var skim: Map[BeamMode, Map[Coord, Map[Coord, Double]]] = Map(
-      BeamMode.CAR     -> Map[Coord, Map[Coord, Double]](),
-      BeamMode.TRANSIT -> Map[Coord, Map[Coord, Double]]()
-    )
+    val theModes = List(CAR, CAV, WALK, BIKE, WALK_TRANSIT, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT)
+    var skim: Map[BeamMode, Map[Coord, Map[Coord, Double]]] = Map()
+
+    theModes.foreach{ mode =>
+      skim = skim + (mode -> Map())
+    }
     for (src <- activitySet;
          dst <- activitySet) {
       val dist = beam.sim.common.GeoUtils.distFormula(src, dst)
       if (!skim(BeamMode.CAR).contains(src)) {
-        skim = Map(
-          BeamMode.CAR     -> (skim(BeamMode.CAR) ++ Map(src     -> Map[Coord, Double]())),
-          BeamMode.TRANSIT -> (skim(BeamMode.TRANSIT) ++ Map(src -> Map[Coord, Double]()))
-        )
+        theModes.foreach{ mode =>
+          val sourceToDestToDist = (src -> Map[Coord,Double]())
+          skim = skim + (mode -> (skim(mode) + sourceToDestToDist))
+        }
       }
-      skim = Map(
-        BeamMode.CAR -> (skim(BeamMode.CAR) ++ Map(
-          src -> (skim(BeamMode.CAR)(src) ++ Map(dst -> dist / avgSpeed(BeamMode.CAR)))
-        )),
-        BeamMode.TRANSIT -> (skim(BeamMode.TRANSIT) ++ Map(
-          src -> (skim(BeamMode.TRANSIT)(src) ++ Map(dst -> dist / avgSpeed(BeamMode.TRANSIT)))
-        ))
-      )
+      theModes.foreach { mode =>
+        val destToDist = skim(mode)(src) + (dst -> dist / avgSpeed(mode))
+        val sourceToDestToDist = (src -> destToDist)
+        skim = skim + (mode -> (skim(mode) + sourceToDestToDist))
+      }
     }
     skim
   }

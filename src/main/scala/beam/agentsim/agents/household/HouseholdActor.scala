@@ -24,7 +24,8 @@ import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.RoutingResponse
-import beam.router.Modes.BeamMode.{CAR, TRANSIT}
+import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
@@ -86,7 +87,7 @@ object HouseholdActor {
 
   case class MobilityStatusInquiry(personId: Id[Person], whereWhen: SpaceTime, originActivity: Activity)
   case class ReleaseVehicle(vehicle: BeamVehicle)
-  case class ReleaseVehicleAndReply(vehicle: BeamVehicle)
+  case class ReleaseVehicleAndReply(vehicle: BeamVehicle, tick: Option[Int] = None)
   case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken])
   case class ReadyForCAVPickup(personId: Id[Person], tick: Int)
   case class CAVPickupConfirmed(triggersToSchedule: Vector[ScheduleTrigger])
@@ -181,7 +182,23 @@ object HouseholdActor {
           }
           val householdBeamPlans = household.members.map(person => BeamPlan(person.getSelectedPlan)).toList
           val householdMatsimPlans = household.members.map(person => (person.getId -> person.getSelectedPlan)).toMap
-          val cavScheduler = new HouseholdCAVScheduling(beamServices.matsimServices.getScenario.getPopulation, household, vehicles.values.toList, 5*60, 10*60, HouseholdCAVScheduling.computeSkim(householdBeamPlans,  Map(CAR -> 50 * 1000 / 3600, TRANSIT -> 40 * 1000 / 3600)))
+          val fastSpeed = 50.0 * 1000.0 / 3600.0
+          val medSpeed = 50.0 * 1000.0 / 3600.0
+          val slowSpeed = 50.0 * 1000.0 / 3600.0
+          val walkSpeed = 50.0 * 1000.0 / 3600.0
+          val skim: Map[BeamMode,Double] = Map(CAV -> fastSpeed,
+            CAR -> fastSpeed,
+            WALK -> walkSpeed,
+            BIKE -> slowSpeed,
+            WALK_TRANSIT -> medSpeed,
+            DRIVE_TRANSIT -> medSpeed,
+            RIDE_HAIL-> fastSpeed,
+            RIDE_HAIL_POOLED-> fastSpeed,
+            RIDE_HAIL_TRANSIT-> medSpeed,
+            TRANSIT -> medSpeed
+          )
+
+          val cavScheduler = new HouseholdCAVScheduling(beamServices.matsimServices.getScenario.getPopulation, household, vehicles.values.toList, 5*60, 10*60, HouseholdCAVScheduling.computeSkim(householdBeamPlans, skim))
           //          val optimalPlan = cavScheduler().sortWith(_.cost < _.cost).head.cavFleetSchedule
           val optimalPlan = cavScheduler.getBestScheduleWithTheLongestCAVChain.cavFleetSchedule
           val requestsAndUpdatedPlans = optimalPlan.map {
@@ -278,10 +295,10 @@ object HouseholdActor {
         log.debug("updated vehicle {} with location {}", vehId, whenWhere)
 
       case ReleaseVehicle(vehicle) =>
-        handleReleaseVehicle(vehicle)
+        if(!vehicle.isCAV)handleReleaseVehicle(vehicle,None)
 
-      case ReleaseVehicleAndReply(vehicle) =>
-        handleReleaseVehicle(vehicle)
+      case ReleaseVehicleAndReply(vehicle,tickOpt) =>
+        handleReleaseVehicle(vehicle,tickOpt)
         sender() ! Success
 
       case MobilityStatusInquiry(personId,_,originActivity) =>
@@ -337,14 +354,15 @@ object HouseholdActor {
       // Do nothing
     }
 
-    def handleReleaseVehicle(vehicle: BeamVehicle) = {
+    def handleReleaseVehicle(vehicle: BeamVehicle, tickOpt: Option[Int]) = {
       if(vehicle.beamVehicleType.automationLevel > 3) {
-        if(cavPassengerSchedules(vehicle).head.schedule.size>0)log.debug("Before updating CAV schedule, first trip at {}", cavPassengerSchedules(vehicle).head.schedule.head._1.startTime)
+        log.debug(s"Handle Release at ${tickOpt.getOrElse(-1)}")
         cavPassengerSchedules = cavPassengerSchedules + (vehicle -> cavPassengerSchedules(vehicle).tail)
-        log.debug("After updating CAV schedule, first trip at {}", cavPassengerSchedules(vehicle).head.schedule.head._1.startTime)
-        val nextSchedule = cavPassengerSchedules(vehicle).head
-        if (nextSchedule.schedule.map(_._2.riders.size).sum == 0) {
-          vehicle.driver.get ! ModifyPassengerSchedule(nextSchedule, nextSchedule.schedule.firstKey.startTime)
+        if(cavPassengerSchedules(vehicle).size>0){
+          val nextSchedule = cavPassengerSchedules(vehicle).head
+          if (nextSchedule.schedule.map(_._2.riders.size).sum == 0) {
+            vehicle.driver.get ! ModifyPassengerSchedule(nextSchedule, nextSchedule.schedule.firstKey.startTime)
+          }
         }
       }else{
         vehicle.unsetDriver()
