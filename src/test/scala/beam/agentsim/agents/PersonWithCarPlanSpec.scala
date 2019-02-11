@@ -28,10 +28,9 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
-import com.sun.tools.javac.util.ListBuffer
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
-import org.matsim.api.core.v01.population.{Leg, Person}
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.TeleportationArrivalEvent
 import org.matsim.core.config.ConfigUtils
@@ -42,14 +41,15 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.core.scoring.{EventsToLegs, PersonExperiencedLeg}
-import org.matsim.core.scoring.EventsToLegs.LegHandler
+import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
 import org.mockito.Mockito._
+import org.scalatest.Matchers._
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
+import org.scalatest.{BeforeAndAfterAll, FunSpecLike, _}
 
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.collection.mutable.ArrayBuffer
 import scala.collection.{JavaConverters, mutable}
 
 class PersonWithCarPlanSpec
@@ -184,6 +184,8 @@ class PersonWithCarPlanSpec
 
       // The agent will ask for current travel times for a route it already knows.
       val embodyRequest = expectMsgType[EmbodyWithCurrentTravelTime]
+      assert(beamSvc.geo.wgs2Utm(embodyRequest.leg.travelPath.startPoint.loc).getX === homeLocation.getX +- 1)
+      assert(beamSvc.geo.wgs2Utm(embodyRequest.leg.travelPath.endPoint.loc).getY === workLocation.getY +- 1)
       lastSender ! RoutingResponse(
         Vector(
           EmbodiedBeamTrip(
@@ -191,7 +193,7 @@ class PersonWithCarPlanSpec
               EmbodiedBeamLeg(
                 beamLeg = embodyRequest.leg.copy(
                   duration = 500,
-                  travelPath = embodyRequest.leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
+                  travelPath = embodyRequest.leg.travelPath.copy(linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50))
                 ),
                 beamVehicleId = vehicleId,
                 BeamVehicleType.defaultTransitBeamVehicleType.id,
@@ -219,10 +221,19 @@ class PersonWithCarPlanSpec
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[LinkLeaveEvent]
       expectMsgType[LinkEnterEvent]
+      expectMsgType[LinkLeaveEvent]
+      expectMsgType[LinkEnterEvent]
+      expectMsgType[LinkLeaveEvent]
+      expectMsgType[LinkEnterEvent]
+      expectMsgType[LinkLeaveEvent]
+      expectMsgType[LinkEnterEvent]
+      expectMsgType[LinkLeaveEvent]
+      expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
 
       val parkingRoutingRequest = expectMsgType[RoutingRequest]
+      assert(parkingRoutingRequest.destinationUTM == parkingLocation)
       println(parkingRoutingRequest)
       lastSender ! RoutingResponse(
         Vector(
@@ -237,8 +248,8 @@ class PersonWithCarPlanSpec
                     linkIds = Vector(142, 60, 58, 62, 80),
                     linkTravelTime = Vector(50, 50, 50, 50, 50),
                     transitStops = None,
-                    startPoint = SpaceTime(parkingRoutingRequest.originUTM, parkingRoutingRequest.departureTime),
-                    endPoint = SpaceTime(parkingLocation, parkingRoutingRequest.departureTime + 50),
+                    startPoint = SpaceTime(beamSvc.geo.utm2Wgs(parkingRoutingRequest.originUTM), parkingRoutingRequest.departureTime),
+                    endPoint = SpaceTime(beamSvc.geo.utm2Wgs(parkingLocation), parkingRoutingRequest.departureTime + 50),
                     distanceInM = 1000D
                   )
                 ),
@@ -255,6 +266,10 @@ class PersonWithCarPlanSpec
       )
 
       val walkFromParkingRoutingRequest = expectMsgType[RoutingRequest]
+      assert(walkFromParkingRoutingRequest.originUTM.getX === parkingLocation.getX +- 1)
+      assert(walkFromParkingRoutingRequest.originUTM.getY === parkingLocation.getY +- 1)
+      assert(walkFromParkingRoutingRequest.destinationUTM.getX === workLocation.getX +- 1)
+      assert(walkFromParkingRoutingRequest.destinationUTM.getY === workLocation.getY +- 1)
       println(walkFromParkingRoutingRequest)
       lastSender ! RoutingResponse(
         Vector(
@@ -269,8 +284,8 @@ class PersonWithCarPlanSpec
                     linkIds = Vector(80, 62, 58, 60, 142),
                     linkTravelTime = Vector(50, 50, 50, 50, 50),
                     transitStops = None,
-                    startPoint = SpaceTime(parkingLocation, walkFromParkingRoutingRequest.departureTime),
-                    endPoint = SpaceTime(walkFromParkingRoutingRequest.originUTM, walkFromParkingRoutingRequest.departureTime+50),
+                    startPoint = SpaceTime(beamSvc.geo.utm2Wgs(parkingLocation), walkFromParkingRoutingRequest.departureTime),
+                    endPoint = SpaceTime(beamSvc.geo.utm2Wgs(walkFromParkingRoutingRequest.destinationUTM), walkFromParkingRoutingRequest.departureTime+50),
                     distanceInM = 1000D
                   )
                 ),
@@ -297,7 +312,8 @@ class PersonWithCarPlanSpec
       expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
-      expectMsgType[ParkEvent]
+      val parkEvent = expectMsgType[ParkEvent]
+      assert(parkEvent.distance === CoordUtils.calcEuclideanDistance(parkingLocation, workLocation) +- 1)
       expectMsgType[PersonCostEvent]
       expectMsgType[PersonLeavesVehicleEvent]
 
@@ -569,20 +585,23 @@ class PersonWithCarPlanSpec
 
   }
 
+  val homeLocation = new Coord(170308.4, 2964.6474)
+  val workLocation = new Coord(169346.4, 876.7536)
+
   private def createTestPerson(personId: Id[Person], vehicleId: Id[Vehicle], withRoute: Boolean = true) = {
     val person = PopulationUtils.getFactory.createPerson(personId)
     putDefaultBeamAttributes(person, Vector(CAR))
     val plan = PopulationUtils.getFactory.createPlan()
     val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
     homeActivity.setEndTime(28800) // 8:00:00 AM
-    homeActivity.setCoord(new Coord(166321.9, 1568.87))
+    homeActivity.setCoord(homeLocation)
     plan.addActivity(homeActivity)
     val leg = PopulationUtils.createLeg("car")
     if (withRoute) {
       val route = RouteUtils.createLinkNetworkRouteImpl(
-        Id.createLinkId(0),
-        Array(Id.createLinkId(1)),
-        Id.createLinkId(2)
+        Id.createLinkId(228),
+        Array(206, 180, 178, 184, 102).map(Id.createLinkId(_)),
+        Id.createLinkId(108)
       )
       route.setVehicleId(vehicleId)
       leg.setRoute(route)
@@ -590,7 +609,7 @@ class PersonWithCarPlanSpec
     plan.addLeg(leg)
     val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
     workActivity.setEndTime(61200) //5:00:00 PM
-    workActivity.setCoord(new Coord(166045.2, 2705.4))
+    workActivity.setCoord(workLocation)
     plan.addActivity(workActivity)
     person.addPlan(plan)
     person

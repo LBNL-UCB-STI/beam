@@ -287,9 +287,6 @@ trait ChoosesMode {
                     linkIds += id.toString.toInt
                   }
                   linkIds += r.getEndLinkId.toString.toInt
-
-                  val startLoc = R5RoutingWorker.linkIdToCoord(linkIds.head, transportNetwork)
-                  val endLoc = R5RoutingWorker.linkIdToCoord(linkIds.last, transportNetwork)
                   val leg = BeamLeg(
                     departTime,
                     mode,
@@ -298,8 +295,8 @@ trait ChoosesMode {
                       linkIds,
                       Vector.empty,
                       None,
-                      SpaceTime(startLoc, departTime),
-                      SpaceTime(endLoc, departTime + l.getTravelTime.toInt),
+                      beamServices.geo.utm2Wgs(choosesModeData.currentLocation.copy(time = departTime)),
+                      beamServices.geo.utm2Wgs(SpaceTime(nextAct.getCoord, departTime + l.getTravelTime.toInt)),
                       r.getDistance
                     )
                   )
