@@ -18,6 +18,7 @@ public class LogAggregatorAppender extends ConsoleAppender<ILoggingEvent> {
     private DBSCANClusterer<TextClusterable> scan;
     private int eps = 3;
     private int minPoints = 0;
+    private String stopMessage;
 
     @Override
     public void start() {
@@ -40,7 +41,7 @@ public class LogAggregatorAppender extends ConsoleAppender<ILoggingEvent> {
         for (Cluster<TextClusterable> cluster : clusters) {
             printCluster(cluster);
         }
-
+        allMessages.clear();
         super.stop();
     }
 
@@ -71,7 +72,7 @@ public class LogAggregatorAppender extends ConsoleAppender<ILoggingEvent> {
     @Override
     protected void append(final ILoggingEvent event) {
         // TODO: workaround while stop method is not called
-        if (event.getMessage().equals("STOP")) {
+        if (event.getMessage().contains(stopMessage)) {
             stop();
         } else {
             allMessages.add(event.getMessage());
@@ -95,5 +96,13 @@ public class LogAggregatorAppender extends ConsoleAppender<ILoggingEvent> {
     public void setMinPoints(int minPoints) {
         System.out.println("Setting minPoints:" + minPoints);
         this.minPoints = minPoints;
+    }
+
+    public String getStopMessage() {
+        return stopMessage;
+    }
+
+    public void setStopMessage(final String stopMessage) {
+        this.stopMessage = stopMessage;
     }
 }

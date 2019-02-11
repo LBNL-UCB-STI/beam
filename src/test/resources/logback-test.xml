@@ -23,7 +23,9 @@
 
         <eps>3</eps>
         <minPoints>0</minPoints>
+        <stopMessage>Ending Iteration</stopMessage>
     </appender>
+
     <root level="debug">
         <appender-ref ref="map"/>
     </root>
