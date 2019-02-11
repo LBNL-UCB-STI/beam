@@ -41,7 +41,7 @@ public class LogAggregatorAppender extends ConsoleAppender<ILoggingEvent> {
         for (Cluster<TextClusterable> cluster : clusters) {
             printCluster(cluster);
         }
-
+        allMessages.clear();
         super.stop();
     }
 
