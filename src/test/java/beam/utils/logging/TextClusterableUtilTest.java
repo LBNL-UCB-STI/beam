@@ -30,7 +30,7 @@ public class TextClusterableUtilTest {
         double double2 = TextClusterableUtil.toDouble(bytes);
 
         // Assert
-        assertEquals(double1, double2, 0D);
+        assertEquals(double1, double2, DELTA);
     }
 
     @Test
