@@ -568,34 +568,42 @@ trait ChoosesMode {
     )
     val indexFromBeg = theLinkIds.length - indexFromEnd
     val firstTravelTimes = leg.beamLeg.travelPath.linkTravelTime.take(indexFromBeg)
-    val firstDuration = firstTravelTimes.drop(1).sum
+    val firstDuration = firstTravelTimes.tail.sum
+    val firstPathEndpoint = SpaceTime(
+      beamServices.geo.coordOfR5Edge(transportNetwork.streetLayer, theLinkIds(indexFromBeg)),
+      leg.beamLeg.startTime + firstDuration
+    )
+    val secondPathLinkIds = theLinkIds.takeRight(indexFromEnd + 1)
+    val secondPath = leg.beamLeg.travelPath.copy(
+      linkIds = secondPathLinkIds,
+      linkTravelTime = leg.beamLeg.travelPath.linkTravelTime.takeRight(indexFromEnd + 1),
+      startPoint = firstPathEndpoint,
+      distanceInM = Math.min(secondPathLinkIds.tail.map(lengthOfLink).sum, leg.beamLeg.travelPath.distanceInM)
+    )
     val firstPath = leg.beamLeg.travelPath.copy(
       linkIds = theLinkIds.take(indexFromBeg),
       linkTravelTime = firstTravelTimes,
-      endPoint = SpaceTime(
-        beamServices.geo.coordOfR5Edge(transportNetwork.streetLayer, theLinkIds(indexFromBeg)),
-        leg.beamLeg.startTime + firstDuration
-      )
+      endPoint = firstPathEndpoint,
+      distanceInM = leg.beamLeg.travelPath.distanceInM - secondPath.distanceInM
     )
     val firstLeg = leg.copy(
       beamLeg = leg.beamLeg.copy(
         travelPath = firstPath,
-        duration = firstPath.linkTravelTime.drop(1).sum
+        duration = firstPath.linkTravelTime.tail.sum
       ),
       unbecomeDriverOnCompletion = false
-    )
-    val secondPath = leg.beamLeg.travelPath.copy(
-      linkIds = theLinkIds.takeRight(indexFromEnd + 1),
-      linkTravelTime = leg.beamLeg.travelPath.linkTravelTime.takeRight(indexFromEnd + 1),
-      startPoint = firstPath.endPoint
     )
     val secondLeg = leg.copy(
       beamLeg = leg.beamLeg.copy(
         travelPath = secondPath,
         startTime = firstLeg.beamLeg.startTime + firstLeg.beamLeg.duration,
-        duration = secondPath.linkTravelTime.drop(1).sum
-      )
+        duration = leg.beamLeg.duration - firstLeg.beamLeg.duration
+      ),
+      cost = 0
     )
+    assert(firstLeg.cost + secondLeg.cost == leg.cost)
+    assert(firstLeg.beamLeg.duration + secondLeg.beamLeg.duration == leg.beamLeg.duration)
+    assert(firstLeg.beamLeg.travelPath.distanceInM + secondLeg.beamLeg.travelPath.distanceInM == leg.beamLeg.travelPath.distanceInM)
     Vector(firstLeg, secondLeg)
   }
 
