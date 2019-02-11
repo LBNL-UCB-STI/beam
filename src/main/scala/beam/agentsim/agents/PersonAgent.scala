@@ -577,8 +577,8 @@ class PersonAgent(
         val currentVehicleForNextState =
           if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
             beamVehicles(nextLeg.beamVehicleId) match {
-              case Token(_, manager, _) =>
-                manager ! TryToBoardVehicle(nextLeg.beamVehicleId, self)
+              case t @ Token(_, manager, _) =>
+                manager ! TryToBoardVehicle(t, self)
                 return goto(TryingToBoardVehicle)
               case _: ActualVehicle =>
               // That's fine, continue
