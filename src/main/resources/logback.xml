@@ -11,7 +11,7 @@
         <!--</layout>-->
     <!--</appender>-->
 
-    <appender name="map" class="beam.utils.logging.LogAggregatorAppender">
+    <appender name="STDOUT" class="beam.utils.logging.LogAggregatorAppender">
         <layout class="ch.qos.logback.classic.PatternLayout">
             <Pattern>
                 %d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n
