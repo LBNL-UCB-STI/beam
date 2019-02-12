@@ -27,7 +27,7 @@ import beam.sim.population.AttributesOfIndividual
 import beam.utils.plan.sampling.AvailableModeUtils._
 import org.matsim.api.core.v01.population.Leg
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.population.routes.NetworkRoute
+import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
@@ -297,7 +297,7 @@ trait ChoosesMode {
                       None,
                       beamServices.geo.utm2Wgs(choosesModeData.currentLocation.copy(time = departTime)),
                       beamServices.geo.utm2Wgs(SpaceTime(nextAct.getCoord, departTime + l.getTravelTime.toInt)),
-                      r.getDistance
+                      RouteUtils.calcDistance(r, 1.0, 1.0, beamServices.matsimServices.getScenario.getNetwork)
                     )
                   )
                   router ! EmbodyWithCurrentTravelTime(
