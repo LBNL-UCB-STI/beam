@@ -574,11 +574,14 @@ trait ChoosesMode {
       leg.beamLeg.startTime + firstDuration
     )
     val secondPathLinkIds = theLinkIds.takeRight(indexFromEnd + 1)
+    val secondTravelTimes = leg.beamLeg.travelPath.linkTravelTime.takeRight(indexFromEnd + 1)
+    val secondDuration = Math.min(secondTravelTimes.tail.sum, leg.beamLeg.duration)
+    val secondDistance = Math.min(secondPathLinkIds.tail.map(lengthOfLink).sum, leg.beamLeg.travelPath.distanceInM)
     val secondPath = leg.beamLeg.travelPath.copy(
       linkIds = secondPathLinkIds,
-      linkTravelTime = leg.beamLeg.travelPath.linkTravelTime.takeRight(indexFromEnd + 1),
+      linkTravelTime = secondTravelTimes,
       startPoint = firstPathEndpoint,
-      distanceInM = Math.min(secondPathLinkIds.tail.map(lengthOfLink).sum, leg.beamLeg.travelPath.distanceInM)
+      distanceInM = secondDistance
     )
     val firstPath = leg.beamLeg.travelPath.copy(
       linkIds = theLinkIds.take(indexFromBeg),
@@ -589,7 +592,7 @@ trait ChoosesMode {
     val firstLeg = leg.copy(
       beamLeg = leg.beamLeg.copy(
         travelPath = firstPath,
-        duration = firstPath.linkTravelTime.tail.sum
+        duration = leg.beamLeg.duration - secondDuration
       ),
       unbecomeDriverOnCompletion = false
     )
@@ -597,7 +600,7 @@ trait ChoosesMode {
       beamLeg = leg.beamLeg.copy(
         travelPath = secondPath,
         startTime = firstLeg.beamLeg.startTime + firstLeg.beamLeg.duration,
-        duration = leg.beamLeg.duration - firstLeg.beamLeg.duration
+        duration = secondDuration
       ),
       cost = 0
     )
