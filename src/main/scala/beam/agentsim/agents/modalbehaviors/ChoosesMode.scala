@@ -568,15 +568,15 @@ trait ChoosesMode {
     )
     val indexFromBeg = theLinkIds.length - indexFromEnd
     val firstTravelTimes = leg.beamLeg.travelPath.linkTravelTime.take(indexFromBeg)
-    val firstDuration = firstTravelTimes.tail.sum
+    val secondPathLinkIds = theLinkIds.takeRight(indexFromEnd + 1)
+    val secondTravelTimes = leg.beamLeg.travelPath.linkTravelTime.takeRight(indexFromEnd + 1)
+    val secondDuration = Math.min(secondTravelTimes.tail.sum, leg.beamLeg.duration)
+    val firstDuration = leg.beamLeg.duration - secondDuration
+    val secondDistance = Math.min(secondPathLinkIds.tail.map(lengthOfLink).sum, leg.beamLeg.travelPath.distanceInM)
     val firstPathEndpoint = SpaceTime(
       beamServices.geo.coordOfR5Edge(transportNetwork.streetLayer, theLinkIds(indexFromBeg)),
       leg.beamLeg.startTime + firstDuration
     )
-    val secondPathLinkIds = theLinkIds.takeRight(indexFromEnd + 1)
-    val secondTravelTimes = leg.beamLeg.travelPath.linkTravelTime.takeRight(indexFromEnd + 1)
-    val secondDuration = Math.min(secondTravelTimes.tail.sum, leg.beamLeg.duration)
-    val secondDistance = Math.min(secondPathLinkIds.tail.map(lengthOfLink).sum, leg.beamLeg.travelPath.distanceInM)
     val secondPath = leg.beamLeg.travelPath.copy(
       linkIds = secondPathLinkIds,
       linkTravelTime = secondTravelTimes,
@@ -592,7 +592,7 @@ trait ChoosesMode {
     val firstLeg = leg.copy(
       beamLeg = leg.beamLeg.copy(
         travelPath = firstPath,
-        duration = leg.beamLeg.duration - secondDuration
+        duration = firstDuration
       ),
       unbecomeDriverOnCompletion = false
     )
