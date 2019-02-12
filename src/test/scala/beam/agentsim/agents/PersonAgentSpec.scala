@@ -16,8 +16,7 @@ import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
-import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
+import beam.agentsim.infrastructure.{TAZTreeMap, TrivialParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
@@ -137,12 +136,6 @@ class PersonAgentSpec
     "router"
   )
 
-  private lazy val parkingManager = system.actorOf(
-    ZonalParkingManager
-      .props(beamSvc, beamSvc.beamRouter, ParkingStockAttributes(100)),
-    "ParkingManager"
-  )
-
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
   private val matsimConfig = configBuilder.buildMatSamConf()
 
@@ -168,6 +161,7 @@ class PersonAgentSpec
             new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
           )
         )
+      val parkingManager = system.actorOf(Props(new TrivialParkingManager))
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       putDefaultBeamAttributes(person, Vector(WALK))
@@ -232,6 +226,7 @@ class PersonAgentSpec
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
+      val parkingManager = system.actorOf(Props(new TrivialParkingManager))
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
@@ -306,8 +301,6 @@ class PersonAgentSpec
 
       expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
 
       expectMsgType[PathTraversalEvent]
@@ -442,6 +435,7 @@ class PersonAgentSpec
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
+      val parkingManager = system.actorOf(Props(new TrivialParkingManager))
 
       bus.becomeDriver(
         Await.result(
@@ -576,19 +570,21 @@ class PersonAgentSpec
           ReserveConfirmInfo(
             tramLeg.beamLeg,
             tramLeg.beamLeg,
-            reservationRequestTram.passengerVehiclePersonId
+            reservationRequestTram.passengerVehiclePersonId,
+            Vector(
+              ScheduleTrigger(
+                BoardVehicleTrigger(30000, tramLeg.beamVehicleId),
+                personActor
+              ),
+              ScheduleTrigger(
+                AlightVehicleTrigger(32000, tramLeg.beamVehicleId),
+                personActor
+              ) // My tram is late!
+            )
           )
         ),
         TRANSIT
       )
-      scheduler ! ScheduleTrigger(
-        BoardVehicleTrigger(30000, tramLeg.beamVehicleId),
-        personActor
-      )
-      scheduler ! ScheduleTrigger(
-        AlightVehicleTrigger(32000, tramLeg.beamVehicleId),
-        personActor
-      ) // My tram is late!
 
       //expects a message of type PersonEntersVehicleEvent
       events.expectMsgType[PersonEntersVehicleEvent]
