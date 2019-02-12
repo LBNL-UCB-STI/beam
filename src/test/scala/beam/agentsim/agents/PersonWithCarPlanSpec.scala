@@ -50,7 +50,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, _}
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 
 class PersonWithCarPlanSpec
     extends TestKit(
@@ -193,7 +193,8 @@ class PersonWithCarPlanSpec
               EmbodiedBeamLeg(
                 beamLeg = embodyRequest.leg.copy(
                   duration = 500,
-                  travelPath = embodyRequest.leg.travelPath.copy(linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50))
+                  travelPath = embodyRequest.leg.travelPath
+                    .copy(linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50))
                 ),
                 beamVehicleId = vehicleId,
                 BeamVehicleType.defaultTransitBeamVehicleType.id,
@@ -248,7 +249,10 @@ class PersonWithCarPlanSpec
                     linkIds = Vector(142, 60, 58, 62, 80),
                     linkTravelTime = Vector(50, 50, 50, 50, 50),
                     transitStops = None,
-                    startPoint = SpaceTime(beamSvc.geo.utm2Wgs(parkingRoutingRequest.originUTM), parkingRoutingRequest.departureTime),
+                    startPoint = SpaceTime(
+                      beamSvc.geo.utm2Wgs(parkingRoutingRequest.originUTM),
+                      parkingRoutingRequest.departureTime
+                    ),
                     endPoint = SpaceTime(beamSvc.geo.utm2Wgs(parkingLocation), parkingRoutingRequest.departureTime + 50),
                     distanceInM = 1000D
                   )
@@ -284,8 +288,12 @@ class PersonWithCarPlanSpec
                     linkIds = Vector(80, 62, 58, 60, 142),
                     linkTravelTime = Vector(50, 50, 50, 50, 50),
                     transitStops = None,
-                    startPoint = SpaceTime(beamSvc.geo.utm2Wgs(parkingLocation), walkFromParkingRoutingRequest.departureTime),
-                    endPoint = SpaceTime(beamSvc.geo.utm2Wgs(walkFromParkingRoutingRequest.destinationUTM), walkFromParkingRoutingRequest.departureTime+50),
+                    startPoint =
+                      SpaceTime(beamSvc.geo.utm2Wgs(parkingLocation), walkFromParkingRoutingRequest.departureTime),
+                    endPoint = SpaceTime(
+                      beamSvc.geo.utm2Wgs(walkFromParkingRoutingRequest.destinationUTM),
+                      walkFromParkingRoutingRequest.departureTime + 50
+                    ),
                     distanceInM = 1000D
                   )
                 ),

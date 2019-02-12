@@ -603,7 +603,11 @@ trait ChoosesMode {
     )
     assert(firstLeg.cost + secondLeg.cost == leg.cost)
     assert(firstLeg.beamLeg.duration + secondLeg.beamLeg.duration == leg.beamLeg.duration)
-    assert(Math.abs(leg.beamLeg.travelPath.distanceInM - firstLeg.beamLeg.travelPath.distanceInM - secondLeg.beamLeg.travelPath.distanceInM) < 1.0)
+    assert(
+      Math.abs(
+        leg.beamLeg.travelPath.distanceInM - firstLeg.beamLeg.travelPath.distanceInM - secondLeg.beamLeg.travelPath.distanceInM
+      ) < 1.0
+    )
     Vector(firstLeg, secondLeg)
   }
 

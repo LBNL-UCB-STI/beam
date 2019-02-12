@@ -186,7 +186,13 @@ trait ChoosesParking extends {
         )
       } else {
         (
-          routingResponse1.itineraries.view.filter(_.tripClassifier == CAR).head.legs.view.filter(_.beamLeg.mode == CAR).head,
+          routingResponse1.itineraries.view
+            .filter(_.tripClassifier == CAR)
+            .head
+            .legs
+            .view
+            .filter(_.beamLeg.mode == CAR)
+            .head,
           routingResponse2.itineraries.head.legs.head
         )
       }
