@@ -26,33 +26,48 @@ class AlonsoMoraPoolingAlgForRideHailTest extends FlatSpec with Matchers {
     val skimmer: BeamSkimmer = new BeamSkimmer(scenario = scenario)
     val sc = scenario1(skimmer)
     val algo: AlonsoMoraPoolingAlgForRideHail =
-      new AlonsoMoraPoolingAlgForRideHail(sc._2, sc._1, omega = 5 * 60, delta = 10 * 5000 * 60, radius = Int.MaxValue, skimmer)
-    val g: RVGraph = algo.getPairwiseRVGraph
-    for (e <- g.edgeSet.asScala) {
-      g.getEdgeSource(e).getId match {
-        case "p1" => g.getEdgeTarget(e).getId should (equal ("p2") or equal ("p4"))
-        case "p2" => g.getEdgeTarget(e).getId should (equal ("p1") or (equal ("p3") or equal ("p4")))
-        case "p3" => g.getEdgeTarget(e).getId should equal ("p2")
-        case "p4" => g.getEdgeTarget(e).getId should (equal ("p1") or equal ("p2"))
-        case "v1" => g.getEdgeTarget(e).getId should (equal ("p1") or (equal ("p2") or equal ("p4")))
-        case "v2" => g.getEdgeTarget(e).getId should (equal ("p2") or equal ("p3"))
+      new AlonsoMoraPoolingAlgForRideHail(
+        sc._2,
+        sc._1,
+        omega = 6 * 60,
+        delta = 10 * 5000 * 60,
+        radius = Int.MaxValue,
+        skimmer
+      )
+    val rvGraph: RVGraph = algo.getPairwiseRVGraph
+    for (e <- rvGraph.edgeSet.asScala) {
+      rvGraph.getEdgeSource(e).getId match {
+        case "p1" => rvGraph.getEdgeTarget(e).getId should (equal("p2") or equal("p4"))
+        case "p2" => rvGraph.getEdgeTarget(e).getId should (equal("p1") or (equal("p3") or equal("p4")))
+        case "p3" => rvGraph.getEdgeTarget(e).getId should equal("p2")
+        case "p4" => rvGraph.getEdgeTarget(e).getId should (equal("p1") or equal("p2"))
+        case "v1" => rvGraph.getEdgeTarget(e).getId should (equal("p2") or equal("p3"))
+        case "v2" =>
+          rvGraph.getEdgeTarget(e).getId should (equal("p1") or (equal("p2") or (equal("p3") or equal("p4"))))
       }
+    }
+    for (e <- rvGraph.edgeSet.asScala) {
+      println(rvGraph.getEdgeSource(e) + " <-> " + rvGraph.getEdgeTarget(e))
+    }
+    println("------")
+    val rtvGraph = algo.getRTVGraph(rvGraph)
+    for (e <- rtvGraph.edgeSet.asScala) {
+      println(rtvGraph.getEdgeSource(e) + " <-> " + rtvGraph.getEdgeTarget(e))
     }
   }
 
-  def scenario1(implicit skimmer: BeamSkimmer): (List[MSAVehicle], List[MSAPerson]) = {
-    val v1: MSAVehicle = createVehiclePassengers("v1", new Coord(1000, 1000), seconds(8, 0))
-    val v2: MSAVehicle = createVehiclePassengers("v2", new Coord(4000, 3500), seconds(8, 0))
+  def scenario1(implicit skimmer: BeamSkimmer): (List[RideHailVehicle], List[CustomerRequest]) = {
+    val v1: RideHailVehicle = createVehiclePassengers("v1", new Coord(5000, 5000), seconds(8, 0))
+    val v2: RideHailVehicle = createVehiclePassengers("v2", new Coord(2000, 2000), seconds(8, 0))
 
-    val p1Req: MSAPerson =
+    val p1Req: CustomerRequest =
       createPersonRequest("p1", new Coord(1000, 2000), seconds(8, 0), new Coord(18000, 19000))
-    val p4Req: MSAPerson =
-      createPersonRequest("p4", new Coord(2000, 1000), seconds(8, 3), new Coord(20000, 18000))
-    val p2Req: MSAPerson =
-      createPersonRequest("p2", new Coord(3000, 2000), seconds(8, 1), new Coord(19000, 18000))
-    val p3Req: MSAPerson =
-      createPersonRequest("p3", new Coord(4000, 3000), seconds(8, 2), new Coord(21000, 20000))
-
+    val p4Req: CustomerRequest =
+      createPersonRequest("p4", new Coord(2000, 1000), seconds(8, 5), new Coord(20000, 18000))
+    val p2Req: CustomerRequest =
+      createPersonRequest("p2", new Coord(3000, 3000), seconds(8, 1), new Coord(19000, 18000))
+    val p3Req: CustomerRequest =
+      createPersonRequest("p3", new Coord(4000, 4000), seconds(8, 2), new Coord(21000, 20000))
 
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
   }
@@ -70,7 +85,7 @@ class AlonsoMoraPoolingAlgForRideHailTest extends FlatSpec with Matchers {
 
   def createPersonRequest(pid: String, src: Location, srcTime: Int, dst: Location)(
     implicit skimmer: BeamSkimmer
-  ): MSAPerson = {
+  ): CustomerRequest = {
     val p1 = newPerson(pid)
     val p1Act1: Activity = PopulationUtils.createActivityFromCoord(s"${pid}Act1", src)
     p1Act1.setEndTime(srcTime)
@@ -86,36 +101,34 @@ class AlonsoMoraPoolingAlgForRideHailTest extends FlatSpec with Matchers {
       .timeAndCost
       .time
       .get
-    MSAPerson(
+    CustomerRequest(
       p1,
-      List(
-        MobilityServiceRequest(
-          Some(p1.getId),
-          p1Act1,
-          srcTime,
-          Trip(p1Act1, None, null),
-          BeamMode.RIDE_HAIL,
-          Pickup,
-          srcTime
-        ),
-        MobilityServiceRequest(
-          Some(p1.getId),
-          p1Act2,
-          srcTime + p1_tt,
-          Trip(p1Act2, None, null),
-          BeamMode.RIDE_HAIL,
-          Dropoff,
-          srcTime + p1_tt
-        )
+      MobilityServiceRequest(
+        Some(p1.getId),
+        p1Act1,
+        srcTime,
+        Trip(p1Act1, None, null),
+        BeamMode.RIDE_HAIL,
+        Pickup,
+        srcTime
+      ),
+      MobilityServiceRequest(
+        Some(p1.getId),
+        p1Act2,
+        srcTime + p1_tt,
+        Trip(p1Act2, None, null),
+        BeamMode.RIDE_HAIL,
+        Dropoff,
+        srcTime + p1_tt
       ),
     )
   }
 
-  def createVehiclePassengers(vid: String, dst: Location, dstTime: Int): MSAVehicle = {
+  def createVehiclePassengers(vid: String, dst: Location, dstTime: Int): RideHailVehicle = {
     val v1 = newVehicle(vid)
     val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${vid}Act0", dst)
     v1Act0.setEndTime(dstTime)
-    MSAVehicle(
+    RideHailVehicle(
       v1,
       List(
         MobilityServiceRequest(
