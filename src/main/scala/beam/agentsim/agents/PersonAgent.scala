@@ -683,15 +683,16 @@ class PersonAgent(
         )
       )
       goto(WaitingForReservationConfirmation)
-    // CAV
-    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _))
-        if nextLeg.beamLeg.mode == CAV =>
-      if (id.toString.equals("2") && _currentTick.get > 36000) {
-        val i = 0
-      }
-      log.debug("Person {} ready for CAV pickup at tick {}", id, _currentTick.get)
-      householdRef ! ReadyForCAVPickup(id, _currentTick.get)
-      goto(WaitingForReservationConfirmation)
+//    // CAV
+//    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _))
+//        if nextLeg.beamLeg.mode == CAV =>
+//      if (id.toString.equals("2") && _currentTick.get > 36000) {
+//        val i = 0
+//      }
+//      log.debug("Person {} ready for CAV pickup at tick {}", id, _currentTick.get)
+////      householdRef ! ReadyForCAVPickup(id, _currentTick.get)
+////      goto(WaitingForReservationConfirmation)
+//      goto(Waiting)
 
     case Event(StateTimeout, BasePersonData(_, _, _ :: _, _, _, _, _, _, _, _)) =>
       val (_, triggerId) = releaseTickAndTriggerId()

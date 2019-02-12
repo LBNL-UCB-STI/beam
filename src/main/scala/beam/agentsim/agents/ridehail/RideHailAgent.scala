@@ -101,6 +101,7 @@ object RideHailAgent {
     vehicleId: Id[Vehicle],
     tick: Int
   )
+  case class ModifyPassengerScheduleAcks(acks: List[ModifyPassengerScheduleAck])
 
   case class Interrupt(interruptId: Id[Interrupt], tick: Int)
 
