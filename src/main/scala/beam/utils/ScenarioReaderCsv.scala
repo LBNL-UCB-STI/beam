@@ -5,9 +5,10 @@ import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.BeamVehicleUtils.readCsvFileByLine
+import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.{Person, Population}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households._
@@ -54,7 +55,7 @@ class ScenarioReaderCsv(var scenario: MutableScenario, var beamServices: BeamSer
     val householdPersons = ScenarioReaderCsv.readPersonsFile(
       personFilePath,
       scenario.getPopulation,
-      BeamMode.allBeamModes.map(_.value).mkString(",")
+      BeamMode.allTripModes.map(_.value).mkString(",")
     )
 
     logger.info("Reading plans...")
@@ -129,7 +130,7 @@ object ScenarioReaderCsv {
   def readPersonsFile(
     filePath: String,
     population: Population,
-    modes: String
+    availableModes: String
   ): Map[Id[Household], ListBuffer[Id[Person]]] = {
     val map = readCsvFileByLine(filePath, mutable.HashMap[Id[Household], ListBuffer[Id[Person]]]()) {
       case (line, acc) =>
@@ -157,8 +158,7 @@ object ScenarioReaderCsv {
         population.getPersonAttributes.putAttribute(person.getId.toString, "householdId", household_id)
         population.getPersonAttributes.putAttribute(person.getId.toString, "rank", 0)
         population.getPersonAttributes.putAttribute(person.getId.toString, "age", age.toInt)
-        population.getPersonAttributes.putAttribute(person.getId.toString, "available-modes", modes)
-        population.addPerson(person)
+        AvailableModeUtils.setAvailableModesForPerson(person, population, availableModes.split(","))
 
         val householdId: Id[Household] = Id.create(household_id, classOf[Household])
 

@@ -930,7 +930,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         segment.geometry.getEndPoint.getY,
         tripStartTime + segment.duration
       ),
-      segment.distance.toDouble / 1000
+      distance
     )
   }
 
