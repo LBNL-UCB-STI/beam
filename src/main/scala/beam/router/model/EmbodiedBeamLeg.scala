@@ -23,9 +23,16 @@ case class EmbodiedBeamLeg(
 
 object EmbodiedBeamLeg {
 
-  def dummyLegAt(start: Int, vehicleId: Id[Vehicle], isLastLeg: Boolean, mode: BeamMode = WALK, vehicleTypeId: Id[BeamVehicleType] = BeamVehicleType.defaultHumanBodyBeamVehicleType.id, asDriver: Boolean = true): EmbodiedBeamLeg = {
+  def dummyLegAt(
+    start: Int,
+    vehicleId: Id[Vehicle],
+    isLastLeg: Boolean,
+    mode: BeamMode = WALK,
+    vehicleTypeId: Id[BeamVehicleType] = BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+    asDriver: Boolean = true
+  ): EmbodiedBeamLeg = {
     EmbodiedBeamLeg(
-      BeamLeg.dummyLeg(start,mode),
+      BeamLeg.dummyLeg(start, mode),
       vehicleId,
       vehicleTypeId,
       asDriver,

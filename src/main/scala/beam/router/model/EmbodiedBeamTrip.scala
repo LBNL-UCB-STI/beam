@@ -2,7 +2,18 @@ package beam.router.model
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  CAR,
+  CAV,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
@@ -84,10 +95,16 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
 
 object EmbodiedBeamTrip {
   val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(Vector())
-  def dummyCAVAt(tick: Int, bodyId: Id[Vehicle], cavVehicleId: Id[Vehicle], cavVehicleTypeId: Id[BeamVehicleType]): EmbodiedBeamTrip = {
+
+  def dummyCAVAt(
+    tick: Int,
+    bodyId: Id[Vehicle],
+    cavVehicleId: Id[Vehicle],
+    cavVehicleTypeId: Id[BeamVehicleType]
+  ): EmbodiedBeamTrip = {
     val walk1 = EmbodiedBeamLeg.dummyLegAt(tick, bodyId, false)
     val cavLeg = EmbodiedBeamLeg.dummyLegAt(tick, cavVehicleId, false, CAV, cavVehicleTypeId, asDriver = false)
-    val walk2 = EmbodiedBeamLeg.dummyLegAt(tick+1, bodyId, true)
+    val walk2 = EmbodiedBeamLeg.dummyLegAt(tick + 1, bodyId, true)
     EmbodiedBeamTrip(Vector(walk1, cavLeg, walk2))
   }
 }

@@ -114,7 +114,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       )
       log.debug("Checked in " + vehicle.id)
 
-    case ReleaseVehicleAndReply(vehicle,_) =>
+    case ReleaseVehicleAndReply(vehicle, _) =>
       availableVehicles += vehicle.id -> vehicle
       availableVehiclesIndex.insert(
         new Envelope(new Coordinate(vehicle.spaceTime.loc.getX, vehicle.spaceTime.loc.getY)),

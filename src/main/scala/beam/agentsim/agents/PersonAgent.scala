@@ -290,7 +290,7 @@ class PersonAgent(
         case Some(nextAct) =>
           logDebug(s"wants to go to ${nextAct.getType} @ $tick")
           holdTickAndTriggerId(tick, triggerId)
-          val modeOfNextLeg =  _experiencedBeamPlan.getPlanElements
+          val modeOfNextLeg = _experiencedBeamPlan.getPlanElements
             .get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
             case leg: Leg =>
               BeamMode.fromString(leg.getMode)
@@ -521,7 +521,8 @@ class PersonAgent(
       log.debug("ReadyToChooseParking, restoftrip: {}", theRestOfCurrentTrip.toString())
       goto(ChoosingParkingSpot) using data.copy(
         restOfCurrentTrip = theRestOfCurrentTrip,
-        currentTripCosts = currentCost + completedLeg.cost)
+        currentTripCosts = currentCost + completedLeg.cost
+      )
   }
 
   onTransition {
@@ -657,7 +658,7 @@ class PersonAgent(
       goto(WaitingForReservationConfirmation)
     // RIDE_HAIL
     case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _))
-      if nextLeg.isRideHail =>
+        if nextLeg.isRideHail =>
       val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(
         leg => leg.beamVehicleId == nextLeg.beamVehicleId
       )
@@ -685,11 +686,11 @@ class PersonAgent(
     // CAV
     case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _))
         if nextLeg.beamLeg.mode == CAV =>
-      if(id.toString.equals("2") && _currentTick.get>36000){
+      if (id.toString.equals("2") && _currentTick.get > 36000) {
         val i = 0
       }
-      log.debug("Person {} ready for CAV pickup at tick {}",id,_currentTick.get)
-      householdRef ! ReadyForCAVPickup(id,_currentTick.get)
+      log.debug("Person {} ready for CAV pickup at tick {}", id, _currentTick.get)
+      householdRef ! ReadyForCAVPickup(id, _currentTick.get)
       goto(WaitingForReservationConfirmation)
 
     case Event(StateTimeout, BasePersonData(_, _, _ :: _, _, _, _, _, _, _, _)) =>
@@ -768,7 +769,7 @@ class PersonAgent(
             triggerId,
             Vector(ScheduleTrigger(ActivityEndTrigger(endTime.toInt), self))
           )
-          if(id.toString.equals("2")){
+          if (id.toString.equals("2")) {
             val i = 0
           }
           goto(PerformingActivity) using data.copy(

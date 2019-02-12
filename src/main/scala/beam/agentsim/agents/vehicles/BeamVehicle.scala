@@ -162,7 +162,7 @@ class BeamVehicle(
   def toStreetVehicle: StreetVehicle =
     StreetVehicle(id, beamVehicleType.id, spaceTime, BeamMode.CAR, true)
 
-  def isCAV: Boolean = beamVehicleType.automationLevel>3
+  def isCAV: Boolean = beamVehicleType.automationLevel > 3
 
 }
 

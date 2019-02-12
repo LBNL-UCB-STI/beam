@@ -73,9 +73,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
 
     schedule.cavFleetSchedule should have length 1
     schedule.cavFleetSchedule.head.schedule should have length 10
-    schedule
-      .cavFleetSchedule.head
-      .schedule
+    schedule.cavFleetSchedule.head.schedule
       .filter(_.person.isDefined)
       .groupBy(_.person)
       .mapValues(_.size)
@@ -105,9 +103,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val schedule = algo.getBestScheduleWithTheLongestCAVChain
     schedule.cavFleetSchedule should have length 1
     schedule.cavFleetSchedule.head.schedule should have length 10
-    schedule
-      .cavFleetSchedule.head
-      .schedule
+    schedule.cavFleetSchedule.head.schedule
       .filter(_.person.isDefined)
       .groupBy(_.person)
       .mapValues(_.size)

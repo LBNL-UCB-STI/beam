@@ -100,8 +100,16 @@ trait ChoosesMode {
           implicit val executionContext: ExecutionContext = context.system.dispatcher
           val vehicleManagers = context.parent +: sharedVehicleFleets
           Future
-            .sequence(vehicleManagers.map(_ ? MobilityStatusInquiry(id, currentLocation, _experiencedBeamPlan
-              .activities(currentActivityIndex))))
+            .sequence(
+              vehicleManagers.map(
+                _ ? MobilityStatusInquiry(
+                  id,
+                  currentLocation,
+                  _experiencedBeamPlan
+                    .activities(currentActivityIndex)
+                )
+              )
+            )
             .map(
               listOfResponses =>
                 MobilityStatusResponse(
@@ -127,7 +135,7 @@ trait ChoosesMode {
       val availableModes: Seq[BeamMode] = availableModesForPerson(
         matsimPlan.getPerson
       )
-      if(id.toString.equals("1")){
+      if (id.toString.equals("1")) {
         val i = 0
       }
       // Make sure the current mode is allowable
@@ -244,7 +252,7 @@ trait ChoosesMode {
       var parkingRequestId: Option[Int] = None
       // Form and send requests
 
-      if(id.toString.equals("3")){
+      if (id.toString.equals("3")) {
         val i = 0
       }
       correctedCurrentTourMode match {
@@ -704,7 +712,7 @@ trait ChoosesMode {
         _,
         _
         ) =>
-      if(id.toString.equals("1")){
+      if (id.toString.equals("1")) {
         val i = 0
       }
       val currentPersonLocation = choosesModeData.currentLocation
@@ -791,10 +799,15 @@ trait ChoosesMode {
             case Some(CAV) =>
               // Special case, if you are using household CAV, no choice was necessary you just use this mode
               // Create a dummy trip to allow for processing by FinishingModeChoice
-              val cavStreetVehicle = choosesModeData.availablePersonalStreetVehicles.headOption.getOrElse{
+              val cavStreetVehicle = choosesModeData.availablePersonalStreetVehicles.headOption.getOrElse {
                 throw new RuntimeException(s"No available personal street vehicles for person $id")
               }.streetVehicle
-              val cavTrip = EmbodiedBeamTrip.dummyCAVAt(_currentTick.get,body.id,cavStreetVehicle.id,cavStreetVehicle.vehicleTypeId)
+              val cavTrip = EmbodiedBeamTrip.dummyCAVAt(
+                _currentTick.get,
+                body.id,
+                cavStreetVehicle.id,
+                cavStreetVehicle.vehicleTypeId
+              )
               goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(cavTrip))
 
             case _ =>
@@ -828,7 +841,7 @@ trait ChoosesMode {
 
   when(FinishingModeChoice, stateTimeout = Duration.Zero) {
     case Event(StateTimeout, data: ChoosesModeData) =>
-      if(id.toString.equals("1")){
+      if (id.toString.equals("1")) {
         val i = 0
       }
       val chosenTrip = data.pendingChosenTrip.get
@@ -912,7 +925,7 @@ trait ChoosesMode {
 
       vehiclesNotUsed.collect {
         case ActualVehicle(vehicle) =>
-          if(vehicle.id.toString.equals("1")){
+          if (vehicle.id.toString.equals("1")) {
             val i = 0
           }
           vehicle.manager.get ! ReleaseVehicle(vehicle)

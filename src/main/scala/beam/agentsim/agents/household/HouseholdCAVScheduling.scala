@@ -5,7 +5,18 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  CAR,
+  CAV,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
@@ -159,11 +170,12 @@ class HouseholdCAVScheduling(
         req
     }
     // compute all the feasible schedules through
-    val feasibleSchedules = MListBuffer[CAVFleetSchedule](CAVFleetSchedule(emptyFleetSchedule.toList, householdRequests))
+    val feasibleSchedules =
+      MListBuffer[CAVFleetSchedule](CAVFleetSchedule(emptyFleetSchedule.toList, householdRequests))
     for (request  <- householdRequests.requests;
          schedule <- feasibleSchedules) {
       val (newSchedule, feasible) = schedule.check(request, skim)
-      feasibleSchedules.prependAll(newSchedule)
+      feasibleSchedules.prependAll(newSchedule) //.map(cavSched => cavSched.copy(cavFleetSchedule = cavSched.cavFleetSchedule.reverse)))
       if (!feasible) feasibleSchedules -= schedule
     }
     feasibleSchedules.toList
@@ -177,7 +189,8 @@ class HouseholdCAVScheduling(
 
   // ***
   def getBestScheduleWithTheLongestCAVChain: CAVFleetSchedule = {
-    val maprank = getAllFeasibleSchedules.map(x => x -> x.cavFleetSchedule.foldLeft(0)((a, b) => a + b.schedule.size)).toMap
+    val maprank =
+      getAllFeasibleSchedules.map(x => x -> x.cavFleetSchedule.foldLeft(0)((a, b) => a + b.schedule.size)).toMap
     val maxrank = maprank.maxBy(_._2)._2
     maprank.filter(_._2 == maxrank).keys.toList.sortBy(_.householdTrips.totalTravelTime).take(1).head
   }
@@ -320,36 +333,35 @@ class CAVSchedule(
   // ***
   def toRoutingRequests(beamServices: BeamServices): (List[Option[RoutingRequest]], CAVSchedule) = {
     var newMobilityRequests = List[MobilityServiceRequest]()
-    val requestList = schedule
+    val requestList = (schedule.reverse :+ schedule.head)
+      .tail
       .sliding(2)
-      .filter(req => req.size > 1)
       .map { wayPoints =>
         val orig = wayPoints(0)
-        orig.tag match {
-          case Dropoff =>
-            newMobilityRequests = orig +: newMobilityRequests
-            None
-          case _ =>
-            val dest = wayPoints(1)
-            val origin = SpaceTime(orig.activity.getCoord, math.round(orig.time).toInt)
-            val routingRequest = RoutingRequest(
-              orig.activity.getCoord,
-              dest.activity.getCoord,
-              origin.time,
-              IndexedSeq(),
-              IndexedSeq(
-                StreetVehicle(
-                  Id.create(cav.id.toString, classOf[Vehicle]),
-                  cav.beamVehicleType.id,
-                  origin,
-                  CAV,
-                  asDriver = true
-                )
+        val dest = wayPoints(1)
+        val origin = SpaceTime(orig.activity.getCoord, math.round(orig.time).toInt)
+        if (beamServices.geo.distUTMInMeters(orig.activity.getCoord, dest.activity.getCoord) < beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters) {
+          newMobilityRequests = newMobilityRequests :+ orig
+          None
+        } else {
+          val routingRequest = RoutingRequest(
+            orig.activity.getCoord,
+            dest.activity.getCoord,
+            origin.time,
+            IndexedSeq(),
+            IndexedSeq(
+              StreetVehicle(
+                Id.create(cav.id.toString, classOf[Vehicle]),
+                cav.beamVehicleType.id,
+                origin,
+                CAV,
+                asDriver = true
               )
             )
-            newMobilityRequests = orig.copy(routingRequestId = Some(routingRequest.requestId)) +: newMobilityRequests
-            Some(routingRequest)
-          }
+          )
+          newMobilityRequests = newMobilityRequests :+ orig.copy(routingRequestId = Some(routingRequest.requestId))
+          Some(routingRequest)
+        }
       }
       .toList
     (requestList, new CAVSchedule(newMobilityRequests, cav, occupancy))
@@ -376,25 +388,26 @@ object HouseholdCAVScheduling {
       act  <- plan.activities
     } yield act.getCoord).toSet
 
-    val theModes = List(CAR, CAV, WALK, BIKE, WALK_TRANSIT, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT)
+    val theModes =
+      List(CAR, CAV, WALK, BIKE, WALK_TRANSIT, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT)
     var skim: Map[BeamMode, Map[Coord, Map[Coord, Double]]] = Map()
 
-    theModes.foreach{ mode =>
+    theModes.foreach { mode =>
       skim = skim + (mode -> Map())
     }
     for (src <- activitySet;
          dst <- activitySet) {
       val dist = beam.sim.common.GeoUtils.distFormula(src, dst)
       if (!skim(BeamMode.CAR).contains(src)) {
-        theModes.foreach{ mode =>
-          val sourceToDestToDist = (src -> Map[Coord,Double]())
-          skim = skim + (mode -> (skim(mode) + sourceToDestToDist))
+        theModes.foreach { mode =>
+          val sourceToDestToDist = (src -> Map[Coord, Double]())
+          skim = skim + (mode           -> (skim(mode) + sourceToDestToDist))
         }
       }
       theModes.foreach { mode =>
         val destToDist = skim(mode)(src) + (dst -> dist / avgSpeed(mode))
-        val sourceToDestToDist = (src -> destToDist)
-        skim = skim + (mode -> (skim(mode) + sourceToDestToDist))
+        val sourceToDestToDist = (src           -> destToDist)
+        skim = skim + (mode                     -> (skim(mode) + sourceToDestToDist))
       }
     }
     skim

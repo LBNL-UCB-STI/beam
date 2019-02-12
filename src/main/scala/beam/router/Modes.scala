@@ -114,7 +114,19 @@ object Modes {
     val massTransitModes: List[BeamMode] = List(FERRY, TRANSIT, RAIL, SUBWAY, TRAM)
 
     val allModes: Seq[BeamMode] =
-      Seq(RIDE_HAIL, CAR, CAV, WALK, BIKE, TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, DRIVE_TRANSIT, WALK_TRANSIT)
+      Seq(
+        RIDE_HAIL,
+        CAR,
+        CAV,
+        WALK,
+        BIKE,
+        TRANSIT,
+        RIDE_HAIL,
+        RIDE_HAIL_POOLED,
+        RIDE_HAIL_TRANSIT,
+        DRIVE_TRANSIT,
+        WALK_TRANSIT
+      )
 
     def fromString(stringMode: String): Option[BeamMode] = {
       if (stringMode.equals("")) {

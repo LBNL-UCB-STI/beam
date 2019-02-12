@@ -106,17 +106,23 @@ class BeamPlanSpec extends WordSpecLike with Matchers with BeamHelper {
     }
     "should successfully add a leg between activities of an existing matsim plan" in {
       val newLeg = PopulationUtils.createLeg("FAKE")
-      val newPlan = BeamPlan.addOrReplaceLegBetweenActivities(matsimPlanOfActivities, newLeg,
+      val newPlan = BeamPlan.addOrReplaceLegBetweenActivities(
+        matsimPlanOfActivities,
+        newLeg,
         matsimPlanOfActivities.getPlanElements.get(1).asInstanceOf[Activity],
-        matsimPlanOfActivities.getPlanElements.get(2).asInstanceOf[Activity])
-      newPlan.getPlanElements.get(2) should be (newLeg)
+        matsimPlanOfActivities.getPlanElements.get(2).asInstanceOf[Activity]
+      )
+      newPlan.getPlanElements.get(2) should be(newLeg)
     }
     "should successfully replace a leg between activities of an existing matsim plan" in {
       val newLeg = PopulationUtils.createLeg("FAKE")
-      val newPlan = BeamPlan.addOrReplaceLegBetweenActivities(matsimPlan, newLeg,
+      val newPlan = BeamPlan.addOrReplaceLegBetweenActivities(
+        matsimPlan,
+        newLeg,
         matsimPlan.getPlanElements.get(2).asInstanceOf[Activity],
-        matsimPlan.getPlanElements.get(4).asInstanceOf[Activity])
-      newPlan.getPlanElements.get(3) should be (newLeg)
+        matsimPlan.getPlanElements.get(4).asInstanceOf[Activity]
+      )
+      newPlan.getPlanElements.get(3) should be(newLeg)
     }
   }
 }

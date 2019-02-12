@@ -127,7 +127,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
       val fuelConsumed = currentBeamVehicle.useFuel(currentLeg, beamServices)
 
-      if(id.toString.equals("cavDriver-1")){
+      if (id.toString.equals("cavDriver-1")) {
         val i = 0
       }
       if (isLastLeg) {
@@ -220,7 +220,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           }
           currentBeamVehicle.setReservedParkingStall(None)
         }
-        if(id.toString.equals("cavDriver-1")){
+        if (id.toString.equals("cavDriver-1")) {
           val i = 0
         }
         holdTickAndTriggerId(tick, triggerId)
@@ -383,7 +383,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
   when(WaitingToDrive) {
     case ev @ Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
 //      log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
-      log.debug("state(DrivesVehicle.WaitingToDrive): StartLegTrigger({},{}) for driver {}", tick, newLeg,id)
+      log.debug("state(DrivesVehicle.WaitingToDrive): StartLegTrigger({},{}) for driver {}", tick, newLeg, id)
 
       if (data.currentVehicle.isEmpty) {
         stop(Failure("person received StartLegTrigger for leg {} but has an empty data.currentVehicle", newLeg))
@@ -405,7 +405,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           .schedule(newLeg)
           .boarders
           .map { personVehicle =>
-            logDebug(s"Scheduling BoardVehicleTrigger at $tick for Person ${personVehicle.personId} into vehicle ${data.currentVehicle.head}")
+            logDebug(
+              s"Scheduling BoardVehicleTrigger at $tick for Person ${personVehicle.personId} into vehicle ${data.currentVehicle.head}"
+            )
             ScheduleTrigger(
               BoardVehicleTrigger(tick, data.currentVehicle.head),
               personVehicle.personRef

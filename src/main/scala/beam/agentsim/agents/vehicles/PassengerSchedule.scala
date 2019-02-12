@@ -45,11 +45,11 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
   def updateStartTimes(newStartTimeOfFirstLeg: Int): PassengerSchedule = {
     var newSchedule = PassengerSchedule()
     var runningStartTime = newStartTimeOfFirstLeg
-    schedule.foreach{legAndMan =>
-      val newLeg = legAndMan._1.updateStartTime(Math.max(runningStartTime,legAndMan._1.startTime))
+    schedule.foreach { legAndMan =>
+      val newLeg = legAndMan._1.updateStartTime(Math.max(runningStartTime, legAndMan._1.startTime))
       runningStartTime = newLeg.endTime
-      legAndMan._2.riders.foreach{ rider =>
-        newSchedule = newSchedule.addPassenger(rider,Seq(newLeg))
+      legAndMan._2.riders.foreach { rider =>
+        newSchedule = newSchedule.addPassenger(rider, Seq(newLeg))
       }
     }
     newSchedule
@@ -86,10 +86,10 @@ object PassengerSchedule {
     new PassengerSchedule(TreeMap[BeamLeg, Manifest]()(BeamLegOrdering))
 
   case class Manifest(
-                       riders: Set[VehiclePersonId] = Set.empty,
-                       boarders: Set[VehiclePersonId] = Set.empty,
-                       alighters: Set[VehiclePersonId] = Set.empty
-                     ) {
+    riders: Set[VehiclePersonId] = Set.empty,
+    boarders: Set[VehiclePersonId] = Set.empty,
+    alighters: Set[VehiclePersonId] = Set.empty
+  ) {
     override def toString: String = {
       s"[${riders.size}riders;${boarders.size}boarders;${alighters.size}alighters]"
     }
@@ -101,4 +101,3 @@ case class VehiclePersonId(
   personId: Id[Person],
   personRef: ActorRef
 )
-
