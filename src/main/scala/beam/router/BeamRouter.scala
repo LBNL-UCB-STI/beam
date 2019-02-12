@@ -177,7 +177,7 @@ class BeamRouter(
         val initializer =
           new TransitInitializer(services, transportNetwork, transitVehicles, BeamRouter.oneSecondTravelTime)
         val transits = initializer.initMap
-//        initDriverAgents(initializer, scheduler, parkingManager, transits)
+        initDriverAgents(initializer, scheduler, parkingManager, transits)
         localNodes.map { localWorker =>
           localWorker ! TransitInited(transits)
           Success(s"local worker '$localWorker' inited")
