@@ -490,10 +490,13 @@ class PersonAgent(
         eventsManager.processEvent(
           new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), data.currentVehicle.head)
         )
-        if (currentBeamVehicle != body && !mustBeDrivenHome(currentBeamVehicle)) {
-          // Is a shared vehicle. Give it up.
-          currentBeamVehicle.manager.get ! ReleaseVehicle(currentBeamVehicle)
-          beamVehicles -= data.currentVehicle.head
+        if (currentBeamVehicle != body) {
+          assert(currentBeamVehicle.stall.isDefined)
+          if (!mustBeDrivenHome(currentBeamVehicle)) {
+            // Is a shared vehicle. Give it up.
+            currentBeamVehicle.manager.get ! ReleaseVehicle(currentBeamVehicle)
+            beamVehicles -= data.currentVehicle.head
+          }
         }
       }
       goto(ProcessingNextLegOrStartActivity) using data.copy(
@@ -574,8 +577,8 @@ class PersonAgent(
         val currentVehicleForNextState =
           if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
             beamVehicles(nextLeg.beamVehicleId) match {
-              case Token(_, manager, _) =>
-                manager ! TryToBoardVehicle(nextLeg.beamVehicleId, self)
+              case t @ Token(_, manager, _) =>
+                manager ! TryToBoardVehicle(t, self)
                 return goto(TryingToBoardVehicle)
               case _: ActualVehicle =>
               // That's fine, continue
@@ -758,7 +761,6 @@ class PersonAgent(
               case Some(personalVehId) =>
                 val personalVeh = beamVehicles(personalVehId).asInstanceOf[ActualVehicle].vehicle
                 if (activity.getType.equals("Home")) {
-                  assert(personalVeh.stall.nonEmpty)
                   beamVehicles -= personalVeh.id
                   personalVeh.manager.get ! ReleaseVehicle(personalVeh)
                   None
