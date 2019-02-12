@@ -205,7 +205,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with Lazy
     time: Int,
     response: RoutingResponse
   ): Unit = {
-    val writer = new BufferedWriter(new FileWriter(new File("d:/test-out.txt"), true))
+    val writer = new BufferedWriter(new FileWriter(new File("d:/test-outWriter.txt"), true))
     response.itineraries.foreach(
       it =>
         writer.append(
