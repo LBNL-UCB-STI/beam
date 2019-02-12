@@ -23,6 +23,7 @@ import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamMobsim, BeamServices}
 import beam.utils.DateUtils
 import beam.utils.TestConfigUtils.{testConfig, testOutputDir}
+import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg}
@@ -74,11 +75,9 @@ class SingleModeSpec
     beamConfig = BeamConfig(system.settings.config)
 
     val vehicleTypes = {
-      val fuelTypes = BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
+      val fuelTypes = readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
       TrieMap(
-        BeamServices
-          .readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes)
-          .toSeq: _*
+        readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes).toSeq: _*
       )
     }
 
@@ -98,7 +97,7 @@ class SingleModeSpec
     when(services.ptFares).thenReturn(PtFares(List[FareRule]()))
     when(services.privateVehicles).thenReturn {
       TrieMap(
-        BeamServices.readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq: _*
+        readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq: _*
       )
     }
     when(services.fuelTypePrices).thenReturn(Map[FuelType, Double]().withDefaultValue(0.0))
@@ -124,7 +123,7 @@ class SingleModeSpec
     scenario = ScenarioUtils.loadScenario(matsimConfig)
     when(services.matsimServices.getScenario).thenReturn(scenario)
     scenario.getPopulation.getPersons.values.asScala
-      .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allModes))
+      .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allTripModes))
     router = system.actorOf(
       BeamRouter.props(
         services,
