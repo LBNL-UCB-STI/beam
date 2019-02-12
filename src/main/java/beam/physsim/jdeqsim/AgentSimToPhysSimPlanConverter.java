@@ -9,6 +9,7 @@ import beam.analysis.physsim.PhyssimCalcLinkStats;
 import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.calibration.impl.example.CountsObjectiveFunction;
 import beam.router.BeamRouter;
+import beam.router.r5.R5RoutingWorker$;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
@@ -34,6 +35,7 @@ import org.matsim.core.mobsim.jdeqsim.Road;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.population.PopulationUtils;
 import org.matsim.core.population.routes.RouteUtils;
+import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.scenario.MutableScenario;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
@@ -61,18 +63,20 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private static PhyssimCalcLinkSpeedDistributionStats linkSpeedDistributionStatsGraph;
     private final ActorRef router;
     private final OutputDirectoryHierarchy controlerIO;
-    private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
-    private Scenario agentSimScenario;
+    private final Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
+    private final Scenario agentSimScenario;
     private Population jdeqsimPopulation;
+    private TravelTime previousTravelTime;
+
 
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
-    private BeamConfig beamConfig;
-    private Random rand = MatsimRandom.getRandom();
+    private final BeamConfig beamConfig;
+    private final Random rand = MatsimRandom.getRandom();
 
-    private boolean agentSimPhysSimInterfaceDebuggerEnabled;
+    private final boolean agentSimPhysSimInterfaceDebuggerEnabled;
 
-    private List<CompletableFuture> completableFutures = new ArrayList<>();
+    private final List<CompletableFuture> completableFutures = new ArrayList<>();
 
     public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
                                           TransportNetwork transportNetwork,
@@ -104,7 +108,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     private void preparePhysSimForNewIteration() {
         jdeqsimPopulation = PopulationUtils.createPopulation(agentSimScenario.getConfig());
-            }
+    }
 
 
     private void setupActorsAndRunPhysSim(int iterationNumber) {
@@ -171,12 +175,20 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         //################################################################################################################
         Collection<? extends Link> links = agentSimScenario.getNetwork().getLinks().values();
         int maxHour = (int) TimeUnit.SECONDS.toHours(agentSimScenario.getConfig().travelTimeCalculator().getMaxTime());
+        TravelTime travelTimes = travelTimeCalculator.getLinkTravelTimes();
         Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(links,
-                travelTimeCalculator.getLinkTravelTimes(), maxHour);
+                travelTimes, maxHour);
+
+        Integer startingIterationForTravelTimesMSA = beamConfig.beam().routing().startingIterationForTravelTimesMSA();
+        if(startingIterationForTravelTimesMSA <= iterationNumber){
+            map = processTravelTime(links, map, maxHour);
+            travelTimes = previousTravelTime;
+        }
+
         router.tell(new BeamRouter.TryToSerialize(map), ActorRef.noSender());
         router.tell(new BeamRouter.UpdateTravelTimeRemote(map), ActorRef.noSender());
         //################################################################################################################
-        router.tell(new BeamRouter.UpdateTravelTimeLocal(travelTimeCalculator.getLinkTravelTimes()), ActorRef.noSender());
+        router.tell(new BeamRouter.UpdateTravelTimeLocal(travelTimes), ActorRef.noSender());
 
         completableFutures.add(CompletableFuture.runAsync(() -> {
             linkStatsGraph.notifyIterationEnds(iterationNumber, travelTimeCalculator);
@@ -256,8 +268,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             String mode = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
 
             // pt sampling
-            // TODO: if requested, add beam.physsim.ptSamplingMode (pathTraversal | busLine), which controls if instead of filtering out
-            // pathTraversal, a busLine should be filtered out, avoiding jumping buses in visualization (but making traffic flows less precise).
+            // TODO: if requested, add beam.physsim.ptSamplingMode (pathTraversal | busLine), which controls if instead of filtering outWriter
+            // pathTraversal, a busLine should be filtered outWriter, avoiding jumping buses in visualization (but making traffic flows less precise).
 
             if (mode.equalsIgnoreCase(BUS) && rand.nextDouble() > beamConfig.beam().physsim().ptSampleSize()) {
                 return;
@@ -356,5 +368,22 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     public Map<String, Double> getSummaryStats() {
         return new HashMap<>();
     }
-}
 
+
+    ////
+    public Map<String, double[]> processTravelTime(Collection<? extends Link> links, Map<String, double[]> currentTravelTimeMap, int maxHour){
+        int binSize = beamConfig.beam().agentsim().timeBinSize();
+        TravelTime currentTravelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(binSize, currentTravelTimeMap);
+
+        if(previousTravelTime == null){
+            previousTravelTime = currentTravelTime;
+            return currentTravelTimeMap;
+        }else{
+            Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeAvgArray(links, currentTravelTime, previousTravelTime, maxHour);
+            TravelTime averageTravelTimes = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(binSize, map);
+
+            previousTravelTime = averageTravelTimes;
+            return map;
+        }
+    }
+}

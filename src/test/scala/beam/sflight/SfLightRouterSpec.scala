@@ -1,6 +1,7 @@
 package beam.sflight
 
 import akka.actor._
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
@@ -28,6 +29,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true
@@ -51,6 +53,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-56658-0"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true
@@ -75,6 +78,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-80672-0"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true
@@ -98,18 +102,21 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
         Vector(
           StreetVehicle(
             Id.createVehicleId("rideHailVehicle-person=17673-0"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = false
           ),
           StreetVehicle(
             Id.createVehicleId("body-17673-0"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true
           ),
           StreetVehicle(
             Id.createVehicleId("17673-0"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -138,18 +145,21 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
         Vector(
           StreetVehicle(
             Id.createVehicleId("116378-2"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(origin, 0),
             Modes.BeamMode.CAR,
             asDriver = true
           ),
           StreetVehicle(
             Id.createVehicleId("rideHailVehicle-person=116378-2"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = false
           ),
           StreetVehicle(
             Id.createVehicleId("body-116378-2"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true
@@ -194,12 +204,14 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
                 Vector(
                   StreetVehicle(
                     Id.createVehicleId("116378-2"),
+                    BeamVehicleType.defaultCarBeamVehicleType.id,
                     new SpaceTime(origin, 0),
                     Modes.BeamMode.CAR,
                     asDriver = true
                   ),
                   StreetVehicle(
                     Id.createVehicleId("body-116378-2"),
+                    BeamVehicleType.defaultCarBeamVehicleType.id,
                     new SpaceTime(new Coord(origin.getX, origin.getY), time),
                     Modes.BeamMode.WALK,
                     asDriver = true

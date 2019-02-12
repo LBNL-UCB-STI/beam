@@ -19,7 +19,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike, MustMatchers}
 
 class BeamAgentSchedulerSpec
     extends TestKit(
-      ActorSystem("BeamAgentSchedulerSpec", testConfig("test/input/beamville/beam.conf"))
+      ActorSystem("BeamAgentSchedulerSpec", testConfig("test/input/beamville/beam.conf").resolve())
     )
     with FunSpecLike
     with BeforeAndAfterAll

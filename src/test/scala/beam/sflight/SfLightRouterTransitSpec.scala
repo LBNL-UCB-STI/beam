@@ -4,6 +4,7 @@ import java.io.{BufferedWriter, File, FileWriter}
 
 import akka.actor._
 import akka.testkit.TestProbe
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ZonalParkingManagerSpec
@@ -48,6 +49,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with Lazy
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(origin, time),
             WALK,
             asDriver = true
@@ -83,12 +85,14 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with Lazy
                 Vector(
                   StreetVehicle(
                     Id.createVehicleId("116378-2"),
+                    BeamVehicleType.defaultCarBeamVehicleType.id,
                     new SpaceTime(origin, 0),
                     CAR,
                     asDriver = true
                   ),
                   StreetVehicle(
                     Id.createVehicleId("body-116378-2"),
+                    BeamVehicleType.defaultCarBeamVehicleType.id,
                     new SpaceTime(new Coord(origin.getX, origin.getY), time),
                     WALK,
                     asDriver = true
@@ -122,6 +126,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with Lazy
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(origin, time),
             WALK,
             asDriver = true
@@ -147,6 +152,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with Lazy
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
+            BeamVehicleType.defaultCarBeamVehicleType.id,
             new SpaceTime(origin, time),
             WALK,
             asDriver = true
@@ -199,7 +205,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with Lazy
     time: Int,
     response: RoutingResponse
   ): Unit = {
-    val writer = new BufferedWriter(new FileWriter(new File("d:/test-out.txt"), true))
+    val writer = new BufferedWriter(new FileWriter(new File("d:/test-outWriter.txt"), true))
     response.itineraries.foreach(
       it =>
         writer.append(

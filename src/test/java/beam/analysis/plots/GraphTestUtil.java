@@ -27,10 +27,10 @@ class GraphTestUtil {
     private static final String BASE_PATH = Paths.get(".").toAbsolutePath().toString();
     private static final String TRANSIT_VEHICLE_FILE_PATH = BASE_PATH + "/test/input/beamville/transitVehicles.xml";
     private static final String EVENTS_FILE_PATH = BASE_PATH + "/test/input/beamville/test-data/beamville.events.xml";
-    private static BeamConfig beamconfig = BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf"));
-    private static BeamServices services = mock(BeamServices.class);
+    private static final BeamConfig beamconfig = BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve());
+    private static final BeamServices services = mock(BeamServices.class);
     private static GraphsStatsAgentSimEventsListener graphsFromAgentSimEvents;
-    private static EventsManager events;
+    private static final EventsManager events;
 
     static {
         when(services.beamConfig()).thenReturn(beamconfig);

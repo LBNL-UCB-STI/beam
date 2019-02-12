@@ -2,7 +2,6 @@ package beam.sim
 
 import java.io.{BufferedWriter, FileWriter, IOException}
 
-import akka.actor.ActorSystem
 import beam.analysis.physsim.{PhyssimCalcLinkSpeedDistributionStatsObject, PhyssimCalcLinkSpeedStatsObject}
 import beam.analysis.plots._
 import beam.utils.OutputDataDescriptor
@@ -18,7 +17,6 @@ import scala.collection.JavaConverters._
   * Generate data descriptions table for all output file generating classes.
   */
 class BeamOutputDataDescriptionGenerator @Inject()(
-  private val actorSystem: ActorSystem,
   private val transportNetwork: TransportNetwork,
   private val beamServices: BeamServices,
   private val eventsManager: EventsManager,
@@ -97,7 +95,6 @@ object BeamOutputDataDescriptionGenerator {
     RideHailWaitingAnalysisObject,
     GraphSurgePricingObject,
     RideHailingWaitingSingleAnalysisObject,
-    BeamMobsim,
     StopWatchOutputs,
     ScoreStatsOutputs,
     SummaryStatsOutputs,

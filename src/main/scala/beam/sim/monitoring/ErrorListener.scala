@@ -50,7 +50,7 @@ class ErrorListener() extends Actor with ActorLogging {
           )
           d.recipient.tell(d.message, d.sender)
         case m: EmbodyWithCurrentTravelTime =>
-          log.debug("Retrying {} via {} tell {} using {}", m.id, d.recipient, d.message, d.sender)
+          log.debug("Retrying {} via {} tell {} using {}", m.requestId, d.recipient, d.message, d.sender)
           d.recipient.tell(d.message, d.sender)
         case WorkAvailable => //Do not retry GimmeWork - resiliency is built in
         case _ =>

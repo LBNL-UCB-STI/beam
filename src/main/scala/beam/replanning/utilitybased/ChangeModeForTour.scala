@@ -10,8 +10,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BUS, CAR, DRIVE_TRANSIT, FERRY, RAIL, RIDE_HAIL, SUBWAY, WALK, WALK_TRANSIT}
 import beam.sim.BeamServices
-import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
-import beam.utils.plan.sampling.AvailableModeUtils.availableModeParser
+import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes, PopulationAdjustment}
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.MersenneTwister
 import org.apache.commons.math3.util.Pair
@@ -106,7 +105,7 @@ class ChangeModeForTour(
   def distanceScaling(beamMode: BeamMode, distance: Double): Double = {
     beamMode match {
       case BeamMode.CAR =>
-        BeamVehicleType.defaultCarBeamVehicleType.getCost(distance)
+        beamServices.fuelTypePrices(BeamVehicleType.defaultCarBeamVehicleType.primaryFuelType) * distance
       case WALK => distance * 6 // MATSim Default
       case RIDE_HAIL =>
         distance * DefaultRideHailCostPerMile.toDouble * (1 / 1609.34) // 1 mile = 1609.34
@@ -239,12 +238,9 @@ class ChangeModeForTour(
           specifiedVot.asInstanceOf[Double]
       }
 
-    val availableModes: Seq[BeamMode] = Option(
-      beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
-        .getAttribute(person.getId.toString, "available-modes")
-    ).fold(BeamMode.availableModes)(
-      attr => availableModeParser(attr.toString)
-    )
+    val availableModes: Seq[BeamMode] = PopulationAdjustment
+      .getBeamAttributes(beamServices.matsimServices.getScenario.getPopulation, person.getId.toString)
+      .availableModes
 
     val income = Option(
       beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes

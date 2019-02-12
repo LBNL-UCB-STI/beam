@@ -4,36 +4,34 @@ import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.TimeUnit
 
-import org.apache.commons.lang3.text.WordUtils
 import akka.actor.{ActorRef, ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
-import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider}
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
+import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
-import beam.utils.DebugLib
 import beam.utils.scripts.{FailFast, PopulationWriterCSV}
+import beam.utils.{DebugLib, NetworkHelper}
 import com.conveyal.r5.transit.TransportNetwork
-import com.google.common.base.CaseFormat
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.StringUtils
+import org.apache.commons.lang3.text.WordUtils
 import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events.{ControlerEvent, IterationEndsEvent, ShutdownEvent, StartupEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, ShutdownListener, StartupListener}
-import org.matsim.vehicles.VehicleCapacity
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -49,6 +47,7 @@ class BeamSim @Inject()(
   private val beamServices: BeamServices,
   private val eventsManager: EventsManager,
   private val scenario: Scenario,
+  private val networkHelper: NetworkHelper,
   private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator
 ) extends StartupListener
     with IterationEndsListener
@@ -136,9 +135,7 @@ class BeamSim @Inject()(
     delayMetricAnalysis = new DelayMetricAnalysis(
       eventsManager,
       event.getServices.getControlerIO,
-      beamServices,
-      scenario,
-      beamServices.beamConfig
+      networkHelper
     )
 
     // report inconsistencies in output:

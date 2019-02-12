@@ -41,7 +41,7 @@ public class R5NetWriter {
         FileWriter writer = new FileWriter(this.outPath);
         while (cursor.advance()) {
             StringBuilder line = new StringBuilder();
-            line.append(String.valueOf(cursor.getEdgeIndex())).append(",");
+            line.append(cursor.getEdgeIndex()).append(",");
             line.append("[");
             for (EdgeStore.EdgeFlag flag : cursor.getFlags()) {
                 line.append(flag.name()).append(" ");

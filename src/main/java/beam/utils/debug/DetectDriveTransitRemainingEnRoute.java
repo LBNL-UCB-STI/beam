@@ -12,7 +12,7 @@ import java.util.Map;
 // see issue 272
 public class DetectDriveTransitRemainingEnRoute implements BasicEventHandler {
 
-    private HashSet<String> personIdsOnDriveTransit = new HashSet<>();
+    private final HashSet<String> personIdsOnDriveTransit = new HashSet<>();
 
     public static void main(String[] args) {
         EventsManager events = EventsUtils.createEventsManager();
