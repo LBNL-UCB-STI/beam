@@ -8,6 +8,7 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.collections.Tuple;
 
+import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Set;
 
@@ -35,6 +36,8 @@ public class RealizedModeGraphTest {
     }
 
     private Map<Integer, Map<String, Double>> stats;
+    private static final String BASE_PATH = Paths.get(".").toAbsolutePath().toString();
+    private static final String EVENT_FILE_PATH = BASE_PATH + "/test/input/beamville/test-data/replanning.event.xml";
     private RealizedModeAnalysis realizedModeStats = new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation() {
         @Override
         public double[][] compute(Tuple<Map<Integer, Map<String, Double>>, Set<String>> stat) {
@@ -46,7 +49,7 @@ public class RealizedModeGraphTest {
 
     @Before
     public void setUpCRC() {
-        createDummySimWithXML(new RealizedModeHandler(realizedModeStats));
+        createDummySimWithXML(new RealizedModeHandler(realizedModeStats),EVENT_FILE_PATH);
         realizedModeStats.updatePersonCount();
         realizedModeStats.buildModesFrequencyDataset();
     }
@@ -54,9 +57,9 @@ public class RealizedModeGraphTest {
     @Test
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCUnitHour() {
 
-        Double expectedWalkResult = 37.0;
-        Double expectedCarResult = 3.0;
-        Double expectedRideHailResult = 7.0;
+        Double expectedWalkResult = 4.0;
+        Double expectedCarResult = 7.5;
+        Double expectedRideHailResult = 2.0;
         int hour = 19;
 
         Double actaulWalkResult = stats.get(hour).get(WALK);
@@ -71,10 +74,10 @@ public class RealizedModeGraphTest {
     @Test
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForCRCRCUnitHour() {
 
-        Double expectedDriveTransitResult = 16.0;
-        Double expectedCarResult = 2.0;
-        Double expectedRideHailResult = 9.0;
-        Double expectedWalkTransitResult = 22.0;
+        Double expectedDriveTransitResult = 13.0/6.0;
+        Double expectedCarResult = 8.0/3.0;
+        Double expectedRideHailResult = 2.0;
+        Double expectedWalkTransitResult = 7.0/3.0;
         int hour = 6;
 
         Double actaulDriveTransitResult = stats.get(hour).get(DRIVE_TRANS);
@@ -82,10 +85,28 @@ public class RealizedModeGraphTest {
         Double actaulRideHailResult = stats.get(hour).get(RIDE_HAIL);
         Double actaulWalkTransitResult = stats.get(hour).get(WALK_TRANS);
 
-        assertEquals(expectedDriveTransitResult, actaulDriveTransitResult);
-        assertEquals(expectedCarResult, actaulCarResult);
+        assertEquals(expectedDriveTransitResult, actaulDriveTransitResult , 0.0000001);
+        assertEquals(expectedCarResult, actaulCarResult, 0.0000001 );
         assertEquals(expectedRideHailResult, actaulRideHailResult);
-        assertEquals(expectedWalkTransitResult, actaulWalkTransitResult);
+        assertEquals(expectedWalkTransitResult, actaulWalkTransitResult,0.0000001);
+
+    }
+
+    @Test
+    public void testShouldPassShouldReturnModeChoseEventOccurrenceForRepetitionModes() {
+
+        Double expectedCarResult = 4.0/3.0;
+        Double expectedRideHailResult = 7.0d/3.0;
+        Double expectedWalkTransitResult = 7.0/3.0;
+        int hour = 8;
+
+        Double actaulCarResult = stats.get(hour).get(CAR);
+        Double actaulRideHailResult = stats.get(hour).get(RIDE_HAIL);
+        Double actaulWalkTransitResult = stats.get(hour).get(WALK_TRANS);
+
+        assertEquals(expectedCarResult, actaulCarResult, 0.0000001);
+        assertEquals(expectedRideHailResult, actaulRideHailResult, 0.0000001);
+        assertEquals(expectedWalkTransitResult, actaulWalkTransitResult, 0.0000001);
 
     }
 
