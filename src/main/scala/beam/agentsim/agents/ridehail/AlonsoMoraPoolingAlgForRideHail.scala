@@ -1,12 +1,17 @@
 package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents.planning.Trip
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.router.BeamRouter.Location
 import beam.router.{BeamSkimmer, TimeDistanceAndCost}
 import beam.router.Modes.BeamMode
 import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedWeightedGraph}
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
-import org.matsim.vehicles.Vehicle
+import org.matsim.core.config.ConfigUtils
+import org.matsim.core.population.PopulationUtils
 
 import scala.collection.immutable.List
 import scala.collection.JavaConverters._
@@ -196,58 +201,134 @@ class AlonsoMoraPoolingAlgForRideHail(
   // ******************************
 }
 
-// ***** Graph Structure *****
-sealed trait RTVGraphNode {
-  def getId: String
-  override def toString: String = s"[$getId]"
-}
-sealed trait RVGraphNode extends RTVGraphNode
-// customer requests
-case class CustomerRequest(person: Person, pickup: MobilityServiceRequest, dropoff: MobilityServiceRequest)
-    extends RVGraphNode {
-  override def getId: String = person.getId.toString
-}
-// Ride Hail vehicles, capacity and their predefined schedule
-case class RideHailVehicle(vehicle: Vehicle, schedule: List[MobilityServiceRequest]) extends RVGraphNode {
-  override def getId: String = vehicle.getId.toString
-  private val nbOfPassengers: Int = schedule.count(_.tag == Dropoff)
-  private val maxOccupancy
-    : Int = vehicle.getType.getCapacity.getSeats // TODO to get information from elsewhere (see cav)
-  def getFreeSeats: Int = maxOccupancy - nbOfPassengers
-}
-// Trip that can be satisfied by one or more ride hail vehicle
-case class RideHailTrip(requests: List[CustomerRequest], schedule: List[MobilityServiceRequest])
-    extends DefaultEdge
-    with RTVGraphNode {
-  override def getId: String = requests.foldLeft(s"trip:") { case (c, x) => c + s"$x -> " }
-  val cost: Int = schedule.foldLeft(0) { case (c, r)                     => c + (r.serviceTime - r.time).toInt }
-}
+object AlonsoMoraPoolingAlgForRideHail {
 
-case class RVGraph(clazz: Class[RideHailTrip]) extends DefaultUndirectedWeightedGraph[RVGraphNode, RideHailTrip](clazz)
-case class RTVGraph(clazz: Class[DefaultEdge]) extends DefaultUndirectedWeightedGraph[RTVGraphNode, DefaultEdge](clazz)
-
-// CAV structure
-sealed trait MobilityServiceRequestType
-case object Pickup extends MobilityServiceRequestType
-case object Dropoff extends MobilityServiceRequestType
-case object Relocation extends MobilityServiceRequestType
-case object Init extends MobilityServiceRequestType
-
-case class MobilityServiceRequest(
-  person: Option[org.matsim.api.core.v01.Id[Person]],
-  activity: Activity,
-  time: Double,
-  trip: Trip,
-  defaultMode: BeamMode,
-  tag: MobilityServiceRequestType,
-  serviceTime: Double,
-  routingRequestId: Option[Int] = None
-) {
-  val nextActivity = Some(trip.activity)
-
-  def formatTime(secs: Double): String = {
-    s"${(secs / 3600).toInt}:${((secs % 3600) / 60).toInt}:${(secs % 60).toInt}"
+  // ************ Helper functions ************
+  def newVehicle(id: String): BeamVehicle = {
+    new BeamVehicle(Id.create(id,classOf[BeamVehicle]),new Powertrain(0.0),BeamVehicleType.defaultCarBeamVehicleType)
   }
-  override def toString: String =
-    s"${formatTime(time)}|$tag|${person.getOrElse("na")}|${activity.getType}| => ${formatTime(serviceTime)}"
+
+  def newPerson(id: String): Person = {
+    PopulationUtils.createPopulation(ConfigUtils.createConfig).getFactory.createPerson(Id.createPersonId(id))
+  }
+
+  def seconds(h: Int, m: Int, s: Int = 0): Int = h * 3600 + m * 60 + s
+
+  def createPersonRequest(pid: String, src: Location, srcTime: Int, dst: Location)(
+    implicit skimmer: BeamSkimmer
+  ): CustomerRequest = {
+    val p1 = newPerson(pid)
+    val p1Act1: Activity = PopulationUtils.createActivityFromCoord(s"${pid}Act1", src)
+    p1Act1.setEndTime(srcTime)
+    val p1Act2: Activity = PopulationUtils.createActivityFromCoord(s"${pid}Act2", dst)
+    val p1_tt: Int = skimmer
+      .getTimeDistanceAndCost(
+        p1Act1.getCoord,
+        p1Act2.getCoord,
+        0,
+        BeamMode.CAR,
+        BeamVehicleType.defaultCarBeamVehicleType.id
+      )
+      .timeAndCost
+      .time
+      .get
+    CustomerRequest(
+      p1,
+      MobilityServiceRequest(
+        Some(p1.getId),
+        p1Act1,
+        srcTime,
+        Trip(p1Act1, None, null),
+        BeamMode.RIDE_HAIL,
+        Pickup,
+        srcTime
+      ),
+      MobilityServiceRequest(
+        Some(p1.getId),
+        p1Act2,
+        srcTime + p1_tt,
+        Trip(p1Act2, None, null),
+        BeamMode.RIDE_HAIL,
+        Dropoff,
+        srcTime + p1_tt
+      ),
+    )
+  }
+
+  def createVehiclePassengers(vid: String, dst: Location, dstTime: Int): RideHailVehicle = {
+    val v1 = newVehicle(vid)
+    val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${vid}Act0", dst)
+    v1Act0.setEndTime(dstTime)
+    RideHailVehicle(
+      v1,
+      List(
+        MobilityServiceRequest(
+          None,
+          v1Act0,
+          dstTime,
+          Trip(v1Act0, None, null),
+          BeamMode.RIDE_HAIL,
+          Dropoff,
+          dstTime
+        )
+      )
+    )
+  }
+
+  // ***** Graph Structure *****
+  sealed trait RTVGraphNode {
+    def getId: String
+    override def toString: String = s"[$getId]"
+  }
+  sealed trait RVGraphNode extends RTVGraphNode
+  // customer requests
+  case class CustomerRequest(person: Person, pickup: MobilityServiceRequest, dropoff: MobilityServiceRequest)
+      extends RVGraphNode {
+    override def getId: String = person.getId.toString
+  }
+  // Ride Hail vehicles, capacity and their predefined schedule
+  case class RideHailVehicle(vehicle: BeamVehicle, schedule: List[MobilityServiceRequest]) extends RVGraphNode {
+    private val nbOfPassengers: Int = schedule.count(_.tag == Dropoff)
+    override def getId: String = vehicle.id.toString
+    private val maxOccupancy
+      : Int = vehicle.beamVehicleType.seatingCapacity
+    def getFreeSeats: Int = maxOccupancy - nbOfPassengers
+
+  }
+  // Trip that can be satisfied by one or more ride hail vehicle
+  case class RideHailTrip(requests: List[CustomerRequest], schedule: List[MobilityServiceRequest])
+      extends DefaultEdge
+      with RTVGraphNode {
+    override def getId: String = requests.foldLeft(s"trip:") { case (c, x) => c + s"$x -> " }
+    val cost: Int = schedule.foldLeft(0) { case (c, r)                     => c + (r.serviceTime - r.time).toInt }
+  }
+
+  case class RVGraph(clazz: Class[RideHailTrip]) extends DefaultUndirectedWeightedGraph[RVGraphNode, RideHailTrip](clazz)
+  case class RTVGraph(clazz: Class[DefaultEdge]) extends DefaultUndirectedWeightedGraph[RTVGraphNode, DefaultEdge](clazz)
+
+  // CAV structure
+  sealed trait MobilityServiceRequestType
+  case object Pickup extends MobilityServiceRequestType
+  case object Dropoff extends MobilityServiceRequestType
+  case object Relocation extends MobilityServiceRequestType
+  case object Init extends MobilityServiceRequestType
+
+  case class MobilityServiceRequest(
+    person: Option[org.matsim.api.core.v01.Id[Person]],
+    activity: Activity,
+    time: Double,
+    trip: Trip,
+    defaultMode: BeamMode,
+    tag: MobilityServiceRequestType,
+    serviceTime: Double,
+    routingRequestId: Option[Int] = None
+  ) {
+    val nextActivity = Some(trip.activity)
+
+    def formatTime(secs: Double): String = {
+      s"${(secs / 3600).toInt}:${((secs % 3600) / 60).toInt}:${(secs % 60).toInt}"
+    }
+    override def toString: String =
+      s"${formatTime(time)}|$tag|${person.getOrElse("na")}|${activity.getType}| => ${formatTime(serviceTime)}"
+  }
 }

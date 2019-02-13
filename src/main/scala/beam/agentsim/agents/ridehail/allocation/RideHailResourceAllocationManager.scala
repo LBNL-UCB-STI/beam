@@ -188,6 +188,7 @@ object RideHailResourceAllocationManager {
   val EV_MANAGER = "EV_MANAGER"
   val IMMEDIATE_DISPATCH_WITH_OVERWRITE = "IMMEDIATE_DISPATCH_WITH_OVERWRITE"
   val POOLING = "POOLING"
+  val POOLING_ALONSO_MORA = "POOLING_ALONSO_MORA"
   val REPOSITIONING_LOW_WAITING_TIMES = "REPOSITIONING_LOW_WAITING_TIMES"
   val RANDOM_REPOSITIONING = "RANDOM_REPOSITIONING"
   val DUMMY_DISPATCH_WITH_BUFFERING = "DUMMY_DISPATCH_WITH_BUFFERING"
@@ -204,6 +205,8 @@ object RideHailResourceAllocationManager {
         new DefaultRideHailResourceAllocationManager(rideHailManager)
       case RideHailResourceAllocationManager.POOLING =>
         new Pooling(rideHailManager)
+      case RideHailResourceAllocationManager.POOLING_ALONSO_MORA =>
+        new PoolingAlonsoMora(rideHailManager)
       case RideHailResourceAllocationManager.REPOSITIONING_LOW_WAITING_TIMES =>
         new RepositioningLowWaitingTimes(rideHailManager)
       case RideHailResourceAllocationManager.RANDOM_REPOSITIONING =>
