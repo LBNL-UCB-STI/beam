@@ -34,7 +34,7 @@ class AlonsoMoraPoolingAlgForRideHailTest extends FlatSpec with Matchers {
         radius = Int.MaxValue,
         skimmer
       )
-    val rvGraph: RVGraph = algo.getPairwiseRVGraph
+    val rvGraph: RVGraph = algo.pairwiseRVGraph
     for (e <- rvGraph.edgeSet.asScala) {
       rvGraph.getEdgeSource(e).getId match {
         case "p1" => rvGraph.getEdgeTarget(e).getId should (equal("p2") or equal("p4"))
@@ -49,10 +49,17 @@ class AlonsoMoraPoolingAlgForRideHailTest extends FlatSpec with Matchers {
     for (e <- rvGraph.edgeSet.asScala) {
       println(rvGraph.getEdgeSource(e) + " <-> " + rvGraph.getEdgeTarget(e))
     }
+
+    val rtvGraph = algo.rTVGraph(rvGraph)
     println("------")
-    val rtvGraph = algo.getRTVGraph(rvGraph)
     for (e <- rtvGraph.edgeSet.asScala) {
       println(rtvGraph.getEdgeSource(e) + " <-> " + rtvGraph.getEdgeTarget(e))
+    }
+
+    val assignment = algo.greedyAssignment(rtvGraph)
+    println("------")
+    for (row <- assignment) {
+      println(row)
     }
   }
 
