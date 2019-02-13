@@ -333,8 +333,7 @@ class CAVSchedule(
   // ***
   def toRoutingRequests(beamServices: BeamServices): (List[Option[RoutingRequest]], CAVSchedule) = {
     var newMobilityRequests = List[MobilityServiceRequest]()
-    val requestList = (schedule.reverse :+ schedule.head)
-      .tail
+    val requestList = (schedule.reverse :+ schedule.head).tail
       .sliding(2)
       .map { wayPoints =>
         val orig = wayPoints(0)
