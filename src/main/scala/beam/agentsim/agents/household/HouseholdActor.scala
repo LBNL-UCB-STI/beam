@@ -151,7 +151,7 @@ object HouseholdActor {
     private var cavPlans: List[CAVSchedule] = List()
 //    private var cavPassengerSchedules: Map[BeamVehicle, List[Option[PassengerSchedule]]] = Map()
     private var cavPassengerSchedules: Map[BeamVehicle, PassengerSchedule] = Map()
-    private var personToCav: Map[Id[Person], (Activity, BeamVehicle)] = Map()
+    private var personAndActivityToCav: Map[(Id[Person],Activity), BeamVehicle] = Map()
     private var personsReadyForPickup: Set[Id[Person]] = Set()
     private var memberVehiclePersonIds: Map[Id[Person], VehiclePersonId] = Map()
 
@@ -220,10 +220,12 @@ object HouseholdActor {
           val memberMap = household.members.map(person => (person.getId -> person)).toMap
           val plan = requestsAndUpdatedPlans.head._2
           val i = 0
-          personToCav = personToCav ++ (plan.schedule
+          personAndActivityToCav = personAndActivityToCav ++ (plan.schedule
             .filter(_.tag == Pickup)
             .groupBy(_.person)
-            .map(pers => (pers._1.get -> (pers._2.head.activity, plan.cav))))
+            .map{pers =>
+              pers._2.map(req => (pers._1.get,req.activity) -> plan.cav)}.flatten)
+
           plan.schedule.foreach { cavPlan =>
             if (cavPlan.tag == Pickup) {
               val oldPlan = memberMap(cavPlan.person.get).getSelectedPlan
@@ -307,7 +309,7 @@ object HouseholdActor {
               }
             }
           }
-          cavSchedule.cav -> passengerSchedule
+          cavSchedule.cav -> passengerSchedule.updateStartTimes(theLegs.head.startTime)
         }.toMap
 //        cavPassengerSchedules = cavPlans.map { cavSchedule =>
 //          val theLegsWithServiceRequest = cavSchedule.schedule.map {
@@ -371,9 +373,9 @@ object HouseholdActor {
         sender() ! Success
 
       case MobilityStatusInquiry(personId, _, originActivity) =>
-        personToCav.get(personId) match {
-          case Some(cavAndActivity) if cavAndActivity._1.equals(originActivity) =>
-            sender() ! MobilityStatusResponse(Vector(ActualVehicle(cavAndActivity._2)))
+        personAndActivityToCav.get((personId,originActivity)) match {
+          case Some(cav) =>
+            sender() ! MobilityStatusResponse(Vector(ActualVehicle(cav)))
           case _ =>
             availableVehicles = availableVehicles match {
               case firstVehicle :: rest =>
@@ -388,7 +390,7 @@ object HouseholdActor {
         }
 
 //      case ReadyForCAVPickup(personId, tick) =>
-//        personToCav.get(personId) match {
+//        personAndActivityToCav.get(personId) match {
 //          case Some((_, cav)) =>
 //            // we are expecting the person to be picked up next so we dispatch the vehicle
 //            var (nextSchedule :: remainingSchedules) = cavPassengerSchedules(cav)
