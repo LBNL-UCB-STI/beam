@@ -14,9 +14,7 @@ class AlonsoMoraPoolingAlgForRideHailTest extends FlatSpec with Matchers {
   behavior of "AlonsoMoraPoolingAlgForRideHail"
 
   it should " " in {
-    val config = org.matsim.core.config.ConfigUtils.createConfig()
-    val scenario: org.matsim.api.core.v01.Scenario = org.matsim.core.scenario.ScenarioUtils.createScenario(config)
-    val skimmer: BeamSkimmer = new BeamSkimmer(scenario = scenario)
+    val skimmer: BeamSkimmer = new BeamSkimmer()
     val sc = scenario1(skimmer)
     val algo: AlonsoMoraPoolingAlgForRideHail =
       new AlonsoMoraPoolingAlgForRideHail(
@@ -57,8 +55,8 @@ class AlonsoMoraPoolingAlgForRideHailTest extends FlatSpec with Matchers {
   }
 
   def scenario1(implicit skimmer: BeamSkimmer): (List[RideHailVehicle], List[CustomerRequest]) = {
-    val v1: RideHailVehicle = AlonsoMoraPoolingAlgForRideHail.createVehiclePassengers("v1", new Coord(5000, 5000), seconds(8, 0))
-    val v2: RideHailVehicle = AlonsoMoraPoolingAlgForRideHail.createVehiclePassengers("v2", new Coord(2000, 2000), seconds(8, 0))
+    val v1: RideHailVehicle = createVehiclePassengers("v1", new Coord(5000, 5000), seconds(8, 0))
+    val v2: RideHailVehicle = createVehiclePassengers("v2", new Coord(2000, 2000), seconds(8, 0))
 
     val p1Req: CustomerRequest =
       createPersonRequest("p1", new Coord(1000, 2000), seconds(8, 0), new Coord(18000, 19000))

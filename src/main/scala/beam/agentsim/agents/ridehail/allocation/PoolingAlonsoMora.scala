@@ -1,8 +1,9 @@
 package beam.agentsim.agents.ridehail.allocation
 
+import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
-import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
+import beam.agentsim.agents.ridehail.{AlonsoMoraPoolingAlgForRideHail, RideHailManager, RideHailRequest}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
@@ -12,6 +13,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable
+import scala.collection.JavaConverters._
 
 class PoolingAlonsoMora(val rideHailManager: RideHailManager) extends RideHailResourceAllocationManager(rideHailManager) {
 
@@ -79,44 +81,36 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager) extends RideHailRe
     }
     if(toPool.size > 1){
       val i = 0
-//      val skimmer: BeamSkimmer = new BeamSkimmer(scenario = scenario)
-//      val sc = scenario1(skimmer)
-//      val algo: AlonsoMoraPoolingAlgForRideHail =
-//        new AlonsoMoraPoolingAlgForRideHail(
-//          sc._2,
-//          sc._1,
-//          omega = 6 * 60,
-//          delta = 10 * 5000 * 60,
-//          radius = Int.MaxValue,
-//          skimmer
-//        )
-//      val rvGraph: RVGraph = algo.pairwiseRVGraph
-//      for (e <- rvGraph.edgeSet.asScala) {
-//        rvGraph.getEdgeSource(e).getId match {
-//          case "p1" => rvGraph.getEdgeTarget(e).getId should (equal("p2") or equal("p4"))
-//          case "p2" => rvGraph.getEdgeTarget(e).getId should (equal("p1") or (equal("p3") or equal("p4")))
-//          case "p3" => rvGraph.getEdgeTarget(e).getId should equal("p2")
-//          case "p4" => rvGraph.getEdgeTarget(e).getId should (equal("p1") or equal("p2"))
-//          case "v1" => rvGraph.getEdgeTarget(e).getId should (equal("p2") or equal("p3"))
-//          case "v2" =>
-//            rvGraph.getEdgeTarget(e).getId should (equal("p1") or (equal("p2") or (equal("p3") or equal("p4"))))
-//        }
-//      }
-//      for (e <- rvGraph.edgeSet.asScala) {
-//        println(rvGraph.getEdgeSource(e) + " <-> " + rvGraph.getEdgeTarget(e))
-//      }
-//
-//      val rtvGraph = algo.rTVGraph(rvGraph)
-//      println("------")
-//      for (e <- rtvGraph.edgeSet.asScala) {
-//        println(rtvGraph.getEdgeSource(e) + " <-> " + rtvGraph.getEdgeTarget(e))
-//      }
-//
-//      val assignment = algo.greedyAssignment(rtvGraph)
-//      println("------")
-//      for (row <- assignment) {
-//        println(row)
-//      }
+      implicit val skimmer: BeamSkimmer = new BeamSkimmer()
+      val customerReqs = toPool.map(rhr => createPersonRequest(rhr.customer.personId.toString,rhr.pickUpLocationUTM,rhr.departAt,rhr.destinationUTM))
+      val availVehicles = rideHailManager.vehicleManager.availableRideHailVehicles.values.map(veh => createVehiclePassengers(veh.vehicleId.toString,veh.currentLocationUTM.loc,veh.currentLocationUTM.time))
+
+      val algo = new AlonsoMoraPoolingAlgForRideHail(
+          customerReqs.toList,
+          availVehicles.toList,
+          omega = 6 * 60,
+          delta = 10 * 5000 * 60,
+          radius = Int.MaxValue,
+          skimmer
+        )
+      val rvGraph: RVGraph = algo.pairwiseRVGraph
+      for (e <- rvGraph.edgeSet.asScala) {
+        println(rvGraph.getEdgeSource(e) + " <-> " + rvGraph.getEdgeTarget(e))
+      }
+
+      val rtvGraph = algo.rTVGraph(rvGraph)
+      println("------")
+      for (e <- rtvGraph.edgeSet.asScala) {
+        println(rtvGraph.getEdgeSource(e) + " <-> " + rtvGraph.getEdgeTarget(e))
+      }
+
+      val assignment = algo.greedyAssignment(rtvGraph)
+      println("------")
+      for (row <- assignment) {
+        println(row)
+      }
+
+      val j = 0
     }
     toPool.grouped(2).foreach { twoToPool =>
       twoToPool.size match {
