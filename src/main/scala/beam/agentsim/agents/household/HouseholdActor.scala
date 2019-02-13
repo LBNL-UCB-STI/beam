@@ -303,11 +303,18 @@ object HouseholdActor {
       case RoutingResponses(tick, routingResponses) =>
         // Index the responsed by Id
         val indexedResponses = routingResponses.map(resp => (resp.requestId -> resp)).toMap
-        // Create a passenger schedule for each CAV in the plan, split by passenger to be picked up
+        // Create a passenger schedule for each CAV in the plan
         cavPassengerSchedules = cavPlans.map { cavSchedule =>
           var theLegs = cavSchedule.schedule.map { serviceRequest =>
             serviceRequest.routingRequestId
-              .map(reqId => indexedResponses(reqId).itineraries.head.beamLegs())
+              .map { reqId =>
+                val routeResp = indexedResponses(reqId)
+                if (routeResp.itineraries.isEmpty) {
+                  Seq()
+                } else {
+                  routeResp.itineraries.head.beamLegs()
+                }
+              }
               .getOrElse(Seq())
           }.flatten
           var passengerSchedule = PassengerSchedule().addLegs(theLegs)
@@ -321,7 +328,7 @@ object HouseholdActor {
                 passengersToAdd = passengersToAdd - memberVehiclePersonIds(serviceRequest.person.get)
               case _ =>
             }
-            if (serviceRequest.routingRequestId.isDefined) {
+            if (serviceRequest.routingRequestId.isDefined && indexedResponses(serviceRequest.routingRequestId.get).itineraries.size>0) {
               val toTravel = indexedResponses(serviceRequest.routingRequestId.get).itineraries.head.beamLegs()
               passengersToAdd.foreach { pass =>
                 passengerSchedule = passengerSchedule.addPassenger(pass, toTravel)
