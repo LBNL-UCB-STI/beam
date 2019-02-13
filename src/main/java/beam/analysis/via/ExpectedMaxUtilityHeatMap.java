@@ -55,6 +55,21 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
         }
     }
 
+    @Override
+    public void reset(int iteration) {
+        if (this.csvWriter != null) {
+            this.csvWriter.closeFile();
+        }
+
+        writeDataInThisIteration = writeEventsInterval > 0 && iteration % writeEventsInterval == 0;
+
+        if (writeDataInThisIteration) {
+            this.csvWriter = new CSVWriter(controlerIO.getIterationFilename(iteration, fileBaseName + ".csv"));
+            this.bufferedWriter = this.csvWriter.getBufferedWriter();
+            printColumnHeaders();
+        }
+    }
+
     private void printColumnHeaders() {
         try {
             bufferedWriter.append("time");
@@ -69,21 +84,6 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
             e.printStackTrace();
         }
 
-    }
-
-    @Override
-    public void reset(int iteration) {
-        if (this.csvWriter != null) {
-            this.csvWriter.closeFile();
-        }
-
-        writeDataInThisIteration = writeEventsInterval > 0 && iteration % writeEventsInterval == 0;
-
-        if (writeDataInThisIteration) {
-            this.csvWriter = new CSVWriter(controlerIO.getIterationFilename(iteration, fileBaseName + ".csv"));
-            this.bufferedWriter = this.csvWriter.getBufferedWriter();
-            printColumnHeaders();
-        }
     }
 
 }
