@@ -39,8 +39,15 @@ class HouseholdCAVDriverAgent(
   val myUnhandled: StateFunction = {
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
+    case Event(ModifyPassengerSchedule(_, _, _), _) =>
+      stash()
+      stay()
     case Event(Finish, _) =>
       stop
+  }
+  onTransition {
+    case _ -> _ =>
+      unstashAll()
   }
 
   override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
@@ -55,7 +62,6 @@ class HouseholdCAVDriverAgent(
         new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_household_cav_driver")
       )
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-      vehicle.driver = Some(self)
       goto(Idle) using data
         .copy(currentVehicle = Vector(vehicle.id))
         .asInstanceOf[HouseholdCAVDriverData] replying

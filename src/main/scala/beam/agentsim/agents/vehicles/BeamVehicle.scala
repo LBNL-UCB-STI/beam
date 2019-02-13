@@ -164,6 +164,7 @@ class BeamVehicle(
 
   def isCAV: Boolean = beamVehicleType.automationLevel > 3
 
+  override def toString = s"$id ($beamVehicleType.id)"
 }
 
 object BeamVehicle {

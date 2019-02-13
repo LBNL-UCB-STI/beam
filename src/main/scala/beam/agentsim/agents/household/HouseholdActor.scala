@@ -176,6 +176,7 @@ object HouseholdActor {
         // If any of my vehicles are CAVs then go through scheduling process
         val cavs = vehicles.filter(_._2.beamVehicleType.automationLevel > 3).map(_._2).toList
         if (cavs.size > 0) {
+          log.info("Household {} has {} CAVs and will do some planning", household.getId, cavs.size)
           cavs.foreach { cav =>
             val cavDriverRef: ActorRef = context.actorOf(
               HouseholdCAVDriverAgent.props(
@@ -195,6 +196,7 @@ object HouseholdActor {
             cav.spaceTime = SpaceTime(homeCoord, 0)
             schedulerRef ! ScheduleTrigger(InitializeTrigger(0), cavDriverRef)
             cav.manager = Some(self)
+            cav.driver = Some(cavDriverRef)
           }
           val householdBeamPlans = household.members.map(person => BeamPlan(person.getSelectedPlan)).toList
           val householdMatsimPlans = household.members.map(person => (person.getId -> person.getSelectedPlan)).toMap
@@ -259,6 +261,7 @@ object HouseholdActor {
           }
           holdTickAndTriggerId(tick, triggerId)
           log.debug("Household {} has CAV plans: \n{}", household.getId, plan.schedule)
+          log.info("Household {} is done planning", household.getId)
           Future
             .sequence(routingRequests.map(akka.pattern.ask(router, _).mapTo[RoutingResponse]))
             .map(RoutingResponses(tick, _)) pipeTo self
