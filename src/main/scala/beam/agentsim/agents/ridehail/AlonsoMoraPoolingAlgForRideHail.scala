@@ -59,7 +59,7 @@ class AlonsoMoraPoolingAlgForRideHail(
     val rTvG = RTVGraph(classOf[DefaultEdge])
     for (v <- supply) {
 
-      if (v.getFreeSeats > 0) {
+      if (v.getFreeSeats > 0 && rvG.containsVertex(v)) {
         rTvG.addVertex(v)
 
         import scala.collection.mutable.{ListBuffer => MListBuffer}
