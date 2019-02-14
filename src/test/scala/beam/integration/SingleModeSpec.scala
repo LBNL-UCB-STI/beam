@@ -19,15 +19,24 @@ import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile}
 import beam.utils.TestConfigUtils.{testConfig, testOutputDir}
 import beam.utils.{NetworkHelper, NetworkHelperImpl}
 import com.google.inject.util.Providers
-import com.google.inject.{AbstractModule, Guice}
+import com.google.inject.{AbstractModule, Guice, Injector, Provider}
 import com.typesafe.config.ConfigFactory
+import org.matsim.analysis.{CalcLinkStats, IterationStopWatch, ScoreStats, VolumesAnalyzer}
+import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg}
+import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.config.Config
+import org.matsim.core.controler.listener.ControlerListener
 import org.matsim.core.controler.{ControlerI, MatsimServices, OutputDirectoryHierarchy}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsManagerImpl, EventsUtils}
+import org.matsim.core.replanning.StrategyManager
+import org.matsim.core.router.TripRouter
+import org.matsim.core.router.costcalculators.TravelDisutilityFactory
+import org.matsim.core.router.util.{LeastCostPathCalculatorFactory, TravelDisutility, TravelTime}
 import org.matsim.core.scenario.ScenarioUtils
-import org.mockito.Mockito._
+import org.matsim.core.scoring.ScoringFunctionFactory
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
 
@@ -35,6 +44,26 @@ import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.language.postfixOps
+
+class MatsimServicesMock(override val getControlerIO: OutputDirectoryHierarchy, override val getScenario: Scenario)
+    extends MatsimServices {
+  override def getStopwatch: IterationStopWatch = null
+  override def getLinkTravelTimes: TravelTime = null
+  override def getTripRouterProvider: Provider[TripRouter] = null
+  override def createTravelDisutilityCalculator(): TravelDisutility = null
+  override def getLeastCostPathCalculatorFactory: LeastCostPathCalculatorFactory = null
+  override def getScoringFunctionFactory: ScoringFunctionFactory = null
+  override def getConfig: Config = null
+  override def getEvents: EventsManager = null
+  override def getInjector: Injector = null
+  override def getLinkStats: CalcLinkStats = null
+  override def getVolumes: VolumesAnalyzer = null
+  override def getScoreStats: ScoreStats = null
+  override def getTravelDisutilityFactory: TravelDisutilityFactory = null
+  override def getStrategyManager: StrategyManager = null
+  override def addControlerListener(controlerListener: ControlerListener): Unit = {}
+  override def getIterationNumber: Integer = null
+}
 
 class SingleModeSpec extends WordSpecLike with Matchers with MockitoSugar with BeforeAndAfterEach with Inside {
 
@@ -66,12 +95,7 @@ class SingleModeSpec extends WordSpecLike with Matchers with MockitoSugar with B
     odh.createIterationDirectory(0)
     odh
   }
-  lazy val matsimSvc: MatsimServices = {
-    val ms = mock[MatsimServices]
-    when(ms.getControlerIO).thenReturn(outputDirectoryHierarchy)
-    when(ms.getScenario).thenReturn(scenario)
-    ms
-  }
+  lazy val matsimSvc: MatsimServices = new MatsimServicesMock(outputDirectoryHierarchy, scenario)
   lazy val vehTypes = {
     val fuelTypes = readFuelTypeFile(beamCfg.beam.agentsim.agents.vehicles.beamFuelTypesFile)
     TrieMap(readBeamVehicleTypeFile(beamCfg.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes).toSeq: _*)
