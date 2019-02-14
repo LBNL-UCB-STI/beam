@@ -1,16 +1,12 @@
 package beam.integration
 
 import java.io.File
-import java.time.ZonedDateTime
 
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.PersonTestUtil
-import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
-import beam.agentsim.agents.choice.mode.PtFares.FareRule
-import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, ModeIncentive, PtFares}
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.events.PathTraversalEvent
 import beam.router.BeamRouter
 import beam.router.Modes.BeamMode
@@ -19,20 +15,20 @@ import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.population.AttributesOfIndividual
-import beam.sim.{BeamMobsim, BeamServices}
-import beam.utils.{DateUtils, NetworkHelperImpl}
+import beam.sim.{BeamMobsim, BeamServices, BeamServicesImpl}
+import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile}
 import beam.utils.TestConfigUtils.{testConfig, testOutputDir}
-import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
+import beam.utils.{NetworkHelper, NetworkHelperImpl}
+import com.google.inject.util.Providers
+import com.google.inject.{AbstractModule, Guice}
 import com.typesafe.config.ConfigFactory
+import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg}
-import org.matsim.api.core.v01.{Id, Scenario}
-import org.matsim.core.controler.{MatsimServices, OutputDirectoryHierarchy}
+import org.matsim.core.controler.{ControlerI, MatsimServices, OutputDirectoryHierarchy}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsManagerImpl, EventsUtils}
 import org.matsim.core.scenario.ScenarioUtils
-import org.matsim.vehicles.Vehicle
 import org.mockito.Mockito._
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
@@ -64,20 +60,20 @@ class SingleModeSpec
   private val OUTPUT_DIR_PATH = BASE_PATH + "/" + testOutputDir + "single-mode-test"
 
   var router: ActorRef = _
-  var geo: GeoUtils = _
+  var geoUtil: GeoUtils = _
   var scenario: Scenario = _
   var services: BeamServices = _
   var networkCoordinator: DefaultNetworkCoordinator = _
-  var beamConfig: BeamConfig = _
+  var beamCfg: BeamConfig = _
   var tollCalculator: TollCalculator = _
 
   override def beforeAll: Unit = {
-    beamConfig = BeamConfig(system.settings.config)
+    beamCfg = BeamConfig(system.settings.config)
 
-    val vehicleTypes = {
-      val fuelTypes = readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile)
+    val vehTypes = {
+      val fuelTypes = readFuelTypeFile(beamCfg.beam.agentsim.agents.vehicles.beamFuelTypesFile)
       TrieMap(
-        readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes).toSeq: _*
+        readBeamVehicleTypeFile(beamCfg.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes).toSeq: _*
       )
     }
 
@@ -87,46 +83,42 @@ class SingleModeSpec
       new OutputDirectoryHierarchy(OUTPUT_DIR_PATH, overwriteExistingFiles)
     outputDirectoryHierarchy.createIterationDirectory(0)
 
-    services = mock[BeamServices](withSettings().stubOnly())
-    when(services.beamConfig).thenReturn(beamConfig)
-    when(services.matsimServices).thenReturn(mock[MatsimServices])
-    when(services.matsimServices.getControlerIO).thenReturn(outputDirectoryHierarchy)
-    when(services.tazTreeMap).thenReturn(BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file))
-    when(services.vehicleTypes).thenReturn(vehicleTypes)
-    when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
-    when(services.ptFares).thenReturn(PtFares(List[FareRule]()))
-    when(services.privateVehicles).thenReturn {
-      TrieMap(
-        readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq: _*
-      )
-    }
-    when(services.fuelTypePrices).thenReturn(Map[FuelType, Double]().withDefaultValue(0.0))
+    geoUtil = new GeoUtilsImpl(beamCfg)
 
-    geo = new GeoUtilsImpl(services)
-    when(services.geo).thenReturn(geo)
-    when(services.dates).thenReturn(
-      DateUtils(
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
-      )
-    )
-    when(services.modeChoiceCalculatorFactory)
-      .thenReturn((_: AttributesOfIndividual) => new ModeChoiceUniformRandom(services))
-    when(services.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
-    networkCoordinator = DefaultNetworkCoordinator(beamConfig)
+    networkCoordinator = DefaultNetworkCoordinator(beamCfg)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 
-    val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
-    when(services.networkHelper).thenReturn(networkHelper)
+    val networkHlper = new NetworkHelperImpl(networkCoordinator.network)
 
-    val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
-    tollCalculator = new TollCalculator(beamConfig)
+    val fareCalculator = new FareCalculator(beamCfg.beam.routing.r5.directory)
+    tollCalculator = new TollCalculator(beamCfg)
     val matsimConfig = new MatSimBeamConfigBuilder(system.settings.config).buildMatSamConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
-    when(services.matsimServices.getScenario).thenReturn(scenario)
+
+    val matsimSvc = mock[MatsimServices]
+    when(matsimSvc.getControlerIO).thenReturn(outputDirectoryHierarchy)
+    when(matsimSvc.getScenario).thenReturn(scenario)
+
+    val injector = Guice.createInjector(new AbstractModule() {
+      protected def configure(): Unit = {
+        bind(classOf[BeamConfig]).toInstance(beamCfg)
+        bind(classOf[GeoUtils]).toInstance(geoUtil)
+        bind(classOf[NetworkHelper]).toInstance(networkHlper)
+        bind(classOf[ControlerI]).toProvider(Providers.of(null))
+      }
+    })
+
+    services = new BeamServicesImpl(injector)
+    services.matsimServices = matsimSvc
+    services.modeChoiceCalculatorFactory = ModeChoiceCalculator(
+      services.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
+      services
+    )
+
     scenario.getPopulation.getPersons.values.asScala
       .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allTripModes))
+
     router = system.actorOf(
       BeamRouter.props(
         services,
@@ -140,17 +132,17 @@ class SingleModeSpec
       ),
       "router"
     )
-    when(services.beamRouter).thenReturn(router)
+    services.beamRouter = router
   }
 
   override def afterAll: Unit = {
     shutdown()
     router = null
-    geo = null
+    geoUtil = null
     scenario = null
     services = null
     networkCoordinator = null
-    beamConfig = null
+    beamCfg = null
   }
 
   "The agentsim" must {
@@ -272,6 +264,8 @@ class SingleModeSpec
             event match {
               case event @ (_: PersonDepartureEvent | _: ActivityEndEvent) =>
                 events += event
+                if (events.size % 10000 == 0)
+                  println(s"Event size: ${events.size}")
               case _ =>
             }
           }

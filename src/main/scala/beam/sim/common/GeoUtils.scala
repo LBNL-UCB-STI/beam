@@ -2,7 +2,6 @@ package beam.sim.common
 
 import beam.agentsim.events.SpaceTime
 import beam.sim.config.BeamConfig
-import beam.sim.{BeamServices, HasServices}
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.{Split, StreetLayer}
 import com.google.inject.{ImplementedBy, Inject}
@@ -16,11 +15,14 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
   */
 
 @ImplementedBy(classOf[GeoUtilsImpl])
-trait GeoUtils extends HasServices {
+trait GeoUtils {
+
+  def localCRS: String
+
   lazy val utm2Wgs: GeotoolsTransformation =
-    new GeotoolsTransformation(beamServices.beamConfig.beam.spatial.localCRS, "EPSG:4326")
+    new GeotoolsTransformation(localCRS, "EPSG:4326")
   lazy val wgs2Utm: GeotoolsTransformation =
-    new GeotoolsTransformation("EPSG:4326", beamServices.beamConfig.beam.spatial.localCRS)
+    new GeotoolsTransformation("EPSG:4326", localCRS)
 
   def wgs2Utm(spacetime: SpaceTime): SpaceTime = SpaceTime(wgs2Utm(spacetime.loc), spacetime.time)
 
@@ -207,4 +209,6 @@ object GeoUtils {
   }
 }
 
-class GeoUtilsImpl @Inject()(override val beamServices: BeamServices) extends GeoUtils {}
+class GeoUtilsImpl @Inject()(val beamConfig: BeamConfig) extends GeoUtils {
+  override def localCRS: String = beamConfig.beam.spatial.localCRS
+}
