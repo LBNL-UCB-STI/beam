@@ -11,13 +11,11 @@ import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode.CAR
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
-
 import scala.collection.mutable
-import scala.collection.JavaConverters._
 
 class PoolingAlonsoMora(val rideHailManager: RideHailManager) extends RideHailResourceAllocationManager(rideHailManager) {
 
-  val tempPickDropStore: mutable.Map[Int, PickDropIdAndLeg] = mutable.Map()
+  val tempScheduleStore: mutable.Map[Int,List[MobilityServiceRequest]] = mutable.Map()
 
   override def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
     rideHailManager.vehicleManager
@@ -34,10 +32,11 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager) extends RideHailRe
     }
   }
 
+
   override def allocateVehiclesToCustomers(
-    tick: Int,
-    vehicleAllocationRequest: AllocationRequests
-  ): AllocationResponse = {
+                                            tick: Int,
+                                            vehicleAllocationRequest: AllocationRequests
+                                          ): AllocationResponse = {
     logger.info(s"buffer size: ${vehicleAllocationRequest.requests.size}")
     var toPool: Set[RideHailRequest] = Set()
     var notToPool: Set[RideHailRequest] = Set()
@@ -51,6 +50,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager) extends RideHailRe
     }
     notToPool.foreach { request =>
       val routeResponses = vehicleAllocationRequest.requests(request)
+      val indexedResponses = routeResponses.map(resp => (resp.requestId -> resp)).toMap
+
 
       // First check for broken route responses (failed routing attempt)
       if (routeResponses.find(_.itineraries.size == 0).isDefined) {
@@ -60,11 +61,15 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager) extends RideHailRe
         val vehicleId = routeResponses.head.itineraries.head.legs.head.beamVehicleId
         if (rideHailManager.vehicleManager.getIdleVehicles.contains(vehicleId) && !alreadyAllocated.contains(vehicleId)) {
           alreadyAllocated = alreadyAllocated + vehicleId
-          val pickDropIdAndLegs = routeResponses.map { rResp =>
-            tempPickDropStore
-              .remove(rResp.requestId)
-              .getOrElse(PickDropIdAndLeg(request.customer, None))
-              .copy(leg = rResp.itineraries.head.legs.headOption)
+          val mobilityServiceRequests = tempScheduleStore.remove(request.requestId).get
+
+          val pickDropIdAndLegs = mobilityServiceRequests.map{ req =>
+            req.routingRequestId match {
+              case Some(routingRequestId) =>
+                PickDropIdAndLeg(req.person.get,indexedResponses(routingRequestId).itineraries.head.legs.headOption)
+              case None =>
+                PickDropIdAndLeg(req.person.get,None)
+            }
           }
           allocResponses = allocResponses :+ VehicleMatchedToCustomers(
             request,
@@ -79,165 +84,155 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager) extends RideHailRe
         }
       }
     }
-    if(toPool.size > 1){
-      val i = 0
+    if(toPool.size > 0){
       implicit val skimmer: BeamSkimmer = new BeamSkimmer()
-      val customerReqs = toPool.map(rhr => createPersonRequest(rhr.customer.personId.toString,rhr.pickUpLocationUTM,rhr.departAt,rhr.destinationUTM))
-      val availVehicles = rideHailManager.vehicleManager.availableRideHailVehicles.values.map(veh => createVehiclePassengers(veh.vehicleId.toString,veh.currentLocationUTM.loc,veh.currentLocationUTM.time))
+      val customerReqs = toPool.map(rhr => createPersonRequest(rhr.customer,rhr.pickUpLocationUTM,rhr.departAt,rhr.destinationUTM))
+      val customerIdToReqs = toPool.map(rhr => rhr.customer.personId -> rhr).toMap
+      val availVehicles = rideHailManager.vehicleManager.availableRideHailVehicles.values.map(veh => createVehicleAndSchedule(veh.vehicleId.toString,veh.currentLocationUTM.loc,veh.currentLocationUTM.time))
 
       val algo = new AlonsoMoraPoolingAlgForRideHail(
-          customerReqs.toList,
-          availVehicles.toList,
-          omega = 6 * 60,
-          delta = 10 * 5000 * 60,
-          radius = Int.MaxValue,
-          skimmer
-        )
+        customerReqs.toList,
+        availVehicles.toList,
+        omega = 6 * 60,
+        delta = 10 * 5000 * 60,
+        radius = Int.MaxValue,
+        skimmer
+      )
       val rvGraph: RVGraph = algo.pairwiseRVGraph
-      for (e <- rvGraph.edgeSet.asScala) {
-        println(rvGraph.getEdgeSource(e) + " <-> " + rvGraph.getEdgeTarget(e))
-      }
-
       val rtvGraph = algo.rTVGraph(rvGraph)
-      println("------")
-      for (e <- rtvGraph.edgeSet.asScala) {
-        println(rtvGraph.getEdgeSource(e) + " <-> " + rtvGraph.getEdgeTarget(e))
-      }
-
       val assignment = algo.greedyAssignment(rtvGraph)
+      //      for (e <- rvGraph.edgeSet.asScala) {
+      //        println(rvGraph.getEdgeSource(e) + " <-> " + rvGraph.getEdgeTarget(e))
+      //      }
+      //      println("------")
+      //      for (e <- rtvGraph.edgeSet.asScala) {
+      //        println(rtvGraph.getEdgeSource(e) + " <-> " + rtvGraph.getEdgeTarget(e))
+      //      }
       println("------")
       for (row <- assignment) {
         println(row)
       }
 
-      val j = 0
-    }
-    toPool.grouped(2).foreach { twoToPool =>
-      twoToPool.size match {
-        case 1 =>
-          val request = twoToPool.head
-          rideHailManager.vehicleManager
-            .getClosestIdleVehiclesWithinRadiusByETA(
-              request.pickUpLocationUTM,
-              rideHailManager.radiusInMeters,
-              tick,
-              excludeRideHailVehicles = alreadyAllocated
-            )
-            .headOption match {
-            case Some(agentETA) =>
-              alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId
-              allocResponses = allocResponses :+ RoutingRequiredToAllocateVehicle(
-                request,
-                rideHailManager.createRoutingRequestsToCustomerAndDestination(
-                  tick,
-                  request,
-                  agentETA.agentLocation
+      assignment.foreach{ case (theTrip,vehicleAndSchedule,cost) =>
+        alreadyAllocated = alreadyAllocated + vehicleAndSchedule.vehicle.id
+        var newRideHailRequest: Option[RideHailRequest] = None
+        var scheduleToCache: List[MobilityServiceRequest] = List()
+        val rReqs = theTrip.schedule.tail.
+          sliding(2)
+          .flatMap{ wayPoints =>
+            val orig = wayPoints(0)
+            val dest = wayPoints(1)
+            val origin = SpaceTime(orig.activity.getCoord, math.round(orig.time).toInt)
+            if(newRideHailRequest.isEmpty){
+              newRideHailRequest = Some(customerIdToReqs(orig.person.get.personId))
+            }else if(!newRideHailRequest.get.customer.equals(orig.person.get) && newRideHailRequest.get.groupedWithOtherRequests.find(_.customer.equals(orig.person.get)).isEmpty){
+              newRideHailRequest = Some(newRideHailRequest.get.addSubRequest(customerIdToReqs(orig.person.get.personId)))
+              removeRequestFromBuffer(customerIdToReqs(orig.person.get.personId))
+            }
+            if (rideHailManager.beamServices.geo.distUTMInMeters(orig.activity.getCoord, dest.activity.getCoord) < rideHailManager.beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters) {
+              scheduleToCache = scheduleToCache :+ orig
+              None
+            } else {
+              val routingRequest = RoutingRequest(
+                orig.activity.getCoord,
+                dest.activity.getCoord,
+                tick,
+                IndexedSeq(),
+                IndexedSeq(
+                  StreetVehicle(
+                    Id.create(vehicleAndSchedule.vehicle.id.toString, classOf[Vehicle]),
+                    vehicleAndSchedule.vehicle.beamVehicleType.id,
+                    origin,
+                    CAR,
+                    asDriver = true
+                  )
                 )
               )
-            case None =>
-              allocResponses = allocResponses :+ NoVehicleAllocated(request)
+              scheduleToCache = scheduleToCache :+ orig.copy(routingRequestId = Some(routingRequest.requestId))
+              Some(routingRequest)
+            }
           }
-        case 2 =>
-          val request1 = twoToPool.head
-          val routingResponses1 = vehicleAllocationRequest.requests(request1)
-          val request2 = twoToPool.last
-          val routingResponses2 = vehicleAllocationRequest.requests(request2)
-          rideHailManager.vehicleManager
-            .getClosestIdleVehiclesWithinRadiusByETA(
-              request1.pickUpLocationUTM,
-              rideHailManager.radiusInMeters,
-              tick,
-              excludeRideHailVehicles = alreadyAllocated
-            )
-            .headOption match {
-            case Some(agentETA) =>
-              alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId
-              allocResponses = allocResponses :+ RoutingRequiredToAllocateVehicle(
-                request1.addSubRequest(request2),
-                createRoutingRequestsForPooledTrip(List(request1, request2), agentETA.agentLocation, tick)
-              )
-              // When we group request 2 with 1 we need to remove it from the buffer
-              // so it won't be processed again (it's fate is now tied to request 1)
-              removeRequestFromBuffer(request2)
-            case None =>
-              allocResponses = allocResponses :+ NoVehicleAllocated(request1)
-              allocResponses = allocResponses :+ NoVehicleAllocated(request2)
-          }
+          .toList
+          allocResponses = allocResponses :+ RoutingRequiredToAllocateVehicle(newRideHailRequest.get, rReqs)
+        tempScheduleStore.put(newRideHailRequest.get.requestId,scheduleToCache :+ theTrip.schedule.last)
       }
+    }
+    if(allocResponses.size>0){
+      val i = 0
     }
     VehicleAllocations(allocResponses)
   }
 
-  def createRoutingRequestsForPooledTrip(
-    requests: List[RideHailRequest],
-    rideHailLocation: RideHailAgentLocation,
-    tick: Int
-  ): List[RoutingRequest] = {
-    var routeReqs: List[RoutingRequest] = List()
-    var startTime = tick
-    var rideHailVehicleAtOrigin = StreetVehicle(
-      rideHailLocation.vehicleId,
-      rideHailLocation.vehicleTypeId,
-      SpaceTime((rideHailLocation.currentLocationUTM.loc, startTime)),
-      CAR,
-      asDriver = false
-    )
-
-    // Pickups first
-    requests.foreach { req =>
-      val routeReq2Pickup = RoutingRequest(
-        rideHailVehicleAtOrigin.locationUTM.loc,
-        req.pickUpLocationUTM,
-        startTime,
-        Vector(),
-        Vector(rideHailVehicleAtOrigin)
-      )
-      routeReqs = routeReqs :+ routeReq2Pickup
-      tempPickDropStore.put(routeReq2Pickup.requestId, PickDropIdAndLeg(req.customer, None))
-
-      rideHailVehicleAtOrigin = StreetVehicle(
-        rideHailLocation.vehicleId,
-        rideHailLocation.vehicleTypeId,
-        SpaceTime((req.pickUpLocationUTM, startTime)),
-        CAR,
-        asDriver = false
-      )
-    }
-
-    // Dropoffs next
-    requests.foreach { req =>
-      val routeReq2Dropoff = RoutingRequest(
-        rideHailVehicleAtOrigin.locationUTM.loc,
-        req.destinationUTM,
-        startTime,
-        Vector(),
-        Vector(rideHailVehicleAtOrigin)
-      )
-      routeReqs = routeReqs :+ routeReq2Dropoff
-      tempPickDropStore.put(routeReq2Dropoff.requestId, PickDropIdAndLeg(req.customer, None))
-
-      rideHailVehicleAtOrigin = StreetVehicle(
-        rideHailLocation.vehicleId,
-        rideHailLocation.vehicleTypeId,
-        SpaceTime((req.destinationUTM, startTime)),
-        CAR,
-        asDriver = false
-      )
-    }
-
-    routeReqs
-  }
-//
-//    // route from customer to destination
-//    val rideHail2Destination = RoutingRequest(
-//      request.pickUpLocation,
-//      request.destination,
-//      requestTime,
-//      Vector(),
-//      Vector(rideHailVehicleAtPickup)
+//  def createRoutingRequestsForPooledTrip(
+//                                          requests: List[RideHailRequest],
+//                                          rideHailLocation: RideHailAgentLocation,
+//                                          tick: Int
+//                                        ): List[RoutingRequest] = {
+//    var routeReqs: List[RoutingRequest] = List()
+//    var startTime = tick
+//    var rideHailVehicleAtOrigin = StreetVehicle(
+//      rideHailLocation.vehicleId,
+//      rideHailLocation.vehicleTypeId,
+//      SpaceTime((rideHailLocation.currentLocationUTM.loc, startTime)),
+//      CAR,
+//      asDriver = false
 //    )
 //
-//    List(rideHailAgent2Customer, rideHail2Destination)
+//    // Pickups first
+//    requests.foreach { req =>
+//      val routeReq2Pickup = RoutingRequest(
+//        rideHailVehicleAtOrigin.locationUTM.loc,
+//        req.pickUpLocationUTM,
+//        startTime,
+//        Vector(),
+//        Vector(rideHailVehicleAtOrigin)
+//      )
+//      routeReqs = routeReqs :+ routeReq2Pickup
+//      tempPickDropStore.put(routeReq2Pickup.requestId, PickDropIdAndLeg(req.customer, None))
+//
+//      rideHailVehicleAtOrigin = StreetVehicle(
+//        rideHailLocation.vehicleId,
+//        rideHailLocation.vehicleTypeId,
+//        SpaceTime((req.pickUpLocationUTM, startTime)),
+//        CAR,
+//        asDriver = false
+//      )
+//    }
+//
+//    // Dropoffs next
+//    requests.foreach { req =>
+//      val routeReq2Dropoff = RoutingRequest(
+//        rideHailVehicleAtOrigin.locationUTM.loc,
+//        req.destinationUTM,
+//        startTime,
+//        Vector(),
+//        Vector(rideHailVehicleAtOrigin)
+//      )
+//      routeReqs = routeReqs :+ routeReq2Dropoff
+//      tempPickDropStore.put(routeReq2Dropoff.requestId, PickDropIdAndLeg(req.customer, None))
+//
+//      rideHailVehicleAtOrigin = StreetVehicle(
+//        rideHailLocation.vehicleId,
+//        rideHailLocation.vehicleTypeId,
+//        SpaceTime((req.destinationUTM, startTime)),
+//        CAR,
+//        asDriver = false
+//      )
+//    }
+//
+//    routeReqs
 //  }
+  //
+  //    // route from customer to destination
+  //    val rideHail2Destination = RoutingRequest(
+  //      request.pickUpLocation,
+  //      request.destination,
+  //      requestTime,
+  //      Vector(),
+  //      Vector(rideHailVehicleAtPickup)
+  //    )
+  //
+  //    List(rideHailAgent2Customer, rideHail2Destination)
+  //  }
 
 }

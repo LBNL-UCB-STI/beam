@@ -719,7 +719,7 @@ class RideHailManager(
     request: RideHailRequest,
     embodiedTrip: EmbodiedBeamTrip
   ): PassengerSchedule = {
-    val beamLegs = BeamLeg.makeLegsConsistent(embodiedTrip.toBeamTrip.legs.toList)
+    val beamLegs = BeamLeg.makeLegsConsistent(embodiedTrip.toBeamTrip.legs.toList.map(Some(_))).flatten
     PassengerSchedule()
       .addLegs(beamLegs)
       .addPassenger(request.customer, beamLegs.tail)
@@ -1049,16 +1049,33 @@ class RideHailManager(
 
   def pickDropsToPassengerSchedule(pickDrops: List[PickDropIdAndLeg]): PassengerSchedule = {
     val consistentPickDrops =
-      pickDrops.map(_.personId).zip(BeamLeg.makeLegsConsistent(pickDrops.map(_.leg.get.beamLeg)))
-    val allLegs = consistentPickDrops.map(_._2)
+      pickDrops.map(_.personId).zip(BeamLeg.makeLegsConsistent(pickDrops.map(_.leg.map(_.beamLeg))))
+    val allLegs = consistentPickDrops.map(_._2).flatten
     var passSched = PassengerSchedule().addLegs(allLegs)
-    consistentPickDrops.groupBy(_._1).foreach { personPickDrop =>
-      val firstLeg = personPickDrop._2.head._2
-      val lastLeg = personPickDrop._2.last._2
-      val subtrip = allLegs.dropWhile(_ != firstLeg).drop(1).takeWhile(_ != lastLeg) :+ lastLeg
-      passSched = passSched.addPassenger(personPickDrop._1, subtrip)
+//    consistentPickDrops.groupBy(_._1).foreach { personPickDrop =>
+//      val firstLeg = personPickDrop._2.head._2
+//      val lastLeg = personPickDrop._2.last._2
+//      val subtrip = allLegs.dropWhile(_ != firstLeg).drop(1).takeWhile(_ != lastLeg) :+ lastLeg
+//      passSched = passSched.addPassenger(personPickDrop._1, subtrip)
+//    }
+//    passSched
+
+    var currentLeg = allLegs.head
+    var passengersToAdd = Set[VehiclePersonId]()
+    pickDrops.foreach { pickDrop =>
+      if(passengersToAdd.contains(pickDrop.personId)) {
+        passengersToAdd = passengersToAdd - pickDrop.personId
+      }else{
+        passengersToAdd = passengersToAdd + pickDrop.personId
+      }
+      if(pickDrop.leg.isDefined){
+        passengersToAdd.foreach { pass =>
+          passSched = passSched.addPassenger(pass, Seq(pickDrop.leg.get.beamLeg))
+        }
+      }
     }
     passSched
+
   }
 
   def failedAllocation(request: RideHailRequest, tick: Int): Unit = {
