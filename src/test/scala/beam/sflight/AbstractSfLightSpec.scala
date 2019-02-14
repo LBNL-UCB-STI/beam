@@ -6,8 +6,8 @@ import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.choice.mode.PtFares
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.FuelType.FuelType
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.BeamRouter
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
@@ -60,7 +60,7 @@ class AbstractSfLightSpec
   override def beforeAll: Unit = {
 
     when(services.beamConfig).thenReturn(beamConfig)
-    geo = new GeoUtilsImpl(services)
+    geo = new GeoUtilsImpl(beamConfig)
     when(services.geo).thenReturn(geo)
     when(services.dates).thenReturn(
       DateUtils(

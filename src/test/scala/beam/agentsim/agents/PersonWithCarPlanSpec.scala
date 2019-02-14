@@ -26,8 +26,8 @@ import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.{NetworkHelperImpl, StuckFinder}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population.Person
@@ -41,13 +41,12 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.core.scoring.{EventsToLegs, PersonExperiencedLeg}
-import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
 import org.mockito.Mockito._
 import org.scalatest.Matchers._
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike, _}
+import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{mutable, JavaConverters}
@@ -55,7 +54,7 @@ import scala.collection.{mutable, JavaConverters}
 class PersonWithCarPlanSpec
     extends TestKit(
       ActorSystem(
-        name = "PersonAgentSpec",
+        name = "PersonWithCarPlanSpec",
         config = ConfigFactory
           .parseString(
             """
@@ -80,6 +79,9 @@ class PersonWithCarPlanSpec
   private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
   private val tollCalculator = new TollCalculator(beamConfig)
 
+  private lazy val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
+  private lazy val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
+
   private lazy val beamSvc: BeamServices = {
     val matsimServices = mock[MatsimServices]
 
@@ -87,8 +89,10 @@ class PersonWithCarPlanSpec
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(beamConfig)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
-    when(theServices.geo).thenReturn(new GeoUtilsImpl(theServices))
+    when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
+    when(theServices.networkHelper).thenReturn(networkHelper)
+
     theServices
   }
 
@@ -105,8 +109,6 @@ class PersonWithCarPlanSpec
 
     override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0D
   }
-
-  private lazy val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
   private val matsimConfig = configBuilder.buildMatSamConf()

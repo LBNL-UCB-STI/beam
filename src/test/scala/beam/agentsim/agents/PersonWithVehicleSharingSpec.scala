@@ -97,7 +97,7 @@ class PersonWithVehicleSharingSpec
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(beamConfig)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
-    when(theServices.geo).thenReturn(new GeoUtilsImpl(theServices))
+    when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     theServices
   }

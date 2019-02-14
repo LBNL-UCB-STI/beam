@@ -61,7 +61,7 @@ class TollRoutingSpec
     // Have to mock a lot of things to get the router going
     scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
-    when(services.geo).thenReturn(new GeoUtilsImpl(services))
+    when(services.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
     when(services.ptFares).thenReturn(PtFares(List[FareRule]()))
     when(services.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
