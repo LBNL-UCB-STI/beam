@@ -218,7 +218,7 @@ object HouseholdActor {
           )
 
           val cavScheduler = new HouseholdCAVScheduling(
-            beamServices.matsimServices.getScenario.getPopulation,
+            beamServices.matsimServices.getScenario,
             household,
             vehicles.values.toList,
             5 * 60,

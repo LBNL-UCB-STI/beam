@@ -34,27 +34,28 @@ case object Init extends MobilityServiceRequestType
 case class MobilityServiceRequest(
   person: Option[Id[Person]],
   activity: Activity,
-  time: Double,
+  time: Int,
   trip: Trip,
   defaultMode: BeamMode,
   tag: MobilityServiceRequestType,
-  serviceTime: Double,
+  serviceTime: Int,
   routingRequestId: Option[Int] = None
 ) {
   val nextActivity = Some(trip.activity)
 
-  def formatTime(secs: Double): String = {
-    s"${(secs / 3600).toInt}:${((secs % 3600) / 60).toInt}:${(secs % 60).toInt}"
+  def formatTime(secs: Int): String = {
+    s"${secs / 3600}:${(secs % 3600) / 60}:${secs % 60}"
   }
   override def toString =
-    s"${formatTime(time)}|$tag{${person.getOrElse("na")}|${activity.getType}| => ${formatTime(serviceTime)}}\n"
+    s"${formatTime(time)}|$tag{${person.getOrElse("na")}|${activity.getType}| => ${formatTime(serviceTime)}}"
 }
 
+case class HouseholdTripsException(message: String, cause: Throwable = null) extends Exception(message, cause)
 case class HouseholdTrips(
   requests: List[MobilityServiceRequest],
-  defaultTravelTime: Double,
-  tripTravelTime: Map[Trip, Double],
-  totalTravelTime: Double
+  defaultTravelTime: Int,
+  tripTravelTime: Map[Trip, Int],
+  totalTravelTime: Int
 ) {
   override def toString: String = requests.toString
 }
@@ -64,58 +65,73 @@ object HouseholdTrips {
   def apply(
     householdPlans: Seq[BeamPlan],
     householdNbOfVehicles: Int,
-    pickupTimeWindow: Double,
-    dropoffTimeWindow: Double,
-    skim: Map[BeamMode, Map[Coord, Map[Coord, Double]]]
+    pickupTimeWindow: Int,
+    dropoffTimeWindow: Int,
+    skim: Map[BeamMode, Map[Coord, Map[Coord, Int]]]
   ): HouseholdTrips = {
 
     import scala.collection.mutable.{Map => MMap}
     import scala.collection.mutable.{ListBuffer => MListBuffer}
 
     val requests = MListBuffer.empty[MobilityServiceRequest]
-    val tripTravelTime = MMap[Trip, Double]()
+    val tripTravelTime = MMap[Trip, Int]()
+    var totTravelTime = 0
 
-    val (_, totTravelTimeOut) = householdPlans.foldLeft(householdNbOfVehicles, 0.0) {
-      case ((counter, totTravelTime), plan) => {
-        val (totTravelTimeOutBis, usedCarOut) = plan.trips.sliding(2).foldLeft((totTravelTime, false)) {
-          case ((totTravelTimeBis, usedCarBis), Seq(prevTrip, curTrip)) =>
+    householdPlans.foldLeft(householdNbOfVehicles) {
+      case (counter, plan) =>
+        val usedCarOut = plan.trips.sliding(2).foldLeft(false) {
+          case (usedCar, Seq(prevTrip, curTrip)) =>
             val legTrip = curTrip.leg
             val defaultMode = getDefaultMode(legTrip, counter)
             val travelTime = skim(defaultMode)(prevTrip.activity.getCoord)(curTrip.activity.getCoord)
-            val pickups = MobilityServiceRequest(
+
+            val startTime = prevTrip.activity.getEndTime.toInt
+            val arrivalTime = startTime + travelTime
+
+            val nextTripStartTime = curTrip.activity.getEndTime
+            if (nextTripStartTime != Double.NegativeInfinity) {
+              if (startTime >= nextTripStartTime.toInt) {
+                throw HouseholdTripsException("An activity is ending after the next one")
+              } else if (arrivalTime > nextTripStartTime.toInt) {
+                throw HouseholdTripsException(
+                  "The shortest time necessary to arrive to the next activity is beyond the end time of the same activity"
+                )
+              }
+            }
+
+            val pickup = MobilityServiceRequest(
               Some(plan.getPerson.getId),
               prevTrip.activity,
-              prevTrip.activity.getEndTime,
+              startTime,
               curTrip,
               defaultMode,
               Pickup,
-              prevTrip.activity.getEndTime
+              startTime
             )
-            val dropoffs = MobilityServiceRequest(
+            val dropoff = MobilityServiceRequest(
               Some(plan.getPerson.getId),
               curTrip.activity,
-              prevTrip.activity.getEndTime + travelTime,
+              arrivalTime,
               curTrip,
               defaultMode,
               Dropoff,
-              prevTrip.activity.getEndTime + travelTime
+              arrivalTime
             )
-            requests.prependAll(MListBuffer(pickups, dropoffs))
+            requests.prependAll(MListBuffer(pickup, dropoff))
             tripTravelTime(curTrip) = travelTime
-            (totTravelTimeBis + travelTime, if (defaultMode == BeamMode.CAR) true else usedCarBis)
+            totTravelTime += travelTime
+            if (defaultMode == BeamMode.CAR) true else usedCar
         }
-        (totTravelTimeOutBis, if (usedCarOut) counter - 1 else counter)
-      }
-      (counter, totTravelTime)
+        if (usedCarOut) counter - 1 else counter
     }
     // Sum(tDi - tPi) <= Sum(tauDi - tauPi) + (alpha + beta)|R|/2
     val sumTimeWindows = (requests.size / 2) * (dropoffTimeWindow + pickupTimeWindow)
     // adding a time window to the total travel time
     HouseholdTrips(
       requests.sortWith(_.time < _.time).toList,
-      totTravelTimeOut + sumTimeWindows,
+      totTravelTime + sumTimeWindows,
       tripTravelTime.toMap,
-      totTravelTimeOut
+      totTravelTime
     )
   }
 
@@ -126,19 +142,45 @@ object HouseholdTrips {
   }
 }
 
+case class PlansCoherenceCheck(scenario: org.matsim.api.core.v01.Scenario) {
+
+  def isInChainMode(request: MobilityServiceRequest): Boolean = {
+    request.tag == Pickup && scenario.getConfig
+      .subtourModeChoice()
+      .getChainBasedModes
+      .contains(request.defaultMode.matsimMode) && request.trip.parentTour.trips.indexOf(request.trip) > 0
+  }
+
+  def isWithinTour(request: MobilityServiceRequest, schedule: List[MobilityServiceRequest]): Boolean = {
+    val index = schedule.indexWhere(_.person == request.person)
+    index >= 0 && request.trip.parentTour == schedule(index).trip.parentTour
+  }
+
+  def isWithinTourInAtLeastOneSchedule(
+    request: MobilityServiceRequest,
+    scheduleList: List[List[MobilityServiceRequest]]
+  ): Boolean = {
+    for (schedule <- scheduleList)
+      if (isWithinTour(request, schedule))
+        return true
+    false
+  }
+}
+
 class HouseholdCAVScheduling(
-  val population: org.matsim.api.core.v01.population.Population,
+  val scenario: org.matsim.api.core.v01.Scenario,
   val household: Household,
   val householdVehicles: List[BeamVehicle],
-  val pickupTimeWindow: Double,
-  val dropoffTimeWindow: Double,
-  val skim: Map[BeamMode, Map[Coord, Map[Coord, Double]]]
+  val pickupTimeWindow: Int,
+  val dropoffTimeWindow: Int,
+  val skim: Map[BeamMode, Map[Coord, Map[Coord, Int]]]
 ) {
+  private implicit val coherenceCheck: PlansCoherenceCheck = PlansCoherenceCheck(scenario)
 
   // ***
   def getAllFeasibleSchedules: List[CAVFleetSchedule] = {
     import beam.agentsim.agents.memberships.Memberships.RankedGroup._
-    implicit val pop: org.matsim.api.core.v01.population.Population = population
+    implicit val pop: org.matsim.api.core.v01.population.Population = scenario.getPopulation
     val householdPlans = household.members.map(person => BeamPlan(person.getSelectedPlan))
     // extract potential household CAV requests from plans
     val householdRequests: HouseholdTrips =
@@ -175,8 +217,8 @@ class HouseholdCAVScheduling(
     for (request  <- householdRequests.requests;
          schedule <- feasibleSchedules) {
       val (newSchedule, feasible) = schedule.check(request, skim)
-      feasibleSchedules.prependAll(newSchedule) //.map(cavSched => cavSched.copy(cavFleetSchedule = cavSched.cavFleetSchedule.reverse)))
       if (!feasible) feasibleSchedules -= schedule
+      feasibleSchedules.prependAll(newSchedule)
     }
     feasibleSchedules.toList
   }
@@ -189,10 +231,10 @@ class HouseholdCAVScheduling(
 
   // ***
   def getBestScheduleWithTheLongestCAVChain: CAVFleetSchedule = {
-    val maprank =
+    val mapRank =
       getAllFeasibleSchedules.map(x => x -> x.cavFleetSchedule.foldLeft(0)((a, b) => a + b.schedule.size)).toMap
-    val maxrank = maprank.maxBy(_._2)._2
-    maprank.filter(_._2 == maxrank).keys.toList.sortBy(_.householdTrips.totalTravelTime).take(1).head
+    val maxRank = mapRank.maxBy(_._2)._2
+    mapRank.withFilter(_._2 == maxRank).map(x => x._1).toList.sortBy(_.householdTrips.totalTravelTime).take(1).head
   }
 
   // ***
@@ -201,26 +243,45 @@ class HouseholdCAVScheduling(
     // ***
     def check(
       request: MobilityServiceRequest,
-      skim: Map[BeamMode, Map[Coord, Map[Coord, Double]]]
+      skim: Map[BeamMode, Map[Coord, Map[Coord, Int]]]
     ): (List[CAVFleetSchedule], Boolean) = {
       import scala.collection.mutable.{ListBuffer => MListBuffer}
-      val newHouseholdSchedule = MListBuffer.empty[Option[CAVFleetSchedule]]
+      val outHouseholdSchedule = MListBuffer.empty[Option[CAVFleetSchedule]]
       val timeWindow = request.tag match {
         case Pickup  => pickupTimeWindow
         case Dropoff => dropoffTimeWindow
         case _       => 0
       }
-      val feasibleOut = cavFleetSchedule.foldLeft(true) {
+      var feasibleOut = cavFleetSchedule.foldLeft(true) {
         case (feasible, cavSchedule) =>
           val (scheduleOption, trips, isFeasible) = cavSchedule.check(request, householdTrips, timeWindow, skim)
-          newHouseholdSchedule.prepend(
+          outHouseholdSchedule.prepend(
             scheduleOption.map(
               schedule => CAVFleetSchedule(schedule :: cavFleetSchedule.filter(_ != cavSchedule), trips)
             )
           )
           feasible && isFeasible
       }
-      (newHouseholdSchedule.flatten.toList, feasibleOut)
+
+      var finalHouseholdSchedule = outHouseholdSchedule.flatten
+
+      if (coherenceCheck.isInChainMode(request)) {
+        if (coherenceCheck.isWithinTourInAtLeastOneSchedule(request, cavFleetSchedule.map(_.schedule))) {
+          // schedule to be marked unfeasible as the agent is using CAV in a chained tour
+          // not marking the schedule unfeasible will allow future iteration that violates chain-based modes
+          feasibleOut = false
+          if (!finalHouseholdSchedule.flatMap(_.cavFleetSchedule).exists(_.schedule.head.person == request.person))
+            // Dead end! chain-based mode not to be violated by any CAV of the household
+            // agent did not get picked up by a CAV in the next trip of the same tour
+            finalHouseholdSchedule = MListBuffer.empty[CAVFleetSchedule]
+        } else {
+          // Dead end! chain-based mode not to be violated by any CAV of the household
+          // agent cannot be picked up by CAV if the tour already started without CAV in chained tours
+          finalHouseholdSchedule = MListBuffer.empty[CAVFleetSchedule]
+        }
+      }
+
+      (finalHouseholdSchedule.toList, feasibleOut)
     }
     // ***
     override def toString: String = {
@@ -237,18 +298,18 @@ class HouseholdCAVScheduling(
   }
 }
 
-// **
+// ***
 class CAVSchedule(
   val schedule: List[MobilityServiceRequest],
   val cav: BeamVehicle,
   val occupancy: Int
-) {
+)(implicit val coherenceCheck: PlansCoherenceCheck) {
 
   def check(
     request: MobilityServiceRequest,
     householdTrips: HouseholdTrips,
-    timeWindow: Double,
-    skim: Map[BeamMode, Map[Coord, Map[Coord, Double]]]
+    timeWindow: Int,
+    skim: Map[BeamMode, Map[Coord, Map[Coord, Int]]]
   ): (Option[CAVSchedule], HouseholdTrips, Boolean) = {
     val travelTime = skim(BeamMode.CAR)(schedule.head.activity.getCoord)(request.activity.getCoord)
     val prevServiceTime = schedule.head.serviceTime
@@ -300,7 +361,7 @@ class CAVSchedule(
       // cav cannot dropoff a non passenger
       case Dropoff if serviceTime < lowerBoundServiceTime || serviceTime > upperBoundServiceTime =>
         // cav arriving too early or too late to the dropoff time
-        // since the agent is already a passenger, such a schedule should be marked unfeasible
+        // since the agent is already a passenger, such a schedule to be marked unfeasible
         // to avoid the agent to be picked up in the first place
         feasible = false
       case Dropoff =>
@@ -321,9 +382,8 @@ class CAVSchedule(
             totalTravelTime = newTotalTravelTime
           )
         }
-        // whether the passenger successfully got dropped of or not, the current schedule
-        // should be marked unfeasible, since you wouldn't need a combination where a passenger
-        // never get dropped of.
+        // whether the passenger successfully get dropped of or not, the current schedule
+        // should be marked unfeasible, to avoid that the passenger never get dropped of.
         feasible = false
       case _ => // no action
     }
@@ -338,7 +398,7 @@ class CAVSchedule(
       .map { wayPoints =>
         val orig = wayPoints(0)
         val dest = wayPoints(1)
-        val origin = SpaceTime(orig.activity.getCoord, math.round(orig.time).toInt)
+        val origin = SpaceTime(orig.activity.getCoord, Math.round(orig.time))
         if (beamServices.geo.distUTMInMeters(orig.activity.getCoord, dest.activity.getCoord) < beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters) {
           newMobilityRequests = newMobilityRequests :+ orig
           None
@@ -381,7 +441,7 @@ object HouseholdCAVScheduling {
   def computeSkim(
     plans: List[BeamPlan],
     avgSpeed: Map[BeamMode, Double]
-  ): Map[BeamMode, Map[Coord, Map[Coord, Double]]] = {
+  ): Map[BeamMode, Map[Coord, Map[Coord, Int]]] = {
     val activitySet: Set[Coord] = (for {
       plan <- plans
       act  <- plan.activities
@@ -389,7 +449,7 @@ object HouseholdCAVScheduling {
 
     val theModes =
       List(CAR, CAV, WALK, BIKE, WALK_TRANSIT, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT)
-    var skim: Map[BeamMode, Map[Coord, Map[Coord, Double]]] = Map()
+    var skim: Map[BeamMode, Map[Coord, Map[Coord, Int]]] = Map()
 
     theModes.foreach { mode =>
       skim = skim + (mode -> Map())
@@ -399,14 +459,14 @@ object HouseholdCAVScheduling {
       val dist = beam.sim.common.GeoUtils.distFormula(src, dst)
       if (!skim(BeamMode.CAR).contains(src)) {
         theModes.foreach { mode =>
-          val sourceToDestToDist = (src -> Map[Coord, Double]())
+          val sourceToDestToDist = src -> Map[Coord, Int]()
           skim = skim + (mode           -> (skim(mode) + sourceToDestToDist))
         }
       }
       theModes.foreach { mode =>
-        val destToDist = skim(mode)(src) + (dst -> dist / avgSpeed(mode))
-        val sourceToDestToDist = (src           -> destToDist)
-        skim = skim + (mode                     -> (skim(mode) + sourceToDestToDist))
+        val destToDist = skim(mode)(src) + (dst-> (dist / avgSpeed(mode)).toInt)
+        val sourceToDestToDist = src           -> destToDist
+        skim = skim + (mode                    -> (skim(mode) + sourceToDestToDist))
       }
     }
     skim

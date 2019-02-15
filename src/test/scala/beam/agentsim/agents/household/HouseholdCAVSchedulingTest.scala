@@ -45,12 +45,12 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val household: Household = scenario1(cavs)
     val skim = getSkim(sc, household)
 
-    val algo = new HouseholdCAVScheduling(sc.getPopulation, household, cavs, 2, 2, skim)
-    val schedules = algo.getAllFeasibleSchedules
-    schedules should have length 4
+    val alg = new HouseholdCAVScheduling(sc, household, cavs, 2, 2, skim)
+    val schedules = alg.getAllFeasibleSchedules
+    schedules should have length 2
     schedules.foreach { x =>
       x.cavFleetSchedule should have length 1
-      x.cavFleetSchedule.head.schedule should (((have length 4 or have length 6) or have length 3) or have length 1)
+      x.cavFleetSchedule.head.schedule should (have length 1 or have length 6)
     }
     println(s"*** scenario 1 *** ${schedules.size} combinations")
     println(schedules)
@@ -68,8 +68,8 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val household: Household = scenario2(vehicles)
     val skim = getSkim(sc, household)
 
-    val algo = new HouseholdCAVScheduling(sc.getPopulation, household, vehicles, 15 * 60, 15 * 60, skim)
-    val schedule = algo.getBestScheduleWithTheLongestCAVChain
+    val alg = new HouseholdCAVScheduling(sc, household, vehicles, 15 * 60, 15 * 60, skim)
+    val schedule = alg.getBestScheduleWithTheLongestCAVChain
 
     schedule.cavFleetSchedule should have length 1
     schedule.cavFleetSchedule.head.schedule should have length 10
@@ -78,10 +78,10 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
       .groupBy(_.person)
       .mapValues(_.size)
       .foldLeft(0)(_ + _._2) shouldBe 8
-    schedule.cavFleetSchedule.head.schedule(0).tag shouldBe a[Dropoff.type]
-    schedule.cavFleetSchedule.head.schedule(1).tag shouldBe a[Dropoff.type]
-    schedule.cavFleetSchedule.head.schedule(7).tag shouldBe a[Pickup.type]
-    schedule.cavFleetSchedule.head.schedule(8).tag shouldBe a[Pickup.type]
+    schedule.cavFleetSchedule.head.schedule(0).tag shouldBe Dropoff
+    schedule.cavFleetSchedule.head.schedule(1).tag shouldBe Dropoff
+    schedule.cavFleetSchedule.head.schedule(7).tag shouldBe Pickup
+    schedule.cavFleetSchedule.head.schedule(8).tag shouldBe Pickup
 
     println(s"*** scenario 2 *** ")
     println(schedule)
@@ -99,8 +99,8 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val household: Household = scenario3(vehicles)
     val skim = getSkim(sc, household)
 
-    val algo = new HouseholdCAVScheduling(sc.getPopulation, household, vehicles, 15 * 60, 15 * 60, skim)
-    val schedule = algo.getBestScheduleWithTheLongestCAVChain
+    val alg = new HouseholdCAVScheduling(sc, household, vehicles, 15 * 60, 15 * 60, skim)
+    val schedule = alg.getBestScheduleWithTheLongestCAVChain
     schedule.cavFleetSchedule should have length 1
     schedule.cavFleetSchedule.head.schedule should have length 10
     schedule.cavFleetSchedule.head.schedule
@@ -108,15 +108,15 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
       .groupBy(_.person)
       .mapValues(_.size)
       .foldLeft(0)(_ + _._2) shouldBe 8
-    schedule.cavFleetSchedule.head.schedule(0).tag shouldBe a[Dropoff.type]
-    schedule.cavFleetSchedule.head.schedule(1).tag shouldBe a[Pickup.type]
-    schedule.cavFleetSchedule.head.schedule(7).tag shouldBe a[Pickup.type]
-    schedule.cavFleetSchedule.head.schedule(8).tag shouldBe a[Pickup.type]
+    schedule.cavFleetSchedule.head.schedule(0).tag shouldBe Dropoff
+    schedule.cavFleetSchedule.head.schedule(1).tag shouldBe Pickup
+    schedule.cavFleetSchedule.head.schedule(7).tag shouldBe Pickup
+    schedule.cavFleetSchedule.head.schedule(8).tag shouldBe Pickup
     println(s"*** scenario 3 ***")
     println(schedule)
   }
 
-  it should "generate four thousands and ninety six schedules" in {
+  it should "generate 12 trips" in {
     val config = ConfigUtils.createConfig()
     implicit val sc: org.matsim.api.core.v01.Scenario =
       ScenarioUtils.createScenario(config)
@@ -128,11 +128,42 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
 
     val skim = getSkim(sc, household)
 
-    val algo = new HouseholdCAVScheduling(sc.getPopulation, household, vehicles, 10 * 60, 15 * 60, skim)
-    val schedules = algo.getBestScheduleWithTheLongestCAVChain
+    val alg = new HouseholdCAVScheduling(sc, household, vehicles, 10 * 60, 15 * 60, skim)
+    val schedule = alg.getBestScheduleWithTheLongestCAVChain
+
+    schedule.cavFleetSchedule should have length 1
+    val nbOfTrips = schedule.cavFleetSchedule.flatMap(_.schedule).count(x => x.tag == Pickup || x.tag == Dropoff) / 2
+    nbOfTrips should equal(12)
     //schedules should have length 4096
-    println(s"*** scenario 4 *** ")
-    println(schedules)
+    println(s"*** scenario 4 *** $nbOfTrips trips")
+    println(schedule)
+  }
+
+  it should "drive both agents with different CAVs" in {
+    val config = ConfigUtils.createConfig()
+    implicit val sc: org.matsim.api.core.v01.Scenario =
+      ScenarioUtils.createScenario(config)
+
+    val vehicles = List[BeamVehicle](
+      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType),
+      new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), defaultCAVBeamVehicleType)
+    )
+    val household: Household = scenario3(vehicles)
+    val skim = getSkim(sc, household)
+
+    val alg = new HouseholdCAVScheduling(sc, household, vehicles, 15 * 60, 15 * 60, skim)
+    val schedule = alg.getKBestSchedules(Integer.MAX_VALUE)
+    schedule should have length 25
+    val worstCombination = schedule.last
+    worstCombination.cavFleetSchedule should have length 2
+    worstCombination.cavFleetSchedule.head.schedule should have length 6
+    worstCombination.cavFleetSchedule.head.schedule(0).tag shouldBe Dropoff
+    worstCombination.cavFleetSchedule.head.schedule(1).tag shouldBe Pickup
+    worstCombination.cavFleetSchedule.last.schedule should have length 5
+    worstCombination.cavFleetSchedule.last.schedule(0).tag shouldBe Dropoff
+    worstCombination.cavFleetSchedule.last.schedule(1).tag shouldBe Dropoff
+    println(s"*** scenario 5 ***")
+    println(worstCombination)
   }
 
   // ******************
@@ -149,10 +180,8 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val H11: Activity = PopulationUtils.createActivityFromCoord("home", homeCoord)
     H11.setEndTime(8.5 * 3600)
     val W1: Activity = PopulationUtils.createActivityFromCoord("work", new Coord(30, 0))
-    W1.setStartTime(9 * 3600)
     W1.setEndTime(17 * 3600)
     val H12: Activity = PopulationUtils.createActivityFromCoord("home", homeCoord)
-    H12.setStartTime(17.5 * 3600)
     val plan: Plan = pop.getFactory.createPlan()
     plan.setPerson(p)
     plan.addActivity(H11)
@@ -242,7 +271,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
   }
 
   def scenario4(vehicles: List[BeamVehicle])(implicit sc: org.matsim.api.core.v01.Scenario): Household = {
-    new PopulationReader(sc).readFile("test/input/dummy/population.xml")
+    new PopulationReader(sc).readFile("test/input/beamville/population.xml")
     val p1 = sc.getPopulation.getPersons.get(Id.createPersonId("1"))
     val p2 = sc.getPopulation.getPersons.get(Id.createPersonId("2"))
     val p3 = sc.getPopulation.getPersons.get(Id.createPersonId("3"))
@@ -253,7 +282,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     household
   }
 
-  def getSkim(sc: Scenario, household: Household): Map[BeamMode, Map[Coord, Map[Coord, Double]]] = {
+  def getSkim(sc: Scenario, household: Household): Map[BeamMode, Map[Coord, Map[Coord, Int]]] = {
     import beam.agentsim.agents.memberships.Memberships.RankedGroup._
     implicit val pop: org.matsim.api.core.v01.population.Population = sc.getPopulation
     val householdPlans = household.members.map(person => BeamPlan(person.getSelectedPlan)).toList
