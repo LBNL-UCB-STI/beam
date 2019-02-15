@@ -460,13 +460,13 @@ object HouseholdCAVScheduling {
       if (!skim(BeamMode.CAR).contains(src)) {
         theModes.foreach { mode =>
           val sourceToDestToDist = src -> Map[Coord, Int]()
-          skim = skim + (mode           -> (skim(mode) + sourceToDestToDist))
+          skim = skim + (mode          -> (skim(mode) + sourceToDestToDist))
         }
       }
       theModes.foreach { mode =>
-        val destToDist = skim(mode)(src) + (dst-> (dist / avgSpeed(mode)).toInt)
-        val sourceToDestToDist = src           -> destToDist
-        skim = skim + (mode                    -> (skim(mode) + sourceToDestToDist))
+        val destToDist = skim(mode)(src) + (dst -> (dist / avgSpeed(mode)).toInt)
+        val sourceToDestToDist = src            -> destToDist
+        skim = skim + (mode                     -> (skim(mode) + sourceToDestToDist))
       }
     }
     skim

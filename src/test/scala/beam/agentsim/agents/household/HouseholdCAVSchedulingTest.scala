@@ -5,6 +5,18 @@ import beam.agentsim.agents.vehicles.FuelType.Gasoline
 import beam.agentsim.agents.vehicles.VehicleCategory.Car
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  CAR,
+  CAV,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
 import org.matsim.api.core.v01.population.{Activity, Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.config.ConfigUtils
@@ -288,7 +300,18 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val householdPlans = household.members.map(person => BeamPlan(person.getSelectedPlan)).toList
     val skim = HouseholdCAVScheduling.computeSkim(
       householdPlans,
-      Map(BeamMode.CAR -> 50 * 1000 / 3600, BeamMode.TRANSIT -> 40 * 1000 / 3600)
+      Map(
+        CAR               -> 50 * 1000 / 3600,
+        TRANSIT           -> 40 * 1000 / 3600,
+        CAV               -> 50 * 1000 / 3600,
+        WALK              -> 0,
+        BIKE              -> 0,
+        WALK_TRANSIT      -> 0,
+        DRIVE_TRANSIT     -> 0,
+        RIDE_HAIL         -> 0,
+        RIDE_HAIL_POOLED  -> 0,
+        RIDE_HAIL_TRANSIT -> 0
+      )
     )
     skim
   }
