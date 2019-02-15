@@ -109,6 +109,7 @@ class BeamRouter(
 
   override def postStop(): Unit = {
     clusterOption.foreach(_.unsubscribe(self))
+    tickTask.cancel()
   }
 
   val tick = "work-pull-tick"
