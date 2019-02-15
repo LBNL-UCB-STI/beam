@@ -1,7 +1,5 @@
 package beam.integration
 
-import java.io.File
-
 import akka.actor._
 import beam.agentsim.agents.PersonTestUtil
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
@@ -9,125 +7,43 @@ import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePri
 import beam.agentsim.events.PathTraversalEvent
 import beam.router.BeamRouter
 import beam.router.Modes.BeamMode
-import beam.router.gtfs.FareCalculator
-import beam.router.osm.TollCalculator
-import beam.router.r5.DefaultNetworkCoordinator
-import beam.sim.common.{GeoUtils, GeoUtilsImpl}
-import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamMobsim, BeamServices, BeamServicesImpl}
-import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile}
-import beam.utils.TestConfigUtils.{testConfig, testOutputDir}
-import beam.utils.{NetworkHelper, NetworkHelperImpl}
-import com.google.inject.util.Providers
-import com.google.inject.{AbstractModule, Guice, Injector, Provider}
+import beam.utils.SimRunnerForTest
+import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
-import org.matsim.analysis.{CalcLinkStats, IterationStopWatch, ScoreStats, VolumesAnalyzer}
-import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg}
-import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.config.Config
-import org.matsim.core.controler.listener.ControlerListener
-import org.matsim.core.controler.{ControlerI, MatsimServices, OutputDirectoryHierarchy}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsManagerImpl, EventsUtils}
-import org.matsim.core.replanning.StrategyManager
-import org.matsim.core.router.TripRouter
-import org.matsim.core.router.costcalculators.TravelDisutilityFactory
-import org.matsim.core.router.util.{LeastCostPathCalculatorFactory, TravelDisutility, TravelTime}
-import org.matsim.core.scenario.ScenarioUtils
-import org.matsim.core.scoring.ScoringFunctionFactory
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
 
 import scala.collection.JavaConverters._
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.language.postfixOps
 
-class MatsimServicesMock(override val getControlerIO: OutputDirectoryHierarchy, override val getScenario: Scenario)
-    extends MatsimServices {
-  override def getStopwatch: IterationStopWatch = null
-  override def getLinkTravelTimes: TravelTime = null
-  override def getTripRouterProvider: Provider[TripRouter] = null
-  override def createTravelDisutilityCalculator(): TravelDisutility = null
-  override def getLeastCostPathCalculatorFactory: LeastCostPathCalculatorFactory = null
-  override def getScoringFunctionFactory: ScoringFunctionFactory = null
-  override def getConfig: Config = null
-  override def getEvents: EventsManager = null
-  override def getInjector: Injector = null
-  override def getLinkStats: CalcLinkStats = null
-  override def getVolumes: VolumesAnalyzer = null
-  override def getScoreStats: ScoreStats = null
-  override def getTravelDisutilityFactory: TravelDisutilityFactory = null
-  override def getStrategyManager: StrategyManager = null
-  override def addControlerListener(controlerListener: ControlerListener): Unit = {}
-  override def getIterationNumber: Integer = null
-}
+class SingleModeSpec
+    extends SimRunnerForTest
+    with WordSpecLike
+    with Matchers
+    with MockitoSugar
+    with BeforeAndAfterEach {
 
-class SingleModeSpec extends WordSpecLike with Matchers with MockitoSugar with BeforeAndAfterEach with Inside {
-
-  private val BASE_PATH = new File("").getAbsolutePath
-  private val OUTPUT_DIR_PATH = BASE_PATH + "/" + testOutputDir + "single-mode-test"
-
-  var system: ActorSystem = _
-
-  lazy val beamCfg = BeamConfig(system.settings.config)
-  lazy val matsimConfig = new MatSimBeamConfigBuilder(system.settings.config).buildMatSamConf()
-  lazy val scenario = ScenarioUtils.loadScenario(matsimConfig)
-  lazy val geoUtil = new GeoUtilsImpl(beamCfg)
-  lazy val networkCoordinator = {
-    val nc = DefaultNetworkCoordinator(beamCfg)
-    nc.loadNetwork()
-    nc.convertFrequenciesToTrips()
-    nc
-  }
-  lazy val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
-
-  lazy val fareCalculator = new FareCalculator(beamCfg.beam.routing.r5.directory)
-  lazy val tollCalculator = new TollCalculator(beamCfg)
-
-  lazy val outputDirectoryHierarchy: OutputDirectoryHierarchy = {
-    val overwriteExistingFiles =
-      OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles
-    val odh =
-      new OutputDirectoryHierarchy(OUTPUT_DIR_PATH, overwriteExistingFiles)
-    odh.createIterationDirectory(0)
-    odh
-  }
-  lazy val matsimSvc: MatsimServices = new MatsimServicesMock(outputDirectoryHierarchy, scenario)
-  lazy val vehTypes = {
-    val fuelTypes = readFuelTypeFile(beamCfg.beam.agentsim.agents.vehicles.beamFuelTypesFile)
-    TrieMap(readBeamVehicleTypeFile(beamCfg.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes).toSeq: _*)
-  }
+  def config: com.typesafe.config.Config =
+    ConfigFactory
+      .parseString("""akka.test.timefactor = 10""")
+      .withFallback(testConfig("test/input/sf-light/sf-light.conf").resolve())
+  def outputDirPath = basePath + "/" + testOutputDir + "single-mode-test"
 
   var router: ActorRef = _
   var services: BeamServices = _
-
   var nextId: Int = 0
+  var system: ActorSystem = _
 
   override def beforeEach: Unit = {
-    val runId = nextId
-    nextId += 1
     // Create brand new Actor system every time (just to make sure that the same actor names can be reused)
-    system = ActorSystem(
-      "single-mode-test-" + runId,
-      ConfigFactory
-        .parseString("""
-              akka.test.timefactor = 10
-            """)
-        .withFallback(testConfig("test/input/sf-light/sf-light.conf").resolve())
-    )
-
-    val injector = Guice.createInjector(new AbstractModule() {
-      protected def configure(): Unit = {
-        bind(classOf[BeamConfig]).toInstance(beamCfg)
-        bind(classOf[GeoUtils]).toInstance(geoUtil)
-        bind(classOf[NetworkHelper]).toInstance(networkHelper)
-        bind(classOf[ControlerI]).toProvider(Providers.of(null))
-      }
-    })
-
+    system = ActorSystem("single-mode-test-" + nextId, config)
+    nextId += 1
     services = new BeamServicesImpl(injector)
     services.matsimServices = matsimSvc
     services.modeChoiceCalculatorFactory = ModeChoiceCalculator(
