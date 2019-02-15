@@ -28,7 +28,9 @@ class NetworkHelperImpl @Inject()(network: Network) extends NetworkHelper with L
       )
       null
     } else {
-      allLinks(linkId)
+      val link = allLinks(linkId)
+      assert (link != null)
+      link
     }
   }
 
