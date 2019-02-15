@@ -9,7 +9,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.language.postfixOps
 
-class MultiModalRoutingSpec extends AbstractSfLightSpec {
+class MultiModalRoutingSpec extends AbstractSfLightSpec("MultiModalRoutingSpec") {
 
   /*
    * IMPORTANT NOTE: This test will fail if there is no GTFS data included in the R5 data directory. Try that first.
