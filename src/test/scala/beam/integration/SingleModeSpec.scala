@@ -15,7 +15,6 @@ import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamMobsim, BeamServices, BeamServicesImpl}
-import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile}
 import beam.utils.TestConfigUtils.{testConfig, testOutputDir}
 import beam.utils.{NetworkHelper, NetworkHelperImpl}
 import com.google.inject.util.Providers
@@ -41,7 +40,6 @@ import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
 
 import scala.collection.JavaConverters._
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.language.postfixOps
 
@@ -70,10 +68,12 @@ class SingleModeSpec extends WordSpecLike with Matchers with MockitoSugar with B
   private val BASE_PATH = new File("").getAbsolutePath
   private val OUTPUT_DIR_PATH = BASE_PATH + "/" + testOutputDir + "single-mode-test"
 
-  var system: ActorSystem = _
+  val config = ConfigFactory
+    .parseString("""akka.test.timefactor = 10""")
+    .withFallback(testConfig("test/input/sf-light/sf-light.conf").resolve())
 
-  lazy val beamCfg = BeamConfig(system.settings.config)
-  lazy val matsimConfig = new MatSimBeamConfigBuilder(system.settings.config).buildMatSamConf()
+  lazy val beamCfg = BeamConfig(config)
+  lazy val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
   lazy val scenario = ScenarioUtils.loadScenario(matsimConfig)
   lazy val geoUtil = new GeoUtilsImpl(beamCfg)
   lazy val networkCoordinator = {
@@ -96,28 +96,16 @@ class SingleModeSpec extends WordSpecLike with Matchers with MockitoSugar with B
     odh
   }
   lazy val matsimSvc: MatsimServices = new MatsimServicesMock(outputDirectoryHierarchy, scenario)
-  lazy val vehTypes = {
-    val fuelTypes = readFuelTypeFile(beamCfg.beam.agentsim.agents.vehicles.beamFuelTypesFile)
-    TrieMap(readBeamVehicleTypeFile(beamCfg.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes).toSeq: _*)
-  }
 
   var router: ActorRef = _
   var services: BeamServices = _
-
   var nextId: Int = 0
+  var system: ActorSystem = _
 
   override def beforeEach: Unit = {
-    val runId = nextId
-    nextId += 1
     // Create brand new Actor system every time (just to make sure that the same actor names can be reused)
-    system = ActorSystem(
-      "single-mode-test-" + runId,
-      ConfigFactory
-        .parseString("""
-              akka.test.timefactor = 10
-            """)
-        .withFallback(testConfig("test/input/sf-light/sf-light.conf").resolve())
-    )
+    system = ActorSystem("single-mode-test-" + nextId, config)
+    nextId += 1
 
     val injector = Guice.createInjector(new AbstractModule() {
       protected def configure(): Unit = {
