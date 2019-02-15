@@ -43,7 +43,7 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
     while (beanReader.read[LccmData](row, header, processors: _*) != null) {
       if (Option(row.value).isDefined && !row.value.isNaN)
         data += row.clone().asInstanceOf[LccmData]
-      row = new LccmData() // Turns out that if beanReader encounters a missing field, it just doesn't do the setField() rather than set it to null.... so we need to mannualy reset after every read
+      row = new LccmData() // Turns outWriter that if beanReader encounters a missing field, it just doesn't do the setField() rather than set it to null.... so we need to mannualy reset after every read
     }
     data
   }

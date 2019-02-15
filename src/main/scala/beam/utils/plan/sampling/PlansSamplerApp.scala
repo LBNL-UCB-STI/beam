@@ -2,6 +2,9 @@ package beam.utils.plan.sampling
 
 import java.util
 
+import beam.router.Modes.BeamMode.CAR
+import beam.sim.population.PopulationAdjustment
+import beam.sim.population.PopulationAdjustment.BEAM_ATTRIBUTES
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT}
 import beam.utils.BeamVehicleUtils
@@ -97,7 +100,9 @@ class SynthHouseholdParser(geoConverter: GeoConverter) {
       Id.createPersonId(row(indIdIdx)),
       parseSex(row(indSexIdx)),
       row(indAgeIdx).toInt,
-      if (row.length == 12) { row(indValTime).toDouble } else 18.0,
+      if (row.length == 12) {
+        row(indValTime).toDouble
+      } else 18.0,
       row(indIncomeIdx).toDouble
     )
   }
@@ -319,9 +324,10 @@ class SpatialSampler(sampleShape: String) {
       val popPct = feature.getAttribute("pop_pct").asInstanceOf[Double]
       distributionList += new Pair[SimpleFeature, java.lang.Double](feature, popPct)
     }
-//    if(distributionList.map(_.getValue).sum > 0) {}
+    //    if(distributionList.map(_.getValue).sum > 0) {}
     new EnumeratedDistribution[SimpleFeature](rng, JavaConverters.bufferAsJavaList(distributionList))
   }
+
   def getSample: SimpleFeature = distribution.sample()
 }
 
@@ -329,7 +335,6 @@ object PlansSampler {
 
   import HasXY._
 
-  val availableModeString: String = "available-modes"
   val counter: Counter = new Counter("[" + this.getClass.getSimpleName + "] created household # ")
 
   private var planQt: Option[QuadTree[Plan]] = None
@@ -464,24 +469,12 @@ object PlansSampler {
     }
   }
 
-  def addModeExclusions(person: Person): AnyRef = {
-
-    val permissibleModes: Iterable[String] =
-      JavaConverters.collectionAsScalaIterable(
-        modeAllocator.getPermissibleModes(person.getSelectedPlan)
-      )
-
-    val availableModes = permissibleModes
-      .fold("") { (addend, modeString) =>
-        if (PersonUtils.getAge(person) < 16 && (CAR.value.equalsIgnoreCase(modeString) || DRIVE_TRANSIT.value
-              .equalsIgnoreCase(modeString)))
-          addend
-        else
-          addend.concat(modeString.toLowerCase() + ",")
-      }
-      .stripSuffix(",")
-
-    newPopAttributes.putAttribute(person.getId.toString, availableModeString, availableModes)
+  def addModeExclusions(person: Person): Unit = {
+    val filteredPermissibleModes = modeAllocator
+      .getPermissibleModes(person.getSelectedPlan)
+      .asScala
+      .filterNot(pm => PersonUtils.getAge(person) < 16 && pm.equalsIgnoreCase(CAR.toString))
+    AvailableModeUtils.setAvailableModesForPerson(person, newPop, filteredPermissibleModes.toSeq)
   }
 
   def filterPopulationActivities() {
@@ -576,26 +569,26 @@ object PlansSampler {
             }
           }
           PopulationUtils.copyFromTo(srcPlan, newPlan)
-          val homeActs = newPlan.getPlanElements.asScala
-            .collect { case activity: Activity if activity.getType.equalsIgnoreCase("Home") => activity }
+        val homeActs = newPlan.getPlanElements.asScala
+          .collect { case activity: Activity if activity.getType.equalsIgnoreCase("Home") => activity }
 
-          homePlan match {
-            case None =>
-              homePlan = Some(newPlan)
-              val homeCoord = homeActs.head.getCoord
-              newHHAttributes.putAttribute(hhId.toString, HomeCoordX.entryName, homeCoord.getX)
-              newHHAttributes.putAttribute(hhId.toString, HomeCoordY.entryName, homeCoord.getY)
-              newHHAttributes.putAttribute(hhId.toString, HousingType.entryName, "House")
-              snapPlanActivityLocsToNearestLink(newPlan)
+        homePlan match {
+          case None =>
+            homePlan = Some(newPlan)
+            val homeCoord = homeActs.head.getCoord
+            newHHAttributes.putAttribute(hhId.toString, HomeCoordX.entryName, homeCoord.getX)
+            newHHAttributes.putAttribute(hhId.toString, HomeCoordY.entryName, homeCoord.getY)
+            newHHAttributes.putAttribute(hhId.toString, HousingType.entryName, "House")
+            snapPlanActivityLocsToNearestLink(newPlan)
 
-            case Some(hp) =>
-              val firstAct = PopulationUtils.getFirstActivity(hp)
-              val firstActCoord = firstAct.getCoord
-              for (act <- homeActs) {
-                act.setCoord(firstActCoord)
-              }
-              snapPlanActivityLocsToNearestLink(newPlan)
-          }
+          case Some(hp) =>
+            val firstAct = PopulationUtils.getFirstActivity(hp)
+            val firstActCoord = firstAct.getCoord
+            for (act <- homeActs) {
+              act.setCoord(firstActCoord)
+            }
+            snapPlanActivityLocsToNearestLink(newPlan)
+        }
 
           PersonUtils.setAge(newPerson, synthPerson.age)
           val sex = if (synthPerson.sex == 0) {
