@@ -5,15 +5,7 @@ import beam.agentsim.agents.choice.logit.{AlternativeAttributes, MultinomialLogi
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode._
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
@@ -155,7 +147,8 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       ModeCostTimeTransfer(
         mode,
         incentivizedCost,
-        scaleTimeByVot(altAndIdx._1.totalTravelTimeInSecs + waitTime, Option(mode)),
+//        scaleTimeByVot(altAndIdx._1.totalTravelTimeInSecs + waitTime, Option(mode)),
+        altAndIdx._1.legs.map(getLegGeneralizedTimeCost(_)).sum + scaleTimeByVot(waitTime, Option(WAITING)),
         numTransfers,
         altAndIdx._2
       )
@@ -166,7 +159,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     val modeCostTimeTransfer = altsToModeCostTimeTransfers(IndexedSeq(alternative), attributesOfIndividual).head
     utilityOf(
       modeCostTimeTransfer.mode,
-      modeCostTimeTransfer.cost,
+      modeCostTimeTransfer.cost + modeCostTimeTransfer.scaledTime,
       modeCostTimeTransfer.scaledTime,
       modeCostTimeTransfer.numTransfers
     )
@@ -176,7 +169,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     val variables =
       Map(
         "transfer" -> numTransfers.toDouble,
-        "cost"     -> (cost + scaleTimeByVot(time, Option(mode)))
+        "cost"     -> cost
       )
     model.getUtilityOfAlternative(AlternativeAttributes(mode.value, variables))
   }

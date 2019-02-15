@@ -5,7 +5,7 @@ import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.mode._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
-import beam.router.model.EmbodiedBeamTrip
+import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, HasServices}
 
@@ -42,12 +42,18 @@ trait ModeChoiceCalculator extends HasServices {
     mutable.Map[VotMultiplier, Double](
       DefaultVotMultiplier  -> 1.0,
       SharedVotMultiplier  -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.shared_VOTT_factor,
-      AutonomousVotMultiplier  -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.autonomous_VOTT_factor
+      AutonomousVotMultiplier  -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.autonomous_VOTT_factor,
+      WaitVotMultiplier -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.waiting_VOTT_factor
     )
 
   def scaleTimeByVot(time: Double, beamMode: Option[BeamMode] = None): Double = {
     time / 3600 * getVot(beamMode) * getVotMultiplier(beamMode)
   }
+
+  def getLegGeneralizedTimeCost(leg: EmbodiedBeamLeg): Double = {
+    leg.beamLeg.duration * getVot(Option(leg.beamLeg.mode)) * getVotMultiplier(Option(leg.beamLeg.mode)) / 3600
+  }
+
 
   // NOTE: If the generalized value of time is not yet instantiated, then this will return
   // the default VOT as defined in the config.
@@ -99,6 +105,7 @@ trait ModeChoiceCalculator extends HasServices {
 
   private def matchMode2Multiplier(beamMode: Option[BeamMode]): VotMultiplier = beamMode match {
     case Some(RIDE_HAIL_POOLED)                           => SharedVotMultiplier
+    case Some(WAITING)                                    => WaitVotMultiplier
     case Some(_)                                          => DefaultVotMultiplier
     case None                                             => DefaultVotMultiplier
   }
@@ -185,6 +192,8 @@ object ModeChoiceCalculator {
 
   case object BikeVot extends VotType
 
+  case object WaitVot extends VotType
+
   sealed trait VotMultiplier
 
   case object DefaultVotMultiplier extends VotMultiplier
@@ -196,4 +205,6 @@ object ModeChoiceCalculator {
   case object HighwayVotMultiplier extends VotMultiplier
 
   case object AutonomousVotMultiplier extends VotMultiplier
+
+  case object WaitVotMultiplier extends VotMultiplier
 }
