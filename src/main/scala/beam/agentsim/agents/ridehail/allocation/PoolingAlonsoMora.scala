@@ -156,14 +156,14 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager) extends RideHailRe
         tempScheduleStore.put(newRideHailRequest.get.requestId,scheduleToCache :+ theTrip.schedule.last)
       }
     }
-    if(allocResponses.size>0){
-//      if(allocResponses.find{
-//        case RoutingRequiredToAllocateVehicle(req,routes) =>
-//          routes.head.departureTime < tick
-//        case VehicleMatchedToCustomers(_,_,pickdrops) =>
-//          pickdrops.head.leg.get.beamLeg.startTime < tick
-//      }.isDefined){
-      if(tick>=21900){
+    if(allocResponses.size>0 ){
+      if(allocResponses.find{
+        case RoutingRequiredToAllocateVehicle(req,routes) =>
+          false
+        case VehicleMatchedToCustomers(_,_,pickdrops) =>
+          pickdrops.filter(_.leg.isDefined).size>2
+      }.isDefined){
+//      if(tick>=21900){
         val i = 0
       }
     }

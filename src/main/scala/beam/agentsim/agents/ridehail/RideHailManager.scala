@@ -1014,6 +1014,9 @@ class RideHailManager(
               allRoutesRequired = allRoutesRequired ++ routesRequired
             case alloc @ VehicleMatchedToCustomers(request, rideHailAgentLocation, pickDropIdWithRoutes)
                 if !pickDropIdWithRoutes.isEmpty =>
+              if(pickDropIdWithRoutes.size>2){
+                val i = 0
+              }
               handleReservation(request, tick, createTravelProposal(alloc))
               rideHailResourceAllocationManager.removeRequestFromBuffer(request)
             case VehicleMatchedToCustomers(request, _, _) =>
@@ -1060,22 +1063,25 @@ class RideHailManager(
 //    }
 //    passSched
 
-    var currentLeg = allLegs.head
+    var pickDropsForGrouping: Map[VehiclePersonId,List[BeamLeg]] = Map()
     var passengersToAdd = Set[VehiclePersonId]()
-    pickDrops.foreach { pickDrop =>
-      if(passengersToAdd.contains(pickDrop.personId)) {
-        passengersToAdd = passengersToAdd - pickDrop.personId
+    consistentPickDrops.foreach { case(person,leg) =>
+      if(passengersToAdd.contains(person)) {
+        passengersToAdd = passengersToAdd - person
       }else{
-        passengersToAdd = passengersToAdd + pickDrop.personId
+        passengersToAdd = passengersToAdd + person
       }
-      if(pickDrop.leg.isDefined){
+      if(leg.isDefined){
         passengersToAdd.foreach { pass =>
-          passSched = passSched.addPassenger(pass, Seq(pickDrop.leg.get.beamLeg))
+          val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg.get
+          pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
         }
       }
     }
+    pickDropsForGrouping.foreach{passAndLegs=>
+      passSched = passSched.addPassenger(passAndLegs._1,passAndLegs._2)
+    }
     passSched
-
   }
 
   def failedAllocation(request: RideHailRequest, tick: Int): Unit = {
