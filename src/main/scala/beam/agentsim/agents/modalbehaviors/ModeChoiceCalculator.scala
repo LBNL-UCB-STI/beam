@@ -4,7 +4,7 @@ import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.mode._
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode._
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, HasServices}
@@ -38,8 +38,15 @@ trait ModeChoiceCalculator extends HasServices {
       GeneralizedVot -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
     )
 
+ lazy val valueOfTimeMultipliers: mutable.Map[VotMultiplier, Double] =
+    mutable.Map[VotMultiplier, Double](
+      DefaultVotMultiplier  -> 1.0,
+      SharedVotMultiplier  -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.shared_VOTT_factor,
+      AutonomousVotMultiplier  -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.autonomous_VOTT_factor
+    )
+
   def scaleTimeByVot(time: Double, beamMode: Option[BeamMode] = None): Double = {
-    time / 3600 * getVot(beamMode)
+    time / 3600 * getVot(beamMode) * getVotMultiplier(beamMode)
   }
 
   // NOTE: If the generalized value of time is not yet instantiated, then this will return
@@ -48,6 +55,12 @@ trait ModeChoiceCalculator extends HasServices {
     valuesOfTime.getOrElse(
       matchMode2Vot(beamMode),
       valuesOfTime.getOrElse(GeneralizedVot, valuesOfTime(DefaultVot))
+    )
+
+  private def getVotMultiplier(beamMode: Option[BeamMode]): Double =
+    valueOfTimeMultipliers.getOrElse(
+      matchMode2Multiplier(beamMode),
+      1.0
     )
 
   //  def setVot(value: BigDecimal, beamMode: Option[BeamMode] = None): Option[valuesOfTime.type] = {
@@ -76,11 +89,18 @@ trait ModeChoiceCalculator extends HasServices {
     case Some(BIKE)                                       => BikeVot
     case Some(WALK_TRANSIT)                               => WalkToTransitVot
     case Some(DRIVE_TRANSIT)                              => DriveToTransitVot
-    case Some(RIDE_HAIL)                                  => RideHailVot
+    case Some(RIDE_HAIL)                                  => RideHailVot  //NEW!!!
+    case Some(RIDE_HAIL_POOLED)                           => RideHailVot
     case a @ Some(_) if BeamMode.transitModes.contains(a) => OnTransitVot
     case Some(RIDE_HAIL_TRANSIT)                          => RideHailVot
     case Some(_)                                          => GeneralizedVot
     case None                                             => DefaultVot
+  }
+
+  private def matchMode2Multiplier(beamMode: Option[BeamMode]): VotMultiplier = beamMode match {
+    case Some(RIDE_HAIL_POOLED)                           => SharedVotMultiplier
+    case Some(_)                                          => DefaultVotMultiplier
+    case None                                             => DefaultVotMultiplier
   }
 
   ///~
@@ -148,6 +168,8 @@ object ModeChoiceCalculator {
 
   case object GeneralizedVot extends VotType
 
+  case object SharedVot extends VotType
+
   // TODO: Implement usage of mode-specific VotTypes defined below
   case object DriveVot extends VotType
 
@@ -163,4 +185,15 @@ object ModeChoiceCalculator {
 
   case object BikeVot extends VotType
 
+  sealed trait VotMultiplier
+
+  case object DefaultVotMultiplier extends VotMultiplier
+
+  case object SharedVotMultiplier extends VotMultiplier
+
+  case object CongestedVotMultiplier extends VotMultiplier
+
+  case object HighwayVotMultiplier extends VotMultiplier
+
+  case object AutonomousVotMultiplier extends VotMultiplier
 }
