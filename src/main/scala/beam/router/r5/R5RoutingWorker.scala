@@ -237,6 +237,11 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     askForMoreWork()
   }
 
+  override def postStop(): Unit = {
+    tickTask.cancel()
+    execSvc.shutdown()
+  }
+
   // Let the dispatcher on which the Future in receive will be running
   // be the dispatcher on which this actor is running.
 
