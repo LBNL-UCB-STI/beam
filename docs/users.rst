@@ -17,32 +17,28 @@ System Requirements
 * To verify your JRE: https://www.java.com/en/download/help/version_manual.xml
 * To download JRE 1.8 (AKA JRE 8): http://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html
 * We also recommend downloading the VIA vizualization app and obtaining a free or paid license: https://simunto.com/via/
-* Git installed
+* Git and Git-LFS
 
+Prerequisites :
+^^^^^^^^^^^^^^^
 
-Installing
-^^^^^^^^^^
+**Install Java**
 
-Install gradle: https://gradle.org/install/
+BEAM requires Java 1.8 JDK / JRE to be installed. If a different version of java is already installed on your system, please upgrade the version to 1.8.
+See this `link <https://www.java.com/en/download/help/version_manual.xml>`_ for steps to check the current version of your JRE.
 
-Clone the beam repository::
+If java is not already installed on your system , please follow this `download manual <https://www.java.com/en/download/manual.jsp>`_ to install java on your system.
 
-   git clone git@github.com:LBNL-UCB-STI/beam.git
+Please note that BEAM is currently compatible only with Java 1.8 and is not compatible with any of the older or recent versions.
 
-Change directories into that repository::
+**Install Gradle**
 
-   cd beam
+BEAM uses `gradle <https://gradle.org>`_ as its build tool. If gradle is not already installed, check this `gradle installation guide <https://gradle.org/install>`_ for steps on how to download and install gradle.
+Once gradle is successfully installed , verify the installation by running the command
 
-Now checkout the latest stable version of BEAM, v0.7.0::
+.. code-block:: bash
 
-   git checkout v0.7.0
-
-
-Run the gradle command to compile BEAM, this will also downloaded all required dependencies automatically::
-
-   gradle classes
-
-Now you're ready to run BEAM! 
+    gradle
 
 
 GIT-LFS Configuration
@@ -80,6 +76,32 @@ When installing the git client one needs to uncheck git lfs installation. If mis
     * Install the git client (uncheck lfs installation)
     * Install git lfs version 2.3.4 separately
 
+
+Installing BEAM
+^^^^^^^^^^^^^^^
+
+Install gradle: https://gradle.org/install/
+
+Clone the beam repository::
+
+   git clone git@github.com:LBNL-UCB-STI/beam.git
+
+Change directories into that repository::
+
+   cd beam
+
+Now checkout the latest stable version of BEAM, v0.7.0::
+
+   git checkout v0.7.0
+
+
+Run the gradle command to compile BEAM, this will also downloaded all required dependencies automatically::
+
+   gradle classes
+
+Now you're ready to run BEAM! 
+
+
 Running BEAM
 ^^^^^^^^^^^^
 
@@ -91,6 +113,67 @@ The simplest, smallest, and fastest is the beamville scenario (described below).
 
 The outputs are written to the 'output' directory, should see results appear in a sub-folder called "beamville_%DATE_TIME%".
 
+Optionally you can also run BEAM from your favourite IDE . Check the below section on how to configure and run BEAM using Intellij IDEA.
+
+
+Running BEAM with Intellij IDE
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+IntelliJ IDEA community edition is an open source IDE available for free. It can be downloaded from `here <https://www.jetbrains.com/idea/download/#section=windows>`_
+
+After successful download , run the executable and follow the installation wizard to install Intellij IDEA.
+
+When running the IDE for the first time , it asks to import previous settings (if any) from a local path, if no previous settings to choose , select "Do not import settings" and click Ok.
+
+**Importing BEAM project into IDE**
+
+Once the IDE is successfully installed , proceed with the below steps to import BEAM into the IDE.
+
+1. Open the IDE . When running the IDE for the first time , it asks to import previous settings (if any) from a local path, if no previous settings to choose , select "Do not import settings" and click Ok.
+2. Agree to the privacy policy and continue
+     (Optional) IDEA walks you through some default configurations set up here . In case you want to skip these steps , choose "Skip and install defaults" and go to step 3
+      * Select a UI theme of choice and go to Next: Default Plugins
+      * Select only the required plugins (gradle , java are mandatory) and disable the others and go to Next:Feature plugins
+      * Install scala and click "Start using Intellij IDEA"
+3. In the welcome menu , select "Import Project" and provide the location of the locally cloned BEAM project
+4. Inside the import project screen, select "Import project from external model" and choose "Gradle" from the available and click Next
+5. Click Finish.
+
+The project should now be successfully imported into the IDE and a build should be initiated automatically. If no build is triggered automatically , you can manually trigger one by going to Build > Build Project.
+
+**Installing scala plugin**
+
+If optional configuration in step 3 of above section was skipped , scala plugin will not be added automatically .
+To manually enable scala plugin go to File > Settings > Plugins. Search for scala plugin and click Install.
+
+**Setting up scala SDK**
+
+Since BEAM is built with java/scala . A scala sdk module needs to be configured to run BEAM. Check the below steps on how to add a scala module to IDEA
+* Go to File > Project Settings > Global Libraries
+* Click + and select Scala SDK
+* Select the required scala SDK from the list , if no SDK found click Create.
+* Click "Browse" and select the scala home path or click "Download" (choose 2.12.x version)
+
+**Running BEAM from IDE**
+
+BEAM requires some arguments to be specififed during run time like the scenario configuration.
+These configuration settings can be added as a run configuration inside the IDE.
+
+Steps to add a new configuration :
+
+* Go to Run > Edit Configurations
+* Click + and from the templates list and select "Application"
+* Fill in the following values
+
+  * Main Class : beam.sim.RunBeam
+  * VM options : -Xmx8g
+  * Program Arguments : --config test/input/beamville/beam.conf (this runs beaamville scenario, changes the folder path to run a different scenario)
+  * Working Directory : /home/beam/BEAM
+  * Environment Variables : PWD=/home/beam/BEAM
+  * use submodule of path : beam.beam.main
+* Click Ok to save the configuration.
+
+To add a configuration for a different scenario , follow the above steps and change the folder path to point to the required scenario in program arguments
 
 Scenarios
 ^^^^^^^^^
