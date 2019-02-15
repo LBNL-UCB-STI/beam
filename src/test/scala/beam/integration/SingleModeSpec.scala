@@ -3,7 +3,6 @@ package beam.integration
 import java.io.File
 
 import akka.actor._
-import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.PersonTestUtil
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
@@ -20,16 +19,24 @@ import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile}
 import beam.utils.TestConfigUtils.{testConfig, testOutputDir}
 import beam.utils.{NetworkHelper, NetworkHelperImpl}
 import com.google.inject.util.Providers
-import com.google.inject.{AbstractModule, Guice}
+import com.google.inject.{AbstractModule, Guice, Injector, Provider}
 import com.typesafe.config.ConfigFactory
+import org.matsim.analysis.{CalcLinkStats, IterationStopWatch, ScoreStats, VolumesAnalyzer}
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg}
+import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.config.Config
+import org.matsim.core.controler.listener.ControlerListener
 import org.matsim.core.controler.{ControlerI, MatsimServices, OutputDirectoryHierarchy}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsManagerImpl, EventsUtils}
+import org.matsim.core.replanning.StrategyManager
+import org.matsim.core.router.TripRouter
+import org.matsim.core.router.costcalculators.TravelDisutilityFactory
+import org.matsim.core.router.util.{LeastCostPathCalculatorFactory, TravelDisutility, TravelTime}
 import org.matsim.core.scenario.ScenarioUtils
-import org.mockito.Mockito._
+import org.matsim.core.scoring.ScoringFunctionFactory
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
 
@@ -38,73 +45,85 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.language.postfixOps
 
-class SingleModeSpec
-    extends TestKit(
-      ActorSystem(
-        "single-mode-test",
-        ConfigFactory
-          .parseString("""
-              akka.test.timefactor = 10
-            """)
-          .withFallback(testConfig("test/input/sf-light/sf-light.conf").resolve())
-      )
-    )
-    with WordSpecLike
-    with Matchers
-    with ImplicitSender
-    with MockitoSugar
-    with BeforeAndAfterAll
-    with Inside {
+class MatsimServicesMock(override val getControlerIO: OutputDirectoryHierarchy, override val getScenario: Scenario)
+    extends MatsimServices {
+  override def getStopwatch: IterationStopWatch = null
+  override def getLinkTravelTimes: TravelTime = null
+  override def getTripRouterProvider: Provider[TripRouter] = null
+  override def createTravelDisutilityCalculator(): TravelDisutility = null
+  override def getLeastCostPathCalculatorFactory: LeastCostPathCalculatorFactory = null
+  override def getScoringFunctionFactory: ScoringFunctionFactory = null
+  override def getConfig: Config = null
+  override def getEvents: EventsManager = null
+  override def getInjector: Injector = null
+  override def getLinkStats: CalcLinkStats = null
+  override def getVolumes: VolumesAnalyzer = null
+  override def getScoreStats: ScoreStats = null
+  override def getTravelDisutilityFactory: TravelDisutilityFactory = null
+  override def getStrategyManager: StrategyManager = null
+  override def addControlerListener(controlerListener: ControlerListener): Unit = {}
+  override def getIterationNumber: Integer = null
+}
+
+class SingleModeSpec extends WordSpecLike with Matchers with MockitoSugar with BeforeAndAfterEach with Inside {
 
   private val BASE_PATH = new File("").getAbsolutePath
   private val OUTPUT_DIR_PATH = BASE_PATH + "/" + testOutputDir + "single-mode-test"
 
-  var router: ActorRef = _
-  var geoUtil: GeoUtils = _
-  var scenario: Scenario = _
-  var services: BeamServices = _
-  var networkCoordinator: DefaultNetworkCoordinator = _
-  var beamCfg: BeamConfig = _
-  var tollCalculator: TollCalculator = _
+  var system: ActorSystem = _
 
-  override def beforeAll: Unit = {
-    beamCfg = BeamConfig(system.settings.config)
+  lazy val beamCfg = BeamConfig(system.settings.config)
+  lazy val matsimConfig = new MatSimBeamConfigBuilder(system.settings.config).buildMatSamConf()
+  lazy val scenario = ScenarioUtils.loadScenario(matsimConfig)
+  lazy val geoUtil = new GeoUtilsImpl(beamCfg)
+  lazy val networkCoordinator = {
+    val nc = DefaultNetworkCoordinator(beamCfg)
+    nc.loadNetwork()
+    nc.convertFrequenciesToTrips()
+    nc
+  }
+  lazy val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
-    val vehTypes = {
-      val fuelTypes = readFuelTypeFile(beamCfg.beam.agentsim.agents.vehicles.beamFuelTypesFile)
-      TrieMap(
-        readBeamVehicleTypeFile(beamCfg.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes).toSeq: _*
-      )
-    }
+  lazy val fareCalculator = new FareCalculator(beamCfg.beam.routing.r5.directory)
+  lazy val tollCalculator = new TollCalculator(beamCfg)
 
+  lazy val outputDirectoryHierarchy: OutputDirectoryHierarchy = {
     val overwriteExistingFiles =
       OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles
-    val outputDirectoryHierarchy =
+    val odh =
       new OutputDirectoryHierarchy(OUTPUT_DIR_PATH, overwriteExistingFiles)
-    outputDirectoryHierarchy.createIterationDirectory(0)
+    odh.createIterationDirectory(0)
+    odh
+  }
+  lazy val matsimSvc: MatsimServices = new MatsimServicesMock(outputDirectoryHierarchy, scenario)
+  lazy val vehTypes = {
+    val fuelTypes = readFuelTypeFile(beamCfg.beam.agentsim.agents.vehicles.beamFuelTypesFile)
+    TrieMap(readBeamVehicleTypeFile(beamCfg.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypes).toSeq: _*)
+  }
 
-    geoUtil = new GeoUtilsImpl(beamCfg)
+  var router: ActorRef = _
+  var services: BeamServices = _
 
-    networkCoordinator = DefaultNetworkCoordinator(beamCfg)
-    networkCoordinator.loadNetwork()
-    networkCoordinator.convertFrequenciesToTrips()
+  var nextId: Int = 0
 
-    val networkHlper = new NetworkHelperImpl(networkCoordinator.network)
-
-    val fareCalculator = new FareCalculator(beamCfg.beam.routing.r5.directory)
-    tollCalculator = new TollCalculator(beamCfg)
-    val matsimConfig = new MatSimBeamConfigBuilder(system.settings.config).buildMatSamConf()
-    scenario = ScenarioUtils.loadScenario(matsimConfig)
-
-    val matsimSvc = mock[MatsimServices]
-    when(matsimSvc.getControlerIO).thenReturn(outputDirectoryHierarchy)
-    when(matsimSvc.getScenario).thenReturn(scenario)
+  override def beforeEach: Unit = {
+    val runId = nextId
+    nextId += 1
+    // Create brand new Actor system every time (just to make sure that the same actor names can be reused)
+    system = ActorSystem(
+      "single-mode-test-" + runId,
+      ConfigFactory
+        .parseString("""
+              akka.test.timefactor = 10
+            """)
+        .withFallback(testConfig("test/input/sf-light/sf-light.conf").resolve())
+    )
 
     val injector = Guice.createInjector(new AbstractModule() {
       protected def configure(): Unit = {
         bind(classOf[BeamConfig]).toInstance(beamCfg)
         bind(classOf[GeoUtils]).toInstance(geoUtil)
-        bind(classOf[NetworkHelper]).toInstance(networkHlper)
+        bind(classOf[NetworkHelper]).toInstance(networkHelper)
         bind(classOf[ControlerI]).toProvider(Providers.of(null))
       }
     })
@@ -135,14 +154,10 @@ class SingleModeSpec
     services.beamRouter = router
   }
 
-  override def afterAll: Unit = {
-    shutdown()
+  override def afterEach: Unit = {
+    system.terminate()
     router = null
-    geoUtil = null
-    scenario = null
     services = null
-    networkCoordinator = null
-    beamCfg = null
   }
 
   "The agentsim" must {
@@ -264,8 +279,6 @@ class SingleModeSpec
             event match {
               case event @ (_: PersonDepartureEvent | _: ActivityEndEvent) =>
                 events += event
-                if (events.size % 10000 == 0)
-                  println(s"Event size: ${events.size}")
               case _ =>
             }
           }
