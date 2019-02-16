@@ -315,7 +315,7 @@ class PersonAgent(
       **/
     case Event(
         TriggerWithId(PersonDepartureTrigger(tick), triggerId),
-        data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false, _,_)
+        data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false, _, _)
         ) =>
       // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
       // hail a ride. We stay at the party until our Uber is there.
@@ -571,7 +571,7 @@ class PersonAgent(
           _,
           _,
           _,
-        _
+          _
         )
         ) if nextLeg.asDriver =>
       // Declaring a function here because this case is already so convoluted that I require a return
@@ -635,7 +635,8 @@ class PersonAgent(
       log.debug("Missed transit pickup, late by {} sec", _currentTick.get - nextLeg.beamLeg.startTime)
 
       goto(ChoosingMode) using ChoosesModeData(
-        personData = data.copy(currentTourMode = Some(WALK_TRANSIT),numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
+        personData = data
+          .copy(currentTourMode = Some(WALK_TRANSIT), numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
         currentLocation =
           SpaceTime(beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint).loc, _currentTick.get),
         isWithinTripReplanning = true
@@ -698,7 +699,8 @@ class PersonAgent(
           _,
           _,
           _,
-          _,_
+          _,
+          _
         )
         ) =>
       nextActivity(data) match {

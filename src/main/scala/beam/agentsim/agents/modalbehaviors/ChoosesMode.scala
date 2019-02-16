@@ -52,14 +52,18 @@ trait ChoosesMode {
     )
 
   def bodyVehiclePersonId = VehiclePersonId(body.id, id, self)
-  def currentTourBeamVehicle = beamVehicles(stateData.asInstanceOf[ChoosesModeData].personData.currentTourPersonalVehicle.get).asInstanceOf[ActualVehicle].vehicle
+
+  def currentTourBeamVehicle =
+    beamVehicles(stateData.asInstanceOf[ChoosesModeData].personData.currentTourPersonalVehicle.get)
+      .asInstanceOf[ActualVehicle]
+      .vehicle
 
   onTransition {
     case _ -> ChoosingMode =>
       nextStateData match {
         // If I am already on a tour in a vehicle, only that vehicle is available to me
         case ChoosesModeData(
-            BasePersonData(_, _, _, _, _, Some(vehicle), _, _, _, _,_),
+            BasePersonData(_, _, _, _, _, Some(vehicle), _, _, _, _, _),
             _,
             _,
             _,
