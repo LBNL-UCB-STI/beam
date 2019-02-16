@@ -52,13 +52,14 @@ trait ChoosesMode {
     )
 
   def bodyVehiclePersonId = VehiclePersonId(body.id, id, self)
+  def currentTourBeamVehicle = beamVehicles(stateData.asInstanceOf[ChoosesModeData].personData.currentTourPersonalVehicle.get).asInstanceOf[ActualVehicle].vehicle
 
   onTransition {
     case _ -> ChoosingMode =>
       nextStateData match {
         // If I am already on a tour in a vehicle, only that vehicle is available to me
         case ChoosesModeData(
-            BasePersonData(_, _, _, _, _, Some(vehicle), _, _, _, _),
+            BasePersonData(_, _, _, _, _, Some(vehicle), _, _, _, _,_),
             _,
             _,
             _,
@@ -80,7 +81,7 @@ trait ChoosesMode {
           self ! MobilityStatusResponse(Vector(beamVehicles(vehicle)))
         // Only need to get available street vehicles from household if our mode requires such a vehicle
         case ChoosesModeData(
-            BasePersonData(_, _, _, _, None | Some(CAR | BIKE | DRIVE_TRANSIT), _, _, _, _, _),
+            BasePersonData(_, _, _, _, None | Some(CAR | BIKE | DRIVE_TRANSIT), _, _, _, _, _, _),
             currentLocation,
             _,
             _,
@@ -130,8 +131,10 @@ trait ChoosesMode {
       )
       // Make sure the current mode is allowable
       val correctedCurrentTourMode = choosesModeData.personData.currentTourMode match {
-        case Some(mode) if availableModes.contains(mode) =>
+        case Some(mode) if availableModes.contains(mode) && choosesModeData.personData.numberOfReplanningAttempts < 3 =>
           Some(mode)
+        case Some(mode) if availableModes.contains(mode) =>
+          Some(WALK)
         case _ =>
           None
       }
@@ -146,7 +149,7 @@ trait ChoosesMode {
       val nextAct = nextActivity(choosesModeData.personData).get
       val departTime = _currentTick.get
 
-      val availablePersonalStreetVehicles =
+      var availablePersonalStreetVehicles =
         correctedCurrentTourMode match {
           case None | Some(CAR | BIKE) =>
             // In these cases, a personal vehicle will be involved
@@ -352,6 +355,8 @@ trait ChoosesMode {
               )
               responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = true)
             case _ =>
+              // Reset available vehicles so we don't release our car that we've left during this replanning
+              availablePersonalStreetVehicles = Vector()
               makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle), withParking = false)
               responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           }
