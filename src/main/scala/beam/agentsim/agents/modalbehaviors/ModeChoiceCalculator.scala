@@ -35,23 +35,23 @@ trait ModeChoiceCalculator extends HasServices {
   lazy val valuesOfTime: mutable.Map[VotType, Double] =
     mutable.Map[VotType, Double](
       DefaultVot     -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime,
-      GeneralizedVot -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
+      GeneralizedVot -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime,
+      WaitVot        -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.waitingValueOfTime
     )
 
  lazy val valueOfTimeMultipliers: mutable.Map[VotMultiplier, Double] =
     mutable.Map[VotMultiplier, Double](
       DefaultVotMultiplier  -> 1.0,
       SharedVotMultiplier  -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.shared_VOTT_factor,
-      AutonomousVotMultiplier  -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.autonomous_VOTT_factor,
-      WaitVotMultiplier -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.waiting_VOTT_factor
+      AutonomousVotMultiplier  -> beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.autonomous_VOTT_factor
     )
 
-  def scaleTimeByVot(time: Double, beamMode: Option[BeamMode] = None): Double = {
-    time / 3600 * getVot(beamMode) * getVotMultiplier(beamMode)
+  def scaleTimeByVot(time: Double, beamMode: Option[BeamMode] = None, beamLeg: Option[EmbodiedBeamLeg] = None): Double = {
+    time / 3600 * getVot(beamMode) * getVotMultiplier(beamLeg)
   }
 
   def getLegGeneralizedTimeCost(leg: EmbodiedBeamLeg): Double = {
-    leg.beamLeg.duration * getVot(Option(leg.beamLeg.mode)) * getVotMultiplier(Option(leg.beamLeg.mode)) / 3600
+    leg.beamLeg.duration * getVot(Option(leg.beamLeg.mode)) * getVotMultiplier(Option(leg)) / 3600
   }
 
 
@@ -63,10 +63,10 @@ trait ModeChoiceCalculator extends HasServices {
       valuesOfTime.getOrElse(GeneralizedVot, valuesOfTime(DefaultVot))
     )
 
-  private def getVotMultiplier(beamMode: Option[BeamMode]): Double =
+  private def getVotMultiplier(leg: Option[EmbodiedBeamLeg]): Double =
     valueOfTimeMultipliers.getOrElse(
-      matchMode2Multiplier(beamMode),
-      1.0
+      matchMode2Multiplier(for( x <- leg ) yield x.beamLeg.mode),
+      valueOfTimeMultipliers(DefaultVotMultiplier)
     )
 
   //  def setVot(value: BigDecimal, beamMode: Option[BeamMode] = None): Option[valuesOfTime.type] = {
@@ -99,13 +99,13 @@ trait ModeChoiceCalculator extends HasServices {
     case Some(RIDE_HAIL_POOLED)                           => RideHailVot
     case a @ Some(_) if BeamMode.transitModes.contains(a) => OnTransitVot
     case Some(RIDE_HAIL_TRANSIT)                          => RideHailVot
+    case Some(WAITING)                                    => WaitVot
     case Some(_)                                          => GeneralizedVot
     case None                                             => DefaultVot
   }
 
   private def matchMode2Multiplier(beamMode: Option[BeamMode]): VotMultiplier = beamMode match {
     case Some(RIDE_HAIL_POOLED)                           => SharedVotMultiplier
-    case Some(WAITING)                                    => WaitVotMultiplier
     case Some(_)                                          => DefaultVotMultiplier
     case None                                             => DefaultVotMultiplier
   }
