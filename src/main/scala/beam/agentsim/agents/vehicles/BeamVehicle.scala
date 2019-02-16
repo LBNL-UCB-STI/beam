@@ -99,7 +99,6 @@ class BeamVehicle(
 
   def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): Double = {
     val distanceInMeters = beamLeg.travelPath.distanceInM
-    val network = beamServices.matsimServices.getScenario.getNetwork
     // ~~~BEAM-COMP-ONLY~~~
 //    val fuelConsumption = BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, network)
     val energyConsumed = powerTrain.estimateConsumptionInJoules(distanceInMeters)
