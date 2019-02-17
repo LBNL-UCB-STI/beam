@@ -15,8 +15,8 @@ public class AgencyRevenueEvent extends Event {
     public final static String ATTRIBUTE_AGENCY_ID = "agencyId";
     public final static String ATTRIBUTE_REVENUE = "revenue";
 
-    private String agencyId;
-    private double revenue;
+    private final String agencyId;
+    private final double revenue;
 
     private final AtomicReference<Map<String, String>> attributes;
 

@@ -75,7 +75,7 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
   @Override
   public Map<String, Double> getSummaryStats() {
     personCostByCostType.put("averageTripExpenditure", totalNetCost / numberOfTrips);
-    Modes.BeamMode$.MODULE$.allModes().foreach(mode -> {
+    Modes.BeamMode$.MODULE$.allTripModes().foreach(mode -> {
       Double cost = 0.0;
       for (String costType : costTypes) {
         String statType = String.format("total%s_%s", costType, mode.value());

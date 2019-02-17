@@ -29,13 +29,13 @@ public class ReplanningEvent extends Event implements HasPersonId {
     }
 
     @Override
-    public String getEventType() {
-        return EVENT_TYPE;
+    public Id<Person> getPersonId() {
+        return personId;
     }
 
     @Override
-    public Id<Person> getPersonId() {
-        return personId;
+    public String getEventType() {
+        return EVENT_TYPE;
     }
 
     @Override
