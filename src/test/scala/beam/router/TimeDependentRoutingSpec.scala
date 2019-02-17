@@ -20,7 +20,6 @@ import beam.router.model.RoutingModel
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
-import beam.sim.BeamServices.readFuelTypeFile
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.utils.DateUtils
@@ -62,7 +61,7 @@ class TimeDependentRoutingSpec
     val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
-    when(services.geo).thenReturn(new GeoUtilsImpl(services))
+    when(services.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
     when(services.ptFares).thenReturn(PtFares(List[FareRule]()))
     when(services.dates).thenReturn(

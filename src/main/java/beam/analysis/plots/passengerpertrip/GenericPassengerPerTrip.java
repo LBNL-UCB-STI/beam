@@ -18,13 +18,13 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
     int eventCounter = 0;
     int maxHour = 0;
 
-    String graphName;
+    final String graphName;
 
 
-    Map<Integer, Map<Integer, Integer>> numPassengerToEventFrequencyBin = new HashMap<>();
+    final Map<Integer, Map<Integer, Integer>> numPassengerToEventFrequencyBin = new HashMap<>();
 
     // Specific to TncPassengerPerTrip
-    private Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
+    private final Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
 
     int maxPassengersSeenOnGenericCase = 0;
 
@@ -66,7 +66,7 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
 
         Integer maxPassengers = maxPassengersSeenOnGenericCase;
 
-        double dataSet[][];
+        double[][] dataSet;
 
 
         // This loop gives the loop over all the different passenger groups, which is 1 in other cases.
