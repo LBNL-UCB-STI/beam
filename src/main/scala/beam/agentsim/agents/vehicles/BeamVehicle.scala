@@ -14,9 +14,10 @@ import beam.router.model.BeamLeg
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import beam.sim.common.GeoUtils.{Straight, TurningDirection}
-import com.typesafe.scalalogging.StrictLogging
+import beam.utils.NetworkHelper
+import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.api.core.v01.network.Link
 import org.matsim.vehicles.Vehicle
 
 /**
@@ -37,7 +38,7 @@ class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
   val beamVehicleType: BeamVehicleType
-) extends StrictLogging {
+) extends ExponentialLazyLogging {
 
   var manager: Option[ActorRef] = None
 
@@ -100,7 +101,7 @@ class BeamVehicle(
   def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): Double = {
     val distanceInMeters = beamLeg.travelPath.distanceInM
     val network = beamServices.matsimServices.getScenario.getNetwork
-    val fuelConsumption = BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, network)
+    val fuelConsumption = BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
     val energyConsumed = powerTrain.estimateConsumptionInJoules(fuelConsumption)
     if (fuelLevelInJoules < energyConsumed) {
       logger.warn(
@@ -187,7 +188,7 @@ object BeamVehicle {
   /**
     * Organizes the fuel consumption data table
     * @param beamLeg Instance of beam leg
-    * @param network the transport network instance
+    * @param networkHelper the transport network instance
     * @return list of fuel consumption objects generated
     */
   def collectFuelConsumptionData(
@@ -198,7 +199,6 @@ object BeamVehicle {
     if (beamLeg.mode.isTransit & !Modes.isOnStreetTransit(beamLeg.mode)) {
       Vector.empty
     } else {
-      val networkLinks = network.getLinks
       val linkIds = beamLeg.travelPath.linkIds
       val linkTravelTimes: IndexedSeq[Int] = beamLeg.travelPath.linkTravelTime
       // generate the link arrival times for each link ,by adding cumulative travel times of previous links
