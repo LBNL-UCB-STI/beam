@@ -213,7 +213,7 @@ object BeamVehicle {
             })
         }
       }
-      val nextLinkIds = linkIds.takeRight(linkIds.size - 1)
+//      val nextLinkIds = linkIds.takeRight(linkIds.size - 1)
       linkIds.zipWithIndex.map {
         case (id, idx) =>
           val travelTime = linkTravelTimes(idx)
