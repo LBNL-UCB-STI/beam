@@ -226,7 +226,7 @@ object HouseholdActor {
             HouseholdCAVScheduling.computeSkim(householdBeamPlans, skim)
           )
           //          val optimalPlan = cavScheduler().sortWith(_.cost < _.cost).head.cavFleetSchedule
-          val optimalPlan = cavScheduler.getBestScheduleWithTheLongestCAVChain.cavFleetSchedule
+          val optimalPlan = cavScheduler.getBestScheduleWithTheLongestCAVChain().cavFleetSchedule
           val requestsAndUpdatedPlans = optimalPlan.map {
             _.toRoutingRequests(beamServices)
           }

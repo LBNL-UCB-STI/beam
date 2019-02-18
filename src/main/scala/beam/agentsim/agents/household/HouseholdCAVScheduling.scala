@@ -178,10 +178,10 @@ class HouseholdCAVScheduling(
   private implicit val coherenceCheck: PlansCoherenceCheck = PlansCoherenceCheck(scenario)
 
   // ***
-  def getAllFeasibleSchedules: List[CAVFleetSchedule] = {
+  def getAllFeasibleSchedules(stopSearchAfterXSolutions: Int = 100, limitCavToXPersons: Int = 3): List[CAVFleetSchedule] = {
     import beam.agentsim.agents.memberships.Memberships.RankedGroup._
     implicit val pop: org.matsim.api.core.v01.population.Population = scenario.getPopulation
-    val householdPlans = household.members.map(person => BeamPlan(person.getSelectedPlan))
+    val householdPlans = household.members.take(limitCavToXPersons).map(person => BeamPlan(person.getSelectedPlan))
     // extract potential household CAV requests from plans
     val householdRequests: HouseholdTrips =
       HouseholdTrips(householdPlans, householdVehicles.size, pickupTimeWindow, dropoffTimeWindow, skim)
@@ -212,27 +212,34 @@ class HouseholdCAVScheduling(
         req
     }
     // compute all the feasible schedules through
+    import scala.util.control.Breaks._
     val feasibleSchedules =
       MListBuffer[CAVFleetSchedule](CAVFleetSchedule(emptyFleetSchedule.toList, householdRequests))
-    for (request  <- householdRequests.requests;
-         schedule <- feasibleSchedules) {
-      val (newSchedule, feasible) = schedule.check(request, skim)
-      if (!feasible) feasibleSchedules -= schedule
-      feasibleSchedules.prependAll(newSchedule)
+    breakable {
+      for (request  <- householdRequests.requests;
+           schedule <- feasibleSchedules) {
+        val (newSchedule, feasible) = schedule.check(request, skim)
+        if (!feasible) feasibleSchedules -= schedule
+        feasibleSchedules.prependAll(newSchedule)
+
+        if (feasibleSchedules.size >= stopSearchAfterXSolutions) {
+          break
+        }
+      }
     }
     feasibleSchedules.toList
   }
 
   // ***
   // get k lowest scored schedules
-  def getKBestSchedules(k: Int): List[CAVFleetSchedule] = {
-    getAllFeasibleSchedules.sortBy(_.householdTrips.totalTravelTime).take(k)
+  def getKBestSchedules(k: Int, stopSearchAfterXSolutions: Int = 100, limitCavToXPersons: Int = 3): List[CAVFleetSchedule] = {
+    getAllFeasibleSchedules(stopSearchAfterXSolutions, limitCavToXPersons).sortBy(_.householdTrips.totalTravelTime).take(k)
   }
 
   // ***
-  def getBestScheduleWithTheLongestCAVChain: CAVFleetSchedule = {
+  def getBestScheduleWithTheLongestCAVChain(stopSearchAfterXSolutions: Int = 100, limitCavToXPersons: Int = 3): CAVFleetSchedule = {
     val mapRank =
-      getAllFeasibleSchedules.map(x => x -> x.cavFleetSchedule.foldLeft(0)((a, b) => a + b.schedule.size)).toMap
+      getAllFeasibleSchedules(stopSearchAfterXSolutions, limitCavToXPersons).map(x => x -> x.cavFleetSchedule.foldLeft(0)((a, b) => a + b.schedule.size)).toMap
     val maxRank = mapRank.maxBy(_._2)._2
     mapRank.withFilter(_._2 == maxRank).map(x => x._1).toList.sortBy(_.householdTrips.totalTravelTime).take(1).head
   }
@@ -460,13 +467,13 @@ object HouseholdCAVScheduling {
       if (!skim(BeamMode.CAR).contains(src)) {
         theModes.foreach { mode =>
           val sourceToDestToDist = src -> Map[Coord, Int]()
-          skim = skim + (mode           -> (skim(mode) + sourceToDestToDist))
+          skim = skim + (mode          -> (skim(mode) + sourceToDestToDist))
         }
       }
       theModes.foreach { mode =>
-        val destToDist = skim(mode)(src) + (dst-> (dist / avgSpeed(mode)).toInt)
-        val sourceToDestToDist = src           -> destToDist
-        skim = skim + (mode                    -> (skim(mode) + sourceToDestToDist))
+        val destToDist = skim(mode)(src) + (dst -> (dist / avgSpeed(mode)).toInt)
+        val sourceToDestToDist = src            -> destToDist
+        skim = skim + (mode                     -> (skim(mode) + sourceToDestToDist))
       }
     }
     skim

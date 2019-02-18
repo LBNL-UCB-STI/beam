@@ -5,13 +5,25 @@ import beam.agentsim.agents.vehicles.FuelType.Gasoline
 import beam.agentsim.agents.vehicles.VehicleCategory.Car
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  CAR,
+  CAV,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
 import org.matsim.api.core.v01.population.{Activity, Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.scenario.ScenarioUtils
-import org.matsim.households.{Household, HouseholdsFactoryImpl}
+import org.matsim.households.{Household, HouseholdsFactoryImpl, HouseholdsReaderV10}
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.immutable.{List, Map}
@@ -34,7 +46,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     automationLevel = 5
   )
 
-  it should "generate four schedules with 4,6,3 & 1 requests each" in {
+  it should "generate two schedules" in {
     val config = ConfigUtils.createConfig()
     implicit val sc: org.matsim.api.core.v01.Scenario =
       ScenarioUtils.createScenario(config)
@@ -46,7 +58,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val skim = getSkim(sc, household)
 
     val alg = new HouseholdCAVScheduling(sc, household, cavs, 2, 2, skim)
-    val schedules = alg.getAllFeasibleSchedules
+    val schedules = alg.getAllFeasibleSchedules()
     schedules should have length 2
     schedules.foreach { x =>
       x.cavFleetSchedule should have length 1
@@ -69,7 +81,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val skim = getSkim(sc, household)
 
     val alg = new HouseholdCAVScheduling(sc, household, vehicles, 15 * 60, 15 * 60, skim)
-    val schedule = alg.getBestScheduleWithTheLongestCAVChain
+    val schedule = alg.getBestScheduleWithTheLongestCAVChain()
 
     schedule.cavFleetSchedule should have length 1
     schedule.cavFleetSchedule.head.schedule should have length 10
@@ -100,7 +112,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val skim = getSkim(sc, household)
 
     val alg = new HouseholdCAVScheduling(sc, household, vehicles, 15 * 60, 15 * 60, skim)
-    val schedule = alg.getBestScheduleWithTheLongestCAVChain
+    val schedule = alg.getBestScheduleWithTheLongestCAVChain()
     schedule.cavFleetSchedule should have length 1
     schedule.cavFleetSchedule.head.schedule should have length 10
     schedule.cavFleetSchedule.head.schedule
@@ -116,7 +128,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     println(schedule)
   }
 
-  it should "generate 12 trips" in {
+  it should "generate twelve trips" in {
     val config = ConfigUtils.createConfig()
     implicit val sc: org.matsim.api.core.v01.Scenario =
       ScenarioUtils.createScenario(config)
@@ -129,7 +141,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val skim = getSkim(sc, household)
 
     val alg = new HouseholdCAVScheduling(sc, household, vehicles, 10 * 60, 15 * 60, skim)
-    val schedule = alg.getBestScheduleWithTheLongestCAVChain
+    val schedule = alg.getBestScheduleWithTheLongestCAVChain(2000)
 
     schedule.cavFleetSchedule should have length 1
     val nbOfTrips = schedule.cavFleetSchedule.flatMap(_.schedule).count(x => x.tag == Pickup || x.tag == Dropoff) / 2
@@ -164,6 +176,25 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     worstCombination.cavFleetSchedule.last.schedule(1).tag shouldBe Dropoff
     println(s"*** scenario 5 ***")
     println(worstCombination)
+  }
+
+  it should "be scalable" in {
+    val config = ConfigUtils.createConfig()
+    implicit val sc: org.matsim.api.core.v01.Scenario =
+      ScenarioUtils.createScenario(config)
+
+    val vehicles = List[BeamVehicle](
+      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType),
+      new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), defaultCAVBeamVehicleType)
+    )
+    val household: Household = scenarioPerformance(vehicles)
+    val skim = getSkim(sc, household)
+
+    val alg = new HouseholdCAVScheduling(sc, household, vehicles, 15 * 60, 15 * 60, skim)
+    val schedule = alg.getAllFeasibleSchedules()
+
+    println(s"*** scenario 6 ***")
+    println(schedule.size)
   }
 
   // ******************
@@ -282,13 +313,37 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     household
   }
 
+  def scenarioPerformance(vehicles: List[BeamVehicle])(implicit sc: org.matsim.api.core.v01.Scenario): Household = {
+
+    new PopulationReader(sc).readFile("test/input/sf-light/sample/1k/population.xml")
+    new HouseholdsReaderV10(sc.getHouseholds).readFile("test/input/sf-light/sample/1k/households.xml")
+
+    val household = new HouseholdsFactoryImpl().createHousehold(Id.create("dummy", classOf[Household]))
+    household.setMemberIds(
+      sc.getHouseholds.getHouseholds.get(Id.create("031400-2014000788156-0", classOf[Household])).getMemberIds
+    )
+    household.setVehicleIds(JavaConverters.seqAsJavaList(vehicles.map(veh => veh.toStreetVehicle.id)))
+    household
+  }
+
   def getSkim(sc: Scenario, household: Household): Map[BeamMode, Map[Coord, Map[Coord, Int]]] = {
     import beam.agentsim.agents.memberships.Memberships.RankedGroup._
     implicit val pop: org.matsim.api.core.v01.population.Population = sc.getPopulation
     val householdPlans = household.members.map(person => BeamPlan(person.getSelectedPlan)).toList
     val skim = HouseholdCAVScheduling.computeSkim(
       householdPlans,
-      Map(BeamMode.CAR -> 50 * 1000 / 3600, BeamMode.TRANSIT -> 40 * 1000 / 3600)
+      Map(
+        CAR               -> 50 * 1000 / 3600,
+        TRANSIT           -> 40 * 1000 / 3600,
+        CAV               -> 50 * 1000 / 3600,
+        WALK              -> 0,
+        BIKE              -> 0,
+        WALK_TRANSIT      -> 0,
+        DRIVE_TRANSIT     -> 0,
+        RIDE_HAIL         -> 0,
+        RIDE_HAIL_POOLED  -> 0,
+        RIDE_HAIL_TRANSIT -> 0
+      )
     )
     skim
   }
