@@ -117,7 +117,7 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
         }
         modesFuel.add(mode);
         try {
-            Double fuel = PathTraversalSpatialTemporalTableGenerator.getFuelConsumptionInMJ(vehicleId, originalMode, fuelString, lengthInMeters, vehicleType);
+            Double fuel = Double.parseDouble(fuelString);
             Map<String, Double> hourData = hourModeFuelage.get(hour);
             if (hourData == null) {
                 hourData = new HashMap<>();
