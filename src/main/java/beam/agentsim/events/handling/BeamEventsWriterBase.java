@@ -12,16 +12,16 @@ import java.io.BufferedWriter;
  * BEAM
  */
 public class BeamEventsWriterBase implements EventWriter, BasicEventHandler {
-    protected BufferedWriter out;
-    protected BeamEventsLogger beamEventLogger;
-    protected BeamServices beamServices;
-    protected Class<?> eventTypeToLog;
+    protected final BufferedWriter outWriter;
+    protected final BeamEventsLogger beamEventLogger;
+    protected final BeamServices beamServices;
+    protected final Class<?> eventTypeToLog;
 
 
     public BeamEventsWriterBase(String outfilename, BeamEventsLogger beamEventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
         this.beamEventLogger = beamEventLogger;
         this.beamServices = beamServices;
-        this.out = IOUtils.getBufferedWriter(outfilename);
+        this.outWriter = IOUtils.getBufferedWriter(outfilename);
         this.eventTypeToLog = eventTypeToLog;
     }
 

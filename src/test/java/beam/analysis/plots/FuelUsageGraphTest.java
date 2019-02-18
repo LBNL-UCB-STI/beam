@@ -33,7 +33,7 @@ public class FuelUsageGraphTest {
 
     private Map<Integer, Map<String, Double>> stats;
 
-    private FuelUsageAnalysis fuelUsageStats = new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation() {
+    private final FuelUsageAnalysis fuelUsageStats = new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation() {
         @Override
         public double[][] compute(Tuple<Map<Integer, Map<String, Double>>, Set<String>> stat) {
             stats = stat.getFirst();

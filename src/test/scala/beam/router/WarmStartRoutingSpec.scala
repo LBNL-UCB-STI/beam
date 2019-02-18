@@ -23,7 +23,7 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices, BeamWarmStart}
 import beam.utils.TestConfigUtils.testConfig
-import beam.utils.{DateUtils, FileUtils, NetworkHelper, NetworkHelperImpl}
+import beam.utils.{DateUtils, FileUtils, NetworkHelperImpl}
 import com.typesafe.config.{Config, ConfigValueFactory}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
@@ -84,7 +84,7 @@ class WarmStartRoutingSpec
     services = mock[BeamServices](withSettings().stubOnly())
     scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
-    when(services.geo).thenReturn(new GeoUtilsImpl(services))
+    when(services.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(services.personHouseholds).thenReturn(Map[Id[Person], Household]())
     when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
     when(services.ptFares).thenReturn(PtFares(List[FareRule]()))
@@ -99,6 +99,9 @@ class WarmStartRoutingSpec
     var networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
+
+    val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
+    when(services.networkHelper).thenReturn(networkHelper)
 
     val fareCalculator = mock[FareCalculator]
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
@@ -133,7 +136,6 @@ class WarmStartRoutingSpec
     networkCoordinator = new DefaultNetworkCoordinator(BeamConfig(iterationConfig))
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
-    val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
     scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     val injector = org.matsim.core.controler.Injector.createInjector(
