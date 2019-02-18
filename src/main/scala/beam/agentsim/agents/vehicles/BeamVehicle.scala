@@ -15,7 +15,7 @@ import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import beam.sim.common.GeoUtils.{Straight, TurningDirection}
 import beam.utils.NetworkHelper
-import com.typesafe.scalalogging.StrictLogging
+import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.vehicles.Vehicle
@@ -38,7 +38,7 @@ class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
   val beamVehicleType: BeamVehicleType
-) extends StrictLogging {
+) extends ExponentialLazyLogging {
 
   var manager: Option[ActorRef] = None
 
