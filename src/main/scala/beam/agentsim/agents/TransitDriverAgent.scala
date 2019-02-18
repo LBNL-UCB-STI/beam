@@ -99,7 +99,7 @@ class TransitDriverAgent(
       stop(Failure(reason))
     case Event(Finish, _) =>
       stop
-    case Event(StopEvent,_) =>
+    case Event(StopEvent, _) =>
       stop
   }
 
