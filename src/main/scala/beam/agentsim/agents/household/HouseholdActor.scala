@@ -324,6 +324,9 @@ object HouseholdActor {
           var currentLeg = theLegs.head
           var passengersToAdd = Set[VehiclePersonId]()
           cavSchedule.schedule.foreach { serviceRequest =>
+            if(cavSchedule.cav.id.toString.equals("63-0")){
+              val i = 0
+            }
             serviceRequest.tag match {
               case Pickup =>
                 passengersToAdd = passengersToAdd + memberVehiclePersonIds(serviceRequest.person.get)
@@ -337,6 +340,9 @@ object HouseholdActor {
                 passengerSchedule = passengerSchedule.addPassenger(pass, toTravel)
               }
             }
+          }
+          if(cavSchedule.cav.id.toString.equals("63-0")){
+            val i = 0
           }
           cavSchedule.cav -> passengerSchedule.updateStartTimes(theLegs.head.startTime)
         }.toMap
