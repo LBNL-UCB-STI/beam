@@ -101,8 +101,8 @@ class BeamVehicle(
   def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): Double = {
     val distanceInMeters = beamLeg.travelPath.distanceInM
     val network = beamServices.matsimServices.getScenario.getNetwork
-    val fuelConsumption = BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
-    val energyConsumed = powerTrain.estimateConsumptionInJoules(fuelConsumption)
+//    val fuelConsumption = BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
+    val energyConsumed = powerTrain.estimateConsumptionInJoules(distanceInMeters)
     if (fuelLevelInJoules < energyConsumed) {
       logger.warn(
         "Vehicle {} does not have sufficient fuel to travel {} m, only enough for {} m, setting fuel level to 0",
