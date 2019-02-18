@@ -382,8 +382,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
     // csv for root graph
     public void writeToRootCSV() {
         String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("realizedModeChoice.csv");
-        try {
-            BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)));
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)))){
             Set<String> modes = cumulativeMode;
             String heading = modes.stream().reduce((x, y) -> x + "," + y).orElse("");
             out.write("iterations," + heading);
@@ -419,8 +418,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
 
     private void writeToReplanningCSV(IterationEndsEvent event){
         String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(event.getIteration(), "replanningCountModeChoice.csv");
-        try{
-            BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)));
+        try(BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)))){
             String heading = "hour,count";
             out.write(heading);
             out.newLine();
@@ -436,7 +434,6 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
                 out.write(line);
                 out.newLine();
             }
-            out.flush();
         }catch (IOException ex ){
             log.error("exception occurred due to " , ex);
         }
