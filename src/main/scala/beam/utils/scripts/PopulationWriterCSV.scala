@@ -22,7 +22,7 @@ class PopulationWriterCSV(
     with MatsimWriter {
 
   /**
-    * Creates a new PlansWriter to write out the specified plans to the specified file and with
+    * Creates a new PlansWriter to write outWriter the specified plans to the specified file and with
     * the specified version.
     * If plans-streaming is on, the file will already be opened and the file-header be written.
     * If plans-streaming is off, the file will not be created until `#write(java.lang.String)` is called.
