@@ -173,12 +173,14 @@ class HouseholdCAVScheduling(
   val householdVehicles: List[BeamVehicle],
   val pickupTimeWindow: Int,
   val dropoffTimeWindow: Int,
+  val stopSearchAfterXSolutions: Int = 100,
+  val limitCavToXPersons: Int = 3,
   val skim: Map[BeamMode, Map[Coord, Map[Coord, Int]]]
 ) {
   private implicit val coherenceCheck: PlansCoherenceCheck = PlansCoherenceCheck(scenario)
 
   // ***
-  def getAllFeasibleSchedules(stopSearchAfterXSolutions: Int = 100, limitCavToXPersons: Int = 3): List[CAVFleetSchedule] = {
+  def getAllFeasibleSchedules: List[CAVFleetSchedule] = {
     import beam.agentsim.agents.memberships.Memberships.RankedGroup._
     implicit val pop: org.matsim.api.core.v01.population.Population = scenario.getPopulation
     val householdPlans = household.members.take(limitCavToXPersons).map(person => BeamPlan(person.getSelectedPlan))
@@ -232,14 +234,14 @@ class HouseholdCAVScheduling(
 
   // ***
   // get k lowest scored schedules
-  def getKBestSchedules(k: Int, stopSearchAfterXSolutions: Int = 100, limitCavToXPersons: Int = 3): List[CAVFleetSchedule] = {
-    getAllFeasibleSchedules(stopSearchAfterXSolutions, limitCavToXPersons).sortBy(_.householdTrips.totalTravelTime).take(k)
+  def getKBestSchedules(k: Int): List[CAVFleetSchedule] = {
+    getAllFeasibleSchedules.sortBy(_.householdTrips.totalTravelTime).take(k)
   }
 
   // ***
-  def getBestScheduleWithTheLongestCAVChain(stopSearchAfterXSolutions: Int = 100, limitCavToXPersons: Int = 3): CAVFleetSchedule = {
+  def getBestScheduleWithTheLongestCAVChain: CAVFleetSchedule = {
     val mapRank =
-      getAllFeasibleSchedules(stopSearchAfterXSolutions, limitCavToXPersons).map(x => x -> x.cavFleetSchedule.foldLeft(0)((a, b) => a + b.schedule.size)).toMap
+      getAllFeasibleSchedules.map(x => x -> x.cavFleetSchedule.foldLeft(0)((a, b) => a + b.schedule.size)).toMap
     val maxRank = mapRank.maxBy(_._2)._2
     mapRank.withFilter(_._2 == maxRank).map(x => x._1).toList.sortBy(_.householdTrips.totalTravelTime).take(1).head
   }
