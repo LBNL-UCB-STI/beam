@@ -38,7 +38,7 @@ object CoordInBoundsUtil extends App {
 
   val coords = readPlansFile(plansFilePath)
 
-  println("Loaded coord 10 out of " + coords.size)
+  println("Loaded coord 10 outWriter of " + coords.size)
   coords.take(10).foreach(println)
 
   val transformedCoords = coords.map { coord =>
@@ -58,7 +58,7 @@ object CoordInBoundsUtil extends App {
     !containsOrEqualsCoords(envelop, coordSet._2)
   }
 
-  println("Filtered coordinates those are not in bounds 10 out of " + filteredCoords.size)
+  println("Filtered coordinates those are not in bounds 10 outWriter of " + filteredCoords.size)
   filteredCoords.take(10).foreach(println)
 
   def containsOrEqualsCoords(boundingBox: QuadTreeBounds, coord: Coord): Boolean = {

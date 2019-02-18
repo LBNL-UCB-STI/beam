@@ -3,6 +3,7 @@ import boto3
 import time
 import uuid
 import os
+import glob
 from botocore.errorfactory import ClientError
 
 CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM'''
@@ -15,8 +16,8 @@ S3_PUBLISH_SCRIPT = '''
   -    sleep 10s
   -    opth="output/$(basename $(dirname $cf))"
   -    echo opth
-  -    for file in $opth/*; do sudo cp /var/log/cloud-init-output.log "$file" && sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
-  -    for file in $opth/*.zip; do s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/$(basename $file)"; done;
+  -    for file in glob.iglob($opth/*); do sudo cp /var/log/cloud-init-output.log "$file" && sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
+  -    for file in glob.iglob($opth/*.zip); do s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/$(os.path.basename($file))"; done;
   -    sudo aws --region "$S3_REGION" s3 cp $opth/*.zip s3://beam-outputs/'''
 
 END_SCRIPT_DEFAULT = '''echo "End script not provided."'''
