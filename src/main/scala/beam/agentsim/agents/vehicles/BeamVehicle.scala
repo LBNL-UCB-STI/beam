@@ -38,7 +38,7 @@ class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
   val beamVehicleType: BeamVehicleType
-) extends ExponentialLazyLogging{
+) extends ExponentialLazyLogging {
 
   var manager: Option[ActorRef] = None
 
