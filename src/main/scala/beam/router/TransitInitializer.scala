@@ -79,6 +79,7 @@ class TransitInitializer(
                       StreetMode.CAR,
                       transportNetwork.streetLayer
                     )
+                    val distance = linksTimesAndDistances.distances.tail.sum
                     BeamPath(
                       edges.map(_.intValue()).toVector,
                       TravelTimeUtils.scaleTravelTime(
@@ -97,7 +98,7 @@ class TransitInitializer(
                         endEdge.getGeometry.getEndPoint.getY,
                         departureTime + streetSeg.getDuration
                       ),
-                      streetSeg.getDistance.toDouble / 1000
+                      distance
                     )
                 case None =>
                   val edgeIds = resolveFirstLastTransitEdges(fromStop, toStop)

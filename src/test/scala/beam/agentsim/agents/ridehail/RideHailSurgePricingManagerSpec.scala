@@ -28,7 +28,7 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(beamConfig)
     when(theServices.tazTreeMap).thenReturn(tazTreeMap)
-    val geo = new GeoUtilsImpl(theServices)
+    val geo = new GeoUtilsImpl(beamConfig)
     when(theServices.geo).thenReturn(geo)
     theServices
   }

@@ -22,9 +22,9 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse, ParkingStockAttributes}
+import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
-import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
+import beam.agentsim.infrastructure.{TAZTreeMap, TrivialParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
@@ -37,7 +37,7 @@ import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.StuckFinder
+import beam.utils.{NetworkHelperImpl, StuckFinder}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
@@ -64,7 +64,7 @@ import scala.concurrent.ExecutionContext
 class PersonWithVehicleSharingSpec
     extends TestKit(
       ActorSystem(
-        name = "PersonAgentSpec",
+        name = "PersonWithVehicleSharingSpec",
         config = ConfigFactory
           .parseString(
             """
@@ -90,6 +90,9 @@ class PersonWithVehicleSharingSpec
   private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
   private val tollCalculator = new TollCalculator(beamConfig)
 
+  private lazy val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
+  private lazy val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
+
   private lazy val beamSvc: BeamServices = {
     val matsimServices = mock[MatsimServices]
 
@@ -97,8 +100,10 @@ class PersonWithVehicleSharingSpec
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(beamConfig)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
-    when(theServices.geo).thenReturn(new GeoUtilsImpl(theServices))
+    when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
+    when(theServices.networkHelper).thenReturn(networkHelper)
+
     theServices
   }
 
@@ -115,14 +120,6 @@ class PersonWithVehicleSharingSpec
 
     override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0D
   }
-
-  private lazy val parkingManager = system.actorOf(
-    ZonalParkingManager
-      .props(beamSvc, beamSvc.beamRouter, ParkingStockAttributes(100)),
-    "ParkingManager"
-  )
-
-  private lazy val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
   private val matsimConfig = configBuilder.buildMatSamConf()
@@ -163,6 +160,7 @@ class PersonWithVehicleSharingSpec
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
+      val parkingManager = system.actorOf(Props(new TrivialParkingManager))
 
       val mockRouter = TestProbe()
       val mockSharedVehicleFleet = TestProbe()
@@ -245,10 +243,14 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[VehicleEntersTrafficEvent]
       events.expectMsgType[LinkLeaveEvent]
       events.expectMsgType[LinkEnterEvent]
+      events.expectMsgType[VehicleLeavesTrafficEvent]
+      events.expectMsgType[PathTraversalEvent]
+      events.expectMsgType[VehicleEntersTrafficEvent]
       events.expectMsgType[LinkLeaveEvent]
       events.expectMsgType[LinkEnterEvent]
       events.expectMsgType[VehicleLeavesTrafficEvent]
       events.expectMsgType[PathTraversalEvent]
+      events.expectMsgType[ParkEvent]
       events.expectMsgType[PersonCostEvent]
       events.expectMsgType[PersonLeavesVehicleEvent]
 
@@ -299,6 +301,7 @@ class PersonWithVehicleSharingSpec
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
+      val parkingManager = system.actorOf(Props(new TrivialParkingManager))
 
       val mockRouter = TestProbe()
       val mockSharedVehicleFleet = TestProbe()
@@ -402,13 +405,14 @@ class PersonWithVehicleSharingSpec
 
       events.expectMsgType[PersonEntersVehicleEvent]
       events.expectMsgType[VehicleEntersTrafficEvent]
-      events.expectMsgType[LinkLeaveEvent]
-      events.expectMsgType[LinkEnterEvent]
       events.expectMsgType[VehicleLeavesTrafficEvent]
       events.expectMsgType[PathTraversalEvent]
 
       events.expectMsgType[PersonEntersVehicleEvent]
       events.expectMsgType[LeavingParkingEvent]
+      events.expectMsgType[VehicleEntersTrafficEvent]
+      events.expectMsgType[VehicleLeavesTrafficEvent]
+      events.expectMsgType[PathTraversalEvent]
       events.expectMsgType[VehicleEntersTrafficEvent]
       events.expectMsgType[LinkLeaveEvent]
       events.expectMsgType[LinkEnterEvent]
@@ -538,6 +542,7 @@ class PersonWithVehicleSharingSpec
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
+      val parkingManager = system.actorOf(Props(new TrivialParkingManager))
 
       val mockRouter = TestProbe()
       val mockRideHailingManager = TestProbe()
@@ -572,7 +577,7 @@ class PersonWithVehicleSharingSpec
         } pipeTo mockSharedVehicleFleet.lastSender
 
       mockRouter.expectMsgPF() {
-        case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _, _, _) =>
+        case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _) =>
           assert(vehicleId == car1.id, "Agent should ask for route with the car I gave it.")
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = leg.copy(
@@ -607,7 +612,7 @@ class PersonWithVehicleSharingSpec
         Vector(Token(car1.id, car1.manager.get, car1.toStreetVehicle))
       )
       mockRouter.expectMsgPF() {
-        case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _, _, _) =>
+        case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _) =>
           assert(vehicleId == car1.id, "Agent should ask for route with the car I gave it.")
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = leg.copy(
@@ -643,7 +648,7 @@ class PersonWithVehicleSharingSpec
 
       // agent has no car available, so will ask for new route
       mockRouter.expectMsgPF() {
-        case RoutingRequest(_, _, _, _, streetVehicles, _, _, _, _) =>
+        case RoutingRequest(_, _, _, _, streetVehicles, _, _, _) =>
           val body = streetVehicles.find(_.mode == WALK).get
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = BeamLeg(

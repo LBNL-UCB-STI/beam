@@ -1,7 +1,7 @@
 package beam.agentsim
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.events.SpaceTime
@@ -22,7 +22,7 @@ object Resource {
 
   case class NotifyVehicleOutOfService(vehicleId: Id[BeamVehicle])
 
-  case class TryToBoardVehicle(what: Id[BeamVehicle], who: ActorRef)
+  case class TryToBoardVehicle(token: Token, who: ActorRef)
 
   case class Boarded(vehicle: BeamVehicle)
 

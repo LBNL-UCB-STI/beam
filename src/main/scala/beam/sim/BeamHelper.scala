@@ -235,8 +235,11 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[TollCalculator]).asEagerSingleton()
 
           // Override EventsManager
-          bind(classOf[EventsManager]).to(classOf[LoggingParallelEventsManager]).asEagerSingleton()
-
+          if (beamConfig.beam.debug.debugEnabled) {
+            bind(classOf[EventsManager]).to(classOf[EventsManagerImpl]).asEagerSingleton()
+          } else {
+            bind(classOf[EventsManager]).to(classOf[LoggingParallelEventsManager]).asEagerSingleton()
+          }
         }
       }
     )
@@ -279,7 +282,7 @@ trait BeamHelper extends LazyLogging {
     props.setProperty("commitHash", BashUtils.getCommitHash)
     props.setProperty("configFile", configLocation)
     val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
-    props.store(out, "Simulation out put props.")
+    props.store(out, "Simulation outWriter put props.")
     val beamConfig = BeamConfig(config)
     if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
           .equalsIgnoreCase("ModeChoiceLCCM")) {
@@ -373,7 +376,8 @@ trait BeamHelper extends LazyLogging {
 
     val beamServices = injector.getInstance(classOf[BeamServices])
 
-    //
+    beamServices.setTransitFleetSizes(networkCoordinator.tripFleetSizeMap)
+
     val beamConfig = beamServices.beamConfig
     var useCSVFiles
       : Boolean = beamConfig.beam.agentsim.agents.population.beamPopulationDirectory != null && !beamConfig.beam.agentsim.agents.population.beamPopulationDirectory
@@ -422,6 +426,7 @@ trait BeamHelper extends LazyLogging {
     val outConf = Paths.get(outputDirectory, "beam.conf")
     Files.write(outConf, config.root().render(ConfigRenderOptions.concise()).getBytes)
     logger.info("Config [{}] copied to {}.", beamConfig.beam.agentsim.simulationName, outConf)
+
     val networkCoordinator: NetworkCoordinator =
       if (Files.exists(Paths.get(beamConfig.beam.agentsim.scenarios.frequencyAdjustmentFile))) {
         FrequencyAdjustingNetworkCoordinator(beamConfig)

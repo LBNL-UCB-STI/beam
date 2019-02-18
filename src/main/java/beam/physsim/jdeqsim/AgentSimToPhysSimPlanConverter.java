@@ -63,20 +63,20 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private static PhyssimCalcLinkSpeedDistributionStats linkSpeedDistributionStatsGraph;
     private final ActorRef router;
     private final OutputDirectoryHierarchy controlerIO;
-    private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
-    private Scenario agentSimScenario;
+    private final Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
+    private final Scenario agentSimScenario;
     private Population jdeqsimPopulation;
     private TravelTime previousTravelTime;
 
 
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
-    private BeamConfig beamConfig;
-    private Random rand = MatsimRandom.getRandom();
+    private final BeamConfig beamConfig;
+    private final Random rand = MatsimRandom.getRandom();
 
-    private boolean agentSimPhysSimInterfaceDebuggerEnabled;
+    private final boolean agentSimPhysSimInterfaceDebuggerEnabled;
 
-    private List<CompletableFuture> completableFutures = new ArrayList<>();
+    private final List<CompletableFuture> completableFutures = new ArrayList<>();
 
     public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
                                           TransportNetwork transportNetwork,
@@ -268,8 +268,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             String mode = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
 
             // pt sampling
-            // TODO: if requested, add beam.physsim.ptSamplingMode (pathTraversal | busLine), which controls if instead of filtering out
-            // pathTraversal, a busLine should be filtered out, avoiding jumping buses in visualization (but making traffic flows less precise).
+            // TODO: if requested, add beam.physsim.ptSamplingMode (pathTraversal | busLine), which controls if instead of filtering outWriter
+            // pathTraversal, a busLine should be filtered outWriter, avoiding jumping buses in visualization (but making traffic flows less precise).
 
             if (mode.equalsIgnoreCase(BUS) && rand.nextDouble() > beamConfig.beam().physsim().ptSampleSize()) {
                 return;

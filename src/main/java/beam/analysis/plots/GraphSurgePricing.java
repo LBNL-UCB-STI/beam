@@ -39,28 +39,28 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     // The inner map consists of category index to number of occurrence for each category
     // The categories are defined as buckets for occurrences of prices form 0-1, 1-2
 
-    private Logger log = LoggerFactory.getLogger(GraphSurgePricing.class);
+    private final Logger log = LoggerFactory.getLogger(GraphSurgePricing.class);
 
-    private Map<Double, Map<Integer, Integer>> transformedBins = new HashMap<>();
-    private int numberOfTimeBins;
+    private final Map<Double, Map<Integer, Integer>> transformedBins = new HashMap<>();
+    private final int numberOfTimeBins;
     private static final String graphTitle = "Ride Hail Surge Price Level";
     private static final String xAxisLabel = "timebin";
     private static final String yAxisLabel = "price level";
-    private int noOfCategories;
+    private final int noOfCategories;
     private Double categorySize = null;
     private Double max;
     private Double min;
 
     private double[] revenueDataSet;
 
-    private Map<String, double[][]> tazDataset = new TreeMap<>();
+    private final Map<String, double[][]> tazDataset = new TreeMap<>();
 
     private String graphImageFile = "";
     private String surgePricingCsvFileName = "";
     private String surgePricingAndRevenueWithTaz = "";
     private String revenueGraphImageFile = "";
     private String revenueCsvFileName = "";
-    private RideHailSurgePricingManager surgePricingManager;
+    private final RideHailSurgePricingManager surgePricingManager;
     private final boolean writeGraph;
 
     @Inject
@@ -310,7 +310,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
             if (data == null) {
                 dataset[i] = new double[numberOfTimeBins];
             } else {
-                double arr[] = new double[numberOfTimeBins];
+                double[] arr = new double[numberOfTimeBins];
                 for (int j = 0; j < numberOfTimeBins; j++) {
                     Integer v = data.get(j);
                     if (v == null) {
@@ -337,7 +337,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         for (double key : categoriesList) {
 
             Map<Integer, Integer> data = transformedCategories.get(key);
-            double arr[] = new double[numberOfTimeBins];
+            double[] arr = new double[numberOfTimeBins];
             for (int j = 0; j < numberOfTimeBins; j++) {
                 Integer v = data.get(j);
                 if (v == null) {
@@ -522,7 +522,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
             }
         }
 
-        //System.out.println("Frequencies : " + Arrays.toString(frequencies));
+        //System.outWriter.println("Frequencies : " + Arrays.toString(frequencies));
 
         // Création des datasets
         HistogramDataset histogramDataset = new HistogramDataset();

@@ -38,7 +38,7 @@ if __name__ == '__main__':
     print "Creating distance matrix"
     df = pd.read_csv(ssqd_dev_path)
     df.dropna(axis=1, inplace=True)  # Drop any sensors with missing data
-    df.drop(filter_stations, axis=1)  # Filter out stations on the filter list in the config file. These are bad outliers
+    df.drop(filter_stations, axis=1)  # Filter outWriter stations on the filter list in the config file. These are bad outliers
     dat = df.iloc[:, 1:-1].values.transpose()  # Drop the first column, 'Date', and last column (the row totals)
     D = scipy.spatial.distance.cdist(dat, dat, "euclidean")  # Square distance matrix. n x n, n = number of sensors
     D_days = scipy.spatial.distance.cdist(dat.transpose(), dat.transpose(), "euclidean")
