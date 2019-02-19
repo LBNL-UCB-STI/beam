@@ -27,7 +27,6 @@ public class AgentSimPhysSimInterfaceDebugger {
     }
 
     private void exploreAdjacentLinkConnectivity(Event event) {
-        // FIXME Is this used on productioin or only for debug purpose?
         Map<String, String> eventAttributes = event.getAttributes();
         String mode_ = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE());
         String links_ = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS());
