@@ -185,7 +185,7 @@ object HouseholdActor {
             cav.manager = Some(self)
             cav.driver = Some(cavDriverRef)
           }
-          
+
           val cavScheduler = new HouseholdCAVScheduling(
             beamServices.matsimServices.getScenario,
             household,
