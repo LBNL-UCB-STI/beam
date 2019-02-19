@@ -9,8 +9,8 @@ import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent.DrivingInterrupted
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDriving
+import beam.agentsim.agents.ridehail.RideHailAgent
 import beam.agentsim.agents.ridehail.RideHailAgent._
-import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule, VehiclePersonId}
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
@@ -24,14 +24,16 @@ import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
-import beam.sim.config.BeamConfig
+import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.controler.MatsimServices
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
+import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
@@ -60,11 +62,19 @@ class RideHailAgentSpec
 
   private val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
 
+  private lazy val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
+  private lazy val matsimConfig = configBuilder.buildMatSamConf()
+
   lazy val services: BeamServices = {
+    val matsimServices = mock[MatsimServices]
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.beamConfig).thenReturn(config)
-    val geo = new GeoUtilsImpl(theServices)
+    val geo = new GeoUtilsImpl(config)
     when(theServices.geo).thenReturn(geo)
+    when(theServices.matsimServices).thenReturn(matsimServices)
+    val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
+    ScenarioUtils.loadScenario(scenario)
+    when(matsimServices.getScenario).thenReturn(scenario)
     theServices
   }
   private lazy val zonalParkingManager: ActorRef = ZonalParkingManagerSpec.mockZonalParkingManager(services)

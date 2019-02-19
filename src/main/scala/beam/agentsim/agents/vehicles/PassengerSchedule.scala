@@ -43,16 +43,14 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
   }
 
   def updateStartTimes(newStartTimeOfFirstLeg: Int): PassengerSchedule = {
-    var newSchedule = PassengerSchedule()
+    var newSchedule = TreeMap[BeamLeg, Manifest]()(BeamLegOrdering)
     var runningStartTime = newStartTimeOfFirstLeg
     schedule.foreach { legAndMan =>
       val newLeg = legAndMan._1.updateStartTime(Math.max(runningStartTime, legAndMan._1.startTime))
       runningStartTime = newLeg.endTime
-      legAndMan._2.riders.foreach { rider =>
-        newSchedule = newSchedule.addPassenger(rider, Seq(newLeg))
-      }
+      newSchedule = newSchedule + (newLeg -> legAndMan._2)
     }
-    newSchedule
+    new PassengerSchedule(newSchedule)
   }
 
   override def toString: String = {
@@ -62,7 +60,7 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
 }
 
 //Specialized copy of Ordering.by[Tuple2] so we can control compare
-//Also has the benefit of not requiring allocation of a Tuple2, which turned out to be costly at scale
+//Also has the benefit of not requiring allocation of a Tuple2, which turned outWriter to be costly at scale
 object BeamLegOrdering extends Ordering[BeamLeg] {
 
   def compare(a: BeamLeg, b: BeamLeg): Int = {

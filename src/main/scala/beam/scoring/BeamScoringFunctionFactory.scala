@@ -80,8 +80,6 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
             person.getSelectedPlan.getAttributes
               .putAttribute("scores", MapStringDouble(vectorOfUtilities))
 
-            // TODO: Start writing something like a scala API for MATSim, so that uglinesses like that vv don't have to be in user code, but only in one place.
-
             val logsum = Option(
               math.log(
                 person.getPlans.asScala.view
@@ -124,8 +122,8 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
           }
 
         finalScore = scoreOfBeingInClassGivenThisOutcome + leavingParkingEventScore
-        finalScore = Math.max(finalScore, -100000) // keep scores no further below -100 to keep MATSim happy (doesn't like -Infinity) but knowing
-        // that if changes to utility function drive the true scores below -100, this will need to be replaced with another big number.
+        finalScore = Math.max(finalScore, -100000) // keep scores no further below -100k to keep MATSim happy (doesn't like -Infinity) but knowing
+        // that if changes to utility function drive the true scores below -100k, this will need to be replaced with another big number.
       }
 
       override def handleActivity(activity: Activity): Unit = {}
