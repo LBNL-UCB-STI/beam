@@ -21,7 +21,7 @@ case class LeavingParkingEvent(
   pricingModel: PricingModel,
   chargingType: ChargingType
 ) extends Event(time)
-    with HasPersonId {
+    with HasPersonId with ScalaEvent {
   import LeavingParkingEvent._
 
   override def getPersonId: Id[Person] = personId

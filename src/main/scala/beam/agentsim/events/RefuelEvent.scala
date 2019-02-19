@@ -16,7 +16,7 @@ class RefuelEvent(
   sessionDuration: Double,
   vehId: Id[Vehicle]
 ) extends Event(tick)
-    with HasPersonId {
+    with HasPersonId with ScalaEvent {
   import RefuelEvent._
 
   override def getPersonId: Id[Person] = Id.create(vehId, classOf[Person])

@@ -20,7 +20,7 @@ case class ParkEvent(
   parkingType: ParkingType,
   pricingModel: PricingModel,
   chargingType: ChargingType
-) extends Event(time) {
+) extends Event(time) with ScalaEvent {
   import ParkEvent._
 
   def getDriverId: String = driverId
