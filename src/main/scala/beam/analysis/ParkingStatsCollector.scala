@@ -165,7 +165,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
         if (personInboundParkingStatsTracker.contains(parkEvent.getDriverId)) {
           // get the parking cost from the event attributes
           val parkingCost: Option[Double] = try {
-            Option(parkEvent.getAttributes.get(ParkEventAttrs.ATTRIBUTE_COST)).map(_.toDouble)
+            Option(parkEvent.getAttributes.get(ParkEvent.ATTRIBUTE_COST)).map(_.toDouble)
           } catch {
             case e: Exception =>
               logger.error("Error while reading cost attribute and converting it to double : " + e.getMessage, e)
