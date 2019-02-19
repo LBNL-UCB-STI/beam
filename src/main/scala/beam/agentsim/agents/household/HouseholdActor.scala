@@ -245,6 +245,7 @@ object HouseholdActor {
               pers._2.map(req => (pers._1.get, req.activity) -> plan.cav)
             }
             .flatten)
+          // Rest of the household
 
           plan.schedule.foreach { cavPlan =>
             if (cavPlan.tag == Pickup) {
@@ -263,7 +264,7 @@ object HouseholdActor {
           holdTickAndTriggerId(tick, triggerId)
 //            log.debug("Household {} is done planning", household.getId)
           Future
-            .sequence(routingRequests.map(akka.pattern.ask(router, _).mapTo[RoutingResponse]))
+            .sequence(routingRequests.map(req => akka.pattern.ask(router, if(req.routeReq.isDefined){req.routeReq.get}else{req.embodyReq.get}).mapTo[RoutingResponse]))
             .map(RoutingResponses(tick, _)) pipeTo self
         }
         household.members.foreach { person =>

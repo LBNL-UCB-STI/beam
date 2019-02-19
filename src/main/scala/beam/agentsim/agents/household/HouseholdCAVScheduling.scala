@@ -1,26 +1,18 @@
 package beam.agentsim.agents.household
+import beam.agentsim.agents.household.HouseholdCAVScheduling.RouteOrEmbodyRequest
 import beam.agentsim.agents.planning.{BeamPlan, Trip}
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
-import beam.router.BeamRouter.RoutingRequest
+import beam.router.BeamRouter
+import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  BIKE,
-  CAR,
-  CAV,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import beam.sim.BeamServices
-import beam.utils.logging.{ExponentialLoggerWrapperImpl}
+import beam.utils.logging.ExponentialLoggerWrapperImpl
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
@@ -184,12 +176,12 @@ class HouseholdCAVScheduling(
   val skim: Map[BeamMode, Map[Coord, Map[Coord, Int]]]
 ) {
   private implicit val coherenceCheck: PlansCoherenceCheck = PlansCoherenceCheck(scenario)
+  implicit val pop: org.matsim.api.core.v01.population.Population = scenario.getPopulation
+  import beam.agentsim.agents.memberships.Memberships.RankedGroup._
+  private val householdPlans = household.members.take(limitCavToXPersons).map(person => BeamPlan(person.getSelectedPlan))
 
   // ***
   def getAllFeasibleSchedules: List[CAVFleetSchedule] = {
-    import beam.agentsim.agents.memberships.Memberships.RankedGroup._
-    implicit val pop: org.matsim.api.core.v01.population.Population = scenario.getPopulation
-    val householdPlans = household.members.take(limitCavToXPersons).map(person => BeamPlan(person.getSelectedPlan))
 
     // extract potential household CAV requests from plans
     val householdRequests: HouseholdTrips =
@@ -411,7 +403,11 @@ class CAVSchedule(
   }
 
   // ***
-  def toRoutingRequests(beamServices: BeamServices): (List[Option[RoutingRequest]], CAVSchedule) = {
+  def toRoutingRequests(beamServices: BeamServices): (List[Option[RouteOrEmbodyRequest]], CAVSchedule) = {
+    val personToSelectedPlan: Map[Id[Person],BeamPlan] = schedule.flatMap(_.person).distinct.map{
+      person =>
+        (person -> BeamPlan(beamServices.matsimServices.getScenario.getPopulation.getPersons.get(person).getSelectedPlan))
+    }.toMap
     var newMobilityRequests = List[MobilityServiceRequest]()
     val requestList = (schedule.reverse :+ schedule.head).tail
       .sliding(2)
@@ -426,23 +422,37 @@ class CAVSchedule(
           newMobilityRequests = newMobilityRequests :+ orig
           None
         } else {
-          val routingRequest = RoutingRequest(
-            orig.activity.getCoord,
-            dest.activity.getCoord,
-            origin.time,
-            IndexedSeq(),
-            IndexedSeq(
-              StreetVehicle(
-                Id.create(cav.id.toString, classOf[Vehicle]),
-                cav.beamVehicleType.id,
-                origin,
-                CAV,
-                asDriver = true
-              )
-            )
+          val theVehicle = StreetVehicle(
+            Id.create(cav.id.toString, classOf[Vehicle]),
+            cav.beamVehicleType.id,
+            origin,
+            CAV,
+            asDriver = true
           )
-          newMobilityRequests = newMobilityRequests :+ orig.copy(routingRequestId = Some(routingRequest.requestId))
-          Some(routingRequest)
+          personToSelectedPlan(dest.person.get).getTripContaining(dest.activity).leg match{
+            case Some(actualLeg) if actualLeg.getRoute.isInstanceOf[NetworkRoute] =>
+              val embodyReq = BeamRouter.matsimLegToEmbodyRequest(actualLeg.getRoute.asInstanceOf[NetworkRoute],theVehicle,origin.time,actualLeg.getTravelTime.toInt,CAV,beamServices,orig.activity.getCoord,dest.activity.getCoord)
+              newMobilityRequests = newMobilityRequests :+ orig.copy(routingRequestId = Some(embodyReq.requestId))
+              Some(RouteOrEmbodyRequest(None,Some(embodyReq)))
+            case None =>
+              val routingRequest = RoutingRequest(
+                orig.activity.getCoord,
+                dest.activity.getCoord,
+                origin.time,
+                IndexedSeq(),
+                IndexedSeq(
+                  StreetVehicle(
+                    Id.create(cav.id.toString, classOf[Vehicle]),
+                    cav.beamVehicleType.id,
+                    origin,
+                    CAV,
+                    asDriver = true
+                  )
+                )
+              )
+              newMobilityRequests = newMobilityRequests :+ orig.copy(routingRequestId = Some(routingRequest.requestId))
+              Some(RouteOrEmbodyRequest(Some(routingRequest),None))
+          }
         }
       }
       .toList
@@ -460,6 +470,7 @@ class CAVSchedule(
 }
 
 object HouseholdCAVScheduling {
+  case class RouteOrEmbodyRequest(routeReq: Option[RoutingRequest], embodyReq: Option[EmbodyWithCurrentTravelTime])
 
   def computeSkim(
     plans: List[BeamPlan],

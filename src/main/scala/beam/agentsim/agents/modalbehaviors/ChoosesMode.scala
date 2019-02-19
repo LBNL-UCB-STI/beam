@@ -306,35 +306,13 @@ trait ChoosesMode {
                 filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), mode).headOption
               maybeVehicle match {
                 case Some(vehicle) =>
-                  val linkIds = new ArrayBuffer[Int](2 + r.getLinkIds.size())
-                  linkIds += r.getStartLinkId.toString.toInt
-                  r.getLinkIds.asScala.foreach { id =>
-                    linkIds += id.toString.toInt
-                  }
-                  linkIds += r.getEndLinkId.toString.toInt
-                  val leg = BeamLeg(
-                    departTime,
-                    mode,
-                    l.getTravelTime.toInt,
-                    BeamPath(
-                      linkIds,
-                      Vector.empty,
-                      None,
-                      beamServices.geo.utm2Wgs(choosesModeData.currentLocation.copy(time = departTime)),
-                      beamServices.geo.utm2Wgs(SpaceTime(nextAct.getCoord, departTime + l.getTravelTime.toInt)),
-                      RouteUtils.calcDistance(r, 1.0, 1.0, beamServices.matsimServices.getScenario.getNetwork)
-                    )
-                  )
-                  router ! EmbodyWithCurrentTravelTime(
-                    leg,
-                    vehicle.id,
-                    vehicle.vehicleTypeId
-                  )
+                  val destination = SpaceTime(nextAct.getCoord,departTime + l.getTravelTime.toInt)
+                  router ! matsimLegToEmbodyRequest(r,vehicle,departTime,l.getTravelTime.toInt,mode,beamServices,choosesModeData.currentLocation.loc,nextAct.getCoord)
                   parkingRequestId = requestParkingCost(
-                    beamServices.geo.wgs2Utm(leg.travelPath.endPoint.loc),
+                    beamServices.geo.wgs2Utm(destination.loc),
                     nextAct.getType,
-                    leg.endTime,
-                    nextAct.getEndTime.intValue() - leg.endTime
+                    destination.time,
+                    nextAct.getEndTime.intValue() - destination.time
                   )
                   responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = true)
                 case _ =>

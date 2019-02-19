@@ -5,18 +5,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.{Status, Success}
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  Address,
-  Cancellable,
-  ExtendedActorSystem,
-  Props,
-  RelativeActorPath,
-  RootActorPath,
-  Stash
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, Address, Cancellable, ExtendedActorSystem, Props, RelativeActorPath, RootActorPath, Stash}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
@@ -24,6 +13,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
+import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
@@ -38,15 +28,19 @@ import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
+import org.matsim.api.core.v01.population.Leg
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
+import scala.collection.mutable.ArrayBuffer
 import scala.collection.{immutable, mutable}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.util.Try
+import scala.collection.JavaConverters._
 
 class BeamRouter(
   services: BeamServices,
@@ -508,6 +502,33 @@ object BeamRouter {
         fareCalculator,
         tollCalculator
       )
+    )
+  }
+
+  def matsimLegToEmbodyRequest(route: NetworkRoute, vehicle: StreetVehicle, departTime: Int, travelTime: Int, mode: BeamMode, beamServices: BeamServices, origin: Coord, destination: Coord) = {
+    val linkIds = new ArrayBuffer[Int](2 + route.getLinkIds.size())
+    linkIds += route.getStartLinkId.toString.toInt
+    route.getLinkIds.asScala.foreach { id =>
+      linkIds += id.toString.toInt
+    }
+    linkIds += route.getEndLinkId.toString.toInt
+    val leg = BeamLeg(
+      departTime,
+      mode,
+      travelTime,
+      BeamPath(
+        linkIds,
+        Vector.empty,
+        None,
+        beamServices.geo.utm2Wgs(SpaceTime(origin,departTime)),
+        beamServices.geo.utm2Wgs(SpaceTime(destination, departTime + travelTime)),
+        RouteUtils.calcDistance(route, 1.0, 1.0, beamServices.matsimServices.getScenario.getNetwork)
+      )
+    )
+    EmbodyWithCurrentTravelTime(
+      leg,
+      vehicle.id,
+      vehicle.vehicleTypeId
     )
   }
 
