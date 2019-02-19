@@ -2,7 +2,7 @@ package beam.integration
 
 import java.io.File
 
-import beam.agentsim.events.{LeavingParkingEventAttrs, ModeChoiceEvent, ParkEvent, PathTraversalEvent}
+import beam.agentsim.events.{ModeChoiceEvent, ParkEvent, PathTraversalEvent}
 import beam.integration.ReadEvents._
 import beam.sim.BeamHelper
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
@@ -127,12 +127,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
 
     "departure and arrival should be from same parking 4 tuple" in {
 
-      val parkingEvents = defaultEvents.head.filter(
-        e =>
-          ParkEvent.EVENT_TYPE.equals(e.getEventType) || LeavingParkingEventAttrs.EVENT_TYPE
-            .equals(e.getEventType)
-      )
-
+      val parkingEvents = defaultEvents.head.filter(x => x.isInstanceOf[ParkEvent])
       val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()) {
         case (c, ev) =>
           val vehId = ev.getAttributes.get(ParkEvent.ATTRIBUTE_VEHICLE_ID)
@@ -174,11 +169,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
     }
 
     "Park event should be thrown after last path traversal" in {
-      val parkingEvents = defaultEvents.head.filter(
-        e =>
-          ParkEvent.EVENT_TYPE.equals(e.getEventType) || LeavingParkingEventAttrs.EVENT_TYPE
-            .equals(e.getEventType)
-      )
+      val parkingEvents = defaultEvents.head.filter(x => x.isInstanceOf[ParkEvent])
 
       val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()) {
         case (c, ev) =>
