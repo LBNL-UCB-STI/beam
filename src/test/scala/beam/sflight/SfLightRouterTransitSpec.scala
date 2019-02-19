@@ -10,9 +10,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ZonalParkingManagerSpec
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode._
-import beam.router.gtfs.FareCalculator
-import beam.router.model.{EmbodiedBeamTrip, RoutingModel}
-import beam.sim.config.BeamConfig
+import beam.router.model.EmbodiedBeamTrip
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
@@ -21,7 +19,7 @@ import org.scalatest._
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with LazyLogging {
+class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransitSpec") with Inside with LazyLogging {
 
   override def beforeAll: Unit = {
     super.beforeAll
@@ -32,14 +30,10 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with Lazy
     }
   }
 
-  override def createFareCalc(beamConfig: BeamConfig): FareCalculator = {
-    new FareCalculator(beamConfig.beam.routing.r5.directory)
-  }
-
   "A router" must {
     "respond with a route to a first reasonable RoutingRequest" in {
-      val origin = geo.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
-      val destination = geo.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
+      val origin = geoUtil.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
+      val destination = geoUtil.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
       val time = 25740
       router ! RoutingRequest(
         origin,
@@ -141,8 +135,8 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with Lazy
     }
 
     "respond with a BART route without transfer having cost 1.95 USD." in {
-      val origin = geo.wgs2Utm(new Coord(-122.41969, 37.76506)) // 16th St. Mission
-      val destination = geo.wgs2Utm(new Coord(-122.40686, 37.784992)) // Powell St.
+      val origin = geoUtil.wgs2Utm(new Coord(-122.41969, 37.76506)) // 16th St. Mission
+      val destination = geoUtil.wgs2Utm(new Coord(-122.40686, 37.784992)) // Powell St.
       val time = 51840
       router ! RoutingRequest(
         origin,
@@ -205,7 +199,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec with Inside with Lazy
     time: Int,
     response: RoutingResponse
   ): Unit = {
-    val writer = new BufferedWriter(new FileWriter(new File("d:/test-out.txt"), true))
+    val writer = new BufferedWriter(new FileWriter(new File("d:/test-outWriter.txt"), true))
     response.itineraries.foreach(
       it =>
         writer.append(

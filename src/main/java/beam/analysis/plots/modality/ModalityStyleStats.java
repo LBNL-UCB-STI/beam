@@ -21,8 +21,8 @@ public class ModalityStyleStats {
     private final String yAxisTitle;
     private final String fileName;
     private final String attributeName;
-    private Set<String> className;
-    private Map<Integer, Map<String, Double>> iterationVsModalityClassCount;
+    private final Set<String> className;
+    private final Map<Integer, Map<String, Double>> iterationVsModalityClassCount;
 
     public ModalityStyleStats() {
         className = new TreeSet<>();
@@ -84,7 +84,7 @@ public class ModalityStyleStats {
         }
         double[][] dataSet = new double[classList.size()][iterationCount.size()];
         for (int i = 0; i < classList.size(); i++) {
-            double data[] = new double[iterationCount.size()];
+            double[] data = new double[iterationCount.size()];
             String className = classList.get(i);
             for (int j = 0; j < iterationCount.size(); j++) {
                 Map<String, Double> modalityData = iterationVsModalityClassCount.get(j);
@@ -101,7 +101,7 @@ public class ModalityStyleStats {
     }
 
     private CategoryDataset buildModalityStyleGraphDataSet() {
-        double dataSet[][] = buildModalityStyleDataSet();
+        double[][] dataSet = buildModalityStyleDataSet();
         if (dataSet == null) {
             return null;
         }
