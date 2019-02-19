@@ -189,6 +189,7 @@ object ModeChoiceMultinomialLogit {
     val mnlData: Vector[MnlData] = Vector(
       new MnlData("COMMON", "cost", "multiplier", -1.0),
       new MnlData("car", "intercept", "intercept", mnlConfig.params.car_intercept),
+      new MnlData("cav", "intercept", "intercept", mnlConfig.params.cav_intercept),
       new MnlData("walk", "intercept", "intercept", mnlConfig.params.walk_intercept),
       new MnlData(
         "ride_hail",
