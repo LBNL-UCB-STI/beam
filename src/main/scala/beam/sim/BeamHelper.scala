@@ -194,6 +194,7 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
 
           addControlerListenerBinding().to(classOf[BeamSim])
+          addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
 
           addControlerListenerBinding().to(classOf[ActivityLocationPlotter])
           addControlerListenerBinding().to(classOf[GraphSurgePricing])
