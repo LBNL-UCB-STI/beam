@@ -12,7 +12,7 @@ from utils.station_filter import StationFilter
 
 __author__ = 'Andrew A Campbell'
 '''
-Filters out PeMS stations according to data quality control heuristics.
+Filters outWriter PeMS stations according to data quality control heuristics.
 '''
 
 def main(args):

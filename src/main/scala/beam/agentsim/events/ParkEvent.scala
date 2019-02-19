@@ -10,7 +10,7 @@ import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
 
 /**HasPersonId is added as Matsim ScoringFunction for population requires it**/
-class ParkEvent(time: Double, stall: ParkingStall, distance: Double, vehId: Id[Vehicle], driverId: String)
+class ParkEvent(time: Double, stall: ParkingStall, vehId: Id[Vehicle], driverId: String)
     extends Event(time)
     with ParkEventAttrs {
 
@@ -21,7 +21,6 @@ class ParkEvent(time: Double, stall: ParkingStall, distance: Double, vehId: Id[V
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
 
-    attr.put(ParkEventAttrs.ATTRIBUTE_DISTANCE, distance.toString)
     attr.put(ParkEventAttrs.ATTRIBUTE_VEHICLE_ID, vehId.toString)
     attr.put(ParkEventAttrs.ATTRIBUTE_COST, stall.cost.toString)
     attr.put(ParkEventAttrs.ATTRIBUTE_LOCATION_X, stall.locationUTM.getX.toString)
