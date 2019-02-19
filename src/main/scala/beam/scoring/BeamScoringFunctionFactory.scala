@@ -1,6 +1,5 @@
 package beam.scoring
 
-import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoiceModel}
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent}
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.population.AttributesOfIndividual
@@ -11,7 +10,6 @@ import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
 import org.slf4j.LoggerFactory
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends ScoringFunctionFactory {
@@ -51,7 +49,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
 
         val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributes)
 
-//        // The scores attribute is only relevant to LCCM, but we need to include a default value to avoid NPE during writing of plans
+        // The scores attribute is only relevant to LCCM, but we need to include a default value to avoid NPE during writing of plans
         person.getSelectedPlan.getAttributes
           .putAttribute("scores", MapStringDouble(Map("NA" -> Double.NaN)))
 
