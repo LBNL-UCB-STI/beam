@@ -3,12 +3,12 @@ package beam.agentsim.infrastructure
 import akka.actor.Actor
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ParkingStall.{ChargingPreference, ReservedParkingType}
+import beam.agentsim.infrastructure.parking.charging.ChargingInquiryData
 import beam.router.BeamRouter.Location
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.ParkingManagerIdGenerator
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
-import beam.agentsim.infrastructure.parking.charging.ChargingInquiryData.ChargingInquiryData
 
 abstract class ParkingManager(
   parkingStockAttributes: ParkingStockAttributes

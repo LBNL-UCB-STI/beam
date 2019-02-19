@@ -11,7 +11,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicleType, PassengerSchedule}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
-import beam.agentsim.infrastructure.ParkingStall.{ChargingPreference, MustCharge, NoNeed, Opportunistic}
+import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
@@ -21,7 +21,6 @@ import beam.router.r5.R5RoutingWorker
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 
 import scala.concurrent.duration.Duration
-import scala.util.Random
 
 /**
   * BEAM
@@ -36,6 +35,7 @@ object ChoosesParking {
 
 trait ChoosesParking extends {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
+
   onTransition {
     case ReadyToChooseParking -> ChoosingParkingSpot =>
       val personData = stateData.asInstanceOf[BasePersonData]
@@ -229,7 +229,6 @@ trait ChoosesParking extends {
           )
         )
       )
-
       goto(WaitingToDrive) using data.copy(
         currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
         restOfCurrentTrip = newRestOfTrip.toList,
