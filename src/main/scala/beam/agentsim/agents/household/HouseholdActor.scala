@@ -14,11 +14,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Vehicle
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.agents.ridehail.RideHailAgent.{
-  ModifyPassengerSchedule,
-  ModifyPassengerScheduleAck,
-  ModifyPassengerScheduleAcks
-}
+import beam.agentsim.agents.ridehail.RideHailAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck, ModifyPassengerScheduleAcks}
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
 import beam.agentsim.agents.{HasTickAndTrigger, InitializeTrigger, PersonAgent}
@@ -28,19 +24,9 @@ import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.RoutingResponse
+import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  BIKE,
-  CAR,
-  CAV,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
@@ -199,32 +185,14 @@ object HouseholdActor {
             cav.manager = Some(self)
             cav.driver = Some(cavDriverRef)
           }
-          val householdBeamPlans = household.members.map(person => BeamPlan(person.getSelectedPlan)).toList
-          val householdMatsimPlans = household.members.map(person => (person.getId -> person.getSelectedPlan)).toMap
-          val fastSpeed = 50.0 * 1000.0 / 3600.0
-          val medSpeed = 50.0 * 1000.0 / 3600.0
-          val slowSpeed = 50.0 * 1000.0 / 3600.0
-          val walkSpeed = 50.0 * 1000.0 / 3600.0
-          val skim: Map[BeamMode, Double] = Map(
-            CAV               -> fastSpeed,
-            CAR               -> fastSpeed,
-            WALK              -> walkSpeed,
-            BIKE              -> slowSpeed,
-            WALK_TRANSIT      -> medSpeed,
-            DRIVE_TRANSIT     -> medSpeed,
-            RIDE_HAIL         -> fastSpeed,
-            RIDE_HAIL_POOLED  -> fastSpeed,
-            RIDE_HAIL_TRANSIT -> medSpeed,
-            TRANSIT           -> medSpeed
-          )
-
+          
           val cavScheduler = new HouseholdCAVScheduling(
             beamServices.matsimServices.getScenario,
             household,
             vehicles.values.toList,
             5 * 60,
             10 * 60,
-            skim = HouseholdCAVScheduling.computeSkim(householdBeamPlans, skim)
+            skim = new BeamSkimmer(scenario = beamServices.matsimServices.getScenario)
           )
           //          val optimalPlan = cavScheduler().sortWith(_.cost < _.cost).head.cavFleetSchedule
           var optimalPlan = cavScheduler.getBestScheduleWithTheLongestCAVChain.cavFleetSchedule

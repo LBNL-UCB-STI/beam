@@ -1,26 +1,16 @@
 package beam.agentsim.agents.household
 import beam.agentsim.agents.planning.{BeamPlan, Trip}
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
+import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  BIKE,
-  CAR,
-  CAV,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.CAV
 import beam.sim.BeamServices
-import beam.utils.logging.{ExponentialLoggerWrapperImpl}
+import beam.utils.logging.ExponentialLoggerWrapperImpl
 import org.matsim.api.core.v01.population._
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.Id
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
@@ -68,7 +58,7 @@ object HouseholdTrips {
     householdNbOfVehicles: Int,
     pickupTimeWindow: Int,
     dropoffTimeWindow: Int,
-    skim: Map[BeamMode, Map[Coord, Map[Coord, Int]]]
+    skim: BeamSkimmer
   ): HouseholdTrips = {
 
     import scala.collection.mutable.{Map => MMap}
@@ -87,7 +77,11 @@ object HouseholdTrips {
             case (usedCar, Seq(prevTrip, curTrip)) =>
               val legTrip = curTrip.leg
               val defaultMode = getDefaultMode(legTrip, counter)
-              val travelTime = skim(defaultMode)(prevTrip.activity.getCoord)(curTrip.activity.getCoord)
+              val travelTime = skim.getTimeDistanceAndCost(prevTrip.activity.getCoord,
+                curTrip.activity.getCoord,
+                0,
+                defaultMode,
+                org.matsim.api.core.v01.Id.create[BeamVehicleType]("", classOf[BeamVehicleType])).timeAndCost.time.get
 
               val startTime = prevTrip.activity.getEndTime.toInt
               val arrivalTime = startTime + travelTime
@@ -173,6 +167,8 @@ case class PlansCoherenceCheck(scenario: org.matsim.api.core.v01.Scenario) {
   }
 }
 
+class HouseholdCAVSchedulingWrapperImpl(name: String) extends ExponentialLoggerWrapperImpl(name)
+
 class HouseholdCAVScheduling(
   val scenario: org.matsim.api.core.v01.Scenario,
   val household: Household,
@@ -181,7 +177,7 @@ class HouseholdCAVScheduling(
   val dropoffTimeWindow: Int,
   val stopSearchAfterXSolutions: Int = 100,
   val limitCavToXPersons: Int = 3,
-  val skim: Map[BeamMode, Map[Coord, Map[Coord, Int]]]
+  val skim: BeamSkimmer
 ) {
   private implicit val coherenceCheck: PlansCoherenceCheck = PlansCoherenceCheck(scenario)
 
@@ -263,7 +259,7 @@ class HouseholdCAVScheduling(
     // ***
     def check(
       request: MobilityServiceRequest,
-      skim: Map[BeamMode, Map[Coord, Map[Coord, Int]]]
+      skim: BeamSkimmer
     ): (List[CAVFleetSchedule], Boolean) = {
       import scala.collection.mutable.{ListBuffer => MListBuffer}
       val outHouseholdSchedule = MListBuffer.empty[Option[CAVFleetSchedule]]
@@ -329,7 +325,7 @@ class CAVSchedule(
     request: MobilityServiceRequest,
     householdTrips: HouseholdTrips,
     timeWindow: Int,
-    skim: Map[BeamMode, Map[Coord, Map[Coord, Int]]]
+    skim: BeamSkimmer
   ): (Option[CAVSchedule], HouseholdTrips, Boolean) = {
     val travelTime = skim(BeamMode.CAR)(schedule.head.activity.getCoord)(request.activity.getCoord)
     val prevServiceTime = schedule.head.serviceTime
@@ -458,42 +454,3 @@ class CAVSchedule(
       .toString
   }
 }
-
-object HouseholdCAVScheduling {
-
-  def computeSkim(
-    plans: List[BeamPlan],
-    avgSpeed: Map[BeamMode, Double]
-  ): Map[BeamMode, Map[Coord, Map[Coord, Int]]] = {
-    val activitySet: Set[Coord] = (for {
-      plan <- plans
-      act  <- plan.activities
-    } yield act.getCoord).toSet
-
-    val theModes =
-      List(CAR, CAV, WALK, BIKE, WALK_TRANSIT, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT)
-    var skim: Map[BeamMode, Map[Coord, Map[Coord, Int]]] = Map()
-
-    theModes.foreach { mode =>
-      skim = skim + (mode -> Map())
-    }
-    for (src <- activitySet;
-         dst <- activitySet) {
-      val dist = beam.sim.common.GeoUtils.distFormula(src, dst)
-      if (!skim(BeamMode.CAR).contains(src)) {
-        theModes.foreach { mode =>
-          val sourceToDestToDist = src -> Map[Coord, Int]()
-          skim = skim + (mode          -> (skim(mode) + sourceToDestToDist))
-        }
-      }
-      theModes.foreach { mode =>
-        val destToDist = skim(mode)(src) + (dst -> (dist / avgSpeed(mode)).toInt)
-        val sourceToDestToDist = src            -> destToDist
-        skim = skim + (mode                     -> (skim(mode) + sourceToDestToDist))
-      }
-    }
-    skim
-  }
-}
-
-class HouseholdCAVSchedulingWrapperImpl(name: String) extends ExponentialLoggerWrapperImpl(name)
