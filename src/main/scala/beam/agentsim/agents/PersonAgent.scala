@@ -308,7 +308,8 @@ class PersonAgent(
                   Some(CAV)
                 case _ =>
                   data.currentTourMode.orElse(modeOfNextLeg)
-              }
+              },
+              numberOfReplanningAttempts = 0
             ),
             SpaceTime(currentActivity(data).getCoord, _currentTick.get)
           )

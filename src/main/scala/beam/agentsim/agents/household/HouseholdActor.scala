@@ -374,18 +374,10 @@ object HouseholdActor {
         log.debug("updated vehicle {} with location {}", vehId, whenWhere)
 
       case ReleaseVehicle(vehicle) =>
-        vehicle.unsetDriver()
-        if (!availableVehicles.contains(vehicle)) {
-          availableVehicles = vehicle :: availableVehicles
-        }
-        log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
+        handleReleaseVehicle(vehicle,None)
 
-      case ReleaseVehicleAndReply(vehicle,_) =>
-        vehicle.unsetDriver()
-        if (!availableVehicles.contains(vehicle)) {
-          availableVehicles = vehicle :: availableVehicles
-        }
-        log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
+      case ReleaseVehicleAndReply(vehicle,tick) =>
+        handleReleaseVehicle(vehicle,tick)
         sender() ! Success
 
       case MobilityStatusInquiry(personId, _, originActivity) =>
@@ -420,7 +412,9 @@ object HouseholdActor {
     def handleReleaseVehicle(vehicle: BeamVehicle, tickOpt: Option[Int]) = {
       if (vehicle.beamVehicleType.automationLevel <= 3) {
         vehicle.unsetDriver()
-        availableVehicles = vehicle :: availableVehicles
+        if (!availableVehicles.contains(vehicle)) {
+          availableVehicles = vehicle :: availableVehicles
+        }
         log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
       }
     }
