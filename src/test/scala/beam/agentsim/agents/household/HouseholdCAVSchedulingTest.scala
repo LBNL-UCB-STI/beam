@@ -217,7 +217,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
 
     val homeCoord = new Coord(0, 0)
     val H11: Activity = PopulationUtils.createActivityFromCoord("home", homeCoord)
-    H11.setEndTime(8.5 * 3600)
+    H11.setEndTime(8 * 3600 + 30 * 60)
     val W1: Activity = PopulationUtils.createActivityFromCoord("work", new Coord(30, 0))
     W1.setEndTime(17 * 3600)
     val H12: Activity = PopulationUtils.createActivityFromCoord("home", homeCoord)
