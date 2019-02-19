@@ -20,12 +20,12 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
     public final static String ATTRIBUTE_DROPOUT_LOCATION_X = "endX";
     public final static String ATTRIBUTE_DROPOUT_LOCATION_Y = "endY";
 
-    private final Id<Person> customerId;
-    private final long departTime;
-    private final double originX;
-    private final double originY;
-    private final double destinationX;
-    private final double destinationY;
+    public final Id<Person> customerId;
+    public final long departTime;
+    public final double originX;
+    public final double originY;
+    public final double destinationX;
+    public final double destinationY;
     private Map<String, String> attr;
 
 
