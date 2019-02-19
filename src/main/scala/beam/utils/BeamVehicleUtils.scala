@@ -2,7 +2,7 @@ package beam.utils
 
 import java.util
 
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType, VehicleCategory}
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import org.matsim.api.core.v01.Id
@@ -18,7 +18,8 @@ object BeamVehicleUtils {
 
   def readVehiclesFile(
     filePath: String,
-    vehiclesTypeMap: scala.collection.Map[Id[BeamVehicleType], BeamVehicleType]
+    vehiclesTypeMap: scala.collection.Map[Id[BeamVehicleType], BeamVehicleType],
+    vehicleEnergy: VehicleEnergy
   ): scala.collection.Map[Id[BeamVehicle], BeamVehicle] = {
 
     readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicle], BeamVehicle]()) {
@@ -39,7 +40,7 @@ object BeamVehicleUtils {
 
         val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
-        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, vehicleType)
+        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, vehicleEnergy, vehicleType)
         acc += ((vehicleId, beamVehicle))
         acc
     }
@@ -124,7 +125,7 @@ object BeamVehicleUtils {
     }
   }
 
-  def makeBicycle(id: Id[Vehicle]): BeamVehicle = {
+  def makeBicycle(id: Id[Vehicle], vehicleEnergy: VehicleEnergy): BeamVehicle = {
     //FIXME: Every person gets a Bicycle (for now, 5/2018)
 
     val bvt = BeamVehicleType.defaultBicycleBeamVehicleType
@@ -135,6 +136,7 @@ object BeamVehicleUtils {
     new BeamVehicle(
       beamVehicleId,
       powertrain,
+      vehicleEnergy,
       bvt
     )
   }
@@ -168,11 +170,12 @@ object BeamVehicleUtils {
   //TODO: Identify the vehicles by type in xml
   def makeHouseholdVehicle(
     beamVehicles: TrieMap[Id[BeamVehicle], BeamVehicle],
-    id: Id[Vehicle]
+    id: Id[Vehicle],
+    vehicleEnergy: VehicleEnergy
   ): Either[IllegalArgumentException, BeamVehicle] = {
 
     if (BeamVehicleType.isBicycleVehicle(id)) {
-      Right(makeBicycle(id))
+      Right(makeBicycle(id, vehicleEnergy))
     } else {
       beamVehicles
         .get(id)
@@ -226,12 +229,17 @@ object BeamVehicleUtils {
 //    vehicles
 //  }
 
-  def getBeamVehicle(vehicle: Vehicle, household: Household, beamVehicleType: BeamVehicleType): BeamVehicle = {
+  def getBeamVehicle(
+    vehicle: Vehicle,
+    household: Household,
+    beamVehicleType: BeamVehicleType,
+    vehicleEnergy: VehicleEnergy
+  ): BeamVehicle = {
 
     val bvId = Id.create(vehicle.getId, classOf[BeamVehicle])
     val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
 
-    val beamVehicle = new BeamVehicle(bvId, powerTrain, beamVehicleType)
+    val beamVehicle = new BeamVehicle(bvId, powerTrain, vehicleEnergy, beamVehicleType)
 
     beamVehicle
   }

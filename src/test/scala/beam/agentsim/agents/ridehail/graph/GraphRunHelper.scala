@@ -1,4 +1,5 @@
 package beam.agentsim.agents.ridehail.graph
+import beam.agentsim.agents.vehicles.{VehicleCsvReader, VehicleEnergy}
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -17,6 +18,10 @@ object GraphRunHelper {
 class GraphRunHelper(childModule: AbstractModule, baseConfig: Config) extends BeamHelper {
 
   private val beamConfig = BeamConfig(baseConfig)
+  val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+
+  val vehicleEnergy =
+    new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
   private val configBuilder = new MatSimBeamConfigBuilder(baseConfig)
   private val matsimConfig = configBuilder.buildMatSamConf()
 
@@ -43,7 +48,7 @@ class GraphRunHelper(childModule: AbstractModule, baseConfig: Config) extends Be
 
   def run(): Unit = {
     val popAdjustment = DefaultPopulationAdjustment
-    popAdjustment(beamServices).update(scenario)
+    popAdjustment(beamServices, vehicleEnergy).update(scenario)
     beamServices.controler.run()
   }
 

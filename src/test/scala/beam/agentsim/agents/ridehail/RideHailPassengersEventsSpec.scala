@@ -1,5 +1,6 @@
 package beam.agentsim.agents.ridehail
 
+import beam.agentsim.agents.vehicles.VehicleEnergy
 import beam.agentsim.events.PathTraversalEvent
 import beam.integration.IntegrationSpecCommon
 import beam.router.r5.DefaultNetworkCoordinator
@@ -44,12 +45,13 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
 
       val beamServices: BeamServices =
         injector.getInstance(classOf[BeamServices])
+      val vehicleEnergy: VehicleEnergy = injector.getInstance(classOf[VehicleEnergy])
 
       val eventManager: EventsManager =
         injector.getInstance(classOf[EventsManager])
       eventManager.addHandler(eventHandler)
       val popAdjustment = DefaultPopulationAdjustment
-      popAdjustment(beamServices).update(scenario)
+      popAdjustment(beamServices, vehicleEnergy).update(scenario)
       beamServices.controler.run()
     }
 

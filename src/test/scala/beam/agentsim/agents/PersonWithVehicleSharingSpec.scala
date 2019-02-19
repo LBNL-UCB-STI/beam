@@ -86,6 +86,10 @@ class PersonWithVehicleSharingSpec
   private implicit val executionContext: ExecutionContext = system.dispatcher
   private lazy val beamConfig = BeamConfig(system.settings.config)
 
+  private lazy val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+  private lazy val vehicleEnergy =
+    new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
+
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
   private val tollCalculator = new TollCalculator(beamConfig)
@@ -181,7 +185,8 @@ class PersonWithVehicleSharingSpec
             household,
             Map(),
             new Coord(0.0, 0.0),
-            sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref)
+            sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
+            vehicleEnergy = vehicleEnergy
           )
         )
       )
@@ -196,6 +201,7 @@ class PersonWithVehicleSharingSpec
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
+        vehicleEnergy,
         BeamVehicleType.defaultCarBeamVehicleType
       )
       vehicle.manager = Some(mockSharedVehicleFleet.ref)
@@ -322,6 +328,7 @@ class PersonWithVehicleSharingSpec
             household,
             Map(),
             new Coord(0.0, 0.0),
+            vehicleEnergy,
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref)
           )
         )
@@ -337,6 +344,7 @@ class PersonWithVehicleSharingSpec
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
+        vehicleEnergy,
         BeamVehicleType.defaultCarBeamVehicleType
       )
       vehicle.manager = Some(mockSharedVehicleFleet.ref)
@@ -440,6 +448,7 @@ class PersonWithVehicleSharingSpec
       val vehicle2 = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
+        vehicleEnergy,
         BeamVehicleType.defaultCarBeamVehicleType
       )
       vehicle2.manager = Some(mockSharedVehicleFleet.ref)
@@ -494,6 +503,7 @@ class PersonWithVehicleSharingSpec
       val car1 = new BeamVehicle(
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
+        vehicleEnergy,
         BeamVehicleType.defaultCarBeamVehicleType
       )
       car1.manager = Some(mockSharedVehicleFleet.ref)
@@ -562,6 +572,7 @@ class PersonWithVehicleSharingSpec
           household,
           Map(),
           new Coord(0.0, 0.0),
+          vehicleEnergy,
           Vector(mockSharedVehicleFleet.ref)
         )
       )

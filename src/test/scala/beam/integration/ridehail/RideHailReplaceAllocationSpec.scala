@@ -1,6 +1,7 @@
 package beam.integration.ridehail
 
 import beam.agentsim.agents.ridehail.allocation.RideHailResourceAllocationManager
+import beam.agentsim.agents.vehicles.{VehicleCsvReader, VehicleEnergy}
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.config.BeamConfig
@@ -26,6 +27,10 @@ class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with Mockit
     val beamConfig = BeamConfig(config)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
+    val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+    val vehicleEnergy =
+      new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
+
     val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
@@ -46,7 +51,7 @@ class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with Mockit
     )
 
     val services = injector.getInstance(classOf[BeamServices])
-    DefaultPopulationAdjustment(services).update(scenario)
+    DefaultPopulationAdjustment(services, vehicleEnergy).update(scenario)
     val controller = services.controler
     controller.run()
 

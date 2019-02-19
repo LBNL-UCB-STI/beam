@@ -7,7 +7,7 @@ import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCsvReader, VehicleEnergy}
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -54,9 +54,14 @@ class TollRoutingSpec
   val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
   var scenario: Scenario = _
   var fareCalculator: FareCalculator = _
+  var vehicleEnergy: VehicleEnergy = _
 
   override def beforeAll: Unit = {
     val beamConfig = BeamConfig(system.settings.config)
+
+    val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+    val vehicleEnergy =
+      new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
 
     // Have to mock a lot of things to get the router going
     scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
@@ -92,7 +97,8 @@ class TollRoutingSpec
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator
+        tollCalculator,
+        vehicleEnergy
       )
     )
   }
@@ -155,7 +161,8 @@ class TollRoutingSpec
           new EventsManagerImpl(),
           scenario.getTransitVehicles,
           fareCalculator,
-          moreExpensiveTollCalculator
+          moreExpensiveTollCalculator,
+          vehicleEnergy
         )
       )
       moreExpensiveRouter ! request

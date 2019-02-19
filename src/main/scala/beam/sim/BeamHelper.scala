@@ -6,6 +6,7 @@ import java.util.Properties
 import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
+import beam.agentsim.agents.vehicles.{VehicleCsvReader, VehicleEnergy}
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
@@ -228,9 +229,13 @@ trait BeamHelper extends LazyLogging {
               new TravelTimeCalculatorConfigGroup()
             )
           )
-
+          val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+          val vehicleEnergy = new VehicleEnergy(
+            vehicleCsvReader.getVehicleEnergyRecordsUsing,
+            vehicleCsvReader.getLinkToGradeRecordsUsing
+          )
           bind(classOf[NetworkHelper]).toInstance(networkHelper)
-
+          bind(classOf[VehicleEnergy]).toInstance(vehicleEnergy)
           bind(classOf[RideHailIterationHistory]).asEagerSingleton()
           bind(classOf[TollCalculator]).asEagerSingleton()
 
@@ -375,6 +380,7 @@ trait BeamHelper extends LazyLogging {
     scenario.setNetwork(networkCoordinator.network)
 
     val beamServices = injector.getInstance(classOf[BeamServices])
+    val vehicleEnergy = injector.getInstance(classOf[VehicleEnergy])
 
     beamServices.setTransitFleetSizes(networkCoordinator.tripFleetSizeMap)
 
@@ -384,11 +390,11 @@ trait BeamHelper extends LazyLogging {
       .isEmpty()
 
     if (useCSVFiles) {
-      val csvScenarioLoader = new ScenarioReaderCsv(scenario, beamServices)
+      val csvScenarioLoader = new ScenarioReaderCsv(scenario, beamServices, vehicleEnergy)
       csvScenarioLoader.loadScenario()
     }
 
-    samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices)
+    samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices, vehicleEnergy)
 
     run(beamServices)
 
@@ -454,7 +460,8 @@ trait BeamHelper extends LazyLogging {
     scenario: MutableScenario,
     beamConfig: BeamConfig,
     matsimConfig: Config,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    vehicleEnergy: VehicleEnergy
   ): Unit = {
     if (scenario.getPopulation.getPersons.size() > beamConfig.beam.agentsim.numAgents) {
       val notSelectedHouseholdIds = mutable.Set[Id[Household]]()
@@ -498,10 +505,10 @@ trait BeamHelper extends LazyLogging {
         .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
         .toMap
 
-      val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
+      val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices, vehicleEnergy)
       populationAdjustment.update(scenario)
     } else {
-      val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
+      val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices, vehicleEnergy)
       populationAdjustment.update(scenario)
       beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
         .values()

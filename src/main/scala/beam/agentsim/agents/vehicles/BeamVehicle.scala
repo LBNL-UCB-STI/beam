@@ -37,6 +37,7 @@ import org.matsim.vehicles.Vehicle
 class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
+  val vehicleEnergy: VehicleEnergy,
   val beamVehicleType: BeamVehicleType
 ) extends ExponentialLazyLogging {
 
@@ -102,6 +103,7 @@ class BeamVehicle(
     val distanceInMeters = beamLeg.travelPath.distanceInM
     val network = beamServices.matsimServices.getScenario.getNetwork
     val fuelConsumption = BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
+    //val energyConsumed = vehicleEnergy.getRateUsing()
     val energyConsumed = powerTrain.estimateConsumptionInJoules(fuelConsumption)
     if (fuelLevelInJoules < energyConsumed) {
       logger.warn(
@@ -176,13 +178,13 @@ object BeamVehicle {
     linkId: Int,
     vehicleType: BeamVehicleType,
     linkNumberOfLanes: Option[Int],
-    linkCapacity: Option[Double],
+    linkCapacity: Option[Double] = None,
     linkLength: Option[Double],
     averageSpeed: Option[Double],
     freeFlowSpeed: Option[Double],
-    linkArrivalTime: Option[Long],
-    turnAtLinkEnd: Option[TurningDirection],
-    numberOfStops: Option[Int]
+    linkArrivalTime: Option[Long] = None,
+    turnAtLinkEnd: Option[TurningDirection] = None,
+    numberOfStops: Option[Int] = None
   )
 
   /**
@@ -250,7 +252,7 @@ object BeamVehicle {
             freeFlowSpeed = currentLink.map(_.getFreespeed),
             linkArrivalTime = None, //Some(arrivalTime),
             turnAtLinkEnd = None, //Some(turnAtLinkEnd),
-            numberOfStops = None, //Some(numStops)
+            numberOfStops = None //Some(numStops)
           )
       }
     }

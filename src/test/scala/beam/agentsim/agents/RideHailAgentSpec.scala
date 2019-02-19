@@ -12,7 +12,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDriving
 import beam.agentsim.agents.ridehail.RideHailAgent
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule, VehiclePersonId}
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
 import beam.agentsim.infrastructure.ZonalParkingManagerSpec
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
@@ -59,6 +59,10 @@ class RideHailAgentSpec
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   lazy val config = BeamConfig(system.settings.config)
   lazy val eventsManager = new EventsManagerImpl()
+
+  private lazy val vehicleCsvReader = new VehicleCsvReader(config)
+  private lazy val vehicleEnergy =
+    new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
 
   private val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
 
@@ -161,7 +165,7 @@ class RideHailAgentSpec
     it("should drive around when I tell him to") {
       val vehicleId = Id.createVehicleId(1)
       val beamVehicle =
-        new BeamVehicle(vehicleId, new Powertrain(0.0), BeamVehicleType.defaultCarBeamVehicleType)
+        new BeamVehicle(vehicleId, new Powertrain(0.0), vehicleEnergy, BeamVehicleType.defaultCarBeamVehicleType)
       beamVehicle.manager = Some(self)
       vehicles.put(vehicleId, beamVehicle)
 
@@ -236,6 +240,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
+          vehicleEnergy,
           BeamVehicleType.defaultCarBeamVehicleType
         )
       beamVehicle.manager = Some(self)
@@ -306,6 +311,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
+          vehicleEnergy,
           BeamVehicleType.defaultCarBeamVehicleType
         )
       beamVehicle.manager = Some(self)

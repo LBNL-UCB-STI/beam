@@ -1,7 +1,7 @@
 package beam.sim.population
 
 import beam.agentsim
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleEnergy}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.utils.plan.sampling.AvailableModeUtils
@@ -19,6 +19,7 @@ import scala.collection.JavaConverters._
 trait PopulationAdjustment extends LazyLogging {
 
   val beamServices: BeamServices
+  val vehicleEnergy: VehicleEnergy
 
   /**
     * Collects the individual person attributes as [[beam.sim.population.AttributesOfIndividual]] and stores them as a custom attribute "beam-attributes" under the person.
@@ -53,7 +54,7 @@ trait PopulationAdjustment extends LazyLogging {
         val householdAttributes = beamServices.personHouseholds.get(person.getId).fold(HouseholdAttributes.EMPTY) {
           household =>
             val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] =
-              agentsim.agents.Population.getVehiclesFromHousehold(household, beamServices)
+              agentsim.agents.Population.getVehiclesFromHousehold(household, beamServices, vehicleEnergy)
             HouseholdAttributes(household, houseHoldVehicles)
         }
         // Generate the AttributesOfIndividual object as save it as custom attribute - "beam-attributes" for the person
@@ -188,14 +189,14 @@ object PopulationAdjustment extends LazyLogging {
     * @param beamServices beam services
     * @return An instance of [[beam.sim.population.PopulationAdjustment]]
     */
-  def getPopulationAdjustment(beamServices: BeamServices): PopulationAdjustment = {
+  def getPopulationAdjustment(beamServices: BeamServices, vehicleEnergy: VehicleEnergy): PopulationAdjustment = {
     beamServices.beamConfig.beam.agentsim.populationAdjustment match {
       case DEFAULT_ADJUSTMENT =>
-        DefaultPopulationAdjustment(beamServices)
+        DefaultPopulationAdjustment(beamServices, vehicleEnergy)
       case PERCENTAGE_ADJUSTMENT =>
-        PercentagePopulationAdjustment(beamServices)
+        PercentagePopulationAdjustment(beamServices, vehicleEnergy)
       case DIFFUSION_POTENTIAL_ADJUSTMENT =>
-        new DiffusionPotentialPopulationAdjustment(beamServices)
+        new DiffusionPotentialPopulationAdjustment(beamServices, vehicleEnergy)
       case adjClass =>
         try {
           Class

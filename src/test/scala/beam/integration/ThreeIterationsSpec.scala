@@ -1,5 +1,6 @@
 package beam.integration
 
+import beam.agentsim.agents.vehicles.{VehicleCsvReader, VehicleEnergy}
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
@@ -27,6 +28,9 @@ class ThreeIterationsSpec extends FlatSpec with BeamHelper with MockitoSugar {
     matsimConfig.controler().setLastIteration(2)
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     val beamConfig = BeamConfig(config)
+    val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+    val vehicleEnergy =
+      new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
     val scenario =
       ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
@@ -50,7 +54,7 @@ class ThreeIterationsSpec extends FlatSpec with BeamHelper with MockitoSugar {
 
     val beamServices = injector.getInstance(classOf[BeamServices])
     val controller = beamServices.controler
-    popAdjustment(beamServices).update(scenario)
+    popAdjustment(beamServices, vehicleEnergy).update(scenario)
 
     controller.run()
 

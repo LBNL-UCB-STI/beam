@@ -4,9 +4,11 @@ import akka.actor._
 import beam.agentsim.agents.PersonTestUtil
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
+import beam.agentsim.agents.vehicles.{VehicleCsvReader, VehicleEnergy}
 import beam.agentsim.events.PathTraversalEvent
 import beam.router.BeamRouter
 import beam.router.Modes.BeamMode
+import beam.sim.config.BeamConfig
 import beam.sim.{BeamMobsim, BeamServices, BeamServicesImpl}
 import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
@@ -39,6 +41,11 @@ class SingleModeSpec
   var services: BeamServices = _
   var nextId: Int = 0
   var system: ActorSystem = _
+  val beamConfig = BeamConfig(config)
+  val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+
+  val vehicleEnergy =
+    new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
 
   override def beforeEach: Unit = {
     // Create brand new Actor system every time (just to make sure that the same actor names can be reused)
@@ -63,7 +70,8 @@ class SingleModeSpec
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator
+        tollCalculator,
+        vehicleEnergy
       ),
       "router"
     )
@@ -109,7 +117,8 @@ class SingleModeSpec
         eventsManager,
         system,
         new RideHailSurgePricingManager(services),
-        new RideHailIterationHistory()
+        new RideHailIterationHistory(),
+        vehicleEnergy
       )
       mobsim.run()
       events.foreach {
@@ -148,7 +157,8 @@ class SingleModeSpec
         eventsManager,
         system,
         new RideHailSurgePricingManager(services),
-        new RideHailIterationHistory()
+        new RideHailIterationHistory(),
+        vehicleEnergy
       )
       mobsim.run()
       events.foreach {
@@ -208,7 +218,8 @@ class SingleModeSpec
         eventsManager,
         system,
         new RideHailSurgePricingManager(services),
-        new RideHailIterationHistory()
+        new RideHailIterationHistory(),
+        vehicleEnergy
       )
       mobsim.run()
       events.collect {
@@ -273,7 +284,8 @@ class SingleModeSpec
         eventsManager,
         system,
         new RideHailSurgePricingManager(services),
-        new RideHailIterationHistory()
+        new RideHailIterationHistory(),
+        vehicleEnergy
       )
       mobsim.run()
       events.collect {

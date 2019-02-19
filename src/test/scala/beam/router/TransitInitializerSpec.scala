@@ -1,5 +1,6 @@
 package beam.router
 
+import beam.agentsim.agents.vehicles.{VehicleCsvReader, VehicleEnergy}
 import beam.integration.IntegrationSpecCommon
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
@@ -71,7 +72,10 @@ class TransitInitializerSpec extends WordSpecLike with Matchers with MockitoSuga
     }
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.vehicleTypes).thenReturn(vehicleTypes)
-    val transitInitializer = new TransitInitializer(services, null, null, BeamRouter.oneSecondTravelTime)
+    val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+    val vehicleEnergy =
+      new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
+    val transitInitializer = new TransitInitializer(services, null, null, BeamRouter.oneSecondTravelTime, vehicleEnergy)
     transitInitializer
   }
 }

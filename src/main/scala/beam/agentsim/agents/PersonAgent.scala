@@ -55,6 +55,7 @@ object PersonAgent {
     personId: Id[PersonAgent],
     household: Household,
     plan: Plan,
+    vehicleEnergy: VehicleEnergy,
     sharedVehicleFleets: Seq[ActorRef]
   ): Props = {
     Props(
@@ -70,6 +71,7 @@ object PersonAgent {
         plan,
         parkingManager,
         tollCalculator,
+        vehicleEnergy,
         sharedVehicleFleets
       )
     )
@@ -186,6 +188,7 @@ class PersonAgent(
   val matsimPlan: Plan,
   val parkingManager: ActorRef,
   val tollCalculator: TollCalculator,
+  val vehicleEnergy: VehicleEnergy,
   val sharedVehicleFleets: Seq[ActorRef] = Vector()
 ) extends DrivesVehicle[PersonData]
     with ChoosesMode
@@ -195,6 +198,7 @@ class PersonAgent(
   val body = new BeamVehicle(
     BeamVehicle.createId(id, Some("body")),
     BeamVehicleType.powerTrainForHumanBody,
+    vehicleEnergy,
     BeamVehicleType.defaultHumanBodyBeamVehicleType
   )
   body.manager = Some(self)

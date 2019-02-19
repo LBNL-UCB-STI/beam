@@ -9,6 +9,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
+import beam.agentsim.agents.vehicles.VehicleEnergy
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
@@ -48,7 +49,8 @@ class BeamSim @Inject()(
   private val eventsManager: EventsManager,
   private val scenario: Scenario,
   private val networkHelper: NetworkHelper,
-  private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator
+  private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator,
+  private val vehicleEnergy: VehicleEnergy
 ) extends StartupListener
     with IterationEndsListener
     with ShutdownListener
@@ -88,7 +90,8 @@ class BeamSim @Inject()(
         eventsManager,
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator
+        tollCalculator,
+        vehicleEnergy
       ),
       "router"
     )

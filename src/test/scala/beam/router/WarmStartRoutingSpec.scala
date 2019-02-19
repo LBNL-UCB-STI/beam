@@ -7,7 +7,7 @@ import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.choice.mode.PtFares
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCsvReader, VehicleEnergy}
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -80,6 +80,10 @@ class WarmStartRoutingSpec
       .withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data"))
     val beamConfig = BeamConfig(config)
 
+    val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+    val vehicleEnergy =
+      new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
+
     // Have to mock a lot of things to get the router going
     services = mock[BeamServices](withSettings().stubOnly())
     scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
@@ -116,7 +120,8 @@ class WarmStartRoutingSpec
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator
+        tollCalculator,
+        vehicleEnergy
       )
     )
 
@@ -147,7 +152,7 @@ class WarmStartRoutingSpec
       }
     )
     val bs = injector.getInstance(classOf[BeamServices])
-    DefaultPopulationAdjustment(bs).update(scenario)
+    DefaultPopulationAdjustment(bs, vehicleEnergy).update(scenario)
     bs.controler.run()
     router1 = system.actorOf(
       BeamRouter.props(
@@ -158,7 +163,8 @@ class WarmStartRoutingSpec
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator
+        tollCalculator,
+        vehicleEnergy
       )
     )
     within(60 seconds) { // Router can take a while to initialize

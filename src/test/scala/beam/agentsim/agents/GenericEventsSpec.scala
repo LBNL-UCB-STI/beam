@@ -1,5 +1,6 @@
 package beam.agentsim.agents
 
+import beam.agentsim.agents.vehicles.VehicleEnergy
 import beam.integration.IntegrationSpecCommon
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -41,7 +42,8 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
     )
 
     beamServices = injector.getInstance(classOf[BeamServices])
-    val popAdjustment = DefaultPopulationAdjustment(beamServices)
+    val vehicleEnergy = injector.getInstance(classOf[VehicleEnergy])
+    val popAdjustment = DefaultPopulationAdjustment(beamServices, vehicleEnergy)
     popAdjustment.update(scenario)
 
     eventManager = injector.getInstance(classOf[EventsManager])

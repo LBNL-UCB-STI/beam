@@ -75,6 +75,10 @@ class PersonWithCarPlanSpec
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   private lazy val beamConfig = BeamConfig(system.settings.config)
 
+  private lazy val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+  private lazy val vehicleEnergy =
+    new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
+
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
   private val tollCalculator = new TollCalculator(beamConfig)
@@ -130,6 +134,7 @@ class PersonWithCarPlanSpec
       val beamVehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
+        vehicleEnergy,
         BeamVehicleType.defaultCarBeamVehicleType
       )
 
@@ -177,7 +182,8 @@ class PersonWithCarPlanSpec
             population,
             household,
             Map(beamVehicle.id -> beamVehicle),
-            new Coord(0.0, 0.0)
+            new Coord(0.0, 0.0),
+            vehicleEnergy
           )
         )
       )
@@ -363,11 +369,13 @@ class PersonWithCarPlanSpec
       val car1 = new BeamVehicle(
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
+        vehicleEnergy,
         BeamVehicleType.defaultCarBeamVehicleType
       )
       val car2 = new BeamVehicle(
         Id.createVehicleId("car-2"),
         new Powertrain(0.0),
+        vehicleEnergy,
         BeamVehicleType.defaultCarBeamVehicleType
       )
 
@@ -410,7 +418,8 @@ class PersonWithCarPlanSpec
           population,
           household,
           Map(car1.id -> car1, car2.id -> car2),
-          new Coord(0.0, 0.0)
+          new Coord(0.0, 0.0),
+          vehicleEnergy
         )
       )
       val personActor = householdActor.getSingleChild(person.getId.toString)
@@ -462,6 +471,7 @@ class PersonWithCarPlanSpec
       val beamVehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
+        vehicleEnergy,
         BeamVehicleType.defaultCarBeamVehicleType
       )
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -501,7 +511,8 @@ class PersonWithCarPlanSpec
           population,
           household,
           Map(beamVehicle.id -> beamVehicle),
-          new Coord(0.0, 0.0)
+          new Coord(0.0, 0.0),
+          vehicleEnergy
         )
       )
       scheduler ! StartSchedule(0)

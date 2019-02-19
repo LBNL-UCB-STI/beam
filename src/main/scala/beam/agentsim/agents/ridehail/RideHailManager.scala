@@ -202,7 +202,8 @@ class RideHailManager(
   val parkingManager: ActorRef,
   val boundingBox: Envelope,
   val surgePricingManager: RideHailSurgePricingManager,
-  val tncIterationStats: Option[TNCIterationStats]
+  val tncIterationStats: Option[TNCIterationStats],
+  val vehicleEnergy: VehicleEnergy
 ) extends Actor
     with ActorLogging
     with HasServices
@@ -938,6 +939,7 @@ class RideHailManager(
     val rideHailBeamVehicle = new BeamVehicle(
       rideHailVehicleId,
       powertrain,
+      vehicleEnergy,
       ridehailBeamVehicleType
     )
     rideHailBeamVehicle.spaceTime = SpaceTime((rideInitialLocation, 0))

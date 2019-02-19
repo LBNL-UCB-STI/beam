@@ -2,6 +2,7 @@ package beam.sim.population
 
 import java.util.Random
 
+import beam.agentsim.agents.vehicles.VehicleEnergy
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import beam.sim.population.DiffusionPotentialPopulationAdjustment._
@@ -12,7 +13,8 @@ import org.matsim.households.Household
 
 import scala.collection.JavaConverters._
 
-case class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends PopulationAdjustment {
+case class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices, val vehicleEnergy: VehicleEnergy)
+    extends PopulationAdjustment {
   val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   val geo: GeoUtils = beamServices.geo
 

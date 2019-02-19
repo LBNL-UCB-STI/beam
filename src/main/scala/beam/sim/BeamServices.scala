@@ -70,6 +70,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
   val beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
+  val vehicleEnergy: VehicleEnergy = injector.getInstance(classOf[VehicleEnergy])
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
 
@@ -117,7 +118,9 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
       case true =>
         TrieMap[Id[BeamVehicle], BeamVehicle]()
       case false =>
-        TrieMap(readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq: _*)
+        TrieMap(
+          readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes, vehicleEnergy).toSeq: _*
+        )
     }
 
   var matsimServices: MatsimServices = _
