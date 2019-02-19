@@ -380,7 +380,7 @@ object HouseholdActor {
         }
         log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
 
-      case ReleaseVehicleAndReply(vehicle) =>
+      case ReleaseVehicleAndReply(vehicle,_) =>
         vehicle.unsetDriver()
         if (!availableVehicles.contains(vehicle)) {
           availableVehicles = vehicle :: availableVehicles

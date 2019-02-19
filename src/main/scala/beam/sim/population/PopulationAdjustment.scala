@@ -37,7 +37,7 @@ trait PopulationAdjustment extends LazyLogging {
             .getOrElse(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
         // Read excluded-modes set for the person and calculate the possible available modes for the person
         val excludedModes = AvailableModeUtils.getExcludedModesForPerson(population, person.getId.toString)
-        val availableModes: Seq[BeamMode] = BeamMode.allTripModes filterNot { mode =>
+        val availableModes: Seq[BeamMode] = BeamMode.allModes filterNot { mode =>
           excludedModes.exists(em => em.equalsIgnoreCase(mode.value))
         }
         // Read person attribute "income" and default it to 0 if not set

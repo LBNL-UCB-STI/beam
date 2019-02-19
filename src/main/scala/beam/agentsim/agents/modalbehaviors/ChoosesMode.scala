@@ -85,7 +85,7 @@ trait ChoosesMode {
           self ! MobilityStatusResponse(Vector(beamVehicles(vehicle)))
         // Only need to get available street vehicles from household if our mode requires such a vehicle
         case ChoosesModeData(
-            BasePersonData(currentActivityIndex, _, _, _, None | Some(CAR | CAV | BIKE | DRIVE_TRANSIT), _, _, _, _, _),
+            BasePersonData(currentActivityIndex, _, _, _, None | Some(CAR | CAV | BIKE | DRIVE_TRANSIT), _, _, _, _, _,_),
             currentLocation,
             _,
             _,
