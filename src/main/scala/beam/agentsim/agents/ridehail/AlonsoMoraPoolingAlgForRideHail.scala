@@ -170,7 +170,7 @@ class AlonsoMoraPoolingAlgForRideHail(
     skimmer.getTimeDistanceAndCost(
       src.activity.getCoord,
       dst.activity.getCoord,
-      src.time.toInt,
+      src.time,
       BeamMode.CAR,
       BeamVehicleType.defaultCarBeamVehicleType.id
     )
@@ -182,7 +182,7 @@ class AlonsoMoraPoolingAlgForRideHail(
     sortedRequests.drop(1).foldLeft(()) {
       case (_, curReq) =>
         val prevReq = newPoolingList.last
-        val serviceTime = prevReq.serviceTime.toInt +
+        val serviceTime = prevReq.serviceTime +
         getTimeDistanceAndCost(prevReq, curReq).timeAndCost.time.get
         val window: Int = curReq.tag match {
           case Pickup  => omega
@@ -300,7 +300,7 @@ object AlonsoMoraPoolingAlgForRideHail {
       extends DefaultEdge
       with RTVGraphNode {
     override def getId: String = requests.foldLeft(s"trip:") { case (c, x) => c + s"$x -> " }
-    val cost: Int = schedule.foldLeft(0) { case (c, r)                     => c + (r.serviceTime - r.time).toInt }
+    val cost: Int = schedule.foldLeft(0) { case (c, r)                     => c + (r.serviceTime - r.time) }
   }
 
   case class RVGraph(clazz: Class[RideHailTrip]) extends DefaultUndirectedWeightedGraph[RVGraphNode, RideHailTrip](clazz)
@@ -316,17 +316,17 @@ object AlonsoMoraPoolingAlgForRideHail {
   case class MobilityServiceRequest(
     person: Option[VehiclePersonId],
     activity: Activity,
-    time: Double,
+    time: Int,
     trip: Trip,
     defaultMode: BeamMode,
     tag: MobilityServiceRequestType,
-    serviceTime: Double,
+    serviceTime: Int,
     routingRequestId: Option[Int] = None
   ) {
     val nextActivity = Some(trip.activity)
 
     def formatTime(secs: Double): String = {
-      s"${(secs / 3600).toInt}:${((secs % 3600) / 60).toInt}:${(secs % 60).toInt}"
+      s"${secs / 3600}:${(secs % 3600) / 60}:${secs % 60}"
     }
     override def toString: String =
       s"${formatTime(time)}|$tag|${person.getOrElse("na")}|${activity.getType}| => ${formatTime(serviceTime)}"
