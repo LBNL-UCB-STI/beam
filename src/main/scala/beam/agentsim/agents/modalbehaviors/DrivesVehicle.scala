@@ -147,9 +147,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 //        currentVehicleUnderControl,
 //        tick
 //      )
+      if(id.toString.equals("cavDriver-63-0")){
+        val i = 0
+      }
 
       data.passengerSchedule.schedule(currentLeg).alighters.foreach { pv =>
-        logDebug(s"Scheduling AlightVehicleTrigger for Person $pv.personRef")
+        logDebug(s"Scheduling AlightVehicleTrigger for Person $pv.personRef @ $tick")
         scheduler ! ScheduleTrigger(
           AlightVehicleTrigger(tick, data.currentVehicle.head),
           pv.personRef

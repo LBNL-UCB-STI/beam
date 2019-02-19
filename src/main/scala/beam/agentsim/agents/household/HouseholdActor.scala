@@ -14,11 +14,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Vehicle
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.agents.ridehail.RideHailAgent.{
-  ModifyPassengerSchedule,
-  ModifyPassengerScheduleAck,
-  ModifyPassengerScheduleAcks
-}
+import beam.agentsim.agents.ridehail.RideHailAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck, ModifyPassengerScheduleAcks}
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
 import beam.agentsim.agents.{HasTickAndTrigger, InitializeTrigger, PersonAgent}
@@ -29,18 +25,8 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  BIKE,
-  CAR,
-  CAV,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
@@ -322,61 +308,33 @@ object HouseholdActor {
           }.flatten
           var passengerSchedule = PassengerSchedule().addLegs(theLegs)
           var currentLeg = theLegs.head
+          var pickDropsForGrouping: Map[VehiclePersonId,List[BeamLeg]] = Map()
           var passengersToAdd = Set[VehiclePersonId]()
           cavSchedule.schedule.foreach { serviceRequest =>
             if(cavSchedule.cav.id.toString.equals("63-0")){
               val i = 0
             }
-            serviceRequest.tag match {
-              case Pickup =>
-                passengersToAdd = passengersToAdd + memberVehiclePersonIds(serviceRequest.person.get)
-              case Dropoff =>
-                passengersToAdd = passengersToAdd - memberVehiclePersonIds(serviceRequest.person.get)
-              case _ =>
+            if(serviceRequest.person.isDefined){
+              val person = memberVehiclePersonIds(serviceRequest.person.get)
+              if(passengersToAdd.contains(person)) {
+                passengersToAdd = passengersToAdd - person
+                val legs = pickDropsForGrouping(person)
+                passengerSchedule = passengerSchedule.addPassenger(person,legs)
+                pickDropsForGrouping  = pickDropsForGrouping - person
+              }else{
+                passengersToAdd = passengersToAdd + person
+              }
             }
             if (serviceRequest.routingRequestId.isDefined && indexedResponses(serviceRequest.routingRequestId.get).itineraries.size>0) {
-              val toTravel = indexedResponses(serviceRequest.routingRequestId.get).itineraries.head.beamLegs()
+              val leg = indexedResponses(serviceRequest.routingRequestId.get).itineraries.head.beamLegs().head
               passengersToAdd.foreach { pass =>
-                passengerSchedule = passengerSchedule.addPassenger(pass, toTravel)
+                val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg
+                pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
               }
             }
           }
-          if(cavSchedule.cav.id.toString.equals("63-0")){
-            val i = 0
-          }
           cavSchedule.cav -> passengerSchedule.updateStartTimes(theLegs.head.startTime)
         }.toMap
-//        cavPassengerSchedules = cavPlans.map { cavSchedule =>
-//          val theLegsWithServiceRequest = cavSchedule.schedule.map {
-//            serviceRequest =>
-//            val beamLegOpt = serviceRequest.routingRequestId match {
-//              case Some(reqId) =>
-//                Some(indexedResponses(reqId).itineraries.head.legs.head.beamLeg)
-//              case None =>
-//                None
-//            }
-//            (
-//              beamLegOpt,
-//              serviceRequest,
-//              serviceRequest.tag == Pickup
-//            )
-//          }
-//          val splitByPickup = RandomUtils.multiSpan(theLegsWithServiceRequest)(_._3)
-//          val i = 0
-//          val passengerSchedulesByPickup = splitByPickup.map { subLegsWithServiceRequest =>
-//            if(subLegsWithServiceRequest.find(_._1.isDefined).size>0){
-//              var passengerSchedule = PassengerSchedule().addLegs(subLegsWithServiceRequest.flatMap(_._1))
-//              subLegsWithServiceRequest.filter(_._2.person.isDefined).map { legWithPassenger =>
-//                passengerSchedule = passengerSchedule
-//                  .addPassenger(memberVehiclePersonIds(legWithPassenger._2.person.get), Seq(legWithPassenger._1.get))
-//              }
-//              Some(passengerSchedule)
-//            }else{
-//              None
-//            }
-//          }
-//          (cavSchedule.cav -> passengerSchedulesByPickup)
-//        }.toMap
         Future
           .sequence(
             cavPassengerSchedules.map { cavAndSchedule =>
@@ -390,10 +348,6 @@ object HouseholdActor {
           )
           .map(ModifyPassengerScheduleAcks(_))
           .pipeTo(self)
-      // Add in a dummy passenger schedule at start of each to handle the intitilaization
-      // process that results in the first of the list being removed
-//        cavPassengerSchedules =
-//          cavPassengerSchedules.map(vehAndSched => (vehAndSched._1, Some(PassengerSchedule()) +: vehAndSched._2))
 
       case ModifyPassengerScheduleAcks(acks) =>
         val (_, triggerId) = releaseTickAndTriggerId()
@@ -428,36 +382,6 @@ object HouseholdActor {
             }
         }
 
-//      case ReadyForCAVPickup(personId, tick) =>
-//        personAndActivityToCav.get(personId) match {
-//          case Some((_, cav)) =>
-//            // we are expecting the person to be picked up next so we dispatch the vehicle
-//            var (nextSchedule :: remainingSchedules) = cavPassengerSchedules(cav)
-//            log.debug(
-//              "Person {} ready for CAV who will pickup at {}",
-//              personId,
-//              nextSchedule.map(sched => sched.schedule.head._1.startTime).getOrElse(-1)
-//            )
-//            if (nextSchedule.isDefined && tick != nextSchedule.get.schedule.head._1.startTime) {
-//              log.warning(
-//                "Person {} is late for pickup from CAV {} by {} seconds",
-//                personId,
-//                cav.id,
-//                tick - nextSchedule.get.schedule.head._1.startTime
-//              )
-//              nextSchedule = nextSchedule.get.updateStartTimes(tick)
-//            }
-//            cav.driver.get ! ModifyPassengerSchedule(
-//              nextSchedule,
-//              nextSchedule.schedule.head._1.startTime,
-//              Some(personId.toString.toInt)
-//            )
-//
-//          case None =>
-//            // we hold this person and will dispatch the vehicle when it is ready
-//            personsReadyForPickup = personsReadyForPickup + personId
-//        }
-
       case Finish =>
         context.children.foreach(_ ! Finish)
         dieIfNoChildren()
@@ -471,16 +395,7 @@ object HouseholdActor {
     }
 
     def handleReleaseVehicle(vehicle: BeamVehicle, tickOpt: Option[Int]) = {
-      if (vehicle.beamVehicleType.automationLevel > 3) {
-        log.debug(s"Handle Release of CAV at ${tickOpt.getOrElse(-1)}")
-//        cavPassengerSchedules = cavPassengerSchedules + (vehicle -> cavPassengerSchedules(vehicle).tail)
-//        if (cavPassengerSchedules(vehicle).size > 0) {
-//          val nextSchedule = cavPassengerSchedules(vehicle).head
-//          if (nextSchedule.schedule.map(_._2.riders.size).sum == 0) {
-//            vehicle.driver.get ! ModifyPassengerSchedule(nextSchedule, nextSchedule.schedule.firstKey.startTime)
-//          }
-//        }
-      } else {
+      if (vehicle.beamVehicleType.automationLevel <= 3) {
         vehicle.unsetDriver()
         availableVehicles = vehicle :: availableVehicles
         log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
