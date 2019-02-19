@@ -17,7 +17,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, TRANSIT, WALK}
+import beam.router.Modes.BeamMode.{TRANSIT, WALK}
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.sim.HasServices
@@ -211,7 +211,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         if (data.hasParkingBehaviors) {
           currentBeamVehicle.reservedStall.foreach { stall =>
             currentBeamVehicle.useParkingStall(stall)
-            eventsManager.processEvent(new ParkEvent(tick, stall, currentBeamVehicle.id, id.toString)) // nextLeg.endTime -> to fix repeated path traversal
+            eventsManager.processEvent(ParkEvent(tick, stall, currentBeamVehicle.id, id.toString)) // nextLeg.endTime -> to fix repeated path traversal
           }
           currentBeamVehicle.setReservedParkingStall(None)
         }

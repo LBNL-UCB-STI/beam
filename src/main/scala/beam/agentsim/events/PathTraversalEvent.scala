@@ -35,7 +35,8 @@ class PathTraversalEvent(
   val fuelConsumed: Double,
   val endLegFuelLevel: Double,
   val amountPaid: Double
-) extends Event(time) {
+) extends Event(time)
+    with ScalaEvent {
   import PathTraversalEvent._
 
   def capacity: Int = seatingCapacity + standingRoomCapacity
