@@ -270,10 +270,12 @@ trait BeamHelper extends LazyLogging {
 
     ConfigConsistencyComparator(parsedArgs.configLocation.get)
 
+    val location = ConfigFactory.parseString("config=" + parsedArgs.configLocation.get)
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
       if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
       else parsedArgs.config.get
-    }).resolve()
+    }).withFallback(location).resolve()
+
     (parsedArgs, config)
   }
 
@@ -424,7 +426,9 @@ trait BeamHelper extends LazyLogging {
     logger.info("Starting beam on branch {} at commit {}.", BashUtils.getBranch, BashUtils.getCommitHash)
     new java.io.File(outputDirectory).mkdirs
     val outConf = Paths.get(outputDirectory, "beam.conf")
-    Files.write(outConf, config.root().render(ConfigRenderOptions.concise()).getBytes)
+    val location = config.getString("config")
+
+    Files.copy(Paths.get(location), outConf, StandardCopyOption.REPLACE_EXISTING)
     logger.info("Config [{}] copied to {}.", beamConfig.beam.agentsim.simulationName, outConf)
 
     val networkCoordinator: NetworkCoordinator =
