@@ -20,6 +20,8 @@ case class BeamVehicleType(
   primaryFuelType: FuelType,
   primaryFuelConsumptionInJoulePerMeter: Double,
   primaryFuelCapacityInJoule: Double,
+  monetaryCostPerMeter: Double = 0.0,
+  monetaryCostPerSecond: Double = 0.0,
   secondaryFuelType: Option[FuelType] = None,
   secondaryFuelConsumptionInJoulePerMeter: Option[Double] = None,
   secondaryFuelCapacityInJoule: Option[Double] = None,
@@ -47,7 +49,6 @@ object BeamVehicleType {
       Food,
       53,
       2.21e6,
-      None,
       vehicleCategory = Body
     )
 
@@ -59,7 +60,6 @@ object BeamVehicleType {
     Food,
     defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter / 5.0, // 5x more efficient than walking
     defaultHumanBodyBeamVehicleType.primaryFuelCapacityInJoule, // same capacity as human body
-    None,
     vehicleCategory = Bike
   )
 
@@ -88,7 +88,6 @@ object BeamVehicleType {
     Gasoline,
     3656.0,
     3655980000.0,
-    None,
     vehicleCategory = Car
   )
 

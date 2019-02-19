@@ -140,6 +140,18 @@ public class PathTraversalEvent extends Event {
         return this.linkTravelTimes;
     }
 
+    public long getDepartureTime() {
+        return departureTime;
+    }
+
+    public long getArrivalTime() {
+        return arrivalTime;
+    }
+
+    public String getVehicleType() {
+        return vehicleType;
+    }
+
     @Override
     public String getEventType() {
         return EVENT_TYPE;

@@ -374,10 +374,18 @@ object HouseholdActor {
         log.debug("updated vehicle {} with location {}", vehId, whenWhere)
 
       case ReleaseVehicle(vehicle) =>
-        if (!vehicle.isCAV) handleReleaseVehicle(vehicle, None)
+        vehicle.unsetDriver()
+        if (!availableVehicles.contains(vehicle)) {
+          availableVehicles = vehicle :: availableVehicles
+        }
+        log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
 
-      case ReleaseVehicleAndReply(vehicle, tickOpt) =>
-        handleReleaseVehicle(vehicle, tickOpt)
+      case ReleaseVehicleAndReply(vehicle) =>
+        vehicle.unsetDriver()
+        if (!availableVehicles.contains(vehicle)) {
+          availableVehicles = vehicle :: availableVehicles
+        }
+        log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
         sender() ! Success
 
       case MobilityStatusInquiry(personId, _, originActivity) =>

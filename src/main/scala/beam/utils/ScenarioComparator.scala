@@ -1,4 +1,5 @@
 package beam.utils
+
 import java.time.ZonedDateTime
 import java.util.{Collections, Comparator}
 
@@ -8,10 +9,13 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.Modes
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
+import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
+import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Person, Plan}
@@ -21,6 +25,7 @@ import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 import scala.util.control.Breaks
 
 object ScenarioComparator extends App with Comparator[MutableScenario] {
@@ -103,7 +108,8 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
     val beamServices: BeamServices = new BeamServices {
       override lazy val controler: ControlerI = ???
       override val beamConfig: BeamConfig = BeamConfig(config)
-      override lazy val geo: beam.sim.common.GeoUtils = new GeoUtilsImpl(this)
+      override lazy val geo: beam.sim.common.GeoUtils = new GeoUtilsImpl(beamConfig)
+      val transportNetwork = DefaultNetworkCoordinator(beamConfig).transportNetwork
       override var modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator = _
       override val dates: DateUtils = DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
@@ -114,25 +120,21 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
 
       // TODO Fix me once `TrieMap` is removed
       val fuelTypePrices: Map[FuelType, Double] =
-        BeamServices.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
+        readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
 
       // TODO Fix me once `TrieMap` is removed
       val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
         TrieMap(
-          BeamServices
-            .readBeamVehicleTypeFile(
-              beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile,
-              fuelTypePrices
-            )
-            .toSeq: _*
+          readBeamVehicleTypeFile(
+            beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile,
+            fuelTypePrices
+          ).toSeq: _*
         )
 
       // TODO Fix me once `TrieMap` is removed
       val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
         TrieMap(
-          BeamServices
-            .readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes)
-            .toSeq: _*
+          readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq: _*
         )
 
       override def startNewIteration(): Unit = throw new Exception("???")
@@ -149,6 +151,9 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
       override val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = ???
       override val ptFares: PtFares = ???
       override def networkHelper: NetworkHelper = ???
+      override def setTransitFleetSizes(
+        tripFleetSizeMap: mutable.HashMap[String, Integer]
+      ): Unit = {}
     }
 
     beamServices
@@ -328,8 +333,8 @@ object PersonComparator extends Comparator[Person] {
           val age1 = o1.getPopulation.getPersonAttributes.getAttribute(pId.toString, "age")
           val age2 = o2.getPopulation.getPersonAttributes.getAttribute(pId.toString, "age")
 
-          val availableModes1 = o1.getPopulation.getPersonAttributes.getAttribute(pId.toString, "available-modes")
-          val availableModes2 = o2.getPopulation.getPersonAttributes.getAttribute(pId.toString, "available-modes")
+          val availableModes1 = AvailableModeUtils.availableModesForPerson(p)
+          val availableModes2 = AvailableModeUtils.availableModesForPerson(o2.getPopulation.getPersons.get(pId))
           /*age1 != age2 ||*/
           if (availableModes1 != availableModes2) {
             flag = 1
