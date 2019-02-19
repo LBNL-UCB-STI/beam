@@ -227,53 +227,44 @@ object HouseholdActor {
             skim = HouseholdCAVScheduling.computeSkim(householdBeamPlans, skim)
           )
           //          val optimalPlan = cavScheduler().sortWith(_.cost < _.cost).head.cavFleetSchedule
-          var optimalPlan = List[CAVSchedule]()
-          try{
-            optimalPlan = cavScheduler.getBestScheduleWithTheLongestCAVChain.cavFleetSchedule
-          }catch{
-            case _ : Throwable =>
+          var optimalPlan = cavScheduler.getBestScheduleWithTheLongestCAVChain.cavFleetSchedule
+          val requestsAndUpdatedPlans = optimalPlan.map {
+            _.toRoutingRequests(beamServices)
           }
-          if(optimalPlan.size>0){
-            val requestsAndUpdatedPlans = optimalPlan.map {
-              _.toRoutingRequests(beamServices)
+          val routingRequests = requestsAndUpdatedPlans.map {
+            _._1.flatten
+          }.flatten
+          cavPlans = requestsAndUpdatedPlans.map(_._2)
+          val memberMap = household.members.map(person => (person.getId -> person)).toMap
+          val plan = requestsAndUpdatedPlans.head._2
+          val i = 0
+          personAndActivityToCav = personAndActivityToCav ++ (plan.schedule
+            .filter(_.tag == Pickup)
+            .groupBy(_.person)
+            .map { pers =>
+              pers._2.map(req => (pers._1.get, req.activity) -> plan.cav)
             }
-            val routingRequests = requestsAndUpdatedPlans.map {
-              _._1.flatten
-            }.flatten
-            cavPlans = requestsAndUpdatedPlans.map(_._2)
-            val memberMap = household.members.map(person => (person.getId -> person)).toMap
-            val plan = requestsAndUpdatedPlans.head._2
-            val i = 0
-            personAndActivityToCav = personAndActivityToCav ++ (plan.schedule
-              .filter(_.tag == Pickup)
-              .groupBy(_.person)
-              .map { pers =>
-                pers._2.map(req => (pers._1.get, req.activity) -> plan.cav)
-              }
-              .flatten)
+            .flatten)
 
-            plan.schedule.foreach { cavPlan =>
-              if (cavPlan.tag == Pickup) {
-                val oldPlan = memberMap(cavPlan.person.get).getSelectedPlan
-                val newPlan = BeamPlan.addOrReplaceLegBetweenActivities(
-                  oldPlan,
-                  PopulationUtils.createLeg("cav"),
-                  cavPlan.activity,
-                  cavPlan.nextActivity.get
-                )
-                memberMap(cavPlan.person.get).addPlan(newPlan)
-                memberMap(cavPlan.person.get).setSelectedPlan(newPlan)
-                memberMap(cavPlan.person.get).removePlan(oldPlan)
-              }
+          plan.schedule.foreach { cavPlan =>
+            if (cavPlan.tag == Pickup) {
+              val oldPlan = memberMap(cavPlan.person.get).getSelectedPlan
+              val newPlan = BeamPlan.addOrReplaceLegBetweenActivities(
+                oldPlan,
+                PopulationUtils.createLeg("cav"),
+                cavPlan.activity,
+                cavPlan.nextActivity.get
+              )
+              memberMap(cavPlan.person.get).addPlan(newPlan)
+              memberMap(cavPlan.person.get).setSelectedPlan(newPlan)
+              memberMap(cavPlan.person.get).removePlan(oldPlan)
             }
-            holdTickAndTriggerId(tick, triggerId)
-//            log.debug("Household {} is done planning", household.getId)
-            Future
-              .sequence(routingRequests.map(akka.pattern.ask(router, _).mapTo[RoutingResponse]))
-              .map(RoutingResponses(tick, _)) pipeTo self
-          }else{
-            cavs = List()
           }
+          holdTickAndTriggerId(tick, triggerId)
+//            log.debug("Household {} is done planning", household.getId)
+          Future
+            .sequence(routingRequests.map(akka.pattern.ask(router, _).mapTo[RoutingResponse]))
+            .map(RoutingResponses(tick, _)) pipeTo self
         }
         household.members.foreach { person =>
           val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
