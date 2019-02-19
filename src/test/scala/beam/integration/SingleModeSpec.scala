@@ -42,10 +42,6 @@ class SingleModeSpec
   var nextId: Int = 0
   var system: ActorSystem = _
   val beamConfig = BeamConfig(config)
-  val vehicleCsvReader = new VehicleCsvReader(beamConfig)
-
-  val vehicleEnergy =
-    new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
 
   override def beforeEach: Unit = {
     // Create brand new Actor system every time (just to make sure that the same actor names can be reused)

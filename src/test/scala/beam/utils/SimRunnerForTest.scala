@@ -1,6 +1,7 @@
 package beam.utils
 import java.io.File
 
+import beam.agentsim.agents.vehicles.{VehicleCsvReader, VehicleEnergy}
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
@@ -51,6 +52,10 @@ abstract class SimRunnerForTest {
 
   // Next things are pretty cheap in initialization, so let it be non-lazy
   val beamCfg = BeamConfig(config)
+  val vehicleCsvReader = new VehicleCsvReader(beamCfg)
+
+  val vehicleEnergy =
+    new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getVehicleEnergyRecordsUsing)
   val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
   val fareCalculator = new FareCalculator(beamCfg.beam.routing.r5.directory)
   val tollCalculator = new TollCalculator(beamCfg)
@@ -78,6 +83,7 @@ abstract class SimRunnerForTest {
       bind(classOf[beam.sim.common.GeoUtils]).toInstance(geoUtil)
       bind(classOf[NetworkHelper]).toInstance(networkHelper)
       bind(classOf[ControlerI]).toProvider(Providers.of(null))
+      bind(classOf[VehicleEnergy]).toInstance(vehicleEnergy)
     }
   })
 }

@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory
 import scala.collection.mutable
 import scala.collection.JavaConverters._
 
-class VehicleCsvReader @Inject()(config: BeamConfig) {
+class VehicleCsvReader(config: BeamConfig) {
 
   def getVehicleEnergyRecordsUsing(csvParser: CsvParser): Iterable[Record] = {
     val csvLocation = config.beam.agentsim.agents.vehicles.vehicleEnergyFile
@@ -18,9 +18,8 @@ class VehicleCsvReader @Inject()(config: BeamConfig) {
   }
 
   def getLinkToGradeRecordsUsing(csvParser: CsvParser): Iterable[Record] = {
-    //val csvLocation = config.beam.agentsim.agents.vehicles.linkToGradePercentFile
-    //csvParser.iterateRecords(new File(csvLocation)).asScala
-    ???
+    val csvLocation = config.beam.agentsim.agents.vehicles.linkToGradePercentFile
+    csvParser.iterateRecords(new File(csvLocation)).asScala
   }
 }
 
