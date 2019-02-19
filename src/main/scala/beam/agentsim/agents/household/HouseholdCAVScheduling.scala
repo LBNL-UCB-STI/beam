@@ -18,6 +18,7 @@ import beam.router.Modes.BeamMode.{
   WALK_TRANSIT
 }
 import beam.sim.BeamServices
+import beam.utils.logging.{ExponentialLoggerWrapperImpl}
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households.Household
@@ -73,56 +74,61 @@ object HouseholdTrips {
     import scala.collection.mutable.{Map => MMap}
     import scala.collection.mutable.{ListBuffer => MListBuffer}
 
+    val logger = new HouseholdCAVSchedulingWrapperImpl(getClass.getName)
+
     val requests = MListBuffer.empty[MobilityServiceRequest]
     val tripTravelTime = MMap[Trip, Int]()
     var totTravelTime = 0
+    import scala.util.control.Breaks._
+    breakable {
+      householdPlans.foldLeft(householdNbOfVehicles) {
+        case (counter, plan) =>
+          val usedCarOut = plan.trips.sliding(2).foldLeft(false) {
+            case (usedCar, Seq(prevTrip, curTrip)) =>
+              val legTrip = curTrip.leg
+              val defaultMode = getDefaultMode(legTrip, counter)
+              val travelTime = skim(defaultMode)(prevTrip.activity.getCoord)(curTrip.activity.getCoord)
 
-    householdPlans.foldLeft(householdNbOfVehicles) {
-      case (counter, plan) =>
-        val usedCarOut = plan.trips.sliding(2).foldLeft(false) {
-          case (usedCar, Seq(prevTrip, curTrip)) =>
-            val legTrip = curTrip.leg
-            val defaultMode = getDefaultMode(legTrip, counter)
-            val travelTime = skim(defaultMode)(prevTrip.activity.getCoord)(curTrip.activity.getCoord)
+              val startTime = prevTrip.activity.getEndTime.toInt
+              val arrivalTime = startTime + travelTime
 
-            val startTime = prevTrip.activity.getEndTime.toInt
-            val arrivalTime = startTime + travelTime
-
-            val nextTripStartTime = curTrip.activity.getEndTime
-            if (nextTripStartTime != Double.NegativeInfinity) {
-              if (startTime >= nextTripStartTime.toInt) {
-                throw HouseholdTripsException("An activity is ending after the next one")
-              } else if (arrivalTime > nextTripStartTime.toInt) {
-                throw HouseholdTripsException(
-                  "The shortest time necessary to arrive to the next activity is beyond the end time of the same activity"
-                )
+              val nextTripStartTime = curTrip.activity.getEndTime
+              if (nextTripStartTime != Double.NegativeInfinity) {
+                if (startTime >= nextTripStartTime.toInt) {
+                  throw HouseholdTripsException("An activity is ending after the next one")
+                } else if (arrivalTime > nextTripStartTime.toInt) {
+                  logger.warn(
+                    "The necessary travel time to arrive to the next activity is beyond the end time of the same activity"
+                  )
+                  break
+                }
               }
-            }
 
-            val pickup = MobilityServiceRequest(
-              Some(plan.getPerson.getId),
-              prevTrip.activity,
-              startTime,
-              curTrip,
-              defaultMode,
-              Pickup,
-              startTime
-            )
-            val dropoff = MobilityServiceRequest(
-              Some(plan.getPerson.getId),
-              curTrip.activity,
-              arrivalTime,
-              curTrip,
-              defaultMode,
-              Dropoff,
-              arrivalTime
-            )
-            requests.prependAll(MListBuffer(pickup, dropoff))
-            tripTravelTime(curTrip) = travelTime
-            totTravelTime += travelTime
-            if (defaultMode == BeamMode.CAR) true else usedCar
-        }
-        if (usedCarOut) counter - 1 else counter
+              val pickup = MobilityServiceRequest(
+                Some(plan.getPerson.getId),
+                prevTrip.activity,
+                startTime,
+                curTrip,
+                defaultMode,
+                Pickup,
+                startTime
+              )
+              val dropoff = MobilityServiceRequest(
+                Some(plan.getPerson.getId),
+                curTrip.activity,
+                arrivalTime,
+                curTrip,
+                defaultMode,
+                Dropoff,
+                arrivalTime
+              )
+              requests.prependAll(MListBuffer(pickup, dropoff))
+              tripTravelTime(curTrip) = travelTime
+              totTravelTime += travelTime
+              if (defaultMode == BeamMode.CAR) true else usedCar
+          }
+          if (usedCarOut) counter - 1 else counter
+      }
     }
     // Sum(tDi - tPi) <= Sum(tauDi - tauPi) + (alpha + beta)|R|/2
     val sumTimeWindows = (requests.size / 2) * (dropoffTimeWindow + pickupTimeWindow)
@@ -184,12 +190,17 @@ class HouseholdCAVScheduling(
     import beam.agentsim.agents.memberships.Memberships.RankedGroup._
     implicit val pop: org.matsim.api.core.v01.population.Population = scenario.getPopulation
     val householdPlans = household.members.take(limitCavToXPersons).map(person => BeamPlan(person.getSelectedPlan))
+
     // extract potential household CAV requests from plans
     val householdRequests: HouseholdTrips =
       HouseholdTrips(householdPlans, householdVehicles.size, pickupTimeWindow, dropoffTimeWindow, skim)
 
     // initialize household schedule
     val cavVehicles = householdVehicles.filter(_.beamVehicleType.automationLevel > 3)
+
+    if (householdRequests.requests.isEmpty || cavVehicles.isEmpty)
+      return List[CAVFleetSchedule]()
+
     import scala.collection.mutable.{ListBuffer => MListBuffer}
     val emptyFleetSchedule = MListBuffer.empty[CAVSchedule]
     cavVehicles.foldLeft(householdRequests.requests.head) {
@@ -214,9 +225,9 @@ class HouseholdCAVScheduling(
         req
     }
     // compute all the feasible schedules through
-    import scala.util.control.Breaks._
     val feasibleSchedules =
       MListBuffer[CAVFleetSchedule](CAVFleetSchedule(emptyFleetSchedule.toList, householdRequests))
+    import scala.util.control.Breaks._
     breakable {
       for (request  <- householdRequests.requests;
            schedule <- feasibleSchedules) {
@@ -481,3 +492,5 @@ object HouseholdCAVScheduling {
     skim
   }
 }
+
+class HouseholdCAVSchedulingWrapperImpl(name: String) extends ExponentialLoggerWrapperImpl(name)
