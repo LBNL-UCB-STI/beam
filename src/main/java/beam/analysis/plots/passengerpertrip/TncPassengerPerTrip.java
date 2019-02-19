@@ -130,7 +130,7 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
         int maxHour = hours.get(hours.size() - 1);
         Integer maxPassengers = TNC_MAX_PASSENGERS;
 
-        double dataSet[][];
+        double[][] dataSet;
 
         int dataSetLength = maxPassengers + 2;
         dataSet = new double[dataSetLength][maxHour + 1];

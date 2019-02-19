@@ -18,7 +18,7 @@ import java.util.Set;
  */
 public class BeamEventsWriterCSV extends BeamEventsWriterBase {
 
-    private LinkedHashMap<String, Integer> attributeToColumnIndexMapping = new LinkedHashMap<>();
+    private final LinkedHashMap<String, Integer> attributeToColumnIndexMapping = new LinkedHashMap<>();
 
     BeamEventsWriterCSV(String outfilename, BeamEventsLogger eventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
         super(outfilename, eventLogger, beamServices, eventTypeToLog);
@@ -39,11 +39,11 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
         for (String attribute : attributeToColumnIndexMapping.keySet()) {
             attributeToColumnIndexMapping.put(attribute, counter++);
             try {
-                this.out.append(attribute);
+                this.outWriter.append(attribute);
                 if (counter < attributeToColumnIndexMapping.keySet().size()) {
-                    this.out.append(",");
+                    this.outWriter.append(",");
                 } else {
-                    this.out.append("\n");
+                    this.outWriter.append("\n");
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -52,16 +52,16 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
     }
 
     @Override
-    public void closeFile() {
-        try {
-            this.out.close();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+    public void reset(final int iter) {
     }
 
     @Override
-    public void reset(final int iter) {
+    public void closeFile() {
+        try {
+            this.outWriter.close();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     @Override
@@ -85,20 +85,20 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
                 String str = row[i];
                 if (str != null) {
                     if (str.contains(",")) {
-                        this.out.append('"');
-                        this.out.append(str);
-                        this.out.append('"');
+                        this.outWriter.append('"');
+                        this.outWriter.append(str);
+                        this.outWriter.append('"');
                     } else {
-                        this.out.append(str);
+                        this.outWriter.append(str);
                     }
                 }
                 if (i < row.length - 1) {
-                    this.out.append(",");
+                    this.outWriter.append(",");
                 } else {
-                    this.out.append("\n");
+                    this.outWriter.append("\n");
                 }
             }
-            this.out.flush();
+            this.outWriter.flush();
         } catch (IOException e) {
             e.printStackTrace();
         }

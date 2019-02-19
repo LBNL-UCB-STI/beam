@@ -78,7 +78,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
                     // FIXME Is there any better way to to have `Object` ??
                     for (Object linkIdObj : pte.linkIdsJava()) {
                         int linkId = (int)linkIdObj;
-                        Link link = networkHelper.getLinkWithIndexUnsafe(Integer.toString(linkId)).link();
+                        Link link = networkHelper.getLinkUnsafe(linkId);
                         if (link != null) {
                             double freeFlowLength = link.getLength();
                             double freeFlowSpeed = link.getFreespeed();

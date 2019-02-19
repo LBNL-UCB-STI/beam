@@ -14,13 +14,13 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
 
     int eventCounter = 0;
     int maxHour = 0;
-    Integer maxPassengers = CAR_MAX_PASSENGERS;
+    final Integer maxPassengers = CAR_MAX_PASSENGERS;
 
-    String graphName;
+    final String graphName;
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# trips";
 
-    Map<Integer, Map<Integer, Integer>> numPassengerToEventFrequencyBin = new HashMap<>();
+    final Map<Integer, Map<Integer, Integer>> numPassengerToEventFrequencyBin = new HashMap<>();
 
     public CarPassengerPerTrip(String graphName){
         this.graphName = graphName;
@@ -53,7 +53,6 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
         numPassengerToEventFrequencyBin.put(numPassengers, eventFrequencyBin);
     }
 
-
     @Override
     public void process(IterationEndsEvent event) throws IOException {
 
@@ -64,9 +63,7 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
     @Override
     public CategoryDataset getCategoryDataSet() {
 
-
-
-        double dataSet[][] = new double[maxPassengers + 1][maxHour + 1];
+        double[][] dataSet = new double[maxPassengers + 1][maxHour + 1];
 
         for (int numberOfpassengers = 0; numberOfpassengers < maxPassengers + 1; numberOfpassengers++) {
             dataSet[numberOfpassengers] = getEventFrequenciesBinByNumberOfPassengers(numberOfpassengers, maxHour);
@@ -74,7 +71,6 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
 
         return DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
     }
-
 
     @Override
     public String getFileName(String extension) {
@@ -90,7 +86,6 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
     public String getLegendText(int i) {
         return Integer.toString(i);
     }
-
 
     private double[] getEventFrequenciesBinByNumberOfPassengers(int numberOfpassengers, int maxHour) {
         Map<Integer, Integer> eventFrequenciesBin = numPassengerToEventFrequencyBin.get(numberOfpassengers);
@@ -117,4 +112,3 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
         return numPassengers <= maxPassengers;
     }
 }
-
