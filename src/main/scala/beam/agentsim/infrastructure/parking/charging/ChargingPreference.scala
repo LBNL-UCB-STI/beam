@@ -1,10 +1,8 @@
 package beam.agentsim.infrastructure.parking.charging
 
-sealed trait ChargingPreference
+case class ChargingPreference(pref: Double)
 
 object ChargingPreference {
-
-  case class ChargingPreference(pref: Double)
 
   private val rand = scala.util.Random
 

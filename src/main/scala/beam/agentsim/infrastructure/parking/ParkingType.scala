@@ -5,9 +5,6 @@ object ParkingType {
   case object Residential extends ParkingType {
     override def toString: String = "Residential"
   }
-  case class Agency(agencyName: String) extends ParkingType {
-    override def toString: String = "agencyName"
-  }
   case object Workplace extends ParkingType {
     override def toString: String = "Workplace"
   }
@@ -20,7 +17,6 @@ object ParkingType {
       case "Residential"   => Residential
       case "Public"        => Public
       case "Workplace"     => Workplace
-      case agencyName      => Agency(agencyName)
     }
   }
 }

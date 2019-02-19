@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure.parking.charging
 
 sealed trait ElectricCurrent
-case object ElectricCurrent {
+object ElectricCurrent {
 
   case object AC extends ElectricCurrent
   case object DC extends ElectricCurrent
@@ -13,5 +13,7 @@ case object ElectricCurrent {
       case _    => throw new IllegalArgumentException("invalid electric current type provided")
     }
   }
+
+
 
 }

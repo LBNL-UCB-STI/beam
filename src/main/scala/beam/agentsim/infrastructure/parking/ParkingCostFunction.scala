@@ -1,6 +1,7 @@
 package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.infrastructure.ParkingStall.ChargingPreference
+import beam.agentsim.infrastructure.parking.charging.ChargingInquiryData
 
 object ParkingCostFunction {
   /**
@@ -38,6 +39,8 @@ object ParkingCostFunction {
 
         chargingPointCost + needAsPriceSignal
     }
+
+
 
     price + chargingCost
   }

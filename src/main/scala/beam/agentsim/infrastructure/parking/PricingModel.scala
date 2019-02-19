@@ -35,13 +35,6 @@ object PricingModel {
     */
   val DefaultPricingInterval: Int = 3600
 
-  // These patterns parse csv rows for pricing model data
-  val FlatFeeDefaultIntervalRegex: Regex = "^.*flatfee,(\\d+).*$".r
-  val FlatFeeWithIntervalRegex: Regex    = "^.*flatfee,(\\d+),(\\d+).*$".r
-  val BlockDefaultIntervalRegex: Regex   = "^.*block,(\\d+).*$".r
-  val BlockWithIntervalRegex: Regex      = "^.*block,(\\d+),(\\d+).*$".r
-
-
   /**
     * construct an optional PricingModel based on a parsed input string
     * @param s the input string, scraped from a configuration file
@@ -52,12 +45,12 @@ object PricingModel {
 
     case "flatfee" =>
       val costInt = parseNumeric(cost, s)
-      val intervalInt = parseNumeric(cost, s)
+      val intervalInt = parseNumeric(intervalSeconds, s)
       Some(FlatFee(costInt, intervalInt))
 
     case "block" =>
       val costInt = parseNumeric(cost, s)
-      val intervalInt = parseNumeric(cost, s)
+      val intervalInt = parseNumeric(intervalSeconds, s)
       Some(Block(costInt, intervalInt))
 
     case _ =>
