@@ -210,7 +210,7 @@ class PersonAgent(
 
   val myUnhandled: StateFunction = {
     case Event(TriggerWithId(BoardVehicleTrigger(_, _), _), _) =>
-      log.debug("Person {} stashing BoardVehicleTrigger in state {}",id,stateName)
+      log.debug("Person {} stashing BoardVehicleTrigger in state {}", id, stateName)
       stash()
       stay
     case Event(TriggerWithId(AlightVehicleTrigger(_, _), _), _) =>

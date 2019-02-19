@@ -43,7 +43,7 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
   }
 
   def updateStartTimes(newStartTimeOfFirstLeg: Int): PassengerSchedule = {
-    var newSchedule = TreeMap[BeamLeg,Manifest]()(BeamLegOrdering)
+    var newSchedule = TreeMap[BeamLeg, Manifest]()(BeamLegOrdering)
     var runningStartTime = newStartTimeOfFirstLeg
     schedule.foreach { legAndMan =>
       val newLeg = legAndMan._1.updateStartTime(Math.max(runningStartTime, legAndMan._1.startTime))

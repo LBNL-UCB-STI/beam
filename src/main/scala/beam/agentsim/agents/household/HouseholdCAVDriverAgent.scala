@@ -85,7 +85,7 @@ class HouseholdCAVDriverAgent(
           self
         )
       )
-      if(id.toString.equals("cavDriver-63-0")){
+      if (id.toString.equals("cavDriver-63-0")) {
         val i = 0
       }
       goto(WaitingToDrive) using data

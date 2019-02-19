@@ -57,7 +57,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val household: Household = scenario1(cavs)
     val skim = getSkim(sc, household)
 
-    val alg = new HouseholdCAVScheduling(sc, household, cavs, 2, 2, skim=skim)
+    val alg = new HouseholdCAVScheduling(sc, household, cavs, 2, 2, skim = skim)
     val schedules = alg.getAllFeasibleSchedules
     schedules should have length 2
     schedules.foreach { x =>
@@ -80,7 +80,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val household: Household = scenario2(vehicles)
     val skim = getSkim(sc, household)
 
-    val alg = new HouseholdCAVScheduling(sc, household, vehicles, 15 * 60, 15 * 60, skim=skim)
+    val alg = new HouseholdCAVScheduling(sc, household, vehicles, 15 * 60, 15 * 60, skim = skim)
     val schedule = alg.getBestScheduleWithTheLongestCAVChain
 
     schedule.cavFleetSchedule should have length 1
@@ -111,7 +111,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val household: Household = scenario3(vehicles)
     val skim = getSkim(sc, household)
 
-    val alg = new HouseholdCAVScheduling(sc, household, vehicles, 15 * 60, 15 * 60, skim=skim)
+    val alg = new HouseholdCAVScheduling(sc, household, vehicles, 15 * 60, 15 * 60, skim = skim)
     val schedule = alg.getBestScheduleWithTheLongestCAVChain
     schedule.cavFleetSchedule should have length 1
     schedule.cavFleetSchedule.head.schedule should have length 10
@@ -140,7 +140,15 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
 
     val skim = getSkim(sc, household)
 
-    val alg = new HouseholdCAVScheduling(sc, household, vehicles, 10 * 60, 15 * 60, stopSearchAfterXSolutions=2000, skim=skim)
+    val alg = new HouseholdCAVScheduling(
+      sc,
+      household,
+      vehicles,
+      10 * 60,
+      15 * 60,
+      stopSearchAfterXSolutions = 2000,
+      skim = skim
+    )
     val schedule = alg.getBestScheduleWithTheLongestCAVChain
 
     schedule.cavFleetSchedule should have length 1
@@ -163,7 +171,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val household: Household = scenario3(vehicles)
     val skim = getSkim(sc, household)
 
-    val alg = new HouseholdCAVScheduling(sc, household, vehicles, 15 * 60, 15 * 60, skim=skim)
+    val alg = new HouseholdCAVScheduling(sc, household, vehicles, 15 * 60, 15 * 60, skim = skim)
     val schedule = alg.getKBestSchedules(Integer.MAX_VALUE)
     schedule should have length 25
     val worstCombination = schedule.last
@@ -190,7 +198,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val household: Household = scenarioPerformance(vehicles)
     val skim = getSkim(sc, household)
 
-    val alg = new HouseholdCAVScheduling(sc, household, vehicles, 15 * 60, 15 * 60, skim=skim)
+    val alg = new HouseholdCAVScheduling(sc, household, vehicles, 15 * 60, 15 * 60, skim = skim)
     val schedule = alg.getAllFeasibleSchedules
 
     println(s"*** scenario 6 ***")

@@ -14,7 +14,11 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Vehicle
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.agents.ridehail.RideHailAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck, ModifyPassengerScheduleAcks}
+import beam.agentsim.agents.ridehail.RideHailAgent.{
+  ModifyPassengerSchedule,
+  ModifyPassengerScheduleAck,
+  ModifyPassengerScheduleAcks
+}
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
 import beam.agentsim.agents.{HasTickAndTrigger, InitializeTrigger, PersonAgent}
@@ -25,7 +29,18 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  CAR,
+  CAV,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
@@ -209,7 +224,7 @@ object HouseholdActor {
             vehicles.values.toList,
             5 * 60,
             10 * 60,
-            skim=HouseholdCAVScheduling.computeSkim(householdBeamPlans, skim)
+            skim = HouseholdCAVScheduling.computeSkim(householdBeamPlans, skim)
           )
           //          val optimalPlan = cavScheduler().sortWith(_.cost < _.cost).head.cavFleetSchedule
           val optimalPlan = cavScheduler.getBestScheduleWithTheLongestCAVChain.cavFleetSchedule
@@ -308,24 +323,24 @@ object HouseholdActor {
           }.flatten
           var passengerSchedule = PassengerSchedule().addLegs(theLegs)
           var currentLeg = theLegs.head
-          var pickDropsForGrouping: Map[VehiclePersonId,List[BeamLeg]] = Map()
+          var pickDropsForGrouping: Map[VehiclePersonId, List[BeamLeg]] = Map()
           var passengersToAdd = Set[VehiclePersonId]()
           cavSchedule.schedule.foreach { serviceRequest =>
-            if(cavSchedule.cav.id.toString.equals("63-0")){
+            if (cavSchedule.cav.id.toString.equals("63-0")) {
               val i = 0
             }
-            if(serviceRequest.person.isDefined){
+            if (serviceRequest.person.isDefined) {
               val person = memberVehiclePersonIds(serviceRequest.person.get)
-              if(passengersToAdd.contains(person)) {
+              if (passengersToAdd.contains(person)) {
                 passengersToAdd = passengersToAdd - person
                 val legs = pickDropsForGrouping(person)
-                passengerSchedule = passengerSchedule.addPassenger(person,legs)
-                pickDropsForGrouping  = pickDropsForGrouping - person
-              }else{
+                passengerSchedule = passengerSchedule.addPassenger(person, legs)
+                pickDropsForGrouping = pickDropsForGrouping - person
+              } else {
                 passengersToAdd = passengersToAdd + person
               }
             }
-            if (serviceRequest.routingRequestId.isDefined && indexedResponses(serviceRequest.routingRequestId.get).itineraries.size>0) {
+            if (serviceRequest.routingRequestId.isDefined && indexedResponses(serviceRequest.routingRequestId.get).itineraries.size > 0) {
               val leg = indexedResponses(serviceRequest.routingRequestId.get).itineraries.head.beamLegs().head
               passengersToAdd.foreach { pass =>
                 val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg

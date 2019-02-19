@@ -408,7 +408,7 @@ class CAVSchedule(
         val orig = wayPoints(0)
         val dest = wayPoints(1)
         val origin = SpaceTime(orig.activity.getCoord, Math.round(orig.time))
-        if(cav.id.toString.equals("63-0")){
+        if (cav.id.toString.equals("63-0")) {
           val i = 0
         }
         if (beamServices.geo.distUTMInMeters(orig.activity.getCoord, dest.activity.getCoord) < beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters) {
