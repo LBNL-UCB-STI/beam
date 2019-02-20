@@ -1,17 +1,19 @@
 package beam.agentsim.agents.household
-import beam.agentsim.agents.household.HouseholdCAVScheduling.RouteOrEmbodyRequest
+import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
 import beam.agentsim.agents.planning.{BeamPlan, Trip}
+import beam.agentsim.agents.vehicles.VehicleCategory.Car
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
-import beam.router.BeamRouter.RoutingRequest
-import beam.router.BeamSkimmer
+import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest}
+import beam.router.{BeamRouter, BeamSkimmer, Modes}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.CAV
+import beam.router.Modes.BeamMode.{CAR, CAV}
 import beam.sim.BeamServices
 import beam.utils.logging.ExponentialLoggerWrapperImpl
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.Id
+import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
@@ -328,7 +330,7 @@ class CAVSchedule(
     timeWindow: Int,
     skim: BeamSkimmer
   ): (Option[CAVSchedule], HouseholdTrips, Boolean) = {
-    val travelTime = skim(BeamMode.CAR)(schedule.head.activity.getCoord)(request.activity.getCoord)
+    val travelTime = skim.getTimeDistanceAndCost(schedule.head.activity.getCoord,request.activity.getCoord,request.time,CAR,cav.beamVehicleType.id).timeAndCost.time.get
     val prevServiceTime = schedule.head.serviceTime
     val serviceTime = prevServiceTime + travelTime
     val upperBoundServiceTime = request.time + timeWindow
@@ -472,4 +474,7 @@ class CAVSchedule(
       .insert(0, s"\tcav-id:${cav.id}\n")
       .toString
   }
+}
+object CAVSchedule{
+  case class RouteOrEmbodyRequest(routeReq: Option[RoutingRequest], embodyReq: Option[EmbodyWithCurrentTravelTime])
 }
