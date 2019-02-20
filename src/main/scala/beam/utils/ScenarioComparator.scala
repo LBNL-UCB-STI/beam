@@ -10,11 +10,11 @@ import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.Modes
 import beam.router.r5.DefaultNetworkCoordinator
-import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.population.{AttributesOfIndividual, PopulationAdjustment}
+import beam.sim.population.AttributesOfIndividual
+import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.Id
@@ -108,7 +108,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
     val beamServices: BeamServices = new BeamServices {
       override lazy val controler: ControlerI = ???
       override val beamConfig: BeamConfig = BeamConfig(config)
-      override lazy val geo: beam.sim.common.GeoUtils = new GeoUtilsImpl(this)
+      override lazy val geo: beam.sim.common.GeoUtils = new GeoUtilsImpl(beamConfig)
       val transportNetwork = DefaultNetworkCoordinator(beamConfig).transportNetwork
       override var modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator = _
       override val dates: DateUtils = DateUtils(

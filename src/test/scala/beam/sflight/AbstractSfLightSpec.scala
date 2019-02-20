@@ -1,86 +1,39 @@
 package beam.sflight
 
-import java.time.ZonedDateTime
-
-import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
-import akka.testkit.{ImplicitSender, TestKit}
-import beam.agentsim.agents.choice.mode.PtFares
-import beam.agentsim.agents.choice.mode.PtFares.FareRule
-import beam.agentsim.agents.vehicles.FuelType.FuelType
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify, PoisonPill}
+import akka.testkit.{ImplicitSender, TestKitBase}
 import beam.router.BeamRouter
-import beam.router.gtfs.FareCalculator
-import beam.router.gtfs.FareCalculator.BeamFareSegment
-import beam.router.osm.TollCalculator
-import beam.router.r5.DefaultNetworkCoordinator
-import beam.sim.BeamServices
-import beam.sim.common.{GeoUtils, GeoUtilsImpl}
-import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.utils.DateUtils
+import beam.sim.{BeamServices, BeamServicesImpl}
+import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.population.{Activity, Plan}
-import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.events.EventsManagerImpl
-import org.matsim.core.scenario.ScenarioUtils
-import org.matsim.vehicles.Vehicle
-import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito._
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
 
 import scala.collection.JavaConverters._
-import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class AbstractSfLightSpec
-    extends TestKit(
-      ActorSystem("AbstractSfLightSpec", ConfigFactory.parseString("""
-  akka.loglevel="OFF"
-  akka.test.timefactor=10
-  """))
-    )
+class AbstractSfLightSpec(val name: String)
+    extends SimRunnerForTest
+    with TestKitBase
     with WordSpecLike
     with Matchers
     with ImplicitSender
     with MockitoSugar
     with BeforeAndAfterAll {
+  lazy implicit val system = ActorSystem(name, ConfigFactory.parseString("""akka.loglevel="OFF"
+      |akka.test.timefactor=10""".stripMargin))
 
+  def outputDirPath: String = basePath + "/" + testOutputDir + name
+  def config: Config = testConfig("test/input/sf-light/sf-light.conf").resolve()
+
+  lazy val services: BeamServices = new BeamServicesImpl(injector)
   var router: ActorRef = _
-  var geo: GeoUtils = _
-  var scenario: Scenario = _
-
-  val confPath = "test/input/sf-light/sf-light.conf"
-  lazy val config = testConfig(confPath).resolve()
-  lazy val beamConfig = BeamConfig(config)
-  // Have to mock some things to get the router going
-  lazy val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
 
   override def beforeAll: Unit = {
-
-    when(services.beamConfig).thenReturn(beamConfig)
-    geo = new GeoUtilsImpl(services)
-    when(services.geo).thenReturn(geo)
-    when(services.dates).thenReturn(
-      DateUtils(
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
-      )
-    )
-    when(services.vehicleTypes).thenReturn(new TrieMap[Id[BeamVehicleType], BeamVehicleType])
-    when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
-    when(services.ptFares).thenReturn(PtFares(List[FareRule]()))
-    when(services.vehicleTypes).thenReturn(TrieMap[Id[BeamVehicleType], BeamVehicleType]())
-    when(services.fuelTypePrices).thenReturn(Map[FuelType, Double]().withDefaultValue(0.0))
-    val networkCoordinator: DefaultNetworkCoordinator = DefaultNetworkCoordinator(beamConfig)
-    networkCoordinator.loadNetwork()
-    networkCoordinator.convertFrequenciesToTrips()
-
-    val fareCalculator: FareCalculator = createFareCalc(beamConfig)
-    val tollCalculator = new TollCalculator(beamConfig)
-    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
-    scenario = ScenarioUtils.loadScenario(matsimConfig)
     router = system.actorOf(
       BeamRouter.props(
         services,
@@ -101,14 +54,8 @@ class AbstractSfLightSpec
   }
 
   override def afterAll: Unit = {
-    shutdown()
-  }
-
-  def createFareCalc(beamConfig: BeamConfig): FareCalculator = {
-    val fareCalculator = mock[FareCalculator]
-    when(fareCalculator.getFareSegments(any(), any(), any(), any(), any()))
-      .thenReturn(Vector[BeamFareSegment]())
-    fareCalculator
+    router ! PoisonPill
+    system.terminate()
   }
 
   def planToVec(plan: Plan): Vector[Activity] = {
