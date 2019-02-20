@@ -35,6 +35,7 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.config.ConfigUtils
@@ -50,7 +51,8 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.mutable.ListBuffer
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.Await
 
 class PersonAgentSpec
@@ -117,6 +119,8 @@ class PersonAgentSpec
     override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
 
     override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0D
+
+    override def computeAllDayUtility(trips: ListBuffer[EmbodiedBeamTrip], person: Person, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
   }
 
   // Mock a transit driver (who has to be a child of a mock router)

@@ -15,7 +15,7 @@ import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
-import beam.router.FreeFlowTravelTime
+import beam.router.{FreeFlowTravelTime, RouteHistory}
 import beam.router.osm.TollCalculator
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.MetricsSupport
@@ -47,7 +47,8 @@ class BeamMobsim @Inject()(
   val eventsManager: EventsManager,
   val actorSystem: ActorSystem,
   val rideHailSurgePricingManager: RideHailSurgePricingManager,
-  val rideHailIterationHistory: RideHailIterationHistory
+  val rideHailIterationHistory: RideHailIterationHistory,
+  val routeHistory: RouteHistory
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
