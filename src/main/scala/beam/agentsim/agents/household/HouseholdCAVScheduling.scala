@@ -93,7 +93,7 @@ object HouseholdTrips {
               val nextTripStartTime = curTrip.activity.getEndTime
               if (nextTripStartTime != Double.NegativeInfinity) {
                 if (startTime >= nextTripStartTime.toInt) {
-                  throw HouseholdTripsException("An activity is ending after the next one")
+                  throw HouseholdTripsException(s"Illegal plan for person ${plan.getPerson.getId.toString}, activity ends at $startTime which is later than the next activity ending at $nextTripStartTime")
                 } else if (arrivalTime > nextTripStartTime.toInt) {
                   logger.warn(
                     "The necessary travel time to arrive to the next activity is beyond the end time of the same activity"
@@ -250,14 +250,15 @@ class HouseholdCAVScheduling(
   }
 
   // ***
-  def getBestScheduleWithTheLongestCAVChain: CAVFleetSchedule = {
+  def getBestScheduleWithTheLongestCAVChain: List[CAVFleetSchedule] = {
     val mapRank =
       getAllFeasibleSchedules.map(x => x -> x.cavFleetSchedule.foldLeft(0)((a, b) => a + b.schedule.size)).toMap
-    val maxRank = mapRank.maxBy(_._2)._2
-    if(mapRank.withFilter(_._2 == maxRank).map(x => x._1).toList.sortBy(_.householdTrips.totalTravelTime).take(1).head.cavFleetSchedule.head.schedule.size==1){
-      val i = 0
+    if(mapRank.isEmpty){
+      List()
+    }else{
+      val maxRank = mapRank.maxBy(_._2)._2
+      mapRank.withFilter(_._2 == maxRank).map(x => x._1).toList.sortBy(_.householdTrips.totalTravelTime).take(1)
     }
-    mapRank.withFilter(_._2 == maxRank).map(x => x._1).toList.sortBy(_.householdTrips.totalTravelTime).take(1).head
   }
 
   // ***
@@ -415,6 +416,9 @@ class CAVSchedule(
 
   // ***
   def toRoutingRequests(beamServices: BeamServices, transportNetwork: TransportNetwork, routeHistory: RouteHistory): (List[Option[RouteOrEmbodyRequest]], CAVSchedule) = {
+    if(schedule.size<=1){
+      val i = 0
+    }
     var newMobilityRequests = List[MobilityServiceRequest]()
     val requestList = (schedule.reverse :+ schedule.head).tail
       .sliding(2)

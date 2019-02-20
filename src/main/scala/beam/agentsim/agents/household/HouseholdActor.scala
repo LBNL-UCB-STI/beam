@@ -199,51 +199,55 @@ object HouseholdActor {
           val cavScheduler = new HouseholdCAVScheduling(
             beamServices.matsimServices.getScenario,
             household,
-            vehicles.values.toList,
+            cavs,
             5 * 60,
             10 * 60,
             skim = new BeamSkimmer(scenario = beamServices.matsimServices.getScenario)
           )
-          //          val optimalPlan = cavScheduler().sortWith(_.cost < _.cost).head.cavFleetSchedule
-          var optimalPlan = cavScheduler.getBestScheduleWithTheLongestCAVChain.cavFleetSchedule
-          val requestsAndUpdatedPlans = optimalPlan.map {
-            _.toRoutingRequests(beamServices,transportNetwork,routeHistory)
-          }
-          val routingRequests = requestsAndUpdatedPlans.map {
-            _._1.flatten
-          }.flatten
-          cavPlans = requestsAndUpdatedPlans.map(_._2)
-          val memberMap = household.members.map(person => (person.getId -> person)).toMap
-          val plan = requestsAndUpdatedPlans.head._2
-          val i = 0
-          personAndActivityToCav = personAndActivityToCav ++ (plan.schedule
-            .filter(_.tag == Pickup)
-            .groupBy(_.person)
-            .map { pers =>
-              pers._2.map(req => (pers._1.get, req.activity) -> plan.cav)
+//          var optimalPlan = cavScheduler.getKBestSchedules(1).head.cavFleetSchedule
+          var optimalPlan = cavScheduler.getBestScheduleWithTheLongestCAVChain
+          if(optimalPlan.isEmpty || optimalPlan.head.cavFleetSchedule.head.schedule.size<=1){
+            cavs = List()
+          }else{
+            val requestsAndUpdatedPlans = optimalPlan.head.cavFleetSchedule.filter(_.schedule.size>1).map {
+              _.toRoutingRequests(beamServices,transportNetwork,routeHistory)
             }
-            .flatten)
-          // Rest of the household
+            val routingRequests = requestsAndUpdatedPlans.map {
+              _._1.flatten
+            }.flatten
+            cavPlans = requestsAndUpdatedPlans.map(_._2)
+            val memberMap = household.members.map(person => (person.getId -> person)).toMap
+            requestsAndUpdatedPlans.map(_._2).foreach{plan =>
+              personAndActivityToCav = personAndActivityToCav ++ (plan.schedule
+                .filter(_.tag == Pickup)
+                .groupBy(_.person)
+                .map { pers =>
+                  pers._2.map(req => (pers._1.get, req.activity) -> plan.cav)
+                }
+                .flatten)
 
-          plan.schedule.foreach { cavPlan =>
-            if (cavPlan.tag == Pickup) {
-              val oldPlan = memberMap(cavPlan.person.get).getSelectedPlan
-              val newPlan = BeamPlan.addOrReplaceLegBetweenActivities(
-                oldPlan,
-                PopulationUtils.createLeg("cav"),
-                cavPlan.activity,
-                cavPlan.nextActivity.get
-              )
-              memberMap(cavPlan.person.get).addPlan(newPlan)
-              memberMap(cavPlan.person.get).setSelectedPlan(newPlan)
-              memberMap(cavPlan.person.get).removePlan(oldPlan)
+              plan.schedule.foreach { serviceRequest =>
+                if (serviceRequest.tag == Pickup) {
+                  val oldPlan = memberMap(serviceRequest.person.get).getSelectedPlan
+                  val newPlan = BeamPlan.addOrReplaceLegBetweenActivities(
+                    oldPlan,
+                    PopulationUtils.createLeg("cav"),
+                    serviceRequest.activity,
+                    serviceRequest.nextActivity.get
+                  )
+                  memberMap(serviceRequest.person.get).addPlan(newPlan)
+                  memberMap(serviceRequest.person.get).setSelectedPlan(newPlan)
+                  memberMap(serviceRequest.person.get).removePlan(oldPlan)
+                }
+              }
             }
+            holdTickAndTriggerId(tick, triggerId)
+            //            log.debug("Household {} is done planning", household.getId)
+            Future
+              .sequence(routingRequests.map(req => akka.pattern.ask(router, if(req.routeReq.isDefined){req.routeReq.get}else{req.embodyReq.get}).mapTo[RoutingResponse]))
+              .map(RoutingResponses(tick, _)) pipeTo self
+
           }
-          holdTickAndTriggerId(tick, triggerId)
-//            log.debug("Household {} is done planning", household.getId)
-          Future
-            .sequence(routingRequests.map(req => akka.pattern.ask(router, if(req.routeReq.isDefined){req.routeReq.get}else{req.embodyReq.get}).mapTo[RoutingResponse]))
-            .map(RoutingResponses(tick, _)) pipeTo self
         }
         household.members.foreach { person =>
           val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
@@ -283,7 +287,7 @@ object HouseholdActor {
         if (cavs.isEmpty) completeInitialization(triggerId, Vector())
 
       case RoutingResponses(tick, routingResponses) =>
-        // Index the responsed by Id
+        // Index the responses by Id
         val indexedResponses = routingResponses.map(resp => (resp.requestId -> resp)).toMap
         routingResponses.foreach{ resp =>
           resp.itineraries.headOption.map { itin =>
@@ -306,7 +310,6 @@ object HouseholdActor {
               .getOrElse(Seq())
           }.flatten
           var passengerSchedule = PassengerSchedule().addLegs(theLegs)
-          var currentLeg = theLegs.head
           var pickDropsForGrouping: Map[VehiclePersonId, List[BeamLeg]] = Map()
           var passengersToAdd = Set[VehiclePersonId]()
           cavSchedule.schedule.foreach { serviceRequest =>
@@ -331,11 +334,11 @@ object HouseholdActor {
               }
             }
           }
-          cavSchedule.cav -> passengerSchedule.updateStartTimes(theLegs.head.startTime)
+          cavSchedule.cav -> passengerSchedule.updateStartTimes(theLegs.headOption.map(_.startTime).getOrElse(0))
         }.toMap
         Future
           .sequence(
-            cavPassengerSchedules.map { cavAndSchedule =>
+            cavPassengerSchedules.filter(_._2.schedule.size>0).map { cavAndSchedule =>
               akka.pattern
                 .ask(
                   cavAndSchedule._1.driver.get,

@@ -4,11 +4,11 @@ import javax.inject.Inject
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ArrayBuffer
+import scala.util.Random
 
 class RouteHistory @Inject()() {
-
-
   var routeHistory: TrieMap[Int,TrieMap[Int,TrieMap[Int,IndexedSeq[Int]]]] = TrieMap()
+  val rand: Random = new Random
 
   def timeToBin(departTime: Int) = {
     Math.floorMod(Math.floor(departTime.toDouble / 3600.0).toInt,24)
@@ -27,7 +27,6 @@ class RouteHistory @Inject()() {
       case None =>
         routeHistory.put(timeBin,TrieMap(route.head -> TrieMap(route.last -> route)))
     }
-    val i = 0
   }
 
   def getRoute(orig: Int, dest: Int, time: Int): Option[IndexedSeq[Int]] = {
@@ -42,6 +41,24 @@ class RouteHistory @Inject()() {
         }
       case None =>
         None
+    }
+  }
+
+  def expireRoutes(fracToExpire: Double) = {
+    routeHistory = TrieMap()
+    val fracAtEachLevel = Math.pow(fracToExpire,0.33333)
+    routeHistory.keys.foreach{ key1 =>
+      if(rand.nextDouble() < fracAtEachLevel){
+        routeHistory(key1).keys.foreach{ key2 =>
+          if(rand.nextDouble() < fracAtEachLevel){
+            routeHistory(key1)(key2).keys.foreach { key3 =>
+              if(rand.nextDouble() < fracAtEachLevel){
+                routeHistory(key1)(key2).remove(key3)
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
