@@ -28,8 +28,8 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
 
 
     private static final String graphTitle = "Realized Mode Histogram";
-    private static final String replanningGraphTitle = "Replanning Count ModeChoice";
-    private static final String yAxisTitleForReplanning = "mode count";
+    private static final String replanningGraphTitle = "Replanning Event Count";
+    private static final String yAxisTitleForReplanning = "count";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
     static final String fileName = "realizedMode";
@@ -144,7 +144,6 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
 
             countOccurrenceJava(mode, 1, ShortLevel(), tags);
             if (personIdList.contains(personId)) {
-                affectedModeCount.merge(hour, 1 , Integer::sum);
                 personIdList.remove(personId);
                 recentPersonIdRemoveList.add(personId);
                 return;
@@ -179,6 +178,8 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
                 personIdList.add(person);
 
                 Stack<ModeHour> modeHours = hourPerson.get(person);
+                affectedModeCount.merge(hour, 1 , Integer::sum);
+
 
                 if (modeHours != null && modeHours.size() > 0 && !recentPersonIdRemoveList.contains(person)) {
                     ModeHour modeHour = modeHours.pop();
@@ -205,7 +206,6 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
                             hourMode.put(modeHour.getMode(), frequency);
                         }
                     }
-                    affectedModeCount.merge(hour, 1 , Integer::sum);
                 }
 
             }
@@ -332,8 +332,8 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
 
     public DefaultCategoryDataset replanningCountModeChoiceDataset() {
         DefaultCategoryDataset dataset = new DefaultCategoryDataset();
-        int maxHour = affectedModeCount.keySet().stream().mapToInt(x -> x).max().orElse(0);
-        for (int hour = 0 ; hour <= maxHour ; hour++) {
+        int max = hourModeFrequency.keySet().stream().mapToInt(x -> x).max().orElse(0);
+        for (int hour = 0 ; hour <= max ; hour++) {
             dataset.addValue((Number) affectedModeCount.get(hour),0 ,hour);
         }
         return dataset;
@@ -422,7 +422,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
             String heading = "hour,count";
             out.write(heading);
             out.newLine();
-            int max = affectedModeCount.keySet().stream().mapToInt(x -> x).max().orElse(0);
+            int max = hourModeFrequency.keySet().stream().mapToInt(x -> x).max().orElse(0);
             for(int hour = 0 ; hour <=max ; hour++ ){
                 String line;
                 if(affectedModeCount.get(hour) != null){

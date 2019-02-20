@@ -94,7 +94,7 @@ public class RealizedModeGraphTest {
 
     @Test
     public void testShouldPassShouldReturnReplannigCountModeChoice(){
-        Integer expectedCount = 10;
+        Integer expectedCount = 5;
         int hour = 19;
         Integer actualCount = realizedModeStats.getAffectedModeCount().get(hour);
         assertEquals(expectedCount ,actualCount);
