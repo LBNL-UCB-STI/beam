@@ -53,6 +53,8 @@ class AlonsoMoraPoolingAlgForRideHail(
     rvG
   }
 
+  //TODO RTVGraph without using RVGraph, without two steps
+
   // Request Trip Vehicle Graph
   // can be parallelized by vehicle
   def rTVGraph(rvG: RVGraph): RTVGraph = {
@@ -273,7 +275,12 @@ object AlonsoMoraPoolingAlgForRideHail {
         )
       )
     )
+
+
   }
+
+
+
 
   // ***** Graph Structure *****
   sealed trait RTVGraphNode {
@@ -306,7 +313,11 @@ object AlonsoMoraPoolingAlgForRideHail {
   case class RVGraph(clazz: Class[RideHailTrip]) extends DefaultUndirectedWeightedGraph[RVGraphNode, RideHailTrip](clazz)
   case class RTVGraph(clazz: Class[DefaultEdge]) extends DefaultUndirectedWeightedGraph[RTVGraphNode, DefaultEdge](clazz)
 
-  // CAV structure
+
+
+
+
+  // ***** CAV structure ****
   sealed trait MobilityServiceRequestType
   case object Pickup extends MobilityServiceRequestType
   case object Dropoff extends MobilityServiceRequestType

@@ -75,7 +75,7 @@ class PersonAgentSpec
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   private lazy val beamConfig = BeamConfig(system.settings.config)
-/
+
   private val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
