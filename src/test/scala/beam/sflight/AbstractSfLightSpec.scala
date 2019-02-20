@@ -1,6 +1,6 @@
 package beam.sflight
 
-import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
+import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKitBase}
 import beam.router.BeamRouter
 import beam.sim.{BeamServices, BeamServicesImpl}
@@ -24,7 +24,8 @@ class AbstractSfLightSpec(val name: String)
     with ImplicitSender
     with MockitoSugar
     with BeforeAndAfterAll {
-  lazy implicit val system = ActorSystem(name, ConfigFactory.parseString("""akka.test.timefactor=10"""))
+  lazy implicit val system = ActorSystem(name, ConfigFactory.parseString("""akka.loglevel="OFF"
+      |akka.test.timefactor=10""".stripMargin))
 
   def outputDirPath: String = basePath + "/" + testOutputDir + name
   def config: Config = testConfig("test/input/sf-light/sf-light.conf").resolve()
@@ -53,6 +54,7 @@ class AbstractSfLightSpec(val name: String)
   }
 
   override def afterAll: Unit = {
+    router ! PoisonPill
     system.terminate()
   }
 
