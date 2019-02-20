@@ -34,7 +34,8 @@ case class MobilityServiceRequest(
   defaultMode: BeamMode,
   tag: MobilityServiceRequestType,
   serviceTime: Int,
-  routingRequestId: Option[Int] = None
+  routingRequestId: Option[Int] = None,
+  pickupRequest: Option[MobilityServiceRequest] = None
 ) {
   val nextActivity = Some(trip.activity)
 
@@ -118,7 +119,8 @@ object HouseholdTrips {
                 curTrip,
                 defaultMode,
                 Dropoff,
-                arrivalTime
+                arrivalTime,
+                pickupRequest = Some(pickup)
               )
               requests.prependAll(MListBuffer(pickup, dropoff))
               tripTravelTime(curTrip) = travelTime

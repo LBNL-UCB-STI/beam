@@ -95,16 +95,4 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
 
 object EmbodiedBeamTrip {
   val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(Vector())
-
-  def dummyCAVAt(
-    tick: Int,
-    bodyId: Id[Vehicle],
-    cavVehicleId: Id[Vehicle],
-    cavVehicleTypeId: Id[BeamVehicleType]
-  ): EmbodiedBeamTrip = {
-    val walk1 = EmbodiedBeamLeg.dummyLegAt(tick, bodyId, false)
-    val cavLeg = EmbodiedBeamLeg.dummyLegAt(tick, cavVehicleId, false, CAV, cavVehicleTypeId, asDriver = false)
-    val walk2 = EmbodiedBeamLeg.dummyLegAt(tick + 1, bodyId, true)
-    EmbodiedBeamTrip(Vector(walk1, cavLeg, walk2))
-  }
 }

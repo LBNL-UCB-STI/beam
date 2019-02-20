@@ -10,6 +10,7 @@ import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent.bodyVehicleIdFromPersonID
+import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavTripLegsResponse}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, VehicleOrToken}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
@@ -157,6 +158,7 @@ object HouseholdActor {
 //    private var cavPassengerSchedules: Map[BeamVehicle, List[Option[PassengerSchedule]]] = Map()
     private var cavPassengerSchedules: Map[BeamVehicle, PassengerSchedule] = Map()
     private var personAndActivityToCav: Map[(Id[Person], Activity), BeamVehicle] = Map()
+    private var personAndActivityToLegs: Map[(Id[Person], Activity), List[BeamLeg]] = Map()
     private var personsReadyForPickup: Set[Id[Person]] = Set()
     private var memberVehiclePersonIds: Map[Id[Person], VehiclePersonId] = Map()
 
@@ -292,7 +294,7 @@ object HouseholdActor {
         routingResponses.foreach{ resp =>
           resp.itineraries.headOption.map { itin =>
             val theLeg = itin.legs.head.beamLeg
-            routeHistory.rememberRoute(theLeg.travelPath.linkIds,theLeg.startTime)
+//            routeHistory.rememberRoute(theLeg.travelPath.linkIds,theLeg.startTime)
           }
         }
         // Create a passenger schedule for each CAV in the plan
@@ -320,6 +322,7 @@ object HouseholdActor {
                 if(pickDropsForGrouping.contains(person)){
                   val legs = pickDropsForGrouping(person)
                   passengerSchedule = passengerSchedule.addPassenger(person, legs)
+                  personAndActivityToLegs = personAndActivityToLegs + ((person.personId, serviceRequest.pickupRequest.get.activity) -> legs)
                   pickDropsForGrouping = pickDropsForGrouping - person
                 }
               } else {
@@ -353,6 +356,14 @@ object HouseholdActor {
       case ModifyPassengerScheduleAcks(acks) =>
         val (_, triggerId) = releaseTickAndTriggerId()
         completeInitialization(triggerId, acks.flatMap(_.triggersToSchedule).toVector)
+
+      case CavTripLegsRequest(person, originActivity) =>
+        personAndActivityToLegs.get((person.personId, originActivity)) match {
+          case Some(legs) =>
+            sender() ! CavTripLegsResponse(legs)
+          case _ =>
+            sender() ! CavTripLegsResponse(List())
+        }
 
       case NotifyVehicleIdle(vId, whenWhere, _, _, _) =>
         val vehId = vId.asInstanceOf[Id[BeamVehicle]]
