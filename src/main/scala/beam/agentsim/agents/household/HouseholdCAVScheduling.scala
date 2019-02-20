@@ -6,11 +6,12 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest}
-import beam.router.{BeamRouter, BeamSkimmer, Modes}
+import beam.router.{BeamRouter, BeamSkimmer, Modes, RouteHistory}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV}
 import beam.sim.BeamServices
 import beam.utils.logging.ExponentialLoggerWrapperImpl
+import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.Id
 import org.matsim.core.population.routes.NetworkRoute
@@ -145,13 +146,10 @@ object HouseholdTrips {
   }
 }
 
-case class PlansCoherenceCheck(scenario: org.matsim.api.core.v01.Scenario) {
+case class PlansCoherenceCheck() {
 
   def isInChainMode(request: MobilityServiceRequest): Boolean = {
-    request.tag == Pickup && scenario.getConfig
-      .subtourModeChoice()
-      .getChainBasedModes
-      .contains(request.defaultMode.matsimMode) && request.trip.parentTour.trips.indexOf(request.trip) > 0
+    request.tag == Pickup && Modes.isChainBasedMode(request.defaultMode) && request.trip.parentTour.trips.indexOf(request.trip) > 0
   }
 
   def isWithinTour(request: MobilityServiceRequest, schedule: List[MobilityServiceRequest]): Boolean = {
@@ -182,7 +180,7 @@ class HouseholdCAVScheduling(
   val limitCavToXPersons: Int = 3,
   val skim: BeamSkimmer
 ) {
-  private implicit val coherenceCheck: PlansCoherenceCheck = PlansCoherenceCheck(scenario)
+  private implicit val coherenceCheck: PlansCoherenceCheck = PlansCoherenceCheck()
   implicit val pop: org.matsim.api.core.v01.population.Population = scenario.getPopulation
   import beam.agentsim.agents.memberships.Memberships.RankedGroup._
   private val householdPlans = household.members.take(limitCavToXPersons).map(person => BeamPlan(person.getSelectedPlan))
@@ -239,6 +237,9 @@ class HouseholdCAVScheduling(
         }
       }
     }
+    if(feasibleSchedules.head.cavFleetSchedule.head.schedule.size==1){
+      val i = 0
+    }
     feasibleSchedules.toList
   }
 
@@ -253,6 +254,9 @@ class HouseholdCAVScheduling(
     val mapRank =
       getAllFeasibleSchedules.map(x => x -> x.cavFleetSchedule.foldLeft(0)((a, b) => a + b.schedule.size)).toMap
     val maxRank = mapRank.maxBy(_._2)._2
+    if(mapRank.withFilter(_._2 == maxRank).map(x => x._1).toList.sortBy(_.householdTrips.totalTravelTime).take(1).head.cavFleetSchedule.head.schedule.size==1){
+      val i = 0
+    }
     mapRank.withFilter(_._2 == maxRank).map(x => x._1).toList.sortBy(_.householdTrips.totalTravelTime).take(1).head
   }
 
@@ -410,11 +414,7 @@ class CAVSchedule(
   }
 
   // ***
-  def toRoutingRequests(beamServices: BeamServices): (List[Option[RouteOrEmbodyRequest]], CAVSchedule) = {
-    val personToSelectedPlan: Map[Id[Person],BeamPlan] = schedule.flatMap(_.person).distinct.map{
-      person =>
-        (person -> BeamPlan(beamServices.matsimServices.getScenario.getPopulation.getPersons.get(person).getSelectedPlan))
-    }.toMap
+  def toRoutingRequests(beamServices: BeamServices, transportNetwork: TransportNetwork, routeHistory: RouteHistory): (List[Option[RouteOrEmbodyRequest]], CAVSchedule) = {
     var newMobilityRequests = List[MobilityServiceRequest]()
     val requestList = (schedule.reverse :+ schedule.head).tail
       .sliding(2)
@@ -436,9 +436,19 @@ class CAVSchedule(
             CAV,
             asDriver = true
           )
-          personToSelectedPlan(dest.person.get).getTripContaining(dest.activity).leg match{
-            case Some(actualLeg) if actualLeg.getRoute.isInstanceOf[NetworkRoute] =>
-              val embodyReq = BeamRouter.matsimLegToEmbodyRequest(actualLeg.getRoute.asInstanceOf[NetworkRoute],theVehicle,origin.time,actualLeg.getTravelTime.toInt,CAV,beamServices,orig.activity.getCoord,dest.activity.getCoord)
+          val origLink = beamServices.geo.getNearestR5Edge(
+            transportNetwork.streetLayer,
+            beamServices.geo.utm2Wgs(orig.activity.getCoord),
+            10E3
+          )
+          val destLink = beamServices.geo.getNearestR5Edge(
+            transportNetwork.streetLayer,
+            beamServices.geo.utm2Wgs(dest.activity.getCoord),
+            10E3
+          )
+          routeHistory.getRoute(origLink,destLink,orig.time) match{
+            case Some(rememberedRoute) =>
+              val embodyReq = BeamRouter.linkIdsToEmbodyRequest(rememberedRoute,theVehicle,origin.time,CAV,beamServices,orig.activity.getCoord,dest.activity.getCoord)
               newMobilityRequests = newMobilityRequests :+ orig.copy(routingRequestId = Some(embodyReq.requestId))
               Some(RouteOrEmbodyRequest(None,Some(embodyReq)))
             case None =>

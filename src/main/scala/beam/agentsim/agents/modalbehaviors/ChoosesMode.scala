@@ -307,7 +307,7 @@ trait ChoosesMode {
               maybeVehicle match {
                 case Some(vehicle) =>
                   val destination = SpaceTime(nextAct.getCoord,departTime + l.getTravelTime.toInt)
-                  router ! matsimLegToEmbodyRequest(r,vehicle,departTime,l.getTravelTime.toInt,mode,beamServices,choosesModeData.currentLocation.loc,nextAct.getCoord)
+                  router ! matsimLegToEmbodyRequest(r,vehicle,departTime,mode,beamServices,choosesModeData.currentLocation.loc,nextAct.getCoord)
                   parkingRequestId = requestParkingCost(
                     beamServices.geo.wgs2Utm(destination.loc),
                     nextAct.getType,

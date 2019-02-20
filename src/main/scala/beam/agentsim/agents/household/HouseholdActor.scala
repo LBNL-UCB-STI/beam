@@ -24,7 +24,7 @@ import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.RoutingResponse
-import beam.router.BeamSkimmer
+import beam.router.{BeamSkimmer, RouteHistory}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.BeamLeg
@@ -33,7 +33,7 @@ import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.RandomUtils
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.population.{Activity, Person}
+import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.PopulationUtils
@@ -65,7 +65,8 @@ object HouseholdActor {
     matSimHousehold: Household,
     houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle],
     homeCoord: Coord,
-    sharedVehicleFleets: Seq[ActorRef] = Vector()
+    sharedVehicleFleets: Seq[ActorRef] = Vector(),
+    routeHistory: RouteHistory
   ): Props = {
     Props(
       new HouseholdActor(
@@ -82,7 +83,8 @@ object HouseholdActor {
         matSimHousehold,
         houseHoldVehicles,
         homeCoord,
-        sharedVehicleFleets
+        sharedVehicleFleets,
+        routeHistory
       )
     )
   }
@@ -121,7 +123,8 @@ object HouseholdActor {
     val household: Household,
     vehicles: Map[Id[BeamVehicle], BeamVehicle],
     homeCoord: Coord,
-    sharedVehicleFleets: Seq[ActorRef] = Vector()
+    sharedVehicleFleets: Seq[ActorRef] = Vector(),
+    routeHistory: RouteHistory
   ) extends Actor
       with HasTickAndTrigger
       with ActorLogging {
@@ -185,6 +188,13 @@ object HouseholdActor {
             cav.manager = Some(self)
             cav.driver = Some(cavDriverRef)
           }
+          household.members.foreach{ person =>
+            person.getSelectedPlan.getPlanElements.forEach{
+              case a: Activity =>
+              case l: Leg =>
+                if(l.getMode.equalsIgnoreCase("cav"))l.setMode("")
+            }
+          }
 
           val cavScheduler = new HouseholdCAVScheduling(
             beamServices.matsimServices.getScenario,
@@ -197,7 +207,7 @@ object HouseholdActor {
           //          val optimalPlan = cavScheduler().sortWith(_.cost < _.cost).head.cavFleetSchedule
           var optimalPlan = cavScheduler.getBestScheduleWithTheLongestCAVChain.cavFleetSchedule
           val requestsAndUpdatedPlans = optimalPlan.map {
-            _.toRoutingRequests(beamServices)
+            _.toRoutingRequests(beamServices,transportNetwork,routeHistory)
           }
           val routingRequests = requestsAndUpdatedPlans.map {
             _._1.flatten
@@ -275,6 +285,12 @@ object HouseholdActor {
       case RoutingResponses(tick, routingResponses) =>
         // Index the responsed by Id
         val indexedResponses = routingResponses.map(resp => (resp.requestId -> resp)).toMap
+        routingResponses.foreach{ resp =>
+          resp.itineraries.headOption.map { itin =>
+            val theLeg = itin.legs.head.beamLeg
+            routeHistory.rememberRoute(theLeg.travelPath.linkIds,theLeg.startTime)
+          }
+        }
         // Create a passenger schedule for each CAV in the plan
         cavPassengerSchedules = cavPlans.map { cavSchedule =>
           var theLegs = cavSchedule.schedule.map { serviceRequest =>

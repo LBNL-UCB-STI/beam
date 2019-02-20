@@ -10,6 +10,7 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.{BeamVehicle, BicycleFactory}
 import beam.agentsim.vehicleId2BeamVehicleId
+import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
@@ -22,7 +23,7 @@ import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.{Await, Future}
 
 class Population(
@@ -35,7 +36,8 @@ class Population(
   val rideHailManager: ActorRef,
   val parkingManager: ActorRef,
   val sharedVehicleFleets: Seq[ActorRef],
-  val eventsManager: EventsManager
+  val eventsManager: EventsManager,
+  val routeHistory: RouteHistory
 ) extends Actor
     with ActorLogging {
 
@@ -127,7 +129,8 @@ class Population(
               household,
               householdVehicles,
               homeCoord,
-              sharedVehicleFleets
+              sharedVehicleFleets,
+              routeHistory
             ),
             household.getId.toString
           )
@@ -189,7 +192,8 @@ object Population {
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
     sharedVehicleFleets: Seq[ActorRef],
-    eventsManager: EventsManager
+    eventsManager: EventsManager,
+    routeHistory: RouteHistory
   ): Props = {
     Props(
       new Population(
@@ -202,7 +206,8 @@ object Population {
         rideHailManager,
         parkingManager,
         sharedVehicleFleets,
-        eventsManager
+        eventsManager,
+        routeHistory
       )
     )
   }

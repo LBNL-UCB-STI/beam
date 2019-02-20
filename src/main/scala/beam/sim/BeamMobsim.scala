@@ -25,7 +25,6 @@ import beam.utils._
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
@@ -149,7 +148,8 @@ class BeamMobsim @Inject()(
             rideHailManager,
             parkingManager,
             sharedVehicleFleets,
-            eventsManager
+            eventsManager,
+            routeHistory
           ),
           "population"
         )
