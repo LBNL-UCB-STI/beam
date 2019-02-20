@@ -150,7 +150,11 @@ trait ChoosesMode {
       // Make sure the current mode is allowable
       val correctedCurrentTourMode = choosesModeData.personData.currentTourMode match {
         case Some(mode) if availableModes.contains(mode) && choosesModeData.personData.numberOfReplanningAttempts < 3 =>
-          Some(mode)
+          if(mode == CAV && newlyAvailableBeamVehicles.find(_.streetVehicle.mode == CAV).isEmpty){
+            None
+          }else{
+            Some(mode)
+          }
         case Some(mode) if availableModes.contains(mode) =>
           Some(WALK)
         case _ =>

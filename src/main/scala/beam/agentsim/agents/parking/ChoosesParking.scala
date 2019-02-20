@@ -61,6 +61,7 @@ trait ChoosesParking extends {
     case Event(StateTimeout, data: BasePersonData) =>
       val (tick, _) = releaseTickAndTriggerId()
       val stall = currentBeamVehicle.stall.getOrElse {
+        val theVehicle = currentBeamVehicle
         throw new RuntimeException(log.format("My vehicle {} is not parked.", currentBeamVehicle.id))
       }
       parkingManager ! ReleaseParkingStall(stall.id)

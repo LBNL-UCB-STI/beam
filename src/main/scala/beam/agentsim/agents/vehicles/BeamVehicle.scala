@@ -10,6 +10,7 @@ import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.ParkingStall.ChargingType
 import beam.router.Modes
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{CAR, CAV}
 import beam.router.model.BeamLeg
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
@@ -148,7 +149,7 @@ class BeamVehicle(
     )
 
   def toStreetVehicle: StreetVehicle =
-    StreetVehicle(id, beamVehicleType.id, spaceTime, BeamMode.CAR, true)
+    StreetVehicle(id, beamVehicleType.id, spaceTime, if(isCAV){CAV}else{CAR}, true)
 
   def isCAV: Boolean = beamVehicleType.automationLevel > 3
 
