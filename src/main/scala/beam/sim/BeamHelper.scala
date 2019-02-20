@@ -378,6 +378,8 @@ trait BeamHelper extends LazyLogging {
 
     beamServices.setTransitFleetSizes(networkCoordinator.tripFleetSizeMap)
 
+    new NetworkDataExporter(beamServices,networkCoordinator).init()
+
     val beamConfig = beamServices.beamConfig
     var useCSVFiles
       : Boolean = beamConfig.beam.agentsim.agents.population.beamPopulationDirectory != null && !beamConfig.beam.agentsim.agents.population.beamPopulationDirectory
