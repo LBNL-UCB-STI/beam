@@ -91,7 +91,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
                   if (e.getAttributes.get("mode") != "car") {
                     nonCarTrips = nonCarTrips + 1
                   }
-                case e: PathTraversalEvent if e.vehicleId.toString == sharedCarTypeId.toString =>
+                case e: PathTraversalEvent if e.vehicleType == sharedCarTypeId.toString =>
                   sharedCarTravelTime = sharedCarTravelTime + (e.arrivalTime - e.departureTime)
                 case e: PersonCostEvent =>
                   personCost = personCost + e.getNetCost
