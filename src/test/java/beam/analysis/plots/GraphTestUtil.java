@@ -44,7 +44,6 @@ class GraphTestUtil {
 
     synchronized static void createDummySimWithXML(BasicEventHandler handler) {
         PathTraversalSpatialTemporalTableGenerator.loadVehicles(TRANSIT_VEHICLE_FILE_PATH);
-
         events.addHandler(handler);
         EventReader.fromFile(EVENTS_FILE_PATH, events);
     }
