@@ -210,16 +210,8 @@ object HouseholdActor {
           if(optimalPlan.isEmpty || optimalPlan.head.cavFleetSchedule.head.schedule.size<=1){
             cavs = List()
           }else{
-            val requestsAndUpdatedPlans = optimalPlan.head.cavFleetSchedule.filter(_.schedule.size>1).map { cavSched =>
-              val correctedSched = if(cavSched.schedule.head.tag==Pickup){
-                cavSched.copy(schedule = cavSched.schedule.dropWhile(_.tag==Pickup))
-              }else{
-                cavSched
-              }
-              if(household.getId.toString.equals("1")){
-                val i = 0
-              }
-              correctedSched.toRoutingRequests(beamServices,transportNetwork,routeHistory)
+            val requestsAndUpdatedPlans = optimalPlan.head.cavFleetSchedule.filter(_.schedule.size>1).map {
+              _.toRoutingRequests(beamServices,transportNetwork,routeHistory)
             }
             val routingRequests = requestsAndUpdatedPlans.map {
               _._1.flatten
