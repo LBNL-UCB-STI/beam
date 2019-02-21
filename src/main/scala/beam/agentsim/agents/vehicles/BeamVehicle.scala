@@ -187,7 +187,7 @@ object BeamVehicle {
   /**
     * Organizes the fuel consumption data table
     * @param beamLeg Instance of beam leg
-    * @param networkHelper the transport network instance
+    * @param network the transport network instance
     * @return list of fuel consumption objects generated
     */
   def collectFuelConsumptionData(
