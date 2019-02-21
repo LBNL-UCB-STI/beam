@@ -76,6 +76,10 @@ When installing the git client one needs to uncheck git lfs installation. If mis
     * Install the git client (uncheck lfs installation)
     * Install git lfs version 2.3.4 separately
 
+Another alternative to above is to get the old git-lfs.exe from the release archives and replace the executable found in
+
+`[INSTALL PATH]\\mingw6\\bin` and `[INSTALL PATH]\\cmd`, where the default installation path usually is `C:\\Program Files\\Git`
+
 
 Installing BEAM
 ^^^^^^^^^^^^^^^
