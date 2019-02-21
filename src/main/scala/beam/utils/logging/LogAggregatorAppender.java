@@ -13,6 +13,29 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * This class is intended to cluster log messages and output only the cluster
+ * It was implemented based on algorithms DBScan and LevenshteinDistance
+ * In order to use it the following appender should be added to Logback.xml
+ *     <appender name="map" class="beam.utils.logging.LogAggregatorAppender">
+ *         <layout class="ch.qos.logback.classic.PatternLayout">
+ *             <Pattern>
+ *                 %d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n
+ *             </Pattern>
+ *         </layout>
+ *
+ *         <eps>3</eps>
+ *         <minPoints>0</minPoints>
+ *         <stopMessage>Ending Iteration</stopMessage>
+ *     </appender>
+ *
+ *     <root level="debug">
+ *         <appender-ref ref="map"/>
+ *     </root>
+ *  Parameters:
+ *  - eps: the radius of cluster
+ *  - minPoints: minimum number of points to consider a cluster to be created
+ */
 public class LogAggregatorAppender extends ConsoleAppender<ILoggingEvent> {
 
     private List<String> allMessages = new LinkedList<>();
