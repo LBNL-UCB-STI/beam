@@ -63,21 +63,6 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
         val scoreOfThisOutcomeGivenMyClass =
           trips.map(trip => modeChoiceCalculator.utilityOf(trip, attributes)).sum
 
-        //For each trip , generate the data to be written to the output file
-        val tripScoreData = trips.zipWithIndex map { tripWithIndex =>
-          val (trip, tripIndex) = tripWithIndex
-          val personId = person.getId.toString
-          val departureTime = trip.legs.headOption.map(_.beamLeg.startTime.toString).getOrElse("") // TODO find this
-          val totalTravelTimeInSecs = trip.totalTravelTimeInSecs
-          val mode = trip.determineTripMode(trip.legs)
-          val score = modeChoiceCalculator.utilityOf(trip, attributes)
-          val cost = trip.costEstimate
-          s"$personId,$tripIndex,$departureTime,$totalTravelTimeInSecs,$mode,$cost,$score"
-        } mkString "\n"
-
-        // save the generated output data to an in-memory map , to be written at the end of the iteration
-        BeamScoringFunctionFactory.setPersonScore(person.getId.toString, tripScoreData)
-
         val scoreOfBeingInClassGivenThisOutcome =
           if (beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
                 .equals("ModeChoiceLCCM")) {
@@ -148,11 +133,37 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
         finalScore = scoreOfBeingInClassGivenThisOutcome + leavingParkingEventScore
         finalScore = Math.max(finalScore, -100000) // keep scores no further below -100 to keep MATSim happy (doesn't like -Infinity) but knowing
         // that if changes to utility function drive the true scores below -100, this will need to be replaced with another big number.
+
+        // Write the individual's trip scores to csv
+        writeTripScoresToCSV()
       }
 
       override def handleActivity(activity: Activity): Unit = {}
 
       override def getScore: Double = finalScore
+
+      /**
+        * Writes each individual's trip score to a csv file
+        */
+      private def writeTripScoresToCSV(): Unit = {
+        val attributes =
+          person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
+        val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributes)
+        //For each trip , generate the data to be written to the output file
+        val tripScoreData = trips.zipWithIndex map { tripWithIndex =>
+          val (trip, tripIndex) = tripWithIndex
+          val personId = person.getId.toString
+          val departureTime = trip.legs.headOption.map(_.beamLeg.startTime.toString).getOrElse("")
+          val totalTravelTimeInSecs = trip.totalTravelTimeInSecs
+          val mode = trip.determineTripMode(trip.legs)
+          val score = modeChoiceCalculator.utilityOf(trip, attributes)
+          val cost = trip.costEstimate
+          s"$personId,$tripIndex,$departureTime,$totalTravelTimeInSecs,$mode,$cost,$score"
+        } mkString "\n"
+
+        // save the generated output data to an in-memory map , to be written at the end of the iteration
+        BeamScoringFunctionFactory.setPersonScore(person.getId.toString, tripScoreData)
+      }
     }
   }
 
