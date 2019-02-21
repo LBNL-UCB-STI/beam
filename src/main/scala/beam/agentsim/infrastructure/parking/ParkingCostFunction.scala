@@ -1,7 +1,6 @@
 package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.infrastructure.ParkingStall.ChargingPreference
-import beam.agentsim.infrastructure.parking.charging.ChargingInquiryData
+import beam.agentsim.infrastructure.parking.charging._
 
 object ParkingCostFunction {
   /**
@@ -11,7 +10,7 @@ object ParkingCostFunction {
     * @param chargingPreferenceOption an optional charging preference from the agent, used to rank by "need"
     * @return utility of parking
     */
-  def costFunction(parkingDuration: Double)(
+  def apply(parkingDuration: Double)(
     parkingZone             : ParkingZone,
     chargingPreferenceOption: Option[ChargingPreference]
   ): Double = {
@@ -51,6 +50,6 @@ object ParkingCostFunction {
     * @param parkingDuration duration agent will use parking stall
     * @return utility function for ranking parking alternatives
     */
-  def apply(parkingDuration: Double): (ParkingZone, Option[ChargingPreference]) => Double = costFunction(parkingDuration)
+  def apply(parkingDuration: Double): (ParkingZone, Option[ChargingPreference]) => Double = apply(parkingDuration)
 
 }
