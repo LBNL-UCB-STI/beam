@@ -86,7 +86,7 @@ trait ChoosesParking extends {
         data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
       currentBeamVehicle.setReservedParkingStall(Some(stall))
 
-      data.currentVehicle.head
+      // data.currentVehicle.head
 
       //Veh id
       //distance to dest

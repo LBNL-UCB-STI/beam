@@ -39,8 +39,31 @@ class ZonalParkingManager(
 
   override def receive: Receive = {
 
+    case ReleaseParkingStall(parkingZoneId) =>
+
+      if (parkingZoneId == ParkingZone.DefaultParkingZoneId) {
+        if (log.isDebugEnabled) {
+          // this is an infinitely available resource; no update required
+          log.debug("Releasing a parking stall for the default parking zone")
+        }
+      } else if (parkingZoneId < 0 || stalls.length <= parkingZoneId) {
+        if (log.isDebugEnabled) {
+          log.debug("Attempting to release stall in zone {} which is an illegal parking zone id", parkingZoneId)
+        }
+      } else {
+        ParkingZone.releaseStall(stalls(parkingZoneId))
+        totalStallsInUse -= 1
+        totalStallsAvailable += 1
+      }
+      if (log.isDebugEnabled) {
+        log.debug("ReleaseParkingStall with {} available stalls ", totalStallsAvailable)
+      }
+
     // we are receiving this because the Ride Hail Manager is seeking alternatives to its managed parking zones
     case inquiry: DepotParkingInquiry =>
+
+      val inquiryReserveStall: Boolean = true // this comes on standard inquiries, and maybe Depot inquiries in the future
+
       if (log.isDebugEnabled) {
         log.debug("DepotParkingInquiry with {} available stalls ", totalStallsAvailable)
       }
@@ -58,13 +81,16 @@ class ZonalParkingManager(
         rand
       )
 
-      // update the parking stall data
-      ParkingZone.claimStall(parkingZone)
-      totalStallsInUse += 1
-      totalStallsAvailable -= 1
+      // reserveStall is false when agent is only seeking pricing information
+      if (inquiryReserveStall) {
+        // update the parking stall data
+        ParkingZone.claimStall(parkingZone)
+        totalStallsInUse += 1
+        totalStallsAvailable -= 1
 
-      if (log.isDebugEnabled) {
-        log.debug("DepotParkingInquiry {} available stalls ", totalStallsAvailable)
+        if (log.isDebugEnabled) {
+          log.debug("DepotParkingInquiry {} available stalls ", totalStallsAvailable)
+        }
       }
 
       // send found stall
@@ -96,36 +122,19 @@ class ZonalParkingManager(
         rand
       )
 
-      // update the parking stall data
-      ParkingZone.claimStall(parkingZone)
-      totalStallsInUse += 1
-      totalStallsAvailable -= 1
+      // reserveStall is false when agent is only seeking pricing information
+      if (inquiry.reserveStall) {
+        // update the parking stall data
+        ParkingZone.claimStall(parkingZone)
+        totalStallsInUse += 1
+        totalStallsAvailable -= 1
 
-      log.debug(s"Parking stalls in use: {} available: {}", totalStallsInUse, totalStallsAvailable)
+        log.debug(s"Parking stalls in use: {} available: {}", totalStallsInUse, totalStallsAvailable)
 
-      if (totalStallsInUse % 1000 == 0) log.debug(s"Parking stalls in use: {}", totalStallsInUse)
+        if (totalStallsInUse % 1000 == 0) log.debug(s"Parking stalls in use: {}", totalStallsInUse)
+      }
 
       sender() ! ParkingInquiryResponse(parkingStall, inquiry.requestId)
-
-    case ReleaseParkingStall(parkingZoneId) =>
-
-      if (parkingZoneId == ParkingZone.DefaultParkingZoneId) {
-        if (log.isDebugEnabled) {
-          // this is an infinitely available resource; no update required
-          log.debug("Releasing a parking stall for the default parking zone")
-        }
-      } else if (parkingZoneId < 0 || stalls.length <= parkingZoneId) {
-        if (log.isDebugEnabled) {
-          log.debug("Attempting to release stall in zone {} which is an illegal parking zone id", parkingZoneId)
-        }
-      } else {
-        ParkingZone.releaseStall(stalls(parkingZoneId))
-        totalStallsInUse -= 1
-        totalStallsAvailable += 1
-      }
-      if (log.isDebugEnabled) {
-        log.debug("ReleaseParkingStall with {} available stalls ", totalStallsAvailable)
-      }
   }
 }
 

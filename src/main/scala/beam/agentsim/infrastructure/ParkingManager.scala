@@ -10,9 +10,9 @@ import beam.utils.ParkingManagerIdGenerator
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-//abstract class ParkingManager(
-//  parkingStockAttributes: ParkingStockAttributes
-//) extends Actor
+abstract class ParkingManager(
+  parkingStockAttributes: ParkingStockAttributes
+) extends Actor
 
 object ParkingManager {
 

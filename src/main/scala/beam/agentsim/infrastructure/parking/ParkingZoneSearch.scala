@@ -204,7 +204,7 @@ object ParkingZoneSearch {
       * @return table and tree
       */
     def fromStream(csvFileContents: Iterator[String]): (Array[ParkingZone], StallSearch) = {
-      val ParkingFileRowRegex =    "^(\\d+),(\\w+),(\\w+),(\\w+),(\\d+),(\\d+),(\\w+)$".r
+      val ParkingFileRowRegex =    "^(\\w+),(\\w+),(\\w+),(\\w+),(\\d+),(\\d+),(\\w+)$".r
 
       // we are building the Array of ParkingZones and a search tree
       val accumulator = (Array.empty[ParkingZone], Map.empty[Id[TAZ], Map[ParkingType, List[Int]]] : StallSearch)
@@ -235,10 +235,10 @@ object ParkingZoneSearch {
                 case Success(updatedAccumulator) =>
                   updatedAccumulator
                 case Failure(e) =>
-                  throw new java.io.IOException(s"Failed to load parking data from row with contents $csvRow.\n$e")
+                  throw new java.io.IOException(s"Failed to load parking data from row with contents '$csvRow'.\n$e")
               }
             case _ =>
-              throw new java.io.IOException(s"Failed to load parking data from row with contents $csvRow")
+              throw new java.io.IOException(s"Failed to match row of parking configuration '$csvRow' to expected schema")
           }
         }
     }
