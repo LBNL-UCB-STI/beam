@@ -4,29 +4,40 @@ import java.io.File
 
 import beam.agentsim.events._
 import org.matsim.api.core.v01.events.{Event, GenericEvent}
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.Config
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
 
 import scala.collection.mutable.ArrayBuffer
 
-object ReadEvents {
+object EventReader {
 
   def fromFile(filePath: String): IndexedSeq[Event] = {
     val eventsManager = EventsUtils.createEventsManager()
     val events = new ArrayBuffer[Event]
     eventsManager.addHandler(new BasicEventHandler {
       def handleEvent(event: Event): Unit = {
+        events += event
+      }
+    })
+    fromFile(filePath, eventsManager)
+    events
+  }
+
+  def fromFile(filePath: String, eventsManager: EventsManager): Unit = {
+    val tempEventManager = EventsUtils.createEventsManager()
+    tempEventManager.addHandler(new BasicEventHandler {
+      def handleEvent(event: Event): Unit = {
         val fixedEvent = event match {
           case genericEvent: GenericEvent =>
             fixEvent(genericEvent)
           case _ => event
         }
-        events += fixedEvent
+        eventsManager.processEvent(fixedEvent)
       }
     })
-    new MatsimEventsReader(eventsManager).readFile(filePath)
-    events
+    new MatsimEventsReader(tempEventManager).readFile(filePath)
   }
 
   def getEventsFilePath(matsimConfig: Config, extension: String, iteration: Int = 0): File = {

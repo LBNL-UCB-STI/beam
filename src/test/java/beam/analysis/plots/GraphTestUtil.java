@@ -1,12 +1,12 @@
 package beam.analysis.plots;
 
 import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
+import beam.integration.EventReader;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import beam.utils.TestConfigUtils;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.events.EventsUtils;
-import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.events.handler.BasicEventHandler;
 
 import java.nio.file.Paths;
@@ -46,7 +46,6 @@ class GraphTestUtil {
         PathTraversalSpatialTemporalTableGenerator.loadVehicles(TRANSIT_VEHICLE_FILE_PATH);
 
         events.addHandler(handler);
-        MatsimEventsReader reader = new MatsimEventsReader(events);
-        reader.readFile(EVENTS_FILE_PATH);
+        EventReader.fromFile(EVENTS_FILE_PATH, events);
     }
 }

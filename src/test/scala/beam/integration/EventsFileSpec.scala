@@ -5,7 +5,7 @@ import java.io.File
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.TollRevenueAnalysis
-import beam.integration.ReadEvents._
+import beam.integration.EventReader._
 import beam.router.Modes.BeamMode.CAR
 import beam.sim.BeamHelper
 import com.typesafe.config.{Config, ConfigValueFactory}

@@ -1,6 +1,6 @@
 package beam.integration.ridehail
 
-import beam.integration.ReadEvents._
+import beam.integration.EventReader._
 import beam.sim.BeamHelper
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory

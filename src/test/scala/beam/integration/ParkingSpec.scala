@@ -3,7 +3,7 @@ package beam.integration
 import java.io.File
 
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ParkEvent, PathTraversalEvent}
-import beam.integration.ReadEvents._
+import beam.integration.EventReader._
 import beam.sim.BeamHelper
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.apache.commons.io.FileUtils
@@ -90,7 +90,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
     val queueEvents = ArrayBuffer[Seq[Event]]()
     for (i <- 0 until iterations) {
       val filePath = getEventsFilePath(matsimConfig, "xml", i).getAbsolutePath
-      queueEvents.append(ReadEvents.fromFile(filePath).toSeq)
+      queueEvents.append(EventReader.fromFile(filePath).toSeq)
     }
 
     val outputDirectoryFile = new File(outputDirectory)
