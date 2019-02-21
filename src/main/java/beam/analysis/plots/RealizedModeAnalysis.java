@@ -28,12 +28,15 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
 
 
     private static final String graphTitle = "Realized Mode Histogram";
+    private static final String replanningGraphTitle = "Replanning Event Count";
+    private static final String yAxisTitleForReplanning = "count";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
     static final String fileName = "realizedMode";
     private Map<Integer, Map<String, Double>> hourModeFrequency = new HashMap<>();
     private Map<String, Stack<ModeHour>> hourPerson = new HashMap<>();
     private Map<Integer, Map<String, Double>> realizedModeChoiceInIteration = new HashMap<>();
+    private Map<Integer, Integer> affectedModeCount = new HashMap<>();
     private Set<String> iterationTypeSet = new HashSet<>();
     private Set<String> cumulativeMode = new TreeSet<>();
     private Map<String,Map<Integer, Map<String,Integer>>> personHourModeCount = new HashMap<>();
@@ -115,6 +118,11 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
 
         writeToRootCSV();
         writeToCSV(event);
+
+        DefaultCategoryDataset replanningModeCountDataset = replanningCountModeChoiceDataset();
+        createReplanningCountModeChoiceGraph(replanningModeCountDataset , event.getIteration());
+        writeToReplanningCSV(event);
+
     }
 
     @Override
@@ -124,6 +132,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
         hourPerson.clear();
         personIdList.clear();
         personHourModeCount.clear();
+        affectedModeCount.clear();
     }
 
     // The modeChoice events for same person as of replanning event will be excluded in the form of CRC, CRCRC, CRCRCRC so on.
@@ -173,6 +182,8 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
                 String person = eventAttributes.get(ReplanningEvent.ATTRIBUTE_PERSON);
 
                 Stack<ModeHour> modeHours = hourPerson.get(person);
+                affectedModeCount.merge(hour, 1 , Integer::sum);
+
 
                 if(personIdList.containsKey(person) && personIdList.get(person) == 0){
                     personIdList.merge(person , 1, Integer::sum);
@@ -350,6 +361,22 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
         return statComputation.compute(new Tuple<>(hourModeFrequency, modeChoosen));
     }
 
+    private void createReplanningCountModeChoiceGraph(CategoryDataset dataset, int iterationNumber) throws IOException {
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, replanningGraphTitle, xAxisTitle, yAxisTitleForReplanning, "replanningCountModeChoice", false);
+        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "replanningCountModeChoice" + ".png");
+        GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+    }
+
+    public DefaultCategoryDataset replanningCountModeChoiceDataset() {
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+        int max = hourModeFrequency.keySet().stream().mapToInt(x -> x).max().orElse(0);
+        for (int hour = 0 ; hour <= max ; hour++) {
+            dataset.addValue((Number) affectedModeCount.get(hour),0 ,hour);
+        }
+        return dataset;
+    }
+
+
     private void writeToCSV(IterationEndsEvent event) {
 
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(event.getIteration(), fileName + ".csv");
@@ -392,8 +419,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
     // csv for root graph
     public void writeToRootCSV() {
         String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("realizedModeChoice.csv");
-        try {
-            BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)));
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)))){
             Set<String> modes = cumulativeMode;
             String heading = modes.stream().reduce((x, y) -> x + "," + y).orElse("");
             out.write("iterations," + heading);
@@ -426,6 +452,33 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
         }
     }
 
+
+    private void writeToReplanningCSV(IterationEndsEvent event){
+        String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(event.getIteration(), "replanningCountModeChoice.csv");
+        try(BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)))){
+            String heading = "hour,count";
+            out.write(heading);
+            out.newLine();
+            int max = hourModeFrequency.keySet().stream().mapToInt(x -> x).max().orElse(0);
+            for(int hour = 0 ; hour <=max ; hour++ ){
+                String line;
+                if(affectedModeCount.get(hour) != null){
+                    line  = hour + "," + affectedModeCount.get(hour);
+                }
+                else{
+                    line = hour + "," + "0";
+                }
+                out.write(line);
+                out.newLine();
+            }
+        }catch (IOException ex ){
+            log.error("exception occurred due to " , ex);
+        }
+    }
+
+    public Map<Integer,Integer> getAffectedModeCount(){
+        return affectedModeCount;
+    }
 
     public class ModeHour {
         private String mode;

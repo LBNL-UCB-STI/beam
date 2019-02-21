@@ -95,9 +95,9 @@ public class RealizedModeGraphTest {
     @Test
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForRepetitionModes() {
 
-        Double expectedCarResult = 4.0/3.0;
-        Double expectedRideHailResult = 7.0d/3.0;
-        Double expectedWalkTransitResult = 7.0/3.0;
+        Double expectedCarResult = 4.0 / 3.0;
+        Double expectedRideHailResult = 7.0d / 3.0;
+        Double expectedWalkTransitResult = 7.0 / 3.0;
         int hour = 8;
 
         Double actaulCarResult = stats.get(hour).get(CAR);
@@ -108,6 +108,14 @@ public class RealizedModeGraphTest {
         assertEquals(expectedRideHailResult, actaulRideHailResult, 0.0000001);
         assertEquals(expectedWalkTransitResult, actaulWalkTransitResult, 0.0000001);
 
+    }
+
+    @Test
+    public void testShouldPassShouldReturnReplannigCountModeChoice(){
+        Integer expectedCount = 5;
+        int hour = 19;
+        Integer actualCount = realizedModeStats.getAffectedModeCount().get(hour);
+        assertEquals(expectedCount ,actualCount);
     }
 
 }
