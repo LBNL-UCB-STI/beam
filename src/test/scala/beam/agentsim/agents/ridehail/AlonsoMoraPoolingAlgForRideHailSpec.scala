@@ -91,60 +91,42 @@ class AlonsoMoraPoolingAlgForRideHailSpec
         v.getId match {
           case "trip:[p3] -> " =>
             assert(
-              rtvGraph.outgoingEdgesOf(v).asScala.
-                map(e => rtvGraph.getEdgeTarget(e).getId).contains("v1") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.
-                map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.
-                map(e => rtvGraph.getEdgeTarget(e).getId).contains("p3")
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v1") ||
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p3")
             )
-          case "trip:[p1] -> "         =>
+          case "trip:[p1] -> " =>
             assert(
-              rtvGraph.outgoingEdgesOf(v).asScala.
-                map(e => rtvGraph.getEdgeTarget(e).getId).contains("p1") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.
-                map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2")
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p1") ||
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2")
             )
-          case "trip:[p2] -> "         =>
+          case "trip:[p2] -> " =>
             assert(
-              rtvGraph.outgoingEdgesOf(v).asScala.
-                map(e => rtvGraph.getEdgeTarget(e).getId).contains("p2") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.
-                map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2")
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p2") ||
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2")
             )
-          case "trip:[p4] -> "         =>
+          case "trip:[p4] -> " =>
             assert(
-              rtvGraph.outgoingEdgesOf(v).asScala.
-                map(e => rtvGraph.getEdgeTarget(e).getId).contains("p4") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.
-                map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2")
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p4") ||
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2")
             )
           case "trip:[p1] -> [p4] -> " =>
             assert(
-              rtvGraph.outgoingEdgesOf(v).asScala.
-                map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.
-                map(e => rtvGraph.getEdgeTarget(e).getId).contains("p1") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.
-                map(e => rtvGraph.getEdgeTarget(e).getId).contains("p4")
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p1") ||
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p4")
             )
           case "trip:[p2] -> [p3] -> " =>
             assert(
-              rtvGraph.outgoingEdgesOf(v).asScala.
-                map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.
-                map(e => rtvGraph.getEdgeTarget(e).getId).contains("p2") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.
-                map(e => rtvGraph.getEdgeTarget(e).getId).contains("p3")
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p2") ||
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p3")
             )
           case "trip:[p2] -> [p4] -> " =>
             assert(
-              rtvGraph.outgoingEdgesOf(v).asScala.
-                map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.
-                map(e => rtvGraph.getEdgeTarget(e).getId).contains("p2") ||
-              rtvGraph.outgoingEdgesOf(v).asScala.
-                map(e => rtvGraph.getEdgeTarget(e).getId).contains("p4")
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("v2") ||
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p2") ||
+              rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p4")
             )
         }
       }
@@ -161,7 +143,11 @@ class AlonsoMoraPoolingAlgForRideHailSpec
 }
 
 object AlonsoMoraPoolingAlgForRideHailSpec {
-  def scenario1(implicit skimmer: BeamSkimmer, mockActorRef: ActorRef): (List[VehicleAndSchedule], List[CustomerRequest]) = {
+
+  def scenario1(
+    implicit skimmer: BeamSkimmer,
+    mockActorRef: ActorRef
+  ): (List[VehicleAndSchedule], List[CustomerRequest]) = {
     val v1: VehicleAndSchedule = createVehicleAndSchedule("v1", new Coord(5000, 5000), seconds(8, 0))
     val v2: VehicleAndSchedule = createVehicleAndSchedule("v2", new Coord(2000, 2000), seconds(8, 0))
     val p1Req: CustomerRequest =
@@ -174,6 +160,7 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
       createPersonRequest(makeVehPersonId("p3"), new Coord(4000, 4000), seconds(8, 2), new Coord(21000, 20000))
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
   }
+
   def makeVehPersonId(perId: String)(implicit mockActorRef: ActorRef) =
     VehiclePersonId(Id.create(perId, classOf[Vehicle]), Id.create(perId, classOf[Person]), mockActorRef)
 }

@@ -33,7 +33,7 @@ class ParallelAlonsoMoraAlgForRideHailSpec
         new ParallelAlonsoMoraAlgForRideHail(
           sc._2,
           sc._1,
-          Map[MobilityServiceRequestType, Int]((Pickup, 6*60),(Dropoff, 10 * 5000 * 60)),
+          Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 5000 * 60)),
           radius = Int.MaxValue,
           skimmer
         )

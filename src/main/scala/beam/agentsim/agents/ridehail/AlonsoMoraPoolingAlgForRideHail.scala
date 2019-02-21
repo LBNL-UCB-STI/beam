@@ -26,7 +26,7 @@ class AlonsoMoraPoolingAlgForRideHail(
   implicit val skimmer: BeamSkimmer
 ) {
 
-  val timeWindow : Map[MobilityServiceRequestType, Int] = Map((Pickup, omega), (Dropoff, delta))
+  val timeWindow: Map[MobilityServiceRequestType, Int] = Map((Pickup, omega), (Dropoff, delta))
 
   // Request Vehicle Graph
   def pairwiseRVGraph: RVGraph = {
@@ -34,11 +34,13 @@ class AlonsoMoraPoolingAlgForRideHail(
     for (r1 <- demand;
          r2 <- demand) {
       if (r1 != r2 && !rvG.containsEdge(r1, r2)) {
-        AlonsoMoraPoolingAlgForRideHail.getRidehailSchedule(timeWindow, List(r1.pickup, r1.dropoff, r2.pickup, r2.dropoff)).map { schedule =>
-          rvG.addVertex(r2)
-          rvG.addVertex(r1)
-          rvG.addEdge(r1, r2, RideHailTrip(List(r1, r2), schedule))
-        }
+        AlonsoMoraPoolingAlgForRideHail
+          .getRidehailSchedule(timeWindow, List(r1.pickup, r1.dropoff, r2.pickup, r2.dropoff))
+          .map { schedule =>
+            rvG.addVertex(r2)
+            rvG.addVertex(r1)
+            rvG.addEdge(r1, r2, RideHailTrip(List(r1, r2), schedule))
+          }
       }
     }
     for (v <- supply;
@@ -81,8 +83,10 @@ class AlonsoMoraPoolingAlgForRideHail(
             for (t2 <- individualRequestsList
                    .drop(index)
                    .withFilter(x => rvG.containsEdge(t1.requests.head, x.requests.head))) {
-              getRidehailSchedule(timeWindow, v.schedule ++ (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)))
-                .map { schedule =>
+              getRidehailSchedule(
+                timeWindow,
+                v.schedule ++ (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff))
+              ).map { schedule =>
                   val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
                   pairRequestsList.append(t)
                   rTvG.addVertex(t)
@@ -105,7 +109,8 @@ class AlonsoMoraPoolingAlgForRideHail(
                        x =>
                          !(x.requests exists (s => t1.requests contains s)) && (t1.requests.size + x.requests.size) == k
                      )) {
-                getRidehailSchedule(timeWindow,
+                getRidehailSchedule(
+                  timeWindow,
                   v.schedule ++ (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff))
                 ).map { schedule =>
                   val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
@@ -170,7 +175,6 @@ class AlonsoMoraPoolingAlgForRideHail(
     greedyAssignmentList.toList
   }
 
-
 }
 
 object AlonsoMoraPoolingAlgForRideHail {
@@ -178,7 +182,9 @@ object AlonsoMoraPoolingAlgForRideHail {
   // ************ Helper functions ************
   // ******************************
   // Helper functions {} Start
-  def getTimeDistanceAndCost(src: MobilityServiceRequest, dst: MobilityServiceRequest)(implicit skimmer: BeamSkimmer): TimeDistanceAndCost = {
+  def getTimeDistanceAndCost(src: MobilityServiceRequest, dst: MobilityServiceRequest)(
+    implicit skimmer: BeamSkimmer
+  ): TimeDistanceAndCost = {
     skimmer.getTimeDistanceAndCost(
       src.activity.getCoord,
       dst.activity.getCoord,
@@ -187,7 +193,10 @@ object AlonsoMoraPoolingAlgForRideHail {
       BeamVehicleType.defaultCarBeamVehicleType.id
     )
   }
-  def getRidehailSchedule(timeWindow: Map[MobilityServiceRequestType, Int], requests: List[MobilityServiceRequest])(implicit skimmer: BeamSkimmer): Option[List[MobilityServiceRequest]] = {
+
+  def getRidehailSchedule(timeWindow: Map[MobilityServiceRequestType, Int], requests: List[MobilityServiceRequest])(
+    implicit skimmer: BeamSkimmer
+  ): Option[List[MobilityServiceRequest]] = {
     val sortedRequests = requests.sortWith(_.time < _.time)
     import scala.collection.mutable.{ListBuffer => MListBuffer}
     val newPoolingList = MListBuffer(sortedRequests.head.copy())
@@ -195,7 +204,7 @@ object AlonsoMoraPoolingAlgForRideHail {
       case (_, curReq) =>
         val prevReq = newPoolingList.last
         val serviceTime = prevReq.serviceTime +
-          getTimeDistanceAndCost(prevReq, curReq).timeAndCost.time.get
+        getTimeDistanceAndCost(prevReq, curReq).timeAndCost.time.get
         if (serviceTime <= curReq.time + timeWindow(curReq.tag)) {
           newPoolingList.append(curReq.copy(serviceTime = serviceTime))
         } else {
@@ -204,6 +213,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     }
     Some(newPoolingList.toList)
   }
+
   // Helper functions {} End
   // ******************************
   def newVehicle(id: String): BeamVehicle = {
