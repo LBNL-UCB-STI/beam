@@ -49,4 +49,12 @@ class GraphTestUtil {
         MatsimEventsReader reader = new MatsimEventsReader(events);
         reader.readFile(EVENTS_FILE_PATH);
     }
+
+    synchronized static void createDummySimWithXML(BasicEventHandler handler,String xmlFile) {
+        PathTraversalSpatialTemporalTableGenerator.loadVehicles(TRANSIT_VEHICLE_FILE_PATH);
+
+        events.addHandler(handler);
+        MatsimEventsReader reader = new MatsimEventsReader(events);
+        reader.readFile(xmlFile);
+    }
 }

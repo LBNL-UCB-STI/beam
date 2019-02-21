@@ -102,12 +102,12 @@ class RealizedModeStatsGraphSpec extends WordSpecLike with Matchers with Integra
 
     "contains valid realized mode stats" in {
       val computation = new RealizedModeAnalysis.RealizedModesStatsComputation with EventAnalyzer {
-        private val promise = Promise[java.util.Map[Integer, java.util.Map[String, Integer]]]()
+        private val promise = Promise[java.util.Map[Integer, java.util.Map[String, java.lang.Double]]]()
 
         override def compute(
           stat: Tuple[util.Map[
             Integer,
-            util.Map[String, Integer]
+            util.Map[String, java.lang.Double]
           ], util.Set[String]]
         ): Array[Array[Double]] = {
           //this check handle to exit from current function recursion
