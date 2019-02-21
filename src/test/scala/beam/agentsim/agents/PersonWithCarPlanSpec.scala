@@ -237,7 +237,6 @@ class PersonWithCarPlanSpec
 
       val parkingRoutingRequest = expectMsgType[RoutingRequest]
       assert(parkingRoutingRequest.destinationUTM == parkingLocation)
-      println(parkingRoutingRequest)
       lastSender ! RoutingResponse(
         Vector(
           EmbodiedBeamTrip(
@@ -276,7 +275,6 @@ class PersonWithCarPlanSpec
       assert(walkFromParkingRoutingRequest.originUTM.getY === parkingLocation.getY +- 1)
       assert(walkFromParkingRoutingRequest.destinationUTM.getX === workLocation.getX +- 1)
       assert(walkFromParkingRoutingRequest.destinationUTM.getY === workLocation.getY +- 1)
-      println(walkFromParkingRoutingRequest)
       lastSender ! RoutingResponse(
         Vector(
           EmbodiedBeamTrip(
@@ -337,10 +335,6 @@ class PersonWithCarPlanSpec
       expectMsgType[ActivityStartEvent]
 
       expectMsgType[CompletionNotice]
-
-      experiencedLegs.foreach { leg =>
-        println(leg)
-      }
 
     }
 
@@ -423,7 +417,7 @@ class PersonWithCarPlanSpec
             val embodiedLeg = EmbodiedBeamLeg(
               beamLeg = leg.copy(
                 duration = 500,
-                travelPath = leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
+                travelPath = leg.travelPath.copy(linkTravelTime = Array(0, 100, 100, 100, 100, 100, 0))
               ),
               beamVehicleId = vehicleId,
               BeamVehicleType.defaultTransitBeamVehicleType.id,
