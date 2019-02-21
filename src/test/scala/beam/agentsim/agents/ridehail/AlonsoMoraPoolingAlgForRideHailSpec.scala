@@ -1,6 +1,6 @@
 package beam.agentsim.agents.ridehail
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestKit, TestProbe}
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail.{CustomerRequest, RVGraph, VehicleAndSchedule, _}
 import beam.agentsim.agents.vehicles.VehiclePersonId
@@ -31,13 +31,13 @@ class AlonsoMoraPoolingAlgForRideHailSpec
     with FunSpecLike {
 
   val probe: TestProbe = TestProbe.apply()
-  val mockActorRef = probe.ref
+  implicit val mockActorRef: ActorRef = probe.ref
 
   describe("AlonsoMoraPoolingAlgForRideHail") {
     it("Creates a consistent plan") {
-      val skimmer: BeamSkimmer = new BeamSkimmer()
-      val sc = scenario1(skimmer)
-      val algo: AlonsoMoraPoolingAlgForRideHail =
+      implicit val skimmer: BeamSkimmer = new BeamSkimmer()
+      val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenario1
+      val alg: AlonsoMoraPoolingAlgForRideHail =
         new AlonsoMoraPoolingAlgForRideHail(
           sc._2,
           sc._1,
@@ -46,7 +46,8 @@ class AlonsoMoraPoolingAlgForRideHailSpec
           radius = Int.MaxValue,
           skimmer
         )
-      val rvGraph: RVGraph = algo.pairwiseRVGraph
+
+      val rvGraph: RVGraph = alg.pairwiseRVGraph
       for (e <- rvGraph.edgeSet.asScala) {
         rvGraph.getEdgeSource(e).getId match {
           case "p1" =>
@@ -84,7 +85,7 @@ class AlonsoMoraPoolingAlgForRideHailSpec
         }
       }
 
-      val rtvGraph = algo.rTVGraph(rvGraph)
+      val rtvGraph = alg.rTVGraph(rvGraph)
 
       for (v <- rtvGraph.vertexSet().asScala.filter(_.isInstanceOf[RideHailTrip])) {
         v.getId match {
@@ -148,7 +149,7 @@ class AlonsoMoraPoolingAlgForRideHailSpec
         }
       }
 
-      val assignment = algo.greedyAssignment(rtvGraph)
+      val assignment = alg.greedyAssignment(rtvGraph)
 
       for (row <- assignment) {
         assert(row._1.getId == "trip:[p1] -> [p4] -> " || row._1.getId == "trip:[p3] -> ")
@@ -157,7 +158,10 @@ class AlonsoMoraPoolingAlgForRideHailSpec
     }
   }
 
-  def scenario1(implicit skimmer: BeamSkimmer): (List[VehicleAndSchedule], List[CustomerRequest]) = {
+}
+
+object AlonsoMoraPoolingAlgForRideHailSpec {
+  def scenario1(implicit skimmer: BeamSkimmer, mockActorRef: ActorRef): (List[VehicleAndSchedule], List[CustomerRequest]) = {
     val v1: VehicleAndSchedule = createVehicleAndSchedule("v1", new Coord(5000, 5000), seconds(8, 0))
     val v2: VehicleAndSchedule = createVehicleAndSchedule("v2", new Coord(2000, 2000), seconds(8, 0))
     val p1Req: CustomerRequest =
@@ -170,8 +174,6 @@ class AlonsoMoraPoolingAlgForRideHailSpec
       createPersonRequest(makeVehPersonId("p3"), new Coord(4000, 4000), seconds(8, 2), new Coord(21000, 20000))
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
   }
-
-  def makeVehPersonId(perId: String) =
+  def makeVehPersonId(perId: String)(implicit mockActorRef: ActorRef) =
     VehiclePersonId(Id.create(perId, classOf[Vehicle]), Id.create(perId, classOf[Person]), mockActorRef)
-
 }
