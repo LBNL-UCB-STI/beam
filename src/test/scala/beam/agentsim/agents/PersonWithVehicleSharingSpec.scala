@@ -25,6 +25,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerPr
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
+import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
@@ -179,7 +180,8 @@ class PersonWithVehicleSharingSpec
             household,
             Map(),
             new Coord(0.0, 0.0),
-            sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref)
+            sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
+            new RouteHistory()
           )
         )
       )
@@ -320,7 +322,8 @@ class PersonWithVehicleSharingSpec
             household,
             Map(),
             new Coord(0.0, 0.0),
-            sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref)
+            sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
+            new RouteHistory()
           )
         )
       )
@@ -560,7 +563,8 @@ class PersonWithVehicleSharingSpec
           household,
           Map(),
           new Coord(0.0, 0.0),
-          Vector(mockSharedVehicleFleet.ref)
+          Vector(mockSharedVehicleFleet.ref),
+          new RouteHistory()
         )
       )
 

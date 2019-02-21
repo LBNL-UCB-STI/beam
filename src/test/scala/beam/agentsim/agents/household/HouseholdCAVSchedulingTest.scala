@@ -66,7 +66,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val skim = new BeamSkimmer(scenario = sc)
 
     val alg = new HouseholdCAVScheduling(sc, household, vehicles, 15 * 60, 15 * 60, skim = skim)
-    val schedule = alg.getBestScheduleWithTheLongestCAVChain
+    val schedule = alg.getBestScheduleWithTheLongestCAVChain.head
 
     schedule.cavFleetSchedule should have length 1
     schedule.cavFleetSchedule.head.schedule should have length 10
@@ -97,7 +97,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val skim = new BeamSkimmer(scenario = sc)
 
     val alg = new HouseholdCAVScheduling(sc, household, vehicles, 15 * 60, 15 * 60, skim = skim)
-    val schedule = alg.getBestScheduleWithTheLongestCAVChain
+    val schedule = alg.getBestScheduleWithTheLongestCAVChain.head
     schedule.cavFleetSchedule should have length 1
     schedule.cavFleetSchedule.head.schedule should have length 10
     schedule.cavFleetSchedule.head.schedule
@@ -134,7 +134,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
       stopSearchAfterXSolutions = 2000,
       skim = skim
     )
-    val schedule = alg.getBestScheduleWithTheLongestCAVChain
+    val schedule = alg.getBestScheduleWithTheLongestCAVChain.head
 
     schedule.cavFleetSchedule should have length 1
     val nbOfTrips = schedule.cavFleetSchedule.flatMap(_.schedule).count(x => x.tag == Pickup || x.tag == Dropoff) / 2

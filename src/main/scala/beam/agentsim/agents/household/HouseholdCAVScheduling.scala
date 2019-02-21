@@ -150,24 +150,6 @@ object HouseholdTrips {
 
 case class PlansCoherenceCheck() {
 
-  def isInChainMode(request: MobilityServiceRequest): Boolean = {
-    request.tag == Pickup && Modes.isChainBasedMode(request.defaultMode) && request.trip.parentTour.trips.indexOf(request.trip) > 0
-  }
-
-  def isWithinTour(request: MobilityServiceRequest, schedule: List[MobilityServiceRequest]): Boolean = {
-    val index = schedule.indexWhere(_.person == request.person)
-    index >= 0 && request.trip.parentTour == schedule(index).trip.parentTour
-  }
-
-  def isWithinTourInAtLeastOneSchedule(
-    request: MobilityServiceRequest,
-    scheduleList: List[List[MobilityServiceRequest]]
-  ): Boolean = {
-    for (schedule <- scheduleList)
-      if (isWithinTour(request, schedule))
-        return true
-    false
-  }
 }
 
 class HouseholdCAVSchedulingWrapperImpl(name: String) extends ExponentialLoggerWrapperImpl(name)
@@ -182,7 +164,6 @@ class HouseholdCAVScheduling(
   val limitCavToXPersons: Int = 3,
   val skim: BeamSkimmer
 ) {
-  private implicit val coherenceCheck: PlansCoherenceCheck = PlansCoherenceCheck()
   implicit val pop: org.matsim.api.core.v01.population.Population = scenario.getPopulation
   import beam.agentsim.agents.memberships.Memberships.RankedGroup._
   private val householdPlans = household.members.take(limitCavToXPersons).map(person => BeamPlan(person.getSelectedPlan))
@@ -291,8 +272,8 @@ class HouseholdCAVScheduling(
 
       var finalHouseholdSchedule = outHouseholdSchedule.flatten
 
-      if (coherenceCheck.isInChainMode(request)) {
-        if (coherenceCheck.isWithinTourInAtLeastOneSchedule(request, cavFleetSchedule.map(_.schedule))) {
+      if (CAVSchedule.isInChainMode(request)) {
+        if (CAVSchedule.isWithinTourInAtLeastOneSchedule(request, cavFleetSchedule.map(_.schedule))) {
           // schedule to be marked unfeasible as the agent is using CAV in a chained tour
           // not marking the schedule unfeasible will allow future iteration that violates chain-based modes
           feasibleOut = false
@@ -325,11 +306,11 @@ class HouseholdCAVScheduling(
 }
 
 // ***
-class CAVSchedule(
+case class CAVSchedule(
   val schedule: List[MobilityServiceRequest],
   val cav: BeamVehicle,
   val occupancy: Int
-)(implicit val coherenceCheck: PlansCoherenceCheck) {
+) {
 
   def check(
     request: MobilityServiceRequest,
@@ -493,4 +474,22 @@ class CAVSchedule(
 }
 object CAVSchedule{
   case class RouteOrEmbodyRequest(routeReq: Option[RoutingRequest], embodyReq: Option[EmbodyWithCurrentTravelTime])
+  def isInChainMode(request: MobilityServiceRequest): Boolean = {
+    request.tag == Pickup && Modes.isChainBasedMode(request.defaultMode) && request.trip.parentTour.trips.indexOf(request.trip) > 0
+  }
+
+  def isWithinTour(request: MobilityServiceRequest, schedule: List[MobilityServiceRequest]): Boolean = {
+    val index = schedule.indexWhere(_.person == request.person)
+    index >= 0 && request.trip.parentTour == schedule(index).trip.parentTour
+  }
+
+  def isWithinTourInAtLeastOneSchedule(
+                                        request: MobilityServiceRequest,
+                                        scheduleList: List[List[MobilityServiceRequest]]
+                                      ): Boolean = {
+    for (schedule <- scheduleList)
+      if (isWithinTour(request, schedule))
+        return true
+    false
+  }
 }

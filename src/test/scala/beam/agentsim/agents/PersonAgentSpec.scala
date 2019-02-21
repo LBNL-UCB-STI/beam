@@ -22,6 +22,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.RouteHistory
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
@@ -247,7 +248,9 @@ class PersonAgentSpec
           population,
           household,
           Map(),
-          new Coord(0.0, 0.0)
+          new Coord(0.0, 0.0),
+            Vector(),
+          new RouteHistory()
         )
       )
 
@@ -469,7 +472,9 @@ class PersonAgentSpec
           population = population,
           household = household,
           vehicles = Map(),
-          homeCoord = new Coord(0.0, 0.0)
+          homeCoord = new Coord(0.0, 0.0),
+            Vector(),
+          new RouteHistory()
         )
       )
       scheduler ! StartSchedule(0)

@@ -19,6 +19,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerPr
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
+import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
@@ -179,7 +180,9 @@ class PersonWithCarPlanSpec
             population,
             household,
             Map(beamVehicle.id -> beamVehicle),
-            new Coord(0.0, 0.0)
+            new Coord(0.0, 0.0),
+            Vector(),
+            new RouteHistory()
           )
         )
       )
@@ -412,7 +415,9 @@ class PersonWithCarPlanSpec
           population,
           household,
           Map(car1.id -> car1, car2.id -> car2),
-          new Coord(0.0, 0.0)
+          new Coord(0.0, 0.0),
+          Vector(),
+          new RouteHistory()
         )
       )
       val personActor = householdActor.getSingleChild(person.getId.toString)
@@ -503,7 +508,9 @@ class PersonWithCarPlanSpec
           population,
           household,
           Map(beamVehicle.id -> beamVehicle),
-          new Coord(0.0, 0.0)
+          new Coord(0.0, 0.0),
+          Vector(),
+          new RouteHistory()
         )
       )
       scheduler ! StartSchedule(0)
