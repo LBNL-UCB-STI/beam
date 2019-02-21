@@ -166,38 +166,6 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         PathTraversalSpatialTemporalTableGenerator.vehicles = vehicles;
     }
 
-    public static double getFuelConsumptionInMJ(String vehicleId, String mode, String fuelString, double lengthInMeters, String vehicleType) {
-        // initialize Fuel
-        Double fuel = CONST_NUM_ZERO;
-        if (fuelString.contains("NA")) {
-            if (vehicleId.contains("rideHail")) {
-                fuel = CAR_FUEL_ECONOMY_IN_LITER_PER_METER * lengthInMeters;
-                // fix for ride hailing vehicles
-            } else if (vehicleType.contains("Human") || vehicleType.contains("bicycle")) {
-                if (lengthInMeters > 0) {
-                    DebugLib.emptyFunctionForSettingBreakPoint();
-                }
-
-                fuel = WALKING_ENERGY_IN_JOULE_PER_METER * lengthInMeters; // in Joule
-            } else {
-                DebugLib.stopSystemAndReportInconsistency();
-            }
-        } else {
-            fuel = Double.parseDouble(fuelString);
-        }
-
-        if (vehicleId.contains("rideHail")) {
-            vehicleType = "TNC";
-        }
-
-
-        boolean isElectricEnergy = isElectricEnergy(vehicleId, mode);
-
-        fuel = convertFuelToMJ(fuel, mode, isElectricEnergy);
-
-        return fuel;
-    }
-
     private static String getFuelType(String vehicleIdString, String mode) {
         String transitAgency = null;
 
@@ -465,7 +433,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         double lengthInMeters = Double.parseDouble(attributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
         String fuelString = attributes.get(PathTraversalEvent.ATTRIBUTE_FUEL);
 
-        double fuel = getFuelConsumptionInMJ(vehicleId, mode, fuelString, lengthInMeters, vehicleType);
+        double fuel = Double.parseDouble(fuelString);
 
 
         String vehicleTypeWithFuelType = getVehicleTypeWithFuelType(vehicleType, vehicleId, mode);
