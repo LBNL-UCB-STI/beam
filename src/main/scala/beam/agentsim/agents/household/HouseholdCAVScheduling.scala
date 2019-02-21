@@ -1,182 +1,42 @@
 package beam.agentsim.agents.household
 import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
 import beam.agentsim.agents.planning.{BeamPlan, Trip}
-import beam.agentsim.agents.vehicles.VehicleCategory.Car
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest}
-import beam.router.{BeamRouter, BeamSkimmer, Modes, RouteHistory}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV}
+import beam.router.{BeamRouter, BeamSkimmer, Modes, RouteHistory}
 import beam.sim.BeamServices
 import beam.utils.logging.ExponentialLoggerWrapperImpl
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.Id
-import org.matsim.core.population.routes.NetworkRoute
+import org.matsim.api.core.v01.population._
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.immutable.{List, Map}
 
-sealed trait MobilityServiceRequestType
-case object Pickup extends MobilityServiceRequestType
-case object Dropoff extends MobilityServiceRequestType
-case object Relocation extends MobilityServiceRequestType
-case object Init extends MobilityServiceRequestType
-
-case class MobilityServiceRequest(
-  person: Option[Id[Person]],
-  activity: Activity,
-  time: Int,
-  trip: Trip,
-  defaultMode: BeamMode,
-  tag: MobilityServiceRequestType,
-  serviceTime: Int,
-  routingRequestId: Option[Int] = None,
-  pickupRequest: Option[MobilityServiceRequest] = None
-) {
-  val nextActivity = Some(trip.activity)
-
-  def formatTime(secs: Int): String = {
-    s"${secs / 3600}:${(secs % 3600) / 60}:${secs % 60}"
-  }
-  override def toString =
-    s"${formatTime(time)}|$tag{${person.getOrElse("na")}|${activity.getType}| => ${formatTime(serviceTime)}}"
-}
-
-case class HouseholdTripsException(message: String, cause: Throwable = null) extends Exception(message, cause)
-case class HouseholdTrips(
-  requests: List[MobilityServiceRequest],
-  defaultTravelTime: Int,
-  tripTravelTime: Map[Trip, Int],
-  totalTravelTime: Int
-) {
-  override def toString: String = requests.toString
-}
-
-object HouseholdTrips {
-
-  def apply(
-    householdPlans: Seq[BeamPlan],
-    householdNbOfVehicles: Int,
-    pickupTimeWindow: Int,
-    dropoffTimeWindow: Int,
-    skim: BeamSkimmer
-  ): HouseholdTrips = {
-
-    import scala.collection.mutable.{Map => MMap}
-    import scala.collection.mutable.{ListBuffer => MListBuffer}
-
-    val logger = new HouseholdCAVSchedulingWrapperImpl(getClass.getName)
-
-    val requests = MListBuffer.empty[MobilityServiceRequest]
-    val tripTravelTime = MMap[Trip, Int]()
-    var totTravelTime = 0
-    import scala.util.control.Breaks._
-    breakable {
-      householdPlans.foldLeft(householdNbOfVehicles) {
-        case (counter, plan) =>
-          val usedCarOut = plan.trips.sliding(2).foldLeft(false) {
-            case (usedCar, Seq(prevTrip, curTrip)) =>
-              val legTrip = curTrip.leg
-              val defaultMode = getDefaultMode(legTrip, counter)
-              val travelTime = skim.getTimeDistanceAndCost(prevTrip.activity.getCoord,
-                curTrip.activity.getCoord,
-                0,
-                defaultMode,
-                org.matsim.api.core.v01.Id.create[BeamVehicleType]("", classOf[BeamVehicleType])).timeAndCost.time.get
-
-              val startTime = prevTrip.activity.getEndTime.toInt
-              val arrivalTime = startTime + travelTime
-
-              val nextTripStartTime = curTrip.activity.getEndTime
-              if (nextTripStartTime != Double.NegativeInfinity) {
-                if (startTime >= nextTripStartTime.toInt) {
-                  throw HouseholdTripsException(s"Illegal plan for person ${plan.getPerson.getId.toString}, activity ends at $startTime which is later than the next activity ending at $nextTripStartTime")
-                } else if (arrivalTime > nextTripStartTime.toInt) {
-                  logger.warn(
-                    "The necessary travel time to arrive to the next activity is beyond the end time of the same activity"
-                  )
-                  break
-                }
-              }
-
-              val pickup = MobilityServiceRequest(
-                Some(plan.getPerson.getId),
-                prevTrip.activity,
-                startTime,
-                curTrip,
-                defaultMode,
-                Pickup,
-                startTime
-              )
-              val dropoff = MobilityServiceRequest(
-                Some(plan.getPerson.getId),
-                curTrip.activity,
-                arrivalTime,
-                curTrip,
-                defaultMode,
-                Dropoff,
-                arrivalTime,
-                pickupRequest = Some(pickup)
-              )
-              requests.prependAll(MListBuffer(pickup, dropoff))
-              tripTravelTime(curTrip) = travelTime
-              totTravelTime += travelTime
-              if (defaultMode == BeamMode.CAR) true else usedCar
-          }
-          if (usedCarOut) counter - 1 else counter
-      }
-    }
-    // Sum(tDi - tPi) <= Sum(tauDi - tauPi) + (alpha + beta)|R|/2
-    val sumTimeWindows = (requests.size / 2) * (dropoffTimeWindow + pickupTimeWindow)
-    // adding a time window to the total travel time
-    HouseholdTrips(
-      requests.sortWith(_.time < _.time).toList,
-      totTravelTime + sumTimeWindows,
-      tripTravelTime.toMap,
-      totTravelTime
-    )
-  }
-
-  def getDefaultMode(legOption: Option[Leg], nbVehicles: Int): BeamMode = {
-    legOption
-      .flatMap(leg => BeamMode.fromString(leg.getMode))
-      .getOrElse(if (nbVehicles <= 0) BeamMode.TRANSIT else BeamMode.CAR)
-  }
-}
-
-case class PlansCoherenceCheck() {
-
-}
-
-class HouseholdCAVSchedulingWrapperImpl(name: String) extends ExponentialLoggerWrapperImpl(name)
-
 class HouseholdCAVScheduling(
   val scenario: org.matsim.api.core.v01.Scenario,
   val household: Household,
   val householdVehicles: List[BeamVehicle],
-  val pickupTimeWindow: Int,
-  val dropoffTimeWindow: Int,
+  val timeWindow: Map[MobilityServiceRequestType, Int],
   val stopSearchAfterXSolutions: Int = 100,
   val limitCavToXPersons: Int = 3,
   val skim: BeamSkimmer
 ) {
   implicit val pop: org.matsim.api.core.v01.population.Population = scenario.getPopulation
   import beam.agentsim.agents.memberships.Memberships.RankedGroup._
-  private val householdPlans = household.members.take(limitCavToXPersons).map(person => BeamPlan(person.getSelectedPlan))
+  private val householdPlans =
+    household.members.take(limitCavToXPersons).map(person => BeamPlan(person.getSelectedPlan))
 
   // ***
   def getAllFeasibleSchedules: List[CAVFleetSchedule] = {
-    if(household.getId.toString.equals("1")){
-      val i = 0
-    }
-
     // extract potential household CAV requests from plans
     val householdRequests: HouseholdTrips =
-      HouseholdTrips(householdPlans, householdVehicles.size, pickupTimeWindow, dropoffTimeWindow, skim)
+      HouseholdTrips(householdPlans, householdVehicles.size, timeWindow, skim)
 
     // initialize household schedule
     val cavVehicles = householdVehicles.filter(_.beamVehicleType.automationLevel > 3)
@@ -208,24 +68,20 @@ class HouseholdCAVScheduling(
         req
     }
     // compute all the feasible schedules through
+    var feasibleSchedulesOut = List.empty[CAVFleetSchedule]
     val feasibleSchedules =
       MListBuffer[CAVFleetSchedule](CAVFleetSchedule(emptyFleetSchedule.toList, householdRequests))
-    import scala.util.control.Breaks._
-    breakable {
-      for (request  <- householdRequests.requests;
-           schedule <- feasibleSchedules) {
-        val (newSchedule, feasible) = schedule.check(request, skim)
-        if (!feasible) feasibleSchedules -= schedule
-        feasibleSchedules.prependAll(newSchedule)
+    for (request  <- householdRequests.requests; schedule <- feasibleSchedules) {
+      val (newSchedule, feasible) = schedule.check(request, skim)
+      if (!feasible) feasibleSchedules -= schedule
+      feasibleSchedules.prependAll(newSchedule)
 
-        if (feasibleSchedules.size >= stopSearchAfterXSolutions) {
-          break
-        }
+      if (feasibleSchedules.size >= stopSearchAfterXSolutions) {
+        // pruning incomplete schedules before returning the result
+        return feasibleSchedules.filter(_.cavFleetSchedule.forall(_.schedule.head.tag == Dropoff)).toList
       }
     }
-    if(feasibleSchedules.head.cavFleetSchedule.head.schedule.size==1){
-      val i = 0
-    }
+    feasibleSchedulesOut = feasibleSchedules.toList
     feasibleSchedules.toList
   }
 
@@ -237,14 +93,20 @@ class HouseholdCAVScheduling(
 
   // ***
   def getBestScheduleWithTheLongestCAVChain: List[CAVFleetSchedule] = {
-    val mapRank =
-      getAllFeasibleSchedules.map(x => x -> x.cavFleetSchedule.foldLeft(0)((a, b) => a + b.schedule.size)).toMap
-    if(mapRank.isEmpty){
-      List()
-    }else{
+    val mapRank = getAllFeasibleSchedules.
+      map(x => x -> x.cavFleetSchedule.foldLeft(0)((a, b) => a + b.schedule.size)).
+      toMap
+    var output = List.empty[CAVFleetSchedule]
+    if (mapRank.nonEmpty) {
       val maxRank = mapRank.maxBy(_._2)._2
-      mapRank.withFilter(_._2 == maxRank).map(x => x._1).toList.sortBy(_.householdTrips.totalTravelTime).take(1)
+      output = mapRank.
+        withFilter(_._2 == maxRank).
+        map(x => x._1).
+        toList.
+        sortBy(_.householdTrips.totalTravelTime).
+        take(1)
     }
+    output
   }
 
   // ***
@@ -257,11 +119,6 @@ class HouseholdCAVScheduling(
     ): (List[CAVFleetSchedule], Boolean) = {
       import scala.collection.mutable.{ListBuffer => MListBuffer}
       val outHouseholdSchedule = MListBuffer.empty[Option[CAVFleetSchedule]]
-      val timeWindow = request.tag match {
-        case Pickup  => pickupTimeWindow
-        case Dropoff => dropoffTimeWindow
-        case _       => 0
-      }
       var feasibleOut = cavFleetSchedule.foldLeft(true) {
         case (feasible, cavSchedule) =>
           val (scheduleOption, trips, isFeasible) = cavSchedule.check(request, householdTrips, timeWindow, skim)
@@ -308,24 +165,35 @@ class HouseholdCAVScheduling(
   }
 }
 
-// ***
+// ************
+// ************
 case class CAVSchedule(
-  val schedule: List[MobilityServiceRequest],
-  val cav: BeamVehicle,
-  val occupancy: Int
+  schedule: List[MobilityServiceRequest],
+  cav: BeamVehicle,
+  occupancy: Int
 ) {
 
   def check(
     request: MobilityServiceRequest,
     householdTrips: HouseholdTrips,
-    timeWindow: Int,
+    timeWindow: Map[MobilityServiceRequestType, Int],
     skim: BeamSkimmer
   ): (Option[CAVSchedule], HouseholdTrips, Boolean) = {
-    val travelTime = skim.getTimeDistanceAndCost(schedule.head.activity.getCoord,request.activity.getCoord,request.time,CAR,cav.beamVehicleType.id).timeAndCost.time.get
+    val travelTime = skim
+      .getTimeDistanceAndCost(
+        schedule.head.activity.getCoord,
+        request.activity.getCoord,
+        request.time,
+        CAR,
+        cav.beamVehicleType.id
+      )
+      .timeAndCost
+      .time
+      .get
     val prevServiceTime = schedule.head.serviceTime
     val serviceTime = prevServiceTime + travelTime
-    val upperBoundServiceTime = request.time + timeWindow
-    val lowerBoundServiceTime = request.time - timeWindow
+    val upperBoundServiceTime = request.time + timeWindow(request.tag)
+    val lowerBoundServiceTime = request.time - timeWindow(request.tag)
     val index = schedule.indexWhere(_.person == request.person)
 
     var newCavSchedule: Option[CAVSchedule] = None
@@ -401,10 +269,11 @@ case class CAVSchedule(
   }
 
   // ***
-  def toRoutingRequests(beamServices: BeamServices, transportNetwork: TransportNetwork, routeHistory: RouteHistory): (List[Option[RouteOrEmbodyRequest]], CAVSchedule) = {
-    if(schedule.size<=1){
-      val i = 0
-    }
+  def toRoutingRequests(
+    beamServices: BeamServices,
+    transportNetwork: TransportNetwork,
+    routeHistory: RouteHistory
+  ): (List[Option[RouteOrEmbodyRequest]], CAVSchedule) = {
     var newMobilityRequests = List[MobilityServiceRequest]()
     val requestList = (schedule.reverse :+ schedule.head).tail
       .sliding(2)
@@ -412,9 +281,6 @@ case class CAVSchedule(
         val orig = wayPoints(0)
         val dest = wayPoints(1)
         val origin = SpaceTime(orig.activity.getCoord, Math.round(orig.time))
-        if (cav.id.toString.equals("63-0")) {
-          val i = 0
-        }
         if (beamServices.geo.distUTMInMeters(orig.activity.getCoord, dest.activity.getCoord) < beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters) {
           newMobilityRequests = newMobilityRequests :+ orig
           None
@@ -436,11 +302,19 @@ case class CAVSchedule(
             beamServices.geo.utm2Wgs(dest.activity.getCoord),
             10E3
           )
-          routeHistory.getRoute(origLink,destLink,orig.time) match{
+          routeHistory.getRoute(origLink, destLink, orig.time) match {
             case Some(rememberedRoute) =>
-              val embodyReq = BeamRouter.linkIdsToEmbodyRequest(rememberedRoute,theVehicle,origin.time,CAV,beamServices,orig.activity.getCoord,dest.activity.getCoord)
+              val embodyReq = BeamRouter.linkIdsToEmbodyRequest(
+                rememberedRoute,
+                theVehicle,
+                origin.time,
+                CAV,
+                beamServices,
+                orig.activity.getCoord,
+                dest.activity.getCoord
+              )
               newMobilityRequests = newMobilityRequests :+ orig.copy(routingRequestId = Some(embodyReq.requestId))
-              Some(RouteOrEmbodyRequest(None,Some(embodyReq)))
+              Some(RouteOrEmbodyRequest(None, Some(embodyReq)))
             case None =>
               val routingRequest = RoutingRequest(
                 orig.activity.getCoord,
@@ -458,7 +332,7 @@ case class CAVSchedule(
                 )
               )
               newMobilityRequests = newMobilityRequests :+ orig.copy(routingRequestId = Some(routingRequest.requestId))
-              Some(RouteOrEmbodyRequest(Some(routingRequest),None))
+              Some(RouteOrEmbodyRequest(Some(routingRequest), None))
           }
         }
       }
@@ -475,10 +349,13 @@ case class CAVSchedule(
       .toString
   }
 }
-object CAVSchedule{
+
+object CAVSchedule {
   case class RouteOrEmbodyRequest(routeReq: Option[RoutingRequest], embodyReq: Option[EmbodyWithCurrentTravelTime])
+
   def isInChainMode(request: MobilityServiceRequest): Boolean = {
-    request.tag == Pickup && Modes.isChainBasedMode(request.defaultMode) && request.trip.parentTour.trips.indexOf(request.trip) > 0
+    request.tag == Pickup && Modes.isChainBasedMode(request.defaultMode) && request.trip.parentTour.trips
+      .indexOf(request.trip) > 0
   }
 
   def isWithinTour(request: MobilityServiceRequest, schedule: List[MobilityServiceRequest]): Boolean = {
@@ -487,12 +364,150 @@ object CAVSchedule{
   }
 
   def isWithinTourInAtLeastOneSchedule(
-                                        request: MobilityServiceRequest,
-                                        scheduleList: List[List[MobilityServiceRequest]]
-                                      ): Boolean = {
+    request: MobilityServiceRequest,
+    scheduleList: List[List[MobilityServiceRequest]]
+  ): Boolean = {
     for (schedule <- scheduleList)
       if (isWithinTour(request, schedule))
         return true
     false
+  }
+}
+
+
+// **** Data Structure
+sealed trait MobilityServiceRequestType
+case object Pickup extends MobilityServiceRequestType
+case object Dropoff extends MobilityServiceRequestType
+case object Relocation extends MobilityServiceRequestType
+case object Init extends MobilityServiceRequestType
+
+case class MobilityServiceRequest(
+                                   person: Option[Id[Person]],
+                                   activity: Activity,
+                                   time: Int,
+                                   trip: Trip,
+                                   defaultMode: BeamMode,
+                                   tag: MobilityServiceRequestType,
+                                   serviceTime: Int,
+                                   routingRequestId: Option[Int] = None,
+                                   pickupRequest: Option[MobilityServiceRequest] = None
+                                 ) {
+  val nextActivity = Some(trip.activity)
+
+  def formatTime(secs: Int): String = {
+    s"${secs / 3600}:${(secs % 3600) / 60}:${secs % 60}"
+  }
+  override def toString =
+    s"${formatTime(time)}|$tag{${person.getOrElse("na")}|${activity.getType}| => ${formatTime(serviceTime)}}"
+}
+
+// Helper classes for convert Beam plans to MobilityServiceRequest
+case class HouseholdTripsException(message: String, cause: Throwable = null) extends Exception(message, cause)
+case class HouseholdTripsLogger(name: String) extends ExponentialLoggerWrapperImpl(name)
+case class HouseholdTrips(
+                           requests: List[MobilityServiceRequest],
+                           defaultTravelTime: Int,
+                           tripTravelTime: Map[Trip, Int],
+                           totalTravelTime: Int
+                         ) {
+  override def toString: String = requests.toString
+}
+
+object HouseholdTrips {
+
+  def apply(
+             householdPlans: Seq[BeamPlan],
+             householdNbOfVehicles: Int,
+             timeWindow: Map[MobilityServiceRequestType, Int],
+             skim: BeamSkimmer
+           ): HouseholdTrips = {
+
+    import scala.collection.mutable.{ListBuffer => MListBuffer, Map => MMap}
+
+    val logger = new HouseholdTripsLogger(getClass.getName)
+
+    val requests = MListBuffer.empty[MobilityServiceRequest]
+    val tripTravelTime = MMap[Trip, Int]()
+    var totTravelTime = 0
+    import scala.util.control.Breaks._
+    breakable {
+      householdPlans.foldLeft(householdNbOfVehicles) {
+        case (counter, plan) =>
+          val usedCarOut = plan.trips.sliding(2).foldLeft(false) {
+            case (usedCar, Seq(prevTrip, curTrip)) =>
+              val legTrip = curTrip.leg
+              val defaultMode = getDefaultMode(legTrip, counter)
+              val travelTime = skim
+                .getTimeDistanceAndCost(
+                  prevTrip.activity.getCoord,
+                  curTrip.activity.getCoord,
+                  0,
+                  defaultMode,
+                  org.matsim.api.core.v01.Id.create[BeamVehicleType]("", classOf[BeamVehicleType])
+                )
+                .timeAndCost
+                .time
+                .get
+
+              val startTime = prevTrip.activity.getEndTime.toInt
+              val arrivalTime = startTime + travelTime
+
+              val nextTripStartTime = curTrip.activity.getEndTime
+              if (nextTripStartTime != Double.NegativeInfinity) {
+                if (startTime >= nextTripStartTime.toInt) {
+                  throw HouseholdTripsException(
+                    s"Illegal plan for person ${plan.getPerson.getId.toString}, activity ends at $startTime which is later than the next activity ending at $nextTripStartTime"
+                  )
+                } else if (arrivalTime > nextTripStartTime.toInt) {
+                  logger.warn(
+                    "The necessary travel time to arrive to the next activity is beyond the end time of the same activity"
+                  )
+                  break
+                }
+              }
+
+              val pickup = MobilityServiceRequest(
+                Some(plan.getPerson.getId),
+                prevTrip.activity,
+                startTime,
+                curTrip,
+                defaultMode,
+                Pickup,
+                startTime
+              )
+              val dropoff = MobilityServiceRequest(
+                Some(plan.getPerson.getId),
+                curTrip.activity,
+                arrivalTime,
+                curTrip,
+                defaultMode,
+                Dropoff,
+                arrivalTime,
+                pickupRequest = Some(pickup)
+              )
+              requests.prependAll(MListBuffer(pickup, dropoff))
+              tripTravelTime(curTrip) = travelTime
+              totTravelTime += travelTime
+              if (defaultMode == BeamMode.CAR) true else usedCar
+          }
+          if (usedCarOut) counter - 1 else counter
+      }
+    }
+    // Sum(tDi - tPi) <= Sum(tauDi - tauPi) + (alpha + beta)|R|/2
+    val sumTimeWindows = (requests.size / 2) * timeWindow.foldLeft(0)(_+_._2)
+    // adding a time window to the total travel time
+    HouseholdTrips(
+      requests.sortWith(_.time < _.time).toList,
+      totTravelTime + sumTimeWindows,
+      tripTravelTime.toMap,
+      totTravelTime
+    )
+  }
+
+  def getDefaultMode(legOption: Option[Leg], nbVehicles: Int): BeamMode = {
+    legOption
+      .flatMap(leg => BeamMode.fromString(leg.getMode))
+      .getOrElse(if (nbVehicles <= 0) BeamMode.TRANSIT else BeamMode.CAR)
   }
 }

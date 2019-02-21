@@ -14,7 +14,7 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl, HouseholdsReader
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.immutable.List
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 
 class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
 
@@ -28,7 +28,8 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     Gasoline,
     3656.0,
     3655980000.0,
-    vehicleCategory = Car
+    vehicleCategory = Car,
+    automationLevel = 5
   )
 
   it should "generate two schedules" in {
@@ -42,7 +43,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val household: Household = scenario1(cavs)
     val skim = new BeamSkimmer(scenario = sc)
 
-    val alg = new HouseholdCAVScheduling(sc, household, cavs, 2, 2, skim = skim)
+    val alg = new HouseholdCAVScheduling(sc, household, cavs, Map((Pickup, 2), (Dropoff, 2)), skim = skim)
     val schedules = alg.getAllFeasibleSchedules
     schedules should have length 2
     schedules.foreach { x =>
@@ -53,7 +54,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     println(schedules)
   }
 
-  it should "generate on schedule with only the pooling version of two passengers" in {
+  it should "pool two persons for both trips" in {
     val config = ConfigUtils.createConfig()
     implicit val sc: org.matsim.api.core.v01.Scenario =
       ScenarioUtils.createScenario(config)
@@ -65,7 +66,14 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val household: Household = scenario2(vehicles)
     val skim = new BeamSkimmer(scenario = sc)
 
-    val alg = new HouseholdCAVScheduling(sc, household, vehicles, 15 * 60, 15 * 60, skim = skim)
+    val alg = new HouseholdCAVScheduling(
+      sc,
+      household,
+      vehicles,
+      Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
+      skim = skim,
+      stopSearchAfterXSolutions = 5000
+    )
     val schedule = alg.getBestScheduleWithTheLongestCAVChain.head
 
     schedule.cavFleetSchedule should have length 1
@@ -84,34 +92,6 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     println(schedule)
   }
 
-  it should "generate one schedules pooling in morning and separate trips in the evening" in {
-    val config = ConfigUtils.createConfig()
-    implicit val sc: org.matsim.api.core.v01.Scenario =
-      ScenarioUtils.createScenario(config)
-
-    val vehicles = List[BeamVehicle](
-      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType),
-      new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), BeamVehicleType.defaultCarBeamVehicleType)
-    )
-    val household: Household = scenario3(vehicles)
-    val skim = new BeamSkimmer(scenario = sc)
-
-    val alg = new HouseholdCAVScheduling(sc, household, vehicles, 15 * 60, 15 * 60, skim = skim)
-    val schedule = alg.getBestScheduleWithTheLongestCAVChain.head
-    schedule.cavFleetSchedule should have length 1
-    schedule.cavFleetSchedule.head.schedule should have length 10
-    schedule.cavFleetSchedule.head.schedule
-      .filter(_.person.isDefined)
-      .groupBy(_.person)
-      .mapValues(_.size)
-      .foldLeft(0)(_ + _._2) shouldBe 8
-    schedule.cavFleetSchedule.head.schedule(0).tag shouldBe Dropoff
-    schedule.cavFleetSchedule.head.schedule(1).tag shouldBe Pickup
-    schedule.cavFleetSchedule.head.schedule(7).tag shouldBe Pickup
-    schedule.cavFleetSchedule.head.schedule(8).tag shouldBe Pickup
-    println(s"*** scenario 3 ***")
-    println(schedule)
-  }
 
   it should "generate twelve trips" in {
     val config = ConfigUtils.createConfig()
@@ -129,8 +109,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
       sc,
       household,
       vehicles,
-      10 * 60,
-      15 * 60,
+      Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
       stopSearchAfterXSolutions = 2000,
       skim = skim
     )
@@ -139,12 +118,11 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     schedule.cavFleetSchedule should have length 1
     val nbOfTrips = schedule.cavFleetSchedule.flatMap(_.schedule).count(x => x.tag == Pickup || x.tag == Dropoff) / 2
     nbOfTrips should equal(12)
-    //schedules should have length 4096
     println(s"*** scenario 4 *** $nbOfTrips trips")
     println(schedule)
   }
 
-  it should "drive both agents with different CAVs" in {
+  it should "pool both agents in different CAVs" in {
     val config = ConfigUtils.createConfig()
     implicit val sc: org.matsim.api.core.v01.Scenario =
       ScenarioUtils.createScenario(config)
@@ -153,17 +131,24 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
       new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType),
       new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), defaultCAVBeamVehicleType)
     )
-    val household: Household = scenario3(vehicles)
+    val household: Household = scenario5(vehicles)
     val skim = new BeamSkimmer(scenario = sc)
 
-    val alg = new HouseholdCAVScheduling(sc, household, vehicles, 15 * 60, 15 * 60, skim = skim)
+    val alg = new HouseholdCAVScheduling(
+      sc,
+      household,
+      vehicles,
+      Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
+      skim = skim,
+      stopSearchAfterXSolutions = 5000
+    )
     val schedule = alg.getKBestSchedules(Integer.MAX_VALUE)
     schedule should have length 25
     val worstCombination = schedule.last
     worstCombination.cavFleetSchedule should have length 2
     worstCombination.cavFleetSchedule.head.schedule should have length 6
     worstCombination.cavFleetSchedule.head.schedule(0).tag shouldBe Dropoff
-    worstCombination.cavFleetSchedule.head.schedule(1).tag shouldBe Pickup
+    worstCombination.cavFleetSchedule.head.schedule(1).tag shouldBe Dropoff
     worstCombination.cavFleetSchedule.last.schedule should have length 5
     worstCombination.cavFleetSchedule.last.schedule(0).tag shouldBe Dropoff
     worstCombination.cavFleetSchedule.last.schedule(1).tag shouldBe Dropoff
@@ -183,7 +168,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val household: Household = scenarioPerformance(vehicles)
     val skim = new BeamSkimmer(scenario = sc)
 
-    val alg = new HouseholdCAVScheduling(sc, household, vehicles, 15 * 60, 15 * 60, skim = skim)
+    val alg = new HouseholdCAVScheduling(sc, household, vehicles, Map((Pickup, 15 * 60), (Dropoff, 15 * 60)), skim = skim)
     val schedule = alg.getAllFeasibleSchedules
 
     println(s"*** scenario 6 ***")
@@ -256,7 +241,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     household
   }
 
-  def scenario3(vehicles: List[BeamVehicle])(implicit sc: org.matsim.api.core.v01.Scenario): Household = {
+  def scenario5(vehicles: List[BeamVehicle])(implicit sc: org.matsim.api.core.v01.Scenario): Household = {
     val pop = sc.getPopulation
     val homeCoord = new Coord(0, 0)
     val household = new HouseholdsFactoryImpl().createHousehold(Id.create("dummyHH", classOf[Household]))

@@ -202,8 +202,7 @@ object HouseholdActor {
             beamServices.matsimServices.getScenario,
             household,
             cavs,
-            5 * 60,
-            10 * 60,
+            Map((Pickup, 5 * 60), (Dropoff, 10 * 60)),
             skim = new BeamSkimmer(scenario = beamServices.matsimServices.getScenario)
           )
 //          var optimalPlan = cavScheduler.getKBestSchedules(1).head.cavFleetSchedule
