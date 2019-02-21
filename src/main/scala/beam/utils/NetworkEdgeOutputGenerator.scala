@@ -1,8 +1,8 @@
 package beam.utils
-import beam.router.r5.NetworkCoordinator
-import beam.sim.BeamServices
+import beam.router.r5.DefaultNetworkCoordinator
+import beam.sim.config.BeamConfig
 import com.conveyal.r5.streets.EdgeStore
-import javax.inject.Inject
+import com.typesafe.config.Config
 
 import scala.collection.mutable
 import scala.language.postfixOps
@@ -11,22 +11,29 @@ import scala.language.postfixOps
   * @author Bhavya Latha Bandaru.
   * Loads network and then exports required data to an output file.
   */
-class NetworkEdgeOutputGenerator @Inject()(beamServices: BeamServices,networkCoordinator: NetworkCoordinator) {
+object NetworkEdgeOutputGenerator extends App {
 
-  val streetLayer = networkCoordinator.transportNetwork.streetLayer
-  val edgeStore: EdgeStore = streetLayer.edgeStore
+  if (args.isEmpty) throw new Exception("No arguments passed . Required arguments : 1 - path to the conf file")
+  val configFile = args(0)
+
+  val config: Config = BeamConfigUtils
+    .parseFileSubstitutingInputDirectory(configFile)
+    .resolve()
+  val beamConfig: BeamConfig = BeamConfig(config)
+  private lazy val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
+  networkCoordinator.loadNetwork()
+  private val streetLayer = networkCoordinator.transportNetwork.streetLayer
+  private val edgeStore: EdgeStore = streetLayer.edgeStore
 
   private val bikeAccessibleEdges: mutable.ListBuffer[EdgeStore#Edge] = mutable.ListBuffer.empty[EdgeStore#Edge]
   private val pedestrianAccessibleEdges: mutable.ListBuffer[EdgeStore#Edge] = mutable.ListBuffer.empty[EdgeStore#Edge]
 
-  def init(): Unit = {
-    reset()
-    classifyEdges
-    writeAccessibleEdgesToFile
-    reset()
-  }
+  reset()
+  classifyEdges()
+  writeAccessibleEdgesToFile()
+  reset()
 
-  private def classifyEdges = {
+  private def classifyEdges(): Unit = {
     for (i <- 0 until edgeStore.nEdges) {
       val edgeCursor: EdgeStore#Edge = streetLayer.edgeStore.getCursor(i)
       if (edgeCursor.getFlag(EdgeStore.EdgeFlag.ALLOWS_BIKE)) {
@@ -46,9 +53,9 @@ class NetworkEdgeOutputGenerator @Inject()(beamServices: BeamServices,networkCoo
     } mkString "\n"
   }
 
-  private def writeAccessibleEdgesToFile = {
+  private def writeAccessibleEdgesToFile(): Unit = {
     val csvHeader = "id,from,to,freeSpeed(m/s),length(m),travelTime(s)"
-    val outputDirectory = beamServices.beamConfig.beam.routing.r5.directory
+    val outputDirectory = beamConfig.beam.routing.r5.directory
     val bikeAccessibleEdgesOutputFilePath = outputDirectory + "/" + "bikeAccessibleEdges.csv"
     val walkAccessibleEdgesOutputFilePath = outputDirectory + "/" + "walkAccessibleEdges.csv"
 
