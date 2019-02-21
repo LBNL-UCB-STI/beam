@@ -1,5 +1,6 @@
 package beam.utils
 
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
@@ -335,13 +336,14 @@ object ScenarioReaderCsv {
           )
 
         val vehicleIds = new java.util.ArrayList[Id[Vehicle]]
-        vehicleTypes.foreach { bvt =>
-          val vt = VehicleUtils.getFactory.createVehicleType(Id.create(bvt.id, classOf[VehicleType]))
-          val v = VehicleUtils.getFactory.createVehicle(Id.createVehicleId(vehicleCounter), vt)
-          vehicleIds.add(v.getId)
-          val bv = BeamVehicleUtils.getBeamVehicle(v, objHousehold, bvt)
-          scenarioVehicles.put(bv.id, bv)
-
+        vehicleTypes.foreach { beamVehicleType =>
+          val vt = VehicleUtils.getFactory.createVehicleType(Id.create(beamVehicleType.id, classOf[VehicleType]))
+          val vehicle = VehicleUtils.getFactory.createVehicle(Id.createVehicleId(vehicleCounter), vt)
+          vehicleIds.add(vehicle.getId)
+          val bvId = Id.create(vehicle.getId, classOf[BeamVehicle])
+          val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
+          val beamVehicle = new BeamVehicle(bvId, powerTrain, beamVehicleType)
+          scenarioVehicles.put(beamVehicle.id, beamVehicle)
           vehicleCounter = vehicleCounter + 1
         }
 
