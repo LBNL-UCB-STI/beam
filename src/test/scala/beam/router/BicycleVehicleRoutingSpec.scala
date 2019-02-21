@@ -5,9 +5,6 @@ import java.time.ZonedDateTime
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.agents.vehicles.BeamVehicleType.defaultHumanBodyBeamVehicleType
-import beam.agentsim.agents.vehicles.FuelType.Food
-import beam.agentsim.agents.vehicles.VehicleCategory.Bike
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
@@ -107,17 +104,7 @@ class BicycleVehicleRoutingSpec
           0.0
         )
       )
-      val defaultBicycleBeamVehicleType: BeamVehicleType = BeamVehicleType(
-        Id.create("BIKE_TYPE_DEFAULT", classOf[BeamVehicleType]),
-        1,
-        0,
-        1.5,
-        Food,
-        defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter / 5.0, // 5x more efficient than walking
-        defaultHumanBodyBeamVehicleType.primaryFuelCapacityInJoule, // same capacity as human body
-        vehicleCategory = Bike
-      )
-      router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), defaultBicycleBeamVehicleType.id)
+      router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), Id.create("Bicycle", classOf[BeamVehicleType]))
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.head.beamLegs().head.duration == 285)
       // R5 travel time, but less than what's in R5's routing response (see vv),
