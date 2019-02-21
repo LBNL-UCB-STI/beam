@@ -127,8 +127,7 @@ When running the IDE for the first time , it asks to import previous settings (i
 
 Once the IDE is successfully installed , proceed with the below steps to import BEAM into the IDE.
 
-1. Open the IDE . When running the IDE for the first time , it asks to import previous settings (if any) from a local path, if no previous settings to choose , select "Do not import settings" and click Ok.
-2. Agree to the privacy policy and continue
+1. Open the IDE and agree to the privacy policy and continue
      (Optional) IDEA walks you through some default configurations set up here . In case you want to skip these steps , choose "Skip and install defaults" and go to step 3
       * Select a UI theme of choice and go to Next: Default Plugins
       * Select only the required plugins (gradle , java are mandatory) and disable the others and go to Next:Feature plugins
@@ -154,7 +153,7 @@ Since BEAM is built with java/scala . A scala sdk module needs to be configured 
 
 **Running BEAM from IDE**
 
-BEAM requires some arguments to be specififed during run time like the scenario configuration.
+BEAM requires some arguments to be specified during run-time like the scenario configuration.
 These configuration settings can be added as a run configuration inside the IDE.
 
 Steps to add a new configuration :
