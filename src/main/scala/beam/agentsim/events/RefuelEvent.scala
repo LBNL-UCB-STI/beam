@@ -35,10 +35,10 @@ class RefuelEvent(
       attributes.put(RefuelEventAttrs.ATTRIBUTE_COST, stall.cost.toString)
       attributes.put(RefuelEventAttrs.ATTRIBUTE_LOCATION_X, stall.locationUTM.getX.toString)
       attributes.put(RefuelEventAttrs.ATTRIBUTE_LOCATION_Y, stall.locationUTM.getY.toString)
-      attributes.put(RefuelEventAttrs.ATTRIBUTE_PARKING_TYPE, stall.attributes.parkingType.toString)
-      attributes.put(RefuelEventAttrs.ATTRIBUTE_PRICING_MODEL, stall.attributes.pricingModel.toString)
-      attributes.put(RefuelEventAttrs.ATTRIBUTE_CHARGING_TYPE, stall.attributes.chargingType.toString)
-      attributes.put(RefuelEventAttrs.ATTRIBUTE_PARKING_TAZ, stall.attributes.tazId.toString)
+      attributes.put(RefuelEventAttrs.ATTRIBUTE_PARKING_TYPE, stall.parkingType.toString)
+      attributes.put(RefuelEventAttrs.ATTRIBUTE_PRICING_MODEL, stall.pricingModel.toString)
+      attributes.put(RefuelEventAttrs.ATTRIBUTE_CHARGING_TYPE, stall.chargingPoint.toString)
+      attributes.put(RefuelEventAttrs.ATTRIBUTE_PARKING_TAZ, stall.tazId.toString)
     }
     attributes.asJava
   }

@@ -5,7 +5,7 @@ import java.io.File
 import scala.collection.Map
 import scala.util.{Failure, Success, Try}
 
-import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.infrastructure.parking.charging.ChargingInquiryData._
 import beam.agentsim.infrastructure.parking.charging._
 import org.matsim.api.core.v01.Id
@@ -38,18 +38,18 @@ object ParkingZoneSearch {
     tree               : StallSearch,
     stalls             : Array[ParkingZone],
     costFunction       : (ParkingZone, Option[ChargingPreference]) => Double
-  ): Option[(TAZ, ParkingZone, Int)] = {
+  ): Option[(TAZ, ParkingType, ParkingZone, Int)] = {
     val found = findParkingZonesAndRanking(tazList, parkingTypes, tree, stalls)
     takeBestByRanking(found, chargingInquiryData, costFunction).
-      map { case (taz, parkingZone, id, _) =>
-        (taz, parkingZone, id)
+      map { case (taz, parkingType, parkingZone, id, _) =>
+        (taz, parkingType, parkingZone, id)
       }
   }
 
 
 
   /**
-    * look for matching ParkingZones, optionally based on charging infrastructure requirements, within a TAZ
+    * look for matching ParkingZones, optionally based on charging infrastructure requirements, within a TAZ, which have vacancies
     * @param tazList the TAZ we are looking in
     * @param parkingTypes the parking types we are interested in
     * @param tree search tree of parking infrastructure
@@ -61,20 +61,20 @@ object ParkingZoneSearch {
     parkingTypes       : Seq[ParkingType],
     tree               : StallSearch,
     stalls             : Array[ParkingZone]
-  ): Seq[(ParkingZone, Int, TAZ)] = {
+  ): Seq[(ParkingZone, Int, TAZ, ParkingType)] = {
 
     // conduct search (toList required to combine Option and List monads)
     for {
       taz                 <- tazList
       parkingTypesSubtree <- tree.get(taz.tazId).toList
-      validParkingType    <- parkingTypes
-      parkingZoneIds      <- parkingTypesSubtree.get(validParkingType).toList
+      parkingType         <- parkingTypes
+      parkingZoneIds      <- parkingTypesSubtree.get(parkingType).toList
       parkingZoneId       <- parkingZoneIds
+      if stalls(parkingZoneId).stallsAvailable > 0
     } yield {
-
       // get the zone
       Try {
-        (stalls(parkingZoneId), parkingZoneId, taz)
+        (stalls(parkingZoneId), parkingZoneId, taz, parkingType)
       } match {
         case Success(zone) => zone
         case Failure(e) =>
@@ -92,14 +92,15 @@ object ParkingZoneSearch {
     * @return the best parking zone, it's id, and it's rank
     */
   def takeBestByRanking(
-    found              : Iterable[(ParkingZone, Int, TAZ)],
+    found              : Iterable[(ParkingZone, Int, TAZ, ParkingType)],
     chargingInquiryData: Option[ChargingInquiryData],
     costFunction       : (ParkingZone, Option[ChargingPreference]) => Double
-  ): Option[(TAZ, ParkingZone, Int, Double)] = {
+  ): Option[(TAZ, ParkingType, ParkingZone, Int, Double)] = {
     found.
-      foldLeft(Option.empty[(TAZ, ParkingZone, Int, Double)]) { (bestZoneOption, parkingZoneTuple) =>
-        val (thisParkingZone: ParkingZone, thisParkingZoneId: Int, thisTAZ: TAZ) = parkingZoneTuple
+      foldLeft(Option.empty[(TAZ, ParkingType, ParkingZone, Int, Double)]) { (bestZoneOption, parkingZoneTuple) =>
+        val (thisParkingZone: ParkingZone, thisParkingZoneId: Int, thisTAZ: TAZ, thisParkingType: ParkingType) = parkingZoneTuple
 
+        // rank this parking zone
         val thisRank = chargingInquiryData match {
           case None =>
             // not a charging vehicle
@@ -113,11 +114,11 @@ object ParkingZoneSearch {
             costFunction(thisParkingZone, pref)
         }
 
-        // update fold accumulator with best-ranked parking zone
+        // update fold accumulator with best-ranked parking zone along with relevant attributes
         bestZoneOption match {
-          case None => Some{ (thisTAZ, thisParkingZone, thisParkingZoneId, thisRank) }
-          case Some((_, _, _, bestRank)) =>
-            if (bestRank < thisRank) Some{ (thisTAZ, thisParkingZone, thisParkingZoneId, thisRank) }
+          case None => Some{ (thisTAZ, thisParkingType, thisParkingZone, thisParkingZoneId, thisRank) }
+          case Some((_, _, _, _, bestRank)) =>
+            if (bestRank < thisRank) Some{ (thisTAZ, thisParkingType, thisParkingZone, thisParkingZoneId, thisRank) }
             else bestZoneOption
         }
       }
@@ -231,7 +232,8 @@ object ParkingZoneSearch {
                 addStallToSearch(taz, parkingType, pricingModel, chargingPoint, numStalls, searchTree, stallTable)
 
               } match {
-                case Success(updatedAccumulator) => updatedAccumulator
+                case Success(updatedAccumulator) =>
+                  updatedAccumulator
                 case Failure(e) =>
                   throw new java.io.IOException(s"Failed to load parking data from row with contents $csvRow.\n$e")
               }

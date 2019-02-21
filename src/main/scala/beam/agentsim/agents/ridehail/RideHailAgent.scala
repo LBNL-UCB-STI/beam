@@ -290,7 +290,7 @@ class RideHailAgent(
           vehicle.id
         )
       )
-      parkingManager ! ReleaseParkingStall(vehicle.stall.get.id)
+      parkingManager ! ReleaseParkingStall(vehicle.stall.get.parkingZoneId)
       vehicle.unsetParkingStall()
       vehicle.manager.foreach(
         _ ! NotifyVehicleIdle(

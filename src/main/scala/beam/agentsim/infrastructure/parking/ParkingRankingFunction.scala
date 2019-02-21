@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.infrastructure.parking.charging._
 
-object ParkingCostFunction {
+object ParkingRankingFunction {
   /**
     * computes the cost of a given parking alternative based on the stall rental and optional charging capabilities
     * @param parkingDuration duration agent will use parking stall
@@ -43,13 +43,4 @@ object ParkingCostFunction {
 
     price + chargingCost
   }
-
-
-  /**
-    * cost function curried with parkingDuration value
-    * @param parkingDuration duration agent will use parking stall
-    * @return utility function for ranking parking alternatives
-    */
-  def apply(parkingDuration: Double): (ParkingZone, Option[ChargingPreference]) => Double = apply(parkingDuration)
-
 }

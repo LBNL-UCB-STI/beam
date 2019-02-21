@@ -41,16 +41,16 @@ class LeavingParkingEvent(
 
     attr.put(LeavingParkingEventAttrs.ATTRIBUTE_SCORE, score.toString)
     attr.put(LeavingParkingEventAttrs.ATTRIBUTE_VEHICLE_ID, vehId.toString)
-    attr.put(LeavingParkingEventAttrs.ATTRIBUTE_PARKING_TYPE, stall.attributes.parkingType.toString)
+    attr.put(LeavingParkingEventAttrs.ATTRIBUTE_PARKING_TYPE, stall.parkingType.toString)
     attr.put(
       LeavingParkingEventAttrs.ATTRIBUTE_PRICING_MODEL,
-      stall.attributes.pricingModel.toString
+      stall.pricingModel.toString
     )
     attr.put(
       LeavingParkingEventAttrs.ATTRIBUTE_CHARGING_TYPE,
-      stall.attributes.chargingType.toString
+      stall.chargingPoint.toString
     )
-    attr.put(LeavingParkingEventAttrs.ATTRIBUTE_PARKING_TAZ, stall.attributes.tazId.toString)
+    attr.put(LeavingParkingEventAttrs.ATTRIBUTE_PARKING_TAZ, stall.tazId.toString)
 
     attr
   }
