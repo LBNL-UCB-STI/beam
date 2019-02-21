@@ -54,7 +54,7 @@ object NetworkEdgeOutputGenerator extends App {
   }
 
   private def writeAccessibleEdgesToFile(): Unit = {
-    val csvHeader = "id,from,to,freeSpeed(m/s),length(m),travelTime(s)"
+    val csvHeader = "id,from,to,freeSpeedInMetersPerSecond,lengthInM,travelTimeInSeconds"
     val outputDirectory = beamConfig.beam.routing.r5.directory
     val bikeAccessibleEdgesOutputFilePath = outputDirectory + "/" + "bikeAccessibleEdges.csv"
     val walkAccessibleEdgesOutputFilePath = outputDirectory + "/" + "walkAccessibleEdges.csv"
