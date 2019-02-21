@@ -170,6 +170,9 @@ class HouseholdCAVScheduling(
 
   // ***
   def getAllFeasibleSchedules: List[CAVFleetSchedule] = {
+    if(household.getId.toString.equals("1")){
+      val i = 0
+    }
 
     // extract potential household CAV requests from plans
     val householdRequests: HouseholdTrips =
