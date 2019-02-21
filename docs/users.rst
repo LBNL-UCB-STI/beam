@@ -128,19 +128,19 @@ When running the IDE for the first time , it asks to import previous settings (i
 Once the IDE is successfully installed , proceed with the below steps to import BEAM into the IDE.
 
 1. Open the IDE and agree to the privacy policy and continue
-     (Optional) IDEA walks you through some default configurations set up here . In case you want to skip these steps , choose "Skip and install defaults" and go to step 3
+     (Optional) IDEA walks you through some default configurations set up here . In case you want to skip these steps , choose "Skip and install defaults" and go to step 2
       * Select a UI theme of choice and go to Next: Default Plugins
       * Select only the required plugins (gradle , java are mandatory) and disable the others and go to Next:Feature plugins
       * Install scala and click "Start using Intellij IDEA"
-3. In the welcome menu , select "Import Project" and provide the location of the locally cloned BEAM project
-4. Inside the import project screen, select "Import project from external model" and choose "Gradle" from the available and click Next
-5. Click Finish.
+2. In the welcome menu , select "Import Project" and provide the location of the locally cloned BEAM project
+3. Inside the import project screen, select "Import project from external model" and choose "Gradle" from the available and click Next
+4. Click Finish.
 
 The project should now be successfully imported into the IDE and a build should be initiated automatically. If no build is triggered automatically , you can manually trigger one by going to Build > Build Project.
 
 **Installing scala plugin**
 
-If optional configuration in step 3 of above section was skipped , scala plugin will not be added automatically .
+If optional configuration in step 1 of above section was skipped , scala plugin will not be added automatically .
 To manually enable scala plugin go to File > Settings > Plugins. Search for scala plugin and click Install.
 
 **Setting up scala SDK**
