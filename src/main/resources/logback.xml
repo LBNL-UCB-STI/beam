@@ -11,18 +11,6 @@
         </layout>
     </appender>
 
-    <!--<appender name="STDOUT" class="beam.utils.logging.LogAggregatorAppender">-->
-        <!--<layout class="ch.qos.logback.classic.PatternLayout">-->
-            <!--<Pattern>-->
-                <!--%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n-->
-            <!--</Pattern>-->
-        <!--</layout>-->
-
-        <!--<eps>3</eps>-->
-        <!--<minPoints>0</minPoints>-->
-        <!--<stopMessage>Ending Iteration</stopMessage>-->
-    <!--</appender>-->
-
     <root level="info">
         <appender-ref ref="STDOUT"/>
     </root>
