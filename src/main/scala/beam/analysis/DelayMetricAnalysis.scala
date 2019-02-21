@@ -5,12 +5,13 @@ import java.util
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.Modes.BeamMode.CAR
-import beam.utils.{LinkWithIndex, NetworkHelper}
+import beam.utils.NetworkHelper
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.jfree.chart.plot.CategoryPlot
 import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.events.Event
+import org.matsim.api.core.v01.network.Link
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -29,13 +30,13 @@ class DelayMetricAnalysis @Inject()(
 
   eventsManager.addHandler(this)
 
-  private val cumulativeDelay: Array[Double] = Array.ofDim[Double](networkHelper.totalNumberOfLinks)
+  private val cumulativeDelay: Array[Double] = Array.ofDim[Double](networkHelper.maxLinkId + 1)
 
-  private val cumulativeLength: Array[Double] = Array.ofDim[Double](networkHelper.totalNumberOfLinks)
+  private val cumulativeLength: Array[Double] = Array.ofDim[Double](networkHelper.maxLinkId + 1)
 
-  private var linkTravelsCount: Array[Int] = Array.ofDim[Int](networkHelper.totalNumberOfLinks)
+  private var linkTravelsCount: Array[Int] = Array.ofDim[Int](networkHelper.maxLinkId + 1)
 
-  private var linkAverageDelay: Array[DelayInLength] = Array.ofDim[DelayInLength](networkHelper.totalNumberOfLinks)
+  private var linkAverageDelay: Array[DelayInLength] = Array.ofDim[DelayInLength](networkHelper.maxLinkId + 1)
 
   private val bins = Array(0, 500, 1000, 2000, 3000)
   private val legends = Array("0-500", "500-1000", "1000-2000", "2000-3000", "3000+")
@@ -60,7 +61,8 @@ class DelayMetricAnalysis @Inject()(
       case pathTraversalEvent: PathTraversalEvent =>
         val mode = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE)
         if (mode.equals(CAR.value)) {
-          val linkIds = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS).split(",")
+          val linkIds =
+            pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS).split(",").map(_.toInt)
           val linkTravelTimes = pathTraversalEvent.getLinkTravelTimes.split(",").map(_.toInt)
           assert(linkIds.length == linkTravelTimes.length)
 
@@ -68,8 +70,8 @@ class DelayMetricAnalysis @Inject()(
             var index = 0
             while (index < linkIds.length) {
               val linkId = linkIds(index)
-              val linkWithIndex = networkHelper.getLinkWithIndexUnsafe(linkId)
-              process(linkWithIndex, linkTravelTimes(index))
+              val link = networkHelper.getLinkUnsafe(linkId)
+              process(linkId, link, linkTravelTimes(index))
               index += 1
             }
           }
@@ -78,9 +80,7 @@ class DelayMetricAnalysis @Inject()(
     }
   }
 
-  def process(linkWithIndex: LinkWithIndex, travelTime: Double): Unit = {
-    val link = linkWithIndex.link
-    val index = linkWithIndex.index
+  def process(index: Int, link: Link, travelTime: Double): Unit = {
     val freeLength = link.getLength
     val freeSpeed = link.getFreespeed
     var freeFlowDelay = travelTime - (freeLength / freeSpeed).round.toInt
@@ -113,7 +113,7 @@ class DelayMetricAnalysis @Inject()(
     util.Arrays.fill(cumulativeDelay, 0.0)
     util.Arrays.fill(cumulativeLength, 0.0)
     util.Arrays.fill(linkTravelsCount, 0)
-    linkAverageDelay = Array.ofDim[DelayInLength](networkHelper.totalNumberOfLinks)
+    linkAverageDelay = Array.ofDim[DelayInLength](networkHelper.maxLinkId)
     capacitiesDelay.clear
     totalTravelTime = 0
   }
@@ -121,9 +121,8 @@ class DelayMetricAnalysis @Inject()(
   def categoryDelayCapacityDataset(iteration: Int): Unit = {
     cumulativeDelay.zipWithIndex.foreach {
       case (delay, index) =>
-        val linkId = networkHelper.getLinkIdUnsafe(index)
-        val linkWithIndex = networkHelper.getLinkWithIndexUnsafe(linkId)
-        val capacity = linkWithIndex.link.getCapacity
+        val link = networkHelper.getLinkUnsafe(index)
+        val capacity = link.getCapacity
         val bin = largeset(capacity)
         val capacityDelay = capacitiesDelay.getOrElse(bin, 0.0)
         capacitiesDelay(bin) = delay + capacityDelay

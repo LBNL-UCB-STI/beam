@@ -392,6 +392,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "execute_class": "${project.findProperty('executeClass')}",
   "execute_args": "${project.findProperty('executeArgs')}",
   "max_ram": "${maxRAM ?: '140g'}",
+  "storage_size": ${project.findProperty('storageSize')},
   "batch": "$beamBatch",
   "s3_publish": "${project.findProperty('s3Backup') ?: true}",
   "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
