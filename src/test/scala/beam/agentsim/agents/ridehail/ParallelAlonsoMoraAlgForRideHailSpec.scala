@@ -7,6 +7,8 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.scalatest.FunSpecLike
 
+import scala.concurrent.Await
+
 class ParallelAlonsoMoraAlgForRideHailSpec
     extends TestKit(
       ActorSystem(
@@ -38,7 +40,8 @@ class ParallelAlonsoMoraAlgForRideHailSpec
           skimmer
         )
 
-      val assignment = alg.greedyAssignment()
+      import scala.concurrent.duration._
+      val assignment = Await.result(alg.greedyAssignment(), atMost = 10.minutes)
 
       for (row <- assignment) {
         assert(row._1.getId == "trip:[p1] -> [p4] -> " || row._1.getId == "trip:[p3] -> ")
