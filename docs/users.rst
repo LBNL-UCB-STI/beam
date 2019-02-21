@@ -80,8 +80,6 @@ When installing the git client one needs to uncheck git lfs installation. If mis
 Installing BEAM
 ^^^^^^^^^^^^^^^
 
-Install gradle: https://gradle.org/install/
-
 Clone the beam repository::
 
    git clone git@github.com:LBNL-UCB-STI/beam.git
