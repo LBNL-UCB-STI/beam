@@ -183,15 +183,10 @@ dependencies {
     compile group: 'com.beachape', name: "enumeratum-circe_${scalaBinaryVersion}", version: "1.5.14"
 
     compile "com.github.scopt:scopt_${scalaBinaryVersion}:3.7.0"
-    //    compile 'org.scalaz:scalaz-core_2.12:7.3.0-M9'
     compile "net.codingwell:scala-guice_${scalaBinaryVersion}:4.1.0"  // DI
     compile('com.github.carueda:tscfg:v' + tscfgVersion) { // config
         exclude group: 'org.scala-lang.modules', module: 'scala-xml_2.11'
     }
-    // https://mvnrepository.com/artifact/org.scalaz/scalaz-core_2.12
-    compile group: 'org.scalaz', name: "scalaz-core_${scalaBinaryVersion}", version: '7.3.0-M10'
-    //compile group: 'com.lihaoyi', name: 'pprint', version: '0.4.3'
-    //compile group: 'com.github.lihaoyi.upickle-pprint', name:'pprint', version:'0.4.0', changing: false
     // https://mvnrepository.com/artifact/io.circe/circe-core_2.12
     compile group: 'io.circe', name: "circe-core_${scalaBinaryVersion}", version: circeBinaryVersion
     // https://mvnrepository.com/artifact/io.circe/circe-generic_2.12
@@ -243,6 +238,12 @@ dependencies {
     scoverage "org.scoverage:scalac-scoverage-plugin_${scalaBinaryVersion}:1.3.1", "org.scoverage:scalac-scoverage-runtime_${scalaBinaryVersion}:1.3.1"
 
     compile 'org.apache.commons:commons-compress:1.18'
+
+    def parquet = "1.10.0"
+    compile group: 'org.apache.parquet', name: 'parquet-hadoop', version: parquet
+    compile group: 'org.apache.parquet', name: 'parquet-avro', version: parquet
+    compile group: 'org.apache.hadoop', name: 'hadoop-client', version: '2.7.3'
+
 }
 
 // Autoformatting using scalafmt
