@@ -3,7 +3,7 @@ package beam.router
 import java.time.ZonedDateTime
 
 import akka.actor.{ActorRef, ActorSystem}
-import akka.testkit.{ImplicitSender, TestKit}
+import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
@@ -22,12 +22,11 @@ import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
-import beam.utils.{DateUtils, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.{DateUtils, NetworkHelperImpl}
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.config.ConfigUtils
-import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.vehicles.Vehicle
 import org.mockito.ArgumentMatchers.any
@@ -89,7 +88,7 @@ class TollRoutingSpec
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
         scenario,
-        new EventsManagerImpl(),
+        new TestProbe(system).ref,
         scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator
@@ -152,7 +151,7 @@ class TollRoutingSpec
           networkCoordinator.transportNetwork,
           networkCoordinator.network,
           scenario,
-          new EventsManagerImpl(),
+          new TestProbe(system).ref,
           scenario.getTransitVehicles,
           fareCalculator,
           moreExpensiveTollCalculator

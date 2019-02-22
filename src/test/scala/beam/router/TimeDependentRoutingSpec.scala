@@ -3,7 +3,7 @@ package beam.router
 import java.time.ZonedDateTime
 
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
-import akka.testkit.{ImplicitSender, TestKit}
+import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import beam.agentsim.agents.choice.mode.PtFares
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.agentsim.agents.vehicles.BeamVehicleType
@@ -89,7 +89,7 @@ class TimeDependentRoutingSpec
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
         scenario,
-        new EventsManagerImpl(),
+        new TestProbe(system).ref,
         scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator

@@ -3,7 +3,7 @@ package beam.router
 import java.time.ZonedDateTime
 
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
-import akka.testkit.{ImplicitSender, TestKit}
+import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
@@ -19,7 +19,6 @@ import beam.sim.config.BeamConfig
 import beam.utils.{BeamConfigUtils, DateUtils}
 import org.matsim.api.core.v01.Id
 import org.matsim.core.config.ConfigUtils
-import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
@@ -76,7 +75,7 @@ class BicycleVehicleRoutingSpec
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
         scenario,
-        new EventsManagerImpl(),
+        new TestProbe(system).ref,
         scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator

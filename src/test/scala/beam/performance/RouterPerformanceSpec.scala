@@ -118,7 +118,7 @@ class RouterPerformanceSpec
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
         scenario,
-        new EventsManagerImpl(),
+        new TestProbe(system).ref,
         scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator

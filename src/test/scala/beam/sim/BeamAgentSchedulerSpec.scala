@@ -1,7 +1,7 @@
 package beam.sim
 
 import akka.actor.{ActorRef, ActorSystem}
-import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
+import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents._
 import beam.agentsim.scheduler.BeamAgentScheduler._
@@ -13,7 +13,6 @@ import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
-import org.matsim.core.events.EventsManagerImpl
 import org.scalatest.Matchers._
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, MustMatchers}
 
@@ -111,7 +110,7 @@ object BeamAgentSchedulerSpec {
   case class ReportState(tick: Int) extends Trigger
 
   class TestBeamAgent(override val id: Id[Person], override val scheduler: ActorRef) extends BeamAgent[MyData] {
-    val eventsManager = new EventsManagerImpl
+    val actorEventsManager: ActorRef = new TestProbe(context.system).ref
 
     override def logPrefix(): String = "TestBeamAgent"
 

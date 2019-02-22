@@ -1,6 +1,7 @@
 package beam.integration
 
 import akka.actor._
+import akka.testkit.TestProbe
 import beam.agentsim.agents.PersonTestUtil
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
@@ -13,8 +14,8 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg}
+import org.matsim.core.events.EventsUtils
 import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.core.events.{EventsManagerImpl, EventsUtils}
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
 
@@ -60,7 +61,7 @@ class SingleModeSpec
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
         scenario,
-        new EventsManagerImpl(),
+        new TestProbe(system).ref,
         scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator

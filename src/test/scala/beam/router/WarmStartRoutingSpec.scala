@@ -4,7 +4,7 @@ import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
-import akka.testkit.{ImplicitSender, TestKit}
+import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import beam.agentsim.agents.choice.mode.PtFares
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.agentsim.agents.vehicles.BeamVehicleType
@@ -30,7 +30,6 @@ import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.AbstractModule
-import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
@@ -113,7 +112,7 @@ class WarmStartRoutingSpec
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
         scenario,
-        new EventsManagerImpl(),
+        new TestProbe(system).ref,
         scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator
@@ -155,7 +154,7 @@ class WarmStartRoutingSpec
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
         scenario,
-        new EventsManagerImpl(),
+        new TestProbe(system).ref,
         scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator

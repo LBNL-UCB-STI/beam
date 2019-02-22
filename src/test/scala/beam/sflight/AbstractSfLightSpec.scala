@@ -1,14 +1,13 @@
 package beam.sflight
 
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify, PoisonPill}
-import akka.testkit.{ImplicitSender, TestKitBase}
+import akka.testkit.{ImplicitSender, TestKitBase, TestProbe}
 import beam.router.BeamRouter
 import beam.sim.{BeamServices, BeamServicesImpl}
 import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.population.{Activity, Plan}
-import org.matsim.core.events.EventsManagerImpl
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
 
@@ -40,7 +39,7 @@ class AbstractSfLightSpec(val name: String)
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
         scenario,
-        new EventsManagerImpl(),
+        new TestProbe(system).ref,
         scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator

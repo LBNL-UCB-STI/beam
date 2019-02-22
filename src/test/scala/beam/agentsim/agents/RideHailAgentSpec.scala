@@ -3,7 +3,7 @@ package beam.agentsim.agents
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, ActorSystem}
-import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
+import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
@@ -183,7 +183,7 @@ class RideHailAgentSpec
           new Coord(0.0, 0.0),
           None,
           None,
-          eventsManager,
+          new TestProbe(system).ref,
           zonalParkingManager,
           services,
           networkCoordinator.transportNetwork,
@@ -259,7 +259,7 @@ class RideHailAgentSpec
           new Coord(0.0, 0.0),
           None,
           None,
-          eventsManager,
+          new TestProbe(system).ref,
           zonalParkingManager,
           services,
           networkCoordinator.transportNetwork,
@@ -329,7 +329,7 @@ class RideHailAgentSpec
           new Coord(0.0, 0.0),
           None,
           None,
-          eventsManager,
+          new TestProbe(system).ref,
           zonalParkingManager,
           services,
           networkCoordinator.transportNetwork,
