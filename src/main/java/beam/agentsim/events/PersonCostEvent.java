@@ -5,9 +5,7 @@ import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.api.internal.HasPersonId;
 
-import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class PersonCostEvent extends Event implements HasPersonId {
 
@@ -24,8 +22,6 @@ public class PersonCostEvent extends Event implements HasPersonId {
     private final double tollCost;
     private final double netCost;
 
-    private final AtomicReference<Map<String, String>> attributes;
-
     public PersonCostEvent(final double time, final Id<Person> personId, String mode, double incentive, double tollCost, double netCost) {
         super(time);
         this.personId = personId;
@@ -33,7 +29,6 @@ public class PersonCostEvent extends Event implements HasPersonId {
         this.incentive = incentive;
         this.tollCost = tollCost;
         this.netCost = netCost;
-        this.attributes = new AtomicReference<>(Collections.emptyMap());
     }
 
     public static PersonCostEvent apply(Event event) {
@@ -74,19 +69,12 @@ public class PersonCostEvent extends Event implements HasPersonId {
 
     @Override
     public Map<String, String> getAttributes() {
-        Map<String, String> attr = attributes.get();
-        if (attr != Collections.EMPTY_MAP) return attr;
-
-        attr = super.getAttributes();
-
+        Map<String, String> attr = super.getAttributes();
         attr.put(ATTRIBUTE_PERSON, personId.toString());
         attr.put(ATTRIBUTE_MODE, mode);
         attr.put(ATTRIBUTE_INCENTIVE, Double.toString(incentive));
         attr.put(ATTRIBUTE_TOLL_COST, Double.toString(tollCost));
         attr.put(ATTRIBUTE_NET_COST, Double.toString(netCost));
-
-        attributes.set(attr);
-
         return attr;
     }
 }

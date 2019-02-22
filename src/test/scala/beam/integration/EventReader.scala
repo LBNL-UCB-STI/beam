@@ -60,6 +60,10 @@ object EventReader {
         PersonCostEvent.apply(event)
       case ReserveRideHailEvent.EVENT_TYPE =>
         ReserveRideHailEvent.apply(event)
+      case AgencyRevenueEvent.EVENT_TYPE =>
+        AgencyRevenueEvent.apply(event)
+      case ReplanningEvent.EVENT_TYPE =>
+        ReplanningEvent.apply(event)
       case _ =>
         event
     }

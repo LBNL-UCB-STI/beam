@@ -34,7 +34,6 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
     public final String vehAvailable;
     public final Double length;
     public final Integer tourIndex;
-    private Map<String, String> attr;
 
     public ModeChoiceEvent(double time, Id<Person> personId, String chosenMode, String currentTourMode, Double expectedMaxUtility,
                            String linkId, String availableAlternatives, Boolean vehAvailable, Double length,
@@ -74,10 +73,7 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
 
     @Override
     public Map<String, String> getAttributes() {
-        if (attr != null) return attr;
-
-        attr = super.getAttributes();
-
+        Map<String, String> attr = super.getAttributes();
         attr.put(ATTRIBUTE_PERSON_ID, personId.toString());
         attr.put(ATTRIBUTE_MODE, mode);
         attr.put(ATTRIBUTE_CURRENT_TOUR_MODE, currentTourMode);
@@ -87,7 +83,6 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
         attr.put(ATTRIBUTE_PERSONAL_VEH_AVAILABLE, vehAvailable);
         attr.put(ATTRIBUTE_TRIP_LENGTH, length.toString());
         attr.put(ATTRIBUTE_TOUR_INDEX, tourIndex.toString());
-
         return attr;
     }
 
