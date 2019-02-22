@@ -88,4 +88,7 @@
         <appender-ref ref="STDOUT"/>
     </Logger>
 
+    <Logger name="org.apache.parquet" level="WARN" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
 </configuration>
