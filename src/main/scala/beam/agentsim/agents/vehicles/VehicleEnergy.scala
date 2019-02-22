@@ -6,7 +6,10 @@ import com.google.inject.Inject
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
 import com.univocity.parsers.common.record.Record
 import java.io.File
+
+import org.matsim.core.utils.io.IOUtils
 import org.slf4j.LoggerFactory
+
 import scala.collection.mutable
 import scala.collection.JavaConverters._
 
@@ -14,12 +17,12 @@ class VehicleCsvReader(config: BeamConfig) {
 
   def getVehicleEnergyRecordsUsing(csvParser: CsvParser): Iterable[Record] = {
     val csvLocation = config.beam.agentsim.agents.vehicles.vehicleEnergyFile
-    csvParser.iterateRecords(new File(csvLocation)).asScala
+    csvParser.iterateRecords(IOUtils.getBufferedReader(csvLocation)).asScala
   }
 
   def getLinkToGradeRecordsUsing(csvParser: CsvParser): Iterable[Record] = {
     val csvLocation = config.beam.agentsim.agents.vehicles.linkToGradePercentFile
-    csvParser.iterateRecords(new File(csvLocation)).asScala
+    csvParser.iterateRecords(IOUtils.getBufferedReader(csvLocation)).asScala
   }
 }
 
@@ -32,11 +35,27 @@ class VehicleEnergy(
   settings.detectFormatAutomatically()
   private val csvParser = new CsvParser(settings)
 
-  type ConsumptionRateFilter = Map[Range, Map[Range, Map[Range, Float]]] //speed->(gradePercent->(numberOfLanes->rate))
+  type ConsumptionRateFilter = Map[Range, Map[Range, Map[Range, Double]]] //speed->(gradePercent->(numberOfLanes->rate))
   private lazy val consumptionRateFilter = loadConsumptionRatesFromCSV
   private lazy val linkIdToGradePercentMap = loadLinkIdToGradeMapFromCSV
+  val joulesPerMeterConversionRate = 746.86
 
-  def getRateUsing(fuelConsumptionData: BeamVehicle.FuelConsumptionData, fallBack: => Float): Float = {
+  def getFuelConsumptionEnergyInJoulesUsing(
+    fuelConsumptionDatas: IndexedSeq[BeamVehicle.FuelConsumptionData],
+    fallBack: (IndexedSeq[BeamVehicle.FuelConsumptionData]) => Double
+  ) = {
+    val consumptionsInJoules = fuelConsumptionDatas
+      .map(fuelConsumptionData => {
+        for {
+          rateInJoulesPerMeter <- getRateUsing(fuelConsumptionData)
+          distance             <- fuelConsumptionData.linkLength
+        } yield rateInJoulesPerMeter * distance
+      })
+      .flatten
+    if (consumptionsInJoules.size > 0) consumptionsInJoules.sum else fallBack(fuelConsumptionDatas)
+  }
+
+  private def getRateUsing(fuelConsumptionData: BeamVehicle.FuelConsumptionData): Option[Double] = {
     val BeamVehicle.FuelConsumptionData(linkId, _, numberOfLanesOption, _, _, _, speedInMilesPerHourOption, _, _, _) =
       fuelConsumptionData
     val numberOfLanes = numberOfLanesOption.getOrElse(0)
@@ -62,26 +81,28 @@ class VehicleEnergy(
         ratesSize,
         fuelConsumptionData
       )
-    filteredRates.headOption.getOrElse(fallBack)
+    filteredRates.headOption.map(convertToJoulesPerMeter)
   }
+
+  private def convertToJoulesPerMeter(rate: Double): Double = rate * joulesPerMeterConversionRate
 
   private def loadLinkIdToGradeMapFromCSV: Map[Int, Int] = {
     linkToGradeRecordsIterableUsing(csvParser)
       .map(csvRecord => {
         val linkId = csvRecord.getInt(0)
-        val gradePercent = csvRecord.getInt(1)
+        val gradePercent = csvRecord.getDouble(1)
         (linkId.toInt -> gradePercent.toInt)
       })
       .toMap
   }
 
   private def loadConsumptionRatesFromCSV: ConsumptionRateFilter = {
-    val currentRateFilter = mutable.Map.empty[Range, mutable.Map[Range, mutable.Map[Range, Float]]]
+    val currentRateFilter = mutable.Map.empty[Range, mutable.Map[Range, mutable.Map[Range, Double]]]
     vehicleEnergyRecordsIterableUsing(csvParser).foreach(csvRecord => {
       val speedInMilesPerHourBin = convertRecordStringToRange(csvRecord.getString(0))
       val gradePercentBin = convertRecordStringToRange(csvRecord.getString(1))
       val numberOfLanesBin = convertRecordStringToRange(csvRecord.getString(2))
-      val rate = csvRecord.getFloat(5)
+      val rate = csvRecord.getDouble(5)
       if (rate == null)
         throw new Exception(
           s"Record $csvRecord does not contain a valid rate. " +

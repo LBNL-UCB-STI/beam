@@ -103,8 +103,8 @@ class BeamVehicle(
     val distanceInMeters = beamLeg.travelPath.distanceInM
     val network = beamServices.matsimServices.getScenario.getNetwork
     val fuelConsumption = BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
-    //val energyConsumed = vehicleEnergy.getRateUsing()
-    val energyConsumed = powerTrain.estimateConsumptionInJoules(fuelConsumption)
+    val energyConsumed =
+      vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(fuelConsumption, powerTrain.estimateConsumptionInJoules)
     if (fuelLevelInJoules < energyConsumed) {
       logger.warn(
         "Vehicle {} does not have sufficient fuel to travel {} m, only enough for {} m, setting fuel level to 0",

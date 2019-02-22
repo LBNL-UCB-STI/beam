@@ -20,7 +20,8 @@ class VehicleEnergyTest extends FunSpecLike with BeforeAndAfterAll with Matchers
           |"(1, 5]","(-6, -5]","(0, 1]",2.566056334197673,0.18907986480158595,7.368500148719666""".stripMargin
       val recordsRetriever = createRecordsIterableRetrieverFrom(vehicleEnergyString)
       val energy = new VehicleEnergy(recordsRetriever, linkIdToGradePercentRecordsRetriever)
-      val rate = energy.getRateUsing(createFuelConsumptionDataUsing(2, -6, 1), 1)
+      val consumption = energy.getFuelConsumptionEnergyInJoulesUsing(createFuelConsumptionDataUsing(2, -6, 1), _ => 1)
+      val rate = convertRateFromJoulesPerMeter(energy, consumption)
       Math.abs(rate - 6.656215049390844) should be < floatAllowedDiscrepancy
     }
   }
@@ -32,7 +33,8 @@ class VehicleEnergyTest extends FunSpecLike with BeforeAndAfterAll with Matchers
           |"(1, 5]","(-8, -6]","(4, 10]",44.557817527020944,3.683582791215134,8.266973105182542""".stripMargin
       val recordsRetriever = createRecordsIterableRetrieverFrom(vehicleEnergyString)
       val energy = new VehicleEnergy(recordsRetriever, linkIdToGradePercentRecordsRetriever)
-      val rate = energy.getRateUsing(createFuelConsumptionDataUsing(2, -6, 4), 1)
+      val consumption = energy.getFuelConsumptionEnergyInJoulesUsing(createFuelConsumptionDataUsing(2, -6, 4), _ => 1)
+      val rate = convertRateFromJoulesPerMeter(energy, consumption)
       Math.abs(rate - 8.032591247467646) should be < floatAllowedDiscrepancy
     }
   }
@@ -44,20 +46,22 @@ class VehicleEnergyTest extends FunSpecLike with BeforeAndAfterAll with Matchers
           |"(5, 10]","(-8, -6]","(3, 4]",44.557817527020944,3.683582791215134,8.266973105182542""".stripMargin
       val recordsRetriever = createRecordsIterableRetrieverFrom(vehicleEnergyString)
       val energy = new VehicleEnergy(recordsRetriever, linkIdToGradePercentRecordsRetriever)
-      val rate = energy.getRateUsing(createFuelConsumptionDataUsing(2, -6, 4), 1)
+      val consumption = energy.getFuelConsumptionEnergyInJoulesUsing(createFuelConsumptionDataUsing(2, -6, 4), _ => 1)
+      val rate = convertRateFromJoulesPerMeter(energy, consumption)
       Math.abs(rate - 8.032591247467646) should be < floatAllowedDiscrepancy
     }
   }
 
   describe("A VehicleEnergy that doesn't match anything") {
-    it("should return the fallback rate") {
+    it("should return the fallback consumption") {
       lazy val vehicleEnergyString =
         """"(1, 5]","(-8, -6]","(3, 4]",30.17397314735461,2.423751926047644,8.032591247467646
           |"(5, 10]","(-8, -6]","(3, 4]",44.557817527020944,3.683582791215134,8.266973105182542""".stripMargin
       val recordsRetriever = createRecordsIterableRetrieverFrom(vehicleEnergyString)
       val energy = new VehicleEnergy(recordsRetriever, linkIdToGradePercentRecordsRetriever)
-      val rate = energy.getRateUsing(createFuelConsumptionDataUsing(12, -6, 4), 1.05f)
-      Math.abs(rate - 1.05) should be < floatAllowedDiscrepancy
+      val consumption =
+        energy.getFuelConsumptionEnergyInJoulesUsing(createFuelConsumptionDataUsing(12, -6, 4), _ => 1.05)
+      Math.abs(consumption - 1.05) should be < floatAllowedDiscrepancy
     }
   }
 
@@ -65,14 +69,19 @@ class VehicleEnergyTest extends FunSpecLike with BeforeAndAfterAll with Matchers
     csvParser.iterateRecords(new ByteArrayInputStream(vehicleString.getBytes)).asScala
   }
 
+  private def convertRateFromJoulesPerMeter(vehicleEnergy: VehicleEnergy, consumption: Double) =
+    consumption / vehicleEnergy.joulesPerMeterConversionRate
+
   private def createFuelConsumptionDataUsing(speed: Int, gradePercent: Int, numberOfLanes: Int) = {
-    FuelConsumptionData(
-      linkId,
-      BeamVehicleType.defaultCarBeamVehicleType,
-      Option(numberOfLanes),
-      linkLength = None,
-      averageSpeed = None,
-      freeFlowSpeed = Option(speed)
+    IndexedSeq(
+      FuelConsumptionData(
+        linkId,
+        BeamVehicleType.defaultCarBeamVehicleType,
+        Option(numberOfLanes),
+        linkLength = Option(1),
+        averageSpeed = None,
+        freeFlowSpeed = Option(speed)
+      )
     )
   }
 }
