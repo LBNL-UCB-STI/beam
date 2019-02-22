@@ -55,7 +55,7 @@ abstract class SimRunnerForTest {
   val vehicleCsvReader = new VehicleCsvReader(beamCfg)
 
   val vehicleEnergy =
-    new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getVehicleEnergyRecordsUsing)
+    new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
   val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
   val fareCalculator = new FareCalculator(beamCfg.beam.routing.r5.directory)
   val tollCalculator = new TollCalculator(beamCfg)
