@@ -1,8 +1,8 @@
 package beam.replanning
 
+import beam.sim.config.BeamConfig
 import javax.inject.Inject
 import org.matsim.api.core.v01.population._
-import org.matsim.core.config.Config
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -10,10 +10,11 @@ import scala.language.postfixOps
 import scala.util.Random
 
 /**
+  * @author Bhavya Latha Bandaru.
   * A class that mutates the end time of agent's activities by random values within a fixed range.
-  * @param config config object
+  * @param beamConfig An instance of beam config.
   */
-class AnchorEndTimeMutator @Inject()(config: Config) extends PlansStrategyAdopter {
+class AnchorEndTimeMutator @Inject()(beamConfig: BeamConfig) extends PlansStrategyAdopter {
   import AnchorEndTimeMutator._
 
   override def run(person: HasPlansAndId[Plan, Person]): Unit = {
@@ -26,7 +27,7 @@ class AnchorEndTimeMutator @Inject()(config: Config) extends PlansStrategyAdopte
     val planElements: mutable.Seq[PlanElement] = person.getSelectedPlan.getPlanElements.asScala
 
     // A random value to the added to the existing activity end times
-    val randomRange = 10 * (Random.nextDouble() - 0.5)
+    val randomRange = beamConfig.beam.replanning.anchorEndTimeMutator.mutation.range * (Random.nextDouble() - 0.5)
 
     //For each activity in the selected plan update the activity end time to the new interval based on the random range
     planElements foreach {
