@@ -2,7 +2,7 @@ package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
-import beam.agentsim.agents.ridehail.{AlonsoMoraPoolingAlgForRideHail, RideHailManager, RideHailRequest}
+import beam.agentsim.agents.ridehail.{AlonsoMoraPoolingAlgForRideHail, ParallelAlonsoMoraAlgForRideHail, RideHailManager, RideHailRequest}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
@@ -10,7 +10,9 @@ import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode.CAR
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
+
 import scala.collection.mutable
+import scala.concurrent.Await
 
 class PoolingAlonsoMora(val rideHailManager: RideHailManager) extends RideHailResourceAllocationManager(rideHailManager) {
 
@@ -83,34 +85,41 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager) extends RideHailRe
         }
       }
     }
+    if(toPool.isEmpty)logger.info("Allocated")
     if(toPool.size > 0){
       implicit val skimmer: BeamSkimmer = new BeamSkimmer()
       val customerReqs = toPool.map(rhr => createPersonRequest(rhr.customer,rhr.pickUpLocationUTM,tick,rhr.destinationUTM))
       val customerIdToReqs = toPool.map(rhr => rhr.customer.personId -> rhr).toMap
       val availVehicles = rideHailManager.vehicleManager.availableRideHailVehicles.values.map(veh => createVehicleAndSchedule(veh.vehicleId.toString,veh.currentLocationUTM.loc,tick))
 
-      val algo = new AlonsoMoraPoolingAlgForRideHail(
-        customerReqs.toList,
-        availVehicles.toList,
-        omega = 6 * 60,
-        delta = 10 * 5000 * 60,
-        radius = Int.MaxValue,
-        skimmer
-      )
-      val rvGraph: RVGraph = algo.pairwiseRVGraph
-      val rtvGraph = algo.rTVGraph(rvGraph)
-      val assignment = algo.greedyAssignment(rtvGraph)
-      //      for (e <- rvGraph.edgeSet.asScala) {
-      //        println(rvGraph.getEdgeSource(e) + " <-> " + rvGraph.getEdgeTarget(e))
-      //      }
-      //      println("------")
-      //      for (e <- rtvGraph.edgeSet.asScala) {
-      //        println(rtvGraph.getEdgeSource(e) + " <-> " + rtvGraph.getEdgeTarget(e))
-      //      }
-//      println("------")
-//      for (row <- assignment) {
-//        println(row)
-//      }
+      val assignment = if(true){
+        val algo = new AlonsoMoraPoolingAlgForRideHail(
+          customerReqs.toList,
+          availVehicles.toList,
+          omega = 6 * 60,
+          delta = 10 * 5000 * 60,
+          radius = Int.MaxValue,
+          skimmer
+        )
+        logger.info("PairwiseGraph")
+        val rvGraph: RVGraph = algo.pairwiseRVGraph
+        logger.info("RTVGraph")
+        val rtvGraph = algo.rTVGraph(rvGraph)
+        logger.info("Greedy")
+        algo.greedyAssignment(rtvGraph)
+      }else{
+        val algo = new ParallelAlonsoMoraAlgForRideHail(
+          customerReqs.toList,
+          availVehicles.toList,
+          Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 5000 * 60)),
+          radius = Int.MaxValue,
+          skimmer
+        )
+        logger.info("Assigning")
+        import scala.concurrent.duration._
+        Await.result(algo.greedyAssignment(), atMost = 2.minutes)
+      }
+      logger.info("Result: {} assigned trips",assignment.size)
 
       assignment.foreach{ case (theTrip,vehicleAndSchedule,cost) =>
         alreadyAllocated = alreadyAllocated + vehicleAndSchedule.vehicle.id
@@ -156,17 +165,20 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager) extends RideHailRe
         tempScheduleStore.put(newRideHailRequest.get.requestId,scheduleToCache :+ theTrip.schedule.last)
       }
     }
-    if(allocResponses.size>0 ){
-      if(allocResponses.find{
-        case RoutingRequiredToAllocateVehicle(req,routes) =>
-          false
-        case VehicleMatchedToCustomers(_,_,pickdrops) =>
-          pickdrops.filter(_.leg.isDefined).size>2
-      }.isDefined){
-//      if(tick>=21900){
-        val i = 0
-      }
-    }
+//    if(allocResponses.size>0 ){
+//      if(allocResponses.find{
+//        case RoutingRequiredToAllocateVehicle(req,routes) =>
+//          false
+//        case VehicleMatchedToCustomers(_,_,pickdrops) =>
+//          pickdrops.filter(_.leg.isDefined).size>2
+//        case _ =>
+//          false
+//      }.isDefined){
+////      if(tick>=21900){
+//        val i = 0
+//      }
+//    }
+    logger.info("AllocResponses: {}",allocResponses.groupBy(_.getClass).map(x => s"${x._1.getSimpleName} -- ${x._2.size}").mkString("\t"))
     VehicleAllocations(allocResponses)
   }
 
