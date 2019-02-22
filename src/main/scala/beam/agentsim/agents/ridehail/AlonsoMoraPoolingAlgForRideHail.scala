@@ -87,13 +87,13 @@ class AlonsoMoraPoolingAlgForRideHail(
                 timeWindow,
                 v.schedule ++ (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff))
               ).map { schedule =>
-                  val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
-                  pairRequestsList.append(t)
-                  rTvG.addVertex(t)
-                  rTvG.addEdge(t1.requests.head, t)
-                  rTvG.addEdge(t2.requests.head, t)
-                  rTvG.addEdge(t, v)
-                }
+                val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
+                pairRequestsList.append(t)
+                rTvG.addVertex(t)
+                rTvG.addEdge(t1.requests.head, t)
+                rTvG.addEdge(t2.requests.head, t)
+                rTvG.addEdge(t, v)
+              }
             }
             index += 1
           }

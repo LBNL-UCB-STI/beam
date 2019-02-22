@@ -1052,23 +1052,24 @@ class RideHailManager(
       pickDrops.map(_.personId).zip(BeamLeg.makeLegsConsistent(pickDrops.map(_.leg.map(_.beamLeg))))
     val allLegs = consistentPickDrops.map(_._2).flatten
     var passSched = PassengerSchedule().addLegs(allLegs)
-    var pickDropsForGrouping: Map[VehiclePersonId,List[BeamLeg]] = Map()
+    var pickDropsForGrouping: Map[VehiclePersonId, List[BeamLeg]] = Map()
     var passengersToAdd = Set[VehiclePersonId]()
-    consistentPickDrops.foreach { case(person,leg) =>
-      if(passengersToAdd.contains(person)) {
-        passengersToAdd = passengersToAdd - person
-      }else{
-        passengersToAdd = passengersToAdd + person
-      }
-      if(leg.isDefined){
-        passengersToAdd.foreach { pass =>
-          val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg.get
-          pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
+    consistentPickDrops.foreach {
+      case (person, leg) =>
+        if (passengersToAdd.contains(person)) {
+          passengersToAdd = passengersToAdd - person
+        } else {
+          passengersToAdd = passengersToAdd + person
         }
-      }
+        if (leg.isDefined) {
+          passengersToAdd.foreach { pass =>
+            val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg.get
+            pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
+          }
+        }
     }
-    pickDropsForGrouping.foreach{passAndLegs=>
-      passSched = passSched.addPassenger(passAndLegs._1,passAndLegs._2)
+    pickDropsForGrouping.foreach { passAndLegs =>
+      passSched = passSched.addPassenger(passAndLegs._1, passAndLegs._2)
     }
     passSched
   }

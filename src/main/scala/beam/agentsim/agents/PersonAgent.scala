@@ -216,7 +216,7 @@ class PersonAgent(
       stay
     case Event(NotifyVehicleIdle(_, _, _, _, _), _) =>
       stay()
-    case Event(RideHailResponse(request, travelProposal,error,triggersToSchedule), _) =>
+    case Event(RideHailResponse(request, travelProposal, error, triggersToSchedule), _) =>
       stop(Failure("Unexpected RideHailResponse"))
     case Event(ParkingInquiryResponse(_, _), _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))
