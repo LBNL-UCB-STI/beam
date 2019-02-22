@@ -9,7 +9,7 @@ import org.scalatest.FunSpecLike
 
 import scala.concurrent.Await
 
-class ParallelAlonsoMoraAlgForRideHailSpec
+class AsyncAlonsoMoraAlgForRideHailSpec
     extends TestKit(
       ActorSystem(
         name = "ParallelAlonsoMoraAlgForRideHailSpec",
@@ -31,11 +31,11 @@ class ParallelAlonsoMoraAlgForRideHailSpec
     it("Creates a consistent plan") {
       implicit val skimmer: BeamSkimmer = new BeamSkimmer()
       val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenario1
-      val alg: ParallelAlonsoMoraAlgForRideHail =
-        new ParallelAlonsoMoraAlgForRideHail(
+      val alg: AsyncAlonsoMoraAlgForRideHail =
+        new AsyncAlonsoMoraAlgForRideHail(
           sc._2,
           sc._1,
-          Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 5000 * 60)),
+          Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
           radius = Int.MaxValue,
           skimmer
         )
