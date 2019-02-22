@@ -76,14 +76,7 @@ object FuelUsageStatsGraphSpec {
         else
           originalMode
 
-      val fuel = PathTraversalSpatialTemporalTableGenerator.getFuelConsumptionInMJ(
-        vehicleId,
-        originalMode,
-        fuelString,
-        lengthInMeters,
-        vehicleType
-      )
-      counter :+ (mode, fuel)
+      counter :+ (mode, fuelString.toDouble)
     }
 
     def counterValue = counter

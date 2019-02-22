@@ -235,8 +235,11 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[TollCalculator]).asEagerSingleton()
 
           // Override EventsManager
-          bind(classOf[EventsManager]).to(classOf[LoggingParallelEventsManager]).asEagerSingleton()
-
+          if (beamConfig.beam.debug.debugEnabled) {
+            bind(classOf[EventsManager]).to(classOf[EventsManagerImpl]).asEagerSingleton()
+          } else {
+            bind(classOf[EventsManager]).to(classOf[LoggingParallelEventsManager]).asEagerSingleton()
+          }
         }
       }
     )
@@ -267,10 +270,12 @@ trait BeamHelper extends LazyLogging {
 
     ConfigConsistencyComparator(parsedArgs.configLocation.get)
 
+    val location = ConfigFactory.parseString("config=" + parsedArgs.configLocation.get)
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
       if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
       else parsedArgs.config.get
-    }).resolve()
+    }).withFallback(location).resolve()
+
     (parsedArgs, config)
   }
 
@@ -279,7 +284,7 @@ trait BeamHelper extends LazyLogging {
     props.setProperty("commitHash", BashUtils.getCommitHash)
     props.setProperty("configFile", configLocation)
     val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
-    props.store(out, "Simulation out put props.")
+    props.store(out, "Simulation outWriter put props.")
     val beamConfig = BeamConfig(config)
     if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
           .equalsIgnoreCase("ModeChoiceLCCM")) {
@@ -373,7 +378,8 @@ trait BeamHelper extends LazyLogging {
 
     val beamServices = injector.getInstance(classOf[BeamServices])
 
-    //
+    beamServices.setTransitFleetSizes(networkCoordinator.tripFleetSizeMap)
+
     val beamConfig = beamServices.beamConfig
     var useCSVFiles
       : Boolean = beamConfig.beam.agentsim.agents.population.beamPopulationDirectory != null && !beamConfig.beam.agentsim.agents.population.beamPopulationDirectory
@@ -420,8 +426,11 @@ trait BeamHelper extends LazyLogging {
     logger.info("Starting beam on branch {} at commit {}.", BashUtils.getBranch, BashUtils.getCommitHash)
     new java.io.File(outputDirectory).mkdirs
     val outConf = Paths.get(outputDirectory, "beam.conf")
-    Files.write(outConf, config.root().render(ConfigRenderOptions.concise()).getBytes)
+    val location = config.getString("config")
+
+    Files.copy(Paths.get(location), outConf, StandardCopyOption.REPLACE_EXISTING)
     logger.info("Config [{}] copied to {}.", beamConfig.beam.agentsim.simulationName, outConf)
+
     val networkCoordinator: NetworkCoordinator =
       if (Files.exists(Paths.get(beamConfig.beam.agentsim.scenarios.frequencyAdjustmentFile))) {
         FrequencyAdjustingNetworkCoordinator(beamConfig)

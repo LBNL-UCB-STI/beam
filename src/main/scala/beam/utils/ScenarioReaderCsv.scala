@@ -4,9 +4,11 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.sim.vehicles.VehiclesAdjustment
+import beam.utils.BeamVehicleUtils.readCsvFileByLine
+import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.{Person, Population}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households._
@@ -53,7 +55,7 @@ class ScenarioReaderCsv(var scenario: MutableScenario, var beamServices: BeamSer
     val householdPersons = ScenarioReaderCsv.readPersonsFile(
       personFilePath,
       scenario.getPopulation,
-      BeamMode.allBeamModes.map(_.value).mkString(",")
+      BeamMode.allTripModes.map(_.value).mkString(",")
     )
 
     logger.info("Reading plans...")
@@ -128,9 +130,9 @@ object ScenarioReaderCsv {
   def readPersonsFile(
     filePath: String,
     population: Population,
-    modes: String
+    availableModes: String
   ): Map[Id[Household], ListBuffer[Id[Person]]] = {
-    val map = BeamServices.readCsvFileByLine(filePath, mutable.HashMap[Id[Household], ListBuffer[Id[Person]]]()) {
+    val map = readCsvFileByLine(filePath, mutable.HashMap[Id[Household], ListBuffer[Id[Person]]]()) {
       case (line, acc) =>
         val _personId: Id[Person] = Id.createPersonId(line.get("person_id"))
         val person: Person = population.getFactory.createPerson(_personId)
@@ -156,8 +158,7 @@ object ScenarioReaderCsv {
         population.getPersonAttributes.putAttribute(person.getId.toString, "householdId", household_id)
         population.getPersonAttributes.putAttribute(person.getId.toString, "rank", 0)
         population.getPersonAttributes.putAttribute(person.getId.toString, "age", age.toInt)
-        population.getPersonAttributes.putAttribute(person.getId.toString, "available-modes", modes)
-        population.addPerson(person)
+        AvailableModeUtils.setAvailableModesForPerson(person, population, availableModes.split(","))
 
         val householdId: Id[Household] = Id.create(household_id, classOf[Household])
 
@@ -174,7 +175,7 @@ object ScenarioReaderCsv {
   }
 
   def readUnitsFile(filePath: String): Map[String, java.util.Map[String, String]] = {
-    val map = BeamServices.readCsvFileByLine(filePath, mutable.HashMap[String, java.util.Map[String, String]]()) {
+    val map = readCsvFileByLine(filePath, mutable.HashMap[String, java.util.Map[String, String]]()) {
       case (line, acc) =>
         val _line = new java.util.TreeMap[String, String]()
         _line.put("building_id", line.get("building_id"))
@@ -185,7 +186,7 @@ object ScenarioReaderCsv {
   }
 
   def readParcelAttrFile(filePath: String): Map[String, java.util.Map[String, String]] = {
-    val map = BeamServices.readCsvFileByLine(filePath, mutable.HashMap[String, java.util.Map[String, String]]()) {
+    val map = readCsvFileByLine(filePath, mutable.HashMap[String, java.util.Map[String, String]]()) {
       case (line, acc) =>
         val _line = new java.util.TreeMap[String, String]()
         _line.put("x", line.get("x"))
@@ -196,7 +197,7 @@ object ScenarioReaderCsv {
   }
 
   def readPlansFile(filePath: String, population: Population, beamServices: BeamServices): Unit = {
-    BeamServices.readCsvFileByLine(filePath, Unit) {
+    readCsvFileByLine(filePath, Unit) {
       case (line, acc) =>
         val personId = line.get("personId")
         val planElement = line.get("planElement")
@@ -251,7 +252,7 @@ object ScenarioReaderCsv {
     val scenarioHouseholds = scenario.getHouseholds.getHouseholds
     val scenarioVehicles = beamServices.privateVehicles
 
-    BeamServices.readCsvFileByLine(filePath, Unit) {
+    readCsvFileByLine(filePath, Unit) {
 
       case (line, acc) => {
 
@@ -361,7 +362,7 @@ object ScenarioReaderCsv {
     filePath: String
   ): Map[String, java.util.Map[String, String]] = {
 
-    val map = BeamServices.readCsvFileByLine(filePath, mutable.HashMap[String, java.util.Map[String, String]]()) {
+    val map = readCsvFileByLine(filePath, mutable.HashMap[String, java.util.Map[String, String]]()) {
       case (line, acc) =>
         val _bid = line.get("building_id")
         val _pid = line.get("parcel_id")

@@ -6,7 +6,6 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, RIDE_HAIL, WALK}
-import beam.router.model.RoutingModel
 import beam.router.model.{BeamLeg, BeamPath, BeamTrip}
 import beam.router.{BeamRouter, Modes}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -14,7 +13,7 @@ import org.scalatest._
 
 import scala.language.postfixOps
 
-class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement {
+class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with Inside with LoneElement {
   "A router" must {
     "respond with a route to a first reasonable RoutingRequest" in {
       val origin = new BeamRouter.Location(583152.4334365112, 4139386.503815964)
@@ -134,8 +133,8 @@ class SfLightRouterSpec extends AbstractSfLightSpec with Inside with LoneElement
     }
 
     "respond with a walk and a car route for going from downtown SF to Treasure Island" in {
-      val origin = geo.wgs2Utm(new Coord(-122.439194, 37.785368))
-      val destination = geo.wgs2Utm(new Coord(-122.3712, 37.815819))
+      val origin = geoUtil.wgs2Utm(new Coord(-122.439194, 37.785368))
+      val destination = geoUtil.wgs2Utm(new Coord(-122.3712, 37.815819))
       val time = 27840
       router ! RoutingRequest(
         origin,

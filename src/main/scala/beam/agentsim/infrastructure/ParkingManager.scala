@@ -5,7 +5,7 @@ import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ParkingStall.{ChargingPreference, ReservedParkingType}
 import beam.router.BeamRouter.Location
 import beam.sim.population.AttributesOfIndividual
-import org.apache.commons.lang.builder.HashCodeBuilder
+import beam.utils.ParkingManagerIdGenerator
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
@@ -24,19 +24,16 @@ object ParkingManager {
     arrivalTime: Long,
     parkingDuration: Double,
     reservedFor: ReservedParkingType = ParkingStall.Any,
-    reserveStall: Boolean = true
-  ) {
-    lazy val requestId: Int = new HashCodeBuilder().append(this).toHashCode
-  }
+    reserveStall: Boolean = true,
+    requestId: Int = ParkingManagerIdGenerator.nextId
+  )
 
   case class DepotParkingInquiry(
     vehicleId: Id[Vehicle],
     customerLocationUtm: Location,
-    reservedFor: ReservedParkingType
-  ) {
-    lazy val requestId: Int = new HashCodeBuilder().append(this).toHashCode
-  }
-
+    reservedFor: ReservedParkingType,
+    requestId: Int = ParkingManagerIdGenerator.nextId
+  )
   case class DepotParkingInquiryResponse(maybeStall: Option[ParkingStall], requestId: Int)
 
   case class ParkingInquiryResponse(stall: ParkingStall, requestId: Int)

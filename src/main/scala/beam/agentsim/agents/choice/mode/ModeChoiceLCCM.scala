@@ -58,7 +58,7 @@ class ModeChoiceLCCM(
     } else {
       val bestInGroup = altsToBestInGroup(alternatives, tourType)
       /*
-       * Fill out the input data structures required by the MNL models
+       * Fill outWriter the input data structures required by the MNL models
        */
       val modeChoiceInputData = bestInGroup.map { alt =>
         val theParams = Map(

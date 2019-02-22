@@ -22,7 +22,7 @@ import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
-import beam.utils.DateUtils
+import beam.utils.{DateUtils, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -61,7 +61,7 @@ class TollRoutingSpec
     // Have to mock a lot of things to get the router going
     scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
-    when(services.geo).thenReturn(new GeoUtilsImpl(services))
+    when(services.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
     when(services.ptFares).thenReturn(PtFares(List[FareRule]()))
     when(services.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
@@ -76,6 +76,9 @@ class TollRoutingSpec
     networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
+
+    val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
+    when(services.networkHelper).thenReturn(networkHelper)
 
     fareCalculator = mock[FareCalculator]
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())

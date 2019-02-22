@@ -18,7 +18,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.TRANSIT
+import beam.router.Modes.BeamMode.{CAR, TRANSIT, WALK}
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.sim.HasServices
@@ -153,8 +153,14 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         )
       }
 
-      actorEventsManager ! ProcessLinkEvents(data.currentVehicle.head, currentLeg)
-
+      // EventsToLegs fails for our way of reporting e.g. walk/car/walk trips,
+      // or any trips with multiple link-based vehicles where there isn't an
+      // activity in between.
+      // We help ourselves by not emitting link events for walking, but a better criterion
+      // would be to only emit link events for the "main" leg.
+      if (currentLeg.mode != WALK) {
+        actorEventsManager ! ProcessLinkEvents(data.currentVehicle.head, currentLeg)
+      }
       logDebug("PathTraversal")
       actorEventsManager !
       new VehicleLeavesTrafficEvent(
@@ -203,14 +209,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         if (data.hasParkingBehaviors) {
           currentBeamVehicle.reservedStall.foreach { stall =>
             currentBeamVehicle.useParkingStall(stall)
-            val nextLeg =
-              data.passengerSchedule.schedule.keys.view
-                .drop(data.currentLegPassengerScheduleIndex)
-                .head
-            val distance =
-              beamServices.geo
-                .distUTMInMeters(stall.locationUTM, beamServices.geo.wgs2Utm(nextLeg.travelPath.endPoint.loc))
-            actorEventsManager ! new ParkEvent(tick, stall, distance, currentBeamVehicle.id) // nextLeg.endTime -> to fix repeated path traversal
+            actorEventsManager !(new ParkEvent(tick, stall, currentBeamVehicle.id, id.toString)) // nextLeg.endTime -> to fix repeated path traversal
           }
           currentBeamVehicle.setReservedParkingStall(None)
         }

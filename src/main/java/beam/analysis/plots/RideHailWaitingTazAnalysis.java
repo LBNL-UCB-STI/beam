@@ -94,10 +94,10 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
         String heading = "timeBin,TAZ,avgWait,medianWait,numberOfPickups,avgPoolingDelay,numberOfPooledPickups";
         String fileBaseName = "rideHailWaitingStats";
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileBaseName + ".csv");
-        BufferedWriter out = IOUtils.getBufferedWriter(csvFileName);
+        BufferedWriter outWriter = IOUtils.getBufferedWriter(csvFileName);
         try {
-            out.write(heading);
-            out.newLine();
+            outWriter.write(heading);
+            outWriter.newLine();
             dataMap.forEach((k,v) -> {
                 DoubleStream valuesAsDouble = v.stream()
                         .mapToDouble(x -> x);
@@ -106,14 +106,14 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
                 String line = k.getFirst() + "," + k.getSecond().toString() + "," + stats.getAverage() + "," +
                         MathUtils.median(v) + "," + stats.getCount() + "," + 0 + "," + 0;
                 try {
-                    out.write(line);
-                    out.newLine();
+                    outWriter.write(line);
+                    outWriter.newLine();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             });
-            out.flush();
-            out.close();
+            outWriter.flush();
+            outWriter.close();
         } catch (IOException e) {
             e.printStackTrace();
         }

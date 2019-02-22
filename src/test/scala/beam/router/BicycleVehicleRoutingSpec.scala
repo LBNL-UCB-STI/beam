@@ -54,7 +54,7 @@ class BicycleVehicleRoutingSpec
     val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
-    when(services.geo).thenReturn(new GeoUtilsImpl(services))
+    when(services.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(services.dates).thenReturn(
       DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,

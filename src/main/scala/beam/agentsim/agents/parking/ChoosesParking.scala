@@ -59,9 +59,9 @@ trait ChoosesParking extends {
       stay using data
     case Event(StateTimeout, data: BasePersonData) =>
       val (tick, _) = releaseTickAndTriggerId()
-      val stall = currentBeamVehicle.stall.getOrElse(
+      val stall = currentBeamVehicle.stall.getOrElse {
         throw new RuntimeException(log.format("My vehicle {} is not parked.", currentBeamVehicle.id))
-      )
+      }
       parkingManager ! ReleaseParkingStall(stall.id)
       val nextLeg = data.passengerSchedule.schedule.head._1
       val distance = beamServices.geo.distUTMInMeters(stall.locationUTM, nextLeg.travelPath.endPoint.loc)
@@ -94,7 +94,8 @@ trait ChoosesParking extends {
       //cost
       //location
 
-      val distance = beamServices.geo.distUTMInMeters(stall.locationUTM, nextLeg.travelPath.endPoint.loc)
+      val distance =
+        beamServices.geo.distUTMInMeters(stall.locationUTM, beamServices.geo.wgs2Utm(nextLeg.travelPath.endPoint.loc))
       // If the stall is co-located with our destination... then continue on but add the stall to PersonData
       if (distance <= distanceThresholdToIgnoreWalking) {
         val (_, triggerId) = releaseTickAndTriggerId()
@@ -106,7 +107,6 @@ trait ChoosesParking extends {
         goto(WaitingToDrive) using data
       } else {
         // Else the stall requires a diversion in travel, calc the new routes (in-vehicle to the stall and walking to the destination)
-        // In our routing requests we set mustParkAtEnd to false to prevent the router from splitting our routes for us
         import context.dispatcher
         val currentPoint = nextLeg.travelPath.startPoint
         val currentLocUTM = beamServices.geo.wgs2Utm(currentPoint.loc)
@@ -185,7 +185,13 @@ trait ChoosesParking extends {
         )
       } else {
         (
-          routingResponse1.itineraries.filter(_.tripClassifier == CAR).head.legs(1),
+          routingResponse1.itineraries.view
+            .filter(_.tripClassifier == CAR)
+            .head
+            .legs
+            .view
+            .filter(_.beamLeg.mode == CAR)
+            .head,
           routingResponse2.itineraries.head.legs.head
         )
       }

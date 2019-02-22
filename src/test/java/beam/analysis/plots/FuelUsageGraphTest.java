@@ -33,7 +33,7 @@ public class FuelUsageGraphTest {
 
     private Map<Integer, Map<String, Double>> stats;
 
-    private FuelUsageAnalysis fuelUsageStats = new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation() {
+    private final FuelUsageAnalysis fuelUsageStats = new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation() {
         @Override
         public double[][] compute(Tuple<Map<Integer, Map<String, Double>>, Set<String>> stat) {
             stats = stat.getFirst();
@@ -49,7 +49,7 @@ public class FuelUsageGraphTest {
 
     @Test
     public void testShouldPassShouldReturnPathTraversalEventCarFuel() {
-        long expectedResult = 16566982237L;
+        long expectedResult = 462764867L;
         int maxHour = getMaxHour(stats.keySet());
         long actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(CAR, maxHour, stats);
         assertEquals(expectedResult, actualResult);
@@ -57,7 +57,7 @@ public class FuelUsageGraphTest {
 
     @Test
     public void testShouldPassShouldReturnPathTraversalBusFuel() {
-        long expectedResult = 151741624516L;
+        long expectedResult = 4238592864L;
         int maxHour = getMaxHour(stats.keySet());
         long actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(BUS, maxHour, stats);
         assertEquals(expectedResult, actualResult);
@@ -65,7 +65,7 @@ public class FuelUsageGraphTest {
 
     @Test
     public void testShouldPassShouldReturnPathTraversalEventSubwayFuel() {
-        long expectedResult = 174185589158L;
+        long expectedResult = 4865519250L;
         int maxHour = getMaxHour(stats.keySet());
         long actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(SUBWAY, maxHour, stats);
         assertEquals(expectedResult, actualResult);
@@ -73,7 +73,7 @@ public class FuelUsageGraphTest {
 
     @Test
     public void testShouldPassShouldReturnPathTraversalEventWalkFuel() {
-        long expectedResult = 8;
+        long expectedResult = 7588808L;
         int maxHour = getMaxHour(stats.keySet());
         long actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(WALK, maxHour, stats);
         assertEquals(expectedResult, actualResult);

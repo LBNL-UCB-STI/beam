@@ -29,9 +29,9 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Energy Use [MJ]";
     static final String fileBaseName = "energyUse.png";
-    private Set<String> modesFuel = new TreeSet<>();
-    private Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
-    private Map<String, Double> fuelConsumedByFuelType = new HashMap<>();
+    private final Set<String> modesFuel = new TreeSet<>();
+    private final Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
+    private final Map<String, Double> fuelConsumedByFuelType = new HashMap<>();
     private final boolean writeGraph;
 
     private final StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation;
@@ -117,7 +117,7 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
         }
         modesFuel.add(mode);
         try {
-            Double fuel = PathTraversalSpatialTemporalTableGenerator.getFuelConsumptionInMJ(vehicleId, originalMode, fuelString, lengthInMeters, vehicleType);
+            Double fuel = Double.parseDouble(fuelString);
             Map<String, Double> hourData = hourModeFuelage.get(hour);
             if (hourData == null) {
                 hourData = new HashMap<>();

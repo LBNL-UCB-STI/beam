@@ -88,7 +88,7 @@ class RideHailModifyPassengerScheduleManager(
                 val reservationStatus = reservationModifyStatuses.head
                 assert(
                   reservationStatus.status != InterruptMessageStatus.UNDEFINED,
-                  "reservation message should not be undefined but at least should have sent out interrupt"
+                  "reservation message should not be undefined but at least should have sent outWriter interrupt"
                 )
                 if (reservationStatus.status == InterruptMessageStatus.INTERRUPT_SENT) {
                   // Success! Continue with reservation process

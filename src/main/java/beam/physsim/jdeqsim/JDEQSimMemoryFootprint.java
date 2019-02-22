@@ -10,7 +10,7 @@ public class JDEQSimMemoryFootprint implements BasicEventHandler {
 
     int prevHour = 0;
     boolean debugMode = false;
-    private Logger log = LoggerFactory.getLogger(JDEQSimMemoryFootprint.class);
+    private final Logger log = LoggerFactory.getLogger(JDEQSimMemoryFootprint.class);
 
     public JDEQSimMemoryFootprint(boolean debugMode) {
         this.debugMode = debugMode;

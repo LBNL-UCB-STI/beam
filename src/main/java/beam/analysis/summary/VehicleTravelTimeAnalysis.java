@@ -76,9 +76,9 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
                 double freeFlowDuration = 0.0;
                 Map<Id<Link>, ? extends Link> linksMap;
                 if (scenario != null) {
-                    String links[] = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS).split(",");
+                    String[] links = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS).split(",");
                     for (String linkId : links) {
-                        Link link = networkHelper.getLinkWithIndexUnsafe(linkId).link();
+                        Link link = networkHelper.getLinkUnsafe(Integer.parseInt(linkId));
                         if (link != null) {
                             double freeFlowLength = link.getLength();
                             double freeFlowSpeed = link.getFreespeed();

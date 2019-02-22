@@ -9,8 +9,8 @@ import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent.DrivingInterrupted
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDriving
+import beam.agentsim.agents.ridehail.RideHailAgent
 import beam.agentsim.agents.ridehail.RideHailAgent._
-import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule, VehiclePersonId}
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
@@ -69,7 +69,7 @@ class RideHailAgentSpec
     val matsimServices = mock[MatsimServices]
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.beamConfig).thenReturn(config)
-    val geo = new GeoUtilsImpl(theServices)
+    val geo = new GeoUtilsImpl(config)
     when(theServices.geo).thenReturn(geo)
     when(theServices.matsimServices).thenReturn(matsimServices)
     val scenario = ScenarioUtils.createMutableScenario(matsimConfig)

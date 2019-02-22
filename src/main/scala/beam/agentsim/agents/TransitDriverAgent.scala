@@ -98,6 +98,8 @@ class TransitDriverAgent(
       stop(Failure(reason))
     case Event(Finish, _) =>
       stop
+    case Event(StopEvent, _) =>
+      stop
   }
 
   override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth

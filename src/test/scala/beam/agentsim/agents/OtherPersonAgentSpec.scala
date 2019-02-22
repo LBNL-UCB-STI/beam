@@ -90,7 +90,7 @@ class OtherPersonAgentSpec
     when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
-    val geo = new GeoUtilsImpl(theServices)
+    val geo = new GeoUtilsImpl(config)
     when(theServices.geo).thenReturn(geo)
     // TODO Is it right to return defaultTazTreeMap?
     when(theServices.tazTreeMap).thenReturn(BeamServices.defaultTazTreeMap)

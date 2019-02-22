@@ -54,31 +54,31 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
     /**
      * Use a list for the iterations since we aren't sure how many there will be (we're using random sampling over the departure minutes)
      */
-    public List<int[]> timesAtTargetsEachIteration = null;
-    private LinkedPointSet pointSet = null;
-    private TransportNetwork network;
-    private ProfileRequest request;
+    public final List<int[]> timesAtTargetsEachIteration = null;
+    private final LinkedPointSet pointSet = null;
+    private final TransportNetwork network;
+    private final ProfileRequest request;
     private Map<LegMode, TIntIntMap> accessTimes;
     private Map<LegMode, TIntIntMap> egressTimes = null;
 
-    private FrequencyRandomOffsets offsets;
+    private final FrequencyRandomOffsets offsets;
 
-    private TIntObjectMap<McRaptorStateBag> bestStates = new TIntObjectHashMap<>();
+    private final TIntObjectMap<McRaptorStateBag> bestStates = new TIntObjectHashMap<>();
 
 
     private int round = 0;
     // used in hashing
     //private int roundSquared = 0;
 
-    private BitSet touchedStops;
-    private BitSet touchedPatterns;
-    private BitSet patternsNearDestination;
-    private BitSet servicesActive;
+    private final BitSet touchedStops;
+    private final BitSet touchedPatterns;
+    private final BitSet patternsNearDestination;
+    private final BitSet servicesActive;
 
     /**
      * In order to properly do target pruning we store the best times at each target _by access mode_, so car trips don't quash walk trips
      */
-    private TObjectIntMap<LegMode> bestTimesAtTargetByAccessMode = new TObjectIntHashMap<>(4, 0.95f, Integer.MAX_VALUE);
+    private final TObjectIntMap<LegMode> bestTimesAtTargetByAccessMode = new TObjectIntHashMap<>(4, 0.95f, Integer.MAX_VALUE);
 
     public BeamMcRaptorSuboptimalPathProfileRouter(TransportNetwork network, ProfileRequest req, Map<LegMode, TIntIntMap> accessTimes, Map<LegMode, TIntIntMap> egressTimes) {
         this.network = network;
@@ -213,7 +213,7 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
     }
 
     /**
-     * dump out all stop names
+     * dump outWriter all stop names
      */
     public String dumpStops(TIntIntMap stops) {
         if (DUMP_STOPS) {
@@ -679,7 +679,7 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
 
 
     private static class BeamStatePatternKey {
-        McRaptorState state;
+        final McRaptorState state;
 
         public BeamStatePatternKey(McRaptorState state) {
             this.state = state;

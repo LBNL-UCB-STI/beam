@@ -11,8 +11,8 @@ import java.util.Map;
 
 public class FilterAllEventsOfAgent implements BasicEventHandler {
 
-    LinkedList<Event> filteredEvents = new LinkedList<>();
-    private String personId;
+    final LinkedList<Event> filteredEvents = new LinkedList<>();
+    private final String personId;
 
     public FilterAllEventsOfAgent(String personId) {
         this.personId = personId;

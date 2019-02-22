@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class AgencyRevenueAnalysis implements IterationSummaryAnalysis {
-    private Map<String,Double> agencyRevenue = new HashMap<>();
+    private final Map<String,Double> agencyRevenue = new HashMap<>();
 
     @Override
     public void processStats(Event event) {

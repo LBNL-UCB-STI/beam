@@ -168,7 +168,7 @@ public class SpatialTemporalTAZVizDataWriter {
 
     // TODO: create method for adding points and data -> data gets aggregated to correct TAZ
 
-    // TODO: create method for writing out json file to disk
+    // TODO: create method for writing outWriter json file to disk
     // also totals file needs to be written??
 
     // TODO: create tests for this!

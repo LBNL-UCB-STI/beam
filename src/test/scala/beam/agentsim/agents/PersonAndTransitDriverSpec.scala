@@ -28,7 +28,7 @@ import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.StuckFinder
+import beam.utils.{NetworkHelperImpl, StuckFinder}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
@@ -54,7 +54,7 @@ import scala.collection.{mutable, JavaConverters}
 class PersonAndTransitDriverSpec
     extends TestKit(
       ActorSystem(
-        name = "PersonAgentSpec",
+        name = "PersonAndTransitDriverSpec",
         config = ConfigFactory
           .parseString(
             """
@@ -78,6 +78,9 @@ class PersonAndTransitDriverSpec
   private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
   private val tollCalculator = new TollCalculator(beamConfig)
 
+  private lazy val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
+  private lazy val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
+
   private lazy val beamSvc: BeamServices = {
     val matsimServices = mock[MatsimServices]
 
@@ -87,13 +90,14 @@ class PersonAndTransitDriverSpec
     when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(theServices.beamConfig).thenReturn(beamConfig)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
-    when(theServices.geo).thenReturn(new GeoUtilsImpl(theServices))
+    when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
 
     var map = TrieMap[Id[Vehicle], (String, String)]()
     map += (Id.createVehicleId("my_bus")  -> ("", ""))
     map += (Id.createVehicleId("my_tram") -> ("", ""))
     when(theServices.agencyAndRouteByVehicleIds).thenReturn(map)
+    when(theServices.networkHelper).thenReturn(networkHelper)
 
     theServices
   }
@@ -117,8 +121,6 @@ class PersonAndTransitDriverSpec
       .props(beamSvc, beamSvc.beamRouter, ParkingStockAttributes(100)),
     "ParkingManager"
   )
-
-  private lazy val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
   private val matsimConfig = configBuilder.buildMatSamConf()

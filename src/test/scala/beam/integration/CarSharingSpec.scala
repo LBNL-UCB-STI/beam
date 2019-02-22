@@ -1,10 +1,11 @@
 package beam.integration
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, PersonCostEvent}
+import beam.router.Modes.BeamMode
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
-import beam.sim.population.PopulationAdjustment.AVAILABLE_MODES
+import beam.sim.population.PopulationAdjustment.EXCLUDED_MODES
 import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.testConfig
@@ -105,8 +106,11 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
 
     // Only driving allowed
     val population = scenario.getPopulation
+    val nonCarModes = BeamMode.allTripModes flatMap { mode =>
+      if (mode == BeamMode.CAR) None else Some(mode.value.toLowerCase)
+    } mkString ","
     population.getPersons.keySet.forEach { personId =>
-      population.getPersonAttributes.putAttribute(personId.toString, AVAILABLE_MODES, "car")
+      population.getPersonAttributes.putAttribute(personId.toString, EXCLUDED_MODES, nonCarModes)
     }
 
     // No private vehicles (but we have a car sharing operator)

@@ -198,12 +198,16 @@ object HouseholdActor {
 
       case ReleaseVehicle(vehicle) =>
         vehicle.unsetDriver()
-        availableVehicles = vehicle :: availableVehicles
+        if (!availableVehicles.contains(vehicle)) {
+          availableVehicles = vehicle :: availableVehicles
+        }
         log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
 
       case ReleaseVehicleAndReply(vehicle) =>
         vehicle.unsetDriver()
-        availableVehicles = vehicle :: availableVehicles
+        if (!availableVehicles.contains(vehicle)) {
+          availableVehicles = vehicle :: availableVehicles
+        }
         log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
         sender() ! Success
 

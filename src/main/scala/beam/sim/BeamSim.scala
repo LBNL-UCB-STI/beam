@@ -126,7 +126,7 @@ class BeamSim @Inject()(
     modalityStyleStats = new ModalityStyleStats()
     expectedDisutilityHeatMapDataCollector = new ExpectedMaxUtilityHeatMap(
       eventsManager,
-      scenario.getNetwork,
+      beamServices.networkHelper,
       event.getServices.getControlerIO,
       beamServices.beamConfig.beam.outputs.writeEventsInterval
     )

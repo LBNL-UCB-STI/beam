@@ -40,32 +40,6 @@ object RoutingModel {
     }
   }
 
-//  def traverseStreetLeg_opt(leg: BeamLeg, vehicleId: Id[Vehicle]): Iterator[Event] = {
-//    if (leg.travelPath.linkIds.size >= 2) {
-//      val links = leg.travelPath.linkIds
-//      val eventsSize = 2 * (links.length - 1)
-//      val events = new Array[Event](eventsSize)
-//      var curr: Int = 0
-//      val timeAtNode = leg.startTime
-//      var arrIdx: Int = 0
-//      while (curr < links.length - 1) {
-//        val from = links(curr)
-//        val to = links(curr + 1)
-//
-//        events.update(arrIdx, new LinkLeaveEvent(timeAtNode, vehicleId, Id.createLinkId(from)))
-//        arrIdx += 1
-//
-//        events.update(arrIdx, new LinkEnterEvent(timeAtNode, vehicleId, Id.createLinkId(to)))
-//        arrIdx += 1
-//
-//        curr += 1
-//      }
-//      events.toIterator
-//    } else {
-//      Iterator.empty
-//    }
-//  }
-
   def linksToTimeAndDistance(
     linkIds: IndexedSeq[Int],
     startTime: Int,
@@ -83,9 +57,6 @@ object RoutingModel {
       .toVector
     val cumulDistance =
       linkIds.map(streetLayer.edgeStore.getCursor(_).getLengthM)
-    if (linkIds.head.toString.equalsIgnoreCase("217")) {
-      val i = 0
-    }
     LinksTimesDistances(linkIds, traversalTimes, cumulDistance)
   }
 

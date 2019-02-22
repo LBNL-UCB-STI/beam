@@ -42,9 +42,7 @@ public class StatsFactory {
     }
 
     public BeamAnalysis getAnalysis(StatsType statsType) {
-        BeamAnalysis stats = beamStatsMap.getOrDefault(statsType, createStats(statsType));
-        beamStatsMap.putIfAbsent(statsType, stats);
-        return stats;
+        return beamStatsMap.computeIfAbsent(statsType, this::createStats);
     }
 
     public Collection<BeamAnalysis> getBeamAnalysis() {
@@ -94,7 +92,7 @@ public class StatsFactory {
             case MotorizedVehicleMilesTraveled:
                 return new MotorizedVehicleMilesTraveledAnalysis(beamServices.vehicleTypes().keySet());
             case NumberOfVehicles:
-                return new NumberOfVehiclesAnalysis();
+                return new NumberOfVehiclesAnalysis(beamServices);
             case PersonCost:
                 return new PersonCostAnalysis();
             case AboveCapacityPtUsageDuration:

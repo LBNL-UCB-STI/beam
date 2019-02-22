@@ -85,7 +85,7 @@ def match_links(data_df, shape_path, EPSG, radius, x_col='Longitude', y_col='Lat
     troubled = data_df[pd.isnull(data_df[y_col])]
     data_df.dropna(inplace=True)
     data_df.reset_index(inplace=True)
-    #TODO delete the following line if it runs with it commented out.
+    #TODO delete the following line if it runs with it commented outWriter.
     #data_df.drop('index', axis=1, inplace=True)
     data_df['x'], data_df['y'], data_df['Link'], data_df['ds'] = '', '', 0.0, 0.0
     data_df[['x', 'y']] = map(convert, data_df[x_col], data_df[y_col])
@@ -103,7 +103,7 @@ def match_links(data_df, shape_path, EPSG, radius, x_col='Longitude', y_col='Lat
 
     t0 = time.time()
     input_lines = fiona.open(shape_path)
-    pattern = re.compile(link_regex)  # for filtering out public transit links
+    pattern = re.compile(link_regex)  # for filtering outWriter public transit links
 
     for i, row in enumerate(input_lines):
         print i, ' Now processing ...', row['properties']['ID']
