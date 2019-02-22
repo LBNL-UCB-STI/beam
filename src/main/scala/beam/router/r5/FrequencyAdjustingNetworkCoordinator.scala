@@ -29,15 +29,7 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
       line.split(",")
     }.toSeq
     (for { row <- dataRows } yield {
-      val (startTime: Int, endTime: Int) = row(1).toInt -> row(2).toInt
-      // We assume that we are provided with a route Id. We need to convert to tripId for R5 Scenario Builder
-      FrequencyAdjustmentInput(
-        getTripIdForRouteIdAtTime(row.head, startTime, endTime),
-        row(1).toInt,
-        row(2).toInt,
-        row(3).toInt,
-        row(4).toInt
-      )
+      FrequencyAdjustmentInput(row(0), row(1).toInt, row(2).toInt, row(3).toInt, row(4).toInt)
     }).toSet
   }
 
@@ -45,12 +37,10 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
     val scenario = new Scenario()
     val adjustmentsByRouteId: Map[String, Set[FrequencyAdjustmentInput]] =
       adjustmentInputs.groupBy(adjustment => s"${feeds.head.feedId}:${getTripForId(adjustment.tripId).route_id}")
-
     util.Arrays.asList(adjustmentsByRouteId.foreach {
       case (rid, adjustments) =>
         val adjustFrequency: AdjustFrequency = new AdjustFrequency
         adjustFrequency.route = rid
-        adjustFrequency.retainTripsOutsideFrequencyEntries = false
         val entries: util.Set[AddTrips.PatternTimetable] = adjustments.map { adjustmentInput =>
           adjustTripFrequency(adjustmentInput)
         }.asJava
@@ -69,35 +59,19 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
     }.head
   }
 
-  def getTripIdForRouteIdAtTime(routeId: String, startTime: Int, endTime: Int): String = {
-    feeds.map { feed =>
-      val allTrips = feed.trips.asScala
-      val routeTrips = allTrips.values.groupBy(_.route_id)(routeId)
-      val orderedFilteredStops = routeTrips
-        .flatMap { trip =>
-          feed.getOrderedStopTimesForTrip(trip.trip_id).asScala.toVector
-        }
-        .filter { stopTime =>
-          stopTime.arrival_time >= startTime
-        }
-        .toVector
-      orderedFilteredStops.head.trip_id
-    }.head
-  }
-
   def adjustTripFrequency(adjustmentInput: FrequencyAdjustmentInput): AddTrips.PatternTimetable = {
 
     val entry = new AddTrips.PatternTimetable
     entry.headwaySecs = adjustmentInput.headwaySecs
     entry.startTime = adjustmentInput.startTime
     entry.endTime = adjustmentInput.endTime
-    entry.sunday = false
-    entry.monday = true
-    entry.tuesday = true
-    entry.wednesday = true
-    entry.thursday = true
-    entry.friday = true
-    entry.saturday = false
+    entry.sunday = true
+    entry.monday = entry.sunday
+    entry.tuesday = entry.monday
+    entry.wednesday = entry.tuesday
+    entry.thursday = entry.wednesday
+    entry.friday = entry.thursday
+    entry.saturday = entry.friday
     entry.sourceTrip = s"${feeds.head.feedId}:${adjustmentInput.tripId}"
     entry
   }

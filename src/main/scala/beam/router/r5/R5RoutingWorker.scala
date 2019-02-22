@@ -669,8 +669,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               }
           }
 
-          var lastVehicle: Id[Vehicle] = null
-
           tripsWithFares.map(tripWithFares => {
             val indexOfFirstCarLegInParkingTrip = tripWithFares.trip.legs
               .sliding(2)
@@ -679,13 +677,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               for ((beamLeg, index) <- tripWithFares.trip.legs.zipWithIndex) yield {
                 var cost = tripWithFares.legFares.getOrElse(index, 0.0)
                 val age = routingRequest.attributesOfIndividual.flatMap(_.age)
-                val vehicleId = beamLeg.travelPath.transitStops.fold(vehicle.id)(_.vehicleId)
-                if (vehicleId != lastVehicle) {
-                  lastVehicle = vehicleId
-                  val ids = beamServices.agencyAndRouteByVehicleIds.get(vehicleId)
-                  cost =
-                    ids.fold(cost)(id => beamServices.ptFares.getPtFare(Some(id._1), Some(id._2), age).getOrElse(cost))
-                }
+                val ids = beamServices.agencyAndRouteByVehicleIds.get(
+                  beamLeg.travelPath.transitStops.fold(vehicle.id)(_.vehicleId)
+                )
+                cost =
+                  ids.fold(cost)(id => beamServices.ptFares.getPtFare(Some(id._1), Some(id._2), age).getOrElse(cost))
+
                 if (Modes.isR5TransitMode(beamLeg.mode)) {
                   EmbodiedBeamLeg(
                     beamLeg,
