@@ -22,7 +22,7 @@ import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
-import beam.utils.DateUtils
+import beam.utils.{DateUtils, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.testConfig
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
@@ -75,6 +75,9 @@ class TimeDependentRoutingSpec
     networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
+
+    val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
+    when(services.networkHelper).thenReturn(networkHelper)
 
     val fareCalculator = mock[FareCalculator]
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())

@@ -41,7 +41,7 @@ import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.config.Config
-import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.controler.ControlerI
@@ -52,7 +52,6 @@ import org.matsim.vehicles.{Vehicle, Vehicles}
 
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
-import scala.collection.immutable.HashMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
@@ -98,6 +97,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       scenario.setNetwork(networkCoordinator.network)
       val network = networkCoordinator.network
       val transportNetwork = networkCoordinator.transportNetwork
+
+      val netHelper: NetworkHelper = new NetworkHelperImpl(network)
+
       val beamServices: BeamServices = new BeamServices {
         override lazy val controler: ControlerI = ???
         override val beamConfig: BeamConfig = BeamConfig(config)
@@ -137,7 +139,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
         override def matsimServices: org.matsim.core.controler.MatsimServices = ???
 
-        override def networkHelper: NetworkHelper = ???
+        override def networkHelper: NetworkHelper = netHelper
         override def setTransitFleetSizes(
           tripFleetSizeMap: mutable.HashMap[String, Integer]
         ): Unit = {}
@@ -218,17 +220,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   var workAssigner: ActorRef = context.parent
 
   private var maybeTravelTime: Option[TravelTime] = None
-
-  private val links = network.getLinks
-
-  private val linkIdMap: HashMap[Int, Link] = {
-    val start = System.currentTimeMillis()
-    val pairs = links.asScala.map { case (k, v) => k.toString.toInt -> v }.toSeq
-    val map = HashMap(pairs: _*)
-    val end = System.currentTimeMillis()
-    log.info("linkIdMap is built in {} ms", end - start)
-    map
-  }
 
   private var transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])] = transitMap
 
@@ -796,7 +787,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   ): BeamPath = {
     var activeLinkIds = ArrayBuffer[Int]()
     for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
-      if (!links.containsKey(Id.createLinkId(edge.edgeId.longValue()))) {
+      val maybeLink = beamServices.networkHelper.getLink(edge.edgeId)
+      if (maybeLink.isEmpty) {
         throw new RuntimeException("Link not found: " + edge.edgeId)
       }
       activeLinkIds += edge.edgeId.intValue()
@@ -966,7 +958,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   }
 
   private def getTravelTime(time: Int, linkId: Int, travelTime: TravelTime): Double = {
-    val link = linkIdMap(linkId)
+    val link = beamServices.networkHelper.getLinkUnsafe(linkId)
+    assert(link != null)
     val tt = travelTime.getLinkTravelTime(link, time, null, null)
     val travelSpeed = link.getLength / tt
     if (travelSpeed < beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond) {
