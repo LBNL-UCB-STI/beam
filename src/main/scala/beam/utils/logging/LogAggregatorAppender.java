@@ -38,7 +38,8 @@ import java.util.stream.Collectors;
  */
 public class LogAggregatorAppender extends ConsoleAppender<ILoggingEvent> {
 
-    private List<String> allMessages = new LinkedList<>();
+    // TODO: this list can lead to a huge usage of memory
+    private final List<String> allMessages = new LinkedList<>();
     private DBSCANClusterer<TextClusterable> scan;
     private int eps = 3;
     private int minPoints = 0;
