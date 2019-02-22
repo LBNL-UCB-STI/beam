@@ -38,7 +38,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager) extends RideHailRe
                                             tick: Int,
                                             vehicleAllocationRequest: AllocationRequests
                                           ): AllocationResponse = {
-    logger.debug("buffer size: {}",vehicleAllocationRequest.requests.size)
+    logger.debug("Alloc requests {}",vehicleAllocationRequest.requests.size)
     var toPool: Set[RideHailRequest] = Set()
     var notToPool: Set[RideHailRequest] = Set()
     var allocResponses: List[VehicleAllocation] = List()
@@ -85,14 +85,13 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager) extends RideHailRe
         }
       }
     }
-    if(toPool.isEmpty)logger.info("Allocated")
     if(toPool.size > 0){
       implicit val skimmer: BeamSkimmer = new BeamSkimmer()
       val customerReqs = toPool.map(rhr => createPersonRequest(rhr.customer,rhr.pickUpLocationUTM,tick,rhr.destinationUTM))
       val customerIdToReqs = toPool.map(rhr => rhr.customer.personId -> rhr).toMap
       val availVehicles = rideHailManager.vehicleManager.availableRideHailVehicles.values.map(veh => createVehicleAndSchedule(veh.vehicleId.toString,veh.currentLocationUTM.loc,tick))
 
-      val assignment = if(true){
+      val assignment = if(false){
         val algo = new AlonsoMoraPoolingAlgForRideHail(
           customerReqs.toList,
           availVehicles.toList,
@@ -101,11 +100,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager) extends RideHailRe
           radius = Int.MaxValue,
           skimmer
         )
-        logger.info("PairwiseGraph")
         val rvGraph: RVGraph = algo.pairwiseRVGraph
-        logger.info("RTVGraph")
         val rtvGraph = algo.rTVGraph(rvGraph)
-        logger.info("Greedy")
         algo.greedyAssignment(rtvGraph)
       }else{
         val algo = new AsyncAlonsoMoraAlgForRideHail(
@@ -115,11 +111,9 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager) extends RideHailRe
           radius = Int.MaxValue,
           skimmer
         )
-        logger.info("Assigning")
         import scala.concurrent.duration._
         Await.result(algo.greedyAssignment(), atMost = 2.minutes)
       }
-      logger.info("Result: {} assigned trips",assignment.size)
 
       assignment.foreach{ case (theTrip,vehicleAndSchedule,cost) =>
         alreadyAllocated = alreadyAllocated + vehicleAndSchedule.vehicle.id
@@ -164,21 +158,12 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager) extends RideHailRe
           allocResponses = allocResponses :+ RoutingRequiredToAllocateVehicle(newRideHailRequest.get, rReqs)
         tempScheduleStore.put(newRideHailRequest.get.requestId,scheduleToCache :+ theTrip.schedule.last)
       }
+      val wereAllocated = allocResponses.map(resp => resp.request.groupedWithOtherRequests.map(_.requestId).toSet + resp.request.requestId).flatten.toSet
+      vehicleAllocationRequest.requests.filterNot(req => wereAllocated.contains(req._1.requestId)).foreach{ unsatisfiedReq =>
+        allocResponses = allocResponses :+ NoVehicleAllocated(unsatisfiedReq._1)
+      }
     }
-//    if(allocResponses.size>0 ){
-//      if(allocResponses.find{
-//        case RoutingRequiredToAllocateVehicle(req,routes) =>
-//          false
-//        case VehicleMatchedToCustomers(_,_,pickdrops) =>
-//          pickdrops.filter(_.leg.isDefined).size>2
-//        case _ =>
-//          false
-//      }.isDefined){
-////      if(tick>=21900){
-//        val i = 0
-//      }
-//    }
-    logger.info("AllocResponses: {}",allocResponses.groupBy(_.getClass).map(x => s"${x._1.getSimpleName} -- ${x._2.size}").mkString("\t"))
+    logger.debug("AllocResponses: {}",allocResponses.groupBy(_.getClass).map(x => s"${x._1.getSimpleName} -- ${x._2.size}").mkString("\t"))
     VehicleAllocations(allocResponses)
   }
 
