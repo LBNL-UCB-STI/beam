@@ -2,7 +2,7 @@ package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
-import beam.agentsim.agents.ridehail.{AlonsoMoraPoolingAlgForRideHail, ParallelAlonsoMoraAlgForRideHail, RideHailManager, RideHailRequest}
+import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
@@ -108,7 +108,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager) extends RideHailRe
         logger.info("Greedy")
         algo.greedyAssignment(rtvGraph)
       }else{
-        val algo = new ParallelAlonsoMoraAlgForRideHail(
+        val algo = new AsyncAlonsoMoraAlgForRideHail(
           customerReqs.toList,
           availVehicles.toList,
           Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 5000 * 60)),
