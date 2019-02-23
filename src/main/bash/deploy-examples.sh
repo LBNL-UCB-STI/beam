@@ -1,6 +1,4 @@
 
-gradle deploy -PbeamConfigs=production/sfbay/base.conf -PbeamCommit=d0de374f3c9498c470a064de3b791dd548812a44 -Pbatch=false -PrunName=baselineCongestionForUrbansimTeam -PdeployMode=config -PbeamBranch=production-sfbay
-
 gradle deploy -PbeamConfigs=production/application-sfbay/diffusion-and-rh2transit-base.conf,production/application-sfbay/diffusion-ridehail.conf,production/application-sfbay/diffusion-av.conf -PbeamCommit=2ce2248ef3f2659c12ff6788b01eee1f0f806b43 -Pbatch=false -PrunName=diffusionExperiment
 
 gradle deploy -PbeamConfigs=production/application-sfbay/rh2transit-max.conf,production/application-sfbay/rh2transit-just-transit.conf,production/application-sfbay/rh2transit-just-rh.conf,production/application-sfbay/rh2transit-plus10.conf,production/application-sfbay/rh2transit-off.conf -PbeamCommit=3cf29f1c6fd6ca2c5bed5c9995da10e8cd92de25 -Pbatch=false -PrunName=rideHailTransitExperiment
