@@ -103,7 +103,9 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val fuelTypePrices: Map[FuelType, Double] =
     readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
 
-  val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = maybeScaleTransit(readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices))
+  val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = maybeScaleTransit(
+    readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
+  )
 
   // TODO Fix me once `TrieMap` is removed
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =

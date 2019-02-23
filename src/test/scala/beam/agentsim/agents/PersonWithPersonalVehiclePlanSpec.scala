@@ -50,7 +50,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 
 class PersonWithPersonalVehiclePlanSpec
     extends TestKit(
@@ -340,7 +340,8 @@ class PersonWithPersonalVehiclePlanSpec
 
     it("should know how to take a bicycle trip when it's already in its plan") {
       val fuelTypePrices = readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
-      val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
+      val vehicleTypes =
+        readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
       when(beamSvc.vehicleTypes).thenReturn(vehicleTypes)
 
       val eventsManager = new EventsManagerImpl()
@@ -727,7 +728,12 @@ class PersonWithPersonalVehiclePlanSpec
   val homeLocation = new Coord(170308.4, 2964.6474)
   val workLocation = new Coord(169346.4, 876.7536)
 
-  private def createTestPerson(personId: Id[Person], vehicleId: Id[Vehicle], mode: BeamMode, withRoute: Boolean = true) = {
+  private def createTestPerson(
+    personId: Id[Person],
+    vehicleId: Id[Vehicle],
+    mode: BeamMode,
+    withRoute: Boolean = true
+  ) = {
     val person = PopulationUtils.getFactory.createPerson(personId)
     putDefaultBeamAttributes(person, Vector(mode))
     val plan = PopulationUtils.getFactory.createPlan()

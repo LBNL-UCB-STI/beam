@@ -83,7 +83,7 @@ trait ChoosesMode {
             _
             ) =>
           self ! MobilityStatusResponse(Vector(beamVehicles(vehicle)))
-        // Only need to get available street vehicles from household if our mode requires such a vehicle
+        // Only need to get available street vehicles if our mode requires such a vehicle
         case ChoosesModeData(
             BasePersonData(_, _, _, _, None | Some(CAR | BIKE | DRIVE_TRANSIT), _, _, _, _, _, _),
             currentLocation,
@@ -105,9 +105,8 @@ trait ChoosesMode {
             _
             ) =>
           implicit val executionContext: ExecutionContext = context.system.dispatcher
-          val vehicleManagers = context.parent +: sharedVehicleFleets
           Future
-            .sequence(vehicleManagers.map(_ ? MobilityStatusInquiry(currentLocation)))
+            .sequence(vehicleFleets.map(_ ? MobilityStatusInquiry(currentLocation)))
             .map(
               listOfResponses =>
                 MobilityStatusResponse(
@@ -745,7 +744,7 @@ trait ChoosesMode {
   }
 
   def mustBeDrivenHome(vehicle: BeamVehicle): Boolean = {
-    vehicle.manager.contains(context.parent) // is a household vehicle
+    vehicle.manager.get.path.name == "household-fleet" // is a household vehicle
   }
 
   def completeChoiceIfReady: PartialFunction[State, State] = {
