@@ -19,6 +19,10 @@ class TAZ(val tazId: Id[TAZ], val coord: Coord, val areaInSquareMeters: Double) 
 
 object TAZ {
 
+  val DefaultTAZId: Id[TAZ] = Id.create("NA", classOf[TAZ])
+
+  val DefaultTAZ: TAZ = new TAZ(DefaultTAZId, new Coord(), 0)
+
   /**
     * performs a concentric search from the present location to find TAZs up to the SearchMaxRadius
     * @param searchCenter central location from which concentric discs will be built with an expanding radius

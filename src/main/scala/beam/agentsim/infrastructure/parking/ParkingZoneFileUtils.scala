@@ -122,16 +122,20 @@ object ParkingZoneFileUtils extends LazyLogging {
     * @param csvFileContents each line from a file to be read
     * @return table and search tree
     */
-  private[ParkingZoneFileUtils] def fromIterator(
-    csvFileContents: Iterator[String]
-  ): (Array[ParkingZone], StallSearch) = {
+  def fromIterator(csvFileContents: Iterator[String], dropHeader: Boolean = true): (Array[ParkingZone], StallSearch) = {
+
     val accumulator = (Array.empty[ParkingZone], Map.empty[Id[TAZ], Map[ParkingType, List[Int]]]: StallSearch)
 
-    csvFileContents.foldLeft(accumulator) { (accumulator, csvRow) =>
+    val maybeWithoutHeader = if (dropHeader) csvFileContents.drop(1) else csvFileContents
+
+    maybeWithoutHeader.foldLeft(accumulator) { (accumulator, csvRow) =>
       Try {
-        val (stallTable, searchTree) = accumulator
-        val (tazId, parkingType, parkingZone) = parseParkingZoneFromRow(csvRow)
-        addStallToSearch(tazId, parkingType, parkingZone, searchTree, stallTable)
+        if (csvRow.trim == "") accumulator
+        else {
+          val (stallTable, searchTree) = accumulator
+          val (tazId, parkingType, parkingZone) = parseParkingZoneFromRow(csvRow)
+          addStallToSearch(tazId, parkingType, parkingZone, searchTree, stallTable)
+        }
       } match {
         case Success(updatedAccumulator) =>
           updatedAccumulator
