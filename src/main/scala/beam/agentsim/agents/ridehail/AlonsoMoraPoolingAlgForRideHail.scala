@@ -230,9 +230,9 @@ object AlonsoMoraPoolingAlgForRideHail {
     implicit skimmer: BeamSkimmer
   ): CustomerRequest = {
     val p1 = newPerson(vehiclePersonId.personId.toString)
-    val p1Act1: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act1", src)
+    val p1Act1: Activity = PopulationUtils.createActivityFromCoord(s"SrcAct", src)
     p1Act1.setEndTime(srcTime)
-    val p1Act2: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act2", dst)
+    val p1Act2: Activity = PopulationUtils.createActivityFromCoord(s"DstAct", dst)
     val p1_tt: Int = skimmer
       .getTimeDistanceAndCost(
         p1Act1.getCoord,
@@ -343,6 +343,6 @@ object AlonsoMoraPoolingAlgForRideHail {
       s"${secs / 3600}:${(secs % 3600) / 60}:${secs % 60}"
     }
     override def toString: String =
-      s"${formatTime(time)}|$tag|${person.getOrElse("na")}|${activity.getType}| => ${formatTime(serviceTime)}"
+      s"$tag @ $serviceTime | ${person.map(_.personId).getOrElse("na")} | ${activity.getType} | requestTime: $time"
   }
 }

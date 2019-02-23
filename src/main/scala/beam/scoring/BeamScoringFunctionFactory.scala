@@ -3,11 +3,12 @@ package beam.scoring
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoiceModel}
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent}
-import beam.router.model.EmbodiedBeamTrip
+import beam.router.Modes.BeamMode.RIDE_HAIL_POOLED
+import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, MapStringDouble}
 import javax.inject.Inject
-import org.matsim.api.core.v01.events.Event
+import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent, PersonDepartureEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
 import org.slf4j.LoggerFactory
@@ -38,6 +39,17 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
             trips.remove(trips.size - 1)
           case leavingParkingEvent: LeavingParkingEvent =>
             leavingParkingEventScore += leavingParkingEvent.score
+          case e: PersonArrivalEvent=>
+            // Here we modify the last leg of the trip (the dummy walk leg) to have the right arrival time
+            // This will therefore now accounts for dynamic delays or difference between quoted ride hail trip time and actual
+            val bodyVehicleId = trips.head.legs.head.beamVehicleId
+            if(trips.last.tripClassifier == RIDE_HAIL_POOLED){
+              val i = 0
+            }
+            trips.update(trips.size-1,trips.last.copy(legs = trips.last.legs.dropRight(1) :+ EmbodiedBeamLeg.dummyWalkLegAt(e.getTime.toInt,bodyVehicleId,true)))
+            if(trips.last.tripClassifier == RIDE_HAIL_POOLED){
+              val i = 0
+            }
           case _ =>
         }
       }

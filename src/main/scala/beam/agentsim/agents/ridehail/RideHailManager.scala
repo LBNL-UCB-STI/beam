@@ -1055,7 +1055,7 @@ class RideHailManager(
     var pickDropsForGrouping: Map[VehiclePersonId, List[BeamLeg]] = Map()
     var passengersToAdd = Set[VehiclePersonId]()
     consistentPickDrops.foreach {
-      case (person, leg) =>
+      case (Some(person), leg) =>
         if (passengersToAdd.contains(person)) {
           passengersToAdd = passengersToAdd - person
         } else {
@@ -1067,6 +1067,7 @@ class RideHailManager(
             pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
           }
         }
+      case (None, leg) =>
     }
     pickDropsForGrouping.foreach { passAndLegs =>
       passSched = passSched.addPassenger(passAndLegs._1, passAndLegs._2)

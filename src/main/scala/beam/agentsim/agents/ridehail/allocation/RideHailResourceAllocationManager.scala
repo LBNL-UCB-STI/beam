@@ -143,8 +143,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
           case Some(agentETA) =>
             alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId
             val pickDropIdAndLegs = List(
-              PickDropIdAndLeg(request.customer, routingResponses.head.itineraries.head.legs.headOption),
-              PickDropIdAndLeg(request.customer, routingResponses.last.itineraries.head.legs.headOption)
+              PickDropIdAndLeg(Some(request.customer), routingResponses.head.itineraries.head.legs.headOption),
+              PickDropIdAndLeg(Some(request.customer), routingResponses.last.itineraries.head.legs.headOption)
             )
             VehicleMatchedToCustomers(request, agentETA.agentLocation, pickDropIdAndLegs)
           case None =>
@@ -260,7 +260,7 @@ case class VehicleMatchedToCustomers(
   rideHailAgentLocation: RideHailAgentLocation,
   pickDropIdWithRoutes: List[PickDropIdAndLeg]
 ) extends VehicleAllocation
-case class PickDropIdAndLeg(personId: VehiclePersonId, leg: Option[EmbodiedBeamLeg])
+case class PickDropIdAndLeg(personId: Option[VehiclePersonId], leg: Option[EmbodiedBeamLeg])
 
 case class AllocationRequests(requests: Map[RideHailRequest, List[RoutingResponse]])
 
