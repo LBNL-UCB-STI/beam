@@ -242,8 +242,9 @@ dependencies {
     def parquet = "1.10.0"
     compile group: 'org.apache.parquet', name: 'parquet-hadoop', version: parquet
     compile group: 'org.apache.parquet', name: 'parquet-avro', version: parquet
-    compile group: 'org.apache.hadoop', name: 'hadoop-client', version: '2.7.3'
-
+    compile (group: 'org.apache.hadoop', name: 'hadoop-client', version: '2.7.3') {
+        exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+    }
 }
 
 // Autoformatting using scalafmt
