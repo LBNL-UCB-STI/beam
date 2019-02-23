@@ -6,7 +6,7 @@ import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.TollRevenueAnalysis
 import beam.integration.ReadEvents._
-import beam.router.Modes.BeamMode.CAR
+import beam.router.Modes.BeamMode.{BIKE, CAR}
 import beam.sim.BeamHelper
 import com.typesafe.config.{Config, ConfigValueFactory}
 import org.matsim.api.core.v01.population.{Activity, Leg}
@@ -113,6 +113,8 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
       s"${matsimConfig.controler().getOutputDirectory}/ITERS/it.0/0.experiencedPlans.xml.gz"
     )
     assert(scenario.getPopulation.getPersons.size() == 50)
+    var nCarTrips = 0
+    var nBikeTrips = 0
     scenario.getPopulation.getPersons.values().forEach { person =>
       val experiencedPlan = person.getPlans.get(0)
       assert(experiencedPlan.getPlanElements.size() > 1)
@@ -123,6 +125,10 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
           assert(leg.getDepartureTime + leg.getTravelTime == activity.getStartTime)
           if (leg.getMode == CAR.matsimMode) {
             assert(leg.getRoute.isInstanceOf[NetworkRoute])
+            nCarTrips += 1
+          } else if (leg.getMode == BIKE.matsimMode) {
+            assert(leg.getRoute.isInstanceOf[NetworkRoute])
+            nBikeTrips += 1
           }
       }
       val beamPlan = BeamPlan(experiencedPlan)
@@ -137,6 +143,8 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
         }
       }
     }
+    assert(nCarTrips != 0, "At least some people must go by car")
+    assert(nBikeTrips != 0, "At least some people must go by bike")
   }
 
 }
