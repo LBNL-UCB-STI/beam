@@ -26,17 +26,21 @@ case class AttributesOfIndividual(
   income: Option[Double]
 ) extends PopulationAttributes {
   lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
+  // Get Value of Travel Time for a specific leg of a travel alternative:
+  // If it is a car leg, we use link-specific multipliers, otherwise we just look at the entire leg travel time and mode
   def getVOT(embodiedBeamLeg: EmbodiedBeamLeg, beamServices: BeamServices): Double = {
     embodiedBeamLeg.beamLeg.mode match {
       case CAR             => getPathVOTT(embodiedBeamLeg.beamLeg, beamServices: BeamServices) * beamServices.getPooledFactor(embodiedBeamLeg.isPooledTrip, embodiedBeamLeg.beamVehicleTypeId)
-      case _               => beamServices.getModeVotMultiplier(Some(embodiedBeamLeg.beamLeg.mode))
+      case _               => beamServices.getModeVotMultiplier(Some(embodiedBeamLeg.beamLeg.mode)) * embodiedBeamLeg.beamLeg.duration
     }
   }
 
+  // If we look at the path, we have multipliers for each link based on FF speed and current congestion
   private def getPathVOTT(beamLeg: BeamLeg, beamServices: BeamServices): Double = {
     (beamLeg.travelPath.linkIds zip beamLeg.travelPath.linkTravelTime).map(x => beamServices.getSituationMultiplier(x._1,x._2) * x._2).sum
   }
 
+  // If it's not a car mode, send it over to beamServices to get the mode VOTT multiplier from config
   private def getModalMultiplier(beamMode: BeamMode, beamServices: BeamServices): Double = {
     beamServices.getModeVotMultiplier(Some(beamMode))
   }

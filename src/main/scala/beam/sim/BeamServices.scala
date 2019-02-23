@@ -19,7 +19,7 @@ import beam.sim.BeamServices.getTazTreeMap
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.metrics.Metrics
-import beam.utils.{DateUtils, LinkWithIndex, NetworkHelper}
+import beam.utils.{DateUtils, NetworkHelper}
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
 import com.google.inject.{ImplementedBy, Inject, Injector}
 import org.matsim.api.core.v01.population.Person
@@ -86,8 +86,8 @@ trait BeamServices {
   }
 
   def getLinkCharacteristics(linkID:Int, travelTime:Double): (congestionLevel,roadwayType) = {
-    val freeSpeed:Double = networkHelper.getLinkWithIndex(linkID.toString).get.link.getFreespeed()
-    val currentSpeed:Double = networkHelper.getLinkWithIndex(linkID.toString).get.link.getLength() / travelTime
+    val freeSpeed:Double = networkHelper.getLink(linkID).get.getFreespeed()
+    val currentSpeed:Double = networkHelper.getLink(linkID).get.getLength() / travelTime
     if (currentSpeed < 0.5 * freeSpeed) {
       if (freeSpeed > 22) {
         (highCongestion,highway)
