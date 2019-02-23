@@ -44,11 +44,11 @@ class LeavingParkingEvent(
     attr.put(LeavingParkingEventAttrs.ATTRIBUTE_PARKING_TYPE, stall.parkingType.toString)
     attr.put(
       LeavingParkingEventAttrs.ATTRIBUTE_PRICING_MODEL,
-      stall.pricingModel.toString
+      stall.pricingModel.getOrElse("none").toString
     )
     attr.put(
       LeavingParkingEventAttrs.ATTRIBUTE_CHARGING_TYPE,
-      stall.chargingPoint.toString
+      stall.chargingPoint.getOrElse("none").toString
     )
     attr.put(LeavingParkingEventAttrs.ATTRIBUTE_PARKING_TAZ, stall.tazId.toString)
 

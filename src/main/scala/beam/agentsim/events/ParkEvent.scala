@@ -26,8 +26,8 @@ class ParkEvent(time: Double, stall: ParkingStall, vehId: Id[Vehicle], driverId:
     attr.put(ParkEventAttrs.ATTRIBUTE_LOCATION_X, stall.locationUTM.getX.toString)
     attr.put(ParkEventAttrs.ATTRIBUTE_LOCATION_Y, stall.locationUTM.getY.toString)
     attr.put(ParkEventAttrs.ATTRIBUTE_PARKING_TYPE, stall.parkingType.toString)
-    attr.put(ParkEventAttrs.ATTRIBUTE_PRICING_MODEL, stall.pricingModel.toString)
-    attr.put(ParkEventAttrs.ATTRIBUTE_CHARGING_TYPE, stall.chargingPoint.toString)
+    attr.put(ParkEventAttrs.ATTRIBUTE_PRICING_MODEL, stall.pricingModel.getOrElse("none").toString)
+    attr.put(ParkEventAttrs.ATTRIBUTE_CHARGING_TYPE, stall.chargingPoint.getOrElse("none").toString)
     attr.put(ParkEventAttrs.ATTRIBUTE_PARKING_TAZ, stall.tazId.toString)
 
     attr
