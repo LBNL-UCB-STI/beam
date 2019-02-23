@@ -160,8 +160,8 @@ object HouseholdActor {
           )
           context.watch(personRef)
           schedulerRef ! ScheduleTrigger(InitializeTrigger(0), personRef)
-          schedulerRef ! CompletionNotice(triggerId, Vector())
         }
+        schedulerRef ! CompletionNotice(triggerId, Vector())
 
       case Finish =>
         context.children.foreach(_ ! Finish)
