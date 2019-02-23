@@ -13,6 +13,7 @@ import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail._
+import beam.agentsim.agents.vehicles.VehicleCategory.Bike
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
 import beam.agentsim.events.resources.ReservationError
@@ -493,7 +494,9 @@ class PersonAgent(
           new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), data.currentVehicle.head)
         )
         if (currentBeamVehicle != body) {
-          assert(currentBeamVehicle.stall.isDefined)
+          if (currentBeamVehicle.beamVehicleType.vehicleCategory != Bike) {
+            assert(currentBeamVehicle.stall.isDefined)
+          }
           if (!mustBeDrivenHome(currentBeamVehicle)) {
             // Is a shared vehicle. Give it up.
             currentBeamVehicle.manager.get ! ReleaseVehicle(currentBeamVehicle)

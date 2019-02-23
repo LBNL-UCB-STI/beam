@@ -53,57 +53,54 @@ object BeamVehicleUtils {
   def readBeamVehicleTypeFile(
     filePath: String,
     fuelTypePrices: scala.collection.Map[FuelType, Double]
-  ): scala.collection.Map[Id[BeamVehicleType], BeamVehicleType] = {
+  ): Map[Id[BeamVehicleType], BeamVehicleType] = {
+    readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicleType], BeamVehicleType]()) {
+      case (line: util.Map[String, String], z) =>
+        val vIdString = line.get("vehicleTypeId")
+        val vehicleTypeId = Id.create(line.get("vehicleTypeId"), classOf[BeamVehicleType])
+        val seatingCapacity = line.get("seatingCapacity").trim.toInt
+        val standingRoomCapacity = line.get("standingRoomCapacity").trim.toInt
+        val lengthInMeter = line.get("lengthInMeter").trim.toDouble
+        val primaryFuelTypeId = line.get("primaryFuelType")
+        val primaryFuelType = FuelType.fromString(primaryFuelTypeId)
+        val primaryFuelConsumptionInJoulePerMeter = line.get("primaryFuelConsumptionInJoulePerMeter").trim.toDouble
+        val primaryFuelCapacityInJoule = line.get("primaryFuelCapacityInJoule").trim.toDouble
+        val monetaryCostPerMeter: Double = Option(line.get("monetaryCostPerMeter")).map(_.toDouble).getOrElse(0d)
+        val monetaryCostPerSecond: Double = Option(line.get("monetaryCostPerSecond")).map(_.toDouble).getOrElse(0d)
+        val secondaryFuelTypeId = Option(line.get("secondaryFuelType"))
+        val secondaryFuelType = secondaryFuelTypeId.map(FuelType.fromString(_))
+        val secondaryFuelConsumptionInJoule =
+          Option(line.get("secondaryFuelConsumptionInJoulePerMeter")).map(_.toDouble)
+        val secondaryFuelCapacityInJoule = Option(line.get("secondaryFuelCapacityInJoule")).map(_.toDouble)
+        val automationLevel = Option(line.get("automationLevel"))
+        val maxVelocity = Option(line.get("maxVelocity")).map(_.toDouble)
+        val passengerCarUnit = Option(line.get("passengerCarUnit")).map(_.toDouble).getOrElse(1d)
+        val rechargeLevel2RateLimitInWatts = Option(line.get("rechargeLevel2RateLimitInWatts")).map(_.toDouble)
+        val rechargeLevel3RateLimitInWatts = Option(line.get("rechargeLevel3RateLimitInWatts")).map(_.toDouble)
+        val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
 
-    val vehicleTypes =
-      readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicleType], BeamVehicleType]()) {
-        case (line: util.Map[String, String], z) =>
-          val vIdString = line.get("vehicleTypeId")
-          val vehicleTypeId = Id.create(line.get("vehicleTypeId"), classOf[BeamVehicleType])
-          val seatingCapacity = line.get("seatingCapacity").trim.toInt
-          val standingRoomCapacity = line.get("standingRoomCapacity").trim.toInt
-          val lengthInMeter = line.get("lengthInMeter").trim.toDouble
-          val primaryFuelTypeId = line.get("primaryFuelType")
-          val primaryFuelType = FuelType.fromString(primaryFuelTypeId)
-          val primaryFuelConsumptionInJoulePerMeter = line.get("primaryFuelConsumptionInJoulePerMeter").trim.toDouble
-          val primaryFuelCapacityInJoule = line.get("primaryFuelCapacityInJoule").trim.toDouble
-          val monetaryCostPerMeter: Double = Option(line.get("monetaryCostPerMeter")).map(_.toDouble).getOrElse(0d)
-          val monetaryCostPerSecond: Double = Option(line.get("monetaryCostPerSecond")).map(_.toDouble).getOrElse(0d)
-          val secondaryFuelTypeId = Option(line.get("secondaryFuelType"))
-          val secondaryFuelType = secondaryFuelTypeId.map(FuelType.fromString(_))
-          val secondaryFuelConsumptionInJoule =
-            Option(line.get("secondaryFuelConsumptionInJoulePerMeter")).map(_.toDouble)
-          val secondaryFuelCapacityInJoule = Option(line.get("secondaryFuelCapacityInJoule")).map(_.toDouble)
-          val automationLevel = Option(line.get("automationLevel"))
-          val maxVelocity = Option(line.get("maxVelocity")).map(_.toDouble)
-          val passengerCarUnit = Option(line.get("passengerCarUnit")).map(_.toDouble).getOrElse(1d)
-          val rechargeLevel2RateLimitInWatts = Option(line.get("rechargeLevel2RateLimitInWatts")).map(_.toDouble)
-          val rechargeLevel3RateLimitInWatts = Option(line.get("rechargeLevel3RateLimitInWatts")).map(_.toDouble)
-          val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
-
-          val bvt = BeamVehicleType(
-            vehicleTypeId,
-            seatingCapacity,
-            standingRoomCapacity,
-            lengthInMeter,
-            primaryFuelType,
-            primaryFuelConsumptionInJoulePerMeter,
-            primaryFuelCapacityInJoule,
-            monetaryCostPerMeter,
-            monetaryCostPerSecond,
-            secondaryFuelType,
-            secondaryFuelConsumptionInJoule,
-            secondaryFuelCapacityInJoule,
-            automationLevel,
-            maxVelocity,
-            passengerCarUnit,
-            rechargeLevel2RateLimitInWatts,
-            rechargeLevel3RateLimitInWatts,
-            vehicleCategory
-          )
-          z += ((vehicleTypeId, bvt))
-      }
-    vehicleTypes
+        val bvt = BeamVehicleType(
+          vehicleTypeId,
+          seatingCapacity,
+          standingRoomCapacity,
+          lengthInMeter,
+          primaryFuelType,
+          primaryFuelConsumptionInJoulePerMeter,
+          primaryFuelCapacityInJoule,
+          monetaryCostPerMeter,
+          monetaryCostPerSecond,
+          secondaryFuelType,
+          secondaryFuelConsumptionInJoule,
+          secondaryFuelCapacityInJoule,
+          automationLevel,
+          maxVelocity,
+          passengerCarUnit,
+          rechargeLevel2RateLimitInWatts,
+          rechargeLevel3RateLimitInWatts,
+          vehicleCategory
+        )
+        z += ((vehicleTypeId, bvt))
+    }.toMap
   }
 
   def readCsvFileByLine[A](filePath: String, z: A)(readLine: (java.util.Map[String, String], A) => A): A = {
