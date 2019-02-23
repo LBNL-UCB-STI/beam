@@ -2,6 +2,8 @@ package beam.agentsim.infrastructure
 
 import java.util.concurrent.TimeUnit
 
+import scala.util.Random
+
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
@@ -132,11 +134,8 @@ object ZonalParkingManagerSpec {
 //      case None =>
 //        ParkingStockAttributes(1)
 //    }
-    val zonalParkingManagerProps = Props(
-      new ZonalParkingManager(beamServices, beamRouterProbe) {
-//        override def fillInDefaultPooledResources() {} //Ignoring default initialization, just use input data
-      }
-    )
+    val zonalParkingManagerProps = Props(ZonalParkingManager(beamServices, new Random(0L)))
+
     TestActorRef[ZonalParkingManager](zonalParkingManagerProps)
   }
 }

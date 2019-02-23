@@ -1,6 +1,5 @@
 package beam.agentsim.infrastructure.parking
 
-import scala.util.matching.Regex
 import scala.util.{Failure, Success, Try}
 
 /**
