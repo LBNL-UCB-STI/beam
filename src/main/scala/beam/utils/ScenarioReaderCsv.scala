@@ -266,63 +266,33 @@ object ScenarioReaderCsv {
 
         // Setting the coordinates
         val householdCoord: Coord = {
-
           if (line.keySet().contains("homecoordx") && line.keySet().contains("homecoordy")) {
             val x = line.get("homecoordx")
             val y = line.get("homecoordy")
             new Coord(java.lang.Double.parseDouble(x), java.lang.Double.parseDouble(y))
           } else {
             val householdUnitId = line.get("unit_id")
-            if (householdUnitId != null) {
-              units.get(householdUnitId) match {
-                case Some(unit) =>
-                  buildings.get(unit.get("building_id")) match {
-                    case Some(building) => {
-                      parcelAttrs.get(building.get("parcel_id")) match {
-                        case Some(parcelAttr) =>
-                          val lng = parcelAttr.get("x")
-                          val lat = parcelAttr.get("y")
-
-                          beamServices.beamConfig.beam.agentsim.agents.population.convertWgs2Utm match {
-                            case true  => beamServices.geo.wgs2Utm(new Coord(lng.toDouble, lat.toDouble))
-                            case false => new Coord(lng.toDouble, lat.toDouble)
-                          }
-                        case None => new Coord(0, 0)
-                      }
-                    }
-                    case None => new Coord(0, 0)
-                  }
-                case None => new Coord(0, 0)
-              }
-
+            val parcelAttr = parcelAttrs(buildings(units(householdUnitId).get("building_id")).get("parcel_id"))
+            val lng = parcelAttr.get("x")
+            val lat = parcelAttr.get("y")
+            if (beamServices.beamConfig.beam.agentsim.agents.population.convertWgs2Utm) {
+              beamServices.geo.wgs2Utm(new Coord(lng.toDouble, lat.toDouble))
             } else {
-              new Coord(0, 0)
+              new Coord(lng.toDouble, lat.toDouble)
             }
           }
         }
 
         val incomeStr = line.get("income")
 
-        if (incomeStr != null && !incomeStr.isEmpty) try {
+        if (incomeStr != null && !incomeStr.isEmpty) {
           val _income = java.lang.Double.parseDouble(incomeStr)
           val income = new IncomeImpl(_income, Income.IncomePeriod.year)
           income.setCurrency("usd")
           objHousehold.setIncome(income)
-        } catch {
-          case e: Exception =>
-            e.printStackTrace()
         }
 
-        val p: Option[ListBuffer[Id[Person]]] = householdPersons.get(householdId)
-
-        p match {
-          case Some(p) => {
-            objHousehold.setMemberIds(p.asJava)
-          }
-
-          case None =>
-          //logger.info("no persons for household")
-        }
+        objHousehold.setMemberIds(householdPersons(householdId).asJava)
 
         val vehicleTypes = VehiclesAdjustment
           .getVehicleAdjustment(beamServices)
