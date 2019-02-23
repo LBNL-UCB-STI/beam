@@ -1,4 +1,4 @@
-package beam.agentsim.infrastructure.parking.charging
+package beam.agentsim.infrastructure.charging
 
 case class ChargingPreference(pref: Double)
 

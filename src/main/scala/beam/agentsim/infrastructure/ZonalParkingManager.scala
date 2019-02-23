@@ -5,7 +5,7 @@ import scala.util.Random
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.infrastructure.ParkingManager._
-import beam.agentsim.infrastructure.parking.charging.ChargingInquiryData
+import beam.agentsim.infrastructure.charging.ChargingInquiryData
 import beam.agentsim.infrastructure.parking.{ParkingRankingFunction, ParkingType, ParkingZone}
 import org.matsim.core.utils.collections.QuadTree
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch
@@ -17,7 +17,6 @@ import org.matsim.api.core.v01.Id
 
 import scala.annotation.tailrec
 
-
 class ZonalParkingManager(
   override val beamServices: BeamServices,
   val beamRouter: ActorRef,
@@ -26,21 +25,20 @@ class ZonalParkingManager(
     with HasServices
     with ActorLogging {
 
-  val CostOfEmergencyStall: Double = 1000.0           // used as an emergency when no stalls were found
-  val SearchStartRadius: Double = 500.0               // original public search defaults; depot's was 10000.0
-  val SearchMaxRadius: Double = 16000.0               // depot's was 20000.0
+  val CostOfEmergencyStall: Double = 1000.0 // used as an emergency when no stalls were found
+  val SearchStartRadius: Double = 500.0 // original public search defaults; depot's was 10000.0
+  val SearchMaxRadius: Double = 16000.0 // depot's was 20000.0
   //  var stallNum = 0 // this was the counter to issue new stall ids
 
   val pathResourceCSV: String = beamServices.beamConfig.beam.agentsim.taz.parking
   val (stalls, searchTree) = ParkingZoneSearch.io.fromFile(pathResourceCSV)
 
   var totalStallsInUse: Long = 0L
-  var totalStallsAvailable: Long = stalls.map{_.stallsAvailable}.foldLeft(0L){_+_}
+  var totalStallsAvailable: Long = stalls.map { _.stallsAvailable }.foldLeft(0L) { _ + _ }
 
   override def receive: Receive = {
 
     case ReleaseParkingStall(parkingZoneId) =>
-
       if (parkingZoneId == ParkingZone.DefaultParkingZoneId) {
         if (log.isDebugEnabled) {
           // this is an infinitely available resource; no update required
@@ -61,8 +59,8 @@ class ZonalParkingManager(
 
     // we are receiving this because the Ride Hail Manager is seeking alternatives to its managed parking zones
     case inquiry: DepotParkingInquiry =>
-
-      val inquiryReserveStall: Boolean = true // this comes on standard inquiries, and maybe Depot inquiries in the future
+      val inquiryReserveStall
+        : Boolean = true // this comes on standard inquiries, and maybe Depot inquiries in the future
 
       if (log.isDebugEnabled) {
         log.debug("DepotParkingInquiry with {} available stalls ", totalStallsAvailable)
@@ -98,9 +96,7 @@ class ZonalParkingManager(
       val response = DepotParkingInquiryResponse(Some(parkingStall), inquiry.requestId)
       sender() ! response
 
-
     case inquiry: ParkingInquiry =>
-
       log.debug("Received parking inquiry: {}", inquiry);
 
       val preferredParkingTypes: Seq[ParkingType] = inquiry.activityType match {
@@ -108,7 +104,6 @@ class ZonalParkingManager(
         case act if act.equalsIgnoreCase("work") => Seq(ParkingType.Workplace, ParkingType.Public)
         case _                                   => Seq(ParkingType.Public)
       }
-
 
       // performs a concentric ring search from the present location to find a parking stall, and creates it
       val (parkingZone, parkingStall) = ZonalParkingManager.incrementalParkingZoneSearch(
@@ -140,11 +135,10 @@ class ZonalParkingManager(
   }
 }
 
-
 object ZonalParkingManager {
 
   val ParkingDurationForRideHailAgents: Int = 30 * 60 // 30 minutes?
-  val SearchFactor: Double = 2.0                      // increases search radius by this factor at each iteration
+  val SearchFactor: Double = 2.0 // increases search radius by this factor at each iteration
 
   /**
     * builds a ZonalParkingManager Actor
@@ -154,15 +148,14 @@ object ZonalParkingManager {
     * @return
     */
   def props(
-             beamServices: BeamServices,
-             beamRouter: ActorRef,
-             parkingStockAttributes: ParkingStockAttributes
-           ): Props = {
+    beamServices: BeamServices,
+    beamRouter: ActorRef,
+    parkingStockAttributes: ParkingStockAttributes
+  ): Props = {
     Props(new ZonalParkingManager(beamServices, beamRouter))
   }
 
   val MaxSearchRadius = 10e3 // was listed but unused in original code.. using it?
-
 
   /**
     * looks for the nearest ParkingZone that meets the agent's needs
@@ -179,17 +172,17 @@ object ZonalParkingManager {
     * @return a stall from the found ParkingZone, or a ParkingStall.DefaultStall
     */
   def incrementalParkingZoneSearch(
-                                    searchStartRadius: Double,
-                                    searchMaxRadius: Double,
-                                    location: Location,
-                                    parkingDuration: Int,
-                                    parkingTypes: Seq[ParkingType],
-                                    chargingInquiryData: Option[ChargingInquiryData],
-                                    searchTree: ParkingZoneSearch.StallSearch,
-                                    stalls: Array[ParkingZone],
-                                    tazQuadTree: QuadTree[TAZ],
-                                    random: Random
-                                  ): (ParkingZone, ParkingStall) = {
+    searchStartRadius: Double,
+    searchMaxRadius: Double,
+    location: Location,
+    parkingDuration: Int,
+    parkingTypes: Seq[ParkingType],
+    chargingInquiryData: Option[ChargingInquiryData],
+    searchTree: ParkingZoneSearch.StallSearch,
+    stalls: Array[ParkingZone],
+    tazQuadTree: QuadTree[TAZ],
+    random: Random
+  ): (ParkingZone, ParkingStall) = {
 
     @tailrec
     def _search(thisInnerRadius: Double, thisOuterRadius: Double): Option[(ParkingZone, ParkingStall)] = {
@@ -221,7 +214,7 @@ object ZonalParkingManager {
               bestParkingZone.pricingModel,
               bestType
             )
-            Some{ (bestParkingZone, newStall) }
+            Some { (bestParkingZone, newStall) }
           case None =>
             //
             _search(thisOuterRadius, thisOuterRadius * SearchFactor)
@@ -237,8 +230,6 @@ object ZonalParkingManager {
         (ParkingZone.DefaultParkingZone, newStall)
     }
   }
-
-
 
   /**
     * samples a random location near a TAZ's centroid in order to create a stall in that TAZ.

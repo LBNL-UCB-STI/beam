@@ -5,10 +5,9 @@ import beam.agentsim.infrastructure.parking.ParkingType
 //import beam.agentsim.infrastructure.ParkingStall.{StallAttributes, StallValues}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.infrastructure.parking.PricingModel
-import beam.agentsim.infrastructure.parking.charging.ChargingPoint
+import beam.agentsim.infrastructure.charging.ChargingPoint
 import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.{Coord, Id}
-
 
 case class ParkingStall(
   tazId: Id[TAZ],

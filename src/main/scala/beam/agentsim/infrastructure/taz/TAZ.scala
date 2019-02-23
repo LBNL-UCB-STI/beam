@@ -17,9 +17,8 @@ class TAZ(val tazId: Id[TAZ], val coord: Coord, val areaInSquareMeters: Double) 
   }
 }
 
-
-
 object TAZ {
+
   /**
     * performs a concentric search from the present location to find TAZs up to the SearchMaxRadius
     * @param searchCenter central location from which concentric discs will be built with an expanding radius
@@ -27,7 +26,12 @@ object TAZ {
     * @param maxRadius search constrained to this maximum search radius
     * @return the TAZs found in the first search radius which locates a TAZ center, along with their distances, not sorted
     */
-  def findWithinDistance(tazQuadTree: QuadTree[TAZ], searchCenter: Location, startRadius: Double, maxRadius: Double): List[(TAZ, Double)] = {
+  def findWithinDistance(
+    tazQuadTree: QuadTree[TAZ],
+    searchCenter: Location,
+    startRadius: Double,
+    maxRadius: Double
+  ): List[(TAZ, Double)] = {
 
     def _find(thisRadius: Double): List[TAZ] = {
       if (thisRadius > maxRadius) List.empty[TAZ]
@@ -41,10 +45,9 @@ object TAZ {
       }
     }
 
-    _find(startRadius).
-      map {taz =>
-        // Note, this assumes both TAZs and SearchCenter are in local coordinates, and therefore in units of meters
-        (taz, GeoUtils.distFormula(taz.coord, searchCenter))
-      }
+    _find(startRadius).map { taz =>
+      // Note, this assumes both TAZs and SearchCenter are in local coordinates, and therefore in units of meters
+      (taz, GeoUtils.distFormula(taz.coord, searchCenter))
+    }
   }
 }

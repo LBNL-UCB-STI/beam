@@ -1,5 +1,5 @@
-package beam.agentsim.infrastructure.parking.charging
-import beam.agentsim.infrastructure.parking.charging.ElectricCurrent.{AC, DC}
+package beam.agentsim.infrastructure.charging
+import beam.agentsim.infrastructure.charging.ElectricCurrent.{AC, DC}
 import com.sun.tools.corba.se.idl.InvalidArgument
 
 import scala.util.{Failure, Success, Try}

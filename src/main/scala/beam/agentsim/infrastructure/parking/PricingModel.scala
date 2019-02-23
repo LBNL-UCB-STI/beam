@@ -29,7 +29,6 @@ object PricingModel {
     override def toString: String = "Block"
   }
 
-
   /**
     * 1 hour is the default interval
     */
@@ -41,23 +40,23 @@ object PricingModel {
     * @return an optional PricingModel if the input is recognized, otherwise None
     *
     */
-  def apply(s: String, cost: String, intervalSeconds: String = DefaultPricingInterval.toString): Option[PricingModel] = s.toLowerCase match {
+  def apply(s: String, cost: String, intervalSeconds: String = DefaultPricingInterval.toString): Option[PricingModel] =
+    s.toLowerCase match {
 
-    case "flatfee" =>
-      val costInt = parseNumeric(cost, s)
-      val intervalInt = parseNumeric(intervalSeconds, s)
-      Some(FlatFee(costInt, intervalInt))
+      case "flatfee" =>
+        val costInt = parseNumeric(cost, s)
+        val intervalInt = parseNumeric(intervalSeconds, s)
+        Some(FlatFee(costInt, intervalInt))
 
-    case "block" =>
-      val costInt = parseNumeric(cost, s)
-      val intervalInt = parseNumeric(intervalSeconds, s)
-      Some(Block(costInt, intervalInt))
+      case "block" =>
+        val costInt = parseNumeric(cost, s)
+        val intervalInt = parseNumeric(intervalSeconds, s)
+        Some(Block(costInt, intervalInt))
 
-    case _ =>
-      // we could log the data that did not lead to parsing here
-      None
-  }
-
+      case _ =>
+        // we could log the data that did not lead to parsing here
+        None
+    }
 
   /**
     * helper function that converts a value to an integer
@@ -70,7 +69,9 @@ object PricingModel {
       valueString.toInt
     } match {
       case Failure(_) =>
-        throw new IllegalArgumentException(s"could not parse $model parking attribute $valueString to an Integer (cannot be decimal).")
+        throw new IllegalArgumentException(
+          s"could not parse $model parking attribute $valueString to an Integer (cannot be decimal)."
+        )
       case Success(valueInt) => valueInt
     }
   }
