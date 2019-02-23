@@ -22,8 +22,9 @@ trait ModeChoiceCalculator extends HasServices {
     beamServices.beamConfig.matsim.modules.global.randomSeed
   )
 
+  // TODO: This is depreciated, only used by LCCM
   def scaleTimeByVot(time: Double, beamMode: Option[BeamMode] = None, beamLeg: Option[EmbodiedBeamLeg] = None): Double = {
-    time / 3600
+    time / 3600 * beamServices.getModeVotMultiplier(beamMode)
   }
 
   def apply(

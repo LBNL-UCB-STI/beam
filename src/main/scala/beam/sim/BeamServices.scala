@@ -112,6 +112,7 @@ trait BeamServices {
     mutable.Map[Option[BeamMode], Double](
       Some(TRANSIT)          -> beamConfig.beam.agentsim.agents.modalBehaviors.modeVotMultiplier.transit,
       Some(RIDE_HAIL)        -> beamConfig.beam.agentsim.agents.modalBehaviors.modeVotMultiplier.rideHail,
+      Some(WAITING)          -> beamConfig.beam.agentsim.agents.modalBehaviors.modeVotMultiplier.waiting,
       None                   -> 1.0
     )
 
