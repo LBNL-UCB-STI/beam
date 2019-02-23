@@ -240,8 +240,9 @@ class PersonAgent(
 
   startWith(Uninitialized, BasePersonData())
 
-  def scaleTimeByValueOfTime(time: Double, beamMode: Option[BeamMode] = None): Double =
-    modeChoiceCalculator.scaleTimeByVot(time, beamMode)
+  def scaleTimeByValueOfTime(timeInSeconds: Double, beamMode: Option[BeamMode] = None): Double = {
+    beamServices.getModeVotMultiplier(beamMode) * timeInSeconds / 3600
+  }
 
   def currentTour(data: BasePersonData): Tour = {
     stateName match {

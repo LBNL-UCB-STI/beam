@@ -2,12 +2,12 @@ package beam.agentsim.agents.household
 
 import java.util.concurrent.TimeUnit
 
+import akka.actor.Status.Success
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
-import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, VehicleOrToken}
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
@@ -144,7 +144,7 @@ object HouseholdActor {
         household.members.foreach { person =>
           val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
           val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
-          modeChoiceCalculator.valuesOfTime += (GeneralizedVot -> attributes.valueOfTime)
+
           val personRef: ActorRef = context.actorOf(
             PersonAgent.props(
               schedulerRef,
@@ -167,6 +167,61 @@ object HouseholdActor {
           schedulerRef ! ScheduleTrigger(InitializeTrigger(0), personRef)
         }
         schedulerRef ! CompletionNotice(triggerId, Vector())
+
+        // Pipe my cars through the parking manager
+        // and complete initialization only when I got them all.
+        Future
+          .sequence(vehicles.values.map { veh =>
+            veh.manager = Some(self)
+            veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
+            parkingManager ? ParkingInquiry(
+              homeCoord,
+              homeCoord,
+              "home",
+              AttributesOfIndividual.EMPTY,
+              NoNeed,
+              0,
+              0
+            ) flatMap {
+              case ParkingInquiryResponse(stall, _) =>
+                veh.useParkingStall(stall)
+                self ? ReleaseVehicleAndReply(veh)
+            }
+          })
+          .map(_ => CompletionNotice(triggerId, Vector()))
+          .pipeTo(sender())
+
+      case NotifyVehicleIdle(vId, whenWhere, _, _, _) =>
+        val vehId = vId.asInstanceOf[Id[BeamVehicle]]
+        vehicles(vehId).spaceTime = whenWhere
+        log.debug("updated vehicle {} with location {}", vehId, whenWhere)
+
+      case ReleaseVehicle(vehicle) =>
+        vehicle.unsetDriver()
+        if (!availableVehicles.contains(vehicle)) {
+          availableVehicles = vehicle :: availableVehicles
+        }
+        log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
+
+      case ReleaseVehicleAndReply(vehicle) =>
+        vehicle.unsetDriver()
+        if (!availableVehicles.contains(vehicle)) {
+          availableVehicles = vehicle :: availableVehicles
+        }
+        log.debug("Vehicle {} is now available for anyone in household {}", vehicle.id, household.getId)
+        sender() ! Success
+
+      case MobilityStatusInquiry(_) =>
+        availableVehicles = availableVehicles match {
+          case firstVehicle :: rest =>
+            log.debug("Vehicle {} is now taken", firstVehicle.id)
+            firstVehicle.becomeDriver(sender)
+            sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)))
+            rest
+          case Nil =>
+            sender() ! MobilityStatusResponse(Vector())
+            Nil
+        }
 
       case Finish =>
         context.children.foreach(_ ! Finish)

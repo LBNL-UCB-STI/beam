@@ -148,7 +148,10 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         mode,
         incentivizedCost,
 //        scaleTimeByVot(altAndIdx._1.totalTravelTimeInSecs + waitTime, Option(mode)),
-        altAndIdx._1.legs.map(getLegGeneralizedTimeCost(_)).sum + scaleTimeByVot(waitTime, Option(WAITING), None),
+//        altAndIdx._1.legs.map(getLegGeneralizedTimeCost(_)).sum + scaleTimeByVot(waitTime, Option(WAITING), None),
+//        altAndIdx._1.legs.map(getVot(_).sum + scaleTimeByVot(waitTime, Option(WAITING), None),
+        altAndIdx._1.legs.map(x => attributesOfIndividual.getVOT(x, beamServices)).sum,
+//        0.0,
         numTransfers,
         altAndIdx._2
       )

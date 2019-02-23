@@ -13,11 +13,13 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode._
+import beam.router.model.{BeamPath, EmbodiedBeamLeg}
 import beam.sim.BeamServices.getTazTreeMap
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.metrics.Metrics
-import beam.utils.{DateUtils, NetworkHelper}
+import beam.utils.{DateUtils, LinkWithIndex, NetworkHelper}
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
 import com.google.inject.{ImplementedBy, Inject, Injector}
 import org.matsim.api.core.v01.population.Person
@@ -27,6 +29,7 @@ import org.matsim.core.utils.collections.QuadTree
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 import org.slf4j.LoggerFactory
+import org.matsim.api.core.v01.network.{Link, Network}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -64,6 +67,108 @@ trait BeamServices {
   def networkHelper: NetworkHelper
   var transitFleetSizes: mutable.HashMap[String, Integer] = mutable.HashMap.empty
   def setTransitFleetSizes(tripFleetSizeMap: mutable.HashMap[String, Integer])
+
+  def getModeVotMultiplier(beamMode: Option[BeamMode]): Double = {
+    modeMultipliers.getOrElse(beamMode, 1.0)
+  }
+
+  def getPooledFactor(isPooled: Boolean, beamVehicleTypeId: Id[BeamVehicleType]): Double = {
+    if(isPooled) {
+      if (vehicleTypes(beamVehicleTypeId).automationLevel.map(_.toInt).exists( _ >= 5)) {
+        beamConfig.beam.agentsim.agents.modalBehaviors.modeVotMultiplier.sharedAutonomous
+      } else {
+        beamConfig.beam.agentsim.agents.modalBehaviors.modeVotMultiplier.sharedDriver
+      }
+    } else
+    {
+      1.0
+    }
+  }
+
+  def getLinkCharacteristics(linkID:Int, travelTime:Double): (congestionLevel,roadwayType) = {
+    val freeSpeed:Double = networkHelper.getLinkWithIndex(linkID.toString).get.link.getFreespeed()
+    val currentSpeed:Double = networkHelper.getLinkWithIndex(linkID.toString).get.link.getLength() / travelTime
+    if (currentSpeed < 0.5 * freeSpeed) {
+      if (freeSpeed > 22) {
+        (highCongestion,highway)
+      } else {
+        (highCongestion,nonHighway)
+      }
+    } else {
+      if (freeSpeed > 22) {
+        (lowCongestion,highway)
+      } else {
+        (lowCongestion,nonHighway)
+      }
+    }
+  }
+
+  def getSituationMultiplier(linkID:Int, travelTime:Double, sensitivity:timeSensitivity = highSensitivity): Double = {
+    val (congestion,roadway) = getLinkCharacteristics(linkID, travelTime)
+    situationMultipliers.getOrElse((sensitivity,congestion,roadway),1.0)
+  }
+
+  lazy val modeMultipliers: mutable.Map[Option[BeamMode], Double] =
+    mutable.Map[Option[BeamMode], Double](
+      Some(TRANSIT)          -> beamConfig.beam.agentsim.agents.modalBehaviors.modeVotMultiplier.transit,
+      Some(RIDE_HAIL)        -> beamConfig.beam.agentsim.agents.modalBehaviors.modeVotMultiplier.rideHail,
+      None                   -> 1.0
+    )
+
+  lazy val situationMultipliers: mutable.Map[(timeSensitivity,congestionLevel,roadwayType), Double] =
+    mutable.Map[(timeSensitivity,congestionLevel,roadwayType), Double] (
+      (highSensitivity,highCongestion,highway)    -> beamConfig.beam.agentsim.agents.modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor,
+      (highSensitivity,highCongestion,nonHighway) -> beamConfig.beam.agentsim.agents.modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor,
+      (highSensitivity,lowCongestion,highway)     -> beamConfig.beam.agentsim.agents.modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor,
+      (highSensitivity,lowCongestion,nonHighway)  -> beamConfig.beam.agentsim.agents.modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor,
+      (lowSensitivity,highCongestion,highway)     -> beamConfig.beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor,
+      (lowSensitivity,highCongestion,nonHighway)  -> beamConfig.beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor,
+      (lowSensitivity,lowCongestion,highway)      -> beamConfig.beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor,
+      (lowSensitivity,lowCongestion,nonHighway)   -> beamConfig.beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor,
+    )
+
+//  def getPathVotMultiplier(embodiedBeamLeg: EmbodiedBeamLeg): Double = {
+//    val isAutonomous = vehicleTypes(embodiedBeamLeg.beamVehicleTypeId).automationLevel.map(_.toInt).exists( _ >= 3))
+//    var output:Double = 1.0
+//    if(contextForVot.map(_.isAutonomous).getOrElse(false)) {
+//      output *= beamConfig.beam.agentsim.agents.modalBehaviors.situationVotMultiplier.autonomousMultiplier
+//    }
+//    return output
+//  }
+
+  sealed trait ModeVotMultiplier
+
+  case object Drive extends ModeVotMultiplier
+
+  case object OnTransit extends ModeVotMultiplier
+
+  case object Walk extends ModeVotMultiplier
+
+  case object WalkToTransit extends ModeVotMultiplier // Separate from walking
+
+  case object DriveToTransit extends ModeVotMultiplier
+
+  case object RideHail extends ModeVotMultiplier // No separate ride hail to transit VOT
+
+  case object Bike extends ModeVotMultiplier
+
+  sealed trait timeSensitivity
+
+  case object highSensitivity extends timeSensitivity
+
+  case object lowSensitivity extends timeSensitivity
+
+  sealed trait congestionLevel
+
+  case object highCongestion extends congestionLevel
+
+  case object lowCongestion extends congestionLevel
+
+  sealed trait roadwayType
+
+  case object highway extends roadwayType
+
+  case object nonHighway extends roadwayType
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
@@ -154,6 +259,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   private val _networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
 
   def networkHelper: NetworkHelper = _networkHelper
+
 }
 
 object BeamServices {
@@ -168,6 +274,8 @@ object BeamServices {
     tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
     new TAZTreeMap(tazQuadTree)
   }
+
+
 
   def getTazTreeMap(filePath: String): TAZTreeMap = {
     try {
