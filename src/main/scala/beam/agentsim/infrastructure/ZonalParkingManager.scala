@@ -73,6 +73,7 @@ class ZonalParkingManager(
         10000,
         ZonalParkingManager.MaxSearchRadius,
         inquiry.customerLocationUtm,
+        ZonalParkingManager.ParkingDurationForRideHailAgents,
         Seq(ParkingType.Public),
         None,
         searchTree,
@@ -114,6 +115,7 @@ class ZonalParkingManager(
         500.0,
         ZonalParkingManager.MaxSearchRadius,
         inquiry.customerLocationUtm,
+        inquiry.parkingDuration.toInt,
         preferredParkingTypes,
         inquiry.chargingInquiryData,
         searchTree,
@@ -167,6 +169,7 @@ object ZonalParkingManager {
     * @param searchStartRadius
     * @param searchMaxRadius
     * @param location
+    * @param parkingDuration
     * @param parkingTypes
     * @param chargingInquiryData
     * @param searchTree
@@ -179,6 +182,7 @@ object ZonalParkingManager {
                                     searchStartRadius: Double,
                                     searchMaxRadius: Double,
                                     location: Location,
+                                    parkingDuration: Int,
                                     parkingTypes: Seq[ParkingType],
                                     chargingInquiryData: Option[ChargingInquiryData],
                                     searchTree: ParkingZoneSearch.StallSearch,
@@ -198,12 +202,12 @@ object ZonalParkingManager {
             .toList
 
         ParkingZoneSearch.find(
-          None,
+          chargingInquiryData,
           tazList,
           parkingTypes,
           searchTree,
           stalls,
-          ParkingRankingFunction(parkingDuration = ParkingDurationForRideHailAgents)
+          ParkingRankingFunction(parkingDuration = parkingDuration)
         ) match {
           case Some((bestTAZ, bestType, bestParkingZone, bestParkingZoneId)) =>
             // create a stall from this parking zone

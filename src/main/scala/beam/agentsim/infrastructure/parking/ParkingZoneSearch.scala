@@ -204,7 +204,7 @@ object ParkingZoneSearch {
       * @return table and tree
       */
     def fromStream(csvFileContents: Iterator[String]): (Array[ParkingZone], StallSearch) = {
-      val ParkingFileRowRegex =    "^(\\w+),(\\w+),(\\w+),(\\w+),(\\d+),(\\d+),(\\w+)$".r
+      val ParkingFileRowRegex = "^(\\w+),(\\w+),(\\w+),(\\w+),(\\d+),(\\d+),(\\w+)$".r
 
       // we are building the Array of ParkingZones and a search tree
       val accumulator = (Array.empty[ParkingZone], Map.empty[Id[TAZ], Map[ParkingType, List[Int]]] : StallSearch)
