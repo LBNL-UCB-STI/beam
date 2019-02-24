@@ -43,6 +43,7 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
         .sequence(vehicles.values.map { veh =>
           veh.manager = Some(self)
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
+          veh.mustBeDrivenHome = true
           parkingManager ? ParkingInquiry(
             homeCoord,
             homeCoord,

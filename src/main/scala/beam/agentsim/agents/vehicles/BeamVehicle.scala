@@ -48,6 +48,8 @@ class BeamVehicle(
 
   var fuelLevelInJoules = beamVehicleType.primaryFuelCapacityInJoule
 
+  var mustBeDrivenHome: Boolean = false
+
   /**
     * The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
     * Effectively, this is the main controller of the vehicle in space and time in the scenario environment;

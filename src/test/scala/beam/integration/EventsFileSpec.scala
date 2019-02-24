@@ -147,11 +147,13 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
       val beamPlan = BeamPlan(experiencedPlan)
       beamPlan.tours.foreach { tour =>
         if (tour.trips.size > 1) {
-          if (tour.trips.head.leg.get.getMode == "car") {
-            assert(
-              tour.trips.last.leg.get.getMode == "car",
-              "If I leave home by car, I must get home by car: " + person.getId
-            )
+          for (mode <- List("car", "bike")) {
+            if (tour.trips.head.leg.get.getMode == mode) {
+              assert(
+                tour.trips.last.leg.get.getMode == mode,
+                s"If I leave home by $mode, I must get home by $mode: " + person.getId
+              )
+            }
           }
         }
       }

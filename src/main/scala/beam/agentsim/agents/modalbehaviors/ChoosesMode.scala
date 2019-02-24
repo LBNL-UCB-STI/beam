@@ -737,14 +737,10 @@ trait ChoosesMode {
   def mustBeDrivenHome(vehicle: VehicleOrToken): Boolean = {
     vehicle match {
       case ActualVehicle(beamVehicle) =>
-        mustBeDrivenHome(beamVehicle)
+        beamVehicle.mustBeDrivenHome
       case _: Token =>
         false // is not a household vehicle
     }
-  }
-
-  def mustBeDrivenHome(vehicle: BeamVehicle): Boolean = {
-    vehicle.manager.get.path.name == "household-fleet" // is a household vehicle
   }
 
   def completeChoiceIfReady: PartialFunction[State, State] = {
@@ -854,6 +850,9 @@ trait ChoosesMode {
         case Some(chosenTrip) =>
           goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(chosenTrip))
         case None =>
+          if (personData.currentTourMode.contains(CAR) || personData.currentTourMode.contains(BIKE)) {
+            println("wurst")
+          }
           // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
           val originalWalkTripLeg =
             routingResponse.itineraries.find(_.tripClassifier == WALK) match {

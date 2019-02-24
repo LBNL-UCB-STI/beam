@@ -133,11 +133,13 @@ object HouseholdActor {
 
       case TriggerWithId(InitializeTrigger(_), triggerId) =>
         val vehiclesByCategory = vehicles.groupBy(_._2.beamVehicleType.vehicleCategory)
-        val fleetManagers = vehiclesByCategory.map { case (category, vs) =>
-          val fleetManager = context.actorOf(Props(new HouseholdFleetManager(parkingManager, vs, homeCoord)), category.toString)
-          context.watch(fleetManager)
-          schedulerRef ! ScheduleTrigger(InitializeTrigger(0), fleetManager)
-          fleetManager
+        val fleetManagers = vehiclesByCategory.map {
+          case (category, vs) =>
+            val fleetManager =
+              context.actorOf(Props(new HouseholdFleetManager(parkingManager, vs, homeCoord)), category.toString)
+            context.watch(fleetManager)
+            schedulerRef ! ScheduleTrigger(InitializeTrigger(0), fleetManager)
+            fleetManager
         }
         household.members.foreach { person =>
           val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
