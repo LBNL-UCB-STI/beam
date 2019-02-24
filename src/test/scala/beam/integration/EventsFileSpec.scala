@@ -3,7 +3,7 @@ package beam.integration
 import java.io.File
 
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.events.PathTraversalEvent
+import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
 import beam.analysis.plots.TollRevenueAnalysis
 import beam.integration.ReadEvents._
 import beam.router.Modes.BeamMode.{BIKE, CAR}
@@ -97,6 +97,15 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
       if event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_TOLL_PAID).toDouble != 0.0
     } yield event
     tollEvents should not be empty
+  }
+
+  it should "show that everyone could drive or cycle" in {
+    for (event <- fromFile(getEventsFilePath(matsimConfig, "xml").getAbsolutePath)) {
+      if (event.getEventType == "ModeChoice") {
+        event.getAttributes.get(ModeChoiceEvent.ATTRIBUTE_AVAILABLE_ALTERNATIVES) should include ("CAR")
+        event.getAttributes.get(ModeChoiceEvent.ATTRIBUTE_AVAILABLE_ALTERNATIVES) should include ("BIKE")
+      }
+    }
   }
 
   it should "yield positive toll revenue according to TollRevenueAnalysis" in {
