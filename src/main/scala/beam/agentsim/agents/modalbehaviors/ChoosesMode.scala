@@ -787,23 +787,22 @@ trait ChoosesMode {
           val origLegs = travelProposal.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId)
           (travelProposal.poolingInfo match {
             case Some(poolingInfo) =>
-              val pooledLegs = origLegs.map{ origLeg =>
+              val pooledLegs = origLegs.map { origLeg =>
                 origLeg.copy(
                   cost = origLeg.cost * poolingInfo.costFactor,
                   isPooledTrip = origLeg.isRideHail,
                   beamLeg = origLeg.beamLeg.scaleLegDuration(poolingInfo.timeFactor)
                 )
               }
-              Vector(origLegs,EmbodiedBeamLeg.makeLegsConsistent(pooledLegs))
+              Vector(origLegs, EmbodiedBeamLeg.makeLegsConsistent(pooledLegs))
             case None =>
               Vector(origLegs)
-          }).map{
-            partialItin =>
-              EmbodiedBeamTrip (
-              (EmbodiedBeamLeg.dummyWalkLegAt (partialItin.head.beamLeg.startTime, body.id, false) +:
-                partialItin :+
-                EmbodiedBeamLeg.dummyWalkLegAt (partialItin.last.beamLeg.endTime, body.id, true) )
-              )
+          }).map { partialItin =>
+            EmbodiedBeamTrip(
+              (EmbodiedBeamLeg.dummyWalkLegAt(partialItin.head.beamLeg.startTime, body.id, false) +:
+              partialItin :+
+              EmbodiedBeamLeg.dummyWalkLegAt(partialItin.last.beamLeg.endTime, body.id, true))
+            )
           }
         case None =>
           Vector()
