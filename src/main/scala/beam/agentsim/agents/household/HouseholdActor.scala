@@ -132,10 +132,13 @@ object HouseholdActor {
     override def receive: Receive = {
 
       case TriggerWithId(InitializeTrigger(_), triggerId) =>
-        val fleetManager =
-          context.actorOf(Props(new HouseholdFleetManager(parkingManager, vehicles, homeCoord)), "household-fleet")
-        context.watch(fleetManager)
-        schedulerRef ! ScheduleTrigger(InitializeTrigger(0), fleetManager)
+        val vehiclesByCategory = vehicles.groupBy(_._2.beamVehicleType.vehicleCategory)
+        val fleetManagers = vehiclesByCategory.map { case (category, vs) =>
+          val fleetManager = context.actorOf(Props(new HouseholdFleetManager(parkingManager, vs, homeCoord)), category.toString)
+          context.watch(fleetManager)
+          schedulerRef ! ScheduleTrigger(InitializeTrigger(0), fleetManager)
+          fleetManager
+        }
         household.members.foreach { person =>
           val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
           val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
@@ -154,7 +157,7 @@ object HouseholdActor {
               person.getId,
               household,
               person.getSelectedPlan,
-              fleetManager +: sharedVehicleFleets
+              fleetManagers ++: sharedVehicleFleets
             ),
             person.getId.toString
           )
