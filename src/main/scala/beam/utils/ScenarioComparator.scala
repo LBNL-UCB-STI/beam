@@ -16,6 +16,7 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
 import beam.utils.plan.sampling.AvailableModeUtils
+import beam.utils.scenario.CsvScenarioReader
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Person, Plan}
@@ -97,7 +98,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
 
     val beamServices = getBeamServices(config)
 
-    val planReaderCsv: ScenarioReaderCsv = new ScenarioReaderCsv(scenario, beamServices)
+    val planReaderCsv: ScenarioLoader = new ScenarioLoader(scenario, beamServices, CsvScenarioReader)
 
     b2 = beamServices
 
@@ -143,13 +144,13 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
 
       override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap =
         beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
-      override val modeIncentives: ModeIncentive = ???
+      override lazy val modeIncentives: ModeIncentive = ???
 
       override def matsimServices: org.matsim.core.controler.MatsimServices = ???
 
-      override val rideHailTransitModes: Seq[Modes.BeamMode] = ???
-      override val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = ???
-      override val ptFares: PtFares = ???
+      override lazy val rideHailTransitModes: Seq[Modes.BeamMode] = ???
+      override lazy val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = ???
+      override lazy val ptFares: PtFares = ???
       override def networkHelper: NetworkHelper = ???
       override def setTransitFleetSizes(
         tripFleetSizeMap: mutable.HashMap[String, Integer]

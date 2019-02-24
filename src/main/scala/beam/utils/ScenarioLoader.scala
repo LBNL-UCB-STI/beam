@@ -6,8 +6,8 @@ import beam.sim.BeamServices
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.BeamVehicleUtils.readCsvFileByLine
 import beam.utils.plan.sampling.AvailableModeUtils
+import beam.utils.scenario._
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.avro.generic.GenericRecord
 import org.matsim.api.core.v01.population.{Person, Population}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
@@ -16,229 +16,252 @@ import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 import org.slf4j.LoggerFactory
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.reflect.ClassTag
+import scala.collection.JavaConverters._
+import scala.collection.immutable.Iterable
 
-trait ScenarioReader {
-  def readUnitsFile(path: String): Array[UnitInfo]
-  def readParcelAttrFile(path: String): Array[ParcelAttribute]
-  def readBuildingsFile(path: String): Array[BuildingInfo]
-  def readPersonsFile(path: String): Array[PersonInfo]
-  def readPlansFile(path: String): Array[PlanInfo]
-  def readHouseholdsFile(path: String): Array[HouseholdInfo]
-}
+class ScenarioLoader(
+  var scenario: MutableScenario,
+  var beamServices: BeamServices,
+  val scenarioReader: ScenarioReader
+) extends LazyLogging {
 
-object ParquetScenarioReader extends ScenarioReader with LazyLogging {
-
-  def main(array: Array[String]): Unit = {
-//    readUnitsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\units.parquet").take(3).foreach(println)
-//    readParcelAttrFile("C:\\repos\\apache_arrow\\py_arrow\\data\\parcel_attr.parquet").take(3).foreach(println)
-//    readBuildingsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\buildings.parquet").take(3).foreach(println)
-//    readPersonsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\persons.parquet").take(3).foreach(println)
-    readPlansFile("C:\\repos\\apache_arrow\\py_arrow\\data\\plans.parquet").take(3).foreach(println)
-    readHouseholdsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\households.parquet").take(3).foreach(println)
-  }
-
-  def readUnitsFile(path: String): Array[UnitInfo] = {
-    readAs[UnitInfo](path, "readUnitsFile", toUnitInfo)
-  }
-
-  def readParcelAttrFile(path: String): Array[ParcelAttribute] = {
-    readAs[ParcelAttribute](path, "readParcelAttrFile", toParcelAttribute)
-  }
-
-  def readBuildingsFile(path: String): Array[BuildingInfo] = {
-    readAs[BuildingInfo](path, "readBuildingsFile", toBuildingInfo)
-  }
-
-  def readPersonsFile(path: String): Array[PersonInfo] = {
-    readAs[PersonInfo](path, "readPersonsFile", toPersonInfo)
-  }
-
-  def readPlansFile(path: String): Array[PlanInfo] = {
-    readAs[PlanInfo](path, "readPlansFile", toPlanInfo)
-  }
-
-  def readHouseholdsFile(path: String): Array[HouseholdInfo] ={
-    readAs[HouseholdInfo](path, "readHouseholdsFile", toHouseholdInfo)
-  }
-
-  private[utils] def readAs[T](path: String, what: String, mapper: GenericRecord => T)(
-    implicit ct: ClassTag[T]
-  ): Array[T] = {
-    val (it, toClose) = ParquetReader.read(path)
-    ProfilingUtils.timed(what, x => logger.info(x)) {
-      try {
-        it.map(mapper).toArray
-      } finally {
-        toClose.close()
-      }
-    }
-  }
-
-  private def toHouseholdInfo(rec: GenericRecord): HouseholdInfo = {
-    val householdId = getIfNotNull(rec, "household_id").toString
-    val cars = getIfNotNull(rec, "cars").asInstanceOf[Double]
-    val unitId = getIfNotNull(rec, "unit_id").toString
-    val income = getIfNotNull(rec, "income").asInstanceOf[Double]
-    HouseholdInfo(householdId = householdId, cars = cars, unitId = unitId, income = income)
-  }
-
-  private def toPlanInfo(rec: GenericRecord): PlanInfo = {
-    // Somehow Plan file has columns in camelCase, not snake_case
-    val personId = getIfNotNull(rec, "personId").toString
-    val planElement = getIfNotNull(rec, "planElement").toString
-    val activityType = Option(rec.get("activityType")).map(_.toString)
-    val x = Option(rec.get("x")).map(_.asInstanceOf[Double])
-    val y = Option(rec.get("y")).map(_.asInstanceOf[Double])
-    val endTime = Option(rec.get("endTime")).map(_.asInstanceOf[Double])
-    val mode = Option(rec.get("mode")).map(_.toString)
-    if (planElement == "leg") {
-      assert(mode.isDefined, s"planElement = $planElement, but mode = null!")
-    }
-
-    PlanInfo(
-      personId = personId,
-      planElement = planElement,
-      activityType = activityType,
-      x = x,
-      y = y,
-      endTime = endTime,
-      mode = mode
-    )
-  }
-
-  private def toPersonInfo(rec: GenericRecord): PersonInfo = {
-    val personId = getIfNotNull(rec, "person_id").toString
-    val householdId = getIfNotNull(rec, "household_id").toString
-    val age = getIfNotNull(rec, "age").asInstanceOf[Long].toInt
-    val rank: Int = 0
-    PersonInfo(personId = personId, householdId = householdId, rank = rank, age = age)
-  }
-
-  private def toBuildingInfo(rec: GenericRecord): BuildingInfo = {
-    val bid = getIfNotNull(rec, "building_id").toString
-    val pid = getIfNotNull(rec, "parcel_id").toString
-    val parcelId: String = if (pid.indexOf(".") < 0) pid else pid.replaceAll("0*$", "").replaceAll("\\.$", "")
-    val buildingId: String = if (bid.indexOf(".") < 0) bid else bid.replaceAll("0*$", "").replaceAll("\\.$", "")
-    BuildingInfo(parcelId = parcelId, buildingId = buildingId)
-  }
-
-  private def toParcelAttribute(rec: GenericRecord): ParcelAttribute = {
-    val primaryId = getIfNotNull(rec, "primary_id").toString
-    val x = getIfNotNull(rec, "x").asInstanceOf[Double]
-    val y = getIfNotNull(rec, "y").asInstanceOf[Double]
-    ParcelAttribute(primaryId = primaryId, x = x, y = y)
-  }
-
-  private def toUnitInfo(rec: GenericRecord): UnitInfo = {
-    val unitId = getIfNotNull(rec, "unit_id").toString
-    val buildingId = getIfNotNull(rec, "building_id").toString
-    UnitInfo(unitId = unitId, buildingId = buildingId)
-  }
-  private def getIfNotNull(rec: GenericRecord, column: String): AnyRef = {
-    val v = rec.get(column)
-    assert(v != null, s"$column is null")
-    v
-  }
-}
-
-class ScenarioReaderCsv(var scenario: MutableScenario, var beamServices: BeamServices, val delimiter: String = ",")
-    extends LazyLogging {
-
+  val population: Population = scenario.getPopulation
   val scenarioFolder: String = beamServices.beamConfig.beam.agentsim.agents.population.beamPopulationDirectory
+  val fileExt: String = scenarioReader.inputType.toFileExt
+  val buildingFilePath: String = s"$scenarioFolder/buildings.$fileExt"
+  val personFilePath: String = s"$scenarioFolder/persons.$fileExt"
+  val householdFilePath: String = s"$scenarioFolder/households.$fileExt"
 
-  val buildingFilePath: String = scenarioFolder + "/buildings.csv"
-  val personFilePath: String = scenarioFolder + "/persons.csv"
-  val householdFilePath: String = scenarioFolder + "/households.csv"
+  val planFilePath: String = s"$scenarioFolder/plans.$fileExt"
+  val unitFilePath: String = s"$scenarioFolder/units.$fileExt"
+  val parcelAttrFilePath: String = s"$scenarioFolder/parcel_attr.$fileExt"
 
-  val planFilePath: String = scenarioFolder + "/plans.csv"
-  val unitFilePath: String = scenarioFolder + "/units.csv"
-  val parcelAttrFilePath: String = scenarioFolder + "/parcel_attr.csv"
+  val availableModes: String = BeamMode.allTripModes.map(_.value).mkString(",")
+
+  def getUnitIdToCoord(
+    units: Array[UnitInfo],
+    parcelAttrs: Array[ParcelAttribute],
+    buildings: Array[BuildingInfo]
+  ): Map[String, Coord] = {
+    val parcelIdToCoord: Map[String, Coord] = parcelAttrs.groupBy(_.primaryId).map {
+      case (k, v) =>
+        val pa = v.head
+        val coord = if (beamServices.beamConfig.beam.agentsim.agents.population.convertWgs2Utm) {
+          beamServices.geo.wgs2Utm(new Coord(pa.x, pa.y))
+        } else {
+          new Coord(pa.x, pa.y)
+        }
+        k -> coord
+    }
+    val buildingId2ToParcelId: Map[String, String] =
+      buildings.groupBy(x => x.buildingId).map { case (k, v)           => k -> v.head.parcelId }
+    val unitIdToBuildingId = units.groupBy(_.unitId).map { case (k, v) => k -> v.head.buildingId }
+
+    unitIdToBuildingId.map {
+      case (unitId, buildingId) =>
+        val coord = buildingId2ToParcelId.get(buildingId) match {
+          case Some(parcelId) =>
+            parcelIdToCoord.getOrElse(parcelId, {
+              logger.warn(s"Could not find coordinate for `parcelId` '${parcelId}'")
+              new Coord(0, 0)
+            })
+          case None =>
+            logger.warn(s"Could not find `parcelId` for `building_id` '${buildingId}'")
+            new Coord(0, 0)
+        }
+        unitId -> coord
+    }
+  }
 
   def loadScenario(): Unit = {
-
-    scenario.getPopulation.getPersons.clear()
-    scenario.getPopulation.getPersonAttributes.clear()
-    scenario.getHouseholds.getHouseholds.clear()
-    scenario.getHouseholds.getHouseholdAttributes.clear()
-
-    beamServices.privateVehicles.clear()
-    /////
-
+    clear()
     logger.info("Reading units...")
-    val units = ScenarioReaderCsv.readUnitsFile(unitFilePath)
+    val units = scenarioReader.readUnitsFile(unitFilePath)
 
     logger.info("Reading parcel attrs")
-    val parcelAttrs = ScenarioReaderCsv.readParcelAttrFile(parcelAttrFilePath)
+    val parcelAttrs = scenarioReader.readParcelAttrFile(parcelAttrFilePath)
 
     logger.info("Reading Buildings...")
-    val buildings = ScenarioReaderCsv.readBuildingsFile(buildingFilePath)
+    val buildings = scenarioReader.readBuildingsFile(buildingFilePath)
+
+    val unitIdToCoord: Map[String, Coord] = ProfilingUtils.timed("getUnitIdToCoord", x => logger.info(x)) {
+      getUnitIdToCoord(units, parcelAttrs, buildings)
+    }
 
     logger.info("Reading Persons...")
-    val householdPersons = ScenarioReaderCsv.readPersonsFile(
-      personFilePath,
-      scenario.getPopulation,
-      BeamMode.allTripModes.map(_.value).mkString(",")
-    )
+    val persons = scenarioReader.readPersonsFile(personFilePath)
+    logger.info("Applying Persons...")
+    applyPersons(persons)
 
     logger.info("Reading plans...")
-    ScenarioReaderCsv.readPlansFile(planFilePath, scenario.getPopulation, beamServices)
-
+    val plans = scenarioReader.readPlansFile(planFilePath)
+    logger.info("Applying plans...")
+    applyPlans(plans)
     logger.info("Total persons loaded {}", scenario.getPopulation.getPersons.size())
+
     logger.info("Checking persons without selected plan...")
+    val noPlanPersons = getPersonIdsWithoutPlan(population)
+    logger.info("Removing persons without plan {}", noPlanPersons.size)
+    removePersonsFromScenario(noPlanPersons)
 
-    val listOfPersonsWithoutPlan: ListBuffer[Id[Person]] = ListBuffer()
-    scenario.getPopulation.getPersons.forEach {
-      case (pk: Id[Person], pv: Person) if (pv.getSelectedPlan == null) => listOfPersonsWithoutPlan += pk
-      case _                                                            =>
-    }
-
-    logger.info("Removing persons without plan {}", listOfPersonsWithoutPlan.size)
-    listOfPersonsWithoutPlan.foreach { p =>
-      val _hId = scenario.getPopulation.getPersonAttributes.getAttribute(p.toString, "householdId")
-
-      scenario.getPopulation.getPersonAttributes.removeAllAttributes(p.toString)
-
-      scenario.getPopulation.removePerson(p)
-
-      val hId = Id.create(_hId.toString, classOf[Household])
-      householdPersons.get(hId) match {
-        case Some(persons: ListBuffer[Id[Person]]) =>
-          persons -= p
-        case None =>
-      }
-    }
+    val withPlans = persons.filter(p => noPlanPersons.contains(p.personId))
+    val householdIdToPersons: Map[String, Array[PersonInfo]] = withPlans.groupBy(_.householdId)
 
     logger.info("Reading Households...")
-    ScenarioReaderCsv.readHouseholdsFile(
-      householdFilePath,
-      scenario,
-      beamServices,
-      householdPersons,
-      units,
-      buildings,
-      parcelAttrs
-    )
-
+    val households: Array[HouseholdInfo] = scenarioReader.readHouseholdsFile(householdFilePath)
+    logger.info("Applying Households...")
+    applyHousehold(households, unitIdToCoord, householdIdToPersons)
     logger.info("Total households loaded {}", scenario.getHouseholds.getHouseholds.size())
-    logger.info("Checking households without members...")
-    val listOfHouseholdsWithoutMembers: ListBuffer[Household] = ListBuffer()
-    scenario.getHouseholds.getHouseholds.forEach {
-      case (hId: Id[Household], h: Household) if (h.getMemberIds.size() == 0) => listOfHouseholdsWithoutMembers += h
-      case _                                                                  =>
-    }
 
-    logger.info("Removing households without members {}", listOfHouseholdsWithoutMembers.size)
-    listOfHouseholdsWithoutMembers.foreach { h =>
+    logger.info("Checking households without members...")
+    val householdsNoMembers = getHouseholdsWithoutMembers(scenario.getHouseholds)
+    logger.info("Removing households without members {}", householdsNoMembers.size)
+    householdsNoMembers.foreach { h =>
       removeHouseholdVehicles(h)
       scenario.getHouseholds.getHouseholdAttributes.removeAllAttributes(h.getId.toString)
       scenario.getHouseholds.getHouseholds.remove(h.getId)
     }
 
     logger.info("The scenario loading is completed..")
+  }
+
+  private def getHouseholdsWithoutMembers(households: Households): scala.collection.Iterable[Household] = {
+    households.getHouseholds.asScala
+      .collect {
+        case (hId, h) if h.getMemberIds.isEmpty =>
+          h
+      }
+  }
+
+  private def getPersonIdsWithoutPlan(population: Population): Set[String] = {
+    population.getPersons.asScala.collect {
+      case (k, v) if v.getSelectedPlan == null =>
+        k.toString
+    }.toSet
+  }
+
+  def removePersonsFromScenario(persons: Iterable[String]): Unit = {
+    persons.foreach { personId =>
+      val householdId =
+        scenario.getPopulation.getPersonAttributes.getAttribute(personId, "householdId").asInstanceOf[String]
+      scenario.getPopulation.getPersonAttributes.removeAllAttributes(personId)
+      scenario.getPopulation.removePerson(Id.createPersonId(personId))
+    }
+  }
+
+  private def clear(): Unit = {
+    scenario.getPopulation.getPersons.clear()
+    scenario.getPopulation.getPersonAttributes.clear()
+    scenario.getHouseholds.getHouseholds.clear()
+    scenario.getHouseholds.getHouseholdAttributes.clear()
+
+    beamServices.privateVehicles.clear()
+  }
+
+  def applyHousehold(
+    households: Array[HouseholdInfo],
+    unitIdToCoord: Map[String, Coord],
+    householdIdToPersons: Map[String, Array[PersonInfo]]
+  ): Unit = {
+    val scenarioHouseholdAttributes = scenario.getHouseholds.getHouseholdAttributes
+    val scenarioHouseholds = scenario.getHouseholds.getHouseholds
+
+    households.foreach { householdInfo =>
+      val household =
+        new HouseholdsFactoryImpl().createHousehold(Id.create(householdInfo.householdId, classOf[Household]))
+      val coord = unitIdToCoord.getOrElse(householdInfo.unitId, {
+        logger.warn(s"Could not find coordinate for `unitId` '${householdInfo.unitId}'")
+        new Coord(0, 0)
+      })
+      household.setIncome(new IncomeImpl(householdInfo.income, Income.IncomePeriod.year))
+
+      householdIdToPersons.get(householdInfo.householdId) match {
+        case Some(persons) =>
+          val personIds = persons.map(x => Id.createPersonId(x.personId)).toList.asJava
+          household.setMemberIds(personIds)
+        case None =>
+          logger.warn(s"Could not find persons for the `houshold_id` '${householdInfo.householdId}'")
+      }
+      val vehicleTypes = VehiclesAdjustment
+        .getVehicleAdjustment(beamServices)
+        .sampleVehicleTypesForHousehold(
+          numVehicles = householdInfo.cars.toInt,
+          vehicleCategory = VehicleCategory.Car,
+          householdIncome = household.getIncome.getIncome,
+          householdSize = household.getMemberIds.size,
+          householdPopulation = null,
+          householdLocation = coord
+        )
+
+      val vehicleIds = new java.util.ArrayList[Id[Vehicle]]
+      vehicleTypes.zipWithIndex.foreach {
+        case (bvt, idx) =>
+          val vehicleCounter = idx + 1
+          val vt = VehicleUtils.getFactory.createVehicleType(Id.create(bvt.id, classOf[VehicleType]))
+          val v = VehicleUtils.getFactory.createVehicle(Id.createVehicleId(vehicleCounter), vt)
+          vehicleIds.add(v.getId)
+          val bv = BeamVehicleUtils.getBeamVehicle(v, household, bvt)
+          beamServices.privateVehicles.put(bv.id, bv)
+      }
+
+      household.setVehicleIds(vehicleIds)
+      scenarioHouseholds.put(household.getId, household)
+      scenarioHouseholdAttributes.putAttribute(household.getId.toString, "homecoordx", coord.getX)
+      scenarioHouseholdAttributes.putAttribute(household.getId.toString, "homecoordy", coord.getY)
+    }
+  }
+
+  def applyPersons(householdPersons: Array[PersonInfo]): Unit = {
+    householdPersons.foreach { personInfo =>
+      val person: Person = population.getFactory.createPerson(Id.createPersonId(personInfo.personId))
+
+      population.getPersonAttributes.putAttribute(person.getId.toString, "householdId", personInfo.householdId)
+      population.getPersonAttributes.putAttribute(person.getId.toString, "rank", personInfo.rank)
+      population.getPersonAttributes.putAttribute(person.getId.toString, "age", personInfo.age)
+      AvailableModeUtils.setAvailableModesForPerson(person, population, availableModes.split(","))
+    }
+  }
+
+  def applyPlans(plans: Array[PlanInfo]): Unit = {
+    plans.foreach { planInfo =>
+      val person = population.getPersons.get(Id.createPersonId(planInfo.personId))
+      if (person != null) {
+        var plan = person.getSelectedPlan
+        if (plan == null) {
+          plan = PopulationUtils.createPlan(person)
+          person.addPlan(plan)
+          person.setSelectedPlan(plan)
+        }
+        val planElement = planInfo.planElement
+        if (planElement.equalsIgnoreCase("leg")) {
+          planInfo.mode match {
+            case Some(mode) =>
+              PopulationUtils.createAndAddLeg(plan, mode)
+            case None =>
+              logger.warn(s"$planInfo has planElement leg, but mode is not set!")
+          }
+        } else if (planElement.equalsIgnoreCase("activity")) {
+          assert(planInfo.x.isDefined, s"planElement is `activity`, but `x` is None! planInfo: $planInfo")
+          assert(planInfo.y.isDefined, s"planElement is `activity`, but `y` is None! planInfo: $planInfo")
+          val coord = if (beamServices.beamConfig.beam.agentsim.agents.population.convertWgs2Utm) {
+            beamServices.geo.wgs2Utm(new Coord(planInfo.x.get, planInfo.y.get))
+          } else {
+            new Coord(planInfo.x.get, planInfo.y.get)
+          }
+          val activityType = planInfo.activityType.getOrElse(
+            throw new IllegalStateException(
+              s"planElement is `activity`, but `activityType` is None. planInfo: $planInfo"
+            )
+          )
+          val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)
+          planInfo.endTime.foreach { endTime =>
+            act.setEndTime(endTime * 60 * 60)
+          }
+        }
+      }
+    }
   }
 
   def removeHouseholdVehicles(household: Household): Unit = {
@@ -248,7 +271,7 @@ class ScenarioReaderCsv(var scenario: MutableScenario, var beamServices: BeamSer
   }
 }
 
-object ScenarioReaderCsv {
+object ScenarioLoader {
   private val logger = LoggerFactory.getLogger(this.getClass)
 
   var vehicleCounter = 1

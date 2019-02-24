@@ -18,13 +18,14 @@ import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationAdjustment
-import beam.utils.{NetworkHelper, _}
 import beam.utils.reflection.ReflectionUtils
+import beam.utils.scenario.CsvScenarioReader
+import beam.utils.{NetworkHelper, _}
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, Config => TypesafeConfig}
+import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.population.Person
@@ -385,8 +386,10 @@ trait BeamHelper extends LazyLogging {
       : Boolean = beamConfig.beam.agentsim.agents.population.beamPopulationDirectory != null && !beamConfig.beam.agentsim.agents.population.beamPopulationDirectory
       .isEmpty()
 
+    // TODO FIXME give better name for external source of scenario
     if (useCSVFiles) {
-      val csvScenarioLoader = new ScenarioReaderCsv(scenario, beamServices)
+      val scenarioReader = CsvScenarioReader
+      val csvScenarioLoader = new ScenarioLoader(scenario, beamServices, scenarioReader)
       csvScenarioLoader.loadScenario()
     }
 
