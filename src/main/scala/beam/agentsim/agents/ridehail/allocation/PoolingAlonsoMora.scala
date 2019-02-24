@@ -102,7 +102,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val availVehicles = rideHailManager.vehicleManager.availableRideHailVehicles.values
         .map(veh => createVehicleAndSchedule(veh.vehicleId.toString, veh.currentLocationUTM.loc, tick))
 
-      val assignment = if (false) {
+      val assignment = if(availVehicles.size < 100) {
         val algo = new AlonsoMoraPoolingAlgForRideHail(
           poolCustomerReqs.toList,
           availVehicles.toList,
