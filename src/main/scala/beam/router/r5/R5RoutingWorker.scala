@@ -731,10 +731,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       //      log.debug("No walk route found. {}", routingRequest)
       val maybeBody = routingRequest.streetVehicles.find(_.mode == WALK)
       if (maybeBody.isDefined) {
-        //        log.debug("Adding dummy walk route with maximum street time.")
         val dummyTrip = R5RoutingWorker.createBushwackingTrip(
-          beamServices.geo.utm2Wgs(new Coord(routingRequest.originUTM.getX, routingRequest.originUTM.getY)),
-          beamServices.geo.utm2Wgs(new Coord(routingRequest.destinationUTM.getX, routingRequest.destinationUTM.getY)),
+          new Coord(routingRequest.originUTM.getX, routingRequest.originUTM.getY),
+          new Coord(routingRequest.destinationUTM.getX, routingRequest.destinationUTM.getY),
           routingRequest.departureTime,
           maybeBody.get,
           beamServices
@@ -1371,34 +1370,34 @@ object R5RoutingWorker {
     )
   }
 
-  def createBushwackingBeamLeg(atTime: Int, start: Location, end: Location, beamServices: BeamServices): BeamLeg = {
-    val beelineDistanceInMeters = beamServices.geo.distUTMInMeters(start, end)
+  def createBushwackingBeamLeg(atTime: Int, startUTM: Location, endUTM: Location, beamServices: BeamServices): BeamLeg = {
+    val beelineDistanceInMeters = beamServices.geo.distUTMInMeters(startUTM, endUTM)
     val bushwhackingTime = Math.round(beelineDistanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
-    createBushwackingBeamLeg(atTime, bushwhackingTime.toInt, start, end, beelineDistanceInMeters)
+    createBushwackingBeamLeg(atTime, bushwhackingTime.toInt, startUTM, endUTM, beelineDistanceInMeters)
   }
 
   def createBushwackingBeamLeg(
-    atTime: Int,
-    duration: Int,
-    start: Location,
-    end: Location,
-    distance: Double
+                                atTime: Int,
+                                duration: Int,
+                                startUTM: Location,
+                                endUTM: Location,
+                                distance: Double
   ): BeamLeg = {
-    val path = BeamPath(Vector(), Vector(), None, SpaceTime(start, atTime), SpaceTime(end, atTime + duration), distance)
+    val path = BeamPath(Vector(), Vector(), None, SpaceTime(startUTM, atTime), SpaceTime(endUTM, atTime + duration), distance)
     BeamLeg(atTime, WALK, duration, path)
   }
 
   def createBushwackingTrip(
-    origin: Location,
-    dest: Location,
-    atTime: Int,
-    body: StreetVehicle,
-    beamServices: BeamServices
+                             originUTM: Location,
+                             destUTM: Location,
+                             atTime: Int,
+                             body: StreetVehicle,
+                             beamServices: BeamServices
   ): EmbodiedBeamTrip = {
     EmbodiedBeamTrip(
       Vector(
         EmbodiedBeamLeg(
-          createBushwackingBeamLeg(atTime, origin, dest, beamServices),
+          createBushwackingBeamLeg(atTime, originUTM, destUTM, beamServices),
           body.id,
           body.vehicleTypeId,
           asDriver = true,
