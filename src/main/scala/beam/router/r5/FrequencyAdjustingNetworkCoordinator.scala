@@ -73,15 +73,11 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
     feeds.map { feed =>
       val allTrips = feed.trips.asScala
       val routeTrips = allTrips.values.groupBy(_.route_id)(routeId)
-      val orderedFilteredStops = routeTrips
-        .flatMap { trip =>
-          feed.getOrderedStopTimesForTrip(trip.trip_id).asScala.toVector
-        }
-        .filter { stopTime =>
-          stopTime.arrival_time >= startTime
-        }
-        .toVector
-      orderedFilteredStops.head.trip_id
+      val orderedStops = routeTrips.flatMap{trip=>feed.getOrderedStopTimesForTrip(trip.trip_id).asScala.toVector}
+      val orderedFilteredStops = orderedStops.filter { stopTime =>
+        stopTime.arrival_time >= startTime
+      }
+      orderedFilteredStops.headOption.getOrElse(orderedStops.last).trip_id
     }.head
   }
 
