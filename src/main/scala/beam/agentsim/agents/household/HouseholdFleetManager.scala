@@ -1,17 +1,12 @@
 package beam.agentsim.agents.household
 import java.util.concurrent.TimeUnit
 
-import akka.actor.Status.Success
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor.Status.{Failure, Success}
+import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill}
 import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.household.HouseholdActor.{
-  MobilityStatusInquiry,
-  MobilityStatusResponse,
-  ReleaseVehicle,
-  ReleaseVehicleAndReply
-}
+import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle, ReleaseVehicleAndReply}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
@@ -68,18 +63,22 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
 
     case ReleaseVehicle(vehicle) =>
       vehicle.unsetDriver()
-      if (!availableVehicles.contains(vehicle)) {
+      if(availableVehicles.contains(vehicle)) {
+        sender ! Failure(new RuntimeException(s"You can't release vehicle ${vehicle.id} because I have it already"))
+      } else {
         availableVehicles = vehicle :: availableVehicles
+        log.debug("Vehicle {} is now available", vehicle.id)
       }
-      log.debug("Vehicle {} is now available", vehicle.id)
 
     case ReleaseVehicleAndReply(vehicle) =>
       vehicle.unsetDriver()
-      if (!availableVehicles.contains(vehicle)) {
+      if(availableVehicles.contains(vehicle)) {
+        sender ! Failure(new RuntimeException(s"You can't release vehicle ${vehicle.id} because I have it already"))
+      } else {
         availableVehicles = vehicle :: availableVehicles
+        log.debug("Vehicle {} is now available", vehicle.id)
+        sender() ! Success
       }
-      log.debug("Vehicle {} is now available", vehicle.id)
-      sender() ! Success
 
     case MobilityStatusInquiry(_) =>
       availableVehicles = availableVehicles match {
