@@ -264,8 +264,6 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[PersonArrivalEvent]
       events.expectMsgType[ActivityStartEvent]
 
-      householdActor ! Finish
-
       expectMsgType[CompletionNotice]
     }
 
@@ -283,7 +281,7 @@ class PersonWithVehicleSharingSpec
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
 
-      val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), vehicleId, withRoute = false)
+      val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), vehicleId, withRoute = false, returnTrip = true)
       population.addPerson(person)
 
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
@@ -452,7 +450,6 @@ class PersonWithVehicleSharingSpec
         } pipeTo mockSharedVehicleFleet.lastSender
 
       val routingRequest2 = mockRouter.expectMsgType[RoutingRequest]
-      println(routingRequest2)
       mockRouter.lastSender ! RoutingResponse(
         itineraries = Vector(
           EmbodiedBeamTrip(
@@ -669,8 +666,6 @@ class PersonWithVehicleSharingSpec
           )
       }
 
-      expectNoMessage() // TODO: Remove this and observe a race condition -- scheduler doesn't clear triggers
-      householdAgent ! Finish // Not interested in the rest of the day
       expectMsgType[CompletionNotice]
     }
 
@@ -680,7 +675,8 @@ class PersonWithVehicleSharingSpec
     personId: Id[Person],
     vehicleId: Id[Vehicle],
     departureTimeOffset: Int = 0,
-    withRoute: Boolean = true
+    withRoute: Boolean = true,
+    returnTrip: Boolean = false,
   ) = {
     val person = PopulationUtils.getFactory.createPerson(personId)
     putDefaultBeamAttributes(person, Vector(CAR, WALK))
@@ -703,19 +699,21 @@ class PersonWithVehicleSharingSpec
     workActivity.setEndTime(61200) //5:00:00 PM
     workActivity.setCoord(new Coord(0.01, 0.01))
     plan.addActivity(workActivity)
-    val leg2 = PopulationUtils.createLeg("car")
-    if (withRoute) {
-      val route = RouteUtils.createLinkNetworkRouteImpl(
-        Id.createLinkId(2),
-        Array(Id.createLinkId(1)),
-        Id.createLinkId(0)
-      )
-      leg2.setRoute(route)
+    if (returnTrip) {
+      val leg2 = PopulationUtils.createLeg("car")
+      if (withRoute) {
+        val route = RouteUtils.createLinkNetworkRouteImpl(
+          Id.createLinkId(2),
+          Array(Id.createLinkId(1)),
+          Id.createLinkId(0)
+        )
+        leg2.setRoute(route)
+      }
+      plan.addLeg(leg2)
+      val homeActivity2 = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
+      homeActivity2.setCoord(new Coord(0.0, 0.0))
+      plan.addActivity(homeActivity2)
     }
-    plan.addLeg(leg2)
-    val homeActivity2 = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
-    homeActivity2.setCoord(new Coord(0.0, 0.0))
-    plan.addActivity(homeActivity2)
     person.addPlan(plan)
     person
   }
