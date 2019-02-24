@@ -24,7 +24,7 @@ object CsvScenarioReader extends ScenarioReader with LazyLogging {
 //    readPlansFile("C:\\repos\\apache_arrow\\py_arrow\\data\\plans.csv").take(3).foreach(println)
 //    readHouseholdsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\households.csv").take(3).foreach(println)
   }
-  def inputType: InputType = InputType.Parquet
+  def inputType: InputType = InputType.CSV
 
   def readUnitsFile(path: String): Array[UnitInfo] = {
     readAs[UnitInfo](path, "readUnitsFile", toUnitInfo)
