@@ -6,7 +6,7 @@ import java.util.Properties
 import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.{VehicleCsvReader, VehicleEnergy}
+import beam.agentsim.agents.vehicles.{ConsumptionRateFilterStoreImpl, VehicleCsvReader, VehicleEnergy}
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
@@ -230,8 +230,12 @@ trait BeamHelper extends LazyLogging {
             )
           )
           val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+          val consumptionRateFilterStore =
+            new ConsumptionRateFilterStoreImpl(vehicleCsvReader.getVehicleEnergyRecordsUsing,
+            primaryConsumptionRateFilePathsByVehicleType = null,
+            secondaryConsumptionRateFilePathsByVehicleType = null)
           val vehicleEnergy = new VehicleEnergy(
-            vehicleCsvReader.getVehicleEnergyRecordsUsing,
+            consumptionRateFilterStore,
             vehicleCsvReader.getLinkToGradeRecordsUsing
           )
           bind(classOf[NetworkHelper]).toInstance(networkHelper)

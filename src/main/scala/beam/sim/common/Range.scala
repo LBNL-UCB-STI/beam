@@ -2,6 +2,14 @@ package beam.sim.common
 
 import scala.util.Try
 
+case class DoubleComparableRange(range:Range){
+  def hasDouble(value: Double) = {
+    range.lowerBound <= value && value <= range.upperBound
+  }
+
+  def hasOrEmpty(value: Double) = range.isEmpty || has(value)
+}
+
 case class Range(lowerBound: Int, upperBound: Int) {
   val isEmpty = false
 
@@ -40,5 +48,9 @@ object Range {
 
   def empty(): Range = new Range(0, 0) {
     override val isEmpty = true
+  }
+
+  implicit def rangeToDoubleComparableRange(range: Range) = {
+    new DoubleComparableRange(range)
   }
 }
