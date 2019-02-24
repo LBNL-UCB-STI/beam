@@ -9,7 +9,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
   "A ParkingZoneSearch" when {
     "searched for something when there are no alternatives" should {
       "result in None" in {
-        val tree: ParkingZoneSearch.StallSearch = Map()
+        val tree: ParkingZoneSearch.ZoneSearch = Map()
         val zones: Array[ParkingZone] = Array()
 
         val result = ParkingZoneSearch.find(
@@ -26,7 +26,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
     }
     "search for options that do exist" should {
       "receive all of those options" in new ParkingZoneSearchSpec.SmallProblem {
-        val result = ParkingZoneSearch.find(
+        val result: Option[(TAZ, ParkingType, ParkingZone, Double)] = ParkingZoneSearch.find(
           Option.empty[ChargingInquiryData],
           tazsInProblem,
           Seq(ParkingType.Public),
@@ -37,12 +37,12 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
 
         result match {
           case None => fail()
-          case Some((taz, parkingType, parkingZone, idx)) =>
+          case Some((taz, parkingType, parkingZone, rankingValue)) =>
             taz should equal (taz2)
             parkingType should equal (ParkingType.Public)
             parkingZone.stallsAvailable should equal (18)
             parkingZone.maxStalls should equal (18)
-            idx should equal (1)
+            parkingZone.parkingZoneId should equal (1)
         }
       }
     }

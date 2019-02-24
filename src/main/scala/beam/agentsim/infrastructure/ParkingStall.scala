@@ -1,8 +1,7 @@
 package beam.agentsim.infrastructure
 
-import beam.agentsim.infrastructure.parking.ParkingType
+import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
 import beam.agentsim.infrastructure.charging.ChargingPoint
-import beam.agentsim.infrastructure.parking.PricingModel
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.{Coord, Id}
@@ -30,7 +29,7 @@ object ParkingStall {
   def DefaultStall(location: Location) =
     ParkingStall(
       tazId = Id.create("NA", classOf[TAZ]),
-      parkingZoneId = -1,
+      parkingZoneId = ParkingZone.DefaultParkingZoneId,
       locationUTM = location,
       cost = CostOfEmergencyStall,
       chargingPoint = None,

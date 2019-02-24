@@ -57,6 +57,22 @@ object PricingModel {
         None
     }
 
+
+  /**
+    * computes the cost of this pricing model for some duration. only considers the PricingModel, and does not include any fueling costs
+    * @param pricingModel the pricing model
+    * @param parkingDurationInSeconds duration of parking in seconds
+    * @return monetary cost of parking
+    */
+  def evaluateParkingTicket(pricingModel: PricingModel, parkingDurationInSeconds: Int): Double = {
+    pricingModel match {
+      case FlatFee(cost, _) => cost
+      case Block(cost, intervalSeconds) => (parkingDurationInSeconds / intervalSeconds) * cost
+    }
+  }
+
+
+
   /**
     * helper function that converts a value to an integer
     * @param valueString the text value taken from an input file

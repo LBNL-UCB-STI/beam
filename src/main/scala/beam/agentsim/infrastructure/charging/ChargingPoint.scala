@@ -1,6 +1,5 @@
 package beam.agentsim.infrastructure.charging
 import beam.agentsim.infrastructure.charging.ElectricCurrent.{AC, DC}
-import com.sun.tools.corba.se.idl.InvalidArgument
 
 import scala.util.{Failure, Success, Try}
 
@@ -39,8 +38,8 @@ case object ChargingPoint {
       } match {
         case Failure(_) =>
           throw new IllegalArgumentException(s"provided 'installed capacity' $installedCapacity is invalid.")
-        case Success(installedCapacity) =>
-          CustomChargingPoint(installedCapacity, ElectricCurrent(electricCurrentType))
+        case Success(installedCapacityDouble) =>
+          CustomChargingPoint(installedCapacityDouble, ElectricCurrent(electricCurrentType))
       }
     }
 
@@ -59,7 +58,7 @@ case object ChargingPoint {
       case "ChargingStationCcsComboType1" => ChargingStationCcsComboType1
       case "ChargingStationCcsComboType2" => ChargingStationCcsComboType2
       case "TeslaSuperCharger"            => TeslaSuperCharger
-      case _                              => throw new InvalidArgument("invalid argument")
+      case _                              => throw new IllegalArgumentException("invalid argument")
     }
   }
 
@@ -77,7 +76,7 @@ case object ChargingPoint {
       case ChargingStationCcsComboType2 => 50
       case TeslaSuperCharger            => 135
       case CustomChargingPoint(v, _)    => v
-      case _                            => throw new InvalidArgument("invalid argument")
+      case _                            => throw new IllegalArgumentException("invalid argument")
     }
   }
 
@@ -94,7 +93,7 @@ case object ChargingPoint {
       case ChargingStationCcsComboType2 => DC
       case TeslaSuperCharger            => DC
       case CustomChargingPoint(_, c)    => c
-      case _                            => throw new InvalidArgument("invalid argument")
+      case _                            => throw new IllegalArgumentException("invalid argument")
     }
   }
 
