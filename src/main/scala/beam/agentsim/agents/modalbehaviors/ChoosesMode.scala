@@ -850,9 +850,6 @@ trait ChoosesMode {
         case Some(chosenTrip) =>
           goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(chosenTrip))
         case None =>
-          if (personData.currentTourMode.contains(CAR) || personData.currentTourMode.contains(BIKE)) {
-            println("wurst")
-          }
           // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
           val originalWalkTripLeg =
             routingResponse.itineraries.find(_.tripClassifier == WALK) match {
