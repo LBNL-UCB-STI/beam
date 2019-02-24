@@ -107,7 +107,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           poolCustomerReqs.toList,
           availVehicles.toList,
           omega = 6 * 60,
-          delta = 10 * 5000 * 60,
+          delta = 20 * 60,
           radius = Int.MaxValue,
           skimmer
         )
@@ -118,7 +118,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         val algo = new AsyncAlonsoMoraAlgForRideHail(
           poolCustomerReqs.toList,
           availVehicles.toList,
-          Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 5000 * 60)),
+          Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 20 * 60)),
           radius = Int.MaxValue,
           skimmer
         )

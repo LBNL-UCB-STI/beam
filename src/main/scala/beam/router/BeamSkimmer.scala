@@ -24,7 +24,7 @@ class BeamSkimmer(services: Option[BeamServices] = None) {
   // assuming for now that it includes the headway
   private val transitSpeedMeterPerSec: Double = 5.409184
 
-  private val bicycleSpeedMeterPerSec: Double = 0.0
+  private val bicycleSpeedMeterPerSec: Double = 3
 
   // 3.1 mph -> 1.38 meter per second
   private val walkSpeedMeterPerSec: Double = 1.38
