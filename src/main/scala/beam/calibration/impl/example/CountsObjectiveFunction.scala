@@ -4,9 +4,9 @@ import scala.io.Source
 import beam.calibration.api.ObjectiveFunction
 import beam.utils.FileUtils.using
 
-object CountsObjectiveFunction extends ObjectiveFunction {
+object CountsObjectiveFunction {
 
-  override def evaluateFromRun(runDataPath: String): Double = {
+  def evaluateFromRun(runDataPath: String): Double = {
     val counts = getStatsFromFile(runDataPath)
     -(counts.map { case (_, sCd) => sCd.map { _.normalizedError }.sum / sCd.size }.sum / counts.size)
   }
@@ -15,7 +15,7 @@ object CountsObjectiveFunction extends ObjectiveFunction {
     using(Source.fromFile(fileLoc)) { source =>
       val records = source.getLines().drop(1).map { _.split("\t") }.toSeq
       records
-        .map(record => CountData(record(1), record(3).toDouble))
+        .map(record => CountData(record(1), record(6).toDouble))
         .groupBy(count => count.stationId)
     }
   }

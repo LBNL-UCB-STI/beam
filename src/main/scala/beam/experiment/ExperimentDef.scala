@@ -1,10 +1,11 @@
 package beam.experiment
 
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Path, Paths}
+import java.util.{Collections, List => JavaList, Map => JavaMap}
+import java.util
 
 import com.google.common.base.Charsets
 import com.google.common.io.Resources
-
 import scala.beans.BeanProperty
 import scala.collection.JavaConverters._
 
@@ -15,6 +16,14 @@ case class ExperimentDef(
   @BeanProperty var defaultParams: java.util.Map[String, Object],
   @BeanProperty var factors: java.util.List[Factor]
 ) {
+
+  lazy val projectRoot: Path = {
+    if (System.getenv("BEAM_ROOT") != null) {
+      Paths.get(System.getenv("BEAM_ROOT"))
+    } else {
+      Paths.get("./").toAbsolutePath.getParent
+    }
+  }
 
   def this() = this("", "", null, null, new java.util.LinkedList())
 
@@ -81,14 +90,17 @@ case class ExperimentRun(experiment: ExperimentDef, combinations: Seq[(Level, Fa
     val overrideParams = experiment.defaultParams.asScala.clone() ++ runParams
     overrideParams.toMap
   }
+
   lazy val levels: Map[String, String] = {
     combinations.map(tup => tup._2.title -> tup._1.name).toMap
   }
+
   lazy val name: String = {
     combinations.map(lf => s"${lf._2.title}_${lf._1.name}").mkString("__")
   }
 
   def getParam(name: String) = params(name)
+
   def getLevelTitle(name: String) = levels(name)
 
   override def toString: String = {
@@ -102,7 +114,7 @@ case class Header(
   @BeanProperty var beamTemplateConfPath: String,
   @BeanProperty var modeChoiceTemplate: String,
   @BeanProperty var numWorkers: String,
-  @BeanProperty var params: java.util.Map[String, Object]
+  @BeanProperty var deployParams: java.util.Map[String, Object]
 ) {
   def this() = this("", "", "", "", "", new java.util.HashMap())
 }

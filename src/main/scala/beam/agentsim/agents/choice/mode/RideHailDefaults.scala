@@ -1,7 +1,7 @@
 package beam.agentsim.agents.choice.mode
 
 import beam.router.Modes.BeamMode.{CAR, RIDE_HAIL, RIDE_HAIL_TRANSIT}
-import beam.router.RoutingModel.EmbodiedBeamTrip
+import beam.router.model.EmbodiedBeamTrip
 
 /**
   * RideHailDefaults
@@ -10,24 +10,25 @@ import beam.router.RoutingModel.EmbodiedBeamTrip
   */
 object RideHailDefaults {
   val DEFAULT_COST_PER_MILE = 2.00
+  val zero: Double = 0
 
-  def estimateRideHailCost(alternatives: Seq[EmbodiedBeamTrip]): Seq[BigDecimal] = {
+  def estimateRideHailCost(alternatives: Seq[EmbodiedBeamTrip]): Seq[Double] = {
     alternatives.map { alt =>
       alt.tripClassifier match {
-        case RIDE_HAIL if alt.costEstimate == 0.0 =>
+        case RIDE_HAIL if alt.costEstimate == zero =>
           val cost = alt.legs.view
             .filter(_.beamLeg.mode == CAR)
             .map(_.beamLeg.travelPath.distanceInM)
             .sum * DEFAULT_COST_PER_MILE / 1607
-          BigDecimal(cost)
-        case RIDE_HAIL_TRANSIT if alt.costEstimate == 0.0 =>
+          cost
+        case RIDE_HAIL_TRANSIT if alt.costEstimate == zero =>
           val cost = alt.legs.view
             .filter(_.beamLeg.mode == CAR)
             .map(_.beamLeg.travelPath.distanceInM)
             .sum * DEFAULT_COST_PER_MILE / 1607
-          BigDecimal(cost)
+          cost
         case _ =>
-          BigDecimal(0)
+          zero
       }
     }
   }

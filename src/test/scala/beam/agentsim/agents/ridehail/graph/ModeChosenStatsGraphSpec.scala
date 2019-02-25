@@ -5,8 +5,9 @@ import java.util.concurrent.CopyOnWriteArrayList
 
 import beam.agentsim.agents.ridehail.graph.ModeChosenStatsGraphSpec.{ModeChosenStatsGraph, StatsValidationHandler}
 import beam.agentsim.events.ModeChoiceEvent
-import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, ModeChosenStats}
+import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, ModeChosenAnalysis}
 import beam.integration.IntegrationSpecCommon
+import beam.sim.config.BeamConfig
 import com.google.inject.Provides
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.api.experimental.events.EventsManager
@@ -24,12 +25,14 @@ import scala.concurrent.Promise
 
 object ModeChosenStatsGraphSpec {
 
-  class ModeChosenStatsGraph(compute: ModeChosenStats.ModeChosenComputation with EventAnalyzer)
-      extends BasicEventHandler
+  class ModeChosenStatsGraph(
+    compute: ModeChosenAnalysis.ModeChosenComputation with EventAnalyzer,
+    beamConfig: BeamConfig
+  ) extends BasicEventHandler
       with IterationEndsListener {
 
     private lazy val modeChosenStats =
-      new ModeChosenStats(compute)
+      new ModeChosenAnalysis(compute, beamConfig)
 
     override def reset(iteration: Int): Unit = {
       modeChosenStats.resetStats()
@@ -81,13 +84,13 @@ class ModeChosenStatsGraphSpec extends WordSpecLike with Matchers with Integrati
 
     "contains valid mode chosen stats" in {
       val waitingStat =
-        new ModeChosenStats.ModeChosenComputation with EventAnalyzer {
+        new ModeChosenAnalysis.ModeChosenComputation with EventAnalyzer {
           private val promise = Promise[java.util.Map[Integer, java.util.Map[String, Integer]]]()
 
           override def compute(
             stat: Tuple[java.util.Map[Integer, java.util.Map[String, Integer]], util.Set[String]]
           ): Array[Array[Double]] = {
-            promise.success(stat.getFirst)
+            promise.trySuccess(stat.getFirst)
             super.compute(stat)
           }
 
@@ -118,7 +121,7 @@ class ModeChosenStatsGraphSpec extends WordSpecLike with Matchers with Integrati
           @Provides def provideGraph(
             eventsManager: EventsManager
           ): ModeChosenStatsGraph = {
-            val graph = new ModeChosenStatsGraph(waitingStat)
+            val graph = new ModeChosenStatsGraph(waitingStat, BeamConfig(baseConfig))
             eventsManager.addHandler(graph)
             graph
           }

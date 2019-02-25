@@ -1,14 +1,10 @@
 package beam.agentsim.agents.vehicles
 
-import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import enumeratum.EnumEntry.LowerCamelcase
-import enumeratum.{Enum, EnumEntry}
+import beam.agentsim.agents.vehicles.FuelType._
+import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car, MediumDutyPassenger, VehicleCategory}
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.Person
-import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
-
-import scala.collection.immutable
+import org.matsim.vehicles.Vehicle
 
 /**
   * Enumerates the names of recognized [[BeamVehicle]]s.
@@ -16,85 +12,129 @@ import scala.collection.immutable
   *
   * @author saf
   */
-sealed abstract class BeamVehicleType(val idString: String) extends EnumEntry {
+case class BeamVehicleType(
+  id: Id[BeamVehicleType],
+  seatingCapacity: Int,
+  standingRoomCapacity: Int,
+  lengthInMeter: Double,
+  primaryFuelType: FuelType,
+  primaryFuelConsumptionInJoulePerMeter: Double,
+  primaryFuelCapacityInJoule: Double,
+  monetaryCostPerMeter: Double = 0.0,
+  monetaryCostPerSecond: Double = 0.0,
+  secondaryFuelType: Option[FuelType] = None,
+  secondaryFuelConsumptionInJoulePerMeter: Option[Double] = None,
+  secondaryFuelCapacityInJoule: Option[Double] = None,
+  automationLevel: Option[String] = None,
+  maxVelocity: Option[Double] = None,
+  passengerCarUnit: Double = 1,
+  rechargeLevel2RateLimitInWatts: Option[Double] = None,
+  rechargeLevel3RateLimitInWatts: Option[Double] = None,
+  vehicleCategory: VehicleCategory
+)
 
-  /**
-    * Assign a new id based on the personAgent
-    *
-    * @param personId : The [[Id]] of the [[beam.agentsim.agents.PersonAgent]]
-    * @return the id
-    */
-  def createId(personId: Id[Person]): Id[Vehicle] = {
-    Id.create(idString + "-" + personId.toString, classOf[Vehicle])
-  }
+object BeamVehicleType {
 
-  /**
-    * Is the given [[Id]] a [[BeamVehicle]] of type [[BeamVehicleType.idString]]?
-    *
-    * @param id : The [[Id]] to test
-    */
-  def isVehicleType(id: Id[_ <: Vehicle]): Boolean = {
-    id.toString.startsWith(idString)
-  }
-
-  /**
-    * Easily convert to a Matsim-based [[VehicleType]]
-    */
-  lazy val MatsimVehicleType: VehicleType =
-    VehicleUtils.getFactory.createVehicleType(
-      Id.create(this.getClass.getName, classOf[VehicleType])
+  // Consumption rate: https://www.brianmac.co.uk/energyexp.htm
+  // 400 calories/hour == 400k J/hr @ 7km/hr or 2m/s == 55 J/m
+  // Alternative: https://www.verywellfit.com/walking-calories-burned-by-miles-3887154
+  // 85 calories / mile == 85k J/mi or 53 J/m
+  // Assume walking a marathon is max per day
+  val defaultHumanBodyBeamVehicleType: BeamVehicleType =
+    BeamVehicleType(
+      Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
+      0,
+      0,
+      0.5,
+      Food,
+      53,
+      2.21e6,
+      vehicleCategory = Body
     )
 
-  /**
-    * Polymorphic utility function to create the proper [[Vehicle]] for this [[BeamVehicleType]] given the id.
-    *
-    * Will pattern match on the type to ensure that the correct methods are internally .
-    *
-    * @param id The [[Id]]
-    * @tparam T Can be Matsim [[Person]] or [[Vehicle]]
-    * @return a properly constructed and identified Matsim [[Vehicle]].
-    */
-  def createMatsimVehicle[T](id: Id[T]): Vehicle = {
-    id match {
-      case personId: Id[Person] =>
-        VehicleUtils.getFactory.createVehicle(createId(personId), MatsimVehicleType)
-      case vehicleId: Id[Vehicle] =>
-        VehicleUtils.getFactory.createVehicle(vehicleId, MatsimVehicleType)
-    }
-  }
+  val defaultBicycleBeamVehicleType: BeamVehicleType = BeamVehicleType(
+    Id.create("BIKE_TYPE_DEFAULT", classOf[BeamVehicleType]),
+    1,
+    0,
+    1.5,
+    Food,
+    defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter / 5.0, // 5x more efficient than walking
+    defaultHumanBodyBeamVehicleType.primaryFuelCapacityInJoule, // same capacity as human body
+    vehicleCategory = Bike
+  )
+
+  val powerTrainForHumanBody: Powertrain = new Powertrain(
+    BeamVehicleType.defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter
+  )
+
+  // Transit default based on Diesel Bus
+  val defaultTransitBeamVehicleType: BeamVehicleType =
+    BeamVehicleType(
+      Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
+      50,
+      50,
+      10,
+      Diesel,
+      25829.7,
+      30000000000.0,
+      vehicleCategory = MediumDutyPassenger
+    )
+
+  val defaultCarBeamVehicleType: BeamVehicleType = BeamVehicleType(
+    Id.create("CAR-TYPE-DEFAULT", classOf[BeamVehicleType]),
+    4,
+    0,
+    4.5,
+    Gasoline,
+    3656.0,
+    3655980000.0,
+    vehicleCategory = Car
+  )
+
+  def isHumanVehicle(beamVehicleId: Id[Vehicle]): Boolean =
+    beamVehicleId.toString.startsWith("body")
+
+  def isRidehailVehicle(beamVehicleId: Id[Vehicle]): Boolean =
+    beamVehicleId.toString.startsWith("rideHailVehicle")
+
+  def isBicycleVehicle(beamVehicleId: Id[Vehicle]): Boolean =
+    beamVehicleId.toString.startsWith("bike")
+
+  def isTransitVehicle(beamVehicleId: Id[Vehicle]): Boolean =
+    List("bus", "train", "subway", "tram", "rail", "cable_car", "ferry")
+      .exists(beamVehicleId.toString.toLowerCase.startsWith)
 
 }
 
-case object BeamVehicleType extends Enum[BeamVehicleType] {
+object FuelType {
+  sealed trait FuelType
+  case object Food extends FuelType
+  case object Gasoline extends FuelType
+  case object Diesel extends FuelType
+  case object Electricity extends FuelType
+  case object Biodiesel extends FuelType
+  case object Undefined extends FuelType
 
-  val values: immutable.IndexedSeq[BeamVehicleType] = findValues
-
-  case object RideHailVehicle extends BeamVehicleType("rideHailVehicle") with LowerCamelcase
-
-  case object CarVehicle extends BeamVehicleType("car") with LowerCamelcase
-
-  case object BicycleVehicle extends BeamVehicleType("bicycle") with LowerCamelcase {
-
-    MatsimVehicleType.setMaximumVelocity(15.0 / 3.6)
-    MatsimVehicleType.setPcuEquivalents(0.25)
-    MatsimVehicleType.setDescription(idString)
-
-    // https://en.wikipedia.org/wiki/Energy_efficiency_in_transport#Bicycle
-    lazy val powerTrainForBicycle: Powertrain = Powertrain.PowertrainFromMilesPerGallon(732)
-
+  def fromString(value: String): FuelType = {
+    Vector(Food, Gasoline, Diesel, Electricity, Biodiesel, Undefined)
+      .find(_.toString.equalsIgnoreCase(value))
+      .getOrElse(Undefined)
   }
+  case class FuelTypeAndPrice(fuelTypeId: FuelType, priceInDollarsPerMJoule: Double)
+}
 
-  case object TransitVehicle extends BeamVehicleType("transit") with LowerCamelcase
+object VehicleCategory {
+  sealed trait VehicleCategory
+  case object Body extends VehicleCategory
+  case object Bike extends VehicleCategory
+  case object Car extends VehicleCategory
+  case object MediumDutyPassenger extends VehicleCategory
+  case object LightDutyTruck extends VehicleCategory
+  case object HeavyDutyTruck extends VehicleCategory
 
-  case object HumanBodyVehicle extends BeamVehicleType("body") with LowerCamelcase {
-
-    // TODO: Does this need to be "Human"? Couldn't we just use the idString?
-    MatsimVehicleType.setDescription("Human")
-
-    // TODO: Don't hardcode!!!
-    // https://en.wikipedia.org/wiki/Energy_efficiency_in_transport#Walking
-    lazy val powerTrainForHumanBody: Powertrain = Powertrain.PowertrainFromMilesPerGallon(360)
-
+  def fromString(value: String): VehicleCategory = {
+    Vector(Body, Bike, Car, MediumDutyPassenger, LightDutyTruck, HeavyDutyTruck)
+      .find(_.toString.equalsIgnoreCase(value))
+      .get
   }
-
 }

@@ -46,10 +46,10 @@ public class AgentSimPhysSimInterfaceDebugger {
             int linkIdInt = Integer.parseInt(linkIds_.get(i));
             int nextlinkIdInt = Integer.parseInt(linkIds_.get(i + 1));
             EdgeStore.Edge currentEdge = transportNetwork.streetLayer.edgeStore.getCursor(linkIdInt);
-            ///System.out.println(linkIdInt + "-> (" + currentEdge.getFromVertex() + "," + currentEdge.getToVertex() + ")");
+            ///System.outWriter.println(linkIdInt + "-> (" + currentEdge.getFromVertex() + "," + currentEdge.getToVertex() + ")");
             EdgeStore.Edge nextEdge = transportNetwork.streetLayer.edgeStore.getCursor(nextlinkIdInt);
 
-            double distanceBetweenEdgesInMeters = geoUtils.distInMeters(new Coord(currentEdge.getGeometry().getCoordinate().x, currentEdge.getGeometry().getCoordinate().y), new Coord(nextEdge.getGeometry().getCoordinate().x, nextEdge.getGeometry().getCoordinate().y));
+            double distanceBetweenEdgesInMeters = geoUtils.distUTMInMeters(new Coord(currentEdge.getGeometry().getCoordinate().x, currentEdge.getGeometry().getCoordinate().y), new Coord(nextEdge.getGeometry().getCoordinate().x, nextEdge.getGeometry().getCoordinate().y));
             if (currentEdge.getToVertex() == nextEdge.getFromVertex()) {
                 DebugLib.emptyFunctionForSettingBreakPoint();
             } else {

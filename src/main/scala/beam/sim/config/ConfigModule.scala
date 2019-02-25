@@ -17,12 +17,6 @@ class ConfigModule(val typesafeConfig: TypesafeConfig) extends AbstractModule wi
   def beamConfig(typesafeConfig: TypesafeConfig): BeamConfig =
     BeamConfig(typesafeConfig)
 
-  implicit class ExtendedBeamConfig(beamConfig: BeamConfig) {
-
-    val bbBuffer = 100000
-    val MaxPickupTimeInSeconds: Int = 15 * 60
-  }
-
   override def configure(): Unit = {
     requestInjection(GeoUtils)
     requestInjection(Trajectory)

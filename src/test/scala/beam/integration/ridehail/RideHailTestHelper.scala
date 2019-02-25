@@ -10,6 +10,7 @@ object RideHailTestHelper {
 
   def buildConfig(allocationManagerName: String): Config = {
     val config = testConfig("test/input/beamville/beam.conf")
+      .resolve()
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue(
         "beam.agentsim.agents.rideHail.allocationManager.name",
@@ -20,10 +21,22 @@ object RideHailTestHelper {
         ConfigValueFactory.fromAnyRef("ModeChoiceRideHailIfAvailable")
       )
       .withValue(
-        "beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation",
+        "beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation",
         ConfigValueFactory.fromAnyRef(0.1)
       )
-      .withValue("beam.debug.skipOverBadActors", ConfigValueFactory.fromAnyRef(true))
+      .withValue(
+        "beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds",
+        ConfigValueFactory.fromAnyRef(300)
+      )
+      .withValue(
+        "beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds",
+        ConfigValueFactory.fromAnyRef(0)
+      )
+      .withValue(
+        "beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.repositioningShare",
+        ConfigValueFactory.fromAnyRef(0.2)
+      )
+      .withValue("beam.debug.stuckAgentDetection.enabled", ConfigValueFactory.fromAnyRef(true))
       .resolve()
 
     config

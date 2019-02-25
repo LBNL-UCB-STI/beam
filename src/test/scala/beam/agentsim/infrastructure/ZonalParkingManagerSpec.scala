@@ -18,7 +18,7 @@ import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.MatsimServices
 import org.matsim.vehicles.Vehicle
-import org.mockito.Mockito.when
+import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
@@ -30,7 +30,7 @@ class ZonalParkingManagerSpec
   akka.log-dead-letters = 10
   akka.actor.debug.fsm = true
   akka.loglevel = debug
-  """).withFallback(testConfig("test/input/beamville/beam.conf"))
+  """).withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
     with FunSpecLike
@@ -44,12 +44,12 @@ class ZonalParkingManagerSpec
     BeamServices.getTazTreeMap("test/test-resources/beam/agentsim/infrastructure/taz-centers.csv")
 
   def beamServices(config: BeamConfig): BeamServices = {
-    val theServices = mock[BeamServices]
+    val theServices = mock[BeamServices](withSettings().stubOnly())
     val matsimServices = mock[MatsimServices]
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
-    val geo = new GeoUtilsImpl(theServices)
+    val geo = new GeoUtilsImpl(config)
     when(theServices.geo).thenReturn(geo)
     theServices
   }

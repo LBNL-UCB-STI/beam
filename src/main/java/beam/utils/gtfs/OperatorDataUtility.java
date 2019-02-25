@@ -27,7 +27,7 @@ public class OperatorDataUtility {
     private String apiKey;
 
     public OperatorDataUtility(BeamConfig config) {
-        opMapPath = config.beam().routing().gtfs().operatorsFile();
+//        opMapPath = config.beam().routing().gtfs().operatorsFile();
 //        apiKey=BEAM_CONFIG.beam().routing().gtfs().apiKey();
     }
 

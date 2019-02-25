@@ -4,12 +4,12 @@ import beam.utils.MathUtils
 import io.circe.{Encoder, Json}
 import org.matsim.api.core.v01.Coord
 
-case class SpaceTime(loc: Coord, time: Long)
+case class SpaceTime(loc: Coord, time: Int)
 
 object SpaceTime {
-  def apply(x: Double, y: Double, time: Long): SpaceTime = SpaceTime(new Coord(x, y), time)
+  def apply(x: Double, y: Double, time: Int): SpaceTime = SpaceTime(new Coord(x, y), time)
 
-  def apply(tup: (Coord, Long)): SpaceTime = tup match {
+  def apply(tup: (Coord, Int)): SpaceTime = tup match {
     case (c, l) => SpaceTime(c, l)
   }
 

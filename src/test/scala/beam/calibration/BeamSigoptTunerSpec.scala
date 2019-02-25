@@ -2,7 +2,7 @@ package beam.calibration
 
 import java.io.File
 
-import beam.experiment.{ExperimentDef, ExperimentGenerator}
+import beam.experiment.ExperimentApp
 import beam.tags.Periodic
 import com.sigopt.Sigopt
 import com.sigopt.exception.APIConnectionError
@@ -14,7 +14,9 @@ class BeamSigoptTunerSpec extends WordSpecLike with Matchers with BeforeAndAfter
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
-    Sigopt.clientToken = Option { System.getenv("SIGOPT_DEV_API_TOKEN") }.getOrElse(
+    Sigopt.clientToken = Option {
+      System.getenv("SIGOPT_DEV_API_TOKEN")
+    }.getOrElse(
       throw new APIConnectionError(
         "Correct developer client token must be present in environment as SIGOPT_DEV_API Token "
       )
@@ -23,8 +25,6 @@ class BeamSigoptTunerSpec extends WordSpecLike with Matchers with BeforeAndAfter
 
   val TEST_BEAM_EXPERIMENT_LOC = "test/input/beamville/example-calibration/experiment.yml"
   val TEST_BEAM_BENCHMARK_DATA_LOC = "test/input/beamville/example-calibration/benchmark.csv"
-
-  val beamExperimentFile = new File(TEST_BEAM_EXPERIMENT_LOC)
 
   "BeamSigoptTuner" ignore {
     "create a proper experiment def from the test experiment specification file" taggedAs Periodic in {
@@ -42,12 +42,12 @@ class BeamSigoptTunerSpec extends WordSpecLike with Matchers with BeforeAndAfter
           val expParams = experimentData.experiment.getParameters
           // First is the rideHailParams
           val rideHailParams = expParams.iterator.next
-          rideHailParams.getName equals "beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation"
+          rideHailParams.getName equals "beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation"
           rideHailParams.getBounds.getMax equals 0.1
           rideHailParams.getBounds.getMin equals 0.001
           // Second is transitCapacityParams
           val transitCapacityParams = expParams.iterator.next
-          transitCapacityParams.getName equals "beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation"
+          transitCapacityParams.getName equals "beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation"
           transitCapacityParams.getBounds.getMax equals 0.1
           transitCapacityParams.getBounds.getMin equals 0.001
         }
@@ -64,9 +64,9 @@ class BeamSigoptTunerSpec extends WordSpecLike with Matchers with BeforeAndAfter
 
   private def wrapWithTestExperiment(experimentDataFunc: SigoptExperimentData => Any): Unit = {
     Try {
+      val file = new File(TEST_BEAM_BENCHMARK_DATA_LOC)
       SigoptExperimentData(
-        ExperimentGenerator.loadExperimentDefs(beamExperimentFile),
-        beamExperimentFile,
+        ExperimentApp.loadExperimentDefs(file),
         TEST_BEAM_BENCHMARK_DATA_LOC,
         "None",
         development = true

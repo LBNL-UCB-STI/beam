@@ -1,6 +1,6 @@
 package beam.utils
 
-import java.io.{BufferedInputStream, ByteArrayInputStream, File, FileInputStream}
+import java.io._
 import java.net.URL
 import java.nio.file.{Files, Paths}
 import java.text.SimpleDateFormat
@@ -13,6 +13,7 @@ import org.apache.commons.io.FileUtils.{copyURLToFile, getTempDirectoryPath}
 import org.apache.commons.io.FilenameUtils.getName
 import org.matsim.core.config.Config
 import org.matsim.core.utils.io.IOUtils
+
 import scala.language.reflectiveCalls
 import scala.util.Try
 
@@ -59,10 +60,8 @@ object FileUtils extends LazyLogging {
   }
 
   def getOptionalOutputPathSuffix(addTimestampToOutputDirectory: Boolean): String = {
-    if (addTimestampToOutputDirectory) {
-      return s"_$runStartTime"
-    }
-    ""
+    if (addTimestampToOutputDirectory) s"_$runStartTime"
+    else ""
   }
 
   private def getDateString: String =
@@ -106,4 +105,28 @@ object FileUtils extends LazyLogging {
     val concatString = concatParams.foldLeft("")(_ + _)
     concatString.hashCode
   }
+
+  /**
+    * Writes data to the output file at specified path.
+    * @param filePath path of the output file to write data to
+    * @param fileHeader an optional header to be appended (if any)
+    * @param data data to be written to the file
+    * @param fileFooter an optional footer to be appended (if any)
+    */
+  def writeToFile(filePath: String, fileHeader: Option[String], data: String, fileFooter: Option[String]): Unit = {
+    val bw = IOUtils.getBufferedWriter(filePath) //new BufferedWriter(new FileWriter(filePath))
+    try {
+      if (fileHeader.isDefined)
+        bw.append(fileHeader.get + "\n")
+      bw.append(data)
+      if (fileFooter.isDefined)
+        bw.append("\n" + fileFooter.get)
+    } catch {
+      case e: IOException =>
+        logger.error(s"Error while writing data to file - $filePath : " + e.getMessage, e)
+    } finally {
+      bw.close()
+    }
+  }
+
 }

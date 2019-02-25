@@ -28,6 +28,7 @@ plugins {
     id "de.undercouch.download" version "3.2.0"
     id "org.scoverage" version "2.1.0"
     id 'org.ajoberstar.grgit' version '1.7.2'
+    id 'maven-publish'
 }
 
 //ext {
@@ -55,7 +56,7 @@ targetCompatibility = 1.8
 
 compileScala.options.encoding = 'UTF-8'
 def scalaBinaryVersion = "2.12"
-def akkaBinaryVersion = "2.5.16"
+def akkaBinaryVersion = "2.5.17"
 def circeBinaryVersion = "0.7.1"
 def slf4jVersion = "1.7.25"
 def kamonVersion = "0.6.7"
@@ -79,7 +80,8 @@ if (project.hasProperty('env')) {
 
 allprojects {
     repositories {
-        maven { url "http://maven.geotoolkit.org/" }
+        maven { url 'http://download.osgeo.org/webdav/geotools/' }
+       // maven { url "http://maven.geotoolkit.org/" }
         maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
         maven { url "http://central.maven.org/maven2" }
         maven { url "http://repo.maven.apache.org/maven2" }
@@ -102,97 +104,91 @@ allprojects {
 
 dependencies {
 
-    /*
-     The current implementation of conveyal repository contains the logback.xml as part of
-     the library. This avoid our project to have a specific logback.xml file.
-     A PR was submitted after the maintainers fix it this line can be removed.
-     */
-    implementation 'com.github.carloscaldas:osm-lib:master-SNAPSHOT'
-
+    //beam-utilities
+    compile group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.1'
     ////////////////////////////
     // Java dependencies
     ////////////////////////////
-
     compile group: 'com.google.inject', name: 'guice', version: '4.1.0'
     compile group: 'com.google.inject.extensions', name: 'guice-assistedinject', version: '4.1.0'
     compile group: 'com.google.inject.extensions', name: 'guice-multibindings', version: '4.1.0'
-    compile group: 'com.google.guava', name: 'guava', version: '19.0'
-    compile group: 'de.ruedigermoeller', name: 'fst', version: '2.47'
-    compile group: 'org.jfree', name: 'jfreechart', version: '1.0.14'
     compile group: 'org.apache.commons', name: 'commons-collections4', version: '4.1'
     compile group: 'org.apache.commons', name: 'commons-math3', version: '3.5'
+    compile group: 'org.apache.httpcomponents', name: 'fluent-hc', version: '4.5.2'
+
+    // LGPL
     compile group: 'org.geotools', name: 'gt-main', version: '13.0'
     compile group: 'org.geotools', name: 'gt-referencing', version: '13.0'
     compile group: 'org.geotools', name: 'gt-shapefile', version: '13.0'
-    compile group: 'net.sf.trove4j', name: 'trove4j', version: '3.0.3'
     runtime group: 'org.geotools', name: 'gt-epsg-hsql', version: '13.0'
-    compile group: 'aopalliance', name: 'aopalliance', version: '1.0'
-    compile group: 'de.ruedigermoeller', name: 'fst', version: '2.48'
+    compile group: 'org.geotools', name: 'gt-referencing', version: '15.2'
+    compile group: 'org.geotools', name: 'gt-epsg-hsql', version: '15.2'
+    compile group: 'org.jfree', name: 'jfreechart', version: '1.0.14'
+
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.4'
     compile group: 'com.fasterxml.jackson.module', name: 'jackson-module-scala_2.12', version: '2.9.4'
-    compile group: 'org.javassist', name: 'javassist', version: '3.19.0-GA'
     compile group: 'javax.inject', name: 'javax.inject', version: '1'
     compile group: 'jdom', name: 'jdom', version: '1.1'
     compile group: 'org.jdom', name: 'jdom2', version: '2.0.5'
+    compile 'com.hubspot.jinjava:jinjava:2.0.5'
+    compile group: 'org.yaml', name: 'snakeyaml', version: '1.18'
 
-    compile group: 'org.objenesis', name: 'objenesis', version: '2.4'
-    compile group: 'javax.media', name: 'jai_core', version: '1.1.3'
-    compile group: 'org.geotools', name: 'gt-referencing', version: '15.2'
-    compile group: 'org.geotools', name: 'gt-epsg-hsql', version: '15.2'
     compile group: 'commons-io', name: 'commons-io', version: '2.5'
-    compile group: 'com.esotericsoftware', name: 'kryo-shaded', version: '4.0.0'
     compile 'net.sf.supercsv:super-csv:2.4.0'
-    compile group: 'org.apache.httpcomponents', name: 'fluent-hc', version: '4.5.2'
-    compile group: 'edu.ucar', name: 'udunits', version: '4.5.5'
     compile 'org.reflections:reflections:0.9.10'
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
+    compile group: 'com.github.stephenc.eaio-uuid', name: "uuid", version: "3.4.0"
 
+    // GPLv3
     compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'
     compile group: 'org.matsim.contrib', name: 'bicycle', version: '0.10.0'
+
+    compile(group: 'org.matsim.contrib', name: 'decongestion', version: '0.11.0-2018w44') {
+        exclude group: 'org.matsim', module: 'matsim'
+    }
 
     compile(group: 'org.matsim', name: 'matsim', version: '0.10.0-beam-1') {
         exclude group: 'log4j', module: 'log4j'
     }
-    compile group: 'org.matsim.contrib', name: 'socnetsim', version: '0.10.0'
 
     compile "org.slf4j:slf4j-api:${slf4jVersion}"
     compile "ch.qos.logback:logback-classic:1.2.3"
     compile "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
     compile "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
 
-    compile(group: 'com.github.michaz', name: 'r5', version: 'master-SNAPSHOT', changing: true) {
+    compile(group: 'com.github.michaz', name: 'r5', version: 'mz-tolls-SNAPSHOT', changing: true) {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
 
     compile "com.sigopt:sigopt-java:4.9.0"
 
-    compile "com.github.scopt:scopt_${scalaBinaryVersion}:3.7.0"
-
-
     testCompile group: 'junit', name: 'junit', version: '4.8'
-    // https://mvnrepository.com/artifact/org.powermock/powermock-module-junit4
-    testCompile group: 'org.powermock', name: 'powermock-module-junit4', version: '1.6.6'
     testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.+'
     testCompile group: "org.mockito", name: "mockito-core", version: "2.+"
-
 
     /////////////////////////////////
     // Scala dependencies
     /////////////////////////////////
 
     // CORE Scala //
-    compile "org.scala-lang:scala-library:2.12.6"
+    compile "org.scala-lang:scala-library:2.12.7"
     compile group: 'org.scala-lang.modules', name: "scala-xml_${scalaBinaryVersion}", version: '1.0.6'
 
-
     // NEEDED FOR USING REPL //
-    compile "org.scala-lang:scala-compiler:2.12.6"
+    compile "org.scala-lang:scala-compiler:2.12.7"
 
     // TEST Scala //
     testCompile group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.0.1'
 
     // 3rd Party Scala //
+
+    // https://mvnrepository.com/artifact/com.beachape/enumeratum_2.12
+    compile group: 'com.beachape', name: "enumeratum_${scalaBinaryVersion}", version: "1.5.12"
+    // https://mvnrepository.com/artifact/com.beachape/enumeratum-circe_2.12
+    compile group: 'com.beachape', name: "enumeratum-circe_${scalaBinaryVersion}", version: "1.5.14"
+
+    compile "com.github.scopt:scopt_${scalaBinaryVersion}:3.7.0"
     //    compile 'org.scalaz:scalaz-core_2.12:7.3.0-M9'
     compile "net.codingwell:scala-guice_${scalaBinaryVersion}:4.1.0"  // DI
     compile('com.github.carueda:tscfg:v' + tscfgVersion) { // config
@@ -202,23 +198,21 @@ dependencies {
     compile group: 'org.scalaz', name: "scalaz-core_${scalaBinaryVersion}", version: '7.3.0-M10'
     //compile group: 'com.lihaoyi', name: 'pprint', version: '0.4.3'
     //compile group: 'com.github.lihaoyi.upickle-pprint', name:'pprint', version:'0.4.0', changing: false
-    // https://mvnrepository.com/artifact/com.beachape/enumeratum_2.12
-    compile group: 'com.beachape', name: "enumeratum_${scalaBinaryVersion}", version: "1.5.12"
-// https://mvnrepository.com/artifact/com.beachape/enumeratum-circe_2.12
-    compile group: 'com.beachape', name: "enumeratum-circe_${scalaBinaryVersion}", version: "1.5.14"
     // https://mvnrepository.com/artifact/io.circe/circe-core_2.12
     compile group: 'io.circe', name: "circe-core_${scalaBinaryVersion}", version: circeBinaryVersion
     // https://mvnrepository.com/artifact/io.circe/circe-generic_2.12
     compile group: 'io.circe', name: "circe-generic_${scalaBinaryVersion}", version: circeBinaryVersion
     // https://mvnrepository.com/artifact/io.circe/circe-parser_2.12
     compile group: 'io.circe', name: "circe-parser_${scalaBinaryVersion}", version: circeBinaryVersion
-    compile group: 'com.github.stephenc.eaio-uuid', name: "uuid", version: "3.4.0"
-    compile 'com.hubspot.jinjava:jinjava:2.0.5'
-    compile group: 'org.yaml', name: 'snakeyaml', version: '1.18'
 
     compile group: 'com.typesafe.play', name: "play-json_${scalaBinaryVersion}", version: '2.6.3'
+    compile (group: 'com.github.romix.akka', name: "akka-kryo-serialization_${scalaBinaryVersion}", version: '0.5.2') {
+        exclude group: 'com.esotericsoftware', module: 'kryo'
+    }
+    compile group: 'com.esotericsoftware', name: 'kryo', version: '4.0.2'
 
-    compile group: 'com.github.romix.akka', name: "akka-kryo-serialization_${scalaBinaryVersion}", version: '0.5.2'
+    compile "com.github.vagmcs:optimus_${scalaBinaryVersion}:3.1.0"
+    compile "com.github.vagmcs:optimus-solver-oj_${scalaBinaryVersion}:3.1.0"
 
     ////////////////////////////////////
     ///Performance Monitoring (Kamon)///
@@ -230,7 +224,6 @@ dependencies {
     compile("io.kamon:kamon-statsd_${scalaBinaryVersion}:${kamonVersion}")
     compile "io.kamon:kamon-influxdb_${scalaBinaryVersion}:0.6.9"
     compile("io.kamon:kamon-log-reporter_${scalaBinaryVersion}:${kamonVersion}")
-
 
     /////////////
     // Akka Dependencies
@@ -254,9 +247,10 @@ dependencies {
     //compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.7'
 //    compile group: 'org.fusesource.leveldbjni', name: 'leveldbjni-all', version: '1.8'
     //compile group: 'com.google.protobuf', name: 'protobuf-java', version: '2.5.0'
-    compile "tv.cntt:glokka_${scalaBinaryVersion}:2.4.0"  // Actor registry
 
     scoverage "org.scoverage:scalac-scoverage-plugin_${scalaBinaryVersion}:1.3.1", "org.scoverage:scalac-scoverage-runtime_${scalaBinaryVersion}:1.3.1"
+
+    compile 'org.apache.commons:commons-compress:1.18'
 }
 
 // Autoformatting using scalafmt
@@ -265,7 +259,23 @@ scalafmt {
     // configFilePath = ".scalafmt.conf" // .scalafmt.conf in the project root is default value, provide only if other location is needed
 }
 
+
+configurations.all {
+    resolutionStrategy {
+        eachDependency { DependencyResolveDetails dependencyResolveDetails ->
+            final requestedDependency = dependencyResolveDetails.requested
+            if (requestedDependency.name != 'beam-utilities') {
+                force 'javax.media:jai_core:1.1.3'
+            }
+        }
+    }
+    exclude group: 'javax.media', module: 'jai_codec'
+    exclude group: 'javax.media', module: 'jai_imageio'
+
+}
+
 //compileScala.dependsOn(scalafmtAll)
+
 
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
@@ -294,7 +304,6 @@ task specificTest(dependsOn: ['testClasses'], type: JavaExec) {
     args = ['-R', 'build/classes/scala/test', '-o', '-s'] << (project.findProperty('suite') ?: 'org.scalatest.Ignore')
     classpath = sourceSets.test.runtimeClasspath
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Task to run tests periodically on continue integration server.
@@ -380,6 +389,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "execute_class": "${project.findProperty('executeClass')}",
   "execute_args": "${project.findProperty('executeArgs')}",
   "max_ram": "${maxRAM ?: '140g'}",
+  "storage_size": ${project.findProperty('storageSize')},
   "batch": "$beamBatch",
   "s3_publish": "${project.findProperty('s3Backup') ?: true}",
   "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
@@ -549,12 +559,20 @@ def getCurrentTimestamp = {
 def logGC = ["-XX:+PrintGCDetails", "-XX:+PrintGCDateStamps", "-Xloggc:gc_${getCurrentTimestamp()}.log", "-XX:+HeapDumpOnOutOfMemoryError"]
 
 // Use following for remote debug mode
-//applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}","-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
-//applicationDefaultJvmArgs = ["-Xmx140g"] + logGC
+def remoteDebug = ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
+
+def jfr = ["-XX:+UnlockCommercialFeatures", "-XX:+FlightRecorder",
+           "-XX:FlightRecorderOptions=defaultrecording=true,disk=true,maxage=10h,dumponexit=true,loglevel=info"]
+
+// On the running machine there should be file /usr/lib/jvm/java-8-oracle/jre/lib/jfr/profile_heap_exception.jfc  with content from
+// https://pastebin.com/N3uuUfPz - it's Java Mission Control with metrics about heap allocation and details about exceptions
+def jfrWithMem = ["-XX:+UnlockCommercialFeatures", "-XX:+UnlockDiagnosticVMOptions", "-XX:+DebugNonSafepoints",
+                  "-XX:StartFlightRecording=delay=2s,duration=60m,name=mem_ex,filename=recording.jfr,settings=profile_heap_exception",
+                  "-XX:+FlightRecorder", "-XX:FlightRecorderOptions=disk=true,maxage=10h,dumponexit=true,loglevel=info"]
 
 // UseParallelGC
-applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${myAvailableRam / 2}g",
-                             "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=500M"] + logGC
+applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${myAvailableRam/2}g",
+                             "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M"] + logGC
 
 println(applicationDefaultJvmArgs)
 
@@ -600,6 +618,48 @@ task execute(type: JavaExec) {
         }
     }
 }
+
+task matsimConversion(type: JavaExec) {
+    main = 'beam.utils.matsim_conversion.MatsimConversionTool'
+    classpath = sourceSets.main.runtimeClasspath
+    environment "PWD", "na"
+    if (project.hasProperty("confPath")) {
+        args Eval.me(confPath)
+    }
+}
+
+task generateDocumentation(type: JavaExec) {
+    group 'Documentation'
+    description 'Format the data using Sphinx RST formats'
+
+    main = 'beam.docs.GenerateDocumentationTask'
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+tasks.withType(ScalaCompile) {
+    // Enable Scala warnings output
+    scalaCompileOptions.additionalParameters = ["-unchecked", "-deprecation", "-feature", "-Xfatal-warnings"]
+}
+
+task fmt(dependsOn: scalafmtAll) 
+task checkScalaFmt() {
+    doLast {
+        try {
+            def workingDir = new File("${project.projectDir}")
+            def result = 'git diff --exit-code'.execute(null, workingDir)
+            result.waitFor()
+            if (result.exitValue() != 0) throw new Exception("""
+Please run ./gradlew scalaFmtAll and commit/push the subsequent results to fix this error.
+This happened because a git diff yielded a non-zero exit code. 
+This task was built to be run on the CI server AFTER scalaFmtAll
+It should only error if the results of scalaFmtAll resulted in code modifications.
+And that would only happen if the committed code is not formatted as expected.""")
+        } catch (e) {
+            throw new Exception("An unexpected error was encountered while checking that scalaFmtAll was committed.", e)
+        }
+    }
+}
+
 
 jar {
     manifest {

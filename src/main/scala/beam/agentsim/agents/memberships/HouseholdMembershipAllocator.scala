@@ -16,24 +16,11 @@ case class HouseholdMembershipAllocator(
   import beam.agentsim.agents.memberships.Memberships.RankedGroup._
 
   val memberships: Map[Id[Person], Household] = allocateMembership()
+  private val vehicleAllocationsByRank: TrieMap[Id[Household], mutable.Map[Id[Person], Id[Vehicle]]] =
+    TrieMap()
 
   def lookupMemberRank(id: Id[Person]): Option[Int] =
     memberships(id).lookupMemberRank(id)
-
-  private def allocateMembership(): Map[Id[Person], Household] = {
-    JavaConverters
-      .mapAsScalaMap(households.getHouseholds)
-      .flatMap({
-        case (_, hh) =>
-          JavaConverters
-            .asScalaBuffer(hh.getMemberIds)
-            .map(personId => personId -> hh)
-      })
-      .toMap
-  }
-
-  private val vehicleAllocationsByRank: TrieMap[Id[Household], mutable.Map[Id[Person], Id[Vehicle]]] =
-    TrieMap[Id[Household], mutable.Map[Id[Person], Id[Vehicle]]]()
 
   def lookupVehicleForRankedPerson(personId: Id[Person]): Option[Id[Vehicle]] = {
 
@@ -42,7 +29,7 @@ case class HouseholdMembershipAllocator(
       .getOrElseUpdate(
         household.getId, {
           val vehicleRes: mutable.Map[Id[Person], Id[Vehicle]] =
-            mutable.Map[Id[Person], Id[Vehicle]]()
+            mutable.Map()
 
           val householdVehicles =
             JavaConverters
@@ -59,5 +46,17 @@ case class HouseholdMembershipAllocator(
         }
       )
       .get(personId)
+  }
+
+  private def allocateMembership(): Map[Id[Person], Household] = {
+    JavaConverters
+      .mapAsScalaMap(households.getHouseholds)
+      .flatMap({
+        case (_, hh) =>
+          JavaConverters
+            .asScalaBuffer(hh.getMemberIds)
+            .map(personId => personId -> hh)
+      })
+      .toMap
   }
 }

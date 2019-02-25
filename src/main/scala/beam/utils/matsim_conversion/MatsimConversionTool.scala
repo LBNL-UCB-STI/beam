@@ -5,6 +5,7 @@ import java.nio.file.Paths
 import java.util
 
 import com.typesafe.config.ConfigFactory
+import org.apache.commons.io.FileUtils
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.network.Network
 import org.matsim.core.network.NetworkUtils
@@ -17,6 +18,8 @@ import scala.collection.JavaConverters._
 
 object MatsimConversionTool extends App {
 
+  val dummyGtfsPath = "test/input/beamville/r5/dummy.zip"
+
   if (null != args && args.size > 0) {
     val beamConfigFilePath = args(0) //"test/input/beamville/beam.conf"
 
@@ -24,30 +27,34 @@ object MatsimConversionTool extends App {
     val conversionConfig = ConversionConfig(config)
 
     val network = NetworkUtils.createNetwork()
-    println(s"Network file ${conversionConfig.matsimNetworkFile}")
+//    println(s"Network file ${conversionConfig.matsimNetworkFile}")
     new MatsimNetworkReader(network).readFile(conversionConfig.matsimNetworkFile)
 
-    MatsimPlanConversion.generateSiouxFallsXml(conversionConfig)
+    MatsimPlanConversion.generateScenarioData(conversionConfig)
     generateTazDefaults(conversionConfig, network)
     generateOsmFilteringCommand(conversionConfig, network)
+
+    val r5OutputFolder = conversionConfig.scenarioDirectory + "/r5"
+    val dummyGtfsOut = r5OutputFolder + "/dummy.zip"
+    FileUtils.copyFile(new File(dummyGtfsPath), new File(dummyGtfsOut))
   } else {
     println("Please specify config/file/path parameter")
   }
 
-  def generateOsmFilteringCommand(cf: ConversionConfig, network: Network) = {
+  def generateOsmFilteringCommand(cf: ConversionConfig, network: Network): Unit = {
     val boundingBox =
       ConversionConfig.getBoundingBoxConfig(network, cf.localCRS, cf.boundingBoxBuffer)
     val outputFile = s"${cf.scenarioDirectory}/r5/${cf.scenarioName}.osm.pbf"
     val commandOut =
       s"""
-         osmosis --read-pbf file=${cf.osmFile} --bounding-box top=${boundingBox.top} left=${boundingBox.left} bottom=${boundingBox.bottom} right=${boundingBox.right} completeWays=yes completeRelations=yes clipIncompleteEntities=true --write-pbf file=${outputFile}
+         osmosis --read-pbf file=${cf.osmFile} --bounding-box top=${boundingBox.top} left=${boundingBox.left} bottom=${boundingBox.bottom} right=${boundingBox.right} completeWays=yes completeRelations=yes clipIncompleteEntities=true --write-pbf file=$outputFile
       """.stripMargin
 
     println(s"Run following format to clip open street data file to network boundaries if required")
     println(commandOut)
   }
 
-  def generateTazDefaults(conversionConfig: ConversionConfig, network: Network) = {
+  def generateTazDefaults(conversionConfig: ConversionConfig, network: Network): Unit = {
     val outputFilePath = s"${conversionConfig.scenarioDirectory}/taz-centers.csv"
 
     if (conversionConfig.shapeConfig.isDefined) {
@@ -63,7 +70,7 @@ object MatsimConversionTool extends App {
     default: ShapeUtils.CsvTaz,
     outputFilePath: String,
     localCRS: String
-  ) = {
+  ): Unit = {
     var mapWriter: ICsvMapWriter = null
     try {
       mapWriter = new CsvMapWriter(new FileWriter(outputFilePath), CsvPreference.STANDARD_PREFERENCE)

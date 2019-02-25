@@ -21,8 +21,8 @@ class MultinomialLogitSpec extends WordSpecLike with Matchers with BeamHelper {
     val mnl = MultinomialLogit(mnlData)
     val rand = new Random()
     val alts = Vector(
-      AlternativeAttributes("car", Map(("cost"  -> 30.0), ("time" -> 50.0))),
-      AlternativeAttributes("walk", Map(("cost" -> 0.0), ("time"  -> 40.0)))
+      AlternativeAttributes("car", Map("cost"  -> 30.0, "time" -> 50.0)),
+      AlternativeAttributes("walk", Map("cost" -> 0.0, "time"  -> 40.0))
     )
 
     "should evaluate utility functions as expected" in {
@@ -39,7 +39,7 @@ class MultinomialLogitSpec extends WordSpecLike with Matchers with BeamHelper {
 
       val samps = for (i <- 1 until 100) yield mnl.sampleAlternative(alts, rand).get
 
-      samps.filter(_.equals("walk")).length > 50 should be(true)
+      samps.count(_.equals("walk")) > 50 should be(true)
     }
   }
 }

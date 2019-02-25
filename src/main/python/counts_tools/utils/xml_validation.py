@@ -55,7 +55,7 @@ def analyze_acts(exp_plans_file, l2c_file, print_inc=10000):
                     act_cnty = l2c_df.loc[pe.attrib['link'], 'COUNTY']
                     cntys.append(act_cnty)
                 except KeyError:
-                    # Activity might have been mapped to one of the links that were filtered out due to not being mapped to
+                    # Activity might have been mapped to one of the links that were filtered outWriter due to not being mapped to
                     # any counties. We can just ignore these rare occurrences.
                     # elem.clear()
                     # event, elem = itree.next()
@@ -70,7 +70,7 @@ def analyze_acts(exp_plans_file, l2c_file, print_inc=10000):
                 else:
                     end_times.append(float('nan'))
                 act_types.append(pe.attrib['type'])
-        # Delete the Person so that we don't run out of memory
+        # Delete the Person so that we don't run outWriter of memory
         elem.clear()
         event, elem = itree.next()
         ticker += 1
@@ -146,7 +146,7 @@ def calc_vmts(exp_plans_file, l2c_file, home='Home', work='Work', print_inc=1000
                 # idx = l2c_df.COUNTY[l2c_df.LINK_ID == home_act.attrib['link']].index[0]
                 hcnty = l2c_df.loc[home_act.attrib['link'],'COUNTY']
             except IndexError:
-                # Activity might have been mapped to one of the links that were filtered out due to not being mapped to
+                # Activity might have been mapped to one of the links that were filtered outWriter due to not being mapped to
                 # any counties. We can just ignore these rare occurrences.
                 elem.clear()
                 event, elem = itree.next()
@@ -183,7 +183,7 @@ def calc_vmts(exp_plans_file, l2c_file, home='Home', work='Work', print_inc=1000
             elif i_dist:
                 i_direct_vmt[hcnty].append(i_dist)
             total_vmt[hcnty].append(t_vmt)
-            # Delete the Person so that we don't run out of memory
+            # Delete the Person so that we don't run outWriter of memory
             elem.clear()
             event, elem = itree.next()
             ticker += 1

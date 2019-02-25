@@ -1,7 +1,6 @@
 from __future__ import (
     absolute_import, division, print_function, unicode_literals
 )
-import builtins
 
 import logging
 import argparse
@@ -19,6 +18,9 @@ from doppelganger import (
     Population,
     Marginals,
 )
+from future.moves import builtins
+import __builtin__
+
 from fetch_pums_data_from_db import fetch_pums_data
 
 logging.basicConfig(filename='logs', filemode='a', level=logging.INFO)
@@ -135,7 +137,7 @@ def create_bayes_net(state_id, puma_id, output_dir, households_data, persons_dat
     Args:
         state_id: 2-digit state fips code
         puma_id: 5-digit puma code
-        output_dir: dir to write out the generated bayesian nets to
+        output_dir: dir to write outWriter the generated bayesian nets to
         households_data: pums households data frame
         persons_data: pums persons data frame
         configuration: specifies the structure of the bayes net
@@ -195,7 +197,7 @@ def download_tract_data(state_id, puma_id, output_dir, census_api_key, puma_trac
     Args:
         state_id: 2-digit state fips code
         puma_id: 5-digit puma code
-        output_dir: dir to write out the generated bayesian nets to
+        output_dir: dir to write outWriter the generated bayesian nets to
         census_api_key: key used to download data from the U.S. Census
         puma_tract_mappings: filepath to the puma-tract mappings
         households_data: pums households data frame
@@ -221,7 +223,7 @@ def download_tract_data(state_id, puma_id, output_dir, census_api_key, puma_trac
                 logging.exception('Couldn\'t fetch data from the census. Check your API key')
                 raise CensusFetchException()
             else:
-                logging.info('Writing out marginal file for state: %s, puma: %s', state_id, puma_id)
+                logging.info('Writing outWriter marginal file for state: %s, puma: %s', state_id, puma_id)
                 marginals.write(marginal_path)
 
     '''With the above marginal controls (tract data), the methods in allocation.py
@@ -235,7 +237,7 @@ def download_tract_data(state_id, puma_id, output_dir, census_api_key, puma_trac
         )
     except Exception as e:
         logging.exception('Error Allocating state: %s, puma: %s\n%s', state_id, puma_id, e)
-        exit()
+        __builtin__.exit()
 
     return marginals, allocator
 
@@ -243,7 +245,7 @@ def download_tract_data(state_id, puma_id, output_dir, census_api_key, puma_trac
 def generate_synthetic_people_and_households(state_id, puma_id, output_dir, allocator,
                                              person_model, household_model):
     '''Replace the PUMS Persons with Synthetic Persons created from the Bayesian Network.
-       Writes out a combined person-household dataframe.
+       Writes outWriter a combined person-household dataframe.
 
     Args:
         state_id: 2-digit state fips code

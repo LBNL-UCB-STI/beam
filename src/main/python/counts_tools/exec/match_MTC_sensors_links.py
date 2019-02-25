@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
     # Create the dataframe from the raw MTC file
     data_df = pd.read_csv(data_path, sep=',', usecols=['station', 'latitude', 'longitude', 'year'])
-    data_df = data_df[data_df['year'] == year]  # Filter out all rows not from the desired year
+    data_df = data_df[data_df['year'] == year]  # Filter outWriter all rows not from the desired year
     data_df.drop_duplicates(inplace=True)
 
     # Run the link matching

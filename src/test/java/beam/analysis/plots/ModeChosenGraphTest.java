@@ -1,15 +1,18 @@
 package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
+import beam.sim.config.BeamConfig;
+import beam.utils.TestConfigUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.matsim.api.core.v01.events.Event;
-import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.collections.Tuple;
 
-import java.io.IOException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import static beam.analysis.plots.GraphTestUtil.*;
 import static org.junit.Assert.assertArrayEquals;
@@ -19,9 +22,9 @@ public class ModeChosenGraphTest {
 
     private static class ModeChosenHandler implements BasicEventHandler {
 
-        private final ModeChosenStats modeChoseStats;
+        private final ModeChosenAnalysis modeChoseStats;
 
-        ModeChosenHandler(ModeChosenStats modeChoseStats) {
+        ModeChosenHandler(ModeChosenAnalysis modeChoseStats) {
             this.modeChoseStats = modeChoseStats;
         }
 
@@ -34,16 +37,16 @@ public class ModeChosenGraphTest {
     }
 
     private Map<Integer, Map<String, Integer>> stats;
-    private ModeChosenStats modeChoseStats = new ModeChosenStats(new ModeChosenStats.ModeChosenComputation() {
+    private ModeChosenAnalysis modeChoseStats = new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation() {
         @Override
         public double[][] compute(Tuple<Map<Integer, Map<String, Integer>>, Set<String>> stat) {
             stats = stat.getFirst();
             return super.compute(stat);
         }
-    });
+    }, BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve()) );
 
     @Before
-    public void setUpClass() throws IOException {
+    public void setUpClass() {
         createDummySimWithXML(new ModeChosenHandler(modeChoseStats));
         modeChoseStats.compute();
     }
@@ -51,7 +54,7 @@ public class ModeChosenGraphTest {
     @Test
     public void testShouldPassShouldReturnModeChoseEventCarOccurrence() {
 
-        int expectedResult = 43;
+        int expectedResult = 8;
         int maxHour = getMaxHour(stats.keySet());
         int actualResult = getHoursDataCountOccurrenceAgainstMode(CAR, maxHour, stats);
         assertEquals(expectedResult, actualResult);
@@ -59,7 +62,7 @@ public class ModeChosenGraphTest {
 
     @Test
     public void testShouldPassShouldReturnModeChoseEventDriveTransitOccurrence() {
-        int expectedResult = 1;
+        int expectedResult = 17;
         int maxHour = getMaxHour(stats.keySet());
         int actualResult = getHoursDataCountOccurrenceAgainstMode(DRIVE_TRANS, maxHour, stats);
         assertEquals(expectedResult, actualResult);
@@ -68,7 +71,7 @@ public class ModeChosenGraphTest {
 
     @Test
     public void testShouldPassShouldReturnModeChoseEventRideHailOccurrence() {
-        int expectedResult = 52;
+        int expectedResult = 22;
         int maxHour = getMaxHour(stats.keySet());
         int actualResult = getHoursDataCountOccurrenceAgainstMode(RIDE_HAIL, maxHour, stats);
         assertEquals(expectedResult, actualResult);
@@ -77,7 +80,7 @@ public class ModeChosenGraphTest {
 
     @Test
     public void testShouldPassShouldReturnModeChoseEventWalkOccurrence() {
-        int expectedResult = 71;
+        int expectedResult = 39;
         int maxHour = getMaxHour(stats.keySet());
         int actualResult = getHoursDataCountOccurrenceAgainstMode(WALK, maxHour, stats);
         assertEquals(expectedResult, actualResult);
@@ -86,7 +89,7 @@ public class ModeChosenGraphTest {
 
     @Test
     public void testShouldPassShouldReturnModeChoseEventWalkTransitOccurrence() {
-        int expectedResult = 11;
+        int expectedResult = 24;
         int maxHour = getMaxHour(stats.keySet());
         int actualResult = getHoursDataCountOccurrenceAgainstMode(WALK_TRANS, maxHour, stats);
         assertEquals(expectedResult, actualResult);
@@ -94,21 +97,20 @@ public class ModeChosenGraphTest {
 
     @Test
     public void testShouldPassShouldReturnModeChoseEventOccurrenceForSpecificHour() {
-        /**
+        /*
          * 0 index represent CAR count
          * 1 index represent DriveTran count
          * 2 index represent RideHail count
          * 3 index represent Walk count
          * 4 index represent WalkTran count
          */
-        int expectedResultOfMode[] = {16, 1, 15, 21, 10};
-        int actualResultOfMode[] = new int[5];
+        int expectedResultOfMode[] = {2, 16, 11, 24};
+        int actualResultOfMode[] = new int[4];
         int maxHour = getMaxHour(stats.keySet());
         actualResultOfMode[0] = getHoursDataCountOccurrenceAgainstMode(GraphTestUtil.CAR, maxHour, 6, stats);
         actualResultOfMode[1] = getHoursDataCountOccurrenceAgainstMode(GraphTestUtil.DRIVE_TRANS, maxHour, 6, stats);
         actualResultOfMode[2] = getHoursDataCountOccurrenceAgainstMode(GraphTestUtil.RIDE_HAIL, maxHour, 6, stats);
-        actualResultOfMode[3] = getHoursDataCountOccurrenceAgainstMode(GraphTestUtil.WALK, maxHour, 6, stats);
-        actualResultOfMode[4] = getHoursDataCountOccurrenceAgainstMode(GraphTestUtil.WALK_TRANS, maxHour, 6, stats);
+        actualResultOfMode[3] = getHoursDataCountOccurrenceAgainstMode(GraphTestUtil.WALK_TRANS, maxHour, 6, stats);
         assertArrayEquals(expectedResultOfMode, actualResultOfMode);
     }
 

@@ -2,6 +2,7 @@ package beam.utils;
 
 import java.io.*;
 import java.nio.file.Paths;
+import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -51,6 +52,36 @@ public class UnzipUtility {
         zipIn.close();
         if (delete) {
             delete(Paths.get(zipFilePath));
+        }
+    }
+
+    // TODO: double check, if this is redundant
+    /**
+     * Extracts a zip file specified by the zipFilePath to a directory specified by
+     * destDirectory (will be created if does not exists)
+     *
+     * @param compressedFile   Source directory for zip file
+     * @param decompressedFile Target directory for unzipping.
+     * @throws IOException Error on failure.
+     */
+    public static void unGunzipFile(String compressedFile, String decompressedFile, boolean delete) throws IOException {
+        FileInputStream fileIn = new FileInputStream(compressedFile);
+        GZIPInputStream gZIPInputStream = new GZIPInputStream(fileIn);
+        FileOutputStream fileOutputStream = new FileOutputStream(decompressedFile);
+
+        byte[] buffer = new byte[BUFFER_SIZE];
+
+        int bytes_read;
+
+        while ((bytes_read = gZIPInputStream.read(buffer)) > 0) {
+            fileOutputStream.write(buffer, 0, bytes_read);
+        }
+
+        gZIPInputStream.close();
+        fileOutputStream.close();
+
+        if (delete) {
+            delete(Paths.get(compressedFile));
         }
     }
 

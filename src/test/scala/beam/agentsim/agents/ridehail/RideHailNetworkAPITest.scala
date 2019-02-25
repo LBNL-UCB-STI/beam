@@ -1,7 +1,6 @@
 package beam.agentsim.agents.ridehail
 
 class RideHailNetworkAPITest {
-  // TODO: code extracted from StanfordRideHailAllocationManagerV1. Should create a test for it
   // network operations
   //  val linkId = 5
   //  rideHailNetworkApi.getClosestLink(vehicleAllocationRequest.pickUpLocation)

@@ -1,11 +1,6 @@
 package beam.agentsim
 
 import akka.actor.Actor
-import beam.agentsim.Resource.NotifyResourceIdle
-import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
-import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
-import beam.agentsim.events.SpaceTime
-import org.matsim.api.core.v01.Id
 
 /*
  * Some clarification on nomenclature:
@@ -22,33 +17,9 @@ import org.matsim.api.core.v01.Id
 /**
   * Responsible for maintaining a grouping of resources and their current locations.
   *
-  * @tparam R The type of resource being managed
   */
-trait ResourceManager[R <: Resource[R]] {
+trait ResourceManager {
 
   this: Actor =>
-
-  val resources: collection.mutable.Map[Id[R], R]
-
-  def findResource(resourceId: Id[R]): Option[R] = {
-    resources.get(resourceId)
-  }
-
-}
-
-object ResourceManager {
-
-  /**
-    * Concrete implementation that manages Resources of type [[BeamVehicle]]
-    */
-  trait VehicleManager extends Actor with ResourceManager[BeamVehicle]
-
-  case class NotifyVehicleResourceIdle(
-    override val resourceId: Id[_],
-    override val whenWhere: Option[SpaceTime],
-    val passengerSchedule: PassengerSchedule,
-    val beamVehicleState: BeamVehicleState,
-    val triggerId: Option[Long] // triggerId is included to facilitate debugging
-  ) extends NotifyResourceIdle
 
 }

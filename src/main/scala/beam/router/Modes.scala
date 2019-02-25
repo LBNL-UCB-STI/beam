@@ -1,6 +1,20 @@
 package beam.router
 
-import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, FERRY, NONE, RAIL, RIDE_HAIL, SUBWAY, TRAM, WALK}
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  BUS,
+  CABLE_CAR,
+  CAR,
+  FERRY,
+  FUNICULAR,
+  GONDOLA,
+  RAIL,
+  RIDE_HAIL,
+  SUBWAY,
+  TRAM,
+  TRANSIT,
+  WALK
+}
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.conveyal.r5.profile.StreetMode
 import enumeratum.values._
@@ -33,15 +47,14 @@ object Modes {
 
     override val values: immutable.IndexedSeq[BeamMode] = findValues
 
-    case object NONE extends BeamMode(value = "none", None, "")
-
     // Driving / Automobile-like (hailed rides are a bit of a hybrid)
 
     case object CAR extends BeamMode(value = "car", Some(Left(LegMode.CAR)), TransportMode.car)
 
     case object RIDE_HAIL extends BeamMode(value = "ride_hail", Some(Left(LegMode.CAR)), TransportMode.other)
 
-    case object EV extends BeamMode(value = "ev", Some(Left(LegMode.CAR)), TransportMode.other)
+    case object RIDE_HAIL_POOLED
+        extends BeamMode(value = "ride_hail_pooled", Some(Left(LegMode.CAR)), TransportMode.other)
 
     // Transit
 
@@ -95,17 +108,24 @@ object Modes {
 
     case object WAITING extends BeamMode(value = "waiting", None, TransportMode.other)
 
-    val chainBasedModes = Seq(CAR, EV, BIKE)
+    val chainBasedModes = Seq(CAR, BIKE)
 
     val transitModes =
-      Seq(BUS, FUNICULAR, GONDOLA, CABLE_CAR, FERRY, TRAM, TRANSIT, RAIL, SUBWAY, TRAM)
-    val availableModes: Seq[BeamMode] = Seq(CAR, RIDE_HAIL, BIKE) ++ transitModes
+      Seq(BUS, FUNICULAR, GONDOLA, CABLE_CAR, FERRY, TRAM, TRANSIT, RAIL, SUBWAY)
+    val allBeamModes: Seq[BeamMode] = Seq(CAR, RIDE_HAIL, RIDE_HAIL_TRANSIT, BIKE, WALK, WALK_TRANSIT) ++ transitModes
 
-    def fromString(stringMode: String): BeamMode = {
+    val massTransitModes: List[BeamMode] = List(FERRY, TRANSIT, RAIL, SUBWAY, TRAM)
+
+    val allTripModes: List[BeamMode] =
+      List(RIDE_HAIL, CAR, WALK, TRANSIT, RIDE_HAIL_TRANSIT, DRIVE_TRANSIT, WALK_TRANSIT, BIKE)
+
+    def fromString(stringMode: String): Option[BeamMode] = {
       if (stringMode.equals("")) {
-        NONE
+        None
+      } else if (stringMode.equalsIgnoreCase("drive")) {
+        Some(CAR)
       } else {
-        BeamMode.withValue(stringMode)
+        Some(BeamMode.withValue(stringMode))
       }
     }
   }
@@ -151,12 +171,14 @@ object Modes {
     case BIKE => StreetMode.BICYCLE
     case WALK => StreetMode.WALK
     case CAR  => StreetMode.CAR
+    case _    => throw new IllegalArgumentException
   }
 
   def toR5StreetMode(mode: LegMode): StreetMode = mode match {
     case LegMode.BICYCLE | LegMode.BICYCLE_RENT => StreetMode.BICYCLE
     case LegMode.WALK                           => StreetMode.WALK
     case LegMode.CAR                            => StreetMode.CAR
+    case _                                      => throw new IllegalArgumentException
   }
 
   def mapLegMode(mode: LegMode): BeamMode = mode match {

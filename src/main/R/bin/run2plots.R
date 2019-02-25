@@ -4,6 +4,7 @@
 # 
 # Argument: the path to the run output directory.
 ##############################################################################################################################################
+library(colinmisc)
 setwd('/Users/critter/Dropbox/ucb/vto/beam-all/beam') # for development and debugging
 source('./src/main/R/beam-utilities.R')
 load.libraries(c('optparse'),quietly=T)

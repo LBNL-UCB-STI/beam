@@ -1,4 +1,3 @@
----
 
 # Header
 
@@ -6,7 +5,7 @@ header:
     title: Example-Experiment
     author: MyName
     beamTemplateConfPath: test/input/beamville/beam.conf
-    params:
+    deployParams:
       ### ---- run template env variables ---####
       EXPERIMENT_MAX_RAM: 2g
       S3_OUTPUT_PATH_SUFFIX: "beamville"
@@ -17,7 +16,7 @@ header:
 defaultParams:
     ### ---- beam-template.conf param replacement ---####
     beam.agentsim.tuning.transitCapacity: 0.05
-    beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.01
+    beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation: 0.01
 
 # Factors
 
@@ -38,10 +37,10 @@ factors:
     levels:
     - name: Low
       params:
-        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.001
+        beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation: 0.001
     - name: Base
       params:
-        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.01
+        beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation: 0.01
     - name: High
       params:
-        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.1
+        beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation: 0.1

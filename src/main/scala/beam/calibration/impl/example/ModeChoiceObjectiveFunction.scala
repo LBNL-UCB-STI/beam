@@ -5,22 +5,17 @@ import java.nio.file.Paths
 
 import scala.io.Source
 import scala.util.Try
-
 import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.parser._
 import org.apache.http.client.fluent.{Content, Request}
-
-import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, ModeChosenStats}
-import beam.calibration.api.{FileBasedObjectiveFunction, ObjectiveFunction}
 import beam.calibration.impl.example.ModeChoiceObjectiveFunction.ModeChoiceStats
-import beam.utils.FileUtils.using
 
-class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) extends ObjectiveFunction {
+class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) {
 
   implicit val modeChoiceDataDecoder: Decoder[ModeChoiceStats] = deriveDecoder[ModeChoiceStats]
 
-  override def evaluateFromRun(runDataFileLoc: String): Double = {
+  def evaluateFromRun(runDataFileLoc: String, comparisonType: ErrorComparisonType.Value): Double = {
 
     val benchmarkData = if (benchmarkDataFileLoc.contains("http://")) {
       getStatsFromMTC(new URI(runDataFileLoc))
@@ -28,7 +23,68 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) extends Objectiv
       getStatsFromFile(benchmarkDataFileLoc)
     }
 
-    compareStats(benchmarkData, getStatsFromFile(runDataFileLoc))
+    if (comparisonType == ErrorComparisonType.AbsoluteError) {
+      compareStatsAbsolutError(benchmarkData, getStatsFromFile(runDataFileLoc))
+    } else if (comparisonType == ErrorComparisonType.AbsoluteErrorWithPreferenceForModeDiversity) {
+      compareStatsAbsolutError(benchmarkData, getStatsFromFile(runDataFileLoc)) + getStatsFromFile(runDataFileLoc).size * 0.1
+    } else if (comparisonType == ErrorComparisonType.AbsoluteErrorWithMinLevelRepresentationOfMode) {
+      val runModeStats = getStatsFromFile(runDataFileLoc)
+      var objective = compareStatsAbsolutError(benchmarkData, runModeStats) + getStatsFromFile(runDataFileLoc).size * 0.1
+
+      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.8, "car")) {
+        objective = objective + 0.1
+      }
+
+      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.3, "drive_transit")) {
+        objective = objective + 0.1
+      }
+
+      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.3, "ride_hail")) {
+        objective = objective + 0.1
+      }
+
+      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.3, "ride_hail_transit")) {
+        objective = objective + 0.1
+      }
+
+      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.3, "walk")) {
+        objective = objective + 0.1
+      }
+
+      if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.3, "walk_transit")) {
+        objective = objective + 0.1
+      }
+
+      objective
+    } else {
+      compareStatsRMSPE(benchmarkData, getStatsFromFile(runDataFileLoc))
+    }
+
+  }
+
+  def minLevelRepresentationOfMode(
+    runModeStats: Map[String, Double],
+    benchmarkData: Map[String, Double],
+    minLevelRepresentationOfMode: Double,
+    mode: String
+  ): Boolean = {
+    runModeStats.contains(mode) && (runModeStats(mode)
+    - benchmarkData(mode) * minLevelRepresentationOfMode) > 0
+  }
+
+  def compareStatsAbsolutError(
+    benchmarkData: Map[String, Double],
+    runData: Map[String, Double]
+  ): Double = {
+    val res =
+      runData
+        .map({
+          case (k, y_hat) =>
+            val y = benchmarkData(k)
+            Math.abs(y - y_hat)
+        })
+        .sum
+    -res
   }
 
   /**
@@ -38,7 +94,7 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) extends Objectiv
     * @param runData       output values of mode shares given current suggestion.
     * @return the '''negative''' RMSPE value (since we '''maximize''' the objective).
     */
-  def compareStats(
+  def compareStatsRMSPE(
     benchmarkData: Map[String, Double],
     runData: Map[String, Double]
   ): Double = {
@@ -105,4 +161,10 @@ object ModeChoiceObjectiveFunction {
     data_type: String
   )
 
+}
+
+object ErrorComparisonType extends Enumeration {
+
+  val RMSPE, AbsoluteError, AbsoluteErrorWithPreferenceForModeDiversity, AbsoluteErrorWithMinLevelRepresentationOfMode =
+    Value
 }

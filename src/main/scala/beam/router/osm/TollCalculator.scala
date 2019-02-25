@@ -2,190 +2,159 @@ package beam.router.osm
 
 import java.io._
 import java.nio.file.{Files, Path, Paths}
+import java.util
+import java.util.Collections
 
-import beam.router.osm.TollCalculator.{Charge, Toll}
-import com.conveyal.osmlib.OSMEntity.Tag
-import com.conveyal.osmlib.{OSM, Way}
+import beam.router.model.BeamPath
+import beam.router.osm.TollCalculator.Toll
+import beam.sim.common.Range
+import beam.sim.config.BeamConfig
+import com.conveyal.osmlib.OSM
+import com.google.common.collect.Maps
 import com.typesafe.scalalogging.LazyLogging
+import javax.inject.Inject
+import org.apache.commons.collections4.MapUtils
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
+import scala.io.Source
+import scala.util.Try
+import scala.util.control.NonFatal
 
-class TollCalculator(val directory: String) extends LazyLogging {
-  private val dataDirectory: Path = Paths.get(directory)
-  private val cacheFile: File = dataDirectory.resolve("tolls.dat").toFile
+class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
+  import beam.utils.FileUtils._
 
-  /**
-    * agencies is a Map of FareRule by agencyId
-    */
-  val ways: mutable.Map[java.lang.Long, Toll] = if (cacheFile.exists()) {
-    new ObjectInputStream(new FileInputStream(cacheFile))
-      .readObject()
-      .asInstanceOf[mutable.Map[java.lang.Long, Toll]]
-  } else {
-    val ways = fromDirectory(dataDirectory)
-    val stream = new ObjectOutputStream(new FileOutputStream(cacheFile))
-    stream.writeObject(ways)
-    stream.close()
+  private val tollsByLinkId: java.util.Map[Int, Array[Toll]] =
+    readTollPrices(config.beam.agentsim.toll.file)
+  private val tollsByWayId: java.util.Map[Long, Array[Toll]] = readFromCacheFileOrOSM()
+
+  logger.info("tollsByLinkId size: {}", tollsByLinkId.size)
+  logger.info("tollsByWayId size: {}", tollsByWayId.size)
+
+  def calcTollByOsmIds(osmIds: IndexedSeq[Long]): Double = {
+    if (osmIds.isEmpty || tollsByWayId.isEmpty) 0
+    else {
+      osmIds
+        .map(tollsByWayId.get)
+        .filter(toll => toll != null)
+        .map(toll => applyTimeDependentTollAtTime(toll, 0))
+        .sum
+    }
+  }
+
+  def calcTollByLinkIds(path: BeamPath): Double = {
+    val linkEnterTimes = path.linkTravelTime.scanLeft(path.startPoint.time)(_ + _)
+    path.linkIds
+      .zip(linkEnterTimes)
+      .map((calcTollByLinkId _).tupled)
+      .sum
+  }
+
+  def calcTollByLinkId(linkId: Int, time: Int): Double = {
+    val tolls = tollsByLinkId.get(linkId)
+    if (tolls == null) 0
+    else {
+      applyTimeDependentTollAtTime(tolls, time) * config.beam.agentsim.tuning.tollPrice
+    }
+  }
+  private def applyTimeDependentTollAtTime(tolls: Array[Toll], time: Int): Double = {
+    tolls.filter(toll => toll.timeRange.has(time)).map(toll => toll.amount).sum
+  }
+
+  private def readTollPrices(tollPricesFile: String): java.util.Map[Int, Array[Toll]] = {
+    if (Files.exists(Paths.get(tollPricesFile))) {
+      val rowList = Source
+        .fromFile(tollPricesFile)
+        .getLines()
+        .drop(1) // table header
+        .toArray
+        .map(_.split(","))
+        .groupBy(t => t(0).toInt)
+        .map {
+          case (linkId, lines) =>
+            val tollWithRange = lines.map(t => Toll(t(1).toDouble, Range(t(2))))
+            Maps.immutableEntry[Int, Array[Toll]](linkId, tollWithRange)
+        }
+        .toArray
+      MapUtils.putAll(new util.HashMap[Int, Array[Toll]](), rowList.asInstanceOf[Array[AnyRef]])
+    } else {
+      Collections.emptyMap()
+    }
+  }
+
+  def readFromCacheFileOrOSM(): java.util.Map[Long, Array[Toll]] = {
+    val dataDirectory: Path = Paths.get(config.beam.routing.r5.directory)
+    val cacheFile = dataDirectory.resolve("tolls.dat").toFile
+    val chachedWays = if (cacheFile.exists()) {
+      try {
+        using(new ObjectInputStream(new FileInputStream(cacheFile))) { stream =>
+          Some(stream.readObject().asInstanceOf[java.util.Map[Long, Array[Toll]]])
+        }
+      } catch {
+        case NonFatal(ex) =>
+          logger.warn(s"Could not read cached data from '${cacheFile.getAbsolutePath}. Going to re-create cache", ex)
+          Some(readFromDatAndCreateCache(cacheFile))
+      }
+    } else None
+    chachedWays.getOrElse(readFromDatAndCreateCache(cacheFile))
+  }
+
+  def readFromDatAndCreateCache(cacheFile: File): util.Map[Long, Array[Toll]] = {
+    Try(cacheFile.delete())
+    val ways = fromDirectory()
+    using(new ObjectOutputStream(new FileOutputStream(cacheFile))) { stream =>
+      stream.writeObject(ways)
+    }
     ways
   }
 
-  logger.info("Ways keys size: {}", ways.keys.size)
-
-  def fromDirectory(directory: Path): mutable.Map[java.lang.Long, Toll] = {
-    var ways: mutable.Map[java.lang.Long, Toll] = mutable.Map()
-
-    /**
-      * Checks whether its a osm.pbf feed and has fares data.
-      *
-      * @param file specific file to check.
-      * @return true if a valid pbf.
-      */
-    def hasOSM(file: File): Boolean = file.getName.endsWith(".pbf")
-
-    def loadOSM(osmSourceFile: String): Unit = {
-      val dir = new File(osmSourceFile).getParentFile
-
+  def fromDirectory(): java.util.Map[Long, Array[Toll]] = {
+    def loadOSM(osmSourceFile: File): java.util.Map[Long, Array[Toll]] = {
       // Load OSM data into MapDB
+      val dir = osmSourceFile.getParentFile
       val osm = new OSM(new File(dir, "osm.mapdb").getPath)
-      osm.readFromFile(osmSourceFile)
-      ways = readTolls(osm)
+      osm.readFromFile(osmSourceFile.getAbsolutePath)
+
+      val ways = readTolls(osm)
       osm.close()
+      ways
     }
 
-    def readTolls(osm: OSM) = {
-      val ways = osm.ways.asScala.filter(
-        ns =>
-          ns._2.tags != null && ns._2.tags.asScala.exists(
-            t => (t.key == "toll" && t.value != "no") || t.key.startsWith("toll:")
-          ) && ns._2.tags.asScala.exists(_.key == "charge")
-      )
-      //osm.nodes.values().asScala.filter(ns => ns.tags != null && ns.tags.size() > 1 && ns.tags.asScala.exists(t => (t.key == "fee" && t.value == "yes") || t.key == "charge") && ns.tags.asScala.exists(t => t.key == "toll" || (t.key == "barrier" && t.value == "toll_booth")))
-      ways.map(w => (w._1, wayToToll(w._2)))
+    def readTolls(osm: OSM): java.util.Map[Long, Array[Toll]] = {
+      val arr = osm.ways.asScala.toSeq.flatMap {
+        case (id, way) if way.tags != null =>
+          val tolls = way.tags.asScala
+            .find(_.key == "charge")
+            .map(chargeTag => parseTolls(chargeTag.value))
+            .getOrElse(Nil)
+            .toArray
+          if (tolls.nonEmpty) Some(Maps.immutableEntry[Long, Array[Toll]](id, tolls)) else None
+        case _ => None
+      }.toArray
+      MapUtils.putAll(new util.HashMap[Long, Array[Toll]](), arr.asInstanceOf[Array[AnyRef]])
     }
 
-    def wayToToll(w: Way) = {
-      Toll(tagToChange(w.tags.asScala.find(_.key == "charge")))
-    }
-
-    def tagToChange(tag: Option[Tag]) = {
-      Charge(tag.getOrElse(new Tag("", "")).value)
-    }
-
-    if (Files.isDirectory(directory)) {
-      directory.toFile.listFiles(hasOSM(_)).map(_.getAbsolutePath).headOption.foreach(loadOSM)
-    }
-
-    ways
+    Paths
+      .get(config.beam.routing.r5.directory)
+      .toFile
+      .listFiles(_.getName.endsWith(".pbf"))
+      .headOption
+      .map(loadOSM)
+      .getOrElse(Collections.emptyMap())
   }
 
-  var maxOsmIdsLen: Long = Long.MinValue
-
-  def calcToll(osmIds: Vector[Long]): Double = {
-    if (osmIds.length > maxOsmIdsLen) {
-      maxOsmIdsLen = osmIds.length
-      logger.debug("Max OsmIDS encountered: {}", maxOsmIdsLen)
-    }
-    // TODO: Do we need faster lookup like hashset
-    // TODO OSM data has no fee information, so using $1 as min toll, need to change with valid toll price
-    ways.view.filter(w => osmIds.contains(w._1)).map(_._2.charges.map(_.amount).sum).sum
+  private def parseTolls(charge: String): Seq[Toll] = {
+    charge
+      .split(";")
+      .flatMap(c => {
+        c.split(" ")
+          .headOption
+          .flatMap(token => try { Some(token.toDouble) } catch { case _: Throwable => None })
+          .flatMap(token => Some(Toll(token, Range("[:]"))))
+      })
   }
 
-  def main(args: Array[String]): Unit = {
-    fromDirectory(Paths.get(args(0)))
-  }
 }
 
 object TollCalculator {
-
-  val MIN_TOLL = 1.0
-
-  case class Toll(
-    charges: Vector[Charge],
-    vehicleTypes: Set[String] = Set(),
-    isExclusionType: Boolean = false
-  )
-
-  case class Charge(
-    amount: Double,
-    currency: String,
-    item: String = "",
-    timeUnit: Option[String] = None,
-    dates: Vector[ChargeDate] = Vector()
-  )
-
-  object Charge {
-
-    def apply(charge: String): Vector[Charge] = {
-      charge
-        .split(";")
-        .map(c => {
-          val tokens = c.split(" ")
-          val tts = tokens.length
-          if (tts >= 2) {
-            val sfxTokens = tokens(tts - 1).split("/")
-
-            new Charge(
-              tokens(tts - 2).toDouble,
-              sfxTokens(0),
-              sfxTokens(1),
-              if (sfxTokens.length == 3) Option(sfxTokens(2)) else None,
-              tts match {
-                case 2 => Vector()
-                case 3 => Vector(ChargeDate.apply(tokens(0)))
-                case 4 => Vector(ChargeDate.apply(tokens(0)), ChargeDate.apply(tokens(1)))
-                case 5 =>
-                  Vector(
-                    ChargeDate.apply(tokens(0)),
-                    ChargeDate.apply(tokens(1)),
-                    ChargeDate.apply(tokens(2))
-                  )
-              }
-            )
-          } else empty
-        })
-        .toVector
-    }
-
-    def empty: Charge = {
-      Charge(0.0, "USD")
-    }
-  }
-
-  trait ChargeDate {
-    val dType: String
-    val on: String
-  }
-
-  case class DiscreteDate(override val dType: String, override val on: String) extends ChargeDate
-
-  case class DateRange(override val dType: String, override val on: String, till: String) extends ChargeDate
-
-  object ChargeDate {
-    private val months =
-      Set("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
-    private val days = Set("mo", "tu", "we", "th", "fr", "sa", "su")
-    private val events = Set("dawn", "sunrise", "sunset", "dusk")
-
-    def apply(pattern: String): ChargeDate = {
-      val dateTokens = pattern.split("-")
-      val dType = if (isMonth(dateTokens(0))) {
-        "m"
-      } else if (isDay(dateTokens(0))) {
-        "d"
-      } else if (isHour(dateTokens(0))) {
-        "h"
-      } else {
-        "y"
-      }
-      if (dateTokens.length == 1) DiscreteDate(dType, dateTokens(0))
-      else DateRange(dType, dateTokens(0), dateTokens(1))
-    }
-
-    def isMonth(m: String): Boolean = months.contains(m.toLowerCase)
-
-    def isDay(d: String): Boolean = days.contains(d.toLowerCase)
-
-    def isHour(h: String): Boolean = h.contains(":") || events.exists(h.contains)
-  }
+  case class Toll(amount: Double, timeRange: Range) extends Serializable
 }

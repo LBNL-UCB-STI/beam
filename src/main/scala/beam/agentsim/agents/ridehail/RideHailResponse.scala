@@ -3,6 +3,9 @@ package beam.agentsim.agents.ridehail
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
+import beam.agentsim.scheduler.Trigger
+
+case object DelayedRideHailResponse
 
 case class RideHailResponse(
   request: RideHailRequest,
@@ -10,9 +13,11 @@ case class RideHailResponse(
   error: Option[ReservationError] = None,
   triggersToSchedule: Vector[ScheduleTrigger] = Vector()
 ) {
-  override def toString(): String =
-    s"request: ${request}, error: ${error}, travelProposal: ${travelProposal}"
+  override def toString: String =
+    s"RideHailResponse(request: $request, error: $error, travelProposal: $travelProposal)"
 }
+
+case class RideHailResponseTrigger(tick: Int, rideHailResponse: RideHailResponse) extends Trigger
 
 object RideHailResponse {
   val DUMMY = RideHailResponse(RideHailRequest.DUMMY, None, None)

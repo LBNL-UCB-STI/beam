@@ -29,10 +29,6 @@
         <appender-ref ref="STDOUT"/>
     </logger>
 
-    <Logger name="com.conveyal.r5" level="ERROR" additivity="false">
-        <appender-ref ref="STDOUT"/>
-    </Logger>
-
     <Logger name="org.reflections" level="ERROR" additivity="false">
         <appender-ref ref="STDOUT"/>
     </Logger>
@@ -41,9 +37,11 @@
         <appender-ref ref="STDOUT"/>
     </Logger>
 
-    <Logger name="beam.router.r5.R5RoutingWorker " level="error" additivity="false">
+    <Logger name="beam.router.r5.R5RoutingWorker" level="INFO" additivity="false">
         <appender-ref ref="STDOUT"/>
     </Logger>
+    <!--<Logger name="beam.agentsim.agents.vehicles.BeamVehicle" level="error" additivity="false">-->
+        <!--<appender-ref ref="STDOUT"/>-->
 
     <!--<Logger name="beam.agentsim.agents.PersonAgent" level="error" additivity="false">-->
         <!--<appender-ref ref="STDOUT"/>-->
@@ -84,6 +82,10 @@
     <Logger name="beam.calibration" level="Info" additivity="false">
         <appender-ref ref="STDOUT"/>
 
+    </Logger>
+
+    <Logger name="beam.router.BeamRouter" level="ERROR" additivity="false">
+        <appender-ref ref="STDOUT"/>
     </Logger>
 
 </configuration>

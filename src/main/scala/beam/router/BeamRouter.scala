@@ -4,39 +4,55 @@ import java.time.{ZoneOffset, ZonedDateTime}
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
-import akka.actor.Status.Success
-import akka.actor.{Actor, ActorLogging, ActorRef, Address, Props, RelativeActorPath, RootActorPath, Stash}
+import akka.actor.Status.{Status, Success}
+import akka.actor.{
+  Actor,
+  ActorLogging,
+  ActorRef,
+  Address,
+  Cancellable,
+  ExtendedActorSystem,
+  Props,
+  RelativeActorPath,
+  RootActorPath,
+  Stash
+}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
-import beam.router.RoutingModel._
 import beam.router.gtfs.FareCalculator
+import beam.router.model._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
-import beam.sim.{BeamServices, TransitInitializer}
-import beam.sim.metrics.MetricsPrinter
-import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
+import beam.sim.BeamServices
+import beam.sim.population.AttributesOfIndividual
+import beam.utils.IdGeneratorImpl
+import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
+import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
-import scala.concurrent.{Await, Future}
+import scala.collection.{immutable, mutable}
 import scala.concurrent.duration._
-import scala.collection.mutable
+import scala.concurrent.{Await, ExecutionContextExecutor, Future}
+import scala.util.Try
 
 class BeamRouter(
   services: BeamServices,
   transportNetwork: TransportNetwork,
   network: Network,
+  scenario: Scenario,
   eventsManager: EventsManager,
   transitVehicles: Vehicles,
   fareCalculator: FareCalculator,
@@ -47,12 +63,12 @@ class BeamRouter(
   type Worker = ActorRef
   type OriginalSender = ActorRef
   type WorkWithOriginalSender = (Any, OriginalSender)
-  type WorkId = UUID
+  type WorkId = Int
   type TimeSent = ZonedDateTime
 
-  val clearRoutedOutstandingWorkEnabled = services.beamConfig.beam.debug.clearRoutedOutstandingWorkEnabled
+  val clearRoutedOutstandingWorkEnabled: Boolean = services.beamConfig.beam.debug.clearRoutedOutstandingWorkEnabled
 
-  val secondsToWaitToClearRoutedOutstandingWork =
+  val secondsToWaitToClearRoutedOutstandingWork: Int =
     services.beamConfig.beam.debug.secondsToWaitToClearRoutedOutstandingWork
 
   val availableWorkWithOriginalSender: mutable.Queue[WorkWithOriginalSender] =
@@ -71,10 +87,10 @@ class BeamRouter(
   // TODO Fix me!
   val servicePath = "/user/statsServiceProxy"
 
-  val clusterOption =
+  val clusterOption: Option[Cluster] =
     if (services.beamConfig.beam.cluster.enabled) Some(Cluster(context.system)) else None
 
-  val servicePathElements = servicePath match {
+  val servicePathElements: immutable.Seq[String] = servicePath match {
     case RelativeActorPath(elements) => elements
     case _ =>
       throw new IllegalArgumentException(
@@ -84,7 +100,7 @@ class BeamRouter(
 
   var remoteNodes = Set.empty[Address]
   var localNodes = Set.empty[ActorRef]
-  implicit val ex = context.system.dispatcher
+  implicit val ex: ExecutionContextExecutor = context.system.dispatcher
   log.info("BeamRouter: {}", self.path)
 
   override def preStart(): Unit = {
@@ -93,16 +109,25 @@ class BeamRouter(
 
   override def postStop(): Unit = {
     clusterOption.foreach(_.unsubscribe(self))
+    tickTask.cancel()
   }
 
   val tick = "work-pull-tick"
 
-  val tickTask =
+  val tickTask: Cancellable =
     context.system.scheduler.schedule(10.seconds, 30.seconds, self, tick)(context.dispatcher)
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  private val config = services.beamConfig.beam.routing
+  // TODO FIX ME
+  val travelTimeAndCost = new TravelTimeAndCost {
+    override def overrideTravelTimeAndCostFor(
+      origin: Location,
+      destination: Location,
+      departureTime: Int,
+      mode: BeamMode
+    ): TimeAndCost = TimeAndCost(None, None)
+  }
 
   if (services.beamConfig.beam.useLocalWorker) {
     val localWorker = context.actorOf(
@@ -110,9 +135,11 @@ class BeamRouter(
         services,
         transportNetwork,
         network,
+        scenario,
         fareCalculator,
         tollCalculator,
-        transitVehicles
+        transitVehicles,
+        travelTimeAndCost
       ),
       "router-worker"
     )
@@ -120,67 +147,57 @@ class BeamRouter(
     //TODO: Add Deathwatch to remove node
   }
 
-  private val metricsPrinter = context.actorOf(MetricsPrinter.props())
-  private var numStopsNotFound = 0
+  private var traveTimeOpt: Option[TravelTime] = None
+
+  val kryoSerializer = new KryoSerializer(context.system.asInstanceOf[ExtendedActorSystem])
+
+  private val updateTravelTimeTimeout: Timeout = Timeout(3, TimeUnit.MINUTES)
 
   override def receive: PartialFunction[Any, Unit] = {
     case `tick` =>
-      if (isWorkAndNoAvailableWorkers) notifyWorkersOfAvailableWork
+      if (isWorkAndNoAvailableWorkers) notifyWorkersOfAvailableWork()
       logExcessiveOutstandingWorkAndClearIfEnabledAndOver
-    case InitTransit(scheduler, parkingManager, id) =>
-      // We have to send TransitInited as Broadcast because our R5RoutingWorker is stateful!
-      val f = Future
-        .sequence(
-          remoteNodes.map {
-            case address =>
-              context
-                .actorSelection(RootActorPath(address) / servicePathElements)
-                .resolveOne(10.seconds)
-                .flatMap { serviceActor: ActorRef =>
-                  log.info("Sending InitTransit to  {}", serviceActor)
-                  serviceActor ? InitTransit(scheduler, parkingManager, id)
-                }
-          } + Future {
-            val initializer = new TransitInitializer(services, transportNetwork, transitVehicles)
-            val transits = initializer.initMap
-            initDriverAgents(initializer, scheduler, parkingManager, transits)
-            metricsPrinter ! Subscribe("histogram", "**")
-            localNodes.map {
-              case localWorker => {
-                localWorker ! TransitInited(transits)
-              }
-            }
-          }
-        )
-        .map { _ =>
-          Success("success")
-        }
-      f.pipeTo(sender)
-    case msg: UpdateTravelTime =>
-      if (!services.beamConfig.beam.cluster.enabled) {
-        metricsPrinter ! Print(
-          Seq(
-            "cache-router-time",
-            "noncache-router-time",
-            "noncache-transit-router-time",
-            "noncache-nontransit-router-time"
-          ),
-          Nil
-        )
-        remoteNodes.foreach(address => {
-          val remoteWorker = Await.result(workerFrom(address).resolveOne, 60.seconds)
-          remoteWorker.forward(msg)
-        })
-        localNodes.foreach(_.forward(msg))
+    case t: TryToSerialize =>
+      if (log.isDebugEnabled) {
+        val byteArray = kryoSerializer.toBinary(t)
+        log.debug("TryToSerialize size in bytes: {}, MBytes: {}", byteArray.size, byteArray.size.toDouble / 1024 / 1024)
       }
+    case msg: UpdateTravelTimeLocal =>
+      traveTimeOpt = Some(msg.travelTime)
+      localNodes.foreach(_.forward(msg))
+    case UpdateTravelTimeRemote(map) =>
+      val nodes = remoteNodes
+      nodes.foreach { address =>
+        resolveAddressBlocking(address).foreach { serviceActor =>
+          log.info("Sending UpdateTravelTime_v2 to  {}", serviceActor)
+          serviceActor.ask(UpdateTravelTimeRemote(map))(updateTravelTimeTimeout)
+        }
+      }
+    case InitTransit(scheduler, parkingManager, _) =>
+      val localInit: Future[Set[Status]] = Future {
+        val initializer =
+          new TransitInitializer(services, transportNetwork, transitVehicles, BeamRouter.oneSecondTravelTime)
+        val transits = initializer.initMap
+        initDriverAgents(initializer, scheduler, parkingManager, transits)
+        localNodes.map { localWorker =>
+          localWorker ! TransitInited(transits)
+          Success(s"local worker '$localWorker' inited")
+        }
+      }
+      localInit.pipeTo(sender)
     case GetMatSimNetwork =>
       sender ! MATSimNetwork(network)
+    case GetTravelTime =>
+      traveTimeOpt match {
+        case Some(travelTime) => sender ! UpdateTravelTimeLocal(travelTime)
+        case None             => sender ! R5Network(transportNetwork)
+      }
     case state: CurrentClusterState =>
       log.info("CurrentClusterState: {}", state)
       remoteNodes = state.members.collect {
         case m if m.hasRole("compute") && m.status == MemberStatus.Up => m.address
       }
-      if (isWorkAvailable) notifyWorkersOfAvailableWork
+      if (isWorkAvailable) notifyWorkersOfAvailableWork()
     case MemberUp(m) if m.hasRole("compute") =>
       log.info("MemberUp[compute]: {}", m)
       remoteNodes += m.address
@@ -219,14 +236,14 @@ class BeamRouter(
       val originalSender = context.sender
       if (!isWorkAvailable) { //No existing work
         if (!isWorkerAvailable) {
-          notifyWorkersOfAvailableWork
+          notifyWorkersOfAvailableWork()
           availableWorkWithOriginalSender.enqueue((work, originalSender))
         } else {
-          val worker: Worker = removeAndReturnFirstAvailableWorker
+          val worker: Worker = removeAndReturnFirstAvailableWorker()
           sendWorkTo(worker, work, originalSender, "Receive CatchAll")
         }
       } else { //Use existing work first
-        if (!isWorkerAvailable) notifyWorkersOfAvailableWork //Shouldn't need this but it should be relatively idempotent
+        if (!isWorkerAvailable) notifyWorkersOfAvailableWork() //Shouldn't need this but it should be relatively idempotent
         availableWorkWithOriginalSender.enqueue((work, originalSender))
       }
   }
@@ -238,7 +255,7 @@ class BeamRouter(
   private def isWorkAndNoAvailableWorkers: Boolean =
     isWorkAvailable && !isWorkerAvailable
 
-  private def notifyWorkersOfAvailableWork: Unit = {
+  private def notifyWorkersOfAvailableWork(): Unit = {
     remoteNodes.foreach(workerAddress => workerFrom(workerAddress) ! WorkAvailable)
     localNodes.foreach(_ ! WorkAvailable)
   }
@@ -251,7 +268,7 @@ class BeamRouter(
   private def logExcessiveOutstandingWorkAndClearIfEnabledAndOver = Future {
     val currentTime = getCurrentTime
     outstandingWorkIdToTimeSent.collect {
-      case (workId: WorkId, timeSent: TimeSent) => {
+      case (workId: WorkId, timeSent: TimeSent) =>
         val secondsSinceSent = timeSent.until(currentTime, java.time.temporal.ChronoUnit.SECONDS)
         if (clearRoutedOutstandingWorkEnabled && secondsSinceSent > secondsToWaitToClearRoutedOutstandingWork) {
           //TODO: Can the logs be combined?
@@ -269,7 +286,6 @@ class BeamRouter(
             workId,
             secondsSinceSent
           )
-      }
     }
   }
 
@@ -284,7 +300,7 @@ class BeamRouter(
   private def notifyNewWorkerIfWorkAvailable(
     workerAddress: => Address,
     receivePath: => String
-  ) = {
+  ): Unit = {
     if (isWorkAvailable) {
       val worker = workerFrom(workerAddress)
       log.debug("Sending WorkAvailable via {}: {}", receivePath, worker)
@@ -297,20 +313,20 @@ class BeamRouter(
     work: Any,
     originalSender: OriginalSender,
     receivePath: => String
-  ) = {
+  ): Unit = {
     work match {
       case routingRequest: RoutingRequest =>
-        outstandingWorkIdToOriginalSenderMap.put(routingRequest.staticRequestId, originalSender) //TODO: Add a central Id trait so can just match on that and combine logic
-        outstandingWorkIdToTimeSent.put(routingRequest.staticRequestId, getCurrentTime)
+        outstandingWorkIdToOriginalSenderMap.put(routingRequest.requestId, originalSender) //TODO: Add a central Id trait so can just match on that and combine logic
+        outstandingWorkIdToTimeSent.put(routingRequest.requestId, getCurrentTime)
         worker ! work
       case embodyWithCurrentTravelTime: EmbodyWithCurrentTravelTime =>
         outstandingWorkIdToOriginalSenderMap.put(
-          embodyWithCurrentTravelTime.id,
+          embodyWithCurrentTravelTime.requestId,
           originalSender
         )
-        outstandingWorkIdToTimeSent.put(embodyWithCurrentTravelTime.id, getCurrentTime)
+        outstandingWorkIdToTimeSent.put(embodyWithCurrentTravelTime.requestId, getCurrentTime)
         worker ! work
-      case otherWork =>
+      case _ =>
         log.warning(
           "Forwarding work via {} instead of telling because it isn't a handled type - {}",
           receivePath,
@@ -320,65 +336,86 @@ class BeamRouter(
     }
   }
 
-  private def pipeResponseToOriginalSender(routingResp: RoutingResponse) =
-    outstandingWorkIdToOriginalSenderMap.remove(routingResp.staticRequestId) match {
+  private def pipeResponseToOriginalSender(routingResp: RoutingResponse): Unit =
+    outstandingWorkIdToOriginalSenderMap.remove(routingResp.requestId) match {
       case Some(originalSender) => originalSender ! routingResp
       case None =>
         log.error(
           "Received a RoutingResponse that does not match a tracked WorkId: {}",
-          routingResp.staticRequestId
+          routingResp.requestId
         )
     }
 
-  private def logIfResponseTookExcessiveTime(routingResp: RoutingResponse) =
-    outstandingWorkIdToTimeSent.remove(routingResp.staticRequestId) match {
+  private def logIfResponseTookExcessiveTime(routingResp: RoutingResponse): Unit =
+    outstandingWorkIdToTimeSent.remove(routingResp.requestId) match {
       case Some(timeSent) =>
         val secondsSinceSent = timeSent.until(getCurrentTime, java.time.temporal.ChronoUnit.SECONDS)
         if (secondsSinceSent > 30)
           log.warning(
             "Took longer than 30 seconds to hear back from work id '{}' - {} seconds",
-            routingResp.staticRequestId,
+            routingResp.requestId,
             secondsSinceSent
           )
       case None => //No matching id. No need to log since this is more for analysis
     }
 
-  private def removeAndReturnFirstAvailableWorker: Worker = {
+  private def removeAndReturnFirstAvailableWorker(): Worker = {
     val worker = availableWorkers.head
     availableWorkers.remove(worker)
     worker
   }
 
-  private def removeOutstandingWorkBy(workId: UUID): Unit = {
+  private def removeOutstandingWorkBy(workId: Int): Unit = {
     outstandingWorkIdToOriginalSenderMap.remove(workId)
     outstandingWorkIdToTimeSent.remove(workId)
+  }
+
+  private def resolveAddressBlocking(addr: Address, d: FiniteDuration = 60.seconds): Option[ActorRef] = {
+    Try(Await.result(resolveAddress(addr, d), d)).recover {
+      case t: Throwable =>
+        log.error(t, "resolveAddressBlocking failed to resolve '{}' in {}: {}", addr, d, t.getMessage)
+        None
+    }.get
+  }
+
+  private def resolveAddress(addr: Address, duration: FiniteDuration = 60.seconds): Future[Option[ActorRef]] = {
+    workerFrom(addr)
+      .resolveOne(duration)
+      .map { r =>
+        Option(r)
+      }
+      .recover {
+        case t: Throwable =>
+          log.error(t, "Can't resolve '{}': {}", addr, t.getMessage)
+          None
+      }
   }
 
   private def initDriverAgents(
     initializer: TransitInitializer,
     scheduler: ActorRef,
     parkingManager: ActorRef,
-    transits: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])]
+    transits: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])]
   ): Unit = {
     transits.foreach {
       case (tripVehId, (route, legs)) =>
         initializer.createTransitVehicle(tripVehId, route, legs).foreach { vehicle =>
-          services.vehicles += (tripVehId -> vehicle)
-          val transitDriverId =
-            TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
+          services.agencyAndRouteByVehicleIds += (Id
+            .createVehicleId(tripVehId.toString) -> (route.agency_id, route.route_id))
+          val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
           val transitDriverAgentProps = TransitDriverAgent.props(
             scheduler,
             services,
             transportNetwork,
+            tollCalculator,
             eventsManager,
             parkingManager,
             transitDriverId,
             vehicle,
             legs
           )
-          val transitDriver =
-            context.actorOf(transitDriverAgentProps, transitDriverId.toString)
-          scheduler ! ScheduleTrigger(InitializeTrigger(0.0), transitDriver)
+          val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
+          scheduler ! ScheduleTrigger(InitializeTrigger(0), transitDriver)
         }
     }
   }
@@ -387,41 +424,46 @@ class BeamRouter(
 object BeamRouter {
   type Location = Coord
 
-  case class ClearRoutedWorkerTracker(workIdToClear: UUID)
+  case class ClearRoutedWorkerTracker(workIdToClear: Int)
   case class InitTransit(scheduler: ActorRef, parkingManager: ActorRef, id: UUID = UUID.randomUUID())
-  case class TransitInited(transitSchedule: Map[Id[Vehicle], (RouteInfo, Seq[BeamLeg])])
+  case class TransitInited(transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])])
   case class EmbodyWithCurrentTravelTime(
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
-    id: UUID = UUID.randomUUID()
+    vehicleTypeId: Id[BeamVehicleType],
+    requestId: Int = IdGeneratorImpl.nextId
   )
-  case class UpdateTravelTime(travelTime: TravelTime)
+  case class UpdateTravelTimeLocal(travelTime: TravelTime)
   case class R5Network(transportNetwork: TransportNetwork)
   case object GetTravelTime
   case class MATSimNetwork(network: Network)
   case object GetMatSimNetwork
 
+  case class TryToSerialize(obj: Object)
+  case class UpdateTravelTimeRemote(linkIdToTravelTimePerHour: java.util.Map[String, Array[Double]])
+
   /**
     * It is use to represent a request object
     *
-    * @param origin                 start/from location of the route
-    * @param destination            end/to location of the route
+    * @param originUTM                 start/from location of the route
+    * @param destinationUTM            end/to location of the route
     * @param departureTime          time in seconds from base midnight
     * @param transitModes           what transit modes should be considered
     * @param streetVehicles         what vehicles should be considered in route calc
     * @param streetVehiclesUseIntermodalUse boolean (default true), if false, the vehicles considered for use on egress
     */
   case class RoutingRequest(
-    origin: Location,
-    destination: Location,
-    departureTime: BeamTime,
+    originUTM: Location,
+    destinationUTM: Location,
+    departureTime: Int,
     transitModes: IndexedSeq[BeamMode],
     streetVehicles: IndexedSeq[StreetVehicle],
+    attributesOfIndividual: Option[AttributesOfIndividual] = None,
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
-    mustParkAtEnd: Boolean = false
+    requestId: Int = IdGeneratorImpl.nextId
   ) {
-    lazy val requestId: Int = this.hashCode()
-    lazy val staticRequestId: UUID = UUID.randomUUID()
+    lazy val timeValueOfMoney
+      : Double = attributesOfIndividual.fold(360.0)(3600.0 / _.valueOfTime) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
   }
 
   sealed trait IntermodalUse
@@ -436,34 +478,67 @@ object BeamRouter {
     */
   case class RoutingResponse(
     itineraries: Seq[EmbodiedBeamTrip],
-    staticRequestId: UUID,
-    requestId: Option[Int] = None
-  ) {
-    lazy val responseId: UUID = UUID.randomUUID()
+    requestId: Int
+  )
+
+  object RoutingResponse {
+    val dummyRoutingResponse = Some(RoutingResponse(Vector(), IdGeneratorImpl.nextId))
   }
 
   def props(
     beamServices: BeamServices,
     transportNetwork: TransportNetwork,
     network: Network,
+    scenario: Scenario,
     eventsManager: EventsManager,
     transitVehicles: Vehicles,
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator
-  ) =
+  ) = {
+    checkForConsistentTimeZoneOffsets(beamServices, transportNetwork)
+
     Props(
       new BeamRouter(
         beamServices,
         transportNetwork,
         network,
+        scenario,
         eventsManager,
         transitVehicles,
         fareCalculator,
         tollCalculator
       )
     )
+  }
+
+  def checkForConsistentTimeZoneOffsets(beamServices: BeamServices, transportNetwork: TransportNetwork) = {
+    if (beamServices.dates.zonedBaseDateTime.getOffset != transportNetwork.getTimeZone.getRules.getOffset(
+          beamServices.dates.localBaseDateTime
+        )) {
+      throw new RuntimeException(
+        s"Time Zone Mismatch\n\n" +
+        s"\tZone offset inferred by R5: ${transportNetwork.getTimeZone.getRules.getOffset(beamServices.dates.localBaseDateTime)}\n" +
+        s"\tZone offset specified in Beam config file: ${beamServices.dates.zonedBaseDateTime.getOffset}\n\n" +
+        "Detailed Explanation:\n\n" +
+        "There is a subtle requirement in BEAM related to timezones that is easy to miss and cause problems.\n\n" +
+        "BEAM uses the R5 router, which was designed as a stand-alone service either for doing accessibility analysis or as a point to point trip planner. R5 was designed with public transit at the top of the developers’ minds, so they infer the time zone of the region being modeled from the 'timezone' field in the 'agency.txt' file in the first GTFS data archive that is parsed during the network building process.\n\n" +
+        "Therefore, if no GTFS data is provided to R5, it cannot infer the locate timezone and it then assumes UTC.\n\n" +
+        "Meanwhile, there is a parameter in beam, 'beam.routing.baseDate' that is used to ensure that routing requests to R5 are send with the appropriate timestamp. This allows you to run BEAM using any sub-schedule in your GTFS archive. I.e. if your base date is a weekday, R5 will use the weekday schedules for transit, if it’s a weekend day, then the weekend schedules will be used.\n\n" +
+        "The time zone in the baseDate parameter (e.g. for PST one might use '2016-10-17T00:00:00-07:00') must match the time zone in the GTFS archive(s) provided to R5.\n\n" +
+        "As a default, we provide a 'dummy' GTFS data archive that is literally empty of any transit schedules, but is still a valid GTFS archive. This archive happens to have a time zone of Los Angeles. You can download a copy of this archive here:\n\n" +
+        "https://www.dropbox.com/s/2tfbhxuvmep7wf7/dummy.zip?dl=1\n\n" +
+        "But in general, if you use your own GTFS data for your region, then you may need to change this baseDate parameter to reflect the local time zone there. Look for the 'timezone' field in the 'agency.txt' data file in the GTFS archive.\n\n" +
+        "The date specified by the baseDate parameter must fall within the schedule of all GTFS archives included in the R5 sub-directory. See the 'calendar.txt' data file in the GTFS archive and make sure your baseDate is within the 'start_date' and 'end_date' fields folder across all GTFS inputs. If this is not the case, you can either change baseDate or you can change the GTFS data, expanding the date ranges… the particular dates chosen are arbitrary and will have no other impact on the simulation results.\n\n" +
+        "One more word of caution. If you make changes to GTFS data, then make sure your properly zip the data back into an archive. You do this by selecting all of the individual text files and then right-click-compress. Do not compress the folder containing the GTFS files, if you do this, R5 will fail to read your data and will do so without any warning or errors.\n\n" +
+        "Finally, any time you make a changes to either the GTFS inputs or the OSM network inputs, then you need to delete the file 'network.dat' under the 'r5' sub-directory. This will signal to the R5 library to re-build the network."
+      )
+    }
+
+  }
 
   sealed trait WorkMessage
   case object GimmeWork extends WorkMessage
   case object WorkAvailable extends WorkMessage
+
+  def oneSecondTravelTime(a: Int, b: Int, c: StreetMode) = 1
 }

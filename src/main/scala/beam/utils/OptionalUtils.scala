@@ -7,6 +7,8 @@ object OptionalUtils {
     * Conversions between Scala Option and Java 8 Optional.
     */
   object JavaOptionals {
+    import scala.language.implicitConversions
+
     implicit def toRichOption[T](opt: Option[T]): RichOption[T] = new RichOption[T](opt)
     implicit def toRichOptional[T](optional: Optional[T]): RichOptional[T] =
       new RichOptional[T](optional)

@@ -9,7 +9,6 @@ import com.hubspot.jinjava.Jinjava
 import com.typesafe.config.{ConfigFactory, ConfigRenderOptions}
 import org.apache.commons.io.IOUtils
 import org.apache.commons.lang.SystemUtils
-import org.yaml.snakeyaml.constructor.Constructor
 
 import scala.collection.JavaConverters._
 
@@ -22,11 +21,10 @@ import scala.collection.JavaConverters._
   * This generator will create sub-directories relatively to experiments.yml
   *
   */
-object ExperimentGenerator extends App {
+object ExperimentGenerator extends ExperimentApp {
+  import beam.experiment.ExperimentApp
 
-  val ExperimentsParamName = "experiments"
-
-  def validateExperimentConfig(experiment: ExperimentDef): Unit = {
+  override def validateExperimentConfig(experiment: ExperimentDef): Unit = {
     if (!Files.exists(Paths.get(experiment.header.beamTemplateConfPath))) {
       throw new IllegalArgumentException(
         s"Can't locate base beam config experimentFile at ${experiment.header.beamTemplateConfPath}"
@@ -41,84 +39,27 @@ object ExperimentGenerator extends App {
     }
   }
 
-  def parseArgs(args: Array[String]) = {
-
-    args
-      .sliding(2, 1)
-      .toList
-      .collect {
-        case Array("--experiments", filePath: String) if filePath.trim.nonEmpty =>
-          (ExperimentsParamName, filePath)
-        case arg @ _ =>
-          throw new IllegalArgumentException(arg.mkString(" "))
-      }
-      .toMap
-  }
-
-  def getExperimentPath = {
-    Paths.get(experimentFile.getParent.toString, "runs")
+  def getExperimentPath(): Path = {
+    Paths.get(experimentPath.getParent.toString, "runs")
   }
 
   def getBatchRunScriptPath = {
     Paths.get(getExperimentPath.toString, "batchRunExperiment.sh")
   }
 
-  val projectRoot: Path = {
-    if (System.getenv("BEAM_ROOT") != null) {
-      Paths.get(System.getenv("BEAM_ROOT"))
-    } else {
-      Paths.get("./").toAbsolutePath.getParent
-    }
-  }
-
-  val argsMap = parseArgs(args)
-
-  if (argsMap.get(ExperimentsParamName).isEmpty) {
-    throw new IllegalArgumentException(s"$ExperimentsParamName param is missing")
-  }
-  val experimentFile: Path = new File(argsMap(ExperimentsParamName)).toPath.toAbsolutePath
-  if (!Files.exists(experimentFile)) {
-    throw new IllegalArgumentException(s"$ExperimentsParamName file is missing: $experimentFile")
-  }
-
-  val experiment: ExperimentDef = loadExperimentDefs(experimentFile.toFile)
-
-  def loadExperimentDefs(file: File) = {
-    import org.yaml.snakeyaml.{TypeDescription, Yaml}
-    val constructor = new Constructor(classOf[ExperimentDef])
-    //Experiment.class is root
-    val experimentDescription = new TypeDescription(classOf[ExperimentDef])
-    experimentDescription.putListPropertyType("factors", classOf[Factor])
-    constructor.addTypeDescription(experimentDescription)
-    val factorsDescription = new TypeDescription(classOf[Factor])
-    factorsDescription.putListPropertyType("levels", classOf[Level])
-    constructor.addTypeDescription(factorsDescription)
-    val levelDesc = new TypeDescription(classOf[Level])
-    //levelDesc.putMapPropertyType("params", classOf[String], classOf[Any])
-    constructor.addTypeDescription(levelDesc)
-    val baseScenarioDesc = new TypeDescription(classOf[BaseScenario])
-    factorsDescription.putListPropertyType("baseScenario", classOf[BaseScenario])
-    constructor.addTypeDescription(baseScenarioDesc)
-    val yaml = new Yaml(constructor)
-    val experiment = yaml.loadAs(new FileInputStream(file), classOf[ExperimentDef])
-    experiment
-  }
-
-  validateExperimentConfig(experiment)
-
-  val baseConfig = ConfigFactory.parseFile(Paths.get(experiment.header.beamTemplateConfPath).toFile)
-  val experimentVariations = experiment.combinationsOfLevels()
+  val baseConfig = ConfigFactory.parseFile(Paths.get(experimentDef.header.beamTemplateConfPath).toFile)
+  val experimentVariations = experimentDef.combinationsOfLevels()
 
   val experimentRuns = experimentVariations.map { run =>
-    ExperimentRunSandbox(projectRoot, experimentFile.getParent, experiment, run, baseConfig)
+    ExperimentRunSandbox(experimentPath.getParent, experimentDef, run, baseConfig)
   }
 
   val modeChoiceTemplate = Resources.toString(
-    Paths.get(experiment.header.modeChoiceTemplate).toAbsolutePath.toUri.toURL,
+    Paths.get(experimentDef.header.modeChoiceTemplate).toAbsolutePath.toUri.toURL,
     Charsets.UTF_8
   )
-  val runScriptTemplate = experiment.getRunScriptTemplate
-  val batchScriptTemplate = experiment.getBatchRunScriptTemplate
+  val runScriptTemplate = experimentDef.getRunScriptTemplate
+  val batchScriptTemplate = experimentDef.getBatchRunScriptTemplate
   val jinjava = new Jinjava()
 
   experimentRuns.foreach { runSandbox =>
@@ -127,7 +68,7 @@ object ExperimentGenerator extends App {
       "BEAM_OUTPUT_PATH" -> runSandbox.beamOutputDir.toString
       //      ,
       //      "BEAM_SHARED_INPUT" -> runSandbox.beamOutputDir.toString
-    ) ++ experiment.header.params.asScala ++ runSandbox.experimentRun.params
+    ) ++ experimentDef.header.deployParams.asScala ++ runSandbox.experimentRun.params
 
     /*
      * Write the config file
@@ -167,7 +108,7 @@ object ExperimentGenerator extends App {
     /*
      * Optionally write the mode choice params file
      */
-    experiment.header.modeChoiceTemplate.toString match {
+    experimentDef.header.modeChoiceTemplate.toString match {
       case "" =>
         // Do nothing since modeChoiceParams wasn't specified in experiment.yaml file
         ""
@@ -191,8 +132,8 @@ object ExperimentGenerator extends App {
    * Write a shell script designed to run the batch locally
    */
   val templateParams = Map(
-    "EXPERIMENT_PATH" -> getExperimentPath.toString,
-  ) ++ experiment.defaultParams.asScala
+    "EXPERIMENT_PATH" -> getExperimentPath().toString,
+  ) ++ experimentDef.defaultParams.asScala
   val batchRunWriter = new BufferedWriter(new FileWriter(getBatchRunScriptPath.toFile, false))
   try {
     val renderedTemplate = jinjava.render(batchScriptTemplate, templateParams.asJava)
@@ -205,10 +146,10 @@ object ExperimentGenerator extends App {
     Runtime.getRuntime.exec(s"chmod +x ${getBatchRunScriptPath.toString}")
   }
 
-  val dynamicParamsPerFactor = experiment.getDynamicParamNamesPerFactor
+  val dynamicParamsPerFactor = experimentDef.getDynamicParamNamesPerFactor
 
   val experimentsCsv = new BufferedWriter(
-    new FileWriter(Paths.get(getExperimentPath.toString, "experiments.csv").toFile, false)
+    new FileWriter(Paths.get(getExperimentPath().toString, "experiments.csv").toFile, false)
   )
 
   try {

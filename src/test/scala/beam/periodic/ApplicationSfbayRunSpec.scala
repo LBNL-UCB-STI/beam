@@ -24,7 +24,7 @@ class ApplicationSfbayRunSpec extends WordSpecLike with Matchers with BeforeAndA
 
   "SF Bay Run" must {
 
-    "run beam 11 iterations and generate output for each " taggedAs (Periodic, ExcludeRegular) in {
+    "run beam 11 iterations and generate output for each " taggedAs (Periodic, ExcludeRegular) ignore {
 
       val config =
         baseConf.withValue(LAST_ITER_CONF_PATH, ConfigValueFactory.fromAnyRef(totalIterations - 1))

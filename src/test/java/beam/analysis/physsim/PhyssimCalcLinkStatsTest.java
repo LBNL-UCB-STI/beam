@@ -1,5 +1,8 @@
 package beam.analysis.physsim;
 
+import beam.sim.config.BeamConfig;
+import beam.utils.TestConfigUtils;
+import com.typesafe.config.ConfigValueFactory;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.matsim.api.core.v01.Scenario;
@@ -41,9 +44,12 @@ public class PhyssimCalcLinkStatsTest {
         EventsManager eventsManager = EventsUtils.createEventsManager();
         eventsManager.addHandler(travelTimeCalculator);
 
-        physsimCalcLinkStats = new PhyssimCalcLinkStats(network, null, null);
+        BeamConfig beamConfig = BeamConfig.apply(TestConfigUtils.testConfig("test/input/equil-square/equil-0.001k.conf").resolve().withValue("beam.physsim.quick_fix_minCarSpeedInMetersPerSecond", ConfigValueFactory.fromAnyRef(0.0)));
+        physsimCalcLinkStats = new PhyssimCalcLinkStats(network, null,  beamConfig, defaultTravelTimeCalculator );
 
-        physsimCalcLinkStats.notifyIterationStarts(eventsManager);
+        //physsimCalcLinkStats = new PhyssimCalcLinkStats(network, null, null);
+
+        physsimCalcLinkStats.notifyIterationStarts(eventsManager, defaultTravelTimeCalculator);
 
         MatsimEventsReader matsimEventsReader = new MatsimEventsReader(eventsManager);
         matsimEventsReader.readFile(EVENTS_FILE_PATH);

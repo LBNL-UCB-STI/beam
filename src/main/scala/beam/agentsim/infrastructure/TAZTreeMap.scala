@@ -55,6 +55,8 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
 
 object TAZTreeMap {
 
+  val emptyTAZId = Id.create("NA", classOf[TAZ])
+
   def fromShapeFile(shapeFilePath: String, tazIDFieldName: String): TAZTreeMap = {
     new TAZTreeMap(initQuadTreeFromShapeFile(shapeFilePath, tazIDFieldName))
   }
@@ -181,9 +183,10 @@ object TAZTreeMap {
     res
   }
 
-  class TAZ(val tazId: Id[TAZ], val coord: Coord, val area: Double) {
+  class TAZ(val tazId: Id[TAZ], val coord: Coord, val areaInSquareMeters: Double) {
     def this(tazIdString: String, coord: Coord, area: Double) {
       this(Id.create(tazIdString, classOf[TAZ]), coord, area)
     }
   }
+
 }

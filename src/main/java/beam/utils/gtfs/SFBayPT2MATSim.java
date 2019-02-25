@@ -21,7 +21,7 @@ import static beam.utils.gtfs.GtfsFunctions.opNameToPath;
 /**
  * Runs GTFS Schedule Mapping.
  * <p>
- * Currently farms out GTFS data requests to {@link TransitDataDownloader}.
+ * Currently farms outWriter GTFS data requests to {@link TransitDataDownloader}.
  * <p>
  * TODO: Make a better API for download and storage.
  * <p>
@@ -34,7 +34,7 @@ public class SFBayPT2MATSim {
     private String apiKey;
 
     public SFBayPT2MATSim() {
-        outputDir = BEAM_CONFIG.beam().routing().gtfs().outputDir();
+//        outputDir = BEAM_CONFIG.beam().routing().gtfs().outputDir();
 //        apiKey = BEAM_CONFIG.beam().routing().gtfs().apiKey();
     }
 
@@ -95,7 +95,7 @@ public class SFBayPT2MATSim {
                 // [1] which service ids should be used.
                 "dayWithMostTrips",
                 // [2] the output coordinate system
-                BEAM_CONFIG.beam().routing().gtfs().crs(),
+                BEAM_CONFIG.beam().spatial().localCRS(),
                 // [3] output transit schedule file
                 String.format("%s%s/%s_UnmappedTransitSchedule.xml.gz", outputDir, agency, agencyId),
                 // [4] output default vehicles file (optional)

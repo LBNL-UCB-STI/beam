@@ -6,6 +6,11 @@
             <Pattern>
                 %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
             </Pattern>
+<!--
+            <Pattern>
+                %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} %X{akkaSource} - %msg%n
+            </Pattern>
+-->
         </layout>
     </appender>
 
@@ -28,6 +33,10 @@
     </logger>
 
     <Logger name="org.reflections" level="ERROR" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+
+    <Logger name="org.matsim.core.controler.corelisteners.DumpDataAtEndImpl" level="OFF" additivity="false">
         <appender-ref ref="STDOUT"/>
     </Logger>
 

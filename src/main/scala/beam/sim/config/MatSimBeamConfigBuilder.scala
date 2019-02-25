@@ -36,7 +36,7 @@ class MatSimBeamConfigBuilder(beamConf: Config) extends LazyLogging {
       MatSimBeamConfigBuilder.concreteClassesOfType[MatsimParameters].collect {
         case clazz if MatSimBeamConfigBuilder.isExtends(clazz, classOf[ConfigGroup]) =>
           try {
-            Option(clazz.newInstance())
+            Option(clazz.getDeclaredConstructor().newInstance())
           } catch {
             case e: IllegalAccessException =>
               logger.debug(

@@ -1,11 +1,11 @@
 package beam.calibration
 
-import java.io.PrintWriter
-
 import beam.calibration.utils.SigOptApiToken
-import beam.sim.BeamHelper
+import beam.calibration.CalibrationArguments._
+import beam.experiment.ExperimentApp
 import com.sigopt.Sigopt
 import com.sigopt.exception.APIConnectionError
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.lang.SystemUtils
 
 /**
@@ -20,7 +20,7 @@ import org.apache.commons.lang.SystemUtils
   <code> tail -f /var/log/cloud-init-output.log </code>
   *
   */
-object RunCalibration extends App with BeamHelper {
+object RunCalibration extends ExperimentApp with LazyLogging {
 
   // requirement:
   /*
@@ -33,54 +33,29 @@ object RunCalibration extends App with BeamHelper {
   // - the for sigopt should be able to run locally (avoid each dev to have sigopt dev api token) - [LATER]
   // - provide a objective function with is a combination of modes and counts
 
-  // Private Constants //
-  private val EXPERIMENTS_TAG = "experiments"
-  private val BENCHMARK_EXPERIMENTS_TAG = "benchmark"
-  private val NUM_ITERATIONS_TAG = "num_iters"
-  private val EXPERIMENT_ID_TAG = "experiment_id"
-  private val NEW_EXPERIMENT_FLAG = "00000"
-  private val RUN_TYPE = "run_type"
-
-  private val RUN_TYPE_LOCAL = "local"
-  private val RUN_TYPE_REMOTE = "remote"
-
-  // Parse the command line inputs
-  val argsMap = parseArgs(args)
-
   // Store CLI inputs as private members
-  Sigopt.clientToken = SigOptApiToken.getClientAPIToken
   private val experimentLoc: String = argsMap(EXPERIMENTS_TAG)
   private val benchmarkLoc: String = argsMap(BENCHMARK_EXPERIMENTS_TAG)
   private val numIters: Int = argsMap(NUM_ITERATIONS_TAG).toInt
   private val experimentId: String = argsMap(EXPERIMENT_ID_TAG)
   private val runType: String = argsMap(RUN_TYPE)
+  private val sigoptApiToken: String = argsMap(SIGOPT_API_TOKEN_TAG)
 
-  //  Context object containing experiment definition
-  private implicit val experimentData: SigoptExperimentData =
-    SigoptExperimentData(experimentLoc, benchmarkLoc, experimentId, development = false)
-
-  val iterPerNode = Math.ceil(numIters / (experimentData.numWorkers + 1)).toInt
-
-  if (runType == RUN_TYPE_LOCAL) {
-    val experimentRunner: ExperimentRunner = ExperimentRunner()
-    experimentRunner.runExperiment(numIters)
-  } else if (runType == RUN_TYPE_REMOTE) {
-    logger.info("Triggering the remote deployment...")
-    import sys.process._
-    val gradlewEnding = if (SystemUtils.IS_OS_WINDOWS) { ".bat" } else { ".sh" }
-
-    (1 to experimentData.numWorkers).foreach({ _ =>
-      val execString: String =
-        s"""./gradlew$gradlewEnding :deploy -PrunName=${experimentData.experimentDef.header.title} -PinstanceType=t2.large -PmaxRAM=10g -PdeployMode=execute  -PexecuteClass=beam.calibration.RunCalibration -PexecuteArgs="['--experiments', '$experimentLoc',  '--experiment_id', '${experimentData.experiment.getId}', '--benchmark','$benchmarkLoc','--num_iters', '$iterPerNode', '--run_type', 'local']""""
-      println(execString)
-      execString.!
-    })
-  } else {
-    logger.error("{} unknown", RUN_TYPE)
+  // @Asif: TODO hide the checking into SigOptApiToken.getClientAPIToken
+  try {
+    if (sigoptApiToken != null) {
+      logger.info("The client token is set from the program arguments")
+      Sigopt.clientToken = sigoptApiToken
+    } else {
+      Sigopt.clientToken = SigOptApiToken.getClientAPIToken
+    }
+  } catch {
+    case ex: APIConnectionError =>
+      logger.info(ex.getMessage)
   }
 
   // Aux Methods //
-  def parseArgs(args: Array[String]): Map[String, String] = {
+  override def parseArgs(args: Array[String]): Map[String, String] = {
     args
       .sliding(2, 2)
       .toList
@@ -93,15 +68,64 @@ object RunCalibration extends App with BeamHelper {
           (NUM_ITERATIONS_TAG, numIters)
         case Array("--experiment_id", experimentId: String) =>
           val trimmedExpId = experimentId.trim
-          if (trimmedExpId != "None") { (EXPERIMENT_ID_TAG, trimmedExpId) } else {
+          if (trimmedExpId == "None") {
             (EXPERIMENT_ID_TAG, NEW_EXPERIMENT_FLAG)
+          } else {
+            (EXPERIMENT_ID_TAG, trimmedExpId)
           }
         case Array("--run_type", runType: String) if runType.trim.nonEmpty =>
           (RUN_TYPE, runType)
-        case arg @ _ =>
+        case Array("--sigopt_api_token", sigoptApiToken: String) if sigoptApiToken.trim.nonEmpty =>
+          (SIGOPT_API_TOKEN_TAG, sigoptApiToken)
+        case arg =>
           throw new IllegalArgumentException(arg.mkString(" "))
       }
       .toMap
+  }
+
+  //  Context object containing experiment definition
+  private implicit val experimentData: SigoptExperimentData =
+    SigoptExperimentData(experimentDef, benchmarkLoc, experimentId)
+
+  if (runType == RUN_TYPE_LOCAL) {
+    val experimentRunner: ExperimentRunner = ExperimentRunner()
+    experimentRunner.runExperiment(numIters)
+  } else if (runType == RUN_TYPE_REMOTE) {
+    logger.info("Triggering the remote deployment...")
+    import sys.process._
+    val gradlewEnding = if (SystemUtils.IS_OS_WINDOWS) {
+      ".bat"
+    } else {
+      ".sh"
+    }
+
+    (1 to experimentData.numWorkers).foreach { _ =>
+      val execString: String =
+        s"""./gradlew$gradlewEnding :deploy
+            -PrunName=${experimentData.experimentDef.header.title}
+            -PbeamBranch=${experimentData.experimentDef.header.deployParams.get("beamBranch")}
+           -PbeamCommit=${experimentData.experimentDef.header.deployParams.get("beamCommit")}
+           -PdeployMode=${experimentData.experimentDef.header.deployParams.get("deployMode")}
+           -PexecuteClass=${experimentData.experimentDef.header.deployParams.get("executeClass")}
+           -PbeamBatch=${experimentData.experimentDef.header.deployParams.get("beamBatch")}
+           -PshutdownWait=${experimentData.experimentDef.header.deployParams.get("shutdownWait")}
+           -PshutdownBehavior=${experimentData.experimentDef.header.deployParams.get("shutdownBehavior")}
+           -Ps3Backup=${experimentData.experimentDef.header.deployParams.get("s3Backup")}
+           -PmaxRAM=${experimentData.experimentDef.header.deployParams.get("maxRAM")}
+           -Pregion=${experimentData.experimentDef.header.deployParams.get("region")}
+           -PinstanceType=${experimentData.experimentDef.header.deployParams.get("instanceType")}
+            -PexecuteArgs="[
+           '--experiments', '$experimentLoc',
+           '--experiment_id', '${experimentData.experiment.getId}',
+           '--benchmark','$benchmarkLoc',
+           '--num_iters', '$numIters',
+           '--run_type', 'local',
+           '--sigopt_api_token', '$sigoptApiToken']"""".stripMargin
+      logger.debug(execString)
+      execString.!
+    }
+  } else {
+    logger.error("{} unknown", RUN_TYPE)
   }
 
 }

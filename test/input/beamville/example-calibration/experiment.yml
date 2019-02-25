@@ -8,7 +8,7 @@ header:
     beamTemplateConfPath: test/input/beamville/beam-calibration.conf
     modeChoiceTemplate: test/input/beamville/example-calibration/modeChoiceParameters.xml.tpl
     numWorkers: 1
-    params:
+    deployParams:
       ### ---- run template env variables ---####
       EXPERIMENT_MAX_RAM: 2g
       S3_OUTPUT_PATH_SUFFIX: "beamville"

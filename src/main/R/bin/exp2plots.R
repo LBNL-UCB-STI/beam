@@ -6,6 +6,7 @@
 # Argument: the path to the experiment directory containing the .yaml file defining the experiment *and* the runs directory containing the 
 # results.
 ##############################################################################################################################################
+library(colinmisc)
 setwd('/Users/critter/Dropbox/ucb/vto/beam-all/beam') # for development and debugging
 source('./src/main/R/beam-utilities.R')
 load.libraries(c('optparse'),quietly=T)
@@ -17,17 +18,20 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'/Users/critter/Documents/beam/beam-output/experiments/2018-04/surge-pricing/'
-  args<-'/Users/critter/Documents/beam/beam-output/experiments/2018-04/ridehail-price/'
+  args<-'/Users/critter/Downloads/RH2Transit-2Iter/RH2Transit'
+  args<-'/Users/critter/Downloads/cost-sensitivities/cost-sensitivity/'
+  #args<-'/Users/critter/Downloads/diffusion-5iter/diffusion/'
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "exp2plots.R [experiment-directory]"),positional_arguments=T)
 }
 ######################################################################################################
 
-factor.to.scale.personal.back <- 35
-factor.to.scale.transit.back <- 2
+# TODO make these come from conf file
+factor.to.scale.personal.back <- 20
+factor.to.scale.transit.back <- 1/.22 # inverse of param: beam.agentsim.tuning.transitCapacity
 plot.congestion <- F
+plot.modality.styles <- F
 
 ######################################################################################################
 # Load the exp config
@@ -72,21 +76,25 @@ for(run.i in 1:nrow(exp)){
     }
     links[[length(links)+1]] <- link
   }
-  last.iter.minus.5 <- ifelse(last.iter>4,last.iter - 4,1)
-  for(the.iter in last.iter.minus.5:last.iter){
-    pop.csv <- pp(run.dir,output.dir,'/ITERS/it.',the.iter,'/',the.iter,'.population.csv.gz')
-    if(file.exists(pop.csv)){
-      pop <- csv2rdata(pop.csv)
-      pop[,iter:=the.iter]
-      streval(pp('pop[,',fact,':="',the.level,'"]'))
-      pops[[length(pops)+1]] <- pop
+  if(plot.modality.styles){
+    last.iter.minus.5 <- ifelse(last.iter>4,last.iter - 4,1)
+    for(the.iter in last.iter.minus.5:last.iter){
+      pop.csv <- pp(run.dir,output.dir,'/ITERS/it.',the.iter,'/',the.iter,'.population.csv.gz')
+      if(file.exists(pop.csv)){
+        pop <- csv2rdata(pop.csv)
+        pop[,iter:=the.iter]
+        streval(pp('pop[,',fact,':="',the.level,'"]'))
+        pops[[length(pops)+1]] <- pop
+      }
     }
   }
 }
 ev <- rbindlist(evs,use.names=T,fill=T)
 rm('evs')
-pop <- rbindlist(pops,use.names=T,fill=T)
-rm('pops')
+if(plot.modality.styles){
+  pop <- rbindlist(pops,use.names=T,fill=T)
+  rm('pops')
+}
 if(plot.congestion){
   link <- rbindlist(links,use.names=T,fill=T)
   rm('links')
@@ -97,12 +105,12 @@ ev <- clean.and.relabel(ev,factor.to.scale.personal.back,factor.to.scale.transit
 setkey(ev,type)
 
 ## Prep data needed to do quick version of energy calc
-en <- data.table(read.csv('~/Dropbox/ucb/vto/beam-all/beam/test/input/sf-light/energy/energy-consumption.csv'))
-setkey(en,vehicleType)
+en <- data.table(read.csv('~/Dropbox/ucb/vto/beam-all/beam/production/application-sfbay/samples/vehicleTypes.csv'))
+setkey(en,vehicleTypeId)
 en <- u(en)
 ## Energy Density in MJ/liter or MJ/kWh
 # https://en.wikipedia.org/wiki/Gasoline_gallon_equivalent
-en.density <- data.table(fuelType=c('gasoline','diesel','electricity'),density=c(31.81905,36.14286,3.6))
+#en.density <- data.table(fuelType=c('gasoline','diesel','electricity','biodiesel'),density=c(31.81905,36.14286,3.6,33.2))
 ev[tripmode%in%c('car') & vehicle_type=='Car',':='(num_passengers=1)]
 ev[,pmt:=num_passengers*length/1609]
 ev[is.na(pmt),pmt:=0]
@@ -132,8 +140,9 @@ for(fact in factors){
   toplot[,frac:=num/tot]
   toplot[,tripmode:=pretty.modes(tripmode)]
   setkey(toplot,the.factor,tripmode)
-  p <- ggplot(toplot,aes(x=the.factor,y=frac*100,fill=tripmode))+geom_bar(stat='identity',position='stack')+labs(x="Scenario",y="% of Trips",title=pp('Factor: ',fact),fill="Trip Mode")+
-      scale_fill_manual(values=as.character(mode.colors$color.hex[match(sort(u(toplot$tripmode)),mode.colors$key)]))
+  p <- ggplot(toplot,aes(x=the.factor,y=frac*100,fill=tripmode))+geom_bar(stat='identity',position='stack')+
+    labs(x="Scenario",y="% of Trips",title=pp('Factor: ',fact),fill="Trip Mode")+
+    scale_fill_manual(values=as.character(mode.colors$color.hex[match(sort(u(toplot$tripmode)),mode.colors$key)]))
   pdf.scale <- .6
   ggsave(pp(plots.dir,'mode-split-by-',fact,'.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
   write.csv(toplot,file=pp(plots.dir,'mode-split-by-',fact,'.csv'))
@@ -150,7 +159,7 @@ for(fact in factors){
   ggsave(pp(plots.dir,'mode-split-by-hour-by-',fact,'.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
   write.csv(toplot,file=pp(plots.dir,'mode-split-by-hour-',fact,'.csv'))
 
-  target <- data.frame(tripmode=rep(c('Car','Walk','Transit','TNC'),length(u(toplot$the.factor))),
+  target <- data.frame(tripmode=rep(c('Car','Walk','Transit','Ride Hail'),length(u(toplot$the.factor))),
                        perc=rep(c(79,4,13,5),length(u(toplot$the.factor))),
                        the.factor=rep(u(toplot$the.factor),each=4))
   p <- ggplot(toplot,aes(x=tripmode,y=frac*100))+geom_bar(stat='identity')+facet_wrap(~the.factor)+geom_point(data=target,aes(y=perc),colour='red')
@@ -188,24 +197,23 @@ for(fact in factors){
   toplot <- pt[,.(fuel=sum(fuel),numVehicles=as.double(length(fuel)),numberOfPassengers=as.double(sum(num_passengers)),pmt=sum(pmt),vmt=sum(length)/1609,mpg=sum(length)/1609/sum(fuel/3.78)),by=c('the.factor','vehicle_type','tripmode')]
   toplot <- toplot[vehicle_type!='Human' & tripmode!="walk"]
   if(nrow(en)>30){
-    toplot <- join.on(toplot,en[vehicle%in%c('SUBWAY-DEFAULT','BUS-DEFAULT','CABLE_CAR-DEFAULT','CAR','FERRY-DEFAULT','TRAM-DEFAULT','RAIL-DEFAULT')|vehicleType=='TNC'],'vehicle_type','vehicleType','fuelType')
+    toplot <- join.on(toplot,en[vehicleTypeId%in%c('SUBWAY-DEFAULT','BUS-DEFAULT','CABLE_CAR-DEFAULT','Car','FERRY-DEFAULT','TRAM-DEFAULT','RAIL-DEFAULT') | substr(vehicleTypeId,0,3)=='BEV'],'vehicle_type','vehicleTypeId','primaryFuelType')
   }else{
-    toplot <- join.on(toplot,en,'vehicle_type','vehicleType','fuelType')
+    toplot <- join.on(toplot,en,'vehicle_type','vehicleTypeId','primaryFuelType')
   }
-  toplot <- join.on(toplot,en.density,'fuelType','fuelType')
-  toplot[,energy:=fuel*density]
-  toplot[vehicle_type=='TNC',tripmode:='TNC']
-  toplot[vehicle_type%in%c('Car','TNC'),energy:=energy*factor.to.scale.personal.back*10]
-  toplot[vehicle_type%in%c('Car','TNC'),numVehicles:=numVehicles*factor.to.scale.personal.back]
-  toplot[vehicle_type%in%c('Car','TNC'),pmt:=pmt*factor.to.scale.personal.back]
-  toplot[vehicle_type%in%c('Car','TNC'),numberOfPassengers:=numVehicles]
+  toplot[,energy:=fuel] # fuel is now in units of J so no need to convert from L to J
+  toplot[tripmode%in%c('car','ride_hail'),energy:=energy*factor.to.scale.personal.back]
+  toplot[tripmode%in%c('car','ride_hail'),numVehicles:=numVehicles*factor.to.scale.personal.back]
+  toplot[tripmode%in%c('car','ride_hail'),pmt:=pmt*factor.to.scale.personal.back]
+  toplot[tripmode%in%c('car','ride_hail'),numberOfPassengers:=numVehicles]
   toplot[,ag.mode:=tripmode]
   toplot[tolower(ag.mode)%in%c('bart','bus','cable_car','muni','rail','tram','transit'),ag.mode:='Transit']
   toplot[ag.mode=='car',ag.mode:='Car']
+  toplot[ag.mode=='ride_hail',ag.mode:='Ride Hail']
   toplot.ag <- toplot[,.(energy=sum(energy),pmt=sum(pmt)),by=c('the.factor','ag.mode')]
   pdf.scale <- .6
   setkey(toplot.ag,the.factor,ag.mode)
-  p <- ggplot(toplot.ag,aes(x=the.factor,y=energy/1e6,fill=ag.mode))+geom_bar(stat='identity',position='stack')+labs(x="Scenario",y="Energy Consumption (TJ)",title=to.title(fact),fill="Trip Mode")+
+  p <- ggplot(toplot.ag,aes(x=the.factor,y=energy/1e12,fill=ag.mode))+geom_bar(stat='identity',position='stack')+labs(x="Scenario",y="Energy Consumption (TJ)",title=to.title(fact),fill="Trip Mode")+
       scale_fill_manual(values=as.character(mode.colors$color.hex[match(sort(u(toplot.ag$ag.mode)),mode.colors$key)]))
   ggsave(pp(plots.dir,'energy-by-mode-',fact,'.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
   write.csv(toplot.ag,file=pp(plots.dir,'energy-by-mode-',fact,'.csv'))
@@ -219,11 +227,11 @@ for(fact in factors){
   ggsave(pp(plots.dir,'energy-per-pmt-by-vehicle-type-',fact,'.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
 
   # Deadheading 
-  toplot <- pt[vehicle_type=='TNC',.(dead=num_passengers==0,miles=length/1609,hr,the.factor)]
+  toplot <- pt[tripmode=='ride_hail',.(dead=num_passengers==0,miles=length/1609,hr,the.factor)]
   setkey(toplot,hr,dead)
   dead.frac <- toplot[,.(dead.frac=pp(roundC(100*sum(miles[dead==T])/sum(miles),1),"% Empty")),by=c('the.factor')]
   toplot <- toplot[,.(miles=sum(miles)),by=c('dead','hr','the.factor')]
-  p <- ggplot(toplot,aes(x=hr,y=miles,fill=dead))+geom_bar(stat='identity')+labs(x="Hour",y="Vehicle Miles Traveled",fill="Empty",title=pp("TNC Deadheading"))+geom_text(data=dead.frac,hjust=1,aes(x=24,y=max(toplot$miles),label=dead.frac,fill=NA))+facet_wrap(~the.factor)
+  p <- ggplot(toplot,aes(x=hr,y=miles,fill=dead))+geom_bar(stat='identity')+labs(x="Hour",y="Vehicle Miles Traveled",fill="Empty",title=pp("Ride Hail Deadheading"))+geom_text(data=dead.frac,hjust=1,aes(x=24,y=max(toplot$miles),label=dead.frac,fill=NA))+facet_wrap(~the.factor)
   pdf.scale <- .6
   ggsave(pp(plots.dir,'dead-heading.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
 }
@@ -244,32 +252,34 @@ if(plot.congestion){
   }
 }
 
-if('customAttributes' %in% names(pop)){
-  for(fact in factors){
-    streval(pp('pop[,the.factor:=',fact,']'))
-    if(all(c('low','base','high') %in% u(pop$the.factor))){
-      pop[,the.factor:=factor(the.factor,levels=c('low','base','high'))]
-    }else if(all(c('Low','Base','High') %in% u(pop$the.factor))){
-      pop[,the.factor:=factor(the.factor,levels=c('Low','Base','High'))]
-    }else{
-      streval(pp('pop[,the.factor:=factor(the.factor,levels=exp$',fact,')]'))
-    }
-    pop[,style:=customAttributes]
-    pop <- pop[style!='']
-    if(any(u(pop$style)=='class1')){
-      new.names <- c(class1='Multimodals',class2='Empty nesters',class3='Transit takers',class4='Inveterate drivers',class5='Moms in cars',class6='Car commuters')
-      pop[,style:=new.names[as.character(style)]]
-    }
-    toplot <- pop[,.(n=length(type)),by=c('style','the.factor','iter')]
-    toplot <- toplot[,.(n=mean(n)),by=c('style','the.factor')]
-    setkey(toplot,style,the.factor)
+if(plot.modality.styles){
+  if('customAttributes' %in% names(pop)){
+    for(fact in factors){
+      streval(pp('pop[,the.factor:=',fact,']'))
+      if(all(c('low','base','high') %in% u(pop$the.factor))){
+        pop[,the.factor:=factor(the.factor,levels=c('low','base','high'))]
+      }else if(all(c('Low','Base','High') %in% u(pop$the.factor))){
+        pop[,the.factor:=factor(the.factor,levels=c('Low','Base','High'))]
+      }else{
+        streval(pp('pop[,the.factor:=factor(the.factor,levels=exp$',fact,')]'))
+      }
+      pop[,style:=customAttributes]
+      pop <- pop[style!='']
+      if(any(u(pop$style)=='class1')){
+        new.names <- c(class1='Multimodals',class2='Empty nesters',class3='Transit takers',class4='Inveterate drivers',class5='Moms in cars',class6='Car commuters')
+        pop[,style:=new.names[as.character(style)]]
+      }
+      toplot <- pop[,.(n=length(type)),by=c('style','the.factor','iter')]
+      toplot <- toplot[,.(n=mean(n)),by=c('style','the.factor')]
+      setkey(toplot,style,the.factor)
 
-    pdf.scale <- .8
-    p<-ggplot(toplot,aes(x=the.factor,y=n,fill=style))+geom_bar(stat='identity',position='stack')+labs(x='Trip #',y='# Agents',title='Modality Style Distributions')
-    ggsave(pp(plots.dir,'modality-styles.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+      pdf.scale <- .8
+      p<-ggplot(toplot,aes(x=the.factor,y=n,fill=style))+geom_bar(stat='identity',position='stack')+labs(x='Trip #',y='# Agents',title='Modality Style Distributions')
+      ggsave(pp(plots.dir,'modality-styles.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
 
-    p<-ggplot(toplot,aes(x=style,y=n,fill=the.factor))+geom_bar(stat='identity',position='dodge')+labs(x='',y='# Agents',fill=fact,title='Modality Style Distributions')
-    ggsave(pp(plots.dir,'modality-styles-dodged.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
+      p<-ggplot(toplot,aes(x=style,y=n,fill=the.factor))+geom_bar(stat='identity',position='dodge')+labs(x='',y='# Agents',fill=fact,title='Modality Style Distributions')
+      ggsave(pp(plots.dir,'modality-styles-dodged.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
+    }
   }
 }
 

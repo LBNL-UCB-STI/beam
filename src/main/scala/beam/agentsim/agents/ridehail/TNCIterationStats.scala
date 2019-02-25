@@ -1,18 +1,18 @@
 package beam.agentsim.agents.ridehail
 
-import beam.agentsim.agents.ridehail.RideHailManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.TNCIterationStats._
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
 import beam.utils.DebugLib
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.ml.clustering.{Clusterable, KMeansPlusPlusClusterer}
 import org.apache.commons.math3.util.{Pair => WeightPair}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles
-import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -23,10 +23,9 @@ case class TNCIterationStats(
   tazTreeMap: TAZTreeMap,
   timeBinSizeInSec: Double,
   numberOfTimeBins: Int
-) {
-
-  private val log = LoggerFactory.getLogger(classOf[TNCIterationStats])
+) extends LazyLogging {
   //logMap()
+  private val maxRadiusInMeters = 10 * 1000
 
   /**
     * for all vehicles to reposition, group them by TAZ (k vehicles for a TAZ)
@@ -58,14 +57,14 @@ case class TNCIterationStats(
     beamServices: BeamServices
   ): Vector[(Id[vehicles.Vehicle], Location)] = {
 
-    // log.debug("whichCoordToRepositionTo.start=======================")
+    // logger.debug("whichCoordToRepositionTo.start=======================")
     val repositioningConfig =
       beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes
 
     val repositioningMethod = repositioningConfig.repositioningMethod // (TOP_SCORES | weighedKMeans)
     val keepMaxTopNScores = repositioningConfig.keepMaxTopNScores
     val minScoreThresholdForRepositioning =
-      repositioningConfig.minScoreThresholdForRepositioning // helps weed out unnecessary repositioning
+      repositioningConfig.minScoreThresholdForRepositioning // helps weed outWriter unnecessary repositioning
 
     val distanceWeight = repositioningConfig.distanceWeight
     val waitingTimeWeight = repositioningConfig.waitingTimeWeight
@@ -83,7 +82,7 @@ case class TNCIterationStats(
     // Vehicle Grouping in Taz
     vehiclesToReposition.foreach { rhaLoc =>
       val vehicleTaz =
-        tazTreeMap.getTAZ(rhaLoc.currentLocation.loc.getX, rhaLoc.currentLocation.loc.getY)
+        tazTreeMap.getTAZ(rhaLoc.currentLocationUTM.loc.getX, rhaLoc.currentLocationUTM.loc.getY)
 
       tazVehicleMap.get(vehicleTaz) match {
         case Some(lov: ListBuffer[Id[vehicles.Vehicle]]) =>
@@ -101,7 +100,7 @@ case class TNCIterationStats(
       val listOfTazInRadius =
         tazTreeMap.getTAZInRadius(taz.coord.getX, taz.coord.getY, repositionCircleRadiusInMeters)
 
-      //  log.debug(s"number of TAZ in radius around current TAZ (${taz.tazId}): ${listOfTazInRadius.size()}")
+      //  logger.debug(s"number of TAZ in radius around current TAZ (${taz.tazId}): ${listOfTazInRadius.size()}")
 
       if (listOfTazInRadius.size() > 0) {
         DebugLib.emptyFunctionForSettingBreakPoint()
@@ -114,7 +113,7 @@ case class TNCIterationStats(
 
       listOfTazInRadius.forEach { tazInRadius =>
         val distanceInMeters =
-          beamServices.geo.distInMeters(taz.coord, tazInRadius.coord)
+          beamServices.geo.distUTMInMeters(taz.coord, tazInRadius.coord)
 
         val distanceScore = -1 * distanceWeight * Math
           .pow(distanceInMeters, 2) /
@@ -134,7 +133,7 @@ case class TNCIterationStats(
 
                 val finalScore = waitingTimeScore + demandScore + distanceScore
 
-                //  log.debug(s"(${tazInRadius.tazId})-score: distanceScore($distanceScore) + waitingTimeScore($waitingTimeScore) + demandScore($demandScore) = $res")
+                //  logger.debug(s"(${tazInRadius.tazId})-score: distanceScore($distanceScore) + waitingTimeScore($waitingTimeScore) + demandScore($demandScore) = $res")
 
                 if (waitingTimeScore > 0) {
                   DebugLib.emptyFunctionForSettingBreakPoint()
@@ -187,7 +186,7 @@ case class TNCIterationStats(
             val mapping =
               new java.util.ArrayList[WeightPair[TAZ, java.lang.Double]]()
             scoredTAZInRadius.foreach { tazScore =>
-              //log.debug(s"taz(${tazScore.taz.tazId})-score: ${ exp(tazScore.score)} / ${scoreExpSumOverAllTAZInRadius} = ${exp(tazScore.score) / scoreExpSumOverAllTAZInRadius}")
+              //logger.debug(s"taz(${tazScore.taz.tazId})-score: ${ exp(tazScore.score)} / ${scoreExpSumOverAllTAZInRadius} = ${exp(tazScore.score) / scoreExpSumOverAllTAZInRadius}")
 
               mapping.add(
                 new WeightPair(
@@ -235,10 +234,14 @@ case class TNCIterationStats(
       vehicleToCoordAssignment
     }).flatten.toVector
 
-    // log.debug("whichCoordToRepositionTo.end=======================")
+    // logger.debug("whichCoordToRepositionTo.end=======================")
 
     result
   }
+
+  // #######start algorithm: only look at 20min horizon and those vehicles which are located in areas with high scores should be selected for repositioning
+  // but don't take all of them, only take percentage wise - e.g. if scores are TAZ-A=50, TAZ-B=40, TAZ-3=10, then we would like to get more people from TAZ-A than from TAZ-B and C.
+  // e.g. just go through 20min
 
   def getVehiclesCloseToIdlingAreas(
     idleVehicles: Vector[RideHailAgentLocation],
@@ -252,8 +255,6 @@ case class TNCIterationStats(
       mutable.PriorityQueue[VehicleLocationScores]()((vls1, vls2) => vls1.score.compare(vls2.score))
 
     val maxDistanceInMeters = 500
-
-    val startTimeBin = getTimeBin(tick)
 
     val tmp = rideHailStats.map(
       tazId =>
@@ -275,8 +276,8 @@ case class TNCIterationStats(
 
       for (taz <- tazTreeMap
              .getTAZInRadius(
-               rhLoc.currentLocation.loc.getX,
-               rhLoc.currentLocation.loc.getY,
+               rhLoc.currentLocationUTM.loc.getX,
+               rhLoc.currentLocationUTM.loc.getY,
                maxDistanceInMeters
              )
              .asScala) {
@@ -292,7 +293,7 @@ case class TNCIterationStats(
     )
     /*
 
-    //TODO: figure out issue with this code, why ERROR:
+    //TODO: figure outWriter issue with this code, why ERROR:
     more rideHailVehicle interruptions in process than should be possible: rideHailVehicle-22 -> further errors surpressed (debug later if this is still relevant)
     03:34:58.103 [beam-actor-system-akka.actor.default-dispatcher-9] ERROR beam.agentsim.agents.rideHail.RideHailManager -
     when enabled
@@ -324,10 +325,6 @@ case class TNCIterationStats(
     head.map(_.rideHailAgentLocation).toVector
   }
 
-  // #######start algorithm: only look at 20min horizon and those vehicles which are located in areas with high scores should be selected for repositioning
-  // but don't take all of them, only take percentage wise - e.g. if scores are TAZ-A=50, TAZ-B=40, TAZ-3=10, then we would like to get more people from TAZ-A than from TAZ-B and C.
-  // e.g. just go through 20min
-
   // go through vehicles
   // those vehicles, which are located in areas with high number of idling time in future from now, should be moved
   // the longer the waiting time in future, the l
@@ -351,7 +348,7 @@ case class TNCIterationStats(
       val startTimeBin = getTimeBin(tick)
       val endTimeBin = getTimeBin(tick + timeHorizonToConsiderForIdleVehiclesInSec)
 
-      val taz = tazTreeMap.getTAZ(rhLoc.currentLocation.loc.getX, rhLoc.currentLocation.loc.getY)
+      val taz = tazTreeMap.getTAZ(rhLoc.currentLocationUTM.loc.getX, rhLoc.currentLocationUTM.loc.getY)
 
       val idleScore = (startTimeBin to endTimeBin)
         .map(
@@ -411,54 +408,20 @@ case class TNCIterationStats(
       .toVector
   }
 
-  private def printTAZForVehicles(rideHailAgentLocations: Vector[RideHailAgentLocation]): Unit = {
-    log.debug("vehicle located at TAZs:")
+  def printTAZForVehicles(rideHailAgentLocations: Vector[RideHailAgentLocation]): Unit = {
+    logger.debug("vehicle located at TAZs:")
     rideHailAgentLocations.foreach(
       x =>
-        log.debug(
-          s"s${x.vehicleId} -> ${tazTreeMap.getTAZ(x.currentLocation.loc.getX, x.currentLocation.loc.getY).tazId}"
+        logger.debug(
+          "s{} -> {}",
+          x.vehicleId,
+          tazTreeMap.getTAZ(x.currentLocationUTM.loc.getX, x.currentLocationUTM.loc.getY).tazId
       )
     )
   }
 
-  def demandRatioInCircleToOutside(
-    vehiclesToReposition: Vector[RideHailManager.RideHailAgentLocation],
-    circleSize: Double,
-    tick: Double,
-    timeWindowSizeInSecForDecidingAboutRepositioning: Double
-  ): Double = {
-    import scala.collection.JavaConverters._
-    val startTime = tick
-
-    if (circleSize == Double.PositiveInfinity) {
-      DebugLib.emptyFunctionForSettingBreakPoint()
-    }
-
-    val endTime = tick + timeWindowSizeInSecForDecidingAboutRepositioning
-    val listOfTazInRadius = vehiclesToReposition
-      .flatMap(
-        vehicle =>
-          tazTreeMap
-            .getTAZInRadius(vehicle.currentLocation.loc, circleSize)
-            .asScala
-            .map(_.tazId)
-      )
-      .toSet
-    val demandInCircle = listOfTazInRadius
-      .map(getAggregatedRideHailStats(_, startTime, endTime).getDemandEstimate)
-      .sum
-    val demandAll =
-      getAggregatedRideHailStatsAllTAZ(startTime, endTime).getDemandEstimate
-    val result =
-      if (demandAll > 0) demandInCircle.toDouble / demandAll.toDouble
-      else Double.PositiveInfinity
-    result
-  }
-
-  private val maxRadiusInMeters = 10 * 1000
-
   def getUpdatedCircleSize(
-    vehiclesToReposition: Vector[RideHailManager.RideHailAgentLocation],
+    vehiclesToReposition: Vector[RideHailAgentLocation],
     circleRadiusInMeters: Double,
     tick: Double,
     timeWindowSizeInSecForDecidingAboutRepositioning: Double,
@@ -477,14 +440,76 @@ case class TNCIterationStats(
     }
 
     if (circleRadiusInMeters != updatedRadius) {
-      log.debug("search radius for repositioning algorithm increased: {}", updatedRadius)
+      logger.debug("search radius for repositioning algorithm increased: {}", updatedRadius)
     }
 
     updatedRadius
   }
 
+  def demandRatioInCircleToOutside(
+    vehiclesToReposition: Vector[RideHailAgentLocation],
+    circleSize: Double,
+    tick: Double,
+    timeWindowSizeInSecForDecidingAboutRepositioning: Double
+  ): Double = {
+    import scala.collection.JavaConverters._
+    val startTime = tick
+
+    if (circleSize == Double.PositiveInfinity) {
+      DebugLib.emptyFunctionForSettingBreakPoint()
+    }
+
+    val endTime = tick + timeWindowSizeInSecForDecidingAboutRepositioning
+    val listOfTazInRadius = vehiclesToReposition
+      .flatMap(
+        vehicle =>
+          tazTreeMap
+            .getTAZInRadius(vehicle.currentLocationUTM.loc, circleSize)
+            .asScala
+            .map(_.tazId)
+      )
+      .toSet
+    val demandInCircle = listOfTazInRadius
+      .map(getAggregatedRideHailStats(_, startTime, endTime).getDemandEstimate)
+      .sum
+    val demandAll =
+      getAggregatedRideHailStatsAllTAZ(startTime, endTime).getDemandEstimate
+    val result =
+      if (demandAll > 0) demandInCircle.toDouble / demandAll.toDouble
+      else Double.PositiveInfinity
+    result
+  }
+
+  def getAggregatedRideHailStatsAllTAZ(startTime: Double, endTime: Double): RideHailStatsEntry = {
+    val startTimeBin = getTimeBin(startTime)
+    val endTimeBin = getTimeBin(endTime)
+    val stats = (startTimeBin to endTimeBin)
+      .flatMap(timeBin => rideHailStats.collect { case (_, _stats) => _stats(timeBin) })
+      .toList
+    RideHailStatsEntry.aggregate(stats)
+  }
+
+  def getAggregatedRideHailStats(
+    tazId: Id[TAZ],
+    startTime: Double,
+    endTime: Double
+  ): RideHailStatsEntry = {
+    val startTimeBin = getTimeBin(startTime)
+    val endTimeBin = getTimeBin(endTime)
+
+    RideHailStatsEntry.aggregate(
+      (startTimeBin to endTimeBin).map(getRideHailStatsInfo(tazId, _)).toList
+    )
+  }
+
   private def getTimeBin(time: Double): Int = {
     (time / timeBinSizeInSec).toInt
+  }
+
+  def getRideHailStatsInfo(tazId: Id[TAZ], timeBin: Int): Option[RideHailStatsEntry] = {
+
+    val tazBins = rideHailStats.get(tazId.toString)
+    tazBins.flatMap(bins => bins(timeBin))
   }
 
   def getWithDifferentMap(
@@ -499,12 +524,6 @@ case class TNCIterationStats(
     getRideHailStatsInfo(tazId, timeBin)
   }
 
-  def getRideHailStatsInfo(tazId: Id[TAZ], timeBin: Int): Option[RideHailStatsEntry] = {
-
-    val tazBins = rideHailStats.get(tazId.toString)
-    tazBins.flatMap(bins => bins(timeBin))
-  }
-
   def getAggregatedRideHailStats(
     coord: Coord,
     startTime: Double,
@@ -513,19 +532,6 @@ case class TNCIterationStats(
     val tazId = tazTreeMap.getTAZ(coord.getX, coord.getY).tazId
 
     getAggregatedRideHailStats(tazId, startTime, endTime)
-  }
-
-  def getAggregatedRideHailStats(
-    tazId: Id[TAZ],
-    startTime: Double,
-    endTime: Double
-  ): RideHailStatsEntry = {
-    val startTimeBin = getTimeBin(startTime)
-    val endTimeBin = getTimeBin(endTime)
-
-    RideHailStatsEntry.aggregate(
-      (startTimeBin to endTimeBin).map(getRideHailStatsInfo(tazId, _)).toList
-    )
   }
 
   def getCoordinatesWithRideHailStatsEntry(
@@ -544,15 +550,6 @@ case class TNCIterationStats(
     result
   }
 
-  def getAggregatedRideHailStatsAllTAZ(startTime: Double, endTime: Double): RideHailStatsEntry = {
-    val startTimeBin = getTimeBin(startTime)
-    val endTimeBin = getTimeBin(endTime)
-    val stats = (startTimeBin to endTimeBin)
-      .flatMap(timeBin => rideHailStats.collect { case (_, _stats) => _stats(timeBin) })
-      .toList
-    RideHailStatsEntry.aggregate(stats)
-  }
-
   // TODO: implement according to description
   def getIdleTAZRankingForNextTimeSlots(
     startTime: Double,
@@ -562,11 +559,11 @@ case class TNCIterationStats(
 
     // add how many idle vehicles available
     // sort according to score
-    ???
+    null
   }
 
   def logMap(): Unit = {
-    log.debug("TNCIterationStats:")
+    logger.debug("TNCIterationStats:")
 
     var columns = "index\t\t aggregate \t\t"
     val aggregates: ArrayBuffer[RideHailStatsEntry] =
@@ -574,7 +571,7 @@ case class TNCIterationStats(
     rideHailStats.foreach(rhs => {
       columns = columns + rhs._1 + "\t\t"
     })
-    log.debug(columns)
+    logger.debug(columns)
 
     for (i <- 1 until numberOfTimeBins) {
       columns = ""
@@ -587,7 +584,7 @@ case class TNCIterationStats(
         columns = columns + entry + "\t\t"
       })
       columns = i + "\t\t" + aggregates(i) + "\t\t" + columns
-      log.debug(columns)
+      logger.debug(columns)
     }
 
   }

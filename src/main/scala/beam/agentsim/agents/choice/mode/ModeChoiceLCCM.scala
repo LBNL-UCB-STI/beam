@@ -5,12 +5,12 @@ import java.util.Random
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, TourType}
 import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoiceModel}
 import beam.agentsim.agents.choice.mode.ModeChoiceLCCM.ModeChoiceData
-import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
-import beam.router.RoutingModel.EmbodiedBeamTrip
+import beam.router.Modes.BeamMode.{BIKE, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
+import beam.sim.population.AttributesOfIndividual
 
 /**
   * ModeChoiceLCCM
@@ -36,19 +36,21 @@ import beam.sim.BeamServices
   */
 class ModeChoiceLCCM(
   val beamServices: BeamServices,
-  val lccm: LatentClassChoiceModel,
-  attributesOfIndividual: Option[AttributesOfIndividual]
+  val lccm: LatentClassChoiceModel
 ) extends ModeChoiceCalculator {
   var expectedMaximumUtility: Double = Double.NaN
   var classMembershipDistribution: Map[String, Double] = Map()
 
-  override def apply(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
+  override def apply(
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    attributesOfIndividual: AttributesOfIndividual
+  ): Option[EmbodiedBeamTrip] = {
     choose(alternatives, attributesOfIndividual, Mandatory)
   }
 
   private def choose(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
-    attributesOfIndividual: Option[AttributesOfIndividual],
+    attributesOfIndividual: AttributesOfIndividual,
     tourType: TourType
   ): Option[EmbodiedBeamTrip] = {
     if (alternatives.isEmpty) {
@@ -56,7 +58,7 @@ class ModeChoiceLCCM(
     } else {
       val bestInGroup = altsToBestInGroup(alternatives, tourType)
       /*
-       * Fill out the input data structures required by the MNL models
+       * Fill outWriter the input data structures required by the MNL models
        */
       val modeChoiceInputData = bestInGroup.map { alt =>
         val theParams = Map(
@@ -66,31 +68,27 @@ class ModeChoiceLCCM(
         AlternativeAttributes(alt.mode.value, theParams)
       }
 
-      val attribIndivData: AlternativeAttributes =
-        attributesOfIndividual match {
-          case Some(theAttributes) =>
-            val theParams: Map[String, BigDecimal] = Map(
-              "income"        -> theAttributes.householdAttributes.householdIncome,
-              "householdSize" -> theAttributes.householdAttributes.householdSize,
-              "male" -> (if (theAttributes.isMale) {
-                           1.0
-                         } else {
-                           0.0
-                         }),
-              "numCars"  -> theAttributes.householdAttributes.numCars,
-              "numBikes" -> theAttributes.householdAttributes.numBikes
-            )
-            AlternativeAttributes("dummy", theParams)
-          case None =>
-            AlternativeAttributes("dummy", Map())
-        }
+      val attribIndivData: AlternativeAttributes = {
+        val theParams: Map[String, Double] = Map(
+          "income"        -> attributesOfIndividual.householdAttributes.householdIncome,
+          "householdSize" -> attributesOfIndividual.householdAttributes.householdSize,
+          "male" -> (if (attributesOfIndividual.isMale) {
+                       1.0
+                     } else {
+                       0.0
+                     }),
+          "numCars"  -> attributesOfIndividual.householdAttributes.numCars,
+          "numBikes" -> attributesOfIndividual.householdAttributes.numBikes
+        )
+        AlternativeAttributes("dummy", theParams)
+      }
 
       val classMembershipInputData =
         lccm.classMembershipModels.head._2.alternativeParams.keySet.map { theClassName =>
           val modeChoiceExpectedMaxUtility = lccm
             .modeChoiceModels(tourType)(theClassName)
             .getExpectedMaximumUtility(modeChoiceInputData)
-          val surplusAttrib: Map[String, BigDecimal] =
+          val surplusAttrib: Map[String, Double] =
             Map("surplus" -> modeChoiceExpectedMaxUtility)
           AlternativeAttributes(theClassName, attribIndivData.attributes ++ surplusAttrib)
         }.toVector
@@ -131,81 +129,8 @@ class ModeChoiceLCCM(
     }
   }
 
-  def utilityOf(mode: BeamMode, cost: BigDecimal, time: BigDecimal, numTransfers: Int = 0): Double =
+  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double =
     0.0
-
-  def altsToBestInGroup(
-    alternatives: IndexedSeq[EmbodiedBeamTrip],
-    tourType: TourType
-  ): Vector[ModeChoiceData] = {
-    val transitFareDefaults: Seq[BigDecimal] =
-      TransitFareDefaults.estimateTransitFares(alternatives)
-    val gasolineCostDefaults: Seq[BigDecimal] =
-      DrivingCostDefaults.estimateDrivingCost(alternatives, beamServices)
-    val bridgeTollsDefaults: Seq[BigDecimal] =
-      BridgeTollDefaults.estimateBridgeFares(alternatives, beamServices)
-    val modeChoiceAlternatives: Seq[ModeChoiceData] =
-      alternatives.zipWithIndex.map { altAndIdx =>
-        val totalCost = altAndIdx._1.tripClassifier match {
-          case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
-            (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice + gasolineCostDefaults(
-              altAndIdx._2
-            ) + bridgeTollsDefaults(altAndIdx._2)
-          case RIDE_HAIL =>
-            altAndIdx._1.costEstimate * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice + bridgeTollsDefaults(
-              altAndIdx._2
-            ) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
-          case CAR =>
-            altAndIdx._1.costEstimate + gasolineCostDefaults(altAndIdx._2) + bridgeTollsDefaults(
-              altAndIdx._2
-            ) * beamServices.beamConfig.beam.agentsim.tuning.tollPrice
-          case _ =>
-            altAndIdx._1.costEstimate
-        }
-        //TODO verify wait time is correct, look at transit and ride_hail in particular
-        val walkTime = altAndIdx._1.legs.view
-          .filter(_.beamLeg.mode == WALK)
-          .map(_.beamLeg.duration)
-          .sum
-        val bikeTime = altAndIdx._1.legs.view
-          .filter(_.beamLeg.mode == BIKE)
-          .map(_.beamLeg.duration)
-          .sum
-        val vehicleTime = altAndIdx._1.legs.view
-          .filter(_.beamLeg.mode != WALK)
-          .filter(_.beamLeg.mode != BIKE)
-          .map(_.beamLeg.duration)
-          .sum
-        val waitTime = altAndIdx._1.totalTravelTimeInSecs - walkTime - vehicleTime
-        ModeChoiceData(
-          altAndIdx._1.tripClassifier,
-          tourType,
-          vehicleTime,
-          walkTime,
-          waitTime,
-          bikeTime,
-          totalCost.toDouble,
-          altAndIdx._2
-        )
-      }
-
-    val groupedByMode: Map[BeamMode, Seq[ModeChoiceData]] =
-      modeChoiceAlternatives.groupBy(_.mode)
-    val bestInGroup = groupedByMode.map {
-      case (_, alts) =>
-        // Which dominates at $18/hr for total time
-        alts
-          .map { alt =>
-            (
-              (alt.vehicleTime + alt.walkTime + alt.waitTime + alt.bikeTime) / 3600 * 18 + alt.cost,
-              alt
-            )
-          }
-          .minBy(_._1)
-          ._2
-    }
-    bestInGroup.toVector
-  }
 
   def sampleMode(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
@@ -256,12 +181,73 @@ class ModeChoiceLCCM(
     )
   }
 
+  def altsToBestInGroup(
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    tourType: TourType
+  ): Vector[ModeChoiceData] = {
+    val transitFareDefaults: Seq[Double] =
+      TransitFareDefaults.estimateTransitFares(alternatives)
+    val modeChoiceAlternatives: Seq[ModeChoiceData] =
+      alternatives.zipWithIndex.map { altAndIdx =>
+        val totalCost = altAndIdx._1.tripClassifier match {
+          case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
+            (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice
+          case RIDE_HAIL =>
+            altAndIdx._1.costEstimate * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice
+          case _ =>
+            altAndIdx._1.costEstimate
+        }
+        //TODO verify wait time is correct, look at transit and ride_hail in particular
+        val walkTime = altAndIdx._1.legs.view
+          .filter(_.beamLeg.mode == WALK)
+          .map(_.beamLeg.duration)
+          .sum
+        val bikeTime = altAndIdx._1.legs.view
+          .filter(_.beamLeg.mode == BIKE)
+          .map(_.beamLeg.duration)
+          .sum
+        val vehicleTime = altAndIdx._1.legs.view
+          .filter(_.beamLeg.mode != WALK)
+          .filter(_.beamLeg.mode != BIKE)
+          .map(_.beamLeg.duration)
+          .sum
+        val waitTime = altAndIdx._1.totalTravelTimeInSecs - walkTime - vehicleTime
+        ModeChoiceData(
+          altAndIdx._1.tripClassifier,
+          tourType,
+          vehicleTime,
+          walkTime,
+          waitTime,
+          bikeTime,
+          totalCost.toDouble,
+          altAndIdx._2
+        )
+      }
+
+    val groupedByMode: Map[BeamMode, Seq[ModeChoiceData]] =
+      modeChoiceAlternatives.groupBy(_.mode)
+    val bestInGroup = groupedByMode.map {
+      case (_, alts) =>
+        // Which dominates at $18/hr for total time
+        alts
+          .map { alt =>
+            (
+              (alt.vehicleTime + alt.walkTime + alt.waitTime + alt.bikeTime) / 3600 * 18 + alt.cost,
+              alt
+            )
+          }
+          .minBy(_._1)
+          ._2
+    }
+    bestInGroup.toVector
+  }
+
   def utilityOf(
     mode: BeamMode,
     conditionedOnModalityStyle: String,
     tourType: TourType,
-    cost: BigDecimal,
-    time: BigDecimal
+    cost: Double,
+    time: Double
   ): Double = {
     val theParams = Map("cost" -> cost, "time" -> time)
     lccm
@@ -269,7 +255,7 @@ class ModeChoiceLCCM(
       .getUtilityOfAlternative(AlternativeAttributes(mode.value, theParams))
   }
 
-  override def utilityOf(alternative: EmbodiedBeamTrip): Double = 0.0
+  override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
 
 }
 
@@ -278,11 +264,11 @@ object ModeChoiceLCCM {
   case class ModeChoiceData(
     mode: BeamMode,
     tourType: TourType,
-    vehicleTime: BigDecimal,
-    walkTime: BigDecimal,
-    waitTime: BigDecimal,
-    bikeTime: BigDecimal,
-    cost: BigDecimal,
+    vehicleTime: Double,
+    walkTime: Double,
+    waitTime: Double,
+    bikeTime: Double,
+    cost: Double,
     index: Int = -1
   )
 

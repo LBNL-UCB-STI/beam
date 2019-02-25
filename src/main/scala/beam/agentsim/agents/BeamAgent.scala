@@ -14,28 +14,26 @@ object BeamAgent {
   // states
   trait BeamAgentState
 
+  case class TerminatedPrematurelyEvent(actorRef: ActorRef, reason: FSM.Reason, tick: Option[Int])
+
   case object Uninitialized extends BeamAgentState
 
   case object Initialized extends BeamAgentState
 
   case object Finish
 
-  case class TerminatedPrematurelyEvent(actorRef: ActorRef, reason: FSM.Reason, tick: Option[Double])
-
 }
 
-case class InitializeTrigger(tick: Double) extends Trigger
+case class InitializeTrigger(tick: Int) extends Trigger
 
-trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
+trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash with HasTickAndTrigger {
 
   val scheduler: ActorRef
   val eventsManager: EventsManager
 
-  def id: Id[_]
-
   protected implicit val timeout: util.Timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
-  protected var _currentTriggerId: Option[Long] = None
-  protected var _currentTick: Option[Double] = None
+
+  def id: Id[_]
 
   onTermination {
     case event @ StopEvent(reason @ (FSM.Failure(_) | FSM.Shutdown), currentState, _) =>
@@ -51,40 +49,7 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
       context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason, _currentTick))
   }
 
-  def holdTickAndTriggerId(tick: Double, triggerId: Long): Unit = {
-    if (_currentTriggerId.isDefined || _currentTick.isDefined)
-      throw new IllegalStateException(
-        s"Expected both _currentTick and _currentTriggerId to be 'None' but found ${_currentTick} and ${_currentTriggerId} instead, respectively."
-      )
-
-    _currentTick = Some(tick)
-    _currentTriggerId = Some(triggerId)
-  }
-
-  def releaseTickAndTriggerId(): (Double, Long) = {
-    val theTuple = (_currentTick.get, _currentTriggerId.get)
-    _currentTick = None
-    _currentTriggerId = None
-    theTuple
-  }
-
   def logPrefix(): String
-
-  def getPrefix: String = {
-    val tickStr = _currentTick match {
-      case Some(theTick) =>
-        s"Tick:${theTick.toString} "
-      case None =>
-        ""
-    }
-    val triggerStr = _currentTriggerId match {
-      case Some(theTriggerId) =>
-        s"TriggId:${theTriggerId.toString} "
-      case None =>
-        ""
-    }
-    s"$tickStr${triggerStr}State:$stateName ${logPrefix()}"
-  }
 
   def logInfo(msg: => String): Unit = {
     log.info("{} {}", getPrefix, msg)
@@ -100,6 +65,22 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash {
 
   def logDebug(msg: => String): Unit = {
     log.debug("{} {}", getPrefix, msg)
+  }
+
+  def getPrefix: String = {
+    val tickStr = _currentTick match {
+      case Some(theTick) =>
+        s"Tick:${theTick.toString} "
+      case None =>
+        ""
+    }
+    val triggerStr = _currentTriggerId match {
+      case Some(theTriggerId) =>
+        s"TriggId:${theTriggerId.toString} "
+      case None =>
+        ""
+    }
+    s"$tickStr${triggerStr}State:$stateName ${logPrefix()}"
   }
 
 }

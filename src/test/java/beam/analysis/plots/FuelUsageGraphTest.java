@@ -2,16 +2,11 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.PathTraversalEvent;
 import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.matsim.api.core.v01.events.Event;
-import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.collections.Tuple;
 
-import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -22,9 +17,9 @@ import static org.junit.Assert.assertEquals;
 public class FuelUsageGraphTest {
     private static class FuelUsageHandler implements BasicEventHandler {
 
-        private final FuelUsageStats fuelUsageStats;
+        private final FuelUsageAnalysis fuelUsageStats;
 
-        FuelUsageHandler(FuelUsageStats fuelUsageStats) {
+        FuelUsageHandler(FuelUsageAnalysis fuelUsageStats) {
             this.fuelUsageStats = fuelUsageStats;
         }
 
@@ -38,50 +33,49 @@ public class FuelUsageGraphTest {
 
     private Map<Integer, Map<String, Double>> stats;
 
-    private FuelUsageStats fuelUsageStats = new FuelUsageStats(new FuelUsageStats.FuelUsageStatsComputation() {
+    private final FuelUsageAnalysis fuelUsageStats = new FuelUsageAnalysis(new FuelUsageAnalysis.FuelUsageStatsComputation() {
         @Override
         public double[][] compute(Tuple<Map<Integer, Map<String, Double>>, Set<String>> stat) {
             stats = stat.getFirst();
             return super.compute(stat);
         }
-    });
+    }, true);
 
     @Before
-    public void setUpClass() throws IOException {
+    public void setUpClass() {
         GraphTestUtil.createDummySimWithXML(new FuelUsageHandler(fuelUsageStats));
         fuelUsageStats.compute();
     }
 
     @Test
-    @Ignore
     public void testShouldPassShouldReturnPathTraversalEventCarFuel() {
-        int expectedResult = 965;//1114;//1113.5134131391999 ;
+        long expectedResult = 462764867L;
         int maxHour = getMaxHour(stats.keySet());
-        int actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(CAR, maxHour, stats);
+        long actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(CAR, maxHour, stats);
         assertEquals(expectedResult, actualResult);
     }
 
     @Test
     public void testShouldPassShouldReturnPathTraversalBusFuel() {
-        int expectedResult = 4237;//4236.828591738598;
+        long expectedResult = 4238592864L;
         int maxHour = getMaxHour(stats.keySet());
-        int actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(BUS, maxHour, stats);
+        long actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(BUS, maxHour, stats);
         assertEquals(expectedResult, actualResult);
     }
 
     @Test
     public void testShouldPassShouldReturnPathTraversalEventSubwayFuel() {
-        int expectedResult = 22;//21.71915184736;
+        long expectedResult = 4865519250L;
         int maxHour = getMaxHour(stats.keySet());
-        int actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(SUBWAY, maxHour, stats);
+        long actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(SUBWAY, maxHour, stats);
         assertEquals(expectedResult, actualResult);
     }
 
     @Test
     public void testShouldPassShouldReturnPathTraversalEventWalkFuel() {
-        int expectedResult = 34;//29;//28.3868926185;
+        long expectedResult = 7588808L;
         int maxHour = getMaxHour(stats.keySet());
-        int actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(WALK, maxHour, stats);
+        long actualResult = getFuelageHoursDataCountOccurrenceAgainstMode(WALK, maxHour, stats);
         assertEquals(expectedResult, actualResult);
     }
 
@@ -90,13 +84,13 @@ public class FuelUsageGraphTest {
         return hoursList.get(hoursList.size() - 1);
     }
 
-    private int getFuelageHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour, Map<Integer, Map<String, Double>> stats) {
+    private long getFuelageHoursDataCountOccurrenceAgainstMode(String modeChosen, int maxHour, Map<Integer, Map<String, Double>> stats) {
         double count = 0;
         double[] modeOccurrencePerHour = getFuelageHourDataAgainstMode(modeChosen, maxHour, stats);
         for (double aModeOccurrencePerHour : modeOccurrencePerHour) {
             count = count + aModeOccurrencePerHour;
         }
-        return (int) Math.ceil(count);
+        return Math.round(count);
     }
 
     private double[] getFuelageHourDataAgainstMode(String modeChosen, int maxHour, Map<Integer, Map<String, Double>> stats) {

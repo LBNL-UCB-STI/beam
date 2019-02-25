@@ -1,6 +1,6 @@
 package beam.agentsim.events;
 
-import beam.router.RoutingModel;
+import beam.router.model.EmbodiedBeamTrip;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.population.Person;
@@ -14,6 +14,7 @@ import java.util.Map;
 public class ModeChoiceEvent extends Event implements HasPersonId {
     public final static String EVENT_TYPE = "ModeChoice";
     public final static String ATTRIBUTE_MODE = "mode";
+    public final static String ATTRIBUTE_CURRENT_TOUR_MODE = "currentTourMode";
     public final static String ATTRIBUTE_PERSON_ID = "person";
     //    public final static String VERBOSE_ATTRIBUTE_EXP_MAX_UTILITY = "expectedMaximumUtility";
 //    public final static String VERBOSE_ATTRIBUTE_LOCATION = "location";
@@ -23,9 +24,10 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
     public final static String ATTRIBUTE_PERSONAL_VEH_AVAILABLE = "personalVehicleAvailable";
     public final static String ATTRIBUTE_TRIP_LENGTH = "length";
     public final static String ATTRIBUTE_TOUR_INDEX = "tourIndex";
-    public final RoutingModel.EmbodiedBeamTrip chosenTrip;
+    public final EmbodiedBeamTrip chosenTrip;
     private final Id<Person> personId;
     private final String mode;
+    private final String currentTourMode;
     private final String expectedMaxUtility;
     private final String location;
     private final String availableAlternatives;
@@ -34,13 +36,14 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
     private final Integer tourIndex;
     private Map<String, String> attr;
 
-    public ModeChoiceEvent(double time, Id<Person> personId, String chosenMode, Double expectedMaxUtility,
+    public ModeChoiceEvent(double time, Id<Person> personId, String chosenMode, String currentTourMode, Double expectedMaxUtility,
                            String linkId, String availableAlternatives, Boolean vehAvailable, Double length,
-                           Integer tourIndex, RoutingModel.EmbodiedBeamTrip chosenTrip) {
+                           Integer tourIndex, EmbodiedBeamTrip chosenTrip) {
         super(time);
 
         this.personId = personId;
         this.mode = chosenMode;
+        this.currentTourMode = currentTourMode;
         this.expectedMaxUtility = expectedMaxUtility.toString();
         this.location = linkId;
         this.availableAlternatives = availableAlternatives;
@@ -56,6 +59,7 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
             return new ModeChoiceEvent(event.getTime(),
                     Id.createPersonId(attr.get(ATTRIBUTE_PERSON_ID)),
                     attr.get(ATTRIBUTE_MODE),
+                    attr.get(ATTRIBUTE_CURRENT_TOUR_MODE),
                     Double.parseDouble(attr.get(ATTRIBUTE_EXP_MAX_UTILITY)),
                     attr.get(ATTRIBUTE_LOCATION),
                     attr.get(ATTRIBUTE_AVAILABLE_ALTERNATIVES),
@@ -76,6 +80,7 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
 
         attr.put(ATTRIBUTE_PERSON_ID, personId.toString());
         attr.put(ATTRIBUTE_MODE, mode);
+        attr.put(ATTRIBUTE_CURRENT_TOUR_MODE, currentTourMode);
         attr.put(ATTRIBUTE_EXP_MAX_UTILITY, expectedMaxUtility);
         attr.put(ATTRIBUTE_LOCATION, location);
         attr.put(ATTRIBUTE_AVAILABLE_ALTERNATIVES, availableAlternatives);

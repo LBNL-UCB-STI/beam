@@ -1,21 +1,20 @@
 package beam.agentsim.agents.ridehail
 
-import scala.collection.mutable.ListBuffer
-
 import beam.agentsim.events.SpaceTime
-import beam.router.RoutingModel
-import beam.router.RoutingModel.BeamLeg
+import beam.router.model.{BeamLeg, RoutingModel}
 import beam.utils.GeoUtils
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.{Coord, Id}
+
+import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks._
 
 object RideHailUtils {
 
   def getUpdatedBeamLegAfterStopDriving(
     originalBeamLeg: BeamLeg,
-    stopTime: Double,
+    stopTime: Int,
     transportNetwork: TransportNetwork
   ): BeamLeg = {
 
@@ -51,7 +50,7 @@ object RideHailUtils {
         }
       }
 
-      val updatedEndPoint = SpaceTime(endPointLocation, stopTime.toLong)
+      val updatedEndPoint = SpaceTime(endPointLocation, stopTime)
 
       val updatedTravelPath = originalBeamLeg.travelPath.copy(
         linkIds = linkIds.toVector,
@@ -59,17 +58,17 @@ object RideHailUtils {
         distanceInM = updatedDistanceInMeters
       )
 
-      originalBeamLeg.copy(duration = duration.toLong, travelPath = updatedTravelPath)
+      originalBeamLeg.copy(duration = duration, travelPath = updatedTravelPath)
     }
   }
 
   def getDuration(leg: BeamLeg, transportNetwork: TransportNetwork): Double = {
-    val travelTime = (time: Long, linkId: Int) => {
+    val travelTime = (_: Int, linkId: Int) => {
       val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
       (edge.getLengthM / edge.calculateSpeed(
         new ProfileRequest,
         StreetMode.valueOf(leg.mode.r5Mode.get.left.get.toString)
-      )).toLong
+      )).toInt
     }
 
     RoutingModel
@@ -78,7 +77,7 @@ object RideHailUtils {
       .max - leg.startTime
   }
 
-  private def getVehicleCoordinateForInterruptedLeg(beamLeg: BeamLeg, stopTime: Double): Coord = {
+  def getVehicleCoordinateForInterruptedLeg(beamLeg: BeamLeg, stopTime: Double): Coord = {
     // TODO: implement following solution following along links
     /*
     var currentTime=beamLeg.startTime

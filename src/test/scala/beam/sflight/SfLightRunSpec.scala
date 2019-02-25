@@ -3,13 +3,14 @@ package beam.sflight
 import java.nio.file.Paths
 
 import beam.agentsim.events.ModeChoiceEvent
-import beam.router.r5.NetworkCoordinator
+import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices}
 import beam.tags.{ExcludeRegular, Periodic}
-import beam.utils.FileUtils
+import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.{Config, ConfigValueFactory}
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.handler.BasicEventHandler
@@ -27,22 +28,21 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
   private val METRICS_LEVEL = "beam.metrics.level"
   private val KAMON_INFLUXDB = "kamon.modules.kamon-influxdb.auto-start"
 
-  private var baseConf: Config = _
-  private var totalIterations: Int = _
+  private var configMap: ConfigMap = _
 
   override def beforeAll(configMap: ConfigMap): Unit = {
-    val confPath = configMap.getWithDefault("config", "test/input/sf-light/sf-light-5k.conf")
-    totalIterations = configMap.getWithDefault("iterations", "1").toInt
-    logger.info(s"Starting test with config [$confPath] and iterations [$totalIterations]")
-    baseConf = testConfig(confPath)
-      .withValue(LAST_ITER_CONF_PATH, ConfigValueFactory.fromAnyRef(totalIterations - 1))
-    baseConf.getInt(LAST_ITER_CONF_PATH) should be(totalIterations - 1)
+    this.configMap = configMap
   }
 
   "SF Light" must {
-    "run without error and at least one person chooses car mode" in {
-      val config = testConfig("test/input/sf-light/sf-light-1k.conf")
-        .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
+    "run 1k scenario for one iteration and at least one person chooses car mode" in {
+      val config = ConfigFactory
+        .parseString("""
+          |beam.outputs.events.fileOutputFormats = xml
+          |beam.agentsim.lastIteration = 0
+        """.stripMargin)
+        .withFallback(testConfig("test/input/sf-light/sf-light-0.5k.conf"))
+        .resolve()
       val configBuilder = new MatSimBeamConfigBuilder(config)
       val matsimConfig = configBuilder.buildMatSamConf()
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
@@ -50,15 +50,18 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
 
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-      val networkCoordinator = new NetworkCoordinator(beamConfig)
+      val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
       networkCoordinator.loadNetwork()
+      networkCoordinator.convertFrequenciesToTrips()
+      val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
       scenario.setNetwork(networkCoordinator.network)
+
       var nCarTrips = 0
       val injector = org.matsim.core.controler.Injector.createInjector(
         scenario.getConfig,
         new AbstractModule() {
           override def install(): Unit = {
-            install(module(config, scenario, networkCoordinator))
+            install(module(config, scenario, networkCoordinator, networkHelper))
             addEventHandlerBinding().toInstance(new BasicEventHandler {
               override def handleEvent(event: Event): Unit = {
                 event match {
@@ -73,12 +76,21 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
           }
         }
       )
-      val controler = injector.getInstance(classOf[BeamServices]).controler
+      val services = injector.getInstance(classOf[BeamServices])
+      DefaultPopulationAdjustment(services).update(scenario)
+      val controler = services.controler
       controler.run()
       assert(nCarTrips > 1)
     }
 
     "run 5k(default) scenario for one iteration" taggedAs (Periodic, ExcludeRegular) in {
+      val confPath = configMap.getWithDefault("config", "test/input/sf-light/sf-light-5k.conf")
+      val totalIterations = configMap.getWithDefault("iterations", "1").toInt
+      logger.info(s"Starting test with config [$confPath] and iterations [$totalIterations]")
+      val baseConf = testConfig(confPath)
+        .resolve()
+        .withValue(LAST_ITER_CONF_PATH, ConfigValueFactory.fromAnyRef(totalIterations - 1))
+      baseConf.getInt(LAST_ITER_CONF_PATH) should be(totalIterations - 1)
       val conf = baseConf
         .withValue(METRICS_LEVEL, ConfigValueFactory.fromAnyRef("off"))
         .withValue(KAMON_INFLUXDB, ConfigValueFactory.fromAnyRef("no"))

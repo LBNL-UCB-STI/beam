@@ -8,12 +8,25 @@ header:
     beamTemplateConfPath: test/input/sf-light/sf-light-5k.conf
     modeChoiceTemplate: test/input/sf-light/sf-light-calibration/modeChoiceParameters.xml.tpl
     numWorkers: 1
-    params:
+    deployParams:
       ### ---- run template env variables ---####
       EXPERIMENT_MAX_RAM: 16g
       S3_OUTPUT_PATH_SUFFIX: "sf-light"
       DROP_OUTPUT_ONCOMPLETE: "true"
       IS_PARALLEL: "false"
+
+      runName: "Fall18-calib-run5"
+      beamBranch: "cs/#496-deploy-ev-to-sfbay-4ci"
+      beamCommit: "0b3e07a22a19f0b69c7c27fb5ec88a0c62ac8998"
+      deployMode: "execute"
+      executeClass: "beam.calibration.RunCalibration"
+      beamBatch: "false"
+      shutdownWait: "15"
+      shutdownBehavior: "stop"
+      s3Backup: "true"
+      maxRAM: "140g"
+      region: "us-east-2"
+      instanceType: "c5.18xlarge"
 
 
 # Default Params
@@ -78,10 +91,10 @@ factors:
     levels:
     - name: Low
       params:
-        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.1
+        beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation: 0.1
     - name: High
       params:
-        beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.5
+        beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation: 0.5
 
   - title: walkIntercept
     levels:

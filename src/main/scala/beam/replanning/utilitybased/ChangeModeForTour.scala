@@ -4,24 +4,22 @@ import java.util
 import java.util.Collections
 
 import beam.agentsim.agents.Population
-import beam.agentsim.agents.choice.mode.DrivingCostDefaults.LITERS_PER_GALLON
 import beam.agentsim.agents.choice.mode.TransitFareDefaults
-import beam.agentsim.agents.household.HouseholdActor.AttributesOfIndividual
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BUS, CAR, DRIVE_TRANSIT, FERRY, RAIL, RIDE_HAIL, SUBWAY, WALK, WALK_TRANSIT}
 import beam.sim.BeamServices
-import beam.agentsim.agents.choice.mode.DrivingCostDefaults.LITERS_PER_GALLON
-import beam.utils.plansampling.AvailableModeUtils.availableModeParser
+import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes, PopulationAdjustment}
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.MersenneTwister
 import org.apache.commons.math3.util.Pair
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population._
+import org.matsim.core.population.PersonUtils
 import org.matsim.core.population.algorithms.PlanAlgorithm
 import org.matsim.core.router.TripStructureUtils.Subtour
 import org.matsim.core.router.{CompositeStageActivityTypes, TripRouter, TripStructureUtils}
-import org.matsim.utils.objectattributes.ObjectAttributes
 
 import scala.collection.JavaConverters._
 import scala.collection.{mutable, JavaConverters}
@@ -46,14 +44,11 @@ class ChangeModeForTour(
       )
     )
   )
-
-  private val drivingCostConfig =
-    beamServices.beamConfig.beam.agentsim.agents.drivingCost
   private val rideHailConfig =
     beamServices.beamConfig.beam.agentsim.agents.rideHail
 
-  val DefaultRideHailCostPerMile = BigDecimal(rideHailConfig.defaultCostPerMile)
-  val DefaultRideHailCostPerMinute = BigDecimal(rideHailConfig.defaultCostPerMinute)
+  val DefaultRideHailCostPerMile: Double = rideHailConfig.defaultCostPerMile
+  val DefaultRideHailCostPerMinute: Double = rideHailConfig.defaultCostPerMinute
 
   val stageActivityTypes = new CompositeStageActivityTypes()
 
@@ -110,7 +105,7 @@ class ChangeModeForTour(
   def distanceScaling(beamMode: BeamMode, distance: Double): Double = {
     beamMode match {
       case BeamMode.CAR =>
-        distance * (drivingCostConfig.defaultLitersPerMeter / LITERS_PER_GALLON) * drivingCostConfig.defaultPricePerGallon
+        beamServices.fuelTypePrices(BeamVehicleType.defaultCarBeamVehicleType.primaryFuelType) * distance
       case WALK => distance * 6 // MATSim Default
       case RIDE_HAIL =>
         distance * DefaultRideHailCostPerMile.toDouble * (1 / 1609.34) // 1 mile = 1609.34
@@ -226,25 +221,50 @@ class ChangeModeForTour(
     val person = plan.getPerson
     val household =
       chainBasedTourVehicleAllocator.householdMemberships(person.getId)
-    val personAttributes: ObjectAttributes =
-      beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
-    val availableModes: Seq[BeamMode] = Option(
-      personAttributes.getAttribute(
-        person.getId.toString,
-        beam.utils.plansampling.PlansSampler.availableModeString
-      )
-    ).fold(BeamMode.availableModes)(
-      attr => availableModeParser(attr.toString)
-    )
+
     val householdVehicles =
       Population.getVehiclesFromHousehold(household, beamServices)
-    val valueOfTime =
-      personAttributes.getAttribute(person.getId.toString, "valueOfTime").asInstanceOf[Double]
+
+    val modalityStyle =
+      Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style"))
+        .map(_.asInstanceOf[String])
+
+    val valueOfTime: Double =
+      beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
+        .getAttribute(person.getId.toString, "valueOfTime") match {
+        case null =>
+          beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
+        case specifiedVot =>
+          specifiedVot.asInstanceOf[Double]
+      }
+
+    val availableModes: Seq[BeamMode] = PopulationAdjustment
+      .getBeamAttributes(beamServices.matsimServices.getScenario.getPopulation, person.getId.toString)
+      .availableModes
+
+    val income = Option(
+      beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
+        .getAttribute(person.getId.toString, "income")
+        .asInstanceOf[Int]
+    )
+
     val attributesOfIndividual =
-      AttributesOfIndividual(person, household, householdVehicles, availableModes, valueOfTime)
+      AttributesOfIndividual(
+        HouseholdAttributes(household, householdVehicles),
+        modalityStyle,
+        PersonUtils.getSex(person).equalsIgnoreCase("M"),
+        availableModes,
+        valueOfTime,
+        Option(PersonUtils.getAge(person)),
+        income.map { x =>
+          x
+        }
+      )
 
     person.getCustomAttributes.put("beam-attributes", attributesOfIndividual)
+
     val rankedAlternatives = rankAlternatives(plan, attributesOfIndividual)
+
     val tours: Seq[Subtour] = JavaConverters
       .collectionAsScalaIterable(TripStructureUtils.getSubtours(plan, stageActivityTypes))
       .toIndexedSeq

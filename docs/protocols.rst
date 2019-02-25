@@ -241,3 +241,11 @@ Refueling
 
 ???
 
+Modify Passenger Schedule Manager
+---------------------------------
+
+This protocol is deep into the weeds of the Ride Hail Manager but important for understanding how reservations and reposition requests are managed.
+
+.. image:: _static/uml/ProtocolRideHailPassengerScheduleManager.png
+
+

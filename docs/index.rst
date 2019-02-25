@@ -19,6 +19,8 @@ Contents:
    agents
    behaviors
    events
+   inputs
+   outputs
    protocols
    devops
 

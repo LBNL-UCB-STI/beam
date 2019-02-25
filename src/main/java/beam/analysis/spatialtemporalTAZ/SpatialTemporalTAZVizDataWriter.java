@@ -74,19 +74,18 @@ public class SpatialTemporalTAZVizDataWriter {
         int i, j;
         boolean isInside = false;
         //create an array of coordinates from the region boundary list
-        TazOutput.Coordinates[] verts = region;
-        int sides = verts.length;
+        int sides = region.length;
         for (i = 0, j = sides - 1; i < sides; j = i++) {
             //verifying if your coordinate is inside your region
             if (
                     (
                             (
-                                    (verts[i].lon() <= coord.lon()) && (coord.lon() < verts[j].lon())
+                                    (region[i].lon() <= coord.lon()) && (coord.lon() < region[j].lon())
                             ) || (
-                                    (verts[j].lon() <= coord.lon()) && (coord.lon() < verts[i].lon())
+                                    (region[j].lon() <= coord.lon()) && (coord.lon() < region[i].lon())
                             )
                     ) &&
-                            (coord.lat() < (verts[j].lat() - verts[i].lat()) * (coord.lon() - verts[i].lon()) / (verts[j].lon() - verts[i].lon()) + verts[i].lat())
+                            (coord.lat() < (region[j].lat() - region[i].lat()) * (coord.lon() - region[i].lon()) / (region[j].lon() - region[i].lon()) + region[i].lat())
                     ) {
                 isInside = !isInside;
             }
@@ -169,7 +168,7 @@ public class SpatialTemporalTAZVizDataWriter {
 
     // TODO: create method for adding points and data -> data gets aggregated to correct TAZ
 
-    // TODO: create method for writing out json file to disk
+    // TODO: create method for writing outWriter json file to disk
     // also totals file needs to be written??
 
     // TODO: create tests for this!

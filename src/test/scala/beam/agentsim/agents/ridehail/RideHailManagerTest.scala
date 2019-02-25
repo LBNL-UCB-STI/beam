@@ -1,7 +1,6 @@
 package beam.agentsim.agents.ridehail
 
 class RideHailManagerTest {
-  // TODO: code extracted from StanfordRideHailAllocationManagerV1. Should create a test for it
   //  val rideHailManager: RideHailManager = ???
   //
   //  def apiExamples(

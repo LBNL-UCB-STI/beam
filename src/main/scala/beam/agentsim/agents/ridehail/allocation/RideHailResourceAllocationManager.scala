@@ -1,79 +1,166 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTimeout, RideHailAgentLocation}
-import beam.agentsim.agents.ridehail.{BufferedRideHailRequests, RideHailManager, RideHailRequest}
-import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
+import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, PoolingInfo}
+import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
+import beam.agentsim.agents.vehicles.VehiclePersonId
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
+import beam.router.model.EmbodiedBeamLeg
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.mutable
+
 abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager) extends LazyLogging {
 
-  val bufferedRideHailRequests: BufferedRideHailRequests = new BufferedRideHailRequests(
-    rideHailManager.scheduler
-  )
+  private var bufferedRideHailRequests = Map[RideHailRequest, List[RoutingResponse]]()
+  private var awaitingRoutes = Set[RideHailRequest]()
 
-  def proposeVehicleAllocation(
-    vehicleAllocationRequest: VehicleAllocationRequest
-  ): VehicleAllocationResponse = {
-    // closest request
-    rideHailManager
-      .getClosestIdleRideHailAgent(
-        vehicleAllocationRequest.request.pickUpLocation,
-        rideHailManager.radiusInMeters
-      ) match {
+  /*
+   * respondToInquiry
+   *
+   * This method is called for every customer who inquires about ride hailing services. For simplicity and
+   * performance reasons, we only need to return an agentLocation which is used by the RideHailManager to
+   * calculate a route and ultimately a travel proposal that assumes a single occupant ride.
+   *
+   * If the allocation manager has pooling enabled as an option, then this method should also return
+   * Some(poolingInfo) which contains simple multipliers to quote the average travel time increase
+   * and price decrease that the customer would pay to elect for a pooled ride. You should use an average
+   * travel time increase here and not a maximum increase in order to allow the passengers make long-term
+   * rational choices about mode that reflect the true travel time cost of pooling.
+   */
+  def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
+    rideHailManager.vehicleManager.getClosestIdleRideHailAgent(
+      inquiry.pickUpLocationUTM,
+      rideHailManager.radiusInMeters
+    ) match {
       case Some(agentLocation) =>
-        VehicleAllocation(agentLocation, None)
+        SingleOccupantQuoteAndPoolingInfo(agentLocation, None)
       case None =>
-        NoVehicleAllocated
+        NoVehiclesAvailable
     }
   }
 
-  // TODO: is third argument really needed
-  def updateVehicleAllocations(
-    tick: Double,
-    triggerId: Long,
-    rideHailManager: RideHailManager
-  ): Unit = {
-    bufferedRideHailRequests.newTimeout(tick, triggerId)
-
-    updateVehicleAllocations(tick, triggerId)
-
-    // TODO: refactor to BufferedRideHailRequests?
-    val timerTrigger = BufferedRideHailRequestsTimeout(
-      tick + 1 // TODO: replace with new config variable
-    )
-    val timerMessage = ScheduleTrigger(timerTrigger, rideHailManager.self)
-    Vector(timerMessage)
-
-    val nextMessage = Vector(timerMessage)
-
-    bufferedRideHailRequests.addTriggerMessages(nextMessage)
-
-    bufferedRideHailRequests.tryClosingBufferedRideHailRequestWaive()
-
-  }
-
   /*
-    This method is called periodically
+   * The allocation manager maintains a buffer of ride hail requests that are then dispatched in batch
+   * when the allocateVehiclesToCustomers method (below) is called. Your implementation of this manager
+   * may need to optionally add or remove requests depending on your algorithm for allocation.
+   *
+   * See Pooling for an example of an algorithm that uses removeRequestFromBuffer
    */
-  def updateVehicleAllocations(tick: Double, triggerId: Long): Unit = {
-    logger.trace("default implementation updateVehicleAllocations executed")
+  def addRequestToBuffer(request: RideHailRequest) = {
+    bufferedRideHailRequests = bufferedRideHailRequests + (request -> List())
+  }
+
+  def addRouteForRequestToBuffer(request: RideHailRequest, routingResponse: RoutingResponse) = {
+    if (awaitingRoutes.contains(request)) awaitingRoutes -= request
+    if (!bufferedRideHailRequests.contains(request)) addRequestToBuffer(request)
+    bufferedRideHailRequests = bufferedRideHailRequests + (request -> (bufferedRideHailRequests(request) :+ routingResponse))
+  }
+
+  def removeRequestFromBuffer(request: RideHailRequest) = {
+    bufferedRideHailRequests -= request
+  }
+  def isBufferEmpty = bufferedRideHailRequests.isEmpty
+
+  def allocateVehiclesToCustomers(tick: Int): AllocationResponse = {
+    var allocationResponse = allocateVehiclesToCustomers(tick, new AllocationRequests(bufferedRideHailRequests))
+    allocationResponse match {
+      case VehicleAllocations(allocations) =>
+        allocations.foreach { alloc =>
+          alloc match {
+            case RoutingRequiredToAllocateVehicle(request, _) =>
+              awaitingRoutes += request
+              bufferedRideHailRequests -= request
+            case _ =>
+          }
+        }
+      case _ =>
+    }
+    allocationResponse
   }
 
   /*
-
+   * allocateVehiclesToCustomers
+   *
+   * This method is called in two contexts, either with a single allocation request or with a batch of requests
+   * to be processed. The default implementation here uses a greedy, closest vehicle approach and only
+   * allocates single-occupant rides. For pooled rides, you will need to use the "Pooling" allocation manager
+   * or a variation on that manager.
+   *
+   * This method is designed to be called multiple times for every batch of allocations. Take a single request
+   * as a simple example. If AllocationRequests contains only one request, the process flow will look like this:
+   *
+   * --- allocateVehiclesToCustomers is called with an AllocationRequest that contains request info but no route
+   * --- the response to the above call is a VehicleAllocations object containing a RoutingRequiredToAllocateVehicle
+   * --- the Ride Hail Manager will calculate the route and then call this method again, now with a request AND a route
+   * --- based on the request and routing info, a final allocation will be created in the form of a VehicleMatchedToCustomers object
+   * --- exceptions to the above is if an allocation can't be made in which case a NoVehicleAllocated response is returned
+   *
+   * The above process flow is identical for a batch of multiple requests, except that now the AllocationRequests and the VehicleAllocations
+   * objects contain multiple requests and responses.
    */
-  def handleRideCancellationReply(reply: StopDrivingIfNoPassengerOnBoardReply): Unit = {
-    logger.trace("default implementation handleRideCancellationReply executed")
+  def allocateVehiclesToCustomers(tick: Int, vehicleAllocationRequest: AllocationRequests): AllocationResponse = {
+    // closest request
+    var alreadyAllocated: Set[Id[Vehicle]] = Set()
+    val allocResponses = vehicleAllocationRequest.requests.map {
+      case (request, routingResponses) if (routingResponses.isEmpty) =>
+        rideHailManager.vehicleManager
+          .getClosestIdleVehiclesWithinRadiusByETA(
+            request.pickUpLocationUTM,
+            rideHailManager.radiusInMeters,
+            tick
+          )
+          .headOption match {
+          case Some(agentETA) =>
+            val routeRequired = RoutingRequiredToAllocateVehicle(
+              request,
+              rideHailManager.createRoutingRequestsToCustomerAndDestination(
+                tick,
+                request,
+                agentETA.agentLocation
+              )
+            )
+            routeRequired
+          case None =>
+            NoVehicleAllocated(request)
+        }
+      // The following if condition ensures we actually got routes back in all cases
+      case (request, routingResponses) if routingResponses.find(_.itineraries.size == 0).isDefined =>
+        NoVehicleAllocated(request)
+      case (request, routingResponses) =>
+        rideHailManager.vehicleManager
+          .getClosestIdleVehiclesWithinRadiusByETA(
+            request.pickUpLocationUTM,
+            rideHailManager.radiusInMeters,
+            tick,
+            excludeRideHailVehicles = alreadyAllocated
+          )
+          .headOption match {
+          case Some(agentETA) =>
+            alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId
+            val pickDropIdAndLegs = List(
+              PickDropIdAndLeg(request.customer, routingResponses.head.itineraries.head.legs.headOption),
+              PickDropIdAndLeg(request.customer, routingResponses.last.itineraries.head.legs.headOption)
+            )
+            VehicleMatchedToCustomers(request, agentETA.agentLocation, pickDropIdAndLegs)
+          case None =>
+            NoVehicleAllocated(request)
+        }
+    }.toList
+    VehicleAllocations(allocResponses)
   }
 
   /*
-  This method is called periodically and allows the overwriting resource allocation module to specify which
-  ridehail vehicle should be repositioned/redistributed to which location to better meet anticipated demand.
+   * repositionVehicles
+   *
+   * This method is called periodically according to the parameter beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds
+   * The response of this method is used to reposition idle vehicles to new locations to better meet anticipated demand.
+   * Currently it is not possible to enable repositioning AND batch allocation simultaneously. But simultaneous execution
+   * will be enabled in the near-term.
    */
   def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
     logger.trace("default implementation repositionVehicles executed")
@@ -81,19 +168,26 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   }
 
   /*
-  This method is called whenever a reservation is sucessfully completed. Overwrite this method if you need to process this info further.
-  Use case: You want to overwrite a ride and make sure that it has been processed before cancelling it. Reason: If you cancel it during the reservation,
-  the reservation will overwrite the cancellation.
+   * This method is called whenever a reservation is successfully completed. Override this method if you
+   * need to to cleanup or take further action.
+   * Use case: You want to overwrite a ride and make sure that it has been processed before cancelling it.
+   * Reason: If you cancel it during the reservation, the reservation will overwrite the cancellation.
    */
   def reservationCompletionNotice(personId: Id[Person], vehicleId: Id[Vehicle]): Unit = {}
 
+  /*
+   * This is deprecated.
+   */
+  def handleRideCancellationReply(reply: StopDrivingIfNoPassengerOnBoardReply): Unit = {
+    logger.trace("default implementation handleRideCancellationReply executed")
+  }
 }
 
 object RideHailResourceAllocationManager {
   val DEFAULT_MANAGER = "DEFAULT_MANAGER"
   val EV_MANAGER = "EV_MANAGER"
   val IMMEDIATE_DISPATCH_WITH_OVERWRITE = "IMMEDIATE_DISPATCH_WITH_OVERWRITE"
-  val STANFORD_V1 = "STANFORD_V1"
+  val POOLING = "POOLING"
   val REPOSITIONING_LOW_WAITING_TIMES = "REPOSITIONING_LOW_WAITING_TIMES"
   val RANDOM_REPOSITIONING = "RANDOM_REPOSITIONING"
   val DUMMY_DISPATCH_WITH_BUFFERING = "DUMMY_DISPATCH_WITH_BUFFERING"
@@ -106,52 +200,74 @@ object RideHailResourceAllocationManager {
       case RideHailResourceAllocationManager.DEFAULT_MANAGER =>
         new DefaultRideHailResourceAllocationManager(rideHailManager)
       case RideHailResourceAllocationManager.EV_MANAGER =>
-        new EVFleetAllocationManager(rideHailManager)
-      case RideHailResourceAllocationManager.STANFORD_V1 =>
-        new StanfordRideHailAllocationManagerV1(rideHailManager)
+//        new EVFleetAllocationManager(rideHailManager)
+        new DefaultRideHailResourceAllocationManager(rideHailManager)
+      case RideHailResourceAllocationManager.POOLING =>
+        new Pooling(rideHailManager)
       case RideHailResourceAllocationManager.REPOSITIONING_LOW_WAITING_TIMES =>
         new RepositioningLowWaitingTimes(rideHailManager)
       case RideHailResourceAllocationManager.RANDOM_REPOSITIONING =>
         new RandomRepositioning(rideHailManager)
-      // TODO: IMMEDIATE_DISPATCH_WITH_OVERWRITE is failing because was moved to test folder.
-      // this instantiation can be made uniformß
-//      case RideHailResourceAllocationManager.IMMEDIATE_DISPATCH_WITH_OVERWRITE =>
-//        new ImmediateDispatchWithOverwrite(rideHailManager)
-      case x if x startsWith ("Test_") =>
-        //var clazzExModule = classLoader.loadClass(Module.ModuleClassName + "$")
-        //clazzExModule.getField("MODULE$").get(null).asInstanceOf[Module]
-
-        val classFullName = x.replaceAll("Test_", "")
-        Class
-          .forName(classFullName)
-          .getDeclaredConstructors()(0)
-          .newInstance(rideHailManager)
-          .asInstanceOf[RideHailResourceAllocationManager]
-
-      case _ =>
-        throw new IllegalStateException(
-          s"Unknown RideHailResourceAllocationManager: $allocationManager"
-        )
+      case classFullName =>
+        try {
+          Class
+            .forName(classFullName)
+            .getDeclaredConstructors()(0)
+            .newInstance(rideHailManager)
+            .asInstanceOf[RideHailResourceAllocationManager]
+        } catch {
+          case e: Exception =>
+            throw new IllegalStateException(s"Unknown RideHailResourceAllocationManager: $allocationManager", e)
+        }
     }
   }
 }
 
-trait VehicleAllocationResponse
-
-case class RoutingRequiredToAllocateVehicle(
-  request: RideHailRequest,
-  routesRequired: List[RoutingRequest]
-) extends VehicleAllocationResponse
-case class VehicleAllocation(
+/*
+ * An InquiryResponse is how we respond to customer inquiries. This looks similar to AllocationResponse
+ * except for a couple of difference:
+ * 1) InquiryResponses are always assumed to contain a plan for a single occupant
+ * ride hail trip plus PoolingInfo which gives relative time and cost estimate for a companion pooled ride quote.
+ * 2) InquiryResponses are therefore one to one, response -> inquiry... whereas AllocationResponse
+ * can be one to many... i.e. one vehicle is assigned to many customers.
+ */
+trait InquiryResponse
+case object NoVehiclesAvailable extends InquiryResponse
+case class SingleOccupantQuoteAndPoolingInfo(
   rideHailAgentLocation: RideHailAgentLocation,
-  routingResponses: Option[List[RoutingResponse]]
-) extends VehicleAllocationResponse
-case object NoVehicleAllocated extends VehicleAllocationResponse
+  poolingInfo: Option[PoolingInfo]
+) extends InquiryResponse
+/*
+ * An AllocationResponse is what the RideHailResourceAllocationManager returns in response to an AllocationRequest
+ */
+trait AllocationResponse
+case object NoRidesRequested extends AllocationResponse
+case class VehicleAllocations(allocations: List[VehicleAllocation]) extends AllocationResponse
 
-case class VehicleAllocationRequest(
+/*
+ * A VehicleAllocation is a specific directive about one ride hail vehicle
+ * (match found or no match found? if found, who are the customers?)
+ */
+trait VehicleAllocation { val request: RideHailRequest }
+case class NoVehicleAllocated(request: RideHailRequest) extends VehicleAllocation
+case class RoutingRequiredToAllocateVehicle(request: RideHailRequest, routesRequired: List[RoutingRequest])
+    extends VehicleAllocation
+case class VehicleMatchedToCustomers(
   request: RideHailRequest,
-  routingResponses: List[RoutingResponse]
-)
+  rideHailAgentLocation: RideHailAgentLocation,
+  pickDropIdWithRoutes: List[PickDropIdAndLeg]
+) extends VehicleAllocation
+case class PickDropIdAndLeg(personId: VehiclePersonId, leg: Option[EmbodiedBeamLeg])
+
+case class AllocationRequests(requests: Map[RideHailRequest, List[RoutingResponse]])
+
+object AllocationRequests {
+  def apply(requests: List[RideHailRequest]): AllocationRequests = AllocationRequests(requests.map((_ -> List())).toMap)
+  def apply(request: RideHailRequest): AllocationRequests = AllocationRequests(Map((request -> List())))
+
+  def apply(request: RideHailRequest, routeResponses: List[RoutingResponse]): AllocationRequests =
+    AllocationRequests(Map((request -> routeResponses)))
+}
 
 //requestType: RideHailRequestType,
 //customer: VehiclePersonId,

@@ -1,6 +1,6 @@
 package beam.integration.ridehail
 
-import beam.integration.EventsFileHandlingCommon
+import beam.integration.ReadEvents._
 import beam.sim.BeamHelper
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
@@ -8,12 +8,11 @@ import org.matsim.api.core.v01.events.Event
 import org.scalatest.FlatSpec
 import org.scalatest.mockito.MockitoSugar
 
-import scala.collection.immutable.Queue
 import scala.collection.mutable.ArrayBuffer
 
-class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSugar with EventsFileHandlingCommon {
+class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSugar {
 
-  def getActivitiesGroupedByPerson(events: Queue[Event]): Map[String, (ArrayBuffer[Event], ArrayBuffer[Event])] = {
+  def getActivitiesGroupedByPerson(events: Seq[Event]): Map[String, (ArrayBuffer[Event], ArrayBuffer[Event])] = {
     val activities = events.filter(e => "actstart".equals(e.getEventType) || "actend".equals(e.getEventType))
 
     val groupedByPerson = activities.foldLeft(Map[String, ArrayBuffer[Event]]()) {
@@ -25,9 +24,9 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
     }
 
     groupedByPerson.map {
-      case (id, events) =>
+      case (id, _events) =>
         val (startActEvents, endActEvents) =
-          events.partition(e => "actstart".equals(e.getEventType))
+          _events.partition(e => "actstart".equals(e.getEventType))
         (id, (startActEvents, endActEvents))
     }
 
@@ -35,11 +34,12 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
 
   it should "have same actstart as endstart events for persons when using ridehail replacement in DummyRideHailDispatchWithBufferingRequests" ignore {
     val config = testConfig("test/input/beamville/beam.conf")
+      .resolve()
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue(
         "beam.agentsim.agents.rideHail.allocationManager.name",
         ConfigValueFactory.fromAnyRef(
-          "Test_beam.agentsim.agents.rideHail.allocation.examples.DummyRideHailDispatchWithBufferingRequests"
+          "beam.agentsim.agents.rideHail.allocation.examples.DummyRideHailDispatchWithBufferingRequests"
           //"DEFAULT_MANAGER"
         )
       )
@@ -47,7 +47,7 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
 
     val matsimConfig = runBeamWithConfig(config)._1
     val filePath = getEventsFilePath(matsimConfig, "xml").getAbsolutePath
-    val events = collectEvents(filePath)
+    val events = fromFile(filePath).toSeq
 
     val groupedByPersonStartEndEvents = getActivitiesGroupedByPerson(events)
 
@@ -64,11 +64,12 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
 
   it should "have different actstart and endstart events for persons when NOT using ridehail replacement in DummyRideHailDispatchWithBufferingRequestsWithoutReplacement" ignore {
     val config = testConfig("test/input/beamville/beam.conf")
+      .resolve()
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue(
         "beam.agentsim.agents.rideHail.allocationManager.name",
         ConfigValueFactory.fromAnyRef(
-          "Test_beam.agentsim.agents.ridehail.allocation.examples.DummyRideHailDispatchWithBufferingRequestsWithoutReplacement"
+          "beam.agentsim.agents.ridehail.allocation.examples.DummyRideHailDispatchWithBufferingRequestsWithoutReplacement"
           //"DEFAULT_MANAGER"
         )
       )
@@ -76,7 +77,7 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
 
     val matsimConfig = runBeamWithConfig(config)._1
     val filePath = getEventsFilePath(matsimConfig, "xml").getAbsolutePath
-    val events = collectEvents(filePath)
+    val events = fromFile(filePath).toSeq
 
     val groupedByPersonStartEndEvents = getActivitiesGroupedByPerson(events)
 

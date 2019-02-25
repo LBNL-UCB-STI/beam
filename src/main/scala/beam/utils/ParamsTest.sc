@@ -6,4 +6,3 @@ def getHash(concatParams: Any*): String = {
 getHash("a", "b", "c")
 
 505396532 % 5000
-

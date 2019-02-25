@@ -1,8 +1,6 @@
 package beam.calibration.utils
 
 import beam.calibration.BeamSigoptTuner
-import beam.calibration.utils.ListSuggestions.suggestions
-import beam.utils.DebugLib
 import com.sigopt.Sigopt
 import com.sigopt.model.{Experiment, Pagination, Suggestion}
 import com.typesafe.scalalogging.LazyLogging
@@ -18,60 +16,67 @@ object DeleteSuggestion extends LazyLogging {
 
   val suggestions: Pagination[Suggestion] = experiment.suggestions().list().call()
 
-  def deleteSuggestion(experimentId: String, suggestionId: String) = {
-
+  def deleteSuggestion(experimentId: String, suggestionId: String): Unit = {
     BeamSigoptTuner.fetchExperiment(experimentId) match {
-      case Some(_experiment) => {
+      case Some(_experiment) =>
         _experiment.suggestions().delete(suggestionId).call()
-      }
-      case None => {
+      case None =>
         logger.info(s"Experiment with id $experimentId not found")
-      }
     }
   }
 
-  def deleteSuggestions(experimentId: String, suggestions: List[String]) = {
-
+  def deleteSuggestions(experimentId: String, suggestions: List[String]): Unit = {
     BeamSigoptTuner.fetchExperiment(experimentId) match {
-      case Some(_experiment) => {
+      case Some(_experiment) =>
         suggestions.foreach { suggestionId =>
-          {
-
-            _experiment.suggestions().delete(suggestionId).call()
-          }
+          _experiment.suggestions().delete(suggestionId).call()
         }
-      }
-      case None => {
+      case None =>
         logger.info(s"Experiment with id $experimentId not found")
-      }
     }
   }
 
-  def listSuggestions(experimentId: String) = {
+  def listSuggestions(experimentId: String): Unit = {
     BeamSigoptTuner.fetchExperiment(experimentId) match {
-      case Some(_experiment) => {
-
-        if (_experiment.suggestions().list().call().getData.size() > 0)
-          _experiment.suggestions().list().call().getData.forEach { d =>
-            println(d)
-          } else
-          logger.info(s"Experiement with id $experimentId has no suggestion")
-      }
-      case None => {
+      case Some(_experiment) =>
+        val data = _experiment.suggestions().list().call().getData.asScala
+        data.foreach(println)
+        if (data.isEmpty) {
+          logger.info(s"Experiment with id $experimentId has no suggestion")
+        }
+      case None =>
         logger.info(s"Experiment with id $experimentId not found")
-      }
+    }
+  }
+
+  def deleteAllOpenSuggestions(experimentId: String): Unit = {
+    BeamSigoptTuner.fetchExperiment(experimentId) match {
+      case Some(_experiment) =>
+        val data = _experiment.suggestions().list().call().getData.asScala
+        if (data.isEmpty) {
+          logger.info(s"Experiment with id $experimentId has no suggestion")
+        }
+        data.filter(_.getState == "open").foreach { d =>
+          logger.info("DELETING SUGGESTION ID ({}) - {}", d.getId, d)
+          _experiment.suggestions().delete(d.getId).call()
+        }
+      case None =>
+        logger.info(s"Experiment with id $experimentId not found")
     }
   }
 
   def main(args: Array[String]): Unit = {
 
-    val experimentId = "52024"
-    val suggestionId = "21233364";
+    //    val experimentId = "52024"
+    //    val suggestionId = "21233364";
+    //    listSuggestions(experimentId)
+    //    deleteSuggestion(experimentId, suggestionId)
+    //    listSuggestions(experimentId)
 
+    ///
+    val experimentId = "52783"
     listSuggestions(experimentId)
+    deleteAllOpenSuggestions(experimentId)
 
-    deleteSuggestion(experimentId, suggestionId)
-
-    listSuggestions(experimentId)
   }
 }

@@ -15,12 +15,24 @@ import java.util.*;
 import java.util.List;
 
 public class GraphUtils {
+    private static final Map<String, Color> colorsForModes = new HashMap<>();
     private static final List<Color> colors = new ArrayList<>();
     private static final Color DEFAULT_BACK_GROUND = new Color(255, 255, 255);
+    private static final Color PURPLE = new Color(102,0,153);
+    private static final Color LIGHT_BROWN = new Color(153,102,0);
+    private static final Color LIGHT_YELLOW = new Color(255, 255,153);
+    private static final Color VERY_LIGHT_BLUE = new Color(51, 204, 255);
+    private static final Color VERY_LIGHT_RED = new Color(255, 102,102);
+    private static final Color VERY_LIGHT_GREEN = new Color(102,255,102);
+    private static final Color VERY_DARK_BLUE = new Color(0,0,153);
+    private static final Color VERY_DARK_RED = new Color(153,0,0);
+    private static final Color VERY_DARK_GREEN = new Color(0,102,0);
+
+
     /**
      * Map < iteration number, ride hailing revenue>
      */
-    public static Map<Integer, RideHailDistanceRowModel> RIDE_HAIL_REVENUE_MAP = new HashMap<>();
+    public static final Map<Integer, RideHailDistanceRowModel> RIDE_HAIL_REVENUE_MAP = new HashMap<>();
 
     static {
         colors.add(Color.GREEN);
@@ -32,6 +44,20 @@ public class GraphUtils {
         colors.add(Color.BLACK);
         colors.add(Color.YELLOW);
         colors.add(Color.CYAN);
+
+        colorsForModes.put("car", Color.ORANGE);
+        colorsForModes.put("walk", VERY_DARK_RED);
+        colorsForModes.put("ride_hail_transit", VERY_DARK_GREEN);
+        colorsForModes.put("ride_hail", VERY_LIGHT_RED);
+        colorsForModes.put("walk_transit", PURPLE);
+        colorsForModes.put("drive_transit", VERY_LIGHT_BLUE);
+        colorsForModes.put("subway",LIGHT_BROWN );
+        colorsForModes.put("others", Color.DARK_GRAY);
+        colorsForModes.put("bike", Color.LIGHT_GRAY);
+        colorsForModes.put("tram", VERY_LIGHT_GREEN);
+        colorsForModes.put("rail", VERY_DARK_BLUE);
+        colorsForModes.put("bus", LIGHT_YELLOW);
+
     }
 
     public static JFreeChart createStackedBarChartWithDefaultSettings(CategoryDataset dataset, String graphTitle, String xAxisTitle, String yAxisTitle, String fileName, boolean legend) {
@@ -60,8 +86,14 @@ public class GraphUtils {
     public static void plotLegendItems(CategoryPlot plot, List<String> legendItemName, int dataSetRowCount) {
         LegendItemCollection legendItems = new LegendItemCollection();
         for (int i = 0; i < dataSetRowCount; i++) {
-            Color color = getBarAndLegendColor(i);
-            legendItems.add(new LegendItem(legendItemName.get(i), color));
+            String legendName = legendItemName.get(i);
+            Color color;
+            if (colorsForModes.containsKey(legendName)) {
+                color = colorsForModes.get(legendName);
+            } else {
+                color = getBarAndLegendColor(i);   // keeping this for legends other than modes legends
+            }
+            legendItems.add(new LegendItem(legendName, color));
             plot.getRenderer().setSeriesPaint(i, color);
         }
         plot.setFixedLegendItems(legendItems);
@@ -93,7 +125,6 @@ public class GraphUtils {
         float r = rand.nextFloat();
         float g = rand.nextFloat();
         float b = rand.nextFloat();
-        Color randomColor = new Color(r, g, b);
-        return randomColor;
+        return new Color(r, g, b);
     }
 }

@@ -1,7 +1,5 @@
 package beam.replanning.utilitybased
 
-import java.util.Random
-
 import beam.agentsim.agents.memberships.HouseholdMembershipAllocator
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.replanning.utilitybased.ChainBasedTourVehicleAllocator.{SubtourRecord, VehicleRecord, VehicleRecordFactory}
@@ -31,8 +29,6 @@ case class ChainBasedTourVehicleAllocator(
   val stageActivitytypes = new CompositeStageActivityTypes()
 
   val linkNetworkRouteFactory = new LinkNetworkRouteFactory()
-
-  private val random = new Random(3004568) // Random.org
 
   // Delegation
   val householdMemberships: Map[Id[Person], Household] = householdMembershipAllocator.memberships
@@ -123,9 +119,7 @@ case class ChainBasedTourVehicleAllocator(
       firstAvailableVehicle.nAllocs += 1
       currentSubtour.allocatedVehicle = Some(firstAvailableVehicle.id)
       true
-    } else {
-      false
-    }
+    } else { false }
   }
 
   private def getVehicularToursSortedByStartTime(householdPlans: Seq[Plan]) = {
@@ -137,40 +131,44 @@ case class ChainBasedTourVehicleAllocator(
           getSubtours(plan, stageActivitytypes)
         )
       } yield {
-        for { trip <- JavaConverters.collectionAsScalaIterable(subtour.getTrips) } yield {
+        for { _ <- JavaConverters.collectionAsScalaIterable(subtour.getTrips) } yield {
           val usableVehicles = identifyVehiclesUsableForAgent(plan.getPerson.getId)
           val vehicleRecords = vehicleRecordFactory.getRecords(usableVehicles)
           SubtourRecord(vehicleRecords, subtour)
         }
       }).flatten.toVector
 
-    validateVehicularTours(vehicularTours).sortWith((st1, st2) => st1.startTime > st1.endTime)
-
+    validateVehicularTours(vehicularTours).sortBy(_.startTime) //.sortWith((st1, st2) => st1.startTime > st1.endTime)
   }
 
   private def validateVehicularTours(vehicularTours: Vector[SubtourRecord]): Seq[SubtourRecord] = {
-
+    import scala.util.control.Breaks._
     var homeLoc: Option[Id[Link]] = None
-    for (record <- vehicularTours) {
-      val s = record.subtour
-      val anchor: Option[Id[Link]] = Option(s.getTrips.get(0).getOriginActivity.getLinkId)
-      if (anchor.isEmpty) throw new NullPointerException("null anchor location")
-      if (homeLoc.isEmpty) homeLoc = anchor
-      else if (!(homeLoc == anchor)) { // invalid
-        return Seq[SubtourRecord]()
+    var returnVal: Option[Seq[SubtourRecord]] = None
+    breakable {
+      for (record <- vehicularTours) {
+        val s = record.subtour
+        val anchor: Option[Id[Link]] = Option(s.getTrips.get(0).getOriginActivity.getLinkId)
+        if (anchor.isEmpty) throw new NullPointerException("null anchor location")
+        if (homeLoc.isEmpty) homeLoc = anchor
+        else if (!(homeLoc == anchor)) { // invalid
+          returnVal = Some(Seq[SubtourRecord]())
+          break
+        }
       }
     }
-    vehicularTours
+    returnVal.getOrElse(vehicularTours)
   }
 
   private def isChainBased(t: Trip): Boolean = {
     val legs = JavaConverters.collectionAsScalaIterable(t.getLegsOnly).toSeq
-    if (legs.isEmpty) return false
-    // XXX what to do if several legs???
-    val l = legs.head
-    if (!Modes.BeamMode.chainBasedModes.map(mode => mode.matsimMode).contains(l.getMode))
-      return false
-    true
+    if (legs.isEmpty) false
+    else {
+      // XXX what to do if several legs???
+      val l = legs.head
+      if (!Modes.BeamMode.chainBasedModes.map(mode => mode.matsimMode).contains(l.getMode)) false
+      else true
+    }
   }
 
 }
@@ -234,5 +232,4 @@ object ChainBasedTourVehicleAllocator {
       new SubtourRecord(startTime, endTime, possibleVehicles, subtour, None)
     }
   }
-
 }

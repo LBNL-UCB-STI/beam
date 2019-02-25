@@ -8,11 +8,9 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{
   NotifyVehicleResourceIdleReply,
   Resume
 }
-import beam.agentsim.agents.ridehail.{RideHailManager, RideHailModifyPassengerScheduleManager}
 import beam.agentsim.agents.vehicles.PassengerSchedule
-import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
-import beam.sim.config.BeamConfig
 import beam.utils.DebugLib
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
@@ -33,13 +31,13 @@ class OutOfServiceVehicleManager(
   def initiateMovementToParkingDepot(
     vehicleId: Id[Vehicle],
     passengerSchedule: PassengerSchedule,
-    tick: Double
+    tick: Int
   ): Unit = {
     log.debug("initiateMovementToParkingDepot - vehicle: " + vehicleId)
 
     passengerSchedules.put(vehicleId, passengerSchedule)
 
-    rideHailManager
+    rideHailManager.vehicleManager
       .getRideHailAgentLocation(vehicleId)
       .rideHailAgent
       .tell(
@@ -48,51 +46,48 @@ class OutOfServiceVehicleManager(
       )
   }
 
-  def registerTrigger(vehicleId: Id[Vehicle], triggerId: Option[Long]) = {
-    triggerIds.put(vehicleId, triggerId)
+  def registerTrigger(vehicleId: Id[Vehicle], triggerId: Option[Long]): Option[Long] = {
+    triggerIds.put(vehicleId, triggerId).flatten
   }
 
-  def handleInterrupt(
+  def handleInterruptReply(
     vehicleId: Id[Vehicle],
+    tick: Int
   ): Unit = {
 
-    val rideHailAgent = rideHailManager
+    val rideHailAgent = rideHailManager.vehicleManager
       .getRideHailAgentLocation(vehicleId)
       .rideHailAgent
 
     rideHailAgent.tell(
-      ModifyPassengerSchedule(passengerSchedules.get(vehicleId).get),
+      ModifyPassengerSchedule(passengerSchedules(vehicleId), tick),
       rideHailManagerActor
     )
     rideHailAgent.tell(Resume(), rideHailManagerActor)
     DebugLib.emptyFunctionForSettingBreakPoint()
   }
 
-  def handleModifyPassengerScheduleAck(
-    vehicleId: Id[Vehicle],
-    triggersToSchedule: Seq[ScheduleTrigger]
-  ): Unit = {
-    releaseTrigger(vehicleId, triggersToSchedule)
-  }
-
   def releaseTrigger(
     vehicleId: Id[Vehicle],
-    triggersToSchedule: Seq[ScheduleTrigger] = Vector[ScheduleTrigger]()
+    triggersToSchedule: Seq[ScheduleTrigger] = Vector()
   ): Unit = {
-    val rideHailAgent = rideHailManager
+    val rideHailAgent = rideHailManager.vehicleManager
       .getRideHailAgentLocation(vehicleId)
       .rideHailAgent
 
     rideHailAgent ! NotifyVehicleResourceIdleReply(
-      triggerIds.get(vehicleId).get,
+      triggerIds(vehicleId),
       triggersToSchedule
     )
   }
 
 }
 
+case class ReleaseAgentTrigger(vehicleId: Id[Vehicle])
+
 case class MoveOutOfServiceVehicleToDepotParking(
   passengerSchedule: PassengerSchedule,
-  tick: Double,
+  tick: Int,
   vehicleId: Id[Vehicle],
+  stall: ParkingStall
 )

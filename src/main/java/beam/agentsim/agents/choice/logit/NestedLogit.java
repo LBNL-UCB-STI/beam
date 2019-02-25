@@ -68,14 +68,14 @@ public class NestedLogit implements AbstractLogit {
                     }
                     theData.setUtility(utility);
                     if (tree.parent != null) {
-                        tree.ancestorNests = new LinkedList<NestedLogit>();
+                        tree.ancestorNests = new LinkedList<>();
                         establishAncestry(tree, tree.parent);
                     }
                     break;
                 case "nestedlogit":
                 case "alternative":
                     if (tree.children == null) {
-                        tree.children = new LinkedList<NestedLogit>();
+                        tree.children = new LinkedList<>();
                     }
                     NestedLogit child = NestedLogit.nestedLogitFactory(elem);
                     child.parent = tree;
@@ -95,7 +95,7 @@ public class NestedLogit implements AbstractLogit {
 
     @Override
     public DiscreteProbabilityDistribution evaluateProbabilities(LinkedHashMap<String, LinkedHashMap<String, Double>> inputData) {
-        LinkedHashMap<NestedLogit, Double> conditionalProbs = new LinkedHashMap<NestedLogit, Double>();
+        LinkedHashMap<NestedLogit, Double> conditionalProbs = new LinkedHashMap<>();
 
         getExpOfExpectedMaximumUtility(inputData, conditionalProbs);
         LinkedHashMap<String, Double> marginalProbs = marginalizeAlternativeProbabilities(conditionalProbs);
@@ -130,7 +130,7 @@ public class NestedLogit implements AbstractLogit {
     }
 
     private LinkedHashMap<String, Double> marginalizeAlternativeProbabilities(LinkedHashMap<NestedLogit, Double> conditionalProbs) {
-        LinkedHashMap<String, Double> marginalProbs = new LinkedHashMap<String, Double>();
+        LinkedHashMap<String, Double> marginalProbs = new LinkedHashMap<>();
         for (NestedLogit node : conditionalProbs.keySet()) {
             if (node.isAlternative()) {
                 double marginal = propogateNestProbs(node, conditionalProbs);

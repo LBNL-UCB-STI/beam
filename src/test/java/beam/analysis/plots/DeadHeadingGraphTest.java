@@ -8,7 +8,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 public class DeadHeadingGraphTest {
-    private DeadHeadingStats deadHeadingStats = new DeadHeadingStats();
+    private final DeadHeadingAnalysis deadHeadingStats = new DeadHeadingAnalysis(true);
 
     @BeforeClass
     public static void setUpClass() {
@@ -16,16 +16,15 @@ public class DeadHeadingGraphTest {
     }
 
     @Test
-    @Ignore
     public void testShouldPassShouldReturnPassengerPerTripInBusForFirstBucket() {
-        int expectedResult = 141;
+        int expectedResult = 1;
         int actualResult = deadHeadingStats.getBucketCountAgainstMode(0, GraphTestUtil.BUS);
         assertEquals(expectedResult, actualResult);
     }
 
     @Test
     public void testShouldPassShouldReturnPassengerPerTripInBusForSecondBucket() {
-        int expectedResult = 2;
+        int expectedResult = 6;
         int actualResult = deadHeadingStats.getBucketCountAgainstMode(1, GraphTestUtil.BUS);
         assertEquals(expectedResult, actualResult);
     }
@@ -47,17 +46,15 @@ public class DeadHeadingGraphTest {
     }
 
     @Test
-    @Ignore
     public void testShouldPassShouldReturnDeadHeadingTnc0() {
-        int expectedResult = 18;
+        int expectedResult = 0;
         int actualResult = deadHeadingStats.getDeadHeadingTnc0HourDataCount(0);
         assertEquals(expectedResult, actualResult);
     }
 
     @Test
-    @Ignore
     public void testShouldPassShouldReturnDeadHeadingAllDistanceForSpecificHour() {
-        int expectedResultOfHour[] = {9, 23, 0, 0, 0, 0, 0};
+        int expectedResultOfHour[] = {0, 11, 24, 0, 0, 0, 0};
         int actualResultOfHour[] = new int[7];
         for (int i = 0; i < 7; i++) {
             actualResultOfHour[i] = deadHeadingStats.getDeadHeadingTnc0HourDataCount(i, 6);
@@ -66,9 +63,8 @@ public class DeadHeadingGraphTest {
     }
 
     @Test
-    @Ignore
     public void testShouldPassShouldReturnDeadHeadingPassengerPerTripForSpecificHour() {
-        int expectedResultOfHour[] = {9, 9, 0, 0, 0, 0, 0};
+        int expectedResultOfHour[] = {0, 7, 7, 0, 0, 0, 0};
         int actualResultOfHour[] = new int[7];
         for (int i = 0; i < 7; i++) {
             actualResultOfHour[i] = deadHeadingStats.getPassengerPerTripCountForSpecificHour(i, "tnc", 6);

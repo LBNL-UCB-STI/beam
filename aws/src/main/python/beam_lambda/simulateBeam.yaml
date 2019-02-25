@@ -12,21 +12,22 @@ Resources:
       MemorySize: 128
       Timeout: 59
       Role: 'arn:aws:iam::340032650202:role/BeamLambdaExecution'
-      Events:
-        Api1:
-          Type: Api
-          Properties:
-            Path: /simulateBeam
-            Method: ANY
       Environment:
         Variables:
           IAM_ROLE: BeamCodeDeployEC2
+          SIGOPT_DEV_ID: dumy
+          MAX_RAM: 2g
           INSTANCE_TYPE: t2.small
           us_west_2_KEY_NAME: beambox-oregon
-          us_east_2_IMAGE_ID: ami-0dc1f368
+          us_east_2_IMAGE_ID: ami-064fd4e113e22eb6d
+          SYSTEM_INSTANCES: 'i-0d8a894d652373f6c,i-0666e94eb0954ae32,i-056e7dd8048cc0b19'
+          us_east_1_IMAGE_ID: ami-0a845da526e49284b
           us_east_2_SECURITY_GROUP: sg-bb469dd3
+          us_east_1_SECURITY_GROUP: beam-sg
+          SIGOPT_CLIENT_ID: dumy
           SHUTDOWN_BEHAVIOUR: terminate
           REGION: us-east-2
           us_east_2_KEY_NAME: beam-box
-          us_west_2_IMAGE_ID: ami-a044f4d8
+          us_east_1_KEY_NAME: beam-key
+          us_west_2_IMAGE_ID: ami-05aa00b1c278a73ea
           us_west_2_SECURITY_GROUP: sg-017c717d

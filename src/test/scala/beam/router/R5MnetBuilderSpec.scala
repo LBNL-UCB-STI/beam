@@ -12,7 +12,7 @@ import org.scalatest.FlatSpec
 class R5MnetBuilderSpec extends FlatSpec {
 
   it should "do something" in {
-    val config = testConfig("test/input/beamville/beam.conf")
+    val config = testConfig("test/input/beamville/beam.conf").resolve()
     var transportNetwork =
       TransportNetwork.fromDirectory(new File("test/input/beamville/r5"))
     val cursor = transportNetwork.streetLayer.edgeStore.getCursor

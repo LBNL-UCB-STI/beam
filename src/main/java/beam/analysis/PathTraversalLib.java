@@ -13,7 +13,7 @@ public class PathTraversalLib {
 
 
     public static LinkedList<String> getLinkIdList(String links, String separator) {
-        LinkedList<String> linkIds = new LinkedList<String>();
+        LinkedList<String> linkIds = new LinkedList<>();
         if (links.trim().length() != 0) {
             for (String link : links.split(separator)) {
                 linkIds.add(link.trim());

@@ -18,18 +18,9 @@ class FakeTravelTimeCalculator(network: Network, ttconfigGroup: TravelTimeCalcul
     time: Double
   ): Double = 0.0
 
-  override def getLinkTravelTimes: TravelTime = new TravelTime {
-    override def getLinkTravelTime(
-      link: Link,
-      time: Double,
-      person: Person,
-      vehicle: Vehicle
-    ): Double = 0.0
-  }
+  override def getLinkTravelTimes: TravelTime = (_: Link, _: Double, _: Person, _: Vehicle) => 0.0
 
-  override def getLinkToLinkTravelTimes: LinkToLinkTravelTime = new LinkToLinkTravelTime {
-    override def getLinkToLinkTravelTime(fromLink: Link, toLink: Link, time: Double): Double = 0.0
-  }
+  override def getLinkToLinkTravelTimes: LinkToLinkTravelTime = (_: Link, _: Link, _: Double) => 0.0
 
   override def getLinkTravelTime(link: Link, time: Double): Double = 0.0
 

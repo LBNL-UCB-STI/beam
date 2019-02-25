@@ -1,40 +1,68 @@
 package beam.agentsim.agents.vehicles
-import beam.agentsim.agents.vehicles.BeamVehicleType.BicycleVehicle
-import org.matsim.api.core.v01.{Id, Scenario}
+
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.households.Household
-import org.matsim.vehicles.{Vehicle, Vehicles}
 
-import scala.collection.JavaConverters
+import scala.collection.JavaConverters._
+import scala.collection.concurrent.TrieMap
 
-class BicycleFactory(scenario: Scenario) {
+class BicycleFactory(scenario: Scenario, beamServices: BeamServices) {
 
   /**
     * Utility method preparing BEAM to add bicycles as part of mobsim
     */
   def bicyclePrepareForSim(): Unit = {
     // Add the bicycle as a vehicle type here
-    implicit val vehicles: Vehicles = scenario.getVehicles
-    vehicles.addVehicleType(BicycleVehicle.MatsimVehicleType)
+    implicit val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = beamServices.privateVehicles
+
+    val beamVehicleType = BeamVehicleType.defaultBicycleBeamVehicleType
+
+    beamServices.vehicleTypes += (
+      (
+        Id.create(beamVehicleType.id, classOf[BeamVehicleType]),
+        beamVehicleType
+      )
+    )
 
     // Add bicycles to household (all for now)
-    JavaConverters
-      .collectionAsScalaIterable(scenario.getHouseholds.getHouseholds.values())
+
+    scenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
       .seq
       .foreach { hh =>
-        addBicycleVehicleIdsToHousehold(hh)
+        addBicycleVehicleIdsToHousehold(hh, beamVehicleType)
       }
   }
 
-  def addBicycleVehicleIdsToHousehold(household: Household)(implicit vehicles: Vehicles): Unit = {
+  def addBicycleVehicleIdsToHousehold(household: Household, beamVehicleType: BeamVehicleType)(
+    implicit vehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
+  ): Unit = {
     val householdMembers: Iterable[Id[Person]] =
-      JavaConverters.collectionAsScalaIterable(household.getMemberIds)
+      household.getMemberIds.asScala
 
     householdMembers.foreach { id: Id[Person] =>
-      val bicycleId: Id[Vehicle] = BicycleVehicle.createId(id)
+      val bicycleId: Id[BeamVehicle] = BeamVehicle.createId(id, Some("bike"))
       household.getVehicleIds.add(bicycleId)
 
-      vehicles.addVehicle(BicycleVehicle.createMatsimVehicle(bicycleId))
+      val powertrain = Option(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
+        .map(new Powertrain(_))
+        .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
+
+      vehicles += (
+        (
+          bicycleId,
+          new BeamVehicle(
+            bicycleId,
+            powertrain,
+            beamVehicleType
+          )
+        )
+      )
+
     }
   }
 }

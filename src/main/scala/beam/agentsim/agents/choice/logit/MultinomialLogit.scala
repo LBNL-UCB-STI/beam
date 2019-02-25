@@ -1,15 +1,12 @@
 package beam.agentsim.agents.choice.logit
 
-import java.lang
-import java.lang.Double._
-
 import beam.agentsim.agents.choice.logit.UtilityParam.{Intercept, Multiplier, UtilityParamType}
 import com.typesafe.scalalogging.LazyLogging
 import org.supercsv.cellprocessor.constraint.NotNull
+import org.supercsv.cellprocessor.ift.CellProcessor
 import org.supercsv.cellprocessor.{Optional, ParseDouble}
 
 import scala.beans.BeanProperty
-import scala.collection.immutable
 import scala.util.Random
 
 /**
@@ -42,6 +39,10 @@ case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) e
     }
   }
 
+  def getExpectedMaximumUtility(alternatives: Vector[AlternativeAttributes]): Double = {
+    Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
+  }
+
   def getUtilityOfAlternative(alternative: AlternativeAttributes): Double = {
     if (!alternativeParams.contains(alternative.alternativeName)) {
       -1E100
@@ -70,15 +71,6 @@ case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) e
     }
 
   }
-
-  def getExpectedMaximumUtility(alternatives: Vector[AlternativeAttributes]): Double = {
-//    Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
-    val util = Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
-//    if(util == Double.NaN){
-//      val i = 0
-//    }
-    util
-  }
 }
 
 object MultinomialLogit {
@@ -102,6 +94,15 @@ object MultinomialLogit {
     })
   }
 
+  /*private def getProcessors = {
+    Array[CellProcessor](
+      new NotNull, // alt
+      new NotNull, // name
+      new NotNull, // type
+      new Optional(new ParseDouble()) // value
+    )
+  }*/
+
   class MnlData(
     @BeanProperty var alternative: String = "COMMON",
     @BeanProperty var paramName: String = "",
@@ -109,16 +110,6 @@ object MultinomialLogit {
     @BeanProperty var paramValue: Double = Double.NaN
   ) extends Cloneable {
     override def clone(): AnyRef = new MnlData(alternative, paramName, paramType, paramValue)
-  }
-  import org.supercsv.cellprocessor.ift.CellProcessor
-
-  private def getProcessors = {
-    Array[CellProcessor](
-      new NotNull, // alt
-      new NotNull, // name
-      new NotNull, // type
-      new Optional(new ParseDouble()) // value
-    )
   }
 }
 
@@ -128,15 +119,13 @@ case class AlternativeParams(alternativeName: String, params: Map[String, Utilit
 object AlternativeParams {
   def empty: AlternativeParams = AlternativeParams("", Map())
 }
-case class UtilityParam(paramName: String, paramValue: BigDecimal, paramType: UtilityParamType)
+
+case class UtilityParam(paramName: String, paramValue: Double, paramType: UtilityParamType)
 
 // Alternative attributes
-case class AlternativeAttributes(alternativeName: String, attributes: Map[String, BigDecimal])
+case class AlternativeAttributes(alternativeName: String, attributes: Map[String, Double])
 
 object UtilityParam {
-  sealed trait UtilityParamType
-  case object Intercept extends UtilityParamType
-  case object Multiplier extends UtilityParamType
 
   def StringToUtilityParamType(str: String): UtilityParamType = {
     str.toLowerCase match {
@@ -148,4 +137,10 @@ object UtilityParam {
         throw new RuntimeException(s"Unknown Utility Parameter Type $str")
     }
   }
+
+  sealed trait UtilityParamType
+
+  case object Intercept extends UtilityParamType
+
+  case object Multiplier extends UtilityParamType
 }

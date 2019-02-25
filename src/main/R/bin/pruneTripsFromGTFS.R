@@ -14,6 +14,7 @@
 
 ##############################################################################################################################################
 # LOAD LIBRARIES NEED BY THIS SCRIPT
+library(colinmisc)
 load.libraries(c('optparse','utils','stringr'),quietly=T)
 
 setwd('/Users/critter/Dropbox/ucb/vto/beam-all/beam') # for development and debugging

@@ -16,7 +16,7 @@ object Metrics {
 
   val currentSegments: mutable.Map[String, Segment] = mutable.Map()
 
-  var currentContext: TraceContext = null
+  var currentContext: TraceContext = _
 
   def setCurrentContext(context: TraceContext): Unit = currentContext = context
 

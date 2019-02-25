@@ -1,13 +1,9 @@
 package beam.agentsim.agents.ridehail
 
-import beam.agentsim.infrastructure.TAZTreeMap
-import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
-import beam.sim.{BeamServices, HasServices}
-import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
+import beam.sim.{BeamServices, HasServices}
 import com.google.inject.Inject
-import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.misc.Time
 
 import scala.collection.JavaConverters._
@@ -18,7 +14,7 @@ object RideHailSurgePricingManager {}
 
 class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServices) extends HasServices {
 
-  var iteration = 0
+  val rideHailConfig: Agents.RideHail = beamServices.beamConfig.beam.agentsim.agents.rideHail
 
   // TODO:
 
@@ -30,9 +26,6 @@ class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServi
   // define other strategies for this?
 
   // TODO: can we allow any other class to inject taz as well, without loading multiple times? (Done)
-
-  val rideHailConfig: Agents.RideHail = beamServices.beamConfig.beam.agentsim.agents.rideHail
-
   val timeBinSize
     : Int = beamServices.beamConfig.beam.agentsim.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
   val numberOfCategories
@@ -42,26 +35,11 @@ class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServi
     .toInt + 1
   val surgeLevelAdaptionStep: Double = rideHailConfig.surgePricing.surgeLevelAdaptionStep
   val minimumSurgeLevel: Double = rideHailConfig.surgePricing.minimumSurgeLevel
-  var isFirstIteration = true
-  var maxSurgePricingLevel: Double = 0
-  var surgePricingLevelCount: Int = 0
-  var totalSurgePricingLevel: Double = 0
-
   // TODO: implement all cases for these surge prices properly
   val CONTINUES_DEMAND_SUPPLY_MATCHING = "CONTINUES_DEMAND_SUPPLY_MATCHING"
   val KEEP_PRICE_LEVEL_FIXED_AT_ONE = "KEEP_PRICE_LEVEL_FIXED_AT_ONE"
-
-  var priceAdjustmentStrategy: String = rideHailConfig.surgePricing.priceAdjustmentStrategy
-
-  //  var surgePriceBins: HashMap[String, ArraySeq[SurgePriceBin]] = new HashMap()
-
   val rideHailRevenue: ArrayBuffer[Double] = ArrayBuffer[Double]()
-
   val defaultBinContent = SurgePriceBin(0.0, 0.0, 1.0, 1.0)
-
-  // TODO: add system iteration revenue in class (add after each iteration), so that it can be accessed during graph generation!
-
-  // TODO: initialize all bins (price levels and iteration revenues)!
 
   //Scala like code
   val surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]] =
@@ -72,8 +50,19 @@ class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServi
       }
       (v.tazId.toString, array)
     }.toMap
-
   val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
+  var iteration = 0
+  var isFirstIteration = true
+
+  //  var surgePriceBins: HashMap[String, ArraySeq[SurgePriceBin]] = new HashMap()
+  var maxSurgePricingLevel: Double = 0
+  var surgePricingLevelCount: Int = 0
+
+  // TODO: add system iteration revenue in class (add after each iteration), so that it can be accessed during graph generation!
+
+  // TODO: initialize all bins (price levels and iteration revenues)!
+  var totalSurgePricingLevel: Double = 0
+  var priceAdjustmentStrategy: String = rideHailConfig.surgePricing.priceAdjustmentStrategy
 
   // this should be invoked after each iteration
   // TODO: initialize in BEAMSim and also reset there after each iteration?
@@ -157,6 +146,10 @@ class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServi
       .getOrElse(throw new Exception("no surge level found"))
   }
 
+  private def getTimeBinIndex(time: Double): Int = Math.floor(time / timeBinSize).toInt // - 1
+
+  // TODO: print revenue each iteration outWriter
+
   def addRideCost(time: Double, cost: Double, pickupLocation: Location): Unit = {
 
     val taz = beamServices.tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY)
@@ -171,8 +164,6 @@ class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServi
       }
     }
   }
-
-  // TODO: print revenue each iteration out
 
   def updateRevenueStats(): Unit = {
     // TODO: is not functioning properly yet
@@ -195,8 +186,6 @@ class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServi
     }
     sum
   }
-
-  private def getTimeBinIndex(time: Double): Int = Math.floor(time / timeBinSize).toInt // - 1
 
   def incrementIteration(): Unit = {
     iteration += 1

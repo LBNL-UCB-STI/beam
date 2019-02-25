@@ -107,7 +107,7 @@ class StationFilter(object):
 
     def missing_data(self, date_list):
         """
-        Filters out any stations for which an average hourly flow cannot be calculated. This occurs when there are no
+        Filters outWriter any stations for which an average hourly flow cannot be calculated. This occurs when there are no
         observations for that hour over all of the dates in date_list. A weakness is that a single hourly observation
         over many days will satisfy this filter.
         :param date_list: ([str]) List of date strings. Each data should follow the '%m/%d/%Y' format (e.g. 12/31/199)
@@ -153,7 +153,7 @@ class StationFilter(object):
         :param epsg_poly (str | int) EPSG code defining the CRS the polygon uses.
         :param epsg_sensors (str | int) EPSG code defining the CRS the sensor stations are using. Defaults to 4326,
         which is what PeMS uses in the metadata files.
-        :param buffer_dist: (float) Distance in KM from study are border to filter out stations. i.e. Any stations
+        :param buffer_dist: (float) Distance in KM from study are border to filter outWriter stations. i.e. Any stations
         within buffer_dist of the boundary will be removed.
         :return:
         """
@@ -163,7 +163,7 @@ class StationFilter(object):
 
         # Load the polygon and convert it to the CRS of the stations
         #TODO this filter should also check that points lie with in the shape defined by poly_path. In D4 we have some
-        #TODO outliers in Santa Cruz that are beyond the buffer and totally out of the study area (AAC 16/07/27).
+        #TODO outliers in Santa Cruz that are beyond the buffer and totally outWriter of the study area (AAC 16/07/27).
         gdf_poly = gpd.read_file(poly_path)
         if not bool(gdf_poly.crs) | bool(epsg_poly):
             sys.exit('ERROR boundary_buffer: must specify epsg_poly OR shapefile at poly_path must have CRS defined')

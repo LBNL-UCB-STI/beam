@@ -8,7 +8,7 @@ Developer's Guide
    ^^^^^^^^^^
 
 Repositories
-^^^^^^^^^^^^^
+^^^^^^^^^^^^
 The beam repository on github `is here. <https://github.com/LBNL-UCB-STI/beam>`_
 
 The convention for merging into the master branch is that master needs to be pass all tests and at least one other active BEAM developer needs to review your changes before merging. Please do this by creating a pull request from any new feature branches into master. We also encourage you to create pull requests early in your development cycle which gives other's an opportunity to observe and/or provide feedback in real time. When you are ready for a review, invite one or more through the pull request. 
@@ -83,66 +83,60 @@ File: :code:`~/Library/LaunchAgents/setenv.BEAM_OUTPUT.plist`::
       </dict>
     </plist>
 
+GIT-LFS timeout - how to proceed
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Sometimes it is possible to face a timeout issue when trying to push huge files. The steps below can be followed:
 
-GIT-LFS Configuration
-^^^^^^^^^^^^^^^^^^^^^
+#. Connect to some EC2 server inside the same Amazon S3 region: us-east-2
 
-The installation process for git-lfs(v2.3.4, latest installer has some issue with node-git-lfs) client is vey simple and document in detail on `github guide`_ for Mac, windows and Linux.
+#. Copy the file to the server using scp::
 
-.. _github guide: https://help.github.com/articles/installing-git-large-file-storage/
+   $ scp -i mykey.pem somefile.txt remote_username@machine.us-east-2.compute.amazonaws.com:/tmp
 
-To verify successful installation execute following command::
+#. Clone the repository as usual (make sure git and git-lfs are properly installed)
 
-    $ git lfs install
-    Git LFS initialized.
+#. Just push the files as usual
 
-To confirm that you have installed the correct version of client run the following command::
-
-   $ git lfs env
-   
-To replaces the text pointers with the actual files run the following command(if it requests credentials, use any username and leave the password empty)::
-
-   $ git lfs pull
-   Git LFS: (98 of 123 files) 343.22 MB / 542.18 MB
-   
-GIT-LFS Configuration
-^^^^^^^^^^^^^^^^^^^^^
+Keeping Production Data out of Master Branch
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Production versus test data. Any branch beginning with "production" or "application" will contain data in the "production/" subfolder. This data should stay in that branch and not be merged into master. To keep the data out, the easiest practice is to simply keep merges one-way from master into the production branch and not vice versa.
 
 However, sometimes troubleshooting / debugging / development happens on a production branch. The cleanest way to get changes to source code or other non-production files back into master is the following.
 
-* Checkout your production branch:
+Checkout your production branch::
 
   git checkout production-branch
 
-* Bring branch even with master
+Bring branch even with master::
 
   git merge master
 
-* Resolve conflicts if needed
+Resolve conflicts if needed
 
-* Capture the files that are different now between production and master:
+Capture the files that are different now between production and master::
 
-git diff --name-only HEAD master > diff-with-master.txt
+  git diff --name-only HEAD master > diff-with-master.txt
 
-* You have created a file "diff-with-master.txt" containing a listing of every file that is different.
+You have created a file "diff-with-master.txt" containing a listing of every file that is different.
 
-* IMPORTANT!!!! -- Edit the file diff-with-master.txt and remove all production-related data (this typically will be all files underneath "production" sub-directory.
+IMPORTANT!!!! -- Edit the file diff-with-master.txt and remove all production-related data (this typically will be all files underneath "production" sub-directory.
 
-* Checkout master
+Checkout master::
 
   git checkout master
 
-* Create a new branch off of master, this is where you will stage the files to then merge back into master:
+Create a new branch off of master, this is where you will stage the files to then merge back into master::
 
   git checkout -b new-branch-with-changes-4ci
 
-* Do a file by file checkout of all differing files from production branch onto master:
+Do a file by file checkout of all differing files from production branch onto master::
 
   cat diff-with-master.txt | xargs git checkout production-branch --
 
-* Commit these files, push, and go create your pull request!
+Note, if any of our diffs include the deletion of a file on your production branch, then you will need to remove (i.e. with "git remove" these before you do the above "checkout" step and you should also remove them from the diff-with-master.txt"). If you don't do this, you will see an error message ("did not match any file(s) known to git.") and the checkout command will not be completed.
+
+Finally, commit the files that were checked out of the production branch, push, and go create your pull request!
 
 
 Automated Cloud Deployment
@@ -389,6 +383,14 @@ Use ``mutable`` buffer instead of ``immutable var``:
    val buffer = scala.collection.mutable.ArrayBuffer.empty[Int]
    buffer += 1
    buffer += 2
+   
+**Additionally note that, for the best performance, use mutable inside of methods, but return an immutable**
+
+   val mutableList = scala.collection.mutable.MutableList(1,2)
+   mutableList += 3
+   mutableList.toList //returns scala.collection.immutable.List
+                      //or return mutableList but explicitly set the method return type to 
+                      //a common, assumed immutable one from scala.collection (more dangerous)
 
 Don’t create temporary collections, use `view`_:
 ************************************************
@@ -429,6 +431,19 @@ Don’t emulate ``collectFirst`` and ``collect``:
 
    // After
    s.collect { case curr if predicate(curr) => curr.head }
+
+Prefer ``nonEmpty`` over ``size > 0``:
+**************************************
+
+::
+ 
+  //Before
+  (1 to x).size > 0
+  
+  //After
+  (1 to x).nonEmpty
+  
+  //nonEmpty shortcircuits as soon as the first element is encountered
 
 Prefer not to use ``_1, _2,...`` for ``Tuple`` to improve readability:
 **********************************************************************

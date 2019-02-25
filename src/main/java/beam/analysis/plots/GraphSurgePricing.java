@@ -2,6 +2,8 @@ package beam.analysis.plots;
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager;
 import beam.agentsim.agents.ridehail.SurgePriceBin;
+import beam.sim.OutputDataDescription;
+import beam.utils.OutputDataDescriptor;
 import com.google.inject.Inject;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
@@ -37,28 +39,29 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     // The inner map consists of category index to number of occurrence for each category
     // The categories are defined as buckets for occurrences of prices form 0-1, 1-2
 
-    private Logger log = LoggerFactory.getLogger(GraphSurgePricing.class);
+    private final Logger log = LoggerFactory.getLogger(GraphSurgePricing.class);
 
-    private Map<Double, Map<Integer, Integer>> transformedBins = new HashMap<>();
-    private int numberOfTimeBins;
+    private final Map<Double, Map<Integer, Integer>> transformedBins = new HashMap<>();
+    private final int numberOfTimeBins;
     private static final String graphTitle = "Ride Hail Surge Price Level";
     private static final String xAxisLabel = "timebin";
     private static final String yAxisLabel = "price level";
-    private int noOfCategories;
+    private final int noOfCategories;
     private Double categorySize = null;
     private Double max;
     private Double min;
 
     private double[] revenueDataSet;
 
-    private Map<String, double[][]> tazDataset = new TreeMap<>();
+    private final Map<String, double[][]> tazDataset = new TreeMap<>();
 
     private String graphImageFile = "";
     private String surgePricingCsvFileName = "";
     private String surgePricingAndRevenueWithTaz = "";
     private String revenueGraphImageFile = "";
     private String revenueCsvFileName = "";
-    private RideHailSurgePricingManager surgePricingManager;
+    private final RideHailSurgePricingManager surgePricingManager;
+    private final boolean writeGraph;
 
     @Inject
     public GraphSurgePricing(RideHailSurgePricingManager surgePricingManager) {
@@ -69,6 +72,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         min = null;
 
         numberOfTimeBins = this.surgePricingManager.numberOfTimeBins();
+        this.writeGraph = surgePricingManager.beamServices().beamConfig().beam().outputs().writeGraphs();
     }
 
     @Override
@@ -84,7 +88,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
         graphImageFile = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.png");
         surgePricingCsvFileName = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.csv");
-        surgePricingAndRevenueWithTaz = odh.getIterationFilename(iNo, "taz_rideHailSurgePriceLevel.csv");
+        surgePricingAndRevenueWithTaz = odh.getIterationFilename(iNo, "tazRideHailSurgePriceLevel.csv");
         revenueGraphImageFile = odh.getIterationFilename(iNo, "rideHailRevenue.png");
         revenueCsvFileName = odh.getIterationFilename(iNo, "rideHailRevenue.csv");
 
@@ -104,20 +108,24 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
             List<String> categoriesKeys = getCategoriesKeys(transformedBins, true);
             double[][] dataset = getDataset(true);
             writePriceSurgeCsv(dataset, categoriesKeys, true);
-            drawGraph(dataset, categoriesKeys, true);
-
-            drawHistogram(dataset, categoriesKeys, true);
+            if (writeGraph) {
+                drawGraph(dataset, categoriesKeys, true);
+                drawHistogram(dataset, categoriesKeys, true);
+            }
         } else {
 
             List<String> categoriesKeys = getCategoriesKeys(transformedBins, false);
             double[][] dataset = getDataset(false);
             writePriceSurgeCsv(dataset, categoriesKeys, false);
-            drawGraph(dataset, categoriesKeys, false);
+            if (writeGraph) {
+                drawGraph(dataset, categoriesKeys, false);
+                drawHistogram(dataset, categoriesKeys, true);
+            }
 
-            drawHistogram(dataset, categoriesKeys, true);
         }
-
-        drawRevenueGraph(revenueDataSet);
+        if (writeGraph) {
+            drawRevenueGraph(revenueDataSet);
+        }
 
         writeTazCsv(tazDataset);
 
@@ -302,7 +310,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
             if (data == null) {
                 dataset[i] = new double[numberOfTimeBins];
             } else {
-                double arr[] = new double[numberOfTimeBins];
+                double[] arr = new double[numberOfTimeBins];
                 for (int j = 0; j < numberOfTimeBins; j++) {
                     Integer v = data.get(j);
                     if (v == null) {
@@ -329,7 +337,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         for (double key : categoriesList) {
 
             Map<Integer, Integer> data = transformedCategories.get(key);
-            double arr[] = new double[numberOfTimeBins];
+            double[] arr = new double[numberOfTimeBins];
             for (int j = 0; j < numberOfTimeBins; j++) {
                 Integer v = data.get(j);
                 if (v == null) {
@@ -514,7 +522,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
             }
         }
 
-        //System.out.println("Frequencies : " + Arrays.toString(frequencies));
+        //System.outWriter.println("Frequencies : " + Arrays.toString(frequencies));
 
         // Création des datasets
         HistogramDataset histogramDataset = new HistogramDataset();
@@ -532,7 +540,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         JFreeChart chart = ChartFactory.createHistogram("", null, null, histogramDataset,
                 PlotOrientation.VERTICAL, true, true, false);
 
-        String fileName = graphImageFile.replace(".png", "_histogram.png");
+        String fileName = graphImageFile.replace(".png", "Histogram.png");
         //GraphUtils.plotLegendItems(plot, _categoriesKeys, dataset.getRowCount());
 
         try {
@@ -541,4 +549,5 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
             ioe.printStackTrace();
         }
     }
+
 }

@@ -8,7 +8,6 @@ import com.typesafe.config.{Config, ConfigValueFactory}
   * Created by dserdiuk on 11/25/17.
   */
 case class ExperimentRunSandbox(
-  projectRoot: Path,
   experimentBaseDir: Path,
   experimentDef: ExperimentDef,
   experimentRun: ExperimentRun,
@@ -27,7 +26,7 @@ case class ExperimentRunSandbox(
   def runBeamScriptPath: Path = Paths.get(runDirectory.toString, "runBeam.sh")
 
   def beamConfPath: Path = {
-    projectRoot.relativize(Paths.get(runDirectory.toString, "beam.conf"))
+    experimentDef.projectRoot.relativize(Paths.get(runDirectory.toString, "beam.conf"))
   }
 
   /**
@@ -35,7 +34,7 @@ case class ExperimentRunSandbox(
     * @return path to an output folder relatively to project root
     */
   def beamOutputDir: Path = {
-    projectRoot.relativize(Paths.get(runDirectory.toString, "output"))
+    experimentDef.projectRoot.relativize(Paths.get(runDirectory.toString, "output"))
   }
 
   def buildRunConfig: Config = {
@@ -62,7 +61,7 @@ case class ExperimentRunSandbox(
         Map()
       case _ =>
         Map(
-          "beam.agentsim.agents.modalbehaviors.modeChoiceParametersFile" -> projectRoot
+          "beam.agentsim.agents.modalbehaviors.modeChoiceParametersFile" -> experimentDef.projectRoot
             .relativize(modeChoiceParametersXmlPath)
             .toString
         )

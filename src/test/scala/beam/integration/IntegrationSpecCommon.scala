@@ -1,7 +1,7 @@
 package beam.integration
 
 import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.{Config, ConfigValueFactory}
+import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 
 trait IntegrationSpecCommon {
   private val LAST_ITER_CONF_PATH = "matsim.modules.controler.lastIteration"
@@ -10,9 +10,13 @@ trait IntegrationSpecCommon {
 
   val configFileName = "test/input/beamville/beam.conf"
 
+  val configLocation = ConfigFactory.parseString("config=" + configFileName)
+
   lazy val baseConfig: Config = testConfig(configFileName)
+    .resolve()
     .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
     .withValue(LAST_ITER_CONF_PATH, ConfigValueFactory.fromAnyRef(totalIterations - 1))
+    .withFallback(configLocation)
     .resolve
 
   def isOrdered[A](s: Seq[A])(cf: (A, A) => Boolean): Boolean = {
