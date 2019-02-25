@@ -56,7 +56,7 @@ object ParquetScenarioReader extends ScenarioReader with LazyLogging {
     }
   }
 
-  private def toHouseholdInfo(rec: GenericRecord): HouseholdInfo = {
+  private[scenario] def toHouseholdInfo(rec: GenericRecord): HouseholdInfo = {
     val householdId = getIfNotNull(rec, "household_id").toString
     val cars = getIfNotNull(rec, "cars").asInstanceOf[Double]
     val unitId = getIfNotNull(rec, "unit_id").toString
@@ -65,7 +65,7 @@ object ParquetScenarioReader extends ScenarioReader with LazyLogging {
     HouseholdInfo(householdId = householdId, cars = cars, income = income, unitId = unitId, buildingId = buildingId)
   }
 
-  private def toPlanInfo(rec: GenericRecord): PlanInfo = {
+  private[scenario] def toPlanInfo(rec: GenericRecord): PlanInfo = {
     // Somehow Plan file has columns in camelCase, not snake_case
     val personId = getIfNotNull(rec, "personId").toString
     val planElement = getIfNotNull(rec, "planElement").toString
@@ -89,7 +89,7 @@ object ParquetScenarioReader extends ScenarioReader with LazyLogging {
     )
   }
 
-  private def toPersonInfo(rec: GenericRecord): PersonInfo = {
+  private[scenario] def toPersonInfo(rec: GenericRecord): PersonInfo = {
     val personId = getIfNotNull(rec, "person_id").toString
     val householdId = getIfNotNull(rec, "household_id").toString
     val age = getIfNotNull(rec, "age").asInstanceOf[Long].toInt
@@ -97,7 +97,7 @@ object ParquetScenarioReader extends ScenarioReader with LazyLogging {
     PersonInfo(personId = personId, householdId = householdId, rank = rank, age = age)
   }
 
-  private def toBuildingInfo(rec: GenericRecord): BuildingInfo = {
+  private[scenario] def toBuildingInfo(rec: GenericRecord): BuildingInfo = {
     val bid = getIfNotNull(rec, "building_id").toString
     val pid = getIfNotNull(rec, "parcel_id").toString
     val parcelId: String = if (pid.indexOf(".") < 0) pid else pid.replaceAll("0*$", "").replaceAll("\\.$", "")
@@ -105,21 +105,21 @@ object ParquetScenarioReader extends ScenarioReader with LazyLogging {
     BuildingInfo(parcelId = parcelId, buildingId = buildingId)
   }
 
-  private def toParcelAttribute(rec: GenericRecord): ParcelAttribute = {
+  private[scenario] def toParcelAttribute(rec: GenericRecord): ParcelAttribute = {
     val primaryId = getIfNotNull(rec, "primary_id").toString
     val x = getIfNotNull(rec, "x").asInstanceOf[Double]
     val y = getIfNotNull(rec, "y").asInstanceOf[Double]
     ParcelAttribute(primaryId = primaryId, x = x, y = y)
   }
 
-  private def toUnitInfo(rec: GenericRecord): UnitInfo = {
+  private[scenario] def toUnitInfo(rec: GenericRecord): UnitInfo = {
     val unitId = getIfNotNull(rec, "unit_id").toString
     val buildingId = getIfNotNull(rec, "building_id").toString
     UnitInfo(unitId = unitId, buildingId = buildingId)
   }
-  private def getIfNotNull(rec: GenericRecord, column: String): AnyRef = {
+  private[scenario] def getIfNotNull(rec: GenericRecord, column: String): AnyRef = {
     val v = rec.get(column)
-    assert(v != null, s"$column is null")
+    assert(v != null, s"Value in column '$column' is null")
     v
   }
 }
