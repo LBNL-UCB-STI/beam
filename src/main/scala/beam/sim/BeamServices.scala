@@ -260,7 +260,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   private val _networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
 
   def networkHelper: NetworkHelper = _networkHelper
-
 }
 
 object BeamServices {
@@ -275,8 +274,6 @@ object BeamServices {
     tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
     new TAZTreeMap(tazQuadTree)
   }
-
-
 
   def getTazTreeMap(filePath: String): TAZTreeMap = {
     try {

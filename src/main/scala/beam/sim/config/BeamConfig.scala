@@ -42,22 +42,6 @@ object BeamConfig {
       timeBinSize                             : scala.Int,
       toll                                    : BeamConfig.Beam.Agentsim.Toll,
       tuning                                  : BeamConfig.Beam.Agentsim.Tuning
-      agents: BeamConfig.Beam.Agentsim.Agents,
-      endTime: java.lang.String,
-      firstIteration: scala.Int,
-      lastIteration: scala.Int,
-      numAgents: scala.Int,
-      populationAdjustment: java.lang.String,
-      scenarios: BeamConfig.Beam.Agentsim.Scenarios,
-      schedulerParallelismWindow: scala.Int,
-      simulationName: java.lang.String,
-      startTime: java.lang.String,
-      taz: BeamConfig.Beam.Agentsim.Taz,
-      thresholdForMakingParkingChoiceInMeters: scala.Int,
-      thresholdForWalkingInMeters: scala.Int,
-      timeBinSize: scala.Int,
-      toll: BeamConfig.Beam.Agentsim.Toll,
-      tuning: BeamConfig.Beam.Agentsim.Tuning
     )
     object Agentsim {
       case class Agents(
