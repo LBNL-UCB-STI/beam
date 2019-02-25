@@ -269,7 +269,7 @@ trait BeamHelper extends LazyLogging {
       "Please provide a valid configuration file."
     )
 
-    ConfigConsistencyComparator(parsedArgs.configLocation.get)
+    ConfigConsistencyComparator.parseBeamTemplateConfFile(parsedArgs.configLocation.get)
 
     val location = ConfigFactory.parseString("config=" + parsedArgs.configLocation.get)
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
@@ -365,7 +365,15 @@ trait BeamHelper extends LazyLogging {
 
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
     val (scenario, outputDir, networkCoordinator) = setupBeamWithConfig(config)
+    runBeam(config, scenario, networkCoordinator)
+    (scenario.getConfig, outputDir)
+  }
 
+  def runBeam(
+    config: TypesafeConfig,
+    scenario: MutableScenario,
+    networkCoordinator: NetworkCoordinator
+  ): Unit = {
     val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
     val injector = org.matsim.core.controler.Injector.createInjector(
@@ -394,8 +402,6 @@ trait BeamHelper extends LazyLogging {
     samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices)
 
     run(beamServices)
-
-    (scenario.getConfig, outputDir)
   }
 
   def setupBeamWithConfig(config: TypesafeConfig): (MutableScenario, String, NetworkCoordinator) = {

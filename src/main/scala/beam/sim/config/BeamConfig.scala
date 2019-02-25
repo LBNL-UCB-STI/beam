@@ -535,25 +535,11 @@ object BeamConfig {
           beamFuelTypesFile: java.lang.String,
           beamVehicleTypesFile: java.lang.String,
           beamVehiclesFile: java.lang.String,
-          bicycles: BeamConfig.Beam.Agentsim.Agents.Vehicles.Bicycles,
           sharedFleets: scala.List[BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm],
           transitVehicleTypesByRouteFile: java.lang.String
         )
 
         object Vehicles {
-          case class Bicycles(
-            useBikes: scala.Boolean
-          )
-
-          object Bicycles {
-
-            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Bicycles = {
-              BeamConfig.Beam.Agentsim.Agents.Vehicles.Bicycles(
-                useBikes = c.hasPathOrNull("useBikes") && c.getBoolean("useBikes")
-              )
-            }
-          }
-
           case class SharedFleets$Elm(
             fixed_non_reserving: scala.Option[
               BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReserving
@@ -629,10 +615,6 @@ object BeamConfig {
               beamVehiclesFile =
                 if (c.hasPathOrNull("beamVehiclesFile")) c.getString("beamVehiclesFile")
                 else "/test/input/beamville/vehicles.csv",
-              bicycles = BeamConfig.Beam.Agentsim.Agents.Vehicles.Bicycles(
-                if (c.hasPathOrNull("bicycles")) c.getConfig("bicycles")
-                else com.typesafe.config.ConfigFactory.parseString("bicycles{}")
-              ),
               sharedFleets = $_LBeamConfig_Beam_Agentsim_Agents_Vehicles_SharedFleets$Elm(c.getList("sharedFleets")),
               transitVehicleTypesByRouteFile =
                 if (c.hasPathOrNull("transitVehicleTypesByRouteFile")) c.getString("transitVehicleTypesByRouteFile")
