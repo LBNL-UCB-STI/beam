@@ -1055,19 +1055,19 @@ class RideHailManager(
     var pickDropsForGrouping: Map[VehiclePersonId, List[BeamLeg]] = Map()
     var passengersToAdd = Set[VehiclePersonId]()
     consistentPickDrops.foreach {
-      case (Some(person), leg) =>
+      case (Some(person), legOpt) =>
         if (passengersToAdd.contains(person)) {
           passengersToAdd = passengersToAdd - person
         } else {
           passengersToAdd = passengersToAdd + person
         }
-        if (leg.isDefined) {
+        legOpt.foreach{ leg =>
           passengersToAdd.foreach { pass =>
-            val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg.get
+            val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg
             pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
           }
         }
-      case (None, leg) =>
+      case (_, _) =>
     }
     pickDropsForGrouping.foreach { passAndLegs =>
       passSched = passSched.addPassenger(passAndLegs._1, passAndLegs._2)
