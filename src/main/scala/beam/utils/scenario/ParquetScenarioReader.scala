@@ -98,10 +98,8 @@ object ParquetScenarioReader extends ScenarioReader with LazyLogging {
   }
 
   private[scenario] def toBuildingInfo(rec: GenericRecord): BuildingInfo = {
-    val bid = getIfNotNull(rec, "building_id").toString
-    val pid = getIfNotNull(rec, "parcel_id").toString
-    val parcelId: String = if (pid.indexOf(".") < 0) pid else pid.replaceAll("0*$", "").replaceAll("\\.$", "")
-    val buildingId: String = if (bid.indexOf(".") < 0) bid else bid.replaceAll("0*$", "").replaceAll("\\.$", "")
+    val parcelId: String = ScenarioReader.fixParcelId(getIfNotNull(rec, "parcel_id").toString)
+    val buildingId: String = ScenarioReader.fixBuildingId(getIfNotNull(rec, "building_id").toString)
     BuildingInfo(parcelId = parcelId, buildingId = buildingId)
   }
 

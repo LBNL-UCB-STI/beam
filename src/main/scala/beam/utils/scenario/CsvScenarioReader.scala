@@ -109,10 +109,8 @@ object CsvScenarioReader extends ScenarioReader with LazyLogging {
   }
 
   private def toBuildingInfo(rec: java.util.Map[String, String]): BuildingInfo = {
-    val bid = getIfNotNull(rec, "building_id")
-    val pid = getIfNotNull(rec, "parcel_id")
-    val parcelId: String = if (pid.indexOf(".") < 0) pid else pid.replaceAll("0*$", "").replaceAll("\\.$", "")
-    val buildingId: String = if (bid.indexOf(".") < 0) bid else bid.replaceAll("0*$", "").replaceAll("\\.$", "")
+    val parcelId: String = ScenarioReader.fixParcelId(getIfNotNull(rec, "parcel_id"))
+    val buildingId: String = ScenarioReader.fixBuildingId(getIfNotNull(rec, "building_id"))
     BuildingInfo(parcelId = parcelId, buildingId = buildingId)
   }
 
@@ -130,7 +128,7 @@ object CsvScenarioReader extends ScenarioReader with LazyLogging {
   }
   private def getIfNotNull(rec: java.util.Map[String, String], column: String): String = {
     val v = rec.get(column)
-    assert(v != null, s"$column is null")
+    assert(v != null, s"Value in column '$column' is null")
     v
   }
 }

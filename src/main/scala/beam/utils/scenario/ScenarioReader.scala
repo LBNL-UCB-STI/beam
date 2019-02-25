@@ -9,3 +9,14 @@ trait ScenarioReader {
   def readPlansFile(path: String): Array[PlanInfo]
   def readHouseholdsFile(path: String): Array[HouseholdInfo]
 }
+
+object ScenarioReader {
+  def fixParcelId(rawParcelId: String): String = {
+    if (rawParcelId.indexOf(".") < 0)
+      rawParcelId
+    else
+      rawParcelId.replaceAll("0*$", "").replaceAll("\\.$", "")
+  }
+
+  def fixBuildingId(rawBuildingId: String): String = fixParcelId(rawBuildingId)
+}
