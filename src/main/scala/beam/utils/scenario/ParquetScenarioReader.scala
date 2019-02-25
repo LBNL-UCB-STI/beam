@@ -60,8 +60,9 @@ object ParquetScenarioReader extends ScenarioReader with LazyLogging {
     val householdId = getIfNotNull(rec, "household_id").toString
     val cars = getIfNotNull(rec, "cars").asInstanceOf[Double]
     val unitId = getIfNotNull(rec, "unit_id").toString
+    val buildingId = getIfNotNull(rec, "building_id").toString
     val income = getIfNotNull(rec, "income").asInstanceOf[Double]
-    HouseholdInfo(householdId = householdId, cars = cars, unitId = unitId, income = income)
+    HouseholdInfo(householdId = householdId, cars = cars, income = income, unitId = unitId, buildingId = buildingId)
   }
 
   private def toPlanInfo(rec: GenericRecord): PlanInfo = {

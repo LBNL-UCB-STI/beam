@@ -10,19 +10,26 @@ import scala.reflect.ClassTag
 object CsvScenarioReader extends ScenarioReader with LazyLogging {
 
   def main(array: Array[String]): Unit = {
+
+//    readParcelAttrFile("C:\\repos\\apache_arrow\\py_arrow\\data\\parcel_attr.csv").take(3).foreach(println)
+//    val buildings = readBuildingsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\buildings.csv")
+
+//    println(s"buildingId: ${buildings.map(_.buildingId).distinct.size}")
+//    println(s"parcelId: ${buildings.map(_.parcelId).distinct.size}")
+//
+//    readPersonsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\persons.csv").take(3).foreach(println)
+//    readPlansFile("C:\\repos\\apache_arrow\\py_arrow\\data\\plans.csv").take(3).foreach(println)
+    val hh = readHouseholdsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\households.csv")
+    println(s"household_id: ${hh.map(_.householdId).distinct.size}")
+    println(s"building_id: ${hh.map(_.buildingId).distinct.size}")
+
     val units = readUnitsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\units.csv")
     println(s"unitId: ${units.map(_.unitId).distinct.size}")
     println(s"buildingId: ${units.map(_.buildingId).distinct.size}")
 
-//    readParcelAttrFile("C:\\repos\\apache_arrow\\py_arrow\\data\\parcel_attr.csv").take(3).foreach(println)
     val buildings = readBuildingsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\buildings.csv")
-
     println(s"buildingId: ${buildings.map(_.buildingId).distinct.size}")
     println(s"parcelId: ${buildings.map(_.parcelId).distinct.size}")
-//
-//    readPersonsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\persons.csv").take(3).foreach(println)
-//    readPlansFile("C:\\repos\\apache_arrow\\py_arrow\\data\\plans.csv").take(3).foreach(println)
-//    readHouseholdsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\households.csv").take(3).foreach(println)
   }
   def inputType: InputType = InputType.CSV
 
@@ -62,11 +69,12 @@ object CsvScenarioReader extends ScenarioReader with LazyLogging {
   }
 
   private def toHouseholdInfo(rec: java.util.Map[String, String]): HouseholdInfo = {
-    val householdId = getIfNotNull(rec, "household_id").toString
+    val householdId = getIfNotNull(rec, "household_id")
     val cars = getIfNotNull(rec, "cars").toDouble
-    val unitId = getIfNotNull(rec, "unit_id").toString
+    val unitId = getIfNotNull(rec, "unit_id")
+    val buildingId = getIfNotNull(rec, "building_id")
     val income = getIfNotNull(rec, "income").toDouble
-    HouseholdInfo(householdId = householdId, cars = cars, unitId = unitId, income = income)
+    HouseholdInfo(householdId = householdId, cars = cars, income = income, unitId = unitId, buildingId = buildingId)
   }
 
   private def toPlanInfo(rec: java.util.Map[String, String]): PlanInfo = {
@@ -109,7 +117,7 @@ object CsvScenarioReader extends ScenarioReader with LazyLogging {
   }
 
   private def toParcelAttribute(rec: java.util.Map[String, String]): ParcelAttribute = {
-    val primaryId = getIfNotNull(rec, "primary_id").toString
+    val primaryId = getIfNotNull(rec, "primary_id")
     val x = getIfNotNull(rec, "x").toDouble
     val y = getIfNotNull(rec, "y").toDouble
     ParcelAttribute(primaryId = primaryId, x = x, y = y)

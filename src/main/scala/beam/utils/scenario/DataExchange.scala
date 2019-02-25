@@ -31,4 +31,4 @@ case class PlanInfo(
   mode: Option[String]
 )
 
-case class HouseholdInfo(householdId: String, cars: Double, unitId: String, income: Double)
+case class HouseholdInfo(householdId: String, cars: Double, income: Double, unitId: String, buildingId: String)
