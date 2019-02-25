@@ -364,7 +364,15 @@ trait BeamHelper extends LazyLogging {
 
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
     val (scenario, outputDir, networkCoordinator) = setupBeamWithConfig(config)
+    runBeam(config, scenario, networkCoordinator)
+    (scenario.getConfig, outputDir)
+  }
 
+  def runBeam(
+    config: TypesafeConfig,
+    scenario: MutableScenario,
+    networkCoordinator: NetworkCoordinator
+  ): Unit = {
     val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
     val injector = org.matsim.core.controler.Injector.createInjector(
@@ -393,8 +401,6 @@ trait BeamHelper extends LazyLogging {
     samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices)
 
     run(beamServices)
-
-    (scenario.getConfig, outputDir)
   }
 
   def setupBeamWithConfig(config: TypesafeConfig): (MutableScenario, String, NetworkCoordinator) = {
