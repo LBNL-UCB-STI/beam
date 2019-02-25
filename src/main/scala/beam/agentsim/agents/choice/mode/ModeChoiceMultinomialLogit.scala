@@ -47,7 +47,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         case (_, group) => group minBy timeAndCost
       }
 
-      if(alternatives.head.legs.map(_.beamLeg.travelPath.distanceInM).sum > 1609*5){
+      if (alternatives.head.legs.map(_.beamLeg.travelPath.distanceInM).sum > 1609 * 5) {
         val i = 0
       }
 

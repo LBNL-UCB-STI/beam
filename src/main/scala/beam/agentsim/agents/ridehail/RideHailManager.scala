@@ -105,7 +105,7 @@ object RideHailManager {
             false,
             estimatedPrice(passenger.personId),
             false,
-            passengerSchedule.schedule.values.find(_.riders.size>1).size > 0
+            passengerSchedule.schedule.values.find(_.riders.size > 1).size > 0
           )
         }
         .toVector

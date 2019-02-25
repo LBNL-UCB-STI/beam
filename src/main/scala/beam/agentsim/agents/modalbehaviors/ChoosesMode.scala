@@ -364,11 +364,11 @@ trait ChoosesMode {
               makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle), withParking = false)
               responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           }
-        case Some(RIDE_HAIL|RIDE_HAIL_POOLED) if choosesModeData.isWithinTripReplanning =>
+        case Some(RIDE_HAIL | RIDE_HAIL_POOLED) if choosesModeData.isWithinTripReplanning =>
           // Give up on all ride hail after a failure
           responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle), withParking = false)
-        case Some(RIDE_HAIL|RIDE_HAIL_POOLED) =>
+        case Some(RIDE_HAIL | RIDE_HAIL_POOLED) =>
           responsePlaceholders = makeResponsePlaceholders(withRouting = true, withRideHail = true)
           makeRequestWith(Vector(), Vector(bodyStreetVehicle), withParking = false) // We need a WALK alternative if RH fails
           makeRideHailRequest()
@@ -787,23 +787,22 @@ trait ChoosesMode {
           val origLegs = travelProposal.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId)
           (travelProposal.poolingInfo match {
             case Some(poolingInfo) =>
-              val pooledLegs = origLegs.map{ origLeg =>
+              val pooledLegs = origLegs.map { origLeg =>
                 origLeg.copy(
                   cost = origLeg.cost * poolingInfo.costFactor,
                   isPooledTrip = origLeg.isRideHail,
                   beamLeg = origLeg.beamLeg.scaleLegDuration(poolingInfo.timeFactor)
                 )
               }
-              Vector(origLegs,EmbodiedBeamLeg.makeLegsConsistent(pooledLegs))
+              Vector(origLegs, EmbodiedBeamLeg.makeLegsConsistent(pooledLegs))
             case None =>
               Vector(origLegs)
-          }).map{
-            partialItin =>
-              EmbodiedBeamTrip (
-              (EmbodiedBeamLeg.dummyWalkLegAt (partialItin.head.beamLeg.startTime, body.id, false) +:
-                partialItin :+
-                EmbodiedBeamLeg.dummyWalkLegAt (partialItin.last.beamLeg.endTime, body.id, true) )
-              )
+          }).map { partialItin =>
+            EmbodiedBeamTrip(
+              (EmbodiedBeamLeg.dummyWalkLegAt(partialItin.head.beamLeg.startTime, body.id, false) +:
+              partialItin :+
+              EmbodiedBeamLeg.dummyWalkLegAt(partialItin.last.beamLeg.endTime, body.id, true))
+            )
           }
         case None =>
           Vector()
@@ -937,7 +936,7 @@ trait ChoosesMode {
           theModes
         }
       }
-      if(id.toString.equals("033000-2014000265406-3-6294822")){
+      if (id.toString.equals("033000-2014000265406-3-6294822")) {
         val i = 0
       }
 

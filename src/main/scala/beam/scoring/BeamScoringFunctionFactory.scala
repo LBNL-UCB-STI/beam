@@ -39,15 +39,21 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
             trips.remove(trips.size - 1)
           case leavingParkingEvent: LeavingParkingEvent =>
             leavingParkingEventScore += leavingParkingEvent.score
-          case e: PersonArrivalEvent=>
+          case e: PersonArrivalEvent =>
             // Here we modify the last leg of the trip (the dummy walk leg) to have the right arrival time
             // This will therefore now accounts for dynamic delays or difference between quoted ride hail trip time and actual
             val bodyVehicleId = trips.head.legs.head.beamVehicleId
-            if(trips.last.tripClassifier == RIDE_HAIL_POOLED){
+            if (trips.last.tripClassifier == RIDE_HAIL_POOLED) {
               val i = 0
             }
-            trips.update(trips.size-1,trips.last.copy(legs = trips.last.legs.dropRight(1) :+ EmbodiedBeamLeg.dummyWalkLegAt(e.getTime.toInt,bodyVehicleId,true)))
-            if(trips.last.tripClassifier == RIDE_HAIL_POOLED){
+            trips.update(
+              trips.size - 1,
+              trips.last.copy(
+                legs = trips.last.legs
+                  .dropRight(1) :+ EmbodiedBeamLeg.dummyWalkLegAt(e.getTime.toInt, bodyVehicleId, true)
+              )
+            )
+            if (trips.last.tripClassifier == RIDE_HAIL_POOLED) {
               val i = 0
             }
           case _ =>

@@ -80,7 +80,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
       twoToPool.size match {
         case 1 =>
           Pooling.serveOneRequest(twoToPool.head, tick, alreadyAllocated, rideHailManager) match {
-            case res @ RoutingRequiredToAllocateVehicle(_,routes) =>
+            case res @ RoutingRequiredToAllocateVehicle(_, routes) =>
               allocResponses = allocResponses :+ res
               alreadyAllocated = alreadyAllocated + routes.head.streetVehicles.head.id
             case res =>
@@ -176,8 +176,6 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
 
     routeReqs
   }
-
-
 //
 //    // route from customer to destination
 //    val rideHail2Destination = RoutingRequest(
@@ -194,7 +192,13 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
 }
 
 object Pooling {
-  def serveOneRequest(request: RideHailRequest, pickUpTime: Int, alreadyAllocated: Set[Id[Vehicle]], rideHailManager: RideHailManager) = {
+
+  def serveOneRequest(
+    request: RideHailRequest,
+    pickUpTime: Int,
+    alreadyAllocated: Set[Id[Vehicle]],
+    rideHailManager: RideHailManager
+  ) = {
     rideHailManager.vehicleManager
       .getClosestIdleVehiclesWithinRadiusByETA(
         request.pickUpLocationUTM,
@@ -216,6 +220,5 @@ object Pooling {
         NoVehicleAllocated(request)
     }
   }
-
 
 }

@@ -64,22 +64,30 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           // NOTE: PickDrops use convention of storing an optional person Id and leg. The leg is intended to be the leg
           // **to** the pickup or dropoff, not from the pickup or dropoff. This is the reverse of the convention used
           // in MobilityServiceRequest
-          val pickDropIdAndLegs = if(tempScheduleStore.contains(request.requestId)){
+          val pickDropIdAndLegs = if (tempScheduleStore.contains(request.requestId)) {
             // Pooled response
             val mobilityServiceRequests = tempScheduleStore.remove(request.requestId).get
 
-            mobilityServiceRequests.sliding(2).map { reqs =>
-              reqs.head.routingRequestId match {
-                case Some(routingRequestId) =>
-                  PickDropIdAndLeg(reqs.last.person, indexedResponses(routingRequestId).itineraries.head.legs.headOption)
-                case None =>
-                  PickDropIdAndLeg(reqs.last.person, None)
+            mobilityServiceRequests
+              .sliding(2)
+              .map { reqs =>
+                reqs.head.routingRequestId match {
+                  case Some(routingRequestId) =>
+                    PickDropIdAndLeg(
+                      reqs.last.person,
+                      indexedResponses(routingRequestId).itineraries.head.legs.headOption
+                    )
+                  case None =>
+                    PickDropIdAndLeg(reqs.last.person, None)
+                }
               }
-            }.toList
-          }else{
+              .toList
+          } else {
             // Solo response
-            List(PickDropIdAndLeg(Some(request.customer), routeResponses.head.itineraries.head.legs.headOption),
-                 PickDropIdAndLeg(Some(request.customer), routeResponses.last.itineraries.head.legs.headOption))
+            List(
+              PickDropIdAndLeg(Some(request.customer), routeResponses.head.itineraries.head.legs.headOption),
+              PickDropIdAndLeg(Some(request.customer), routeResponses.last.itineraries.head.legs.headOption)
+            )
           }
           allocResponses = allocResponses :+ VehicleMatchedToCustomers(
             request,
@@ -97,12 +105,14 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     if (toPool.size > 0) {
       implicit val skimmer: BeamSkimmer = new BeamSkimmer()
       val pooledAllocationReqs = toPool.filter(_.asPooled)
-      val poolCustomerReqs = pooledAllocationReqs.map(rhr => createPersonRequest(rhr.customer, rhr.pickUpLocationUTM, tick, rhr.destinationUTM))
+      val poolCustomerReqs = pooledAllocationReqs.map(
+        rhr => createPersonRequest(rhr.customer, rhr.pickUpLocationUTM, tick, rhr.destinationUTM)
+      )
       val customerIdToReqs = toPool.map(rhr => rhr.customer.personId -> rhr).toMap
       val availVehicles = rideHailManager.vehicleManager.availableRideHailVehicles.values
         .map(veh => createVehicleAndSchedule(veh.vehicleId.toString, veh.currentLocationUTM.loc, tick))
 
-      val assignment = if(availVehicles.size < 100) {
+      val assignment = if (availVehicles.size < 100) {
         val algo = new AlonsoMoraPoolingAlgForRideHail(
           poolCustomerReqs.toList,
           availVehicles.toList,
@@ -178,14 +188,13 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         .map(resp => resp.request.groupedWithOtherRequests.map(_.requestId).toSet + resp.request.requestId)
         .flatten
         .toSet
-      pooledAllocationReqs.filterNot(req => wereAllocated.contains(req.requestId)).foreach {
-        unsatisfiedReq =>
-          allocResponses = allocResponses :+ NoVehicleAllocated(unsatisfiedReq)
+      pooledAllocationReqs.filterNot(req => wereAllocated.contains(req.requestId)).foreach { unsatisfiedReq =>
+        allocResponses = allocResponses :+ NoVehicleAllocated(unsatisfiedReq)
       }
       // Now satisfy the solo customers
-      toPool.filterNot(_.asPooled).foreach{ req =>
+      toPool.filterNot(_.asPooled).foreach { req =>
         Pooling.serveOneRequest(req, tick, alreadyAllocated, rideHailManager) match {
-          case res @ RoutingRequiredToAllocateVehicle(_,routes) =>
+          case res @ RoutingRequiredToAllocateVehicle(_, routes) =>
             allocResponses = allocResponses :+ res
             alreadyAllocated = alreadyAllocated + routes.head.streetVehicles.head.id
           case res =>

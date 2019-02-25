@@ -1370,29 +1370,35 @@ object R5RoutingWorker {
     )
   }
 
-  def createBushwackingBeamLeg(atTime: Int, startUTM: Location, endUTM: Location, beamServices: BeamServices): BeamLeg = {
+  def createBushwackingBeamLeg(
+    atTime: Int,
+    startUTM: Location,
+    endUTM: Location,
+    beamServices: BeamServices
+  ): BeamLeg = {
     val beelineDistanceInMeters = beamServices.geo.distUTMInMeters(startUTM, endUTM)
     val bushwhackingTime = Math.round(beelineDistanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
     createBushwackingBeamLeg(atTime, bushwhackingTime.toInt, startUTM, endUTM, beelineDistanceInMeters)
   }
 
   def createBushwackingBeamLeg(
-                                atTime: Int,
-                                duration: Int,
-                                startUTM: Location,
-                                endUTM: Location,
-                                distance: Double
+    atTime: Int,
+    duration: Int,
+    startUTM: Location,
+    endUTM: Location,
+    distance: Double
   ): BeamLeg = {
-    val path = BeamPath(Vector(), Vector(), None, SpaceTime(startUTM, atTime), SpaceTime(endUTM, atTime + duration), distance)
+    val path =
+      BeamPath(Vector(), Vector(), None, SpaceTime(startUTM, atTime), SpaceTime(endUTM, atTime + duration), distance)
     BeamLeg(atTime, WALK, duration, path)
   }
 
   def createBushwackingTrip(
-                             originUTM: Location,
-                             destUTM: Location,
-                             atTime: Int,
-                             body: StreetVehicle,
-                             beamServices: BeamServices
+    originUTM: Location,
+    destUTM: Location,
+    atTime: Int,
+    body: StreetVehicle,
+    beamServices: BeamServices
   ): EmbodiedBeamTrip = {
     EmbodiedBeamTrip(
       Vector(
