@@ -6,7 +6,7 @@ import java.util.Collections
 import beam.agentsim.agents.Population
 import beam.agentsim.agents.choice.mode.TransitFareDefaults
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleEnergy}
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BUS, CAR, DRIVE_TRANSIT, FERRY, RAIL, RIDE_HAIL, SUBWAY, WALK, WALK_TRANSIT}
 import beam.sim.BeamServices
@@ -27,8 +27,7 @@ import scala.util.Random
 
 class ChangeModeForTour(
   beamServices: BeamServices,
-  chainBasedTourVehicleAllocator: ChainBasedTourVehicleAllocator,
-  val vehicleEnergy: VehicleEnergy,
+  chainBasedTourVehicleAllocator: ChainBasedTourVehicleAllocator
 ) extends PlanAlgorithm {
 
   val rng = new MersenneTwister(3004568) // Random.org
@@ -224,7 +223,7 @@ class ChangeModeForTour(
       chainBasedTourVehicleAllocator.householdMemberships(person.getId)
 
     val householdVehicles =
-      Population.getVehiclesFromHousehold(household, beamServices, vehicleEnergy)
+      Population.getVehiclesFromHousehold(household, beamServices)
 
     val modalityStyle =
       Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style"))

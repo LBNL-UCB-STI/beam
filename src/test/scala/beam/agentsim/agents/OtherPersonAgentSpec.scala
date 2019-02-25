@@ -124,10 +124,6 @@ class OtherPersonAgentSpec
 
   private lazy val networkCoordinator = new DefaultNetworkCoordinator(config)
 
-  private lazy val vehicleCsvReader = new VehicleCsvReader(config)
-  private lazy val vehicleEnergy =
-    new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
-
   describe("A PersonAgent FSM") {
     it("should also work when the first bus is late") {
       val mockDriverProps = Props(new ForwardActor(self))
@@ -147,13 +143,11 @@ class OtherPersonAgentSpec
       val bus = new BeamVehicle(
         beamVehicleId,
         new Powertrain(0.0),
-        vehicleEnergy,
         BeamVehicleType.defaultCarBeamVehicleType
       )
       val tram = new BeamVehicle(
         Id.createVehicleId("my_tram"),
         new Powertrain(0.0),
-        vehicleEnergy,
         BeamVehicleType.defaultCarBeamVehicleType
       )
 
@@ -303,8 +297,7 @@ class OtherPersonAgentSpec
           population,
           household,
           Map(),
-          new Coord(0.0, 0.0),
-          vehicleEnergy
+          new Coord(0.0, 0.0)
         )
       )
       scheduler ! StartSchedule(0)

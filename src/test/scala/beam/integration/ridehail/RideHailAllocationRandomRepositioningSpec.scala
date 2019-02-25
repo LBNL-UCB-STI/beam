@@ -1,7 +1,6 @@
 package beam.integration.ridehail
 
 import beam.agentsim.agents.ridehail.allocation.RideHailResourceAllocationManager
-import beam.agentsim.agents.vehicles.{VehicleCsvReader, VehicleEnergy}
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.config.BeamConfig
@@ -23,10 +22,6 @@ class RideHailAllocationRandomRepositioningSpec extends FlatSpec with BeamHelper
     val matsimConfig = RideHailTestHelper.buildMatsimConfig(config)
 
     val beamConfig = BeamConfig(config)
-
-    val vehicleCsvReader = new VehicleCsvReader(beamConfig)
-    val vehicleEnergy =
-      new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
 
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
@@ -52,7 +47,7 @@ class RideHailAllocationRandomRepositioningSpec extends FlatSpec with BeamHelper
 
     val beamServices = injector.getInstance(classOf[BeamServices])
     val controller = beamServices.controler
-    popAdjustment(beamServices, vehicleEnergy).update(scenario)
+    popAdjustment(beamServices).update(scenario)
 
     controller.run()
 

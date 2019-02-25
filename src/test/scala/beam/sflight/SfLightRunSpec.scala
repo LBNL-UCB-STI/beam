@@ -2,7 +2,6 @@ package beam.sflight
 
 import java.nio.file.Paths
 
-import beam.agentsim.agents.vehicles.{VehicleCsvReader, VehicleEnergy}
 import beam.agentsim.events.ModeChoiceEvent
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -49,10 +48,6 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
       val beamConfig = BeamConfig(config)
 
-      val vehicleCsvReader = new VehicleCsvReader(beamConfig)
-      val vehicleEnergy =
-        new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
-
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
       val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
@@ -82,7 +77,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
         }
       )
       val services = injector.getInstance(classOf[BeamServices])
-      DefaultPopulationAdjustment(services, vehicleEnergy).update(scenario)
+      DefaultPopulationAdjustment(services).update(scenario)
       val controler = services.controler
       controler.run()
       assert(nCarTrips > 1)

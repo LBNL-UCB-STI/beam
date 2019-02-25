@@ -8,7 +8,7 @@ import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
-import beam.agentsim.agents.vehicles.{BeamVehicle, BicycleFactory, VehicleEnergy}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BicycleFactory}
 import beam.agentsim.vehicleId2BeamVehicleId
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
@@ -34,7 +34,6 @@ class Population(
   val router: ActorRef,
   val rideHailManager: ActorRef,
   val parkingManager: ActorRef,
-  val vehicleEnergy: VehicleEnergy,
   val sharedVehicleFleets: Seq[ActorRef],
   val eventsManager: EventsManager
 ) extends Actor
@@ -128,7 +127,6 @@ class Population(
               household,
               householdVehicles,
               homeCoord,
-              vehicleEnergy,
               sharedVehicleFleets
             ),
             household.getId.toString
@@ -155,19 +153,18 @@ object Population {
   def getVehiclesFromHousehold(
     household: Household,
     beamServices: BeamServices,
-    vehicleEnergy: VehicleEnergy,
   ): Map[Id[BeamVehicle], BeamVehicle] = {
     val houseHoldVehicles: Iterable[Id[Vehicle]] =
       JavaConverters.collectionAsScalaIterable(household.getVehicleIds)
 
     // Add bikes
     if (beamServices.beamConfig.beam.agentsim.agents.vehicles.bicycles.useBikes) {
-      val bikeFactory = new BicycleFactory(beamServices.matsimServices.getScenario, beamServices, vehicleEnergy)
+      val bikeFactory = new BicycleFactory(beamServices.matsimServices.getScenario, beamServices)
       bikeFactory.bicyclePrepareForSim()
     }
     houseHoldVehicles
       .map({ id =>
-        makeHouseholdVehicle(beamServices.privateVehicles, id, vehicleEnergy) match {
+        makeHouseholdVehicle(beamServices.privateVehicles, id) match {
           case Right(vehicle) => beam.agentsim.vehicleId2BeamVehicleId(id) -> vehicle
           case Left(e)        => throw e
         }
@@ -191,7 +188,6 @@ object Population {
     router: ActorRef,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
-    vehicleEnergy: VehicleEnergy,
     sharedVehicleFleets: Seq[ActorRef],
     eventsManager: EventsManager
   ): Props = {
@@ -205,7 +201,6 @@ object Population {
         router,
         rideHailManager,
         parkingManager,
-        vehicleEnergy,
         sharedVehicleFleets,
         eventsManager
       )

@@ -1,5 +1,5 @@
 package beam.integration
-import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCsvReader, VehicleEnergy}
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, PersonCostEvent}
 import beam.router.Modes.BeamMode
 import beam.router.r5.DefaultNetworkCoordinator
@@ -67,9 +67,6 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSamConf()
     val beamConfig = BeamConfig(config)
-    val vehicleCsvReader = new VehicleCsvReader(beamConfig)
-    val vehicleEnergy =
-      new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
@@ -123,7 +120,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
     }
     services.privateVehicles.clear()
 
-    DefaultPopulationAdjustment(services, vehicleEnergy).update(scenario)
+    DefaultPopulationAdjustment(services).update(scenario)
     val controler = services.controler
     controler.run()
 

@@ -9,7 +9,6 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.VehicleEnergy
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
@@ -48,8 +47,7 @@ class BeamMobsim @Inject()(
   val eventsManager: EventsManager,
   val actorSystem: ActorSystem,
   val rideHailSurgePricingManager: RideHailSurgePricingManager,
-  val rideHailIterationHistory: RideHailIterationHistory,
-  val vehicleEnergy: VehicleEnergy
+  val rideHailIterationHistory: RideHailIterationHistory
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
@@ -116,8 +114,7 @@ class BeamMobsim @Inject()(
               parkingManager,
               envelopeInUTM,
               rideHailSurgePricingManager,
-              rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
-              vehicleEnergy
+              rideHailIterationHistory.oscillationAdjustedTNCIterationStats
             )
           ),
           "RideHailManager"
@@ -136,7 +133,7 @@ class BeamMobsim @Inject()(
 
         private val sharedVehicleFleets = config.agents.vehicles.sharedFleets.map { fleetConfig =>
           context
-            .actorOf(Fleets.lookup(fleetConfig).props(beamServices, parkingManager, vehicleEnergy), fleetConfig.name)
+            .actorOf(Fleets.lookup(fleetConfig).props(beamServices, parkingManager), fleetConfig.name)
         }
         sharedVehicleFleets.foreach(context.watch)
         sharedVehicleFleets.foreach(scheduler ! ScheduleTrigger(InitializeTrigger(0), _))
@@ -151,7 +148,6 @@ class BeamMobsim @Inject()(
             beamServices.beamRouter,
             rideHailManager,
             parkingManager,
-            vehicleEnergy,
             sharedVehicleFleets,
             eventsManager
           ),

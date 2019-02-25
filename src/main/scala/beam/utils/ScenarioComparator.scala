@@ -1,5 +1,6 @@
 package beam.utils
 
+import java.nio.file.Paths
 import java.time.ZonedDateTime
 import java.util.{Collections, Comparator}
 
@@ -7,7 +8,7 @@ import akka.actor.ActorRef
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.FuelType.FuelType
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCsvReader, VehicleEnergy}
+import beam.agentsim.agents.vehicles._
 import beam.router.Modes
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
@@ -96,19 +97,12 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
 
     val beamServices = getBeamServices(config)
-    val vehicleEnergy = getVehicleEnergy(config)
 
-    val planReaderCsv: ScenarioReaderCsv = new ScenarioReaderCsv(scenario, beamServices, vehicleEnergy)
+    val planReaderCsv: ScenarioReaderCsv = new ScenarioReaderCsv(scenario, beamServices)
 
     b2 = beamServices
 
     scenario
-  }
-
-  def getVehicleEnergy(config: com.typesafe.config.Config): VehicleEnergy = {
-    val beamConfig = BeamConfig(config)
-    val csvReader = new VehicleCsvReader(beamConfig)
-    new VehicleEnergy(csvReader.getVehicleEnergyRecordsUsing, csvReader.getLinkToGradeRecordsUsing)
   }
 
   def getBeamServices(config: com.typesafe.config.Config): BeamServices = {
@@ -138,11 +132,25 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
           ).toSeq: _*
         )
 
-      val vehicleEnergy = getVehicleEnergy(config)
+      private val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile).getParent
+      private val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+      private val consumptionRateFilterStore =
+        new ConsumptionRateFilterStoreImpl(
+          vehicleCsvReader.getVehicleEnergyRecordsUsing,
+          Option(baseFilePath.toString),
+          primaryConsumptionRateFilePathsByVehicleType =
+            vehicleTypes.values.map(x=>(x, x.primaryVehicleEnergyFile)).toIndexedSeq,
+          secondaryConsumptionRateFilePathsByVehicleType =
+            vehicleTypes.values.map(x=>(x, x.secondaryVehicleEnergyFile)).toIndexedSeq)
+      val vehicleEnergy = new VehicleEnergy(
+        consumptionRateFilterStore,
+        vehicleCsvReader.getLinkToGradeRecordsUsing
+      )
+
       // TODO Fix me once `TrieMap` is removed
       val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
         TrieMap(
-          readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes, vehicleEnergy).toSeq: _*
+          readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq: _*
         )
 
       override def startNewIteration(): Unit = throw new Exception("???")

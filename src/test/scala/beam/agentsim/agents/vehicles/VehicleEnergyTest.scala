@@ -1,4 +1,4 @@
-package beam.agentsim.agents.vehicles
+/*package beam.agentsim.agents.vehicles
 
 import beam.agentsim.agents.vehicles.BeamVehicle.FuelConsumptionData
 import com.univocity.parsers.csv.CsvParser
@@ -85,3 +85,4 @@ class VehicleEnergyTest extends FunSpecLike with BeforeAndAfterAll with Matchers
     )
   }
 }
+*/

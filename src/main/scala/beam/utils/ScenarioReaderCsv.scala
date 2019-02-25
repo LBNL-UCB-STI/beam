@@ -1,6 +1,6 @@
 package beam.utils
 
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory, VehicleEnergy}
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.sim.vehicles.VehiclesAdjustment
@@ -22,7 +22,6 @@ import scala.collection.mutable.ListBuffer
 class ScenarioReaderCsv(
   var scenario: MutableScenario,
   var beamServices: BeamServices,
-  val vehicleEnergy: VehicleEnergy,
   val delimiter: String = ","
 ) extends LazyLogging {
 
@@ -63,7 +62,7 @@ class ScenarioReaderCsv(
     )
 
     logger.info("Reading plans...")
-    ScenarioReaderCsv.readPlansFile(planFilePath, scenario.getPopulation, beamServices, vehicleEnergy)
+    ScenarioReaderCsv.readPlansFile(planFilePath, scenario.getPopulation, beamServices)
 
     logger.info("Total persons loaded {}", scenario.getPopulation.getPersons.size())
     logger.info("Checking persons without selected plan...")
@@ -98,8 +97,7 @@ class ScenarioReaderCsv(
       householdPersons,
       units,
       buildings,
-      parcelAttrs,
-      vehicleEnergy
+      parcelAttrs
     )
 
     logger.info("Total households loaded {}", scenario.getHouseholds.getHouseholds.size())
@@ -204,8 +202,7 @@ object ScenarioReaderCsv {
   def readPlansFile(
     filePath: String,
     population: Population,
-    beamServices: BeamServices,
-    vehicleEnergy: VehicleEnergy
+    beamServices: BeamServices
   ): Unit = {
     readCsvFileByLine(filePath, Unit) {
       case (line, acc) =>
@@ -255,8 +252,7 @@ object ScenarioReaderCsv {
     householdPersons: Map[Id[Household], ListBuffer[Id[Person]]],
     units: Map[String, java.util.Map[String, String]],
     buildings: Map[String, java.util.Map[String, String]],
-    parcelAttrs: Map[String, java.util.Map[String, String]],
-    vehicleEnergy: VehicleEnergy
+    parcelAttrs: Map[String, java.util.Map[String, String]]
   ): Unit = {
 
     val scenarioHouseholdAttributes = scenario.getHouseholds.getHouseholdAttributes
@@ -350,7 +346,7 @@ object ScenarioReaderCsv {
           val vt = VehicleUtils.getFactory.createVehicleType(Id.create(bvt.id, classOf[VehicleType]))
           val v = VehicleUtils.getFactory.createVehicle(Id.createVehicleId(vehicleCounter), vt)
           vehicleIds.add(v.getId)
-          val bv = BeamVehicleUtils.getBeamVehicle(v, objHousehold, bvt, vehicleEnergy)
+          val bv = BeamVehicleUtils.getBeamVehicle(v, objHousehold, bvt)
           scenarioVehicles.put(bv.id, bv)
 
           vehicleCounter = vehicleCounter + 1

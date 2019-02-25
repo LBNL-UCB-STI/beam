@@ -18,8 +18,7 @@ object BeamVehicleUtils {
 
   def readVehiclesFile(
     filePath: String,
-    vehiclesTypeMap: scala.collection.Map[Id[BeamVehicleType], BeamVehicleType],
-    vehicleEnergy: VehicleEnergy
+    vehiclesTypeMap: scala.collection.Map[Id[BeamVehicleType], BeamVehicleType]
   ): scala.collection.Map[Id[BeamVehicle], BeamVehicle] = {
 
     readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicle], BeamVehicle]()) {
@@ -40,7 +39,7 @@ object BeamVehicleUtils {
 
         val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
-        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, vehicleEnergy, vehicleType)
+        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, vehicleType)
         acc += ((vehicleId, beamVehicle))
         acc
     }
@@ -85,6 +84,8 @@ object BeamVehicleUtils {
           val rechargeLevel2RateLimitInWatts = Option(line.get("rechargeLevel2RateLimitInWatts")).map(_.toDouble)
           val rechargeLevel3RateLimitInWatts = Option(line.get("rechargeLevel3RateLimitInWatts")).map(_.toDouble)
           val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
+          val primaryVehicleEnergyFile = Option(line.get("primaryVehicleEnergyFile"))
+          val secondaryVehicleEnergyFile = Option(line.get("secondaryVehicleEnergyFile"))
 
           val bvt = BeamVehicleType(
             vehicleTypeId,
@@ -104,7 +105,9 @@ object BeamVehicleUtils {
             passengerCarUnit,
             rechargeLevel2RateLimitInWatts,
             rechargeLevel3RateLimitInWatts,
-            vehicleCategory
+            vehicleCategory,
+            primaryVehicleEnergyFile,
+            secondaryVehicleEnergyFile
           )
           z += ((vehicleTypeId, bvt))
       }
@@ -125,7 +128,7 @@ object BeamVehicleUtils {
     }
   }
 
-  def makeBicycle(id: Id[Vehicle], vehicleEnergy: VehicleEnergy): BeamVehicle = {
+  def makeBicycle(id: Id[Vehicle]): BeamVehicle = {
     //FIXME: Every person gets a Bicycle (for now, 5/2018)
 
     val bvt = BeamVehicleType.defaultBicycleBeamVehicleType
@@ -136,7 +139,6 @@ object BeamVehicleUtils {
     new BeamVehicle(
       beamVehicleId,
       powertrain,
-      vehicleEnergy,
       bvt
     )
   }
@@ -170,12 +172,11 @@ object BeamVehicleUtils {
   //TODO: Identify the vehicles by type in xml
   def makeHouseholdVehicle(
     beamVehicles: TrieMap[Id[BeamVehicle], BeamVehicle],
-    id: Id[Vehicle],
-    vehicleEnergy: VehicleEnergy
+    id: Id[Vehicle]
   ): Either[IllegalArgumentException, BeamVehicle] = {
 
     if (BeamVehicleType.isBicycleVehicle(id)) {
-      Right(makeBicycle(id, vehicleEnergy))
+      Right(makeBicycle(id))
     } else {
       beamVehicles
         .get(id)
@@ -232,14 +233,13 @@ object BeamVehicleUtils {
   def getBeamVehicle(
     vehicle: Vehicle,
     household: Household,
-    beamVehicleType: BeamVehicleType,
-    vehicleEnergy: VehicleEnergy
+    beamVehicleType: BeamVehicleType
   ): BeamVehicle = {
 
     val bvId = Id.create(vehicle.getId, classOf[BeamVehicle])
     val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
 
-    val beamVehicle = new BeamVehicle(bvId, powerTrain, vehicleEnergy, beamVehicleType)
+    val beamVehicle = new BeamVehicle(bvId, powerTrain, beamVehicleType)
 
     beamVehicle
   }

@@ -2,7 +2,6 @@ package beam.sflight
 
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKitBase}
-import beam.agentsim.agents.vehicles.{VehicleCsvReader, VehicleEnergy}
 import beam.router.BeamRouter
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamServices, BeamServicesImpl}
@@ -37,9 +36,6 @@ class AbstractSfLightSpec(val name: String)
 
   override def beforeAll: Unit = {
     val beamConfig = BeamConfig(config)
-    val vehicleCsvReader = new VehicleCsvReader(beamConfig)
-    val vehicleEnergy =
-      new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
     router = system.actorOf(
       BeamRouter.props(
         services,
@@ -49,8 +45,7 @@ class AbstractSfLightSpec(val name: String)
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator,
-        vehicleEnergy
+        tollCalculator
       )
     )
 

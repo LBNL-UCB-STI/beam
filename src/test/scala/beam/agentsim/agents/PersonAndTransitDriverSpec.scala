@@ -74,10 +74,6 @@ class PersonAndTransitDriverSpec
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   private lazy val beamConfig = BeamConfig(system.settings.config)
 
-  private lazy val vehicleCsvReader = new VehicleCsvReader(beamConfig)
-  private lazy val vehicleEnergy =
-    new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
-
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
   private val tollCalculator = new TollCalculator(beamConfig)
@@ -171,14 +167,12 @@ class PersonAndTransitDriverSpec
       val bus = new BeamVehicle(
         id = busId,
         powerTrain = new Powertrain(0.0),
-        vehicleEnergy,
         beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
       )
       val tramId = Id.createVehicleId("my_tram")
       val tram = new BeamVehicle(
         id = tramId,
         powerTrain = new Powertrain(0.0),
-        vehicleEnergy,
         beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
       )
 
@@ -335,8 +329,7 @@ class PersonAndTransitDriverSpec
           population = population,
           household = household,
           vehicles = Map(),
-          homeCoord = new Coord(0.0, 0.0),
-          vehicleEnergy
+          homeCoord = new Coord(0.0, 0.0)
         )
       )
 

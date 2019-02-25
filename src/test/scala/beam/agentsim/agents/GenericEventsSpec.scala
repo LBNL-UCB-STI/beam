@@ -42,8 +42,7 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
     )
 
     beamServices = injector.getInstance(classOf[BeamServices])
-    val vehicleEnergy = injector.getInstance(classOf[VehicleEnergy])
-    val popAdjustment = DefaultPopulationAdjustment(beamServices, vehicleEnergy)
+    val popAdjustment = DefaultPopulationAdjustment(beamServices)
     popAdjustment.update(scenario)
 
     eventManager = injector.getInstance(classOf[EventsManager])

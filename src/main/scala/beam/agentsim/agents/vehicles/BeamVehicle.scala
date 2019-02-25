@@ -37,7 +37,6 @@ import org.matsim.vehicles.Vehicle
 class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
-  val vehicleEnergy: VehicleEnergy,
   val beamVehicleType: BeamVehicleType
 ) extends ExponentialLazyLogging {
 
@@ -104,7 +103,7 @@ class BeamVehicle(
     val network = beamServices.matsimServices.getScenario.getNetwork
     val fuelConsumption = BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
     val energyConsumed =
-      vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
+      beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
         fuelConsumption,
         overallFallBack = powerTrain.estimateConsumptionInJoules,
         singleFallBack = powerTrain.estimateConsumptionInJoules)

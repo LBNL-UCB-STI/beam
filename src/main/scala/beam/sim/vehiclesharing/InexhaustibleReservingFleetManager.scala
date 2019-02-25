@@ -11,7 +11,7 @@ import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleEnergy}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
@@ -22,8 +22,7 @@ import org.matsim.api.core.v01.Id
 
 private[vehiclesharing] class InexhaustibleReservingFleetManager(
   val parkingManager: ActorRef,
-  vehicleType: BeamVehicleType,
-  vehicleEnergy: VehicleEnergy
+  vehicleType: BeamVehicleType
 ) extends Actor
     with ActorLogging {
 
@@ -40,7 +39,6 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
       val vehicle = new BeamVehicle(
         Id.createVehicleId(self.path.name + "-" + nextVehicleIndex),
         new Powertrain(0.0),
-        vehicleEnergy,
         vehicleType
       )
       nextVehicleIndex += 1

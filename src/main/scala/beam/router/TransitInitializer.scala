@@ -4,7 +4,7 @@ import java.util
 import java.util.Collections
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleEnergy}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
 import beam.router.Modes.isOnStreetTransit
@@ -32,8 +32,7 @@ class TransitInitializer(
   services: BeamServices,
   transportNetwork: TransportNetwork,
   transitVehicles: Vehicles,
-  travelTimeByLinkCalculator: (Int, Int, StreetMode) => Int,
-  val vehicleEnergy: VehicleEnergy
+  travelTimeByLinkCalculator: (Int, Int, StreetMode) => Int
 ) extends ExponentialLazyLogging {
   private var numStopsNotFound = 0
   private val transitVehicleTypesByRoute: Map[String, Map[String, String]] = loadTransitVehicleTypesMap()
@@ -260,7 +259,6 @@ class TransitInitializer(
         val vehicle: BeamVehicle = new BeamVehicle(
           beamVehicleId,
           powertrain,
-          vehicleEnergy,
           vehicleType
         ) // TODO: implement fuel level later as needed
         Some(vehicle)

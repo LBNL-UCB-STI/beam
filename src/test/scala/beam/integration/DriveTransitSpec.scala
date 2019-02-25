@@ -1,6 +1,5 @@
 package beam.integration
 
-import beam.agentsim.agents.vehicles.{VehicleCsvReader, VehicleEnergy}
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
@@ -48,10 +47,6 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
       val beamConfig = BeamConfig(config)
 
-      val vehicleCsvReader = new VehicleCsvReader(beamConfig)
-      val vehicleEnergy =
-        new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
-
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
       val scenario =
         ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
@@ -84,7 +79,7 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
       )
 
       val services = injector.getInstance(classOf[BeamServices])
-      DefaultPopulationAdjustment(services, vehicleEnergy).update(scenario)
+      DefaultPopulationAdjustment(services).update(scenario)
       val controler = services.controler
       controler.run()
       assert(nDepartures == nArrivals)

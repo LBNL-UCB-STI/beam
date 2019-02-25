@@ -9,7 +9,7 @@ import org.matsim.households.Household
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 
-class BicycleFactory(scenario: Scenario, beamServices: BeamServices, val vehicleEnergy: VehicleEnergy) {
+class BicycleFactory(scenario: Scenario, beamServices: BeamServices) {
 
   /**
     * Utility method preparing BEAM to add bicycles as part of mobsim
@@ -58,7 +58,6 @@ class BicycleFactory(scenario: Scenario, beamServices: BeamServices, val vehicle
           new BeamVehicle(
             bicycleId,
             powertrain,
-            vehicleEnergy,
             beamVehicleType
           )
         )

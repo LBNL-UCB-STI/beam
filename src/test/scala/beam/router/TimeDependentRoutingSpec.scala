@@ -6,7 +6,7 @@ import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.choice.mode.PtFares
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
-import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCsvReader, VehicleEnergy}
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -56,9 +56,6 @@ class TimeDependentRoutingSpec
 
   override def beforeAll: Unit = {
     val beamConfig = BeamConfig(system.settings.config)
-    val vehicleCsvReader = new VehicleCsvReader(beamConfig)
-    val vehicleEnergy =
-      new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
 
     // Have to mock a lot of things to get the router going
     val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
@@ -95,8 +92,7 @@ class TimeDependentRoutingSpec
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator,
-        vehicleEnergy
+        tollCalculator
       )
     )
 

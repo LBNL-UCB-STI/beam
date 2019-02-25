@@ -12,13 +12,14 @@ import scala.collection.JavaConverters._
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 
+//TODO: Fix/Add Tests
 //TODO: Finish adding mappings so can read primary/secondary (when load) and add to files - BeamHelper
+//Question: What to do if the file is not found or cannot be read - exception and die?
 //TODO: Add a test checking that Consumption Rates used (integration test)
 //TODO: Handle header files and column by name instead of index
 
 class VehicleCsvReader(config: BeamConfig) {
   def getVehicleEnergyRecordsUsing(csvParser: CsvParser, filePath: String): Iterable[Record] = {
-    //val csvLocation = config.beam.agentsim.agents.vehicles.vehicleEnergyFile
     csvParser.iterateRecords(IOUtils.getBufferedReader(filePath)).asScala
   }
 
@@ -36,8 +37,9 @@ trait ConsumptionRateFilterStore{
 
 class ConsumptionRateFilterStoreImpl(
   csvRecordsForFilePathUsing:(CsvParser, String) => Iterable[Record],
-  primaryConsumptionRateFilePathsByVehicleType: IndexedSeq[(BeamVehicleType, String)],
-  secondaryConsumptionRateFilePathsByVehicleType: IndexedSeq[(BeamVehicleType, String)])
+  baseFilePath: Option[String],
+  primaryConsumptionRateFilePathsByVehicleType: IndexedSeq[(BeamVehicleType, Option[String])],
+  secondaryConsumptionRateFilePathsByVehicleType: IndexedSeq[(BeamVehicleType, Option[String])])
   extends ConsumptionRateFilterStore {
   //Possible performance tweak: If memory becomes an issue then this can become a more on demand load
   //For now, and for load speed the best option seems to be to pre-load in a background thread
@@ -53,9 +55,9 @@ class ConsumptionRateFilterStoreImpl(
   def getSecondaryConsumptionRateFilterFor(vehicleType: BeamVehicleType) =
     secondaryConsumptionRateFiltersByVehicleType.get(vehicleType)
 
-  private def beginLoadingConsumptionRateFiltersFor(files: IndexedSeq[(BeamVehicleType, String)]) = {
-    files.map{
-      case (vehicleType, filePath) => vehicleType -> Future{
+  private def beginLoadingConsumptionRateFiltersFor(files: IndexedSeq[(BeamVehicleType, Option[String])]) = {
+    files.collect{
+      case (vehicleType, Some(filePath)) => vehicleType -> Future{
         //Do NOT move this out - sharing the parser between threads is questionable
         val settings = new CsvParserSettings()
         settings.detectFormatAutomatically()
@@ -67,7 +69,7 @@ class ConsumptionRateFilterStoreImpl(
 
   private def loadConsumptionRatesFromCSVFor(file: String, csvParser: CsvParser): ConsumptionRateFilter = {
     val currentRateFilter = mutable.Map.empty[Range, mutable.Map[Range, mutable.Map[Range, Double]]]
-    csvRecordsForFilePathUsing(csvParser, file).foreach(csvRecord => {
+    csvRecordsForFilePathUsing(csvParser, java.nio.file.Paths.get(baseFilePath.getOrElse(""), file).toString).foreach(csvRecord => {
       val speedInMilesPerHourBin = convertRecordStringToRange(csvRecord.getString(0))
       val gradePercentBin = convertRecordStringToRange(csvRecord.getString(1))
       val numberOfLanesBin = convertRecordStringToRange(csvRecord.getString(2))
@@ -186,9 +188,8 @@ class VehicleEnergy(
     val ratesSize = filteredRates.size
     if (ratesSize > 1)
       log.warn(
-        "More than one ({}) rate was found using: Number of Lanes = {}; Speed in MPH = {}; Grade Percent = {}." +
-          "The first will be used, but the data should be reviewed for range overlap.",
-        ratesSize, numberOfLanes, speedInMilesPerHour, gradePercent
+        s"More than one ($ratesSize) rate was found using: Number of Lanes = $numberOfLanes; Speed in MPH = $speedInMilesPerHour; Grade Percent = $gradePercent." +
+          "The first will be used, but the data should be reviewed for range overlap."
       )
     filteredRates.headOption.map(convertFromGallonsPer100MilesToJoulesPerMeter)
   }

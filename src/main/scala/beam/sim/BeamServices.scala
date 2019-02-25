@@ -1,6 +1,7 @@
 package beam.sim
 
 import java.io.FileNotFoundException
+import java.nio.file.Paths
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
@@ -39,6 +40,7 @@ import scala.concurrent.duration.FiniteDuration
 trait BeamServices {
   val controler: ControlerI
   val beamConfig: BeamConfig
+  val vehicleEnergy: VehicleEnergy
 
   val geo: GeoUtils
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory
@@ -70,7 +72,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
   val beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
-  val vehicleEnergy: VehicleEnergy = injector.getInstance(classOf[VehicleEnergy])
 
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
 
@@ -112,6 +113,21 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
       )
     )
 
+  private val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile).getParent
+  private val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+  private val consumptionRateFilterStore =
+    new ConsumptionRateFilterStoreImpl(
+      vehicleCsvReader.getVehicleEnergyRecordsUsing,
+      Option(baseFilePath.toString),
+      primaryConsumptionRateFilePathsByVehicleType =
+        vehicleTypes.values.map(x=>(x, x.primaryVehicleEnergyFile)).toIndexedSeq,
+      secondaryConsumptionRateFilePathsByVehicleType =
+        vehicleTypes.values.map(x=>(x, x.secondaryVehicleEnergyFile)).toIndexedSeq)
+  val vehicleEnergy = new VehicleEnergy(
+    consumptionRateFilterStore,
+    vehicleCsvReader.getLinkToGradeRecordsUsing
+  )
+
   // TODO Fix me once `TrieMap` is removed
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
     beamConfig.beam.agentsim.agents.population.useVehicleSampling match {
@@ -119,7 +135,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
         TrieMap[Id[BeamVehicle], BeamVehicle]()
       case false =>
         TrieMap(
-          readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes, vehicleEnergy).toSeq: _*
+          readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq: _*
         )
     }
 

@@ -16,7 +16,7 @@ import beam.agentsim.agents.household.HouseholdActor.{
 }
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.Token
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleEnergy}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
@@ -35,8 +35,7 @@ import scala.concurrent.{ExecutionContext, Future}
 private[vehiclesharing] class FixedNonReservingFleetManager(
   val parkingManager: ActorRef,
   val locations: Iterable[Coord],
-  val vehicleType: BeamVehicleType,
-  val vehicleEnergy: VehicleEnergy
+  val vehicleType: BeamVehicleType
 ) extends Actor
     with ActorLogging {
 
@@ -48,7 +47,6 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       val vehicle = new BeamVehicle(
         Id.createVehicleId(self.path.name + "-" + ix),
         new Powertrain(0.0),
-        vehicleEnergy,
         vehicleType
       )
       vehicle.manager = Some(self)

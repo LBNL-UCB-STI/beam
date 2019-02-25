@@ -7,7 +7,7 @@ import java.util.concurrent.ThreadLocalRandom
 import akka.actor.Status.Success
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
-import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCsvReader, VehicleEnergy}
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ZonalParkingManagerSpec
@@ -91,9 +91,6 @@ class RouterPerformanceSpec
       configMap.getWithDefault("config", "test/input/sf-light/sf-light.conf")
     config = testConfig(confPath).resolve()
     val beamConfig = BeamConfig(config)
-    val vehicleCsvReader = new VehicleCsvReader(beamConfig)
-    val vehicleEnergy =
-      new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
 
     val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
     when(services.beamConfig).thenReturn(beamConfig)
@@ -124,8 +121,7 @@ class RouterPerformanceSpec
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator,
-        vehicleEnergy
+        tollCalculator
       ),
       "router"
     )

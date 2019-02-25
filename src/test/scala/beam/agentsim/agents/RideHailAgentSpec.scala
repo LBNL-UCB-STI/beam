@@ -60,10 +60,6 @@ class RideHailAgentSpec
   lazy val config = BeamConfig(system.settings.config)
   lazy val eventsManager = new EventsManagerImpl()
 
-  private lazy val vehicleCsvReader = new VehicleCsvReader(config)
-  private lazy val vehicleEnergy =
-    new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
-
   private val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
 
   private lazy val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
@@ -165,7 +161,7 @@ class RideHailAgentSpec
     it("should drive around when I tell him to") {
       val vehicleId = Id.createVehicleId(1)
       val beamVehicle =
-        new BeamVehicle(vehicleId, new Powertrain(0.0), vehicleEnergy, BeamVehicleType.defaultCarBeamVehicleType)
+        new BeamVehicle(vehicleId, new Powertrain(0.0), BeamVehicleType.defaultCarBeamVehicleType)
       beamVehicle.manager = Some(self)
       vehicles.put(vehicleId, beamVehicle)
 
@@ -240,7 +236,6 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
-          vehicleEnergy,
           BeamVehicleType.defaultCarBeamVehicleType
         )
       beamVehicle.manager = Some(self)
@@ -311,7 +306,6 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
-          vehicleEnergy,
           BeamVehicleType.defaultCarBeamVehicleType
         )
       beamVehicle.manager = Some(self)

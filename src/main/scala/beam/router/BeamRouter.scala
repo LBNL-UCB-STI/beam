@@ -22,7 +22,7 @@ import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleEnergy}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter._
@@ -56,8 +56,7 @@ class BeamRouter(
   eventsManager: EventsManager,
   transitVehicles: Vehicles,
   fareCalculator: FareCalculator,
-  tollCalculator: TollCalculator,
-  val vehicleEnergy: VehicleEnergy
+  tollCalculator: TollCalculator
 ) extends Actor
     with Stash
     with ActorLogging {
@@ -181,8 +180,7 @@ class BeamRouter(
             services,
             transportNetwork,
             transitVehicles,
-            BeamRouter.oneSecondTravelTime,
-            vehicleEnergy
+            BeamRouter.oneSecondTravelTime
           )
         val transits = initializer.initMap
         initDriverAgents(initializer, scheduler, parkingManager, transits)
@@ -500,8 +498,7 @@ object BeamRouter {
     eventsManager: EventsManager,
     transitVehicles: Vehicles,
     fareCalculator: FareCalculator,
-    tollCalculator: TollCalculator,
-    vehicleEnergy: VehicleEnergy
+    tollCalculator: TollCalculator
   ) = {
     checkForConsistentTimeZoneOffsets(beamServices, transportNetwork)
 
@@ -514,8 +511,7 @@ object BeamRouter {
         eventsManager,
         transitVehicles,
         fareCalculator,
-        tollCalculator,
-        vehicleEnergy
+        tollCalculator
       )
     )
   }

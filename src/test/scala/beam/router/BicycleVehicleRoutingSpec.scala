@@ -4,7 +4,7 @@ import java.time.ZonedDateTime
 
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
-import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCsvReader, VehicleEnergy}
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
@@ -50,10 +50,6 @@ class BicycleVehicleRoutingSpec
   override def beforeAll: Unit = {
     val beamConfig = BeamConfig(system.settings.config)
 
-    val vehicleCsvReader = new VehicleCsvReader(beamConfig)
-    val vehicleEnergy =
-      new VehicleEnergy(vehicleCsvReader.getVehicleEnergyRecordsUsing, vehicleCsvReader.getLinkToGradeRecordsUsing)
-
     // Have to mock a lot of things to get the router going
     val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
@@ -83,8 +79,7 @@ class BicycleVehicleRoutingSpec
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator,
-        vehicleEnergy
+        tollCalculator
       )
     )
 

@@ -12,7 +12,7 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, VehicleOrToken}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleEnergy}
+import beam.agentsim.agents.vehicles.{BeamVehicle}
 import beam.agentsim.agents.{InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
@@ -52,7 +52,6 @@ object HouseholdActor {
     matSimHousehold: Household,
     houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle],
     homeCoord: Coord,
-    vehicleEnergy: VehicleEnergy,
     sharedVehicleFleets: Seq[ActorRef] = Vector()
   ): Props = {
     Props(
@@ -70,7 +69,6 @@ object HouseholdActor {
         matSimHousehold,
         houseHoldVehicles,
         homeCoord,
-        vehicleEnergy,
         sharedVehicleFleets
       )
     )
@@ -109,7 +107,6 @@ object HouseholdActor {
     val household: Household,
     vehicles: Map[Id[BeamVehicle], BeamVehicle],
     homeCoord: Coord,
-    val vehicleEnergy: VehicleEnergy,
     sharedVehicleFleets: Seq[ActorRef] = Vector()
   ) extends Actor
       with ActorLogging {
@@ -163,7 +160,6 @@ object HouseholdActor {
               person.getId,
               household,
               person.getSelectedPlan,
-              vehicleEnergy,
               sharedVehicleFleets
             ),
             person.getId.toString

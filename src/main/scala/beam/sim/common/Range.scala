@@ -1,13 +1,14 @@
 package beam.sim.common
 
 import scala.util.Try
+import scala.language.implicitConversions
 
 case class DoubleComparableRange(range:Range){
   def hasDouble(value: Double) = {
     range.lowerBound <= value && value <= range.upperBound
   }
 
-  def hasOrEmpty(value: Double) = range.isEmpty || has(value)
+  def hasOrEmpty(value: Double) = range.isEmpty || hasDouble(value)
 }
 
 case class Range(lowerBound: Int, upperBound: Int) {

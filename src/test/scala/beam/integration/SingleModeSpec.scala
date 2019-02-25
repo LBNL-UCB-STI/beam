@@ -4,7 +4,6 @@ import akka.actor._
 import beam.agentsim.agents.PersonTestUtil
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.{VehicleCsvReader, VehicleEnergy}
 import beam.agentsim.events.PathTraversalEvent
 import beam.router.BeamRouter
 import beam.router.Modes.BeamMode
@@ -66,8 +65,7 @@ class SingleModeSpec
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator,
-        vehicleEnergy
+        tollCalculator
       ),
       "router"
     )
@@ -113,8 +111,7 @@ class SingleModeSpec
         eventsManager,
         system,
         new RideHailSurgePricingManager(services),
-        new RideHailIterationHistory(),
-        vehicleEnergy
+        new RideHailIterationHistory()
       )
       mobsim.run()
       events.foreach {
@@ -153,8 +150,7 @@ class SingleModeSpec
         eventsManager,
         system,
         new RideHailSurgePricingManager(services),
-        new RideHailIterationHistory(),
-        vehicleEnergy
+        new RideHailIterationHistory()
       )
       mobsim.run()
       events.foreach {
@@ -214,8 +210,7 @@ class SingleModeSpec
         eventsManager,
         system,
         new RideHailSurgePricingManager(services),
-        new RideHailIterationHistory(),
-        vehicleEnergy
+        new RideHailIterationHistory()
       )
       mobsim.run()
       events.collect {
@@ -280,8 +275,7 @@ class SingleModeSpec
         eventsManager,
         system,
         new RideHailSurgePricingManager(services),
-        new RideHailIterationHistory(),
-        vehicleEnergy
+        new RideHailIterationHistory()
       )
       mobsim.run()
       events.collect {
