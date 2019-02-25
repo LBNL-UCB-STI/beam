@@ -194,6 +194,7 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
 
           addControlerListenerBinding().to(classOf[BeamSim])
+          addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
 
           addControlerListenerBinding().to(classOf[ActivityLocationPlotter])
           addControlerListenerBinding().to(classOf[GraphSurgePricing])
@@ -268,7 +269,7 @@ trait BeamHelper extends LazyLogging {
       "Please provide a valid configuration file."
     )
 
-    ConfigConsistencyComparator(parsedArgs.configLocation.get)
+    ConfigConsistencyComparator.parseBeamTemplateConfFile(parsedArgs.configLocation.get)
 
     val location = ConfigFactory.parseString("config=" + parsedArgs.configLocation.get)
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
