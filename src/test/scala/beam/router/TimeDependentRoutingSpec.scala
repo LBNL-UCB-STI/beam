@@ -70,7 +70,7 @@ class TimeDependentRoutingSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
-    when(services.vehicleTypes).thenReturn(TrieMap[Id[BeamVehicleType], BeamVehicleType]())
+    when(services.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
     when(services.fuelTypePrices).thenReturn(Map[FuelType, Double]().withDefaultValue(0.0))
     networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
@@ -124,6 +124,27 @@ class TimeDependentRoutingSpec
       router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), BeamVehicleType.defaultCarBeamVehicleType.id)
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.head.beamLegs().head.duration == 70)
+      // R5 travel time, but less than what's in R5's routing response (see vv),
+      // presumably because the first/last edge are not travelled (in R5, trip starts on a "split")
+    }
+
+    "also for bikes" in {
+      val leg = BeamLeg(
+        3000,
+        BeamMode.BIKE,
+        0,
+        BeamPath(
+          Vector(143, 60, 58, 62, 80, 74, 68, 154),
+          Vector(),
+          None,
+          SpaceTime(166321.9, 1568.87, 3000),
+          SpaceTime(167138.4, 1117, 3000),
+          0.0
+        )
+      )
+      router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), Id.create("Bicycle", classOf[BeamVehicleType]))
+      val response = expectMsgType[RoutingResponse]
+      assert(response.itineraries.head.beamLegs().head.duration == 285)
       // R5 travel time, but less than what's in R5's routing response (see vv),
       // presumably because the first/last edge are not travelled (in R5, trip starts on a "split")
     }
