@@ -115,7 +115,9 @@ class SingleModeSpec
       mobsim.run()
       events.foreach {
         case event: PersonDepartureEvent =>
-          assert(event.getLegMode == "walk" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "cav")
+          assert(
+            event.getLegMode == "walk" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "cav"
+          )
       }
     }
 
@@ -156,7 +158,7 @@ class SingleModeSpec
       events.foreach {
         case event: PersonDepartureEvent =>
           assert(
-            event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "be_a_tnc_driver"|| event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "cav"
+            event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "cav"
           )
       }
     }
@@ -285,7 +287,9 @@ class SingleModeSpec
           // Wr still get some failing car routes.
           // TODO: Find root cause, fix, and remove "walk" here.
           // See SfLightRouterSpec.
-          assert(event.getLegMode == "walk" || event.getLegMode == "car" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "cav")
+          assert(
+            event.getLegMode == "walk" || event.getLegMode == "car" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "cav"
+          )
       }
     }
   }
