@@ -2,11 +2,15 @@ package beam.agentsim.agents.household
 
 import java.util.concurrent.TimeUnit
 
+import akka.actor.Status.Success
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
 import akka.util.Timeout
+import akka.pattern._
+import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
+import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavTripLegsResponse}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, VehicleOrToken}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.BeamPlan
@@ -15,17 +19,16 @@ import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
 import beam.agentsim.agents.{HasTickAndTrigger, InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
+import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.RoutingResponse
 import beam.router.{BeamSkimmer, RouteHistory}
-import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.RandomUtils
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -34,8 +37,8 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.households
 import org.matsim.households.Household
 
-import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
+
 
 object HouseholdActor {
 
@@ -122,9 +125,9 @@ object HouseholdActor {
   ) extends Actor
       with HasTickAndTrigger
       with ActorLogging {
+    implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+    implicit val executionContext: ExecutionContext = context.dispatcher
 
-    private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
-    private implicit val executionContext: ExecutionContext = context.dispatcher
     override val supervisorStrategy: OneForOneStrategy =
       OneForOneStrategy(maxNrOfRetries = 0) {
         case _: Exception      => Stop
@@ -158,6 +161,15 @@ object HouseholdActor {
     override def receive: Receive = {
 
       case TriggerWithId(InitializeTrigger(tick), triggerId) =>
+        val vehiclesByCategory = vehicles.filter(_._2.beamVehicleType.automationLevel <= 3).groupBy(_._2.beamVehicleType.vehicleCategory)
+        val fleetManagers = vehiclesByCategory.map {
+          case (category, vs) =>
+            val fleetManager =
+              context.actorOf(Props(new HouseholdFleetManager(parkingManager, vs, homeCoord)), category.toString)
+            context.watch(fleetManager)
+            schedulerRef ! ScheduleTrigger(InitializeTrigger(0), fleetManager)
+            fleetManager
+        }
         // If any of my vehicles are CAVs then go through scheduling process
         var cavs = vehicles.filter(_._2.beamVehicleType.automationLevel > 3).map(_._2).toList
         if (cavs.size > 0) {
@@ -270,7 +282,7 @@ object HouseholdActor {
           context.watch(personRef)
 
           memberVehiclePersonIds = memberVehiclePersonIds + (person.getId -> VehiclePersonId(
-            bodyVehicleIdFromPersonID(person.getId),
+            PersonAgent.bodyVehicleIdFromPersonID(person.getId),
             person.getId,
             personRef
           ))
@@ -431,6 +443,7 @@ object HouseholdActor {
     }
 
     def completeInitialization(triggerId: Long, triggersToSchedule: Vector[ScheduleTrigger]): Unit = {
+
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.
       Future

@@ -9,6 +9,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork

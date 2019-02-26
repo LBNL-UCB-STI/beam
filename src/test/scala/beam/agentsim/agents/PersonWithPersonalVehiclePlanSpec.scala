@@ -19,6 +19,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerPr
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, WALK}
+import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
@@ -406,7 +407,9 @@ class PersonWithPersonalVehiclePlanSpec
             population,
             household,
             Map(beamVehicle.id -> beamVehicle),
-            new Coord(0.0, 0.0)
+            new Coord(0.0, 0.0),
+            Vector(),
+            new RouteHistory()
           )
         )
       )

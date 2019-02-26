@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 import scala.language.postfixOps
+import collection.JavaConverters._
 
 class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
     extends ScoringFunctionFactory
@@ -65,6 +66,9 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
         finalScore = allDayScore + leavingParkingEventScore
         finalScore = Math.max(finalScore, -100000) // keep scores no further below -100k to keep MATSim happy (doesn't like -Infinity) but knowing
         // that if changes to utility function drive the true scores below -100k, this will need to be replaced with another big number.
+
+        // Write the individual's trip scores to csv
+        writeTripScoresToCSV()
       }
 
       override def handleActivity(activity: Activity): Unit = {}

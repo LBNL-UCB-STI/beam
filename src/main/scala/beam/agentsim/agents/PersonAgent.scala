@@ -188,6 +188,7 @@ class PersonAgent(
   val matsimPlan: Plan,
   val parkingManager: ActorRef,
   val tollCalculator: TollCalculator,
+  val householdRef: ActorRef,
   val vehicleFleets: Seq[ActorRef] = Vector()
 ) extends DrivesVehicle[PersonData]
     with ChoosesMode

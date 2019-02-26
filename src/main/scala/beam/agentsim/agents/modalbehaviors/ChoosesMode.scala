@@ -109,7 +109,7 @@ trait ChoosesMode {
           implicit val executionContext: ExecutionContext = context.system.dispatcher
           Future
             .sequence(
-              vehicleManagers.map(
+              vehicleFleets.map(
                 _ ? MobilityStatusInquiry(
                   id,
                   currentLocation,
@@ -804,9 +804,9 @@ trait ChoosesMode {
               Vector(origLegs)
           }).map { partialItin =>
             EmbodiedBeamTrip(
-              (EmbodiedBeamLeg.dummyWalkLegAt(partialItin.head.beamLeg.startTime, body.id, false) +:
+              (EmbodiedBeamLeg.dummyLegAt(partialItin.head.beamLeg.startTime, body.id, false) +:
               partialItin :+
-              EmbodiedBeamLeg.dummyWalkLegAt(partialItin.last.beamLeg.endTime, body.id, true))
+              EmbodiedBeamLeg.dummyLegAt(partialItin.last.beamLeg.endTime, body.id, true))
             )
           }
         case None =>
