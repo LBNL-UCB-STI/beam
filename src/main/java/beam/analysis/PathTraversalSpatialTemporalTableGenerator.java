@@ -97,7 +97,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
     public static Map<String, R5NetworkLink> r5NetworkLinks;
     private static int numberOfLinkIdsMissingInR5NetworkFile = 0;
-    private static TrieMap<Id<BeamVehicleType>, BeamVehicleType> vehicles;
+    private static Map<Id<BeamVehicleType>, BeamVehicleType> vehicles;
     private List<Table<String, String, Double>> linkVehicleTypeTuples = new ArrayList<>(NUMBER_OF_BINS);
     private List<Table<String, String, Double>> energyConsumption = new ArrayList<>(NUMBER_OF_BINS);
     private List<Table<String, String, Double>> numberOfVehicles = new ArrayList<>(NUMBER_OF_BINS);
@@ -162,7 +162,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 //        new VehicleReaderV1(vehicles).readFile(vehiclesFileName);
     }
 
-    public static void setVehicles(TrieMap<Id<BeamVehicleType>, BeamVehicleType> vehicles) {
+    public static void setVehicles(Map<Id<BeamVehicleType>, BeamVehicleType> vehicles) {
         PathTraversalSpatialTemporalTableGenerator.vehicles = vehicles;
     }
 
@@ -183,11 +183,11 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
             transitAgency = vehicleIdString.split(TRANSIT_AGENCY_VEHICLE_ID_SEPARATOR)[0].trim();
             Id<BeamVehicleType> vehicleTypeId = Id.create((mode + "-" + transitAgency).toUpperCase(), BeamVehicleType.class);
 
-            if (!vehicles.contains(vehicleTypeId)) {
+            if (!vehicles.containsKey(vehicleTypeId)) {
                 vehicleTypeId = Id.create((mode + "-DEFAULT").toUpperCase(), BeamVehicleType.class);
             }
 
-            BeamVehicleType vehicleType = vehicles.get(vehicleTypeId).get();
+            BeamVehicleType vehicleType = vehicles.get(vehicleTypeId);
 
             String vehicleFuelType = vehicleType.primaryFuelType().toString();
 
