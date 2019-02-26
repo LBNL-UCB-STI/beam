@@ -171,7 +171,7 @@ trait BeamHelper extends LazyLogging {
           // MATSim defaults
           install(new NewControlerModule)
           install(new ScenarioByInstanceModule(scenario))
-          install(new ControlerDefaultsModule)
+          install(new ControllerModule)
           install(new ControlerDefaultCoreListenersModule)
 
           // Beam Inject below:
