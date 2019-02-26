@@ -20,7 +20,7 @@ import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationAdjustment
 import beam.utils.reflection.ReflectionUtils
-import beam.utils.scenario.CsvScenarioReader
+import beam.utils.scenario.{CsvScenarioReader, InputType, ParquetScenarioReader}
 import beam.utils.{NetworkHelper, _}
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
@@ -393,15 +393,23 @@ trait BeamHelper extends LazyLogging {
     beamServices.setTransitFleetSizes(networkCoordinator.tripFleetSizeMap)
 
     val beamConfig = beamServices.beamConfig
-    var useCSVFiles
-      : Boolean = beamConfig.beam.agentsim.agents.population.beamPopulationDirectory != null && !beamConfig.beam.agentsim.agents.population.beamPopulationDirectory
-      .isEmpty()
-
-    // TODO FIXME give better name for external source of scenario
-    if (useCSVFiles) {
-      val scenarioReader = CsvScenarioReader
-      val csvScenarioLoader = new ScenarioLoader(scenario, beamServices, scenarioReader)
-      csvScenarioLoader.loadScenario()
+    val useExternalDataForScenario: Boolean =
+      Option(beamConfig.beam.agentsim.agents.population.beamPopulationDirectory).exists(!_.isEmpty)
+    if (useExternalDataForScenario) {
+      val inputType: InputType = Option(beamConfig.beam.agentsim.agents.population.inputFileFormat)
+        .map(str => InputType(str.toLowerCase))
+        .getOrElse(
+          throw new IllegalStateException(
+            s"`beamConfig.beam.agentsim.agents.population.inputFileFormat` is null or empty!"
+          )
+        )
+      val scenarioReader = inputType match {
+        case InputType.CSV     => CsvScenarioReader
+        case InputType.Parquet => ParquetScenarioReader
+      }
+      ProfilingUtils.timed("Load scenario", x => logger.info(x)) {
+        new ScenarioLoader(scenario, beamServices, scenarioReader).loadScenario()
+      }
     }
 
     samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices)

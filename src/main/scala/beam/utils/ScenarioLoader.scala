@@ -80,25 +80,18 @@ class ScenarioLoader(
 
   def loadScenario(): Unit = {
     clear()
-    logger.info("Reading units...")
+
     val units = scenarioReader.readUnitsFile(unitFilePath)
-
-    logger.info("Reading parcel attrs")
     val parcelAttrs = scenarioReader.readParcelAttrFile(parcelAttrFilePath)
-
-    logger.info("Reading buildings...")
     val buildings = scenarioReader.readBuildingsFile(buildingFilePath)
-
     val unitIdToCoord = ProfilingUtils.timed("getUnitIdToCoord", x => logger.info(x)) {
       getUnitIdToCoord(units, parcelAttrs, buildings)
     }
 
-    logger.info("Reading plans...")
     val plans = scenarioReader.readPlansFile(planFilePath)
     logger.info(s"Read ${plans.size} plans")
 
     val personsWithPlans = {
-      logger.info("Reading persons...")
       val persons = scenarioReader.readPersonsFile(personFilePath)
       logger.info(s"Read ${persons.size} persons")
       getPersonsWithPlan(persons, plans)
@@ -108,14 +101,13 @@ class ScenarioLoader(
     val householdIdToPersons: Map[String, Array[PersonInfo]] = personsWithPlans.groupBy(_.householdId)
 
     val householdsWithMembers = {
-      logger.info("Reading Households...")
       val households: Array[HouseholdInfo] = scenarioReader.readHouseholdsFile(householdFilePath)
       logger.info(s"Read ${households.size} households")
       households.filter(household => householdIdToPersons.contains(household.householdId))
     }
     logger.info(s"There are ${householdsWithMembers.size} non-empty households")
 
-    logger.info("Applying Households...")
+    logger.info("Applying households...")
     applyHousehold(householdsWithMembers, unitIdToCoord, householdIdToPersons)
     // beamServices.privateVehicles is properly populated here, after `applyHousehold` call
 
@@ -132,7 +124,6 @@ class ScenarioLoader(
     logger.info("Applying plans...")
     applyPlans(plans)
 
-    logger.info("Total households loaded {}", scenario.getHouseholds.getHouseholds.size())
     logger.info("The scenario loading is completed..")
   }
 

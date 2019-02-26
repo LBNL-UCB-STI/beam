@@ -11,6 +11,14 @@ sealed trait InputType {
 object InputType {
   case object Parquet extends InputType
   case object CSV extends InputType
+
+  def apply(`type`: String): InputType = {
+    `type` match {
+      case "csv"     => CSV
+      case "parquet" => Parquet
+      case x         => throw new IllegalStateException(s"There is no map from type '${`type`} to `InputType`")
+    }
+  }
 }
 
 case class UnitInfo(unitId: String, buildingId: String)
