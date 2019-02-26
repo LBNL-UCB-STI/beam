@@ -51,7 +51,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 
 class PersonWithPersonalVehiclePlanSpec
     extends TestKit(
@@ -111,7 +111,11 @@ class PersonWithPersonalVehiclePlanSpec
 
     override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0D
 
-    override def computeAllDayUtility(trips: ListBuffer[EmbodiedBeamTrip], person: Person, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
+    override def computeAllDayUtility(
+      trips: ListBuffer[EmbodiedBeamTrip],
+      person: Person,
+      attributesOfIndividual: AttributesOfIndividual
+    ): Double = 0.0
   }
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)

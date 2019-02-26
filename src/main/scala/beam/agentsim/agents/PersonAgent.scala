@@ -213,7 +213,7 @@ class PersonAgent(
   val myUnhandled: StateFunction = {
     case Event(TriggerWithId(BoardVehicleTrigger(_, _), _), _) =>
       log.debug("Person {} stashing BoardVehicleTrigger in state {}", id, stateName)
-      if(stateName.toString.equals("WaitingForReservationConfirmation")){
+      if (stateName.toString.equals("WaitingForReservationConfirmation")) {
         val i = 0
       }
       stash()

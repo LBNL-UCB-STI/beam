@@ -96,7 +96,11 @@ trait ModeChoiceCalculator extends HasServices {
 
   def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double
 
-  def computeAllDayUtility(trips: ListBuffer[EmbodiedBeamTrip], person: Person, attributesOfIndividual: AttributesOfIndividual): Double
+  def computeAllDayUtility(
+    trips: ListBuffer[EmbodiedBeamTrip],
+    person: Person,
+    attributesOfIndividual: AttributesOfIndividual
+  ): Double
 
   final def chooseRandomAlternativeIndex(alternatives: Seq[EmbodiedBeamTrip]): Int = {
     if (alternatives.nonEmpty) {

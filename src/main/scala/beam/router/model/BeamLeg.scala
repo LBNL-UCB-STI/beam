@@ -39,11 +39,12 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
   }
 
   /**
-   * This will append nextLeg to the current leg and update the times in the merged leg to be consistent.
+    * This will append nextLeg to the current leg and update the times in the merged leg to be consistent.
     * The mode of the resulting leg will be based on this leg. Transit stops are not merged, they take the base leg value.
-   */
+    */
   def appendLeg(nextLeg: BeamLeg): BeamLeg = {
-    val newTravelPath = BeamPath(travelPath.linkIds ++ nextLeg.travelPath.linkIds,
+    val newTravelPath = BeamPath(
+      travelPath.linkIds ++ nextLeg.travelPath.linkIds,
       travelPath.linkTravelTime ++ nextLeg.travelPath.linkTravelTime,
       travelPath.transitStops,
       travelPath.startPoint,

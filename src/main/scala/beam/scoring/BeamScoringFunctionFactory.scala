@@ -61,7 +61,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
         person.getSelectedPlan.getAttributes
           .putAttribute("scores", MapStringDouble(Map("NA" -> Double.NaN)))
 
-        val allDayScore = modeChoiceCalculator.computeAllDayUtility(trips,person,attributes)
+        val allDayScore = modeChoiceCalculator.computeAllDayUtility(trips, person, attributes)
 
         finalScore = allDayScore + leavingParkingEventScore
         finalScore = Math.max(finalScore, -100000) // keep scores no further below -100k to keep MATSim happy (doesn't like -Infinity) but knowing

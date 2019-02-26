@@ -52,7 +52,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 
 class PersonAndTransitDriverSpec
     extends TestKit(
@@ -118,7 +118,11 @@ class PersonAndTransitDriverSpec
 
     override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0D
 
-    override def computeAllDayUtility(trips: ListBuffer[EmbodiedBeamTrip], person: Person, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
+    override def computeAllDayUtility(
+      trips: ListBuffer[EmbodiedBeamTrip],
+      person: Person,
+      attributesOfIndividual: AttributesOfIndividual
+    ): Double = 0.0
   }
 
   private lazy val parkingManager = system.actorOf(
@@ -335,7 +339,7 @@ class PersonAndTransitDriverSpec
           household = household,
           vehicles = Map(),
           homeCoord = new Coord(0.0, 0.0),
-            Vector(),
+          Vector(),
           new RouteHistory()
         )
       )

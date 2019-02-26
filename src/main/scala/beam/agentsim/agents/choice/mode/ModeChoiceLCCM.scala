@@ -261,7 +261,11 @@ class ModeChoiceLCCM(
 
   override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
 
-  override def computeAllDayUtility(trips: ListBuffer[EmbodiedBeamTrip], person: Person, attributesOfIndividual: AttributesOfIndividual) = {
+  override def computeAllDayUtility(
+    trips: ListBuffer[EmbodiedBeamTrip],
+    person: Person,
+    attributesOfIndividual: AttributesOfIndividual
+  ) = {
     // Compute and log all-day score w.r.t. all modality styles
     // One of them has many suspicious-looking 0.0 values. Probably something which
     // should be minus infinity or exception instead.
@@ -298,7 +302,8 @@ class ModeChoiceLCCM(
     ).filterNot(x => x < -100D).getOrElse(-100D)
 
     // Score of being in class given this outcome
-   lccm.classMembershipModels(Mandatory)
+    lccm
+      .classMembershipModels(Mandatory)
       .getUtilityOfAlternative(
         AlternativeAttributes(
           attributesOfIndividual.modalityStyle.get,
@@ -306,10 +311,10 @@ class ModeChoiceLCCM(
             "income"        -> attributesOfIndividual.householdAttributes.householdIncome,
             "householdSize" -> attributesOfIndividual.householdAttributes.householdSize.toDouble,
             "male" -> (if (attributesOfIndividual.isMale) {
-              1.0
-            } else {
-              0.0
-            }),
+                         1.0
+                       } else {
+                         0.0
+                       }),
             "numCars"  -> attributesOfIndividual.householdAttributes.numCars.toDouble,
             "numBikes" -> attributesOfIndividual.householdAttributes.numBikes.toDouble,
             "surplus"  -> logsum // not the logsum-thing (yet), but the conditional utility of this actual plan given the class

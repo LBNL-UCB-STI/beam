@@ -1,6 +1,21 @@
 package beam.router
 
-import beam.router.Modes.BeamMode.{BIKE, BUS, CABLE_CAR, CAR, CAV, FERRY, FUNICULAR, GONDOLA, RAIL, RIDE_HAIL, SUBWAY, TRAM, TRANSIT, WALK}
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  BUS,
+  CABLE_CAR,
+  CAR,
+  CAV,
+  FERRY,
+  FUNICULAR,
+  GONDOLA,
+  RAIL,
+  RIDE_HAIL,
+  SUBWAY,
+  TRAM,
+  TRANSIT,
+  WALK
+}
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.conveyal.r5.profile.StreetMode
 import enumeratum.values._
@@ -166,7 +181,7 @@ object Modes {
     case BIKE => StreetMode.BICYCLE
     case WALK => StreetMode.WALK
     case CAR  => StreetMode.CAR
-    case CAV => StreetMode.CAR
+    case CAV  => StreetMode.CAR
     case _    => throw new IllegalArgumentException
   }
 

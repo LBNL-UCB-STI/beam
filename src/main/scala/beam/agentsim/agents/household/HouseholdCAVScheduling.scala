@@ -71,7 +71,7 @@ class HouseholdCAVScheduling(
     var feasibleSchedulesOut = List.empty[CAVFleetSchedule]
     val feasibleSchedules =
       MListBuffer[CAVFleetSchedule](CAVFleetSchedule(emptyFleetSchedule.toList, householdRequests))
-    for (request  <- householdRequests.requests; schedule <- feasibleSchedules) {
+    for (request <- householdRequests.requests; schedule <- feasibleSchedules) {
       val (newSchedule, feasible) = schedule.check(request, skim)
       if (!feasible) feasibleSchedules -= schedule
       feasibleSchedules.prependAll(newSchedule)
@@ -93,18 +93,13 @@ class HouseholdCAVScheduling(
 
   // ***
   def getBestScheduleWithTheLongestCAVChain: List[CAVFleetSchedule] = {
-    val mapRank = getAllFeasibleSchedules.
-      map(x => x -> x.cavFleetSchedule.foldLeft(0)((a, b) => a + b.schedule.size)).
-      toMap
+    val mapRank =
+      getAllFeasibleSchedules.map(x => x -> x.cavFleetSchedule.foldLeft(0)((a, b) => a + b.schedule.size)).toMap
     var output = List.empty[CAVFleetSchedule]
     if (mapRank.nonEmpty) {
       val maxRank = mapRank.maxBy(_._2)._2
-      output = mapRank.
-        withFilter(_._2 == maxRank).
-        map(x => x._1).
-        toList.
-        sortBy(_.householdTrips.totalTravelTime).
-        take(1)
+      output =
+        mapRank.withFilter(_._2 == maxRank).map(x => x._1).toList.sortBy(_.householdTrips.totalTravelTime).take(1)
     }
     output
   }
@@ -374,7 +369,6 @@ object CAVSchedule {
   }
 }
 
-
 // **** Data Structure
 sealed trait MobilityServiceRequestType
 case object Pickup extends MobilityServiceRequestType
@@ -383,16 +377,16 @@ case object Relocation extends MobilityServiceRequestType
 case object Init extends MobilityServiceRequestType
 
 case class MobilityServiceRequest(
-                                   person: Option[Id[Person]],
-                                   activity: Activity,
-                                   time: Int,
-                                   trip: Trip,
-                                   defaultMode: BeamMode,
-                                   tag: MobilityServiceRequestType,
-                                   serviceTime: Int,
-                                   routingRequestId: Option[Int] = None,
-                                   pickupRequest: Option[MobilityServiceRequest] = None
-                                 ) {
+  person: Option[Id[Person]],
+  activity: Activity,
+  time: Int,
+  trip: Trip,
+  defaultMode: BeamMode,
+  tag: MobilityServiceRequestType,
+  serviceTime: Int,
+  routingRequestId: Option[Int] = None,
+  pickupRequest: Option[MobilityServiceRequest] = None
+) {
   val nextActivity = Some(trip.activity)
 
   def formatTime(secs: Int): String = {
@@ -406,22 +400,22 @@ case class MobilityServiceRequest(
 case class HouseholdTripsException(message: String, cause: Throwable = null) extends Exception(message, cause)
 case class HouseholdTripsLogger(name: String) extends ExponentialLoggerWrapperImpl(name)
 case class HouseholdTrips(
-                           requests: List[MobilityServiceRequest],
-                           defaultTravelTime: Int,
-                           tripTravelTime: Map[Trip, Int],
-                           totalTravelTime: Int
-                         ) {
+  requests: List[MobilityServiceRequest],
+  defaultTravelTime: Int,
+  tripTravelTime: Map[Trip, Int],
+  totalTravelTime: Int
+) {
   override def toString: String = requests.toString
 }
 
 object HouseholdTrips {
 
   def apply(
-             householdPlans: Seq[BeamPlan],
-             householdNbOfVehicles: Int,
-             timeWindow: Map[MobilityServiceRequestType, Int],
-             skim: BeamSkimmer
-           ): HouseholdTrips = {
+    householdPlans: Seq[BeamPlan],
+    householdNbOfVehicles: Int,
+    timeWindow: Map[MobilityServiceRequestType, Int],
+    skim: BeamSkimmer
+  ): HouseholdTrips = {
 
     import scala.collection.mutable.{ListBuffer => MListBuffer, Map => MMap}
 
@@ -495,7 +489,7 @@ object HouseholdTrips {
       }
     }
     // Sum(tDi - tPi) <= Sum(tauDi - tauPi) + (alpha + beta)|R|/2
-    val sumTimeWindows = (requests.size / 2) * timeWindow.foldLeft(0)(_+_._2)
+    val sumTimeWindows = (requests.size / 2) * timeWindow.foldLeft(0)(_ + _._2)
     // adding a time window to the total travel time
     HouseholdTrips(
       requests.sortWith(_.time < _.time).toList,

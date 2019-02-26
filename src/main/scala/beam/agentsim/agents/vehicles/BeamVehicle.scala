@@ -156,9 +156,9 @@ class BeamVehicle(
       case Bike =>
         BIKE
       case Car if isCAV =>
-          CAV
+        CAV
       case Car =>
-          CAR
+        CAR
     }
     StreetVehicle(id, beamVehicleType.id, spaceTime, mode, true)
   }

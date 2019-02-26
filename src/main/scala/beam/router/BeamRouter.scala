@@ -5,7 +5,18 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.{Status, Success}
-import akka.actor.{Actor, ActorLogging, ActorRef, Address, Cancellable, ExtendedActorSystem, Props, RelativeActorPath, RootActorPath, Stash}
+import akka.actor.{
+  Actor,
+  ActorLogging,
+  ActorRef,
+  Address,
+  Cancellable,
+  ExtendedActorSystem,
+  Props,
+  RelativeActorPath,
+  RootActorPath,
+  Stash
+}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
@@ -505,7 +516,15 @@ object BeamRouter {
     )
   }
 
-  def linkIdsToEmbodyRequest(linkIds: IndexedSeq[Int], vehicle: StreetVehicle, departTime: Int, mode: BeamMode, beamServices: BeamServices, origin: Coord, destination: Coord) = {
+  def linkIdsToEmbodyRequest(
+    linkIds: IndexedSeq[Int],
+    vehicle: StreetVehicle,
+    departTime: Int,
+    mode: BeamMode,
+    beamServices: BeamServices,
+    origin: Coord,
+    destination: Coord
+  ) = {
     val leg = BeamLeg(
       departTime,
       mode,
@@ -514,9 +533,11 @@ object BeamRouter {
         linkIds,
         Vector.empty,
         None,
-        beamServices.geo.utm2Wgs(SpaceTime(origin,departTime)),
+        beamServices.geo.utm2Wgs(SpaceTime(origin, departTime)),
         beamServices.geo.utm2Wgs(SpaceTime(destination, departTime + 1)),
-        linkIds.map{ linkId => beamServices.networkHelper.getLink(linkId).map(_.getLength).getOrElse(0.0)}.sum
+        linkIds.map { linkId =>
+          beamServices.networkHelper.getLink(linkId).map(_.getLength).getOrElse(0.0)
+        }.sum
       )
     )
     EmbodyWithCurrentTravelTime(
@@ -525,7 +546,16 @@ object BeamRouter {
       vehicle.vehicleTypeId
     )
   }
-  def matsimLegToEmbodyRequest(route: NetworkRoute, vehicle: StreetVehicle, departTime: Int, mode: BeamMode, beamServices: BeamServices, origin: Coord, destination: Coord) = {
+
+  def matsimLegToEmbodyRequest(
+    route: NetworkRoute,
+    vehicle: StreetVehicle,
+    departTime: Int,
+    mode: BeamMode,
+    beamServices: BeamServices,
+    origin: Coord,
+    destination: Coord
+  ) = {
     val linkIds = new ArrayBuffer[Int](2 + route.getLinkIds.size())
     linkIds += route.getStartLinkId.toString.toInt
     route.getLinkIds.asScala.foreach { id =>
@@ -540,7 +570,7 @@ object BeamRouter {
         linkIds,
         Vector.empty,
         None,
-        beamServices.geo.utm2Wgs(SpaceTime(origin,departTime)),
+        beamServices.geo.utm2Wgs(SpaceTime(origin, departTime)),
         beamServices.geo.utm2Wgs(SpaceTime(destination, departTime + 1)),
         RouteUtils.calcDistance(route, 1.0, 1.0, beamServices.matsimServices.getScenario.getNetwork)
       )

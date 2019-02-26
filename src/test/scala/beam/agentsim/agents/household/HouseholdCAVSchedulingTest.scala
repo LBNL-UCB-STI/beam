@@ -92,7 +92,6 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     println(schedule)
   }
 
-
   it should "generate twelve trips" in {
     val config = ConfigUtils.createConfig()
     implicit val sc: org.matsim.api.core.v01.Scenario =
@@ -168,7 +167,8 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val household: Household = scenarioPerformance(vehicles)
     val skim = new BeamSkimmer(scenario = sc)
 
-    val alg = new HouseholdCAVScheduling(sc, household, vehicles, Map((Pickup, 15 * 60), (Dropoff, 15 * 60)), skim = skim)
+    val alg =
+      new HouseholdCAVScheduling(sc, household, vehicles, Map((Pickup, 15 * 60), (Dropoff, 15 * 60)), skim = skim)
     val schedule = alg.getAllFeasibleSchedules
 
     println(s"*** scenario 6 ***")

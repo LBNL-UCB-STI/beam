@@ -179,7 +179,7 @@ class BeamSim @Inject()(
       tncIterationsStatsCollector
         .tellHistoryToRideHailIterationHistoryActorAndReset()
 
-      if(beamServices.beamConfig.beam.replanning.Module_2.equalsIgnoreCase("ClearRoutes")){
+      if (beamServices.beamConfig.beam.replanning.Module_2.equalsIgnoreCase("ClearRoutes")) {
         routeHistory.expireRoutes(beamServices.beamConfig.beam.replanning.ModuleProbability_2)
       }
     }
