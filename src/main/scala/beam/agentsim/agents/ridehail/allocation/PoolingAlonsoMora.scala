@@ -15,7 +15,7 @@ import scala.collection.mutable
 import scala.concurrent.Await
 
 class PoolingAlonsoMora(val rideHailManager: RideHailManager)
-    extends RideHailResourceAllocationManager(rideHailManager) {
+  extends RideHailResourceAllocationManager(rideHailManager) {
 
   val tempScheduleStore: mutable.Map[Int, List[MobilityServiceRequest]] = mutable.Map()
 
@@ -35,9 +35,9 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
   }
 
   override def allocateVehiclesToCustomers(
-    tick: Int,
-    vehicleAllocationRequest: AllocationRequests
-  ): AllocationResponse = {
+                                            tick: Int,
+                                            vehicleAllocationRequest: AllocationRequests
+                                          ): AllocationResponse = {
     logger.debug("Alloc requests {}", vehicleAllocationRequest.requests.size)
     var toPool: Set[RideHailRequest] = Set()
     var notToPool: Set[RideHailRequest] = Set()
@@ -127,8 +127,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
               if (newRideHailRequest.isEmpty) {
                 newRideHailRequest = Some(customerIdToReqs(orig.person.get.personId))
               } else if (!newRideHailRequest.get.customer.equals(orig.person.get) && newRideHailRequest.get.groupedWithOtherRequests
-                           .find(_.customer.equals(orig.person.get))
-                           .isEmpty) {
+                .find(_.customer.equals(orig.person.get))
+                .isEmpty) {
                 newRideHailRequest =
                   Some(newRideHailRequest.get.addSubRequest(customerIdToReqs(orig.person.get.personId)))
                 removeRequestFromBuffer(customerIdToReqs(orig.person.get.personId))
