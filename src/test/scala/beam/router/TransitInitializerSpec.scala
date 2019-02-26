@@ -71,7 +71,6 @@ class TransitInitializerSpec extends WordSpecLike with Matchers with MockitoSuga
     }
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.vehicleTypes).thenReturn(vehicleTypes)
-
     val transitInitializer = new TransitInitializer(services, null, null, BeamRouter.oneSecondTravelTime)
     transitInitializer
   }

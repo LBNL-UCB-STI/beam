@@ -228,7 +228,9 @@ trait BeamHelper extends LazyLogging {
               new TravelTimeCalculatorConfigGroup()
             )
           )
+
           bind(classOf[NetworkHelper]).toInstance(networkHelper)
+
           bind(classOf[RideHailIterationHistory]).asEagerSingleton()
           bind(classOf[TollCalculator]).asEagerSingleton()
 

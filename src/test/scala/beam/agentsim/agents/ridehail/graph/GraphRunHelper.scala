@@ -1,5 +1,4 @@
 package beam.agentsim.agents.ridehail.graph
-
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -18,7 +17,6 @@ object GraphRunHelper {
 class GraphRunHelper(childModule: AbstractModule, baseConfig: Config) extends BeamHelper {
 
   private val beamConfig = BeamConfig(baseConfig)
-
   private val configBuilder = new MatSimBeamConfigBuilder(baseConfig)
   private val matsimConfig = configBuilder.buildMatSamConf()
 

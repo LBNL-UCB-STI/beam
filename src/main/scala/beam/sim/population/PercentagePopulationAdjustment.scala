@@ -6,8 +6,7 @@ import beam.sim.BeamServices
 import org.matsim.api.core.v01.population.{Person, Population}
 import org.matsim.api.core.v01.{Id, Scenario}
 
-case class PercentagePopulationAdjustment(beamServices: BeamServices)
-    extends PopulationAdjustment {
+case class PercentagePopulationAdjustment(beamServices: BeamServices) extends PopulationAdjustment {
 
   override def updatePopulation(scenario: Scenario): Population = {
     val population = scenario.getPopulation

@@ -19,11 +19,8 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-class ScenarioReaderCsv(
-  var scenario: MutableScenario,
-  var beamServices: BeamServices,
-  val delimiter: String = ","
-) extends LazyLogging {
+class ScenarioReaderCsv(var scenario: MutableScenario, var beamServices: BeamServices, val delimiter: String = ",")
+  extends LazyLogging {
 
   val scenarioFolder: String = beamServices.beamConfig.beam.agentsim.agents.population.beamPopulationDirectory
 
@@ -199,11 +196,7 @@ object ScenarioReaderCsv {
     map.toMap
   }
 
-  def readPlansFile(
-    filePath: String,
-    population: Population,
-    beamServices: BeamServices
-  ): Unit = {
+  def readPlansFile(filePath: String, population: Population, beamServices: BeamServices): Unit = {
     readCsvFileByLine(filePath, Unit) {
       case (line, acc) =>
         val personId = line.get("personId")

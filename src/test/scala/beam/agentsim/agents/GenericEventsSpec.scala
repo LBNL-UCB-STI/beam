@@ -1,6 +1,5 @@
 package beam.agentsim.agents
 
-import beam.agentsim.agents.vehicles.VehicleEnergy
 import beam.integration.IntegrationSpecCommon
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}

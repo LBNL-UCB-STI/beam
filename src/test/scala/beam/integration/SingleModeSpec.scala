@@ -7,7 +7,6 @@ import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePri
 import beam.agentsim.events.PathTraversalEvent
 import beam.router.BeamRouter
 import beam.router.Modes.BeamMode
-import beam.sim.config.BeamConfig
 import beam.sim.{BeamMobsim, BeamServices, BeamServicesImpl}
 import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
@@ -40,7 +39,6 @@ class SingleModeSpec
   var services: BeamServices = _
   var nextId: Int = 0
   var system: ActorSystem = _
-  val beamConfig = BeamConfig(config)
 
   override def beforeEach: Unit = {
     // Create brand new Actor system every time (just to make sure that the same actor names can be reused)

@@ -152,7 +152,7 @@ object Population {
 
   def getVehiclesFromHousehold(
     household: Household,
-    beamServices: BeamServices,
+    beamServices: BeamServices
   ): Map[Id[BeamVehicle], BeamVehicle] = {
     val houseHoldVehicles: Iterable[Id[Vehicle]] =
       JavaConverters.collectionAsScalaIterable(household.getVehicleIds)

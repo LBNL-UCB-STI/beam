@@ -3,7 +3,6 @@ package beam.sflight
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKitBase}
 import beam.router.BeamRouter
-import beam.sim.config.BeamConfig
 import beam.sim.{BeamServices, BeamServicesImpl}
 import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
@@ -35,7 +34,6 @@ class AbstractSfLightSpec(val name: String)
   var router: ActorRef = _
 
   override def beforeAll: Unit = {
-    val beamConfig = BeamConfig(config)
     router = system.actorOf(
       BeamRouter.props(
         services,

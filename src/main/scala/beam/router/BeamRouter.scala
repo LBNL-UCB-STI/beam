@@ -176,12 +176,7 @@ class BeamRouter(
     case InitTransit(scheduler, parkingManager, _) =>
       val localInit: Future[Set[Status]] = Future {
         val initializer =
-          new TransitInitializer(
-            services,
-            transportNetwork,
-            transitVehicles,
-            BeamRouter.oneSecondTravelTime
-          )
+          new TransitInitializer(services, transportNetwork, transitVehicles, BeamRouter.oneSecondTravelTime)
         val transits = initializer.initMap
         initDriverAgents(initializer, scheduler, parkingManager, transits)
         localNodes.map { localWorker =>
