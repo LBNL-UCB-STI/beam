@@ -428,16 +428,7 @@ object HouseholdActor {
             }
             sender() ! MobilityStatusResponse(Vector(ActualVehicle(cav)))
           case _ =>
-            availableVehicles = availableVehicles match {
-              case firstVehicle :: rest =>
-                log.debug("Vehicle {} is now taken", firstVehicle.id)
-                firstVehicle.becomeDriver(sender)
-                sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)))
-                rest
-              case Nil =>
-                sender() ! MobilityStatusResponse(Vector())
-                Nil
-            }
+            sender() ! MobilityStatusResponse(Vector())
         }
 
       case Finish =>
