@@ -19,6 +19,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
 
   val tempScheduleStore: mutable.Map[Int, List[MobilityServiceRequest]] = mutable.Map()
+
   val spatialPoolCustomerReqs: QuadTree[CustomerRequest] = new QuadTree[CustomerRequest](
     rideHailManager.quadTreeBounds.minx,
     rideHailManager.quadTreeBounds.miny,
