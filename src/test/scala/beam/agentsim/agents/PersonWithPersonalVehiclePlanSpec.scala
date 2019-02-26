@@ -19,6 +19,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerPr
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, WALK}
+import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
@@ -49,7 +50,7 @@ import org.scalatest.Matchers._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.collection.{mutable, JavaConverters}
 
 class PersonWithPersonalVehiclePlanSpec
@@ -109,6 +110,12 @@ class PersonWithPersonalVehiclePlanSpec
     override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
 
     override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0D
+
+    override def computeAllDayUtility(
+      trips: ListBuffer[EmbodiedBeamTrip],
+      person: Person,
+      attributesOfIndividual: AttributesOfIndividual
+    ): Double = 0.0
   }
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
@@ -178,7 +185,9 @@ class PersonWithPersonalVehiclePlanSpec
             population,
             household,
             Map(beamVehicle.id -> beamVehicle),
-            new Coord(0.0, 0.0)
+            new Coord(0.0, 0.0),
+            Vector(),
+            new RouteHistory()
           )
         )
       )
@@ -402,7 +411,9 @@ class PersonWithPersonalVehiclePlanSpec
             population,
             household,
             Map(beamVehicle.id -> beamVehicle),
-            new Coord(0.0, 0.0)
+            new Coord(0.0, 0.0),
+            Vector(),
+            new RouteHistory()
           )
         )
       )
@@ -541,7 +552,9 @@ class PersonWithPersonalVehiclePlanSpec
           population,
           household,
           Map(car1.id -> car1, car2.id -> car2),
-          new Coord(0.0, 0.0)
+          new Coord(0.0, 0.0),
+          Vector(),
+          new RouteHistory()
         )
       )
       val personActor = householdActor.getSingleChild(person.getId.toString)
@@ -632,7 +645,9 @@ class PersonWithPersonalVehiclePlanSpec
           population,
           household,
           Map(beamVehicle.id -> beamVehicle),
-          new Coord(0.0, 0.0)
+          new Coord(0.0, 0.0),
+          Vector(),
+          new RouteHistory()
         )
       )
       scheduler ! StartSchedule(0)

@@ -109,6 +109,7 @@ object BeamConfig {
             case class Params(
               bike_intercept: scala.Double,
               car_intercept: scala.Double,
+              cav_intercept: scala.Double,
               drive_transit_intercept: scala.Double,
               ride_hail_intercept: scala.Double,
               ride_hail_pooled_intercept: scala.Double,
@@ -126,6 +127,7 @@ object BeamConfig {
                 BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit.Params(
                   bike_intercept = if (c.hasPathOrNull("bike_intercept")) c.getDouble("bike_intercept") else 0.0,
                   car_intercept = if (c.hasPathOrNull("car_intercept")) c.getDouble("car_intercept") else 0.0,
+                  cav_intercept = if (c.hasPathOrNull("cav_intercept")) c.getDouble("cav_intercept") else 0.0,
                   drive_transit_intercept =
                     if (c.hasPathOrNull("drive_transit_intercept")) c.getDouble("drive_transit_intercept") else 0.0,
                   ride_hail_intercept =
@@ -1123,7 +1125,8 @@ object BeamConfig {
             "addTimestampToOutputDirectory"
           ),
           baseOutputDirectory =
-            if (c.hasPathOrNull("baseOutputDirectory")) c.getString("baseOutputDirectory") else "output",
+            if (c.hasPathOrNull("baseOutputDirectory")) c.getString("baseOutputDirectory")
+            else "/Users/critter/Documents/beam/beam-output/",
           defaultWriteInterval = if (c.hasPathOrNull("defaultWriteInterval")) c.getInt("defaultWriteInterval") else 1,
           displayPerformanceTimings = c.hasPathOrNull("displayPerformanceTimings") && c.getBoolean(
             "displayPerformanceTimings"

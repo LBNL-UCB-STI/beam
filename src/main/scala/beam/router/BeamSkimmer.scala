@@ -65,7 +65,7 @@ class BeamSkimmer(services: Option[BeamServices] = None, scenario: org.matsim.ap
       )
       .getOrElse(0)
 
-    new TimeDistanceAndCost(new TimeAndCost(Some(travelTime), Some(travelCost)), Some(travelDistance))
+    TimeDistanceAndCost(TimeAndCost(Some(travelTime), Some(travelCost)), Some(travelDistance))
 
   }
 }
@@ -86,3 +86,22 @@ object BeamSkimmer {
     println(output)
   }
 }
+
+//val householdBeamPlans = household.members.map(person => BeamPlan(person.getSelectedPlan)).toList
+//val householdMatsimPlans = household.members.map(person => (person.getId -> person.getSelectedPlan)).toMap
+//val fastSpeed = 50.0 * 1000.0 / 3600.0
+//val medSpeed = 50.0 * 1000.0 / 3600.0
+//val slowSpeed = 50.0 * 1000.0 / 3600.0
+//val walkSpeed = 50.0 * 1000.0 / 3600.0
+//val skim: Map[BeamMode, Double] = Map(
+//CAV               -> fastSpeed,
+//CAR               -> fastSpeed,
+//WALK              -> walkSpeed,
+//BIKE              -> slowSpeed,
+//WALK_TRANSIT      -> medSpeed,
+//DRIVE_TRANSIT     -> medSpeed,
+//RIDE_HAIL         -> fastSpeed,
+//RIDE_HAIL_POOLED  -> fastSpeed,
+//RIDE_HAIL_TRANSIT -> medSpeed,
+//TRANSIT           -> medSpeed
+//)

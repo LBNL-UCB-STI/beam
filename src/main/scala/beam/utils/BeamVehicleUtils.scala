@@ -72,7 +72,7 @@ object BeamVehicleUtils {
         val secondaryFuelConsumptionInJoule =
           Option(line.get("secondaryFuelConsumptionInJoulePerMeter")).map(_.toDouble)
         val secondaryFuelCapacityInJoule = Option(line.get("secondaryFuelCapacityInJoule")).map(_.toDouble)
-        val automationLevel = Option(line.get("automationLevel"))
+        val automationLevel = Option(line.get("automationLevel")).map(_.toInt).getOrElse(1)
         val maxVelocity = Option(line.get("maxVelocity")).map(_.toDouble)
         val passengerCarUnit = Option(line.get("passengerCarUnit")).map(_.toDouble).getOrElse(1d)
         val rechargeLevel2RateLimitInWatts = Option(line.get("rechargeLevel2RateLimitInWatts")).map(_.toDouble)

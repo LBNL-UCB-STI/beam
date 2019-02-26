@@ -120,10 +120,10 @@ class BeamAgentScheduler(
 
   private val triggerQueue =
     new java.util.PriorityQueue[ScheduledTrigger](ScheduledTriggerComparator)
-  private val awaitingResponse: TreeMultimap[java.lang.Double, ScheduledTrigger] = TreeMultimap
-    .create[java.lang.Double, ScheduledTrigger]() //com.google.common.collect.Ordering.natural(), com.google.common.collect.Ordering.arbitrary())
-  private val triggerIdToTick: mutable.Map[Long, Double] =
-    scala.collection.mutable.Map[Long, java.lang.Double]()
+  private val awaitingResponse: TreeMultimap[java.lang.Integer, ScheduledTrigger] = TreeMultimap
+    .create[java.lang.Integer, ScheduledTrigger]() //com.google.common.collect.Ordering.natural(), com.google.common.collect.Ordering.arbitrary())
+  private val triggerIdToTick: mutable.Map[Long, Integer] =
+    scala.collection.mutable.Map[Long, java.lang.Integer]()
   private val triggerIdToScheduledTrigger: mutable.Map[Long, ScheduledTrigger] =
     scala.collection.mutable.Map[Long, ScheduledTrigger]()
 
@@ -159,7 +159,7 @@ class BeamAgentScheduler(
       triggerQueue.add(
         ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority)
       )
-      triggerIdToTick += (triggerWithId.triggerId -> triggerToSchedule.trigger.tick.toDouble)
+      triggerIdToTick += (triggerWithId.triggerId -> triggerToSchedule.trigger.tick)
       //    log.info(s"recieved trigger to schedule $triggerToSchedule")
     }
   }
@@ -307,7 +307,7 @@ class BeamAgentScheduler(
           val scheduledTrigger = this.triggerQueue.poll()
           val triggerWithId = scheduledTrigger.triggerWithId
           //log.info(s"dispatching $triggerWithId")
-          awaitingResponse.put(triggerWithId.trigger.tick.toDouble, scheduledTrigger)
+          awaitingResponse.put(triggerWithId.trigger.tick, scheduledTrigger)
           stuckFinder.add(System.currentTimeMillis(), scheduledTrigger, true)
 
           triggerIdToScheduledTrigger.put(triggerWithId.triggerId, scheduledTrigger)
