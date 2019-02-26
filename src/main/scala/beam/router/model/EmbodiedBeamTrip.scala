@@ -1,9 +1,11 @@
 package beam.router.model
 
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{
   BIKE,
   CAR,
+  CAV,
   DRIVE_TRANSIT,
   RIDE_HAIL,
   RIDE_HAIL_POOLED,
@@ -31,7 +33,7 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
     !_.asDriver
   )
 
-  val totalTravelTimeInSecs: Int = legs.map(_.beamLeg.duration).sum
+  val totalTravelTimeInSecs: Int = legs.lastOption.map(_.beamLeg.endTime - legs.head.beamLeg.startTime).getOrElse(0)
 
   def beamLegs(): IndexedSeq[BeamLeg] =
     legs.map(embodiedLeg => embodiedLeg.beamLeg)
@@ -54,6 +56,8 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
         }
       } else if (theMode == WALK && leg.beamLeg.mode == CAR) {
         theMode = CAR
+      } else if (theMode == WALK && leg.beamLeg.mode == CAV) {
+        theMode = CAV
       } else if (theMode == WALK && leg.beamLeg.mode == BIKE) {
         theMode = BIKE
       }

@@ -13,7 +13,7 @@ case class TimeDistanceAndCost(timeAndCost: TimeAndCost, distance: Option[Int]) 
 }
 
 //TODO to be validated against google api
-class BeamSkimmer(services: Option[BeamServices] = None, scenario: org.matsim.api.core.v01.Scenario) {
+class BeamSkimmer(services: Option[BeamServices] = None) {
 
   // 22.2 mph (9.924288 meter per second), is the average speed in cities
   //TODO better estimate can be drawn from city size
@@ -24,7 +24,7 @@ class BeamSkimmer(services: Option[BeamServices] = None, scenario: org.matsim.ap
   // assuming for now that it includes the headway
   private val transitSpeedMeterPerSec: Double = 5.409184
 
-  private val bicycleSpeedMeterPerSec: Double = 0.0
+  private val bicycleSpeedMeterPerSec: Double = 3
 
   // 3.1 mph -> 1.38 meter per second
   private val walkSpeedMeterPerSec: Double = 1.38
@@ -65,7 +65,7 @@ class BeamSkimmer(services: Option[BeamServices] = None, scenario: org.matsim.ap
       )
       .getOrElse(0)
 
-    new TimeDistanceAndCost(new TimeAndCost(Some(travelTime), Some(travelCost)), Some(travelDistance))
+    TimeDistanceAndCost(TimeAndCost(Some(travelTime), Some(travelCost)), Some(travelDistance))
 
   }
 }
@@ -75,7 +75,7 @@ object BeamSkimmer {
   def main(args: Array[String]): Unit = {
     val config = org.matsim.core.config.ConfigUtils.createConfig()
     val sc: org.matsim.api.core.v01.Scenario = org.matsim.core.scenario.ScenarioUtils.createScenario(config)
-    val skimmer = new BeamSkimmer(scenario = sc)
+    val skimmer = new BeamSkimmer()
     val output = skimmer.getTimeDistanceAndCost(
       new Location(0, 0),
       new Location(1600, 500),
@@ -86,3 +86,22 @@ object BeamSkimmer {
     println(output)
   }
 }
+
+//val householdBeamPlans = household.members.map(person => BeamPlan(person.getSelectedPlan)).toList
+//val householdMatsimPlans = household.members.map(person => (person.getId -> person.getSelectedPlan)).toMap
+//val fastSpeed = 50.0 * 1000.0 / 3600.0
+//val medSpeed = 50.0 * 1000.0 / 3600.0
+//val slowSpeed = 50.0 * 1000.0 / 3600.0
+//val walkSpeed = 50.0 * 1000.0 / 3600.0
+//val skim: Map[BeamMode, Double] = Map(
+//CAV               -> fastSpeed,
+//CAR               -> fastSpeed,
+//WALK              -> walkSpeed,
+//BIKE              -> slowSpeed,
+//WALK_TRANSIT      -> medSpeed,
+//DRIVE_TRANSIT     -> medSpeed,
+//RIDE_HAIL         -> fastSpeed,
+//RIDE_HAIL_POOLED  -> fastSpeed,
+//RIDE_HAIL_TRANSIT -> medSpeed,
+//TRANSIT           -> medSpeed
+//)
