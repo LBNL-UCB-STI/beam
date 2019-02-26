@@ -11,6 +11,7 @@ trait ScenarioReader {
 }
 
 object ScenarioReader {
+
   def fixParcelId(rawParcelId: String): String = {
     if (rawParcelId.indexOf(".") < 0)
       rawParcelId
