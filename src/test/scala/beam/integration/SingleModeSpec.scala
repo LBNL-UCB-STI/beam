@@ -115,7 +115,7 @@ class SingleModeSpec
       mobsim.run()
       events.foreach {
         case event: PersonDepartureEvent =>
-          assert(event.getLegMode == "walk" || event.getLegMode == "be_a_tnc_driver")
+          assert(event.getLegMode == "walk" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver")
       }
     }
 
@@ -156,7 +156,7 @@ class SingleModeSpec
       events.foreach {
         case event: PersonDepartureEvent =>
           assert(
-            event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "be_a_tnc_driver"
+            event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "be_a_tnc_driver"|| event.getLegMode == "be_a_household_cav_driver"
           )
       }
     }
@@ -218,7 +218,7 @@ class SingleModeSpec
         case event: PersonDepartureEvent =>
           // drive_transit can fail -- maybe I don't have a car
           assert(
-            event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "drive_transit" || event.getLegMode == "be_a_tnc_driver"
+            event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "drive_transit" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver"
           )
       }
       val eventsByPerson = events.groupBy(_.getAttributes.get("person"))
@@ -285,7 +285,7 @@ class SingleModeSpec
           // Wr still get some failing car routes.
           // TODO: Find root cause, fix, and remove "walk" here.
           // See SfLightRouterSpec.
-          assert(event.getLegMode == "walk" || event.getLegMode == "car" || event.getLegMode == "be_a_tnc_driver")
+          assert(event.getLegMode == "walk" || event.getLegMode == "car" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver")
       }
     }
   }

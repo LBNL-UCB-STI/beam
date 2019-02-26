@@ -61,7 +61,6 @@ class HouseholdCAVDriverAgent(
       eventsManager.processEvent(
         new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_household_cav_driver")
       )
-      eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
       goto(Idle) using data
         .copy(currentVehicle = Vector(vehicle.id))
         .asInstanceOf[HouseholdCAVDriverData] replying
