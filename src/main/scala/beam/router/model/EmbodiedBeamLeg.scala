@@ -1,6 +1,8 @@
 package beam.router.model
 
 import beam.agentsim.agents.vehicles.{BeamVehicleType, PassengerSchedule}
+import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.WALK
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
@@ -21,12 +23,19 @@ case class EmbodiedBeamLeg(
 
 object EmbodiedBeamLeg {
 
-  def dummyWalkLegAt(start: Int, bodyId: Id[Vehicle], isLastLeg: Boolean): EmbodiedBeamLeg = {
+  def dummyLegAt(
+    start: Int,
+    vehicleId: Id[Vehicle],
+    isLastLeg: Boolean,
+    mode: BeamMode = WALK,
+    vehicleTypeId: Id[BeamVehicleType] = BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+    asDriver: Boolean = true
+  ): EmbodiedBeamLeg = {
     EmbodiedBeamLeg(
-      BeamLeg.dummyWalk(start),
-      bodyId,
-      BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
-      asDriver = true,
+      BeamLeg.dummyLeg(start, mode),
+      vehicleId,
+      vehicleTypeId,
+      asDriver,
       0,
       unbecomeDriverOnCompletion = isLastLeg
     )

@@ -1,9 +1,11 @@
 package beam.router.model
 
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{
   BIKE,
   CAR,
+  CAV,
   DRIVE_TRANSIT,
   RIDE_HAIL,
   RIDE_HAIL_POOLED,
@@ -54,6 +56,8 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
         }
       } else if (theMode == WALK && leg.beamLeg.mode == CAR) {
         theMode = CAR
+      } else if (theMode == WALK && leg.beamLeg.mode == CAV) {
+        theMode = CAV
       } else if (theMode == WALK && leg.beamLeg.mode == BIKE) {
         theMode = BIKE
       }

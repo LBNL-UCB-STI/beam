@@ -1,7 +1,5 @@
 package beam.scoring
 
-import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
-import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoiceModel}
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.Modes.BeamMode.RIDE_HAIL_POOLED
@@ -17,17 +15,15 @@ import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
 import org.slf4j.LoggerFactory
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.language.postfixOps
+import collection.JavaConverters._
 
 class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
     extends ScoringFunctionFactory
     with IterationEndsListener {
 
   private val log = LoggerFactory.getLogger(classOf[BeamScoringFunctionFactory])
-
-  lazy val lccm = new LatentClassChoiceModel(beamServices)
 
   override def createNewScoringFunction(person: Person): ScoringFunction = {
     new ScoringFunction {
@@ -78,79 +74,16 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
           person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
 
         val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributes)
-        val scoreOfThisOutcomeGivenMyClass =
-          trips.map(trip => modeChoiceCalculator.utilityOf(trip, attributes)).sum
 
-        val scoreOfBeingInClassGivenThisOutcome =
-          if (beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
-                .equals("ModeChoiceLCCM")) {
-            // Compute and log all-day score w.r.t. all modality styles
-            // One of them has many suspicious-looking 0.0 values. Probably something which
-            // should be minus infinity or exception instead.
-            val vectorOfUtilities = List("class1", "class2", "class3", "class4", "class5", "class6")
-              .map { style =>
-                style -> beamServices.modeChoiceCalculatorFactory(
-                  attributes.copy(modalityStyle = Some(style))
-                )
-              }
-              .toMap
-              .mapValues(
-                modeChoiceCalculatorForStyle =>
-                  trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip, attributes)).sum
-              )
-              .toArray
-              .toMap // to force computation DO NOT TOUCH IT, because here is call-by-name and it's lazy which will hold a lot of memory !!! :)
+        // The scores attribute is only relevant to LCCM, but we need to include a default value to avoid NPE during writing of plans
+        person.getSelectedPlan.getAttributes
+          .putAttribute("scores", MapStringDouble(Map("NA" -> Double.NaN)))
 
-            log.debug(vectorOfUtilities.toString())
-            person.getSelectedPlan.getAttributes
-              .putAttribute("scores", MapStringDouble(vectorOfUtilities))
+        val allDayScore = modeChoiceCalculator.computeAllDayUtility(trips, person, attributes)
 
-            // TODO: Start writing something like a scala API for MATSim, so that uglinesses like that vv don't have to be in user code, but only in one place.
-
-            val logsum = Option(
-              math.log(
-                person.getPlans.asScala.view
-                  .map(
-                    plan =>
-                      plan.getAttributes
-                        .getAttribute("scores")
-                        .asInstanceOf[MapStringDouble]
-                        .data(attributes.modalityStyle.get)
-                  )
-                  .map(score => math.exp(score))
-                  .sum
-              )
-            ).filterNot(x => x < -100D).getOrElse(-100D)
-
-            // Score of being in class given this outcome
-            lccm
-              .classMembershipModels(Mandatory)
-              .getUtilityOfAlternative(
-                AlternativeAttributes(
-                  attributes.modalityStyle.get,
-                  Map(
-                    "income"        -> attributes.householdAttributes.householdIncome,
-                    "householdSize" -> attributes.householdAttributes.householdSize.toDouble,
-                    "male" -> (if (attributes.isMale) {
-                                 1.0
-                               } else {
-                                 0.0
-                               }),
-                    "numCars"  -> attributes.householdAttributes.numCars.toDouble,
-                    "numBikes" -> attributes.householdAttributes.numBikes.toDouble,
-                    "surplus"  -> logsum // not the logsum-thing (yet), but the conditional utility of this actual plan given the class
-                  )
-                )
-              )
-          } else {
-            person.getSelectedPlan.getAttributes
-              .putAttribute("scores", MapStringDouble(Map("NA" -> Double.NaN)))
-            scoreOfThisOutcomeGivenMyClass
-          }
-
-        finalScore = scoreOfBeingInClassGivenThisOutcome + leavingParkingEventScore
-        finalScore = Math.max(finalScore, -100000) // keep scores no further below -100 to keep MATSim happy (doesn't like -Infinity) but knowing
-        // that if changes to utility function drive the true scores below -100, this will need to be replaced with another big number.
+        finalScore = allDayScore + leavingParkingEventScore
+        finalScore = Math.max(finalScore, -100000) // keep scores no further below -100k to keep MATSim happy (doesn't like -Infinity) but knowing
+        // that if changes to utility function drive the true scores below -100k, this will need to be replaced with another big number.
 
         // Write the individual's trip scores to csv
         writeTripScoresToCSV()

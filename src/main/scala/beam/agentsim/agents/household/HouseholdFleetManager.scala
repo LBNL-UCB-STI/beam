@@ -75,7 +75,7 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
         log.debug("Vehicle {} is now available", vehicle.id)
       }
 
-    case ReleaseVehicleAndReply(vehicle) =>
+    case ReleaseVehicleAndReply(vehicle, _) =>
       vehicle.unsetDriver()
       if (availableVehicles.contains(vehicle)) {
         sender ! Failure(new RuntimeException(s"You can't release vehicle ${vehicle.id} because I have it already"))
@@ -85,7 +85,7 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
         sender() ! Success
       }
 
-    case MobilityStatusInquiry(_) =>
+    case MobilityStatusInquiry(_, _, _) =>
       availableVehicles = availableVehicles match {
         case firstVehicle :: rest =>
           log.debug("Vehicle {} is now taken", firstVehicle.id)

@@ -5,7 +5,7 @@ import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.router.Modes.BeamMode.CAR
 import beam.sim.BeamHelper
 import org.matsim.api.core.v01.Coord
-import org.matsim.api.core.v01.population.Plan
+import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.population.PopulationUtils
 import org.scalatest._
 
@@ -18,6 +18,11 @@ class BeamPlanSpec extends WordSpecLike with Matchers with BeamHelper {
 
   "A BeamPlan" must {
 
+    val matsimPlanOfActivities: Plan = PopulationUtils.createPlan(null)
+    PopulationUtils.createAndAddActivityFromCoord(matsimPlanOfActivities, "Home", new Coord(0.0, 0.0))
+    PopulationUtils.createAndAddActivityFromCoord(matsimPlanOfActivities, "Work", new Coord(0.0, 0.0))
+    PopulationUtils.createAndAddActivityFromCoord(matsimPlanOfActivities, "Shop", new Coord(0.0, 0.0))
+    PopulationUtils.createAndAddActivityFromCoord(matsimPlanOfActivities, "Home", new Coord(0.0, 0.0))
     val matsimPlan: Plan = PopulationUtils.createPlan(null)
     PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Home", new Coord(0.0, 0.0))
     PopulationUtils.createAndAddLeg(matsimPlan, "car")
@@ -98,6 +103,26 @@ class BeamPlanSpec extends WordSpecLike with Matchers with BeamHelper {
       beamPlan.getTripContaining(trip.activity) should be(trip)
       beamPlan.getTripContaining(trip.leg.get) should be(trip)
       beamPlan.getTourContaining(trip.activity) should be(tour)
+    }
+    "should successfully add a leg between activities of an existing matsim plan" in {
+      val newLeg = PopulationUtils.createLeg("FAKE")
+      val newPlan = BeamPlan.addOrReplaceLegBetweenActivities(
+        matsimPlanOfActivities,
+        newLeg,
+        matsimPlanOfActivities.getPlanElements.get(1).asInstanceOf[Activity],
+        matsimPlanOfActivities.getPlanElements.get(2).asInstanceOf[Activity]
+      )
+      newPlan.getPlanElements.get(2) should be(newLeg)
+    }
+    "should successfully replace a leg between activities of an existing matsim plan" in {
+      val newLeg = PopulationUtils.createLeg("FAKE")
+      val newPlan = BeamPlan.addOrReplaceLegBetweenActivities(
+        matsimPlan,
+        newLeg,
+        matsimPlan.getPlanElements.get(2).asInstanceOf[Activity],
+        matsimPlan.getPlanElements.get(4).asInstanceOf[Activity]
+      )
+      newPlan.getPlanElements.get(3) should be(newLeg)
     }
   }
 }

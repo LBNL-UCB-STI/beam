@@ -30,6 +30,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerPr
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
+import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
@@ -41,7 +42,7 @@ import beam.utils.{NetworkHelperImpl, StuckFinder}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.TeleportationArrivalEvent
 import org.matsim.core.api.internal.HasPersonId
@@ -58,6 +59,7 @@ import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
+import scala.collection.mutable.ListBuffer
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.ExecutionContext
 
@@ -119,6 +121,12 @@ class PersonWithVehicleSharingSpec
     override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
 
     override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0D
+
+    override def computeAllDayUtility(
+      trips: ListBuffer[EmbodiedBeamTrip],
+      person: Person,
+      attributesOfIndividual: AttributesOfIndividual
+    ): Double = 0.0
   }
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
@@ -181,7 +189,8 @@ class PersonWithVehicleSharingSpec
             household,
             Map(),
             new Coord(0.0, 0.0),
-            sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref)
+            sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
+            new RouteHistory()
           )
         )
       )
@@ -190,7 +199,7 @@ class PersonWithVehicleSharingSpec
 
       // The agent will ask me for vehicles it can use,
       // since I am the manager of a shared vehicle fleet.
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28800)))
+      mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
 
       // I give it a car to use.
       val vehicle = new BeamVehicle(
@@ -321,7 +330,8 @@ class PersonWithVehicleSharingSpec
             household,
             Map(),
             new Coord(0.0, 0.0),
-            sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref)
+            sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
+            new RouteHistory()
           )
         )
       )
@@ -330,7 +340,7 @@ class PersonWithVehicleSharingSpec
 
       // The agent will ask me for vehicles it can use,
       // since I am the manager of a shared vehicle fleet.
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28800)))
+      mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
 
       // I give it a car to use.
       val vehicle = new BeamVehicle(
@@ -434,7 +444,7 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[ActivityStartEvent]
 
       // Agent will ask about the car (will not take it for granted that it is there)
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.01, 0.01, 61200)))
+      mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
       // I give it a _different_ car to use.
       val vehicle2 = new BeamVehicle(
         vehicleId,
@@ -560,13 +570,14 @@ class PersonWithVehicleSharingSpec
           household,
           Map(),
           new Coord(0.0, 0.0),
-          Vector(mockSharedVehicleFleet.ref)
+          Vector(mockSharedVehicleFleet.ref),
+          new RouteHistory()
         )
       )
 
       scheduler ! StartSchedule(0)
 
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28800)))
+      mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
         .collect {
           case ParkingInquiryResponse(stall, _) =>
@@ -605,7 +616,7 @@ class PersonWithVehicleSharingSpec
       // car
       person1EntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28820)))
+      mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(
         Vector(Token(car1.id, car1.manager.get, car1.toStreetVehicle))
       )
@@ -640,7 +651,7 @@ class PersonWithVehicleSharingSpec
       person2EntersVehicleEvents.expectNoMessage()
 
       mockSharedVehicleFleet.expectMsgPF() {
-        case MobilityStatusInquiry(SpaceTime(_, 28820)) =>
+        case MobilityStatusInquiry(_, SpaceTime(_, 28820), _) =>
       }
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector())
 

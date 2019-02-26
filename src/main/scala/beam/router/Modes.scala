@@ -5,6 +5,7 @@ import beam.router.Modes.BeamMode.{
   BUS,
   CABLE_CAR,
   CAR,
+  CAV,
   FERRY,
   FUNICULAR,
   GONDOLA,
@@ -51,6 +52,8 @@ object Modes {
 
     case object CAR extends BeamMode(value = "car", Some(Left(LegMode.CAR)), TransportMode.car)
 
+    case object CAV extends BeamMode(value = "cav", Some(Left(LegMode.CAR)), TransportMode.car)
+
     case object RIDE_HAIL extends BeamMode(value = "ride_hail", Some(Left(LegMode.CAR)), TransportMode.other)
 
     case object RIDE_HAIL_POOLED
@@ -83,8 +86,6 @@ object Modes {
     case object BIKE extends BeamMode(value = "bike", Some(Left(LegMode.BICYCLE)), TransportMode.bike)
 
     // Transit-specific
-    case object LEG_SWITCH extends BeamMode(value = "leg_switch", None, TransportMode.other) // This is kind-of like a transit walk, but not really... best to make leg_switch its own type
-
     case object WALK_TRANSIT
         extends BeamMode(
           value = "walk_transit",
@@ -106,18 +107,27 @@ object Modes {
           TransportMode.pt
         )
 
-    case object WAITING extends BeamMode(value = "waiting", None, TransportMode.other)
-
     val chainBasedModes = Seq(CAR, BIKE)
 
     val transitModes =
       Seq(BUS, FUNICULAR, GONDOLA, CABLE_CAR, FERRY, TRAM, TRANSIT, RAIL, SUBWAY)
-    val allBeamModes: Seq[BeamMode] = Seq(CAR, RIDE_HAIL, RIDE_HAIL_TRANSIT, BIKE, WALK, WALK_TRANSIT) ++ transitModes
 
     val massTransitModes: List[BeamMode] = List(FERRY, TRANSIT, RAIL, SUBWAY, TRAM)
 
-    val allTripModes: List[BeamMode] =
-      List(RIDE_HAIL, RIDE_HAIL_POOLED, CAR, WALK, TRANSIT, RIDE_HAIL_TRANSIT, DRIVE_TRANSIT, WALK_TRANSIT, BIKE)
+    val allModes: Seq[BeamMode] =
+      Seq(
+        RIDE_HAIL,
+        CAR,
+        CAV,
+        WALK,
+        BIKE,
+        TRANSIT,
+        RIDE_HAIL,
+        RIDE_HAIL_POOLED,
+        RIDE_HAIL_TRANSIT,
+        DRIVE_TRANSIT,
+        WALK_TRANSIT
+      )
 
     def fromString(stringMode: String): Option[BeamMode] = {
       if (stringMode.equals("")) {
@@ -171,6 +181,7 @@ object Modes {
     case BIKE => StreetMode.BICYCLE
     case WALK => StreetMode.WALK
     case CAR  => StreetMode.CAR
+    case CAV  => StreetMode.CAR
     case _    => throw new IllegalArgumentException
   }
 

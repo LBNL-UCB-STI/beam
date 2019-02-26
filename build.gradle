@@ -179,6 +179,8 @@ dependencies {
 
     // 3rd Party Scala //
 
+    compile group: 'org.jliszka', name: 'probability-monad_2.11', version: '1.0.1'
+
     // https://mvnrepository.com/artifact/com.beachape/enumeratum_2.12
     compile group: 'com.beachape', name: "enumeratum_${scalaBinaryVersion}", version: "1.5.12"
     // https://mvnrepository.com/artifact/com.beachape/enumeratum-circe_2.12

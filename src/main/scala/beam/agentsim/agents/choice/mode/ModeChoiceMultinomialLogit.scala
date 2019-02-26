@@ -20,8 +20,10 @@ import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
 /**
@@ -185,6 +187,11 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     model.getUtilityOfAlternative(AlternativeAttributes(mode.value, variables))
   }
 
+  override def computeAllDayUtility(
+    trips: ListBuffer[EmbodiedBeamTrip],
+    person: Person,
+    attributesOfIndividual: AttributesOfIndividual
+  ): Double = trips.map(utilityOf(_, attributesOfIndividual)).sum
 }
 
 object ModeChoiceMultinomialLogit {
@@ -193,6 +200,7 @@ object ModeChoiceMultinomialLogit {
     val mnlData: Vector[MnlData] = Vector(
       new MnlData("COMMON", "cost", "multiplier", -1.0),
       new MnlData("car", "intercept", "intercept", mnlConfig.params.car_intercept),
+      new MnlData("cav", "intercept", "intercept", mnlConfig.params.cav_intercept),
       new MnlData("walk", "intercept", "intercept", mnlConfig.params.walk_intercept),
       new MnlData(
         "ride_hail",
