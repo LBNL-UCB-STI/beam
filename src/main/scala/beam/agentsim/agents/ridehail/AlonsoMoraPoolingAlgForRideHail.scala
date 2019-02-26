@@ -22,13 +22,11 @@ import scala.collection.immutable.List
 
 // *** Algorithm ***
 class AlonsoMoraPoolingAlgForRideHail(
-                                       demand: List[CustomerRequest],
-                                       supply: List[VehicleAndSchedule],
-                                       timeWindow: Map[MobilityServiceRequestType, Int],
-                                       maxRequestsPerVehicle: Int
-                                     )(implicit val skimmer: BeamSkimmer) {
-
-  val spatialDemand: QuadTree[CustomerRequest] = AlonsoMoraPoolingAlgForRideHail.demandSpatialIndex(demand)
+  spatialDemand: QuadTree[CustomerRequest],
+  supply: List[VehicleAndSchedule],
+  timeWindow: Map[MobilityServiceRequestType, Int],
+  maxRequestsPerVehicle: Int
+)(implicit val skimmer: BeamSkimmer) {
 
   // Request Vehicle Graph
   def pairwiseRVGraph: RVGraph = {
@@ -91,10 +89,11 @@ class AlonsoMoraPoolingAlgForRideHail(
 
       if (v.getFreeSeats > 1) {
         val pairRequestsList = MListBuffer.empty[RideHailTrip]
-        var index1 = 1
         for {
           t1 <- individualRequestsList
-          t2 <- individualRequestsList.drop(index1).withFilter(x => rvG.containsEdge(t1.requests.head, x.requests.head))
+          t2 <- individualRequestsList
+            .drop(individualRequestsList.indexOf(t1))
+            .withFilter(x => rvG.containsEdge(t1.requests.head, x.requests.head))
         } yield {
           getRidehailSchedule(
             timeWindow,
@@ -107,17 +106,15 @@ class AlonsoMoraPoolingAlgForRideHail(
             rTvG.addEdge(t2.requests.head, t)
             rTvG.addEdge(t, v)
           }
-          index1 += 1
         }
 
         val finalRequestsList: MListBuffer[RideHailTrip] = individualRequestsList ++ pairRequestsList
         for (k <- 3 until v.getFreeSeats + 1) {
-          var index2 = 1
           val kRequestsList = MListBuffer.empty[RideHailTrip]
           for {
             t1 <- finalRequestsList
             t2 <- finalRequestsList
-              .drop(index2)
+              .drop(finalRequestsList.indexOf(t1))
               .withFilter(
                 x => !(x.requests exists (s => t1.requests contains s)) && (t1.requests.size + x.requests.size) == k
               )
@@ -132,7 +129,6 @@ class AlonsoMoraPoolingAlgForRideHail(
               t.requests.foldLeft(()) { case (_, r) => rTvG.addEdge(r, t) }
               rTvG.addEdge(t, v)
             }
-            index2 += 1
           }
 
           finalRequestsList.appendAll(kRequestsList)
@@ -180,7 +176,7 @@ class AlonsoMoraPoolingAlgForRideHail(
         .foldLeft(()) {
           case (_, (trip, vehicle, cost)) =>
             if (!(trip.requests exists (r => Rok contains r)) &&
-              !(Vok contains vehicle)) {
+                !(Vok contains vehicle)) {
               Rok.appendAll(trip.requests)
               Vok.append(vehicle)
               greedyAssignmentList.append((trip, vehicle, cost))
@@ -220,7 +216,7 @@ object AlonsoMoraPoolingAlgForRideHail {
       case (_, curReq) =>
         val prevReq = newPoolingList.last
         val serviceTime = prevReq.serviceTime +
-          getTimeDistanceAndCost(prevReq, curReq).timeAndCost.time.get
+        getTimeDistanceAndCost(prevReq, curReq).timeAndCost.time.get
         if (serviceTime <= curReq.time + timeWindow(curReq.tag)) {
           newPoolingList.append(curReq.copy(serviceTime = serviceTime))
         } else {
@@ -310,7 +306,7 @@ object AlonsoMoraPoolingAlgForRideHail {
   sealed trait RVGraphNode extends RTVGraphNode
   // customer requests
   case class CustomerRequest(person: VehiclePersonId, pickup: MobilityServiceRequest, dropoff: MobilityServiceRequest)
-    extends RVGraphNode {
+      extends RVGraphNode {
     override def getId: String = person.personId.toString
   }
   // Ride Hail vehicles, capacity and their predefined schedule
@@ -323,16 +319,16 @@ object AlonsoMoraPoolingAlgForRideHail {
   }
   // Trip that can be satisfied by one or more ride hail vehicle
   case class RideHailTrip(requests: List[CustomerRequest], schedule: List[MobilityServiceRequest])
-    extends DefaultEdge
+      extends DefaultEdge
       with RTVGraphNode {
     override def getId: String = requests.foldLeft(s"trip:") { case (c, x) => c + s"$x -> " }
     val cost: Int = schedule.foldLeft(0) { case (c, r)                     => c + (r.serviceTime - r.time) }
   }
 
   case class RVGraph(clazz: Class[RideHailTrip])
-    extends DefaultUndirectedWeightedGraph[RVGraphNode, RideHailTrip](clazz)
+      extends DefaultUndirectedWeightedGraph[RVGraphNode, RideHailTrip](clazz)
   case class RTVGraph(clazz: Class[DefaultEdge])
-    extends DefaultUndirectedWeightedGraph[RTVGraphNode, DefaultEdge](clazz)
+      extends DefaultUndirectedWeightedGraph[RTVGraphNode, DefaultEdge](clazz)
 
   // ***** CAV structure ****
   sealed trait MobilityServiceRequestType
@@ -342,15 +338,15 @@ object AlonsoMoraPoolingAlgForRideHail {
   case object Init extends MobilityServiceRequestType
 
   case class MobilityServiceRequest(
-                                     person: Option[VehiclePersonId],
-                                     activity: Activity,
-                                     time: Int,
-                                     trip: Trip,
-                                     defaultMode: BeamMode,
-                                     tag: MobilityServiceRequestType,
-                                     serviceTime: Int,
-                                     routingRequestId: Option[Int] = None
-                                   ) {
+    person: Option[VehiclePersonId],
+    activity: Activity,
+    time: Int,
+    trip: Trip,
+    defaultMode: BeamMode,
+    tag: MobilityServiceRequestType,
+    serviceTime: Int,
+    routingRequestId: Option[Int] = None
+  ) {
     val nextActivity = Some(trip.activity)
 
     def formatTime(secs: Double): String = {

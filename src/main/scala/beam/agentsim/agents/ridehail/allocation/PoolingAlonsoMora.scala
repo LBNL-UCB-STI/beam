@@ -9,6 +9,7 @@ import beam.router.BeamRouter.RoutingRequest
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode.CAR
 import org.matsim.api.core.v01.Id
+import org.matsim.core.utils.collections.QuadTree
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable
@@ -18,6 +19,12 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
 
   val tempScheduleStore: mutable.Map[Int, List[MobilityServiceRequest]] = mutable.Map()
+  val spatialPoolCustomerReqs: QuadTree[CustomerRequest] = new QuadTree[CustomerRequest](
+    rideHailManager.quadTreeBounds.minx,
+    rideHailManager.quadTreeBounds.miny,
+    rideHailManager.quadTreeBounds.maxx,
+    rideHailManager.quadTreeBounds.maxy
+  )
 
   override def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
     rideHailManager.vehicleManager
@@ -112,9 +119,14 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val availVehicles = rideHailManager.vehicleManager.availableRideHailVehicles.values
         .map(veh => createVehicleAndSchedule(veh.vehicleId.toString, veh.currentLocationUTM.loc, tick))
 
+      spatialPoolCustomerReqs.clear()
+      poolCustomerReqs.foreach { d =>
+        spatialPoolCustomerReqs.put(d.pickup.activity.getCoord.getX, d.pickup.activity.getCoord.getY, d)
+      }
+
       val assignment = if (availVehicles.size < 100) {
         val algo = new AlonsoMoraPoolingAlgForRideHail(
-          poolCustomerReqs.toList,
+          spatialPoolCustomerReqs,
           availVehicles.toList,
           Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
           maxRequestsPerVehicle = 100
@@ -124,7 +136,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         algo.greedyAssignment(rtvGraph)
       } else {
         val algo = new AsyncAlonsoMoraAlgForRideHail(
-          poolCustomerReqs.toList,
+          spatialPoolCustomerReqs,
           availVehicles.toList,
           Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
           maxRequestsPerVehicle = 100

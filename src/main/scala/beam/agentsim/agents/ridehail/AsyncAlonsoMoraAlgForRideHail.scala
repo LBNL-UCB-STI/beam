@@ -11,13 +11,11 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class AsyncAlonsoMoraAlgForRideHail(
-  demand: List[CustomerRequest],
+  spatialDemand: QuadTree[CustomerRequest],
   supply: List[VehicleAndSchedule],
   timeWindow: Map[MobilityServiceRequestType, Int],
   maxRequestsPerVehicle: Int
 )(implicit val skimmer: BeamSkimmer) {
-
-  val spatialDemand: QuadTree[CustomerRequest] = AlonsoMoraPoolingAlgForRideHail.demandSpatialIndex(demand)
 
   private def vehicle2Requests(v: VehicleAndSchedule): (List[RTVGraphNode], List[(RTVGraphNode, RTVGraphNode)]) = {
     import scala.collection.mutable.{ListBuffer => MListBuffer}
@@ -45,12 +43,11 @@ class AsyncAlonsoMoraAlgForRideHail(
     )
     if (finalRequestsList.nonEmpty) {
       for (k <- 2 until v.getFreeSeats + 1) {
-        var index = 1
         val kRequestsList = MListBuffer.empty[RideHailTrip]
         for {
           t1 <- finalRequestsList
           t2 <- finalRequestsList
-            .drop(index)
+            .drop(finalRequestsList.indexOf(t1))
             .withFilter(
               x => !(x.requests exists (s => t1.requests contains s)) && (t1.requests.size + x.requests.size) == k
             )
@@ -68,7 +65,6 @@ class AsyncAlonsoMoraAlgForRideHail(
               edges append ((t, v))
             case _ =>
           }
-          index += 1
         }
         finalRequestsList.appendAll(kRequestsList)
       }

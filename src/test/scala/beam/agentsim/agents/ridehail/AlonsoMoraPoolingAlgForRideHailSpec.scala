@@ -36,7 +36,7 @@ class AlonsoMoraPoolingAlgForRideHailSpec
       val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenario1
       val alg: AlonsoMoraPoolingAlgForRideHail =
         new AlonsoMoraPoolingAlgForRideHail(
-          sc._2,
+          AlonsoMoraPoolingAlgForRideHail.demandSpatialIndex(sc._2),
           sc._1,
           Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
           maxRequestsPerVehicle = 1000
@@ -83,7 +83,6 @@ class AlonsoMoraPoolingAlgForRideHailSpec
       val rtvGraph = alg.rTVGraph(rvGraph)
 
       for (v <- rtvGraph.vertexSet().asScala.filter(_.isInstanceOf[RideHailTrip])) {
-        println(v)
         v.getId match {
           case "trip:[p3] -> " =>
             assert(
