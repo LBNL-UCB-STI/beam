@@ -386,11 +386,11 @@ trait ChoosesMode {
               makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle), withParking = false)
               responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           }
-        case Some(RIDE_HAIL) if choosesModeData.isWithinTripReplanning =>
+        case Some(RIDE_HAIL | RIDE_HAIL_POOLED) if choosesModeData.isWithinTripReplanning =>
           // Give up on all ride hail after a failure
           responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           makeRequestWith(Vector(TRANSIT), Vector(bodyStreetVehicle), withParking = false)
-        case Some(RIDE_HAIL) =>
+        case Some(RIDE_HAIL | RIDE_HAIL_POOLED) =>
           responsePlaceholders = makeResponsePlaceholders(withRouting = true, withRideHail = true)
           makeRequestWith(Vector(), Vector(bodyStreetVehicle), withParking = false) // We need a WALK alternative if RH fails
           makeRideHailRequest()
@@ -996,6 +996,9 @@ trait ChoosesMode {
         } else {
           theModes
         }
+      }
+      if (id.toString.equals("033000-2014000265406-3-6294822")) {
+        val i = 0
       }
 
       eventsManager.processEvent(

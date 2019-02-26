@@ -213,7 +213,7 @@ object HouseholdActor {
             household,
             cavs,
             Map((Pickup, 5 * 60), (Dropoff, 10 * 60)),
-            skim = new BeamSkimmer(scenario = beamServices.matsimServices.getScenario)
+            skim = new BeamSkimmer(Some(beamServices))
           )
 //          var optimalPlan = cavScheduler.getKBestSchedules(1).head.cavFleetSchedule
           var optimalPlan = cavScheduler.getBestScheduleWithTheLongestCAVChain

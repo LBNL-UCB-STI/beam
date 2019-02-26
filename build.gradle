@@ -133,6 +133,8 @@ dependencies {
     compile group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2-b01'
     compile group: 'com.github.stephenc.eaio-uuid', name: "uuid", version: "3.4.0"
 
+    compile "org.jgrapht:jgrapht-core:1.3.0"
+
     // GPLv3
     compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'
     compile group: 'org.matsim.contrib', name: 'bicycle', version: '0.10.0'

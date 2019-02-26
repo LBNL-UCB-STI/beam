@@ -233,9 +233,6 @@ class RideHailAgent(
         vehicle.getState,
         Some(triggerId)
       )
-      if (tick > 40000) {
-        val i = 0
-      }
       holdTickAndTriggerId(tick, triggerId)
       goto(Idle)
   }

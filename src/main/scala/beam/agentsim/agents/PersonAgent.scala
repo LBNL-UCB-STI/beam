@@ -223,6 +223,8 @@ class PersonAgent(
       stay
     case Event(NotifyVehicleIdle(_, _, _, _, _), _) =>
       stay()
+    case Event(RideHailResponse(request, travelProposal, error, triggersToSchedule), _) =>
+      stop(Failure("Unexpected RideHailResponse"))
     case Event(ParkingInquiryResponse(_, _), _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))
     case Event(IllegalTriggerGoToError(reason), _) =>
@@ -329,6 +331,9 @@ class PersonAgent(
         TriggerWithId(PersonDepartureTrigger(tick), triggerId),
         data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false, _, _)
         ) =>
+      if (id.toString.equals("033000-2014000265406-3-6294822")) {
+        val i = 0
+      }
       // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
       // hail a ride. We stay at the party until our Uber is there.
       eventsManager.processEvent(
