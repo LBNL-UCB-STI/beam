@@ -41,7 +41,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
       new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType)
     )
     val household: Household = scenario1(cavs)
-    val skim = new BeamSkimmer(scenario = sc)
+    val skim = new BeamSkimmer()
 
     val alg = new HouseholdCAVScheduling(sc, household, cavs, Map((Pickup, 2), (Dropoff, 2)), skim = skim)
     val schedules = alg.getAllFeasibleSchedules
@@ -64,7 +64,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
       new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), BeamVehicleType.defaultCarBeamVehicleType)
     )
     val household: Household = scenario2(vehicles)
-    val skim = new BeamSkimmer(scenario = sc)
+    val skim = new BeamSkimmer()
 
     val alg = new HouseholdCAVScheduling(
       sc,
@@ -102,7 +102,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     )
     val household: Household = scenario4(vehicles)
 
-    val skim = new BeamSkimmer(scenario = sc)
+    val skim = new BeamSkimmer()
 
     val alg = new HouseholdCAVScheduling(
       sc,
@@ -131,7 +131,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
       new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), defaultCAVBeamVehicleType)
     )
     val household: Household = scenario5(vehicles)
-    val skim = new BeamSkimmer(scenario = sc)
+    val skim = new BeamSkimmer()
 
     val alg = new HouseholdCAVScheduling(
       sc,
@@ -165,7 +165,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
       new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), defaultCAVBeamVehicleType)
     )
     val household: Household = scenarioPerformance(vehicles)
-    val skim = new BeamSkimmer(scenario = sc)
+    val skim = new BeamSkimmer()
 
     val alg =
       new HouseholdCAVScheduling(sc, household, vehicles, Map((Pickup, 15 * 60), (Dropoff, 15 * 60)), skim = skim)

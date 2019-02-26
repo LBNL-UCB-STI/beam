@@ -53,7 +53,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
               trips.size - 1,
               trips.last.copy(
                 legs = trips.last.legs
-                  .dropRight(1) :+ EmbodiedBeamLeg.dummyWalkLegAt(e.getTime.toInt, bodyVehicleId, true)
+                  .dropRight(1) :+ EmbodiedBeamLeg.dummyLegAt(e.getTime.toInt, bodyVehicleId, true)
               )
             )
             if (trips.last.tripClassifier == RIDE_HAIL_POOLED) {
