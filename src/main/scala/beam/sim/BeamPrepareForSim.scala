@@ -43,7 +43,7 @@ class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
 
   def assignInitialModalityStyles(): Unit = {
     val allStyles = List("class1", "class2", "class3", "class4", "class5", "class6")
-    val rand = new Random()
+    val rand = new Random(4711)
     scenario.getPopulation.getPersons
       .values()
       .forEach(person => {

@@ -58,7 +58,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         AlternativeAttributes(mct.mode.value, theParams ++ transferParam)
       }.toVector
 
-      val chosenModeOpt = model.sampleAlternative(inputData, new Random())
+      val chosenModeOpt = model.sampleAlternative(inputData, new Random(beamServices.beamConfig.matsim.modules.global.randomSeed))
       expectedMaximumUtility = model.getExpectedMaximumUtility(inputData)
 
       chosenModeOpt match {

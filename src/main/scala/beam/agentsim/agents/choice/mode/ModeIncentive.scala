@@ -2,17 +2,20 @@ package beam.agentsim.agents.choice.mode
 
 import java.io.FileNotFoundException
 import java.nio.file.{Files, Paths}
+import java.util.NoSuchElementException
 
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.router.Modes.BeamMode
 import beam.sim.common._
 import beam.sim.population.AttributesOfIndividual
+import beam.utils.logging.ExponentialLazyLogging
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
 import scala.util.Try
 
-case class ModeIncentive(modeIncentives: Map[BeamMode, List[Incentive]]) {
+case class ModeIncentive(modeIncentives: Map[BeamMode, List[Incentive]]) extends LazyLogging{
 
   def computeIncentive(attributesOfIndividual: AttributesOfIndividual, mode: BeamMode): Double = {
     val incentive: Double =
@@ -58,7 +61,11 @@ object ModeIncentive {
   object Incentive {
 
     def apply(mode: String, age: String, income: String, amount: String): Incentive = new Incentive(
-      if (mode.equals("OnDemand_ride")) {
+      if(BeamMode.withValueOpt(mode).isEmpty){
+        throw new NoSuchElementException("Validation error: travel mode %s not found in BEAM!".format(mode))
+
+      }
+      else if (mode.equals("OnDemand_ride")) {
         BeamMode.RIDE_HAIL
       } else { BeamMode.fromString(mode).get },
       Range(age),

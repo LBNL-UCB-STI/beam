@@ -35,7 +35,7 @@ class ZonalParkingManager(
   val pooledResources: mutable.Map[StallAttributes, StallValues] = mutable.Map()
   var totalStallsInUse = 0
   var stallNum = 0
-  val rand = new Random()
+  val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
   val pathResourceCSV: String = beamServices.beamConfig.beam.agentsim.taz.parking
 

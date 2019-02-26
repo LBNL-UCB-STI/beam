@@ -447,7 +447,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     }
 
     public void handleEvent(double time, Map<String, String> attributes) {
-        Random r = new Random();
+        Random r = new Random(4711);
 
         if (r.nextDouble() > SAMPLE_PERCENTAGE) {
             return;
