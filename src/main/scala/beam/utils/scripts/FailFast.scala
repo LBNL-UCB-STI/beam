@@ -46,10 +46,10 @@ object FailFast extends LazyLogging {
     }
 
     if (!vehicleTypes.keys.toString().contains(vehicleTypeId)) {
-    throw new RuntimeException(
-      "unknown BeamVehicleType or config parameter beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId must be specified"
-    )
-  }
+      throw new RuntimeException(
+        "unknown BeamVehicleType or config parameter beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId must be specified"
+      )
+    }
 
   }
 }

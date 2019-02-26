@@ -52,7 +52,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 
 /**
@@ -87,7 +87,9 @@ class OtherPersonAgentSpec
 
   lazy val beamSvc: BeamServices = {
 
-    val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = Map(DefaultVehicleTypeUtils.defaultHumanBodyBeamVehicleType.id -> DefaultVehicleTypeUtils.defaultHumanBodyBeamVehicleType)
+    val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = Map(
+      DefaultVehicleTypeUtils.defaultHumanBodyBeamVehicleType.id -> DefaultVehicleTypeUtils.defaultHumanBodyBeamVehicleType
+    )
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(mock[MatsimServices])
     when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])

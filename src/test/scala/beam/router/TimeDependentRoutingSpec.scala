@@ -56,7 +56,9 @@ class TimeDependentRoutingSpec
 
   override def beforeAll: Unit = {
     val beamConfig = BeamConfig(system.settings.config)
-    val vehicleTypes:Map[Id[BeamVehicleType], BeamVehicleType] = Map(DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id -> DefaultVehicleTypeUtils.defaultCarBeamVehicleType)
+    val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = Map(
+      DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id -> DefaultVehicleTypeUtils.defaultCarBeamVehicleType
+    )
 
     // Have to mock a lot of things to get the router going
     val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
@@ -122,7 +124,11 @@ class TimeDependentRoutingSpec
           0.0
         )
       )
-      router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id)
+      router ! EmbodyWithCurrentTravelTime(
+        leg,
+        Id.createVehicleId(1),
+        DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id
+      )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.head.beamLegs().head.duration == 70)
       // R5 travel time, but less than what's in R5's routing response (see vv),
@@ -287,7 +293,11 @@ class TimeDependentRoutingSpec
         0,
         BeamPath(Vector(1, 2, 3, 4), Vector(), None, SpaceTime(0.0, 0.0, 28800), SpaceTime(1.0, 1.0, 28900), 1000.0)
       )
-      router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id)
+      router ! EmbodyWithCurrentTravelTime(
+        leg,
+        Id.createVehicleId(1),
+        DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id
+      )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.head.beamLegs().head.duration == 2000) // Contains two full links (excluding 1 and 4)
     }

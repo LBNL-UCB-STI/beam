@@ -79,7 +79,9 @@ class WarmStartRoutingSpec
       .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
       .withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data"))
     val beamConfig = BeamConfig(config)
-    val vehicleTypes:Map[Id[BeamVehicleType],BeamVehicleType] = Map(DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id -> DefaultVehicleTypeUtils.defaultCarBeamVehicleType)
+    val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = Map(
+      DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id -> DefaultVehicleTypeUtils.defaultCarBeamVehicleType
+    )
 
     // Have to mock a lot of things to get the router going
     services = mock[BeamServices](withSettings().stubOnly())

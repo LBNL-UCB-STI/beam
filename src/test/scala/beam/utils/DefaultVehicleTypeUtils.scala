@@ -9,14 +9,14 @@ case class DefaultVehicleTypeUtils()
 object DefaultVehicleTypeUtils {
 
   val defaultHumanBodyBeamVehicleType: BeamVehicleType = BeamVehicleType(
-      Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
-      0,
-      0,
-      0.5,
-      Food,
-      53,
-      2.21e6,
-      vehicleCategory = Body
+    Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
+    0,
+    0,
+    0.5,
+    Food,
+    53,
+    2.21e6,
+    vehicleCategory = Body
   )
 
   val defaultBicycleBeamVehicleType: BeamVehicleType = BeamVehicleType(
@@ -42,14 +42,14 @@ object DefaultVehicleTypeUtils {
   )
 
   val defaultTransitBeamVehicleType: BeamVehicleType = BeamVehicleType(
-      Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
-      50,
-      50,
-      10,
-      Diesel,
-      25829.7,
-      30000000000.0,
-      vehicleCategory = MediumDutyPassenger
+    Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
+    50,
+    50,
+    10,
+    Diesel,
+    25829.7,
+    30000000000.0,
+    vehicleCategory = MediumDutyPassenger
   )
 
   val defaultCAVBeamVehicleType = BeamVehicleType(

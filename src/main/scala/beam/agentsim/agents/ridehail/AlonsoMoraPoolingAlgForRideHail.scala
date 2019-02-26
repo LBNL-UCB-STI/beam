@@ -277,7 +277,12 @@ object AlonsoMoraPoolingAlgForRideHail {
     )
   }
 
-  def createVehicleAndSchedule(vid: String, beamVehicleType: BeamVehicleType, dst: Location, dstTime: Int): VehicleAndSchedule = {
+  def createVehicleAndSchedule(
+    vid: String,
+    beamVehicleType: BeamVehicleType,
+    dst: Location,
+    dstTime: Int
+  ): VehicleAndSchedule = {
 
     val v1 = newVehicle(vid, beamVehicleType)
     val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${vid}Act0", dst)

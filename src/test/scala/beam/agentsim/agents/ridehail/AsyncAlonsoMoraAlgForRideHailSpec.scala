@@ -94,7 +94,8 @@ class AsyncAlonsoMoraAlgForRideHailSpec
           print(s"$j,")
           fleet.append(
             createVehicleAndSchedule(
-              "v" + j, DefaultVehicleTypeUtils.defaultCarBeamVehicleType,
+              "v" + j,
+              DefaultVehicleTypeUtils.defaultCarBeamVehicleType,
               new Coord(minx + rnd.nextDouble() * (maxx - minx), miny + rnd.nextDouble() * (maxy - miny)),
               i
             )

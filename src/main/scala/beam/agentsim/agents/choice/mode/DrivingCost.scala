@@ -12,7 +12,7 @@ import org.matsim.api.core.v01.Id
 object DrivingCost {
 
   def estimateDrivingCost(leg: BeamLeg, vehicleTypeId: Id[BeamVehicleType], services: BeamServices): Double = {
-    if(StringUtils.isEmpty(vehicleTypeId.toString)){
+    if (StringUtils.isEmpty(vehicleTypeId.toString)) {
       return 0.0
     }
     val vehicleType = services.vehicleTypes(vehicleTypeId)
