@@ -105,7 +105,7 @@ object RideHailManager {
             false,
             estimatedPrice(passenger.personId),
             false,
-            passengerSchedule.schedule.values.flatMap(_.riders).size > 1
+            passengerSchedule.schedule.values.find(_.riders.size > 1).size > 0
           )
         }
         .toVector
@@ -257,6 +257,7 @@ class RideHailManager(
   val rideHailNetworkApi: RideHailNetworkAPI = new RideHailNetworkAPI()
   val processBufferedRequestsOnTimeout = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0
 
+  val quadTreeBounds: QuadTreeBounds = getQuadTreeBound(scenario.getPopulation)
   private val rideHailResourceAllocationManager = RideHailResourceAllocationManager(
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name,
     this
@@ -303,7 +304,6 @@ class RideHailManager(
 
   private val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   private val rideHailinitialLocationSpatialPlot = new SpatialPlot(1100, 1100, 50)
-  val quadTreeBounds: QuadTreeBounds = getQuadTreeBound(scenario.getPopulation)
   val resources: mutable.Map[Id[BeamVehicle], BeamVehicle] = mutable.Map[Id[BeamVehicle], BeamVehicle]()
 
   beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.initType match {
@@ -719,7 +719,7 @@ class RideHailManager(
     request: RideHailRequest,
     embodiedTrip: EmbodiedBeamTrip
   ): PassengerSchedule = {
-    val beamLegs = BeamLeg.makeLegsConsistent(embodiedTrip.toBeamTrip.legs.toList)
+    val beamLegs = BeamLeg.makeLegsConsistent(embodiedTrip.toBeamTrip.legs.toList.map(Some(_))).flatten
     PassengerSchedule()
       .addLegs(beamLegs)
       .addPassenger(request.customer, beamLegs.tail)
@@ -1049,14 +1049,28 @@ class RideHailManager(
 
   def pickDropsToPassengerSchedule(pickDrops: List[PickDropIdAndLeg]): PassengerSchedule = {
     val consistentPickDrops =
-      pickDrops.map(_.personId).zip(BeamLeg.makeLegsConsistent(pickDrops.map(_.leg.get.beamLeg)))
-    val allLegs = consistentPickDrops.map(_._2)
+      pickDrops.map(_.personId).zip(BeamLeg.makeLegsConsistent(pickDrops.map(_.leg.map(_.beamLeg))))
+    val allLegs = consistentPickDrops.map(_._2).flatten
     var passSched = PassengerSchedule().addLegs(allLegs)
-    consistentPickDrops.groupBy(_._1).foreach { personPickDrop =>
-      val firstLeg = personPickDrop._2.head._2
-      val lastLeg = personPickDrop._2.last._2
-      val subtrip = allLegs.dropWhile(_ != firstLeg).drop(1).takeWhile(_ != lastLeg) :+ lastLeg
-      passSched = passSched.addPassenger(personPickDrop._1, subtrip)
+    var pickDropsForGrouping: Map[VehiclePersonId, List[BeamLeg]] = Map()
+    var passengersToAdd = Set[VehiclePersonId]()
+    consistentPickDrops.foreach {
+      case (Some(person), legOpt) =>
+        if (passengersToAdd.contains(person)) {
+          passengersToAdd = passengersToAdd - person
+        } else {
+          passengersToAdd = passengersToAdd + person
+        }
+        legOpt.foreach { leg =>
+          passengersToAdd.foreach { pass =>
+            val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg
+            pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
+          }
+        }
+      case (_, _) =>
+    }
+    pickDropsForGrouping.foreach { passAndLegs =>
+      passSched = passSched.addPassenger(passAndLegs._1, passAndLegs._2)
     }
     passSched
   }
@@ -1085,7 +1099,12 @@ class RideHailManager(
     val coordinates = activities.map(_.getCoord)
     val xs = coordinates.map(_.getX)
     val ys = coordinates.map(_.getY)
-    QuadTreeBounds(xs.min, ys.min, xs.max, ys.max)
+    QuadTreeBounds(
+      xs.min - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
+      ys.min - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
+      xs.max + beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
+      ys.max + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
+    )
   }
 
   def cleanUp = {
