@@ -1097,8 +1097,9 @@ class RideHailManager(
         activity
     }
     val coordinates = activities.map(_.getCoord)
-    val xs = coordinates.map(_.getX)
-    val ys = coordinates.map(_.getY)
+    // Force to compute xs and ys arrays
+    val xs = coordinates.map(_.getX).toArray
+    val ys = coordinates.map(_.getY).toArray
     QuadTreeBounds(
       xs.min - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
       ys.min - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,

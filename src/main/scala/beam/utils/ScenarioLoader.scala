@@ -191,8 +191,8 @@ class ScenarioLoader(
     }
   }
 
-  def applyPersons(householdPersons: Array[PersonInfo]): Unit = {
-    householdPersons.foreach { personInfo =>
+  def applyPersons(persons: Array[PersonInfo]): Unit = {
+    persons.foreach { personInfo =>
       val person: Person = population.getFactory.createPerson(Id.createPersonId(personInfo.personId))
       val personId = person.getId.toString
       val personAttrib = population.getPersonAttributes
@@ -200,6 +200,7 @@ class ScenarioLoader(
       personAttrib.putAttribute(personId, "rank", personInfo.rank)
       personAttrib.putAttribute(personId, "age", personInfo.age)
       AvailableModeUtils.setAvailableModesForPerson_v2(beamServices, person, population, availableModes.split(","))
+      population.addPerson(person)
     }
   }
 
