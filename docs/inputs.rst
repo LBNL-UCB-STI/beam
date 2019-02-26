@@ -81,7 +81,6 @@ Mode choice parameters::
 
 Vehicles and Population::
 
-   beam.agentsim.agents.vehicles.bicycles.useBikes=false
    #BeamVehicles Params
    beam.agentsim.agents.vehicles.beamFuelTypesFile = ${beam.inputDirectory}"/beamFuelTypes.csv"
    beam.agentsim.agents.vehicles.beamVehicleTypesFile = ${beam.inputDirectory}"/vehicleTypes.csv"

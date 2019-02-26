@@ -1,5 +1,6 @@
 package beam.utils
 
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
@@ -34,7 +35,7 @@ class ScenarioLoader(
   val unitFilePath: String = s"$scenarioFolder/units.$fileExt"
   val parcelAttrFilePath: String = s"$scenarioFolder/parcel_attr.$fileExt"
 
-  val availableModes: String = BeamMode.allTripModes.map(_.value).mkString(",")
+  val availableModes: String = BeamMode.allModes.map(_.value).mkString(",")
 
   def getUnitIdToCoord(
     units: Array[UnitInfo],
@@ -152,6 +153,8 @@ class ScenarioLoader(
     val scenarioHouseholdAttributes = scenario.getHouseholds.getHouseholdAttributes
     val scenarioHouseholds = scenario.getHouseholds.getHouseholds
 
+    var vehicleCounter: Int = 0
+
     households.foreach { householdInfo =>
       val id = Id.create(householdInfo.householdId, classOf[Household])
       val household = new HouseholdsFactoryImpl().createHousehold(id)
@@ -180,16 +183,16 @@ class ScenarioLoader(
         )
 
       val vehicleIds = new java.util.ArrayList[Id[Vehicle]]
-      vehicleTypes.zipWithIndex.foreach {
-        case (bvt, idx) =>
-          val vehicleCounter = idx + 1
-          val vt = VehicleUtils.getFactory.createVehicleType(Id.create(bvt.id, classOf[VehicleType]))
-          val v = VehicleUtils.getFactory.createVehicle(Id.createVehicleId(vehicleCounter), vt)
-          vehicleIds.add(v.getId)
-          val bv = BeamVehicleUtils.getBeamVehicle(v, household, bvt)
-          beamServices.privateVehicles.put(bv.id, bv)
+      vehicleTypes.foreach { beamVehicleType =>
+        val vt = VehicleUtils.getFactory.createVehicleType(Id.create(beamVehicleType.id, classOf[VehicleType]))
+        val vehicle = VehicleUtils.getFactory.createVehicle(Id.createVehicleId(vehicleCounter), vt)
+        vehicleIds.add(vehicle.getId)
+        val bvId = Id.create(vehicle.getId, classOf[BeamVehicle])
+        val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
+        val beamVehicle = new BeamVehicle(bvId, powerTrain, beamVehicleType)
+        beamServices.privateVehicles.put(beamVehicle.id, beamVehicle)
+        vehicleCounter = vehicleCounter + 1
       }
-
       household.setVehicleIds(vehicleIds)
       scenarioHouseholds.put(household.getId, household)
       scenarioHouseholdAttributes.putAttribute(household.getId.toString, "homecoordx", coord.getX)
