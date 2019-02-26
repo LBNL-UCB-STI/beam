@@ -3,13 +3,10 @@ package beam.agentsim.agents.ridehail
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestKit, TestProbe}
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail.{CustomerRequest, RVGraph, VehicleAndSchedule, _}
-import beam.agentsim.agents.vehicles.VehiclePersonId
 import beam.router.BeamSkimmer
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
-import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.vehicles.Vehicle
+import org.matsim.api.core.v01.Coord
 import org.scalatest.FunSpecLike
 
 import scala.collection.JavaConverters._
@@ -41,10 +38,8 @@ class AlonsoMoraPoolingAlgForRideHailSpec
         new AlonsoMoraPoolingAlgForRideHail(
           sc._2,
           sc._1,
-          omega = 6 * 60,
-          delta = 10 * 5000 * 60,
-          radius = Int.MaxValue,
-          skimmer
+          Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+          maxRequestsPerVehicle = 1000
         )
 
       val rvGraph: RVGraph = alg.pairwiseRVGraph
@@ -88,6 +83,7 @@ class AlonsoMoraPoolingAlgForRideHailSpec
       val rtvGraph = alg.rTVGraph(rvGraph)
 
       for (v <- rtvGraph.vertexSet().asScala.filter(_.isInstanceOf[RideHailTrip])) {
+        println(v)
         v.getId match {
           case "trip:[p3] -> " =>
             assert(
@@ -128,6 +124,7 @@ class AlonsoMoraPoolingAlgForRideHailSpec
               rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p2") ||
               rtvGraph.outgoingEdgesOf(v).asScala.map(e => rtvGraph.getEdgeTarget(e).getId).contains("p4")
             )
+          case _ =>
         }
       }
 
@@ -160,7 +157,4 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
       createPersonRequest(makeVehPersonId("p3"), new Coord(4000, 4000), seconds(8, 2), new Coord(21000, 20000))
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
   }
-
-  def makeVehPersonId(perId: String)(implicit mockActorRef: ActorRef) =
-    VehiclePersonId(Id.create(perId, classOf[Vehicle]), Id.create(perId, classOf[Person]), mockActorRef)
 }

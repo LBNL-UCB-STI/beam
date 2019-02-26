@@ -96,10 +96,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         val algo = new AlonsoMoraPoolingAlgForRideHail(
           customerReqs.toList,
           availVehicles.toList,
-          omega = 6 * 60,
-          delta = 10 * 5000 * 60,
-          radius = Int.MaxValue,
-          skimmer
+          Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+          maxRequestsPerVehicle = 100
         )
         val rvGraph: RVGraph = algo.pairwiseRVGraph
         val rtvGraph = algo.rTVGraph(rvGraph)
@@ -108,9 +106,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         val algo = new AsyncAlonsoMoraAlgForRideHail(
           customerReqs.toList,
           availVehicles.toList,
-          Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 5000 * 60)),
-          radius = Int.MaxValue,
-          skimmer
+          Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+          maxRequestsPerVehicle = 100
         )
         import scala.concurrent.duration._
         Await.result(algo.greedyAssignment(), atMost = 2.minutes)
