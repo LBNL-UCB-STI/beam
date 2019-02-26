@@ -167,7 +167,7 @@ class BeamAgentScheduler(
   override def aroundPostStop(): Unit = {
     log.info("aroundPostStop. Stopping all scheduled tasks...")
     stuckAgentChecker.foreach(_.cancel())
-    scheduleMonitorTask.foreach(_.cancel())
+    monitorTask.foreach(_.cancel())
     super.aroundPostStop()
   }
 

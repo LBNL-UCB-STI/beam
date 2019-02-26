@@ -195,6 +195,7 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
 
           addControlerListenerBinding().to(classOf[BeamSim])
+          addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
 
           addControlerListenerBinding().to(classOf[ActivityLocationPlotter])
           addControlerListenerBinding().to(classOf[GraphSurgePricing])
@@ -270,12 +271,14 @@ trait BeamHelper extends LazyLogging {
       "Please provide a valid configuration file."
     )
 
-    ConfigConsistencyComparator(parsedArgs.configLocation.get)
+    ConfigConsistencyComparator.parseBeamTemplateConfFile(parsedArgs.configLocation.get)
 
+    val location = ConfigFactory.parseString("config=" + parsedArgs.configLocation.get)
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
       if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
       else parsedArgs.config.get
-    }).resolve()
+    }).withFallback(location).resolve()
+
     (parsedArgs, config)
   }
 
@@ -364,7 +367,15 @@ trait BeamHelper extends LazyLogging {
 
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
     val (scenario, outputDir, networkCoordinator) = setupBeamWithConfig(config)
+    runBeam(config, scenario, networkCoordinator)
+    (scenario.getConfig, outputDir)
+  }
 
+  def runBeam(
+    config: TypesafeConfig,
+    scenario: MutableScenario,
+    networkCoordinator: NetworkCoordinator
+  ): Unit = {
     val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
     val injector = org.matsim.core.controler.Injector.createInjector(
@@ -393,8 +404,6 @@ trait BeamHelper extends LazyLogging {
     samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices)
 
     run(beamServices)
-
-    (scenario.getConfig, outputDir)
   }
 
   def setupBeamWithConfig(config: TypesafeConfig): (MutableScenario, String, NetworkCoordinator) = {
@@ -426,7 +435,9 @@ trait BeamHelper extends LazyLogging {
     logger.info("Starting beam on branch {} at commit {}.", BashUtils.getBranch, BashUtils.getCommitHash)
     new java.io.File(outputDirectory).mkdirs
     val outConf = Paths.get(outputDirectory, "beam.conf")
-    Files.write(outConf, config.root().render(ConfigRenderOptions.concise()).getBytes)
+    val location = config.getString("config")
+
+    Files.copy(Paths.get(location), outConf, StandardCopyOption.REPLACE_EXISTING)
     logger.info("Config [{}] copied to {}.", beamConfig.beam.agentsim.simulationName, outConf)
 
     val networkCoordinator: NetworkCoordinator =

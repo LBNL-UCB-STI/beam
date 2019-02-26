@@ -40,4 +40,13 @@ object EmbodiedBeamLeg {
       unbecomeDriverOnCompletion = isLastLeg
     )
   }
+
+  def makeLegsConsistent(legs: Vector[EmbodiedBeamLeg]): Vector[EmbodiedBeamLeg] = {
+    var runningStartTime = legs.head.beamLeg.startTime
+    for (leg <- legs) yield {
+      val newLeg = leg.copy(beamLeg = leg.beamLeg.updateStartTime(runningStartTime))
+      runningStartTime = newLeg.beamLeg.endTime
+      newLeg
+    }
+  }
 }

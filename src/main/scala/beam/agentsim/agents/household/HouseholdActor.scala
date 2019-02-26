@@ -2,16 +2,11 @@ package beam.agentsim.agents.household
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.Status.Success
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
-import akka.pattern.{ask, pipe}
 import akka.util.Timeout
-import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.PersonAgent.bodyVehicleIdFromPersonID
-import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavTripLegsResponse}
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, VehicleOrToken}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.BeamPlan
@@ -20,8 +15,6 @@ import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
 import beam.agentsim.agents.{HasTickAndTrigger, InitializeTrigger, PersonAgent}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
-import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.RoutingResponse
@@ -254,11 +247,8 @@ object HouseholdActor {
         }
         household.members.foreach { person =>
           val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
-
           val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
-
           modeChoiceCalculator.valuesOfTime += (GeneralizedVot -> attributes.valueOfTime)
-
           val personRef: ActorRef = context.actorOf(
             PersonAgent.props(
               schedulerRef,
@@ -273,7 +263,7 @@ object HouseholdActor {
               person.getId,
               self,
               person.getSelectedPlan,
-              sharedVehicleFleets
+              fleetManagers ++: sharedVehicleFleets
             ),
             person.getId.toString
           )
