@@ -11,6 +11,7 @@ import org.scalatest.FunSpecLike
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
+import scala.collection.mutable
 import scala.concurrent.Await
 
 class AsyncAlonsoMoraAlgForRideHailSpec
@@ -52,7 +53,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
 
     }
 
-    it("scales") {
+    ignore("scales") {
       import org.matsim.core.config.ConfigUtils
       import org.matsim.core.population.io.PopulationReader
       import org.matsim.core.scenario.ScenarioUtils
@@ -60,8 +61,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
       new PopulationReader(sc).readFile("test/input/sf-light/sample/25k/population.xml.gz")
       implicit val skimmer: BeamSkimmer = new BeamSkimmer()
 
-      import scala.collection.mutable.{ListBuffer => MListBuffer}
-      val requests = MListBuffer.empty[CustomerRequest]
+      val requests = mutable.ListBuffer.empty[CustomerRequest]
       sc.getPopulation.getPersons.values.asScala.map(p => BeamPlan(p.getSelectedPlan)).foreach { plan =>
         plan.trips.sliding(2).foreach {
           case Seq(prevTrip, curTrip) =>
@@ -85,10 +85,12 @@ class AsyncAlonsoMoraAlgForRideHailSpec
 
       val t0 = System.nanoTime()
       (28800 to 32400 by timeWindow).foreach { i =>
+        println("")
         println(i / 3600.0)
         val demand = requests.filter(x => x.pickup.time >= i && x.pickup.time < i + timeWindow)
-        val fleet = MListBuffer.empty[VehicleAndSchedule]
+        val fleet = mutable.ListBuffer.empty[VehicleAndSchedule]
         (0 to fleetSize).foreach { j =>
+          print(s"$j,")
           fleet.append(
             createVehicleAndSchedule(
               "v" + j,
