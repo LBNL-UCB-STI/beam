@@ -31,7 +31,7 @@ import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.StuckFinder
+import beam.utils.{DefaultVehicleTypeUtils, StuckFinder}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
@@ -52,7 +52,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.Await
 
 /**
@@ -86,11 +86,16 @@ class OtherPersonAgentSpec
   lazy val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
   lazy val beamSvc: BeamServices = {
+
+    val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = Map(DefaultVehicleTypeUtils.defaultHumanBodyBeamVehicleType.id -> DefaultVehicleTypeUtils.defaultHumanBodyBeamVehicleType)
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(mock[MatsimServices])
     when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
     when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(theServices.beamConfig).thenReturn(config)
+
+    when(theServices.vehicleTypes).thenReturn(vehicleTypes)
+
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     val geo = new GeoUtilsImpl(config)
     when(theServices.geo).thenReturn(geo)
@@ -151,12 +156,12 @@ class OtherPersonAgentSpec
       val bus = new BeamVehicle(
         beamVehicleId,
         new Powertrain(0.0),
-        BeamVehicleType.defaultCarBeamVehicleType
+        DefaultVehicleTypeUtils.defaultCarBeamVehicleType
       )
       val tram = new BeamVehicle(
         Id.createVehicleId("my_tram"),
         new Powertrain(0.0),
-        BeamVehicleType.defaultCarBeamVehicleType
+        DefaultVehicleTypeUtils.defaultCarBeamVehicleType
       )
 
       vehicles.put(bus.id, bus)
@@ -177,7 +182,7 @@ class OtherPersonAgentSpec
           )
         ),
         Id.createVehicleId("my_bus"),
-        BeamVehicleType.defaultCarBeamVehicleType.id,
+        DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
         asDriver = false,
         0,
         unbecomeDriverOnCompletion = false
@@ -197,7 +202,7 @@ class OtherPersonAgentSpec
           )
         ),
         Id.createVehicleId("my_bus"),
-        BeamVehicleType.defaultCarBeamVehicleType.id,
+        DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
         asDriver = false,
         0,
         unbecomeDriverOnCompletion = false
@@ -217,7 +222,7 @@ class OtherPersonAgentSpec
           )
         ),
         Id.createVehicleId("my_tram"),
-        BeamVehicleType.defaultCarBeamVehicleType.id,
+        DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
         asDriver = false,
         0,
         unbecomeDriverOnCompletion = false
@@ -237,7 +242,7 @@ class OtherPersonAgentSpec
           )
         ),
         Id.createVehicleId("my_tram"),
-        BeamVehicleType.defaultCarBeamVehicleType.id,
+        DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
         asDriver = false,
         0,
         unbecomeDriverOnCompletion = false
@@ -343,7 +348,7 @@ class OtherPersonAgentSpec
                   )
                 ),
                 Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+                DefaultVehicleTypeUtils.defaultHumanBodyBeamVehicleType.id,
                 asDriver = true,
                 0,
                 unbecomeDriverOnCompletion = false
@@ -366,7 +371,7 @@ class OtherPersonAgentSpec
                   )
                 ),
                 Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+                DefaultVehicleTypeUtils.defaultHumanBodyBeamVehicleType.id,
                 asDriver = true,
                 0,
                 unbecomeDriverOnCompletion = false
@@ -427,7 +432,7 @@ class OtherPersonAgentSpec
                   )
                 ),
                 Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+                DefaultVehicleTypeUtils.defaultHumanBodyBeamVehicleType.id,
                 asDriver = true,
                 0,
                 unbecomeDriverOnCompletion = false

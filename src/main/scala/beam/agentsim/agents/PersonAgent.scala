@@ -14,6 +14,7 @@ import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, Releasi
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.VehicleCategory.Bike
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
 import beam.agentsim.events.resources.ReservationError
@@ -195,10 +196,16 @@ class PersonAgent(
     with ChoosesParking
     with Stash {
 
+  val bodyVehicleTypeId = Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType])
+
+  val powerTrainForHumanBody: Powertrain = new Powertrain(
+    beamServices.vehicleTypes(bodyVehicleTypeId).primaryFuelConsumptionInJoulePerMeter
+  )
+
   val body = new BeamVehicle(
-    bodyVehicleIdFromPersonID(id),
-    BeamVehicleType.powerTrainForHumanBody,
-    BeamVehicleType.defaultHumanBodyBeamVehicleType
+    BeamVehicle.createId(id, Some("body")),
+    powerTrainForHumanBody,
+    beamServices.vehicleTypes(bodyVehicleTypeId)
   )
   body.manager = Some(self)
   beamVehicles.put(body.id, ActualVehicle(body))

@@ -22,7 +22,7 @@ import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
-import beam.utils.{DateUtils, NetworkHelperImpl}
+import beam.utils.{DateUtils, DefaultVehicleTypeUtils, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -71,7 +71,9 @@ class TollRoutingSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
-    when(services.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
+
+    val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = Map(DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id -> DefaultVehicleTypeUtils.defaultCarBeamVehicleType)
+    when(services.vehicleTypes).thenReturn(vehicleTypes)
     when(services.fuelTypePrices).thenReturn(Map[FuelType, Double]().withDefaultValue(0.0))
     networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
@@ -111,7 +113,7 @@ class TollRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -172,7 +174,7 @@ class TollRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -208,7 +210,7 @@ class TollRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("body"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true

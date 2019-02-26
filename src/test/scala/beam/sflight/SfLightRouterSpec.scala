@@ -8,6 +8,7 @@ import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, RIDE_HAIL, WALK}
 import beam.router.model.{BeamLeg, BeamPath, BeamTrip}
 import beam.router.{BeamRouter, Modes}
+import beam.utils.DefaultVehicleTypeUtils
 import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest._
 
@@ -28,7 +29,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true
@@ -52,7 +53,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-56658-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true
@@ -77,7 +78,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-80672-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true
@@ -101,21 +102,21 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
         Vector(
           StreetVehicle(
             Id.createVehicleId("rideHailVehicle-person=17673-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = false
           ),
           StreetVehicle(
             Id.createVehicleId("body-17673-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true
           ),
           StreetVehicle(
             Id.createVehicleId("17673-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -144,21 +145,21 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
         Vector(
           StreetVehicle(
             Id.createVehicleId("116378-2"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
             new SpaceTime(origin, 0),
             Modes.BeamMode.CAR,
             asDriver = true
           ),
           StreetVehicle(
             Id.createVehicleId("rideHailVehicle-person=116378-2"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = false
           ),
           StreetVehicle(
             Id.createVehicleId("body-116378-2"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true
@@ -203,14 +204,14 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
                 Vector(
                   StreetVehicle(
                     Id.createVehicleId("116378-2"),
-                    BeamVehicleType.defaultCarBeamVehicleType.id,
+                    DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
                     new SpaceTime(origin, 0),
                     Modes.BeamMode.CAR,
                     asDriver = true
                   ),
                   StreetVehicle(
                     Id.createVehicleId("body-116378-2"),
-                    BeamVehicleType.defaultCarBeamVehicleType.id,
+                    DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
                     new SpaceTime(new Coord(origin.getX, origin.getY), time),
                     Modes.BeamMode.WALK,
                     asDriver = true

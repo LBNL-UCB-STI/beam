@@ -928,8 +928,7 @@ class RideHailManager(
         beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
         classOf[BeamVehicleType]
       )
-    val ridehailBeamVehicleType = beamServices.vehicleTypes
-      .getOrElse(ridehailBeamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
+    val ridehailBeamVehicleType = beamServices.vehicleTypes(ridehailBeamVehicleTypeId)
     val rideHailAgentPersonId: Id[RideHailAgent] =
       Id.create(rideHailAgentName, classOf[RideHailAgent])
     val powertrain = Option(ridehailBeamVehicleType.primaryFuelConsumptionInJoulePerMeter)

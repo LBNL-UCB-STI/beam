@@ -11,12 +11,7 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeIncentive
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
-import beam.agentsim.agents.household.HouseholdActor.{
-  HouseholdActor,
-  MobilityStatusInquiry,
-  MobilityStatusResponse,
-  ReleaseVehicle
-}
+import beam.agentsim.agents.household.HouseholdActor.{HouseholdActor, MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -38,7 +33,7 @@ import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.{NetworkHelperImpl, StuckFinder}
+import beam.utils.{DefaultVehicleTypeUtils, NetworkHelperImpl, StuckFinder}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
@@ -97,6 +92,7 @@ class PersonWithVehicleSharingSpec
 
   private lazy val beamSvc: BeamServices = {
     val matsimServices = mock[MatsimServices]
+    val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = Map(DefaultVehicleTypeUtils.defaultHumanBodyBeamVehicleType.id -> DefaultVehicleTypeUtils.defaultHumanBodyBeamVehicleType)
 
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(matsimServices)
@@ -105,6 +101,8 @@ class PersonWithVehicleSharingSpec
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(theServices.networkHelper).thenReturn(networkHelper)
+
+    when(theServices.vehicleTypes).thenReturn(vehicleTypes)
 
     theServices
   }
@@ -205,7 +203,7 @@ class PersonWithVehicleSharingSpec
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        BeamVehicleType.defaultCarBeamVehicleType
+        DefaultVehicleTypeUtils.defaultCarBeamVehicleType
       )
       vehicle.manager = Some(mockSharedVehicleFleet.ref)
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
@@ -346,7 +344,7 @@ class PersonWithVehicleSharingSpec
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        BeamVehicleType.defaultCarBeamVehicleType
+        DefaultVehicleTypeUtils.defaultCarBeamVehicleType
       )
       vehicle.manager = Some(mockSharedVehicleFleet.ref)
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
@@ -377,7 +375,7 @@ class PersonWithVehicleSharingSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                DefaultVehicleTypeUtils.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
@@ -397,7 +395,7 @@ class PersonWithVehicleSharingSpec
                   )
                 ),
                 beamVehicleId = vehicle.id,
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                DefaultVehicleTypeUtils.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -449,7 +447,7 @@ class PersonWithVehicleSharingSpec
       val vehicle2 = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        BeamVehicleType.defaultCarBeamVehicleType
+        DefaultVehicleTypeUtils.defaultCarBeamVehicleType
       )
       vehicle2.manager = Some(mockSharedVehicleFleet.ref)
       (parkingManager ? parkingInquiry(SpaceTime(0.01, 0.01, 61200)))
@@ -502,7 +500,7 @@ class PersonWithVehicleSharingSpec
       val car1 = new BeamVehicle(
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
-        BeamVehicleType.defaultCarBeamVehicleType
+        DefaultVehicleTypeUtils.defaultCarBeamVehicleType
       )
       car1.manager = Some(mockSharedVehicleFleet.ref)
 

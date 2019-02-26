@@ -1,9 +1,8 @@
 package beam.agentsim.agents.household
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.FuelType.Gasoline
-import beam.agentsim.agents.vehicles.VehicleCategory.Car
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.BeamSkimmer
+import beam.utils.DefaultVehicleTypeUtils
 import org.matsim.api.core.v01.population.{Activity, Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.ConfigUtils
@@ -14,23 +13,11 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl, HouseholdsReader
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.immutable.List
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 
 class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
 
   behavior of "HouseholdCAVScheduling"
-
-  val defaultCAVBeamVehicleType = BeamVehicleType(
-    Id.create("CAV-TYPE-DEFAULT", classOf[BeamVehicleType]),
-    4,
-    0,
-    4.5,
-    Gasoline,
-    3656.0,
-    3655980000.0,
-    vehicleCategory = Car,
-    automationLevel = 5
-  )
 
   it should "generate two schedules" in {
     val config = ConfigUtils.createConfig()
@@ -38,7 +25,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
       ScenarioUtils.createScenario(config)
 
     val cavs = List[BeamVehicle](
-      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType)
+      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), DefaultVehicleTypeUtils.defaultCAVBeamVehicleType)
     )
     val household: Household = scenario1(cavs)
     val skim = new BeamSkimmer()
@@ -60,8 +47,8 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
       ScenarioUtils.createScenario(config)
 
     val vehicles = List[BeamVehicle](
-      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType),
-      new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), BeamVehicleType.defaultCarBeamVehicleType)
+      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), DefaultVehicleTypeUtils.defaultCAVBeamVehicleType),
+      new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), DefaultVehicleTypeUtils.defaultCarBeamVehicleType)
     )
     val household: Household = scenario2(vehicles)
     val skim = new BeamSkimmer()
@@ -98,7 +85,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
       ScenarioUtils.createScenario(config)
 
     val vehicles = List[BeamVehicle](
-      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType)
+      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), DefaultVehicleTypeUtils.defaultCAVBeamVehicleType)
     )
     val household: Household = scenario4(vehicles)
 
@@ -127,8 +114,8 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
       ScenarioUtils.createScenario(config)
 
     val vehicles = List[BeamVehicle](
-      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType),
-      new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), defaultCAVBeamVehicleType)
+      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), DefaultVehicleTypeUtils.defaultCAVBeamVehicleType),
+      new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), DefaultVehicleTypeUtils.defaultCAVBeamVehicleType)
     )
     val household: Household = scenario5(vehicles)
     val skim = new BeamSkimmer()
@@ -161,8 +148,8 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
       ScenarioUtils.createScenario(config)
 
     val vehicles = List[BeamVehicle](
-      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType),
-      new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), defaultCAVBeamVehicleType)
+      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), DefaultVehicleTypeUtils.defaultCAVBeamVehicleType),
+      new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), DefaultVehicleTypeUtils.defaultCAVBeamVehicleType)
     )
     val household: Household = scenarioPerformance(vehicles)
     val skim = new BeamSkimmer()

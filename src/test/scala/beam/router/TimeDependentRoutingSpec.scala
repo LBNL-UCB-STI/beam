@@ -22,7 +22,7 @@ import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
-import beam.utils.{DateUtils, NetworkHelperImpl}
+import beam.utils.{DateUtils, DefaultVehicleTypeUtils, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.testConfig
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
@@ -56,6 +56,7 @@ class TimeDependentRoutingSpec
 
   override def beforeAll: Unit = {
     val beamConfig = BeamConfig(system.settings.config)
+    val vehicleTypes:Map[Id[BeamVehicleType], BeamVehicleType] = Map(DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id -> DefaultVehicleTypeUtils.defaultCarBeamVehicleType)
 
     // Have to mock a lot of things to get the router going
     val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
@@ -70,7 +71,7 @@ class TimeDependentRoutingSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
-    when(services.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
+    when(services.vehicleTypes).thenReturn(vehicleTypes)
     when(services.fuelTypePrices).thenReturn(Map[FuelType, Double]().withDefaultValue(0.0))
     networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
@@ -121,7 +122,7 @@ class TimeDependentRoutingSpec
           0.0
         )
       )
-      router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), BeamVehicleType.defaultCarBeamVehicleType.id)
+      router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id)
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.head.beamLegs().head.duration == 70)
       // R5 travel time, but less than what's in R5's routing response (see vv),
@@ -158,7 +159,7 @@ class TimeDependentRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -179,7 +180,7 @@ class TimeDependentRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -200,7 +201,7 @@ class TimeDependentRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -230,7 +231,7 @@ class TimeDependentRoutingSpec
         Vector(
           StreetVehicle(
             vehicleId,
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -265,7 +266,7 @@ class TimeDependentRoutingSpec
           Vector(
             StreetVehicle(
               Id.createVehicleId("car"),
-              BeamVehicleType.defaultCarBeamVehicleType.id,
+              DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
               new SpaceTime(new Coord(origin.getX, origin.getY), time),
               Modes.BeamMode.CAR,
               asDriver = true
@@ -286,7 +287,7 @@ class TimeDependentRoutingSpec
         0,
         BeamPath(Vector(1, 2, 3, 4), Vector(), None, SpaceTime(0.0, 0.0, 28800), SpaceTime(1.0, 1.0, 28900), 1000.0)
       )
-      router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), BeamVehicleType.defaultCarBeamVehicleType.id)
+      router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id)
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.head.beamLegs().head.duration == 2000) // Contains two full links (excluding 1 and 4)
     }

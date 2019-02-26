@@ -25,7 +25,7 @@ import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.utils.StuckFinder
+import beam.utils.{DefaultVehicleTypeUtils, StuckFinder}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
@@ -160,7 +160,7 @@ class RideHailAgentSpec
     it("should drive around when I tell him to") {
       val vehicleId = Id.createVehicleId(1)
       val beamVehicle =
-        new BeamVehicle(vehicleId, new Powertrain(0.0), BeamVehicleType.defaultCarBeamVehicleType)
+        new BeamVehicle(vehicleId, new Powertrain(0.0), DefaultVehicleTypeUtils.defaultCarBeamVehicleType)
       beamVehicle.manager = Some(self)
       vehicles.put(vehicleId, beamVehicle)
 
@@ -235,7 +235,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
-          BeamVehicleType.defaultCarBeamVehicleType
+          DefaultVehicleTypeUtils.defaultCarBeamVehicleType
         )
       beamVehicle.manager = Some(self)
       vehicles.put(vehicleId, beamVehicle)
@@ -303,7 +303,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
-          BeamVehicleType.defaultCarBeamVehicleType
+          DefaultVehicleTypeUtils.defaultCarBeamVehicleType
         )
       beamVehicle.manager = Some(self)
       vehicles.put(vehicleId, beamVehicle)

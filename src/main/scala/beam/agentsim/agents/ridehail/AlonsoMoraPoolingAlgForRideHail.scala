@@ -202,7 +202,7 @@ object AlonsoMoraPoolingAlgForRideHail {
       dst.activity.getCoord,
       src.time,
       BeamMode.CAR,
-      BeamVehicleType.defaultCarBeamVehicleType.id
+      Id.create("CAR-TYPE-DEFAULT", classOf[BeamVehicleType])
     )
   }
 
@@ -226,8 +226,8 @@ object AlonsoMoraPoolingAlgForRideHail {
     Some(newPoolingList.toList)
   }
 
-  def newVehicle(id: String): BeamVehicle = {
-    new BeamVehicle(Id.create(id, classOf[BeamVehicle]), new Powertrain(0.0), BeamVehicleType.defaultCarBeamVehicleType)
+  def newVehicle(id: String, beamVehicleType: BeamVehicleType): BeamVehicle = {
+    new BeamVehicle(Id.create(id, classOf[BeamVehicle]), new Powertrain(0.0), beamVehicleType)
   }
 
   def newPerson(id: String): Person = {
@@ -249,7 +249,7 @@ object AlonsoMoraPoolingAlgForRideHail {
         p1Act2.getCoord,
         0,
         BeamMode.CAR,
-        BeamVehicleType.defaultCarBeamVehicleType.id
+        Id.create("CAR-TYPE-DEFAULT", classOf[BeamVehicleType])
       )
       .timeAndCost
       .time
@@ -277,8 +277,9 @@ object AlonsoMoraPoolingAlgForRideHail {
     )
   }
 
-  def createVehicleAndSchedule(vid: String, dst: Location, dstTime: Int): VehicleAndSchedule = {
-    val v1 = newVehicle(vid)
+  def createVehicleAndSchedule(vid: String, beamVehicleType: BeamVehicleType, dst: Location, dstTime: Int): VehicleAndSchedule = {
+
+    val v1 = newVehicle(vid, beamVehicleType)
     val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${vid}Act0", dst)
     v1Act0.setEndTime(dstTime)
     VehicleAndSchedule(

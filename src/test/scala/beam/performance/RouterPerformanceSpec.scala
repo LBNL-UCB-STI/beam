@@ -23,7 +23,7 @@ import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.MetricsSupport
 import beam.tags.Performance
-import beam.utils.DateUtils
+import beam.utils.{DateUtils, DefaultVehicleTypeUtils}
 import beam.utils.TestConfigUtils.testConfig
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.ProfileRequest
@@ -37,10 +37,7 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario, TransportMode}
 import org.matsim.core.config.groups.{GlobalConfigGroup, PlanCalcScoreConfigGroup}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.router._
-import org.matsim.core.router.costcalculators.{
-  FreespeedTravelTimeAndDisutility,
-  RandomizingTimeDistanceTravelDisutilityFactory
-}
+import org.matsim.core.router.costcalculators.{FreespeedTravelTimeAndDisutility, RandomizingTimeDistanceTravelDisutilityFactory}
 import org.matsim.core.router.util.{LeastCostPathCalculator, PreProcessLandmarks}
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.core.trafficmonitoring.FreeSpeedTravelTime
@@ -162,7 +159,7 @@ class RouterPerformanceSpec
             Vector(
               StreetVehicle(
                 Id.createVehicleId("116378-2"),
-                BeamVehicleType.defaultCarBeamVehicleType.id,
+                DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
                 new SpaceTime(origin, 0),
                 CAR,
                 asDriver = true
@@ -210,7 +207,7 @@ class RouterPerformanceSpec
                 streetVehicles = Vector(
                   StreetVehicle(
                     Id.createVehicleId("116378-2"),
-                    BeamVehicleType.defaultCarBeamVehicleType.id,
+                    DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
                     new SpaceTime(origin, time),
                     mode,
                     asDriver = true
@@ -221,7 +218,7 @@ class RouterPerformanceSpec
                 streetVehicles = Vector(
                   StreetVehicle(
                     Id.createVehicleId("body-116378-2"),
-                    BeamVehicleType.defaultCarBeamVehicleType.id,
+                    DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
                     new SpaceTime(new Coord(origin.getX, origin.getY), time),
                     WALK,
                     asDriver = true

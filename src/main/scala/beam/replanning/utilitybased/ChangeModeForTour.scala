@@ -3,10 +3,9 @@ package beam.replanning.utilitybased
 import java.util
 import java.util.Collections
 
-import beam.agentsim.agents.Population
+import beam.agentsim.agents.{Population, vehicles}
 import beam.agentsim.agents.choice.mode.TransitFareDefaults
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BUS, CAR, DRIVE_TRANSIT, FERRY, RAIL, RIDE_HAIL, SUBWAY, WALK, WALK_TRANSIT}
 import beam.sim.BeamServices
@@ -22,7 +21,7 @@ import org.matsim.core.router.TripStructureUtils.Subtour
 import org.matsim.core.router.{CompositeStageActivityTypes, TripRouter, TripStructureUtils}
 
 import scala.collection.JavaConverters._
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.util.Random
 
 class ChangeModeForTour(
@@ -105,7 +104,7 @@ class ChangeModeForTour(
   def distanceScaling(beamMode: BeamMode, distance: Double): Double = {
     beamMode match {
       case BeamMode.CAR =>
-        beamServices.fuelTypePrices(BeamVehicleType.defaultCarBeamVehicleType.primaryFuelType) * distance
+        beamServices.fuelTypePrices(vehicles.FuelType.Gasoline) * distance
       case WALK => distance * 6 // MATSim Default
       case RIDE_HAIL =>
         distance * DefaultRideHailCostPerMile.toDouble * (1 / 1609.34) // 1 mile = 1609.34

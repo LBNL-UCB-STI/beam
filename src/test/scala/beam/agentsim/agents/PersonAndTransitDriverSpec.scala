@@ -29,7 +29,7 @@ import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.{NetworkHelperImpl, StuckFinder}
+import beam.utils.{DefaultVehicleTypeUtils, NetworkHelperImpl, StuckFinder}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
@@ -86,6 +86,7 @@ class PersonAndTransitDriverSpec
 
   private lazy val beamSvc: BeamServices = {
     val matsimServices = mock[MatsimServices]
+    val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = Map(DefaultVehicleTypeUtils.defaultHumanBodyBeamVehicleType.id -> DefaultVehicleTypeUtils.defaultHumanBodyBeamVehicleType)
 
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(matsimServices)
@@ -95,6 +96,8 @@ class PersonAndTransitDriverSpec
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
+
+    when(theServices.vehicleTypes).thenReturn(vehicleTypes)
 
     var map = TrieMap[Id[Vehicle], (String, String)]()
     map += (Id.createVehicleId("my_bus")  -> ("", ""))
@@ -176,13 +179,13 @@ class PersonAndTransitDriverSpec
       val bus = new BeamVehicle(
         id = busId,
         powerTrain = new Powertrain(0.0),
-        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
+        beamVehicleType = DefaultVehicleTypeUtils.defaultCarBeamVehicleType
       )
       val tramId = Id.createVehicleId("my_tram")
       val tram = new BeamVehicle(
         id = tramId,
         powerTrain = new Powertrain(0.0),
-        beamVehicleType = BeamVehicleType.defaultCarBeamVehicleType
+        beamVehicleType = DefaultVehicleTypeUtils.defaultCarBeamVehicleType
       )
 
       val busLeg = EmbodiedBeamLeg(
@@ -200,7 +203,7 @@ class PersonAndTransitDriverSpec
           )
         ),
         beamVehicleId = busId,
-        BeamVehicleType.defaultTransitBeamVehicleType.id,
+        DefaultVehicleTypeUtils.defaultTransitBeamVehicleType.id,
         asDriver = false,
         cost = 2.75,
         unbecomeDriverOnCompletion = false
@@ -220,7 +223,7 @@ class PersonAndTransitDriverSpec
           )
         ),
         beamVehicleId = busId,
-        BeamVehicleType.defaultTransitBeamVehicleType.id,
+        DefaultVehicleTypeUtils.defaultTransitBeamVehicleType.id,
         asDriver = false,
         cost = 0.0,
         unbecomeDriverOnCompletion = false
@@ -240,7 +243,7 @@ class PersonAndTransitDriverSpec
           )
         ),
         beamVehicleId = tramId,
-        BeamVehicleType.defaultTransitBeamVehicleType.id,
+        DefaultVehicleTypeUtils.defaultTransitBeamVehicleType.id,
         asDriver = false,
         cost = 0.0,
         unbecomeDriverOnCompletion = false
@@ -366,7 +369,7 @@ class PersonAndTransitDriverSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                DefaultVehicleTypeUtils.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
@@ -389,7 +392,7 @@ class PersonAndTransitDriverSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                DefaultVehicleTypeUtils.defaultTransitBeamVehicleType.id,
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false

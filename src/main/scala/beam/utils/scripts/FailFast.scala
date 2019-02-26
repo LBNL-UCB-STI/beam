@@ -1,7 +1,10 @@
 package beam.utils.scripts
 
 import beam.sim.BeamServices
+import beam.utils.BeamVehicleUtils.readBeamVehicleTypeFile
 import com.typesafe.scalalogging.LazyLogging
+
+import scala.collection.concurrent.TrieMap
 
 object FailFast extends LazyLogging {
 
@@ -33,6 +36,20 @@ object FailFast extends LazyLogging {
         "Pooling, while a class in the code base, is not ready for use yet. In other words, please do not set beamConfig.beam.agentsim.agents.rideHail.allocationManager.name == \"POOLING\""
       )
     }
+
+    val vehicleTypeId = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId
+
+    val vehicleTypes = {
+      TrieMap(
+        readBeamVehicleTypeFile(beamServices.beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, null).toList: _*
+      )
+    }
+
+    if (!vehicleTypes.keys.toString().contains(vehicleTypeId)) {
+    throw new RuntimeException(
+      "unknown BeamVehicleType or config parameter beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId must be specified"
+    )
+  }
 
   }
 }

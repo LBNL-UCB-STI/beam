@@ -90,7 +90,7 @@ public class StatsFactory {
                 return new VehicleTravelTimeAnalysis(beamServices.matsimServices().getScenario(),
                         beamServices.networkHelper(), beamServices.vehicleTypes().keySet());
             case MotorizedVehicleMilesTraveled:
-                return new MotorizedVehicleMilesTraveledAnalysis(beamServices.vehicleTypes().keySet());
+                return new MotorizedVehicleMilesTraveledAnalysis(beamServices.vehicleTypes().keySet(), beamServices);
             case NumberOfVehicles:
                 return new NumberOfVehiclesAnalysis(beamServices);
             case PersonCost:

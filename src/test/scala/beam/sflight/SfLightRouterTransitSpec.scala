@@ -11,6 +11,7 @@ import beam.agentsim.infrastructure.ZonalParkingManagerSpec
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode._
 import beam.router.model.EmbodiedBeamTrip
+import beam.utils.DefaultVehicleTypeUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
@@ -43,7 +44,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
             new SpaceTime(origin, time),
             WALK,
             asDriver = true
@@ -79,14 +80,14 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
                 Vector(
                   StreetVehicle(
                     Id.createVehicleId("116378-2"),
-                    BeamVehicleType.defaultCarBeamVehicleType.id,
+                    DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
                     new SpaceTime(origin, 0),
                     CAR,
                     asDriver = true
                   ),
                   StreetVehicle(
                     Id.createVehicleId("body-116378-2"),
-                    BeamVehicleType.defaultCarBeamVehicleType.id,
+                    DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
                     new SpaceTime(new Coord(origin.getX, origin.getY), time),
                     WALK,
                     asDriver = true
@@ -120,7 +121,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
             new SpaceTime(origin, time),
             WALK,
             asDriver = true
@@ -146,7 +147,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id,
             new SpaceTime(origin, time),
             WALK,
             asDriver = true

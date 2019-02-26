@@ -4,6 +4,7 @@ import akka.testkit.{TestKit, TestProbe}
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.router.BeamSkimmer
+import beam.utils.DefaultVehicleTypeUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Coord
@@ -93,7 +94,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
           print(s"$j,")
           fleet.append(
             createVehicleAndSchedule(
-              "v" + j,
+              "v" + j, DefaultVehicleTypeUtils.defaultCarBeamVehicleType,
               new Coord(minx + rnd.nextDouble() * (maxx - minx), miny + rnd.nextDouble() * (maxy - miny)),
               i
             )

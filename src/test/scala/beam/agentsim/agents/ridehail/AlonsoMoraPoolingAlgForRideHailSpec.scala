@@ -4,6 +4,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestKit, TestProbe}
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail.{CustomerRequest, RVGraph, VehicleAndSchedule, _}
 import beam.router.BeamSkimmer
+import beam.utils.DefaultVehicleTypeUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Coord
@@ -144,8 +145,8 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
     implicit skimmer: BeamSkimmer,
     mockActorRef: ActorRef
   ): (List[VehicleAndSchedule], List[CustomerRequest]) = {
-    val v1: VehicleAndSchedule = createVehicleAndSchedule("v1", new Coord(5000, 5000), seconds(8, 0))
-    val v2: VehicleAndSchedule = createVehicleAndSchedule("v2", new Coord(2000, 2000), seconds(8, 0))
+    val v1: VehicleAndSchedule = createVehicleAndSchedule("v1", DefaultVehicleTypeUtils.defaultCarBeamVehicleType, new Coord(5000, 5000), seconds(8, 0))
+    val v2: VehicleAndSchedule = createVehicleAndSchedule("v2", DefaultVehicleTypeUtils.defaultCarBeamVehicleType, new Coord(2000, 2000), seconds(8, 0))
     val p1Req: CustomerRequest =
       createPersonRequest(makeVehPersonId("p1"), new Coord(1000, 2000), seconds(8, 0), new Coord(18000, 19000))
     val p4Req: CustomerRequest =

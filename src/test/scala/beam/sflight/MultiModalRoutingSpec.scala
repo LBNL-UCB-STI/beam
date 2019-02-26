@@ -5,6 +5,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.{BeamRouter, Modes}
+import beam.utils.DefaultVehicleTypeUtils
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.language.postfixOps
@@ -27,7 +28,7 @@ class MultiModalRoutingSpec extends AbstractSfLightSpec("MultiModalRoutingSpec")
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
-            BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+            DefaultVehicleTypeUtils.defaultHumanBodyBeamVehicleType.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true

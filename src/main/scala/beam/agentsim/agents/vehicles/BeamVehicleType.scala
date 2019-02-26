@@ -1,8 +1,7 @@
 package beam.agentsim.agents.vehicles
 
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType._
-import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car, MediumDutyPassenger, VehicleCategory}
+import beam.agentsim.agents.vehicles.VehicleCategory.{Car, VehicleCategory}
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
@@ -34,51 +33,6 @@ case class BeamVehicleType(
 )
 
 object BeamVehicleType {
-
-  // Consumption rate: https://www.brianmac.co.uk/energyexp.htm
-  // 400 calories/hour == 400k J/hr @ 7km/hr or 2m/s == 55 J/m
-  // Alternative: https://www.verywellfit.com/walking-calories-burned-by-miles-3887154
-  // 85 calories / mile == 85k J/mi or 53 J/m
-  // Assume walking a marathon is max per day
-  val defaultHumanBodyBeamVehicleType: BeamVehicleType =
-    BeamVehicleType(
-      Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
-      0,
-      0,
-      0.5,
-      Food,
-      53,
-      2.21e6,
-      vehicleCategory = Body
-    )
-
-  val powerTrainForHumanBody: Powertrain = new Powertrain(
-    BeamVehicleType.defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter
-  )
-
-  // Transit default based on Diesel Bus
-  val defaultTransitBeamVehicleType: BeamVehicleType =
-    BeamVehicleType(
-      Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
-      50,
-      50,
-      10,
-      Diesel,
-      25829.7,
-      30000000000.0,
-      vehicleCategory = MediumDutyPassenger
-    )
-
-  val defaultCarBeamVehicleType: BeamVehicleType = BeamVehicleType(
-    Id.create("CAR-TYPE-DEFAULT", classOf[BeamVehicleType]),
-    4,
-    0,
-    4.5,
-    Gasoline,
-    3656.0,
-    3655980000.0,
-    vehicleCategory = Car
-  )
 
   def isHumanVehicle(beamVehicleId: Id[Vehicle]): Boolean =
     beamVehicleId.toString.startsWith("body")

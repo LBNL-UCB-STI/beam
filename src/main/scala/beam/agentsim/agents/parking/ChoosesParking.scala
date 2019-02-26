@@ -18,6 +18,7 @@ import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.model.{BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.R5RoutingWorker
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 
 import scala.concurrent.duration.Duration
@@ -178,7 +179,7 @@ trait ChoosesParking extends {
           EmbodiedBeamLeg(
             nextLeg,
             data.currentVehicle.head,
-            BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+            Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             true,
             0.0,
             true
