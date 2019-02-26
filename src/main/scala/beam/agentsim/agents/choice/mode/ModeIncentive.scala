@@ -2,24 +2,23 @@ package beam.agentsim.agents.choice.mode
 
 import java.io.FileNotFoundException
 import java.nio.file.{Files, Paths}
-import java.util.NoSuchElementException
 
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.router.Modes.BeamMode
 import beam.sim.common._
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.logging.ExponentialLazyLogging
 import com.typesafe.scalalogging.LazyLogging
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
 import scala.util.Try
 
-case class ModeIncentive(modeIncentives: Map[BeamMode, List[Incentive]]) extends LazyLogging{
+case class ModeIncentive(modeIncentives: Map[BeamMode, List[Incentive]]) extends LazyLogging {
 
   def computeIncentive(attributesOfIndividual: AttributesOfIndividual, mode: BeamMode): Double = {
     val incentive: Double =
-      // incentive for non-public transport
+    // incentive for non-public transport
       getIncentive(
         mode,
         attributesOfIndividual.age,
@@ -59,18 +58,23 @@ object ModeIncentive {
   case class Incentive(mode: BeamMode, age: Range, income: Range, amount: Double)
 
   object Incentive {
+    private val logger = LoggerFactory.getLogger(this.getClass)
 
     def apply(mode: String, age: String, income: String, amount: String): Incentive = new Incentive(
-      if(BeamMode.withValueOpt(mode).isEmpty){
-        throw new NoSuchElementException("Validation error: travel mode %s not found in BEAM!".format(mode))
-
+      if (BeamMode.withValueOpt(mode).isEmpty) {
+        logger.error("ValueError: Mode %s us not a supported BEAM mode!".format(mode))
+        System.exit(1)
+        throw new RuntimeException()
       }
       else if (mode.equals("OnDemand_ride")) {
         BeamMode.RIDE_HAIL
-      } else { BeamMode.fromString(mode).get },
+      } else {
+        BeamMode.fromString(mode).get
+      },
       Range(age),
       Range(income),
       Try(amount.toDouble).getOrElse(0D)
     )
   }
+
 }
