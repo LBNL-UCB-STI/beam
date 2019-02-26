@@ -17,6 +17,7 @@ import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.immutable.{List, Map}
+import scala.collection.mutable
 
 class HouseholdCAVScheduling(
   val scenario: org.matsim.api.core.v01.Scenario,
@@ -44,8 +45,7 @@ class HouseholdCAVScheduling(
     if (householdRequests.requests.isEmpty || cavVehicles.isEmpty)
       return List[CAVFleetSchedule]()
 
-    import scala.collection.mutable.{ListBuffer => MListBuffer}
-    val emptyFleetSchedule = MListBuffer.empty[CAVSchedule]
+    val emptyFleetSchedule = mutable.ListBuffer.empty[CAVSchedule]
     cavVehicles.foldLeft(householdRequests.requests.head) {
       case (req, cav) =>
         emptyFleetSchedule.prepend(
@@ -70,7 +70,7 @@ class HouseholdCAVScheduling(
     // compute all the feasible schedules through
     var feasibleSchedulesOut = List.empty[CAVFleetSchedule]
     val feasibleSchedules =
-      MListBuffer[CAVFleetSchedule](CAVFleetSchedule(emptyFleetSchedule.toList, householdRequests))
+      mutable.ListBuffer[CAVFleetSchedule](CAVFleetSchedule(emptyFleetSchedule.toList, householdRequests))
     for (request <- householdRequests.requests; schedule <- feasibleSchedules) {
       val (newSchedule, feasible) = schedule.check(request, skim)
       if (!feasible) feasibleSchedules -= schedule
