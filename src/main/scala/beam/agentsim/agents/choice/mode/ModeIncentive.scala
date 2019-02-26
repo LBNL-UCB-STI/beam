@@ -62,7 +62,7 @@ object ModeIncentive {
 
     def apply(mode: String, age: String, income: String, amount: String): Incentive = new Incentive(
       if (BeamMode.withValueOpt(mode).isEmpty) {
-        logger.error("ValueError: Mode %s us not a supported BEAM mode!".format(mode))
+        logger.error("ValueError: Mode %s is not a supported BEAM mode!".format(mode))
         System.exit(1)
         throw new RuntimeException()
       }
