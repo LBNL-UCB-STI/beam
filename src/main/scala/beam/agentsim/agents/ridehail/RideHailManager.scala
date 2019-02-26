@@ -257,6 +257,7 @@ class RideHailManager(
   val rideHailNetworkApi: RideHailNetworkAPI = new RideHailNetworkAPI()
   val processBufferedRequestsOnTimeout = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0
 
+  val quadTreeBounds: QuadTreeBounds = getQuadTreeBound(scenario.getPopulation)
   private val rideHailResourceAllocationManager = RideHailResourceAllocationManager(
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name,
     this
@@ -303,7 +304,6 @@ class RideHailManager(
 
   private val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   private val rideHailinitialLocationSpatialPlot = new SpatialPlot(1100, 1100, 50)
-  val quadTreeBounds: QuadTreeBounds = getQuadTreeBound(scenario.getPopulation)
   val resources: mutable.Map[Id[BeamVehicle], BeamVehicle] = mutable.Map[Id[BeamVehicle], BeamVehicle]()
 
   beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.initType match {
