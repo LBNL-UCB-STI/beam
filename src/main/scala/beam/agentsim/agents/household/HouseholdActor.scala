@@ -14,11 +14,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Vehicle
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.agents.ridehail.RideHailAgent.{
-  ModifyPassengerSchedule,
-  ModifyPassengerScheduleAck,
-  ModifyPassengerScheduleAcks
-}
+import beam.agentsim.agents.ridehail.RideHailAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck, ModifyPassengerScheduleAcks}
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
 import beam.agentsim.agents.{HasTickAndTrigger, InitializeTrigger, PersonAgent}
@@ -41,6 +37,7 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.households
 import org.matsim.households.Household
 
+import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
 object HouseholdActor {
@@ -156,7 +153,7 @@ object HouseholdActor {
     private var memberVehiclePersonIds: Map[Id[Person], VehiclePersonId] = Map()
 
     // Data need to execute CAV dispatch
-    private var cavPlans: List[CAVSchedule] = List()
+    private val cavPlans: mutable.ListBuffer[CAVSchedule] = mutable.ListBuffer()
     private var cavPassengerSchedules: Map[BeamVehicle, PassengerSchedule] = Map()
     private var personAndActivityToCav: Map[(Id[Person], Activity), BeamVehicle] = Map()
     private var personAndActivityToLegs: Map[(Id[Person], Activity), List[BeamLeg]] = Map()
@@ -225,7 +222,7 @@ object HouseholdActor {
             val routingRequests = requestsAndUpdatedPlans.map {
               _._1.flatten
             }.flatten
-            cavPlans = requestsAndUpdatedPlans.map(_._2)
+            cavPlans ++= requestsAndUpdatedPlans.map(_._2)
             val memberMap = household.members.map(person => (person.getId -> person)).toMap
             cavPlans.foreach { plan =>
               personAndActivityToCav = personAndActivityToCav ++ (plan.schedule
@@ -310,7 +307,7 @@ object HouseholdActor {
             "Failed CAV routing responses for household {} aborting use of CAVs for this house.",
             household.getId
           )
-          cavPlans = List()
+          cavPlans.clear()
           personAndActivityToLegs = Map()
           personAndActivityToCav = Map()
           val (_, triggerId) = releaseTickAndTriggerId()
