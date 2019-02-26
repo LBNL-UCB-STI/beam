@@ -1099,7 +1099,12 @@ class RideHailManager(
     val coordinates = activities.map(_.getCoord)
     val xs = coordinates.map(_.getX)
     val ys = coordinates.map(_.getY)
-    QuadTreeBounds(xs.min, ys.min, xs.max, ys.max)
+    QuadTreeBounds(
+      xs.min - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
+      ys.min - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
+      xs.max + beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
+      ys.max + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
+    )
   }
 
   def cleanUp = {
