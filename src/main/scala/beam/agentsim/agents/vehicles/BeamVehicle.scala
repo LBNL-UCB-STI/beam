@@ -4,12 +4,14 @@ import akka.actor.ActorRef
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPoint
 import beam.router.Modes
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, WALK}
 import beam.router.model.BeamLeg
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
@@ -45,6 +47,8 @@ class BeamVehicle(
   var spaceTime: SpaceTime = _
 
   var fuelLevelInJoules = beamVehicleType.primaryFuelCapacityInJoule
+
+  var mustBeDrivenHome: Boolean = false
 
   /**
     * The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
@@ -152,9 +156,23 @@ class BeamVehicle(
       stall
     )
 
-  def toStreetVehicle: StreetVehicle =
-    StreetVehicle(id, beamVehicleType.id, spaceTime, BeamMode.CAR, true)
+  def toStreetVehicle: StreetVehicle = {
+    val mode = beamVehicleType.vehicleCategory match {
+      case Bike =>
+        BIKE
+      case Car if isCAV =>
+        CAV
+      case Car =>
+        CAR
+      case Body =>
+        WALK
+    }
+    StreetVehicle(id, beamVehicleType.id, spaceTime, mode, true)
+  }
 
+  def isCAV: Boolean = beamVehicleType.automationLevel > 3
+
+  override def toString = s"$id ($beamVehicleType.id)"
 }
 
 object BeamVehicle {

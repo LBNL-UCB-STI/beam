@@ -11,20 +11,26 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeIncentive
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
-import beam.agentsim.agents.household.HouseholdActor.{HouseholdActor, MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
+import beam.agentsim.agents.household.HouseholdActor.{
+  HouseholdActor,
+  MobilityStatusInquiry,
+  MobilityStatusResponse,
+  ReleaseVehicle
+}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
-import beam.agentsim.infrastructure.TrivialParkingManager
-import beam.agentsim.infrastructure.taz.TAZTreeMap
+import beam.agentsim.infrastructure.ParkingStall.NoNeed
+import beam.agentsim.infrastructure.{TAZTreeMap, TrivialParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
+import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
@@ -36,7 +42,7 @@ import beam.utils.{NetworkHelperImpl, StuckFinder}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.TeleportationArrivalEvent
 import org.matsim.core.api.internal.HasPersonId
@@ -53,7 +59,8 @@ import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.mutable.ListBuffer
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.ExecutionContext
 
 class PersonWithVehicleSharingSpec
@@ -114,6 +121,12 @@ class PersonWithVehicleSharingSpec
     override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
 
     override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0D
+
+    override def computeAllDayUtility(
+      trips: ListBuffer[EmbodiedBeamTrip],
+      person: Person,
+      attributesOfIndividual: AttributesOfIndividual
+    ): Double = 0.0
   }
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
@@ -176,7 +189,8 @@ class PersonWithVehicleSharingSpec
             household,
             Map(),
             new Coord(0.0, 0.0),
-            sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref)
+            sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
+            new RouteHistory()
           )
         )
       )
@@ -185,7 +199,7 @@ class PersonWithVehicleSharingSpec
 
       // The agent will ask me for vehicles it can use,
       // since I am the manager of a shared vehicle fleet.
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28800)))
+      mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
 
       // I give it a car to use.
       val vehicle = new BeamVehicle(
@@ -259,8 +273,6 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[PersonArrivalEvent]
       events.expectMsgType[ActivityStartEvent]
 
-      householdActor ! Finish
-
       expectMsgType[CompletionNotice]
     }
 
@@ -278,7 +290,8 @@ class PersonWithVehicleSharingSpec
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
 
-      val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), vehicleId, withRoute = false)
+      val person: Person =
+        createTestPerson(Id.createPersonId("dummyAgent"), vehicleId, withRoute = false, returnTrip = true)
       population.addPerson(person)
 
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
@@ -317,7 +330,8 @@ class PersonWithVehicleSharingSpec
             household,
             Map(),
             new Coord(0.0, 0.0),
-            sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref)
+            sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
+            new RouteHistory()
           )
         )
       )
@@ -326,7 +340,7 @@ class PersonWithVehicleSharingSpec
 
       // The agent will ask me for vehicles it can use,
       // since I am the manager of a shared vehicle fleet.
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28800)))
+      mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
 
       // I give it a car to use.
       val vehicle = new BeamVehicle(
@@ -430,7 +444,7 @@ class PersonWithVehicleSharingSpec
       events.expectMsgType[ActivityStartEvent]
 
       // Agent will ask about the car (will not take it for granted that it is there)
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.01, 0.01, 61200)))
+      mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
       // I give it a _different_ car to use.
       val vehicle2 = new BeamVehicle(
         vehicleId,
@@ -447,7 +461,6 @@ class PersonWithVehicleSharingSpec
         } pipeTo mockSharedVehicleFleet.lastSender
 
       val routingRequest2 = mockRouter.expectMsgType[RoutingRequest]
-      println(routingRequest2)
       mockRouter.lastSender ! RoutingResponse(
         itineraries = Vector(
           EmbodiedBeamTrip(
@@ -557,13 +570,14 @@ class PersonWithVehicleSharingSpec
           household,
           Map(),
           new Coord(0.0, 0.0),
-          Vector(mockSharedVehicleFleet.ref)
+          Vector(mockSharedVehicleFleet.ref),
+          new RouteHistory()
         )
       )
 
       scheduler ! StartSchedule(0)
 
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28800)))
+      mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
         .collect {
           case ParkingInquiryResponse(stall, _) =>
@@ -602,7 +616,7 @@ class PersonWithVehicleSharingSpec
       // car
       person1EntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
-      mockSharedVehicleFleet.expectMsg(MobilityStatusInquiry(SpaceTime(0.0, 0.0, 28820)))
+      mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(
         Vector(Token(car1.id, car1.manager.get, car1.toStreetVehicle))
       )
@@ -637,7 +651,7 @@ class PersonWithVehicleSharingSpec
       person2EntersVehicleEvents.expectNoMessage()
 
       mockSharedVehicleFleet.expectMsgPF() {
-        case MobilityStatusInquiry(SpaceTime(_, 28820)) =>
+        case MobilityStatusInquiry(_, SpaceTime(_, 28820), _) =>
       }
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector())
 
@@ -664,8 +678,6 @@ class PersonWithVehicleSharingSpec
           )
       }
 
-      expectNoMessage() // TODO: Remove this and observe a race condition -- scheduler doesn't clear triggers
-      householdAgent ! Finish // Not interested in the rest of the day
       expectMsgType[CompletionNotice]
     }
 
@@ -675,7 +687,8 @@ class PersonWithVehicleSharingSpec
     personId: Id[Person],
     vehicleId: Id[Vehicle],
     departureTimeOffset: Int = 0,
-    withRoute: Boolean = true
+    withRoute: Boolean = true,
+    returnTrip: Boolean = false,
   ) = {
     val person = PopulationUtils.getFactory.createPerson(personId)
     putDefaultBeamAttributes(person, Vector(CAR, WALK))
@@ -698,19 +711,21 @@ class PersonWithVehicleSharingSpec
     workActivity.setEndTime(61200) //5:00:00 PM
     workActivity.setCoord(new Coord(0.01, 0.01))
     plan.addActivity(workActivity)
-    val leg2 = PopulationUtils.createLeg("car")
-    if (withRoute) {
-      val route = RouteUtils.createLinkNetworkRouteImpl(
-        Id.createLinkId(2),
-        Array(Id.createLinkId(1)),
-        Id.createLinkId(0)
-      )
-      leg2.setRoute(route)
+    if (returnTrip) {
+      val leg2 = PopulationUtils.createLeg("car")
+      if (withRoute) {
+        val route = RouteUtils.createLinkNetworkRouteImpl(
+          Id.createLinkId(2),
+          Array(Id.createLinkId(1)),
+          Id.createLinkId(0)
+        )
+        leg2.setRoute(route)
+      }
+      plan.addLeg(leg2)
+      val homeActivity2 = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
+      homeActivity2.setCoord(new Coord(0.0, 0.0))
+      plan.addActivity(homeActivity2)
     }
-    plan.addLeg(leg2)
-    val homeActivity2 = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
-    homeActivity2.setCoord(new Coord(0.0, 0.0))
-    plan.addActivity(homeActivity2)
     person.addPlan(plan)
     person
   }
@@ -720,7 +735,7 @@ class PersonWithVehicleSharingSpec
     whenWhere.loc,
     "wherever",
     AttributesOfIndividual.EMPTY,
-    None,
+    NoNeed,
     0,
     0
   )

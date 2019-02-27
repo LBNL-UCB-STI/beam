@@ -5,7 +5,7 @@ import akka.actor.{ActorRef, FSM, Props, Stash}
 import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicle
+import beam.agentsim.agents.household.HouseholdActor.{CAVPickupConfirmed, ReadyForCAVPickup, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
@@ -13,6 +13,7 @@ import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail._
+import beam.agentsim.agents.vehicles.VehicleCategory.Bike
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
 import beam.agentsim.events.resources.ReservationError
@@ -21,7 +22,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTrig
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, CAV, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
@@ -31,7 +32,6 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
-import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
 import scala.concurrent.duration._
@@ -53,7 +53,7 @@ object PersonAgent {
     parkingManager: ActorRef,
     eventsManager: EventsManager,
     personId: Id[PersonAgent],
-    household: Household,
+    householdRef: ActorRef,
     plan: Plan,
     sharedVehicleFleets: Seq[ActorRef]
   ): Props = {
@@ -70,6 +70,7 @@ object PersonAgent {
         plan,
         parkingManager,
         tollCalculator,
+        householdRef,
         sharedVehicleFleets
       )
     )
@@ -172,6 +173,7 @@ object PersonAgent {
 
   case object DrivingInterrupted extends Traveling
 
+  def bodyVehicleIdFromPersonID(id: Id[Person]) = BeamVehicle.createId(id, Some("body"))
 }
 
 class PersonAgent(
@@ -186,14 +188,15 @@ class PersonAgent(
   val matsimPlan: Plan,
   val parkingManager: ActorRef,
   val tollCalculator: TollCalculator,
-  val sharedVehicleFleets: Seq[ActorRef] = Vector()
+  val householdRef: ActorRef,
+  val vehicleFleets: Seq[ActorRef] = Vector()
 ) extends DrivesVehicle[PersonData]
     with ChoosesMode
     with ChoosesParking
     with Stash {
 
   val body = new BeamVehicle(
-    BeamVehicle.createId(id, Some("body")),
+    bodyVehicleIdFromPersonID(id),
     BeamVehicleType.powerTrainForHumanBody,
     BeamVehicleType.defaultHumanBodyBeamVehicleType
   )
@@ -209,6 +212,10 @@ class PersonAgent(
 
   val myUnhandled: StateFunction = {
     case Event(TriggerWithId(BoardVehicleTrigger(_, _), _), _) =>
+      log.debug("Person {} stashing BoardVehicleTrigger in state {}", id, stateName)
+      if (stateName.toString.equals("WaitingForReservationConfirmation")) {
+        val i = 0
+      }
       stash()
       stay
     case Event(TriggerWithId(AlightVehicleTrigger(_, _), _), _) =>
@@ -216,6 +223,8 @@ class PersonAgent(
       stay
     case Event(NotifyVehicleIdle(_, _, _, _, _), _) =>
       stay()
+    case Event(RideHailResponse(request, travelProposal, error, triggersToSchedule), _) =>
+      stop(Failure("Unexpected RideHailResponse"))
     case Event(ParkingInquiryResponse(_, _), _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))
     case Event(IllegalTriggerGoToError(reason), _) =>
@@ -289,18 +298,23 @@ class PersonAgent(
         case Some(nextAct) =>
           logDebug(s"wants to go to ${nextAct.getType} @ $tick")
           holdTickAndTriggerId(tick, triggerId)
+          val modeOfNextLeg = _experiencedBeamPlan.getPlanElements
+            .get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
+            case leg: Leg =>
+              BeamMode.fromString(leg.getMode)
+            case _ => None
+          }
           goto(ChoosingMode) using ChoosesModeData(
             personData = data.copy(
+              // If the mode of the next leg is defined and is CAV, use it, otherwise,
               // If we don't have a current tour mode (i.e. are not on a tour aka at home),
               // use the mode of the next leg as the new tour mode.
-              currentTourMode = data.currentTourMode.orElse(
-                _experiencedBeamPlan.getPlanElements
-                  .get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
-                  case leg: Leg =>
-                    BeamMode.fromString(leg.getMode)
-                  case _ => None
-                }
-              ),
+              currentTourMode = modeOfNextLeg match {
+                case Some(CAV) =>
+                  Some(CAV)
+                case _ =>
+                  data.currentTourMode.orElse(modeOfNextLeg)
+              },
               numberOfReplanningAttempts = 0
             ),
             SpaceTime(currentActivity(data).getCoord, _currentTick.get)
@@ -317,6 +331,9 @@ class PersonAgent(
         TriggerWithId(PersonDepartureTrigger(tick), triggerId),
         data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false, _, _)
         ) =>
+      if (id.toString.equals("033000-2014000265406-3-6294822")) {
+        val i = 0
+      }
       // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
       // hail a ride. We stay at the party until our Uber is there.
       eventsManager.processEvent(
@@ -414,6 +431,9 @@ class PersonAgent(
         data @ BasePersonData(_, _, _, _, _, _, _, _, _, _, _)
         ) =>
       handleFailedRideHailReservation(error, response, data)
+    // CAV Pickup SUCCESS
+    case Event(CAVPickupConfirmed(triggersToSchedule), data: BasePersonData) =>
+      handleSuccessfulReservation(triggersToSchedule, data)
   }
 
   when(Waiting) {
@@ -493,8 +513,10 @@ class PersonAgent(
           new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), data.currentVehicle.head)
         )
         if (currentBeamVehicle != body) {
-          assert(currentBeamVehicle.stall.isDefined)
-          if (!mustBeDrivenHome(currentBeamVehicle)) {
+          if (currentBeamVehicle.beamVehicleType.vehicleCategory != Bike) {
+            assert(currentBeamVehicle.stall.isDefined)
+          }
+          if (!currentBeamVehicle.mustBeDrivenHome) {
             // Is a shared vehicle. Give it up.
             currentBeamVehicle.manager.get ! ReleaseVehicle(currentBeamVehicle)
             beamVehicles -= data.currentVehicle.head
@@ -621,7 +643,7 @@ class PersonAgent(
         goto(stateToGo) using data.copy(
           passengerSchedule = newPassengerSchedule,
           currentLegPassengerScheduleIndex = 0,
-          currentVehicle = currentVehicleForNextState,
+          currentVehicle = currentVehicleForNextState
         )
       }
       nextState
@@ -680,7 +702,6 @@ class PersonAgent(
           legSegment.last.beamLeg.travelPath.endPoint.loc
         )
       )
-
       goto(WaitingForReservationConfirmation)
     case Event(StateTimeout, BasePersonData(_, _, _ :: _, _, _, _, _, _, _, _, _)) =>
       val (_, triggerId) = releaseTickAndTriggerId()
@@ -759,6 +780,9 @@ class PersonAgent(
             triggerId,
             Vector(ScheduleTrigger(ActivityEndTrigger(endTime.toInt), self))
           )
+          if (id.toString.equals("2")) {
+            val i = 0
+          }
           goto(PerformingActivity) using data.copy(
             currentActivityIndex = currentActivityIndex + 1,
             currentTrip = None,
