@@ -20,21 +20,23 @@ class AnchorEndTimeMutator @Inject()(beamConfig: BeamConfig) extends PlansStrate
   override def run(person: HasPlansAndId[Plan, Person]): Unit = {
 
     //store the existing state of the selected plans for the person
-    if (!isPlanAlreadyStored(person.getId.toString)) {
-      storeOriginalSelectedPlan(person.getId.toString, person.getSelectedPlan)
+    if (!isEndTimesAlreadyStored(person.getId.toString)) {
+      storeActivitiesOriginalEndTime(person.getId.toString, person.getSelectedPlan)
     }
-
-    val planElements: mutable.Seq[PlanElement] = person.getSelectedPlan.getPlanElements.asScala
 
     // A random value to the added to the existing activity end times
     val randomRange = beamConfig.beam.replanning.anchorEndTimeMutator.mutation.range * (Random.nextDouble() - 0.5)
 
+    val originalEndTimes = getActivitiesOriginalEndTime(person.getId.toString)
+
     //For each activity in the selected plan update the activity end time to the new interval based on the random range
-    planElements foreach {
-      case activity: Activity =>
-        val originalEndTime = activity.getEndTime
-        activity.setEndTime(originalEndTime + randomRange)
-      case _ =>
+    (person.getSelectedPlan.getPlanElements.asScala zipWithIndex) foreach { elementWithIndex =>
+      val (element,index) = elementWithIndex
+      element match {
+        case activity: Activity =>
+          activity.setEndTime(originalEndTimes(index) + randomRange)
+        case _ =>
+      }
     }
 
     ReplanningUtil.makeExperiencedMobSimCompatible(person)
@@ -49,21 +51,28 @@ class AnchorEndTimeMutator @Inject()(beamConfig: BeamConfig) extends PlansStrate
 object AnchorEndTimeMutator {
 
   // A map that temporarily stores the original state of the selected plans for a given person
-  private val personSelectedPlans: mutable.HashMap[String, Plan] = mutable.HashMap.empty
+  private val personSelectedPlans: mutable.HashMap[String, Seq[Double]] = mutable.HashMap.empty
 
   // Stores the given person's original selected plan into the map
-  def storeOriginalSelectedPlan(personId: String, plan: Plan): Option[Plan] = {
-    personSelectedPlans.put(personId, plan)
+  def storeActivitiesOriginalEndTime(personId: String, plan: Plan): Unit = {
+    val planElements: mutable.Seq[PlanElement] = plan.getPlanElements.asScala
+    val endTimes: mutable.Seq[Double] = planElements flatMap {
+      case activity: Activity =>
+       Some(activity.getEndTime)
+      case _ =>
+      None
+    }
+    personSelectedPlans.put(personId,endTimes)
   }
 
   // Checks if the original selected plan is already stored for the person
-  def isPlanAlreadyStored(personId: String): Boolean = {
+  def isEndTimesAlreadyStored(personId: String): Boolean = {
     personSelectedPlans.contains(personId)
   }
 
   // Gets original selected plans of all the people
-  def getOriginalSelectedPlans: mutable.HashMap[String, Plan] = {
-    this.personSelectedPlans
+  def getActivitiesOriginalEndTime(personId: String): Seq[Double] = {
+    this.personSelectedPlans.getOrElse(personId,Seq.empty)
   }
 
   def reset(): Unit = {
