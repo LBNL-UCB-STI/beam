@@ -113,6 +113,27 @@ The simplest, smallest, and fastest is the beamville scenario (described below).
 
   ./gradlew :run -PappArgs="['--config', 'test/input/beamville/beam.conf']"
 
+
+The BEAM application by default sets max RAM allocation to 140g (see **maxRAM** setting in gradle.properties). This needs to
+be adjusted based on the available memory on your system.
+
+The max allocatable RAM value can be overriden by setting the an environment variable **MAXRAM** to the required value.
+
+On Ubuntu , the env variable can be set using the below command :
+
+.. code-block:: bash
+
+    export MAXRAM=10g
+
+where 10g = 10GB
+
+Similarly on windows it can be set using the below command :
+
+.. code-block:: bash
+
+    setx MAXRAM="10g"
+
+
 The outputs are written to the 'output' directory, should see results appear in a sub-folder called "beamville_%DATE_TIME%".
 
 Optionally you can also run BEAM from your favourite IDE . Check the below section on how to configure and run BEAM using Intellij IDEA.
