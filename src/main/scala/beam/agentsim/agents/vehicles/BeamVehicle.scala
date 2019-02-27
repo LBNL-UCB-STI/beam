@@ -4,18 +4,20 @@ import akka.actor.ActorRef
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.ParkingStall.ChargingType
 import beam.router.Modes
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, WALK}
 import beam.router.model.BeamLeg
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import beam.sim.common.GeoUtils.{Straight, TurningDirection}
 import beam.utils.NetworkHelper
-import com.typesafe.scalalogging.StrictLogging
+import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.vehicles.Vehicle
@@ -38,13 +40,15 @@ class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
   val beamVehicleType: BeamVehicleType
-) extends StrictLogging {
+) extends ExponentialLazyLogging {
 
   var manager: Option[ActorRef] = None
 
   var spaceTime: SpaceTime = _
 
   var fuelLevelInJoules = beamVehicleType.primaryFuelCapacityInJoule
+
+  var mustBeDrivenHome: Boolean = false
 
   /**
     * The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
@@ -147,9 +151,23 @@ class BeamVehicle(
       stall
     )
 
-  def toStreetVehicle: StreetVehicle =
-    StreetVehicle(id, beamVehicleType.id, spaceTime, BeamMode.CAR, true)
+  def toStreetVehicle: StreetVehicle = {
+    val mode = beamVehicleType.vehicleCategory match {
+      case Bike =>
+        BIKE
+      case Car if isCAV =>
+        CAV
+      case Car =>
+        CAR
+      case Body =>
+        WALK
+    }
+    StreetVehicle(id, beamVehicleType.id, spaceTime, mode, true)
+  }
 
+  def isCAV: Boolean = beamVehicleType.automationLevel > 3
+
+  override def toString = s"$id ($beamVehicleType.id)"
 }
 
 object BeamVehicle {
