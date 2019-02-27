@@ -232,7 +232,7 @@ class BeamAgentScheduler(
         })
 
     case Monitor =>
-      if (log.isDebugEnabled) {
+      if (beamConfig.beam.debug.debugEnabled) {
         val logStr =
           s"""
              |\tnowInSeconds=$nowInSeconds
@@ -240,8 +240,8 @@ class BeamAgentScheduler(
              |\ttriggerQueue.size=${triggerQueue.size}
              |\ttriggerQueue.head=${Option(triggerQueue.peek())}
              |\tawaitingResponse.head=$awaitingToString""".stripMargin
-        log.debug(logStr)
-        awaitingResponse.values().forEach(x => log.debug("awaitingResponse:" + x.toString))
+        log.info(logStr)
+        awaitingResponse.values().asScala.take(10).foreach(x => log.info("awaitingResponse:" + x.toString))
       }
 
     case SkipOverBadActors =>
