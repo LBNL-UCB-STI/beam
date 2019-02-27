@@ -38,7 +38,6 @@ object FailFast extends LazyLogging {
     }
 
     val vehicleTypeId = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId
-
     val vehicleTypes = {
       TrieMap(
         readBeamVehicleTypeFile(beamServices.beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, null).toList: _*
