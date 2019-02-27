@@ -2,6 +2,7 @@ package beam.sim.common
 
 import beam.agentsim.events.SpaceTime
 import beam.sim.config.BeamConfig
+import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.{Split, StreetLayer}
 import com.google.inject.{ImplementedBy, Inject}
@@ -15,7 +16,7 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
   */
 
 @ImplementedBy(classOf[GeoUtilsImpl])
-trait GeoUtils {
+trait GeoUtils extends ExponentialLazyLogging{
 
   def localCRS: String
 
