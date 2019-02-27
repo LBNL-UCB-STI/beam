@@ -4,7 +4,6 @@ import beam.agentsim.events.PathTraversalEvent;
 import com.google.common.base.CaseFormat;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
-import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
 import java.io.IOException;
@@ -28,7 +27,7 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
     }
 
     @Override
-    public void collectEvent(Event event, Map<String, String> attributes) {
+    public void collectEvent(PathTraversalEvent event) {
 
         eventCounter++;
 
@@ -36,7 +35,7 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
         maxHour = maxHour < h ? h : maxHour;
 
 
-        Integer numPassengers = Integer.parseInt(attributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
+        Integer numPassengers = event.numberOfPassengers();
 
         Map<Integer, Integer> eventFrequencyBin = numPassengerToEventFrequencyBin.get(numPassengers);
         if(eventFrequencyBin == null){
