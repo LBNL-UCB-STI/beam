@@ -125,7 +125,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         spatialPoolCustomerReqs.put(d.pickup.activity.getCoord.getX, d.pickup.activity.getCoord.getY, d)
       }
 
-      logger.info("Num custs: {} num vehs: {}", spatialPoolCustomerReqs.size(), availVehicles.size)
+//      logger.info("Num custs: {} num vehs: {}", spatialPoolCustomerReqs.size(), availVehicles.size)
       val algo = new AsyncAlonsoMoraAlgForRideHail(
         spatialPoolCustomerReqs,
         availVehicles.toList,
@@ -136,17 +136,19 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val assignment = try {
         Await.result(algo.greedyAssignment(), atMost = 2.minutes)
       } catch {
-        case e: TimeoutException => // whatever you want to do.
-          logger.error("timeout of AsyncAlonsoMoraAlgForRideHail falling back to synchronous")
-          val algo = new AlonsoMoraPoolingAlgForRideHail(
-            spatialPoolCustomerReqs,
-            availVehicles.toList,
-            Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
-            maxRequestsPerVehicle = 100
-          )
-          val rvGraph: RVGraph = algo.pairwiseRVGraph
-          val rtvGraph = algo.rTVGraph(rvGraph)
-          algo.greedyAssignment(rtvGraph)
+        case e: TimeoutException =>
+//          logger.error("timeout of AsyncAlonsoMoraAlgForRideHail falling back to synchronous")
+//          val algo = new AlonsoMoraPoolingAlgForRideHail(
+//            spatialPoolCustomerReqs,
+//            availVehicles.toList,
+//            Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+//            maxRequestsPerVehicle = 100
+//          )
+//          val rvGraph: RVGraph = algo.pairwiseRVGraph
+//          val rtvGraph = algo.rTVGraph(rvGraph)
+//          algo.greedyAssignment(rtvGraph)
+          logger.error("timeout of AsyncAlonsoMoraAlgForRideHail no allocations made")
+          List()
       }
 
       assignment.foreach {
