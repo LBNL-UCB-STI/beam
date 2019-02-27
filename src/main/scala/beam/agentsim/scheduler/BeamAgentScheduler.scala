@@ -241,7 +241,7 @@ class BeamAgentScheduler(
              |\ttriggerQueue.head=${Option(triggerQueue.peek())}
              |\tawaitingResponse.head=$awaitingToString""".stripMargin
         log.info(logStr)
-        awaitingResponse.values().asScala.take(100).foreach(x => log.info("awaitingResponse:" + x.toString))
+        awaitingResponse.values().asScala.take(10).foreach(x => log.info("awaitingResponse:" + x.toString))
       }
 
     case SkipOverBadActors =>
