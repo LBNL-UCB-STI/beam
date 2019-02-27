@@ -27,7 +27,12 @@ trait GeoUtils {
   def wgs2Utm(spacetime: SpaceTime): SpaceTime = SpaceTime(wgs2Utm(spacetime.loc), spacetime.time)
 
   def wgs2Utm(coord: Coord): Coord = {
-    wgs2Utm.transform(coord)
+    if (coord.getX < -180 || coord.getX > 180 || coord.getY < -90 || coord.getY > 90) {
+      logger.warn(s"Coordinate does not appear to be in WGS. No conversion will happen: $coord")
+      coord
+    } else {
+      wgs2Utm.transform(coord)
+    }
   }
 
   def wgs2Utm(envelope: Envelope): Envelope = {
