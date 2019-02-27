@@ -1,5 +1,6 @@
 package beam.physsim.jdeqsim.cacc.sim;
 
+import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.RoadCapacityAdjustmentFunction;
 import beam.physsim.jdeqsim.cacc.travelTimeFunctions.TravelTimeFunction;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.core.mobsim.jdeqsim.Scheduler;
@@ -10,7 +11,7 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
     //TODO: where is output, test outputs for change in travel time
     public double CACC;
-    private static TravelTimeFunction travelTimeFunction;
+    private static RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction;
 
 
     public Road(Scheduler scheduler, Link link) {
@@ -20,14 +21,9 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
 
 
-    public static void setTravelTimeFunction(TravelTimeFunction travelTimeFunction) {
-        Road.travelTimeFunction = travelTimeFunction;
+    public static void setRoadCapacityAdjustmentFunction(RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction) {
+        Road.roadCapacityAdjustmentFunction = roadCapacityAdjustmentFunction;
     }
-
-    //TODO: Plot share CACC vs Travel Times, travel time decreases as number of CACC increases
-    //TODO: 100% equal half travel time
-    //TODO: improve code structure, Adding tests and refactoring, test events
-    //
 
     public double getShareCACC() {
 
@@ -47,19 +43,40 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
         double caccShare = getShareCACC();
 
-//        System.out.println("Speed: " + ((this.link.getLength()) / this.getLink().getFreespeed(simTime)));
-//        System.out.println("Cacc Share -> " + caccShare);
+        double nextAvailableTimeForLeavingStreet = getNextAvailableTimeForLeavingStreet(simTime);
 
-        this.noOfCarsPromisedToEnterRoad--;
-        this.carsOnTheRoad.add(vehicle);
+        markCarAsProcessed(vehicle);
 
-        double nextAvailableTimeForLeavingStreet = simTime + travelTimeFunction.calcTravelTime(link, caccShare);
-        this.earliestDepartureTimeOfCar.add(nextAvailableTimeForLeavingStreet);
+        updateEarliestDepartureTimeOfCar(nextAvailableTimeForLeavingStreet);
 
-        if (this.carsOnTheRoad.size() == 1) {
+        if (onlyOneCarRoad()) {
             nextAvailableTimeForLeavingStreet = Math.max(nextAvailableTimeForLeavingStreet,
-                    this.timeOfLastLeavingVehicle + this.inverseOutFlowCapacity);
+                    this.timeOfLastLeavingVehicle + (1/roadCapacityAdjustmentFunction.getCapacityWithCACC(link,caccShare)));
             vehicle.scheduleEndRoadMessage(nextAvailableTimeForLeavingStreet, this);
         }
+
     }
+
+    private boolean onlyOneCarRoad() {
+        return this.carsOnTheRoad.size() == 1;
+    }
+
+
+    private void updateEarliestDepartureTimeOfCar(double nextAvailableTimeForLeavingStreet){
+        this.earliestDepartureTimeOfCar.add(nextAvailableTimeForLeavingStreet);
+    }
+
+    private void markCarAsProcessed(Vehicle vehicle){
+        this.noOfCarsPromisedToEnterRoad--;
+        this.carsOnTheRoad.add(vehicle);
+    }
+
+
+    private double  getNextAvailableTimeForLeavingStreet(double simTime){
+        return simTime + this.link.getLength()
+                / this.link.getFreespeed(simTime);
+    }
+
+
+
 }

@@ -1,5 +1,6 @@
 package beam.physsim.jdeqsim.cacc.sim;
 
+import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.Hao2018CaccRoadCapacityAdjustmentFunction;
 import beam.physsim.jdeqsim.cacc.travelTimeFunctions.TravelTimeFunction;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
@@ -42,7 +43,7 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
 		super(config, scenario, events);
 
 		this.isCACCVehicle = isCACCVehicle;
-		Road.setTravelTimeFunction(travelTimeFunction);
+		Road.setRoadCapacityAdjustmentFunction (new Hao2018CaccRoadCapacityAdjustmentFunction());
 		this.caccShare = caccShare;
 
 		this._events = events;
@@ -51,8 +52,6 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
 		scheduler = new Scheduler(new MessageQueue(), _config.getSimulationEndTime());
 
 		initializeRoads();
-		// TODO: remember which vehicles are cacc or provide from main program
-		// use same for doing analysis on how many vehicles are on network which are caccs
 		initializeVehicles();
 	}
 
@@ -91,8 +90,6 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
 		_events.initProcessing();
 		Timer t = new Timer();
 		t.startTimer();
-
-
 
 		scheduler.startSimulation();
 
