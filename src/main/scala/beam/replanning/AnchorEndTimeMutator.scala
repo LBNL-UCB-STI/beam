@@ -31,7 +31,7 @@ class AnchorEndTimeMutator @Inject()(beamConfig: BeamConfig) extends PlansStrate
 
     //For each activity in the selected plan update the activity end time to the new interval based on the random range
     (person.getSelectedPlan.getPlanElements.asScala zipWithIndex) foreach { elementWithIndex =>
-      val (element,index) = elementWithIndex
+      val (element, index) = elementWithIndex
       element match {
         case activity: Activity =>
           activity.setEndTime(originalEndTimes(index) + randomRange)
@@ -58,11 +58,11 @@ object AnchorEndTimeMutator {
     val planElements: mutable.Seq[PlanElement] = plan.getPlanElements.asScala
     val endTimes: mutable.Seq[Double] = planElements flatMap {
       case activity: Activity =>
-       Some(activity.getEndTime)
+        Some(activity.getEndTime)
       case _ =>
-      None
+        None
     }
-    personSelectedPlans.put(personId,endTimes)
+    personSelectedPlans.put(personId, endTimes)
   }
 
   // Checks if the original selected plan is already stored for the person
@@ -72,7 +72,7 @@ object AnchorEndTimeMutator {
 
   // Gets original selected plans of all the people
   def getActivitiesOriginalEndTime(personId: String): Seq[Double] = {
-    this.personSelectedPlans.getOrElse(personId,Seq.empty)
+    this.personSelectedPlans.getOrElse(personId, Seq.empty)
   }
 
   def reset(): Unit = {
