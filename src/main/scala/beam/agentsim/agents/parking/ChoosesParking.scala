@@ -7,8 +7,8 @@ import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
-import beam.agentsim.agents.vehicles.{BeamVehicleType, PassengerSchedule}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicleType, PassengerSchedule}
 import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
@@ -19,6 +19,7 @@ import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.model.{BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.R5RoutingWorker
 import org.matsim.api.core.v01.Id
+
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 
 import scala.concurrent.duration.Duration
@@ -71,7 +72,7 @@ trait ChoosesParking extends {
       val energyCharge: Double = 0.0 //TODO
       val timeCost: Double = scaleTimeByValueOfTime(0.0)
       val score = calculateScore(distance, stall.cost, energyCharge, timeCost)
-      eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, id, currentBeamVehicle.id))
+      eventsManager.processEvent(LeavingParkingEvent(tick, stall, score, id, currentBeamVehicle.id))
       currentBeamVehicle.unsetParkingStall()
       goto(WaitingToDrive) using data
 
