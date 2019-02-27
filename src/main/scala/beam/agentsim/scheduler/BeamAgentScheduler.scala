@@ -377,7 +377,7 @@ class BeamAgentScheduler(
     if (awaitingResponse.keySet().isEmpty) {
       "empty"
     } else {
-      s"${awaitingResponse.get(awaitingResponse.keySet().first())}"
+      s"${awaitingResponse.get(awaitingResponse.keySet().first()).asScala.take(10)}"
     }
   }
 
