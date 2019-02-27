@@ -12,12 +12,14 @@ trait ScenarioReader {
 
 object ScenarioReader {
 
-  def fixParcelId(rawParcelId: String): String = {
-    if (rawParcelId.indexOf(".") < 0)
-      rawParcelId
-    else
-      rawParcelId.replaceAll("0*$", "").replaceAll("\\.$", "")
-  }
+  def fixParcelId(rawParcelId: String): String = fixId(rawParcelId)
 
-  def fixBuildingId(rawBuildingId: String): String = fixParcelId(rawBuildingId)
+  def fixBuildingId(rawBuildingId: String): String = fixId(rawBuildingId)
+
+  private def fixId(id: String): String = {
+    if (id.indexOf(".") < 0)
+      id
+    else
+      id.replaceAll("0*$", "").replaceAll("\\.$", "")
+  }
 }
