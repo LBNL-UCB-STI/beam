@@ -335,7 +335,7 @@ trait ChoosesMode {
                     nextAct.getCoord
                   )
                   parkingRequestId = requestParkingCost(
-                    beamServices.geo.wgs2Utm(destination.loc),
+                    destination.loc,
                     nextAct.getType,
                     destination.time,
                     nextAct.getEndTime.intValue() - destination.time
