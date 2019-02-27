@@ -12,11 +12,11 @@ object InputType {
   case object Parquet extends InputType
   case object CSV extends InputType
 
-  def apply(`type`: String): InputType = {
-    `type` match {
+  def apply(inputType: String): InputType = {
+    inputType match {
       case "csv"     => CSV
       case "parquet" => Parquet
-      case x         => throw new IllegalStateException(s"There is no map from type '${`type`} to `InputType`")
+      case x         => throw new IllegalStateException(s"There is no map from type '${inputType} to `InputType`")
     }
   }
 }
