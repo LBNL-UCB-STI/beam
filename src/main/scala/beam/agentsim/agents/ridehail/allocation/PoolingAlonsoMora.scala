@@ -13,7 +13,7 @@ import org.matsim.core.utils.collections.QuadTree
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable
-import scala.concurrent.Await
+import scala.concurrent.{Await, TimeoutException}
 
 class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
@@ -125,25 +125,28 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         spatialPoolCustomerReqs.put(d.pickup.activity.getCoord.getX, d.pickup.activity.getCoord.getY, d)
       }
 
-      val assignment = if (availVehicles.size < 100) {
-        val algo = new AlonsoMoraPoolingAlgForRideHail(
-          spatialPoolCustomerReqs,
-          availVehicles.toList,
-          Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
-          maxRequestsPerVehicle = 100
-        )
-        val rvGraph: RVGraph = algo.pairwiseRVGraph
-        val rtvGraph = algo.rTVGraph(rvGraph)
-        algo.greedyAssignment(rtvGraph)
-      } else {
-        val algo = new AsyncAlonsoMoraAlgForRideHail(
-          spatialPoolCustomerReqs,
-          availVehicles.toList,
-          Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
-          maxRequestsPerVehicle = 100
-        )
-        import scala.concurrent.duration._
+      logger.info("Num custs: {} num vehs: {}", spatialPoolCustomerReqs.size(), availVehicles.size)
+      val algo = new AsyncAlonsoMoraAlgForRideHail(
+        spatialPoolCustomerReqs,
+        availVehicles.toList,
+        Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+        maxRequestsPerVehicle = 100
+      )
+      import scala.concurrent.duration._
+      val assignment = try {
         Await.result(algo.greedyAssignment(), atMost = 2.minutes)
+      } catch {
+        case e: TimeoutException => // whatever you want to do.
+          logger.error("timeout of AsyncAlonsoMoraAlgForRideHail falling back to synchronous")
+          val algo = new AlonsoMoraPoolingAlgForRideHail(
+            spatialPoolCustomerReqs,
+            availVehicles.toList,
+            Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+            maxRequestsPerVehicle = 100
+          )
+          val rvGraph: RVGraph = algo.pairwiseRVGraph
+          val rtvGraph = algo.rTVGraph(rvGraph)
+          algo.greedyAssignment(rtvGraph)
       }
 
       assignment.foreach {
