@@ -1,8 +1,10 @@
 package beam.agentsim.agents.household
+import akka.actor.ActorRef
+import beam.agentsim.agents.{MobilityRequest, _}
 import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
 import beam.agentsim.agents.planning.{BeamPlan, Trip}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehiclePersonId}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest}
 import beam.router.Modes.BeamMode
@@ -23,7 +25,7 @@ class HouseholdCAVScheduling(
   val scenario: org.matsim.api.core.v01.Scenario,
   val household: Household,
   val householdVehicles: List[BeamVehicle],
-  val timeWindow: Map[MobilityServiceRequestType, Int],
+  val timeWindow: Map[MobilityRequestTrait, Int],
   val stopSearchAfterXSolutions: Int = 100,
   val limitCavToXPersons: Int = 3,
   val skim: BeamSkimmer
@@ -50,8 +52,8 @@ class HouseholdCAVScheduling(
       case (req, cav) =>
         emptyFleetSchedule.prepend(
           new CAVSchedule(
-            List[MobilityServiceRequest](
-              MobilityServiceRequest(
+            List[MobilityRequest](
+              MobilityRequest(
                 None,
                 req.activity,
                 req.time,
@@ -109,7 +111,7 @@ class HouseholdCAVScheduling(
 
     // ***
     def check(
-      request: MobilityServiceRequest,
+      request: MobilityRequest,
       skim: BeamSkimmer
     ): (List[CAVFleetSchedule], Boolean) = {
       import scala.collection.mutable.{ListBuffer => MListBuffer}
@@ -163,15 +165,15 @@ class HouseholdCAVScheduling(
 // ************
 // ************
 case class CAVSchedule(
-  schedule: List[MobilityServiceRequest],
+  schedule: List[MobilityRequest],
   cav: BeamVehicle,
   occupancy: Int
 ) {
 
   def check(
-    request: MobilityServiceRequest,
+    request: MobilityRequest,
     householdTrips: HouseholdTrips,
-    timeWindow: Map[MobilityServiceRequestType, Int],
+    timeWindow: Map[MobilityRequestTrait, Int],
     skim: BeamSkimmer
   ): (Option[CAVSchedule], HouseholdTrips, Boolean) = {
     val travelTime = skim
@@ -201,7 +203,7 @@ case class CAVSchedule(
         var newSchedule = schedule
         var newServiceTime = serviceTime
         if (serviceTime < request.time) {
-          val relocationRequest = MobilityServiceRequest(
+          val relocationRequest = MobilityRequest(
             None,
             request.activity,
             prevServiceTime,
@@ -269,7 +271,7 @@ case class CAVSchedule(
     transportNetwork: TransportNetwork,
     routeHistory: RouteHistory
   ): (List[Option[RouteOrEmbodyRequest]], CAVSchedule) = {
-    var newMobilityRequests = List[MobilityServiceRequest]()
+    var newMobilityRequests = List[MobilityRequest]()
     val requestList = (schedule.reverse :+ schedule.head).tail
       .sliding(2)
       .map { wayPoints =>
@@ -348,19 +350,19 @@ case class CAVSchedule(
 object CAVSchedule {
   case class RouteOrEmbodyRequest(routeReq: Option[RoutingRequest], embodyReq: Option[EmbodyWithCurrentTravelTime])
 
-  def isInChainMode(request: MobilityServiceRequest): Boolean = {
+  def isInChainMode(request: MobilityRequest): Boolean = {
     request.tag == Pickup && Modes.isChainBasedMode(request.defaultMode) && request.trip.parentTour.trips
       .indexOf(request.trip) > 0
   }
 
-  def isWithinTour(request: MobilityServiceRequest, schedule: List[MobilityServiceRequest]): Boolean = {
+  def isWithinTour(request: MobilityRequest, schedule: List[MobilityRequest]): Boolean = {
     val index = schedule.indexWhere(_.person == request.person)
     index >= 0 && request.trip.parentTour == schedule(index).trip.parentTour
   }
 
   def isWithinTourInAtLeastOneSchedule(
-    request: MobilityServiceRequest,
-    scheduleList: List[List[MobilityServiceRequest]]
+    request: MobilityRequest,
+    scheduleList: List[List[MobilityRequest]]
   ): Boolean = {
     for (schedule <- scheduleList)
       if (isWithinTour(request, schedule))
@@ -369,38 +371,11 @@ object CAVSchedule {
   }
 }
 
-// **** Data Structure
-sealed trait MobilityServiceRequestType
-case object Pickup extends MobilityServiceRequestType
-case object Dropoff extends MobilityServiceRequestType
-case object Relocation extends MobilityServiceRequestType
-case object Init extends MobilityServiceRequestType
-
-case class MobilityServiceRequest(
-  person: Option[Id[Person]],
-  activity: Activity,
-  time: Int,
-  trip: Trip,
-  defaultMode: BeamMode,
-  tag: MobilityServiceRequestType,
-  serviceTime: Int,
-  routingRequestId: Option[Int] = None,
-  pickupRequest: Option[MobilityServiceRequest] = None
-) {
-  val nextActivity = Some(trip.activity)
-
-  def formatTime(secs: Int): String = {
-    s"${secs / 3600}:${(secs % 3600) / 60}:${secs % 60}"
-  }
-  override def toString =
-    s"${formatTime(time)}|$tag{${person.getOrElse("na")}|${activity.getType}| => ${formatTime(serviceTime)}}"
-}
-
 // Helper classes for convert Beam plans to MobilityServiceRequest
 case class HouseholdTripsException(message: String, cause: Throwable = null) extends Exception(message, cause)
 case class HouseholdTripsLogger(name: String) extends ExponentialLoggerWrapperImpl(name)
 case class HouseholdTrips(
-  requests: List[MobilityServiceRequest],
+  requests: List[MobilityRequest],
   defaultTravelTime: Int,
   tripTravelTime: Map[Trip, Int],
   totalTravelTime: Int
@@ -413,7 +388,7 @@ object HouseholdTrips {
   def apply(
     householdPlans: Seq[BeamPlan],
     householdNbOfVehicles: Int,
-    timeWindow: Map[MobilityServiceRequestType, Int],
+    timeWindow: Map[MobilityRequestTrait, Int],
     skim: BeamSkimmer
   ): HouseholdTrips = {
 
@@ -421,7 +396,7 @@ object HouseholdTrips {
 
     val logger = new HouseholdTripsLogger(getClass.getName)
 
-    val requests = MListBuffer.empty[MobilityServiceRequest]
+    val requests = MListBuffer.empty[MobilityRequest]
     val tripTravelTime = MMap[Trip, Int]()
     var totTravelTime = 0
     import scala.util.control.Breaks._
@@ -461,8 +436,10 @@ object HouseholdTrips {
                 }
               }
 
-              val pickup = MobilityServiceRequest(
-                Some(plan.getPerson.getId),
+              val vehiclePersonId = VehiclePersonId(Id.create(plan.getPerson.getId, classOf[Vehicle]), plan.getPerson.getId, ActorRef.noSender)
+
+              val pickup = MobilityRequest(
+                Some(vehiclePersonId),
                 prevTrip.activity,
                 startTime,
                 curTrip,
@@ -470,15 +447,14 @@ object HouseholdTrips {
                 Pickup,
                 startTime
               )
-              val dropoff = MobilityServiceRequest(
-                Some(plan.getPerson.getId),
+              val dropoff = MobilityRequest(
+                Some(vehiclePersonId),
                 curTrip.activity,
                 arrivalTime,
                 curTrip,
                 defaultMode,
                 Dropoff,
-                arrivalTime,
-                pickupRequest = Some(pickup)
+                arrivalTime
               )
               requests.prependAll(MListBuffer(pickup, dropoff))
               tripTravelTime(curTrip) = travelTime

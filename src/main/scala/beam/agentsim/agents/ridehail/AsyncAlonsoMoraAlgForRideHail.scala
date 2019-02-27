@@ -1,7 +1,9 @@
 package beam.agentsim.agents.ridehail
 
+import beam.agentsim.agents.{MobilityRequestTrait, Pickup}
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.router.BeamSkimmer
+import beam.router.Modes.BeamMode
 import org.jgrapht.graph.DefaultEdge
 import org.matsim.core.utils.collections.QuadTree
 
@@ -13,7 +15,7 @@ import scala.concurrent.Future
 class AsyncAlonsoMoraAlgForRideHail(
   spatialDemand: QuadTree[CustomerRequest],
   supply: List[VehicleAndSchedule],
-  timeWindow: Map[MobilityServiceRequestType, Int],
+  timeWindow: Map[MobilityRequestTrait, Int],
   maxRequestsPerVehicle: Int
 )(implicit val skimmer: BeamSkimmer) {
 
@@ -26,7 +28,7 @@ class AsyncAlonsoMoraAlgForRideHail(
       .getDisk(
         v.getLastDropoff.activity.getCoord.getX,
         v.getLastDropoff.activity.getCoord.getY,
-        timeWindow(Pickup) * AlonsoMoraPoolingAlgForRideHail.carSpeedMeterPerSec
+        timeWindow(Pickup) * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
       )
       .asScala take maxRequestsPerVehicle foreach (
       r =>

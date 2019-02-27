@@ -1,4 +1,5 @@
 package beam.agentsim.agents.household
+import beam.agentsim.agents.{Dropoff, Pickup}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.Gasoline
 import beam.agentsim.agents.vehicles.VehicleCategory.Car
@@ -14,7 +15,7 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl, HouseholdsReader
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.immutable.List
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 
 class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
 

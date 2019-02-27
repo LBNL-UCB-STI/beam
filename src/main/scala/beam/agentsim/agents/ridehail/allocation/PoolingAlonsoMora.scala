@@ -18,7 +18,7 @@ import scala.concurrent.Await
 class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
 
-  val tempScheduleStore: mutable.Map[Int, List[MobilityServiceRequest]] = mutable.Map()
+  val tempScheduleStore: mutable.Map[Int, List[MobilityRequest]] = mutable.Map()
 
   val spatialPoolCustomerReqs: QuadTree[CustomerRequest] = new QuadTree[CustomerRequest](
     rideHailManager.quadTreeBounds.minx,
@@ -129,7 +129,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         val algo = new AlonsoMoraPoolingAlgForRideHail(
           spatialPoolCustomerReqs,
           availVehicles.toList,
-          Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+          Map[MobilityRequestTrait, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
           maxRequestsPerVehicle = 100
         )
         val rvGraph: RVGraph = algo.pairwiseRVGraph
@@ -139,7 +139,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         val algo = new AsyncAlonsoMoraAlgForRideHail(
           spatialPoolCustomerReqs,
           availVehicles.toList,
-          Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+          Map[MobilityRequestTrait, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
           maxRequestsPerVehicle = 100
         )
         import scala.concurrent.duration._
@@ -150,7 +150,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         case (theTrip, vehicleAndSchedule, cost) =>
           alreadyAllocated = alreadyAllocated + vehicleAndSchedule.vehicle.id
           var newRideHailRequest: Option[RideHailRequest] = None
-          var scheduleToCache: List[MobilityServiceRequest] = List()
+          var scheduleToCache: List[MobilityRequest] = List()
           val rReqs = theTrip.schedule
             .sliding(2)
             .flatMap { wayPoints =>

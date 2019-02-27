@@ -13,7 +13,49 @@ case class TimeDistanceAndCost(timeAndCost: TimeAndCost, distance: Option[Int]) 
 }
 
 //TODO to be validated against google api
-class BeamSkimmer(services: Option[BeamServices] = None) {
+class BeamSkimmer(services: Option[BeamServices] = None, scenario: org.matsim.api.core.v01.Scenario) {
+
+  def getTimeDistanceAndCost(
+                              origin: Location,
+                              destination: Location,
+                              departureTime: Int,
+                              mode: BeamMode,
+                              vehicleTypeId: org.matsim.api.core.v01.Id[BeamVehicleType]
+                            ): TimeDistanceAndCost = {
+
+    val travelDistance: Int = Math.ceil(GeoUtils.minkowskiDistFormula(origin, destination)).toInt
+    val travelTime: Int = Math
+      .ceil(travelDistance / BeamSkimmer.speedMeterPerSec(mode))
+      .toInt + ((travelDistance / BeamSkimmer.trafficSignalSpacing).toInt * BeamSkimmer.waitingTimeAtAnIntersection).toInt
+    val travelCost: Double = services
+      .map(
+        x =>
+          DrivingCost.estimateDrivingCost(
+            new BeamLeg(departureTime, mode, travelTime, new BeamPath(null, null, None, null, null, travelDistance)),
+            vehicleTypeId,
+            x
+          )
+      )
+      .getOrElse(0)
+
+    TimeDistanceAndCost(TimeAndCost(Some(travelTime), Some(travelCost)), Some(travelDistance))
+
+  }
+}
+
+object BeamSkimmer {
+  import beam.router.Modes.BeamMode.{
+    BIKE,
+    CAR,
+    CAV,
+    DRIVE_TRANSIT,
+    RIDE_HAIL,
+    RIDE_HAIL_POOLED,
+    RIDE_HAIL_TRANSIT,
+    TRANSIT,
+    WALK,
+    WALK_TRANSIT
+  }
 
   // 22.2 mph (9.924288 meter per second), is the average speed in cities
   //TODO better estimate can be drawn from city size
@@ -24,7 +66,8 @@ class BeamSkimmer(services: Option[BeamServices] = None) {
   // assuming for now that it includes the headway
   private val transitSpeedMeterPerSec: Double = 5.409184
 
-  private val bicycleSpeedMeterPerSec: Double = 3
+  // 9.6 mph -> 15.5 km/h
+  private val bicycleSpeedMeterPerSec: Double = 4.305556
 
   // 3.1 mph -> 1.38 meter per second
   private val walkSpeedMeterPerSec: Double = 1.38
@@ -36,46 +79,28 @@ class BeamSkimmer(services: Option[BeamServices] = None) {
   // source: https://pumas.nasa.gov/files/01_06_00_1.pdf
   private val waitingTimeAtAnIntersection: Double = 17.25
 
-  def getTimeDistanceAndCost(
-    origin: Location,
-    destination: Location,
-    departureTime: Int,
-    mode: BeamMode,
-    vehicleTypeId: org.matsim.api.core.v01.Id[BeamVehicleType]
-  ): TimeDistanceAndCost = {
+  //  val fastSpeed: Double = 50.0 * 1000.0 / 3600.0
+  //  val medSpeed: Double = 50.0 * 1000.0 / 3600.0
+  //  val slowSpeed: Double = 50.0 * 1000.0 / 3600.0
+  //  val walkSpeed: Double = 50.0 * 1000.0 / 3600.0
 
-    val speed = mode match {
-      case BeamMode.CAR     => carSpeedMeterPerSec
-      case BeamMode.TRANSIT => transitSpeedMeterPerSec
-      case BeamMode.BIKE    => bicycleSpeedMeterPerSec
-      case _                => walkSpeedMeterPerSec
-    }
-    val travelDistance: Int = Math.ceil(GeoUtils.minkowskiDistFormula(origin, destination)).toInt
-    val travelTime: Int = Math
-      .ceil(travelDistance / speed)
-      .toInt + ((travelDistance / trafficSignalSpacing).toInt * waitingTimeAtAnIntersection).toInt
-    val travelCost: Double = services
-      .map(
-        x =>
-          DrivingCost.estimateDrivingCost(
-            new BeamLeg(departureTime, mode, travelTime, new BeamPath(null, null, None, null, null, travelDistance)),
-            vehicleTypeId,
-            x
-        )
-      )
-      .getOrElse(0)
-
-    TimeDistanceAndCost(TimeAndCost(Some(travelTime), Some(travelCost)), Some(travelDistance))
-
-  }
-}
-
-object BeamSkimmer {
+  val speedMeterPerSec: Map[BeamMode, Double] = Map(
+    CAV               -> carSpeedMeterPerSec,
+    CAR               -> carSpeedMeterPerSec,
+    WALK              -> walkSpeedMeterPerSec,
+    BIKE              -> bicycleSpeedMeterPerSec,
+    WALK_TRANSIT      -> transitSpeedMeterPerSec,
+    DRIVE_TRANSIT     -> transitSpeedMeterPerSec,
+    RIDE_HAIL         -> carSpeedMeterPerSec,
+    RIDE_HAIL_POOLED  -> carSpeedMeterPerSec,
+    RIDE_HAIL_TRANSIT -> transitSpeedMeterPerSec,
+    TRANSIT           -> transitSpeedMeterPerSec
+  )
 
   def main(args: Array[String]): Unit = {
     val config = org.matsim.core.config.ConfigUtils.createConfig()
     val sc: org.matsim.api.core.v01.Scenario = org.matsim.core.scenario.ScenarioUtils.createScenario(config)
-    val skimmer = new BeamSkimmer()
+    val skimmer = new BeamSkimmer(scenario = sc)
     val output = skimmer.getTimeDistanceAndCost(
       new Location(0, 0),
       new Location(1600, 500),
@@ -86,22 +111,3 @@ object BeamSkimmer {
     println(output)
   }
 }
-
-//val householdBeamPlans = household.members.map(person => BeamPlan(person.getSelectedPlan)).toList
-//val householdMatsimPlans = household.members.map(person => (person.getId -> person.getSelectedPlan)).toMap
-//val fastSpeed = 50.0 * 1000.0 / 3600.0
-//val medSpeed = 50.0 * 1000.0 / 3600.0
-//val slowSpeed = 50.0 * 1000.0 / 3600.0
-//val walkSpeed = 50.0 * 1000.0 / 3600.0
-//val skim: Map[BeamMode, Double] = Map(
-//CAV               -> fastSpeed,
-//CAR               -> fastSpeed,
-//WALK              -> walkSpeed,
-//BIKE              -> slowSpeed,
-//WALK_TRANSIT      -> medSpeed,
-//DRIVE_TRANSIT     -> medSpeed,
-//RIDE_HAIL         -> fastSpeed,
-//RIDE_HAIL_POOLED  -> fastSpeed,
-//RIDE_HAIL_TRANSIT -> medSpeed,
-//TRANSIT           -> medSpeed
-//)

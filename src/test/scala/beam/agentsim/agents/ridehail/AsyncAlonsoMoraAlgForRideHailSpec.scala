@@ -1,6 +1,7 @@
 package beam.agentsim.agents.ridehail
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestKit, TestProbe}
+import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.router.BeamSkimmer
@@ -38,9 +39,9 @@ class AsyncAlonsoMoraAlgForRideHailSpec
       val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenario1
       val alg: AsyncAlonsoMoraAlgForRideHail =
         new AsyncAlonsoMoraAlgForRideHail(
-          AlonsoMoraPoolingAlgForRideHail.demandSpatialIndex(sc._2),
+          AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(sc._2),
           sc._1,
-          Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+          Map[MobilityRequestTrait, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
           maxRequestsPerVehicle = 1000
         )
 
@@ -66,7 +67,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
         plan.trips.sliding(2).foreach {
           case Seq(prevTrip, curTrip) =>
             requests append createPersonRequest(
-              makeVehPersonId(plan.getPerson.getId.toString),
+              AlonsoMoraPoolingAlgForRideHailSpec.makeVehPersonId(plan.getPerson.getId.toString),
               prevTrip.activity.getCoord,
               prevTrip.activity.getEndTime.toInt,
               curTrip.activity.getCoord
@@ -106,9 +107,9 @@ class AsyncAlonsoMoraAlgForRideHailSpec
             case "ASYNC" =>
               val alg: AsyncAlonsoMoraAlgForRideHail =
                 new AsyncAlonsoMoraAlgForRideHail(
-                  AlonsoMoraPoolingAlgForRideHail.demandSpatialIndex(demand.toList),
+                  AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(demand.toList),
                   fleet.toList,
-                  Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+                  Map[MobilityRequestTrait, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
                   maxRequestsPerVehicle = 100
                 )
               import scala.concurrent.duration._
@@ -116,9 +117,9 @@ class AsyncAlonsoMoraAlgForRideHailSpec
             case "SYNC" =>
               val alg: AlonsoMoraPoolingAlgForRideHail =
                 new AlonsoMoraPoolingAlgForRideHail(
-                  AlonsoMoraPoolingAlgForRideHail.demandSpatialIndex(demand.toList),
+                  AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(demand.toList),
                   fleet.toList,
-                  Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+                  Map[MobilityRequestTrait, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
                   maxRequestsPerVehicle = 100
                 )
               val rvGraph: RVGraph = alg.pairwiseRVGraph

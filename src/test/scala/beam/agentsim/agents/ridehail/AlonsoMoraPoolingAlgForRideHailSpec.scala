@@ -2,11 +2,17 @@ package beam.agentsim.agents.ridehail
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestKit, TestProbe}
+import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail.{CustomerRequest, RVGraph, VehicleAndSchedule, _}
+import beam.agentsim.agents.vehicles.VehiclePersonId
 import beam.router.BeamSkimmer
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
-import org.matsim.api.core.v01.Coord
+import com.vividsolutions.jts.geom.Envelope
+import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.utils.collections.QuadTree
+import org.matsim.vehicles.Vehicle
 import org.scalatest.FunSpecLike
 
 import scala.collection.JavaConverters._
@@ -36,9 +42,9 @@ class AlonsoMoraPoolingAlgForRideHailSpec
       val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenario1
       val alg: AlonsoMoraPoolingAlgForRideHail =
         new AlonsoMoraPoolingAlgForRideHail(
-          AlonsoMoraPoolingAlgForRideHail.demandSpatialIndex(sc._2),
+          AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(sc._2),
           sc._1,
-          Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+          Map[MobilityRequestTrait, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
           maxRequestsPerVehicle = 1000
         )
 
@@ -144,16 +150,66 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
     implicit skimmer: BeamSkimmer,
     mockActorRef: ActorRef
   ): (List[VehicleAndSchedule], List[CustomerRequest]) = {
-    val v1: VehicleAndSchedule = createVehicleAndSchedule("v1", new Coord(5000, 5000), seconds(8, 0))
-    val v2: VehicleAndSchedule = createVehicleAndSchedule("v2", new Coord(2000, 2000), seconds(8, 0))
+    import scala.concurrent.duration._
+    val v1: VehicleAndSchedule = createVehicleAndSchedule("v1", new Coord(5000, 5000), 8.hours.toSeconds.toInt)
+    val v2: VehicleAndSchedule = createVehicleAndSchedule("v2", new Coord(2000, 2000), 8.hours.toSeconds.toInt)
     val p1Req: CustomerRequest =
-      createPersonRequest(makeVehPersonId("p1"), new Coord(1000, 2000), seconds(8, 0), new Coord(18000, 19000))
+      createPersonRequest(
+        makeVehPersonId("p1"),
+        new Coord(1000, 2000),
+        8.hours.toSeconds.toInt,
+        new Coord(18000, 19000)
+      )
     val p4Req: CustomerRequest =
-      createPersonRequest(makeVehPersonId("p4"), new Coord(2000, 1000), seconds(8, 5), new Coord(20000, 18000))
+      createPersonRequest(
+        makeVehPersonId("p4"),
+        new Coord(2000, 1000),
+        (8.hours.toSeconds + 5.minutes.toSeconds).toInt,
+        new Coord(20000, 18000)
+      )
     val p2Req: CustomerRequest =
-      createPersonRequest(makeVehPersonId("p2"), new Coord(3000, 3000), seconds(8, 1), new Coord(19000, 18000))
+      createPersonRequest(
+        makeVehPersonId("p2"),
+        new Coord(3000, 3000),
+        (8.hours.toSeconds + 1.minutes.toSeconds).toInt,
+        new Coord(19000, 18000)
+      )
     val p3Req: CustomerRequest =
-      createPersonRequest(makeVehPersonId("p3"), new Coord(4000, 4000), seconds(8, 2), new Coord(21000, 20000))
+      createPersonRequest(
+        makeVehPersonId("p3"),
+        new Coord(4000, 4000),
+        (8.hours.toSeconds + 2.minutes.toSeconds).toInt,
+        new Coord(21000, 20000)
+      )
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
   }
+
+  def makeVehPersonId(perId: Id[Person])(implicit mockActorRef: ActorRef): VehiclePersonId =
+    VehiclePersonId(Id.create(perId, classOf[Vehicle]), perId, mockActorRef)
+
+  def makeVehPersonId(perId: String)(implicit mockActorRef: ActorRef): VehiclePersonId =
+    makeVehPersonId(Id.create(perId, classOf[Person]))
+
+  def demandSpatialIndex(demand: List[CustomerRequest]): QuadTree[CustomerRequest] = {
+    val boundingBox: Envelope = getEnvelopeFromDemand(demand)
+    val spatialDemand = new QuadTree[CustomerRequest](
+      boundingBox.getMinX,
+      boundingBox.getMinY,
+      boundingBox.getMaxX,
+      boundingBox.getMaxY
+    )
+    demand.foreach { d =>
+      spatialDemand.put(d.pickup.activity.getCoord.getX, d.pickup.activity.getCoord.getY, d)
+    }
+    spatialDemand
+  }
+
+  def getEnvelopeFromDemand(demand: List[CustomerRequest]): Envelope = {
+    val minx = demand.map(_.pickup.activity.getCoord.getX).min
+    val maxx = demand.map(_.pickup.activity.getCoord.getX).max
+    val miny = demand.map(_.pickup.activity.getCoord.getY).min
+    val maxy = demand.map(_.pickup.activity.getCoord.getY).max
+    new Envelope(minx, maxx, miny, maxy)
+  }
+
 }
