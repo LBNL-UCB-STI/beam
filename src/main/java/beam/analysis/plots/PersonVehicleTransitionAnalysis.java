@@ -67,14 +67,14 @@ public class PersonVehicleTransitionAnalysis implements GraphAnalysis, MetricsSu
 
     private void processPersonVehicleTransition(Event event) {
         int index = plotGraph.getBinIndex(event.getTime(), this.binSize, this.numOfBins);
-        if (PersonEntersVehicleEvent.EVENT_TYPE.equals(event.getEventType())) {
-
-            String personId = event.getAttributes().get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON);
+        if (event instanceof PersonEntersVehicleEvent && PersonEntersVehicleEvent.EVENT_TYPE.equals(event.getEventType())) {
+            PersonEntersVehicleEvent peve = (PersonEntersVehicleEvent)event;
+            String personId = peve.getPersonId().toString();
             if (personId.toLowerCase().contains("agent")) {
                 return;
             }
 
-            String vehicleId = event.getAttributes().get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE);
+            String vehicleId = peve.getVehicleId().toString();
             if (vehicleId.contains(":")) {
                 String v = vehicleId.split(":")[0];
                 if (!vehicleType.contains(v)) {
@@ -123,11 +123,10 @@ public class PersonVehicleTransitionAnalysis implements GraphAnalysis, MetricsSu
         }
 
 
-        if (PersonLeavesVehicleEvent.EVENT_TYPE.equals(event.getEventType())) {
-
-            String personId = event.getAttributes().get(PersonLeavesVehicleEvent.ATTRIBUTE_PERSON);
-            String vehicleId = event.getAttributes().get(PersonLeavesVehicleEvent.ATTRIBUTE_VEHICLE);
-
+        if (event instanceof PersonLeavesVehicleEvent && PersonLeavesVehicleEvent.EVENT_TYPE.equals(event.getEventType())) {
+            PersonLeavesVehicleEvent plve = (PersonLeavesVehicleEvent) event;
+            String personId = plve.getPersonId().toString();
+            String vehicleId = plve.getVehicleId().toString();
 
             if (personId.toLowerCase().contains("agent")) {
                 return;

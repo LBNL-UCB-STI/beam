@@ -25,7 +25,7 @@ case class BeamVehicleType(
   secondaryFuelType: Option[FuelType] = None,
   secondaryFuelConsumptionInJoulePerMeter: Option[Double] = None,
   secondaryFuelCapacityInJoule: Option[Double] = None,
-  automationLevel: Option[String] = None,
+  automationLevel: Int = 1,
   maxVelocity: Option[Double] = None,
   passengerCarUnit: Double = 1,
   rechargeLevel2RateLimitInWatts: Option[Double] = None,
@@ -34,16 +34,9 @@ case class BeamVehicleType(
 ) {
 
   def isCaccEnabled: Boolean = {
-    automationLevel match {
-      case Some(al) => {
-        if (al.toInt >= 1) true
-        else false
-      }
-      case _ => false
-    }
+    automationLevel >= 1
   }
 }
-
 object BeamVehicleType {
 
   // Consumption rate: https://www.brianmac.co.uk/energyexp.htm
@@ -62,17 +55,6 @@ object BeamVehicleType {
       2.21e6,
       vehicleCategory = Body
     )
-
-  val defaultBicycleBeamVehicleType: BeamVehicleType = BeamVehicleType(
-    Id.create("BIKE_TYPE_DEFAULT", classOf[BeamVehicleType]),
-    1,
-    0,
-    1.5,
-    Food,
-    defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter / 5.0, // 5x more efficient than walking
-    defaultHumanBodyBeamVehicleType.primaryFuelCapacityInJoule, // same capacity as human body
-    vehicleCategory = Bike
-  )
 
   val powerTrainForHumanBody: Powertrain = new Powertrain(
     BeamVehicleType.defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter

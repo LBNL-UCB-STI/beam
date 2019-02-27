@@ -20,6 +20,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.WALK_TRANSIT
+import beam.router.RouteHistory
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
@@ -33,6 +34,7 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.api.internal.HasPersonId
@@ -49,6 +51,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable.ListBuffer
 import scala.collection.{mutable, JavaConverters}
 
 class PersonAndTransitDriverSpec
@@ -114,6 +117,12 @@ class PersonAndTransitDriverSpec
     override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
 
     override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0D
+
+    override def computeAllDayUtility(
+      trips: ListBuffer[EmbodiedBeamTrip],
+      person: Person,
+      attributesOfIndividual: AttributesOfIndividual
+    ): Double = 0.0
   }
 
   private lazy val parkingManager = system.actorOf(
@@ -148,11 +157,12 @@ class PersonAndTransitDriverSpec
                 tramEvents.ref ! event
               case personEvent: HasPersonId if personEvent.getPersonId.toString == "dummyAgent" =>
                 personEvents.ref ! event
-              case pathTraversalEvent: PathTraversalEvent if pathTraversalEvent.getVehicleId == "my_bus" =>
+              case pathTraversalEvent: PathTraversalEvent if pathTraversalEvent.vehicleId.toString == "my_bus" =>
                 busEvents.ref ! event
-              case pathTraversalEvent: PathTraversalEvent if pathTraversalEvent.getVehicleId == "my_tram" =>
+              case pathTraversalEvent: PathTraversalEvent if pathTraversalEvent.vehicleId.toString == "my_tram" =>
                 tramEvents.ref ! event
-              case pathTraversalEvent: PathTraversalEvent if pathTraversalEvent.getVehicleId == "body-dummyAgent" =>
+              case pathTraversalEvent: PathTraversalEvent
+                  if pathTraversalEvent.vehicleId.toString == "body-dummyAgent" =>
                 personEvents.ref ! event
               case agencyRevenueEvent: AgencyRevenueEvent =>
                 agencyEvents.ref ! event
@@ -329,7 +339,9 @@ class PersonAndTransitDriverSpec
           population = population,
           household = household,
           vehicles = Map(),
-          homeCoord = new Coord(0.0, 0.0)
+          homeCoord = new Coord(0.0, 0.0),
+          Vector(),
+          new RouteHistory()
         )
       )
 

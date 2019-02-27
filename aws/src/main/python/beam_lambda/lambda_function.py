@@ -142,8 +142,17 @@ def get_latest_build(branch):
 def validate(name):
     return True
 
-def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name):
-    res = ec2.run_instances(ImageId=os.environ[region_prefix + 'IMAGE_ID'],
+def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size):
+    res = ec2.run_instances(BlockDeviceMappings=[
+                                {
+                                    'DeviceName': '/dev/sda1',
+                                    'Ebs': {
+                                        'VolumeSize': volume_size,
+                                        'VolumeType': 'gp2'
+                                    }
+                                }
+                            ],
+                            ImageId=os.environ[region_prefix + 'IMAGE_ID'],
                             InstanceType=instance_type,
                             UserData=script,
                             KeyName=os.environ[region_prefix + 'KEY_NAME'],
@@ -205,6 +214,7 @@ def deploy_handler(event):
     max_ram = event.get('max_ram', MAXRAM_DEFAULT)
     s3_publish = event.get('s3_publish', 'true')
     instance_type = event.get('instance_type', os.environ['INSTANCE_TYPE'])
+    volume_size = event.get('storage_size', 64)
     shutdown_wait = event.get('shutdown_wait', SHUTDOWN_DEFAULT)
     region = event.get('region', os.environ['REGION'])
     shutdown_behaviour = event.get('shutdown_behaviour', os.environ['SHUTDOWN_BEHAVIOUR'])
@@ -218,6 +228,9 @@ def deploy_handler(event):
 
     if shutdown_behaviour not in shutdown_behaviours:
         shutdown_behaviour = os.environ['SHUTDOWN_BEHAVIOUR']
+
+    if volume_size < 64 or volume_size > 256:
+        volume_size = 64
 
     selected_script = CONFIG_SCRIPT
     params = configs
@@ -255,7 +268,7 @@ def deploy_handler(event):
             if len(params) > 1:
                 runName += "-" + `runNum`
             script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$MAIN_CLASS', execute_class).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', runName).replace('$MAX_RAM', max_ram).replace('$S3_PUBLISH', s3_publish).replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id).replace('$END_SCRIPT', end_script)
-            instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName)
+            instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
             runNum += 1
