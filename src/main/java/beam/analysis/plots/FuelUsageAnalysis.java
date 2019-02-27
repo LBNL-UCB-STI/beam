@@ -73,8 +73,8 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
 
     @Override
     public void processStats(Event event) {
-        if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE))
-            processFuelUsage(event);
+        if (event instanceof PathTraversalEvent)
+            processFuelUsage((PathTraversalEvent)event);
     }
 
     @Override
@@ -102,14 +102,13 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
         return statsComputation.compute(new Tuple<>(hourModeFuelage, modesFuel));
     }
 
-    private void processFuelUsage(Event event) {
+    private void processFuelUsage(PathTraversalEvent event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
-        Map<String, String> eventAttributes = event.getAttributes();
-        String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
-        String originalMode = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
-        String vehicleId = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
-        double lengthInMeters = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
-        String fuelString = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_FUEL);
+        String vehicleType = event.vehicleType();
+        String originalMode = event.mode().value();
+        String vehicleId = event.vehicleId().toString();
+        double lengthInMeters = event.legLength();
+        String fuelString = Double.toString(event.fuelConsumed());
 
         String mode = originalMode;
         if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHailVehicle")) {
@@ -137,8 +136,8 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
         } catch (Exception e) {
             e.printStackTrace();
         }
-        String fuelType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_FUEL_TYPE);
-        double fuel = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_FUEL));
+        String fuelType = event.fuelType();
+        double fuel = event.fuelConsumed();
         fuelConsumedByFuelType.merge(fuelType, fuel, (d1, d2) -> d1 + d2);
     }
 
