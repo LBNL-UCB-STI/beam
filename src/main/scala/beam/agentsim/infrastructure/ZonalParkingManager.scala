@@ -106,6 +106,8 @@ class ZonalParkingManager(
 
   val indexer: IndexerForZonalParkingManager = new IndexerForZonalParkingManager(pooledResources.toMap)
 
+  log.info("Zonal Parking Manager loaded with {} total stalls",pooledResources.map(_._2._numStalls).sum)
+
   override def receive: Receive = {
     case ReleaseParkingStall(stallId) =>
       if (stalls.contains(stallId)) {
@@ -311,6 +313,7 @@ class ZonalParkingManager(
       case Some(stall) => stall
       case None =>
         if (startSearchRadius * 2.0 > ZonalParkingManager.maxSearchRadius) {
+          log.error("No stall found for inquiry: {}",inquiry)
           stallNum = stallNum + 1
           new ParkingStall(
             Id.create(stallNum, classOf[ParkingStall]),
