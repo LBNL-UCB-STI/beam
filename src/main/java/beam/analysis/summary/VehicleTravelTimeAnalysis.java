@@ -60,14 +60,13 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
             String personId = eventAttributes.get(PersonLeavesVehicleEvent.ATTRIBUTE_PERSON);
 
             personsByVehicleIds.merge(vehicleId, Lists.newArrayList(personId), ListUtils::union);
-        } else if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
-            Map<String, String> eventAttributes = event.getAttributes();
-            String mode = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
-            String vehicleTypes = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
-            double travelDurationInSec = (Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME)) -
-                    Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME)));
-            int numOfPassengers = Integer.parseInt(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
-            int seatingCapacity = Integer.parseInt(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_SEATING_CAPACITY));
+        } else if (event instanceof PathTraversalEvent) {
+            PathTraversalEvent pte = (PathTraversalEvent) event;
+            String mode = pte.mode().value();
+            String vehicleTypes = pte.vehicleType();
+            double travelDurationInSec = pte.arrivalTime() - pte.departureTime();
+            int numOfPassengers = pte.numberOfPassengers();
+            int seatingCapacity = pte.seatingCapacity();
 
             secondsTraveledByVehicleType.merge(vehicleTypes, travelDurationInSec, Double::sum);
 
@@ -76,9 +75,10 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
                 double freeFlowDuration = 0.0;
                 Map<Id<Link>, ? extends Link> linksMap;
                 if (scenario != null) {
-                    String[] links = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS).split(",");
-                    for (String linkId : links) {
-                        Link link = networkHelper.getLinkUnsafe(Integer.parseInt(linkId));
+                    // FIXME Is there any better way to to have `Object` ??
+                    for (Object linkIdObj : pte.linkIdsJava()) {
+                        int linkId = (int)linkIdObj;
+                        Link link = networkHelper.getLinkUnsafe(linkId);
                         if (link != null) {
                             double freeFlowLength = link.getLength();
                             double freeFlowSpeed = link.getFreespeed();
@@ -88,7 +88,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
                 }
                 if (travelDurationInSec > freeFlowDuration) { //discarding negative values
 
-                    String vehicleID = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+                    String vehicleID = pte.vehicleId().toString();
                     double averageVehicleDelay = travelDurationInSec - freeFlowDuration;
                     totalVehicleDelay += averageVehicleDelay;
 
@@ -102,7 +102,7 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
             }
 
             if(AgentSimToPhysSimPlanConverter.BUS.equalsIgnoreCase(mode)) {
-                buses.add(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID));
+                buses.add(pte.vehicleId().toString());
                 if (numOfPassengers > seatingCapacity) {
                     int numOfStandingPeople = numOfPassengers - seatingCapacity;
                     busCrowding += travelDurationInSec * numOfStandingPeople;
