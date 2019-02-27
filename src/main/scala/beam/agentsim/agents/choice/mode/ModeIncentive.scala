@@ -61,14 +61,15 @@ object ModeIncentive {
     private val logger = LoggerFactory.getLogger(this.getClass)
 
     def apply(mode: String, age: String, income: String, amount: String): Incentive = new Incentive(
-      if (BeamMode.withValueOpt(mode).isEmpty) {
+      if (mode.equals("OnDemand_ride")) {
+        BeamMode.RIDE_HAIL
+      }
+      else if (BeamMode.withValueOpt(mode).isEmpty) {
         logger.error("Error in ModeIncentivesInput.csv: Mode %s is not a supported BEAM mode!".format(mode))
         System.exit(1)
         throw new RuntimeException()
       }
-      else if (mode.equals("OnDemand_ride")) {
-        BeamMode.RIDE_HAIL
-      } else {
+      else {
         BeamMode.fromString(mode).get
       },
       Range(age),
