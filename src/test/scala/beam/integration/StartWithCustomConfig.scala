@@ -1,5 +1,5 @@
 package beam.integration
-import beam.integration.ReadEvents.{fromFile, _}
+import beam.integration.EventReader.{fromFile, _}
 import beam.sim.BeamHelper
 import beam.sim.config.BeamConfig
 import com.typesafe.config.{Config, ConfigValueFactory}
