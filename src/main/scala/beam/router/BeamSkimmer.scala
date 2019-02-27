@@ -13,7 +13,7 @@ case class TimeDistanceAndCost(timeAndCost: TimeAndCost, distance: Option[Int]) 
 }
 
 //TODO to be validated against google api
-class BeamSkimmer(services: Option[BeamServices] = None, scenario: org.matsim.api.core.v01.Scenario) {
+class BeamSkimmer(services: Option[BeamServices] = None) {
 
   def getTimeDistanceAndCost(
                               origin: Location,
@@ -98,9 +98,7 @@ object BeamSkimmer {
   )
 
   def main(args: Array[String]): Unit = {
-    val config = org.matsim.core.config.ConfigUtils.createConfig()
-    val sc: org.matsim.api.core.v01.Scenario = org.matsim.core.scenario.ScenarioUtils.createScenario(config)
-    val skimmer = new BeamSkimmer(scenario = sc)
+    val skimmer = new BeamSkimmer()
     val output = skimmer.getTimeDistanceAndCost(
       new Location(0, 0),
       new Location(1600, 500),

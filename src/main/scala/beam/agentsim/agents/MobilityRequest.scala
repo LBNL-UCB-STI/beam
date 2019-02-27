@@ -18,6 +18,7 @@ case class MobilityRequest(
   defaultMode: BeamMode,
   tag: MobilityRequestTrait,
   serviceTime: Int,
+  pickupRequest: Option[MobilityRequest] = None,
   routingRequestId: Option[Int] = None
 ) {
   val nextActivity = Some(trip.activity)

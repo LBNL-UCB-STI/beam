@@ -1,5 +1,6 @@
 package beam.agentsim.agents.ridehail.allocation
 
+import beam.agentsim.agents.{Dropoff, MobilityRequest, MobilityRequestTrait, Pickup}
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail._

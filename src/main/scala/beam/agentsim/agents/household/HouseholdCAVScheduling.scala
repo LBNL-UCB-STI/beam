@@ -454,7 +454,8 @@ object HouseholdTrips {
                 curTrip,
                 defaultMode,
                 Dropoff,
-                arrivalTime
+                arrivalTime,
+                pickupRequest = Some(pickup)
               )
               requests.prependAll(MListBuffer(pickup, dropoff))
               tripTravelTime(curTrip) = travelTime

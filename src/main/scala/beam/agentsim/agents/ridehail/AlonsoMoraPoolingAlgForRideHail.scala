@@ -10,15 +10,13 @@ import beam.router.Modes.BeamMode
 import beam.router.{BeamSkimmer, TimeDistanceAndCost}
 import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedWeightedGraph}
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.{Activity, Person}
-import org.matsim.core.config.ConfigUtils
+import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
 
-// *** Algorithm ***
 class AlonsoMoraPoolingAlgForRideHail(
   spatialDemand: QuadTree[CustomerRequest],
   supply: List[VehicleAndSchedule],
@@ -262,7 +260,11 @@ object AlonsoMoraPoolingAlgForRideHail {
   }
 
   def createVehicleAndSchedule(vid: String, dst: Location, dstTime: Int): VehicleAndSchedule = {
-    val v1 = new BeamVehicle(Id.create(vid, classOf[BeamVehicle]), new Powertrain(0.0), BeamVehicleType.defaultCarBeamVehicleType)
+    val v1 = new BeamVehicle(
+      Id.create(vid, classOf[BeamVehicle]),
+      new Powertrain(0.0),
+      BeamVehicleType.defaultCarBeamVehicleType
+    )
     val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${vid}Act0", dst)
     v1Act0.setEndTime(dstTime)
     VehicleAndSchedule(
