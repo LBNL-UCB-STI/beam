@@ -316,11 +316,10 @@ class RideHailManager(
         try {
           val rideInitialLocation: Location = getRideInitLocation(person)
           fleetData += createRideHailVehicleAndAgent(person.getId.toString, rideInitialLocation, None, None)
-        }
-        catch {
+        } catch {
           case ex: Throwable =>
             log.error(ex, s"Could not createRideHailVehicleAndAgent: ${ex.getMessage}")
-            throw  ex
+            throw ex
         }
       }
 
@@ -1069,11 +1068,18 @@ class RideHailManager(
     // Force to compute xs and ys arrays
     val xs = coordinates.map(_.getX).toArray
     val ys = coordinates.map(_.getY).toArray
+    val xMin = xs.min
+    val xMax = xs.max
+    val yMin = ys.min
+    val yMax = ys.max
+    log.info(
+      s"QuadTreeBounds with X: [$xMin; $xMax], Y: [$yMin, $yMax]. boundingBoxBuffer: ${beamServices.beamConfig.beam.spatial.boundingBoxBuffer}"
+    )
     QuadTreeBounds(
-      xs.min - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
-      ys.min - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
-      xs.max + beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
-      ys.max + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
+      xMin - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
+      yMin - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
+      xMax + beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
+      yMax + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
     )
   }
 
@@ -1146,6 +1152,7 @@ class RideHailManager(
     }
 
   }
+
   def getRideInitLocation(person: Person): Location = {
     val personInitialLocation: Location =
       person.getSelectedPlan.getPlanElements
