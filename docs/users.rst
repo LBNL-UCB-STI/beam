@@ -117,9 +117,9 @@ The simplest, smallest, and fastest is the beamville scenario (described below).
 The BEAM application by default sets max RAM allocation to 140g (see **maxRAM** setting in gradle.properties). This needs to
 be adjusted based on the available memory on your system.
 
-The max allocatable RAM value can be overriden by setting the an environment variable **MAXRAM** to the required value.
+The max allocatable RAM value can be overriden by setting the environment variable **MAXRAM** to the required value.
 
-On Ubuntu , the env variable can be set using the below command :
+On Ubuntu , the environment variable can be set using the below command :
 
 .. code-block:: bash
 
