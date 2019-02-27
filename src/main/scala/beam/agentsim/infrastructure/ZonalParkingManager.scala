@@ -313,7 +313,7 @@ class ZonalParkingManager(
       case Some(stall) => stall
       case None =>
         if (startSearchRadius * 2.0 > ZonalParkingManager.maxSearchRadius) {
-          log.error("No stall found for inquiry: {}",inquiry)
+//          log.error("No stall found for inquiry: {}",inquiry)
           stallNum = stallNum + 1
           new ParkingStall(
             Id.create(stallNum, classOf[ParkingStall]),
