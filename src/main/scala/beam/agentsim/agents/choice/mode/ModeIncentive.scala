@@ -61,7 +61,7 @@ object ModeIncentive {
     private val logger = LoggerFactory.getLogger(this.getClass)
 
     def apply(mode: String, age: String, income: String, amount: String): Incentive = new Incentive(
-      if (mode.equals("OnDemand_ride")) {
+      if (mode.equals("OnDemand_Ride")) {
         BeamMode.RIDE_HAIL
       }
       else if (BeamMode.withValueOpt(mode).isEmpty) {
