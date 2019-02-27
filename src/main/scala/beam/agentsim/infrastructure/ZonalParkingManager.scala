@@ -106,7 +106,7 @@ class ZonalParkingManager(
 
   val indexer: IndexerForZonalParkingManager = new IndexerForZonalParkingManager(pooledResources.toMap)
 
-  log.info("Zonal Parking Manager loaded with {} total stalls",pooledResources.map(_._2._numStalls).sum)
+  log.info("Zonal Parking Manager loaded with {} total stalls", pooledResources.map(_._2._numStalls).sum)
 
   override def receive: Receive = {
     case ReleaseParkingStall(stallId) =>

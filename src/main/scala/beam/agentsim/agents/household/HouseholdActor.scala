@@ -165,7 +165,7 @@ object HouseholdActor {
     override def receive: Receive = {
 
       case TriggerWithId(InitializeTrigger(tick), triggerId) =>
-        if(household.getId.toString.equals("016000-2014000455995-0")){
+        if (household.getId.toString.equals("016000-2014000455995-0")) {
           val i = 0
         }
         val vehiclesByCategory =
