@@ -2,7 +2,6 @@ package beam.physsim.jdeqsim.cacc.sim;
 
 import beam.physsim.jdeqsim.cacc.CACCSettings;
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.Hao2018CaccRoadCapacityAdjustmentFunction;
-import beam.physsim.jdeqsim.cacc.travelTimeFunctions.TravelTimeFunction;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
