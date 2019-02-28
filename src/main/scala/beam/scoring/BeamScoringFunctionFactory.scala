@@ -1,23 +1,22 @@
 package beam.scoring
 
-import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent, ReserveRideHailEvent}
+import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
-import beam.router.Modes.BeamMode.RIDE_HAIL_POOLED
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, MapStringDouble, OutputDataDescription}
 import beam.utils.{FileUtils, OutputDataDescriptor}
 import javax.inject.Inject
-import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent, PersonDepartureEvent, PersonEntersVehicleEvent}
+import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
 import org.slf4j.LoggerFactory
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.language.postfixOps
-import collection.JavaConverters._
 
 class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
     extends ScoringFunctionFactory
@@ -82,6 +81,9 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
 
         // Write the individual's trip scores to csv
         writeTripScoresToCSV()
+
+        //write generalized link stats to file
+        registerLinkCosts()
       }
 
       override def handleActivity(activity: Activity): Unit = {}
@@ -109,6 +111,13 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
 
         // save the generated output data to an in-memory map , to be written at the end of the iteration
         BeamScoringFunctionFactory.setPersonScore(person.getId.toString, tripScoreData)
+      }
+
+      /**
+      * Writes generalized link stats to csv file.
+        */
+      private def registerLinkCosts(): Unit = {
+
       }
     }
   }
@@ -144,6 +153,8 @@ object BeamScoringFunctionFactory extends OutputDataDescriptor {
     * The above trip score is calculated for all individuals in the scenario and is written to an output file at the end of the iteration.
     * */
   private val personTripScores = mutable.HashMap.empty[String, String]
+  private val linkAverageTravelTimes = mutable.HashMap.empty[Int, (Double,Int)]
+  private val linkAverageCosts = mutable.HashMap.empty[Int, (Double,Int)]
 
   /**
     * Stores the person and his respective score in a in memory map till the end of the iteration
@@ -155,6 +166,14 @@ object BeamScoringFunctionFactory extends OutputDataDescriptor {
     personTripScores.put(personId, score)
   }
 
+  def setLinkAverageTravelTimes(linkId: Int, averageTime: Double, count: Int) = {
+    linkAverageTravelTimes.put(linkId, averageTime -> count)
+  }
+
+  def setLinkAverageCosts(linkId: Int, averageCost: Double, count: Int) = {
+    linkAverageCosts.put(linkId, averageCost -> count)
+  }
+
   /**
     * Returns the stored person scores
     * @return
@@ -163,11 +182,21 @@ object BeamScoringFunctionFactory extends OutputDataDescriptor {
     personTripScores
   }
 
+  def getLinkAverageTravelTimes = {
+    linkAverageTravelTimes
+  }
+
+  def getLinkAverageCosts = {
+    linkAverageCosts
+  }
+
   /**
     * Resets the scores
     */
   def resetScores = {
     personTripScores.clear()
+    linkAverageTravelTimes.clear()
+    linkAverageCosts.clear()
   }
 
   /**
