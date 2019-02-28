@@ -327,7 +327,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         List<Id<Link>> linkIds = new ArrayList<>();
 
         for (Object linkObjId : links) {
-            Id<Link> linkId = Id.createLinkId(links.toString());
+            Id<Link> linkId = Id.createLinkId(linkObjId.toString());
             linkIds.add(linkId);
         }
 
