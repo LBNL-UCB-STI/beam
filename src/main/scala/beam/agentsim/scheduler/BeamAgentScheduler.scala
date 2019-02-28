@@ -242,12 +242,15 @@ class BeamAgentScheduler(
              |\ttriggerQueue.head=${Option(triggerQueue.peek())}
              |\tawaitingResponse.head=$awaitingToString""".stripMargin
         log.info(logStr)
-        awaitingResponse.values().asScala.take(10).foreach { x =>
+
+        // if RidehailManager at first position in queue, it is very likely, that we are stuck
+        awaitingResponse.values().asScala.take(1).foreach { x =>
           if (x.agent.path.name.contains("RideHailManager")) {
             x.agent ! LogActorState
           }
-          log.info("awaitingResponse:" + x.toString)
         }
+
+        awaitingResponse.values().asScala.take(10).foreach(x => log.info("awaitingResponse:" + x.toString))
 
       }
 
