@@ -12,7 +12,8 @@ import beam.agentsim.agents.ridehail.RideHailManager.RideHailRepositioningTrigge
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
-import beam.utils.StuckFinder
+import beam.utils.logging.LogActorState
+import beam.utils.{DebugLib, StuckFinder}
 import com.google.common.collect.TreeMultimap
 
 import scala.annotation.tailrec
@@ -241,7 +242,13 @@ class BeamAgentScheduler(
              |\ttriggerQueue.head=${Option(triggerQueue.peek())}
              |\tawaitingResponse.head=$awaitingToString""".stripMargin
         log.info(logStr)
-        awaitingResponse.values().asScala.take(10).foreach(x => log.info("awaitingResponse:" + x.toString))
+        awaitingResponse.values().asScala.take(10).foreach { x =>
+          if (x.agent.path.name.contains("RideHailManager")) {
+            x.agent ! LogActorState
+          }
+          log.info("awaitingResponse:" + x.toString)
+        }
+
       }
 
     case SkipOverBadActors =>
@@ -251,7 +258,7 @@ class BeamAgentScheduler(
 
         val canClean = stuckAgents.filterNot { stuckInfo =>
           val st = stuckInfo.value
-          st.agent.path.name.contains("RideHailingManager") && st.triggerWithId.trigger
+          st.agent.path.name.contains("RideHailManager") && st.triggerWithId.trigger
             .isInstanceOf[RideHailRepositioningTrigger]
         }
         log.warning("Cleaning {} agents", canClean.size)
