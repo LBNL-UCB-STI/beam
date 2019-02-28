@@ -213,9 +213,6 @@ class PersonAgent(
   val myUnhandled: StateFunction = {
     case Event(TriggerWithId(BoardVehicleTrigger(_, _), _), _) =>
       log.debug("Person {} stashing BoardVehicleTrigger in state {}", id, stateName)
-      if (stateName.toString.equals("WaitingForReservationConfirmation")) {
-        val i = 0
-      }
       stash()
       stay
     case Event(TriggerWithId(AlightVehicleTrigger(_, _), _), _) =>
@@ -331,9 +328,6 @@ class PersonAgent(
         TriggerWithId(PersonDepartureTrigger(tick), triggerId),
         data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false, _, _)
         ) =>
-      if (id.toString.equals("033000-2014000265406-3-6294822")) {
-        val i = 0
-      }
       // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
       // hail a ride. We stay at the party until our Uber is there.
       eventsManager.processEvent(
@@ -448,9 +442,6 @@ class PersonAgent(
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
       val mode = data.currentTrip.get.tripClassifier
-      if(mode == RIDE_HAIL_POOLED && tick < rideHailDepart){
-        val i = 0
-      }
 
       if (currentLeg.cost > 0.0) {
         if (beamServices.agencyAndRouteByVehicleIds.contains(
@@ -568,8 +559,6 @@ class PersonAgent(
         )
       )
   }
-
-  var rideHailDepart = 0 // For debug only, can be removed
 
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
     case Event(
@@ -774,9 +763,6 @@ class PersonAgent(
             triggerId,
             Vector(ScheduleTrigger(ActivityEndTrigger(endTime.toInt), self))
           )
-          if (id.toString.equals("2")) {
-            val i = 0
-          }
           goto(PerformingActivity) using data.copy(
             currentActivityIndex = currentActivityIndex + 1,
             currentTrip = None,

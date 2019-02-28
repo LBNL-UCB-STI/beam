@@ -217,19 +217,6 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         }
       }
     }
-    if(allocResponses.filter{ alloc => alloc match{
-      case VehicleMatchedToCustomers(req,agent,pickdrop) =>
-        if(req.departAt > pickdrop.head.leg.map(_.beamLeg.startTime).getOrElse(Int.MaxValue)){
-          true
-        }else{
-          false
-        }
-      case _ =>
-        false
-    }
-    }.size>0){
-      val i = 0
-    }
     logger.debug(
       "AllocResponses: {}",
       allocResponses.groupBy(_.getClass).map(x => s"${x._1.getSimpleName} -- ${x._2.size}").mkString("\t")
