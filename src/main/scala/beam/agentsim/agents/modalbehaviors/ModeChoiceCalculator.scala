@@ -4,9 +4,12 @@ import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.mode._
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{BIKE, RIDE_HAIL, TRANSIT, WAITING, WALK}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, HasServices}
+import org.matsim.api.core.v01.population.Activity
+
 
 import scala.collection.mutable
 import scala.util.Random
@@ -22,17 +25,17 @@ trait ModeChoiceCalculator extends HasServices {
     beamServices.beamConfig.matsim.modules.global.randomSeed
   )
 
-  // TODO: This is depreciated, only used by LCCM
   def scaleTimeByVot(time: Double, beamMode: Option[BeamMode] = None, beamLeg: Option[EmbodiedBeamLeg] = None): Double = {
-    time / 3600 * beamServices.getModeVotMultiplier(beamMode)
+    time / 3600 * beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
   }
 
   def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
-    attributesOfIndividual: AttributesOfIndividual
+    attributesOfIndividual: AttributesOfIndividual,
+    destinationActivity: Option[Activity]
   ): Option[EmbodiedBeamTrip]
 
-  def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double
+  def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual, destinationActivity: Option[Activity]): Double
 
   def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double
 
@@ -83,4 +86,25 @@ object ModeChoiceCalculator {
           new ModeChoiceMultinomialLogit(beamServices, logit)
     }
   }
+  sealed trait ModeVotMultiplier
+  case object Drive extends ModeVotMultiplier
+  case object OnTransit extends ModeVotMultiplier
+  case object Walk extends ModeVotMultiplier
+  case object WalkToTransit extends ModeVotMultiplier // Separate from walking
+  case object DriveToTransit extends ModeVotMultiplier
+  case object RideHail extends ModeVotMultiplier // No separate ride hail to transit VOT
+  case object Bike extends ModeVotMultiplier
+  sealed trait timeSensitivity
+  case object highSensitivity extends timeSensitivity
+  case object lowSensitivity extends timeSensitivity
+  sealed trait congestionLevel
+  case object highCongestion extends congestionLevel
+  case object lowCongestion extends congestionLevel
+  sealed trait roadwayType
+  case object highway extends roadwayType
+  case object nonHighway extends roadwayType
+  sealed trait automationLevel
+  case object levelLE3 extends automationLevel
+  case object level4 extends automationLevel
+  case object level5 extends automationLevel
 }

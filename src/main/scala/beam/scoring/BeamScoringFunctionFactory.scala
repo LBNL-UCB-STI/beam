@@ -51,10 +51,9 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
       override def finish(): Unit = {
         val attributes =
           person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
-
         val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributes)
         val scoreOfThisOutcomeGivenMyClass =
-          trips.map(trip => modeChoiceCalculator.utilityOf(trip, attributes)).sum
+          trips.map(trip => modeChoiceCalculator.utilityOf(trip, attributes,None)).sum
 
         val scoreOfBeingInClassGivenThisOutcome =
           if (beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
@@ -71,7 +70,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices) extends S
               .toMap
               .mapValues(
                 modeChoiceCalculatorForStyle =>
-                  trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip, attributes)).sum
+                  trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip, attributes, None)).sum // TODO: get next activity
               )
               .toArray
               .toMap // to force computation DO NOT TOUCH IT, because here is call-by-name and it's lazy which will hold a lot of memory !!! :)

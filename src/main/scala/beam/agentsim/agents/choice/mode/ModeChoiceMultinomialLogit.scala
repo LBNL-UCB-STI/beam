@@ -9,11 +9,15 @@ import beam.router.Modes.BeamMode._
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Activity
 import org.matsim.vehicles.Vehicle
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
 
+import scala.collection.mutable
 import scala.util.Random
 
 /**
@@ -24,16 +28,17 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     with ExponentialLazyLogging {
 
   var expectedMaximumUtility: Double = 0.0
+  val modalBehaviors: ModalBehaviors = beamServices.getModalBehaviors()
 
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
-    attributesOfIndividual: AttributesOfIndividual
+    attributesOfIndividual: AttributesOfIndividual,
+    destinationActivity: Option[Activity]
   ): Option[EmbodiedBeamTrip] = {
     if (alternatives.isEmpty) {
       None
     } else {
-      val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives, attributesOfIndividual)
-
+      val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives, attributesOfIndividual, destinationActivity)
       val bestInGroup =
       modeCostTimeTransfers groupBy (_.mode) map {
         case (_, group) => group minBy timeAndCost
@@ -57,7 +62,6 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         case Some(chosenMode) =>
           val chosenModeCostTime =
             bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode))
-
           if (chosenModeCostTime.isEmpty || chosenModeCostTime.head.index < 0) {
             None
           } else {
@@ -75,7 +79,8 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
   def altsToModeCostTimeTransfers(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
-    attributesOfIndividual: AttributesOfIndividual
+    attributesOfIndividual: AttributesOfIndividual,
+    destinationActivity: Option[Activity]
   ): IndexedSeq[ModeCostTimeTransfer] = {
     val walkTripStartTime = alternatives
       .find(_.tripClassifier == WALK)
@@ -147,19 +152,63 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       ModeCostTimeTransfer(
         mode,
         incentivizedCost,
-//        scaleTimeByVot(altAndIdx._1.totalTravelTimeInSecs + waitTime, Option(mode)),
-//        altAndIdx._1.legs.map(getLegGeneralizedTimeCost(_)).sum + scaleTimeByVot(waitTime, Option(WAITING), None),
-//        altAndIdx._1.legs.map(getVot(_).sum + scaleTimeByVot(waitTime, Option(WAITING), None),
-        altAndIdx._1.legs.map(x => attributesOfIndividual.getVOT(x, beamServices)).sum + attributesOfIndividual.getModalVOTT(WAITING,beamServices) * waitTime,
-//        0.0,
+        altAndIdx._1.legs.map(
+          x => attributesOfIndividual.getVOT(x, modeMultipliers, situationMultipliers, poolingMultipliers, beamServices, destinationActivity)
+        ).sum +
+          attributesOfIndividual.getModeVotMultiplier(Option(WAITING),modeMultipliers)*attributesOfIndividual.unitConversionVOTT(waitTime),
         numTransfers,
         altAndIdx._2
       )
     }
   }
 
-  override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = {
-    val modeCostTimeTransfer = altsToModeCostTimeTransfers(IndexedSeq(alternative), attributesOfIndividual).head
+  lazy val modeMultipliers: mutable.Map[Option[BeamMode], Double] =
+    mutable.Map[Option[BeamMode], Double](
+      Some(TRANSIT)          -> modalBehaviors.modeVotMultiplier.transit,
+      Some(RIDE_HAIL)        -> modalBehaviors.modeVotMultiplier.rideHail,
+      Some(WAITING)          -> modalBehaviors.modeVotMultiplier.waiting,
+      Some(BIKE)             -> modalBehaviors.modeVotMultiplier.bike,
+      Some(WALK)             -> modalBehaviors.modeVotMultiplier.walk,
+      None                   -> 1.0
+    )
+
+  lazy val poolingMultipliers: mutable.Map[automationLevel, Double] =
+    mutable.Map[automationLevel, Double] (
+      levelLE3         -> modalBehaviors.poolingMultiplier.LevelLE3,
+      level4           -> modalBehaviors.poolingMultiplier.Level4,
+      level5           -> modalBehaviors.poolingMultiplier.Level5
+    )
+
+  lazy val situationMultipliers: mutable.Map[(timeSensitivity,congestionLevel,roadwayType, automationLevel), Double] =
+    mutable.Map[(timeSensitivity,congestionLevel,roadwayType, automationLevel), Double] (
+      (highSensitivity,highCongestion,highway,levelLE3)    -> modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.LevelLE3,
+      (highSensitivity,highCongestion,nonHighway,levelLE3) -> modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.LevelLE3,
+      (highSensitivity,lowCongestion,highway,levelLE3)     -> modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.LevelLE3,
+      (highSensitivity,lowCongestion,nonHighway,levelLE3)  -> modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.LevelLE3,
+      (lowSensitivity,highCongestion,highway,levelLE3)     -> modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.LevelLE3,
+      (lowSensitivity,highCongestion,nonHighway,levelLE3)  -> modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.LevelLE3,
+      (lowSensitivity,lowCongestion,highway,levelLE3)      -> modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.LevelLE3,
+      (lowSensitivity,lowCongestion,nonHighway,levelLE3)   -> modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.LevelLE3,
+      (highSensitivity,highCongestion,highway,level4)    -> modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.Level4,
+      (highSensitivity,highCongestion,nonHighway,level4) -> modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.Level4,
+      (highSensitivity,lowCongestion,highway,level4)     -> modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.Level4,
+      (highSensitivity,lowCongestion,nonHighway,level4)  -> modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.Level4,
+      (lowSensitivity,highCongestion,highway,level4)     -> modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.Level4,
+      (lowSensitivity,highCongestion,nonHighway,level4)  -> modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.Level4,
+      (lowSensitivity,lowCongestion,highway,level4)      -> modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.Level4,
+      (lowSensitivity,lowCongestion,nonHighway,level4)   -> modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.Level4,
+      (highSensitivity,highCongestion,highway,level5)    -> modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.Level5,
+      (highSensitivity,highCongestion,nonHighway,level5) -> modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.Level5,
+      (highSensitivity,lowCongestion,highway,level5)     -> modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.Level5,
+      (highSensitivity,lowCongestion,nonHighway,level5)  -> modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.Level5,
+      (lowSensitivity,highCongestion,highway,level5)     -> modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.Level5,
+      (lowSensitivity,highCongestion,nonHighway,level5)  -> modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.Level5,
+      (lowSensitivity,lowCongestion,highway,level5)      -> modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.Level5,
+      (lowSensitivity,lowCongestion,nonHighway,level5)   -> modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.Level5
+    )
+
+  override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual, destinationActivity: Option[Activity]): Double = {
+    val modeCostTimeTransfer = altsToModeCostTimeTransfers(IndexedSeq(alternative), attributesOfIndividual, destinationActivity).head
     utilityOf(
       modeCostTimeTransfer.mode,
       modeCostTimeTransfer.cost + modeCostTimeTransfer.scaledTime,
@@ -176,7 +225,6 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       )
     model.getUtilityOfAlternative(AlternativeAttributes(mode.value, variables))
   }
-
 }
 
 object ModeChoiceMultinomialLogit {

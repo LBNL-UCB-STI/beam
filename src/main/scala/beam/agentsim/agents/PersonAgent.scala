@@ -241,7 +241,7 @@ class PersonAgent(
   startWith(Uninitialized, BasePersonData())
 
   def scaleTimeByValueOfTime(timeInSeconds: Double, beamMode: Option[BeamMode] = None): Double = {
-    beamServices.getModeVotMultiplier(beamMode) * timeInSeconds / 3600
+    attributes.unitConversionVOTT(timeInSeconds) // TODO: ZN, right now not mode specific. modal factors reside in ModeChoiceMultinomialLogit. Move somewhere else?
   }
 
   def currentTour(data: BasePersonData): Tour = {
