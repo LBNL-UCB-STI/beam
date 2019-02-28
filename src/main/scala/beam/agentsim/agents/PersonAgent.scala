@@ -758,7 +758,7 @@ class PersonAgent(
             legs = data.currentTrip.get.legs
               .dropRight(1) :+ EmbodiedBeamLeg.dummyLegAt(tick, bodyVehiclePersonId.vehicleId, true)
           )
-          beamSkimmer.observeTrip(correctedTrip,beamServices)
+          beamSkimmer.observeTrip(correctedTrip, beamServices)
 
           eventsManager.processEvent(
             new ActivityStartEvent(

@@ -19,7 +19,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
 
 import scala.collection.JavaConverters._
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.{Await, Future}
 
 class Population(

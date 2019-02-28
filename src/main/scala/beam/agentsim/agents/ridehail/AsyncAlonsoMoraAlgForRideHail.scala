@@ -33,7 +33,7 @@ class AsyncAlonsoMoraAlgForRideHail(
       .asScala take maxRequestsPerVehicle foreach (
       r =>
         AlonsoMoraPoolingAlgForRideHail
-          .getRidehailSchedule(timeWindow, v.schedule ++ List(r.pickup, r.dropoff),beamServices) match {
+          .getRidehailSchedule(timeWindow, v.schedule ++ List(r.pickup, r.dropoff), beamServices) match {
           case Some(schedule) =>
             val t = RideHailTrip(List(r), schedule)
             finalRequestsList append t

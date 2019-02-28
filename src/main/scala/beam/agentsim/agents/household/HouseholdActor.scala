@@ -221,7 +221,7 @@ object HouseholdActor {
             Map((Pickup, 5 * 60), (Dropoff, 10 * 60)),
             stopSearchAfterXSolutions = 100,
             limitCavToXPersons = 3,
-            new BeamSkimmer(),
+            beamSkimmer,
             beamServices
           )
 //          var optimalPlan = cavScheduler.getKBestSchedules(1).head.cavFleetSchedule

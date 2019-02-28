@@ -65,7 +65,7 @@ class AlonsoMoraPoolingAlgForRideHail(
         .asScala
         .take(maxRequestsPerVehicle)
     } yield {
-      getRidehailSchedule(timeWindow, v.schedule ++ List(r.pickup, r.dropoff),beamServices).map { schedule =>
+      getRidehailSchedule(timeWindow, v.schedule ++ List(r.pickup, r.dropoff), beamServices).map { schedule =>
         rvG.addVertex(v)
         rvG.addVertex(r)
         rvG.addEdge(v, r, RideHailTrip(List(r), schedule))
@@ -100,7 +100,8 @@ class AlonsoMoraPoolingAlgForRideHail(
         } yield {
           getRidehailSchedule(
             timeWindow,
-            v.schedule ++ (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)), beamServices
+            v.schedule ++ (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
+            beamServices
           ) map { schedule =>
             val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
             pairRequestsList append t
@@ -211,7 +212,11 @@ object AlonsoMoraPoolingAlgForRideHail {
     )
   }
 
-  def getRidehailSchedule(timeWindow: Map[MobilityServiceRequestType, Int], requests: List[MobilityServiceRequest], beamServices: BeamServices)(
+  def getRidehailSchedule(
+    timeWindow: Map[MobilityServiceRequestType, Int],
+    requests: List[MobilityServiceRequest],
+    beamServices: BeamServices
+  )(
     implicit skimmer: BeamSkimmer
   ): Option[List[MobilityServiceRequest]] = {
     val sortedRequests = requests.sortWith(_.time < _.time)
@@ -255,7 +260,9 @@ object AlonsoMoraPoolingAlgForRideHail {
         0,
         BeamMode.CAR,
         BeamVehicleType.defaultCarBeamVehicleType.id
-      ).time.toInt
+      )
+      .time
+      .toInt
     CustomerRequest(
       vehiclePersonId,
       MobilityServiceRequest(

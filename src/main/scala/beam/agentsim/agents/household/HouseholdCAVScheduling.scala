@@ -118,7 +118,8 @@ class HouseholdCAVScheduling(
       val outHouseholdSchedule = MListBuffer.empty[Option[CAVFleetSchedule]]
       var feasibleOut = cavFleetSchedule.foldLeft(true) {
         case (feasible, cavSchedule) =>
-          val (scheduleOption, trips, isFeasible) = cavSchedule.check(request, householdTrips, timeWindow, skim,beamServices)
+          val (scheduleOption, trips, isFeasible) =
+            cavSchedule.check(request, householdTrips, timeWindow, skim, beamServices)
           outHouseholdSchedule.prepend(
             scheduleOption.map(
               schedule => CAVFleetSchedule(schedule :: cavFleetSchedule.filter(_ != cavSchedule), trips)
@@ -185,7 +186,9 @@ case class CAVSchedule(
         CAR,
         cav.beamVehicleType.id,
         Some(beamServices)
-      ).time.toInt
+      )
+      .time
+      .toInt
     val prevServiceTime = schedule.head.serviceTime
     val serviceTime = prevServiceTime + travelTime
     val upperBoundServiceTime = request.time + timeWindow(request.tag)
@@ -440,7 +443,9 @@ object HouseholdTrips {
                   0,
                   defaultMode,
                   org.matsim.api.core.v01.Id.create[BeamVehicleType]("", classOf[BeamVehicleType])
-                ).time.toInt
+                )
+                .time
+                .toInt
 
               val startTime = prevTrip.activity.getEndTime.toInt
               val arrivalTime = startTime + travelTime

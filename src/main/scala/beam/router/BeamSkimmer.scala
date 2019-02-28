@@ -5,7 +5,17 @@ import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.BeamSkimmer.Skim
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  CAR,
+  CAV,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK_TRANSIT
+}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
@@ -15,9 +25,9 @@ import org.matsim.api.core.v01.Id
 import scala.collection.concurrent.TrieMap
 
 //TODO to be validated against google api
-class BeamSkimmer@Inject()() {
+class BeamSkimmer @Inject()() {
   // The OD/Mode/Time Matrix
-  var skims: TrieMap[(Int, BeamMode,Id[TAZ],Id[TAZ]), Skim] = TrieMap()
+  var skims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), Skim] = TrieMap()
 
   // 22.2 mph (9.924288 meter per second), is the average speed in cities
   //TODO better estimate can be drawn from city size
@@ -50,9 +60,9 @@ class BeamSkimmer@Inject()() {
   ): Skim = {
     beamServicesOpt match {
       case Some(beamServices) =>
-        val origTaz = beamServices.tazTreeMap.getTAZ(origin.getX,origin.getY).tazId
-        val destTaz = beamServices.tazTreeMap.getTAZ(origin.getX,origin.getY).tazId
-        getSkimValue(departureTime,mode,origTaz,destTaz) match {
+        val origTaz = beamServices.tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
+        val destTaz = beamServices.tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
+        getSkimValue(departureTime, mode, origTaz, destTaz) match {
           case Some(skimValue) =>
             skimValue
           case None =>
@@ -70,7 +80,12 @@ class BeamSkimmer@Inject()() {
             val travelCost: Double = mode match {
               case CAR | CAV =>
                 DrivingCost.estimateDrivingCost(
-                  new BeamLeg(departureTime, mode, travelTime, new BeamPath(null, null, None, null, null, travelDistance)),
+                  new BeamLeg(
+                    departureTime,
+                    mode,
+                    travelTime,
+                    new BeamPath(null, null, None, null, null, travelDistance)
+                  ),
                   vehicleTypeId,
                   beamServices
                 )
@@ -102,32 +117,41 @@ class BeamSkimmer@Inject()() {
   private def getSkimValue(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Option[Skim] = {
     skims.get((timeToBin(time), mode, orig, dest))
   }
+
   def observeTrip(trip: EmbodiedBeamTrip, beamServices: BeamServices) = {
     val origLeg = trip.legs.head.beamLeg
     val destLeg = trip.legs.last.beamLeg
     val timeBin = timeToBin(origLeg.startTime)
     val mode = trip.tripClassifier
-    val origTaz = beamServices.tazTreeMap.getTAZ(origLeg.travelPath.startPoint.loc.getX,origLeg.travelPath.startPoint.loc.getY).tazId
-    val destTaz = beamServices.tazTreeMap.getTAZ(origLeg.travelPath.startPoint.loc.getX,origLeg.travelPath.startPoint.loc.getY).tazId
+    val origTaz = beamServices.tazTreeMap
+      .getTAZ(origLeg.travelPath.startPoint.loc.getX, origLeg.travelPath.startPoint.loc.getY)
+      .tazId
+    val destTaz = beamServices.tazTreeMap
+      .getTAZ(origLeg.travelPath.startPoint.loc.getX, origLeg.travelPath.startPoint.loc.getY)
+      .tazId
     val key = (timeBin, mode, origTaz, destTaz)
-    val payload = Skim(trip.totalTravelTimeInSecs.toDouble,trip.beamLegs().map(_.travelPath.distanceInM).sum,trip.costEstimate,1)
+    val payload =
+      Skim(trip.totalTravelTimeInSecs.toDouble, trip.beamLegs().map(_.travelPath.distanceInM).sum, trip.costEstimate, 1)
     skims.get(key) match {
       case Some(existingSkim) =>
-                  val newPayload = Skim(
-                    mergeAverage(existingSkim.time, existingSkim.count, payload.time),
-                    mergeAverage(existingSkim.distance, existingSkim.count, payload.distance),
-                    mergeAverage(existingSkim.cost, existingSkim.count, payload.cost),
-                    existingSkim.count + 1
-                  )
-          case None =>
-            skims.put(key, payload)
-      }
+        val newPayload = Skim(
+          mergeAverage(existingSkim.time, existingSkim.count, payload.time),
+          mergeAverage(existingSkim.distance, existingSkim.count, payload.distance),
+          mergeAverage(existingSkim.cost, existingSkim.count, payload.cost),
+          existingSkim.count + 1
+        )
+      case None =>
+        skims.put(key, payload)
+    }
   }
   def clear = skims.clear()
+
   def timeToBin(departTime: Int) = {
     Math.floorMod(Math.floor(departTime.toDouble / 3600.0).toInt, 24)
   }
-  def mergeAverage(existingAverage: Double, existingCount: Int, newValue: Double) =  ((existingAverage * existingCount + newValue)/(existingCount + 1))
+
+  def mergeAverage(existingAverage: Double, existingCount: Int, newValue: Double) =
+    ((existingAverage * existingCount + newValue) / (existingCount + 1))
 }
 
 object BeamSkimmer {
