@@ -1,6 +1,5 @@
 package beam.utils.gtfs;
 
-
 import com.conveyal.r5.analyst.scenario.AddTrips;
 
 public abstract class AbstractTimetable {
