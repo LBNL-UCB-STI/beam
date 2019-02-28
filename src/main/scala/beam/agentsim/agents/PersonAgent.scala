@@ -22,7 +22,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTrig
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, CAV, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL_POOLED, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
@@ -448,6 +448,9 @@ class PersonAgent(
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
       val mode = data.currentTrip.get.tripClassifier
+      if(mode == RIDE_HAIL_POOLED && tick < rideHailDepart){
+        val i = 0
+      }
 
       if (currentLeg.cost > 0.0) {
         if (beamServices.agencyAndRouteByVehicleIds.contains(
@@ -566,20 +569,8 @@ class PersonAgent(
       )
   }
 
-  /**
-    * processNextLegOrStartActivity
-    *
-    * This should be called when it's time to either embark on another leg in a trip or to wrap up a trip that is
-    * now complete. There are four outcomes possible:
-    *
-    * 1 There are more legs in the trip and the [[PersonAgent]] is the driver => goto [[WaitingToDrive]] and schedule
-    * [[StartLegTrigger]]
-    * 2 There are more legs in the trip but the [[PersonAgent]] is a passenger => goto [[Waiting]] and schedule nothing
-    * further (the driver will initiate the start of the leg)
-    * 3 The trip is over and there are more activities in the agent plan => goto [[PerformingActivity]] and schedule end
-    * of activity
-    * 4 The trip is over and there are no more activities in the agent plan => goto [[Finish]]
-    **/
+  var rideHailDepart = 0 // For debug only, can be removed
+
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
     case Event(
         StateTimeout,
@@ -685,6 +676,7 @@ class PersonAgent(
         leg => leg.beamVehicleId == nextLeg.beamVehicleId
       )
       val departAt = legSegment.head.beamLeg.startTime
+      rideHailDepart = departAt
 
       rideHailManager ! RideHailRequest(
         ReserveRide,
