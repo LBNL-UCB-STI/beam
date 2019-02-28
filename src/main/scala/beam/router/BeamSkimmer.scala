@@ -1,19 +1,23 @@
 package beam.router
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
+import beam.router.BeamSkimmer.Skim
 import beam.router.Modes.BeamMode
-import beam.router.model.{BeamLeg, BeamPath}
+import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK_TRANSIT}
+import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
+import com.google.inject.Inject
+import org.matsim.api.core.v01.Id
 
-case class TimeDistanceAndCost(timeAndCost: TimeAndCost, distance: Option[Int]) {
-  override def toString =
-    s"[time:${timeAndCost.time.getOrElse("NA")}][cost:${timeAndCost.cost.getOrElse("NA")}][distance:${distance.getOrElse("NA")}]"
-}
+import scala.collection.concurrent.TrieMap
 
 //TODO to be validated against google api
-class BeamSkimmer(services: Option[BeamServices] = None) {
+class BeamSkimmer@Inject()() {
+  // The OD/Mode/Time Matrix
+  var skims: TrieMap[(Int, BeamMode,Id[TAZ],Id[TAZ]), Skim] = TrieMap()
 
   // 22.2 mph (9.924288 meter per second), is the average speed in cities
   //TODO better estimate can be drawn from city size
@@ -41,36 +45,93 @@ class BeamSkimmer(services: Option[BeamServices] = None) {
     destination: Location,
     departureTime: Int,
     mode: BeamMode,
-    vehicleTypeId: org.matsim.api.core.v01.Id[BeamVehicleType]
-  ): TimeDistanceAndCost = {
-
-    val speed = mode match {
-      case BeamMode.CAR     => carSpeedMeterPerSec
-      case BeamMode.TRANSIT => transitSpeedMeterPerSec
-      case BeamMode.BIKE    => bicycleSpeedMeterPerSec
-      case _                => walkSpeedMeterPerSec
+    vehicleTypeId: org.matsim.api.core.v01.Id[BeamVehicleType],
+    beamServicesOpt: Option[BeamServices] = None
+  ): Skim = {
+    beamServicesOpt match {
+      case Some(beamServices) =>
+        val origTaz = beamServices.tazTreeMap.getTAZ(origin.getX,origin.getY).tazId
+        val destTaz = beamServices.tazTreeMap.getTAZ(origin.getX,origin.getY).tazId
+        getSkimValue(departureTime,mode,origTaz,destTaz) match {
+          case Some(skimValue) =>
+            skimValue
+          case None =>
+            val speed = mode match {
+              case CAR | CAV | RIDE_HAIL                                      => carSpeedMeterPerSec
+              case RIDE_HAIL_POOLED                                           => carSpeedMeterPerSec * 1.1
+              case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT => transitSpeedMeterPerSec
+              case BIKE                                                       => bicycleSpeedMeterPerSec
+              case _                                                          => walkSpeedMeterPerSec
+            }
+            val travelDistance: Int = Math.ceil(GeoUtils.minkowskiDistFormula(origin, destination)).toInt
+            val travelTime: Int = Math
+              .ceil(travelDistance / speed)
+              .toInt + ((travelDistance / trafficSignalSpacing).toInt * waitingTimeAtAnIntersection).toInt
+            val travelCost: Double = mode match {
+              case CAR | CAV =>
+                DrivingCost.estimateDrivingCost(
+                  new BeamLeg(departureTime, mode, travelTime, new BeamPath(null, null, None, null, null, travelDistance)),
+                  vehicleTypeId,
+                  beamServices
+                )
+              case RIDE_HAIL =>
+                beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0
+              case RIDE_HAIL_POOLED =>
+                0.6 * (beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0)
+              case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT => 0.25 * travelDistance / 1609
+              case _                                                          => 0.0
+            }
+            Skim(travelTime, travelDistance, travelCost, 0)
+        }
+      case None =>
+        val speed = mode match {
+          case CAR | CAV | RIDE_HAIL                                      => carSpeedMeterPerSec
+          case RIDE_HAIL_POOLED                                           => carSpeedMeterPerSec * 1.1
+          case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT => transitSpeedMeterPerSec
+          case BIKE                                                       => bicycleSpeedMeterPerSec
+          case _                                                          => walkSpeedMeterPerSec
+        }
+        val travelDistance: Int = Math.ceil(GeoUtils.minkowskiDistFormula(origin, destination)).toInt
+        val travelTime: Int = Math
+          .ceil(travelDistance / speed)
+          .toInt + ((travelDistance / trafficSignalSpacing).toInt * waitingTimeAtAnIntersection).toInt
+        Skim(travelTime, travelDistance, 0.0, 0)
     }
-    val travelDistance: Int = Math.ceil(GeoUtils.minkowskiDistFormula(origin, destination)).toInt
-    val travelTime: Int = Math
-      .ceil(travelDistance / speed)
-      .toInt + ((travelDistance / trafficSignalSpacing).toInt * waitingTimeAtAnIntersection).toInt
-    val travelCost: Double = services
-      .map(
-        x =>
-          DrivingCost.estimateDrivingCost(
-            new BeamLeg(departureTime, mode, travelTime, new BeamPath(null, null, None, null, null, travelDistance)),
-            vehicleTypeId,
-            x
-        )
-      )
-      .getOrElse(0)
-
-    TimeDistanceAndCost(TimeAndCost(Some(travelTime), Some(travelCost)), Some(travelDistance))
-
   }
+
+  private def getSkimValue(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Option[Skim] = {
+    skims.get((timeToBin(time), mode, orig, dest))
+  }
+  def observeTrip(trip: EmbodiedBeamTrip, beamServices: BeamServices) = {
+    val origLeg = trip.legs.head.beamLeg
+    val destLeg = trip.legs.last.beamLeg
+    val timeBin = timeToBin(origLeg.startTime)
+    val mode = trip.tripClassifier
+    val origTaz = beamServices.tazTreeMap.getTAZ(origLeg.travelPath.startPoint.loc.getX,origLeg.travelPath.startPoint.loc.getY).tazId
+    val destTaz = beamServices.tazTreeMap.getTAZ(origLeg.travelPath.startPoint.loc.getX,origLeg.travelPath.startPoint.loc.getY).tazId
+    val key = (timeBin, mode, origTaz, destTaz)
+    val payload = Skim(trip.totalTravelTimeInSecs.toDouble,trip.beamLegs().map(_.travelPath.distanceInM).sum,trip.costEstimate,1)
+    skims.get(key) match {
+      case Some(existingSkim) =>
+                  val newPayload = Skim(
+                    mergeAverage(existingSkim.time, existingSkim.count, payload.time),
+                    mergeAverage(existingSkim.distance, existingSkim.count, payload.distance),
+                    mergeAverage(existingSkim.cost, existingSkim.count, payload.cost),
+                    existingSkim.count + 1
+                  )
+          case None =>
+            skims.put(key, payload)
+      }
+  }
+  def clear = skims.clear()
+  def timeToBin(departTime: Int) = {
+    Math.floorMod(Math.floor(departTime.toDouble / 3600.0).toInt, 24)
+  }
+  def mergeAverage(existingAverage: Double, existingCount: Int, newValue: Double) =  ((existingAverage * existingCount + newValue)/(existingCount + 1))
 }
 
 object BeamSkimmer {
+  case class Skim(time: Double, distance: Double, cost: Double, count: Int)
 
   def main(args: Array[String]): Unit = {
     val config = org.matsim.core.config.ConfigUtils.createConfig()
