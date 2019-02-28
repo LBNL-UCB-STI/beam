@@ -13,10 +13,10 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 
 //TODO: Fix/Add Tests
-//TODO: Finish adding mappings so can read primary/secondary (when load) and add to files - BeamHelper
-//Question: What to do if the file is not found or cannot be read - exception and die?
-//TODO: Add a test checking that Consumption Rates used (integration test)
 //TODO: Handle header files and column by name instead of index
+//Question: What to do if the file is not found or cannot be read - exception and die?
+//TODO: Create an issue: Add a test checking that Consumption Rates used (integration test)
+//TODO: Create an issue: Handle secondary fuel - see https://github.com/LBNL-UCB-STI/beam/pull/1296#discussion_r260605865
 
 class VehicleCsvReader(config: BeamConfig) {
   def getVehicleEnergyRecordsUsing(csvParser: CsvParser, filePath: String): Iterable[Record] = {
@@ -134,21 +134,19 @@ class VehicleEnergy(
 
   def getFuelConsumptionEnergyInJoulesUsing(
     fuelConsumptionDatas: IndexedSeq[BeamVehicle.FuelConsumptionData],
-    overallFallBack: IndexedSeq[BeamVehicle.FuelConsumptionData] => Double,
-    singleFallBack: BeamVehicle.FuelConsumptionData => Double
+    fallBack: BeamVehicle.FuelConsumptionData => Double
   ): Double = {
     val consumptionsInJoules: IndexedSeq[Double] = fuelConsumptionDatas
-      .flatMap(fuelConsumptionData => {
-        for {
-          rateInJoulesPerMeter <- getRateUsing(fuelConsumptionData, singleFallBack)
-          distance             <- fuelConsumptionData.linkLength
-        } yield rateInJoulesPerMeter * distance
+      .map(fuelConsumptionData => {
+        val rateInJoulesPerMeter = getRateUsing(fuelConsumptionData, fallBack)
+        val distance = fuelConsumptionData.linkLength.getOrElse(0.0)
+        rateInJoulesPerMeter * distance
       })
-    if (consumptionsInJoules.nonEmpty) consumptionsInJoules.sum else overallFallBack(fuelConsumptionDatas)
+    consumptionsInJoules.sum
   }
 
   private def getRateUsing(fuelConsumptionData: BeamVehicle.FuelConsumptionData,
-                           fallBack: BeamVehicle.FuelConsumptionData => Double): Option[Double] = {
+                           fallBack: BeamVehicle.FuelConsumptionData => Double): Double = {
     val BeamVehicle.FuelConsumptionData(linkId, vehicleType, numberOfLanesOption, _, _, _, speedInMilesPerHourOption, _, _, _) =
       fuelConsumptionData
     val numberOfLanes: Int = numberOfLanesOption.getOrElse(0)
@@ -157,12 +155,7 @@ class VehicleEnergy(
     consumptionRateFilterStore.getPrimaryConsumptionRateFilterFor(vehicleType).flatMap(
       consumptionRateFilterFuture => getRateUsing(consumptionRateFilterFuture,
         numberOfLanes, speedInMilesPerHour, gradePercent)
-    ).orElse(
-      consumptionRateFilterStore.getSecondaryConsumptionRateFilterFor(vehicleType).flatMap(
-        consumptionRateFilterFuture => getRateUsing(consumptionRateFilterFuture,
-          numberOfLanes, speedInMilesPerHour, gradePercent)
-      )
-    ).orElse(Some(fallBack(fuelConsumptionData)))
+    ).getOrElse(fallBack(fuelConsumptionData))
   }
 
   private def getRateUsing(consumptionRateFilterFuture: Future[ConsumptionRateFilter],
@@ -175,23 +168,13 @@ class VehicleEnergy(
     //If that changes then go ahead and map through the collections
     import scala.concurrent.duration._
     val consumptionRateFilter = Await.result(consumptionRateFilterFuture, 1.minute)
-    val filteredRates = consumptionRateFilter
-      .collect {
-        case (speedInMilesPerHourBin, restOfFilter) if speedInMilesPerHourBin.hasDouble(speedInMilesPerHour) =>
-          restOfFilter
-      }
-      .flatten
-      .collect { case (gradePercentBin, restOfFilter) if gradePercentBin.hasDouble(gradePercent) => restOfFilter }
-      .flatten
-      .collect { case (numberOfLanesBin, rate) if numberOfLanesBin.has(numberOfLanes) => rate }
 
-    val ratesSize = filteredRates.size
-    if (ratesSize > 1)
-      log.warn(
-        s"More than one ($ratesSize) rate was found using: Number of Lanes = $numberOfLanes; Speed in MPH = $speedInMilesPerHour; Grade Percent = $gradePercent." +
-          "The first will be used, but the data should be reviewed for range overlap."
-      )
-    filteredRates.headOption.map(convertFromGallonsPer100MilesToJoulesPerMeter)
+    for{
+      (_, gradeFilter) <- consumptionRateFilter
+        .find { case (speedInMilesPerHourBin, _) => speedInMilesPerHourBin.hasDouble(speedInMilesPerHour)}
+      (_, lanesFilter) <- gradeFilter.find { case (gradePercentBin, _) => gradePercentBin.hasDouble(gradePercent) }
+      (_, rate) <- lanesFilter.find { case (numberOfLanesBin, _) => numberOfLanesBin.has(numberOfLanes) }
+    } yield convertFromGallonsPer100MilesToJoulesPerMeter(rate)
   }
 
   private def convertFromGallonsPer100MilesToJoulesPerMeter(rate: Double): Double =
