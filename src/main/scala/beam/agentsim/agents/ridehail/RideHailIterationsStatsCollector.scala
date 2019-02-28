@@ -2,7 +2,7 @@ package beam.agentsim.agents.ridehail
 
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
 import beam.sim.BeamServices
-import beam.utils.GeoUtils
+import beam.utils.{DebugUtil, GeoUtils}
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Coord
@@ -87,7 +87,8 @@ class RideHailIterationsStatsCollector(
   rideHailIterationHistoryActor: RideHailIterationHistory,
   transportNetwork: TransportNetwork
 ) extends BasicEventHandler
-    with LazyLogging {
+    with LazyLogging
+    with DebugUtil {
 
   private val beamConfig = beamServices.beamConfig
   // TAZ level -> how to get as input here?

@@ -21,6 +21,7 @@ import beam.router.Modes.BeamMode.{TRANSIT, WALK}
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.sim.HasServices
+import beam.utils.DebugUtil
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{
@@ -72,7 +73,7 @@ object DrivesVehicle {
 
 }
 
-trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with Stash {
+trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with Stash with DebugUtil {
 
   protected val transportNetwork: TransportNetwork
   protected val parkingManager: ActorRef

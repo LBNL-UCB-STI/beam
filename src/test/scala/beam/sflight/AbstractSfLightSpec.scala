@@ -4,7 +4,7 @@ import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKitBase}
 import beam.router.BeamRouter
 import beam.sim.{BeamServices, BeamServicesImpl}
-import beam.utils.SimRunnerForTest
+import beam.utils.{DebugUtil, SimRunnerForTest}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.population.{Activity, Plan}
@@ -23,7 +23,8 @@ class AbstractSfLightSpec(val name: String)
     with Matchers
     with ImplicitSender
     with MockitoSugar
-    with BeforeAndAfterAll {
+    with BeforeAndAfterAll
+    with DebugUtil {
   lazy implicit val system = ActorSystem(name, ConfigFactory.parseString("""akka.loglevel="OFF"
       |akka.test.timefactor=10""".stripMargin))
 

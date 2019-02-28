@@ -3,6 +3,7 @@ package beam.analysis.plots;
 import beam.agentsim.events.ReserveRideHailEvent;
 import beam.agentsim.infrastructure.TAZTreeMap;
 import beam.sim.BeamServices;
+import beam.utils.CallerInfo;
 import beam.utils.MathUtils;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Id;
@@ -12,6 +13,9 @@ import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.utils.collections.Tuple;
 import org.matsim.core.utils.io.IOUtils;
+import sourcecode.Enclosing;
+import sourcecode.File;
+import sourcecode.Line;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -57,7 +61,8 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
             if (rideHailWaitingQueue.containsKey(personId.toString()) && personEntersVehicleEvent.getVehicleId().toString().contains("rideHailVehicle")) {
                 //process and add the waiting time to the total time spent by all the passengers on waiting for a ride hail
                 ReserveRideHailEvent reserveRideHailEvent = (ReserveRideHailEvent) rideHailWaitingQueue.get(_personId);
-                Coord pickupCoord = beamServices.geo().wgs2Utm(new Coord(reserveRideHailEvent.originX, reserveRideHailEvent.originY));
+                CallerInfo ci = new CallerInfo(this.getClass(), new File("RideHailWaitingTazAnalysis.java"), new Enclosing("java"), new Line(64));
+                Coord pickupCoord = beamServices.geo().wgs2Utm(new Coord(reserveRideHailEvent.originX, reserveRideHailEvent.originY), ci);
                 TAZTreeMap.TAZ pickUpLocationTAZ = beamServices.tazTreeMap().getTAZ(pickupCoord.getX(),pickupCoord.getY());
                 double waitingTime = personEntersVehicleEvent.getTime() - reserveRideHailEvent.getTime();
                 processRideHailWaitingTimesAndTaz(reserveRideHailEvent, waitingTime,pickUpLocationTAZ);

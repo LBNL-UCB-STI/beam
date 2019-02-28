@@ -29,7 +29,7 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile}
 import beam.utils.TestConfigUtils.testConfig
-import beam.utils.{BeamVehicleUtils, NetworkHelperImpl, StuckFinder}
+import beam.utils.{DebugUtil, NetworkHelperImpl, StuckFinder}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population.Person
@@ -72,7 +72,8 @@ class PersonWithPersonalVehiclePlanSpec
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
-    with ImplicitSender {
+    with ImplicitSender
+    with DebugUtil {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   private lazy val beamConfig = BeamConfig(system.settings.config)

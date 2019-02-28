@@ -123,7 +123,8 @@ class ScenarioReaderCsv(var scenario: MutableScenario, var beamServices: BeamSer
   }
 }
 
-object ScenarioReaderCsv {
+object ScenarioReaderCsv extends DebugUtil {
+
   private val logger = LoggerFactory.getLogger(this.getClass)
 
   var vehicleCounter = 1
