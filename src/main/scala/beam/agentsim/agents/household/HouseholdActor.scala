@@ -67,7 +67,8 @@ object HouseholdActor {
     houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle],
     homeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
-    routeHistory: RouteHistory
+    routeHistory: RouteHistory,
+    beamSkimmer: BeamSkimmer
   ): Props = {
     Props(
       new HouseholdActor(
@@ -85,7 +86,8 @@ object HouseholdActor {
         houseHoldVehicles,
         homeCoord,
         sharedVehicleFleets,
-        routeHistory
+        routeHistory,
+        beamSkimmer
       )
     )
   }
@@ -125,7 +127,8 @@ object HouseholdActor {
     vehicles: Map[Id[BeamVehicle], BeamVehicle],
     homeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
-    routeHistory: RouteHistory
+    routeHistory: RouteHistory,
+    beamSkimmer: BeamSkimmer
   ) extends Actor
       with HasTickAndTrigger
       with ActorLogging {
@@ -216,7 +219,10 @@ object HouseholdActor {
             household,
             cavs,
             Map((Pickup, 5 * 60), (Dropoff, 10 * 60)),
-            skim = new BeamSkimmer(Some(beamServices))
+            stopSearchAfterXSolutions = 100,
+            limitCavToXPersons = 3,
+            new BeamSkimmer(),
+            beamServices
           )
 //          var optimalPlan = cavScheduler.getKBestSchedules(1).head.cavFleetSchedule
           var optimalPlan = cavScheduler.getBestScheduleWithTheLongestCAVChain
@@ -287,7 +293,8 @@ object HouseholdActor {
               person.getId,
               self,
               person.getSelectedPlan,
-              fleetManagers ++: sharedVehicleFleets :+ self
+              fleetManagers ++: sharedVehicleFleets :+ self,
+              beamSkimmer
             ),
             person.getId.toString
           )

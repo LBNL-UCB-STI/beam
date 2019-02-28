@@ -130,7 +130,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         spatialPoolCustomerReqs,
         availVehicles.toList,
         Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
-        maxRequestsPerVehicle = 5
+        maxRequestsPerVehicle = 5,
+        rideHailManager.beamServices
       )
       import scala.concurrent.duration._
       val assignment = try {

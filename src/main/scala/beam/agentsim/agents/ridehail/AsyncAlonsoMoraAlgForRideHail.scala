@@ -2,6 +2,7 @@ package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.router.BeamSkimmer
+import beam.sim.BeamServices
 import org.jgrapht.graph.DefaultEdge
 import org.matsim.core.utils.collections.QuadTree
 
@@ -14,7 +15,8 @@ class AsyncAlonsoMoraAlgForRideHail(
   spatialDemand: QuadTree[CustomerRequest],
   supply: List[VehicleAndSchedule],
   timeWindow: Map[MobilityServiceRequestType, Int],
-  maxRequestsPerVehicle: Int
+  maxRequestsPerVehicle: Int,
+  beamServices: BeamServices
 )(implicit val skimmer: BeamSkimmer) {
 
   private def vehicle2Requests(v: VehicleAndSchedule): (List[RTVGraphNode], List[(RTVGraphNode, RTVGraphNode)]) = {
@@ -31,7 +33,7 @@ class AsyncAlonsoMoraAlgForRideHail(
       .asScala take maxRequestsPerVehicle foreach (
       r =>
         AlonsoMoraPoolingAlgForRideHail
-          .getRidehailSchedule(timeWindow, v.schedule ++ List(r.pickup, r.dropoff)) match {
+          .getRidehailSchedule(timeWindow, v.schedule ++ List(r.pickup, r.dropoff),beamServices) match {
           case Some(schedule) =>
             val t = RideHailTrip(List(r), schedule)
             finalRequestsList append t
@@ -55,7 +57,8 @@ class AsyncAlonsoMoraAlgForRideHail(
           AlonsoMoraPoolingAlgForRideHail
             .getRidehailSchedule(
               timeWindow,
-              v.schedule ++ (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff))
+              v.schedule ++ (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
+              beamServices
             ) match {
             case Some(schedule) =>
               val t = RideHailTrip(t1.requests ++ t2.requests, schedule)
