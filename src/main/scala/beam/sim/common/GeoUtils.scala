@@ -31,12 +31,8 @@ trait GeoUtils extends ExponentialLazyLogging {
 
   def wgs2Utm(coord: Coord)(implicit callerInfo: CallerInfo): Coord = {
     if (coord.getX < -180 || coord.getX > 180 || coord.getY < -90 || coord.getY > 90) {
-      val file = callerInfo.file
-      val enclosing = callerInfo.enclosing
-      val line = callerInfo.line
-      val sourceFileName = new java.io.File(file.value).getName
-      val msg = s"${callerInfo.clazz} ${enclosing.value}($sourceFileName:${line.value}) ${file.value}:${line.value}"
-      logger.warn(s"Coordinate does not appear to be in WGS. No conversion will happen: $coord. \r\n $msg")
+      logger.warn(s"""Coordinate does not appear to be in WGS. No conversion will happen: $coord
+        |$callerInfo""".stripMargin)
       coord
     } else {
       wgs2Utm.transform(coord)
