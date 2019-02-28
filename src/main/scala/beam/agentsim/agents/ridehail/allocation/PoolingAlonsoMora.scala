@@ -3,11 +3,12 @@ package beam.agentsim.agents.ridehail.allocation
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail._
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.BeamSkimmer
-import beam.router.Modes.BeamMode.CAR
+import beam.router.Modes.BeamMode.{CAR, RIDE_HAIL, RIDE_HAIL_POOLED}
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.vehicles.Vehicle
@@ -27,6 +28,11 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     rideHailManager.quadTreeBounds.maxy
   )
 
+  val defaultBeamVehilceTypeId = Id.create(
+    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+    classOf[BeamVehicleType]
+  )
+
   override def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
     rideHailManager.vehicleManager
       .getClosestIdleVehiclesWithinRadiusByETA(
@@ -36,7 +42,25 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       )
       .headOption match {
       case Some(agentETA) =>
-        SingleOccupantQuoteAndPoolingInfo(agentETA.agentLocation, Some(PoolingInfo(1.1, 0.6)))
+        val poolSkim = rideHailManager.beamSkimmer.getTimeDistanceAndCost(
+          inquiry.pickUpLocationUTM,
+          inquiry.destinationUTM,
+          inquiry.departAt,
+          RIDE_HAIL_POOLED,
+          defaultBeamVehilceTypeId,
+          Some(rideHailManager.beamServices)
+        )
+        val soloSkim = rideHailManager.beamSkimmer.getTimeDistanceAndCost(
+          inquiry.pickUpLocationUTM,
+          inquiry.destinationUTM,
+          inquiry.departAt,
+          RIDE_HAIL,
+          defaultBeamVehilceTypeId,
+          Some(rideHailManager.beamServices)
+        )
+        val costFactor = poolSkim.cost / soloSkim.cost
+        val timeFactor = poolSkim.time / soloSkim.time
+        SingleOccupantQuoteAndPoolingInfo(agentETA.agentLocation, Some(PoolingInfo(timeFactor, costFactor)))
       case None =>
         NoVehiclesAvailable
     }
