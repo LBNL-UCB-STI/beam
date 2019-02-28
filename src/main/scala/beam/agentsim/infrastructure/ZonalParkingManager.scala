@@ -37,7 +37,7 @@ class ZonalParkingManager(
   var stallNum = 0
   val rand = new Random()
 
-  val pathResourceCSV: String = beamServices.beamConfig.beam.agentsim.taz.parking
+  val pathResourceCSV: String = beamServices.beamConfig.beam.agentsim.taz.parkingFilename
 
   val defaultStallAttributes = StallAttributes(
     Id.create("NA", classOf[TAZ]),
@@ -89,7 +89,7 @@ class ZonalParkingManager(
   }
 
   def updatePooledResources(): Unit = {
-    if (Files.exists(Paths.get(beamServices.beamConfig.beam.agentsim.taz.parking))) {
+    if (Files.exists(Paths.get(beamServices.beamConfig.beam.agentsim.taz.parkingFilename))) {
       readCsvFile(pathResourceCSV).foreach(f => {
         pooledResources.update(f._1, f._2)
       })

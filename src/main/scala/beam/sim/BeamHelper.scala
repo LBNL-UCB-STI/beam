@@ -292,11 +292,11 @@ trait BeamHelper extends LazyLogging {
     if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
           .equalsIgnoreCase("ModeChoiceLCCM")) {
       Files.copy(
-        Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile),
+        Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.filename),
         Paths.get(
           outputDirectory,
           Paths
-            .get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile)
+            .get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.filename)
             .getFileName
             .toString
         )

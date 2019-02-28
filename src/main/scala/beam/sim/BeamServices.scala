@@ -101,10 +101,10 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   var personHouseholds: Map[Id[Person], Household] = Map()
 
   val fuelTypePrices: Map[FuelType, Double] =
-    readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
+    readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilename).toMap
 
   val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = maybeScaleTransit(
-    readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
+    readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilename, fuelTypePrices)
   )
 
   // TODO Fix me once `TrieMap` is removed
@@ -113,15 +113,15 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
       case true =>
         TrieMap[Id[BeamVehicle], BeamVehicle]()
       case false =>
-        TrieMap(readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq: _*)
+        TrieMap(readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.vehiclesFilename, vehicleTypes).toSeq: _*)
     }
 
   var matsimServices: MatsimServices = _
 
-  val tazTreeMap: TAZTreeMap = getTazTreeMap(beamConfig.beam.agentsim.taz.file)
+  val tazTreeMap: TAZTreeMap = getTazTreeMap(beamConfig.beam.agentsim.taz.filename)
 
-  val modeIncentives = ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.file)
-  val ptFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.file)
+  val modeIncentives = ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filename)
+  val ptFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.filename)
 
   def startNewIteration(): Unit = {
     iterationNumber += 1
