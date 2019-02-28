@@ -1024,16 +1024,16 @@ class RideHailManager(
     var passengersToAdd = Set[VehiclePersonId]()
     consistentPickDrops.foreach {
       case (Some(person), legOpt) =>
-        if (passengersToAdd.contains(person)) {
-          passengersToAdd = passengersToAdd - person
-        } else {
-          passengersToAdd = passengersToAdd + person
-        }
         legOpt.foreach { leg =>
           passengersToAdd.foreach { pass =>
             val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg
             pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
           }
+        }
+        if (passengersToAdd.contains(person)) {
+          passengersToAdd = passengersToAdd - person
+        } else {
+          passengersToAdd = passengersToAdd + person
         }
       case (_, _) =>
     }
