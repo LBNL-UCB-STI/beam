@@ -165,6 +165,9 @@ object HouseholdActor {
     override def receive: Receive = {
 
       case TriggerWithId(InitializeTrigger(tick), triggerId) =>
+        if (household.getId.toString.equals("016000-2014000455995-0")) {
+          val i = 0
+        }
         val vehiclesByCategory =
           vehicles.filter(_._2.beamVehicleType.automationLevel <= 3).groupBy(_._2.beamVehicleType.vehicleCategory)
         val fleetManagers = vehiclesByCategory.map {
@@ -444,7 +447,7 @@ object HouseholdActor {
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.
       Future
-        .sequence(vehicles.values.map { veh =>
+        .sequence(vehicles.filter(_._2.beamVehicleType.automationLevel > 3).values.map { veh =>
           veh.manager = Some(self)
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           parkingManager ? ParkingInquiry(
