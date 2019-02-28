@@ -34,8 +34,8 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
     public void handleEvent(Event event) {
         if (writeDataInThisIteration && event instanceof ModeChoiceEvent) {
             ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
-            Map<String, String> eventAttributes = modeChoiceEvent.getAttributes();
-            Link link = networkHelper.getLinkUnsafe(Integer.parseInt(eventAttributes.get(ModeChoiceEvent.ATTRIBUTE_LOCATION)));
+            int linkId = Integer.parseInt(modeChoiceEvent.location);
+            Link link = networkHelper.getLinkUnsafe(linkId);
 
             if (link != null) { // TODO: fix this, so that location of mode choice event is always initialized
                 try {
@@ -45,7 +45,7 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
                     bufferedWriter.append(SEPERATOR);
                     bufferedWriter.append(Double.toString(link.getCoord().getY()));
                     bufferedWriter.append(SEPERATOR);
-                    bufferedWriter.append(eventAttributes.get(ModeChoiceEvent.ATTRIBUTE_EXP_MAX_UTILITY));
+                    bufferedWriter.append(modeChoiceEvent.expectedMaxUtility);
                     bufferedWriter.append("\n");
                     csvWriter.flushBuffer();
                 } catch (IOException e) {

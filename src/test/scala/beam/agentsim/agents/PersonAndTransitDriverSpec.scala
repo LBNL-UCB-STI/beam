@@ -158,11 +158,12 @@ class PersonAndTransitDriverSpec
                 tramEvents.ref ! event
               case personEvent: HasPersonId if personEvent.getPersonId.toString == "dummyAgent" =>
                 personEvents.ref ! event
-              case pathTraversalEvent: PathTraversalEvent if pathTraversalEvent.getVehicleId == "my_bus" =>
+              case pathTraversalEvent: PathTraversalEvent if pathTraversalEvent.vehicleId.toString == "my_bus" =>
                 busEvents.ref ! event
-              case pathTraversalEvent: PathTraversalEvent if pathTraversalEvent.getVehicleId == "my_tram" =>
+              case pathTraversalEvent: PathTraversalEvent if pathTraversalEvent.vehicleId.toString == "my_tram" =>
                 tramEvents.ref ! event
-              case pathTraversalEvent: PathTraversalEvent if pathTraversalEvent.getVehicleId == "body-dummyAgent" =>
+              case pathTraversalEvent: PathTraversalEvent
+                  if pathTraversalEvent.vehicleId.toString == "body-dummyAgent" =>
                 personEvents.ref ! event
               case agencyRevenueEvent: AgencyRevenueEvent =>
                 agencyEvents.ref ! event

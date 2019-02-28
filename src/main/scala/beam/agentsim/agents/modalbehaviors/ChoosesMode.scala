@@ -154,9 +154,6 @@ trait ChoosesMode {
       val availableModes: Seq[BeamMode] = availableModesForPerson(
         matsimPlan.getPerson
       )
-      if (id.toString.equals("1")) {
-        val i = 0
-      }
       // Make sure the current mode is allowable
       val correctedCurrentTourMode = choosesModeData.personData.currentTourMode match {
         case Some(mode) if availableModes.contains(mode) && choosesModeData.personData.numberOfReplanningAttempts < 3 =>
@@ -276,9 +273,6 @@ trait ChoosesMode {
       var parkingRequestId: Option[Int] = None
       // Form and send requests
 
-      if (id.toString.equals("3")) {
-        val i = 0
-      }
       correctedCurrentTourMode match {
         case None =>
           if (hasRideHail) {
@@ -334,7 +328,7 @@ trait ChoosesMode {
                     nextAct.getCoord
                   )
                   parkingRequestId = requestParkingCost(
-                    beamServices.geo.wgs2Utm(destination.loc),
+                    destination.loc,
                     nextAct.getType,
                     destination.time,
                     nextAct.getEndTime.intValue() - destination.time
@@ -795,9 +789,6 @@ trait ChoosesMode {
         _,
         _
         ) =>
-      if (id.toString.equals("1")) {
-        val i = 0
-      }
       val currentPersonLocation = choosesModeData.currentLocation
       val nextAct = nextActivity(choosesModeData.personData).get
       val rideHail2TransitIinerary = createRideHail2TransitItin(
@@ -878,9 +869,6 @@ trait ChoosesMode {
             case Some(CAV) =>
               // Special case, if you are using household CAV, no choice was necessary you just use this mode
               // Construct the embodied trip to allow for processing by FinishingModeChoice and scoring
-              if (choosesModeData.availablePersonalStreetVehicles.size == 0 || cavTripLegs.size == 0) {
-                val i = 0
-              }
               assert(choosesModeData.availablePersonalStreetVehicles.size > 0)
               if (cavTripLegs.isEmpty) {
                 goto(FinishingModeChoice) using choosesModeData.copy(
@@ -936,9 +924,6 @@ trait ChoosesMode {
 
   when(FinishingModeChoice, stateTimeout = Duration.Zero) {
     case Event(StateTimeout, data: ChoosesModeData) =>
-      if (id.toString.equals("1")) {
-        val i = 0
-      }
       val chosenTrip = data.pendingChosenTrip.get
       val (tick, triggerId) = releaseTickAndTriggerId()
       // Write start and end links of chosen route into Activities.
@@ -995,9 +980,6 @@ trait ChoosesMode {
           theModes
         }
       }
-      if (id.toString.equals("033000-2014000265406-3-6294822")) {
-        val i = 0
-      }
 
       eventsManager.processEvent(
         new ModeChoiceEvent(
@@ -1023,9 +1005,6 @@ trait ChoosesMode {
 
       vehiclesNotUsed.collect {
         case ActualVehicle(vehicle) =>
-          if (vehicle.id.toString.equals("1")) {
-            val i = 0
-          }
           vehicle.manager.get ! ReleaseVehicle(vehicle)
       }
       scheduler ! CompletionNotice(

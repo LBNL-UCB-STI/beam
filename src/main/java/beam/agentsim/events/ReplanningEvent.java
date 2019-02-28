@@ -13,7 +13,6 @@ public class ReplanningEvent extends Event implements HasPersonId {
     public final static String ATTRIBUTE_PERSON = "person";
 
     private final Id<Person> personId;
-    private Map<String, String> attr;
 
     public ReplanningEvent(final double time, final Id<Person> personId) {
         super(time);
@@ -40,10 +39,7 @@ public class ReplanningEvent extends Event implements HasPersonId {
 
     @Override
     public Map<String, String> getAttributes() {
-        if (attr != null) return attr;
-
-        attr = super.getAttributes();
-
+        Map<String, String> attr = super.getAttributes();
         attr.put(ATTRIBUTE_PERSON, personId.toString());
         return attr;
     }
