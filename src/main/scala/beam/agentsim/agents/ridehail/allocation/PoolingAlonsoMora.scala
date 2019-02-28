@@ -111,7 +111,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       }
     }
     if (toPool.size > 0) {
-      implicit val skimmer: BeamSkimmer = new BeamSkimmer()
+      implicit val skimmer: BeamSkimmer = rideHailManager.beamSkimmer
       val pooledAllocationReqs = toPool.filter(_.asPooled)
       val poolCustomerReqs = pooledAllocationReqs.map(
         rhr => createPersonRequest(rhr.customer, rhr.pickUpLocationUTM, tick, rhr.destinationUTM)
