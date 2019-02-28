@@ -47,9 +47,6 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
             // Here we modify the last leg of the trip (the dummy walk leg) to have the right arrival time
             // This will therefore now accounts for dynamic delays or difference between quoted ride hail trip time and actual
             val bodyVehicleId = trips.head.legs.head.beamVehicleId
-            if (trips.last.tripClassifier == RIDE_HAIL_POOLED) {
-              val i = 0
-            }
             trips.update(
               trips.size - 1,
               trips.last.copy(
@@ -57,9 +54,6 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
                   .dropRight(1) :+ EmbodiedBeamLeg.dummyLegAt(e.getTime.toInt, bodyVehicleId, true)
               )
             )
-            if (trips.last.tripClassifier == RIDE_HAIL_POOLED) {
-              val i = 0
-            }
           case _ =>
         }
       }

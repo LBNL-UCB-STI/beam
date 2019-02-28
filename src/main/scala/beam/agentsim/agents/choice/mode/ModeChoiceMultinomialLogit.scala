@@ -48,11 +48,6 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       modeCostTimeTransfers groupBy (_.mode) map {
         case (_, group) => group minBy timeAndCost
       }
-
-      if (alternatives.head.legs.map(_.beamLeg.travelPath.distanceInM).sum > 1609 * 5) {
-        val i = 0
-      }
-
       val inputData = bestInGroup.map { mct =>
         val theParams: Map[String, Double] =
           Map("cost" -> (mct.cost + mct.scaledTime))

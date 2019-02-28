@@ -130,7 +130,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         spatialPoolCustomerReqs,
         availVehicles.toList,
         Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
-        maxRequestsPerVehicle = 10
+        maxRequestsPerVehicle = 5
       )
       import scala.concurrent.duration._
       val assignment = try {
@@ -216,19 +216,6 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
             allocResponses = allocResponses :+ res
         }
       }
-    }
-    if(allocResponses.filter{ alloc => alloc match{
-      case VehicleMatchedToCustomers(req,agent,pickdrop) =>
-        if(req.departAt > pickdrop.head.leg.map(_.beamLeg.startTime).getOrElse(Int.MaxValue)){
-          true
-        }else{
-          false
-        }
-      case _ =>
-        false
-    }
-    }.size>0){
-      val i = 0
     }
     logger.debug(
       "AllocResponses: {}",

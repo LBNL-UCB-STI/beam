@@ -16,7 +16,7 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
   */
 
 @ImplementedBy(classOf[GeoUtilsImpl])
-trait GeoUtils extends ExponentialLazyLogging{
+trait GeoUtils extends ExponentialLazyLogging {
 
   def localCRS: String
 
