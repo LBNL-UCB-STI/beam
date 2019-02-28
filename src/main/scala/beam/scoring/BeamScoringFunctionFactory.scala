@@ -1,6 +1,6 @@
 package beam.scoring
 
-import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent}
+import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent, ReserveRideHailEvent}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.Modes.BeamMode.RIDE_HAIL_POOLED
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
@@ -8,7 +8,7 @@ import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, MapStringDouble, OutputDataDescription}
 import beam.utils.{FileUtils, OutputDataDescriptor}
 import javax.inject.Inject
-import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent, PersonDepartureEvent}
+import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent, PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
@@ -31,6 +31,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
       private var finalScore = 0.0
       private val trips = mutable.ListBuffer[EmbodiedBeamTrip]()
       private var leavingParkingEventScore = 0.0
+      var rideHailDepart = 0
 
       override def handleEvent(event: Event): Unit = {
         event match {
