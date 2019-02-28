@@ -6,6 +6,8 @@ import beam.agentsim.agents.ridehail.graph.RealizedModeStatsGraphSpec.{RealizedM
 import beam.agentsim.events.{ModeChoiceEvent, ReplanningEvent}
 import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, RealizedModeAnalysis}
 import beam.integration.IntegrationSpecCommon
+import beam.sim.config.BeamConfig
+import beam.utils.TestConfigUtils
 import com.google.inject.Provides
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.api.experimental.events.EventsManager
@@ -23,12 +25,13 @@ import scala.concurrent.Promise
 object RealizedModeStatsGraphSpec {
 
   class RealizedModeStatsGraph(
-    computation: RealizedModeAnalysis.RealizedModesStatsComputation with EventAnalyzer
+    computation: RealizedModeAnalysis.RealizedModesStatsComputation with EventAnalyzer,
+    beamConfig: BeamConfig
   ) extends BasicEventHandler
       with IterationEndsListener {
 
     private lazy val realizedModeStats =
-      new RealizedModeAnalysis(computation, true)
+      new RealizedModeAnalysis(computation, true , beamConfig)
 
     override def reset(iteration: Int): Unit = {
       realizedModeStats.resetStats()
@@ -144,7 +147,7 @@ class RealizedModeStatsGraphSpec extends WordSpecLike with Matchers with Integra
           @Provides def provideGraph(
             eventsManager: EventsManager
           ): RealizedModeStatsGraph = {
-            val graph = new RealizedModeStatsGraph(computation)
+            val graph = new RealizedModeStatsGraph(computation, BeamConfig(baseConfig))
             eventsManager.addHandler(graph)
             graph
           }
