@@ -1,8 +1,8 @@
 package beam.physsim.jdeqsim.cacc;
 
 import beam.physsim.jdeqsim.cacc.handler.EventCollector;
+import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.Hao2018CaccRoadCapacityAdjustmentFunction;
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation;
-import beam.physsim.jdeqsim.cacc.travelTimeFunctions.CACCTravelTimeFunctionA;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
@@ -98,7 +98,8 @@ public class JDEQSimMain {
         // If caccVehicles is empty let say 10 of 100 are caccvehicles
         Map caccVehicles = getRandomCaccVehicles(scenario, caccShare);
 
-        JDEQSimulation jdeqSimulationWithCacc = new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager, caccVehicles, new CACCTravelTimeFunctionA());
+        CACCSettings caccSettings=new CACCSettings(caccVehicles,new Hao2018CaccRoadCapacityAdjustmentFunction(100));
+        JDEQSimulation jdeqSimulationWithCacc = new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager, caccSettings);
         jdeqSimulationWithCacc.run();
         //eventsManager.finishProcessing();
     }

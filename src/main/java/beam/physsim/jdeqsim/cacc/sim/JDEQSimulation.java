@@ -1,5 +1,6 @@
 package beam.physsim.jdeqsim.cacc.sim;
 
+import beam.physsim.jdeqsim.cacc.CACCSettings;
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.Hao2018CaccRoadCapacityAdjustmentFunction;
 import beam.physsim.jdeqsim.cacc.travelTimeFunctions.TravelTimeFunction;
 import org.apache.log4j.Logger;
@@ -38,12 +39,12 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
 	Scheduler scheduler;
 
 	@Inject
-	public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, final Map<String, Boolean> isCACCVehicle, TravelTimeFunction travelTimeFunction) {
+	public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, CACCSettings caccSettings) {
 
 		super(config, scenario, events);
 
-		this.isCACCVehicle = isCACCVehicle;
-		Road.setRoadCapacityAdjustmentFunction (new Hao2018CaccRoadCapacityAdjustmentFunction());
+		this.isCACCVehicle = caccSettings.isCACCVehicle();
+		Road.setRoadCapacityAdjustmentFunction (caccSettings.roadCapacityAdjustmentFunction());
 		this.caccShare = caccShare;
 
 		this._events = events;
