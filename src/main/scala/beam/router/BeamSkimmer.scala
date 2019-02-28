@@ -67,41 +67,31 @@ class BeamSkimmer @Inject()() {
           case Some(skimValue) =>
             skimValue
           case None =>
-            modalAverage.get(mode) match {
-              case Some(foundSkim) =>
-                foundSkim
-              case None =>
-                val (travelDistance, travelTime) = distanceAndTime(mode, origin, destination)
-                val travelCost: Double = mode match {
-                  case CAR | CAV =>
-                    DrivingCost.estimateDrivingCost(
-                      new BeamLeg(
-                        departureTime,
-                        mode,
-                        travelTime,
-                        new BeamPath(null, null, None, null, null, travelDistance)
-                      ),
-                      vehicleTypeId,
-                      beamServices
-                    )
-                  case RIDE_HAIL =>
-                    beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0
-                  case RIDE_HAIL_POOLED =>
-                    0.6 * (beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0)
-                  case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT => 0.25 * travelDistance / 1609
-                  case _                                                          => 0.0
-                }
-                Skim(travelTime, travelDistance, travelCost, 0)
+            val (travelDistance, travelTime) = distanceAndTime(mode, origin, destination)
+            val travelCost: Double = mode match {
+              case CAR | CAV =>
+                DrivingCost.estimateDrivingCost(
+                  new BeamLeg(
+                    departureTime,
+                    mode,
+                    travelTime,
+                    new BeamPath(null, null, None, null, null, travelDistance)
+                  ),
+                  vehicleTypeId,
+                  beamServices
+                )
+              case RIDE_HAIL =>
+                beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0
+              case RIDE_HAIL_POOLED =>
+                0.6 * (beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0)
+              case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT => 0.25 * travelDistance / 1609
+              case _                                                          => 0.0
             }
+            Skim(travelTime, travelDistance, travelCost, 0)
         }
       case None =>
-        modalAverage.get(mode) match {
-          case Some(foundSkim) =>
-            foundSkim
-          case None =>
-            val (travelDistance, travelTime) = distanceAndTime(mode, origin, destination)
-            Skim(travelTime, travelDistance, 0.0, 0)
-        }
+        val (travelDistance, travelTime) = distanceAndTime(mode, origin, destination)
+        Skim(travelTime, travelDistance, 0.0, 0)
     }
   }
 
@@ -163,6 +153,7 @@ class BeamSkimmer @Inject()() {
         modalAverage.put(mode, payload)
     }
   }
+
   def clear = {
     skims.clear()
     modalAverage.clear()
