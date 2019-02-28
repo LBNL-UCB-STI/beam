@@ -29,7 +29,7 @@ trait GeoUtils extends ExponentialLazyLogging {
 
   def wgs2Utm(coord: Coord): Coord = {
     if (coord.getX < -180 || coord.getX > 180 || coord.getY < -90 || coord.getY > 90) {
-      logger.warn(s"Coordinate $coord does not appear to be in WGS. No conversion will happen.")
+      logger.warn(s"Coordinate does not appear to be in WGS. No conversion will happen: $coord")
       coord
     } else {
       wgs2Utm.transform(coord)

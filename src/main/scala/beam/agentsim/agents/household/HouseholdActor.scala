@@ -267,9 +267,6 @@ object HouseholdActor {
                 )
               )
               .map(RoutingResponses(tick, _)) pipeTo self
-            if (household.getId.toString.equals("020600-2015000596876-0")) {
-              val i = 0
-            }
           }
         }
         household.members.foreach { person =>
@@ -323,9 +320,6 @@ object HouseholdActor {
           // Index the responses by Id
           val indexedResponses = routingResponses.map(resp => (resp.requestId -> resp)).toMap
           routingResponses.foreach { resp =>
-            if (household.getId.toString.equals("020600-2015000596876-0")) {
-              val i = 0
-            }
             resp.itineraries.headOption.map { itin =>
               val theLeg = itin.legs.head.beamLeg
             //            routeHistory.rememberRoute(theLeg.travelPath.linkIds,theLeg.startTime)
@@ -349,9 +343,6 @@ object HouseholdActor {
             var pickDropsForGrouping: Map[VehiclePersonId, List[BeamLeg]] = Map()
             var passengersToAdd = Set[VehiclePersonId]()
             cavSchedule.schedule.foreach { serviceRequest =>
-              if (household.getId.toString.equals("020600-2015000596876-0")) {
-                val i = 0
-              }
               if (serviceRequest.person.isDefined) {
                 val person = memberVehiclePersonIds(serviceRequest.person.get)
                 if (passengersToAdd.contains(person)) {
@@ -402,9 +393,6 @@ object HouseholdActor {
         completeInitialization(triggerId, acks.flatMap(_.triggersToSchedule).toVector)
 
       case CavTripLegsRequest(person, originActivity) =>
-        if (household.getId.toString.equals("1")) {
-          val i = 0
-        }
         personAndActivityToLegs.get((person.personId, originActivity)) match {
           case Some(legs) =>
             sender() ! CavTripLegsResponse(legs)
@@ -427,9 +415,6 @@ object HouseholdActor {
       case MobilityStatusInquiry(personId, _, originActivity) =>
         personAndActivityToCav.get((personId, originActivity)) match {
           case Some(cav) =>
-            if (household.getId.toString.equals("1")) {
-              val i = 0
-            }
             sender() ! MobilityStatusResponse(Vector(ActualVehicle(cav)))
           case _ =>
             sender() ! MobilityStatusResponse(Vector())
