@@ -665,7 +665,6 @@ class PersonAgent(
         leg => leg.beamVehicleId == nextLeg.beamVehicleId
       )
       val departAt = legSegment.head.beamLeg.startTime
-      rideHailDepart = departAt
 
       rideHailManager ! RideHailRequest(
         ReserveRide,
