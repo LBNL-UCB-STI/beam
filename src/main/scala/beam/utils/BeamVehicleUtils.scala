@@ -10,7 +10,7 @@ import org.matsim.households.Household
 import org.matsim.vehicles.{EngineInformationImpl, VehicleCapacityImpl, VehicleType, VehicleUtils}
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
-import org.matsim.vehicles.EngineInformation.{FuelType => MatsimFuleType}
+import org.matsim.vehicles.EngineInformation.{FuelType => MatsimFuelType}
 
 object BeamVehicleUtils {
 
@@ -130,24 +130,24 @@ object BeamVehicleUtils {
     beamVehicleType.primaryFuelType match {
       case Biodiesel =>
         new EngineInformationImpl(
-          MatsimFuleType.biodiesel,
+          MatsimFuelType.biodiesel,
           fuelConsumptionInJoulePerMeter * 1 / BIODIESEL_JOULE_PER_LITER
         )
       case Diesel =>
-        new EngineInformationImpl(MatsimFuleType.diesel, fuelConsumptionInJoulePerMeter * 1 / DIESEL_JOULE_PER_LITER)
+        new EngineInformationImpl(MatsimFuelType.diesel, fuelConsumptionInJoulePerMeter * 1 / DIESEL_JOULE_PER_LITER)
       case Gasoline =>
         new EngineInformationImpl(
-          MatsimFuleType.gasoline,
+          MatsimFuelType.gasoline,
           fuelConsumptionInJoulePerMeter * 1 / GASOLINE_JOULE_PER_LITER
         )
       case Electricity =>
         new EngineInformationImpl(
-          MatsimFuleType.electricity,
+          MatsimFuelType.electricity,
           fuelConsumptionInJoulePerMeter * 1 / ELECTRICITY_JOULE_PER_LITER
         )
       case _ =>
         new EngineInformationImpl(
-          MatsimFuleType.gasoline,
+          MatsimFuelType.gasoline,
           fuelConsumptionInJoulePerMeter * 1 / GASOLINE_JOULE_PER_LITER
         )
     }
