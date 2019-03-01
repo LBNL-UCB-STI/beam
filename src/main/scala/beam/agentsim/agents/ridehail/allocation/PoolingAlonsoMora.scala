@@ -64,6 +64,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       // First check for broken route responses (failed routing attempt)
       if (routeResponses.find(_.itineraries.size == 0).isDefined) {
         allocResponses = allocResponses :+ NoVehicleAllocated(request)
+        if (tempScheduleStore.contains(request.requestId))tempScheduleStore.remove(request.requestId)
       } else {
         // Make sure vehicle still available
         val vehicleId = routeResponses.head.itineraries.head.legs.head.beamVehicleId
@@ -103,6 +104,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
             pickDropIdAndLegs
           )
         } else {
+          if (tempScheduleStore.contains(request.requestId))tempScheduleStore.remove(request.requestId)
           allocResponses = allocResponses :+ NoVehicleAllocated(request)
           request.groupedWithOtherRequests.foreach { req =>
             allocResponses = allocResponses :+ NoVehicleAllocated(req)
