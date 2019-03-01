@@ -10,7 +10,6 @@ import org.matsim.households.Income.IncomePeriod
 import org.matsim.api.core.v01.population._
 import beam.sim.BeamServices
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
-import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -101,9 +100,10 @@ case class AttributesOfIndividual(
   }
 
   private def getLinkCharacteristics(linkID:Int, travelTime:Double, beamServices: BeamServices): (congestionLevel,roadwayType) = {
-    val freeSpeed:Double = beamServices.networkHelper.getLink(linkID).get.getFreespeed()
-    val currentSpeed:Double = beamServices.networkHelper.getLink(linkID).get.getLength() / travelTime
-    if (currentSpeed < 0.5 * freeSpeed) {
+    val currentLink = beamServices.networkHelper.getLink(linkID).get
+    val freeSpeed:Double = currentLink.getFreespeed()
+    val currentSpeed:Double = currentLink.getLength() / travelTime
+    if (currentSpeed < 0.67 * freeSpeed) {
       if (freeSpeed > 22) {
         (highCongestion,highway)
       } else {
@@ -137,7 +137,6 @@ case class AttributesOfIndividual(
 
 object AttributesOfIndividual {
   val EMPTY = AttributesOfIndividual(HouseholdAttributes.EMPTY, None, true, Seq(), 0.0, None, None)
-
 }
 
 case class HouseholdAttributes(

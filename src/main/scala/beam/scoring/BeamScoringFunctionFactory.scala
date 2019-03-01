@@ -1,10 +1,7 @@
 package beam.scoring
 
-import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
-import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoiceModel}
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent, ReserveRideHailEvent}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
-import beam.router.Modes.BeamMode.RIDE_HAIL_POOLED
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, MapStringDouble, OutputDataDescription}
