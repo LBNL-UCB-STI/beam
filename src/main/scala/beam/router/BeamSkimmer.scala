@@ -1,31 +1,25 @@
 package beam.router
+
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.BeamSkimmer.Skim
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  BIKE,
-  CAR,
-  CAV,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK_TRANSIT}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
-import com.google.inject.Inject
+import beam.utils.FileUtils
+import com.google.inject.{Inject, Provider}
 import org.matsim.api.core.v01.Id
+import org.matsim.core.controler.events.IterationEndsEvent
+import org.matsim.core.controler.listener.IterationEndsListener
 
 import scala.collection.concurrent.TrieMap
 
 //TODO to be validated against google api
-class BeamSkimmer @Inject()() {
+class BeamSkimmer @Inject()(beamServicesProvider: Provider[BeamServices]) extends IterationEndsListener{
   // The OD/Mode/Time Matrix
   var skims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), Skim] = TrieMap()
   var modalAverage: TrieMap[BeamMode, Skim] = TrieMap()
@@ -165,24 +159,25 @@ class BeamSkimmer @Inject()() {
 
   def mergeAverage(existingAverage: Double, existingCount: Int, newValue: Double) =
     ((existingAverage * existingCount + newValue) / (existingCount + 1))
+
+  override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    val fileHeader = "timeBinInHour,mode,origTaz,destTaz,travelTimeInS,cost,distanceInM,numObservations"
+    // Output file relative path
+    val filePath = event.getServices.getControlerIO.getIterationFilename(
+      beamServicesProvider.get().matsimServices.getIterationNumber,
+      BeamSkimmer.outputFileBaseName + ".csv.gz"
+    )
+    //write the data to an output file
+    FileUtils.writeToFile(filePath, Some(fileHeader), skims.map{keyVal =>
+      s"${keyVal._1._1},${keyVal._1._2},${keyVal._1._3},${keyVal._1._4},${keyVal._2.time},${keyVal._2.cost},${keyVal._2.distance},${keyVal._2.count}"
+    }.mkString("\n"), None)
+  }
 }
 
 object BeamSkimmer {
-  case class Skim(time: Double, distance: Double, cost: Double, count: Int)
+  val outputFileBaseName = "skims"
 
-  def main(args: Array[String]): Unit = {
-    val config = org.matsim.core.config.ConfigUtils.createConfig()
-    val sc: org.matsim.api.core.v01.Scenario = org.matsim.core.scenario.ScenarioUtils.createScenario(config)
-    val skimmer = new BeamSkimmer()
-    val output = skimmer.getTimeDistanceAndCost(
-      new Location(0, 0),
-      new Location(1600, 500),
-      0,
-      BeamMode.CAR,
-      org.matsim.api.core.v01.Id.create[BeamVehicleType]("", classOf[BeamVehicleType])
-    )
-    println(output)
-  }
+  case class Skim(time: Double, distance: Double, cost: Double, count: Int)
 }
 
 //val householdBeamPlans = household.members.map(person => BeamPlan(person.getSelectedPlan)).toList
