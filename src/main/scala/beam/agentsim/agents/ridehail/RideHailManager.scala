@@ -399,14 +399,17 @@ class RideHailManager(
 
     case RecoverFromStuckness(tick) =>
       // This is assuming we are allocating demand and routes haven't been returned
-      rideHailResourceAllocationManager.getUnprocessedCustomers.foreach{ request =>
+      rideHailResourceAllocationManager.getUnprocessedCustomers.foreach { request =>
         modifyPassengerScheduleManager.addTriggerToSendWithCompletion(
           ScheduleTrigger(
-            RideHailResponseTrigger(tick, RideHailResponse(
-              request,
-              None,
-              Some(CouldNotFindRouteToCustomer)
-            )),
+            RideHailResponseTrigger(
+              tick,
+              RideHailResponse(
+                request,
+                None,
+                Some(CouldNotFindRouteToCustomer)
+              )
+            ),
             request.customer.personRef
           )
         )
