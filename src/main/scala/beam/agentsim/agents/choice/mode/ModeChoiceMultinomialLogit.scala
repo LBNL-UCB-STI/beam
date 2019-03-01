@@ -167,29 +167,40 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     mutable.Map[Option[BeamMode], Double](
       Some(TRANSIT)          -> modalBehaviors.modeVotMultiplier.transit,
       Some(RIDE_HAIL)        -> modalBehaviors.modeVotMultiplier.rideHail,
-//      Some(WAITING)          -> modalBehaviors.modeVotMultiplier.waiting, TODO think of alternative for waiting
+      Some(CAV)              -> modalBehaviors.modeVotMultiplier.CAV,
+//      Some(WAITING)          -> modalBehaviors.modeVotMultiplier.waiting, TODO think of alternative for waiting. For now assume "NONE" is waiting
       Some(BIKE)             -> modalBehaviors.modeVotMultiplier.bike,
       Some(WALK)             -> modalBehaviors.modeVotMultiplier.walk,
-      None                   -> 1.0
+      Some(CAR)              -> modalBehaviors.modeVotMultiplier.drive,
+      None                   -> modalBehaviors.modeVotMultiplier.waiting
     )
 
   lazy val poolingMultipliers: mutable.Map[automationLevel, Double] =
     mutable.Map[automationLevel, Double] (
-      levelLE3         -> modalBehaviors.poolingMultiplier.LevelLE3,
+      levelLE2         -> modalBehaviors.poolingMultiplier.LevelLE2,
+      level3           -> modalBehaviors.poolingMultiplier.Level3,
       level4           -> modalBehaviors.poolingMultiplier.Level4,
       level5           -> modalBehaviors.poolingMultiplier.Level5
     )
 
   lazy val situationMultipliers: mutable.Map[(timeSensitivity,congestionLevel,roadwayType, automationLevel), Double] =
     mutable.Map[(timeSensitivity,congestionLevel,roadwayType, automationLevel), Double] (
-      (highSensitivity,highCongestion,highway,levelLE3)    -> modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.LevelLE3,
-      (highSensitivity,highCongestion,nonHighway,levelLE3) -> modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.LevelLE3,
-      (highSensitivity,lowCongestion,highway,levelLE3)     -> modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.LevelLE3,
-      (highSensitivity,lowCongestion,nonHighway,levelLE3)  -> modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.LevelLE3,
-      (lowSensitivity,highCongestion,highway,levelLE3)     -> modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.LevelLE3,
-      (lowSensitivity,highCongestion,nonHighway,levelLE3)  -> modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.LevelLE3,
-      (lowSensitivity,lowCongestion,highway,levelLE3)      -> modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.LevelLE3,
-      (lowSensitivity,lowCongestion,nonHighway,levelLE3)   -> modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.LevelLE3,
+      (highSensitivity,highCongestion,highway,levelLE2)    -> modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.LevelLE2,
+      (highSensitivity,highCongestion,nonHighway,levelLE2) -> modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.LevelLE2,
+      (highSensitivity,lowCongestion,highway,levelLE2)     -> modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.LevelLE2,
+      (highSensitivity,lowCongestion,nonHighway,levelLE2)  -> modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.LevelLE2,
+      (lowSensitivity,highCongestion,highway,levelLE2)     -> modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.LevelLE2,
+      (lowSensitivity,highCongestion,nonHighway,levelLE2)  -> modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.LevelLE2,
+      (lowSensitivity,lowCongestion,highway,levelLE2)      -> modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.LevelLE2,
+      (lowSensitivity,lowCongestion,nonHighway,levelLE2)   -> modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.LevelLE2,
+      (highSensitivity,highCongestion,highway,level3)    -> modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.Level3,
+      (highSensitivity,highCongestion,nonHighway,level3) -> modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.Level3,
+      (highSensitivity,lowCongestion,highway,level3)     -> modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.Level3,
+      (highSensitivity,lowCongestion,nonHighway,level3)  -> modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.Level3,
+      (lowSensitivity,highCongestion,highway,level3)     -> modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.Level3,
+      (lowSensitivity,highCongestion,nonHighway,level3)  -> modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.Level3,
+      (lowSensitivity,lowCongestion,highway,level3)      -> modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.Level3,
+      (lowSensitivity,lowCongestion,nonHighway,level3)   -> modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.Level3,
       (highSensitivity,highCongestion,highway,level4)    -> modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.Level4,
       (highSensitivity,highCongestion,nonHighway,level4) -> modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.Level4,
       (highSensitivity,lowCongestion,highway,level4)     -> modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.Level4,

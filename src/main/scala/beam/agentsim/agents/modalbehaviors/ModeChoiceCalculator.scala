@@ -111,7 +111,8 @@ object ModeChoiceCalculator {
   case object highway extends roadwayType
   case object nonHighway extends roadwayType
   sealed trait automationLevel
-  case object levelLE3 extends automationLevel
+  case object levelLE2 extends automationLevel
+  case object level3 extends automationLevel
   case object level4 extends automationLevel
   case object level5 extends automationLevel
 }

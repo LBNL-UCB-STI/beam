@@ -51,14 +51,18 @@ case class AttributesOfIndividual(
             getModeVotMultiplier(Option(RIDE_HAIL), modeMultipliers) *
               unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
           }
-        } else {getPathVotMultiplier(embodiedBeamLeg.beamLeg, situationMultipliers, beamServices, isWorkTrip, getAutomationLevel(embodiedBeamLeg, beamServices))*
-          getModeVotMultiplier(Option(CAR),modeMultipliers) *
-          unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
+        } else if (embodiedBeamLeg.asDriver){
+            getPathVotMultiplier(embodiedBeamLeg.beamLeg, situationMultipliers, beamServices, isWorkTrip, getAutomationLevel(embodiedBeamLeg, beamServices))*
+            getModeVotMultiplier(Option(CAR),modeMultipliers) *
+            unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
+          } else {
+            getModeVotMultiplier(Option(CAV),modeMultipliers) *
+            unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
         }
-      case RIDE_HAIL        => getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode),modeMultipliers) *
+      case RIDE_HAIL        => getModeVotMultiplier(Option(RIDE_HAIL),modeMultipliers) *
         unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
       case RIDE_HAIL_POOLED => getPooledFactor(embodiedBeamLeg, poolingMultipliers, beamServices) *
-        getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode),modeMultipliers) *
+        getModeVotMultiplier(Option(RIDE_HAIL_POOLED),modeMultipliers) *
         unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
       case _                => getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeMultipliers) *
         unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
@@ -68,10 +72,12 @@ case class AttributesOfIndividual(
   private def getAutomationLevel(embodiedBeamLeg: EmbodiedBeamLeg, beamServices: BeamServices): automationLevel = {
     val vehicleAutomationLevel = beamServices.getDefaultAutomationLevel().getOrElse(beamServices.vehicleTypes(embodiedBeamLeg.beamVehicleTypeId).automationLevel)
     vehicleAutomationLevel match {
-      case 3 => levelLE3
+      case 1 => levelLE2
+      case 2 => levelLE2
+      case 3 => level3
       case 4 => level4
       case 5 => level5
-      case _ => levelLE3
+      case _ => levelLE2
     }
 
   }
@@ -104,13 +110,13 @@ case class AttributesOfIndividual(
     val freeSpeed:Double = currentLink.getFreespeed()
     val currentSpeed:Double = currentLink.getLength() / travelTime
     if (currentSpeed < 0.67 * freeSpeed) {
-      if (freeSpeed > 22) {
+      if (freeSpeed > 20) {
         (highCongestion,highway)
       } else {
         (highCongestion,nonHighway)
       }
     } else {
-      if (freeSpeed > 22) {
+      if (freeSpeed > 20) {
         (lowCongestion,highway)
       } else {
         (lowCongestion,nonHighway)
