@@ -8,7 +8,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.BeamSkimmer
-import beam.router.Modes.BeamMode.{CAR, RIDE_HAIL, RIDE_HAIL_POOLED}
+import beam.router.Modes.BeamMode.{CAR}
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.vehicles.Vehicle
@@ -49,6 +49,9 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           defaultBeamVehilceTypeId,
           rideHailManager.beamServices
         )
+        if(timeCostFactors._1 != 1.1){
+          val i = 0
+        }
         SingleOccupantQuoteAndPoolingInfo(agentETA.agentLocation, Some(PoolingInfo(timeCostFactors._1, timeCostFactors._2)))
       case None =>
         NoVehiclesAvailable
