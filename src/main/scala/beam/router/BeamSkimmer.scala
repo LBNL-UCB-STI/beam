@@ -32,7 +32,9 @@ import scala.collection.concurrent.TrieMap
 //TODO to be validated against google api
 class BeamSkimmer @Inject()(beamServicesProvider: Provider[BeamServices]) extends IterationEndsListener {
   // The OD/Mode/Time Matrix
+  var previousSkims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), Skim] = TrieMap()
   var skims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), Skim] = TrieMap()
+  var previousModalAverage: TrieMap[BeamMode, Skim] = TrieMap()
   var modalAverage: TrieMap[BeamMode, Skim] = TrieMap()
 
   // 22.2 mph (9.924288 meter per second), is the average speed in cities
@@ -116,7 +118,12 @@ class BeamSkimmer @Inject()(beamServicesProvider: Provider[BeamServices]) extend
   }
 
   private def getSkimValue(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Option[Skim] = {
-    skims.get((timeToBin(time), mode, orig, dest))
+    skims.get((timeToBin(time), mode, orig, dest)) match {
+      case Some(skim) =>
+        Some(skim)
+      case None =>
+        previousSkims.get((timeToBin(time), mode, orig, dest))
+    }
   }
 
   def observeTrip(trip: EmbodiedBeamTrip, beamServices: BeamServices) = {
@@ -155,23 +162,6 @@ class BeamSkimmer @Inject()(beamServicesProvider: Provider[BeamServices]) extend
       case None =>
         skims.put(key, payload)
     }
-    modalAverage.get(mode) match {
-      case Some(existingSkim) =>
-        val newPayload = Skim(
-          mergeAverage(existingSkim.time, existingSkim.count, payload.time),
-          mergeAverage(existingSkim.distance, existingSkim.count, payload.distance),
-          mergeAverage(existingSkim.cost, existingSkim.count, payload.cost),
-          existingSkim.count + 1
-        )
-        modalAverage.put(mode, newPayload)
-      case None =>
-        modalAverage.put(mode, payload)
-    }
-  }
-
-  def clear = {
-    skims.clear()
-    modalAverage.clear()
   }
 
   def timeToBin(departTime: Int) = {
@@ -199,6 +189,8 @@ class BeamSkimmer @Inject()(beamServicesProvider: Provider[BeamServices]) extend
         .mkString("\n"),
       None
     )
+    previousSkims = skims
+    skims = new TrieMap()
   }
 }
 
