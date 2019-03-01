@@ -24,13 +24,14 @@ object TAZ {
   val DefaultTAZ: TAZ = new TAZ(DefaultTAZId, new Coord(), 0)
 
   /**
-    * performs a concentric search from the present location to find TAZs up to the SearchMaxRadius
+    * performs a concentric disc search from the present location to find TAZs up to the SearchMaxRadius
+    * @param tazQuadTree tree to search
     * @param searchCenter central location from which concentric discs will be built with an expanding radius
     * @param startRadius the beginning search radius
     * @param maxRadius search constrained to this maximum search radius
-    * @return the TAZs found in the first search radius which locates a TAZ center, along with their distances, not sorted
+    * @return the TAZs found in the first search disc which locates a TAZ center, along with their distances, not sorted
     */
-  def findWithinDistance(
+  def discSearch(
     tazQuadTree: QuadTree[TAZ],
     searchCenter: Location,
     startRadius: Double,
@@ -50,6 +51,41 @@ object TAZ {
     }
 
     _find(startRadius).map { taz =>
+      // Note, this assumes both TAZs and SearchCenter are in local coordinates, and therefore in units of meters
+      (taz, GeoUtils.distFormula(taz.coord, searchCenter))
+    }
+  }
+
+
+
+  /**
+    * performs a concentric ring search from the present location to find TAZs up to the SearchMaxRadius
+    * @param tazQuadTree tree to search
+    * @param searchCenter central location from which concentric discs will be built with an expanding radius
+    * @param startRadius the beginning search radius
+    * @param maxRadius search constrained to this maximum search radius
+    * @return the TAZs found in the first search ring which locates a TAZ center, along with their distances, not sorted
+    */
+  def ringSearch(
+                  tazQuadTree: QuadTree[TAZ],
+                  searchCenter: Location,
+                  startRadius: Double,
+                  maxRadius: Double
+                ): List[(TAZ, Double)] = {
+
+    def _find(innerRadius: Double, outerRadius: Double): List[TAZ] = {
+      if (innerRadius > maxRadius) List.empty[TAZ]
+      else {
+        val found = tazQuadTree
+          .getRing(searchCenter.getX, searchCenter.getY, innerRadius, outerRadius)
+          .asScala
+          .toList
+        if (found.nonEmpty) found
+        else _find(outerRadius, outerRadius * 2)
+      }
+    }
+
+    _find(0.0, startRadius).map { taz =>
       // Note, this assumes both TAZs and SearchCenter are in local coordinates, and therefore in units of meters
       (taz, GeoUtils.distFormula(taz.coord, searchCenter))
     }

@@ -176,12 +176,7 @@ object ParkingZoneFileUtils extends LazyLogging {
           val taz = Id.create(tazString.toUpperCase, classOf[TAZ])
           val parkingType = ParkingType(parkingTypeString)
           val pricingModel = PricingModel(pricingModelString, feeInCentsString)
-          val chargingPoint = Try {
-            ChargingPoint(chargingTypeString)
-          } match {
-            case Success(point) => Some(point)
-            case Failure(_)     => None
-          }
+          val chargingPoint = ChargingPoint(chargingTypeString)
           val numStalls = numStallsString.toInt
           val parkingZone = ParkingZone(nextParkingZoneId, numStalls, chargingPoint, pricingModel)
 

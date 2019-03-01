@@ -46,19 +46,19 @@ case object ChargingPoint {
   }
 
   // matches either the standard ones or a custom one
-  def apply(s: String): ChargingPoint = {
+  def apply(s: String): Option[ChargingPoint] = {
     s match {
-      case "HouseholdSocket"              => HouseholdSocket
-      case "BlueHouseholdSocket"          => BlueHouseholdSocket
-      case "Cee16ASocket"                 => Cee16ASocket
-      case "Cee32ASocket"                 => Cee32ASocket
-      case "Cee63ASocket"                 => Cee63ASocket
-      case "ChargingStationType1"         => ChargingStationType1
-      case "ChargingStationType2"         => ChargingStationType2
-      case "ChargingStationCcsComboType1" => ChargingStationCcsComboType1
-      case "ChargingStationCcsComboType2" => ChargingStationCcsComboType2
-      case "TeslaSuperCharger"            => TeslaSuperCharger
-      case _                              => throw new IllegalArgumentException("invalid argument")
+      case "HouseholdSocket"              => Some { HouseholdSocket }
+      case "BlueHouseholdSocket"          => Some { BlueHouseholdSocket }
+      case "Cee16ASocket"                 => Some { Cee16ASocket }
+      case "Cee32ASocket"                 => Some { Cee32ASocket }
+      case "Cee63ASocket"                 => Some { Cee63ASocket }
+      case "ChargingStationType1"         => Some { ChargingStationType1 }
+      case "ChargingStationType2"         => Some { ChargingStationType2 }
+      case "ChargingStationCcsComboType1" => Some { ChargingStationCcsComboType1 }
+      case "ChargingStationCcsComboType2" => Some { ChargingStationCcsComboType2 }
+      case "TeslaSuperCharger"            => Some { TeslaSuperCharger }
+      case _                              => None
     }
   }
 
