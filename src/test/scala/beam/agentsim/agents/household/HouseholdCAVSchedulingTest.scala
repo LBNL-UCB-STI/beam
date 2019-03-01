@@ -34,10 +34,10 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, FunSpecLike, Matchers}
 
 import scala.collection.immutable.List
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.ExecutionContext
 
-  class HouseholdCAVSchedulingTest
+class HouseholdCAVSchedulingTest
     extends TestKit(
       ActorSystem(
         name = "PersonWithVehicleSharingSpec",
@@ -53,210 +53,210 @@ import scala.concurrent.ExecutionContext
           .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
-      with Matchers
-      with FunSpecLike
-      with BeforeAndAfterAll
-      with MockitoSugar
-      with ImplicitSender {
+    with Matchers
+    with FunSpecLike
+    with BeforeAndAfterAll
+    with MockitoSugar
+    with ImplicitSender {
 
-    private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
-    private implicit val executionContext: ExecutionContext = system.dispatcher
-    private lazy val beamConfig = BeamConfig(system.settings.config)
-    private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
-    private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
-    private val tollCalculator = new TollCalculator(beamConfig)
-    private lazy val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
-    private lazy val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
+  private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
+  private implicit val executionContext: ExecutionContext = system.dispatcher
+  private lazy val beamConfig = BeamConfig(system.settings.config)
+  private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
+  private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
+  private val tollCalculator = new TollCalculator(beamConfig)
+  private lazy val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
+  private lazy val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
-    private lazy val beamSvc: BeamServices = {
-      val matsimServices = mock[MatsimServices]
+  private lazy val beamSvc: BeamServices = {
+    val matsimServices = mock[MatsimServices]
 
-      val theServices = mock[BeamServices](withSettings().stubOnly())
-      when(theServices.matsimServices).thenReturn(matsimServices)
-      when(theServices.beamConfig).thenReturn(beamConfig)
-      when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
-      when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
-      when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
-      when(theServices.networkHelper).thenReturn(networkHelper)
+    val theServices = mock[BeamServices](withSettings().stubOnly())
+    when(theServices.matsimServices).thenReturn(matsimServices)
+    when(theServices.beamConfig).thenReturn(beamConfig)
+    when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
+    when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
+    when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
+    when(theServices.networkHelper).thenReturn(networkHelper)
 
-      theServices
-    }
-
-    describe("HouseholdCAVScheduling") {
-
-      val defaultCAVBeamVehicleType = BeamVehicleType(
-    Id.create("CAV-TYPE-DEFAULT", classOf[BeamVehicleType]),
-    4,
-    0,
-    4.5,
-    Gasoline,
-    3656.0,
-    3655980000.0,
-    vehicleCategory = Car,
-    automationLevel = 5
-  )
-
-  it ("generate two schedules") {
-    val config = ConfigUtils.createConfig()
-    implicit val sc: org.matsim.api.core.v01.Scenario =
-      ScenarioUtils.createScenario(config)
-
-    val cavs = List[BeamVehicle](
-      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType)
-    )
-    val household: Household = scenario1(cavs)
-    val skim = new BeamSkimmer()
-
-    val alg = new HouseholdCAVScheduling(
-      sc,
-      household,
-      cavs,
-      Map((Pickup, 2), (Dropoff, 2)),
-      skim = skim,
-      beamServices = beamSvc
-    )
-    val schedules = alg.getAllFeasibleSchedules
-    schedules should have length 2
-    schedules.foreach { x =>
-      x.cavFleetSchedule should have length 1
-      x.cavFleetSchedule.head.schedule should (have length 1 or have length 6)
-    }
-    println(s"*** scenario 1 *** ${schedules.size} combinations")
-    println(schedules)
+    theServices
   }
 
-      it("pool two persons for both trips"){
-    val config = ConfigUtils.createConfig()
-    implicit val sc: org.matsim.api.core.v01.Scenario =
-      ScenarioUtils.createScenario(config)
+  describe("HouseholdCAVScheduling") {
 
-    val vehicles = List[BeamVehicle](
-      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType),
-      new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), BeamVehicleType.defaultCarBeamVehicleType)
+    val defaultCAVBeamVehicleType = BeamVehicleType(
+      Id.create("CAV-TYPE-DEFAULT", classOf[BeamVehicleType]),
+      4,
+      0,
+      4.5,
+      Gasoline,
+      3656.0,
+      3655980000.0,
+      vehicleCategory = Car,
+      automationLevel = 5
     )
-    val household: Household = scenario2(vehicles)
-    val skim = new BeamSkimmer()
 
-    val alg = new HouseholdCAVScheduling(
-      sc,
-      household,
-      vehicles,
-      Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
-      skim = skim,
-      stopSearchAfterXSolutions = 5000,
-      beamServices = beamSvc
-    )
-    val schedule = alg.getBestScheduleWithTheLongestCAVChain.head
+    it("generate two schedules") {
+      val config = ConfigUtils.createConfig()
+      implicit val sc: org.matsim.api.core.v01.Scenario =
+        ScenarioUtils.createScenario(config)
 
-    schedule.cavFleetSchedule should have length 1
-    schedule.cavFleetSchedule.head.schedule should have length 10
-    schedule.cavFleetSchedule.head.schedule
-      .filter(_.person.isDefined)
-      .groupBy(_.person)
-      .mapValues(_.size)
-      .foldLeft(0)(_ + _._2) shouldBe 8
-    schedule.cavFleetSchedule.head.schedule(0).tag shouldBe Dropoff
-    schedule.cavFleetSchedule.head.schedule(1).tag shouldBe Dropoff
-    schedule.cavFleetSchedule.head.schedule(7).tag shouldBe Pickup
-    schedule.cavFleetSchedule.head.schedule(8).tag shouldBe Pickup
+      val cavs = List[BeamVehicle](
+        new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType)
+      )
+      val household: Household = scenario1(cavs)
+      val skim = new BeamSkimmer()
 
-    println(s"*** scenario 2 *** ")
-    println(schedule)
-  }
-
-      it ("generate twelve trips") {
-    val config = ConfigUtils.createConfig()
-    implicit val sc: org.matsim.api.core.v01.Scenario =
-      ScenarioUtils.createScenario(config)
-
-    val vehicles = List[BeamVehicle](
-      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType)
-    )
-    val household: Household = scenario4(vehicles)
-
-    val skim = new BeamSkimmer()
-
-    val alg = new HouseholdCAVScheduling(
-      sc,
-      household,
-      vehicles,
-      Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
-      stopSearchAfterXSolutions = 2000,
-      skim = skim,
-      beamServices = beamSvc
-    )
-    val schedule = alg.getBestScheduleWithTheLongestCAVChain.head
-
-    schedule.cavFleetSchedule should have length 1
-    val nbOfTrips = schedule.cavFleetSchedule.flatMap(_.schedule).count(x => x.tag == Pickup || x.tag == Dropoff) / 2
-    nbOfTrips should equal(12)
-    println(s"*** scenario 4 *** $nbOfTrips trips")
-    println(schedule)
-  }
-
-      it ("pool both agents in different CAVs") {
-    val config = ConfigUtils.createConfig()
-    implicit val sc: org.matsim.api.core.v01.Scenario =
-      ScenarioUtils.createScenario(config)
-
-    val vehicles = List[BeamVehicle](
-      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType),
-      new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), defaultCAVBeamVehicleType)
-    )
-    val household: Household = scenario5(vehicles)
-    val skim = new BeamSkimmer()
-
-    val alg = new HouseholdCAVScheduling(
-      sc,
-      household,
-      vehicles,
-      Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
-      skim = skim,
-      stopSearchAfterXSolutions = 5000,
-      beamServices = beamSvc
-    )
-    val schedule = alg.getKBestSchedules(Integer.MAX_VALUE)
-    schedule should have length 25
-    val worstCombination = schedule.last
-    worstCombination.cavFleetSchedule should have length 2
-    worstCombination.cavFleetSchedule.head.schedule should have length 6
-    worstCombination.cavFleetSchedule.head.schedule(0).tag shouldBe Dropoff
-    worstCombination.cavFleetSchedule.head.schedule(1).tag shouldBe Dropoff
-    worstCombination.cavFleetSchedule.last.schedule should have length 5
-    worstCombination.cavFleetSchedule.last.schedule(0).tag shouldBe Dropoff
-    worstCombination.cavFleetSchedule.last.schedule(1).tag shouldBe Dropoff
-    println(s"*** scenario 5 ***")
-    println(worstCombination)
-  }
-
-  it ("be scalable") {
-    val config = ConfigUtils.createConfig()
-    implicit val sc: org.matsim.api.core.v01.Scenario =
-      ScenarioUtils.createScenario(config)
-
-    val vehicles = List[BeamVehicle](
-      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType),
-      new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), defaultCAVBeamVehicleType)
-    )
-    val household: Household = scenarioPerformance(vehicles)
-    val skim = new BeamSkimmer()
-
-    val alg =
-      new HouseholdCAVScheduling(
+      val alg = new HouseholdCAVScheduling(
         sc,
         household,
-        vehicles,
-        Map((Pickup, 15 * 60), (Dropoff, 15 * 60)),
+        cavs,
+        Map((Pickup, 2), (Dropoff, 2)),
         skim = skim,
         beamServices = beamSvc
       )
-    val schedule = alg.getAllFeasibleSchedules
-
-    println(s"*** scenario 6 ***")
-    println(schedule.size)
-  }
-
+      val schedules = alg.getAllFeasibleSchedules
+      schedules should have length 2
+      schedules.foreach { x =>
+        x.cavFleetSchedule should have length 1
+        x.cavFleetSchedule.head.schedule should (have length 1 or have length 6)
+      }
+      println(s"*** scenario 1 *** ${schedules.size} combinations")
+      println(schedules)
     }
+
+    it("pool two persons for both trips") {
+      val config = ConfigUtils.createConfig()
+      implicit val sc: org.matsim.api.core.v01.Scenario =
+        ScenarioUtils.createScenario(config)
+
+      val vehicles = List[BeamVehicle](
+        new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType),
+        new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), BeamVehicleType.defaultCarBeamVehicleType)
+      )
+      val household: Household = scenario2(vehicles)
+      val skim = new BeamSkimmer()
+
+      val alg = new HouseholdCAVScheduling(
+        sc,
+        household,
+        vehicles,
+        Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
+        skim = skim,
+        stopSearchAfterXSolutions = 5000,
+        beamServices = beamSvc
+      )
+      val schedule = alg.getBestScheduleWithTheLongestCAVChain.head
+
+      schedule.cavFleetSchedule should have length 1
+      schedule.cavFleetSchedule.head.schedule should have length 10
+      schedule.cavFleetSchedule.head.schedule
+        .filter(_.person.isDefined)
+        .groupBy(_.person)
+        .mapValues(_.size)
+        .foldLeft(0)(_ + _._2) shouldBe 8
+      schedule.cavFleetSchedule.head.schedule(0).tag shouldBe Dropoff
+      schedule.cavFleetSchedule.head.schedule(1).tag shouldBe Dropoff
+      schedule.cavFleetSchedule.head.schedule(7).tag shouldBe Pickup
+      schedule.cavFleetSchedule.head.schedule(8).tag shouldBe Pickup
+
+      println(s"*** scenario 2 *** ")
+      println(schedule)
+    }
+
+    it("generate twelve trips") {
+      val config = ConfigUtils.createConfig()
+      implicit val sc: org.matsim.api.core.v01.Scenario =
+        ScenarioUtils.createScenario(config)
+
+      val vehicles = List[BeamVehicle](
+        new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType)
+      )
+      val household: Household = scenario4(vehicles)
+
+      val skim = new BeamSkimmer()
+
+      val alg = new HouseholdCAVScheduling(
+        sc,
+        household,
+        vehicles,
+        Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
+        stopSearchAfterXSolutions = 2000,
+        skim = skim,
+        beamServices = beamSvc
+      )
+      val schedule = alg.getBestScheduleWithTheLongestCAVChain.head
+
+      schedule.cavFleetSchedule should have length 1
+      val nbOfTrips = schedule.cavFleetSchedule.flatMap(_.schedule).count(x => x.tag == Pickup || x.tag == Dropoff) / 2
+      nbOfTrips should equal(12)
+      println(s"*** scenario 4 *** $nbOfTrips trips")
+      println(schedule)
+    }
+
+    it("pool both agents in different CAVs") {
+      val config = ConfigUtils.createConfig()
+      implicit val sc: org.matsim.api.core.v01.Scenario =
+        ScenarioUtils.createScenario(config)
+
+      val vehicles = List[BeamVehicle](
+        new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType),
+        new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), defaultCAVBeamVehicleType)
+      )
+      val household: Household = scenario5(vehicles)
+      val skim = new BeamSkimmer()
+
+      val alg = new HouseholdCAVScheduling(
+        sc,
+        household,
+        vehicles,
+        Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
+        skim = skim,
+        stopSearchAfterXSolutions = 5000,
+        beamServices = beamSvc
+      )
+      val schedule = alg.getKBestSchedules(Integer.MAX_VALUE)
+      schedule should have length 25
+      val worstCombination = schedule.last
+      worstCombination.cavFleetSchedule should have length 2
+      worstCombination.cavFleetSchedule.head.schedule should have length 6
+      worstCombination.cavFleetSchedule.head.schedule(0).tag shouldBe Dropoff
+      worstCombination.cavFleetSchedule.head.schedule(1).tag shouldBe Dropoff
+      worstCombination.cavFleetSchedule.last.schedule should have length 5
+      worstCombination.cavFleetSchedule.last.schedule(0).tag shouldBe Dropoff
+      worstCombination.cavFleetSchedule.last.schedule(1).tag shouldBe Dropoff
+      println(s"*** scenario 5 ***")
+      println(worstCombination)
+    }
+
+    it("be scalable") {
+      val config = ConfigUtils.createConfig()
+      implicit val sc: org.matsim.api.core.v01.Scenario =
+        ScenarioUtils.createScenario(config)
+
+      val vehicles = List[BeamVehicle](
+        new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType),
+        new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), defaultCAVBeamVehicleType)
+      )
+      val household: Household = scenarioPerformance(vehicles)
+      val skim = new BeamSkimmer()
+
+      val alg =
+        new HouseholdCAVScheduling(
+          sc,
+          household,
+          vehicles,
+          Map((Pickup, 15 * 60), (Dropoff, 15 * 60)),
+          skim = skim,
+          beamServices = beamSvc
+        )
+      val schedule = alg.getAllFeasibleSchedules
+
+      println(s"*** scenario 6 ***")
+      println(schedule.size)
+    }
+
+  }
 
   // ******************
   // Scenarios

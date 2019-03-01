@@ -43,10 +43,10 @@ class AlonsoMoraPoolingAlgForRideHailSpec
           .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
-      with FunSpecLike
-      with BeforeAndAfterAll
-      with MockitoSugar
-      with ImplicitSender {
+    with FunSpecLike
+    with BeforeAndAfterAll
+    with MockitoSugar
+    with ImplicitSender {
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = system.dispatcher
   private lazy val beamConfig = BeamConfig(system.settings.config)
@@ -124,7 +124,7 @@ class AlonsoMoraPoolingAlgForRideHailSpec
         }
       }
 
-      val rtvGraph = alg.rTVGraph(rvGraph,beamSvc)
+      val rtvGraph = alg.rTVGraph(rvGraph, beamSvc)
 
       for (v <- rtvGraph.vertexSet().asScala.filter(_.isInstanceOf[RideHailTrip])) {
         v.getId match {

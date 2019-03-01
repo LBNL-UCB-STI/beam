@@ -51,7 +51,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 
 class PersonWithPersonalVehiclePlanSpec
     extends TestKit(
@@ -188,7 +188,7 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(),
-          new BeamSkimmer()
+            new BeamSkimmer()
           )
         )
       )
@@ -415,7 +415,7 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(),
-          new BeamSkimmer()
+            new BeamSkimmer()
           )
         )
       )

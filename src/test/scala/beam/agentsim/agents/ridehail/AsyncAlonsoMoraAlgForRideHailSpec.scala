@@ -33,18 +33,18 @@ import scala.collection.mutable
 import scala.concurrent.{Await, ExecutionContext}
 
 class AsyncAlonsoMoraAlgForRideHailSpec
-  extends TestKit(
-    ActorSystem(
-      name = "AlonsoMoraPoolingAlgForRideHailSpec",
-      config = ConfigFactory
-        .parseString("""
+    extends TestKit(
+      ActorSystem(
+        name = "AlonsoMoraPoolingAlgForRideHailSpec",
+        config = ConfigFactory
+          .parseString("""
                akka.log-dead-letters = 10
                akka.actor.debug.fsm = true
                akka.loglevel = debug
             """)
-        .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+      )
     )
-  )
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
@@ -168,7 +168,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
                   beamSvc
                 )
               val rvGraph: RVGraph = alg.pairwiseRVGraph
-              val rtvGraph = alg.rTVGraph(rvGraph,beamSvc)
+              val rtvGraph = alg.rTVGraph(rvGraph, beamSvc)
               assignment = alg.greedyAssignment(rtvGraph)
             case _ =>
           }
