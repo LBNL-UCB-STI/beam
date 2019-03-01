@@ -57,12 +57,17 @@ class ConsumptionRateFilterStoreImpl(
 
   private def beginLoadingConsumptionRateFiltersFor(files: IndexedSeq[(BeamVehicleType, Option[String])]) = {
     files.collect{
-      case (vehicleType, Some(filePath)) => vehicleType -> Future{
-        //Do NOT move this out - sharing the parser between threads is questionable
-        val settings = new CsvParserSettings()
-        settings.detectFormatAutomatically()
-        val csvParser = new CsvParser(settings)
-        loadConsumptionRatesFromCSVFor(filePath, csvParser)
+      case (vehicleType, Some(filePath)) => {
+        val consumptionFuture = Future{
+          //Do NOT move this out - sharing the parser between threads is questionable
+          val settings = new CsvParserSettings()
+          settings.detectFormatAutomatically()
+          val csvParser = new CsvParser(settings)
+          loadConsumptionRatesFromCSVFor(filePath, csvParser)
+        }
+        consumptionFuture.failed.onComplete(ex=>
+          log.error(ex.getOrElse("Unknown error loading consumption rate filter").toString))
+        vehicleType -> consumptionFuture
       }
     }.toMap
   }
@@ -123,7 +128,6 @@ class VehicleEnergy(
   linkToGradeRecordsIterableUsing: CsvParser => Iterable[Record]
 ) {
   private lazy val log = LoggerFactory.getLogger(this.getClass)
-
   private val settings = new CsvParserSettings()
   settings.detectFormatAutomatically()
   private val csvParser = new CsvParser(settings)

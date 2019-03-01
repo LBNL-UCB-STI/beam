@@ -92,6 +92,7 @@ class PersonAndTransitDriverSpec
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
+    when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
 
     var map = TrieMap[Id[Vehicle], (String, String)]()
     map += (Id.createVehicleId("my_bus")  -> ("", ""))

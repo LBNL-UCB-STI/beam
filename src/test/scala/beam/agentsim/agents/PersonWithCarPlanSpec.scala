@@ -92,6 +92,7 @@ class PersonWithCarPlanSpec
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(theServices.networkHelper).thenReturn(networkHelper)
+    when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
 
     theServices
   }
