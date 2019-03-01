@@ -82,6 +82,7 @@ object RideHailManager {
   sealed trait RideHailServiceStatus
 
   case object NotifyIterationEnds
+  case class RecoverFromStuckness(tick: Int)
 
   case class TravelProposal(
     rideHailAgentLocation: RideHailAgentLocation,
@@ -395,6 +396,18 @@ class RideHailManager(
       ReflectionUtils.logFields(log, this, 0)
       ReflectionUtils.logFields(log, rideHailResourceAllocationManager, 0)
       ReflectionUtils.logFields(log, modifyPassengerScheduleManager, 0)
+
+    case RecoverFromStuckness(tick) =>
+      // This is assuming we are allocating demand and routes haven't been returned
+      rideHailResourceAllocationManager.getUnprocessedCustomers.foreach{ request =>
+          request.customer.personRef ! RideHailResponse(
+            request,
+            None,
+            Some(CouldNotFindRouteToCustomer)
+          )
+        rideHailResourceAllocationManager.removeRequestFromBuffer(request)
+      }
+      modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation, tick)
 
     case ev @ StopDrivingIfNoPassengerOnBoardReply(success, requestId, tick) =>
       Option(travelProposalCache.getIfPresent(requestId.toString)) match {

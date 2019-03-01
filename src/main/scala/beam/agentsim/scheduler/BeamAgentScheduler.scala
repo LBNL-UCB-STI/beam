@@ -8,7 +8,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Terminated
 import akka.event.LoggingReceive
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.ridehail.RideHailManager.RideHailRepositioningTrigger
+import beam.agentsim.agents.ridehail.RideHailManager.{RecoverFromStuckness, RideHailRepositioningTrigger}
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
@@ -247,6 +247,7 @@ class BeamAgentScheduler(
         awaitingResponse.values().asScala.take(1).foreach { x =>
           if (x.agent.path.name.contains("RideHailManager")) {
             x.agent ! LogActorState
+            x.agent ! RecoverFromStuckness(x.triggerWithId.trigger.tick)
           }
         }
 
