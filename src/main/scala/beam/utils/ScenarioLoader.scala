@@ -37,7 +37,76 @@ class ScenarioLoader(
 
   val availableModes: String = BeamMode.allModes.map(_.value).mkString(",")
 
-  def getUnitIdToCoord(
+  def getHouseholdIdToCoord(householdsWithMembers: Array[HouseholdInfo]): Map[String, Coord] = {
+    val units = scenarioReader.readUnitsFile(unitFilePath)
+    val parcelAttrs = scenarioReader.readParcelAttrFile(parcelAttrFilePath)
+    val buildings = scenarioReader.readBuildingsFile(buildingFilePath)
+    val unitIdToCoord = ProfilingUtils.timed("getUnitIdToCoord", x => logger.info(x)) {
+      getUnitIdToCoord(units, parcelAttrs, buildings)
+    }
+    householdsWithMembers.map { hh =>
+      val coord = unitIdToCoord.getOrElse(hh.unitId, {
+        logger.warn(s"Could not find coordinate for `household` ${hh.householdId} and `unitId`'${hh.unitId}'")
+        new Coord(0, 0)
+      })
+      hh.householdId -> coord
+    }.toMap
+  }
+
+  def loadScenario(): Unit = {
+    clear()
+
+    val plans = scenarioReader.readPlansFile(planFilePath)
+    logger.info(s"Read ${plans.size} plans")
+
+    val personsWithPlans = {
+      val persons = scenarioReader.readPersonsFile(personFilePath)
+      logger.info(s"Read ${persons.size} persons")
+      getPersonsWithPlan(persons, plans)
+    }
+    logger.info(s"There are ${personsWithPlans.size} persons with plans")
+
+    val householdIdToPersons: Map[String, Array[PersonInfo]] = personsWithPlans.groupBy(_.householdId)
+
+    val householdsWithMembers = {
+      val households: Array[HouseholdInfo] = scenarioReader.readHouseholdsFile(householdFilePath)
+      logger.info(s"Read ${households.size} households")
+      households.filter(household => householdIdToPersons.contains(household.householdId))
+    }
+    logger.info(s"There are ${householdsWithMembers.size} non-empty households")
+
+    val householdIdToCoord = getHouseholdIdToCoord(householdsWithMembers)
+
+    logger.info("Applying households...")
+    applyHousehold(householdsWithMembers, householdIdToCoord, householdIdToPersons)
+    // beamServices.privateVehicles is properly populated here, after `applyHousehold` call
+
+    // We have to override personHouseholds because we just loaded new households
+    beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
+      .toMap
+    // beamServices.personHouseholds is used later on in PopulationAdjustment.createAttributesOfIndividual when we
+    logger.info("Applying persons...")
+    applyPersons(personsWithPlans)
+
+    logger.info("Applying plans...")
+    applyPlans(plans)
+
+    logger.info("The scenario loading is completed..")
+  }
+
+  private def clear(): Unit = {
+    scenario.getPopulation.getPersons.clear()
+    scenario.getPopulation.getPersonAttributes.clear()
+    scenario.getHouseholds.getHouseholds.clear()
+    scenario.getHouseholds.getHouseholdAttributes.clear()
+
+    beamServices.privateVehicles.clear()
+  }
+
+  private[utils] def getUnitIdToCoord(
     units: Array[UnitInfo],
     parcelAttrs: Array[ParcelAttribute],
     buildings: Array[BuildingInfo]
@@ -73,72 +142,14 @@ class ScenarioLoader(
     }.seq
   }
 
-  def getPersonsWithPlan(persons: Array[PersonInfo], plans: Array[PlanInfo]): Array[PersonInfo] = {
+  private[utils] def getPersonsWithPlan(persons: Array[PersonInfo], plans: Array[PlanInfo]): Array[PersonInfo] = {
     val personIdsWithPlan = plans.map(_.personId).toSet
     persons.filter(person => personIdsWithPlan.contains(person.personId))
   }
 
-  def loadScenario(): Unit = {
-    clear()
-
-    val units = scenarioReader.readUnitsFile(unitFilePath)
-    val parcelAttrs = scenarioReader.readParcelAttrFile(parcelAttrFilePath)
-    val buildings = scenarioReader.readBuildingsFile(buildingFilePath)
-    val unitIdToCoord = ProfilingUtils.timed("getUnitIdToCoord", x => logger.info(x)) {
-      getUnitIdToCoord(units, parcelAttrs, buildings)
-    }
-
-    val plans = scenarioReader.readPlansFile(planFilePath)
-    logger.info(s"Read ${plans.size} plans")
-
-    val personsWithPlans = {
-      val persons = scenarioReader.readPersonsFile(personFilePath)
-      logger.info(s"Read ${persons.size} persons")
-      getPersonsWithPlan(persons, plans)
-    }
-    logger.info(s"There are ${personsWithPlans.size} persons with plans")
-
-    val householdIdToPersons: Map[String, Array[PersonInfo]] = personsWithPlans.groupBy(_.householdId)
-
-    val householdsWithMembers = {
-      val households: Array[HouseholdInfo] = scenarioReader.readHouseholdsFile(householdFilePath)
-      logger.info(s"Read ${households.size} households")
-      households.filter(household => householdIdToPersons.contains(household.householdId))
-    }
-    logger.info(s"There are ${householdsWithMembers.size} non-empty households")
-
-    logger.info("Applying households...")
-    applyHousehold(householdsWithMembers, unitIdToCoord, householdIdToPersons)
-    // beamServices.privateVehicles is properly populated here, after `applyHousehold` call
-
-    // We have to override personHouseholds because we just loaded new households
-    beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
-      .values()
-      .asScala
-      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
-      .toMap
-    // beamServices.personHouseholds is used later on in PopulationAdjustment.createAttributesOfIndividual when we
-    logger.info("Applying persons...")
-    applyPersons(personsWithPlans)
-
-    logger.info("Applying plans...")
-    applyPlans(plans)
-
-    logger.info("The scenario loading is completed..")
-  }
-
-  private def clear(): Unit = {
-    scenario.getPopulation.getPersons.clear()
-    scenario.getPopulation.getPersonAttributes.clear()
-    scenario.getHouseholds.getHouseholds.clear()
-    scenario.getHouseholds.getHouseholdAttributes.clear()
-
-    beamServices.privateVehicles.clear()
-  }
-
-  def applyHousehold(
+  private[utils] def applyHousehold(
     households: Array[HouseholdInfo],
-    unitIdToCoord: Map[String, Coord],
+    householdIdToCoord: Map[String, Coord],
     householdIdToPersons: Map[String, Array[PersonInfo]]
   ): Unit = {
     val scenarioHouseholdAttributes = scenario.getHouseholds.getHouseholdAttributes
@@ -149,8 +160,8 @@ class ScenarioLoader(
     households.foreach { householdInfo =>
       val id = Id.create(householdInfo.householdId, classOf[Household])
       val household = new HouseholdsFactoryImpl().createHousehold(id)
-      val coord = unitIdToCoord.getOrElse(householdInfo.unitId, {
-        logger.warn(s"Could not find coordinate for `unitId` '${householdInfo.unitId}'")
+      val coord = householdIdToCoord.getOrElse(householdInfo.householdId, {
+        logger.warn(s"Could not find coordinate for `householdId` '${householdInfo.householdId}'")
         new Coord(0, 0)
       })
       household.setIncome(new IncomeImpl(householdInfo.income, Income.IncomePeriod.year))
@@ -188,10 +199,11 @@ class ScenarioLoader(
       scenarioHouseholds.put(household.getId, household)
       scenarioHouseholdAttributes.putAttribute(household.getId.toString, "homecoordx", coord.getX)
       scenarioHouseholdAttributes.putAttribute(household.getId.toString, "homecoordy", coord.getY)
+
     }
   }
 
-  def applyPersons(persons: Array[PersonInfo]): Unit = {
+  private[utils] def applyPersons(persons: Array[PersonInfo]): Unit = {
     persons.foreach { personInfo =>
       val person: Person = population.getFactory.createPerson(Id.createPersonId(personInfo.personId))
       val personId = person.getId.toString
@@ -204,7 +216,7 @@ class ScenarioLoader(
     }
   }
 
-  def applyPlans(plans: Array[PlanInfo]): Unit = {
+  private[utils] def applyPlans(plans: Array[PlanInfo]): Unit = {
     plans.foreach { planInfo =>
       val person = population.getPersons.get(Id.createPersonId(planInfo.personId))
       if (person != null) {
@@ -242,11 +254,5 @@ class ScenarioLoader(
         }
       }
     }
-  }
-
-  def removeHouseholdVehicles(household: Household): Unit = {
-    household.getVehicleIds.forEach(
-      vehicleId => beamServices.privateVehicles.remove(Id.create(vehicleId.toString, classOf[BeamVehicle]))
-    )
   }
 }
