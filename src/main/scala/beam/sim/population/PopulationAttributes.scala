@@ -45,14 +45,14 @@ case class AttributesOfIndividual(
         if (embodiedBeamLeg.isRideHail) {
           if (embodiedBeamLeg.isPooledTrip) {
             getPooledFactor(embodiedBeamLeg, poolingMultipliers, beamServices) *
-              getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeMultipliers) *
+              getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeMultipliers) *
               unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
           } else {
-            getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeMultipliers) *
+            getModeVotMultiplier(Option(RIDE_HAIL), modeMultipliers) *
               unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
           }
         } else {getPathVotMultiplier(embodiedBeamLeg.beamLeg, situationMultipliers, beamServices, isWorkTrip, getAutomationLevel(embodiedBeamLeg, beamServices))*
-          getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode),modeMultipliers) *
+          getModeVotMultiplier(Option(CAR),modeMultipliers) *
           unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
         }
       case RIDE_HAIL        => getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode),modeMultipliers) *
