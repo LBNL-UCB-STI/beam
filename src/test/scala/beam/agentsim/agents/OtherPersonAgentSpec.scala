@@ -14,7 +14,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, 
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo, _}
-import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, SpaceTime}
+import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, ReplanningEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -22,6 +22,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{TRANSIT, WALK_TRANSIT}
+import beam.router.RouteHistory
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
@@ -50,6 +51,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable.ListBuffer
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 
@@ -113,6 +115,12 @@ class OtherPersonAgentSpec
       cost: Double,
       time: Double,
       numTransfers: Int
+    ): Double = 0.0
+
+    override def computeAllDayUtility(
+      trips: ListBuffer[EmbodiedBeamTrip],
+      person: Person,
+      attributesOfIndividual: AttributesOfIndividual
     ): Double = 0.0
   }
 
@@ -297,7 +305,9 @@ class OtherPersonAgentSpec
           population,
           household,
           Map(),
-          new Coord(0.0, 0.0)
+          new Coord(0.0, 0.0),
+          Vector(),
+          new RouteHistory()
         )
       )
       scheduler ! StartSchedule(0)
@@ -396,6 +406,7 @@ class OtherPersonAgentSpec
       val personLeavesVehicleEvent = expectMsgType[PersonLeavesVehicleEvent]
       assert(personLeavesVehicleEvent.getTime == 34400.0)
 
+      expectMsgType[ReplanningEvent]
       expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
         Vector(

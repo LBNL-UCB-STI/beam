@@ -54,13 +54,11 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
             PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent) event;
             Id<Person> personId = personEntersVehicleEvent.getPersonId();
             String _personId = personId.toString();
-            Map<String, String> personEntersVehicleEventAttributes = event.getAttributes();
-            if (rideHailWaitingQueue.containsKey(personId.toString()) && personEntersVehicleEventAttributes.get("vehicle").contains("rideHailVehicle")) {
+            if (rideHailWaitingQueue.containsKey(personId.toString()) && personEntersVehicleEvent.getVehicleId().toString().contains("rideHailVehicle")) {
                 //process and add the waiting time to the total time spent by all the passengers on waiting for a ride hail
                 ReserveRideHailEvent reserveRideHailEvent = (ReserveRideHailEvent) rideHailWaitingQueue.get(_personId);
-                Map<String, String> reserveRideHailEventAttributes = reserveRideHailEvent.getAttributes();
-                Coord pickUpCorod = beamServices.geo().wgs2Utm(new Coord(Double.parseDouble(reserveRideHailEventAttributes.get("startX")),Double.parseDouble(reserveRideHailEventAttributes.get("startY"))));
-                TAZTreeMap.TAZ pickUpLocationTAZ = beamServices.tazTreeMap().getTAZ(pickUpCorod.getX(),pickUpCorod.getY());
+                Coord pickupCoord = beamServices.geo().wgs2Utm(new Coord(reserveRideHailEvent.originX, reserveRideHailEvent.originY));
+                TAZTreeMap.TAZ pickUpLocationTAZ = beamServices.tazTreeMap().getTAZ(pickupCoord.getX(),pickupCoord.getY());
                 double waitingTime = personEntersVehicleEvent.getTime() - reserveRideHailEvent.getTime();
                 processRideHailWaitingTimesAndTaz(reserveRideHailEvent, waitingTime,pickUpLocationTAZ);
                 // Remove the passenger from the waiting queue , as the passenger entered the vehicle.

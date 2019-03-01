@@ -14,10 +14,12 @@ import beam.sim.population.AttributesOfIndividual
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Activity
+import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
 
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
 /**
@@ -43,7 +45,6 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       modeCostTimeTransfers groupBy (_.mode) map {
         case (_, group) => group minBy timeAndCost
       }
-
       val inputData = bestInGroup.map { mct =>
         val theParams: Map[String, Double] =
           Map("cost" -> (mct.cost + mct.scaledTime))
@@ -155,7 +156,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         altAndIdx._1.legs.map(
           x => attributesOfIndividual.getVOT(x, modeMultipliers, situationMultipliers, poolingMultipliers, beamServices, destinationActivity)
         ).sum +
-          attributesOfIndividual.getModeVotMultiplier(Option(WAITING),modeMultipliers)*attributesOfIndividual.unitConversionVOTT(waitTime),
+          attributesOfIndividual.getModeVotMultiplier(None,modeMultipliers)*attributesOfIndividual.unitConversionVOTT(waitTime),
         numTransfers,
         altAndIdx._2
       )
@@ -166,7 +167,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     mutable.Map[Option[BeamMode], Double](
       Some(TRANSIT)          -> modalBehaviors.modeVotMultiplier.transit,
       Some(RIDE_HAIL)        -> modalBehaviors.modeVotMultiplier.rideHail,
-      Some(WAITING)          -> modalBehaviors.modeVotMultiplier.waiting,
+//      Some(WAITING)          -> modalBehaviors.modeVotMultiplier.waiting, TODO think of alternative for waiting
       Some(BIKE)             -> modalBehaviors.modeVotMultiplier.bike,
       Some(WALK)             -> modalBehaviors.modeVotMultiplier.walk,
       None                   -> 1.0
@@ -225,6 +226,12 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       )
     model.getUtilityOfAlternative(AlternativeAttributes(mode.value, variables))
   }
+
+  override def computeAllDayUtility(
+    trips: ListBuffer[EmbodiedBeamTrip],
+    person: Person,
+    attributesOfIndividual: AttributesOfIndividual
+  ): Double = trips.map(utilityOf(_, attributesOfIndividual, None)).sum // TODO: Update with destination activity
 }
 
 object ModeChoiceMultinomialLogit {
@@ -233,6 +240,7 @@ object ModeChoiceMultinomialLogit {
     val mnlData: Vector[MnlData] = Vector(
       new MnlData("COMMON", "cost", "multiplier", -1.0),
       new MnlData("car", "intercept", "intercept", mnlConfig.params.car_intercept),
+      new MnlData("cav", "intercept", "intercept", mnlConfig.params.cav_intercept),
       new MnlData("walk", "intercept", "intercept", mnlConfig.params.walk_intercept),
       new MnlData(
         "ride_hail",

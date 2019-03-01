@@ -25,7 +25,7 @@ case class BeamVehicleType(
   secondaryFuelType: Option[FuelType] = None,
   secondaryFuelConsumptionInJoulePerMeter: Option[Double] = None,
   secondaryFuelCapacityInJoule: Option[Double] = None,
-  automationLevel: Option[String] = None,
+  automationLevel: Int = 1,
   maxVelocity: Option[Double] = None,
   passengerCarUnit: Double = 1,
   rechargeLevel2RateLimitInWatts: Option[Double] = None,

@@ -10,6 +10,8 @@ import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
 
+import scala.collection.mutable.ListBuffer
+
 /**
   * BEAM
   */
@@ -35,4 +37,10 @@ class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeCho
   override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual, destinationActivity: Option[Activity]): Double = 0.0
 
   override def utilityOf(mode: Modes.BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0.0
+
+  override def computeAllDayUtility(
+    trips: ListBuffer[EmbodiedBeamTrip],
+    person: Person,
+    attributesOfIndividual: AttributesOfIndividual
+  ): Double = 0.0
 }

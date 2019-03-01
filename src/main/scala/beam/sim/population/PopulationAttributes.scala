@@ -67,7 +67,7 @@ case class AttributesOfIndividual(
   }
 
   private def getAutomationLevel(embodiedBeamLeg: EmbodiedBeamLeg, beamServices: BeamServices): automationLevel = {
-    val vehicleAutomationLevel = beamServices.getDefaultAutomationLevel().getOrElse(beamServices.vehicleTypes(embodiedBeamLeg.beamVehicleTypeId).automationLevel.map(_.toInt))
+    val vehicleAutomationLevel = beamServices.getDefaultAutomationLevel().getOrElse(beamServices.vehicleTypes(embodiedBeamLeg.beamVehicleTypeId).automationLevel)
     vehicleAutomationLevel match {
       case 3 => levelLE3
       case 4 => level4

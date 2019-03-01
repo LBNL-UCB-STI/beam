@@ -61,7 +61,7 @@ public class R5MnetBuilder {
         EdgeStore.Edge cursor = r5Network.streetLayer.edgeStore.getCursor();  // Iterator of edges in R5 network
         OsmToMATSim OTM = new OsmToMATSim(mNetwork, true);
         while (cursor.advance()) {
-            log.debug("Edge Index:{}. Cursor {}.", cursor.getEdgeIndex(), cursor);
+//            log.debug("Edge Index:{}. Cursor {}.", cursor.getEdgeIndex(), cursor);
             // TODO - eventually, we should pass each R5 link to OsmToMATSim and do the two-way handling there.
             // Check if we have already seen this OSM way. Skip if we have.
             Integer edgeIndex = cursor.getEdgeIndex();

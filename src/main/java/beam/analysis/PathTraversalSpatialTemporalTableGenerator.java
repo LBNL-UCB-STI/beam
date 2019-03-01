@@ -425,13 +425,13 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
             return; // not using data after 'MAX_TIME_IN_SECONDS'
         }
 
-        String vehicleType = attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
-        String mode = attributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
-        String vehicleId = attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
-        String links = attributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
-        Integer numOfPassengers = Integer.parseInt(attributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
-        double lengthInMeters = Double.parseDouble(attributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
-        String fuelString = attributes.get(PathTraversalEvent.ATTRIBUTE_FUEL);
+        String vehicleType = attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE());
+        String mode = attributes.get(PathTraversalEvent.ATTRIBUTE_MODE());
+        String vehicleId = attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID());
+        String links = attributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS());
+        Integer numOfPassengers = Integer.parseInt(attributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS()));
+        double lengthInMeters = Double.parseDouble(attributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH()));
+        String fuelString = attributes.get(PathTraversalEvent.ATTRIBUTE_FUEL());
 
         double fuel = Double.parseDouble(fuelString);
 
@@ -482,7 +482,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
     @Override
     public void handleEvent(Event event) {
-        if (event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
+        if (event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE())) {
             handleEvent(event.getTime(), event.getAttributes());
         }
     }
