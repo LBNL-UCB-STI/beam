@@ -215,7 +215,6 @@ object HouseholdActor {
           }
 
           val cavScheduler = new HouseholdCAVScheduling(
-            beamServices.matsimServices.getScenario,
             household,
             cavs,
             Map((Pickup, 5 * 60), (Dropoff, 10 * 60)),
