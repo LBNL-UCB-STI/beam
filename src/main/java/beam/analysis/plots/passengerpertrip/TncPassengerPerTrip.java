@@ -28,14 +28,14 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
     public TncPassengerPerTrip(){ }
 
     @Override
-    public void collectEvent(Event event, Map<String, String> attributes) {
+    public void collectEvent(PathTraversalEvent event) {
 
         eventCounter++;
 
         int hour = getEventHour(event.getTime());
-        String mode = attributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
-        String vehicle_id = attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
-        Integer _num_passengers = Integer.parseInt(attributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
+        String mode = event.mode().value();
+        String vehicle_id = event.vehicleId().toString();
+        Integer _num_passengers = event.numberOfPassengers();
 
         passengerCounter = passengerCounter + _num_passengers;
 
