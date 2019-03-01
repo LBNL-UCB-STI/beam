@@ -11,6 +11,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicleType, PassengerSchedule}
 import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
+import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
@@ -47,7 +48,7 @@ trait ChoosesParking extends {
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc),
         nextActivity(personData).get.getType,
         attributes,
-        None,
+        NoNeed,
         lastLeg.beamLeg.endTime,
         nextActivity(personData).get.getEndTime - lastLeg.beamLeg.endTime.toDouble
       )
@@ -62,7 +63,7 @@ trait ChoosesParking extends {
         val theVehicle = currentBeamVehicle
         throw new RuntimeException(log.format("My vehicle {} is not parked.", currentBeamVehicle.id))
       }
-      parkingManager ! ReleaseParkingStall(stall.parkingZoneId)
+      parkingManager ! ReleaseParkingStall(stall.id)
       val nextLeg = data.passengerSchedule.schedule.head._1
       val distance = beamServices.geo.distUTMInMeters(stall.locationUTM, nextLeg.travelPath.endPoint.loc)
       val energyCharge: Double = 0.0 //TODO
@@ -73,7 +74,7 @@ trait ChoosesParking extends {
       goto(WaitingToDrive) using data
 
     case Event(StateTimeout, data) =>
-      parkingManager ! ReleaseParkingStall(currentBeamVehicle.stall.get.parkingZoneId)
+      parkingManager ! ReleaseParkingStall(currentBeamVehicle.stall.get.id)
       currentBeamVehicle.unsetParkingStall()
       releaseTickAndTriggerId()
       goto(WaitingToDrive) using data
@@ -86,7 +87,7 @@ trait ChoosesParking extends {
         data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
       currentBeamVehicle.setReservedParkingStall(Some(stall))
 
-      // data.currentVehicle.head
+      data.currentVehicle.head
 
       //Veh id
       //distance to dest
@@ -233,7 +234,7 @@ trait ChoosesParking extends {
         restOfCurrentTrip = newRestOfTrip.toList,
         passengerSchedule = newPassengerSchedule,
         currentLegPassengerScheduleIndex = 0,
-        currentVehicle = newVehicle
+        currentVehicle = newVehicle,
       )
   }
 

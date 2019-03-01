@@ -1,8 +1,7 @@
 package beam.analysis.plots;
 
 import beam.agentsim.events.ReserveRideHailEvent;
-import beam.agentsim.infrastructure.taz.TAZ;
-import beam.agentsim.infrastructure.taz.TAZTreeMap;
+import beam.agentsim.infrastructure.TAZTreeMap;
 import beam.sim.BeamServices;
 import beam.utils.MathUtils;
 import org.matsim.api.core.v01.Coord;
@@ -21,7 +20,7 @@ import java.util.stream.DoubleStream;
 
 public class RideHailWaitingTazAnalysis implements GraphAnalysis {
     private Map<String, Event> rideHailWaitingQueue = new HashMap<>();
-    private Map<Tuple<Integer,Id<TAZ>>, List<Double>> binWaitingTimesMap = new HashMap<>();
+    private Map<Tuple<Integer,Id<TAZTreeMap.TAZ>>, List<Double>> binWaitingTimesMap = new HashMap<>();
     private BeamServices beamServices;
 
     public RideHailWaitingTazAnalysis(BeamServices beamServices) {
@@ -59,7 +58,7 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
                 //process and add the waiting time to the total time spent by all the passengers on waiting for a ride hail
                 ReserveRideHailEvent reserveRideHailEvent = (ReserveRideHailEvent) rideHailWaitingQueue.get(_personId);
                 Coord pickupCoord = beamServices.geo().wgs2Utm(new Coord(reserveRideHailEvent.originX, reserveRideHailEvent.originY));
-                TAZ pickUpLocationTAZ = beamServices.tazTreeMap().getTAZ(pickupCoord.getX(),pickupCoord.getY());
+                TAZTreeMap.TAZ pickUpLocationTAZ = beamServices.tazTreeMap().getTAZ(pickupCoord.getX(),pickupCoord.getY());
                 double waitingTime = personEntersVehicleEvent.getTime() - reserveRideHailEvent.getTime();
                 processRideHailWaitingTimesAndTaz(reserveRideHailEvent, waitingTime,pickUpLocationTAZ);
                 // Remove the passenger from the waiting queue , as the passenger entered the vehicle.
@@ -74,11 +73,11 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
      * @param waitingTime time spent by the passenger on waiting for the vehicle
      * @param taz TAZ of the passenger pickup location
      */
-    private void processRideHailWaitingTimesAndTaz(Event event, double waitingTime,TAZ taz) {
+    private void processRideHailWaitingTimesAndTaz(Event event, double waitingTime,TAZTreeMap.TAZ taz) {
         //get the hour of occurrence of the event
         int hourOfEventOccurrence = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         //Add new / update the waiting time details to the list of cumulative waiting times per bin
-        Tuple<Integer, Id<TAZ>> tuple = new Tuple<>(hourOfEventOccurrence, taz.tazId());
+        Tuple<Integer, Id<TAZTreeMap.TAZ>> tuple = new Tuple<>(hourOfEventOccurrence, taz.tazId());
         List<Double> timeList = binWaitingTimesMap.getOrDefault(tuple,new ArrayList<>());
         timeList.add(waitingTime);
         binWaitingTimesMap.put(tuple, timeList);
@@ -89,7 +88,7 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
      * @param iterationNumber Current iteration number
      * @param dataMap data to be written to the csv file
      */
-    private void writeToCsv(int iterationNumber,Map<Tuple<Integer,Id<TAZ>>, List<Double>> dataMap) {
+    private void writeToCsv(int iterationNumber,Map<Tuple<Integer,Id<TAZTreeMap.TAZ>>, List<Double>> dataMap) {
         String heading = "timeBin,TAZ,avgWait,medianWait,numberOfPickups,avgPoolingDelay,numberOfPooledPickups";
         String fileBaseName = "rideHailWaitingStats";
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileBaseName + ".csv");

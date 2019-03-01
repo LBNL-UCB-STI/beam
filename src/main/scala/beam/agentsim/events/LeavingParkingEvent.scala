@@ -1,22 +1,17 @@
 package beam.agentsim.events
 
-
 import java.util
 
-import beam.agentsim.events.ParkEvent.ATTRIBUTE_COST
 import beam.agentsim.infrastructure.ParkingStall
-import beam.agentsim.infrastructure.charging.ChargingPoint
-import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
-import beam.agentsim.infrastructure.taz.TAZ
-import org.matsim.api.core.v01.population.Person
+import beam.agentsim.infrastructure.ParkingStall.{ChargingType, ParkingType, PricingModel}
+import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{Event, GenericEvent}
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
 
 import collection.JavaConverters._
-
-
 
 case class LeavingParkingEvent(
   time: Double,
@@ -25,8 +20,8 @@ case class LeavingParkingEvent(
   tazId: Id[TAZ],
   score: Double,
   parkingType: ParkingType,
-  pricingModel: Option[PricingModel],
-  chargingPoint: Option[ChargingPoint]
+  pricingModel: PricingModel,
+  chargingType: ChargingType
 ) extends Event(time)
     with HasPersonId
     with ScalaEvent {
@@ -36,17 +31,14 @@ case class LeavingParkingEvent(
 
   override def getEventType: String = EVENT_TYPE
 
-  val pricingModelString = pricingModel.map { _.toString }.getOrElse("None")
-  val chargingPointString = chargingPoint.map { _.toString }.getOrElse("None")
-
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
     attr.put(ATTRIBUTE_SCORE, score.toString)
     attr.put(ATTRIBUTE_PERSON_ID, personId.toString)
     attr.put(ATTRIBUTE_VEHICLE_ID, vehicleId.toString)
     attr.put(ATTRIBUTE_PARKING_TYPE, parkingType.toString)
-    attr.put(ATTRIBUTE_PRICING_MODEL, pricingModelString)
-    attr.put(ATTRIBUTE_CHARGING_TYPE, chargingPointString)
+    attr.put(ATTRIBUTE_PRICING_MODEL, pricingModel.toString)
+    attr.put(ATTRIBUTE_CHARGING_TYPE, chargingType.toString)
     attr.put(ATTRIBUTE_PARKING_TAZ, tazId.toString)
 
     attr
@@ -75,11 +67,11 @@ object LeavingParkingEvent {
       time,
       personId,
       vehId,
-      stall.tazId,
+      stall.attributes.tazId,
       score,
-      stall.parkingType,
-      stall.pricingModel,
-      stall.chargingPoint
+      stall.attributes.parkingType,
+      stall.attributes.pricingModel,
+      stall.attributes.chargingType
     )
 
   def apply(genericEvent: GenericEvent): LeavingParkingEvent = {
@@ -90,10 +82,9 @@ object LeavingParkingEvent {
     val vehicleId: Id[Vehicle] = Id.create(attr(ATTRIBUTE_VEHICLE_ID), classOf[Vehicle])
     val tazId: Id[TAZ] = Id.create(attr(ATTRIBUTE_PARKING_TAZ), classOf[TAZ])
     val score: Double = attr(ATTRIBUTE_SCORE).toDouble
-    val parkingType: ParkingType = ParkingType(attr(ATTRIBUTE_PARKING_TYPE))
-    val cost: String = attr(ATTRIBUTE_COST)
-    val pricingModel: Option[PricingModel] = PricingModel(attr(ATTRIBUTE_PRICING_MODEL), cost)
-    val chargingType: Option[ChargingPoint] = ChargingPoint(attr(ATTRIBUTE_CHARGING_TYPE))
-    new LeavingParkingEvent(time, personId, vehicleId, tazId, score, parkingType, pricingModel, chargingType)
+    val parkingType: ParkingType = ParkingType.fromString(attr(ATTRIBUTE_PARKING_TYPE))
+    val pricingModel: PricingModel = PricingModel.fromString(attr(ATTRIBUTE_PRICING_MODEL))
+    val chargingType: ChargingType = ChargingType.fromString(attr(ATTRIBUTE_CHARGING_TYPE))
+    LeavingParkingEvent(time, personId, vehicleId, tazId, score, parkingType, pricingModel, chargingType)
   }
 }

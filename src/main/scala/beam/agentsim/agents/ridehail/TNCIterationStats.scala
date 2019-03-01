@@ -2,8 +2,8 @@ package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.TNCIterationStats._
-import beam.agentsim.infrastructure.taz.TAZ
-import beam.agentsim.infrastructure.taz.TAZTreeMap
+import beam.agentsim.infrastructure.TAZTreeMap
+import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
 import beam.utils.DebugLib

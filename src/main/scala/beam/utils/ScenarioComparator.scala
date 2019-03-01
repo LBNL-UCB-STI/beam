@@ -8,7 +8,6 @@ import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
-import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.Modes
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
@@ -136,7 +135,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
 
       override def matsimServices_=(x$1: org.matsim.core.controler.MatsimServices): Unit = ???
 
-      override val tazTreeMap: TAZTreeMap =
+      override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap =
         beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
       override val modeIncentives: ModeIncentive = ???
 

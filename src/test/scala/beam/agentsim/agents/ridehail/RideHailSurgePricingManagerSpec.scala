@@ -1,5 +1,6 @@
 package beam.agentsim.agents.ridehail
-import beam.agentsim.infrastructure.taz.TAZTreeMap
+
+import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
