@@ -232,7 +232,7 @@ class ScenarioLoader(
             case Some(mode) =>
               PopulationUtils.createAndAddLeg(plan, mode)
             case None =>
-              logger.warn(s"$planInfo has planElement leg, but mode is not set!")
+              PopulationUtils.createAndAddLeg(plan, "")
           }
         } else if (planElement.equalsIgnoreCase("activity")) {
           assert(planInfo.x.isDefined, s"planElement is `activity`, but `x` is None! planInfo: $planInfo")

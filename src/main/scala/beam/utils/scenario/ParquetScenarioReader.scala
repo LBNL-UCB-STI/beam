@@ -74,9 +74,6 @@ object ParquetScenarioReader extends ScenarioReader with LazyLogging {
     val y = Option(rec.get("y")).map(_.asInstanceOf[Double])
     val endTime = Option(rec.get("endTime")).map(_.asInstanceOf[Double])
     val mode = Option(rec.get("mode")).map(_.toString)
-    if (planElement == "leg") {
-      assert(mode.isDefined, s"planElement = $planElement, but mode = null!")
-    }
 
     PlanInfo(
       personId = personId,
