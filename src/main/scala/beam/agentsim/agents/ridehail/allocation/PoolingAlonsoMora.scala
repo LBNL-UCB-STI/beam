@@ -42,25 +42,14 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       )
       .headOption match {
       case Some(agentETA) =>
-        val poolSkim = rideHailManager.beamSkimmer.getTimeDistanceAndCost(
+        val timeCostFactors = rideHailManager.beamSkimmer.getRideHailPoolingTimeAndCostRatios(
           inquiry.pickUpLocationUTM,
           inquiry.destinationUTM,
           inquiry.departAt,
-          RIDE_HAIL_POOLED,
           defaultBeamVehilceTypeId,
-          Some(rideHailManager.beamServices)
+          rideHailManager.beamServices
         )
-        val soloSkim = rideHailManager.beamSkimmer.getTimeDistanceAndCost(
-          inquiry.pickUpLocationUTM,
-          inquiry.destinationUTM,
-          inquiry.departAt,
-          RIDE_HAIL,
-          defaultBeamVehilceTypeId,
-          Some(rideHailManager.beamServices)
-        )
-        val costFactor = poolSkim.cost / soloSkim.cost
-        val timeFactor = poolSkim.time / soloSkim.time
-        SingleOccupantQuoteAndPoolingInfo(agentETA.agentLocation, Some(PoolingInfo(timeFactor, costFactor)))
+        SingleOccupantQuoteAndPoolingInfo(agentETA.agentLocation, Some(PoolingInfo(timeCostFactors._1, timeCostFactors._2)))
       case None =>
         NoVehiclesAvailable
     }
