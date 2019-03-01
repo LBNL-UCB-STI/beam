@@ -60,7 +60,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
           val pickDropIdAndLegs = routeResponses.map { rResp =>
             tempPickDropStore
               .remove(rResp.requestId)
-              .getOrElse(PickDropIdAndLeg(request.customer, None))
+              .getOrElse(PickDropIdAndLeg(Some(request.customer), None))
               .copy(leg = rResp.itineraries.head.legs.headOption)
           }
           allocResponses = allocResponses :+ VehicleMatchedToCustomers(
@@ -79,27 +79,12 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
     toPool.grouped(2).foreach { twoToPool =>
       twoToPool.size match {
         case 1 =>
-          val request = twoToPool.head
-          rideHailManager.vehicleManager
-            .getClosestIdleVehiclesWithinRadiusByETA(
-              request.pickUpLocationUTM,
-              rideHailManager.radiusInMeters,
-              tick,
-              excludeRideHailVehicles = alreadyAllocated
-            )
-            .headOption match {
-            case Some(agentETA) =>
-              alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId
-              allocResponses = allocResponses :+ RoutingRequiredToAllocateVehicle(
-                request,
-                rideHailManager.createRoutingRequestsToCustomerAndDestination(
-                  tick,
-                  request,
-                  agentETA.agentLocation
-                )
-              )
-            case None =>
-              allocResponses = allocResponses :+ NoVehicleAllocated(request)
+          Pooling.serveOneRequest(twoToPool.head, tick, alreadyAllocated, rideHailManager) match {
+            case res @ RoutingRequiredToAllocateVehicle(_, routes) =>
+              allocResponses = allocResponses :+ res
+              alreadyAllocated = alreadyAllocated + routes.head.streetVehicles.head.id
+            case res =>
+              allocResponses = allocResponses :+ res
           }
         case 2 =>
           val request1 = twoToPool.head
@@ -157,7 +142,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         Vector(rideHailVehicleAtOrigin)
       )
       routeReqs = routeReqs :+ routeReq2Pickup
-      tempPickDropStore.put(routeReq2Pickup.requestId, PickDropIdAndLeg(req.customer, None))
+      tempPickDropStore.put(routeReq2Pickup.requestId, PickDropIdAndLeg(Some(req.customer), None))
 
       rideHailVehicleAtOrigin = StreetVehicle(
         rideHailLocation.vehicleId,
@@ -178,7 +163,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         Vector(rideHailVehicleAtOrigin)
       )
       routeReqs = routeReqs :+ routeReq2Dropoff
-      tempPickDropStore.put(routeReq2Dropoff.requestId, PickDropIdAndLeg(req.customer, None))
+      tempPickDropStore.put(routeReq2Dropoff.requestId, PickDropIdAndLeg(Some(req.customer), None))
 
       rideHailVehicleAtOrigin = StreetVehicle(
         rideHailLocation.vehicleId,
@@ -203,5 +188,37 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
 //
 //    List(rideHailAgent2Customer, rideHail2Destination)
 //  }
+
+}
+
+object Pooling {
+
+  def serveOneRequest(
+    request: RideHailRequest,
+    pickUpTime: Int,
+    alreadyAllocated: Set[Id[Vehicle]],
+    rideHailManager: RideHailManager
+  ) = {
+    rideHailManager.vehicleManager
+      .getClosestIdleVehiclesWithinRadiusByETA(
+        request.pickUpLocationUTM,
+        rideHailManager.radiusInMeters,
+        pickUpTime,
+        excludeRideHailVehicles = alreadyAllocated
+      )
+      .headOption match {
+      case Some(agentETA) =>
+        RoutingRequiredToAllocateVehicle(
+          request,
+          rideHailManager.createRoutingRequestsToCustomerAndDestination(
+            pickUpTime,
+            request,
+            agentETA.agentLocation
+          )
+        )
+      case None =>
+        NoVehicleAllocated(request)
+    }
+  }
 
 }

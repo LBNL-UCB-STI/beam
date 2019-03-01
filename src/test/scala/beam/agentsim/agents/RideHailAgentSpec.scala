@@ -8,7 +8,7 @@ import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent.DrivingInterrupted
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDriving
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger, StopDriving}
 import beam.agentsim.agents.ridehail.RideHailAgent
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -147,8 +147,7 @@ class RideHailAgentSpec
           )
         )
       rideHailAgent ! Interrupt(Id.create("1", classOf[Interrupt]), 30000)
-      expectMsgClass(classOf[InterruptedWhileIdle])
-      //expectMsg(InterruptedWhileIdle(_,_))
+      expectMsgType[InterruptedWhileIdle]
       rideHailAgent ! ModifyPassengerSchedule(passengerSchedule, 30000)
       rideHailAgent ! Resume()
       val modifyPassengerScheduleAck = expectMsgType[ModifyPassengerScheduleAck]
@@ -217,12 +216,12 @@ class RideHailAgentSpec
 
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
-      expectMsgType[NotifyVehicleIdle]
+      val notifyVehicleIdle = expectMsgType[NotifyVehicleIdle]
 
       trigger = expectMsgType[TriggerWithId] // NotifyLegEndTrigger
       scheduler ! CompletionNotice(trigger.triggerId)
 
-      rideHailAgent ! NotifyVehicleResourceIdleReply(None, Vector[ScheduleTrigger]())
+      rideHailAgent ! NotifyVehicleResourceIdleReply(notifyVehicleIdle.triggerId, Vector[ScheduleTrigger]())
 
       trigger = expectMsgType[TriggerWithId] // 50000
       scheduler ! CompletionNotice(trigger.triggerId)
@@ -286,11 +285,9 @@ class RideHailAgentSpec
       scheduler ! ScheduleTrigger(TestTrigger(50000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
 
-//      expectMsgType[NotifyResourceIdle]
       expectMsgType[VehicleLeavesTrafficEvent]
 
       expectMsgType[PathTraversalEvent]
-//      expectMsgType[CheckInResource]
 
       expectMsgType[NotifyVehicleIdle]
 
@@ -342,18 +339,46 @@ class RideHailAgentSpec
       scheduler ! ScheduleTrigger(TestTrigger(40000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
 
-//      expectMsgType[NotifyResourceIdle]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
       expectMsgType[VehicleEntersTrafficEvent]
 
-      trigger = expectMsgType[TriggerWithId] // 40000
+      trigger = expectMsgPF() {
+        case t @ TriggerWithId(BoardVehicleTrigger(38800, _), _) =>
+          t
+      }
+      scheduler ! CompletionNotice(trigger.triggerId)
+      trigger = expectMsgPF() {
+        case t @ TriggerWithId(TestTrigger(40000), _) =>
+          t
+      }
+
       rideHailAgent ! Interrupt(Id.create("1", classOf[Interrupt]), 30000)
       val interruptedAt = expectMsgType[InterruptedWhileDriving]
       assert(interruptedAt.currentPassengerScheduleIndex == 1) // I know this agent has now picked up the passenger
       assert(rideHailAgent.stateName == DrivingInterrupted)
       expectNoMessage()
       // Don't StopDriving() here because we have a Passenger and we don't know how that works yet.
+      rideHailAgent ! Resume()
+      scheduler ! ScheduleTrigger(TestTrigger(50000), self)
+      scheduler ! CompletionNotice(trigger.triggerId)
+      expectMsgType[VehicleLeavesTrafficEvent]
+      expectMsgType[PathTraversalEvent]
+      val notifyVehicleIdle = expectMsgType[NotifyVehicleIdle]
+      rideHailAgent ! NotifyVehicleResourceIdleReply(notifyVehicleIdle.triggerId, Vector())
+      trigger = expectMsgPF() {
+        case t @ TriggerWithId(AlightVehicleTrigger(48800, _), _) =>
+          t
+      }
+      scheduler ! CompletionNotice(trigger.triggerId)
+      trigger = expectMsgPF() {
+        case t @ TriggerWithId(TestTrigger(50000), _) =>
+          t
+      }
+      scheduler ! CompletionNotice(trigger.triggerId)
+      rideHailAgent ! Finish
+
+      expectMsgType[CompletionNotice]
     }
 
   }

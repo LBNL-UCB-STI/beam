@@ -12,7 +12,8 @@ import beam.agentsim.agents.ridehail.RideHailManager.RideHailRepositioningTrigge
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
-import beam.utils.StuckFinder
+import beam.utils.logging.LogActorState
+import beam.utils.{DebugLib, StuckFinder}
 import com.google.common.collect.TreeMultimap
 
 import scala.annotation.tailrec
@@ -55,6 +56,8 @@ object BeamAgentScheduler {
   case class ScheduleKillTrigger(agent: ActorRef) extends SchedulerMessage
 
   case class KillTrigger(tick: Int) extends Trigger
+
+  case class RideHailManagerStuckDetectionLog(tick: Option[Int], alreadyLogged: Boolean)
 
   /**
     *
@@ -120,10 +123,10 @@ class BeamAgentScheduler(
 
   private val triggerQueue =
     new java.util.PriorityQueue[ScheduledTrigger](ScheduledTriggerComparator)
-  private val awaitingResponse: TreeMultimap[java.lang.Double, ScheduledTrigger] = TreeMultimap
-    .create[java.lang.Double, ScheduledTrigger]() //com.google.common.collect.Ordering.natural(), com.google.common.collect.Ordering.arbitrary())
-  private val triggerIdToTick: mutable.Map[Long, Double] =
-    scala.collection.mutable.Map[Long, java.lang.Double]()
+  private val awaitingResponse: TreeMultimap[java.lang.Integer, ScheduledTrigger] = TreeMultimap
+    .create[java.lang.Integer, ScheduledTrigger]() //com.google.common.collect.Ordering.natural(), com.google.common.collect.Ordering.arbitrary())
+  private val triggerIdToTick: mutable.Map[Long, Integer] =
+    scala.collection.mutable.Map[Long, java.lang.Integer]()
   private val triggerIdToScheduledTrigger: mutable.Map[Long, ScheduledTrigger] =
     scala.collection.mutable.Map[Long, ScheduledTrigger]()
 
@@ -136,6 +139,8 @@ class BeamAgentScheduler(
   } else {
     None
   }
+
+  private var rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(None, false)
 
   private var startedAt: Deadline = _
   // Event stream state and cleanup management
@@ -159,7 +164,7 @@ class BeamAgentScheduler(
       triggerQueue.add(
         ScheduledTrigger(triggerWithId, triggerToSchedule.agent, triggerToSchedule.priority)
       )
-      triggerIdToTick += (triggerWithId.triggerId -> triggerToSchedule.trigger.tick.toDouble)
+      triggerIdToTick += (triggerWithId.triggerId -> triggerToSchedule.trigger.tick)
       //    log.info(s"recieved trigger to schedule $triggerToSchedule")
     }
   }
@@ -167,7 +172,7 @@ class BeamAgentScheduler(
   override def aroundPostStop(): Unit = {
     log.info("aroundPostStop. Stopping all scheduled tasks...")
     stuckAgentChecker.foreach(_.cancel())
-    scheduleMonitorTask.foreach(_.cancel())
+    monitorTask.foreach(_.cancel())
     super.aroundPostStop()
   }
 
@@ -232,7 +237,7 @@ class BeamAgentScheduler(
         })
 
     case Monitor =>
-      if (log.isDebugEnabled) {
+      if (beamConfig.beam.debug.debugEnabled) {
         val logStr =
           s"""
              |\tnowInSeconds=$nowInSeconds
@@ -240,8 +245,26 @@ class BeamAgentScheduler(
              |\ttriggerQueue.size=${triggerQueue.size}
              |\ttriggerQueue.head=${Option(triggerQueue.peek())}
              |\tawaitingResponse.head=$awaitingToString""".stripMargin
-        log.debug(logStr)
-        awaitingResponse.values().forEach(x => log.debug("awaitingResponse:" + x.toString))
+        log.info(logStr)
+
+        // if RidehailManager at first position in queue, it is very likely, that we are stuck
+        awaitingResponse.values().asScala.take(1).foreach { x =>
+          if (x.agent.path.name.contains("RideHailManager")) {
+            rideHailManagerStuckDetectionLog match {
+              case RideHailManagerStuckDetectionLog(Some(nowInSeconds), true)  => // still stuck, no need to print state again
+              case RideHailManagerStuckDetectionLog(Some(nowInSeconds), false) =>
+                // the time has not changed sense set last monitor timeout and RidehailManager still blocking scheduler -> log state and try to remove stuckness
+                rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), true)
+                x.agent ! LogActorState
+              case _ =>
+                // register tick (to see, if it changes till next monitor timeout).
+                rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), false)
+            }
+          }
+        }
+
+        awaitingResponse.values().asScala.take(10).foreach(x => log.info("awaitingResponse:" + x.toString))
+
       }
 
     case SkipOverBadActors =>
@@ -251,7 +274,7 @@ class BeamAgentScheduler(
 
         val canClean = stuckAgents.filterNot { stuckInfo =>
           val st = stuckInfo.value
-          st.agent.path.name.contains("RideHailingManager") && st.triggerWithId.trigger
+          st.agent.path.name.contains("RideHailManager") && st.triggerWithId.trigger
             .isInstanceOf[RideHailRepositioningTrigger]
         }
         log.warning("Cleaning {} agents", canClean.size)
@@ -307,7 +330,7 @@ class BeamAgentScheduler(
           val scheduledTrigger = this.triggerQueue.poll()
           val triggerWithId = scheduledTrigger.triggerWithId
           //log.info(s"dispatching $triggerWithId")
-          awaitingResponse.put(triggerWithId.trigger.tick.toDouble, scheduledTrigger)
+          awaitingResponse.put(triggerWithId.trigger.tick, scheduledTrigger)
           stuckFinder.add(System.currentTimeMillis(), scheduledTrigger, true)
 
           triggerIdToScheduledTrigger.put(triggerWithId.triggerId, scheduledTrigger)
@@ -377,7 +400,7 @@ class BeamAgentScheduler(
     if (awaitingResponse.keySet().isEmpty) {
       "empty"
     } else {
-      s"${awaitingResponse.get(awaitingResponse.keySet().first())}"
+      s"${awaitingResponse.get(awaitingResponse.keySet().first()).asScala.take(10)}"
     }
   }
 
@@ -386,7 +409,7 @@ class BeamAgentScheduler(
       Some(
         context.system.scheduler.schedule(
           new FiniteDuration(1, TimeUnit.SECONDS),
-          new FiniteDuration(5, TimeUnit.SECONDS),
+          new FiniteDuration(30, TimeUnit.SECONDS),
           self,
           Monitor
         )

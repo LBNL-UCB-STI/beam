@@ -17,7 +17,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, TRANSIT, WALK}
+import beam.router.Modes.BeamMode.{TRANSIT, WALK}
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.sim.HasServices
@@ -116,7 +116,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           TriggerWithId(EndLegTrigger(tick), triggerId),
           LiterallyDrivingData(data, legEndingAt)
         ) if tick == legEndingAt =>
-      log.debug("state(DrivesVehicle.Driving): {}", ev)
+//      log.debug("state(DrivesVehicle.Driving): {}", ev)
+      log.debug("state(DrivesVehicle.Driving): EndLegTrigger({}) for driver {}", tick, id)
       val currentLeg = data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
         .headOption
@@ -137,15 +138,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           )
         )
       }
-      log.debug(
-        "DrivesVehicle.Driving.nextNotifyVehicleResourceIdle:{}, vehicleId({}) - tick({})",
-        nextNotifyVehicleResourceIdle,
-        currentVehicleUnderControl,
-        tick
-      )
+//      log.debug(
+//        "DrivesVehicle.Driving.nextNotifyVehicleResourceIdle:{}, vehicleId({}) - tick({})",
+//        nextNotifyVehicleResourceIdle,
+//        currentVehicleUnderControl,
+//        tick
+//      )
 
       data.passengerSchedule.schedule(currentLeg).alighters.foreach { pv =>
-        logDebug(s"Scheduling AlightVehicleTrigger for Person $pv.personRef")
+        logDebug(s"Scheduling AlightVehicleTrigger for Person $pv.personRef @ $tick")
         scheduler ! ScheduleTrigger(
           AlightVehicleTrigger(tick, data.currentVehicle.head),
           pv.personRef
@@ -176,7 +177,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       val tollOnCurrentLeg = toll(currentLeg)
       tollsAccumulated += tollOnCurrentLeg
       eventsManager.processEvent(
-        new PathTraversalEvent(
+        PathTraversalEvent(
           tick,
           currentVehicleUnderControl,
           id.toString,
@@ -211,7 +212,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         if (data.hasParkingBehaviors) {
           currentBeamVehicle.reservedStall.foreach { stall =>
             currentBeamVehicle.useParkingStall(stall)
-            eventsManager.processEvent(new ParkEvent(tick, stall, currentBeamVehicle.id, id.toString)) // nextLeg.endTime -> to fix repeated path traversal
+            eventsManager.processEvent(ParkEvent(tick, stall, currentBeamVehicle.id, id.toString)) // nextLeg.endTime -> to fix repeated path traversal
           }
           currentBeamVehicle.setReservedParkingStall(None)
         }
@@ -312,10 +313,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         )
       )
 
-      log.debug(
-        "DrivesVehicle.DrivingInterrupted.nextNotifyVehicleResourceIdle:{}",
-        nextNotifyVehicleResourceIdle
-      )
+//      log.debug(
+//        "DrivesVehicle.DrivingInterrupted.nextNotifyVehicleResourceIdle:{}",
+//        nextNotifyVehicleResourceIdle
+//      )
 
       eventsManager.processEvent(
         new VehicleLeavesTrafficEvent(
@@ -331,7 +332,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       val tollOnCurrentLeg = toll(currentLeg)
       tollsAccumulated += tollOnCurrentLeg
       eventsManager.processEvent(
-        new PathTraversalEvent(
+        PathTraversalEvent(
           stopTick,
           currentVehicleUnderControl,
           id.toString,
@@ -374,7 +375,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
   when(WaitingToDrive) {
     case ev @ Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
-      log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
+//      log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
+      log.debug("state(DrivesVehicle.WaitingToDrive): StartLegTrigger({},{}) for driver {}", tick, newLeg, id)
 
       if (data.currentVehicle.isEmpty) {
         stop(Failure("person received StartLegTrigger for leg {} but has an empty data.currentVehicle", newLeg))
@@ -396,6 +398,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           .schedule(newLeg)
           .boarders
           .map { personVehicle =>
+            logDebug(
+              s"Scheduling BoardVehicleTrigger at $tick for Person ${personVehicle.personId} into vehicle ${data.currentVehicle.head}"
+            )
             ScheduleTrigger(
               BoardVehicleTrigger(tick, data.currentVehicle.head),
               personVehicle.personRef
@@ -413,7 +418,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           )
         )
         // Produce link events for this trip (the same ones as in PathTraversalEvent).
-        //TODO make sure the traveTimes here are updating with each iteration
         val beamLeg = data.passengerSchedule.schedule
           .drop(data.currentLegPassengerScheduleIndex)
           .head

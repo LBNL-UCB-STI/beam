@@ -13,6 +13,8 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 
 //TODO: Fix/Add Tests
+//TODO: Make the new energy logic configurable
+//TODO: Fix so that vehicle type is mapped to new NREL
 //TODO: Handle header files and column by name instead of index
 //Question: What to do if the file is not found or cannot be read - exception and die?
 //TODO: Create an issue: Add a test checking that Consumption Rates used (integration test)

@@ -52,7 +52,7 @@ trait BeamServices {
   var personHouseholds: Map[Id[Person], Household]
 
   val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
-  val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType]
+  val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   val fuelTypePrices: Map[FuelType, Double]
 
   var matsimServices: MatsimServices
@@ -105,13 +105,9 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val fuelTypePrices: Map[FuelType, Double] =
     readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
 
-  // TODO Fix me once `TrieMap` is removed
-  val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
-    maybeScaleTransit(
-      TrieMap(
-        readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices).toSeq: _*
-      )
-    )
+  val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = maybeScaleTransit(
+    readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
+  )
 
   private val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile).getParent
   private val vehicleCsvReader = new VehicleCsvReader(beamConfig)
@@ -155,9 +151,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
   // say, a yacht or personal bus, but I think this will be fine for now.
-  def maybeScaleTransit(
-    vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType]
-  ): TrieMap[Id[BeamVehicleType], BeamVehicleType] = {
+  private def maybeScaleTransit(vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]) = {
     beamConfig.beam.agentsim.tuning.transitCapacity match {
       case Some(scalingFactor) =>
         vehicleTypes.map {

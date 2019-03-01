@@ -22,6 +22,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.RouteHistory
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
@@ -35,6 +36,7 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.config.ConfigUtils
@@ -50,6 +52,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable.ListBuffer
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 
@@ -118,6 +121,12 @@ class PersonAgentSpec
     override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
 
     override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0D
+
+    override def computeAllDayUtility(
+      trips: ListBuffer[EmbodiedBeamTrip],
+      person: Person,
+      attributesOfIndividual: AttributesOfIndividual
+    ): Double = 0.0
   }
 
   // Mock a transit driver (who has to be a child of a mock router)
@@ -184,7 +193,8 @@ class PersonAgentSpec
           Id.create("dummyAgent", classOf[PersonAgent]),
           plan,
           parkingManager,
-          tollCalculator
+          tollCalculator,
+          self
         )
       )
 
@@ -243,7 +253,9 @@ class PersonAgentSpec
           population,
           household,
           Map(),
-          new Coord(0.0, 0.0)
+          new Coord(0.0, 0.0),
+          Vector(),
+          new RouteHistory()
         )
       )
 
@@ -465,7 +477,9 @@ class PersonAgentSpec
           population = population,
           household = household,
           vehicles = Map(),
-          homeCoord = new Coord(0.0, 0.0)
+          homeCoord = new Coord(0.0, 0.0),
+          Vector(),
+          new RouteHistory()
         )
       )
       scheduler ! StartSchedule(0)
