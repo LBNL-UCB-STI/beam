@@ -178,16 +178,16 @@ object PersonAgent {
 
   def bodyVehicleIdFromPersonID(id: Id[Person]) = BeamVehicle.createId(id, Some("body"))
 
-    def correctTripEndTime(trip: EmbodiedBeamTrip, endTime: Int, bodyVehicleId: Id[BeamVehicle]) = {
-      if (trip.tripClassifier != WALK) {
-        trip.copy(
-          legs = trip.legs
-            .dropRight(1) :+ EmbodiedBeamLeg.dummyLegAt(endTime, bodyVehicleId, true)
-        )
-      } else {
-        trip
-      }
+  def correctTripEndTime(trip: EmbodiedBeamTrip, endTime: Int, bodyVehicleId: Id[BeamVehicle]) = {
+    if (trip.tripClassifier != WALK) {
+      trip.copy(
+        legs = trip.legs
+          .dropRight(1) :+ EmbodiedBeamLeg.dummyLegAt(endTime, bodyVehicleId, true)
+      )
+    } else {
+      trip
     }
+  }
 }
 
 class PersonAgent(
@@ -765,7 +765,10 @@ class PersonAgent(
             )
 
           // Correct the trip to deal with ride hail / disruptions and then register to skimmer
-          beamSkimmer.observeTrip(correctTripEndTime(data.currentTrip.get,tick,bodyVehiclePersonId.vehicleId), beamServices)
+          beamSkimmer.observeTrip(
+            correctTripEndTime(data.currentTrip.get, tick, bodyVehiclePersonId.vehicleId),
+            beamServices
+          )
 
           eventsManager.processEvent(
             new ActivityStartEvent(

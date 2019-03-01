@@ -50,7 +50,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
             val bodyVehicleId = trips.head.legs.head.beamVehicleId
             trips.update(
               trips.size - 1,
-              PersonAgent.correctTripEndTime(trips.last,e.getTime().toInt,bodyVehicleId)
+              PersonAgent.correctTripEndTime(trips.last, e.getTime().toInt, bodyVehicleId)
             )
           case _ =>
         }

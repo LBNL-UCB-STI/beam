@@ -865,7 +865,7 @@ trait ChoosesMode {
 
       modeChoiceCalculator(filteredItinerariesForChoice, attributesOfIndividual) match {
         case Some(chosenTrip) =>
-          if(chosenTrip.tripClassifier==WALK){
+          if (chosenTrip.tripClassifier == WALK) {
             val i = 0
           }
           goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(chosenTrip))

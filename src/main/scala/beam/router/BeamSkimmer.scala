@@ -6,7 +6,18 @@ import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.BeamSkimmer.Skim
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  CAR,
+  CAV,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
@@ -19,7 +30,7 @@ import org.matsim.core.controler.listener.IterationEndsListener
 import scala.collection.concurrent.TrieMap
 
 //TODO to be validated against google api
-class BeamSkimmer @Inject()(beamServicesProvider: Provider[BeamServices]) extends IterationEndsListener{
+class BeamSkimmer @Inject()(beamServicesProvider: Provider[BeamServices]) extends IterationEndsListener {
   // The OD/Mode/Time Matrix
   var skims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), Skim] = TrieMap()
   var modalAverage: TrieMap[BeamMode, Skim] = TrieMap()
@@ -178,9 +189,16 @@ class BeamSkimmer @Inject()(beamServicesProvider: Provider[BeamServices]) extend
       BeamSkimmer.outputFileBaseName + ".csv.gz"
     )
     //write the data to an output file
-    FileUtils.writeToFile(filePath, Some(fileHeader), skims.map{keyVal =>
-      s"${keyVal._1._1},${keyVal._1._2},${keyVal._1._3},${keyVal._1._4},${keyVal._2.time},${keyVal._2.cost},${keyVal._2.distance},${keyVal._2.count}"
-    }.mkString("\n"), None)
+    FileUtils.writeToFile(
+      filePath,
+      Some(fileHeader),
+      skims
+        .map { keyVal =>
+          s"${keyVal._1._1},${keyVal._1._2},${keyVal._1._3},${keyVal._1._4},${keyVal._2.time},${keyVal._2.cost},${keyVal._2.distance},${keyVal._2.count}"
+        }
+        .mkString("\n"),
+      None
+    )
   }
 }
 
