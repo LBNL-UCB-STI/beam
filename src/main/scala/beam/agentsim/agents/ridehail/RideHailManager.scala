@@ -417,6 +417,8 @@ class RideHailManager(
       }
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation, tick)
 
+      cleanUp
+
     case ev @ StopDrivingIfNoPassengerOnBoardReply(success, requestId, tick) =>
       Option(travelProposalCache.getIfPresent(requestId.toString)) match {
         case Some(travelProposal) =>
