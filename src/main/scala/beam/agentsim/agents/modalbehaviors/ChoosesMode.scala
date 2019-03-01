@@ -15,7 +15,6 @@ import beam.agentsim.agents.vehicles.{VehiclePersonId, _}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall
-import beam.agentsim.infrastructure.ParkingStall.{Any, NoNeed}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter._
 import beam.router.Modes
@@ -709,10 +708,9 @@ trait ChoosesMode {
       destinationInUTM,
       activityType,
       attributes,
-      NoNeed,
+      None,
       arrivalTime,
       duration,
-      Any,
       reserveStall = false
     )
     parkingManager ! inquiry

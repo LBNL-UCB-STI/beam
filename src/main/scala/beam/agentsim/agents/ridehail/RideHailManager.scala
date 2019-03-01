@@ -41,9 +41,7 @@ import beam.router.osm.TollCalculator
 import beam.sim.RideHailFleetInitializer.RideHailAgentInputData
 import beam.sim._
 import beam.utils._
-import beam.utils.logging.LogActorState
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
-import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.transit.TransportNetwork
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
@@ -391,11 +389,6 @@ class RideHailManager(
   log.info("Initialized {} ride hailing agents", numRideHailAgents)
 
   override def receive: Receive = LoggingReceive {
-    case LogActorState =>
-      ReflectionUtils.logFields(log, this, 0)
-      ReflectionUtils.logFields(log, rideHailResourceAllocationManager, 0)
-      ReflectionUtils.logFields(log, modifyPassengerScheduleManager, 0)
-
     case ev @ StopDrivingIfNoPassengerOnBoardReply(success, requestId, tick) =>
       Option(travelProposalCache.getIfPresent(requestId.toString)) match {
         case Some(travelProposal) =>
@@ -750,8 +743,7 @@ class RideHailManager(
   def findRefuelStationAndSendVehicle(rideHailAgentLocation: RideHailAgentLocation): Unit = {
     val inquiry = DepotParkingInquiry(
       rideHailAgentLocation.vehicleId,
-      rideHailAgentLocation.currentLocationUTM.loc,
-      ParkingStall.RideHailManager
+      rideHailAgentLocation.currentLocationUTM.loc
     )
     parkingInquiryCache.put(inquiry.requestId, rideHailAgentLocation)
     parkingManager ! inquiry
