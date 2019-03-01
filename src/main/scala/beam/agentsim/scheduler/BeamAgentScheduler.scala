@@ -12,7 +12,8 @@ import beam.agentsim.agents.ridehail.RideHailManager.RideHailRepositioningTrigge
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
-import beam.utils.StuckFinder
+import beam.utils.logging.LogActorState
+import beam.utils.{DebugLib, StuckFinder}
 import com.google.common.collect.TreeMultimap
 
 import scala.annotation.tailrec
@@ -55,6 +56,8 @@ object BeamAgentScheduler {
   case class ScheduleKillTrigger(agent: ActorRef) extends SchedulerMessage
 
   case class KillTrigger(tick: Int) extends Trigger
+
+  case class RideHailManagerStuckDetectionLog(tick: Option[Int], alreadyLogged: Boolean)
 
   /**
     *
@@ -136,6 +139,8 @@ class BeamAgentScheduler(
   } else {
     None
   }
+
+  private var rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(None, false)
 
   private var startedAt: Deadline = _
   // Event stream state and cleanup management
@@ -241,7 +246,25 @@ class BeamAgentScheduler(
              |\ttriggerQueue.head=${Option(triggerQueue.peek())}
              |\tawaitingResponse.head=$awaitingToString""".stripMargin
         log.info(logStr)
+
+        // if RidehailManager at first position in queue, it is very likely, that we are stuck
+        awaitingResponse.values().asScala.take(1).foreach { x =>
+          if (x.agent.path.name.contains("RideHailManager")) {
+            rideHailManagerStuckDetectionLog match {
+              case RideHailManagerStuckDetectionLog(Some(nowInSeconds), true)  => // still stuck, no need to print state again
+              case RideHailManagerStuckDetectionLog(Some(nowInSeconds), false) =>
+                // the time has not changed sense set last monitor timeout and RidehailManager still blocking scheduler -> log state and try to remove stuckness
+                rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), true)
+                x.agent ! LogActorState
+              case _ =>
+                // register tick (to see, if it changes till next monitor timeout).
+                rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), false)
+            }
+          }
+        }
+
         awaitingResponse.values().asScala.take(10).foreach(x => log.info("awaitingResponse:" + x.toString))
+
       }
 
     case SkipOverBadActors =>
@@ -251,7 +274,7 @@ class BeamAgentScheduler(
 
         val canClean = stuckAgents.filterNot { stuckInfo =>
           val st = stuckInfo.value
-          st.agent.path.name.contains("RideHailingManager") && st.triggerWithId.trigger
+          st.agent.path.name.contains("RideHailManager") && st.triggerWithId.trigger
             .isInstanceOf[RideHailRepositioningTrigger]
         }
         log.warning("Cleaning {} agents", canClean.size)
