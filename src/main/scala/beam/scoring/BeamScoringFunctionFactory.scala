@@ -15,6 +15,7 @@ import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
 import org.slf4j.LoggerFactory
 import PopulationAdjustment._
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
 
 import scala.collection.JavaConverters._
@@ -86,7 +87,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
         writeTripScoresToCSV()
 
         //write generalized link stats to file
-        registerLinkCosts(this.trips)
+        registerLinkCosts(this.trips, attributes)
       }
 
       override def handleActivity(activity: Activity): Unit = {}
@@ -119,25 +120,32 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
       /**
         * Writes generalized link stats to csv file.
         */
-      private def registerLinkCosts(trips: Seq[EmbodiedBeamTrip]): Unit = {
+      private def registerLinkCosts(trips: Seq[EmbodiedBeamTrip], attributes: AttributesOfIndividual): Unit = {
         // Consider only trips that start between the given time range (specified in the scenario config)
         val startTime = 25200 //TODO read this from conf as beam.outputs.generalizedLinkStats.startTime
         val endTime = 32400 //TODO read this from conf as beam.outputs.generalizedLinkStats.endTime
-        val filteredTrips = trips filter { t =>
-          val departureTime = try {
-            t.legs.headOption.map(_.beamLeg.startTime.toString).getOrElse("").toInt
-          } catch {
-            case _: Exception => 0
+        val filteredTrips = trips filter { t => t.legs.headOption.map(bleg => bleg.beamLeg.startTime >= startTime && bleg.beamLeg.startTime <= endTime ).getOrElse(false) }
+
+        // Please use this and not MultinomialLogit to get the time and cost on each link
+        filteredTrips.foreach{trip =>
+          val tripCost = trip.costEstimate
+          val tripDistance = trip.legs.map(_.beamLeg.travelPath.distanceInM).sum
+          trip.legs.foreach{leg =>
+            leg.beamLeg.travelPath.linkIds.zipWithIndex.foreach{ case (linkId, index) =>
+              val timeOnLink = leg.beamLeg.travelPath.linkTravelTime(index)
+              beamServices.networkHelper.getLink(linkId).map{ link =>
+                val costOnLink = tripCost * link.getLength / tripDistance
+              }
+            }
           }
-          departureTime > startTime && departureTime < endTime
         }
+
+        // BELOW CAN BE DISARDED EXCEPT FOR STORING THE RESULTS IN linkAverageTravelTimes and linkAverageCosts
 
         // Calculate the trip level costs , to estimate the link level costs later
         val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(
           beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit
         )
-        val attributes =
-          person.getCustomAttributes.get(BEAM_ATTRIBUTES).asInstanceOf[AttributesOfIndividual]
         val filteredTripsArray = filteredTrips.toArray
         val modeCostTimeTransfers: IndexedSeq[ModeChoiceMultinomialLogit.ModeCostTimeTransfer] =
           new ModeChoiceMultinomialLogit(beamServices, logit)
