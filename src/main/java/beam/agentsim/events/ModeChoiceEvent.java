@@ -25,16 +25,15 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
     public final static String ATTRIBUTE_TRIP_LENGTH = "length";
     public final static String ATTRIBUTE_TOUR_INDEX = "tourIndex";
     public final EmbodiedBeamTrip chosenTrip;
-    private final Id<Person> personId;
-    private final String mode;
-    private final String currentTourMode;
-    private final String expectedMaxUtility;
-    private final String location;
-    private final String availableAlternatives;
-    private final String vehAvailable;
-    private final Double length;
-    private final Integer tourIndex;
-    private Map<String, String> attr;
+    public final Id<Person> personId;
+    public final String mode;
+    public final String currentTourMode;
+    public final String expectedMaxUtility;
+    public final String location;
+    public final String availableAlternatives;
+    public final String vehAvailable;
+    public final Double length;
+    public final Integer tourIndex;
 
     public ModeChoiceEvent(double time, Id<Person> personId, String chosenMode, String currentTourMode, Double expectedMaxUtility,
                            String linkId, String availableAlternatives, Boolean vehAvailable, Double length,
@@ -74,10 +73,7 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
 
     @Override
     public Map<String, String> getAttributes() {
-        if (attr != null) return attr;
-
-        attr = super.getAttributes();
-
+        Map<String, String> attr = super.getAttributes();
         attr.put(ATTRIBUTE_PERSON_ID, personId.toString());
         attr.put(ATTRIBUTE_MODE, mode);
         attr.put(ATTRIBUTE_CURRENT_TOUR_MODE, currentTourMode);
@@ -87,7 +83,6 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
         attr.put(ATTRIBUTE_PERSONAL_VEH_AVAILABLE, vehAvailable);
         attr.put(ATTRIBUTE_TRIP_LENGTH, length.toString());
         attr.put(ATTRIBUTE_TOUR_INDEX, tourIndex.toString());
-
         return attr;
     }
 
@@ -107,4 +102,7 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
     public Id<Person> getPersonId() {
         return personId;
     }
+
+    public String getMode() { return mode; };
+
 }

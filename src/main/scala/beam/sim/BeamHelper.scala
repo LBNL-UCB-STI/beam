@@ -11,6 +11,7 @@ import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
+import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
 import beam.scoring.BeamScoringFunctionFactory
@@ -171,7 +172,7 @@ trait BeamHelper extends LazyLogging {
           // MATSim defaults
           install(new NewControlerModule)
           install(new ScenarioByInstanceModule(scenario))
-          install(new ControlerDefaultsModule)
+          install(new ControllerModule)
           install(new ControlerDefaultCoreListenersModule)
 
           // Beam Inject below:
@@ -194,6 +195,7 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
 
           addControlerListenerBinding().to(classOf[BeamSim])
+          addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
 
           addControlerListenerBinding().to(classOf[ActivityLocationPlotter])
           addControlerListenerBinding().to(classOf[GraphSurgePricing])
@@ -232,6 +234,7 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[NetworkHelper]).toInstance(networkHelper)
 
           bind(classOf[RideHailIterationHistory]).asEagerSingleton()
+          bind(classOf[RouteHistory]).asEagerSingleton()
           bind(classOf[TollCalculator]).asEagerSingleton()
 
           // Override EventsManager
@@ -268,7 +271,7 @@ trait BeamHelper extends LazyLogging {
       "Please provide a valid configuration file."
     )
 
-    ConfigConsistencyComparator(parsedArgs.configLocation.get)
+    ConfigConsistencyComparator.parseBeamTemplateConfFile(parsedArgs.configLocation.get)
 
     val location = ConfigFactory.parseString("config=" + parsedArgs.configLocation.get)
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
@@ -284,7 +287,7 @@ trait BeamHelper extends LazyLogging {
     props.setProperty("commitHash", BashUtils.getCommitHash)
     props.setProperty("configFile", configLocation)
     val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
-    props.store(out, "Simulation outWriter put props.")
+    props.store(out, "Simulation out put props.")
     val beamConfig = BeamConfig(config)
     if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
           .equalsIgnoreCase("ModeChoiceLCCM")) {
@@ -364,7 +367,15 @@ trait BeamHelper extends LazyLogging {
 
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
     val (scenario, outputDir, networkCoordinator) = setupBeamWithConfig(config)
+    runBeam(config, scenario, networkCoordinator)
+    (scenario.getConfig, outputDir)
+  }
 
+  def runBeam(
+    config: TypesafeConfig,
+    scenario: MutableScenario,
+    networkCoordinator: NetworkCoordinator
+  ): Unit = {
     val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
     val injector = org.matsim.core.controler.Injector.createInjector(
@@ -393,8 +404,6 @@ trait BeamHelper extends LazyLogging {
     samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices)
 
     run(beamServices)
-
-    (scenario.getConfig, outputDir)
   }
 
   def setupBeamWithConfig(config: TypesafeConfig): (MutableScenario, String, NetworkCoordinator) = {

@@ -6,7 +6,7 @@ import beam.agentsim.agents.PersonTestUtil
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.events.PathTraversalEvent
-import beam.router.BeamRouter
+import beam.router.{BeamRouter, RouteHistory}
 import beam.router.Modes.BeamMode
 import beam.sim.{BeamMobsim, BeamServices, BeamServicesImpl}
 import beam.utils.SimRunnerForTest
@@ -53,7 +53,7 @@ class SingleModeSpec
     )
 
     scenario.getPopulation.getPersons.values.asScala
-      .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allTripModes))
+      .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allModes))
 
     router = system.actorOf(
       BeamRouter.props(
@@ -110,12 +110,15 @@ class SingleModeSpec
         eventsManager,
         system,
         new RideHailSurgePricingManager(services),
-        new RideHailIterationHistory()
+        new RideHailIterationHistory(),
+        new RouteHistory()
       )
       mobsim.run()
       events.foreach {
         case event: PersonDepartureEvent =>
-          assert(event.getLegMode == "walk" || event.getLegMode == "be_a_tnc_driver")
+          assert(
+            event.getLegMode == "walk" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "cav"
+          )
       }
     }
 
@@ -149,13 +152,14 @@ class SingleModeSpec
         eventsManager,
         system,
         new RideHailSurgePricingManager(services),
-        new RideHailIterationHistory()
+        new RideHailIterationHistory(),
+        new RouteHistory()
       )
       mobsim.run()
       events.foreach {
         case event: PersonDepartureEvent =>
           assert(
-            event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "be_a_tnc_driver"
+            event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "cav"
           )
       }
     }
@@ -209,14 +213,15 @@ class SingleModeSpec
         eventsManager,
         system,
         new RideHailSurgePricingManager(services),
-        new RideHailIterationHistory()
+        new RideHailIterationHistory(),
+        new RouteHistory
       )
       mobsim.run()
       events.collect {
         case event: PersonDepartureEvent =>
           // drive_transit can fail -- maybe I don't have a car
           assert(
-            event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "drive_transit" || event.getLegMode == "be_a_tnc_driver"
+            event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "drive_transit" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "cav"
           )
       }
       val eventsByPerson = events.groupBy(_.getAttributes.get("person"))
@@ -274,7 +279,8 @@ class SingleModeSpec
         eventsManager,
         system,
         new RideHailSurgePricingManager(services),
-        new RideHailIterationHistory()
+        new RideHailIterationHistory(),
+        new RouteHistory()
       )
       mobsim.run()
       events.collect {
@@ -282,7 +288,9 @@ class SingleModeSpec
           // Wr still get some failing car routes.
           // TODO: Find root cause, fix, and remove "walk" here.
           // See SfLightRouterSpec.
-          assert(event.getLegMode == "walk" || event.getLegMode == "car" || event.getLegMode == "be_a_tnc_driver")
+          assert(
+            event.getLegMode == "walk" || event.getLegMode == "car" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "cav"
+          )
       }
     }
   }

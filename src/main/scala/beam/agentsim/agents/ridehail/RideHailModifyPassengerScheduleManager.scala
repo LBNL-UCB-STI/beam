@@ -186,9 +186,6 @@ class RideHailModifyPassengerScheduleManager(
 
   def sendCompletionAndScheduleNewTimeout(batchDispatchType: BatchDispatchType, tick: Int): Unit = {
     val (currentTick, triggerId) = releaseTickAndTriggerId()
-    if (tick != currentTick) {
-      val i = 0
-    }
     val timerTrigger = batchDispatchType match {
       case BatchedReservation =>
         BufferedRideHailRequestsTrigger(

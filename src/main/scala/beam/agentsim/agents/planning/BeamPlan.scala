@@ -4,7 +4,11 @@ import java.{lang, util}
 
 import beam.agentsim.agents.planning.Strategy.{ModeChoiceStrategy, Strategy}
 import beam.router.Modes.BeamMode
+import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population._
+import org.matsim.core.population.PopulationUtils
+import org.matsim.core.population.routes.RouteFactories
 import org.matsim.utils.objectattributes.attributable.Attributes
 
 import scala.collection.JavaConverters._
@@ -40,6 +44,49 @@ object BeamPlan {
     beamPlan.setType(matsimPlan.getType)
     beamPlan.createToursFromMatsimPlan()
     beamPlan
+  }
+
+  def addOrReplaceLegBetweenActivities(
+    plan: Plan,
+    leg: Leg,
+    originActivity: Activity,
+    destinationActivity: Activity
+  ): Plan = {
+    val newPlanElements = plan.getPlanElements.asScala
+      .sliding(2)
+      .map { elems =>
+        var outputElems = List(elems.head)
+        if (elems.size == 2) {
+          if (elems.head.isInstanceOf[Activity] && elems.head.asInstanceOf[Activity].equals(originActivity)) {
+            if (elems.last.isInstanceOf[Activity] && elems.last.asInstanceOf[Activity].equals(destinationActivity)) {
+              outputElems = outputElems :+ leg.asInstanceOf[PlanElement]
+            } else if (elems.last.isInstanceOf[Leg]) {
+              outputElems = outputElems :+ leg.asInstanceOf[PlanElement]
+            }
+          } else if (elems.head.isInstanceOf[Leg] && elems.last
+                       .isInstanceOf[Activity] && elems.last.asInstanceOf[Activity].equals(destinationActivity)) {
+            outputElems = List()
+          }
+        }
+        outputElems
+      }
+      .flatten
+      .toList :+ plan.getPlanElements.asScala.last
+    val newPlan = PopulationUtils.createPlan()
+    newPlanElements.foreach(
+      pe =>
+        pe match {
+          case a: Activity =>
+            newPlan.addActivity(a)
+          case l: Leg =>
+            newPlan.addLeg(l)
+      }
+    )
+    newPlan.setPerson(plan.getPerson)
+    newPlan.setType(plan.getType)
+    newPlan.getAttributes.putAttribute("modality-style", plan.getAttributes.getAttribute("modality-style"))
+    newPlan.setScore(plan.getScore)
+    newPlan
   }
 }
 

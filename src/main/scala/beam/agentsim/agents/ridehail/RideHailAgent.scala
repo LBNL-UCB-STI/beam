@@ -100,6 +100,7 @@ object RideHailAgent {
     vehicleId: Id[Vehicle],
     tick: Int
   )
+  case class ModifyPassengerScheduleAcks(acks: List[ModifyPassengerScheduleAck])
 
   case class Interrupt(interruptId: Id[Interrupt], tick: Int)
 
@@ -229,9 +230,6 @@ class RideHailAgent(
         vehicle.getState,
         Some(triggerId)
       )
-      if (tick > 40000) {
-        val i = 0
-      }
       holdTickAndTriggerId(tick, triggerId)
       goto(Idle)
   }
