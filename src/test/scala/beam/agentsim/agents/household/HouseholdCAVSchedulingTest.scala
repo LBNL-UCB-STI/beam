@@ -15,33 +15,25 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl, HouseholdsReader
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.immutable.List
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 
 class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
 
   behavior of "HouseholdCAVScheduling"
 
-  val defaultCAVBeamVehicleType = BeamVehicleType(
-    Id.create("CAV-TYPE-DEFAULT", classOf[BeamVehicleType]),
-    4,
-    0,
-    4.5,
-    Gasoline,
-    3656.0,
-    3655980000.0,
-    vehicleCategory = Car,
-    automationLevel = 5
-  )
-
-  it should "generate two schedules" in {
+  it should "generates two schedules" in {
     val config = ConfigUtils.createConfig()
     implicit val sc: org.matsim.api.core.v01.Scenario =
       ScenarioUtils.createScenario(config)
 
     val cavs = List[BeamVehicle](
-      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType)
+      new BeamVehicle(
+        Id.createVehicleId("id1"),
+        new Powertrain(0.0),
+        HouseholdCAVSchedulingTest.defaultCAVBeamVehicleType
+      )
     )
-    val household: Household = scenario1(cavs)
+    val household: Household = HouseholdCAVSchedulingTest.scenario1(cavs)
     val skim = new BeamSkimmer()
 
     val alg = new HouseholdCAVScheduling(sc, household, cavs, Map((Pickup, 2), (Dropoff, 2)), skim = skim)
@@ -61,10 +53,14 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
       ScenarioUtils.createScenario(config)
 
     val vehicles = List[BeamVehicle](
-      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType),
+      new BeamVehicle(
+        Id.createVehicleId("id1"),
+        new Powertrain(0.0),
+        HouseholdCAVSchedulingTest.defaultCAVBeamVehicleType
+      ),
       new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), BeamVehicleType.defaultCarBeamVehicleType)
     )
-    val household: Household = scenario2(vehicles)
+    val household: Household = HouseholdCAVSchedulingTest.scenario2(vehicles)
     val skim = new BeamSkimmer()
 
     val alg = new HouseholdCAVScheduling(
@@ -99,9 +95,13 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
       ScenarioUtils.createScenario(config)
 
     val vehicles = List[BeamVehicle](
-      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType)
+      new BeamVehicle(
+        Id.createVehicleId("id1"),
+        new Powertrain(0.0),
+        HouseholdCAVSchedulingTest.defaultCAVBeamVehicleType
+      )
     )
-    val household: Household = scenario4(vehicles)
+    val household: Household = HouseholdCAVSchedulingTest.scenario4(vehicles)
 
     val skim = new BeamSkimmer()
 
@@ -128,10 +128,18 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
       ScenarioUtils.createScenario(config)
 
     val vehicles = List[BeamVehicle](
-      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType),
-      new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), defaultCAVBeamVehicleType)
+      new BeamVehicle(
+        Id.createVehicleId("id1"),
+        new Powertrain(0.0),
+        HouseholdCAVSchedulingTest.defaultCAVBeamVehicleType
+      ),
+      new BeamVehicle(
+        Id.createVehicleId("id2"),
+        new Powertrain(0.0),
+        HouseholdCAVSchedulingTest.defaultCAVBeamVehicleType
+      )
     )
-    val household: Household = scenario5(vehicles)
+    val household: Household = HouseholdCAVSchedulingTest.scenario5(vehicles)
     val skim = new BeamSkimmer()
 
     val alg = new HouseholdCAVScheduling(
@@ -160,25 +168,37 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val config = ConfigUtils.createConfig()
     implicit val sc: org.matsim.api.core.v01.Scenario =
       ScenarioUtils.createScenario(config)
-
-    val vehicles = List[BeamVehicle](
-      new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType),
-      new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), defaultCAVBeamVehicleType)
-    )
-    val household: Household = scenarioPerformance(vehicles)
     val skim = new BeamSkimmer()
-
-    val alg =
-      new HouseholdCAVScheduling(sc, household, vehicles, Map((Pickup, 15 * 60), (Dropoff, 15 * 60)), skim = skim)
-    val schedule = alg.getAllFeasibleSchedules
-
     println(s"*** scenario 6 ***")
-    println(schedule.size)
+    for((household, vehicles) <- HouseholdCAVSchedulingTest.scenarioPerformance) {
+      val alg = new HouseholdCAVScheduling(
+        sc,
+        household,
+        vehicles,
+        Map((Pickup, 15 * 60), (Dropoff, 15 * 60)),
+        skim = skim)
+      val schedule = alg.getAllFeasibleSchedules
+      println(s"household [${household.getId}]: ${schedule.size}")
+    }
+
   }
 
-  // ******************
-  // Scenarios
-  // ******************
+}
+
+object HouseholdCAVSchedulingTest {
+
+  val defaultCAVBeamVehicleType = BeamVehicleType(
+    Id.create("CAV-TYPE-DEFAULT", classOf[BeamVehicleType]),
+    4,
+    0,
+    4.5,
+    Gasoline,
+    3656.0,
+    3655980000.0,
+    vehicleCategory = Car,
+    automationLevel = 5
+  )
+
   def scenario1(vehicles: List[BeamVehicle])(implicit sc: org.matsim.api.core.v01.Scenario): Household = {
     val pop = sc.getPopulation
     val household = new HouseholdsFactoryImpl().createHousehold(Id.create("dummy", classOf[Household]))
@@ -292,17 +312,30 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     household
   }
 
-  def scenarioPerformance(vehicles: List[BeamVehicle])(implicit sc: org.matsim.api.core.v01.Scenario): Household = {
-
-    new PopulationReader(sc).readFile("test/input/sf-light/sample/1k/population.xml")
-    new HouseholdsReaderV10(sc.getHouseholds).readFile("test/input/sf-light/sample/1k/households.xml")
-
-    val household = new HouseholdsFactoryImpl().createHousehold(Id.create("dummy", classOf[Household]))
-    household.setMemberIds(
-      sc.getHouseholds.getHouseholds.get(Id.create("031400-2014000788156-0", classOf[Household])).getMemberIds
-    )
-    household.setVehicleIds(JavaConverters.seqAsJavaList(vehicles.map(veh => veh.toStreetVehicle.id)))
-    household
+  def scenarioPerformance(implicit sc: org.matsim.api.core.v01.Scenario): List[(Household, List[BeamVehicle])] = {
+    new PopulationReader(sc).readFile("test/input/sf-light/sample/10k/population.xml")
+    new HouseholdsReaderV10(sc.getHouseholds).readFile("test/input/sf-light/sample/10k/households.xml")
+    val households: mutable.ListBuffer[(Household, List[BeamVehicle])] =
+      mutable.ListBuffer.empty[(Household, List[BeamVehicle])]
+    import scala.collection.JavaConverters._
+    for(hh: Household <- sc.getHouseholds.getHouseholds.asScala.values){
+      val household = new HouseholdsFactoryImpl().createHousehold(hh.getId)
+      household.setMemberIds(hh.getMemberIds)
+      val vehicles = List[BeamVehicle](
+        new BeamVehicle(
+          Id.createVehicleId(hh.getId.toString+"-veh1"),
+          new Powertrain(0.0),
+          HouseholdCAVSchedulingTest.defaultCAVBeamVehicleType
+        ),
+        new BeamVehicle(
+          Id.createVehicleId(hh.getId.toString+"-veh2"),
+          new Powertrain(0.0),
+          HouseholdCAVSchedulingTest.defaultCAVBeamVehicleType
+        )
+      )
+      household.setVehicleIds(JavaConverters.seqAsJavaList(vehicles.map(veh => veh.toStreetVehicle.id)))
+      households.append((household, vehicles))
+    }
+    households.toList
   }
-
 }

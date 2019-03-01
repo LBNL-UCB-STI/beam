@@ -10,6 +10,7 @@ case object Dropoff extends MobilityRequestTrait
 case object Relocation extends MobilityRequestTrait
 case object Init extends MobilityRequestTrait
 
+
 case class MobilityRequest(
   person: Option[VehiclePersonId],
   activity: Activity,
@@ -23,9 +24,17 @@ case class MobilityRequest(
 ) {
   val nextActivity = Some(trip.activity)
 
-  def formatTime(secs: Double): String = {
+  def isPickup: Boolean = tag == Pickup
+  def isDropoff: Boolean = tag == Dropoff
+
+  def formatTime(secs: Int): String = {
     s"${secs / 3600}:${(secs % 3600) / 60}:${secs % 60}"
   }
-  override def toString: String =
-    s"${formatTime(time)}|$tag|${person.getOrElse("na")}|${activity.getType}| => ${formatTime(serviceTime)}"
+  override def toString: String = {
+    val personid = person match {
+      case Some(p) => p.personId.toString
+      case None => "None"
+    }
+    s"${formatTime(time)}|$tag|${personid}|${activity.getType}| => ${formatTime(serviceTime)}"
+  }
 }
