@@ -27,8 +27,9 @@ class HouseholdCAVScheduling(
   val limitCavToXPersons: Int = 3,
   val skim: BeamSkimmer,
   val beamServices: BeamServices
-){
-  implicit val population: org.matsim.api.core.v01.population.Population = beamServices.matsimServices.getScenario.getPopulation
+) {
+  implicit val population: org.matsim.api.core.v01.population.Population =
+    beamServices.matsimServices.getScenario.getPopulation
   import beam.agentsim.agents.memberships.Memberships.RankedGroup._
   private val householdPlans =
     household.members.take(limitCavToXPersons).map(person => BeamPlan(person.getSelectedPlan))
