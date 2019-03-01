@@ -98,8 +98,6 @@ class AdvancedHouseholdCAVScheduling(
           BeamVehicleType.defaultCarBeamVehicleType.id
         )
         var serviceTime = prevReq.serviceTime + metric.timeAndCost.time.get
-        if (curReq.tag == Init)
-          println("test")
         val ubTime = curReq.time + timeWindow(curReq.tag)
         val lbTime = curReq.time - timeWindow(curReq.tag)
         if (curReq.isPickup) {

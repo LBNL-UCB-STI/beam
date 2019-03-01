@@ -313,8 +313,8 @@ object HouseholdCAVSchedulingTest {
   }
 
   def scenarioPerformance(implicit sc: org.matsim.api.core.v01.Scenario): List[(Household, List[BeamVehicle])] = {
-    new PopulationReader(sc).readFile("test/input/sf-light/sample/10k/population.xml")
-    new HouseholdsReaderV10(sc.getHouseholds).readFile("test/input/sf-light/sample/10k/households.xml")
+    new PopulationReader(sc).readFile("test/input/sf-light/sample/25k/population.xml")
+    new HouseholdsReaderV10(sc.getHouseholds).readFile("test/input/sf-light/sample/25k/households.xml")
     val households: mutable.ListBuffer[(Household, List[BeamVehicle])] =
       mutable.ListBuffer.empty[(Household, List[BeamVehicle])]
     import scala.collection.JavaConverters._

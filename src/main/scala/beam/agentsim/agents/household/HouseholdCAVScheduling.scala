@@ -433,12 +433,12 @@ object HouseholdTripsHelper {
     val arrivalTime = startTime + travelTime
 
     val nextTripStartTime = curTrip.activity.getEndTime
-    if (startTime >= nextTripStartTime.toInt) {
+    if (nextTripStartTime != Double.NegativeInfinity && startTime >= nextTripStartTime.toInt) {
       logger.warn(
         s"Illegal plan for person ${plan.getPerson.getId.toString}, activity ends at $startTime which is later than the next activity ending at $nextTripStartTime"
       )
       break
-    } else if (arrivalTime > nextTripStartTime.toInt) {
+    } else if (nextTripStartTime != Double.NegativeInfinity && arrivalTime > nextTripStartTime.toInt) {
       logger.warn(
         "The necessary travel time to arrive to the next activity is beyond the end time of the same activity"
       )
