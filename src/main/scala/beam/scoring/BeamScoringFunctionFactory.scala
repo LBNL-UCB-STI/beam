@@ -1,5 +1,6 @@
 package beam.scoring
 
+import beam.agentsim.agents.PersonAgent
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent, ReserveRideHailEvent}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.Modes.BeamMode.RIDE_HAIL_POOLED
@@ -49,10 +50,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
             val bodyVehicleId = trips.head.legs.head.beamVehicleId
             trips.update(
               trips.size - 1,
-              trips.last.copy(
-                legs = trips.last.legs
-                  .dropRight(1) :+ EmbodiedBeamLeg.dummyLegAt(e.getTime.toInt, bodyVehicleId, true)
-              )
+              PersonAgent.correctTripEndTime(trips.last,e.getTime().toInt,bodyVehicleId)
             )
           case _ =>
         }

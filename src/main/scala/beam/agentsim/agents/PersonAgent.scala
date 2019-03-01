@@ -3,8 +3,8 @@ package beam.agentsim.agents
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, Props, Stash}
 import beam.agentsim.Resource._
-import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
+import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.household.HouseholdActor.{CAVPickupConfirmed, ReadyForCAVPickup, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
@@ -23,7 +23,7 @@ import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL_POOLED, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL_POOLED, WALK, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
@@ -177,6 +177,17 @@ object PersonAgent {
   case object DrivingInterrupted extends Traveling
 
   def bodyVehicleIdFromPersonID(id: Id[Person]) = BeamVehicle.createId(id, Some("body"))
+
+    def correctTripEndTime(trip: EmbodiedBeamTrip, endTime: Int, bodyVehicleId: Id[BeamVehicle]) = {
+      if (trip.tripClassifier != WALK) {
+        trip.copy(
+          legs = trip.legs
+            .dropRight(1) :+ EmbodiedBeamLeg.dummyLegAt(endTime, bodyVehicleId, true)
+        )
+      } else {
+        trip
+      }
+    }
 }
 
 class PersonAgent(
@@ -754,11 +765,7 @@ class PersonAgent(
             )
 
           // Correct the trip to deal with ride hail / disruptions and then register to skimmer
-          val correctedTrip = data.currentTrip.get.copy(
-            legs = data.currentTrip.get.legs
-              .dropRight(1) :+ EmbodiedBeamLeg.dummyLegAt(tick, bodyVehiclePersonId.vehicleId, true)
-          )
-          beamSkimmer.observeTrip(correctedTrip, beamServices)
+          beamSkimmer.observeTrip(correctTripEndTime(data.currentTrip.get,tick,bodyVehiclePersonId.vehicleId), beamServices)
 
           eventsManager.processEvent(
             new ActivityStartEvent(

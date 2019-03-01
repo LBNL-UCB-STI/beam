@@ -6,7 +6,7 @@ import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.BeamSkimmer.Skim
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
@@ -109,16 +109,26 @@ class BeamSkimmer @Inject()(beamServicesProvider: Provider[BeamServices]) extend
   }
 
   def observeTrip(trip: EmbodiedBeamTrip, beamServices: BeamServices) = {
-    val origLeg = trip.legs.head.beamLeg
-    val destLeg = trip.legs.last.beamLeg
-    val timeBin = timeToBin(origLeg.startTime)
     val mode = trip.tripClassifier
+    val correctedTrip = mode match {
+      case WALK =>
+        trip.beamLegs()
+      case RIDE_HAIL =>
+        trip.beamLegs().drop(1).dropRight(1)
+      case _ =>
+        trip.beamLegs().drop(1).dropRight(1)
+    }
+    val origLeg = correctedTrip.head
+    val origCoord = beamServices.geo.wgs2Utm(origLeg.travelPath.startPoint.loc)
     val origTaz = beamServices.tazTreeMap
-      .getTAZ(origLeg.travelPath.startPoint.loc.getX, origLeg.travelPath.startPoint.loc.getY)
+      .getTAZ(origCoord.getX, origCoord.getY)
       .tazId
+    val destLeg = correctedTrip.last
+    val destCoord = beamServices.geo.wgs2Utm(destLeg.travelPath.endPoint.loc)
     val destTaz = beamServices.tazTreeMap
-      .getTAZ(origLeg.travelPath.startPoint.loc.getX, origLeg.travelPath.startPoint.loc.getY)
+      .getTAZ(destCoord.getX, destCoord.getY)
       .tazId
+    val timeBin = timeToBin(origLeg.startTime)
     val key = (timeBin, mode, origTaz, destTaz)
     val payload =
       Skim(trip.totalTravelTimeInSecs.toDouble, trip.beamLegs().map(_.travelPath.distanceInM).sum, trip.costEstimate, 1)
@@ -161,7 +171,7 @@ class BeamSkimmer @Inject()(beamServicesProvider: Provider[BeamServices]) extend
     ((existingAverage * existingCount + newValue) / (existingCount + 1))
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    val fileHeader = "timeBinInHour,mode,origTaz,destTaz,travelTimeInS,cost,distanceInM,numObservations"
+    val fileHeader = "hour,mode,origTaz,destTaz,travelTimeInS,cost,distanceInM,numObservations"
     // Output file relative path
     val filePath = event.getServices.getControlerIO.getIterationFilename(
       beamServicesProvider.get().matsimServices.getIterationNumber,
