@@ -1,5 +1,0 @@
-[WARN] [02/09/2019 13:06:43.904] [ClusterSystem-akka.actor.default-dispatcher-13] [akka://ClusterSystem/user/BeamMobsim.iteration/$a] Trigger sent to dead letters EndLegTrigger(47282)
-[WARN] [02/09/2019 13:07:03.780] [ClusterSystem-akka.actor.default-dispatcher-9] [akka://ClusterSystem/user/BeamMobsim.iteration/$a] Trigger sent to dead letters ActivityEndTrigger(74172)
-[WARN] [02/09/2019 13:08:14.072] [ClusterSystem-akka.actor.default-dispatcher-10] [akka://ClusterSystem/user/BeamMobsim.iteration/$a] Trigger sent to dead letters ActivityEndTrigger(45890)
-[WARN] [02/09/2019 13:08:14.518] [ClusterSystem-akka.actor.default-dispatcher-27] [akka://ClusterSystem/user/BeamMobsim.iteration/$a] Trigger sent to dead letters EndLegTrigger(47691)
-[WARN] [02/09/2019 13:08:15.963] [ClusterSystem-akka.actor.default-dispatcher-5] [akka://ClusterSystem/user/router/TransitDriverAgent-siouxareametro-sd-us:t_75362_b_219_tn_5] Driver did not find a leg at currentLegPassengerScheduleIndex.
