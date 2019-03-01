@@ -12,7 +12,8 @@ import beam.agentsim.agents.ridehail.RideHailManager.RideHailRepositioningTrigge
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
-import beam.utils.StuckFinder
+import beam.utils.logging.LogActorState
+import beam.utils.{DebugLib, StuckFinder}
 import com.google.common.collect.TreeMultimap
 
 import scala.annotation.tailrec
@@ -232,7 +233,7 @@ class BeamAgentScheduler(
         })
 
     case Monitor =>
-      if (log.isDebugEnabled) {
+      if (beamConfig.beam.debug.debugEnabled) {
         val logStr =
           s"""
              |\tnowInSeconds=$nowInSeconds
@@ -240,8 +241,17 @@ class BeamAgentScheduler(
              |\ttriggerQueue.size=${triggerQueue.size}
              |\ttriggerQueue.head=${Option(triggerQueue.peek())}
              |\tawaitingResponse.head=$awaitingToString""".stripMargin
-        log.debug(logStr)
-        awaitingResponse.values().forEach(x => log.debug("awaitingResponse:" + x.toString))
+        log.info(logStr)
+
+        // if RidehailManager at first position in queue, it is very likely, that we are stuck
+        awaitingResponse.values().asScala.take(1).foreach { x =>
+          if (x.agent.path.name.contains("RideHailManager")) {
+            x.agent ! LogActorState
+          }
+        }
+
+        awaitingResponse.values().asScala.take(10).foreach(x => log.info("awaitingResponse:" + x.toString))
+
       }
 
     case SkipOverBadActors =>
@@ -251,7 +261,7 @@ class BeamAgentScheduler(
 
         val canClean = stuckAgents.filterNot { stuckInfo =>
           val st = stuckInfo.value
-          st.agent.path.name.contains("RideHailingManager") && st.triggerWithId.trigger
+          st.agent.path.name.contains("RideHailManager") && st.triggerWithId.trigger
             .isInstanceOf[RideHailRepositioningTrigger]
         }
         log.warning("Cleaning {} agents", canClean.size)
@@ -377,7 +387,7 @@ class BeamAgentScheduler(
     if (awaitingResponse.keySet().isEmpty) {
       "empty"
     } else {
-      s"${awaitingResponse.get(awaitingResponse.keySet().first())}"
+      s"${awaitingResponse.get(awaitingResponse.keySet().first()).asScala.take(10)}"
     }
   }
 
@@ -386,7 +396,7 @@ class BeamAgentScheduler(
       Some(
         context.system.scheduler.schedule(
           new FiniteDuration(1, TimeUnit.SECONDS),
-          new FiniteDuration(5, TimeUnit.SECONDS),
+          new FiniteDuration(30, TimeUnit.SECONDS),
           self,
           Monitor
         )
