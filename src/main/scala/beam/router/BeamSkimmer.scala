@@ -30,7 +30,7 @@ import org.matsim.core.controler.listener.IterationEndsListener
 import scala.collection.concurrent.TrieMap
 
 //TODO to be validated against google api
-class BeamSkimmer @Inject()(beamServicesProvider: Provider[BeamServices]) extends IterationEndsListener {
+class BeamSkimmer @Inject()() extends IterationEndsListener {
   // The OD/Mode/Time Matrix
   var previousSkims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), Skim] = TrieMap()
   var skims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), Skim] = TrieMap()
@@ -175,7 +175,7 @@ class BeamSkimmer @Inject()(beamServicesProvider: Provider[BeamServices]) extend
     val fileHeader = "hour,mode,origTaz,destTaz,travelTimeInS,cost,distanceInM,numObservations"
     // Output file relative path
     val filePath = event.getServices.getControlerIO.getIterationFilename(
-      beamServicesProvider.get().matsimServices.getIterationNumber,
+      event.getServices.getIterationNumber,
       BeamSkimmer.outputFileBaseName + ".csv.gz"
     )
     //write the data to an output file

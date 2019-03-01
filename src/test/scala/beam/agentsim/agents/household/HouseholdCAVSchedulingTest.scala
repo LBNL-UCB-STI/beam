@@ -1,26 +1,90 @@
 package beam.agentsim.agents.household
+import java.util.concurrent.TimeUnit
+
+import akka.actor.ActorSystem
+import akka.testkit.{ImplicitSender, TestKit}
+import akka.util.Timeout
+import beam.agentsim.agents.choice.mode.ModeIncentive
+import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.Gasoline
 import beam.agentsim.agents.vehicles.VehicleCategory.Car
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamSkimmer
+import beam.router.Modes.BeamMode
+import beam.router.osm.TollCalculator
+import beam.router.r5.DefaultNetworkCoordinator
+import beam.sim.BeamServices
+import beam.sim.common.GeoUtilsImpl
+import beam.sim.config.BeamConfig
+import beam.utils.TestConfigUtils.testConfig
+import beam.utils.NetworkHelperImpl
+import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.population.{Activity, Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.ConfigUtils
+import org.matsim.core.controler.MatsimServices
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl, HouseholdsReaderV10}
-import org.scalatest.{FlatSpec, Matchers}
+import org.mockito.Mockito._
+import org.scalatest.mockito.MockitoSugar
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, FunSpecLike, Matchers}
 
 import scala.collection.immutable.List
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
+import scala.concurrent.ExecutionContext
 
-class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
+  class HouseholdCAVSchedulingTest
+    extends TestKit(
+      ActorSystem(
+        name = "PersonWithVehicleSharingSpec",
+        config = ConfigFactory
+          .parseString(
+            """
+        akka.log-dead-letters = 10
+        akka.actor.debug.fsm = true
+        akka.loglevel = debug
+        akka.test.timefactor = 2
+        """
+          )
+          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+      )
+    )
+      with Matchers
+      with FunSpecLike
+      with BeforeAndAfterAll
+      with MockitoSugar
+      with ImplicitSender {
 
-  behavior of "HouseholdCAVScheduling"
+    private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
+    private implicit val executionContext: ExecutionContext = system.dispatcher
+    private lazy val beamConfig = BeamConfig(system.settings.config)
+    private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
+    private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
+    private val tollCalculator = new TollCalculator(beamConfig)
+    private lazy val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
+    private lazy val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
-  val defaultCAVBeamVehicleType = BeamVehicleType(
+    private lazy val beamSvc: BeamServices = {
+      val matsimServices = mock[MatsimServices]
+
+      val theServices = mock[BeamServices](withSettings().stubOnly())
+      when(theServices.matsimServices).thenReturn(matsimServices)
+      when(theServices.beamConfig).thenReturn(beamConfig)
+      when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
+      when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
+      when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
+      when(theServices.networkHelper).thenReturn(networkHelper)
+
+      theServices
+    }
+
+    describe("HouseholdCAVScheduling") {
+
+      val defaultCAVBeamVehicleType = BeamVehicleType(
     Id.create("CAV-TYPE-DEFAULT", classOf[BeamVehicleType]),
     4,
     0,
@@ -32,7 +96,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     automationLevel = 5
   )
 
-  it should "generate two schedules" in {
+  it ("generate two schedules") {
     val config = ConfigUtils.createConfig()
     implicit val sc: org.matsim.api.core.v01.Scenario =
       ScenarioUtils.createScenario(config)
@@ -43,7 +107,14 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val household: Household = scenario1(cavs)
     val skim = new BeamSkimmer()
 
-    val alg = new HouseholdCAVScheduling(sc, household, cavs, Map((Pickup, 2), (Dropoff, 2)), skim = skim)
+    val alg = new HouseholdCAVScheduling(
+      sc,
+      household,
+      cavs,
+      Map((Pickup, 2), (Dropoff, 2)),
+      skim = skim,
+      beamServices = beamSvc
+    )
     val schedules = alg.getAllFeasibleSchedules
     schedules should have length 2
     schedules.foreach { x =>
@@ -54,7 +125,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     println(schedules)
   }
 
-  it should "pool two persons for both trips" in {
+      it("pool two persons for both trips"){
     val config = ConfigUtils.createConfig()
     implicit val sc: org.matsim.api.core.v01.Scenario =
       ScenarioUtils.createScenario(config)
@@ -72,7 +143,8 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
       vehicles,
       Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
       skim = skim,
-      stopSearchAfterXSolutions = 5000
+      stopSearchAfterXSolutions = 5000,
+      beamServices = beamSvc
     )
     val schedule = alg.getBestScheduleWithTheLongestCAVChain.head
 
@@ -92,7 +164,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     println(schedule)
   }
 
-  it should "generate twelve trips" in {
+      it ("generate twelve trips") {
     val config = ConfigUtils.createConfig()
     implicit val sc: org.matsim.api.core.v01.Scenario =
       ScenarioUtils.createScenario(config)
@@ -110,7 +182,8 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
       vehicles,
       Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
       stopSearchAfterXSolutions = 2000,
-      skim = skim
+      skim = skim,
+      beamServices = beamSvc
     )
     val schedule = alg.getBestScheduleWithTheLongestCAVChain.head
 
@@ -121,7 +194,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     println(schedule)
   }
 
-  it should "pool both agents in different CAVs" in {
+      it ("pool both agents in different CAVs") {
     val config = ConfigUtils.createConfig()
     implicit val sc: org.matsim.api.core.v01.Scenario =
       ScenarioUtils.createScenario(config)
@@ -139,7 +212,8 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
       vehicles,
       Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
       skim = skim,
-      stopSearchAfterXSolutions = 5000
+      stopSearchAfterXSolutions = 5000,
+      beamServices = beamSvc
     )
     val schedule = alg.getKBestSchedules(Integer.MAX_VALUE)
     schedule should have length 25
@@ -155,7 +229,7 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     println(worstCombination)
   }
 
-  it should "be scalable" in {
+  it ("be scalable") {
     val config = ConfigUtils.createConfig()
     implicit val sc: org.matsim.api.core.v01.Scenario =
       ScenarioUtils.createScenario(config)
@@ -168,12 +242,21 @@ class HouseholdCAVSchedulingTest extends FlatSpec with Matchers {
     val skim = new BeamSkimmer()
 
     val alg =
-      new HouseholdCAVScheduling(sc, household, vehicles, Map((Pickup, 15 * 60), (Dropoff, 15 * 60)), skim = skim)
+      new HouseholdCAVScheduling(
+        sc,
+        household,
+        vehicles,
+        Map((Pickup, 15 * 60), (Dropoff, 15 * 60)),
+        skim = skim,
+        beamServices = beamSvc
+      )
     val schedule = alg.getAllFeasibleSchedules
 
     println(s"*** scenario 6 ***")
     println(schedule.size)
   }
+
+    }
 
   // ******************
   // Scenarios
