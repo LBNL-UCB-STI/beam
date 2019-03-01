@@ -57,6 +57,8 @@ object BeamAgentScheduler {
 
   case class KillTrigger(tick: Int) extends Trigger
 
+  case class RideHailManagerStuckDetectionLog(tick: Option[Int], alreadyLogged: Boolean)
+
   /**
     *
     * @param triggerWithId identifier
@@ -137,6 +139,8 @@ class BeamAgentScheduler(
   } else {
     None
   }
+
+  private var rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(None, false)
 
   private var startedAt: Deadline = _
   // Event stream state and cleanup management
@@ -246,7 +250,16 @@ class BeamAgentScheduler(
         // if RidehailManager at first position in queue, it is very likely, that we are stuck
         awaitingResponse.values().asScala.take(1).foreach { x =>
           if (x.agent.path.name.contains("RideHailManager")) {
-            x.agent ! LogActorState
+            rideHailManagerStuckDetectionLog match {
+              case RideHailManagerStuckDetectionLog(Some(tick), true) if tick == nowInSeconds  => // still stuck, no need to print state again
+              case RideHailManagerStuckDetectionLog(Some(tick), false) if tick == nowInSeconds =>
+                // the time has not changed sense set last monitor timeout and RidehailManager still blocking scheduler -> log state and try to remove stuckness
+                rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), true)
+                x.agent ! LogActorState
+              case _ =>
+                // register tick (to see, if it changes till next monitor timeout).
+                rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), false)
+            }
           }
         }
 
