@@ -65,8 +65,7 @@ class ConsumptionRateFilterStoreImpl(
           val csvParser = new CsvParser(settings)
           loadConsumptionRatesFromCSVFor(filePath, csvParser)
         }
-        consumptionFuture.failed.onComplete(ex=>
-          log.error(ex.getOrElse("Unknown error loading consumption rate filter").toString))
+        consumptionFuture.failed.map(ex=>log.error(s"Error while loading consumption rate filter: $ex"))
         vehicleType -> consumptionFuture
       }
     }.toMap
