@@ -9,6 +9,8 @@ import beam.agentsim.agents.choice.mode.ModeIncentive
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail.{CustomerRequest, RVGraph, VehicleAndSchedule, _}
+import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
@@ -16,16 +18,18 @@ import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
-import beam.sim.config.BeamConfig
+import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.NetworkHelperImpl
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.api.core.v01.network.Network
 import org.matsim.core.controler.MatsimServices
+import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.households.HouseholdsFactoryImpl
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
+import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
@@ -45,35 +49,37 @@ class AsyncAlonsoMoraAlgForRideHailSpec
           .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
+    with Matchers
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
     with ImplicitSender {
+
+  val probe: TestProbe = TestProbe.apply()
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = system.dispatcher
+  implicit val mockActorRef: ActorRef = probe.ref
   private lazy val beamConfig = BeamConfig(system.settings.config)
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
-  private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
-  private val tollCalculator = new TollCalculator(beamConfig)
-  private lazy val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
-  private lazy val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
+  private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
+  private val matsimConfig = configBuilder.buildMatSamConf()
 
   private lazy val beamSvc: BeamServices = {
-    val matsimServices = mock[MatsimServices]
-
+    val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
+    ScenarioUtils.loadScenario(ScenarioUtils.createMutableScenario(matsimConfig))
+    val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
     val theServices = mock[BeamServices](withSettings().stubOnly())
-    when(theServices.matsimServices).thenReturn(matsimServices)
+    when(theServices.matsimServices).thenReturn(mock[MatsimServices])
+    when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario], scenario)
+    when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(theServices.beamConfig).thenReturn(beamConfig)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
-    when(theServices.networkHelper).thenReturn(networkHelper)
-
+    when(theServices.fuelTypePrices).thenReturn(mock[Map[FuelType, Double]])
+    when(theServices.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
     theServices
   }
-
-  val probe: TestProbe = TestProbe.apply()
-  implicit val mockActorRef: ActorRef = probe.ref
 
   describe("AsyncAlonsoMoraAlgForRideHailSpec") {
     it("Creates a consistent plan") {
