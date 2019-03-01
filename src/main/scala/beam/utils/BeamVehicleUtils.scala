@@ -3,12 +3,14 @@ package beam.utils
 import java.util
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.FuelType.FuelType
+import beam.agentsim.agents.vehicles.FuelType.{Biodiesel, Diesel, Electricity, FuelType, Gasoline}
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType, VehicleCategory}
 import org.matsim.api.core.v01.Id
 import org.matsim.households.Household
+import org.matsim.vehicles.{EngineInformationImpl, VehicleCapacityImpl, VehicleType, VehicleUtils}
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
+import org.matsim.vehicles.EngineInformation.{FuelType => MatsimFuleType}
 
 object BeamVehicleUtils {
 
@@ -115,6 +117,60 @@ object BeamVehicleUtils {
         }
         res
     }
+  }
+
+  // From https://www.extension.iastate.edu/agdm/wholefarm/pdf/c6-87.pdf
+  val GASOLINE_JOULE_PER_LITER = 34.8E6
+  val DIESEL_JOULE_PER_LITER = 38.7E6
+  val BIODIESEL_JOULE_PER_LITER = 35.2E6
+  val ELECTRICITY_JOULE_PER_LITER = 1
+
+  def beamFuelTypeToMatsimEngineInfo(beamVehicleType: BeamVehicleType): EngineInformationImpl = {
+    val fuelConsumptionInJoulePerMeter = beamVehicleType.primaryFuelConsumptionInJoulePerMeter
+    beamVehicleType.primaryFuelType match {
+      case Biodiesel =>
+        new EngineInformationImpl(
+          MatsimFuleType.biodiesel,
+          fuelConsumptionInJoulePerMeter * 1 / BIODIESEL_JOULE_PER_LITER
+        )
+      case Diesel =>
+        new EngineInformationImpl(MatsimFuleType.diesel, fuelConsumptionInJoulePerMeter * 1 / DIESEL_JOULE_PER_LITER)
+      case Gasoline =>
+        new EngineInformationImpl(
+          MatsimFuleType.gasoline,
+          fuelConsumptionInJoulePerMeter * 1 / GASOLINE_JOULE_PER_LITER
+        )
+      case Electricity =>
+        new EngineInformationImpl(
+          MatsimFuleType.electricity,
+          fuelConsumptionInJoulePerMeter * 1 / ELECTRICITY_JOULE_PER_LITER
+        )
+      case _ =>
+        new EngineInformationImpl(
+          MatsimFuleType.gasoline,
+          fuelConsumptionInJoulePerMeter * 1 / GASOLINE_JOULE_PER_LITER
+        )
+    }
+  }
+
+  def beamVehicleTypeToMatsimVehicleType(beamVehicleType: BeamVehicleType): VehicleType = {
+    val matsimVehicleType = VehicleUtils.getFactory.createVehicleType(
+      Id.create(beamVehicleType.vehicleCategory.toString, classOf[VehicleType])
+    )
+
+    val vehicleCapacity = new VehicleCapacityImpl()
+    vehicleCapacity.setSeats(beamVehicleType.seatingCapacity)
+    vehicleCapacity.setStandingRoom(beamVehicleType.standingRoomCapacity)
+    matsimVehicleType.setCapacity(vehicleCapacity)
+
+    val engineInformation = beamFuelTypeToMatsimEngineInfo(beamVehicleType)
+    matsimVehicleType.setEngineInformation(engineInformation)
+
+    matsimVehicleType.setLength(beamVehicleType.lengthInMeter)
+    matsimVehicleType.setPcuEquivalents(beamVehicleType.passengerCarUnit)
+
+    matsimVehicleType.setMaximumVelocity(beamVehicleType.maxVelocity.getOrElse(0.0))
+    matsimVehicleType
   }
 
 }
