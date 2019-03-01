@@ -41,11 +41,21 @@ case class AttributesOfIndividual(
       case Some(activity) =>
         activity.getType().equalsIgnoreCase("work")
     }
-    val vehicleAutomationLevel: automationLevel = getAutomationLevel(embodiedBeamLeg, beamServices)
     embodiedBeamLeg.beamLeg.mode match {
-      case CAR              => getPathVotMultiplier(embodiedBeamLeg.beamLeg, situationMultipliers, beamServices, isWorkTrip, vehicleAutomationLevel)*
-        getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode),modeMultipliers) *
-        unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
+      case CAR              =>  // NOTE: Ride hail legs are classified as CAR mode. Retained both for flexibility (but could delete the other cases)
+        if (embodiedBeamLeg.isRideHail) {
+          if (embodiedBeamLeg.isPooledTrip) {
+            getPooledFactor(embodiedBeamLeg, poolingMultipliers, beamServices) *
+              getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeMultipliers) *
+              unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
+          } else {
+            getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeMultipliers) *
+              unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
+          }
+        } else {getPathVotMultiplier(embodiedBeamLeg.beamLeg, situationMultipliers, beamServices, isWorkTrip, getAutomationLevel(embodiedBeamLeg, beamServices))*
+          getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode),modeMultipliers) *
+          unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
+        }
       case RIDE_HAIL        => getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode),modeMultipliers) *
         unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
       case RIDE_HAIL_POOLED => getPooledFactor(embodiedBeamLeg, poolingMultipliers, beamServices) *
@@ -73,7 +83,7 @@ case class AttributesOfIndividual(
                                    vehicleAutomationLevel: automationLevel): Double = {
     (beamLeg.travelPath.linkIds zip beamLeg.travelPath.linkTravelTime).map(
       x => getSituationMultiplier(x._1,x._2, isWorkTrip, situationMultipliers, vehicleAutomationLevel, beamServices) * x._2
-    ).sum
+    ).sum / beamLeg.duration
   }
 
   // If it's not a car mode, send it over to beamServices to get the mode VOTT multiplier from config
