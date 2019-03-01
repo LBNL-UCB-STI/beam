@@ -130,9 +130,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
   // say, a yacht or personal bus, but I think this will be fine for now.
-  private def maybeScaleTransit(
-    vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
-  ): Map[Id[BeamVehicleType], BeamVehicleType] = {
+  private def maybeScaleTransit(vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]) = {
     beamConfig.beam.agentsim.tuning.transitCapacity match {
       case Some(scalingFactor) =>
         vehicleTypes.map {
