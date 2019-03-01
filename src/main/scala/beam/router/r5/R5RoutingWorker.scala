@@ -131,9 +131,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             vehicleCsvReader.getVehicleEnergyRecordsUsing,
             Option(baseFilePath.toString),
             primaryConsumptionRateFilePathsByVehicleType =
-              vehicleTypes.values.map(x=>(x, x.primaryVehicleEnergyFile)).toIndexedSeq,
+              vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
             secondaryConsumptionRateFilePathsByVehicleType =
-              vehicleTypes.values.map(x=>(x, x.secondaryVehicleEnergyFile)).toIndexedSeq)
+              vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
+          )
         val vehicleEnergy = new VehicleEnergy(
           consumptionRateFilterStore,
           vehicleCsvReader.getLinkToGradeRecordsUsing

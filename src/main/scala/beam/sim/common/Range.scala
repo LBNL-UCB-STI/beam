@@ -3,7 +3,8 @@ package beam.sim.common
 import scala.util.Try
 import scala.language.implicitConversions
 
-case class DoubleComparableRange(range:Range){
+case class DoubleComparableRange(range: Range) {
+
   def hasDouble(value: Double) = {
     range.lowerBound <= value && value <= range.upperBound
   }

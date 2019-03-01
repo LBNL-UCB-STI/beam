@@ -85,4 +85,4 @@ class VehicleEnergyTest extends FunSpecLike with BeforeAndAfterAll with Matchers
     )
   }
 }
-*/
+ */

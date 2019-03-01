@@ -120,9 +120,11 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
       vehicleCsvReader.getVehicleEnergyRecordsUsing,
       Option(baseFilePath.toString),
       primaryConsumptionRateFilePathsByVehicleType =
-        vehicleTypes.values.map(x=>(x, x.primaryVehicleEnergyFile)).toIndexedSeq,
+        vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
       secondaryConsumptionRateFilePathsByVehicleType =
-        vehicleTypes.values.map(x=>(x, x.secondaryVehicleEnergyFile)).toIndexedSeq)
+        vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
+    )
+
   val vehicleEnergy = new VehicleEnergy(
     consumptionRateFilterStore,
     vehicleCsvReader.getLinkToGradeRecordsUsing
