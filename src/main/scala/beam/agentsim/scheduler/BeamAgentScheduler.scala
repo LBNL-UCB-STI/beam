@@ -57,6 +57,8 @@ object BeamAgentScheduler {
 
   case class KillTrigger(tick: Int) extends Trigger
 
+  case class RideHailManagerStuckDetectionLog(tick: Option[Int], logged: Boolean)
+
   /**
     *
     * @param triggerWithId identifier
@@ -137,6 +139,8 @@ class BeamAgentScheduler(
   } else {
     None
   }
+
+  private var rideHailManagerStuckDetectionLog=RideHailManagerStuckDetectionLog(None,false)
 
   private var startedAt: Deadline = _
   // Event stream state and cleanup management
@@ -246,8 +250,16 @@ class BeamAgentScheduler(
         // if RidehailManager at first position in queue, it is very likely, that we are stuck
         awaitingResponse.values().asScala.take(1).foreach { x =>
           if (x.agent.path.name.contains("RideHailManager")) {
-            x.agent ! LogActorState
-            x.agent ! RecoverFromStuckness(x.triggerWithId.trigger.tick)
+            rideHailManagerStuckDetectionLog match {
+              case RideHailManagerStuckDetectionLog(Some(nowInSeconds),true) => // do nothing
+              case RideHailManagerStuckDetectionLog(Some(tick),false) if tick==nowInSeconds =>
+                rideHailManagerStuckDetectionLog=RideHailManagerStuckDetectionLog(Some(nowInSeconds),true)
+                x.agent ! LogActorState
+                x.agent ! RecoverFromStuckness(x.triggerWithId.trigger.tick)
+              case _ => rideHailManagerStuckDetectionLog=RideHailManagerStuckDetectionLog(Some(nowInSeconds),false)
+
+            }
+
           }
         }
 
@@ -397,7 +409,7 @@ class BeamAgentScheduler(
       Some(
         context.system.scheduler.schedule(
           new FiniteDuration(1, TimeUnit.SECONDS),
-          new FiniteDuration(600, TimeUnit.SECONDS),
+          new FiniteDuration(180, TimeUnit.SECONDS),
           self,
           Monitor
         )
