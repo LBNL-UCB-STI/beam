@@ -64,12 +64,16 @@ object BeamLeg {
     new BeamLeg(0, mode, 0, BeamPath(Vector(), Vector(), None, SpaceTime.zero, SpaceTime.zero, 0))
       .updateStartTime(startTime)
 
-  def makeLegsConsistent(legs: List[Option[BeamLeg]]): List[Option[BeamLeg]] = {
-    if (legs.filter(_.isDefined).size > 0) {
-      var runningStartTime = legs.find(_.isDefined).head.get.startTime
-      for (legOpt <- legs) yield {
-        val newLeg = legOpt.map(leg => leg.updateStartTime(runningStartTime))
-        runningStartTime = newLeg.map(_.endTime).getOrElse(runningStartTime)
+  def dummyWalk(startTime: Int): BeamLeg =
+    new BeamLeg(0, WALK, 0, BeamPath(Vector(), Vector(), None, SpaceTime.zero, SpaceTime.zero, 0))
+      .updateStartTime(startTime)
+
+  def makeLegsConsistent(legs: List[BeamLeg]): List[BeamLeg] = {
+    if (legs.size > 0) {
+      var runningStartTime = legs.head.startTime
+      for (leg <- legs) yield {
+        val newLeg = leg.updateStartTime(runningStartTime)
+        runningStartTime = newLeg.endTime
         newLeg
       }
     } else { legs }

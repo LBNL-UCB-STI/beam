@@ -93,8 +93,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           } else {
             // Solo response
             List(
-              PickDropIdAndLeg(Some(request.customer), routeResponses.head.itineraries.head.legs.headOption),
-              PickDropIdAndLeg(Some(request.customer), routeResponses.last.itineraries.head.legs.headOption)
+              PickDropIdAndLeg(request.customer, routeResponses.head.itineraries.head.legs.headOption),
+              PickDropIdAndLeg(request.customer, routeResponses.last.itineraries.head.legs.headOption)
             )
           }
           allocResponses = allocResponses :+ VehicleMatchedToCustomers(
@@ -162,14 +162,13 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
               val orig = wayPoints(0)
               val dest = wayPoints(1)
               val origin = SpaceTime(orig.activity.getCoord, orig.serviceTime.toInt)
-              if (newRideHailRequest.isEmpty && orig.person.isDefined) {
-                newRideHailRequest = Some(customerIdToReqs(orig.person.get.personId))
-              } else if (orig.person.isDefined && !newRideHailRequest.get.customer.equals(orig.person.get) && newRideHailRequest.get.groupedWithOtherRequests
-                           .find(_.customer.equals(orig.person.get))
+              if (newRideHailRequest.isEmpty && orig.person != null) {
+                newRideHailRequest = Some(customerIdToReqs(orig.person.personId))
+              } else if (orig.person != null && !newRideHailRequest.get.customer.equals(orig.person) && newRideHailRequest.get.groupedWithOtherRequests
+                           .find(_.customer.equals(orig.person))
                            .isEmpty) {
-                newRideHailRequest =
-                  Some(newRideHailRequest.get.addSubRequest(customerIdToReqs(orig.person.get.personId)))
-                removeRequestFromBuffer(customerIdToReqs(orig.person.get.personId))
+                newRideHailRequest = Some(newRideHailRequest.get.addSubRequest(customerIdToReqs(orig.person.personId)))
+                removeRequestFromBuffer(customerIdToReqs(orig.person.personId))
               }
               if (rideHailManager.beamServices.geo.distUTMInMeters(orig.activity.getCoord, dest.activity.getCoord) < rideHailManager.beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters) {
                 scheduleToCache = scheduleToCache :+ orig

@@ -107,7 +107,7 @@ object RideHailManager {
             false,
             estimatedPrice(passenger.personId),
             false,
-            passengerSchedule.schedule.values.find(_.riders.size > 1).size > 0
+            passengerSchedule.schedule.values.flatMap(_.riders).size > 1
           )
         }
         .toVector
@@ -726,7 +726,7 @@ class RideHailManager(
     request: RideHailRequest,
     embodiedTrip: EmbodiedBeamTrip
   ): PassengerSchedule = {
-    val beamLegs = BeamLeg.makeLegsConsistent(embodiedTrip.toBeamTrip.legs.toList.map(Some(_))).flatten
+    val beamLegs = BeamLeg.makeLegsConsistent(embodiedTrip.toBeamTrip.legs.toList)
     PassengerSchedule()
       .addLegs(beamLegs)
       .addPassenger(request.customer, beamLegs.tail)
@@ -1056,28 +1056,14 @@ class RideHailManager(
 
   def pickDropsToPassengerSchedule(pickDrops: List[PickDropIdAndLeg]): PassengerSchedule = {
     val consistentPickDrops =
-      pickDrops.map(_.personId).zip(BeamLeg.makeLegsConsistent(pickDrops.map(_.leg.map(_.beamLeg))))
-    val allLegs = consistentPickDrops.map(_._2).flatten
+      pickDrops.map(_.personId).zip(BeamLeg.makeLegsConsistent(pickDrops.map(_.leg.get.beamLeg)))
+    val allLegs = consistentPickDrops.map(_._2)
     var passSched = PassengerSchedule().addLegs(allLegs)
-    var pickDropsForGrouping: Map[VehiclePersonId, List[BeamLeg]] = Map()
-    var passengersToAdd = Set[VehiclePersonId]()
-    consistentPickDrops.foreach {
-      case (Some(person), legOpt) =>
-        legOpt.foreach { leg =>
-          passengersToAdd.foreach { pass =>
-            val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg
-            pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
-          }
-        }
-        if (passengersToAdd.contains(person)) {
-          passengersToAdd = passengersToAdd - person
-        } else {
-          passengersToAdd = passengersToAdd + person
-        }
-      case (_, _) =>
-    }
-    pickDropsForGrouping.foreach { passAndLegs =>
-      passSched = passSched.addPassenger(passAndLegs._1, passAndLegs._2)
+    consistentPickDrops.groupBy(_._1).foreach { personPickDrop =>
+      val firstLeg = personPickDrop._2.head._2
+      val lastLeg = personPickDrop._2.last._2
+      val subtrip = allLegs.dropWhile(_ != firstLeg).drop(1).takeWhile(_ != lastLeg) :+ lastLeg
+      passSched = passSched.addPassenger(personPickDrop._1, subtrip)
     }
     passSched
   }
@@ -1106,12 +1092,7 @@ class RideHailManager(
     val coordinates = activities.map(_.getCoord)
     val xs = coordinates.map(_.getX)
     val ys = coordinates.map(_.getY)
-    QuadTreeBounds(
-      xs.min - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
-      ys.min - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
-      xs.max + beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
-      ys.max + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
-    )
+    QuadTreeBounds(xs.min, ys.min, xs.max, ys.max)
   }
 
   def cleanUp = {

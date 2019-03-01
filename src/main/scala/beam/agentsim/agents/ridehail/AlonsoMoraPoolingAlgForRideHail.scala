@@ -257,7 +257,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     CustomerRequest(
       vehiclePersonId,
       MobilityServiceRequest(
-        Some(vehiclePersonId),
+        vehiclePersonId,
         p1Act1,
         srcTime,
         Trip(p1Act1, None, null),
@@ -266,7 +266,7 @@ object AlonsoMoraPoolingAlgForRideHail {
         srcTime
       ),
       MobilityServiceRequest(
-        Some(vehiclePersonId),
+        vehiclePersonId,
         p1Act2,
         srcTime + p1_tt,
         Trip(p1Act2, None, null),
@@ -285,7 +285,7 @@ object AlonsoMoraPoolingAlgForRideHail {
       v1,
       List(
         MobilityServiceRequest(
-          None,
+          null,
           v1Act0,
           dstTime,
           Trip(v1Act0, None, null),
@@ -338,7 +338,7 @@ object AlonsoMoraPoolingAlgForRideHail {
   case object Init extends MobilityServiceRequestType
 
   case class MobilityServiceRequest(
-    person: Option[VehiclePersonId],
+    person: VehiclePersonId,
     activity: Activity,
     time: Int,
     trip: Trip,
@@ -353,7 +353,7 @@ object AlonsoMoraPoolingAlgForRideHail {
       s"${secs / 3600}:${(secs % 3600) / 60}:${secs % 60}"
     }
     override def toString: String =
-      s"${formatTime(time)}|$tag|${person.getOrElse("na")}|${activity.getType}| => ${formatTime(serviceTime)}"
+      s"${formatTime(time)}|$tag|$person|${activity.getType}| => ${formatTime(serviceTime)}"
   }
 
   def makeVehPersonId(perId: Id[Person])(implicit mockActorRef: ActorRef): VehiclePersonId =
