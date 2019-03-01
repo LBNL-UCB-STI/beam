@@ -15,6 +15,8 @@ import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
 import org.slf4j.LoggerFactory
 import PopulationAdjustment._
+import beam.router.Modes.BeamMode
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.language.postfixOps
@@ -118,11 +120,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
         * Writes generalized link stats to csv file.
         */
       private def registerLinkCosts(trips: Seq[EmbodiedBeamTrip]): Unit = {
-        val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(
-          beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit
-        )
-        val attributes =
-          person.getCustomAttributes.get(BEAM_ATTRIBUTES).asInstanceOf[AttributesOfIndividual]
+        // Consider only trips that start between the given time range (specified in the scenario config)
         val startTime = 25200 //TODO read this from conf as beam.outputs.generalizedLinkStats.startTime
         val endTime = 32400 //TODO read this from conf as beam.outputs.generalizedLinkStats.endTime
         val filteredTrips = trips filter { t =>
@@ -133,29 +131,73 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
           }
           departureTime > startTime && departureTime < endTime
         }
+
+        // Calculate the trip level costs , to estimate the link level costs later
+        val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(
+          beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit
+        )
+        val attributes =
+          person.getCustomAttributes.get(BEAM_ATTRIBUTES).asInstanceOf[AttributesOfIndividual]
         val filteredTripsArray = filteredTrips.toArray
         val modeCostTimeTransfers: IndexedSeq[ModeChoiceMultinomialLogit.ModeCostTimeTransfer] =
           new ModeChoiceMultinomialLogit(beamServices, logit)
             .altsToModeCostTimeTransfers(filteredTripsArray, attributes)
         val tripCosts = modeCostTimeTransfers.map(_.cost)
-        filteredTrips foreach { trip =>
+
+        // For each of the trips filtered by time range
+        filteredTrips.zipWithIndex foreach { tuple =>
+          val (trip, tripIndex) = tuple
+          val currentTripCost: Double = tripCosts(tripIndex)
+          // Within the trip legs , compute the average travel times for each link
           trip.legs foreach { leg =>
             val linkIds = leg.beamLeg.travelPath.linkIds
             val linkTravelTimes = leg.beamLeg.travelPath.linkTravelTime
             for (i <- linkIds.indices) {
+              // Read the id of the link in index
               val linkId = linkIds(i)
+              // Read the travel time of the link in index
               val travelTime = linkTravelTimes(i)
-              //Calculate average travel time for the link and the count of observations
+
+              /*
+              Add (or) update the average travel time for the link along with the count of observations
+               */
               val (existingAverageTravelTime, observedTravelTimesCount) =
                 BeamScoringFunctionFactory.linkAverageTravelTimes.getOrElse(linkId, 0D -> 0)
+              // Compute the new average travel time for the link and increment the observations count
               val newTravelTimesCount = observedTravelTimesCount + 1
               val newTravelTimeAverage = ((existingAverageTravelTime * observedTravelTimesCount) + travelTime) / newTravelTimesCount
-              //Store the stats in an in-memory map
+              //Store the new travel time stats for the link, in memory
               BeamScoringFunctionFactory.linkAverageTravelTimes.put(linkId, newTravelTimeAverage -> newTravelTimesCount)
-              //TODO calculate the link average costs and count
+
+              /*
+              Add (or) update the average cost for the link along with the count of observations
+               */
+              leg.beamLeg.mode match {
+                case BeamMode.CAR | BeamMode.RIDE_HAIL =>
+                  // Compute the link cost
+                  val travelTimesSum = getSumOfLinkTravelTimesInTrip(trip)
+                  val newCost = currentTripCost * (travelTime.toDouble / travelTimesSum.toDouble)
+                  // Get the existing average cost for the link (if any)
+                  val (existingAverageCost, observedCostsCount) =
+                    BeamScoringFunctionFactory.linkAverageCosts.getOrElse(linkId, 0D -> 0)
+                  // Compute the new average cost for the link and increment the observations count
+                  val newCostsCount = observedCostsCount + 1
+                  val newAverageCost = ((existingAverageCost * observedCostsCount) + newCost) / newCostsCount
+                  //Store the new cost stats for the link, in memory
+                  BeamScoringFunctionFactory.linkAverageCosts.put(linkId, newAverageCost -> newCostsCount)
+                case _ =>
+              }
             }
           }
         }
+      }
+
+      private def getSumOfLinkTravelTimesInTrip(trip: EmbodiedBeamTrip) = {
+        val legsForCostEstimation = trip.legs
+          .filter(f => f.beamLeg.mode == BeamMode.CAR || f.beamLeg.mode == BeamMode.RIDE_HAIL)
+          .map(_.beamLeg.travelPath)
+        // Compute the sum of travel times of all CAR/RIDE_HAIL mode links => used to estimate the individual link cost
+        legsForCostEstimation.flatMap(_.linkTravelTime).sum
       }
     }
   }
