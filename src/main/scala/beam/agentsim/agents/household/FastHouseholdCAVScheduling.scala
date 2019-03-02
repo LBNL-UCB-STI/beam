@@ -1,22 +1,33 @@
 package beam.agentsim.agents.household
 import beam.agentsim.agents._
 import beam.agentsim.agents.planning.{BeamPlan, Trip}
+import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
-import beam.router.BeamSkimmer
+import beam.agentsim.events.SpaceTime
+import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest}
+import beam.router.{BeamRouter, BeamSkimmer, RouteHistory}
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.CAV
+import beam.sim.BeamServices
+import com.conveyal.r5.transit.TransportNetwork
+import org.matsim.api.core.v01.Id
 import org.matsim.households.Household
+import org.matsim.vehicles.Vehicle
 
 import scala.collection.immutable.{List, Map}
 import scala.collection.mutable
 import scala.util.control.Breaks._
 
-class AdvancedHouseholdCAVScheduling(
+class FastHouseholdCAVScheduling(
   val household: Household,
   val householdVehicles: List[BeamVehicle],
   val timeWindow: Map[MobilityRequestTrait, Int],
   val stopSearchAfterXSolutions: Int = 100,
-  val limitCavToXPersons: Int = 3
-)(implicit val population: org.matsim.api.core.v01.population.Population, implicit val skimmer: BeamSkimmer) {
+  val limitCavToXPersons: Int = 3,
+  val beamServices: Option[BeamServices] = None
+)(implicit val population: org.matsim.api.core.v01.population.Population) {
+
+  val skimmer: BeamSkimmer = new BeamSkimmer(beamServices)
   import beam.agentsim.agents.memberships.Memberships.RankedGroup._
 
   import scala.collection.mutable.{ListBuffer => MListBuffer}
@@ -26,13 +37,56 @@ class AdvancedHouseholdCAVScheduling(
       person => BeamPlan(person.getSelectedPlan)
     )
 
+  // *******
+  // Convert to CAV SCHEDULE
+  // *******
+  def getAllFeasibleCAVSchedules: List[List[CAVSchedule]] = {
+    val output = mutable.ListBuffer[List[CAVSchedule]]()
+    getAllFeasibleSchedules.foreach { x =>
+      output.append(x.schedulesMap.map(y => CAVSchedule(y._2, y._1, 0)).toList)
+    }
+    output.toList
+  }
+
+  def getKBestCAVSchedules(k: Int): List[List[CAVSchedule]] = {
+    List(getKBestSchedules(k).head.schedulesMap.map(y => CAVSchedule(y._2, y._1, 0)).toList)
+  }
+
+  def getBestCAVScheduleWithLongestChain: List[List[CAVSchedule]] = {
+    List(getBestScheduleWithLongestChain.head.schedulesMap.map(y => CAVSchedule(y._2, y._1, 0)).toList)
+  }
+  // *******
+
+  // get k lowest scored schedules
+  def getKBestSchedules(k: Int): List[HouseholdSchedule] = {
+    getAllFeasibleSchedules.sortBy(_.householdScheduleCost.totalTravelTime).take(k)
+  }
+
+  // ***
+  def getBestScheduleWithLongestChain: List[HouseholdSchedule] = {
+    val mapRank = getAllFeasibleSchedules.map(x => x -> x.schedulesMap.foldLeft(0)((a, b) => a + b._2.size)).toMap
+
+    var output = List.empty[HouseholdSchedule]
+    if (mapRank.nonEmpty) {
+      val maxRank = mapRank.maxBy(_._2)._2
+      output = mapRank
+        .withFilter(_._2 == maxRank)
+        .map(x => x._1)
+        .toList
+        .sortBy(_.householdScheduleCost.totalTravelTime)
+        .take(1)
+    }
+    output
+  }
+
   def getAllFeasibleSchedules: List[HouseholdSchedule] = {
     val householdTrips = HouseholdTrips.get(householdPlans, householdVehicles.size, timeWindow, skimmer)
     val cavVehicles = householdVehicles.filter(_.beamVehicleType.automationLevel > 3)
     val householdSchedules = mutable.ListBuffer.empty[HouseholdSchedule]
     if (householdTrips.nonEmpty && cavVehicles.nonEmpty) {
-      val emptySchedules = cavVehicles.map(_ -> List(householdTrips.get.homePickup)).toMap
-      householdSchedules.append(HouseholdSchedule(emptySchedules, householdTrips.get))
+      val emptySchedule =
+        HouseholdSchedule(cavVehicles.map(_ -> List(householdTrips.get.homePickup)).toMap, householdTrips.get)
+      householdSchedules.append(emptySchedule)
       breakable {
         householdTrips.get.requests.foreach { requests =>
           val HouseholdSchedulesToAppend = mutable.ListBuffer.empty[HouseholdSchedule]
@@ -48,6 +102,7 @@ class AdvancedHouseholdCAVScheduling(
           }
         }
       }
+      householdSchedules.-=(emptySchedule)
     }
     householdSchedules.toList
   }
@@ -76,8 +131,6 @@ class AdvancedHouseholdCAVScheduling(
       cav: BeamVehicle,
       requests: List[MobilityRequest],
       timeWindow: Map[MobilityRequestTrait, Int]
-    )(
-      implicit skimmer: BeamSkimmer
     ): Option[HouseholdSchedule] = {
       val sortedRequests = requests.filter(_.tag != Relocation).sortBy(_.time)
       val startRequest = sortedRequests.head
@@ -145,6 +198,82 @@ class AdvancedHouseholdCAVScheduling(
       )
     }
 
+    case class RouteOrEmbodyRequest(routeReq: Option[RoutingRequest], embodyReq: Option[EmbodyWithCurrentTravelTime])
+
+    def toRoutingRequests(
+      beamServices: BeamServices,
+      transportNetwork: TransportNetwork,
+      routeHistory: RouteHistory,
+      cav: BeamVehicle
+    ): (List[Option[RouteOrEmbodyRequest]], List[MobilityRequest]) = {
+      var newMobilityRequests = List[MobilityRequest]()
+      val requestList = (schedulesMap(cav).reverse :+ schedulesMap(cav).head).tail
+        .sliding(2)
+        .map { wayPoints =>
+          val orig = wayPoints(0)
+          val dest = wayPoints(1)
+          val origin = SpaceTime(orig.activity.getCoord, Math.round(orig.time))
+          if (beamServices.geo.distUTMInMeters(orig.activity.getCoord, dest.activity.getCoord) < beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters) {
+            newMobilityRequests = newMobilityRequests :+ orig
+            None
+          } else {
+            val theVehicle = StreetVehicle(
+              Id.create(cav.id.toString, classOf[Vehicle]),
+              cav.beamVehicleType.id,
+              origin,
+              CAV,
+              asDriver = true
+            )
+            val origLink = beamServices.geo.getNearestR5Edge(
+              transportNetwork.streetLayer,
+              beamServices.geo.utm2Wgs(orig.activity.getCoord),
+              10E3
+            )
+            val destLink = beamServices.geo.getNearestR5Edge(
+              transportNetwork.streetLayer,
+              beamServices.geo.utm2Wgs(dest.activity.getCoord),
+              10E3
+            )
+            routeHistory.getRoute(origLink, destLink, orig.time) match {
+              case Some(rememberedRoute) =>
+                val embodyReq = BeamRouter.linkIdsToEmbodyRequest(
+                  rememberedRoute,
+                  theVehicle,
+                  origin.time,
+                  CAV,
+                  beamServices,
+                  orig.activity.getCoord,
+                  dest.activity.getCoord
+                )
+                newMobilityRequests = newMobilityRequests :+ orig.copy(routingRequestId = Some(embodyReq.requestId))
+                Some(RouteOrEmbodyRequest(None, Some(embodyReq)))
+              case None =>
+                val routingRequest = RoutingRequest(
+                  orig.activity.getCoord,
+                  dest.activity.getCoord,
+                  origin.time,
+                  IndexedSeq(),
+                  IndexedSeq(
+                    StreetVehicle(
+                      Id.create(cav.id.toString, classOf[Vehicle]),
+                      cav.beamVehicleType.id,
+                      origin,
+                      CAV,
+                      asDriver = true
+                    )
+                  )
+                )
+                newMobilityRequests = newMobilityRequests :+ orig.copy(
+                  routingRequestId = Some(routingRequest.requestId)
+                )
+                Some(RouteOrEmbodyRequest(Some(routingRequest), None))
+            }
+          }
+        }
+        .toList
+      (requestList, newMobilityRequests)
+    }
+
     override def toString: String = {
       schedulesMap.toSet
         .foldLeft(new StringBuilder) {
@@ -177,6 +306,7 @@ case class HouseholdTrips(
 }
 
 object HouseholdTrips {
+
   def get(
     householdPlans: Seq[BeamPlan],
     householdNbOfVehicles: Int,

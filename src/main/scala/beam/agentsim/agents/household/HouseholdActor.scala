@@ -212,19 +212,19 @@ object HouseholdActor {
             }
           }
 
-          val cavScheduler = new HouseholdCAVScheduling(
-            beamServices.matsimServices.getScenario,
+          val cavScheduler = new FastHouseholdCAVScheduling(
             household,
             cavs,
             Map((Pickup, 5 * 60), (Dropoff, 10 * 60)),
-            skim = new BeamSkimmer(Some(beamServices))
-          )
+            beamServices = Some(beamServices)
+          )(beamServices.matsimServices.getScenario.getPopulation)
+
 //          var optimalPlan = cavScheduler.getKBestSchedules(1).head.cavFleetSchedule
-          val optimalPlan = cavScheduler.getBestScheduleWithTheLongestCAVChain
-          if (optimalPlan.isEmpty || optimalPlan.head.cavFleetSchedule.head.schedule.size <= 1) {
+          val optimalPlan = cavScheduler.getBestCAVScheduleWithLongestChain
+          if (optimalPlan.isEmpty || optimalPlan.head.head.schedule.size <= 1) {
             cavs = List()
           } else {
-            val requestsAndUpdatedPlans = optimalPlan.head.cavFleetSchedule.filter(_.schedule.size > 1).map {
+            val requestsAndUpdatedPlans = optimalPlan.head.filter(_.schedule.size > 1).map {
               _.toRoutingRequests(beamServices, transportNetwork, routeHistory)
             }
             val routingRequests = requestsAndUpdatedPlans.flatMap(_._1.flatten)

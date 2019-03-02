@@ -22,15 +22,15 @@ import scala.collection.immutable.{List, Map}
 import scala.collection.mutable
 
 class HouseholdCAVScheduling(
-  val scenario: org.matsim.api.core.v01.Scenario,
   val household: Household,
   val householdVehicles: List[BeamVehicle],
   val timeWindow: Map[MobilityRequestTrait, Int],
   val stopSearchAfterXSolutions: Int = 100,
   val limitCavToXPersons: Int = 3,
-  val skim: BeamSkimmer
-) {
-  implicit val pop: org.matsim.api.core.v01.population.Population = scenario.getPopulation
+  val beamServices: Option[BeamServices] = None
+) (implicit val population: org.matsim.api.core.v01.population.Population) {
+
+  val skimmer: BeamSkimmer = new BeamSkimmer(beamServices)
   import beam.agentsim.agents.memberships.Memberships.RankedGroup._
   private val householdPlans =
     household.members.take(limitCavToXPersons).map(person => BeamPlan(person.getSelectedPlan))
@@ -39,7 +39,7 @@ class HouseholdCAVScheduling(
   def getAllFeasibleSchedules: List[CAVFleetSchedule] = {
     // extract potential household CAV requests from plans
     val householdRequests =
-      HouseholdTripsRequests.get(householdPlans, householdVehicles.size, timeWindow, skim)
+      HouseholdTripsRequests.get(householdPlans, householdVehicles.size, timeWindow, skimmer)
 
     // initialize household schedule
     val cavVehicles = householdVehicles.filter(_.beamVehicleType.automationLevel > 3)
@@ -58,7 +58,7 @@ class HouseholdCAVScheduling(
     val feasibleSchedules =
       mutable.ListBuffer[CAVFleetSchedule](CAVFleetSchedule(emptySchedules.toList, householdRequests.get))
     for (request <- householdRequests.get.requests; schedule <- feasibleSchedules) {
-      val (newSchedule, feasible) = schedule.check(request, skim)
+      val (newSchedule, feasible) = schedule.check(request, skimmer)
       if (!feasible) feasibleSchedules -= schedule
       feasibleSchedules.prependAll(newSchedule)
 
