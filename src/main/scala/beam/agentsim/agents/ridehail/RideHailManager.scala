@@ -401,7 +401,7 @@ class RideHailManager(
 
     case RecoverFromStuckness(tick) =>
       self ! ContinueBufferedRideHailRequests(tick)
-      // This is assuming we are allocating demand and routes haven't been returned
+    // This is assuming we are allocating demand and routes haven't been returned
 //      rideHailResourceAllocationManager.getUnprocessedCustomers.foreach { request =>
 //        modifyPassengerScheduleManager.addTriggerToSendWithCompletion(
 //          ScheduleTrigger(
@@ -635,10 +635,14 @@ class RideHailManager(
       }
 
     case ContinueBufferedRideHailRequests(tick) =>
-      modifyPassengerScheduleManager.getCurrentTick match{
+      modifyPassengerScheduleManager.getCurrentTick match {
         case Some(workingTick) =>
-          log.debug("ContinueBuffer @ {} with buffer size {}",workingTick,rideHailResourceAllocationManager.getBufferSize)
-          if(workingTick != tick)log.warning("Working tick {} but tick {}",workingTick,tick)
+          log.debug(
+            "ContinueBuffer @ {} with buffer size {}",
+            workingTick,
+            rideHailResourceAllocationManager.getBufferSize
+          )
+          if (workingTick != tick) log.warning("Working tick {} but tick {}", workingTick, tick)
           findAllocationsAndProcess(workingTick)
         case None =>
 //          log.debug("ContinueBufferedRideHailRequests({}) but modifyPassengerScheduleManager tick is empty",tick)
@@ -1071,7 +1075,7 @@ class RideHailManager(
     } else if (processBufferedRequestsOnTimeout && pendingModifyPassengerScheduleAcks.isEmpty &&
                rideHailResourceAllocationManager.isBufferEmpty && numPendingRoutingRequestsForReservations == 0 &&
                currentlyProcessingTimeoutTrigger.isDefined) {
-      log.debug("sendCompletionAndScheduleNewTimeout for tick {} from line 1072",tick)
+      log.debug("sendCompletionAndScheduleNewTimeout for tick {} from line 1072", tick)
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation, tick)
       cleanUp
     }

@@ -103,13 +103,14 @@ class BeamSkimmer @Inject()() extends IterationEndsListener {
   }
 
   def getRideHailPoolingTimeAndCostRatios(
-                                           origin: Location,
-                                           destination: Location,
-                                           departureTime: Int,
-                                           vehicleTypeId: org.matsim.api.core.v01.Id[BeamVehicleType],
-                                           beamServices: BeamServices): (Double,Double) = {
-        val origTaz = beamServices.tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
-        val destTaz = beamServices.tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
+    origin: Location,
+    destination: Location,
+    departureTime: Int,
+    vehicleTypeId: org.matsim.api.core.v01.Id[BeamVehicleType],
+    beamServices: BeamServices
+  ): (Double, Double) = {
+    val origTaz = beamServices.tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
+    val destTaz = beamServices.tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
     val solo = getSkimValue(departureTime, RIDE_HAIL, origTaz, destTaz) match {
       case Some(skimValue) if skimValue.count > 5 =>
         skimValue
@@ -118,21 +119,21 @@ class BeamSkimmer @Inject()() extends IterationEndsListener {
           case Some(skim) =>
             skim
           case None =>
-            Skim(1.0, 0, 1.0,0)
+            Skim(1.0, 0, 1.0, 0)
         }
     }
-        val pooled = getSkimValue(departureTime, RIDE_HAIL_POOLED, origTaz, destTaz) match {
-          case Some(skimValue) if skimValue.count > 5 =>
-            skimValue
-          case _ =>
-             modalAverage.get(RIDE_HAIL_POOLED) match {
-              case Some(skim) =>
-                skim
-              case None =>
-                Skim(1.1, 0, 0.6,0)
-             }
+    val pooled = getSkimValue(departureTime, RIDE_HAIL_POOLED, origTaz, destTaz) match {
+      case Some(skimValue) if skimValue.count > 5 =>
+        skimValue
+      case _ =>
+        modalAverage.get(RIDE_HAIL_POOLED) match {
+          case Some(skim) =>
+            skim
+          case None =>
+            Skim(1.1, 0, 0.6, 0)
         }
-    (pooled.time/solo.time,pooled.cost/solo.cost)
+    }
+    (pooled.time / solo.time, pooled.cost / solo.cost)
   }
 
   private def distanceAndTime(mode: BeamMode, origin: Location, destination: Location) = {
