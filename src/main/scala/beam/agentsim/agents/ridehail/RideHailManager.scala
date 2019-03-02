@@ -641,7 +641,7 @@ class RideHailManager(
           if(workingTick != tick)log.warning("Working tick {} but tick {}",workingTick,tick)
           findAllocationsAndProcess(workingTick)
         case None =>
-          log.warning("ContinueBufferedRideHailRequests({}) but modifyPassengerScheduleManager tick is empty",tick)
+//          log.debug("ContinueBufferedRideHailRequests({}) but modifyPassengerScheduleManager tick is empty",tick)
       }
 
     case trigger @ TriggerWithId(RideHailRepositioningTrigger(tick), triggerId) =>
