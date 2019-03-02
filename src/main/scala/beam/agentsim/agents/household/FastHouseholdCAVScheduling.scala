@@ -24,10 +24,10 @@ class FastHouseholdCAVScheduling(
   val timeWindow: Map[MobilityRequestTrait, Int],
   val stopSearchAfterXSolutions: Int = 100,
   val limitCavToXPersons: Int = 3,
+  val skimmer: BeamSkimmer,
   val beamServices: Option[BeamServices] = None
 )(implicit val population: org.matsim.api.core.v01.population.Population) {
 
-  val skimmer: BeamSkimmer = new BeamSkimmer()
   import beam.agentsim.agents.memberships.Memberships.RankedGroup._
 
   import scala.collection.mutable.{ListBuffer => MListBuffer}

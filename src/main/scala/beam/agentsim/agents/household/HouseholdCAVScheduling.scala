@@ -25,13 +25,11 @@ class HouseholdCAVScheduling(
   val household: Household,
   val householdVehicles: List[BeamVehicle],
   val timeWindow: Map[MobilityRequestTrait, Int],
-  val skimmer: BeamSkimmer,
-  val beamServices: BeamServices,
   val stopSearchAfterXSolutions: Int = 100,
-  val limitCavToXPersons: Int = 3
-) {
-  implicit val population: org.matsim.api.core.v01.population.Population =
-    beamServices.matsimServices.getScenario.getPopulation
+  val limitCavToXPersons: Int = 3,
+  val skimmer: BeamSkimmer,
+  val beamServices: Option[BeamServices] = None
+)(implicit val population: org.matsim.api.core.v01.population.Population) {
   import beam.agentsim.agents.memberships.Memberships.RankedGroup._
   private val householdPlans =
     household.members.take(limitCavToXPersons).map(person => BeamPlan(person.getSelectedPlan))
@@ -161,7 +159,7 @@ case class CAVSchedule(
     householdTrips: HouseholdTripsRequests,
     timeWindow: Map[MobilityRequestTrait, Int],
     skim: BeamSkimmer,
-    beamServices: BeamServices
+    beamServices: Option[BeamServices]
   ): (Option[CAVSchedule], HouseholdTripsRequests, Boolean) = {
     val travelTime = skim
       .getTimeDistanceAndCost(
@@ -170,10 +168,9 @@ case class CAVSchedule(
         request.time,
         CAR,
         cav.beamVehicleType.id,
-        Some(beamServices)
+        beamServices
       )
       .time
-      .toInt
     val prevServiceTime = schedule.head.serviceTime
     val serviceTime = prevServiceTime + travelTime
     val upperBoundServiceTime = request.time + timeWindow(request.tag)

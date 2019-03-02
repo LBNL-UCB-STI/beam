@@ -4,13 +4,13 @@ import java.util.concurrent.TimeUnit
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
-import beam.agentsim.agents.{Dropoff, Pickup}
 import beam.agentsim.agents.choice.mode.ModeIncentive
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.{FuelType, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleCategory.Car
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.{Dropoff, Pickup}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
@@ -33,7 +33,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
 
 import scala.collection.immutable.List
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.ExecutionContext
 
 class HouseholdCAVSchedulingTest
@@ -60,8 +60,10 @@ class HouseholdCAVSchedulingTest
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = system.dispatcher
   private lazy val beamConfig = BeamConfig(system.settings.config)
+  private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
   private val matsimConfig = configBuilder.buildMatSamConf()
+  private val skimmer: BeamSkimmer = new BeamSkimmer()
 
   private lazy val beamSvc: BeamServices = {
     val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
@@ -94,10 +96,9 @@ class HouseholdCAVSchedulingTest
         household,
         cavs,
         Map((Pickup, 2), (Dropoff, 2)),
-        new BeamSkimmer(),
-        beamSvc
-      )
-      val schedules = alg.getAllFeasibleSchedules
+        skimmer=skimmer
+      )(pop)
+      val schedules = alg.getAllFeasibleSchedules()
       schedules should have length 2
       schedules.foreach { x =>
         x.cavFleetSchedule should have length 1
@@ -117,16 +118,14 @@ class HouseholdCAVSchedulingTest
         new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), BeamVehicleType.defaultCarBeamVehicleType)
       )
       val (pop: Population, household) = HouseholdCAVSchedulingTest.scenario2(vehicles)
-      val skim = new BeamSkimmer()
 
       val alg = new HouseholdCAVScheduling(
         household,
         vehicles,
         Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
-        new BeamSkimmer(),
-        beamSvc,
-        stopSearchAfterXSolutions = 5000
-      )
+        stopSearchAfterXSolutions = 5000,
+        skimmer=skimmer
+      )(pop)
       val schedule = alg.getBestScheduleWithTheLongestCAVChain.head
 
       schedule.cavFleetSchedule should have length 1
@@ -155,16 +154,13 @@ class HouseholdCAVSchedulingTest
       )
       val (pop: Population, household) = HouseholdCAVSchedulingTest.scenario4(vehicles)
 
-      val skim = new BeamSkimmer()
-
       val alg = new HouseholdCAVScheduling(
         household,
         vehicles,
         Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
-        new BeamSkimmer(),
-        beamSvc,
-        stopSearchAfterXSolutions = 2000
-      )
+        stopSearchAfterXSolutions = 2000,
+        skimmer=skimmer
+      )(pop)
       val schedule = alg.getBestScheduleWithTheLongestCAVChain.head
 
       schedule.cavFleetSchedule should have length 1
@@ -182,10 +178,9 @@ class HouseholdCAVSchedulingTest
           households.head._1,
           households.head._2,
           Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
-          new BeamSkimmer(),
-          beamSvc
-        )
-      val schedule = alg.getAllFeasibleSchedules
+          skimmer=skimmer
+        )(pop)
+      val schedule = alg.getAllFeasibleSchedules()
 
       println(s"*** scenario 6 ***")
       println(schedule.size)
