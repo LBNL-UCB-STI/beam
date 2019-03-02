@@ -89,8 +89,10 @@ class HouseholdCAVSchedulingTest
       val alg = new HouseholdCAVScheduling(
         household,
         cavs,
-        Map((Pickup, 2), (Dropoff, 2))
-      )(pop)
+        Map((Pickup, 2), (Dropoff, 2)),
+        new BeamSkimmer(),
+        beamSvc
+      )
       val schedules = alg.getAllFeasibleSchedules
       schedules should have length 2
       schedules.foreach { x =>
@@ -113,8 +115,10 @@ class HouseholdCAVSchedulingTest
         household,
         vehicles,
         Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
+        new BeamSkimmer(),
+        beamSvc,
         stopSearchAfterXSolutions = 5000
-      )(pop)
+      )
       val schedule = alg.getBestScheduleWithTheLongestCAVChain.head
 
       schedule.cavFleetSchedule should have length 1
@@ -145,8 +149,10 @@ class HouseholdCAVSchedulingTest
         household,
         vehicles,
         Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
+        new BeamSkimmer(),
+        beamSvc,
         stopSearchAfterXSolutions = 2000
-      )(pop)
+      )
       val schedule = alg.getBestScheduleWithTheLongestCAVChain.head
 
       schedule.cavFleetSchedule should have length 1
@@ -163,8 +169,10 @@ class HouseholdCAVSchedulingTest
         new HouseholdCAVScheduling(
           households.head._1,
           households.head._2,
-          Map((Pickup, 15 * 60), (Dropoff, 15 * 60))
-        )(pop)
+          Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
+          new BeamSkimmer(),
+          beamSvc
+        )
       val schedule = alg.getAllFeasibleSchedules
 
       println(s"*** scenario 6 ***")

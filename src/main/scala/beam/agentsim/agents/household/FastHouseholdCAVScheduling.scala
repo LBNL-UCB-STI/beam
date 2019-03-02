@@ -27,7 +27,7 @@ class FastHouseholdCAVScheduling(
   val beamServices: Option[BeamServices] = None
 )(implicit val population: org.matsim.api.core.v01.population.Population) {
 
-  val skimmer: BeamSkimmer = new BeamSkimmer(beamServices)
+  val skimmer: BeamSkimmer = new BeamSkimmer()
   import beam.agentsim.agents.memberships.Memberships.RankedGroup._
 
   import scala.collection.mutable.{ListBuffer => MListBuffer}
@@ -150,7 +150,7 @@ class FastHouseholdCAVScheduling(
           BeamMode.CAR,
           BeamVehicleType.defaultCarBeamVehicleType.id
         )
-        var serviceTime = prevReq.serviceTime + metric.timeAndCost.time.get
+        var serviceTime = prevReq.serviceTime + metric.time.toInt
         val ubTime = curReq.time + timeWindow(curReq.tag)
         val lbTime = curReq.time - timeWindow(curReq.tag)
         if (curReq.isPickup) {

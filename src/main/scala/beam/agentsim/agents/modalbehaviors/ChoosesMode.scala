@@ -869,6 +869,9 @@ trait ChoosesMode {
         nextActivity(choosesModeData.personData)
       ) match {
         case Some(chosenTrip) =>
+          if (chosenTrip.tripClassifier == WALK) {
+            val i = 0
+          }
           goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(chosenTrip))
         case None =>
           choosesModeData.personData.currentTourMode match {

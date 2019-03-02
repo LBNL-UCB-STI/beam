@@ -25,18 +25,19 @@ class HouseholdCAVScheduling(
   val household: Household,
   val householdVehicles: List[BeamVehicle],
   val timeWindow: Map[MobilityRequestTrait, Int],
+  val skimmer: BeamSkimmer,
+  val beamServices: BeamServices,
   val stopSearchAfterXSolutions: Int = 100,
-  val limitCavToXPersons: Int = 3,
-  val beamServices: Option[BeamServices] = None
-) (implicit val population: org.matsim.api.core.v01.population.Population) {
-
-  val skimmer: BeamSkimmer = new BeamSkimmer(beamServices)
+  val limitCavToXPersons: Int = 3
+) {
+  implicit val population: org.matsim.api.core.v01.population.Population =
+    beamServices.matsimServices.getScenario.getPopulation
   import beam.agentsim.agents.memberships.Memberships.RankedGroup._
   private val householdPlans =
     household.members.take(limitCavToXPersons).map(person => BeamPlan(person.getSelectedPlan))
 
   // ***
-  def getAllFeasibleSchedules: List[CAVFleetSchedule] = {
+  def getAllFeasibleSchedules(): List[CAVFleetSchedule] = {
     // extract potential household CAV requests from plans
     val householdRequests =
       HouseholdTripsRequests.get(householdPlans, householdVehicles.size, timeWindow, skimmer)
@@ -102,7 +103,8 @@ class HouseholdCAVScheduling(
       val outHouseholdSchedule = MListBuffer.empty[Option[CAVFleetSchedule]]
       var feasibleOut = cavFleetSchedule.foldLeft(true) {
         case (feasible, cavSchedule) =>
-          val (scheduleOption, trips, isFeasible) = cavSchedule.check(request, householdTrips, timeWindow, skim)
+          val (scheduleOption, trips, isFeasible) =
+            cavSchedule.check(request, householdTrips, timeWindow, skim, beamServices)
           outHouseholdSchedule.prepend(
             scheduleOption.map(
               schedule => CAVFleetSchedule(schedule :: cavFleetSchedule.filter(_ != cavSchedule), trips)
@@ -158,7 +160,8 @@ case class CAVSchedule(
     request: MobilityRequest,
     householdTrips: HouseholdTripsRequests,
     timeWindow: Map[MobilityRequestTrait, Int],
-    skim: BeamSkimmer
+    skim: BeamSkimmer,
+    beamServices: BeamServices
   ): (Option[CAVSchedule], HouseholdTripsRequests, Boolean) = {
     val travelTime = skim
       .getTimeDistanceAndCost(
@@ -166,11 +169,11 @@ case class CAVSchedule(
         request.activity.getCoord,
         request.time,
         CAR,
-        cav.beamVehicleType.id
+        cav.beamVehicleType.id,
+        Some(beamServices)
       )
-      .timeAndCost
       .time
-      .get
+      .toInt
     val prevServiceTime = schedule.head.serviceTime
     val serviceTime = prevServiceTime + travelTime
     val upperBoundServiceTime = request.time + timeWindow(request.tag)
@@ -425,9 +428,7 @@ object HouseholdTripsHelper {
         defaultMode,
         org.matsim.api.core.v01.Id.create[BeamVehicleType]("", classOf[BeamVehicleType])
       )
-      .timeAndCost
       .time
-      .get
 
     val startTime = prevTrip.activity.getEndTime.toInt
     val arrivalTime = startTime + travelTime
