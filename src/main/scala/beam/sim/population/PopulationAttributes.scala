@@ -111,7 +111,7 @@ case class AttributesOfIndividual(
         x =>
           getSituationMultiplier(x._1, x._2, isWorkTrip, situationMultipliers, vehicleAutomationLevel, beamServices) * x._2
       )
-      .sum / beamLeg.duration
+      .sum / beamLeg.travelPath.linkTravelTime.sum
   }
 
   // Convert from seconds to hours and bring in person's base VOT
