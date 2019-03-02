@@ -863,7 +863,11 @@ trait ChoosesMode {
           .get("beam-attributes")
           .asInstanceOf[AttributesOfIndividual]
 
-      modeChoiceCalculator(filteredItinerariesForChoice, attributesOfIndividual) match {
+      modeChoiceCalculator(
+        filteredItinerariesForChoice,
+        attributesOfIndividual,
+        nextActivity(choosesModeData.personData)
+      ) match {
         case Some(chosenTrip) =>
           if (chosenTrip.tripClassifier == WALK) {
             val i = 0
