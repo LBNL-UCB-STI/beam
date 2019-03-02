@@ -62,7 +62,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     tick: Int,
     vehicleAllocationRequest: AllocationRequests
   ): AllocationResponse = {
-    logger.debug("Alloc requests {}", vehicleAllocationRequest.requests.size)
+    rideHailManager.log.debug("Alloc requests {}", vehicleAllocationRequest.requests.size)
     var toPool: Set[RideHailRequest] = Set()
     var notToPool: Set[RideHailRequest] = Set()
     var allocResponses: List[VehicleAllocation] = List()
@@ -143,7 +143,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         spatialPoolCustomerReqs.put(d.pickup.activity.getCoord.getX, d.pickup.activity.getCoord.getY, d)
       }
 
-//      logger.info("Num custs: {} num vehs: {}", spatialPoolCustomerReqs.size(), availVehicles.size)
+//      rideHailManager.log.info("Num custs: {} num vehs: {}", spatialPoolCustomerReqs.size(), availVehicles.size)
       val algo = new AsyncAlonsoMoraAlgForRideHail(
         spatialPoolCustomerReqs,
         availVehicles.toList,
@@ -156,7 +156,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         Await.result(algo.greedyAssignment(), atMost = 2.minutes)
       } catch {
         case e: TimeoutException =>
-//          logger.error("timeout of AsyncAlonsoMoraAlgForRideHail falling back to synchronous")
+//          rideHailManager.log.error("timeout of AsyncAlonsoMoraAlgForRideHail falling back to synchronous")
 //          val algo = new AlonsoMoraPoolingAlgForRideHail(
 //            spatialPoolCustomerReqs,
 //            availVehicles.toList,
@@ -166,7 +166,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
 //          val rvGraph: RVGraph = algo.pairwiseRVGraph
 //          val rtvGraph = algo.rTVGraph(rvGraph)
 //          algo.greedyAssignment(rtvGraph)
-          logger.error("timeout of AsyncAlonsoMoraAlgForRideHail no allocations made")
+          rideHailManager.log.error("timeout of AsyncAlonsoMoraAlgForRideHail no allocations made")
           List()
       }
 
@@ -236,7 +236,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         }
       }
     }
-    logger.debug(
+    rideHailManager.log.debug(
       "AllocResponses: {}",
       allocResponses.groupBy(_.getClass).map(x => s"${x._1.getSimpleName} -- ${x._2.size}").mkString("\t")
     )
