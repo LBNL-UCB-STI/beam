@@ -33,7 +33,11 @@ class ModeChoiceRideHailIfAvailable(val beamServices: BeamServices) extends Mode
     }
   }
 
-  override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual, destinationActivity: Option[Activity]): Double = 0.0
+  override def utilityOf(
+    alternative: EmbodiedBeamTrip,
+    attributesOfIndividual: AttributesOfIndividual,
+    destinationActivity: Option[Activity]
+  ): Double = 0.0
 
   override def utilityOf(mode: Modes.BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0.0
 

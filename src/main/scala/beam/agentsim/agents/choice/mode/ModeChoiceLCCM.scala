@@ -261,7 +261,11 @@ class ModeChoiceLCCM(
       .getUtilityOfAlternative(AlternativeAttributes(mode.value, theParams))
   }
 
-  override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual, destinationActivity: Option[Activity]): Double = 0.0
+  override def utilityOf(
+    alternative: EmbodiedBeamTrip,
+    attributesOfIndividual: AttributesOfIndividual,
+    destinationActivity: Option[Activity]
+  ): Double = 0.0
 
   override def computeAllDayUtility(
     trips: ListBuffer[EmbodiedBeamTrip],

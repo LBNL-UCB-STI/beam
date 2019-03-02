@@ -10,7 +10,6 @@ import beam.sim.{BeamServices, HasServices}
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.population.Person
 
-
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
@@ -26,7 +25,11 @@ trait ModeChoiceCalculator extends HasServices {
     beamServices.beamConfig.matsim.modules.global.randomSeed
   )
 
-  def scaleTimeByVot(time: Double, beamMode: Option[BeamMode] = None, beamLeg: Option[EmbodiedBeamLeg] = None): Double = {
+  def scaleTimeByVot(
+    time: Double,
+    beamMode: Option[BeamMode] = None,
+    beamLeg: Option[EmbodiedBeamLeg] = None
+  ): Double = {
     time / 3600 * beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
   }
 
@@ -36,7 +39,11 @@ trait ModeChoiceCalculator extends HasServices {
     destinationActivity: Option[Activity]
   ): Option[EmbodiedBeamTrip]
 
-  def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual, destinationActivity: Option[Activity]): Double
+  def utilityOf(
+    alternative: EmbodiedBeamTrip,
+    attributesOfIndividual: AttributesOfIndividual,
+    destinationActivity: Option[Activity]
+  ): Double
 
   def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double
 

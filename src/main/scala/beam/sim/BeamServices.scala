@@ -73,6 +73,7 @@ trait BeamServices {
   def getModalBehaviors(): ModalBehaviors = {
     beamConfig.beam.agentsim.agents.modalBehaviors
   }
+
   def getDefaultAutomationLevel(): Option[Int] = {
     if (beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationForVOTT) {
       Option(beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationLevel)

@@ -97,7 +97,10 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
         val tripScoreData = trips.zipWithIndex map { tripWithIndex =>
           val (trip, tripIndex) = tripWithIndex
           val personId = person.getId.toString
-          val tripPurpose = person.getSelectedPlan.getPlanElements.asScala.filter(_.isInstanceOf[Activity]).map(_.asInstanceOf[Activity]).lift(tripIndex + 1)
+          val tripPurpose = person.getSelectedPlan.getPlanElements.asScala
+            .filter(_.isInstanceOf[Activity])
+            .map(_.asInstanceOf[Activity])
+            .lift(tripIndex + 1)
           val departureTime = trip.legs.headOption.map(_.beamLeg.startTime.toString).getOrElse("")
           val totalTravelTimeInSecs = trip.totalTravelTimeInSecs
           val mode = trip.determineTripMode(trip.legs)
