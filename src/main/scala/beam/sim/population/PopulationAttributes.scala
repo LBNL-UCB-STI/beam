@@ -52,10 +52,12 @@ case class AttributesOfIndividual(
               unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
           }
         } else if (embodiedBeamLeg.asDriver){
+          // Situation multipliers are only relevant when the agent is driving
             getPathVotMultiplier(embodiedBeamLeg.beamLeg, situationMultipliers, beamServices, isWorkTrip, getAutomationLevel(embodiedBeamLeg, beamServices))*
             getModeVotMultiplier(Option(CAR),modeMultipliers) *
             unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
           } else {
+          // Assume that not driving and not ridehail means CAV
             getModeVotMultiplier(Option(CAV),modeMultipliers) *
             unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
         }
@@ -70,6 +72,7 @@ case class AttributesOfIndividual(
   }
 
   private def getAutomationLevel(embodiedBeamLeg: EmbodiedBeamLeg, beamServices: BeamServices): automationLevel = {
+    // Use default if it exists, otherwise look up from vehicle ID
     val vehicleAutomationLevel = beamServices.getDefaultAutomationLevel().getOrElse(beamServices.vehicleTypes(embodiedBeamLeg.beamVehicleTypeId).automationLevel)
     vehicleAutomationLevel match {
       case 1 => levelLE2
@@ -86,12 +89,13 @@ case class AttributesOfIndividual(
                                    beamServices: BeamServices,
                                    isWorkTrip: Boolean,
                                    vehicleAutomationLevel: automationLevel): Double = {
+    // Iterate over links in a path. Get average multiplier weighted by link travel time
     (beamLeg.travelPath.linkIds zip beamLeg.travelPath.linkTravelTime).map(
       x => getSituationMultiplier(x._1,x._2, isWorkTrip, situationMultipliers, vehicleAutomationLevel, beamServices) * x._2
     ).sum / beamLeg.duration
   }
 
-  // If it's not a car mode, send it over to beamServices to get the mode VOTT multiplier from config
+  // Convert from seconds to hours and bring in person's base VOT
   def unitConversionVOTT(duration: Double): Double = {
     valueOfTime / 3600 * duration
   }
@@ -106,6 +110,7 @@ case class AttributesOfIndividual(
   }
 
   private def getLinkCharacteristics(linkID:Int, travelTime:Double, beamServices: BeamServices): (congestionLevel,roadwayType) = {
+    // Note: cutoffs for congested (2/3 free flow speed) and highway (ff speed > 20 m/s) are arbitrary and could be inputs
     val currentLink = beamServices.networkHelper.getLink(linkID).get
     val freeSpeed:Double = currentLink.getFreespeed()
     val currentSpeed:Double = currentLink.getLength() / travelTime
