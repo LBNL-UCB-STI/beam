@@ -65,6 +65,9 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
             if (i == 0) {
                 return "repositioning";
             }
+            else if(i == 1){
+                return "deadheading";
+            }
             return Integer.toString(i - 1);
         } else {
             if (i == 0) {
@@ -644,7 +647,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
             return "Number of Passengers per Trip [TNC]";
         } else if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE)) {
-            return "Dead Heading Distance [TNC]";
+            return "Trip Distance [TNC]";
         } else if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR)) {
             return "Number of Passengers per Trip [Car]";
         } else {
