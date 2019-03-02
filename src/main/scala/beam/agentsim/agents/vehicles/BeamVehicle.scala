@@ -7,7 +7,7 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
-import beam.agentsim.infrastructure.charging.ChargingPoint
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.model.BeamLeg
@@ -128,7 +128,7 @@ class BeamVehicle(
       case Some(theStall) =>
         theStall.chargingPoint match {
           case Some(chargingPoint) =>
-            ChargingPoint.calculateChargingSessionLengthAndEnergyInJoule(
+            ChargingPointType.calculateChargingSessionLengthAndEnergyInJoule(
               chargingPoint,
               fuelLevelInJoules,
               beamVehicleType.primaryFuelCapacityInJoule,

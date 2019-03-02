@@ -1,12 +1,12 @@
 package beam.agentsim.infrastructure.charging
 
-case class ChargingInquiryData(data: Map[ChargingPoint, ChargingPreference]) {
+case class ChargingInquiryData(data: Map[ChargingPointType, ChargingPreference]) {
   val agentMustCharge: Boolean = data.values.exists(_ == ChargingPreference.MustCharge)
 }
 
 object ChargingInquiryData {
 
-  def apply(data: Map[ChargingPoint, ChargingPreference]): Option[ChargingInquiryData] = {
+  def apply(data: Map[ChargingPointType, ChargingPreference]): Option[ChargingInquiryData] = {
     if (data == null || data.isEmpty)
       None
     else

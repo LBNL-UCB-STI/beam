@@ -1,13 +1,13 @@
 package beam.agentsim.infrastructure.charging
 
-sealed trait ElectricCurrent
+sealed trait ElectricCurrentType
 
-object ElectricCurrent {
+object ElectricCurrentType {
 
-  case object AC extends ElectricCurrent
-  case object DC extends ElectricCurrent
+  case object AC extends ElectricCurrentType
+  case object DC extends ElectricCurrentType
 
-  def apply(s: String): ElectricCurrent = {
+  def apply(s: String): ElectricCurrentType = {
     s.toLowerCase match {
       case "ac" => AC
       case "dc" => DC

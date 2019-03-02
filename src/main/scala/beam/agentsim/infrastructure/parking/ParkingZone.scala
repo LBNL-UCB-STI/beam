@@ -4,7 +4,7 @@ import scala.language.higherKinds
 
 import cats.Eval
 
-import beam.agentsim.infrastructure.charging.ChargingPoint
+import beam.agentsim.infrastructure.charging.ChargingPointType
 
 /**
   * stores the number of stalls in use for a zone of parking stalls with a common set of attributes
@@ -14,11 +14,11 @@ import beam.agentsim.infrastructure.charging.ChargingPoint
   * @param pricingModel if this stall has pricing, this is the type of pricing
   */
 class ParkingZone(
-  val parkingZoneId: Int,
-  var stallsAvailable: Int,
-  val maxStalls: Int,
-  val chargingPoint: Option[ChargingPoint],
-  val pricingModel: Option[PricingModel]
+                   val parkingZoneId: Int,
+                   var stallsAvailable: Int,
+                   val maxStalls: Int,
+                   val chargingPoint: Option[ChargingPointType],
+                   val pricingModel: Option[PricingModel]
 ) {
   override def toString: String = {
     val chargeString = chargingPoint match {
@@ -46,10 +46,10 @@ object ParkingZone {
     * @return a new StallValues object
     */
   def apply(
-    parkingZoneId: Int,
-    numStalls: Int = 0,
-    chargingType: Option[ChargingPoint] = None,
-    pricingModel: Option[PricingModel] = None,
+             parkingZoneId: Int,
+             numStalls: Int = 0,
+             chargingType: Option[ChargingPointType] = None,
+             pricingModel: Option[PricingModel] = None,
   ): ParkingZone = new ParkingZone(parkingZoneId, numStalls, numStalls, chargingType, pricingModel)
 
   /**
