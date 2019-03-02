@@ -184,8 +184,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           currentBeamVehicle.beamVehicleType,
           data.passengerSchedule.schedule(currentLeg).riders.size,
           currentLeg,
-          fuelConsumed,
-          currentBeamVehicle.fuelLevelInJoules,
+          fuelConsumed.primaryFuel,
+          fuelConsumed.secondaryFuel,
+          currentBeamVehicle.primaryFuelLevelInJoules,
+          currentBeamVehicle.secondaryFuelLevelInJoules,
           tollOnCurrentLeg
         )
       )
@@ -339,8 +341,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           currentBeamVehicle.beamVehicleType,
           data.passengerSchedule.schedule(currentLeg).riders.size,
           updatedBeamLeg,
-          fuelConsumed,
-          currentBeamVehicle.fuelLevelInJoules,
+          fuelConsumed.primaryFuel,
+          fuelConsumed.secondaryFuel,
+          currentBeamVehicle.primaryFuelLevelInJoules,
+          currentBeamVehicle.secondaryFuelLevelInJoules,
           tollOnCurrentLeg
         )
       )

@@ -1,5 +1,6 @@
 package beam.agentsim.agents.vehicles
 
+import beam.agentsim.agents.vehicles.ConsumptionRateFilterStore.{PowerTrainPriority, Primary, Secondary}
 import beam.sim.common.Range
 import beam.sim.config.BeamConfig
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
@@ -30,6 +31,11 @@ class VehicleCsvReader(config: BeamConfig) {
     val filePath = config.beam.agentsim.agents.vehicles.linkToGradePercentFile
     csvParser.iterateRecords(IOUtils.getBufferedReader(filePath)).asScala
   }
+}
+object ConsumptionRateFilterStore{
+  sealed trait PowerTrainPriority
+  case object Primary extends PowerTrainPriority
+  case object Secondary extends PowerTrainPriority
 }
 
 trait ConsumptionRateFilterStore {
@@ -142,11 +148,12 @@ class VehicleEnergy(
 
   def getFuelConsumptionEnergyInJoulesUsing(
     fuelConsumptionDatas: IndexedSeq[BeamVehicle.FuelConsumptionData],
-    fallBack: BeamVehicle.FuelConsumptionData => Double
+    fallBack: BeamVehicle.FuelConsumptionData => Double,
+    powerTrainPriority: PowerTrainPriority
   ): Double = {
     val consumptionsInJoules: IndexedSeq[Double] = fuelConsumptionDatas
       .map(fuelConsumptionData => {
-        val rateInJoulesPerMeter = getRateUsing(fuelConsumptionData, fallBack)
+        val rateInJoulesPerMeter = getRateUsing(fuelConsumptionData, fallBack, powerTrainPriority)
         val distance = fuelConsumptionData.linkLength.getOrElse(0.0)
         rateInJoulesPerMeter * distance
       })
@@ -155,7 +162,8 @@ class VehicleEnergy(
 
   private def getRateUsing(
     fuelConsumptionData: BeamVehicle.FuelConsumptionData,
-    fallBack: BeamVehicle.FuelConsumptionData => Double
+    fallBack: BeamVehicle.FuelConsumptionData => Double,
+    powerTrainPriority: PowerTrainPriority
   ): Double = {
     val BeamVehicle.FuelConsumptionData(
       linkId,
@@ -173,9 +181,14 @@ class VehicleEnergy(
     val numberOfLanes: Int = numberOfLanesOption.getOrElse(0)
     val speedInMilesPerHour: Double = speedInMilesPerHourOption.getOrElse(0)
     val gradePercent: Double = linkIdToGradePercentMap.getOrElse(linkId, 0)
-    consumptionRateFilterStore
-      .getPrimaryConsumptionRateFilterFor(vehicleType)
-      .flatMap(
+    (powerTrainPriority match {
+      case Primary =>
+        consumptionRateFilterStore
+          .getPrimaryConsumptionRateFilterFor(vehicleType)
+      case Secondary =>
+        consumptionRateFilterStore
+          .getSecondaryConsumptionRateFilterFor(vehicleType)
+    }).flatMap(
         consumptionRateFilterFuture =>
           getRateUsing(consumptionRateFilterFuture, numberOfLanes, speedInMilesPerHour, gradePercent)
       )
