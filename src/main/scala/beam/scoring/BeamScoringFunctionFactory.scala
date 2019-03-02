@@ -2,7 +2,6 @@ package beam.scoring
 
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent, ReserveRideHailEvent}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
-import beam.router.Modes.BeamMode.RIDE_HAIL_POOLED
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, MapStringDouble, OutputDataDescription}
@@ -67,7 +66,6 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
       override def finish(): Unit = {
         val attributes =
           person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
-
         val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributes)
 
         // The scores attribute is only relevant to LCCM, but we need to include a default value to avoid NPE during writing of plans
@@ -99,10 +97,14 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
         val tripScoreData = trips.zipWithIndex map { tripWithIndex =>
           val (trip, tripIndex) = tripWithIndex
           val personId = person.getId.toString
+          val tripPurpose = person.getSelectedPlan.getPlanElements.asScala
+            .filter(_.isInstanceOf[Activity])
+            .map(_.asInstanceOf[Activity])
+            .lift(tripIndex + 1)
           val departureTime = trip.legs.headOption.map(_.beamLeg.startTime.toString).getOrElse("")
           val totalTravelTimeInSecs = trip.totalTravelTimeInSecs
           val mode = trip.determineTripMode(trip.legs)
-          val score = modeChoiceCalculator.utilityOf(trip, attributes)
+          val score = modeChoiceCalculator.utilityOf(trip, attributes, tripPurpose)
           val cost = trip.costEstimate
           s"$personId,$tripIndex,$departureTime,$totalTravelTimeInSecs,$mode,$cost,$score"
         } mkString "\n"
