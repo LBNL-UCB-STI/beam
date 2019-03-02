@@ -111,7 +111,7 @@ class BeamSkimmer @Inject()() extends IterationEndsListener {
         val origTaz = beamServices.tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
         val destTaz = beamServices.tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
     val solo = getSkimValue(departureTime, RIDE_HAIL, origTaz, destTaz) match {
-      case Some(skimValue) if skimValue.count > 10 =>
+      case Some(skimValue) if skimValue.count > 5 =>
         skimValue
       case _ =>
         modalAverage.get(RIDE_HAIL) match {
@@ -122,7 +122,7 @@ class BeamSkimmer @Inject()() extends IterationEndsListener {
         }
     }
         val pooled = getSkimValue(departureTime, RIDE_HAIL_POOLED, origTaz, destTaz) match {
-          case Some(skimValue) if skimValue.count > 10 =>
+          case Some(skimValue) if skimValue.count > 5 =>
             skimValue
           case _ =>
              modalAverage.get(RIDE_HAIL_POOLED) match {
