@@ -5,6 +5,9 @@ import java.util
 import beam.router.Modes.BeamMode.CAR
 import beam.sim.population.PopulationAdjustment
 import beam.sim.population.PopulationAdjustment.BEAM_ATTRIBUTES
+import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT}
+import beam.utils.BeamVehicleUtils
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PopulationAttrib.Rank
 import beam.utils.scripts.PopulationWriterCSV
@@ -41,6 +44,7 @@ import org.opengis.referencing.crs.CoordinateReferenceSystem
 import scala.collection.JavaConverters._
 import scala.collection.{immutable, mutable, JavaConverters}
 import scala.util.{Random, Try}
+import scala.util.control.Breaks._
 
 case class SynthHousehold(
   householdId: Id[Household],
@@ -311,7 +315,7 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
 class SpatialSampler(sampleShape: String) {
   val shapeFileReader: ShapeFileReader = new ShapeFileReader
   shapeFileReader.readFileAndInitialize(sampleShape)
-  val rng = new MersenneTwister(75710052) // Random.org
+  val rng = new MersenneTwister(7571452) // Random.org
   val distribution: EnumeratedDistribution[SimpleFeature] = {
     val features = shapeFileReader.getFeatureCollection.features()
     val distributionList = mutable.Buffer[Pair[SimpleFeature, java.lang.Double]]()
@@ -360,7 +364,7 @@ object PlansSampler {
   def init(args: Array[String]): Unit = {
     conf.plans.setInputFile(args(0))
     conf.network.setInputFile(args(2))
-    conf.vehicles.setVehiclesFile(args(4))
+
     sampleNumber = args(5).toInt
     sc.setLocked()
     ScenarioUtils.loadScenario(sc)
@@ -404,7 +408,7 @@ object PlansSampler {
 
   private def getClosestNPlans(spCoord: Coord, n: Int, withoutWork: Boolean = false): Set[Plan] = {
     val closestPlan = getClosestPlan(spCoord)
-    var col = Set(closestPlan)
+    var col = if (withoutWork && !hasNoWorkAct(closestPlan)) Set[Plan]() else Set(closestPlan)
 
     var radius = CoordUtils.calcEuclideanDistance(
       spCoord,
@@ -453,7 +457,11 @@ object PlansSampler {
           while (synthHHs.exists(_.householdId.equals(hh.householdId))) {
             hh = Random.shuffle(tract2HH(sampleTract)).take(1).head
           }
-          synthHHs += hh
+          if (hh.individuals.length != 0) {
+            synthHHs += hh
+          } else {
+            println(s"empty household! ${hh.householdId}")
+          }
         }
       }
 
@@ -469,111 +477,139 @@ object PlansSampler {
     AvailableModeUtils.setAvailableModesForPerson(person, newPop, filteredPermissibleModes.toSeq)
   }
 
+  def filterPopulationActivities() {
+    val factory = newPop.getFactory
+    newPop.getPersons.asScala.values.foreach { person =>
+      val origPlan = person.getPlans.asScala.head
+      person.getPlans.clear()
+      val newPlan = factory.createPlan()
+      person.addPlan(newPlan)
+      for { pe <- origPlan.getPlanElements.asScala if pe.isInstanceOf[Activity] } yield {
+        val oldActivity = pe.asInstanceOf[Activity]
+        if (oldActivity.getType.contains("Pt")) {
+          //
+        } else {
+          val actCoord = new Coord(oldActivity.getCoord.getX, oldActivity.getCoord.getY)
+          val activity = factory.createActivityFromCoord(oldActivity.getType, actCoord)
+          activity.setEndTime(oldActivity.getEndTime)
+          newPlan.addActivity(activity)
+        }
+
+      }
+
+    }
+  }
+
   def run(): Unit = {
 
-    val carVehicleType =
-      JavaConverters
-        .collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values())
-        .head
+    val carVehicleType = BeamVehicleUtils.beamVehicleTypeToMatsimVehicleType(BeamVehicleType.defaultCarBeamVehicleType)
+
     newVehicles.addVehicleType(carVehicleType)
-    synthHouseholds.foreach(sh => {
-      val numPersons = sh.individuals.length
-      val N = if (numPersons > 0) {
-        numPersons * 2
-      } else {
-        1
-      }
 
-      val closestPlans: Set[Plan] = getClosestNPlans(sh.coord, N)
-
-      val selectedPlans = Random.shuffle(closestPlans).take(numPersons)
-      val plansWithoutWork = getClosestNPlans(sh.coord, numPersons, withoutWork = true)
-
-      val hhId = sh.householdId
-      val spHH = newHHFac.createHousehold(hhId)
-
-      // Add household to households and increment counter now
-      newHH.getHouseholds.put(hhId, spHH)
-
-      // Set hh income
-      spHH.setIncome(newHHFac.createIncome(sh.hhIncome, year))
-
-      counter.incCounter()
-
-      spHH.setIncome(newHHFac.createIncome(sh.hhIncome, Income.IncomePeriod.year))
-      // Create and add car identifiers
-      (0 to sh.vehicles).foreach(x => {
-        val vehicleId = Id.createVehicleId(s"${counter.getCounter}-$x")
-        val vehicle: Vehicle =
-          VehicleUtils.getFactory.createVehicle(vehicleId, carVehicleType)
-        newVehicles.addVehicle(vehicle)
-        spHH.getVehicleIds.add(vehicleId)
-      })
-
-      var homePlan: Option[Plan] = None
-
-      var ranks: immutable.Seq[Int] = 0 to sh.individuals.length
-      ranks = Random.shuffle(ranks)
-
-      for ((plan, idx) <- selectedPlans.zipWithIndex) {
-        val synthPerson = sh.individuals.toVector(idx)
-        val newPersonId = synthPerson.indId
-
-        val newPerson = newPop.getFactory.createPerson(newPersonId)
-        newPop.addPerson(newPerson)
-        spHH.getMemberIds.add(newPersonId)
-        newPopAttributes
-          .putAttribute(newPersonId.toString, Rank.entryName, ranks(idx))
-
-        // Create a new plan for household member based on selected plan of first person
-        val newPlan = PopulationUtils.createPlan(newPerson)
-        newPerson.addPlan(newPlan)
-
-        val srcPlan = if (synthPerson.age > 18 || hasNoWorkAct(plan)) {
-          plan
+    breakable {
+      synthHouseholds.foreach(sh => {
+        val numPersons = sh.individuals.length
+        val N = if (numPersons > 0) {
+          numPersons * 2
         } else {
-          Random.shuffle(plansWithoutWork).headOption match {
-            case Some(p) => p
-            case None    => plan
-          }
+          1
         }
-        PopulationUtils.copyFromTo(srcPlan, newPlan)
-        val homeActs = newPlan.getPlanElements.asScala
-          .collect { case activity: Activity if activity.getType.equalsIgnoreCase("Home") => activity }
 
-        homePlan match {
-          case None =>
-            homePlan = Some(newPlan)
-            val homeCoord = homeActs.head.getCoord
-            newHHAttributes.putAttribute(hhId.toString, HomeCoordX.entryName, homeCoord.getX)
-            newHHAttributes.putAttribute(hhId.toString, HomeCoordY.entryName, homeCoord.getY)
-            newHHAttributes.putAttribute(hhId.toString, HousingType.entryName, "House")
-            snapPlanActivityLocsToNearestLink(newPlan)
+        val closestPlans: Set[Plan] = getClosestNPlans(sh.coord, N)
 
-          case Some(hp) =>
-            val firstAct = PopulationUtils.getFirstActivity(hp)
-            val firstActCoord = firstAct.getCoord
-            for (act <- homeActs) {
-              act.setCoord(firstActCoord)
+        val selectedPlans = Random.shuffle(closestPlans).take(numPersons)
+        val plansWithoutWork = getClosestNPlans(sh.coord, numPersons, withoutWork = true)
+
+        val hhId = sh.householdId
+        val spHH = newHHFac.createHousehold(hhId)
+
+        // Add household to households and increment counter now
+        newHH.getHouseholds.put(hhId, spHH)
+
+        // Set hh income
+        spHH.setIncome(newHHFac.createIncome(sh.hhIncome, year))
+
+        counter.incCounter()
+
+        spHH.setIncome(newHHFac.createIncome(sh.hhIncome, Income.IncomePeriod.year))
+        // Create and add car identifiers
+        (0 to sh.vehicles).foreach(x => {
+          val vehicleId = Id.createVehicleId(s"${counter.getCounter}-$x")
+          val vehicle: Vehicle =
+            VehicleUtils.getFactory.createVehicle(vehicleId, carVehicleType)
+          newVehicles.addVehicle(vehicle)
+          spHH.getVehicleIds.add(vehicleId)
+        })
+
+        var homePlan: Option[Plan] = None
+
+        var ranks: immutable.Seq[Int] = 0 to sh.individuals.length
+        ranks = Random.shuffle(ranks)
+
+        for ((plan, idx) <- selectedPlans.zipWithIndex) {
+          val synthPerson = sh.individuals.toVector(idx)
+          val newPersonId = synthPerson.indId
+
+          val newPerson = newPop.getFactory.createPerson(newPersonId)
+          newPop.addPerson(newPerson)
+          spHH.getMemberIds.add(newPersonId)
+          newPopAttributes
+            .putAttribute(newPersonId.toString, Rank.entryName, ranks(idx))
+
+          // Create a new plan for household member based on selected plan of first person
+          val newPlan = PopulationUtils.createPlan(newPerson)
+          newPerson.addPlan(newPlan)
+
+          val srcPlan = if (synthPerson.age > 18 || hasNoWorkAct(plan)) {
+            plan
+          } else {
+            Random.shuffle(plansWithoutWork).headOption match {
+              case Some(p) => p
+              case None    => plan
             }
-            snapPlanActivityLocsToNearestLink(newPlan)
+          }
+          PopulationUtils.copyFromTo(srcPlan, newPlan)
+          val homeActs = newPlan.getPlanElements.asScala
+            .collect { case activity: Activity if activity.getType.equalsIgnoreCase("Home") => activity }
+
+          homePlan match {
+            case None =>
+              homePlan = Some(newPlan)
+              val homeCoord = homeActs.head.getCoord
+              newHHAttributes.putAttribute(hhId.toString, HomeCoordX.entryName, homeCoord.getX)
+              newHHAttributes.putAttribute(hhId.toString, HomeCoordY.entryName, homeCoord.getY)
+              newHHAttributes.putAttribute(hhId.toString, HousingType.entryName, "House")
+              snapPlanActivityLocsToNearestLink(newPlan)
+
+            case Some(hp) =>
+              val firstAct = PopulationUtils.getFirstActivity(hp)
+              val firstActCoord = firstAct.getCoord
+              for (act <- homeActs) {
+                act.setCoord(firstActCoord)
+              }
+              snapPlanActivityLocsToNearestLink(newPlan)
+          }
+
+          PersonUtils.setAge(newPerson, synthPerson.age)
+          val sex = if (synthPerson.sex == 0) {
+            "M"
+          } else {
+            "F"
+          }
+          // TODO: Include non-binary gender if data available
+          PersonUtils.setSex(newPerson, sex)
+          newPopAttributes
+            .putAttribute(newPerson.getId.toString, "valueOfTime", synthPerson.valueOfTime)
+          newPopAttributes.putAttribute(newPerson.getId.toString, "income", synthPerson.income)
+          addModeExclusions(newPerson)
         }
 
-        PersonUtils.setAge(newPerson, synthPerson.age)
-        val sex = if (synthPerson.sex == 0) {
-          "M"
-        } else {
-          "F"
-        }
-        // TODO: Include non-binary gender if data available
-        PersonUtils.setSex(newPerson, sex)
-        newPopAttributes
-          .putAttribute(newPerson.getId.toString, "valueOfTime", synthPerson.valueOfTime)
-        newPopAttributes.putAttribute(newPerson.getId.toString, "income", synthPerson.income)
-        addModeExclusions(newPerson)
-      }
-    })
+        if (newPop.getPersons.size() > sampleNumber)
+          break()
+      })
+    }
 
+    filterPopulationActivities()
     counter.printCounter()
     counter.reset()
 
