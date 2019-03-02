@@ -14,9 +14,13 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode._
+import beam.router.model.{BeamPath, EmbodiedBeamLeg}
 import beam.sim.BeamServices.getTazTreeMap
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
 import beam.sim.metrics.Metrics
 import beam.utils.{DateUtils, NetworkHelper}
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
@@ -28,6 +32,7 @@ import org.matsim.core.utils.collections.QuadTree
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 import org.slf4j.LoggerFactory
+import org.matsim.api.core.v01.network.{Link, Network}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -66,6 +71,18 @@ trait BeamServices {
   def networkHelper: NetworkHelper
   var transitFleetSizes: mutable.HashMap[String, Integer] = mutable.HashMap.empty
   def setTransitFleetSizes(tripFleetSizeMap: mutable.HashMap[String, Integer])
+
+  def getModalBehaviors(): ModalBehaviors = {
+    beamConfig.beam.agentsim.agents.modalBehaviors
+  }
+
+  def getDefaultAutomationLevel(): Option[Int] = {
+    if (beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationForVOTT) {
+      Option(beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationLevel)
+    } else {
+      None
+    }
+  }
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {

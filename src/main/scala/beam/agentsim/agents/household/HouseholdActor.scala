@@ -11,7 +11,6 @@ import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavTripLegsResponse}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, VehicleOrToken}
-import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.GeneralizedVot
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.ridehail.RideHailAgent.{
@@ -272,7 +271,6 @@ object HouseholdActor {
         household.members.foreach { person =>
           val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
           val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
-          modeChoiceCalculator.valuesOfTime += (GeneralizedVot -> attributes.valueOfTime)
           val personRef: ActorRef = context.actorOf(
             PersonAgent.props(
               schedulerRef,
