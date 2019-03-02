@@ -43,7 +43,7 @@ import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 
 import scala.collection.JavaConverters._
-import scala.collection.{JavaConverters, immutable, mutable}
+import scala.collection.{immutable, mutable, JavaConverters}
 import scala.util.{Random, Try}
 import scala.util.control.Breaks._
 
@@ -503,7 +503,8 @@ object PlansSampler {
 
   def run(): Unit = {
 
-    val carVehicleType = MatsimConversionTool.beamVehicleTypeToMatsimVehicleType(BeamVehicleType.defaultCarBeamVehicleType)
+    val carVehicleType =
+      MatsimConversionTool.beamVehicleTypeToMatsimVehicleType(BeamVehicleType.defaultCarBeamVehicleType)
 
     newVehicles.addVehicleType(carVehicleType)
 

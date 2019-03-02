@@ -32,7 +32,8 @@ class VehicleCsvReader(config: BeamConfig) {
     csvParser.iterateRecords(IOUtils.getBufferedReader(filePath)).asScala
   }
 }
-object ConsumptionRateFilterStore{
+
+object ConsumptionRateFilterStore {
   sealed trait PowerTrainPriority
   case object Primary extends PowerTrainPriority
   case object Secondary extends PowerTrainPriority

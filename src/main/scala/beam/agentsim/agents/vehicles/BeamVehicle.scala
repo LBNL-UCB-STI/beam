@@ -125,16 +125,25 @@ class BeamVehicle(
     * @return FuelConsumed
     */
   def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): FuelConsumed = {
-    val fuelConsumptionData = BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
-    var primaryEnergyForFullLeg = beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(fuelConsumptionData, fallBack = powerTrain.getRateInJoulesPerMeter, Primary)
+    val fuelConsumptionData =
+      BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
+    var primaryEnergyForFullLeg = beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
+      fuelConsumptionData,
+      fallBack = powerTrain.getRateInJoulesPerMeter,
+      Primary
+    )
     var primaryEnergyConsumed = primaryEnergyForFullLeg
     var secondaryEnergyConsumed = 0.0
     if (primaryFuelLevelInJoules < primaryEnergyForFullLeg) {
-      if(secondaryFuelLevelInJoules > 0.0){
+      if (secondaryFuelLevelInJoules > 0.0) {
         // Use secondary fuel if possible
-        val secondaryEnergyForFullLeg = beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(fuelConsumptionData, fallBack = powerTrain.getRateInJoulesPerMeter, Secondary)
-        secondaryEnergyConsumed = secondaryEnergyForFullLeg * (primaryEnergyForFullLeg - primaryFuelLevelInJoules)/primaryEnergyConsumed
-        if(secondaryFuelLevelInJoules < secondaryEnergyConsumed){
+        val secondaryEnergyForFullLeg = beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
+          fuelConsumptionData,
+          fallBack = powerTrain.getRateInJoulesPerMeter,
+          Secondary
+        )
+        secondaryEnergyConsumed = secondaryEnergyForFullLeg * (primaryEnergyForFullLeg - primaryFuelLevelInJoules) / primaryEnergyConsumed
+        if (secondaryFuelLevelInJoules < secondaryEnergyConsumed) {
           logger.warn(
             "Vehicle does not have sufficient fuel to make trip (in both primary and secondary fuel tanks), allowing trip to happen and setting fuel level negative: vehicle {} trip distance {} m",
             id,
@@ -142,10 +151,10 @@ class BeamVehicle(
           )
           primaryEnergyConsumed = primaryEnergyForFullLeg - secondaryFuelLevelInJoules / secondaryEnergyConsumed
           secondaryEnergyConsumed = secondaryFuelLevelInJoules
-        }else{
+        } else {
           primaryEnergyConsumed = primaryFuelLevelInJoules
         }
-      }else{
+      } else {
         logger.warn(
           "Vehicle does not have sufficient fuel to make trip, allowing trip to happen and setting fuel level negative: vehicle {} trip distance {} m",
           id,
@@ -155,7 +164,7 @@ class BeamVehicle(
     }
     primaryFuelLevelInJoules = primaryFuelLevelInJoules - primaryEnergyConsumed
     secondaryFuelLevelInJoules = secondaryFuelLevelInJoules - secondaryEnergyConsumed
-    FuelConsumed(primaryEnergyConsumed,secondaryEnergyConsumed)
+    FuelConsumed(primaryEnergyConsumed, secondaryEnergyConsumed)
   }
 
   def addFuel(fuelInJoules: Double): Unit = {
