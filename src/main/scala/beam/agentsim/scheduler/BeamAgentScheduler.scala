@@ -8,7 +8,11 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Terminated
 import akka.event.LoggingReceive
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.ridehail.RideHailManager.{RecoverFromStuckness, RideHailRepositioningTrigger}
+import beam.agentsim.agents.ridehail.RideHailManager.{
+  ContinueBufferedRideHailRequests,
+  RecoverFromStuckness,
+  RideHailRepositioningTrigger
+}
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
@@ -251,8 +255,8 @@ class BeamAgentScheduler(
         awaitingResponse.values().asScala.take(1).foreach { x =>
           if (x.agent.path.name.contains("RideHailManager")) {
             rideHailManagerStuckDetectionLog match {
-              case RideHailManagerStuckDetectionLog(Some(tick), true) if tick==nowInSeconds => // still stuck, no need to print state again
-              case RideHailManagerStuckDetectionLog(Some(tick), false) if tick==nowInSeconds =>
+              case RideHailManagerStuckDetectionLog(Some(tick), true) if tick == nowInSeconds  => // still stuck, no need to print state again
+              case RideHailManagerStuckDetectionLog(Some(tick), false) if tick == nowInSeconds =>
                 // the time has not changed sense set last monitor timeout and RidehailManager still blocking scheduler -> log state and try to remove stuckness
                 rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), true)
                 x.agent ! LogActorState

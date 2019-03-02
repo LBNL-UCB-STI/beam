@@ -3,8 +3,8 @@ package beam.agentsim.agents
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, Props, Stash}
 import beam.agentsim.Resource._
-import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
+import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.household.HouseholdActor.{CAVPickupConfirmed, ReadyForCAVPickup, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
@@ -21,8 +21,9 @@ import beam.agentsim.infrastructure.ParkingManager.ParkingInquiryResponse
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL_POOLED, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL_POOLED, WALK, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
@@ -55,7 +56,8 @@ object PersonAgent {
     personId: Id[PersonAgent],
     householdRef: ActorRef,
     plan: Plan,
-    sharedVehicleFleets: Seq[ActorRef]
+    sharedVehicleFleets: Seq[ActorRef],
+    beamSkimmer: BeamSkimmer
   ): Props = {
     Props(
       new PersonAgent(
@@ -71,7 +73,8 @@ object PersonAgent {
         parkingManager,
         tollCalculator,
         householdRef,
-        sharedVehicleFleets
+        sharedVehicleFleets,
+        beamSkimmer
       )
     )
   }
@@ -174,6 +177,17 @@ object PersonAgent {
   case object DrivingInterrupted extends Traveling
 
   def bodyVehicleIdFromPersonID(id: Id[Person]) = BeamVehicle.createId(id, Some("body"))
+
+  def correctTripEndTime(trip: EmbodiedBeamTrip, endTime: Int, bodyVehicleId: Id[BeamVehicle]) = {
+    if (trip.tripClassifier != WALK) {
+      trip.copy(
+        legs = trip.legs
+          .dropRight(1) :+ EmbodiedBeamLeg.dummyLegAt(endTime, bodyVehicleId, true)
+      )
+    } else {
+      trip
+    }
+  }
 }
 
 class PersonAgent(
@@ -189,7 +203,8 @@ class PersonAgent(
   val parkingManager: ActorRef,
   val tollCalculator: TollCalculator,
   val householdRef: ActorRef,
-  val vehicleFleets: Seq[ActorRef] = Vector()
+  val vehicleFleets: Seq[ActorRef] = Vector(),
+  val beamSkimmer: BeamSkimmer
 ) extends DrivesVehicle[PersonData]
     with ChoosesMode
     with ChoosesParking
@@ -748,6 +763,12 @@ class PersonAgent(
                 0.0 // the cost as paid by person has already been accounted for, this event is just about the incentive
               )
             )
+
+          // Correct the trip to deal with ride hail / disruptions and then register to skimmer
+          beamSkimmer.observeTrip(
+            correctTripEndTime(data.currentTrip.get, tick, bodyVehiclePersonId.vehicleId),
+            beamServices
+          )
 
           eventsManager.processEvent(
             new ActivityStartEvent(

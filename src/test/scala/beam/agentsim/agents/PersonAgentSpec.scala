@@ -22,7 +22,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
-import beam.router.RouteHistory
+import beam.router.{BeamSkimmer, RouteHistory}
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
@@ -193,7 +193,8 @@ class PersonAgentSpec
           plan,
           parkingManager,
           tollCalculator,
-          self
+          self,
+          beamSkimmer = new BeamSkimmer()
         )
       )
 
@@ -254,7 +255,8 @@ class PersonAgentSpec
           Map(),
           new Coord(0.0, 0.0),
           Vector(),
-          new RouteHistory()
+          new RouteHistory(),
+          new BeamSkimmer()
         )
       )
 
@@ -478,7 +480,8 @@ class PersonAgentSpec
           vehicles = Map(),
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
-          new RouteHistory()
+          new RouteHistory(),
+          new BeamSkimmer()
         )
       )
       scheduler ! StartSchedule(0)

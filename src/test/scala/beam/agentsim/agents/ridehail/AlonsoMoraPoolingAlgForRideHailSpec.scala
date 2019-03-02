@@ -1,16 +1,38 @@
 package beam.agentsim.agents.ridehail
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.{ActorRef, ActorSystem}
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import akka.util.Timeout
+import beam.agentsim.agents.choice.mode.ModeIncentive
+import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail.{CustomerRequest, RVGraph, VehicleAndSchedule, _}
+import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.FuelType.FuelType
+import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamSkimmer
+import beam.router.Modes.BeamMode
+import beam.router.osm.TollCalculator
+import beam.router.r5.DefaultNetworkCoordinator
+import beam.sim.BeamServices
+import beam.sim.common.GeoUtilsImpl
+import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.utils.NetworkHelperImpl
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
-import org.matsim.api.core.v01.Coord
-import org.scalatest.FunSpecLike
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.api.core.v01.network.Network
+import org.matsim.core.controler.MatsimServices
+import org.matsim.core.scenario.ScenarioUtils
+import org.matsim.households.HouseholdsFactoryImpl
+import org.mockito.Mockito._
+import org.scalatest.mockito.MockitoSugar
+import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
+import scala.concurrent.ExecutionContext
 
 class AlonsoMoraPoolingAlgForRideHailSpec
     extends TestKit(
@@ -25,10 +47,37 @@ class AlonsoMoraPoolingAlgForRideHailSpec
           .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
-    with FunSpecLike {
+    with Matchers
+    with FunSpecLike
+    with BeforeAndAfterAll
+    with MockitoSugar
+    with ImplicitSender {
 
   val probe: TestProbe = TestProbe.apply()
+  private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
+  private implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val mockActorRef: ActorRef = probe.ref
+  private lazy val beamConfig = BeamConfig(system.settings.config)
+  private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
+  private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
+  private val matsimConfig = configBuilder.buildMatSamConf()
+
+  private lazy val beamSvc: BeamServices = {
+    val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
+    ScenarioUtils.loadScenario(ScenarioUtils.createMutableScenario(matsimConfig))
+    val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
+    val theServices = mock[BeamServices](withSettings().stubOnly())
+    when(theServices.matsimServices).thenReturn(mock[MatsimServices])
+    when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario], scenario)
+    when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
+    when(theServices.beamConfig).thenReturn(beamConfig)
+    when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
+    when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
+    when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
+    when(theServices.fuelTypePrices).thenReturn(mock[Map[FuelType, Double]])
+    when(theServices.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
+    theServices
+  }
 
   describe("AlonsoMoraPoolingAlgForRideHail") {
     it("Creates a consistent plan") {
@@ -39,7 +88,8 @@ class AlonsoMoraPoolingAlgForRideHailSpec
           AlonsoMoraPoolingAlgForRideHail.demandSpatialIndex(sc._2),
           sc._1,
           Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
-          maxRequestsPerVehicle = 1000
+          maxRequestsPerVehicle = 1000,
+          beamSvc
         )
 
       val rvGraph: RVGraph = alg.pairwiseRVGraph
@@ -80,7 +130,7 @@ class AlonsoMoraPoolingAlgForRideHailSpec
         }
       }
 
-      val rtvGraph = alg.rTVGraph(rvGraph)
+      val rtvGraph = alg.rTVGraph(rvGraph, beamSvc)
 
       for (v <- rtvGraph.vertexSet().asScala.filter(_.isInstanceOf[RideHailTrip])) {
         v.getId match {
