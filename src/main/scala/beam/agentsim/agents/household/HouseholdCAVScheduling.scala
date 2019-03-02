@@ -20,7 +20,6 @@ import scala.collection.immutable.{List, Map}
 import scala.collection.mutable
 
 class HouseholdCAVScheduling(
-  val scenario: org.matsim.api.core.v01.Scenario,
   val household: Household,
   val householdVehicles: List[BeamVehicle],
   val timeWindow: Map[MobilityServiceRequestType, Int],
@@ -29,7 +28,8 @@ class HouseholdCAVScheduling(
   val skim: BeamSkimmer,
   val beamServices: BeamServices
 ) {
-  implicit val pop: org.matsim.api.core.v01.population.Population = scenario.getPopulation
+  implicit val population: org.matsim.api.core.v01.population.Population =
+    beamServices.matsimServices.getScenario.getPopulation
   import beam.agentsim.agents.memberships.Memberships.RankedGroup._
   private val householdPlans =
     household.members.take(limitCavToXPersons).map(person => BeamPlan(person.getSelectedPlan))
