@@ -6,7 +6,18 @@ import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.BeamSkimmer._
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  CAR,
+  CAV,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
@@ -26,15 +37,14 @@ class BeamSkimmer @Inject()() extends IterationEndsListener {
   var previousModalAverage: TrieMap[BeamMode, SkimInternal] = TrieMap()
   var modalAverage: TrieMap[BeamMode, SkimInternal] = TrieMap()
 
-
   def getTimeDistanceAndCost(
-                              origin: Location,
-                              destination: Location,
-                              departureTime: Int,
-                              mode: BeamMode,
-                              vehicleTypeId: org.matsim.api.core.v01.Id[BeamVehicleType],
-                              beamServicesOpt: Option[BeamServices] = None
-                            ): Skim = {
+    origin: Location,
+    destination: Location,
+    departureTime: Int,
+    mode: BeamMode,
+    vehicleTypeId: org.matsim.api.core.v01.Id[BeamVehicleType],
+    beamServicesOpt: Option[BeamServices] = None
+  ): Skim = {
     beamServicesOpt match {
       case Some(beamServices) =>
         val origTaz = beamServices.tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
@@ -72,12 +82,12 @@ class BeamSkimmer @Inject()() extends IterationEndsListener {
   }
 
   def getRideHailPoolingTimeAndCostRatios(
-                                           origin: Location,
-                                           destination: Location,
-                                           departureTime: Int,
-                                           vehicleTypeId: org.matsim.api.core.v01.Id[BeamVehicleType],
-                                           beamServices: BeamServices
-                                         ): (Double, Double) = {
+    origin: Location,
+    destination: Location,
+    departureTime: Int,
+    vehicleTypeId: org.matsim.api.core.v01.Id[BeamVehicleType],
+    beamServices: BeamServices
+  ): (Double, Double) = {
     val origTaz = beamServices.tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
     val destTaz = beamServices.tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
     val solo = getSkimValue(departureTime, RIDE_HAIL, origTaz, destTaz) match {
@@ -152,7 +162,12 @@ class BeamSkimmer @Inject()() extends IterationEndsListener {
     val timeBin = timeToBin(origLeg.startTime)
     val key = (timeBin, mode, origTaz, destTaz)
     val payload =
-      SkimInternal(trip.totalTravelTimeInSecs.toDouble, trip.beamLegs().map(_.travelPath.distanceInM).sum, trip.costEstimate, 1)
+      SkimInternal(
+        trip.totalTravelTimeInSecs.toDouble,
+        trip.beamLegs().map(_.travelPath.distanceInM).sum,
+        trip.costEstimate,
+        1
+      )
     skims.get(key) match {
       case Some(existingSkim) =>
         val newPayload = SkimInternal(
@@ -230,10 +245,8 @@ object BeamSkimmer {
     TRANSIT           -> transitSpeedMeterPerSec
   )
 
-
-  case class SkimInternal(time: Double, distance: Double, cost: Double, count: Int){
-    def toSkimExternal: Skim = Skim(time.toInt,distance,cost,count)
+  case class SkimInternal(time: Double, distance: Double, cost: Double, count: Int) {
+    def toSkimExternal: Skim = Skim(time.toInt, distance, cost, count)
   }
   case class Skim(time: Int, distance: Double, cost: Double, count: Int)
 }
-

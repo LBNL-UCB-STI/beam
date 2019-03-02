@@ -33,24 +33,24 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
 
 import scala.collection.immutable.List
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.ExecutionContext
 
 class HouseholdCAVSchedulingTest
-  extends TestKit(
-    ActorSystem(
-      name = "HouseholdCAVSchedulingTestSpec",
-      config = ConfigFactory
-        .parseString(
-          """
+    extends TestKit(
+      ActorSystem(
+        name = "HouseholdCAVSchedulingTestSpec",
+        config = ConfigFactory
+          .parseString(
+            """
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
         """
-        )
-        .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+          )
+          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+      )
     )
-  )
     with Matchers
     with FunSpecLike
     with BeforeAndAfterAll
@@ -82,7 +82,11 @@ class HouseholdCAVSchedulingTest
 
     it("generate two schedules") {
       val cavs = List[BeamVehicle](
-        new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), HouseholdCAVSchedulingTest.defaultCAVBeamVehicleType)
+        new BeamVehicle(
+          Id.createVehicleId("id1"),
+          new Powertrain(0.0),
+          HouseholdCAVSchedulingTest.defaultCAVBeamVehicleType
+        )
       )
       val (pop: Population, household) = HouseholdCAVSchedulingTest.scenario1(cavs)
 
@@ -105,7 +109,11 @@ class HouseholdCAVSchedulingTest
 
     it("pool two persons for both trips") {
       val vehicles = List[BeamVehicle](
-        new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), HouseholdCAVSchedulingTest.defaultCAVBeamVehicleType),
+        new BeamVehicle(
+          Id.createVehicleId("id1"),
+          new Powertrain(0.0),
+          HouseholdCAVSchedulingTest.defaultCAVBeamVehicleType
+        ),
         new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), BeamVehicleType.defaultCarBeamVehicleType)
       )
       val (pop: Population, household) = HouseholdCAVSchedulingTest.scenario2(vehicles)
@@ -139,7 +147,11 @@ class HouseholdCAVSchedulingTest
 
     it("generate twelve trips") {
       val vehicles = List[BeamVehicle](
-        new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), HouseholdCAVSchedulingTest.defaultCAVBeamVehicleType)
+        new BeamVehicle(
+          Id.createVehicleId("id1"),
+          new Powertrain(0.0),
+          HouseholdCAVSchedulingTest.defaultCAVBeamVehicleType
+        )
       )
       val (pop: Population, household) = HouseholdCAVSchedulingTest.scenario4(vehicles)
 
@@ -324,21 +336,22 @@ object HouseholdCAVSchedulingTest {
     val households: mutable.ListBuffer[(Household, List[BeamVehicle])] =
       mutable.ListBuffer.empty[(Household, List[BeamVehicle])]
     import scala.collection.JavaConverters._
-    for(hh: Household <- sc.getHouseholds.getHouseholds.asScala.values){
+    for (hh: Household <- sc.getHouseholds.getHouseholds.asScala.values) {
       //hh.asInstanceOf[HouseholdImpl].setMemberIds(hh.getMemberIds)
       val vehicles = List[BeamVehicle](
         new BeamVehicle(
-          Id.createVehicleId(hh.getId.toString+"-veh1"),
+          Id.createVehicleId(hh.getId.toString + "-veh1"),
           new Powertrain(0.0),
           HouseholdCAVSchedulingTest.defaultCAVBeamVehicleType
         ),
         new BeamVehicle(
-          Id.createVehicleId(hh.getId.toString+"-veh2"),
+          Id.createVehicleId(hh.getId.toString + "-veh2"),
           new Powertrain(0.0),
           HouseholdCAVSchedulingTest.defaultCAVBeamVehicleType
         )
       )
-      hh.asInstanceOf[HouseholdImpl].setVehicleIds(JavaConverters.seqAsJavaList(vehicles.map(veh => veh.toStreetVehicle.id)))
+      hh.asInstanceOf[HouseholdImpl]
+        .setVehicleIds(JavaConverters.seqAsJavaList(vehicles.map(veh => veh.toStreetVehicle.id)))
       households.append((hh.asInstanceOf[HouseholdImpl], vehicles))
     }
     (sc.getPopulation, households.toList)

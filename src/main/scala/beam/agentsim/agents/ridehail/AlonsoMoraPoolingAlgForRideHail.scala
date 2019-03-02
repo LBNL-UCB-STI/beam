@@ -206,7 +206,11 @@ object AlonsoMoraPoolingAlgForRideHail {
     )
   }
 
-  def getRidehailSchedule(timeWindow: Map[MobilityRequestTrait, Int], requests: List[MobilityRequest], beamServices: BeamServices)(
+  def getRidehailSchedule(
+    timeWindow: Map[MobilityRequestTrait, Int],
+    requests: List[MobilityRequest],
+    beamServices: BeamServices
+  )(
     implicit skimmer: BeamSkimmer
   ): Option[List[MobilityRequest]] = {
     val sortedRequests = requests.sortWith(_.time < _.time)

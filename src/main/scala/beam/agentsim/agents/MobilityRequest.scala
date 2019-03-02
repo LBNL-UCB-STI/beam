@@ -10,7 +10,6 @@ case object Dropoff extends MobilityRequestTrait
 case object Relocation extends MobilityRequestTrait
 case object Init extends MobilityRequestTrait
 
-
 case class MobilityRequest(
   person: Option[VehiclePersonId],
   activity: Activity,
@@ -33,7 +32,7 @@ case class MobilityRequest(
   override def toString: String = {
     val personid = person match {
       case Some(p) => p.personId.toString
-      case None => "None"
+      case None    => "None"
     }
     s"${formatTime(time)}|$tag|${personid}|${activity.getType}| => ${formatTime(serviceTime)}"
   }
