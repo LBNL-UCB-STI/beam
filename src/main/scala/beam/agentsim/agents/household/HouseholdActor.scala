@@ -214,13 +214,12 @@ object HouseholdActor {
             }
           }
 
-
           val cavScheduler = new FastHouseholdCAVScheduling(
             household,
             cavs,
             Map((Pickup, 5 * 60), (Dropoff, 10 * 60)),
             beamServices = Some(beamServices),
-            skimmer=beamSkimmer
+            skimmer = beamSkimmer
           )(beamServices.matsimServices.getScenario.getPopulation)
 
 //          var optimalPlan = cavScheduler.getKBestSchedules(1).head.cavFleetSchedule

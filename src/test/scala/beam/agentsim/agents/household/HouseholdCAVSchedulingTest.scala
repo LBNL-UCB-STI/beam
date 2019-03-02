@@ -33,7 +33,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
 
 import scala.collection.immutable.List
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.ExecutionContext
 
 class HouseholdCAVSchedulingTest
@@ -96,7 +96,7 @@ class HouseholdCAVSchedulingTest
         household,
         cavs,
         Map((Pickup, 2), (Dropoff, 2)),
-        skimmer=skimmer
+        skimmer = skimmer
       )(pop)
       val schedules = alg.getAllFeasibleSchedules()
       schedules should have length 2
@@ -124,7 +124,7 @@ class HouseholdCAVSchedulingTest
         vehicles,
         Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
         stopSearchAfterXSolutions = 5000,
-        skimmer=skimmer
+        skimmer = skimmer
       )(pop)
       val schedule = alg.getBestScheduleWithTheLongestCAVChain.head
 
@@ -159,7 +159,7 @@ class HouseholdCAVSchedulingTest
         vehicles,
         Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
         stopSearchAfterXSolutions = 2000,
-        skimmer=skimmer
+        skimmer = skimmer
       )(pop)
       val schedule = alg.getBestScheduleWithTheLongestCAVChain.head
 
@@ -178,7 +178,7 @@ class HouseholdCAVSchedulingTest
           households.head._1,
           households.head._2,
           Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
-          skimmer=skimmer
+          skimmer = skimmer
         )(pop)
       val schedule = alg.getAllFeasibleSchedules()
 

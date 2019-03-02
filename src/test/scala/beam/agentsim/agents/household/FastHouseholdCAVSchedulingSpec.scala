@@ -86,7 +86,7 @@ class FastHouseholdCAVSchedulingSpec
       )
       val (pop: Population, household) = HouseholdCAVSchedulingTest.scenario1(cavs)
 
-      val alg = new FastHouseholdCAVScheduling(household, cavs, Map((Pickup, 2), (Dropoff, 2)), skimmer=skimmer)(pop)
+      val alg = new FastHouseholdCAVScheduling(household, cavs, Map((Pickup, 2), (Dropoff, 2)), skimmer = skimmer)(pop)
       val schedules = alg.getAllFeasibleSchedules
       schedules should have length 1
       schedules foreach (_.schedulesMap(cavs.head) should (have length 1 or have length 6))
@@ -108,7 +108,7 @@ class FastHouseholdCAVSchedulingSpec
         cavs,
         Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
         stopSearchAfterXSolutions = 5000,
-        skimmer=skimmer
+        skimmer = skimmer
       )(pop)
       val schedules = alg.getAllFeasibleSchedules
       schedules should have length 3
@@ -135,7 +135,7 @@ class FastHouseholdCAVSchedulingSpec
         cavs,
         Map((Pickup, 60 * 60), (Dropoff, 60 * 60)),
         stopSearchAfterXSolutions = 5000,
-        skimmer=skimmer
+        skimmer = skimmer
       )(pop)
       // first check
       val schedules1 = alg.getAllFeasibleSchedules
@@ -162,7 +162,7 @@ class FastHouseholdCAVSchedulingSpec
             vehicles,
             Map((Pickup, 15 * 60), (Dropoff, 15 * 60)),
             stopSearchAfterXSolutions = Int.MaxValue,
-            skimmer=skimmer
+            skimmer = skimmer
           )(pop)
         val schedules = alg.getAllFeasibleSchedules
         sum += schedules.size
