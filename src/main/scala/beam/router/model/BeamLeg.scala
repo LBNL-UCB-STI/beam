@@ -74,11 +74,16 @@ object BeamLeg {
   }
 
   def makeVectorLegsConsistent(legs: Vector[BeamLeg]): Vector[BeamLeg] = {
-    var runningStartTime = legs.head.startTime
-    for (leg <- legs) yield {
-      val newLeg = leg.updateStartTime(runningStartTime)
-      runningStartTime = newLeg.endTime
-      newLeg
+    legs.isEmpty match{
+      case true =>
+        legs
+      case false =>
+        var runningStartTime = legs.head.startTime
+        for (leg <- legs) yield {
+          val newLeg = leg.updateStartTime(runningStartTime)
+          runningStartTime = newLeg.endTime
+          newLeg
+        }
     }
   }
 }
