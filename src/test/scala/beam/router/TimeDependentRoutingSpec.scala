@@ -284,7 +284,14 @@ class TimeDependentRoutingSpec
         28800,
         BeamMode.CAR,
         0,
-        BeamPath(Vector(1, 2, 3, 4), Vector(1,1,1,1), None, SpaceTime(0.0, 0.0, 28800), SpaceTime(1.0, 1.0, 28900), 1000.0)
+        BeamPath(
+          Vector(1, 2, 3, 4),
+          Vector(1, 1, 1, 1),
+          None,
+          SpaceTime(0.0, 0.0, 28800),
+          SpaceTime(1.0, 1.0, 28900),
+          1000.0
+        )
       )
       router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), BeamVehicleType.defaultCarBeamVehicleType.id)
       val response = expectMsgType[RoutingResponse]
