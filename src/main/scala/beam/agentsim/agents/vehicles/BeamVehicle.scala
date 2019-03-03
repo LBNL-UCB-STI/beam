@@ -274,8 +274,8 @@ object BeamVehicle {
     if (beamLeg.mode.isTransit & !Modes.isOnStreetTransit(beamLeg.mode)) {
       Vector.empty
     } else {
-      val linkIds = beamLeg.travelPath.linkIds.tail
-      val linkTravelTimes: IndexedSeq[Int] = beamLeg.travelPath.linkTravelTime.tail
+      val linkIds = beamLeg.travelPath.linkIds.drop(1)
+      val linkTravelTimes: IndexedSeq[Int] = beamLeg.travelPath.linkTravelTime.drop(1)
       // generate the link arrival times for each link ,by adding cumulative travel times of previous links
 //      val linkArrivalTimes = linkTravelTimes.scan(beamLeg.startTime)((enterTime,duration) => enterTime + duration).dropRight(1)
 //      val nextLinkIds = linkIds.takeRight(linkIds.size - 1)

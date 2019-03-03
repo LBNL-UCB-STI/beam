@@ -150,19 +150,20 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
           0
       }
       assert(numTransfers >= 0)
+      val scaledTime = altAndIdx._1.legs
+        .map(
+          x =>
+            attributesOfIndividual
+              .getVOT(x, modeMultipliers, situationMultipliers, poolingMultipliers, beamServices, destinationActivity)
+        )
+        .sum +
+        attributesOfIndividual.getModeVotMultiplier(None, modeMultipliers) * attributesOfIndividual.unitConversionVOTT(
+          waitTime
+        )
       ModeCostTimeTransfer(
         mode,
         incentivizedCost,
-        altAndIdx._1.legs
-          .map(
-            x =>
-              attributesOfIndividual
-                .getVOT(x, modeMultipliers, situationMultipliers, poolingMultipliers, beamServices, destinationActivity)
-          )
-          .sum +
-        attributesOfIndividual.getModeVotMultiplier(None, modeMultipliers) * attributesOfIndividual.unitConversionVOTT(
-          waitTime
-        ),
+        scaledTime,
         numTransfers,
         altAndIdx._2
       )
