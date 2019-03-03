@@ -189,7 +189,7 @@ class TimeDependentRoutingSpec
       val response2 = expectMsgType[RoutingResponse]
       assert(response2.itineraries.exists(_.tripClassifier == CAR))
       val carOption2 = response2.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption2.totalTravelTimeInSecs < 7) // isn't exactly 0, probably rounding errors?
+      assert(carOption2.totalTravelTimeInSecs == 0) // isn't exactly 0, probably rounding errors?
 
       router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
       router ! RoutingRequest(
@@ -210,7 +210,7 @@ class TimeDependentRoutingSpec
       val response3 = expectMsgType[RoutingResponse]
       assert(response3.itineraries.exists(_.tripClassifier == CAR))
       val carOption3 = response3.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption3.totalTravelTimeInSecs < 2071) // isn't exactly 2000, probably rounding errors?
+      assert(carOption3.totalTravelTimeInSecs == 3000) // isn't exactly 2000, probably rounding errors?
     }
 
     "find an equilibrium between my estimation and my experience when I report my self-decided link travel times back to it" in {
