@@ -220,8 +220,7 @@ object PopulationAdjustment extends LazyLogging {
     val modalityStyle =
       Option(person.getSelectedPlan)
         .map(_.getAttributes)
-        .map(_.getAttribute("modality-style"))
-        .map(_.asInstanceOf[String])
+        .flatMap(attrib => Option(attrib.getAttribute("modality-style")).map(_.toString))
 
     // Read household attributes for the person
     val householdAttributes = beamServices.personHouseholds.get(person.getId).fold(HouseholdAttributes.EMPTY) {
