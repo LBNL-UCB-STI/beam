@@ -1,6 +1,9 @@
-package beam.utils.scenario
+package beam.utils.scenario.urbansim
 
-trait ScenarioReader {
+import beam.utils.scenario.InputType
+import beam.utils.scenario.urbansim.DataExchange._
+
+trait UrbanSimScenarioReader {
   def inputType: InputType
   def readUnitsFile(path: String): Array[UnitInfo]
   def readParcelAttrFile(path: String): Array[ParcelAttribute]
@@ -10,7 +13,7 @@ trait ScenarioReader {
   def readHouseholdsFile(path: String): Array[HouseholdInfo]
 }
 
-object ScenarioReader {
+object UrbanSimScenarioReader {
 
   def fixParcelId(rawParcelId: String): String = fixId(rawParcelId)
 

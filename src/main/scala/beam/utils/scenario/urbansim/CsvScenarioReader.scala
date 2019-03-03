@@ -1,13 +1,15 @@
-package beam.utils.scenario
+package beam.utils.scenario.urbansim
 
-import beam.utils._
+import beam.utils.scenario.InputType
+import beam.utils.scenario.urbansim.DataExchange._
+import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
 import scala.reflect.ClassTag
 
-object CsvScenarioReader extends ScenarioReader with LazyLogging {
+object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
 
   def main(array: Array[String]): Unit = {
 
@@ -106,8 +108,8 @@ object CsvScenarioReader extends ScenarioReader with LazyLogging {
   }
 
   private def toBuildingInfo(rec: java.util.Map[String, String]): BuildingInfo = {
-    val parcelId: String = ScenarioReader.fixParcelId(getIfNotNull(rec, "parcel_id"))
-    val buildingId: String = ScenarioReader.fixBuildingId(getIfNotNull(rec, "building_id"))
+    val parcelId: String = UrbanSimScenarioReader.fixParcelId(getIfNotNull(rec, "parcel_id"))
+    val buildingId: String = UrbanSimScenarioReader.fixBuildingId(getIfNotNull(rec, "building_id"))
     BuildingInfo(parcelId = parcelId, buildingId = buildingId)
   }
 

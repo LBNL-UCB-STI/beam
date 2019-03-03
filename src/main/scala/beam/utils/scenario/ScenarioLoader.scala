@@ -1,4 +1,4 @@
-package beam.utils
+package beam.utils.scenario
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
@@ -6,9 +6,8 @@ import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.plan.sampling.AvailableModeUtils
-import beam.utils.scenario._
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.{Person, Population}
+import org.matsim.api.core.v01.population.Population
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.MutableScenario
@@ -16,69 +15,41 @@ import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.JavaConverters._
-import scala.collection.parallel.immutable.ParMap
 
 class ScenarioLoader(
   var scenario: MutableScenario,
   var beamServices: BeamServices,
-  val scenarioReader: ScenarioReader
+  val scenarioSource: ScenarioSource
 ) extends LazyLogging {
 
   val population: Population = scenario.getPopulation
-  val scenarioFolder: String = beamServices.beamConfig.beam.agentsim.agents.population.beamPopulationDirectory
-  val fileExt: String = scenarioReader.inputType.toFileExt
-  val buildingFilePath: String = s"$scenarioFolder/buildings.$fileExt"
-  val personFilePath: String = s"$scenarioFolder/persons.$fileExt"
-  val householdFilePath: String = s"$scenarioFolder/households.$fileExt"
-
-  val planFilePath: String = s"$scenarioFolder/plans.$fileExt"
-  val unitFilePath: String = s"$scenarioFolder/units.$fileExt"
-  val parcelAttrFilePath: String = s"$scenarioFolder/parcel_attr.$fileExt"
 
   val availableModes: String = BeamMode.allModes.map(_.value).mkString(",")
-
-  def getHouseholdIdToCoord(householdsWithMembers: Array[HouseholdInfo]): Map[String, Coord] = {
-    val units = scenarioReader.readUnitsFile(unitFilePath)
-    val parcelAttrs = scenarioReader.readParcelAttrFile(parcelAttrFilePath)
-    val buildings = scenarioReader.readBuildingsFile(buildingFilePath)
-    val unitIdToCoord = ProfilingUtils.timed("getUnitIdToCoord", x => logger.info(x)) {
-      getUnitIdToCoord(units, parcelAttrs, buildings)
-    }
-    householdsWithMembers.map { hh =>
-      val coord = unitIdToCoord.getOrElse(hh.unitId, {
-        logger.warn(s"Could not find coordinate for `household` ${hh.householdId} and `unitId`'${hh.unitId}'")
-        new Coord(0, 0)
-      })
-      hh.householdId -> coord
-    }.toMap
-  }
 
   def loadScenario(): Unit = {
     clear()
 
-    val plans = scenarioReader.readPlansFile(planFilePath)
+    val plans = scenarioSource.getPlans
     logger.info(s"Read ${plans.size} plans")
 
     val personsWithPlans = {
-      val persons = scenarioReader.readPersonsFile(personFilePath)
+      val persons: Iterable[PersonInfo] = scenarioSource.getPersons
       logger.info(s"Read ${persons.size} persons")
       getPersonsWithPlan(persons, plans)
     }
     logger.info(s"There are ${personsWithPlans.size} persons with plans")
 
-    val householdIdToPersons: Map[String, Array[PersonInfo]] = personsWithPlans.groupBy(_.householdId)
+    val householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]] = personsWithPlans.groupBy(_.householdId)
 
     val householdsWithMembers = {
-      val households: Array[HouseholdInfo] = scenarioReader.readHouseholdsFile(householdFilePath)
+      val households = scenarioSource.getHousehold
       logger.info(s"Read ${households.size} households")
       households.filter(household => householdIdToPersons.contains(household.householdId))
     }
     logger.info(s"There are ${householdsWithMembers.size} non-empty households")
 
-    val householdIdToCoord = getHouseholdIdToCoord(householdsWithMembers)
-
     logger.info("Applying households...")
-    applyHousehold(householdsWithMembers, householdIdToCoord, householdIdToPersons)
+    applyHousehold(householdsWithMembers, householdIdToPersons)
     // beamServices.privateVehicles is properly populated here, after `applyHousehold` call
 
     // We have to override personHouseholds because we just loaded new households
@@ -106,51 +77,17 @@ class ScenarioLoader(
     beamServices.privateVehicles.clear()
   }
 
-  private[utils] def getUnitIdToCoord(
-    units: Array[UnitInfo],
-    parcelAttrs: Array[ParcelAttribute],
-    buildings: Array[BuildingInfo]
-  ): Map[String, Coord] = {
-    val parcelIdToCoord: ParMap[String, Coord] = parcelAttrs.par.groupBy(_.primaryId).map {
-      case (k, v) =>
-        val pa = v.head
-        val coord = if (beamServices.beamConfig.beam.agentsim.agents.population.convertWgs2Utm) {
-          beamServices.geo.wgs2Utm(new Coord(pa.x, pa.y))
-        } else {
-          new Coord(pa.x, pa.y)
-        }
-        k -> coord
-    }
-    val buildingId2ToParcelId: ParMap[String, String] =
-      buildings.par.groupBy(x => x.buildingId).map { case (k, v) => k -> v.head.parcelId }
-    val unitIdToBuildingId: ParMap[String, String] =
-      units.par.groupBy(_.unitId).map { case (k, v) => k -> v.head.buildingId }
-
-    unitIdToBuildingId.map {
-      case (unitId, buildingId) =>
-        val coord = buildingId2ToParcelId.get(buildingId) match {
-          case Some(parcelId) =>
-            parcelIdToCoord.getOrElse(parcelId, {
-              logger.warn(s"Could not find coordinate for `parcelId` '${parcelId}'")
-              new Coord(0, 0)
-            })
-          case None =>
-            logger.warn(s"Could not find `parcelId` for `building_id` '${buildingId}'")
-            new Coord(0, 0)
-        }
-        unitId -> coord
-    }.seq
-  }
-
-  private[utils] def getPersonsWithPlan(persons: Array[PersonInfo], plans: Array[PlanInfo]): Array[PersonInfo] = {
+  private[utils] def getPersonsWithPlan(
+    persons: Iterable[PersonInfo],
+    plans: Iterable[PlanInfo]
+  ): Iterable[PersonInfo] = {
     val personIdsWithPlan = plans.map(_.personId).toSet
     persons.filter(person => personIdsWithPlan.contains(person.personId))
   }
 
   private[utils] def applyHousehold(
-    households: Array[HouseholdInfo],
-    householdIdToCoord: Map[String, Coord],
-    householdIdToPersons: Map[String, Array[PersonInfo]]
+    households: Iterable[HouseholdInfo],
+    householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]]
   ): Unit = {
     val scenarioHouseholdAttributes = scenario.getHouseholds.getHouseholdAttributes
     val scenarioHouseholds = scenario.getHouseholds.getHouseholds
@@ -158,20 +95,22 @@ class ScenarioLoader(
     var vehicleCounter: Int = 0
 
     households.foreach { householdInfo =>
-      val id = Id.create(householdInfo.householdId, classOf[Household])
+      val id = Id.create(householdInfo.householdId.id, classOf[org.matsim.households.Household])
       val household = new HouseholdsFactoryImpl().createHousehold(id)
-      val coord = householdIdToCoord.getOrElse(householdInfo.householdId, {
-        logger.warn(s"Could not find coordinate for `householdId` '${householdInfo.householdId}'")
-        new Coord(0, 0)
-      })
+      val coord = if (beamServices.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
+        beamServices.geo.wgs2Utm(new Coord(householdInfo.x, householdInfo.y))
+      } else {
+        new Coord(householdInfo.x, householdInfo.y)
+      }
+
       household.setIncome(new IncomeImpl(householdInfo.income, Income.IncomePeriod.year))
 
       householdIdToPersons.get(householdInfo.householdId) match {
         case Some(persons) =>
-          val personIds = persons.map(x => Id.createPersonId(x.personId)).toList.asJava
+          val personIds = persons.map(x => Id.createPersonId(x.personId.id)).toList.asJava
           household.setMemberIds(personIds)
         case None =>
-          logger.warn(s"Could not find persons for the `houshold_id` '${householdInfo.householdId}'")
+          logger.warn(s"Could not find persons for the `household_id` '${householdInfo.householdId}'")
       }
       val vehicleTypes = VehiclesAdjustment
         .getVehicleAdjustment(beamServices)
@@ -203,12 +142,14 @@ class ScenarioLoader(
     }
   }
 
-  private[utils] def applyPersons(persons: Array[PersonInfo]): Unit = {
+  private[utils] def applyPersons(persons: Iterable[PersonInfo]): Unit = {
     persons.foreach { personInfo =>
-      val person: Person = population.getFactory.createPerson(Id.createPersonId(personInfo.personId))
+      val person = population.getFactory.createPerson(Id.createPersonId(personInfo.personId.id))
       val personId = person.getId.toString
       val personAttrib = population.getPersonAttributes
+      // FIXME Search for "householdId" in the code does not show any place where it used
       personAttrib.putAttribute(personId, "householdId", personInfo.householdId)
+      // FIXME Search for "householdId" in the code does not show any place where it used
       personAttrib.putAttribute(personId, "rank", personInfo.rank)
       personAttrib.putAttribute(personId, "age", personInfo.age)
       AvailableModeUtils.setAvailableModesForPerson_v2(beamServices, person, population, availableModes.split(","))
@@ -216,9 +157,9 @@ class ScenarioLoader(
     }
   }
 
-  private[utils] def applyPlans(plans: Array[PlanInfo]): Unit = {
+  private[utils] def applyPlans(plans: Iterable[PlanInfo]): Unit = {
     plans.foreach { planInfo =>
-      val person = population.getPersons.get(Id.createPersonId(planInfo.personId))
+      val person = population.getPersons.get(Id.createPersonId(planInfo.personId.id))
       if (person != null) {
         var plan = person.getSelectedPlan
         if (plan == null) {
@@ -237,7 +178,7 @@ class ScenarioLoader(
         } else if (planElement.equalsIgnoreCase("activity")) {
           assert(planInfo.x.isDefined, s"planElement is `activity`, but `x` is None! planInfo: $planInfo")
           assert(planInfo.y.isDefined, s"planElement is `activity`, but `y` is None! planInfo: $planInfo")
-          val coord = if (beamServices.beamConfig.beam.agentsim.agents.population.convertWgs2Utm) {
+          val coord = if (beamServices.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
             beamServices.geo.wgs2Utm(new Coord(planInfo.x.get, planInfo.y.get))
           } else {
             new Coord(planInfo.x.get, planInfo.y.get)

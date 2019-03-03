@@ -1,12 +1,14 @@
-package beam.utils.scenario
+package beam.utils.scenario.urbansim
 
-import beam.utils._
+import beam.utils.scenario.InputType
+import beam.utils.scenario.urbansim.DataExchange._
+import beam.utils.{ParquetReader, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.avro.generic.GenericRecord
 
 import scala.reflect.ClassTag
 
-object ParquetScenarioReader extends ScenarioReader with LazyLogging {
+object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
 
   def main(array: Array[String]): Unit = {
     //    readUnitsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\units.parquet").take(3).foreach(println)
@@ -95,8 +97,8 @@ object ParquetScenarioReader extends ScenarioReader with LazyLogging {
   }
 
   private[scenario] def toBuildingInfo(rec: GenericRecord): BuildingInfo = {
-    val parcelId: String = ScenarioReader.fixParcelId(getIfNotNull(rec, "parcel_id").toString)
-    val buildingId: String = ScenarioReader.fixBuildingId(getIfNotNull(rec, "building_id").toString)
+    val parcelId: String = UrbanSimScenarioReader.fixParcelId(getIfNotNull(rec, "parcel_id").toString)
+    val buildingId: String = UrbanSimScenarioReader.fixBuildingId(getIfNotNull(rec, "building_id").toString)
     BuildingInfo(parcelId = parcelId, buildingId = buildingId)
   }
 

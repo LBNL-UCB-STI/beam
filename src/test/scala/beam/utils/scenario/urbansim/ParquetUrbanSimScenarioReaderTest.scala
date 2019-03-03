@@ -1,4 +1,6 @@
-package beam.utils.scenario
+package beam.utils.scenario.urbansim
+
+import beam.utils.scenario.urbansim.DataExchange._
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.mockito.MockitoSugar
@@ -14,7 +16,7 @@ class GenericRecordMock(val map: java.util.Map[String, AnyRef]) extends GenericR
   override def getSchema: Schema = ???
 }
 
-class ParquetScenarioReaderTest extends WordSpec with Matchers with MockitoSugar {
+class ParquetUrbanSimScenarioReaderTest extends WordSpec with Matchers with MockitoSugar {
   "A ParquetScenarioReader" should {
     "get the value by key returns value" when {
       "it is not null" in {

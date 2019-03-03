@@ -20,7 +20,9 @@ import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationAdjustment
 import beam.utils.reflection.ReflectionUtils
-import beam.utils.scenario.{CsvScenarioReader, InputType, ParquetScenarioReader}
+import beam.utils.scenario.matsim.MatsimScenarioSource
+import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
+import beam.utils.scenario.{InputType, ScenarioLoader, ScenarioSource}
 import beam.utils.{NetworkHelper, _}
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
@@ -368,6 +370,9 @@ trait BeamHelper extends LazyLogging {
 
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
     val (scenario, outputDir, networkCoordinator) = setupBeamWithConfig(config)
+
+    // beam.utils.scenario.CsvScenarioWriter.write(scenario, "c:/temp/csv_scenario_1k/")
+
     runBeam(config, scenario, networkCoordinator)
     (scenario.getConfig, outputDir)
   }
@@ -394,21 +399,11 @@ trait BeamHelper extends LazyLogging {
 
     val beamConfig = beamServices.beamConfig
     val useExternalDataForScenario: Boolean =
-      Option(beamConfig.beam.agentsim.agents.population.beamPopulationDirectory).exists(!_.isEmpty)
+      Option(beamConfig.beam.exchange.scenario.folder).exists(!_.isEmpty)
     if (useExternalDataForScenario) {
-      val inputType: InputType = Option(beamConfig.beam.agentsim.agents.population.inputFileFormat)
-        .map(str => InputType(str.toLowerCase))
-        .getOrElse(
-          throw new IllegalStateException(
-            s"`beamConfig.beam.agentsim.agents.population.inputFileFormat` is null or empty!"
-          )
-        )
-      val scenarioReader = inputType match {
-        case InputType.CSV     => CsvScenarioReader
-        case InputType.Parquet => ParquetScenarioReader
-      }
-      ProfilingUtils.timed("Load scenario", x => logger.info(x)) {
-        new ScenarioLoader(scenario, beamServices, scenarioReader).loadScenario()
+      val scenarioSource = getScenarioSource(beamServices, beamConfig)
+      ProfilingUtils.timed(s"Load scenario using ${scenarioSource.getClass}", x => logger.info(x)) {
+        new ScenarioLoader(scenario, beamServices, scenarioSource).loadScenario()
       }
     }
 
@@ -533,6 +528,34 @@ trait BeamHelper extends LazyLogging {
         .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
         .toMap
     }
+  }
+
+  def getScenarioSource(beamServices: BeamServices, beamConfig: BeamConfig): ScenarioSource = {
+    val src = beamConfig.beam.exchange.scenario.source.toLowerCase
+    if (src == "urbansim") {
+      val fileFormat: InputType = Option(beamConfig.beam.exchange.scenario.fileFormat)
+        .map(str => InputType(str.toLowerCase))
+        .getOrElse(
+          throw new IllegalStateException(
+            s"`beamConfig.beam.exchange.scenario.fileFormat` is null or empty!"
+          )
+        )
+      val scenarioReader = fileFormat match {
+        case InputType.CSV     => CsvScenarioReader
+        case InputType.Parquet => ParquetScenarioReader
+      }
+      new UrbanSimScenarioSource(
+        scenarioFolder = beamConfig.beam.exchange.scenario.folder,
+        rdr = scenarioReader,
+        geoUtils = beamServices.geo,
+        shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
+      )
+    } else if (src == "matsim") {
+      new MatsimScenarioSource(
+        scenarioFolder = beamConfig.beam.exchange.scenario.folder,
+        rdr = beam.utils.scenario.matsim.CsvScenarioReader
+      )
+    } else throw new NotImplementedError(s"ScenarioSource '${src}' is not yet implemented")
   }
 }
 

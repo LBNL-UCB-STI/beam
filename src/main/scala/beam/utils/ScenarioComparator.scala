@@ -17,7 +17,6 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
 import beam.utils.plan.sampling.AvailableModeUtils
-import beam.utils.scenario.CsvScenarioReader
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Person, Plan}
@@ -98,8 +97,6 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
 
     val beamServices = getBeamServices(config)
-
-    val planReaderCsv: ScenarioLoader = new ScenarioLoader(scenario, beamServices, CsvScenarioReader)
 
     b2 = beamServices
 
