@@ -3,8 +3,8 @@ package beam.utils
 import java.util
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.FuelType.FuelType
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, FuelType, VehicleCategory}
+import beam.agentsim.agents.vehicles.FuelType.{FuelType}
+import beam.agentsim.agents.vehicles._
 import org.matsim.api.core.v01.Id
 import org.matsim.households.Household
 import org.supercsv.io.CsvMapReader
@@ -78,6 +78,8 @@ object BeamVehicleUtils {
         val rechargeLevel2RateLimitInWatts = Option(line.get("rechargeLevel2RateLimitInWatts")).map(_.toDouble)
         val rechargeLevel3RateLimitInWatts = Option(line.get("rechargeLevel3RateLimitInWatts")).map(_.toDouble)
         val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
+        val primaryVehicleEnergyFile = Option(line.get("primaryVehicleEnergyFile"))
+        val secondaryVehicleEnergyFile = Option(line.get("secondaryVehicleEnergyFile"))
 
         val bvt = BeamVehicleType(
           vehicleTypeId,
@@ -97,7 +99,9 @@ object BeamVehicleUtils {
           passengerCarUnit,
           rechargeLevel2RateLimitInWatts,
           rechargeLevel3RateLimitInWatts,
-          vehicleCategory
+          vehicleCategory,
+          primaryVehicleEnergyFile,
+          secondaryVehicleEnergyFile
         )
         z += ((vehicleTypeId, bvt))
     }.toMap

@@ -1,5 +1,6 @@
 package beam.agentsim.agents.ridehail.allocation
 
+import akka.actor.ActorRef
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, PoolingInfo}
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
@@ -174,6 +175,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    * Reason: If you cancel it during the reservation, the reservation will overwrite the cancellation.
    */
   def reservationCompletionNotice(personId: Id[Person], vehicleId: Id[Vehicle]): Unit = {}
+
+  def getUnprocessedCustomers: Set[RideHailRequest] = awaitingRoutes
 
   /*
    * This is deprecated.

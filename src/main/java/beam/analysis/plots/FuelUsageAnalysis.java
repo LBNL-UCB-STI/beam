@@ -3,7 +3,6 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationSummaryAnalysis;
-import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
 import beam.analysis.via.CSVWriter;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
@@ -108,7 +107,7 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
         String originalMode = event.mode().value();
         String vehicleId = event.vehicleId().toString();
         double lengthInMeters = event.legLength();
-        String fuelString = Double.toString(event.fuelConsumed());
+        String fuelString = Double.toString(event.primaryFuelConsumed());
 
         String mode = originalMode;
         if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHailVehicle")) {
@@ -136,8 +135,8 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
         } catch (Exception e) {
             e.printStackTrace();
         }
-        String fuelType = event.fuelType();
-        double fuel = event.fuelConsumed();
+        String fuelType = event.primaryFuelType();
+        double fuel = event.primaryFuelConsumed();
         fuelConsumedByFuelType.merge(fuelType, fuel, (d1, d2) -> d1 + d2);
     }
 

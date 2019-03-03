@@ -11,6 +11,7 @@ import beam.router.Modes.BeamMode.{BIKE, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.{BeamServices, MapStringDouble}
 import beam.sim.population.AttributesOfIndividual
+import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.population.Person
 
 import scala.collection.JavaConverters._
@@ -47,7 +48,8 @@ class ModeChoiceLCCM(
 
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
-    attributesOfIndividual: AttributesOfIndividual
+    attributesOfIndividual: AttributesOfIndividual,
+    destinationActivity: Option[Activity]
   ): Option[EmbodiedBeamTrip] = {
     choose(alternatives, attributesOfIndividual, Mandatory)
   }
@@ -259,7 +261,11 @@ class ModeChoiceLCCM(
       .getUtilityOfAlternative(AlternativeAttributes(mode.value, theParams))
   }
 
-  override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
+  override def utilityOf(
+    alternative: EmbodiedBeamTrip,
+    attributesOfIndividual: AttributesOfIndividual,
+    destinationActivity: Option[Activity]
+  ): Double = 0.0
 
   override def computeAllDayUtility(
     trips: ListBuffer[EmbodiedBeamTrip],
@@ -278,7 +284,7 @@ class ModeChoiceLCCM(
       .toMap
       .mapValues(
         modeChoiceCalculatorForStyle =>
-          trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip, attributesOfIndividual)).sum
+          trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip, attributesOfIndividual, None)).sum
       )
       .toArray
       .toMap // to force computation DO NOT TOUCH IT, because here is call-by-name and it's lazy which will hold a lot of memory !!! :)
