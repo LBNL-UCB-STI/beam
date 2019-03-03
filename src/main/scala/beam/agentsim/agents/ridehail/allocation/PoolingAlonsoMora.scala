@@ -50,9 +50,6 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           defaultBeamVehilceTypeId,
           rideHailManager.beamServices
         )
-        if (timeCostFactors._1 != 1.1) {
-          val i = 0
-        }
         SingleOccupantQuoteAndPoolingInfo(
           agentETA.agentLocation,
           Some(PoolingInfo(timeCostFactors._1, timeCostFactors._2))

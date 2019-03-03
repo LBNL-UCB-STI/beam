@@ -168,9 +168,6 @@ object HouseholdActor {
     override def receive: Receive = {
 
       case TriggerWithId(InitializeTrigger(tick), triggerId) =>
-        if (household.getId.toString.equals("016000-2014000455995-0")) {
-          val i = 0
-        }
         val vehiclesByCategory =
           vehicles.filter(_._2.beamVehicleType.automationLevel <= 3).groupBy(_._2.beamVehicleType.vehicleCategory)
         val fleetManagers = vehiclesByCategory.map {
@@ -219,7 +216,9 @@ object HouseholdActor {
             cavs,
             Map((Pickup, 5 * 60), (Dropoff, 10 * 60)),
             beamServices = Some(beamServices),
-            skimmer = beamSkimmer
+            skimmer = beamSkimmer,
+            stopSearchAfterXSolutions = 1000,
+            limitCavToXPersons = Int.MaxValue
           )(beamServices.matsimServices.getScenario.getPopulation)
 
 //          var optimalPlan = cavScheduler.getKBestSchedules(1).head.cavFleetSchedule
@@ -341,7 +340,8 @@ object HouseholdActor {
                 }
                 .getOrElse(Seq())
             }
-            var passengerSchedule = PassengerSchedule().addLegs(theLegs)
+            var passengerSchedule = PassengerSchedule().addLegs(theLegs).updateStartTimes(theLegs.headOption.map(_.startTime).getOrElse(0))
+            val updatedLegsIterator = passengerSchedule.schedule.keys.toIterator
             var pickDropsForGrouping: Map[VehiclePersonId, List[BeamLeg]] = Map()
             var passengersToAdd = Set[VehiclePersonId]()
             cavSchedule.schedule.foreach { serviceRequest =>
@@ -363,14 +363,14 @@ object HouseholdActor {
                 }
               }
               if (serviceRequest.routingRequestId.isDefined && indexedResponses(serviceRequest.routingRequestId.get).itineraries.size > 0) {
-                val leg = indexedResponses(serviceRequest.routingRequestId.get).itineraries.head.beamLegs().head
+                val leg = updatedLegsIterator.next
                 passengersToAdd.foreach { pass =>
                   val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg
                   pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
                 }
               }
             }
-            cavSchedule.cav -> passengerSchedule.updateStartTimes(theLegs.headOption.map(_.startTime).getOrElse(0))
+            cavSchedule.cav -> passengerSchedule
           }.toMap
           Future
             .sequence(
