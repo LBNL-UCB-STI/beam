@@ -22,10 +22,8 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
     this
       .copy(
         startTime = newStartTime,
-        duration = newTravelPath.endPoint.time - newStartTime,
         travelPath = newTravelPath
       )
-
   }
 
   def scaleLegDuration(scaleBy: Double): BeamLeg = {

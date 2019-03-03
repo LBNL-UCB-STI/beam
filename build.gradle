@@ -110,6 +110,9 @@ dependencies {
     compile group: 'org.apache.commons', name: 'commons-math3', version: '3.5'
     compile group: 'org.apache.httpcomponents', name: 'fluent-hc', version: '4.5.2'
 
+    // Apache 2.0
+    compile group: 'com.univocity', name: 'univocity-parsers', version: '2.8.1'
+
     // LGPL
     compile group: 'org.geotools', name: 'gt-main', version: '13.0'
     compile group: 'org.geotools', name: 'gt-referencing', version: '13.0'
@@ -279,7 +282,7 @@ task spec(dependsOn: ['testClasses'], type: JavaExec) {
     args = ['-R', 'build/classes/scala/test', '-o', '-l', 'beam.tags.ExcludeRegular']
     classpath = sourceSets.test.runtimeClasspath
 }
-test.dependsOn spec
+build.dependsOn spec
 
 /* //////////////////////////////////////////////////
 *  Task to run tagged tests.
