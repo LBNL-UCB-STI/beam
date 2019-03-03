@@ -157,9 +157,9 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
               .getVOT(x, modeMultipliers, situationMultipliers, poolingMultipliers, beamServices, destinationActivity)
         )
         .sum +
-        attributesOfIndividual.getModeVotMultiplier(None, modeMultipliers) * attributesOfIndividual.unitConversionVOTT(
-          waitTime
-        )
+      attributesOfIndividual.getModeVotMultiplier(None, modeMultipliers) * attributesOfIndividual.unitConversionVOTT(
+        waitTime
+      )
       ModeCostTimeTransfer(
         mode,
         incentivizedCost,
