@@ -8,6 +8,7 @@ import beam.sim.population.PopulationAdjustment.BEAM_ATTRIBUTES
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT}
 import beam.utils.BeamVehicleUtils
+import beam.utils.matsim_conversion.MatsimConversionTool
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PopulationAttrib.Rank
 import beam.utils.scripts.PopulationWriterCSV
@@ -502,7 +503,8 @@ object PlansSampler {
 
   def run(): Unit = {
 
-    val carVehicleType = BeamVehicleUtils.beamVehicleTypeToMatsimVehicleType(BeamVehicleType.defaultCarBeamVehicleType)
+    val carVehicleType =
+      MatsimConversionTool.beamVehicleTypeToMatsimVehicleType(BeamVehicleType.defaultCarBeamVehicleType)
 
     newVehicles.addVehicleType(carVehicleType)
 

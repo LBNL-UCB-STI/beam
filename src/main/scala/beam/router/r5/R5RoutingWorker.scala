@@ -1,5 +1,6 @@
 package beam.router.r5
 
+import java.nio.file.Paths
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneId, ZoneOffset, ZonedDateTime}
 import java.util
@@ -11,7 +12,7 @@ import beam.agentsim.agents.choice.mode.{DrivingCost, ModeIncentive, PtFares}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, WALK}
@@ -99,6 +100,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val transportNetwork = networkCoordinator.transportNetwork
 
       val netHelper: NetworkHelper = new NetworkHelperImpl(network)
+      val vehicleCsvReader: VehicleCsvReader = new VehicleCsvReader(beamConfig)
 
       val beamServices: BeamServices = new BeamServices {
         override lazy val controler: ControlerI = ???
@@ -118,6 +120,22 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
         val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] =
           readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
+
+        private val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile).getParent
+        private val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+        private val consumptionRateFilterStore =
+          new ConsumptionRateFilterStoreImpl(
+            vehicleCsvReader.getVehicleEnergyRecordsUsing,
+            Option(baseFilePath.toString),
+            primaryConsumptionRateFilePathsByVehicleType =
+              vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
+            secondaryConsumptionRateFilePathsByVehicleType =
+              vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
+          )
+        val vehicleEnergy = new VehicleEnergy(
+          consumptionRateFilterStore,
+          vehicleCsvReader.getLinkToGradeRecordsUsing
+        )
 
         // TODO Fix me once `TrieMap` is removed
         val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
@@ -148,7 +166,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         tt.toInt
       }
       val initializer =
-        new TransitInitializer(beamServices, transportNetwork, scenario.getTransitVehicles, defaultTravelTimeByLink)
+        new TransitInitializer(
+          beamServices,
+          transportNetwork,
+          scenario.getTransitVehicles,
+          defaultTravelTimeByLink
+        )
       val transits = initializer.initMap
 
       val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
