@@ -48,12 +48,12 @@ class FastHouseholdCAVScheduling(
     output.toList
   }
 
-  def getKBestCAVSchedules(k: Int): List[List[CAVSchedule]] = {
-    List(getKBestSchedules(k).head.schedulesMap.map(y => CAVSchedule(y._2, y._1, 0)).toList)
+  def getKBestCAVSchedules(k: Int): List[CAVSchedule] = {
+    getKBestSchedules(k).headOption.map(_.schedulesMap.map(y => CAVSchedule(y._2,y._1,0)).toList).getOrElse(List.empty)
   }
 
-  def getBestCAVScheduleWithLongestChain: List[List[CAVSchedule]] = {
-    List(getBestScheduleWithLongestChain.head.schedulesMap.map(y => CAVSchedule(y._2, y._1, 0)).toList)
+  def getBestCAVScheduleWithLongestChain: List[CAVSchedule] = {
+    getBestScheduleWithLongestChain.headOption.map(_.schedulesMap.map(y => CAVSchedule(y._2, y._1, 0)).toList).getOrElse(List.empty)
   }
   // *******
 
