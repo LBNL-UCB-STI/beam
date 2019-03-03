@@ -16,17 +16,18 @@ in multi-lane freeway facilities." Transportation Research Part C: Emerging Tech
 public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAdjustmentFunction {
 
     private int caccMinRoadCapacity;
+    private double caccMinSpeedMetersPerSec;
 
-    public Hao2018CaccRoadCapacityAdjustmentFunction(int caccMinRoadCapacity){
+    public Hao2018CaccRoadCapacityAdjustmentFunction(int caccMinRoadCapacity, double caccMinSpeedMetersPerSec){
 
         this.caccMinRoadCapacity = caccMinRoadCapacity;
+        this.caccMinSpeedMetersPerSec = caccMinSpeedMetersPerSec;
     }
 
     public double getCapacityWithCACC(Link link, double fractionCACCOnRoad){
         double initialCapacity=link.getFlowCapacityPerSec();
 
-        if (initialCapacity>=caccMinRoadCapacity) {
-
+        if (initialCapacity>=caccMinRoadCapacity && link.getFreespeed()>caccMinSpeedMetersPerSec) {
             return (2152.777778 * fractionCACCOnRoad * fractionCACCOnRoad * fractionCACCOnRoad - 764.8809524 * fractionCACCOnRoad * fractionCACCOnRoad + 456.1507937 * fractionCACCOnRoad + 1949.047619) / 1949.047619 * initialCapacity;
 
         } else {
