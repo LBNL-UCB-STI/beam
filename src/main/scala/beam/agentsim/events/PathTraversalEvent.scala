@@ -18,7 +18,8 @@ case class PathTraversalEvent(
   vehicleType: String,
   seatingCapacity: Int,
   standingRoomCapacity: Int,
-  fuelType: String,
+  primaryFuelType: String,
+  secondaryFuelType: String,
   numberOfPassengers: Int,
   departureTime: Int,
   arrivalTime: Int,
@@ -30,8 +31,10 @@ case class PathTraversalEvent(
   startY: Double,
   endX: Double,
   endY: Double,
-  fuelConsumed: Double,
-  endLegFuelLevel: Double,
+  primaryFuelConsumed: Double,
+  secondaryFuelConsumed: Double,
+  endLegPrimaryFuelLevel: Double,
+  endLegSecondaryFuelLevel: Double,
   amountPaid: Double
 ) extends Event(time)
     with ScalaEvent {
@@ -55,15 +58,18 @@ case class PathTraversalEvent(
     attr.put(ATTRIBUTE_ARRIVAL_TIME, arrivalTime.toString)
     attr.put(ATTRIBUTE_MODE, mode.value)
     attr.put(ATTRIBUTE_LINK_IDS, linkIds.mkString(","))
-    attr.put(ATTRIBUTE_FUEL_TYPE, fuelType)
-    attr.put(ATTRIBUTE_FUEL, fuelConsumed.toString)
+    attr.put(ATTRIBUTE_PRIMARY_FUEL_TYPE, primaryFuelType)
+    attr.put(ATTRIBUTE_SECONDARY_FUEL_TYPE, secondaryFuelType)
+    attr.put(ATTRIBUTE_PRIMARY_FUEL, primaryFuelConsumed.toString)
+    attr.put(ATTRIBUTE_SECONDARY_FUEL, secondaryFuelConsumed.toString)
     attr.put(ATTRIBUTE_VEHICLE_CAPACITY, capacity.toString)
 
     attr.put(ATTRIBUTE_START_COORDINATE_X, startX.toString)
     attr.put(ATTRIBUTE_START_COORDINATE_Y, startY.toString)
     attr.put(ATTRIBUTE_END_COORDINATE_X, endX.toString)
     attr.put(ATTRIBUTE_END_COORDINATE_Y, endY.toString)
-    attr.put(ATTRIBUTE_END_LEG_FUEL_LEVEL, endLegFuelLevel.toString)
+    attr.put(ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL, endLegPrimaryFuelLevel.toString)
+    attr.put(ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL, endLegSecondaryFuelLevel.toString)
     attr.put(ATTRIBUTE_SEATING_CAPACITY, seatingCapacity.toString)
     attr.put(ATTRIBUTE_TOLL_PAID, amountPaid.toString)
     attr
@@ -74,8 +80,10 @@ object PathTraversalEvent {
   val EVENT_TYPE: String = "PathTraversal"
 
   val ATTRIBUTE_LENGTH: String = "length"
-  val ATTRIBUTE_FUEL_TYPE: String = "fuelType"
-  val ATTRIBUTE_FUEL: String = "fuel"
+  val ATTRIBUTE_PRIMARY_FUEL_TYPE: String = "primaryFuelType"
+  val ATTRIBUTE_SECONDARY_FUEL_TYPE: String = "secondaryFuelType"
+  val ATTRIBUTE_PRIMARY_FUEL: String = "primaryFuel"
+  val ATTRIBUTE_SECONDARY_FUEL: String = "secondaryFuel"
   val ATTRIBUTE_NUM_PASS: String = "numPassengers"
 
   val ATTRIBUTE_LINK_IDS: String = "links"
@@ -90,7 +98,8 @@ object PathTraversalEvent {
   val ATTRIBUTE_START_COORDINATE_Y: String = "startY"
   val ATTRIBUTE_END_COORDINATE_X: String = "endX"
   val ATTRIBUTE_END_COORDINATE_Y: String = "endY"
-  val ATTRIBUTE_END_LEG_FUEL_LEVEL: String = "endLegFuelLevel"
+  val ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL: String = "endLegPrimaryFuelLevel"
+  val ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL: String = "endLegSecondaryFuelLevel"
   val ATTRIBUTE_TOLL_PAID: String = "tollPaid"
   val ATTRIBUTE_SEATING_CAPACITY: String = "seatingCapacity"
 
@@ -101,8 +110,10 @@ object PathTraversalEvent {
     vehicleType: BeamVehicleType,
     numPass: Int,
     beamLeg: BeamLeg,
-    fuelConsumed: Double,
-    endLegFuelLevel: Double,
+    primaryFuelConsumed: Double,
+    secondaryFuelConsumed: Double,
+    endLegPrimaryFuelLevel: Double,
+    endLegSecondaryFuelLevel: Double,
     amountPaid: Double
   ): PathTraversalEvent = {
     new PathTraversalEvent(
@@ -112,7 +123,8 @@ object PathTraversalEvent {
       vehicleType = vehicleType.id.toString,
       seatingCapacity = vehicleType.seatingCapacity,
       standingRoomCapacity = vehicleType.standingRoomCapacity,
-      fuelType = vehicleType.primaryFuelType.toString,
+      primaryFuelType = vehicleType.primaryFuelType.toString,
+      secondaryFuelType = vehicleType.secondaryFuelType.map(_.toString).getOrElse("None"),
       numberOfPassengers = numPass,
       departureTime = beamLeg.startTime,
       arrivalTime = beamLeg.endTime,
@@ -124,8 +136,10 @@ object PathTraversalEvent {
       startY = beamLeg.travelPath.startPoint.loc.getY,
       endX = beamLeg.travelPath.endPoint.loc.getX,
       endY = beamLeg.travelPath.endPoint.loc.getY,
-      fuelConsumed = fuelConsumed,
-      endLegFuelLevel = endLegFuelLevel,
+      primaryFuelConsumed = primaryFuelConsumed,
+      secondaryFuelConsumed = secondaryFuelConsumed,
+      endLegPrimaryFuelLevel = endLegPrimaryFuelLevel,
+      endLegSecondaryFuelLevel = endLegSecondaryFuelLevel,
       amountPaid = amountPaid
     )
   }
@@ -140,7 +154,8 @@ object PathTraversalEvent {
     val vehicleType: String = attr(ATTRIBUTE_VEHICLE_TYPE)
     val seatingCapacity: Int = attr(ATTRIBUTE_SEATING_CAPACITY).toInt
     val standingRoomCapacity: Int = capacity - seatingCapacity
-    val fuelType: String = attr(ATTRIBUTE_FUEL_TYPE)
+    val primaryFuelType: String = attr(ATTRIBUTE_PRIMARY_FUEL_TYPE)
+    val secondaryFuelType: String = attr(ATTRIBUTE_SECONDARY_FUEL_TYPE)
     val numberOfPassengers: Int = attr(ATTRIBUTE_NUM_PASS).toInt
     val departureTime: Int = attr(ATTRIBUTE_DEPARTURE_TIME).toInt
     val arrivalTime: Int = attr(ATTRIBUTE_ARRIVAL_TIME).toInt
@@ -154,8 +169,10 @@ object PathTraversalEvent {
     val startY: Double = attr(ATTRIBUTE_START_COORDINATE_Y).toDouble
     val endX: Double = attr(ATTRIBUTE_END_COORDINATE_X).toDouble
     val endY: Double = attr(ATTRIBUTE_END_COORDINATE_Y).toDouble
-    val fuelConsumed: Double = attr(ATTRIBUTE_FUEL).toDouble
-    val endLegFuelLevel: Double = attr(ATTRIBUTE_END_LEG_FUEL_LEVEL).toDouble
+    val primaryFuelConsumed: Double = attr(ATTRIBUTE_PRIMARY_FUEL).toDouble
+    val secondaryFuelConsumed: Double = attr(ATTRIBUTE_SECONDARY_FUEL).toDouble
+    val endLegPrimaryFuelLevel: Double = attr(ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL).toDouble
+    val endLegSecondaryFuelLevel: Double = attr(ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL).toDouble
     val amountPaid: Double = attr(ATTRIBUTE_TOLL_PAID).toDouble
     PathTraversalEvent(
       time,
@@ -164,7 +181,8 @@ object PathTraversalEvent {
       vehicleType,
       seatingCapacity,
       standingRoomCapacity,
-      fuelType,
+      primaryFuelType,
+      secondaryFuelType,
       numberOfPassengers,
       departureTime,
       arrivalTime,
@@ -176,8 +194,10 @@ object PathTraversalEvent {
       startY,
       endX,
       endY,
-      fuelConsumed,
-      endLegFuelLevel,
+      primaryFuelConsumed,
+      secondaryFuelConsumed,
+      endLegPrimaryFuelLevel,
+      endLegSecondaryFuelLevel,
       amountPaid
     )
   }

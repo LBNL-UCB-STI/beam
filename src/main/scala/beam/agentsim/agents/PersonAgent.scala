@@ -562,6 +562,7 @@ class PersonAgent(
       beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
       goto(ProcessingNextLegOrStartActivity)
     case Event(NotAvailable, basePersonData: BasePersonData) =>
+      log.debug("{} replanning because vehicle not available when trying to board")
       eventsManager.processEvent(new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
       goto(ChoosingMode) using ChoosesModeData(
         basePersonData.copy(
@@ -647,7 +648,7 @@ class PersonAgent(
 
     // TRANSIT but too late
     case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _))
-        if nextLeg.beamLeg.startTime < _currentTick.get =>
+        if nextLeg.beamLeg.mode.isTransit && nextLeg.beamLeg.startTime < _currentTick.get =>
       // We've missed the bus. This occurs when something takes longer than planned (based on the
       // initial inquiry). So we replan but change tour mode to WALK_TRANSIT since we've already done our non-transit
       // portion.

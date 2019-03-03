@@ -1,5 +1,6 @@
 package beam.agentsim.agents.ridehail.allocation
 
+import beam.agentsim.agents.{Dropoff, MobilityRequest, MobilityRequestTrait, Pickup}
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail._
@@ -19,7 +20,7 @@ import scala.concurrent.{Await, TimeoutException}
 class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
 
-  val tempScheduleStore: mutable.Map[Int, List[MobilityServiceRequest]] = mutable.Map()
+  val tempScheduleStore: mutable.Map[Int, List[MobilityRequest]] = mutable.Map()
 
   val spatialPoolCustomerReqs: QuadTree[CustomerRequest] = new QuadTree[CustomerRequest](
     rideHailManager.quadTreeBounds.minx,
@@ -49,9 +50,6 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           defaultBeamVehilceTypeId,
           rideHailManager.beamServices
         )
-        if (timeCostFactors._1 != 1.1) {
-          val i = 0
-        }
         SingleOccupantQuoteAndPoolingInfo(
           agentETA.agentLocation,
           Some(PoolingInfo(timeCostFactors._1, timeCostFactors._2))
@@ -150,7 +148,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val algo = new AsyncAlonsoMoraAlgForRideHail(
         spatialPoolCustomerReqs,
         availVehicles.toList,
-        Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+        Map[MobilityRequestTrait, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
         maxRequestsPerVehicle = 5,
         rideHailManager.beamServices
       )
@@ -177,7 +175,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         case (theTrip, vehicleAndSchedule, cost) =>
           alreadyAllocated = alreadyAllocated + vehicleAndSchedule.vehicle.id
           var newRideHailRequest: Option[RideHailRequest] = None
-          var scheduleToCache: List[MobilityServiceRequest] = List()
+          var scheduleToCache: List[MobilityRequest] = List()
           val rReqs = theTrip.schedule
             .sliding(2)
             .flatMap { wayPoints =>

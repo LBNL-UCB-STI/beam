@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
+import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
 import beam.agentsim.agents.choice.mode.ModeIncentive
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.planning.BeamPlan
@@ -14,12 +15,9 @@ import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
-import beam.router.osm.TollCalculator
-import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.utils.NetworkHelperImpl
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -87,9 +85,9 @@ class AsyncAlonsoMoraAlgForRideHailSpec
       val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenario1
       val alg: AsyncAlonsoMoraAlgForRideHail =
         new AsyncAlonsoMoraAlgForRideHail(
-          AlonsoMoraPoolingAlgForRideHail.demandSpatialIndex(sc._2),
+          AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(sc._2),
           sc._1,
-          Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+          Map[MobilityRequestTrait, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
           maxRequestsPerVehicle = 1000,
           beamSvc
         )
@@ -116,7 +114,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
         plan.trips.sliding(2).foreach {
           case Seq(prevTrip, curTrip) =>
             requests append createPersonRequest(
-              makeVehPersonId(plan.getPerson.getId.toString),
+              AlonsoMoraPoolingAlgForRideHailSpec.makeVehPersonId(plan.getPerson.getId.toString),
               prevTrip.activity.getCoord,
               prevTrip.activity.getEndTime.toInt,
               curTrip.activity.getCoord
@@ -156,9 +154,9 @@ class AsyncAlonsoMoraAlgForRideHailSpec
             case "ASYNC" =>
               val alg: AsyncAlonsoMoraAlgForRideHail =
                 new AsyncAlonsoMoraAlgForRideHail(
-                  AlonsoMoraPoolingAlgForRideHail.demandSpatialIndex(demand.toList),
+                  AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(demand.toList),
                   fleet.toList,
-                  Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+                  Map[MobilityRequestTrait, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
                   maxRequestsPerVehicle = 100,
                   beamSvc
                 )
@@ -167,9 +165,9 @@ class AsyncAlonsoMoraAlgForRideHailSpec
             case "SYNC" =>
               val alg: AlonsoMoraPoolingAlgForRideHail =
                 new AlonsoMoraPoolingAlgForRideHail(
-                  AlonsoMoraPoolingAlgForRideHail.demandSpatialIndex(demand.toList),
+                  AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(demand.toList),
                   fleet.toList,
-                  Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+                  Map[MobilityRequestTrait, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
                   maxRequestsPerVehicle = 100,
                   beamSvc
                 )
