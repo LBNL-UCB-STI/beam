@@ -341,7 +341,7 @@ object HouseholdActor {
                 .getOrElse(Seq())
             }
             var passengerSchedule =
-              PassengerSchedule().addLegs(BeamLeg.makeVectorLegsConsistent(theLegs.toVector))
+              PassengerSchedule().addLegs(BeamLeg.makeVectorLegsConsistentAsOrderdStandAloneLegs(theLegs.toVector))
             val updatedLegsIterator = passengerSchedule.schedule.keys.toIterator
             var pickDropsForGrouping: Map[VehiclePersonId, List[BeamLeg]] = Map()
             var passengersToAdd = Set[VehiclePersonId]()
