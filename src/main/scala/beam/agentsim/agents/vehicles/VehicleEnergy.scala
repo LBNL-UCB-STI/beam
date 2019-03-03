@@ -13,14 +13,6 @@ import scala.collection.JavaConverters._
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 
-//TODO: Fix/Add Tests
-//TODO: Make the new energy logic configurable
-//TODO: Fix so that vehicle type is mapped to new NREL
-//TODO: Handle header files and column by name instead of index
-//Question: What to do if the file is not found or cannot be read - exception and die?
-//TODO: Create an issue: Add a test checking that Consumption Rates used (integration test)
-//TODO: Create an issue: Handle secondary fuel - see https://github.com/LBNL-UCB-STI/beam/pull/1296#discussion_r260605865
-
 class VehicleCsvReader(config: BeamConfig) {
 
   def getVehicleEnergyRecordsUsing(csvParser: CsvParser, filePath: String): Iterable[Record] = {
@@ -54,6 +46,11 @@ class ConsumptionRateFilterStoreImpl(
   //Possible performance tweak: If memory becomes an issue then this can become a more on demand load
   //For now, and for load speed the best option seems to be to pre-load in a background thread
   private lazy val log = LoggerFactory.getLogger(this.getClass)
+  //Hard-coding can become configurable if necessary
+  private val speedBinHeader = "speed_mph_float_bins"
+  private val gradeBinHeader = "grade_percent_float_bins"
+  private val lanesBinHeader = "num_lanes_int_bins"
+  private val rateHeader = "rate"
 
   private val primaryConsumptionRateFiltersByVehicleType: Map[BeamVehicleType, Future[ConsumptionRateFilter]] =
     beginLoadingConsumptionRateFiltersFor(primaryConsumptionRateFilePathsByVehicleType)
@@ -68,10 +65,11 @@ class ConsumptionRateFilterStoreImpl(
 
   private def beginLoadingConsumptionRateFiltersFor(files: IndexedSeq[(BeamVehicleType, Option[String])]) = {
     files.collect {
-      case (vehicleType, Some(filePath)) => {
+      case (vehicleType, Some(filePath)) if !filePath.trim.isEmpty => {
         val consumptionFuture = Future {
           //Do NOT move this out - sharing the parser between threads is questionable
           val settings = new CsvParserSettings()
+          settings.setHeaderExtractionEnabled(true)
           settings.detectFormatAutomatically()
           val csvParser = new CsvParser(settings)
           loadConsumptionRatesFromCSVFor(filePath, csvParser)
@@ -86,10 +84,10 @@ class ConsumptionRateFilterStoreImpl(
     val currentRateFilter = mutable.Map.empty[Range, mutable.Map[Range, mutable.Map[Range, Double]]]
     csvRecordsForFilePathUsing(csvParser, java.nio.file.Paths.get(baseFilePath.getOrElse(""), file).toString)
       .foreach(csvRecord => {
-        val speedInMilesPerHourBin = convertRecordStringToRange(csvRecord.getString(0))
-        val gradePercentBin = convertRecordStringToRange(csvRecord.getString(1))
-        val numberOfLanesBin = convertRecordStringToRange(csvRecord.getString(2))
-        val rate = csvRecord.getDouble(5)
+        val speedInMilesPerHourBin = convertRecordStringToRange(csvRecord.getString(speedBinHeader))
+        val gradePercentBin = convertRecordStringToRange(csvRecord.getString(gradeBinHeader))
+        val numberOfLanesBin = convertRecordStringToRange(csvRecord.getString(lanesBinHeader))
+        val rate = csvRecord.getDouble(rateHeader)
         if (rate == null)
           throw new Exception(
             s"Record $csvRecord does not contain a valid rate. " +
@@ -140,6 +138,7 @@ class VehicleEnergy(
 ) {
   private lazy val log = LoggerFactory.getLogger(this.getClass)
   private val settings = new CsvParserSettings()
+  settings.setHeaderExtractionEnabled(true)
   settings.detectFormatAutomatically()
   private val csvParser = new CsvParser(settings)
 
@@ -177,18 +176,13 @@ class VehicleEnergy(
       _,
       _,
       _
-    ) =
-      fuelConsumptionData
+    ) = fuelConsumptionData
     val numberOfLanes: Int = numberOfLanesOption.getOrElse(0)
     val speedInMilesPerHour: Double = speedInMilesPerHourOption.getOrElse(0)
     val gradePercent: Double = linkIdToGradePercentMap.getOrElse(linkId, 0)
     (powerTrainPriority match {
-      case Primary =>
-        consumptionRateFilterStore
-          .getPrimaryConsumptionRateFilterFor(vehicleType)
-      case Secondary =>
-        consumptionRateFilterStore
-          .getSecondaryConsumptionRateFilterFor(vehicleType)
+      case Primary   => consumptionRateFilterStore.getPrimaryConsumptionRateFilterFor(vehicleType)
+      case Secondary => consumptionRateFilterStore.getSecondaryConsumptionRateFilterFor(vehicleType)
     }).flatMap(
         consumptionRateFilterFuture =>
           getRateUsing(consumptionRateFilterFuture, numberOfLanes, speedInMilesPerHour, gradePercent)
@@ -223,10 +217,12 @@ class VehicleEnergy(
     rate * conversionRateForJoulesPerMeterConversionFromGallonsPer100Miles
 
   private def loadLinkIdToGradeMapFromCSV: Map[Int, Double] = {
+    val linkIdHeader = "id"
+    val gradeHeader = "average_gradient"
     linkToGradeRecordsIterableUsing(csvParser)
       .map(csvRecord => {
-        val linkId = csvRecord.getInt(0)
-        val gradePercent = csvRecord.getDouble(1)
+        val linkId = csvRecord.getInt(linkIdHeader)
+        val gradePercent = csvRecord.getDouble(gradeHeader)
         linkId.toInt -> gradePercent.toDouble
       })
       .toMap

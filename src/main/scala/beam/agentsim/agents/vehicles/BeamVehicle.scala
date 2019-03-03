@@ -127,21 +127,28 @@ class BeamVehicle(
   def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): FuelConsumed = {
     val fuelConsumptionData =
       BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
-    var primaryEnergyForFullLeg = beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
-      fuelConsumptionData,
-      fallBack = powerTrain.getRateInJoulesPerMeter,
-      Primary
-    )
+
+    val primaryEnergyForFullLeg =
+      if (beamServices.beamConfig.beam.agentsim.agents.vehicles.enableNewVehicleEnergyConsumptionLogic)
+        beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
+          fuelConsumptionData,
+          fallBack = powerTrain.getRateInJoulesPerMeter,
+          Primary
+        )
+      else powerTrain.estimateConsumptionInJoules(fuelConsumptionData)
     var primaryEnergyConsumed = primaryEnergyForFullLeg
     var secondaryEnergyConsumed = 0.0
     if (primaryFuelLevelInJoules < primaryEnergyForFullLeg) {
       if (secondaryFuelLevelInJoules > 0.0) {
         // Use secondary fuel if possible
-        val secondaryEnergyForFullLeg = beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
-          fuelConsumptionData,
-          fallBack = powerTrain.getRateInJoulesPerMeter,
-          Secondary
-        )
+        val secondaryEnergyForFullLeg =
+          if (beamServices.beamConfig.beam.agentsim.agents.vehicles.enableNewVehicleEnergyConsumptionLogic)
+            beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
+              fuelConsumptionData,
+              fallBack = powerTrain.getRateInJoulesPerMeter,
+              Secondary
+            )
+          else powerTrain.estimateConsumptionInJoules(fuelConsumptionData)
         secondaryEnergyConsumed = secondaryEnergyForFullLeg * (primaryEnergyForFullLeg - primaryFuelLevelInJoules) / primaryEnergyConsumed
         if (secondaryFuelLevelInJoules < secondaryEnergyConsumed) {
           logger.warn(
