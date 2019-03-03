@@ -196,7 +196,7 @@ class TollRoutingSpec
       val tollSensitiveResponse = expectMsgType[RoutingResponse]
       val tollSensitiveCarOption = tollSensitiveResponse.itineraries.find(_.tripClassifier == CAR).get
       assert(tollSensitiveCarOption.costEstimate == 2.0, "if I'm toll sensitive, I don't go over the tolled link")
-      assert(tollSensitiveCarOption.totalTravelTimeInSecs == 288)
+      assert(tollSensitiveCarOption.totalTravelTimeInSecs == 285)
     }
 
     "not report a toll when walking" in {
