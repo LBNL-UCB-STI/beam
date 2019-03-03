@@ -364,10 +364,16 @@ object HouseholdActor {
                 }
               }
               if (serviceRequest.routingRequestId.isDefined && indexedResponses(serviceRequest.routingRequestId.get).itineraries.size > 0) {
-                val leg = updatedLegsIterator.next
-                passengersToAdd.foreach { pass =>
-                  val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg
-                  pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
+                if (updatedLegsIterator.hasNext) {
+                  val leg = updatedLegsIterator.next
+                  passengersToAdd.foreach { pass =>
+                    val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg
+                    pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
+                  }
+                } else {
+                  throw new RuntimeException(
+                    s"HH CAV schedule ran out of legs for household ${household.getId} and schedule: ${cavSchedule.schedule}"
+                  )
                 }
               }
             }

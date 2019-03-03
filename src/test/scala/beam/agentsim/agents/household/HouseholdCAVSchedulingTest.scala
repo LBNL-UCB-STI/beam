@@ -104,8 +104,8 @@ class HouseholdCAVSchedulingTest
         x.cavFleetSchedule should have length 1
         x.cavFleetSchedule.head.schedule should (have length 1 or have length 6)
       }
-      println(s"*** scenario 1 *** ${schedules.size} combinations")
-      println(schedules)
+//      println(s"*** scenario 1 *** ${schedules.size} combinations")
+//      println(schedules)
     }
 
     it("pool two persons for both trips") {
@@ -140,8 +140,8 @@ class HouseholdCAVSchedulingTest
       schedule.cavFleetSchedule.head.schedule(7).tag shouldBe Pickup
       schedule.cavFleetSchedule.head.schedule(8).tag shouldBe Pickup
 
-      println(s"*** scenario 2 *** ")
-      println(schedule)
+//      println(s"*** scenario 2 *** ")
+//      println(schedule)
     }
 
     it("generate twelve trips") {
@@ -166,8 +166,8 @@ class HouseholdCAVSchedulingTest
       schedule.cavFleetSchedule should have length 1
       val nbOfTrips = schedule.cavFleetSchedule.flatMap(_.schedule).count(x => x.tag == Pickup || x.tag == Dropoff) / 2
       nbOfTrips should equal(12)
-      println(s"*** scenario 4 *** $nbOfTrips trips")
-      println(schedule)
+//      println(s"*** scenario 4 *** $nbOfTrips trips")
+//      println(schedule)
     }
 
     it("be scalable") {
@@ -182,8 +182,8 @@ class HouseholdCAVSchedulingTest
         )(pop)
       val schedule = alg.getAllFeasibleSchedules()
 
-      println(s"*** scenario 6 ***")
-      println(schedule.size)
+//      println(s"*** scenario 6 ***")
+//      println(schedule.size)
     }
   }
 
