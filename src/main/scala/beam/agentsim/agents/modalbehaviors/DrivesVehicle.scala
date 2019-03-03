@@ -286,7 +286,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         .getOrElse(throw new RuntimeException("Current Leg is not available."))
       stay() replying CompletionNotice(
         triggerId,
-        Vector(ScheduleTrigger(BoardVehicleTrigger(currentLeg.endTime, vehicleId), self)))
+        Vector(ScheduleTrigger(BoardVehicleTrigger(currentLeg.endTime, vehicleId), self))
+      )
     case Event(TriggerWithId(AlightVehicleTrigger(_, vehicleId), triggerId), data) =>
       val currentLeg = data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
@@ -294,7 +295,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         .getOrElse(throw new RuntimeException("Current Leg is not available."))
       stay() replying CompletionNotice(
         triggerId,
-        Vector(ScheduleTrigger(AlightVehicleTrigger(currentLeg.endTime+1, vehicleId), self)))
+        Vector(ScheduleTrigger(AlightVehicleTrigger(currentLeg.endTime + 1, vehicleId), self))
+      )
   }
 
   when(DrivingInterrupted) {

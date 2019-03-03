@@ -340,7 +340,8 @@ object HouseholdActor {
                 }
                 .getOrElse(Seq())
             }
-            var passengerSchedule = PassengerSchedule().addLegs(theLegs).updateStartTimes(theLegs.headOption.map(_.startTime).getOrElse(0))
+            var passengerSchedule =
+              PassengerSchedule().addLegs(theLegs).updateStartTimes(theLegs.headOption.map(_.startTime).getOrElse(0))
             val updatedLegsIterator = passengerSchedule.schedule.keys.toIterator
             var pickDropsForGrouping: Map[VehiclePersonId, List[BeamLeg]] = Map()
             var passengersToAdd = Set[VehiclePersonId]()
