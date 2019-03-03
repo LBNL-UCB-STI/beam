@@ -22,7 +22,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{TRANSIT, WALK_TRANSIT}
-import beam.router.RouteHistory
+import beam.router.{BeamSkimmer, RouteHistory}
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
@@ -313,7 +313,8 @@ class OtherPersonAgentSpec
           Map(),
           new Coord(0.0, 0.0),
           Vector(),
-          new RouteHistory()
+          new RouteHistory(),
+          new BeamSkimmer()
         )
       )
       scheduler ! StartSchedule(0)
