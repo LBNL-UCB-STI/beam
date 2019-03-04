@@ -80,7 +80,8 @@ object BeamVehicleUtils {
         val rechargeLevel2RateLimitInWatts = Option(line.get("rechargeLevel2RateLimitInWatts")).map(_.toDouble)
         val rechargeLevel3RateLimitInWatts = Option(line.get("rechargeLevel3RateLimitInWatts")).map(_.toDouble)
         val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
-        val sampleProbabilityWithinCategory = Option(line.get("sampleProbabilityWithinCategory")).map(_.toDouble).getOrElse(1.0)
+        val sampleProbabilityWithinCategory =
+          Option(line.get("sampleProbabilityWithinCategory")).map(_.toDouble).getOrElse(1.0)
 
         val bvt = BeamVehicleType(
           vehicleTypeId,
