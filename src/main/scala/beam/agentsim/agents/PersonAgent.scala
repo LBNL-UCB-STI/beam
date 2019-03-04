@@ -5,7 +5,7 @@ import akka.actor.{ActorRef, FSM, Props, Stash}
 import beam.agentsim.Resource._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.household.HouseholdActor.{ReleaseVehicle}
+import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicle
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
@@ -15,6 +15,7 @@ import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.VehicleCategory.Bike
+import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
 import beam.agentsim.events.resources.ReservationError
@@ -804,7 +805,9 @@ class PersonAgent(
       case Some(trip) if trip.tripClassifier == CAV =>
         stash
         stay
-      case _ =>
+      case Some(trip) =>
+        log.warning("Person {} is abandoning CAV trips for rest of day because received Board/Alight trigger while on {} trip",id,trip.tripClassifier)
+        sender() ! RemovePassengerFromTrip(bodyVehiclePersonId)
         _experiencedBeamPlan.tours.foreach(tour => _experiencedBeamPlan.putStrategy(tour,ModeChoiceStrategy(None)))
         stay() replying CompletionNotice(triggerId, Vector())
     }

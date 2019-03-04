@@ -96,6 +96,7 @@ object HouseholdActor {
   case class ReleaseVehicle(vehicle: BeamVehicle)
   case class ReleaseVehicleAndReply(vehicle: BeamVehicle, tick: Option[Int] = None)
   case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken])
+  case class CancelCAVTrip(personId: Id[Person])
 
   /**
     * Implementation of intra-household interaction in BEAM using actors.
@@ -405,6 +406,12 @@ object HouseholdActor {
             sender() ! CavTripLegsResponse(legs)
           case _ =>
             sender() ! CavTripLegsResponse(List())
+        }
+      case CancelCAVTrip(person) =>
+        log.debug("Removing person {} from plan to use CAVs")
+        personAndActivityToCav.keys.filter(_._1.equals(person)).foreach{ persAndAct =>
+          personAndActivityToCav = personAndActivityToCav - persAndAct
+          personAndActivityToLegs = personAndActivityToLegs - persAndAct
         }
 
       case NotifyVehicleIdle(vId, whenWhere, _, _, _) =>
