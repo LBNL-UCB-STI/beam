@@ -26,7 +26,6 @@ bbox.ll <- c(-122.521046,37.708690)
 hh.bound <- hh[x>bbox.ll[1] & y>bbox.ll[2] & x<bbox.ur[1] & y<bbox.ur[2]]
 
 samp.sizes <- c(1e3,10e3,100e3)
-samp.sizes <- c(10e3,100e3)
 
 samp.size <- samp.sizes[1]
 for(samp.size in samp.sizes){
@@ -51,15 +50,16 @@ for(samp.size in samp.sizes){
     all.plans[[length(all.plans)+1]] <- theplan
   }
   plan.samp <- rbindlist(all.plans)
+  plan.samp[,mode:='']
 
   out.dir.samp <- pp(out.dir,'/',samp.size/1e3,'k/')
   make.dir(out.dir.samp)
   save(hh.samp,per.samp,plan.samp,build.samp,units.samp,parcel.samp,file=pp(out.dir.samp,'urbansim-input.Rdata'))
-  write.csv(hh.samp,file=pp(out.dir.samp,'households.csv'),row.names=F)
-  write.csv(per.samp,file=pp(out.dir.samp,'persons.csv'),row.names=F)
-  write.csv(plan.samp,file=pp(out.dir.samp,'plans.csv'),row.names=F)
-  write.csv(build.samp,file=pp(out.dir.samp,'buildings.csv'),row.names=F)
-  write.csv(units.samp,file=pp(out.dir.samp,'units.csv'),row.names=F)
-  write.csv(parcel.samp,file=pp(out.dir.samp,'parcel_attr.csv'),row.names=F)
+  write.csv(hh.samp,file=pp(out.dir.samp,'households.csv'),row.names=F,na='')
+  write.csv(per.samp,file=pp(out.dir.samp,'persons.csv'),row.names=F,na='')
+  write.csv(plan.samp,file=pp(out.dir.samp,'plans.csv'),row.names=F,na='')
+  write.csv(build.samp,file=pp(out.dir.samp,'buildings.csv'),row.names=F,na='')
+  write.csv(units.samp,file=pp(out.dir.samp,'units.csv'),row.names=F,na='')
+  write.csv(parcel.samp,file=pp(out.dir.samp,'parcel_attr.csv'),row.names=F,na='')
 }
 

@@ -27,7 +27,6 @@ object VehiclesAdjustment {
 
   def getVehicleAdjustment(beamServices: BeamServices): VehiclesAdjustment = {
 
-
     new UniformVehiclesAdjustment(beamServices)
   }
 

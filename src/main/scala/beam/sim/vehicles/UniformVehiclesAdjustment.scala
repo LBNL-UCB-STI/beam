@@ -10,13 +10,12 @@ import probability_monad.Distribution
 case class UniformVehiclesAdjustment(beamServices: BeamServices) extends VehiclesAdjustment {
   val randUnif = Distribution.uniform
   val probabilities = randUnif.sample(beamServices.vehicleTypes.size)
-  val vehicleTypesAndProbabilitiesByCategory = beamServices.vehicleTypes.values.zip(probabilities).
-    groupBy(_._1.vehicleCategory).map{ catAndTypeProb =>
-      val probSum =  catAndTypeProb._2.map(_._2).sum
-      val cumulProbs = catAndTypeProb._2.map(_._2/probSum).scan(0.0)(_ + _)
-    (catAndTypeProb._1,catAndTypeProb._2.zip(cumulProbs).map(pair => (pair._1._1, pair._2)))
+  val vehicleTypesAndProbabilitiesByCategory = beamServices.vehicleTypes.values.
+    groupBy(_.vehicleCategory).map{ catAndType =>
+      val probSum = catAndType._2.map(_.sampleProbabilityWithinCategory).sum
+      val cumulProbs = catAndType._2.map(_.sampleProbabilityWithinCategory/probSum).scan(0.0)(_ + _).drop(1).toList :+ 1.0
+    (catAndType._1,catAndType._2.zip(cumulProbs).map(pair => (pair._1, pair._2)))
   }
-  val vehicleTypesProbabilitiesByCategory = beamServices.vehicleTypes.values.groupBy(_.vehicleCategory)
 
   override def sampleVehicleTypesForHousehold(
     numVehicles: Int,
@@ -29,7 +28,7 @@ case class UniformVehiclesAdjustment(beamServices: BeamServices) extends Vehicle
 
     val result = Range(0, 100).map { i =>
       val newRand = randUnif.get
-      vehicleTypesAndProbabilitiesByCategory(vehicleCategory).find(_._2 <= newRand).get._1
+      vehicleTypesAndProbabilitiesByCategory(vehicleCategory).find(_._2 >= newRand).get._1
     }.toList
 
     result
