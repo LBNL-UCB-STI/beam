@@ -318,46 +318,14 @@ class RideHailManager(
         .take(numRideHailAgents.toInt)
       val fleetData: ArrayBuffer[RideHailFleetInitializer.RideHailAgentInputData] = new ArrayBuffer(persons.size)
       persons.foreach { person =>
-        val personInitialLocation: Coord =
-          person.getSelectedPlan.getPlanElements
-            .iterator()
-            .next()
-            .asInstanceOf[Activity]
-            .getCoord
-        val rideInitialLocation: Coord =
-          beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.name match {
-            case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_HOME =>
-              val radius =
-                beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
-              new Coord(
-                personInitialLocation.getX + radius * (rand.nextDouble() - 0.5),
-                personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
-              )
-            case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_UNIFORM_RANDOM =>
-              val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) * rand
-                .nextDouble()
-              val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny) * rand
-                .nextDouble()
-              new Coord(x, y)
-            case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER =>
-              val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) / 2
-              val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny) / 2
-              new Coord(x, y)
-            case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_ALL_IN_CORNER =>
-              val x = quadTreeBounds.minx
-              val y = quadTreeBounds.miny
-              new Coord(x, y)
-            case unknown =>
-              log.error(s"unknown rideHail.initialLocation $unknown, assuming HOME")
-              val radius =
-                beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
-              new Coord(
-                personInitialLocation.getX + radius * (rand.nextDouble() - 0.5),
-                personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
-              )
-          }
-
-        fleetData += createRideHailVehicleAndAgent(person.getId.toString, rideInitialLocation, None, None)
+        try {
+          val rideInitialLocation: Location = getRideInitLocation(person)
+          fleetData += createRideHailVehicleAndAgent(person.getId.toString, rideInitialLocation, None, None)
+        } catch {
+          case ex: Throwable =>
+            log.error(ex, s"Could not createRideHailVehicleAndAgent: ${ex.getMessage}")
+            throw ex
+        }
       }
 
       new RideHailFleetInitializer().writeFleetData(beamServices, fleetData)
@@ -1143,13 +1111,21 @@ class RideHailManager(
         activity
     }
     val coordinates = activities.map(_.getCoord)
-    val xs = coordinates.map(_.getX)
-    val ys = coordinates.map(_.getY)
+    // Force to compute xs and ys arrays
+    val xs = coordinates.map(_.getX).toArray
+    val ys = coordinates.map(_.getY).toArray
+    val xMin = xs.min
+    val xMax = xs.max
+    val yMin = ys.min
+    val yMax = ys.max
+    log.info(
+      s"QuadTreeBounds with X: [$xMin; $xMax], Y: [$yMin, $yMax]. boundingBoxBuffer: ${beamServices.beamConfig.beam.spatial.boundingBoxBuffer}"
+    )
     QuadTreeBounds(
-      xs.min - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
-      ys.min - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
-      xs.max + beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
-      ys.max + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
+      xMin - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
+      yMin - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
+      xMax + beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
+      yMax + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
     )
   }
 
@@ -1222,4 +1198,47 @@ class RideHailManager(
     }
 
   }
+
+  def getRideInitLocation(person: Person): Location = {
+    val personInitialLocation: Location =
+      person.getSelectedPlan.getPlanElements
+        .iterator()
+        .next()
+        .asInstanceOf[Activity]
+        .getCoord
+    val rideInitialLocation: Location =
+      beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.name match {
+        case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_HOME =>
+          val radius =
+            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
+          new Coord(
+            personInitialLocation.getX + radius * (rand.nextDouble() - 0.5),
+            personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
+          )
+        case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_UNIFORM_RANDOM =>
+          val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) * rand
+            .nextDouble()
+          val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny) * rand
+            .nextDouble()
+          new Coord(x, y)
+        case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER =>
+          val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) / 2
+          val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny) / 2
+          new Coord(x, y)
+        case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_ALL_IN_CORNER =>
+          val x = quadTreeBounds.minx
+          val y = quadTreeBounds.miny
+          new Coord(x, y)
+        case unknown =>
+          log.error(s"unknown rideHail.initialLocation $unknown, assuming HOME")
+          val radius =
+            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
+          new Coord(
+            personInitialLocation.getX + radius * (rand.nextDouble() - 0.5),
+            personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
+          )
+      }
+    rideInitialLocation
+  }
+
 }
