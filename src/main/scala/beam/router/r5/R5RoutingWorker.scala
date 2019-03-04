@@ -1,5 +1,6 @@
 package beam.router.r5
 
+import java.nio.file.Paths
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneId, ZoneOffset, ZonedDateTime}
 import java.util
@@ -11,7 +12,7 @@ import beam.agentsim.agents.choice.mode.{DrivingCost, ModeIncentive, PtFares}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.BeamRouter._
@@ -100,6 +101,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val transportNetwork = networkCoordinator.transportNetwork
 
       val netHelper: NetworkHelper = new NetworkHelperImpl(network)
+      val vehicleCsvReader: VehicleCsvReader = new VehicleCsvReader(beamConfig)
 
       val beamServices: BeamServices = new BeamServices {
         override lazy val controler: ControlerI = ???
@@ -117,11 +119,24 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         val fuelTypePrices: Map[FuelType, Double] =
           readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
 
-        // TODO Fix me once `TrieMap` is removed
-        val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
-          TrieMap(
-            readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices).toSeq: _*
+        val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] =
+          readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
+
+        private val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile).getParent
+        private val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+        private val consumptionRateFilterStore =
+          new ConsumptionRateFilterStoreImpl(
+            vehicleCsvReader.getVehicleEnergyRecordsUsing,
+            Option(baseFilePath.toString),
+            primaryConsumptionRateFilePathsByVehicleType =
+              vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
+            secondaryConsumptionRateFilePathsByVehicleType =
+              vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
           )
+        val vehicleEnergy = new VehicleEnergy(
+          consumptionRateFilterStore,
+          vehicleCsvReader.getLinkToGradeRecordsUsing
+        )
 
         // TODO Fix me once `TrieMap` is removed
         val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
@@ -152,7 +167,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         tt.toInt
       }
       val initializer =
-        new TransitInitializer(beamServices, transportNetwork, scenario.getTransitVehicles, defaultTravelTimeByLink)
+        new TransitInitializer(
+          beamServices,
+          transportNetwork,
+          scenario.getTransitVehicles,
+          defaultTravelTimeByLink
+        )
       val transits = initializer.initMap
 
       val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
@@ -335,16 +355,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             )).toInt
       }
       val updatedLeg = updateLegWithCurrentTravelTime(leg)
-      val linkEvents = RoutingModel.traverseStreetLeg(updatedLeg, vehicleId, travelTime)
-      val duration = linkEvents
-        .maxBy(e => e.getTime)
-        .getTime - updatedLeg.startTime
       sender ! RoutingResponse(
         Vector(
           EmbodiedBeamTrip(
             Vector(
               EmbodiedBeamLeg(
-                updatedLeg.copy(duration = duration.toInt),
+                updatedLeg,
                 vehicleId,
                 vehicleTypeId,
                 asDriver = true,
@@ -448,6 +464,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     val isRouteForPerson = routingRequest.streetVehicles.exists(_.mode == WALK)
 
     def tripsForVehicle(vehicle: StreetVehicle): Seq[EmbodiedBeamTrip] = {
+      if (vehicle.locationUTM == null) {
+        log.error("Vehicle has no location: {}", vehicle)
+      }
       /*
        * Our algorithm captures a few different patterns of travel. Two of these require extra routing beyond what we
        * call the "main" route calculation below. In both cases, we have a single main transit route
@@ -518,7 +537,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             )
           }
         } else {
-          Some(dummyWalk(routingRequest.departureTime))
+          Some(dummyLeg(routingRequest.departureTime))
         }
       } else {
         None
@@ -732,10 +751,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       //      log.debug("No walk route found. {}", routingRequest)
       val maybeBody = routingRequest.streetVehicles.find(_.mode == WALK)
       if (maybeBody.isDefined) {
-        //        log.debug("Adding dummy walk route with maximum street time.")
         val dummyTrip = R5RoutingWorker.createBushwackingTrip(
-          beamServices.geo.utm2Wgs(new Coord(routingRequest.originUTM.getX, routingRequest.originUTM.getY)),
-          beamServices.geo.utm2Wgs(new Coord(routingRequest.destinationUTM.getX, routingRequest.destinationUTM.getY)),
+          new Coord(routingRequest.originUTM.getX, routingRequest.originUTM.getY),
+          new Coord(routingRequest.destinationUTM.getX, routingRequest.destinationUTM.getY),
           routingRequest.departureTime,
           maybeBody.get,
           beamServices
@@ -811,7 +829,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       SpaceTime(
         segment.geometry.getEndPoint.getX,
         segment.geometry.getEndPoint.getY,
-        tripStartTime + segment.duration
+        tripStartTime + linksTimesDistances.travelTimes.tail.sum
       ),
       distance
     )
@@ -1163,7 +1181,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     // Optionally add a Dummy walk BeamLeg to the end of that trip
     if (isRouteForPerson && access.mode != LegMode.WALK) {
       if (!isTransit)
-        legsWithFares += LegWithFare(dummyWalk(legsWithFares.last.leg.endTime), 0.0)
+        legsWithFares += LegWithFare(dummyLeg(legsWithFares.last.leg.endTime), 0.0)
     }
 
     if (isTransit) {
@@ -1224,7 +1242,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         val egress = option.egress.get(itinerary.connection.egress)
         legsWithFares ++= buildStreetBasedLegs(egress, arrivalTime)
         if (isRouteForPerson && egress.mode != LegMode.WALK)
-          legsWithFares += LegWithFare(dummyWalk(arrivalTime + egress.duration), 0.0)
+          legsWithFares += LegWithFare(dummyLeg(arrivalTime + egress.duration), 0.0)
       }
     }
     maybeUseVehicleOnEgress.foreach { legWithFare =>
@@ -1233,7 +1251,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       legsWithFares += LegWithFare(updatedLeg, legWithFare.fare)
     }
     if (maybeUseVehicleOnEgress.nonEmpty && isRouteForPerson) {
-      legsWithFares += LegWithFare(dummyWalk(legsWithFares.last.leg.endTime), 0.0)
+      legsWithFares += LegWithFare(dummyLeg(legsWithFares.last.leg.endTime), 0.0)
     }
     // TODO is it correct way to find first non-dummy leg
     val fistNonDummyLeg = legsWithFares.collectFirst {
@@ -1372,26 +1390,32 @@ object R5RoutingWorker {
     )
   }
 
-  def createBushwackingBeamLeg(atTime: Int, start: Location, end: Location, beamServices: BeamServices): BeamLeg = {
-    val beelineDistanceInMeters = beamServices.geo.distUTMInMeters(start, end)
+  def createBushwackingBeamLeg(
+    atTime: Int,
+    startUTM: Location,
+    endUTM: Location,
+    beamServices: BeamServices
+  ): BeamLeg = {
+    val beelineDistanceInMeters = beamServices.geo.distUTMInMeters(startUTM, endUTM)
     val bushwhackingTime = Math.round(beelineDistanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
-    createBushwackingBeamLeg(atTime, bushwhackingTime.toInt, start, end, beelineDistanceInMeters)
+    createBushwackingBeamLeg(atTime, bushwhackingTime.toInt, startUTM, endUTM, beelineDistanceInMeters)
   }
 
   def createBushwackingBeamLeg(
     atTime: Int,
     duration: Int,
-    start: Location,
-    end: Location,
+    startUTM: Location,
+    endUTM: Location,
     distance: Double
   ): BeamLeg = {
-    val path = BeamPath(Vector(), Vector(), None, SpaceTime(start, atTime), SpaceTime(end, atTime + duration), distance)
+    val path =
+      BeamPath(Vector(), Vector(), None, SpaceTime(startUTM, atTime), SpaceTime(endUTM, atTime + duration), distance)
     BeamLeg(atTime, WALK, duration, path)
   }
 
   def createBushwackingTrip(
-    origin: Location,
-    dest: Location,
+    originUTM: Location,
+    destUTM: Location,
     atTime: Int,
     body: StreetVehicle,
     beamServices: BeamServices
@@ -1399,7 +1423,7 @@ object R5RoutingWorker {
     EmbodiedBeamTrip(
       Vector(
         EmbodiedBeamLeg(
-          createBushwackingBeamLeg(atTime, origin, dest, beamServices),
+          createBushwackingBeamLeg(atTime, originUTM, destUTM, beamServices),
           body.id,
           body.vehicleTypeId,
           asDriver = true,

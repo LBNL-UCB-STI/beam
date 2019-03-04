@@ -21,13 +21,13 @@ public class MotorizedVehicleMilesTraveledAnalysis implements IterationSummaryAn
 
     @Override
     public void processStats(Event event) {
-        if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
-            Map<String, String> eventAttributes = event.getAttributes();
-            String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
-            double lengthInMeters = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
+        if (event instanceof PathTraversalEvent) {
+            PathTraversalEvent pte = (PathTraversalEvent)event;
+            String vehicleType = pte.vehicleType();
+            double lengthInMeters = pte.legLength();
 
             milesTraveledByVehicleType.merge(vehicleType, lengthInMeters, (d1, d2) -> d1 + d2);
-            if (!vehicleType.equalsIgnoreCase(BeamVehicleType.defaultHumanBodyBeamVehicleType().toString()) && !vehicleType.equalsIgnoreCase(BeamVehicleType.defaultBicycleBeamVehicleType().toString())) {
+            if (!vehicleType.equalsIgnoreCase(BeamVehicleType.defaultHumanBodyBeamVehicleType().toString())) {
                 milesTraveledByVehicleType.merge("total", lengthInMeters, (d1, d2) -> d1 + d2);
             }
 

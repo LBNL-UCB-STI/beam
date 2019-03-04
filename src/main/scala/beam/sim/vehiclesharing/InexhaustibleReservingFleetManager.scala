@@ -33,8 +33,8 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       sender ! CompletionNotice(triggerId)
 
-    case MobilityStatusInquiry(whenWhere) =>
-      // Create a vehicle outWriter of thin air
+    case MobilityStatusInquiry(_, whenWhere, _) =>
+      // Create a vehicle out of thin air
       val vehicle = new BeamVehicle(
         Id.createVehicleId(self.path.name + "-" + nextVehicleIndex),
         new Powertrain(0.0),

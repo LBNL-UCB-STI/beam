@@ -63,9 +63,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
              start tracking the departing person
        */
       case modeChoiceEvent: ModeChoiceEvent =>
-        val modeChoiceEventAttributes = modeChoiceEvent.getAttributes
-        val modeChoice = Option(modeChoiceEventAttributes.get(ModeChoiceEvent.ATTRIBUTE_MODE)).getOrElse("")
-        modeChoice match {
+        modeChoiceEvent.mode match {
           case BeamMode.CAR.value | BeamMode.DRIVE_TRANSIT.value =>
             // start tracking the person for outbound stats
             if (!personOutboundParkingStatsTracker.contains(modeChoiceEvent.getPersonId.toString)) {
@@ -130,8 +128,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
       case leavingParkingEvent: LeavingParkingEvent =>
         if (personOutboundParkingStatsTracker.contains(leavingParkingEvent.getPersonId.toString)) {
           // Get the parking TAZ from the event
-          val leavingParkingEventAttributes = leavingParkingEvent.getAttributes
-          val parkingTaz = Option(leavingParkingEventAttributes.get(LeavingParkingEventAttrs.ATTRIBUTE_PARKING_TAZ))
+          val parkingTaz = Some(leavingParkingEvent.tazId.toString)
           val personOutboundParkingStats = personOutboundParkingStatsTracker.getOrElse(
             leavingParkingEvent.getPersonId.toString,
             ParkingStatsCollector.EMPTY_PERSON_OUTBOUND_STATS
@@ -164,13 +161,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
       case parkEvent: ParkEvent =>
         if (personInboundParkingStatsTracker.contains(parkEvent.getDriverId)) {
           // get the parking cost from the event attributes
-          val parkingCost: Option[Double] = try {
-            Option(parkEvent.getAttributes.get(ParkEventAttrs.ATTRIBUTE_COST)).map(_.toDouble)
-          } catch {
-            case e: Exception =>
-              logger.error("Error while reading cost attribute and converting it to double : " + e.getMessage, e)
-              None
-          }
+          val parkingCost: Option[Double] = Some(parkEvent.cost)
           val personInboundParkingStats = personInboundParkingStatsTracker.getOrElse(
             parkEvent.getDriverId,
             ParkingStatsCollector.EMPTY_PERSON_INBOUND_STATS
@@ -187,35 +178,20 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
              process the parking stats collected so far for that person
        */
       case pathTraversalEvent: PathTraversalEvent =>
-        val pathTraversalEventAttributes = pathTraversalEvent.getAttributes
-        val driverId: Option[String] = Option(pathTraversalEventAttributes.get(PathTraversalEvent.ATTRIBUTE_DRIVER_ID))
-        driverId match {
-          case Some(dId) =>
-            if (personInboundParkingStatsTracker.contains(dId)) {
-              val personInboundParkingStats = personInboundParkingStatsTracker.getOrElse(
-                dId,
-                ParkingStatsCollector.EMPTY_PERSON_INBOUND_STATS
-              )
-              if (personInboundParkingStats.parkingTime.isDefined) {
-                // Calculate the inbound parking overhead time
-                val arrivalTime: Option[Double] = try {
-                  Option(pathTraversalEventAttributes.get(PathTraversalEvent.ATTRIBUTE_ARRIVAL_TIME)).map(_.toDouble)
-                } catch {
-                  case e: Exception =>
-                    logger.error(
-                      "Error while fetching and casting the parking cost attribute to double : " + e.getMessage,
-                      e
-                    )
-                    None
-                }
-                //process the collected inbound stats for the person
-                processInboundParkingStats(dId, personInboundParkingStats.copy(arrivalTime = arrivalTime))
-                //stop tracking the person for inbound stats
-                personInboundParkingStatsTracker.remove(dId)
-              }
-            }
-          case None =>
-            logger.error(s"No driver id attribute defined for the PathTraversalEvent")
+        val driverId = pathTraversalEvent.driverId
+        if (personInboundParkingStatsTracker.contains(driverId)) {
+          val personInboundParkingStats = personInboundParkingStatsTracker.getOrElse(
+            driverId,
+            ParkingStatsCollector.EMPTY_PERSON_INBOUND_STATS
+          )
+          if (personInboundParkingStats.parkingTime.isDefined) {
+            // Calculate the inbound parking overhead time
+            val arrivalTime: Option[Double] = Some(pathTraversalEvent.arrivalTime)
+            //process the collected inbound stats for the person
+            processInboundParkingStats(driverId, personInboundParkingStats.copy(arrivalTime = arrivalTime))
+            //stop tracking the person for inbound stats
+            personInboundParkingStatsTracker.remove(driverId)
+          }
         }
 
       case _ =>

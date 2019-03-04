@@ -1,5 +1,6 @@
 package beam.utils
 
+import java.nio.file.Paths
 import java.time.ZonedDateTime
 import java.util.{Collections, Comparator}
 
@@ -7,8 +8,7 @@ import akka.actor.ActorRef
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.FuelType.FuelType
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
-import beam.agentsim.infrastructure.taz.TAZTreeMap
+import beam.agentsim.agents.vehicles._
 import beam.router.Modes
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
@@ -98,8 +98,6 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
 
     val beamServices = getBeamServices(config)
 
-    val planReaderCsv: ScenarioReaderCsv = new ScenarioReaderCsv(scenario, beamServices)
-
     b2 = beamServices
 
     scenario
@@ -123,14 +121,24 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
       val fuelTypePrices: Map[FuelType, Double] =
         readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
 
-      // TODO Fix me once `TrieMap` is removed
-      val vehicleTypes: TrieMap[Id[BeamVehicleType], BeamVehicleType] =
-        TrieMap(
-          readBeamVehicleTypeFile(
-            beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile,
-            fuelTypePrices
-          ).toSeq: _*
+      val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] =
+        readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
+
+      private val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile).getParent
+      private val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+      private val consumptionRateFilterStore =
+        new ConsumptionRateFilterStoreImpl(
+          vehicleCsvReader.getVehicleEnergyRecordsUsing,
+          Option(baseFilePath.toString),
+          primaryConsumptionRateFilePathsByVehicleType =
+            vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
+          secondaryConsumptionRateFilePathsByVehicleType =
+            vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
         )
+      val vehicleEnergy = new VehicleEnergy(
+        consumptionRateFilterStore,
+        vehicleCsvReader.getLinkToGradeRecordsUsing
+      )
 
       // TODO Fix me once `TrieMap` is removed
       val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
@@ -142,15 +150,15 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
 
       override def matsimServices_=(x$1: org.matsim.core.controler.MatsimServices): Unit = ???
 
-      override val tazTreeMap: TAZTreeMap =
+      override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap =
         beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
-      override val modeIncentives: ModeIncentive = ???
+      override lazy val modeIncentives: ModeIncentive = ???
 
       override def matsimServices: org.matsim.core.controler.MatsimServices = ???
 
-      override val rideHailTransitModes: Seq[Modes.BeamMode] = ???
-      override val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = ???
-      override val ptFares: PtFares = ???
+      override lazy val rideHailTransitModes: Seq[Modes.BeamMode] = ???
+      override lazy val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = ???
+      override lazy val ptFares: PtFares = ???
       override def networkHelper: NetworkHelper = ???
       override def setTransitFleetSizes(
         tripFleetSizeMap: mutable.HashMap[String, Integer]
