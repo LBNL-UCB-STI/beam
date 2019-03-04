@@ -1,6 +1,7 @@
 package beam.scoring
 
 import beam.agentsim.agents.PersonAgent
+import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.model.EmbodiedBeamTrip
@@ -66,7 +67,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
         val attributes =
           person.getCustomAttributes.get(BEAM_ATTRIBUTES).asInstanceOf[AttributesOfIndividual]
 
-        val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributes)
+        val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributes).asInstanceOf[ModeChoiceMultinomialLogit]
 
         // The scores attribute is only relevant to LCCM, but we need to include a default value to avoid NPE during writing of plans
         person.getSelectedPlan.getAttributes
@@ -119,7 +120,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
       /**
         * Writes generalized link stats to csv file.
         */
-      private def registerLinkCosts(trips: Seq[EmbodiedBeamTrip], attributes: AttributesOfIndividual): Unit = {
+      private def registerLinkCosts(trips: Seq[EmbodiedBeamTrip], attributes: AttributesOfIndividual, modeChoiceMultinomialLogit: ModeChoiceMultinomialLogit): Unit = {
         // Consider only trips that start between the given time range (specified in the scenario config)
         val startTime = beamServices.beamConfig.beam.outputs.generalizedLinkStats.startTime
         val endTime = beamServices.beamConfig.beam.outputs.generalizedLinkStats.endTime
@@ -127,15 +128,19 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
           t.legs.headOption.exists(bleg => bleg.beamLeg.startTime >= startTime && bleg.beamLeg.startTime <= endTime)
         }
 
+
         filteredTrips foreach { trip =>
           val tripCost = trip.costEstimate
           val tripDistance = trip.legs.map(_.beamLeg.travelPath.distanceInM).sum
           trip.legs.foreach { leg =>
+            val generalizedLegCost = attributes.getVOT(leg,modeChoiceMultinomialLogit)
+            val legLength = leg.beamLeg.travelPath.distanceInM
             leg.beamLeg.travelPath.linkIds.zipWithIndex.foreach {
               case (linkId, index) =>
                 val timeOnLink = leg.beamLeg.travelPath.linkTravelTime(index)
                 beamServices.networkHelper.getLink(linkId).map { link =>
                   val costOnLink = tripCost * link.getLength / tripDistance
+                  val generalizedCostOnLink = generalizedLegCost * link.getLength / legLength + costOnLink
                   /*
                  Add (or) update the average travel time for the link along with the count of observations
                    */
