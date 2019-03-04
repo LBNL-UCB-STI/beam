@@ -67,7 +67,8 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
         val attributes =
           person.getCustomAttributes.get(BEAM_ATTRIBUTES).asInstanceOf[AttributesOfIndividual]
 
-        val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributes).asInstanceOf[ModeChoiceMultinomialLogit]
+        val modeChoiceCalculator =
+          beamServices.modeChoiceCalculatorFactory(attributes).asInstanceOf[ModeChoiceMultinomialLogit]
 
         // The scores attribute is only relevant to LCCM, but we need to include a default value to avoid NPE during writing of plans
         person.getSelectedPlan.getAttributes
@@ -83,7 +84,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
         writeTripScoresToCSV()
 
         //write generalized link stats to file
-        registerLinkCosts(this.trips, attributes)
+        registerLinkCosts(this.trips, attributes, modeChoiceCalculator)
       }
 
       override def handleActivity(activity: Activity): Unit = {}
@@ -120,51 +121,76 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
       /**
         * Writes generalized link stats to csv file.
         */
-      private def registerLinkCosts(trips: Seq[EmbodiedBeamTrip], attributes: AttributesOfIndividual, modeChoiceMultinomialLogit: ModeChoiceMultinomialLogit): Unit = {
+      private def registerLinkCosts(
+        trips: Seq[EmbodiedBeamTrip],
+        attributes: AttributesOfIndividual,
+        modeChoiceMultinomialLogit: ModeChoiceMultinomialLogit
+      ): Unit = {
         // Consider only trips that start between the given time range (specified in the scenario config)
         val startTime = beamServices.beamConfig.beam.outputs.generalizedLinkStats.startTime
         val endTime = beamServices.beamConfig.beam.outputs.generalizedLinkStats.endTime
         val filteredTrips = trips filter { t =>
           t.legs.headOption.exists(bleg => bleg.beamLeg.startTime >= startTime && bleg.beamLeg.startTime <= endTime)
         }
-
-
-        filteredTrips foreach { trip =>
-          val tripCost = trip.costEstimate
-          val tripDistance = trip.legs.map(_.beamLeg.travelPath.distanceInM).sum
-          trip.legs.foreach { leg =>
-            val generalizedLegCost = attributes.getVOT(leg,modeChoiceMultinomialLogit)
-            val legLength = leg.beamLeg.travelPath.distanceInM
-            leg.beamLeg.travelPath.linkIds.zipWithIndex.foreach {
-              case (linkId, index) =>
-                val timeOnLink = leg.beamLeg.travelPath.linkTravelTime(index)
-                beamServices.networkHelper.getLink(linkId).map { link =>
-                  val costOnLink = tripCost * link.getLength / tripDistance
-                  val generalizedCostOnLink = generalizedLegCost * link.getLength / legLength + costOnLink
-                  /*
+        filteredTrips.zipWithIndex foreach {
+          case (trip, tripIndex) =>
+            val tripCost = trip.costEstimate
+            val tripDistance = trip.legs.map(_.beamLeg.travelPath.distanceInM).sum
+            val destinationActivity = person.getSelectedPlan.getPlanElements.asScala
+              .filter(_.isInstanceOf[Activity])
+              .map(_.asInstanceOf[Activity])
+              .lift(tripIndex + 1)
+            trip.legs.foreach { leg =>
+              val generalizedLegCost = attributes.getVOT(
+                leg,
+                modeChoiceMultinomialLogit.modeMultipliers,
+                modeChoiceMultinomialLogit.situationMultipliers,
+                modeChoiceMultinomialLogit.poolingMultipliers,
+                beamServices,
+                destinationActivity
+              )
+              val legLength = leg.beamLeg.travelPath.distanceInM
+              leg.beamLeg.travelPath.linkIds.zipWithIndex.foreach {
+                case (linkId, index) =>
+                  val timeOnLink = leg.beamLeg.travelPath.linkTravelTime(index)
+                  beamServices.networkHelper.getLink(linkId).map { link =>
+                    val costOnLink = tripCost * link.getLength / tripDistance
+                    val generalizedCostOnLink = generalizedLegCost * link.getLength / legLength + costOnLink
+                    /*
                  Add (or) update the average travel time for the link along with the count of observations
-                   */
-                  val (existingAverageTravelTime, observedTravelTimesCount) =
-                    BeamScoringFunctionFactory.linkAverageTravelTimes.getOrElse(linkId, 0D -> 0)
-                  // Compute the new average travel time for the link and increment the observations count
-                  val newTravelTimesCount = observedTravelTimesCount + 1
-                  val newTravelTimeAverage = ((existingAverageTravelTime * observedTravelTimesCount) + timeOnLink) / newTravelTimesCount
-                  //Store the new travel time stats for the link, in memory
-                  BeamScoringFunctionFactory.linkAverageTravelTimes
-                    .put(linkId, newTravelTimeAverage -> newTravelTimesCount)
-                  /*
+                     */
+                    val (existingAverageTravelTime, observedTravelTimesCount) =
+                      BeamScoringFunctionFactory.linkAverageTravelTimes.getOrElse(linkId, 0D -> 0)
+                    // Compute the new average travel time for the link and increment the observations count
+                    val newTravelTimesCount = observedTravelTimesCount + 1
+                    val newTravelTimeAverage = ((existingAverageTravelTime * observedTravelTimesCount) + timeOnLink) / newTravelTimesCount
+                    //Store the new travel time stats for the link, in memory
+                    BeamScoringFunctionFactory.linkAverageTravelTimes
+                      .put(linkId, newTravelTimeAverage -> newTravelTimesCount)
+                    /*
                 Add (or) update the average cost for the link along with the count of observations
-                   */
-                  val (existingAverageCost, observedCostsCount) =
-                    BeamScoringFunctionFactory.linkAverageCosts.getOrElse(linkId, 0D -> 0)
-                  // Compute the new average cost for the link and increment the observations count
-                  val newCostsCount = observedCostsCount + 1
-                  val newAverageCost = ((existingAverageCost * observedCostsCount) + costOnLink) / newCostsCount
-                  //Store the new cost stats for the link, in memory
-                  BeamScoringFunctionFactory.linkAverageCosts.put(linkId, newAverageCost -> newCostsCount)
-                }
+                     */
+                    val (existingAverageCost, observedCostsCount) =
+                      BeamScoringFunctionFactory.linkAverageCosts.getOrElse(linkId, 0D -> 0)
+                    // Compute the new average cost for the link and increment the observations count
+                    val newCostsCount = observedCostsCount + 1
+                    val newAverageCost = ((existingAverageCost * observedCostsCount) + costOnLink) / newCostsCount
+                    //Store the new cost stats for the link, in memory
+                    BeamScoringFunctionFactory.linkAverageCosts.put(linkId, newAverageCost -> newCostsCount)
+                    /*
+                Add (or) update the average generalized cost for the link along with the count of observations
+                     */
+                    val (existingAverageGeneralizedCost, observedGeneralizedCostsCount) =
+                      BeamScoringFunctionFactory.linkAverageGeneralizedCosts.getOrElse(linkId, 0D -> 0)
+                    // Compute the new average cost for the link and increment the observations count
+                    val newGeneralizedCostsCount = observedGeneralizedCostsCount + 1
+                    val newGeneralizedAverageCost = ((existingAverageGeneralizedCost * observedGeneralizedCostsCount) + generalizedCostOnLink) / newGeneralizedCostsCount
+                    //Store the new cost stats for the link, in memory
+                    BeamScoringFunctionFactory.linkAverageGeneralizedCosts
+                      .put(linkId, newGeneralizedAverageCost -> newGeneralizedCostsCount)
+                  }
+              }
             }
-          }
         }
       }
     }
@@ -207,7 +233,8 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
           BeamScoringFunctionFactory.linkAverageTravelTimes.get(linkId).map(_._1.toString).getOrElse("")
         val avgCost = BeamScoringFunctionFactory.linkAverageCosts.get(linkId).map(_._1.toString).getOrElse("")
         val generalizedTravelTime = ""
-        val generalizedCost = ""
+        val generalizedCost =
+          BeamScoringFunctionFactory.linkAverageGeneralizedCosts.get(linkId).map(_._1.toString).getOrElse("")
         s"$linkId,$avgTravelTime,$avgCost,$generalizedTravelTime,$generalizedCost"
       }) mkString "\n"
       //write the data to an output file
@@ -233,6 +260,7 @@ object BeamScoringFunctionFactory extends OutputDataDescriptor {
   private val generalizedLinkStats = mutable.HashMap.empty[Int, String]
   private val linkAverageTravelTimes = mutable.HashMap.empty[Int, (Double, Int)]
   private val linkAverageCosts = mutable.HashMap.empty[Int, (Double, Int)]
+  private val linkAverageGeneralizedCosts = mutable.HashMap.empty[Int, (Double, Int)]
 
   /**
     * Stores the person and his respective score in a in memory map till the end of the iteration
@@ -267,6 +295,7 @@ object BeamScoringFunctionFactory extends OutputDataDescriptor {
     personTripScores.clear()
     linkAverageTravelTimes.clear()
     linkAverageCosts.clear()
+    linkAverageGeneralizedCosts.clear()
   }
 
   /**
