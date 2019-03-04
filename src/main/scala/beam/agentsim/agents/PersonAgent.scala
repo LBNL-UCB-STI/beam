@@ -227,10 +227,11 @@ class PersonAgent(
 
   val myUnhandled: StateFunction = {
     case Event(TriggerWithId(BoardVehicleTrigger(_, _), _), _) =>
-      log.debug("Person {} stashing BoardVehicleTrigger in state {}", id, stateName)
+      log.info("Person {} stashing BoardVehicleTrigger in state {}", id, stateName)
       stash()
       stay
     case Event(TriggerWithId(AlightVehicleTrigger(_, _), _), _) =>
+      log.info("Person {} stashing AlightVehicleTrigger in state {}", id, stateName)
       stash()
       stay
     case Event(NotifyVehicleIdle(_, _, _, _, _), _) =>
@@ -503,10 +504,12 @@ class PersonAgent(
      * Get Board message too early, reschedule for later
      */
     case Event(
-    TriggerWithId(BoardVehicleTrigger(tick, vehicleToExit), triggerId),
-    data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _)
-    )  =>
-      logDebug(s"Got BoardVehicleTrigger for a different vehicle $vehicleToExit than the one I'm in ${currentVehicle.head}")
+        TriggerWithId(BoardVehicleTrigger(tick, vehicleToExit), triggerId),
+        data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _)
+        ) =>
+      logDebug(
+        s"Got BoardVehicleTrigger for a different vehicle $vehicleToExit than the one I'm in ${currentVehicle.head}"
+      )
       stay() replying CompletionNotice(
         triggerId,
         Vector(ScheduleTrigger(BoardVehicleTrigger(restOfCurrentTrip.last.beamLeg.endTime, vehicleToExit), self))
@@ -515,10 +518,12 @@ class PersonAgent(
      * Get Alight message too early, reschedule for later
      */
     case Event(
-    TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit), triggerId),
-    data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _)
-    )  =>
-      logDebug(s"Got AlightVehicleTrigger for a different vehicle $vehicleToExit than the one I'm in ${currentVehicle.head}")
+        TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit), triggerId),
+        data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _)
+        ) =>
+      logDebug(
+        s"Got AlightVehicleTrigger for a different vehicle $vehicleToExit than the one I'm in ${currentVehicle.head}"
+      )
       stay() replying CompletionNotice(
         triggerId,
         Vector(ScheduleTrigger(AlightVehicleTrigger(restOfCurrentTrip.last.beamLeg.endTime + 1, vehicleToExit), self))
