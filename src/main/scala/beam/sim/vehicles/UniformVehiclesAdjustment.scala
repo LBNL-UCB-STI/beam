@@ -31,11 +31,10 @@ case class UniformVehiclesAdjustment(beamServices: BeamServices) extends Vehicle
     householdLocation: Coord
   ): List[BeamVehicleType] = {
 
-    val result = Range(0, 100).map { i =>
+    val result = Range(0, numVehicles).map { i =>
       val newRand = randUnif.get
       vehicleTypesAndProbabilitiesByCategory(vehicleCategory).find(_._2 >= newRand).get._1
     }.toList
-
     result
   }
 }
