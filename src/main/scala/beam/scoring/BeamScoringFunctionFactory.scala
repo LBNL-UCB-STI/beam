@@ -1,11 +1,11 @@
 package beam.scoring
 
 import beam.agentsim.agents.PersonAgent
-import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent, ReserveRideHailEvent}
+import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
-import beam.router.Modes.BeamMode.RIDE_HAIL_POOLED
-import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.sim.population.{AttributesOfIndividual, PopulationAdjustment}
+import beam.router.model.EmbodiedBeamTrip
+import beam.sim.population.AttributesOfIndividual
+import beam.sim.population.PopulationAdjustment._
 import beam.sim.{BeamServices, MapStringDouble, OutputDataDescription}
 import beam.utils.{FileUtils, OutputDataDescriptor}
 import javax.inject.Inject
@@ -15,9 +15,6 @@ import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
 import org.slf4j.LoggerFactory
-import PopulationAdjustment._
-import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.router.Modes.BeamMode
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
