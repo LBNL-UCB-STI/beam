@@ -30,7 +30,10 @@ case class BeamVehicleType(
   passengerCarUnit: Double = 1,
   rechargeLevel2RateLimitInWatts: Option[Double] = None,
   rechargeLevel3RateLimitInWatts: Option[Double] = None,
-  vehicleCategory: VehicleCategory
+  vehicleCategory: VehicleCategory,
+  primaryVehicleEnergyFile: Option[String] = None,
+  secondaryVehicleEnergyFile: Option[String] = None,
+  sampleProbabilityWithinCategory: Double = 1.0
 )
 
 object BeamVehicleType {

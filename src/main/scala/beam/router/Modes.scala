@@ -116,7 +116,6 @@ object Modes {
 
     val allModes: Seq[BeamMode] =
       Seq(
-        RIDE_HAIL,
         CAR,
         CAV,
         WALK,
