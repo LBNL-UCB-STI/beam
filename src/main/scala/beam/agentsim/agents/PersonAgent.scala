@@ -404,7 +404,10 @@ class PersonAgent(
       handleFailedRideHailReservation(error, response, data)
     // RIDE HAIL SUCCESS
     // no trigger needed here since we're going to Waiting anyway without any other actions needed
-    case Event(RideHailResponse(_, _, None, triggersToSchedule), data: BasePersonData) =>
+    case Event(RideHailResponse(req, _, None, triggersToSchedule), data: BasePersonData) =>
+      if(req.departAt != _currentTick.get){
+        val i = 0
+      }
       handleSuccessfulReservation(triggersToSchedule, data)
     // RIDE HAIL FAILURE
     case Event(
@@ -650,6 +653,9 @@ class PersonAgent(
         leg => leg.beamVehicleId == nextLeg.beamVehicleId
       )
       val departAt = legSegment.head.beamLeg.startTime
+      if(departAt < _currentTick.get){
+        val i = 0
+      }
 
       rideHailManager ! RideHailRequest(
         ReserveRide,
@@ -786,8 +792,8 @@ class PersonAgent(
     data: BasePersonData
   ): FSM.State[BeamAgentState, PersonData] = {
     if (_currentTriggerId.isDefined) {
-      val (_, triggerId) = releaseTickAndTriggerId()
-      log.debug("scheduling triggers from reservation responses: {}", triggersToSchedule)
+      val (tick, triggerId) = releaseTickAndTriggerId()
+      log.debug("releasing tick {} and scheduling triggers from reservation responses: {}", tick, triggersToSchedule)
       scheduler ! CompletionNotice(triggerId, triggersToSchedule)
     } else {
       // if _currentTriggerId is empty, this means we have received the reservation response from a batch
