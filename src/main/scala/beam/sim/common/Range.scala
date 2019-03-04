@@ -26,19 +26,20 @@ case class Range(lowerEndpoint: Int, upperEndpoint: Int) {
 
 object Range {
 
-  def apply(pattern: String): Range =
-    if (pattern == null || pattern.isEmpty) Range.empty()
+  val pattern = """\[-?\d*\:-?\d*\]"""
+  def apply(exp: String): Range =
+    if (exp == null || exp.isEmpty) Range.empty()
+    else if(!exp.matches(pattern)) throw new RuntimeException(s"Invalid range expression $exp, it should be [<NUM>:<NUM>].")
     else {
-      val bounds = pattern.split(":")
-      val lowerBound = Try(
-        bounds(0).substring(1).toInt
-        + (if (bounds(0).startsWith("(")) 1 else 0)
+      val endpoints = exp.split(":")
+      val lowerEndpoint = Try(
+        endpoints(0).substring(1).toInt
       ).getOrElse(0)
-      val upperBound = Try(
-        bounds(1).substring(0, bounds(1).length - 1).toInt
-        - (if (bounds(1).endsWith(")")) 1 else 0)
+      val upperEndpoint = Try(
+        endpoints(1).substring(0, endpoints(1).length - 1).toInt
       ).getOrElse(Int.MaxValue)
-      Range(lowerBound, upperBound)
+      if(upperEndpoint < lowerEndpoint) throw new RuntimeException(s"In range expression $exp, [<lowerEndpoint>:<upperEndpoint>] upperEndpoint can't be smaller than lowerEndpoint.")
+      Range(lowerEndpoint, upperEndpoint)
     }
 
   def apply(lowerEndpoint: Int, upperEndpoint: Int): Range = {
