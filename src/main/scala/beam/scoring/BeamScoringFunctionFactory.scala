@@ -122,8 +122,8 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
         */
       private def registerLinkCosts(trips: Seq[EmbodiedBeamTrip], attributes: AttributesOfIndividual): Unit = {
         // Consider only trips that start between the given time range (specified in the scenario config)
-        val startTime = 25200 //TODO read this from conf as beam.outputs.generalizedLinkStats.startTime
-        val endTime = 32400 //TODO read this from conf as beam.outputs.generalizedLinkStats.endTime
+        val startTime = beamServices.beamConfig.beam.outputs.generalizedLinkStats.startTime
+        val endTime = beamServices.beamConfig.beam.outputs.generalizedLinkStats.endTime
         val filteredTrips = trips filter { t =>
           t.legs.headOption.exists(bleg => bleg.beamLeg.startTime >= startTime && bleg.beamLeg.startTime <= endTime)
         }
@@ -189,7 +189,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
   }
 
   private def writeGeneralizedLinkStatsDataToFile(event: IterationEndsEvent): Unit = {
-    val linkStatsInterval = 2 // TODO read it from beam.outputs.generalizedLinkStats.interval
+    val linkStatsInterval = beamServices.beamConfig.beam.outputs.generalizedLinkStats.interval
     if (linkStatsInterval > 0 && event.getIteration % linkStatsInterval == 0) {
       val fileHeader = "linkId,travelTime,cost,generalizedTravelTime,generalizedCost"
       // Output file relative path
