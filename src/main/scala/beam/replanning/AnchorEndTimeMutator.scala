@@ -5,6 +5,7 @@ import javax.inject.Inject
 import org.matsim.api.core.v01.population._
 
 import scala.collection.JavaConverters._
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.language.postfixOps
 import scala.util.Random
@@ -51,7 +52,7 @@ class AnchorEndTimeMutator @Inject()(beamConfig: BeamConfig) extends PlansStrate
 object AnchorEndTimeMutator {
 
   // A map that temporarily stores the original state of the selected plans for a given person
-  private val personSelectedPlans: mutable.HashMap[String, Seq[Double]] = mutable.HashMap.empty
+  private val personSelectedPlans: TrieMap[String, Seq[Double]] = TrieMap.empty
 
   // Stores the given person's original selected plan into the map
   def storeActivitiesOriginalEndTime(personId: String, plan: Plan): Unit = {
