@@ -17,7 +17,6 @@ case class UniformVehiclesAdjustment(beamServices: BeamServices) extends Vehicle
     (catAndTypeProb._1,catAndTypeProb._2.zip(cumulProbs).map(pair => (pair._1._1, pair._2)))
   }
   val vehicleTypesProbabilitiesByCategory = beamServices.vehicleTypes.values.groupBy(_.vehicleCategory)
-  val (List(0.2,0.4,0.3,0.1))
 
   override def sampleVehicleTypesForHousehold(
     numVehicles: Int,
