@@ -13,7 +13,11 @@ import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavT
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, VehicleOrToken}
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.agents.ridehail.RideHailAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck, ModifyPassengerScheduleAcks}
+import beam.agentsim.agents.ridehail.RideHailAgent.{
+  ModifyPassengerSchedule,
+  ModifyPassengerScheduleAck,
+  ModifyPassengerScheduleAcks
+}
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
@@ -341,7 +345,7 @@ object HouseholdActor {
             val updatedLegsIterator = passengerSchedule.schedule.keys.toIterator
             var pickDropsForGrouping: Map[VehiclePersonId, List[BeamLeg]] = Map()
             var passengersToAdd = Set[VehiclePersonId]()
-            if(household.getId.toString.equals("2382400")){
+            if (household.getId.toString.equals("2382400")) {
               val i = 0
             }
             cavSchedule.schedule.foreach { serviceRequest =>
@@ -409,7 +413,7 @@ object HouseholdActor {
         }
       case CancelCAVTrip(person) =>
         log.debug("Removing person {} from plan to use CAVs")
-        personAndActivityToCav.filter(_._1._1.equals(person.personId)).foreach{ persActAndCAV =>
+        personAndActivityToCav.filter(_._1._1.equals(person.personId)).foreach { persActAndCAV =>
           persActAndCAV._2.driver.get ! RemovePassengerFromTrip(person)
           personAndActivityToCav = personAndActivityToCav - persActAndCAV._1
           personAndActivityToLegs = personAndActivityToLegs - persActAndCAV._1

@@ -405,7 +405,7 @@ class PersonAgent(
     // RIDE HAIL SUCCESS
     // no trigger needed here since we're going to Waiting anyway without any other actions needed
     case Event(RideHailResponse(req, _, None, triggersToSchedule), data: BasePersonData) =>
-      if(req.departAt != _currentTick.get){
+      if (req.departAt != _currentTick.get) {
         val i = 0
       }
       handleSuccessfulReservation(triggersToSchedule, data)
@@ -653,7 +653,7 @@ class PersonAgent(
         leg => leg.beamVehicleId == nextLeg.beamVehicleId
       )
       val departAt = legSegment.head.beamLeg.startTime
-      if(departAt < _currentTick.get){
+      if (departAt < _currentTick.get) {
         val i = 0
       }
 
@@ -803,8 +803,8 @@ class PersonAgent(
 
   }
 
-  def handleBoardOrAlightOutOfPlace(triggerId: Long,currentTrip: Option[EmbodiedBeamTrip]) = {
-    currentTrip match{
+  def handleBoardOrAlightOutOfPlace(triggerId: Long, currentTrip: Option[EmbodiedBeamTrip]) = {
+    currentTrip match {
       case None =>
 //        log.debug("Person {} stashing BoardOrAlight {} b/c no trip yet",id,triggerId)
         stash
@@ -814,22 +814,78 @@ class PersonAgent(
         stash
         stay
       case Some(trip) =>
-        log.warning("Person {} is abandoning CAV trips for rest of day because received Board/Alight trigger while on {} trip",id,trip.tripClassifier)
+        log.warning(
+          "Person {} is abandoning CAV trips for rest of day because received Board/Alight trigger while on {} trip",
+          id,
+          trip.tripClassifier
+        )
         householdRef ! CancelCAVTrip(bodyVehiclePersonId)
-        _experiencedBeamPlan.tours.foreach(tour => _experiencedBeamPlan.putStrategy(tour,ModeChoiceStrategy(None)))
+        _experiencedBeamPlan.tours.foreach(tour => _experiencedBeamPlan.putStrategy(tour, ModeChoiceStrategy(None)))
         stay() replying CompletionNotice(triggerId, Vector())
     }
   }
 
   val myUnhandled: StateFunction = {
-    case Event(TriggerWithId(BoardVehicleTrigger(_, _), triggerId), ChoosesModeData(BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _),_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_))=>
-      handleBoardOrAlightOutOfPlace(triggerId,currentTrip)
-    case Event(TriggerWithId(AlightVehicleTrigger(_, _), triggerId), ChoosesModeData(BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _),_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_))=>
-      handleBoardOrAlightOutOfPlace(triggerId,currentTrip)
-    case Event(TriggerWithId(BoardVehicleTrigger(_, _), triggerId), BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _)) =>
-      handleBoardOrAlightOutOfPlace(triggerId,currentTrip)
-    case Event(TriggerWithId(AlightVehicleTrigger(_, _), triggerId), BasePersonData(_, currentTrip, _ , _, _, _, _, _, _, _, _)) =>
-      handleBoardOrAlightOutOfPlace(triggerId,currentTrip)
+    case Event(
+        TriggerWithId(BoardVehicleTrigger(_, _), triggerId),
+        ChoosesModeData(
+          BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _),
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _
+        )
+        ) =>
+      handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
+    case Event(
+        TriggerWithId(AlightVehicleTrigger(_, _), triggerId),
+        ChoosesModeData(
+          BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _),
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _
+        )
+        ) =>
+      handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
+    case Event(
+        TriggerWithId(BoardVehicleTrigger(_, _), triggerId),
+        BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _)
+        ) =>
+      handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
+    case Event(
+        TriggerWithId(AlightVehicleTrigger(_, _), triggerId),
+        BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _)
+        ) =>
+      handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
     case Event(NotifyVehicleIdle(_, _, _, _, _), _) =>
       stay()
     case Event(RideHailResponse(request, travelProposal, error, triggersToSchedule), _) =>
@@ -852,7 +908,6 @@ class PersonAgent(
       }
       stop
   }
-
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))
 
