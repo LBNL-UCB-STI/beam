@@ -98,8 +98,6 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
 
     val beamServices = getBeamServices(config)
 
-    val planReaderCsv: ScenarioReaderCsv = new ScenarioReaderCsv(scenario, beamServices)
-
     b2 = beamServices
 
     scenario
@@ -154,13 +152,13 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
 
       override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap =
         beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
-      override val modeIncentives: ModeIncentive = ???
+      override lazy val modeIncentives: ModeIncentive = ???
 
       override def matsimServices: org.matsim.core.controler.MatsimServices = ???
 
-      override val rideHailTransitModes: Seq[Modes.BeamMode] = ???
-      override val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = ???
-      override val ptFares: PtFares = ???
+      override lazy val rideHailTransitModes: Seq[Modes.BeamMode] = ???
+      override lazy val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = ???
+      override lazy val ptFares: PtFares = ???
       override def networkHelper: NetworkHelper = ???
       override def setTransitFleetSizes(
         tripFleetSizeMap: mutable.HashMap[String, Integer]

@@ -65,6 +65,7 @@ object BeamVehicleUtils {
         val primaryFuelType = FuelType.fromString(primaryFuelTypeId)
         val primaryFuelConsumptionInJoulePerMeter = line.get("primaryFuelConsumptionInJoulePerMeter").trim.toDouble
         val primaryFuelCapacityInJoule = line.get("primaryFuelCapacityInJoule").trim.toDouble
+        val primaryVehicleEnergyFile = Option(line.get("primaryVehicleEnergyFile"))
         val monetaryCostPerMeter: Double = Option(line.get("monetaryCostPerMeter")).map(_.toDouble).getOrElse(0d)
         val monetaryCostPerSecond: Double = Option(line.get("monetaryCostPerSecond")).map(_.toDouble).getOrElse(0d)
         val secondaryFuelTypeId = Option(line.get("secondaryFuelType"))
@@ -72,14 +73,15 @@ object BeamVehicleUtils {
         val secondaryFuelConsumptionInJoule =
           Option(line.get("secondaryFuelConsumptionInJoulePerMeter")).map(_.toDouble)
         val secondaryFuelCapacityInJoule = Option(line.get("secondaryFuelCapacityInJoule")).map(_.toDouble)
+        val secondaryVehicleEnergyFile = Option(line.get("secondaryVehicleEnergyFile"))
         val automationLevel = Option(line.get("automationLevel")).map(_.toInt).getOrElse(1)
         val maxVelocity = Option(line.get("maxVelocity")).map(_.toDouble)
         val passengerCarUnit = Option(line.get("passengerCarUnit")).map(_.toDouble).getOrElse(1d)
         val rechargeLevel2RateLimitInWatts = Option(line.get("rechargeLevel2RateLimitInWatts")).map(_.toDouble)
         val rechargeLevel3RateLimitInWatts = Option(line.get("rechargeLevel3RateLimitInWatts")).map(_.toDouble)
         val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
-        val primaryVehicleEnergyFile = Option(line.get("primaryVehicleEnergyFile"))
-        val secondaryVehicleEnergyFile = Option(line.get("secondaryVehicleEnergyFile"))
+        val sampleProbabilityWithinCategory =
+          Option(line.get("sampleProbabilityWithinCategory")).map(_.toDouble).getOrElse(1.0)
 
         val bvt = BeamVehicleType(
           vehicleTypeId,
@@ -101,7 +103,8 @@ object BeamVehicleUtils {
           rechargeLevel3RateLimitInWatts,
           vehicleCategory,
           primaryVehicleEnergyFile,
-          secondaryVehicleEnergyFile
+          secondaryVehicleEnergyFile,
+          sampleProbabilityWithinCategory
         )
         z += ((vehicleTypeId, bvt))
     }.toMap

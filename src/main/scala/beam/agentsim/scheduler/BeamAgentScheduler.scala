@@ -1,6 +1,5 @@
 package beam.agentsim.scheduler
 
-import java.lang.Double
 import java.util.Comparator
 import java.util.concurrent.TimeUnit
 
@@ -8,12 +7,16 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Terminated
 import akka.event.LoggingReceive
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.ridehail.RideHailManager.{RecoverFromStuckness, RideHailRepositioningTrigger}
+import beam.agentsim.agents.ridehail.RideHailManager.{
+  ContinueBufferedRideHailRequests,
+  RecoverFromStuckness,
+  RideHailRepositioningTrigger
+}
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
+import beam.utils.StuckFinder
 import beam.utils.logging.LogActorState
-import beam.utils.{DebugLib, StuckFinder}
 import com.google.common.collect.TreeMultimap
 
 import scala.annotation.tailrec
