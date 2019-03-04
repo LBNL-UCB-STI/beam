@@ -14,6 +14,7 @@ object BeamConfig {
     calibration: BeamConfig.Beam.Calibration,
     cluster: BeamConfig.Beam.Cluster,
     debug: BeamConfig.Beam.Debug,
+    exchange: BeamConfig.Beam.Exchange,
     experimental: BeamConfig.Beam.Experimental,
     inputDirectory: java.lang.String,
     metrics: BeamConfig.Beam.Metrics,
@@ -593,9 +594,6 @@ object BeamConfig {
         }
 
         case class Population(
-          beamPopulationDirectory: java.lang.String,
-          beamPopulationFile: java.lang.String,
-          convertWgs2Utm: scala.Boolean,
           useVehicleSampling: scala.Boolean
         )
 
@@ -603,10 +601,6 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Population = {
             BeamConfig.Beam.Agentsim.Agents.Population(
-              beamPopulationDirectory =
-                if (c.hasPathOrNull("beamPopulationDirectory")) c.getString("beamPopulationDirectory") else "",
-              beamPopulationFile = if (c.hasPathOrNull("beamPopulationFile")) c.getString("beamPopulationFile") else "",
-              convertWgs2Utm = c.hasPathOrNull("convertWgs2Utm") && c.getBoolean("convertWgs2Utm"),
               useVehicleSampling = c.hasPathOrNull("useVehicleSampling") && c.getBoolean("useVehicleSampling")
             )
           }
@@ -1422,6 +1416,40 @@ object BeamConfig {
       }
     }
 
+    case class Exchange(
+      scenario: BeamConfig.Beam.Exchange.Scenario
+    )
+
+    object Exchange {
+      case class Scenario(
+        convertWgs2Utm: scala.Boolean,
+        fileFormat: java.lang.String,
+        folder: java.lang.String,
+        source: java.lang.String
+      )
+
+      object Scenario {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Scenario = {
+          BeamConfig.Beam.Exchange.Scenario(
+            convertWgs2Utm = c.hasPathOrNull("convertWgs2Utm") && c.getBoolean("convertWgs2Utm"),
+            fileFormat = if (c.hasPathOrNull("fileFormat")) c.getString("fileFormat") else "csv",
+            folder = if (c.hasPathOrNull("folder")) c.getString("folder") else "",
+            source = if (c.hasPathOrNull("source")) c.getString("source") else "MATSim"
+          )
+        }
+      }
+
+      def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange = {
+        BeamConfig.Beam.Exchange(
+          scenario = BeamConfig.Beam.Exchange.Scenario(
+            if (c.hasPathOrNull("scenario")) c.getConfig("scenario")
+            else com.typesafe.config.ConfigFactory.parseString("scenario{}")
+          )
+        )
+      }
+    }
+
     case class Experimental(
       optimizer: BeamConfig.Beam.Experimental.Optimizer
     )
@@ -1763,6 +1791,10 @@ object BeamConfig {
         debug = BeamConfig.Beam.Debug(
           if (c.hasPathOrNull("debug")) c.getConfig("debug")
           else com.typesafe.config.ConfigFactory.parseString("debug{}")
+        ),
+        exchange = BeamConfig.Beam.Exchange(
+          if (c.hasPathOrNull("exchange")) c.getConfig("exchange")
+          else com.typesafe.config.ConfigFactory.parseString("exchange{}")
         ),
         experimental = BeamConfig.Beam.Experimental(
           if (c.hasPathOrNull("experimental")) c.getConfig("experimental")
