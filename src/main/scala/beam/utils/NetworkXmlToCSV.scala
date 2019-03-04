@@ -45,31 +45,38 @@ object NetworkXmlToCSV {
     linkWriter.close()
 
     val mergeWriter = new PrintWriter(new File(mergeOutput))
-    val mergeHeader = List("link_id", "from_node", "to_node", "from_x", "from_y", "to_x", "to_y")
+    val mergeHeader = List("from_node", "to_node", "from_x", "from_y", "to_x", "to_y")
 
-    mergeWriter.write(mergeHeader.mkString(delimiter) + "\n")
-    (physimElement \ "links" \ "link").foreach { link =>
-      val id = (link \ "@id").text
-      val from = (link \ "@from").text
-      val to = (link \ "@to").text
-      val fromCoord = nodeMap(from)
-      val toCoord = nodeMap(to)
-      val row = new StringBuffer(id)
-      row
-        .append(delimiter)
-        .append(from)
-        .append(delimiter)
-        .append(to)
-        .append(delimiter)
-        .append(fromCoord._1)
-        .append(delimiter)
-        .append(fromCoord._2)
-        .append(delimiter)
-        .append(toCoord._1)
-        .append(delimiter)
-        .append(toCoord._2)
-      mergeWriter.write(row.toString + "\n")
-    }
+    mergeWriter.write(linkHeader + delimiter + mergeHeader.mkString(delimiter) + "\n")
+
+      (physimElement \ "links" \ "link").foreach { link =>
+        val id = (link \ "@id").text
+        val from = (link \ "@from").text
+        val to = (link \ "@to").text
+        val fromCoord = nodeMap(from)
+        val toCoord = nodeMap(to)
+        val row = new StringBuffer()
+
+        val attr = (link \ "attributes" \ "attribute").map(_.text)
+        val linkRow = linkAttribute.map(link \ _).map(_.text) ++ (if (attr.size == 0) Seq("","") else attr)
+
+        row
+          .append(delimiter)
+          .append(from)
+          .append(delimiter)
+          .append(to)
+          .append(delimiter)
+          .append(fromCoord._1)
+          .append(delimiter)
+          .append(fromCoord._2)
+          .append(delimiter)
+          .append(toCoord._1)
+          .append(delimiter)
+          .append(toCoord._2)
+        mergeWriter.write(linkRow.mkString(delimiter) + row.toString + "\n")
+
+      }
+
     mergeWriter.close()
   }
 }
