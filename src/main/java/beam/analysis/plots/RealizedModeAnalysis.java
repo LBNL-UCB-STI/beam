@@ -229,8 +229,10 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
                 if (sum >= 2) {
                     modeCounts.forEach((k, v) -> {        //k is mode, v is modecount
                         Map<String, Double> oldHourData = hourModeFrequency.get(h);
-                        oldHourData.merge(k, (double) v / sum, Double::sum);
-                        hourModeFrequency.put(h, oldHourData);
+                        if(oldHourData != null){
+                            oldHourData.merge(k, (double) v / sum, Double::sum);
+                            hourModeFrequency.put(h, oldHourData);
+                        }
                     });
                 }
             }
