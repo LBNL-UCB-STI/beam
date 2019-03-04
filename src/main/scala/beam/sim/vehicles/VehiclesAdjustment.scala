@@ -23,10 +23,11 @@ trait VehiclesAdjustment extends LazyLogging {
 
 object VehiclesAdjustment {
   val DEFAULT_ADJUSTMENT = "DEFAULT_ADJUSTMENT"
+  val UNIFORM_ADJUSTMENT = "UNIFORM_ADJUSTMENT"
 
   def getVehicleAdjustment(beamServices: BeamServices): VehiclesAdjustment = {
 
-    new DefaultVehiclesAdjustment(beamServices)
+    new UniformVehiclesAdjustment(beamServices)
   }
 
 }

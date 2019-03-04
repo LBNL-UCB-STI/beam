@@ -11,7 +11,7 @@ import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
-import beam.router.RouteHistory
+import beam.router.{BeamSkimmer, RouteHistory}
 import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
 import beam.scoring.BeamScoringFunctionFactory
@@ -19,13 +19,16 @@ import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationAdjustment
-import beam.utils.{NetworkHelper, _}
 import beam.utils.reflection.ReflectionUtils
+import beam.utils.scenario.matsim.MatsimScenarioSource
+import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
+import beam.utils.scenario.{InputType, ScenarioLoader, ScenarioSource}
+import beam.utils.{NetworkHelper, _}
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
-import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, Config => TypesafeConfig}
+import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.population.Person
@@ -172,7 +175,7 @@ trait BeamHelper extends LazyLogging {
           // MATSim defaults
           install(new NewControlerModule)
           install(new ScenarioByInstanceModule(scenario))
-          install(new ControlerDefaultsModule)
+          install(new ControllerModule)
           install(new ControlerDefaultCoreListenersModule)
 
           // Beam Inject below:
@@ -196,6 +199,7 @@ trait BeamHelper extends LazyLogging {
 
           addControlerListenerBinding().to(classOf[BeamSim])
           addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
+          addControlerListenerBinding().to(classOf[BeamSkimmer])
 
           addControlerListenerBinding().to(classOf[ActivityLocationPlotter])
           addControlerListenerBinding().to(classOf[GraphSurgePricing])
@@ -235,6 +239,7 @@ trait BeamHelper extends LazyLogging {
 
           bind(classOf[RideHailIterationHistory]).asEagerSingleton()
           bind(classOf[RouteHistory]).asEagerSingleton()
+          bind(classOf[BeamSkimmer]).asEagerSingleton()
           bind(classOf[TollCalculator]).asEagerSingleton()
 
           // Override EventsManager
@@ -367,6 +372,9 @@ trait BeamHelper extends LazyLogging {
 
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
     val (scenario, outputDir, networkCoordinator) = setupBeamWithConfig(config)
+
+    // beam.utils.scenario.CsvScenarioWriter.write(scenario, "c:/temp/csv_scenario_1k/")
+
     runBeam(config, scenario, networkCoordinator)
     (scenario.getConfig, outputDir)
   }
@@ -392,13 +400,13 @@ trait BeamHelper extends LazyLogging {
     beamServices.setTransitFleetSizes(networkCoordinator.tripFleetSizeMap)
 
     val beamConfig = beamServices.beamConfig
-    var useCSVFiles
-      : Boolean = beamConfig.beam.agentsim.agents.population.beamPopulationDirectory != null && !beamConfig.beam.agentsim.agents.population.beamPopulationDirectory
-      .isEmpty()
-
-    if (useCSVFiles) {
-      val csvScenarioLoader = new ScenarioReaderCsv(scenario, beamServices)
-      csvScenarioLoader.loadScenario()
+    val useExternalDataForScenario: Boolean =
+      Option(beamConfig.beam.exchange.scenario.folder).exists(!_.isEmpty)
+    if (useExternalDataForScenario) {
+      val scenarioSource = getScenarioSource(beamServices, beamConfig)
+      ProfilingUtils.timed(s"Load scenario using ${scenarioSource.getClass}", x => logger.info(x)) {
+        new ScenarioLoader(scenario, beamServices, scenarioSource).loadScenario()
+      }
     }
 
     samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices)
@@ -522,6 +530,34 @@ trait BeamHelper extends LazyLogging {
         .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
         .toMap
     }
+  }
+
+  def getScenarioSource(beamServices: BeamServices, beamConfig: BeamConfig): ScenarioSource = {
+    val src = beamConfig.beam.exchange.scenario.source.toLowerCase
+    if (src == "urbansim") {
+      val fileFormat: InputType = Option(beamConfig.beam.exchange.scenario.fileFormat)
+        .map(str => InputType(str.toLowerCase))
+        .getOrElse(
+          throw new IllegalStateException(
+            s"`beamConfig.beam.exchange.scenario.fileFormat` is null or empty!"
+          )
+        )
+      val scenarioReader = fileFormat match {
+        case InputType.CSV     => CsvScenarioReader
+        case InputType.Parquet => ParquetScenarioReader
+      }
+      new UrbanSimScenarioSource(
+        scenarioFolder = beamConfig.beam.exchange.scenario.folder,
+        rdr = scenarioReader,
+        geoUtils = beamServices.geo,
+        shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
+      )
+    } else if (src == "matsim") {
+      new MatsimScenarioSource(
+        scenarioFolder = beamConfig.beam.exchange.scenario.folder,
+        rdr = beam.utils.scenario.matsim.CsvScenarioReader
+      )
+    } else throw new NotImplementedError(s"ScenarioSource '${src}' is not yet implemented")
   }
 }
 

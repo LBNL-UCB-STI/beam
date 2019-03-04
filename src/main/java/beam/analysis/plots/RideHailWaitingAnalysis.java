@@ -172,31 +172,27 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
     @Override
     public void processStats(Event event) {
         if (event instanceof ModeChoiceEvent) {
-            Map<String, String> eventAttributes = event.getAttributes();
-            String mode = eventAttributes.get("mode");
-
+            ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
+            String mode = modeChoiceEvent.mode;
             if (mode.equalsIgnoreCase(RIDE_HAIL)) {
 
-                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
                 Id<Person> personId = modeChoiceEvent.getPersonId();
                 rideHailWaiting.put(personId.toString(), event);
             }
             if (mode.equalsIgnoreCase(WALK_TRANSIT)) {
-
-                ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) event;
                 Id<Person> personId = modeChoiceEvent.getPersonId();
                 ptWaiting.put(personId.toString(), event.getTime());
             }
 
         } else if (event instanceof PersonEntersVehicleEvent) {
-            Map<String, String> eventAttributes = event.getAttributes();
             PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent) event;
+            String vehicleId = personEntersVehicleEvent.getVehicleId().toString();
             Id<Person> personId = personEntersVehicleEvent.getPersonId();
             String pId = personId.toString();
 
             // This rideHailVehicle check is put here again to remove the non rideHail vehicleId which were coming due the
             // another occurrence of modeChoice event because of replanning event.
-            if (rideHailWaiting.containsKey(personId.toString()) && eventAttributes.get("vehicle").contains("rideHailVehicle")) {
+            if (rideHailWaiting.containsKey(personId.toString()) && vehicleId.contains("rideHailVehicle")) {
 
                 ModeChoiceEvent modeChoiceEvent = (ModeChoiceEvent) rideHailWaiting.get(pId);
                 double difference = personEntersVehicleEvent.getTime() - modeChoiceEvent.getTime();
@@ -206,8 +202,8 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
                 // Building the RideHailWaitingIndividualStat List
                 RideHailWaitingIndividualStat rideHailWaitingIndividualStat = new RideHailWaitingIndividualStat();
                 rideHailWaitingIndividualStat.time = modeChoiceEvent.getTime();
-                rideHailWaitingIndividualStat.personId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_PERSON);
-                rideHailWaitingIndividualStat.vehicleId = eventAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE);
+                rideHailWaitingIndividualStat.personId = pId;
+                rideHailWaitingIndividualStat.vehicleId = vehicleId;
                 rideHailWaitingIndividualStat.waitingTime = difference;
                 rideHailWaitingIndividualStatList.add(rideHailWaitingIndividualStat);
 
@@ -216,7 +212,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
                 rideHailWaiting.remove(pId);
             }
             // added summary stats for totalPTWaitingTime
-            if (ptWaiting.containsKey(pId) && eventAttributes.get("vehicle").contains("body")) {
+            if (ptWaiting.containsKey(pId) && vehicleId.contains("body")) {
                 totalPTWaitingTime += event.getTime() - ptWaiting.get(pId);
                 numOfTrips++;
                 ptWaiting.remove(pId);
