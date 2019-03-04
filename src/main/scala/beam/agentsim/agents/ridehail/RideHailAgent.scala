@@ -201,7 +201,7 @@ class RideHailAgent(
       )
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
       val isTimeForShift = shifts.isEmpty || shifts.get
-        .find(shift => shift.lowerBound <= tick && shift.upperBound >= tick)
+        .find(shift => shift.lowerEndpoint <= tick && shift.upperEndpoint >= tick)
         .isDefined
       if (isTimeForShift) {
         rideHailManager ! NotifyVehicleIdle(
@@ -215,7 +215,7 @@ class RideHailAgent(
         goto(Idle) using data
           .copy(currentVehicle = Vector(vehicle.id), remainingShifts = shifts.getOrElse(List()))
       } else {
-        val nextShiftStartTime = shifts.get.head.lowerBound
+        val nextShiftStartTime = shifts.get.head.lowerEndpoint
         goto(Offline) replying CompletionNotice(
           triggerId,
           Vector(ScheduleTrigger(StartShiftTrigger(nextShiftStartTime), self))
@@ -245,7 +245,7 @@ class RideHailAgent(
       val newShiftToSchedule = if (data.remainingShifts.size < 1) {
         Vector()
       } else {
-        Vector(ScheduleTrigger(StartShiftTrigger(data.remainingShifts.head.lowerBound), self))
+        Vector(ScheduleTrigger(StartShiftTrigger(data.remainingShifts.head.lowerEndpoint), self))
       }
       rideHailManager ! NotifyVehicleOutOfService(vehicle.id)
       goto(Offline) replying CompletionNotice(triggerId, newShiftToSchedule)
@@ -267,7 +267,7 @@ class RideHailAgent(
         case false =>
           handleNotifyVehicleResourceIdleReply(
             triggerId,
-            newTriggers :+ ScheduleTrigger(EndShiftTrigger(data.remainingShifts.head.upperBound), self)
+            newTriggers :+ ScheduleTrigger(EndShiftTrigger(data.remainingShifts.head.upperEndpoint), self)
           )
           stay using data.copy(remainingShifts = data.remainingShifts.tail)
       }
@@ -362,7 +362,7 @@ class RideHailAgent(
         case false =>
           handleNotifyVehicleResourceIdleReply(
             triggerId,
-            newTriggers :+ ScheduleTrigger(EndShiftTrigger(data.remainingShifts.head.upperBound), self)
+            newTriggers :+ ScheduleTrigger(EndShiftTrigger(data.remainingShifts.head.upperEndpoint), self)
           )
           stay using data.copy(remainingShifts = data.remainingShifts.tail)
       }

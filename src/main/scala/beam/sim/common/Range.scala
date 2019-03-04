@@ -12,11 +12,11 @@ case class DoubleComparableRange(range: Range) {
   def hasOrEmpty(value: Double) = range.isEmpty || hasDouble(value)
 }
 
-case class Range(lowerBound: Int, upperBound: Int) {
+case class Range(lowerEndpoint: Int, upperEndpoint: Int) {
   val isEmpty = false
 
   def has(value: Int): Boolean = {
-    lowerBound <= value && value <= upperBound
+    lowerEndpoint <= value && value <= upperEndpoint
   }
 
   def hasOrEmpty(value: Int): Boolean = {
@@ -41,11 +41,11 @@ object Range {
       Range(lowerBound, upperBound)
     }
 
-  def apply(lowerBound: Int, upperBound: Int): Range = {
-    if (lowerBound == 0 && upperBound == 0)
+  def apply(lowerEndpoint: Int, upperEndpoint: Int): Range = {
+    if (lowerEndpoint == 0 && upperEndpoint == 0)
       Range.empty()
     else
-      new Range(lowerBound, upperBound)
+      new Range(lowerEndpoint, upperEndpoint)
   }
 
   def empty(): Range = new Range(0, 0) {
