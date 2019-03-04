@@ -354,16 +354,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             )).toInt
       }
       val updatedLeg = updateLegWithCurrentTravelTime(leg)
-      val linkEvents = RoutingModel.traverseStreetLeg(updatedLeg, vehicleId, travelTime)
-      val duration = linkEvents
-        .maxBy(e => e.getTime)
-        .getTime - updatedLeg.startTime
       sender ! RoutingResponse(
         Vector(
           EmbodiedBeamTrip(
             Vector(
               EmbodiedBeamLeg(
-                updatedLeg.copy(duration = duration.toInt),
+                updatedLeg,
                 vehicleId,
                 vehicleTypeId,
                 asDriver = true,
@@ -832,7 +828,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       SpaceTime(
         segment.geometry.getEndPoint.getX,
         segment.geometry.getEndPoint.getY,
-        tripStartTime + segment.duration
+        tripStartTime + linksTimesDistances.travelTimes.tail.sum
       ),
       distance
     )

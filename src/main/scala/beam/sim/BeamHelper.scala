@@ -11,7 +11,7 @@ import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
-import beam.router.RouteHistory
+import beam.router.{BeamSkimmer, RouteHistory}
 import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
 import beam.scoring.BeamScoringFunctionFactory
@@ -199,6 +199,7 @@ trait BeamHelper extends LazyLogging {
 
           addControlerListenerBinding().to(classOf[BeamSim])
           addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
+          addControlerListenerBinding().to(classOf[BeamSkimmer])
 
           addControlerListenerBinding().to(classOf[ActivityLocationPlotter])
           addControlerListenerBinding().to(classOf[GraphSurgePricing])
@@ -238,6 +239,7 @@ trait BeamHelper extends LazyLogging {
 
           bind(classOf[RideHailIterationHistory]).asEagerSingleton()
           bind(classOf[RouteHistory]).asEagerSingleton()
+          bind(classOf[BeamSkimmer]).asEagerSingleton()
           bind(classOf[TollCalculator]).asEagerSingleton()
 
           // Override EventsManager

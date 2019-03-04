@@ -43,7 +43,7 @@ case class AttributesOfIndividual(
       case Some(activity) =>
         activity.getType().equalsIgnoreCase("work")
     }
-    embodiedBeamLeg.beamLeg.mode match {
+    val theVOT = embodiedBeamLeg.beamLeg.mode match {
       case CAR => // NOTE: Ride hail legs are classified as CAR mode. Retained both for flexibility (but could delete the other cases)
         if (embodiedBeamLeg.isRideHail) {
           if (embodiedBeamLeg.isPooledTrip) {
@@ -81,6 +81,7 @@ case class AttributesOfIndividual(
         getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeMultipliers) *
         unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
     }
+    theVOT
   }
 
   private def getAutomationLevel(embodiedBeamLeg: EmbodiedBeamLeg, beamServices: BeamServices): automationLevel = {
@@ -106,12 +107,18 @@ case class AttributesOfIndividual(
     vehicleAutomationLevel: automationLevel
   ): Double = {
     // Iterate over links in a path. Get average multiplier weighted by link travel time
-    (beamLeg.travelPath.linkIds zip beamLeg.travelPath.linkTravelTime)
-      .map(
-        x =>
-          getSituationMultiplier(x._1, x._2, isWorkTrip, situationMultipliers, vehicleAutomationLevel, beamServices) * x._2
-      )
-      .sum / beamLeg.travelPath.linkTravelTime.sum
+    val pathTravelTime = beamLeg.travelPath.linkTravelTime.sum
+    pathTravelTime match {
+      case 0 =>
+        1.0
+      case _ =>
+        (beamLeg.travelPath.linkIds zip beamLeg.travelPath.linkTravelTime)
+          .map(
+            x =>
+              getSituationMultiplier(x._1, x._2, isWorkTrip, situationMultipliers, vehicleAutomationLevel, beamServices) * x._2
+          )
+          .sum / pathTravelTime
+    }
   }
 
   // Convert from seconds to hours and bring in person's base VOT
@@ -143,7 +150,7 @@ case class AttributesOfIndividual(
     // Note: cutoffs for congested (2/3 free flow speed) and highway (ff speed > 20 m/s) are arbitrary and could be inputs
     val currentLink = beamServices.networkHelper.getLink(linkID).get
     val freeSpeed: Double = currentLink.getFreespeed()
-    val currentSpeed: Double = currentLink.getLength() / travelTime
+    val currentSpeed: Double = if (travelTime == 0) { freeSpeed } else { currentLink.getLength() / travelTime }
     if (currentSpeed < 0.67 * freeSpeed) {
       if (freeSpeed > 20) {
         (highCongestion, highway)
