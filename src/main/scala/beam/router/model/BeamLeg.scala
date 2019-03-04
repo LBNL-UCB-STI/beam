@@ -74,7 +74,7 @@ object BeamLeg {
   }
 
   def makeVectorLegsConsistentAsTrip(legs: Vector[BeamLeg]): Vector[BeamLeg] = {
-    legs.isEmpty match{
+    legs.isEmpty match {
       case true =>
         legs
       case false =>
@@ -86,17 +86,18 @@ object BeamLeg {
         }
     }
   }
+
   def makeVectorLegsConsistentAsOrderdStandAloneLegs(legs: Vector[BeamLeg]): Vector[BeamLeg] = {
-    legs.isEmpty match{
+    legs.isEmpty match {
       case true =>
         legs
       case false =>
         var latestEndTime = legs.head.startTime - 1
         var newLeg = legs.head
         for (leg <- legs) yield {
-          if(leg.startTime < latestEndTime){
+          if (leg.startTime < latestEndTime) {
             newLeg = leg.updateStartTime(latestEndTime)
-          }else {
+          } else {
             newLeg = leg
           }
           latestEndTime = newLeg.endTime
