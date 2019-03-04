@@ -1,6 +1,5 @@
 package beam.agentsim.scheduler
 
-import java.lang.Double
 import java.util.Comparator
 import java.util.concurrent.TimeUnit
 
@@ -8,12 +7,16 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Terminated
 import akka.event.LoggingReceive
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.ridehail.RideHailManager.RideHailRepositioningTrigger
+import beam.agentsim.agents.ridehail.RideHailManager.{
+  ContinueBufferedRideHailRequests,
+  RecoverFromStuckness,
+  RideHailRepositioningTrigger
+}
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
+import beam.utils.StuckFinder
 import beam.utils.logging.LogActorState
-import beam.utils.{DebugLib, StuckFinder}
 import com.google.common.collect.TreeMultimap
 
 import scala.annotation.tailrec
@@ -251,11 +254,12 @@ class BeamAgentScheduler(
         awaitingResponse.values().asScala.take(1).foreach { x =>
           if (x.agent.path.name.contains("RideHailManager")) {
             rideHailManagerStuckDetectionLog match {
-              case RideHailManagerStuckDetectionLog(Some(nowInSeconds), true)  => // still stuck, no need to print state again
-              case RideHailManagerStuckDetectionLog(Some(nowInSeconds), false) =>
+              case RideHailManagerStuckDetectionLog(Some(tick), true) if tick == nowInSeconds  => // still stuck, no need to print state again
+              case RideHailManagerStuckDetectionLog(Some(tick), false) if tick == nowInSeconds =>
                 // the time has not changed sense set last monitor timeout and RidehailManager still blocking scheduler -> log state and try to remove stuckness
                 rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), true)
                 x.agent ! LogActorState
+                x.agent ! RecoverFromStuckness(x.triggerWithId.trigger.tick)
               case _ =>
                 // register tick (to see, if it changes till next monitor timeout).
                 rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), false)
