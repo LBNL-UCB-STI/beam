@@ -37,6 +37,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
     private Map<String, Stack<ModeHour>> hourPerson = new HashMap<>();
     private Map<Integer, Map<String, Double>> realizedModeChoiceInIteration = new HashMap<>();
     private Map<Integer, Integer> affectedModeCount = new HashMap<>();
+    private Map<Integer, Integer> rootAffectedModeCount = new HashMap<>();
     private Set<String> iterationTypeSet = new HashSet<>();
     private Set<String> cumulativeMode = new TreeSet<>();
     private Map<String, Map<Integer, Map<String, Integer>>> personHourModeCount = new HashMap<>();
@@ -123,6 +124,10 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
         createReplanningCountModeChoiceGraph(replanningModeCountDataset, event.getIteration());
         writeToReplanningCSV(event);
 
+        rootAffectedModeCount.put(event.getIteration(), affectedModeCount.values().stream().reduce(Integer::sum).orElse(0));
+        fileName = outputDirectoryHierarchy.getOutputFilename("replanningCountModeChoice.png");
+        writeToRootReplanningCountModeChoice(fileName);
+
     }
 
     @Override
@@ -133,6 +138,12 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
         personIdList.clear();
         personHourModeCount.clear();
         affectedModeCount.clear();
+    }
+
+    private void writeToRootReplanningCountModeChoice(String fileName) throws IOException{
+        CategoryDataset dataset = rootReplanningCountModeChoiceDataset();
+        createRootReplaningModeChoiceCountGraph(dataset, fileName);
+
     }
 
     // The modeChoice events for same person as of replanning event will be excluded in the form of CRC, CRCRC, CRCRCRC so on.
@@ -355,6 +366,11 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
         GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
+    // generating graph in root directory for replanningCountModeChoice
+    private void createRootReplaningModeChoiceCountGraph(CategoryDataset dataset, String fileName) throws IOException {
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, "Iteration", "# mode choosen", fileName, false);
+        GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+    }
 
     double[][] buildModesFrequencyDataset() {
 
@@ -377,6 +393,12 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
         return dataset;
     }
 
+
+    public DefaultCategoryDataset rootReplanningCountModeChoiceDataset() {
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+        rootAffectedModeCount.forEach((k,v) -> dataset.addValue((Number) v , 0, k));
+        return dataset;
+    }
 
     private void writeToCSV(IterationEndsEvent event) {
 
