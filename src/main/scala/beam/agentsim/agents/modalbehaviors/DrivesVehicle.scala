@@ -278,27 +278,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         case None =>
           stay()
       }
-
-    // The following 2 (Board and Alight) can happen idiosyncratically if a person ended up taking a much longer than expected
-    // trip and meanwhile a CAV was scheduled to pick them up (and then drop them off) for the next trip, but they're still driving baby
-    case Event(TriggerWithId(BoardVehicleTrigger(_, vehicleId), triggerId), data) =>
-      val currentLeg = data.passengerSchedule.schedule.keys.view
-        .drop(data.currentLegPassengerScheduleIndex)
-        .headOption
-        .getOrElse(throw new RuntimeException("Current Leg is not available."))
-      stay() replying CompletionNotice(
-        triggerId,
-        Vector(ScheduleTrigger(BoardVehicleTrigger(currentLeg.endTime, vehicleId), self))
-      )
-    case Event(TriggerWithId(AlightVehicleTrigger(_, vehicleId), triggerId), data) =>
-      val currentLeg = data.passengerSchedule.schedule.keys.view
-        .drop(data.currentLegPassengerScheduleIndex)
-        .headOption
-        .getOrElse(throw new RuntimeException("Current Leg is not available."))
-      stay() replying CompletionNotice(
-        triggerId,
-        Vector(ScheduleTrigger(AlightVehicleTrigger(currentLeg.endTime + 1, vehicleId), self))
-      )
   }
 
   when(DrivingInterrupted) {

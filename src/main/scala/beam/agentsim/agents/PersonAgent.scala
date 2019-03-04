@@ -5,12 +5,13 @@ import akka.actor.{ActorRef, FSM, Props, Stash}
 import beam.agentsim.Resource._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.household.HouseholdActor.{CAVPickupConfirmed, ReadyForCAVPickup, ReleaseVehicle}
+import beam.agentsim.agents.household.HouseholdActor.{ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
+import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.VehicleCategory.Bike
@@ -225,38 +226,6 @@ class PersonAgent(
 
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
-  val myUnhandled: StateFunction = {
-    case Event(TriggerWithId(BoardVehicleTrigger(_, _), _), _) =>
-      log.info("Person {} stashing BoardVehicleTrigger in state {}", id, stateName)
-      stash()
-      stay
-    case Event(TriggerWithId(AlightVehicleTrigger(_, _), _), _) =>
-      log.info("Person {} stashing AlightVehicleTrigger in state {}", id, stateName)
-      stash()
-      stay
-    case Event(NotifyVehicleIdle(_, _, _, _, _), _) =>
-      stay()
-    case Event(RideHailResponse(request, travelProposal, error, triggersToSchedule), _) =>
-      stop(Failure("Unexpected RideHailResponse"))
-    case Event(ParkingInquiryResponse(_, _), _) =>
-      stop(Failure("Unexpected ParkingInquiryResponse"))
-    case Event(IllegalTriggerGoToError(reason), _) =>
-      stop(Failure(reason))
-    case Event(StateTimeout, _) =>
-      log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
-      stop(
-        Failure(
-          "Timeout - this probably means this agent was not getting a reply it was expecting."
-        )
-      )
-    case Event(Finish, _) =>
-      if (stateName == Moving) {
-        log.warning("Still travelling at end of simulation.")
-        log.warning(s"Events leading up to this point:\n\t${getLog.mkString("\n\t")}")
-      }
-      stop
-  }
-
   override def logDepth: Int = 30
 
   startWith(Uninitialized, BasePersonData())
@@ -442,9 +411,6 @@ class PersonAgent(
         data @ BasePersonData(_, _, _, _, _, _, _, _, _, _, _)
         ) =>
       handleFailedRideHailReservation(error, response, data)
-    // CAV Pickup SUCCESS
-    case Event(CAVPickupConfirmed(triggersToSchedule), data: BasePersonData) =>
-      handleSuccessfulReservation(triggersToSchedule, data)
   }
 
   when(Waiting) {
@@ -499,34 +465,6 @@ class PersonAgent(
       goto(ProcessingNextLegOrStartActivity) using data.copy(
         restOfCurrentTrip = restOfCurrentTrip.dropWhile(leg => leg.beamVehicleId == vehicleToExit),
         currentVehicle = currentVehicle.tail
-      )
-    /*
-     * Get Board message too early, reschedule for later
-     */
-    case Event(
-        TriggerWithId(BoardVehicleTrigger(tick, vehicleToExit), triggerId),
-        data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _)
-        ) =>
-      logDebug(
-        s"Got BoardVehicleTrigger for a different vehicle $vehicleToExit than the one I'm in ${currentVehicle.head}"
-      )
-      stay() replying CompletionNotice(
-        triggerId,
-        Vector(ScheduleTrigger(BoardVehicleTrigger(restOfCurrentTrip.last.beamLeg.endTime, vehicleToExit), self))
-      )
-    /*
-     * Get Alight message too early, reschedule for later
-     */
-    case Event(
-        TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit), triggerId),
-        data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _)
-        ) =>
-      logDebug(
-        s"Got AlightVehicleTrigger for a different vehicle $vehicleToExit than the one I'm in ${currentVehicle.head}"
-      )
-      stay() replying CompletionNotice(
-        triggerId,
-        Vector(ScheduleTrigger(AlightVehicleTrigger(restOfCurrentTrip.last.beamLeg.endTime + 1, vehicleToExit), self))
       )
   }
 
@@ -857,6 +795,49 @@ class PersonAgent(
     goto(Waiting) using data
 
   }
+
+  def handleBoardOrAlightOutOfPlace(triggerId: Long,currentTrip: Option[EmbodiedBeamTrip]) = {
+    currentTrip match{
+      case None =>
+        stash
+        stay
+      case Some(trip) if trip.tripClassifier == CAV =>
+        stash
+        stay
+      case _ =>
+        _experiencedBeamPlan.tours.foreach(tour => _experiencedBeamPlan.putStrategy(tour,ModeChoiceStrategy(None)))
+        stay() replying CompletionNotice(triggerId, Vector())
+    }
+  }
+
+  val myUnhandled: StateFunction = {
+    case Event(TriggerWithId(BoardVehicleTrigger(_, _), triggerId), BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _)) =>
+      handleBoardOrAlightOutOfPlace(triggerId,currentTrip)
+    case Event(TriggerWithId(AlightVehicleTrigger(_, _), triggerId), BasePersonData(_, currentTrip, _ , _, _, _, _, _, _, _, _)) =>
+      handleBoardOrAlightOutOfPlace(triggerId,currentTrip)
+    case Event(NotifyVehicleIdle(_, _, _, _, _), _) =>
+      stay()
+    case Event(RideHailResponse(request, travelProposal, error, triggersToSchedule), _) =>
+      stop(Failure("Unexpected RideHailResponse"))
+    case Event(ParkingInquiryResponse(_, _), _) =>
+      stop(Failure("Unexpected ParkingInquiryResponse"))
+    case Event(IllegalTriggerGoToError(reason), _) =>
+      stop(Failure(reason))
+    case Event(StateTimeout, _) =>
+      log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
+      stop(
+        Failure(
+          "Timeout - this probably means this agent was not getting a reply it was expecting."
+        )
+      )
+    case Event(Finish, _) =>
+      if (stateName == Moving) {
+        log.warning("Still travelling at end of simulation.")
+        log.warning(s"Events leading up to this point:\n\t${getLog.mkString("\n\t")}")
+      }
+      stop
+  }
+
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))
 

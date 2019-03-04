@@ -96,8 +96,6 @@ object HouseholdActor {
   case class ReleaseVehicle(vehicle: BeamVehicle)
   case class ReleaseVehicleAndReply(vehicle: BeamVehicle, tick: Option[Int] = None)
   case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken])
-  case class ReadyForCAVPickup(personId: Id[Person], tick: Int)
-  case class CAVPickupConfirmed(triggersToSchedule: Vector[ScheduleTrigger])
 
   /**
     * Implementation of intra-household interaction in BEAM using actors.
