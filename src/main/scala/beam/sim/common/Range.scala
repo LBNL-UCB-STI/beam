@@ -5,11 +5,11 @@ import scala.language.implicitConversions
 
 case class DoubleComparableRange(range: Range) {
 
-  def hasDouble(value: Double) = {
-    range.lowerBound <= value && value <= range.upperBound
+  def hasDouble(value: Double): Boolean = {
+    range.lowerEndpoint <= value && value <= range.upperEndpoint
   }
 
-  def hasOrEmpty(value: Double) = range.isEmpty || hasDouble(value)
+  def hasOrEmpty(value: Double): Boolean = range.isEmpty || hasDouble(value)
 }
 
 case class Range(lowerEndpoint: Int, upperEndpoint: Int) {
@@ -53,7 +53,7 @@ object Range {
     override val isEmpty = true
   }
 
-  implicit def rangeToDoubleComparableRange(range: Range) = {
-    new DoubleComparableRange(range)
+  implicit def rangeToDoubleComparableRange(range: Range): DoubleComparableRange = {
+    DoubleComparableRange(range)
   }
 }
