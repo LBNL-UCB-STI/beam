@@ -5,15 +5,17 @@ import akka.actor.{ActorRef, FSM, Props, Stash}
 import beam.agentsim.Resource._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.household.HouseholdActor.{CAVPickupConfirmed, ReadyForCAVPickup, ReleaseVehicle}
+import beam.agentsim.agents.household.HouseholdActor.{CancelCAVTrip, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
+import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.VehicleCategory.Bike
+import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
 import beam.agentsim.events.resources.ReservationError
@@ -225,38 +227,6 @@ class PersonAgent(
 
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
-  val myUnhandled: StateFunction = {
-    case Event(TriggerWithId(BoardVehicleTrigger(_, _), _), _) =>
-      log.info("Person {} stashing BoardVehicleTrigger in state {}", id, stateName)
-      stash()
-      stay
-    case Event(TriggerWithId(AlightVehicleTrigger(_, _), _), _) =>
-      log.info("Person {} stashing AlightVehicleTrigger in state {}", id, stateName)
-      stash()
-      stay
-    case Event(NotifyVehicleIdle(_, _, _, _, _), _) =>
-      stay()
-    case Event(RideHailResponse(request, travelProposal, error, triggersToSchedule), _) =>
-      stop(Failure("Unexpected RideHailResponse"))
-    case Event(ParkingInquiryResponse(_, _), _) =>
-      stop(Failure("Unexpected ParkingInquiryResponse"))
-    case Event(IllegalTriggerGoToError(reason), _) =>
-      stop(Failure(reason))
-    case Event(StateTimeout, _) =>
-      log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
-      stop(
-        Failure(
-          "Timeout - this probably means this agent was not getting a reply it was expecting."
-        )
-      )
-    case Event(Finish, _) =>
-      if (stateName == Moving) {
-        log.warning("Still travelling at end of simulation.")
-        log.warning(s"Events leading up to this point:\n\t${getLog.mkString("\n\t")}")
-      }
-      stop
-  }
-
   override def logDepth: Int = 30
 
   startWith(Uninitialized, BasePersonData())
@@ -434,7 +404,10 @@ class PersonAgent(
       handleFailedRideHailReservation(error, response, data)
     // RIDE HAIL SUCCESS
     // no trigger needed here since we're going to Waiting anyway without any other actions needed
-    case Event(RideHailResponse(_, _, None, triggersToSchedule), data: BasePersonData) =>
+    case Event(RideHailResponse(req, _, None, triggersToSchedule), data: BasePersonData) =>
+      if (req.departAt != _currentTick.get) {
+        val i = 0
+      }
       handleSuccessfulReservation(triggersToSchedule, data)
     // RIDE HAIL FAILURE
     case Event(
@@ -442,9 +415,6 @@ class PersonAgent(
         data @ BasePersonData(_, _, _, _, _, _, _, _, _, _, _)
         ) =>
       handleFailedRideHailReservation(error, response, data)
-    // CAV Pickup SUCCESS
-    case Event(CAVPickupConfirmed(triggersToSchedule), data: BasePersonData) =>
-      handleSuccessfulReservation(triggersToSchedule, data)
   }
 
   when(Waiting) {
@@ -452,7 +422,7 @@ class PersonAgent(
      * Learn as passenger that it is time to board the vehicle
      */
     case Event(
-        TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter), triggerId),
+        TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter, _), triggerId),
         data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _)
         ) =>
       logDebug(s"PersonEntersVehicle: $vehicleToEnter")
@@ -490,7 +460,7 @@ class PersonAgent(
      * Learn as passenger that it is time to alight the vehicle
      */
     case Event(
-        TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit), triggerId),
+        TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit, _), triggerId),
         data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _)
         ) if vehicleToExit.equals(currentVehicle.head) =>
       logDebug(s"PersonLeavesVehicle: $vehicleToExit")
@@ -499,34 +469,6 @@ class PersonAgent(
       goto(ProcessingNextLegOrStartActivity) using data.copy(
         restOfCurrentTrip = restOfCurrentTrip.dropWhile(leg => leg.beamVehicleId == vehicleToExit),
         currentVehicle = currentVehicle.tail
-      )
-    /*
-     * Get Board message too early, reschedule for later
-     */
-    case Event(
-        TriggerWithId(BoardVehicleTrigger(tick, vehicleToExit), triggerId),
-        data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _)
-        ) =>
-      logDebug(
-        s"Got BoardVehicleTrigger for a different vehicle $vehicleToExit than the one I'm in ${currentVehicle.head}"
-      )
-      stay() replying CompletionNotice(
-        triggerId,
-        Vector(ScheduleTrigger(BoardVehicleTrigger(restOfCurrentTrip.last.beamLeg.endTime, vehicleToExit), self))
-      )
-    /*
-     * Get Alight message too early, reschedule for later
-     */
-    case Event(
-        TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit), triggerId),
-        data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _)
-        ) =>
-      logDebug(
-        s"Got AlightVehicleTrigger for a different vehicle $vehicleToExit than the one I'm in ${currentVehicle.head}"
-      )
-      stay() replying CompletionNotice(
-        triggerId,
-        Vector(ScheduleTrigger(AlightVehicleTrigger(restOfCurrentTrip.last.beamLeg.endTime + 1, vehicleToExit), self))
       )
   }
 
@@ -711,6 +653,9 @@ class PersonAgent(
         leg => leg.beamVehicleId == nextLeg.beamVehicleId
       )
       val departAt = legSegment.head.beamLeg.startTime
+      if (departAt < _currentTick.get) {
+        val i = 0
+      }
 
       rideHailManager ! RideHailRequest(
         ReserveRide,
@@ -847,8 +792,8 @@ class PersonAgent(
     data: BasePersonData
   ): FSM.State[BeamAgentState, PersonData] = {
     if (_currentTriggerId.isDefined) {
-      val (_, triggerId) = releaseTickAndTriggerId()
-      log.debug("scheduling triggers from reservation responses: {}", triggersToSchedule)
+      val (tick, triggerId) = releaseTickAndTriggerId()
+      log.debug("releasing tick {} and scheduling triggers from reservation responses: {}", tick, triggersToSchedule)
       scheduler ! CompletionNotice(triggerId, triggersToSchedule)
     } else {
       // if _currentTriggerId is empty, this means we have received the reservation response from a batch
@@ -856,6 +801,121 @@ class PersonAgent(
     }
     goto(Waiting) using data
 
+  }
+
+  def handleBoardOrAlightOutOfPlace(
+    triggerId: Long,
+    currentTrip: Option[EmbodiedBeamTrip],
+    beamVehicleTypeId: Id[BeamVehicleType]
+  ) = {
+    currentTrip match {
+      case None =>
+        log.debug("Person {} stashing BoardOrAlight {} b/c no trip yet", id, triggerId)
+        stash
+        stay
+      case Some(trip) if trip.tripClassifier == CAV =>
+        log.debug("Person {} stashing BoardOrAlight {} b/c on CAV trip", id, triggerId)
+        stash
+        stay
+      case Some(trip) if beamServices.vehicleTypes.get(beamVehicleTypeId).map(_.automationLevel > 3).getOrElse(false) =>
+        log.warning(
+          "Person {} in state {} is abandoning CAV trips for rest of day because received Board/Alight trigger while on {} trip",
+          id,
+          stateName,
+          trip.tripClassifier
+        )
+        householdRef ! CancelCAVTrip(bodyVehiclePersonId)
+        _experiencedBeamPlan.tours.foreach(tour => _experiencedBeamPlan.putStrategy(tour, ModeChoiceStrategy(None)))
+        stay() replying CompletionNotice(triggerId, Vector())
+      case Some(trip) =>
+        log.debug("Person {} in state {} stashing BoardOrAlight {} b/c expecting this", id, stateName, triggerId)
+        stash
+        stay
+    }
+  }
+
+  val myUnhandled: StateFunction = {
+    case Event(
+        TriggerWithId(BoardVehicleTrigger(_, _, Some(vehicleTypeId)), triggerId),
+        ChoosesModeData(
+          BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _),
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _
+        )
+        ) =>
+      handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
+    case Event(
+        TriggerWithId(AlightVehicleTrigger(_, _, Some(vehicleTypeId)), triggerId),
+        ChoosesModeData(
+          BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _),
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _
+        )
+        ) =>
+      handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
+    case Event(
+        TriggerWithId(BoardVehicleTrigger(_, _, Some(vehicleTypeId)), triggerId),
+        BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _)
+        ) =>
+      handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
+    case Event(
+        TriggerWithId(AlightVehicleTrigger(_, _, Some(vehicleTypeId)), triggerId),
+        BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _)
+        ) =>
+      handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
+    case Event(NotifyVehicleIdle(_, _, _, _, _), _) =>
+      stay()
+    case Event(RideHailResponse(request, travelProposal, error, triggersToSchedule), _) =>
+      stop(Failure("Unexpected RideHailResponse"))
+    case Event(ParkingInquiryResponse(_, _), _) =>
+      stop(Failure("Unexpected ParkingInquiryResponse"))
+    case Event(IllegalTriggerGoToError(reason), _) =>
+      stop(Failure(reason))
+    case Event(StateTimeout, _) =>
+      log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
+      stop(
+        Failure(
+          "Timeout - this probably means this agent was not getting a reply it was expecting."
+        )
+      )
+    case Event(Finish, _) =>
+      if (stateName == Moving) {
+        log.warning("Still travelling at end of simulation.")
+        log.warning(s"Events leading up to this point:\n\t${getLog.mkString("\n\t")}")
+      }
+      stop
   }
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))

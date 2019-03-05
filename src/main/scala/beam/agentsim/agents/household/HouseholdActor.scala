@@ -19,6 +19,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{
   ModifyPassengerScheduleAcks
 }
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
+import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
 import beam.agentsim.agents.{HasTickAndTrigger, InitializeTrigger, PersonAgent}
 import beam.agentsim.agents.{Dropoff, Pickup}
@@ -96,8 +97,7 @@ object HouseholdActor {
   case class ReleaseVehicle(vehicle: BeamVehicle)
   case class ReleaseVehicleAndReply(vehicle: BeamVehicle, tick: Option[Int] = None)
   case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken])
-  case class ReadyForCAVPickup(personId: Id[Person], tick: Int)
-  case class CAVPickupConfirmed(triggersToSchedule: Vector[ScheduleTrigger])
+  case class CancelCAVTrip(person: VehiclePersonId)
 
   /**
     * Implementation of intra-household interaction in BEAM using actors.
@@ -345,6 +345,9 @@ object HouseholdActor {
             val updatedLegsIterator = passengerSchedule.schedule.keys.toIterator
             var pickDropsForGrouping: Map[VehiclePersonId, List[BeamLeg]] = Map()
             var passengersToAdd = Set[VehiclePersonId]()
+            if (household.getId.toString.equals("2382400")) {
+              val i = 0
+            }
             cavSchedule.schedule.foreach { serviceRequest =>
               if (serviceRequest.person.isDefined) {
                 val person = memberVehiclePersonIds(serviceRequest.person.get.personId)
@@ -407,6 +410,13 @@ object HouseholdActor {
             sender() ! CavTripLegsResponse(legs)
           case _ =>
             sender() ! CavTripLegsResponse(List())
+        }
+      case CancelCAVTrip(person) =>
+        log.debug("Removing person {} from plan to use CAVs")
+        personAndActivityToCav.filter(_._1._1.equals(person.personId)).foreach { persActAndCAV =>
+          persActAndCAV._2.driver.get ! RemovePassengerFromTrip(person)
+          personAndActivityToCav = personAndActivityToCav - persActAndCAV._1
+          personAndActivityToLegs = personAndActivityToLegs - persActAndCAV._1
         }
 
       case NotifyVehicleIdle(vId, whenWhere, _, _, _) =>

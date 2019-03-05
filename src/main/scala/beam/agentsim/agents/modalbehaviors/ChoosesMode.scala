@@ -448,12 +448,8 @@ trait ChoosesMode {
             driveTransitTrip.get.legs.view
               .takeWhile(!_.beamLeg.mode.isMassTransit)
               .map(_.beamLeg)
-          val egressSegment = driveTransitTrip.get.legs.view
-            .dropWhile(!_.beamLeg.mode.isMassTransit)
-            .dropWhile(_.beamLeg.mode.isMassTransit)
-            .map(_.beamLeg)
-            .headOption
-          //TODO replace hard code number here with parameter
+          val egressSegment =
+            driveTransitTrip.get.legs.view.reverse.takeWhile(!_.beamLeg.mode.isTransit).reverse.map(_.beamLeg)
           val accessId =
             if (accessSegment.map(_.travelPath.distanceInM).sum > 0) {
               makeRideHailRequestFromBeamLeg(accessSegment)
@@ -876,16 +872,13 @@ trait ChoosesMode {
               // Special case, if you are using household CAV, no choice was necessary you just use this mode
               // Construct the embodied trip to allow for processing by FinishingModeChoice and scoring
               assert(choosesModeData.availablePersonalStreetVehicles.size > 0)
-              if (cavTripLegs.isEmpty) {
-                goto(FinishingModeChoice) using choosesModeData.copy(
-                  pendingChosenTrip =
-                    Some(EmbodiedBeamTrip(Vector(EmbodiedBeamLeg.dummyLegAt(_currentTick.get, body.id, false))))
-                )
+              val walk1 = EmbodiedBeamLeg.dummyLegAt(_currentTick.get, body.id, false)
+              val cavStreetVehicle = choosesModeData.availablePersonalStreetVehicles.head.streetVehicle
+              val cavLeg = if (cavTripLegs.isEmpty) {
+                EmbodiedBeamLeg.dummyLegAt(_currentTick.get, body.id, false, CAV, cavStreetVehicle.vehicleTypeId, false)
               } else {
-                val cavStreetVehicle = choosesModeData.availablePersonalStreetVehicles.head.streetVehicle
                 val cavBeamLeg = cavTripLegs.tail.foldLeft(cavTripLegs.head.copy(mode = CAV))(_.appendLeg(_))
-                val walk1 = EmbodiedBeamLeg.dummyLegAt(_currentTick.get, body.id, false)
-                val cavLeg = EmbodiedBeamLeg(
+                EmbodiedBeamLeg(
                   cavBeamLeg,
                   cavStreetVehicle.id,
                   cavStreetVehicle.vehicleTypeId,
@@ -894,11 +887,10 @@ trait ChoosesMode {
                   false,
                   false
                 )
-                val walk2 = EmbodiedBeamLeg.dummyLegAt(_currentTick.get + cavBeamLeg.duration, body.id, true)
-                val cavTrip = EmbodiedBeamTrip(Vector(walk1, cavLeg, walk2))
-                goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(cavTrip))
               }
-
+              val walk2 = EmbodiedBeamLeg.dummyLegAt(_currentTick.get + cavLeg.beamLeg.duration, body.id, true)
+              val cavTrip = EmbodiedBeamTrip(Vector(walk1, cavLeg, walk2))
+              goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(cavTrip))
             case _ =>
               // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
               val originalWalkTripLeg =
