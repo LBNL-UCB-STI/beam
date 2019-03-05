@@ -4,7 +4,6 @@ import beam.agentsim.events.PathTraversalEvent;
 import com.google.common.base.CaseFormat;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
-import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
 import java.io.IOException;
@@ -33,14 +32,14 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
     }
 
     @Override
-    public void collectEvent(Event event, Map<String, String> attributes) {
+    public void collectEvent(PathTraversalEvent event) {
 
         eventCounter++;
 
         int hour = getEventHour(event.getTime());
         maxHour = maxHour < hour ? hour : maxHour;
 
-        Integer _num_passengers = Integer.parseInt(attributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
+        Integer _num_passengers = event.numberOfPassengers();
         maxPassengersSeenOnGenericCase = maxPassengersSeenOnGenericCase < _num_passengers ? _num_passengers : maxPassengersSeenOnGenericCase;
 
         updateNumPassengerInDeadHeadingsMap(hour, graphName, _num_passengers);

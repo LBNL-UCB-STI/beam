@@ -72,8 +72,8 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
 
-    case MobilityStatusInquiry(whenWhere) =>
-      // Search box: 5000 meters around query location
+    case MobilityStatusInquiry(_, whenWhere, _) =>
+      // Search box: 1000 meters around query location
       val boundingBox = new Envelope(new Coordinate(whenWhere.loc.getX, whenWhere.loc.getY))
       boundingBox.expandBy(5000.0)
 
@@ -113,7 +113,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       )
       log.debug("Checked in " + vehicle.id)
 
-    case ReleaseVehicleAndReply(vehicle) =>
+    case ReleaseVehicleAndReply(vehicle, _) =>
       availableVehicles += vehicle.id -> vehicle
       availableVehiclesIndex.insert(
         new Envelope(new Coordinate(vehicle.spaceTime.loc.getX, vehicle.spaceTime.loc.getY)),

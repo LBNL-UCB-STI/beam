@@ -39,7 +39,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
     private Map<Integer, Integer> affectedModeCount = new HashMap<>();
     private Set<String> iterationTypeSet = new HashSet<>();
     private Set<String> cumulativeMode = new TreeSet<>();
-    private Map<String,Map<Integer, Map<String,Integer>>> personHourModeCount = new HashMap<>();
+    private Map<String, Map<Integer, Map<String, Integer>>> personHourModeCount = new HashMap<>();
 
     //This map will always hold value as 0 or 1
     private Map<String, Integer> personIdList = new HashMap<>();
@@ -111,7 +111,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
         OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
         String fileName;
         CategoryDataset dataset = buildRealizedModeChoiceDatasetForGraph();
-        if (dataset != null && writeGraph){
+        if (dataset != null && writeGraph) {
             fileName = outputDirectoryHierarchy.getOutputFilename("realizedModeChoice.png");
             createRootRealizedModeChoosenGraph(dataset, fileName);
         }
@@ -120,7 +120,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
         writeToCSV(event);
 
         DefaultCategoryDataset replanningModeCountDataset = replanningCountModeChoiceDataset();
-        createReplanningCountModeChoiceGraph(replanningModeCountDataset , event.getIteration());
+        createReplanningCountModeChoiceGraph(replanningModeCountDataset, event.getIteration());
         writeToReplanningCSV(event);
 
     }
@@ -139,10 +139,10 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
     private void processRealizedMode(Event event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
         Map<String, Double> hourData = hourModeFrequency.get(hour);
-        Map<String, String> eventAttributes = event.getAttributes();
-        if (ModeChoiceEvent.EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
-            String mode = eventAttributes.get(ModeChoiceEvent.ATTRIBUTE_MODE);
-            String personId = eventAttributes.get(ModeChoiceEvent.ATTRIBUTE_PERSON_ID);
+        if (event instanceof ModeChoiceEvent) {
+            ModeChoiceEvent mce = (ModeChoiceEvent) event;
+            String mode = mce.mode;
+            String personId = mce.personId.toString();
             Map<String, String> tags = new HashMap<>();
             tags.put("stats-type", "mode-choice");
             tags.put("hour", "" + (hour + 1));
@@ -151,18 +151,18 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
 
             if (personIdList.containsKey(personId) && personIdList.get(personId) == 1) {
                 personIdList.merge(personId, -1, Integer::sum);
-                setHourPersonMode(hour ,personId , mode, true);
+                setHourPersonMode(hour, personId, mode, true);
                 return;
             }
 
-            if(hourData == null){
+            if (hourData == null) {
                 hourData = new HashMap<>();
             }
 
-            hourData.merge(mode, 1.0, Double:: sum);
+            hourData.merge(mode, 1.0, Double::sum);
             hourModeFrequency.put(hour, hourData);
 
-            if(personIdList.remove(personId) != null){
+            if (personIdList.remove(personId) != null) {
                 updateHourMode(personId);
                 personHourModeCount.remove(personId);
             }
@@ -174,78 +174,79 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
             }
             modeHours.push(modeHour);
             hourPerson.put(personId, modeHours);
-            setHourPersonMode(hour ,personId , mode, false);
+            setHourPersonMode(hour, personId, mode, false);
         }
 
-        if (ReplanningEvent.EVENT_TYPE.equalsIgnoreCase(event.getEventType())) {
-            if (eventAttributes != null) {
-                String person = eventAttributes.get(ReplanningEvent.ATTRIBUTE_PERSON);
+        if (event instanceof ReplanningEvent) {
+            ReplanningEvent re = (ReplanningEvent) event;
+            String person = re.getPersonId().toString();
 
-                Stack<ModeHour> modeHours = hourPerson.get(person);
-                affectedModeCount.merge(hour, 1 , Integer::sum);
+            Stack<ModeHour> modeHours = hourPerson.get(person);
+            affectedModeCount.merge(hour, 1, Integer::sum);
 
 
-                if(personIdList.containsKey(person) && personIdList.get(person) == 0){
-                    personIdList.merge(person , 1, Integer::sum);
-                    return;
-                }
+            if (personIdList.containsKey(person) && personIdList.get(person) == 0) {
+                personIdList.merge(person, 1, Integer::sum);
+                return;
+            }
 
-                if (modeHours != null && modeHours.size() > 0
-                        && !personIdList.containsKey(person)) {
+            if (modeHours != null && modeHours.size() > 0
+                    && !personIdList.containsKey(person)) {
 
-                    personIdList.merge(person , 1, Integer::sum);
+                personIdList.merge(person, 1, Integer::sum);
 
-                    ModeHour modeHour = modeHours.pop();
-                    hourPerson.put(person, modeHours);
+                ModeHour modeHour = modeHours.pop();
+                hourPerson.put(person, modeHours);
 
-                    hourData = hourModeFrequency.get(modeHour.getHour());
-                    hourData.merge(modeHour.getMode(), -1.0, Double::sum);
-                    hourModeFrequency.put(hour, hourData);
-                }
+                hourData = hourModeFrequency.get(modeHour.getHour());
+                hourData.merge(modeHour.getMode(), -1.0, Double::sum);
+                hourModeFrequency.put(hour, hourData);
             }
         }
     }
 
     // adding proportionate of replanning to mode choice
-    public void updateHourMode(String personId){
+    public void updateHourMode(String personId) {
         Map<Integer, Map<String, Integer>> hourModeCount = personHourModeCount.get(personId);
-        if(hourModeCount != null){
+        if (hourModeCount != null) {
             double sum = hourModeCount.values().stream().map(Map::values).mapToInt(i -> i.stream().mapToInt(Integer::intValue).sum()).sum();
             Set<Integer> hours = hourModeCount.keySet();
 
-            for(Integer h: hours){
+            for (Integer h : hours) {
                 Map<String, Integer> modeCounts = hourModeCount.get(h);
-                if(sum >= 2) {
+                if (sum >= 2) {
                     modeCounts.forEach((k, v) -> {        //k is mode, v is modecount
                         Map<String, Double> oldHourData = hourModeFrequency.get(h);
-                        oldHourData.merge(k, (double) v / sum, Double::sum);
-                        hourModeFrequency.put(h, oldHourData);
+                        if(oldHourData != null){
+                            oldHourData.merge(k, (double) v / sum, Double::sum);
+                            hourModeFrequency.put(h, oldHourData);
+                        }
                     });
                 }
             }
         }
     }
 
-    public void setHourPersonMode(int hour , String personId , String mode, boolean isUpdateExisting){
-        Map<Integer,Map<String, Integer>> hourModeCount = personHourModeCount.get(personId);
-        if(hourModeCount == null){
+    public void setHourPersonMode(int hour, String personId, String mode, boolean isUpdateExisting) {
+        Map<Integer, Map<String, Integer>> hourModeCount = personHourModeCount.get(personId);
+        if (hourModeCount == null) {
             hourModeCount = new HashMap<>();
         }
         Map<String, Integer> modeCnt = hourModeCount.get(hour);
-        if(modeCnt == null){
+        if (modeCnt == null) {
             modeCnt = new HashMap<>();
         }
-        if(isUpdateExisting)
-            modeCnt.put(mode,1);
+        if (isUpdateExisting)
+            modeCnt.put(mode, 1);
         else {
             hourModeCount.clear();
             modeCnt.put(mode, 1);
         }
-        hourModeCount.put(hour , modeCnt );
+        hourModeCount.put(hour, modeCnt);
         personHourModeCount.put(personId, hourModeCount);
     }
 
-    public void updatePersonCount(){
+    public void updatePersonCount() {
         personHourModeCount.keySet().forEach(person -> updateHourMode(person));
     }
 
@@ -370,8 +371,8 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
     public DefaultCategoryDataset replanningCountModeChoiceDataset() {
         DefaultCategoryDataset dataset = new DefaultCategoryDataset();
         int max = hourModeFrequency.keySet().stream().mapToInt(x -> x).max().orElse(0);
-        for (int hour = 0 ; hour <= max ; hour++) {
-            dataset.addValue((Number) affectedModeCount.get(hour),0 ,hour);
+        for (int hour = 0; hour <= max; hour++) {
+            dataset.addValue((Number) affectedModeCount.get(hour), 0, hour);
         }
         return dataset;
     }
@@ -419,7 +420,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
     // csv for root graph
     public void writeToRootCSV() {
         String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("realizedModeChoice.csv");
-        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)))){
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)))) {
             Set<String> modes = cumulativeMode;
             String heading = modes.stream().reduce((x, y) -> x + "," + y).orElse("");
             out.write("iterations," + heading);
@@ -453,30 +454,29 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
     }
 
 
-    private void writeToReplanningCSV(IterationEndsEvent event){
+    private void writeToReplanningCSV(IterationEndsEvent event) {
         String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(event.getIteration(), "replanningCountModeChoice.csv");
-        try(BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)))){
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)))) {
             String heading = "hour,count";
             out.write(heading);
             out.newLine();
             int max = hourModeFrequency.keySet().stream().mapToInt(x -> x).max().orElse(0);
-            for(int hour = 0 ; hour <=max ; hour++ ){
+            for (int hour = 0; hour <= max; hour++) {
                 String line;
-                if(affectedModeCount.get(hour) != null){
-                    line  = hour + "," + affectedModeCount.get(hour);
-                }
-                else{
+                if (affectedModeCount.get(hour) != null) {
+                    line = hour + "," + affectedModeCount.get(hour);
+                } else {
                     line = hour + "," + "0";
                 }
                 out.write(line);
                 out.newLine();
             }
-        }catch (IOException ex ){
-            log.error("exception occurred due to " , ex);
+        } catch (IOException ex) {
+            log.error("exception occurred due to ", ex);
         }
     }
 
-    public Map<Integer,Integer> getAffectedModeCount(){
+    public Map<Integer, Integer> getAffectedModeCount() {
         return affectedModeCount;
     }
 

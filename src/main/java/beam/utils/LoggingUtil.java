@@ -23,7 +23,7 @@ public class LoggingUtil {
         ple.start();
 
         final FileAppender<ILoggingEvent> fileAppender = new FileAppender<>();
-        fileAppender.setFile(String.format("%s/beamLog.outWriter", outputDirectory));
+        fileAppender.setFile(String.format("%s/beamLog.out", outputDirectory));
         fileAppender.setEncoder(ple);
         fileAppender.setContext(lc);
         fileAppender.start();
