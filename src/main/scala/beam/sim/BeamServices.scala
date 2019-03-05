@@ -126,7 +126,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
     readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath, fuelTypePrices)
   )
 
-  private val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile).getParent
+  private val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
   private val vehicleCsvReader = new VehicleCsvReader(beamConfig)
   private val consumptionRateFilterStore =
     new ConsumptionRateFilterStoreImpl(
