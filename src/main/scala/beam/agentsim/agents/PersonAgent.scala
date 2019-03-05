@@ -405,9 +405,6 @@ class PersonAgent(
     // RIDE HAIL SUCCESS
     // no trigger needed here since we're going to Waiting anyway without any other actions needed
     case Event(RideHailResponse(req, _, None, triggersToSchedule), data: BasePersonData) =>
-      if (req.departAt != _currentTick.get) {
-        val i = 0
-      }
       handleSuccessfulReservation(triggersToSchedule, data)
     // RIDE HAIL FAILURE
     case Event(
