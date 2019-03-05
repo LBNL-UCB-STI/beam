@@ -91,7 +91,7 @@ object PtFares {
     def apply(agencyId: String, routeId: String, age: String, amount: String): FareRule = new FareRule(
       agencyId,
       routeId,
-      Range(age),
+      Range(age, closeRange = true),
       Try(amount.toDouble).getOrElse(0D)
     )
   }

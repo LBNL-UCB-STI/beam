@@ -31,23 +31,23 @@ class RangeSpec extends FlatSpec {
     assert(Range("[1:10]").has(10))
   }
 
-  "(1:10]" should "mean Range(2, 10)" ignore {
+  "(1:10]" should "mean Range(2, 10)" in {
     assert(Range("(1:10]") == Range(2, 10))
   }
-  it should "contain 10, but not 1" ignore {
+  it should "contain 10, but not 1" in  {
     assert(Range("(1:10]").has(10))
     assert(!Range("(1:10]").has(1))
   }
 
-  "[1:10)" should "mean Range(1, 9)" ignore {
+  "[1:10)" should "mean Range(1, 9)" in {
     assert(Range("[1:10)") == Range(1, 9))
   }
-  it should "contain 1, but not 10" ignore {
+  it should "contain 1, but not 10" in {
     assert(Range("[1:10)").has(1))
     assert(!Range("[1:10)").has(10))
   }
 
   "[10:1]" should "throw RuntimeException" in {
-    assertThrows[RuntimeException](Range("[10:1]"))
+    assertThrows[RuntimeException](Range("[10:1]", closeRange = true))
   }
 }

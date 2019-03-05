@@ -28,7 +28,9 @@ object Range {
 
   val pattern = """\[-?\d*\:-?\d*\]"""
 
-  def apply(exp: String): Range =
+  def apply(exp: String, closeRange: Boolean): Range = {
+    if(!closeRange) return Range(exp)
+
     if (exp == null || exp.isEmpty) Range.empty()
     else if (!exp.matches(pattern))
       throw new RuntimeException(s"Invalid range expression $exp, it should be [<NUM>:<NUM>].")
@@ -46,10 +48,9 @@ object Range {
         )
       Range(lowerEndpoint, upperEndpoint)
     }
+  }
 
-  def apply(exp: String, openRange: Boolean): Range = {
-    if(!openRange) return Range(exp)
-
+  def apply(exp: String): Range = {
     if (exp == null || exp.isEmpty) Range.empty()
     else {
       val bounds = exp.split(":")

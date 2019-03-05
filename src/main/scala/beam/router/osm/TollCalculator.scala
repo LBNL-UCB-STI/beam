@@ -71,7 +71,7 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
         .groupBy(t => t(0).toInt)
         .map {
           case (linkId, lines) =>
-            val tollWithRange = lines.map(t => Toll(t(1).toDouble, Range(t(2), openRange = true)))
+            val tollWithRange = lines.map(t => Toll(t(1).toDouble, Range(t(2))))
             Maps.immutableEntry[Int, Array[Toll]](linkId, tollWithRange)
         }
         .toArray

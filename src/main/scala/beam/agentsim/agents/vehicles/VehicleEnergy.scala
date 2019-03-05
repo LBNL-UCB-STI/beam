@@ -133,7 +133,7 @@ class ConsumptionRateFilterStoreImpl(
   }
 
   private def convertRecordStringToRange(recordString: String) = {
-    Range(recordString.replace(",", ":").replace(" ", ""), openRange = true)
+    Range(recordString.replace(",", ":").replace(" ", ""))
   }
 }
 
