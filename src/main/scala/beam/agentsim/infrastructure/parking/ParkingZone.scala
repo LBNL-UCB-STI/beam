@@ -17,11 +17,11 @@ class ParkingZone(
                    val parkingZoneId: Int,
                    var stallsAvailable: Int,
                    val maxStalls: Int,
-                   val ChargingPointType: Option[ChargingPointType],
+                   val chargingPointType: Option[ChargingPointType],
                    val pricingModel: Option[PricingModel]
 ) {
   override def toString: String = {
-    val chargeString = ChargingPointType match {
+    val chargeString = chargingPointType match {
       case None    => "chargingType = None"
       case Some(c) => s" chargingType = $c"
     }

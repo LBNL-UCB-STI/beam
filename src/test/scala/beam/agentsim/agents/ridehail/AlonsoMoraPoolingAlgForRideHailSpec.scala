@@ -11,7 +11,7 @@ import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail.{CustomerRequest, RVGraph, VehicleAndSchedule, _}
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehiclePersonId}
 import beam.agentsim.agents.vehicles.FuelType.FuelType
-import beam.agentsim.infrastructure.TAZTreeMap
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
 import beam.router.osm.TollCalculator
