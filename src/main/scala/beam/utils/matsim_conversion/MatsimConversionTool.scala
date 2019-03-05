@@ -33,9 +33,8 @@ object MatsimConversionTool extends App {
     val config = parseFileSubstitutingInputDirectory(beamConfigFilePath)
     val conversionConfig = ConversionConfig(config)
 
-
     val beamConf = BeamConfigUtils.parseFileSubstitutingInputDirectory(beamConfigFilePath)
-     beamServices = ScenarioComparator.getBeamServices(beamConf)
+    beamServices = ScenarioComparator.getBeamServices(beamConf)
 
     val network = NetworkUtils.createNetwork()
 //    println(s"Network file ${conversionConfig.matsimNetworkFile}")
