@@ -20,7 +20,7 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
   val testConfigFileName = "test/input/beamville/beam.conf"
   val config: Config = testConfig(testConfigFileName).resolve()
   lazy val beamConfig: BeamConfig = BeamConfig(config)
-  lazy val tazTreeMap: TAZTreeMap = TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.filename)
+  lazy val tazTreeMap: TAZTreeMap = TAZTreeMap.fromCsv(beamConfig.beam.agentsim.taz.filePath)
 
   lazy val beamServices: BeamServices = {
     val theServices = mock[BeamServices](withSettings().stubOnly())

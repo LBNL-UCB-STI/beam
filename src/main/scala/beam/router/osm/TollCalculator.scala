@@ -24,7 +24,7 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
   import beam.utils.FileUtils._
 
   private val tollsByLinkId: java.util.Map[Int, Array[Toll]] =
-    readTollPrices(config.beam.agentsim.toll.filename)
+    readTollPrices(config.beam.agentsim.toll.filePath)
   private val tollsByWayId: java.util.Map[Long, Array[Toll]] = readFromCacheFileOrOSM()
 
   logger.info("tollsByLinkId size: {}", tollsByLinkId.size)

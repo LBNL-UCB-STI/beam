@@ -348,9 +348,9 @@ class PersonWithPersonalVehiclePlanSpec
     }
 
     it("should know how to take a bicycle trip when it's already in its plan") {
-      val fuelTypePrices = readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilename).toMap
+      val fuelTypePrices = readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
       val vehicleTypes =
-        readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilename, fuelTypePrices)
+        readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath, fuelTypePrices)
       when(beamSvc.vehicleTypes).thenReturn(vehicleTypes)
 
       val eventsManager = new EventsManagerImpl()

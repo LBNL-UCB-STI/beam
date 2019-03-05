@@ -114,25 +114,25 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = TrieMap()
         override var personHouseholds: Map[Id[Person], Household] = Map()
         val fuelTypePrices: Map[FuelType, Double] =
-          readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilename).toMap
+          readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
 
         val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] =
-          readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilename, fuelTypePrices)
+          readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath, fuelTypePrices)
 
         // TODO Fix me once `TrieMap` is removed
         val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
           TrieMap(
-            readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.vehiclesFilename, vehicleTypes).toSeq: _*
+            readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath, vehicleTypes).toSeq: _*
           )
 
         override val modeIncentives: ModeIncentive =
-          ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filename)
-        override val ptFares: PtFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.filename)
+          ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath)
+        override val ptFares: PtFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath)
         override def startNewIteration(): Unit = throw new Exception("???")
         override def matsimServices_=(x$1: org.matsim.core.controler.MatsimServices): Unit = ???
         override val rideHailTransitModes: List[BeamMode] = BeamMode.massTransitModes
         override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap =
-          beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.filename)
+          beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
 
         override def matsimServices: org.matsim.core.controler.MatsimServices = ???
 
