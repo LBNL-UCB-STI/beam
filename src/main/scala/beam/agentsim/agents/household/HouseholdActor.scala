@@ -345,9 +345,6 @@ object HouseholdActor {
             val updatedLegsIterator = passengerSchedule.schedule.keys.toIterator
             var pickDropsForGrouping: Map[VehiclePersonId, List[BeamLeg]] = Map()
             var passengersToAdd = Set[VehiclePersonId]()
-            if (household.getId.toString.equals("2382400")) {
-              val i = 0
-            }
             cavSchedule.schedule.foreach { serviceRequest =>
               if (serviceRequest.person.isDefined) {
                 val person = memberVehiclePersonIds(serviceRequest.person.get.personId)
