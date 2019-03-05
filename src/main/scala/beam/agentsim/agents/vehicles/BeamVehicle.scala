@@ -2,7 +2,8 @@ package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorRef
 import beam.agentsim.agents.PersonAgent
-import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
+import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
+import beam.agentsim.agents.vehicles.ConsumptionRateFilterStore.{Primary, Secondary}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -46,7 +47,8 @@ class BeamVehicle(
 
   var spaceTime: SpaceTime = _
 
-  var fuelLevelInJoules = beamVehicleType.primaryFuelCapacityInJoule
+  var primaryFuelLevelInJoules = beamVehicleType.primaryFuelCapacityInJoule
+  var secondaryFuelLevelInJoules = beamVehicleType.secondaryFuelCapacityInJoule.getOrElse(0.0)
 
   var mustBeDrivenHome: Boolean = false
 
@@ -102,25 +104,78 @@ class BeamVehicle(
     stall = None
   }
 
-  def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): Double = {
-    val distanceInMeters = beamLeg.travelPath.distanceInM
-    val network = beamServices.matsimServices.getScenario.getNetwork
-    val fuelConsumption = BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
-    val energyConsumed = powerTrain.estimateConsumptionInJoules(fuelConsumption)
-    if (fuelLevelInJoules < energyConsumed) {
-      logger.warn(
-        "Vehicle {} does not have sufficient fuel to travel {} m, only enough for {} m, setting fuel level to 0",
-        id,
-        distanceInMeters,
-        fuelLevelInJoules / powerTrain.estimateConsumptionInJoules(1)
-      )
+  /**
+    * useFuel
+    *
+    * This method estimates energy consumed for [beamLeg] using data in [beamServices]. It accommodates a secondary
+    * powertrain and tracks the fuel consumed by each powertrain in cascading order (i.e. primary first until tank is
+    * empty and then secondary).
+    *
+    * IMPORTANT -- This method does nothing to stop a vehicle from moving further than the fuel on-board would allow.
+    * When more energy is consumed than the fuel level allows, a warning is logged and the fuel level goes negative.
+    * We choose to allow for negative fuel level because this can convey useful information to the user, namely, the
+    * amount of increased fuel capacity that would be needed to avoid running out.
+    *
+    * When fuel level goes negative, it is assumed to happen on the primary power train, not the secondary.
+    *
+    * It is up to the manager / driver of this vehicle to decide how to react if fuel level becomes negative.
+    *
+    * @param beamLeg
+    * @param beamServices
+    * @return FuelConsumed
+    */
+  def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): FuelConsumed = {
+    val fuelConsumptionData =
+      BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
+
+    val primaryEnergyForFullLeg =
+      if (beamServices.beamConfig.beam.agentsim.agents.vehicles.enableNewVehicleEnergyConsumptionLogic)
+        beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
+          fuelConsumptionData,
+          fallBack = powerTrain.getRateInJoulesPerMeter,
+          Primary
+        )
+      else powerTrain.estimateConsumptionInJoules(fuelConsumptionData)
+    var primaryEnergyConsumed = primaryEnergyForFullLeg
+    var secondaryEnergyConsumed = 0.0
+    if (primaryFuelLevelInJoules < primaryEnergyForFullLeg) {
+      if (secondaryFuelLevelInJoules > 0.0) {
+        // Use secondary fuel if possible
+        val secondaryEnergyForFullLeg =
+          if (beamServices.beamConfig.beam.agentsim.agents.vehicles.enableNewVehicleEnergyConsumptionLogic)
+            beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
+              fuelConsumptionData,
+              fallBack = powerTrain.getRateInJoulesPerMeter,
+              Secondary
+            )
+          else powerTrain.estimateConsumptionInJoules(fuelConsumptionData)
+        secondaryEnergyConsumed = secondaryEnergyForFullLeg * (primaryEnergyForFullLeg - primaryFuelLevelInJoules) / primaryEnergyConsumed
+        if (secondaryFuelLevelInJoules < secondaryEnergyConsumed) {
+          logger.warn(
+            "Vehicle does not have sufficient fuel to make trip (in both primary and secondary fuel tanks), allowing trip to happen and setting fuel level negative: vehicle {} trip distance {} m",
+            id,
+            beamLeg.travelPath.distanceInM
+          )
+          primaryEnergyConsumed = primaryEnergyForFullLeg - secondaryFuelLevelInJoules / secondaryEnergyConsumed
+          secondaryEnergyConsumed = secondaryFuelLevelInJoules
+        } else {
+          primaryEnergyConsumed = primaryFuelLevelInJoules
+        }
+      } else {
+        logger.warn(
+          "Vehicle does not have sufficient fuel to make trip, allowing trip to happen and setting fuel level negative: vehicle {} trip distance {} m",
+          id,
+          beamLeg.travelPath.distanceInM
+        )
+      }
     }
-    fuelLevelInJoules = Math.max(fuelLevelInJoules - energyConsumed, 0.0)
-    energyConsumed
+    primaryFuelLevelInJoules = primaryFuelLevelInJoules - primaryEnergyConsumed
+    secondaryFuelLevelInJoules = secondaryFuelLevelInJoules - secondaryEnergyConsumed
+    FuelConsumed(primaryEnergyConsumed, secondaryEnergyConsumed)
   }
 
   def addFuel(fuelInJoules: Double): Unit = {
-    fuelLevelInJoules = fuelLevelInJoules + fuelInJoules
+    primaryFuelLevelInJoules = primaryFuelLevelInJoules + fuelInJoules
   }
 
   /**
@@ -132,7 +187,7 @@ class BeamVehicle(
       case Some(theStall) =>
         ChargingType.calculateChargingSessionLengthAndEnergyInJoules(
           theStall.attributes.chargingType,
-          fuelLevelInJoules,
+          primaryFuelLevelInJoules,
           beamVehicleType.primaryFuelCapacityInJoule,
           beamVehicleType.rechargeLevel2RateLimitInWatts,
           beamVehicleType.rechargeLevel3RateLimitInWatts,
@@ -145,8 +200,8 @@ class BeamVehicle(
 
   def getState: BeamVehicleState =
     BeamVehicleState(
-      fuelLevelInJoules,
-      fuelLevelInJoules / powerTrain.estimateConsumptionInJoules(1),
+      primaryFuelLevelInJoules,
+      primaryFuelLevelInJoules / powerTrain.estimateConsumptionInJoules(1),
       driver,
       stall
     )
@@ -172,6 +227,8 @@ class BeamVehicle(
 
 object BeamVehicle {
 
+  case class FuelConsumed(primaryFuel: Double, secondaryFuel: Double)
+
   def noSpecialChars(theString: String): String =
     theString.replaceAll("[\\\\|\\\\^]+", ":")
 
@@ -192,15 +249,15 @@ object BeamVehicle {
 
   case class FuelConsumptionData(
     linkId: Int,
-    linkCapacity: Double,
-    linkLength: Double,
-    averageSpeed: Double,
-    freeFlowSpeed: Double,
-    linkArrivalTime: Long,
-    vehicleId: String,
     vehicleType: BeamVehicleType,
-    turnAtLinkEnd: TurningDirection,
-    numberOfStops: Int
+    linkNumberOfLanes: Option[Int],
+    linkCapacity: Option[Double] = None,
+    linkLength: Option[Double],
+    averageSpeed: Option[Double],
+    freeFlowSpeed: Option[Double],
+    linkArrivalTime: Option[Long] = None,
+    turnAtLinkEnd: Option[TurningDirection] = None,
+    numberOfStops: Option[Int] = None
   )
 
   /**
@@ -211,31 +268,21 @@ object BeamVehicle {
     */
   def collectFuelConsumptionData(
     beamLeg: BeamLeg,
-    vehicleType: BeamVehicleType,
+    theVehicleType: BeamVehicleType,
     networkHelper: NetworkHelper
   ): IndexedSeq[FuelConsumptionData] = {
     if (beamLeg.mode.isTransit & !Modes.isOnStreetTransit(beamLeg.mode)) {
       Vector.empty
     } else {
-      val linkIds = beamLeg.travelPath.linkIds
-      val linkTravelTimes: IndexedSeq[Int] = beamLeg.travelPath.linkTravelTime
+      val linkIds = beamLeg.travelPath.linkIds.drop(1)
+      val linkTravelTimes: IndexedSeq[Int] = beamLeg.travelPath.linkTravelTime.drop(1)
       // generate the link arrival times for each link ,by adding cumulative travel times of previous links
-      val linkArrivalTimes: Seq[Int] = for (i <- linkTravelTimes.indices) yield {
-        i match {
-          case 0 => beamLeg.startTime
-          case _ =>
-            beamLeg.startTime + (try {
-              linkTravelTimes(i - 1)
-            } catch {
-              case _: Exception => 0
-            })
-        }
-      }
-      val nextLinkIds = linkIds.takeRight(linkIds.size - 1)
+//      val linkArrivalTimes = linkTravelTimes.scan(beamLeg.startTime)((enterTime,duration) => enterTime + duration).dropRight(1)
+//      val nextLinkIds = linkIds.takeRight(linkIds.size - 1)
       linkIds.zipWithIndex.map {
         case (id, idx) =>
           val travelTime = linkTravelTimes(idx)
-          val arrivalTime = linkArrivalTimes(idx)
+//          val arrivalTime = linkArrivalTimes(idx)
           val currentLink: Option[Link] = networkHelper.getLink(id)
           val averageSpeed = try {
             if (travelTime > 0) currentLink.map(_.getLength).getOrElse(0.0) / travelTime else 0
@@ -243,32 +290,32 @@ object BeamVehicle {
             case _: Exception => 0.0
           }
           // get the next link , and calculate the direction to be taken based on the angle between the two links
-          val nextLink = if (idx < nextLinkIds.length) {
-            networkHelper.getLink(nextLinkIds(idx))
-          } else {
-            currentLink
-          }
-          val turnAtLinkEnd = currentLink match {
-            case Some(curLink) =>
-              GeoUtils.getDirection(GeoUtils.vectorFromLink(curLink), GeoUtils.vectorFromLink(nextLink.get))
-            case None =>
-              Straight
-          }
-          val numStops = turnAtLinkEnd match {
-            case Straight => 0
-            case _        => 1
-          }
+//          val nextLink = if (idx < nextLinkIds.length) {
+//            networkHelper.getLink(nextLinkIds(idx))
+//          } else {
+//            currentLink
+//          }
+//          val turnAtLinkEnd = currentLink match {
+//            case Some(curLink) =>
+//              GeoUtils.getDirection(GeoUtils.vectorFromLink(curLink), GeoUtils.vectorFromLink(nextLink.get))
+//            case None =>
+//              Straight
+//          }
+//          val numStops = turnAtLinkEnd match {
+//            case Straight => 0
+//            case _        => 1
+//          }
           FuelConsumptionData(
             linkId = id,
-            linkCapacity = currentLink.map(_.getCapacity).getOrElse(0),
-            linkLength = currentLink.map(_.getLength).getOrElse(0),
-            averageSpeed = averageSpeed,
-            freeFlowSpeed = currentLink.map(_.getFreespeed).getOrElse(0),
-            linkArrivalTime = arrivalTime,
-            vehicleId = id.toString,
-            vehicleType = vehicleType,
-            turnAtLinkEnd = turnAtLinkEnd,
-            numberOfStops = numStops
+            vehicleType = theVehicleType,
+            linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt).headOption,
+            linkCapacity = None, //currentLink.map(_.getCapacity),
+            linkLength = currentLink.map(_.getLength),
+            averageSpeed = Some(averageSpeed),
+            freeFlowSpeed = currentLink.map(_.getFreespeed),
+            linkArrivalTime = None, //Some(arrivalTime),
+            turnAtLinkEnd = None, //Some(turnAtLinkEnd),
+            numberOfStops = None //Some(numStops)
           )
       }
     }
