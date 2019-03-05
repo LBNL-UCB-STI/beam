@@ -387,6 +387,7 @@ class RideHailManager(
         rideHailResourceAllocationManager.removeRequestFromBuffer(request)
       }
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation, tick)
+      rideHailResourceAllocationManager.clearPrimaryBufferAndFillFromSecondary
       cleanUp
 
     case ev @ StopDrivingIfNoPassengerOnBoardReply(success, requestId, tick) =>
@@ -602,6 +603,7 @@ class RideHailManager(
       }
 
     case ContinueBufferedRideHailRequests(tick) =>
+      // If modifyPassengerScheduleManager holds a tick, we're in buffered mode
       modifyPassengerScheduleManager.getCurrentTick match {
         case Some(workingTick) =>
           log.debug(
@@ -615,6 +617,7 @@ class RideHailManager(
           // this case is how we process non-buffered requests
           findAllocationsAndProcess(tick)
         case _ =>
+          log.error("Should not make it here")
       }
 
     case trigger @ TriggerWithId(RideHailRepositioningTrigger(tick), triggerId) =>
@@ -911,21 +914,30 @@ class RideHailManager(
         sender() ! RideHailResponse.dummyWithError(RideHailVehicleTakenError)
     }
     if (processBufferedRequestsOnTimeout && currentlyProcessingTimeoutTrigger.isDefined) {
-      self ! ContinueBufferedRideHailRequests(tick)
+      if(pendingModifyPassengerScheduleAcks.isEmpty){
+        rideHailResourceAllocationManager.clearPrimaryBufferAndFillFromSecondary
+        modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation,tick)
+        cleanUp
+      }
     }
   }
 
   private def handleReservationRequest(request: RideHailRequest): Unit = {
-    // We always use the request buffer, but depending on whether we process this
-    // request immediately or on timeout we take different paths
-    rideHailResourceAllocationManager.addRequestToBuffer(request)
-
+    // Batched processing first
     if (processBufferedRequestsOnTimeout) {
+      if(currentlyProcessingTimeoutTrigger.isDefined){
+        // We store these in a secondary buffer so that we **don't** process them in this round but wait for the
+        // next timeout
+        rideHailResourceAllocationManager.addRequestToSecondaryBuffer(request)
+      }else{
+        rideHailResourceAllocationManager.addRequestToBuffer(request)
+      }
       request.customer.personRef ! DelayedRideHailResponse
     } else {
+      // We always use the request buffer even if we will process these requests immediately
+      rideHailResourceAllocationManager.addRequestToBuffer(request)
       findAllocationsAndProcess(request.departAt)
     }
-
   }
 
   def createRideHailVehicleAndAgent(
@@ -1046,6 +1058,7 @@ class RideHailManager(
                currentlyProcessingTimeoutTrigger.isDefined) {
       log.debug("sendCompletionAndScheduleNewTimeout for tick {} from line 1072", tick)
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation, tick)
+      rideHailResourceAllocationManager.clearPrimaryBufferAndFillFromSecondary
       cleanUp
     }
   }
