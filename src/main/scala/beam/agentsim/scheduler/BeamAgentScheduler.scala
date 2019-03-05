@@ -155,6 +155,9 @@ class BeamAgentScheduler(
   private var monitorTask: Option[Cancellable] = None
   private var stuckAgentChecker: Option[Cancellable] = None
 
+  private val initialDelay = beamConfig.beam.agentsim.scheduleMonitorTask.initialDelay
+  private val interval = beamConfig.beam.agentsim.scheduleMonitorTask.interval
+
   def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
     this.idCount += 1
 
@@ -412,8 +415,8 @@ class BeamAgentScheduler(
     if (beamConfig.beam.debug.debugEnabled)
       Some(
         context.system.scheduler.schedule(
-          new FiniteDuration(1, TimeUnit.SECONDS),
-          new FiniteDuration(180, TimeUnit.SECONDS),
+          new FiniteDuration(initialDelay, TimeUnit.SECONDS),
+          new FiniteDuration(interval, TimeUnit.SECONDS),
           self,
           Monitor
         )

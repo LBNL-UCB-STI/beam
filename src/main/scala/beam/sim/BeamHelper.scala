@@ -278,6 +278,10 @@ trait BeamHelper extends LazyLogging {
 
     ConfigConsistencyComparator.parseBeamTemplateConfFile(parsedArgs.configLocation.get)
 
+    if (parsedArgs.configLocation.get.contains("\\")) {
+      throw new RuntimeException("wrong config path, expected:forward slash, found: backward slash")
+    }
+
     val location = ConfigFactory.parseString("config=" + parsedArgs.configLocation.get)
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
       if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)

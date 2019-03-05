@@ -44,8 +44,8 @@ object CsvScenarioReader extends MatsimScenarioReader with LazyLogging {
     val householdId = getIfNotNull(rec, "household_id")
     val cars = getIfNotNull(rec, "cars").toDouble
     val income = getIfNotNull(rec, "income").toDouble
-    val x = getIfNotNull(rec, "homecoordx").toDouble
-    val y = getIfNotNull(rec, "homecoordy").toDouble
+    val x = getIfNotNull(rec, "x").toDouble
+    val y = getIfNotNull(rec, "y").toDouble
     HouseholdInfo(householdId = HouseholdId(householdId), cars = cars, income = income, x = x, y = y)
   }
 
