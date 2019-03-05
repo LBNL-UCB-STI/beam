@@ -970,7 +970,7 @@ class RideHailManager(
       self,
       rideHailBeamVehicle,
       rideInitialLocation,
-      shifts.map(_.split(";").map(beam.sim.common.Range(_)).toList),
+      shifts.map(_.split(";").map(beam.sim.common.Range(_, openRange = true)).toList),
       geofence
     )
 
