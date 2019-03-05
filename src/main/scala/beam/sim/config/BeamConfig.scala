@@ -13,6 +13,7 @@ object BeamConfig {
     calibration    : BeamConfig.Beam.Calibration,
     cluster        : BeamConfig.Beam.Cluster,
     debug          : BeamConfig.Beam.Debug,
+    exchange: BeamConfig.Beam.Exchange,
     experimental   : BeamConfig.Beam.Experimental,
     inputDirectory : java.lang.String,
     metrics        : BeamConfig.Beam.Metrics,
@@ -76,6 +77,160 @@ object BeamConfig {
           mulitnomialLogit   : BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit
         )
         object ModalBehaviors {
+          case class HighTimeSensitivity(
+            highCongestion: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.HighCongestion,
+            lowCongestion: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.LowCongestion
+          )
+
+          object HighTimeSensitivity {
+            case class HighCongestion(
+              highwayFactor: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.HighCongestion.HighwayFactor,
+              nonHighwayFactor: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.HighCongestion.NonHighwayFactor
+            )
+
+            object HighCongestion {
+              case class HighwayFactor(
+                Level3: scala.Double,
+                Level4: scala.Double,
+                Level5: scala.Double,
+                LevelLE2: scala.Double
+              )
+
+              object HighwayFactor {
+
+                def apply(
+                  c: com.typesafe.config.Config
+                ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.HighCongestion.HighwayFactor = {
+                  BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.HighCongestion.HighwayFactor(
+                    Level3 = if (c.hasPathOrNull("Level3")) c.getDouble("Level3") else 1.0,
+                    Level4 = if (c.hasPathOrNull("Level4")) c.getDouble("Level4") else 1.0,
+                    Level5 = if (c.hasPathOrNull("Level5")) c.getDouble("Level5") else 1.0,
+                    LevelLE2 = if (c.hasPathOrNull("LevelLE2")) c.getDouble("LevelLE2") else 1.0
+                  )
+                }
+              }
+
+              case class NonHighwayFactor(
+                Level3: scala.Double,
+                Level4: scala.Double,
+                Level5: scala.Double,
+                LevelLE2: scala.Double
+              )
+
+              object NonHighwayFactor {
+
+                def apply(
+                  c: com.typesafe.config.Config
+                ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.HighCongestion.NonHighwayFactor = {
+                  BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.HighCongestion.NonHighwayFactor(
+                    Level3 = if (c.hasPathOrNull("Level3")) c.getDouble("Level3") else 1.0,
+                    Level4 = if (c.hasPathOrNull("Level4")) c.getDouble("Level4") else 1.0,
+                    Level5 = if (c.hasPathOrNull("Level5")) c.getDouble("Level5") else 1.0,
+                    LevelLE2 = if (c.hasPathOrNull("LevelLE2")) c.getDouble("LevelLE2") else 1.0
+                  )
+                }
+              }
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.HighCongestion = {
+                BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.HighCongestion(
+                  highwayFactor =
+                    BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.HighCongestion.HighwayFactor(
+                      if (c.hasPathOrNull("highwayFactor")) c.getConfig("highwayFactor")
+                      else com.typesafe.config.ConfigFactory.parseString("highwayFactor{}")
+                    ),
+                  nonHighwayFactor =
+                    BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.HighCongestion.NonHighwayFactor(
+                      if (c.hasPathOrNull("nonHighwayFactor")) c.getConfig("nonHighwayFactor")
+                      else com.typesafe.config.ConfigFactory.parseString("nonHighwayFactor{}")
+                    )
+                )
+              }
+            }
+
+            case class LowCongestion(
+              highwayFactor: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.LowCongestion.HighwayFactor,
+              nonHighwayFactor: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.LowCongestion.NonHighwayFactor
+            )
+
+            object LowCongestion {
+              case class HighwayFactor(
+                Level3: scala.Double,
+                Level4: scala.Double,
+                Level5: scala.Double,
+                LevelLE2: scala.Double
+              )
+
+              object HighwayFactor {
+
+                def apply(
+                  c: com.typesafe.config.Config
+                ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.LowCongestion.HighwayFactor = {
+                  BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.LowCongestion.HighwayFactor(
+                    Level3 = if (c.hasPathOrNull("Level3")) c.getDouble("Level3") else 1.0,
+                    Level4 = if (c.hasPathOrNull("Level4")) c.getDouble("Level4") else 1.0,
+                    Level5 = if (c.hasPathOrNull("Level5")) c.getDouble("Level5") else 1.0,
+                    LevelLE2 = if (c.hasPathOrNull("LevelLE2")) c.getDouble("LevelLE2") else 1.0
+                  )
+                }
+              }
+
+              case class NonHighwayFactor(
+                Level3: scala.Double,
+                Level4: scala.Double,
+                Level5: scala.Double,
+                LevelLE2: scala.Double
+              )
+
+              object NonHighwayFactor {
+
+                def apply(
+                  c: com.typesafe.config.Config
+                ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.LowCongestion.NonHighwayFactor = {
+                  BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.LowCongestion.NonHighwayFactor(
+                    Level3 = if (c.hasPathOrNull("Level3")) c.getDouble("Level3") else 1.0,
+                    Level4 = if (c.hasPathOrNull("Level4")) c.getDouble("Level4") else 1.0,
+                    Level5 = if (c.hasPathOrNull("Level5")) c.getDouble("Level5") else 1.0,
+                    LevelLE2 = if (c.hasPathOrNull("LevelLE2")) c.getDouble("LevelLE2") else 1.0
+                  )
+                }
+              }
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.LowCongestion = {
+                BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.LowCongestion(
+                  highwayFactor =
+                    BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.LowCongestion.HighwayFactor(
+                      if (c.hasPathOrNull("highwayFactor")) c.getConfig("highwayFactor")
+                      else com.typesafe.config.ConfigFactory.parseString("highwayFactor{}")
+                    ),
+                  nonHighwayFactor =
+                    BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.LowCongestion.NonHighwayFactor(
+                      if (c.hasPathOrNull("nonHighwayFactor")) c.getConfig("nonHighwayFactor")
+                      else com.typesafe.config.ConfigFactory.parseString("nonHighwayFactor{}")
+                    )
+                )
+              }
+            }
+
+            def apply(
+              c: com.typesafe.config.Config
+            ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity = {
+              BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity(
+                highCongestion = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.HighCongestion(
+                  if (c.hasPathOrNull("highCongestion")) c.getConfig("highCongestion")
+                  else com.typesafe.config.ConfigFactory.parseString("highCongestion{}")
+                ),
+                lowCongestion = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.LowCongestion(
+                  if (c.hasPathOrNull("lowCongestion")) c.getConfig("lowCongestion")
+                  else com.typesafe.config.ConfigFactory.parseString("lowCongestion{}")
+                )
+              )
+            }
+          }
+
           case class Lccm(
             filePath : java.lang.String
           )
@@ -86,7 +241,8 @@ object BeamConfig {
               )
             }
           }
-                
+
+          
           case class MulitnomialLogit(
             params : BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit.Params
           )
@@ -126,7 +282,6 @@ object BeamConfig {
               )
             }
           }
-                
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors = {
             BeamConfig.Beam.Agentsim.Agents.ModalBehaviors(
               defaultValueOfTime = if(c.hasPathOrNull("defaultValueOfTime")) c.getDouble("defaultValueOfTime") else 8.0,
@@ -472,7 +627,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Taz(
         filePath        : java.lang.String,
         parkingFilePath : java.lang.String
@@ -703,7 +858,7 @@ object BeamConfig {
         )
       }
     }
-          
+
     case class Experimental(
       optimizer : BeamConfig.Beam.Experimental.Optimizer
     )

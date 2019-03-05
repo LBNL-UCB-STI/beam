@@ -1,6 +1,5 @@
 package beam.agentsim.scheduler
 
-import java.lang.Double
 import java.util.Comparator
 import java.util.concurrent.TimeUnit
 
@@ -8,12 +7,16 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Terminated
 import akka.event.LoggingReceive
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.ridehail.RideHailManager.RideHailRepositioningTrigger
+import beam.agentsim.agents.ridehail.RideHailManager.{
+  ContinueBufferedRideHailRequests,
+  RecoverFromStuckness,
+  RideHailRepositioningTrigger
+}
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
+import beam.utils.StuckFinder
 import beam.utils.logging.LogActorState
-import beam.utils.{DebugLib, StuckFinder}
 import com.google.common.collect.TreeMultimap
 
 import scala.annotation.tailrec
@@ -152,6 +155,9 @@ class BeamAgentScheduler(
   private var monitorTask: Option[Cancellable] = None
   private var stuckAgentChecker: Option[Cancellable] = None
 
+  private val initialDelay = beamConfig.beam.agentsim.scheduleMonitorTask.initialDelay
+  private val interval = beamConfig.beam.agentsim.scheduleMonitorTask.interval
+
   def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
     this.idCount += 1
 
@@ -256,6 +262,7 @@ class BeamAgentScheduler(
                 // the time has not changed sense set last monitor timeout and RidehailManager still blocking scheduler -> log state and try to remove stuckness
                 rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), true)
                 x.agent ! LogActorState
+                x.agent ! RecoverFromStuckness(x.triggerWithId.trigger.tick)
               case _ =>
                 // register tick (to see, if it changes till next monitor timeout).
                 rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), false)
@@ -408,8 +415,8 @@ class BeamAgentScheduler(
     if (beamConfig.beam.debug.debugEnabled)
       Some(
         context.system.scheduler.schedule(
-          new FiniteDuration(1, TimeUnit.SECONDS),
-          new FiniteDuration(30, TimeUnit.SECONDS),
+          new FiniteDuration(initialDelay, TimeUnit.SECONDS),
+          new FiniteDuration(interval, TimeUnit.SECONDS),
           self,
           Monitor
         )

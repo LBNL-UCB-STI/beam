@@ -1,6 +1,7 @@
 package beam.sim
 
 import java.io.FileNotFoundException
+import java.nio.file.Paths
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
@@ -13,9 +14,13 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode._
+import beam.router.model.{BeamPath, EmbodiedBeamLeg}
 import beam.sim.BeamServices.getTazTreeMap
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
 import beam.sim.metrics.Metrics
 import beam.utils.{DateUtils, NetworkHelper}
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
@@ -27,6 +32,7 @@ import org.matsim.core.utils.collections.QuadTree
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 import org.slf4j.LoggerFactory
+import org.matsim.api.core.v01.network.{Link, Network}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -39,6 +45,7 @@ import scala.concurrent.duration.FiniteDuration
 trait BeamServices {
   val controler: ControlerI
   val beamConfig: BeamConfig
+  val vehicleEnergy: VehicleEnergy
 
   val geo: GeoUtils
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory
@@ -64,6 +71,18 @@ trait BeamServices {
   def networkHelper: NetworkHelper
   var transitFleetSizes: mutable.HashMap[String, Integer] = mutable.HashMap.empty
   def setTransitFleetSizes(tripFleetSizeMap: mutable.HashMap[String, Integer])
+
+  def getModalBehaviors(): ModalBehaviors = {
+    beamConfig.beam.agentsim.agents.modalBehaviors
+  }
+
+  def getDefaultAutomationLevel(): Option[Int] = {
+    if (beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationForVOTT) {
+      Option(beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationLevel)
+    } else {
+      None
+    }
+  }
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
@@ -105,6 +124,23 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = maybeScaleTransit(
     readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath, fuelTypePrices)
+  )
+
+  private val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile).getParent
+  private val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+  private val consumptionRateFilterStore =
+    new ConsumptionRateFilterStoreImpl(
+      vehicleCsvReader.getVehicleEnergyRecordsUsing,
+      Option(baseFilePath.toString),
+      primaryConsumptionRateFilePathsByVehicleType =
+        vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
+      secondaryConsumptionRateFilePathsByVehicleType =
+        vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
+    )
+
+  val vehicleEnergy = new VehicleEnergy(
+    consumptionRateFilterStore,
+    vehicleCsvReader.getLinkToGradeRecordsUsing
   )
 
   // TODO Fix me once `TrieMap` is removed
