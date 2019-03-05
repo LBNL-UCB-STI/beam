@@ -95,7 +95,7 @@ class PersonAgentSpec
     when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
     when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.vehicleTypes).thenReturn(Map[Id[BeamVehicleType],BeamVehicleType]())
+    when(theServices.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
@@ -597,11 +597,19 @@ class PersonAgentSpec
             reservationRequestTram.passengerVehiclePersonId,
             Vector(
               ScheduleTrigger(
-                BoardVehicleTrigger(30000, tramLeg.beamVehicleId, Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)),
+                BoardVehicleTrigger(
+                  30000,
+                  tramLeg.beamVehicleId,
+                  Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)
+                ),
                 personActor
               ),
               ScheduleTrigger(
-                AlightVehicleTrigger(32000, tramLeg.beamVehicleId, Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)),
+                AlightVehicleTrigger(
+                  32000,
+                  tramLeg.beamVehicleId,
+                  Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)
+                ),
                 personActor
               ) // My tram is late!
             )

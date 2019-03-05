@@ -803,14 +803,18 @@ class PersonAgent(
 
   }
 
-  def handleBoardOrAlightOutOfPlace(triggerId: Long, currentTrip: Option[EmbodiedBeamTrip], beamVehicleTypeId: Id[BeamVehicleType]) = {
+  def handleBoardOrAlightOutOfPlace(
+    triggerId: Long,
+    currentTrip: Option[EmbodiedBeamTrip],
+    beamVehicleTypeId: Id[BeamVehicleType]
+  ) = {
     currentTrip match {
       case None =>
-        log.debug("Person {} stashing BoardOrAlight {} b/c no trip yet",id,triggerId)
+        log.debug("Person {} stashing BoardOrAlight {} b/c no trip yet", id, triggerId)
         stash
         stay
       case Some(trip) if trip.tripClassifier == CAV =>
-        log.debug("Person {} stashing BoardOrAlight {} b/c on CAV trip",id,triggerId)
+        log.debug("Person {} stashing BoardOrAlight {} b/c on CAV trip", id, triggerId)
         stash
         stay
       case Some(trip) if beamServices.vehicleTypes.get(beamVehicleTypeId).map(_.automationLevel > 3).getOrElse(false) =>
@@ -824,7 +828,7 @@ class PersonAgent(
         _experiencedBeamPlan.tours.foreach(tour => _experiencedBeamPlan.putStrategy(tour, ModeChoiceStrategy(None)))
         stay() replying CompletionNotice(triggerId, Vector())
       case Some(trip) =>
-        log.debug("Person {} in state {} stashing BoardOrAlight {} b/c expecting this",id,stateName,triggerId)
+        log.debug("Person {} in state {} stashing BoardOrAlight {} b/c expecting this", id, stateName, triggerId)
         stash
         stay
     }
