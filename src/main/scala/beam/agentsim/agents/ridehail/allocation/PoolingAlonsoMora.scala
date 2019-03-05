@@ -100,11 +100,11 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                 reqs.head.routingRequestId match {
                   case Some(routingRequestId) =>
                     PickDropIdAndLeg(
-                      reqs.last.person,
+                      reqs.last.person.get,
                       indexedResponses(routingRequestId).itineraries.head.legs.headOption
                     )
                   case None =>
-                    PickDropIdAndLeg(reqs.last.person, None)
+                    PickDropIdAndLeg(reqs.last.person.get, None)
                 }
               }
               .toList
@@ -183,12 +183,13 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
               val dest = wayPoints(1)
               val origin = SpaceTime(orig.activity.getCoord, orig.serviceTime.toInt)
               if (newRideHailRequest.isEmpty && orig.person != null) {
-                newRideHailRequest = Some(customerIdToReqs(orig.person.personId))
+                newRideHailRequest = Some(customerIdToReqs(orig.person.map(_.personId).get))
               } else if (orig.person != null && !newRideHailRequest.get.customer.equals(orig.person) && newRideHailRequest.get.groupedWithOtherRequests
-                           .find(_.customer.equals(orig.person))
+                           .find(_.customer.equals(orig.person.get))
                            .isEmpty) {
-                newRideHailRequest = Some(newRideHailRequest.get.addSubRequest(customerIdToReqs(orig.person.personId)))
-                removeRequestFromBuffer(customerIdToReqs(orig.person.personId))
+                newRideHailRequest =
+                  Some(newRideHailRequest.get.addSubRequest(customerIdToReqs(orig.person.map(_.personId).get)))
+                removeRequestFromBuffer(customerIdToReqs(orig.person.map(_.personId).get))
               }
               if (rideHailManager.beamServices.geo.distUTMInMeters(orig.activity.getCoord, dest.activity.getCoord) < rideHailManager.beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters) {
                 scheduleToCache = scheduleToCache :+ orig
