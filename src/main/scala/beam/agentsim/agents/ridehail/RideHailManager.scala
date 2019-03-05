@@ -368,8 +368,11 @@ class RideHailManager(
       ReflectionUtils.logFields(log, modifyPassengerScheduleManager, 0)
 
     case RecoverFromStuckness(tick) =>
-    // This is assuming we are allocating demand and routes haven't been returned
-      log.error("Ride Hail Manager is abandoning dispatch of {} customers due to stuckness (routing response never received).",rideHailResourceAllocationManager.getUnprocessedCustomers.size)
+      // This is assuming we are allocating demand and routes haven't been returned
+      log.error(
+        "Ride Hail Manager is abandoning dispatch of {} customers due to stuckness (routing response never received).",
+        rideHailResourceAllocationManager.getUnprocessedCustomers.size
+      )
       rideHailResourceAllocationManager.getUnprocessedCustomers.foreach { request =>
         modifyPassengerScheduleManager.addTriggerToSendWithCompletion(
           ScheduleTrigger(
@@ -914,9 +917,9 @@ class RideHailManager(
         sender() ! RideHailResponse.dummyWithError(RideHailVehicleTakenError)
     }
     if (processBufferedRequestsOnTimeout && currentlyProcessingTimeoutTrigger.isDefined) {
-      if(pendingModifyPassengerScheduleAcks.isEmpty){
+      if (pendingModifyPassengerScheduleAcks.isEmpty) {
         rideHailResourceAllocationManager.clearPrimaryBufferAndFillFromSecondary
-        modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation,tick)
+        modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation, tick)
         cleanUp
       }
     }
@@ -925,11 +928,11 @@ class RideHailManager(
   private def handleReservationRequest(request: RideHailRequest): Unit = {
     // Batched processing first
     if (processBufferedRequestsOnTimeout) {
-      if(currentlyProcessingTimeoutTrigger.isDefined){
+      if (currentlyProcessingTimeoutTrigger.isDefined) {
         // We store these in a secondary buffer so that we **don't** process them in this round but wait for the
         // next timeout
         rideHailResourceAllocationManager.addRequestToSecondaryBuffer(request)
-      }else{
+      } else {
         rideHailResourceAllocationManager.addRequestToBuffer(request)
       }
       request.customer.personRef ! DelayedRideHailResponse
