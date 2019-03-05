@@ -29,7 +29,7 @@ object Range {
   val pattern = """\[-?\d*\:-?\d*\]"""
 
   def apply(exp: String, closeRange: Boolean): Range = {
-    if(!closeRange) return Range(exp)
+    if (!closeRange) return Range(exp)
 
     if (exp == null || exp.isEmpty) Range.empty()
     else if (!exp.matches(pattern))
@@ -53,16 +53,16 @@ object Range {
   def apply(exp: String): Range = {
     if (exp == null || exp.isEmpty) Range.empty()
     else {
-      val bounds = exp.split(":")
-      val lowerBound = Try(
-        bounds(0).substring(1).toInt
-          + (if (bounds(0).startsWith("(")) 1 else 0)
+      val endpoints = exp.split(":")
+      val lowerEndpoint = Try(
+        endpoints(0).substring(1).toInt
+        + (if (endpoints(0).startsWith("(")) 1 else 0)
       ).getOrElse(0)
-      val upperBound = Try(
-        bounds(1).substring(0, bounds(1).length - 1).toInt
-          - (if (bounds(1).endsWith(")")) 1 else 0)
+      val upperEndpoint = Try(
+        endpoints(1).substring(0, endpoints(1).length - 1).toInt
+        - (if (endpoints(1).endsWith(")")) 1 else 0)
       ).getOrElse(Int.MaxValue)
-      Range(lowerBound, upperBound)
+      Range(lowerEndpoint, upperEndpoint)
     }
   }
 

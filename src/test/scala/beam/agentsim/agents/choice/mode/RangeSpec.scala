@@ -34,7 +34,7 @@ class RangeSpec extends FlatSpec {
   "(1:10]" should "mean Range(2, 10)" in {
     assert(Range("(1:10]") == Range(2, 10))
   }
-  it should "contain 10, but not 1" in  {
+  it should "contain 10, but not 1" in {
     assert(Range("(1:10]").has(10))
     assert(!Range("(1:10]").has(1))
   }
