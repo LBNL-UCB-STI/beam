@@ -150,7 +150,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
 
       override def matsimServices_=(x$1: org.matsim.core.controler.MatsimServices): Unit = ???
 
-      override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap =
+      override val tazTreeMap: beam.agentsim.infrastructure.taz.TAZTreeMap =
         beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
       override lazy val modeIncentives: ModeIncentive = ???
 

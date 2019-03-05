@@ -25,9 +25,9 @@ object ParkingRankingFunction {
     }
 
     // TODO: integrate cost of charge here
-    val chargingCost: Double = parkingZone.chargingPoint match {
+    val chargingCost: Double = parkingZone.ChargingPointType match {
       case None => 0.0
-      case Some(chargingPoint) =>
+      case Some(chargingPointType) =>
         val chargingPointCost: Double = 0 // todo
 
         // TODO: mapping from preference to VoT??

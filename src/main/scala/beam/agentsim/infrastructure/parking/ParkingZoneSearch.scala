@@ -19,7 +19,7 @@ object ParkingZoneSearch {
 
   /**
     * find the best parking alternative for the data in this request
-    * @param chargingInquiryData ChargingPreference per type of ChargingPoint
+    * @param chargingInquiryData ChargingPreference per type of ChargingPointType
     * @param tazList the TAZ we are looking in
     * @param parkingTypes the parking types we are interested in
     * @param tree search tree of parking infrastructure
@@ -78,7 +78,7 @@ object ParkingZoneSearch {
     * finds the best parking zone id based on maximizing it's associated cost function evaluation
     * @param found the ranked parkingZones
     * @param costFunction ranking function for comparing options
-    * @param chargingInquiryData ChargingPreference per type of ChargingPoint
+    * @param chargingInquiryData ChargingPreference per type of ChargingPointType
     * @return the best parking zone, it's TAZ, ParkingType, and ranking evaluation
     */
   def takeBestByRanking(
@@ -98,8 +98,8 @@ object ParkingZoneSearch {
         case Some(chargingData) =>
           // consider charging costs
           val pref: Option[ChargingPreference] = for {
-            chargingPoint      <- thisParkingZone.chargingPoint
-            chargingPreference <- chargingData.data.get(chargingPoint)
+            ChargingPointType      <- thisParkingZone.ChargingPointType
+            chargingPreference <- chargingData.data.get(ChargingPointType)
           } yield chargingPreference
           costFunction(thisParkingZone, pref)
       }

@@ -24,7 +24,6 @@ import beam.agentsim.agents.{HasTickAndTrigger, InitializeTrigger, PersonAgent}
 import beam.agentsim.agents.{Dropoff, Pickup}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
-import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.RoutingResponse
@@ -464,7 +463,7 @@ object HouseholdActor {
             homeCoord,
             "home",
             AttributesOfIndividual.EMPTY,
-            NoNeed,
+            None,
             0,
             0
           ) flatMap {

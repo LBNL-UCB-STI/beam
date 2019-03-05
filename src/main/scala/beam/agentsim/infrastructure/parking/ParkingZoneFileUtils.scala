@@ -45,12 +45,12 @@ object ParkingZoneFileUtils extends LazyLogging {
           case None => ("", "")
           case Some(pm) => (s"$pm", s"${pm.cost}")
         }
-        val chargingPoint = parkingZone.chargingPoint match {
+        val chargingPointType = parkingZone.ChargingPointType match {
           case None => ""
           case Some(cp) => s"$cp"
         }
 
-        s"$tazId,$parkingType,$pricingModel,$chargingPoint,${parkingZone.maxStalls},$feeInCents,"
+        s"$tazId,$parkingType,$pricingModel,$chargingPointType,${parkingZone.maxStalls},$feeInCents,"
       }
     } match {
       case Failure(e) =>
@@ -177,10 +177,10 @@ object ParkingZoneFileUtils extends LazyLogging {
           val taz = Id.create(tazString.toUpperCase, classOf[TAZ])
           val parkingType = ParkingType(parkingTypeString)
           val pricingModel = PricingModel(pricingModelString, feeInCentsString)
-          val chargingPoint = ChargingPointType(chargingTypeString)
+          val chargingPointType = ChargingPointType(chargingTypeString)
 
           val numStalls = numStallsString.toInt
-          val parkingZone = ParkingZone(nextParkingZoneId, numStalls, chargingPoint, pricingModel)
+          val parkingZone = ParkingZone(nextParkingZoneId, numStalls, chargingPointType, pricingModel)
 
           (taz, parkingType, parkingZone)
 

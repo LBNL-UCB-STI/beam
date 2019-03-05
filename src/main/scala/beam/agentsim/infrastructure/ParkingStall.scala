@@ -11,7 +11,7 @@ case class ParkingStall(
                          parkingZoneId: Int,
                          locationUTM: Location,
                          cost: Double,
-                         chargingPoint: Option[ChargingPointType],
+                         chargingPointType: Option[ChargingPointType],
                          pricingModel: Option[PricingModel],
                          parkingType: ParkingType
 )
@@ -32,7 +32,7 @@ object ParkingStall {
       parkingZoneId = ParkingZone.DefaultParkingZoneId,
       locationUTM = location,
       cost = CostOfEmergencyStall,
-      chargingPoint = None,
+      chargingPointType = None,
       pricingModel = None,
       parkingType = ParkingType.Public
     )
