@@ -1,10 +1,14 @@
 package beam.agentsim.agents.vehicles
 
+import java.io.{BufferedReader, FileInputStream, InputStreamReader}
+import java.util.zip.GZIPInputStream
+
 import beam.agentsim.agents.vehicles.ConsumptionRateFilterStore.{PowerTrainPriority, Primary, Secondary}
 import beam.sim.common.Range
 import beam.sim.config.BeamConfig
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
 import com.univocity.parsers.common.record.Record
+import org.apache.commons.io.FilenameUtils
 import org.matsim.core.utils.io.IOUtils
 import org.slf4j.LoggerFactory
 
@@ -16,16 +20,51 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class VehicleCsvReader(config: BeamConfig) {
 
   def getVehicleEnergyRecordsUsing(csvParser: CsvParser, filePath: String): Iterable[Record] = {
-    csvParser.iterateRecords(IOUtils.getBufferedReader(filePath)).asScala
+    try {
+      val reader: BufferedReader = FilenameUtils.getExtension(filePath) match {
+        case "csv" =>
+          IOUtils.getBufferedReader(filePath)
+        case "gz" =>
+          val gis = new GZIPInputStream(new FileInputStream(filePath))
+          new BufferedReader(new InputStreamReader(gis))
+      }
+      val records = csvParser.iterateRecords(reader).asScala
+      reader.close()
+      records
+    } catch {
+      case _: MatchError =>
+        //TODO confirm if to log or print invalid extension error (if required)
+        Iterable.empty[Record]
+      case e: Exception =>
+        e.printStackTrace()
+        Iterable.empty[Record]
+    }
   }
 
   def getLinkToGradeRecordsUsing(csvParser: CsvParser): Iterable[Record] = {
-    val filePath = config.beam.agentsim.agents.vehicles.linkToGradePercentFile
-    filePath match {
-      case "" =>
-        List[Record]()
-      case _ =>
-        csvParser.iterateRecords(IOUtils.getBufferedReader(filePath)).asScala
+    try {
+      val filePath = config.beam.agentsim.agents.vehicles.linkToGradePercentFile
+      val reader: BufferedReader = FilenameUtils.getExtension(filePath) match {
+        case "csv" =>
+          IOUtils.getBufferedReader(filePath)
+        case "gz" =>
+          val gis = new GZIPInputStream(new FileInputStream(filePath))
+          new BufferedReader(new InputStreamReader(gis))
+      }
+      val records = if (filePath.isEmpty) {
+        Iterable.empty[Record]
+      } else {
+        csvParser.iterateRecords(reader).asScala
+      }
+      reader.close()
+      records
+    } catch {
+      case _: MatchError =>
+        //TODO confirm if to log or print invalid extension error (if required)
+        Iterable.empty[Record]
+      case e: Exception =>
+        e.printStackTrace()
+        Iterable.empty[Record]
     }
   }
 }
