@@ -32,9 +32,6 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
 
-/**
-  */
-
 @ImplementedBy(classOf[BeamServicesImpl])
 trait BeamServices {
   val controler: ControlerI
