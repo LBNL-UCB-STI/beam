@@ -50,9 +50,9 @@ object Range {
   def apply(exp: String, openRange: Boolean): Range = {
     if(!openRange) return Range(exp)
 
-    if (pattern == null || pattern.isEmpty) Range.empty()
+    if (exp == null || exp.isEmpty) Range.empty()
     else {
-      val bounds = pattern.split(":")
+      val bounds = exp.split(":")
       val lowerBound = Try(
         bounds(0).substring(1).toInt
           + (if (bounds(0).startsWith("(")) 1 else 0)
