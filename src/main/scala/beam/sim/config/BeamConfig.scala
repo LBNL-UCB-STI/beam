@@ -36,6 +36,7 @@ object BeamConfig {
       numAgents: scala.Int,
       populationAdjustment: java.lang.String,
       scenarios: BeamConfig.Beam.Agentsim.Scenarios,
+      scheduleMonitorTask: BeamConfig.Beam.Agentsim.ScheduleMonitorTask,
       schedulerParallelismWindow: scala.Int,
       simulationName: java.lang.String,
       startTime: java.lang.String,
@@ -1077,6 +1078,21 @@ object BeamConfig {
         }
       }
 
+      case class ScheduleMonitorTask(
+        initialDelay: scala.Int,
+        interval: scala.Int
+      )
+
+      object ScheduleMonitorTask {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ScheduleMonitorTask = {
+          BeamConfig.Beam.Agentsim.ScheduleMonitorTask(
+            initialDelay = if (c.hasPathOrNull("initialDelay")) c.getInt("initialDelay") else 1,
+            interval = if (c.hasPathOrNull("interval")) c.getInt("interval") else 30
+          )
+        }
+      }
+
       case class Taz(
         file: java.lang.String,
         parking: java.lang.String
@@ -1143,6 +1159,10 @@ object BeamConfig {
           scenarios = BeamConfig.Beam.Agentsim.Scenarios(
             if (c.hasPathOrNull("scenarios")) c.getConfig("scenarios")
             else com.typesafe.config.ConfigFactory.parseString("scenarios{}")
+          ),
+          scheduleMonitorTask = BeamConfig.Beam.Agentsim.ScheduleMonitorTask(
+            if (c.hasPathOrNull("scheduleMonitorTask")) c.getConfig("scheduleMonitorTask")
+            else com.typesafe.config.ConfigFactory.parseString("scheduleMonitorTask{}")
           ),
           schedulerParallelismWindow =
             if (c.hasPathOrNull("schedulerParallelismWindow")) c.getInt("schedulerParallelismWindow") else 30,
