@@ -35,13 +35,16 @@ import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, _}
+import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.RideHailFleetInitializer.RideHailAgentInputData
 import beam.sim._
 import beam.utils._
+import beam.utils.logging.LogActorState
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
+import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.transit.TransportNetwork
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
@@ -80,6 +83,7 @@ object RideHailManager {
   sealed trait RideHailServiceStatus
 
   case object NotifyIterationEnds
+  case class RecoverFromStuckness(tick: Int)
 
   case class TravelProposal(
     rideHailAgentLocation: RideHailAgentLocation,
@@ -202,7 +206,8 @@ class RideHailManager(
   val parkingManager: ActorRef,
   val boundingBox: Envelope,
   val surgePricingManager: RideHailSurgePricingManager,
-  val tncIterationStats: Option[TNCIterationStats]
+  val tncIterationStats: Option[TNCIterationStats],
+  val beamSkimmer: BeamSkimmer
 ) extends Actor
     with ActorLogging
     with HasServices
@@ -313,46 +318,14 @@ class RideHailManager(
         .take(numRideHailAgents.toInt)
       val fleetData: ArrayBuffer[RideHailFleetInitializer.RideHailAgentInputData] = new ArrayBuffer(persons.size)
       persons.foreach { person =>
-        val personInitialLocation: Coord =
-          person.getSelectedPlan.getPlanElements
-            .iterator()
-            .next()
-            .asInstanceOf[Activity]
-            .getCoord
-        val rideInitialLocation: Coord =
-          beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.name match {
-            case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_HOME =>
-              val radius =
-                beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
-              new Coord(
-                personInitialLocation.getX + radius * (rand.nextDouble() - 0.5),
-                personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
-              )
-            case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_UNIFORM_RANDOM =>
-              val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) * rand
-                .nextDouble()
-              val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny) * rand
-                .nextDouble()
-              new Coord(x, y)
-            case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER =>
-              val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) / 2
-              val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny) / 2
-              new Coord(x, y)
-            case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_ALL_IN_CORNER =>
-              val x = quadTreeBounds.minx
-              val y = quadTreeBounds.miny
-              new Coord(x, y)
-            case unknown =>
-              log.error(s"unknown rideHail.initialLocation $unknown, assuming HOME")
-              val radius =
-                beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
-              new Coord(
-                personInitialLocation.getX + radius * (rand.nextDouble() - 0.5),
-                personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
-              )
-          }
-
-        fleetData += createRideHailVehicleAndAgent(person.getId.toString, rideInitialLocation, None, None)
+        try {
+          val rideInitialLocation: Location = getRideInitLocation(person)
+          fleetData += createRideHailVehicleAndAgent(person.getId.toString, rideInitialLocation, None, None)
+        } catch {
+          case ex: Throwable =>
+            log.error(ex, s"Could not createRideHailVehicleAndAgent: ${ex.getMessage}")
+            throw ex
+        }
       }
 
       new RideHailFleetInitializer().writeFleetData(beamServices, fleetData)
@@ -389,6 +362,34 @@ class RideHailManager(
   log.info("Initialized {} ride hailing agents", numRideHailAgents)
 
   override def receive: Receive = LoggingReceive {
+    case LogActorState =>
+      ReflectionUtils.logFields(log, this, 0)
+      ReflectionUtils.logFields(log, rideHailResourceAllocationManager, 0)
+      ReflectionUtils.logFields(log, modifyPassengerScheduleManager, 0)
+
+    case RecoverFromStuckness(tick) =>
+      self ! ContinueBufferedRideHailRequests(tick)
+    // This is assuming we are allocating demand and routes haven't been returned
+//      rideHailResourceAllocationManager.getUnprocessedCustomers.foreach { request =>
+//        modifyPassengerScheduleManager.addTriggerToSendWithCompletion(
+//          ScheduleTrigger(
+//            RideHailResponseTrigger(
+//              tick,
+//              RideHailResponse(
+//                request,
+//                None,
+//                Some(CouldNotFindRouteToCustomer)
+//              )
+//            ),
+//            request.customer.personRef
+//          )
+//        )
+//        rideHailResourceAllocationManager.removeRequestFromBuffer(request)
+//      }
+//      modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation, tick)
+//
+//      cleanUp
+
     case ev @ StopDrivingIfNoPassengerOnBoardReply(success, requestId, tick) =>
       Option(travelProposalCache.getIfPresent(requestId.toString)) match {
         case Some(travelProposal) =>
@@ -592,6 +593,7 @@ class RideHailManager(
     case trigger @ TriggerWithId(BufferedRideHailRequestsTrigger(tick), triggerId) =>
       currentlyProcessingTimeoutTrigger match {
         case Some(_) =>
+          log.debug("Stashing BufferedRideHailRequestsTrigger({})", tick)
           stash()
         case None =>
           currentlyProcessingTimeoutTrigger = Some(trigger)
@@ -601,8 +603,20 @@ class RideHailManager(
       }
 
     case ContinueBufferedRideHailRequests(tick) =>
-      if (tick == modifyPassengerScheduleManager.getCurrentTick.getOrElse(tick))
-        findAllocationsAndProcess(tick)
+      modifyPassengerScheduleManager.getCurrentTick match {
+        case Some(workingTick) =>
+          log.debug(
+            "ContinueBuffer @ {} with buffer size {}",
+            workingTick,
+            rideHailResourceAllocationManager.getBufferSize
+          )
+          if (workingTick != tick) log.warning("Working tick {} but tick {}", workingTick, tick)
+          findAllocationsAndProcess(workingTick)
+        case None if !processBufferedRequestsOnTimeout =>
+          // this case is how we process non-buffered requests
+          findAllocationsAndProcess(tick)
+        case _ =>
+      }
 
     case trigger @ TriggerWithId(RideHailRepositioningTrigger(tick), triggerId) =>
 //      DebugRepositioning.produceRepositioningDebugImages(tick, this)
@@ -864,11 +878,11 @@ class RideHailManager(
     finalTriggersToSchedule: Vector[ScheduleTrigger]
   ): Unit = {
     log.debug(
-      "Removing request: {} pendingAcks: {} pendingRoutes: {} requestBufferEmpty: {}",
+      "Removing request: {} pendingAcks: {} pendingRoutes: {} requestBufferSize: {}",
       requestId,
       s"(${pendingModifyPassengerScheduleAcks.size}) ${pendingModifyPassengerScheduleAcks.keySet.map(_.toString).mkString(",")}",
       numPendingRoutingRequestsForReservations,
-      rideHailResourceAllocationManager.isBufferEmpty
+      rideHailResourceAllocationManager.getBufferSize
     )
     pendingModifyPassengerScheduleAcks.remove(requestId) match {
       case Some(response) =>
@@ -897,7 +911,7 @@ class RideHailManager(
         log.error("Vehicle was reserved by another agent for inquiry id {}", requestId)
         sender() ! RideHailResponse.dummyWithError(RideHailVehicleTakenError)
     }
-    if (processBufferedRequestsOnTimeout) {
+    if (processBufferedRequestsOnTimeout && currentlyProcessingTimeoutTrigger.isDefined) {
       self ! ContinueBufferedRideHailRequests(tick)
     }
   }
@@ -1030,7 +1044,7 @@ class RideHailManager(
     } else if (processBufferedRequestsOnTimeout && pendingModifyPassengerScheduleAcks.isEmpty &&
                rideHailResourceAllocationManager.isBufferEmpty && numPendingRoutingRequestsForReservations == 0 &&
                currentlyProcessingTimeoutTrigger.isDefined) {
-      log.debug("sendCompletionAndScheduleNewTimeout from 1156")
+      log.debug("sendCompletionAndScheduleNewTimeout for tick {} from line 1072", tick)
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation, tick)
       cleanUp
     }
@@ -1055,16 +1069,16 @@ class RideHailManager(
     var passengersToAdd = Set[VehiclePersonId]()
     consistentPickDrops.foreach {
       case (Some(person), legOpt) =>
-        if (passengersToAdd.contains(person)) {
-          passengersToAdd = passengersToAdd - person
-        } else {
-          passengersToAdd = passengersToAdd + person
-        }
         legOpt.foreach { leg =>
           passengersToAdd.foreach { pass =>
             val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg
             pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
           }
+        }
+        if (passengersToAdd.contains(person)) {
+          passengersToAdd = passengersToAdd - person
+        } else {
+          passengersToAdd = passengersToAdd + person
         }
       case (_, _) =>
     }
@@ -1096,13 +1110,21 @@ class RideHailManager(
         activity
     }
     val coordinates = activities.map(_.getCoord)
-    val xs = coordinates.map(_.getX)
-    val ys = coordinates.map(_.getY)
+    // Force to compute xs and ys arrays
+    val xs = coordinates.map(_.getX).toArray
+    val ys = coordinates.map(_.getY).toArray
+    val xMin = xs.min
+    val xMax = xs.max
+    val yMin = ys.min
+    val yMax = ys.max
+    log.info(
+      s"QuadTreeBounds with X: [$xMin; $xMax], Y: [$yMin, $yMax]. boundingBoxBuffer: ${beamServices.beamConfig.beam.spatial.boundingBoxBuffer}"
+    )
     QuadTreeBounds(
-      xs.min - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
-      ys.min - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
-      xs.max + beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
-      ys.max + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
+      xMin - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
+      yMin - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
+      xMax + beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
+      yMax + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
     )
   }
 
@@ -1175,4 +1197,47 @@ class RideHailManager(
     }
 
   }
+
+  def getRideInitLocation(person: Person): Location = {
+    val personInitialLocation: Location =
+      person.getSelectedPlan.getPlanElements
+        .iterator()
+        .next()
+        .asInstanceOf[Activity]
+        .getCoord
+    val rideInitialLocation: Location =
+      beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.name match {
+        case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_HOME =>
+          val radius =
+            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
+          new Coord(
+            personInitialLocation.getX + radius * (rand.nextDouble() - 0.5),
+            personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
+          )
+        case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_UNIFORM_RANDOM =>
+          val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) * rand
+            .nextDouble()
+          val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny) * rand
+            .nextDouble()
+          new Coord(x, y)
+        case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER =>
+          val x = quadTreeBounds.minx + (quadTreeBounds.maxx - quadTreeBounds.minx) / 2
+          val y = quadTreeBounds.miny + (quadTreeBounds.maxy - quadTreeBounds.miny) / 2
+          new Coord(x, y)
+        case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_ALL_IN_CORNER =>
+          val x = quadTreeBounds.minx
+          val y = quadTreeBounds.miny
+          new Coord(x, y)
+        case unknown =>
+          log.error(s"unknown rideHail.initialLocation $unknown, assuming HOME")
+          val radius =
+            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
+          new Coord(
+            personInitialLocation.getX + radius * (rand.nextDouble() - 0.5),
+            personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
+          )
+      }
+    rideInitialLocation
+  }
+
 }
