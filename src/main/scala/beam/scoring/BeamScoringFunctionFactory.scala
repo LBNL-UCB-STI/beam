@@ -84,7 +84,10 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
         writeTripScoresToCSV()
 
         //write generalized link stats to file
-        registerLinkCosts(this.trips, attributes, modeChoiceCalculator)
+        val interval = beamServices.beamConfig.beam.debug.agentTripScoresInterval
+        if (interval > 0) {
+          registerLinkCosts(this.trips, attributes, modeChoiceCalculator)
+        }
       }
 
       override def handleActivity(activity: Activity): Unit = {}
