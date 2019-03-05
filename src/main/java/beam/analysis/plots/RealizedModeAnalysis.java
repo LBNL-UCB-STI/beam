@@ -368,7 +368,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
 
     // generating graph in root directory for replanningCountModeChoice
     private void createRootReplaningModeChoiceCountGraph(CategoryDataset dataset, String fileName) throws IOException {
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, "Iteration", "# mode choosen", fileName, false);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, "Iteration", "# count", fileName, false);
         GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
