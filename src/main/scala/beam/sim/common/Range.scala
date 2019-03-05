@@ -50,22 +50,18 @@ object Range {
   def apply(exp: String, openRange: Boolean): Range = {
     if(!openRange) return Range(exp)
 
-    if (exp == null || exp.isEmpty) Range.empty()
-    else if (!exp.matches(pattern))
-      throw new RuntimeException(s"Invalid range expression $exp, it should be [<NUM>:<NUM>].")
+    if (pattern == null || pattern.isEmpty) Range.empty()
     else {
-      val endpoints = exp.split(":")
-      val lowerEndpoint = Try(
-        endpoints(0).substring(1).toInt
+      val bounds = pattern.split(":")
+      val lowerBound = Try(
+        bounds(0).substring(1).toInt
+          + (if (bounds(0).startsWith("(")) 1 else 0)
       ).getOrElse(0)
-      val upperEndpoint = Try(
-        endpoints(1).substring(0, endpoints(1).length - 1).toInt
+      val upperBound = Try(
+        bounds(1).substring(0, bounds(1).length - 1).toInt
+          - (if (bounds(1).endsWith(")")) 1 else 0)
       ).getOrElse(Int.MaxValue)
-      if (upperEndpoint < lowerEndpoint)
-        throw new RuntimeException(
-          s"In range expression $exp, [<lowerEndpoint>:<upperEndpoint>] upperEndpoint can't be smaller than lowerEndpoint."
-        )
-      Range(lowerEndpoint, upperEndpoint)
+      Range(lowerBound, upperBound)
     }
   }
 
