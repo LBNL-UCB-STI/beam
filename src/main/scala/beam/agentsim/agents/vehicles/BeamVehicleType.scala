@@ -32,7 +32,8 @@ case class BeamVehicleType(
   rechargeLevel3RateLimitInWatts: Option[Double] = None,
   vehicleCategory: VehicleCategory,
   primaryVehicleEnergyFile: Option[String] = None,
-  secondaryVehicleEnergyFile: Option[String] = None
+  secondaryVehicleEnergyFile: Option[String] = None,
+  sampleProbabilityWithinCategory: Double = 1.0
 )
 
 object BeamVehicleType {

@@ -1,6 +1,5 @@
 package beam.agentsim.scheduler
 
-import java.lang.Double
 import java.util.Comparator
 import java.util.concurrent.TimeUnit
 
@@ -16,8 +15,8 @@ import beam.agentsim.agents.ridehail.RideHailManager.{
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
+import beam.utils.StuckFinder
 import beam.utils.logging.LogActorState
-import beam.utils.{DebugLib, StuckFinder}
 import com.google.common.collect.TreeMultimap
 
 import scala.annotation.tailrec
@@ -155,6 +154,9 @@ class BeamAgentScheduler(
 
   private var monitorTask: Option[Cancellable] = None
   private var stuckAgentChecker: Option[Cancellable] = None
+
+  private val initialDelay = beamConfig.beam.agentsim.scheduleMonitorTask.initialDelay
+  private val interval = beamConfig.beam.agentsim.scheduleMonitorTask.interval
 
   def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
     this.idCount += 1
@@ -413,8 +415,8 @@ class BeamAgentScheduler(
     if (beamConfig.beam.debug.debugEnabled)
       Some(
         context.system.scheduler.schedule(
-          new FiniteDuration(1, TimeUnit.SECONDS),
-          new FiniteDuration(30, TimeUnit.SECONDS),
+          new FiniteDuration(initialDelay, TimeUnit.SECONDS),
+          new FiniteDuration(interval, TimeUnit.SECONDS),
           self,
           Monitor
         )
