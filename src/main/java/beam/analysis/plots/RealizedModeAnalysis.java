@@ -29,6 +29,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
 
     private static final String graphTitle = "Realized Mode Histogram";
     private static final String replanningGraphTitle = "Replanning Event Count";
+    private static final String rootReplanningGraphTitle = "ReplanningEvent Count";
     private static final String yAxisTitleForReplanning = "count";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
@@ -368,7 +369,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
 
     // generating graph in root directory for replanningCountModeChoice
     private void createRootReplaningModeChoiceCountGraph(CategoryDataset dataset, String fileName) throws IOException {
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, "Iteration", "# count", fileName, false);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, rootReplanningGraphTitle, "Iteration", "Number of events", fileName, false);
         GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
