@@ -368,27 +368,26 @@ class RideHailManager(
       ReflectionUtils.logFields(log, modifyPassengerScheduleManager, 0)
 
     case RecoverFromStuckness(tick) =>
-      self ! ContinueBufferedRideHailRequests(tick)
     // This is assuming we are allocating demand and routes haven't been returned
-//      rideHailResourceAllocationManager.getUnprocessedCustomers.foreach { request =>
-//        modifyPassengerScheduleManager.addTriggerToSendWithCompletion(
-//          ScheduleTrigger(
-//            RideHailResponseTrigger(
-//              tick,
-//              RideHailResponse(
-//                request,
-//                None,
-//                Some(CouldNotFindRouteToCustomer)
-//              )
-//            ),
-//            request.customer.personRef
-//          )
-//        )
-//        rideHailResourceAllocationManager.removeRequestFromBuffer(request)
-//      }
-//      modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation, tick)
-//
-//      cleanUp
+      log.error("Ride Hail Manager is abandoning dispatch of {} customers due to stuckness (routing response never received).",rideHailResourceAllocationManager.getUnprocessedCustomers.size)
+      rideHailResourceAllocationManager.getUnprocessedCustomers.foreach { request =>
+        modifyPassengerScheduleManager.addTriggerToSendWithCompletion(
+          ScheduleTrigger(
+            RideHailResponseTrigger(
+              tick,
+              RideHailResponse(
+                request,
+                None,
+                Some(CouldNotFindRouteToCustomer)
+              )
+            ),
+            request.customer.personRef
+          )
+        )
+        rideHailResourceAllocationManager.removeRequestFromBuffer(request)
+      }
+      modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation, tick)
+      cleanUp
 
     case ev @ StopDrivingIfNoPassengerOnBoardReply(success, requestId, tick) =>
       Option(travelProposalCache.getIfPresent(requestId.toString)) match {
