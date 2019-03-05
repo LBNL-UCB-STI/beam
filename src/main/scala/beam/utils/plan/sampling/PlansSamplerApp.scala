@@ -362,7 +362,6 @@ object PlansSampler {
   var outDir: String = ""
   var sampleNumber: Int = 0
   var spatialSampler: SpatialSampler = _
-  var beamServices: BeamServices = _
 
   def init(args: Array[String]): Unit = {
     conf.plans.setInputFile(args(0))
@@ -504,9 +503,8 @@ object PlansSampler {
   }
 
   def run(): Unit = {
-    val defaultCarVehicleId = Id.create("CAR-TYPE-DEFAULT", classOf[BeamVehicleType])
     val carVehicleType =
-      MatsimConversionTool.beamVehicleTypeToMatsimVehicleType(beamServices.vehicleTypes(defaultCarVehicleId))
+      MatsimConversionTool.beamVehicleTypeToMatsimVehicleType()
 
     newVehicles.addVehicleType(carVehicleType)
 

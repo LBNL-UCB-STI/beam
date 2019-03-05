@@ -6,6 +6,8 @@ import java.util
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.FuelType.{Biodiesel, Diesel, Electricity, Gasoline}
+import beam.sim.BeamServices
+import beam.utils.{BeamConfigUtils, ScenarioComparator}
 import com.typesafe.config.ConfigFactory
 import org.apache.commons.io.FileUtils
 import org.matsim.api.core.v01.{Coord, Id}
@@ -23,12 +25,17 @@ import scala.collection.JavaConverters._
 object MatsimConversionTool extends App {
 
   val dummyGtfsPath = "test/input/beamville/r5/dummy.zip"
+  var beamServices: BeamServices = _
 
   if (null != args && args.size > 0) {
     val beamConfigFilePath = args(0) //"test/input/beamville/beam.conf"
 
     val config = parseFileSubstitutingInputDirectory(beamConfigFilePath)
     val conversionConfig = ConversionConfig(config)
+
+
+    val beamConf = BeamConfigUtils.parseFileSubstitutingInputDirectory(beamConfigFilePath)
+     beamServices = ScenarioComparator.getBeamServices(beamConf)
 
     val network = NetworkUtils.createNetwork()
 //    println(s"Network file ${conversionConfig.matsimNetworkFile}")
@@ -162,7 +169,11 @@ object MatsimConversionTool extends App {
   val BIODIESEL_JOULE_PER_LITER = 35.2E6
   val ELECTRICITY_JOULE_PER_LITER = 1
 
-  def beamVehicleTypeToMatsimVehicleType(beamVehicleType: BeamVehicleType): VehicleType = {
+  def beamVehicleTypeToMatsimVehicleType(): VehicleType = {
+
+    val defaultCarVehicleId = Id.create("CAR-TYPE-DEFAULT", classOf[BeamVehicleType])
+    val beamVehicleType: BeamVehicleType = beamServices.vehicleTypes(defaultCarVehicleId)
+
     val matsimVehicleType = VehicleUtils.getFactory.createVehicleType(
       Id.create(beamVehicleType.vehicleCategory.toString, classOf[VehicleType])
     )
