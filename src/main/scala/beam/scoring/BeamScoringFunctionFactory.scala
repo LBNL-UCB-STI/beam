@@ -219,7 +219,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
   }
 
   private def writeGeneralizedLinkStatsDataToFile(event: IterationEndsEvent): Unit = {
-    val linkStatsInterval = beamServices.beamConfig.beam.outputs.generalizedLinkStats.interval
+    val linkStatsInterval = beamServices.beamConfig.beam.outputs.generalizedLinkStatsInterval
     if (linkStatsInterval > 0 && event.getIteration % linkStatsInterval == 0) {
       val fileHeader = "linkId,travelTime,cost,generalizedTravelTime,generalizedCost"
       // Output file relative path
