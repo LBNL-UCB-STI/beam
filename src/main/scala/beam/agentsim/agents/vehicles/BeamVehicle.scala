@@ -126,7 +126,11 @@ class BeamVehicle(
     */
   def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): FuelConsumed = {
     val fuelConsumptionData =
-      BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
+      if (beamServices.beamConfig.beam.agentsim.agents.vehicles.enableNewVehicleEnergyConsumptionLogic){
+        BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
+      }else{
+        IndexedSeq()
+      }
 
     val primaryEnergyForFullLeg =
       if (beamServices.beamConfig.beam.agentsim.agents.vehicles.enableNewVehicleEnergyConsumptionLogic)
