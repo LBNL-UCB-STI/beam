@@ -66,6 +66,9 @@ class AsyncAlonsoMoraAlgForRideHailSpec
   private lazy val beamSvc: BeamServices = {
     val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
     ScenarioUtils.loadScenario(ScenarioUtils.createMutableScenario(matsimConfig))
+    val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = Map(
+      DefaultVehicleTypeUtils.defaultCarBeamVehicleType.id -> DefaultVehicleTypeUtils.defaultCarBeamVehicleType
+    )
     val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(mock[MatsimServices])
@@ -76,7 +79,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(theServices.fuelTypePrices).thenReturn(mock[Map[FuelType, Double]])
-    when(theServices.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
+    when(theServices.vehicleTypes).thenReturn(vehicleTypes)
     theServices
   }
 

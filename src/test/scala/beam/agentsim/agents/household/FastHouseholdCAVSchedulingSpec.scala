@@ -101,7 +101,11 @@ class FastHouseholdCAVSchedulingSpec
           new Powertrain(0.0),
           HouseholdCAVSchedulingTest.defaultCAVBeamVehicleType
         ),
-        new BeamVehicle(Id.createVehicleId("id2"), new Powertrain(0.0), DefaultVehicleTypeUtils.defaultCarBeamVehicleType)
+        new BeamVehicle(
+          Id.createVehicleId("id2"),
+          new Powertrain(0.0),
+          DefaultVehicleTypeUtils.defaultCarBeamVehicleType
+        )
       )
       val (pop: Population, household) = HouseholdCAVSchedulingTest.scenario2(cavs)
       val alg = new FastHouseholdCAVScheduling(
