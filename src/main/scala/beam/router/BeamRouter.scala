@@ -541,7 +541,7 @@ object BeamRouter {
         }.sum
       )
     )
-    requestIdOpt match{
+    requestIdOpt match {
       case Some(reqId) =>
         EmbodyWithCurrentTravelTime(
           leg,

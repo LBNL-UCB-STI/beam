@@ -58,8 +58,9 @@ trait GeoUtils extends ExponentialLazyLogging {
     GeoUtils.distLatLon2Meters(x1, y1, x2, y2)
 
   def getNearestR5EdgeToUTMCoord(streetLayer: StreetLayer, coordUTM: Coord, maxRadius: Double = 1E5): Int = {
-    getNearestR5Edge(streetLayer,utm2Wgs(coordUTM),maxRadius)
+    getNearestR5Edge(streetLayer, utm2Wgs(coordUTM), maxRadius)
   }
+
   def getNearestR5Edge(streetLayer: StreetLayer, coordWGS: Coord, maxRadius: Double = 1E5): Int = {
     val theSplit = getR5Split(streetLayer, coordWGS, maxRadius, StreetMode.WALK)
     if (theSplit == null) {

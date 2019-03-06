@@ -20,7 +20,11 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{
+  CouldNotFindRouteToCustomer,
+  DriverNotFoundError,
+  RideHailVehicleTakenError
+}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -364,7 +368,8 @@ class RideHailManager(
   log.info("Initialized {} ride hailing agents", numRideHailAgents)
 
   def storeRoutes(responses: List[RoutingResponse]) = {
-    responses.foreach { _.itineraries.view.foreach { resp =>
+    responses.foreach {
+      _.itineraries.view.foreach { resp =>
         resp.beamLegs().filter(_.mode == CAR).foreach { leg =>
           routeHistory.rememberRoute(leg.travelPath.linkIds, leg.startTime)
         }
@@ -740,7 +745,12 @@ class RideHailManager(
   }
 
   def dieIfNoChildren(): Unit = {
-    log.info("route request cache hits ({} / {}) or {}%",cacheHits,cacheAttempts,Math.round(cacheHits.toDouble/cacheAttempts.toDouble*100))
+    log.info(
+      "route request cache hits ({} / {}) or {}%",
+      cacheHits,
+      cacheAttempts,
+      Math.round(cacheHits.toDouble / cacheAttempts.toDouble * 100)
+    )
     if (context.children.isEmpty) {
       context.stop(self)
     } else {
@@ -855,28 +865,38 @@ class RideHailManager(
 
   def requestRoutes(tick: Int, routingRequests: List[RoutingRequest]): Unit = {
     cacheAttempts = cacheAttempts + 1
-    val routeOrEmbodyReqs = routingRequests.map{ rReq =>
-    routeHistory.getRoute(beamServices.geo.getNearestR5EdgeToUTMCoord(transportNetwork.streetLayer,rReq.originUTM),
-      beamServices.geo.getNearestR5EdgeToUTMCoord(transportNetwork.streetLayer,rReq.destinationUTM), rReq.departureTime) match {
-      case Some(rememberedRoute) =>
-        cacheHits = cacheHits + 1
-        val embodyReq = BeamRouter.linkIdsToEmbodyRequest(
-          rememberedRoute,
-          rReq.streetVehicles.head,
-          rReq.departureTime,
-          CAR,
-          beamServices,
-          rReq.originUTM,
-          rReq.destinationUTM,
-          Some(rReq.requestId)
-        )
-        RouteOrEmbodyRequest(None, Some(embodyReq))
-      case None =>
-        RouteOrEmbodyRequest(Some(rReq), None)
+    val routeOrEmbodyReqs = routingRequests.map { rReq =>
+      routeHistory.getRoute(
+        beamServices.geo.getNearestR5EdgeToUTMCoord(transportNetwork.streetLayer, rReq.originUTM),
+        beamServices.geo.getNearestR5EdgeToUTMCoord(transportNetwork.streetLayer, rReq.destinationUTM),
+        rReq.departureTime
+      ) match {
+        case Some(rememberedRoute) =>
+          cacheHits = cacheHits + 1
+          val embodyReq = BeamRouter.linkIdsToEmbodyRequest(
+            rememberedRoute,
+            rReq.streetVehicles.head,
+            rReq.departureTime,
+            CAR,
+            beamServices,
+            rReq.originUTM,
+            rReq.destinationUTM,
+            Some(rReq.requestId)
+          )
+          RouteOrEmbodyRequest(None, Some(embodyReq))
+        case None =>
+          RouteOrEmbodyRequest(Some(rReq), None)
       }
     }
     Future
-      .sequence(routeOrEmbodyReqs.map(req => akka.pattern.ask(router, if (req.routeReq.isDefined) { req.routeReq.get } else { req.embodyReq.get }).mapTo[RoutingResponse]))
+      .sequence(
+        routeOrEmbodyReqs.map(
+          req =>
+            akka.pattern
+              .ask(router, if (req.routeReq.isDefined) { req.routeReq.get } else { req.embodyReq.get })
+              .mapTo[RoutingResponse]
+        )
+      )
       .map(RoutingResponses(tick, _)) pipeTo self
   }
 

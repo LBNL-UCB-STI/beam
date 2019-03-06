@@ -6,7 +6,7 @@ import probability_monad.Distribution
 
 import scala.collection.concurrent.TrieMap
 
-class RouteHistory @Inject()() extends LazyLogging{
+class RouteHistory @Inject()() extends LazyLogging {
   var routeHistory: TrieMap[Int, TrieMap[Int, TrieMap[Int, IndexedSeq[Int]]]] = TrieMap()
   val randNormal = Distribution.normal
   val randUnif = Distribution.uniform
@@ -51,7 +51,12 @@ class RouteHistory @Inject()() extends LazyLogging{
   }
 
   def expireRoutes(fracToExpire: Double) = {
-    logger.info("Overall cache hits {}/{} ({}%)",cacheHits,cacheRequests,Math.round(cacheHits.toDouble/cacheRequests.toDouble*100))
+    logger.info(
+      "Overall cache hits {}/{} ({}%)",
+      cacheHits,
+      cacheRequests,
+      Math.round(cacheHits.toDouble / cacheRequests.toDouble * 100)
+    )
     cacheRequests = 0
     cacheHits = 0
     routeHistory = TrieMap()
