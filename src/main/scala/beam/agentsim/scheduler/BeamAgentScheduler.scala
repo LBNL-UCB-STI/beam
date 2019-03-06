@@ -62,7 +62,12 @@ object BeamAgentScheduler {
 
   case class RideHailManagerStuckDetectionLog(tick: Option[Int], alreadyLogged: Boolean)
 
-  case class MonitorStuckDetectionState(tick: Int, awaitingReponseSize: Int, triggerQueueSize:Int, triggerQueueHead: Option[ScheduledTrigger])
+  case class MonitorStuckDetectionState(
+    tick: Int,
+    awaitingReponseSize: Int,
+    triggerQueueSize: Int,
+    triggerQueueHead: Option[ScheduledTrigger]
+  )
 
   /**
     *
@@ -147,7 +152,7 @@ class BeamAgentScheduler(
 
   private var rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(None, false)
 
-  private var monitorStuckDetectionState: Option[MonitorStuckDetectionState]= None
+  private var monitorStuckDetectionState: Option[MonitorStuckDetectionState] = None
 
   private var startedAt: Deadline = _
   // Event stream state and cleanup management
@@ -261,18 +266,25 @@ class BeamAgentScheduler(
             }
           } else {
             monitorStuckDetectionState match {
-              case Some(MonitorStuckDetectionState(tick, awaitingReponseSize, triggerQueueSize, Some(triggerQueueHead))) if((tick==nowInSeconds && awaitingReponseSize==awaitingResponse.size()) && (triggerQueueSize==triggerQueue.size() && triggerQueueHead==triggerQueue.peek()))  =>
-                  log.info("monitorStuckDetection removing agent: " + x.agent.path)
-                  terminateActor(x.agent)
+              case Some(MonitorStuckDetectionState(tick, awaitingReponseSize, triggerQueueSize, Some(triggerQueueHead)))
+                  if ((tick == nowInSeconds && awaitingReponseSize == awaitingResponse
+                    .size()) && (triggerQueueSize == triggerQueue.size() && triggerQueueHead == triggerQueue.peek())) =>
+                log.info("monitorStuckDetection removing agent: " + x.agent.path)
+                terminateActor(x.agent)
 
               case _ =>
             }
           }
         }
 
-
-        monitorStuckDetectionState=Some(MonitorStuckDetectionState(nowInSeconds,awaitingResponse.size(),triggerQueue.size,Some(triggerQueue.peek())))
-
+        monitorStuckDetectionState = Some(
+          MonitorStuckDetectionState(
+            nowInSeconds,
+            awaitingResponse.size(),
+            triggerQueue.size,
+            Some(triggerQueue.peek())
+          )
+        )
 
         awaitingResponse.values().asScala.take(10).foreach(x => log.info("awaitingResponse:" + x.toString))
 
@@ -319,8 +331,7 @@ class BeamAgentScheduler(
       if (started) doSimStep(nowInSeconds)
   }
 
-
-  private def terminateActor(actor:ActorRef): Unit ={
+  private def terminateActor(actor: ActorRef): Unit = {
     awaitingResponse
       .values()
       .stream()
@@ -332,8 +343,6 @@ class BeamAgentScheduler(
         log.error("Clearing trigger because agent died: " + trigger)
       })
   }
-
-
 
   @tailrec
   private def doSimStep(newNow: Int): Unit = {

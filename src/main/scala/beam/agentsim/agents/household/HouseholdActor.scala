@@ -224,7 +224,7 @@ object HouseholdActor {
 
 //          var optimalPlan = cavScheduler.getKBestSchedules(1).head.cavFleetSchedule
           val optimalPlan = cavScheduler.getBestCAVScheduleWithLongestChain
-          if (optimalPlan.isEmpty){
+          if (optimalPlan.isEmpty) {
             cavs = List()
           } else {
             val requestsAndUpdatedPlans = optimalPlan.filter(_.schedule.size > 1).map {
