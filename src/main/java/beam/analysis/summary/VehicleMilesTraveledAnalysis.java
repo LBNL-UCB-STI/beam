@@ -12,12 +12,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class MotorizedVehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
+public class VehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
     private Map<String, Double> milesTraveledByVehicleType = new HashMap<>();
     private Set<Id<BeamVehicleType>> vehicleTypes;
     private BeamServices beamServices;
 
-    public MotorizedVehicleMilesTraveledAnalysis(Set<Id<BeamVehicleType>> vehicleTypes , BeamServices beamServices) {
+    public VehicleMilesTraveledAnalysis(Set<Id<BeamVehicleType>> vehicleTypes, BeamServices beamServices) {
         this.vehicleTypes = vehicleTypes;
         this.beamServices = beamServices;
     }
