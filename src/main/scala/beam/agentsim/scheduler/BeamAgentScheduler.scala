@@ -62,6 +62,8 @@ object BeamAgentScheduler {
 
   case class RideHailManagerStuckDetectionLog(tick: Option[Int], alreadyLogged: Boolean)
 
+  case class MonitorStuckDetectionState(tick: Int, awaitingReponseSize: Int, triggerQueueSize:Int, triggerQueueHead: Option[ScheduledTrigger])
+
   /**
     *
     * @param triggerWithId identifier
@@ -144,6 +146,8 @@ class BeamAgentScheduler(
   }
 
   private var rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(None, false)
+
+  private var monitorStuckDetectionState: Option[MonitorStuckDetectionState]= None
 
   private var startedAt: Deadline = _
   // Event stream state and cleanup management
@@ -228,16 +232,7 @@ class BeamAgentScheduler(
       scheduleTrigger(ScheduleTrigger(KillTrigger(nowInSeconds + maxWindow), agent))
 
     case Terminated(actor) =>
-      awaitingResponse
-        .values()
-        .stream()
-        .filter(trigger => trigger.agent == actor)
-        .forEach(trigger => {
-          // We do not need to remove it from `awaitingResponse` or `stuckFunder`.
-          // We will do it a bit later when `CompletionNotice` will be received
-          self ! CompletionNotice(trigger.triggerWithId.triggerId, Nil)
-          log.error("Clearing trigger because agent died: " + trigger)
-        })
+      terminateActor(actor)
 
     case Monitor =>
       if (beamConfig.beam.debug.debugEnabled) {
@@ -264,8 +259,20 @@ class BeamAgentScheduler(
                 // register tick (to see, if it changes till next monitor timeout).
                 rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), false)
             }
+          } else {
+            monitorStuckDetectionState match {
+              case Some(MonitorStuckDetectionState(tick, awaitingReponseSize, triggerQueueSize, Some(triggerQueueHead))) if((tick==nowInSeconds && awaitingReponseSize==awaitingResponse.size()) && (triggerQueueSize==triggerQueue.size() && triggerQueueHead==triggerQueue.peek()))  =>
+                  log.info("monitorStuckDetection removing agent: " + x.agent.path)
+                  terminateActor(x.agent)
+
+              case _ =>
+            }
           }
         }
+
+
+        monitorStuckDetectionState=Some(MonitorStuckDetectionState(nowInSeconds,awaitingResponse.size(),triggerQueue.size,Some(triggerQueue.peek())))
+
 
         awaitingResponse.values().asScala.take(10).foreach(x => log.info("awaitingResponse:" + x.toString))
 
@@ -311,6 +318,22 @@ class BeamAgentScheduler(
       }
       if (started) doSimStep(nowInSeconds)
   }
+
+
+  private def terminateActor(actor:ActorRef): Unit ={
+    awaitingResponse
+      .values()
+      .stream()
+      .filter(trigger => trigger.agent == actor)
+      .forEach(trigger => {
+        // We do not need to remove it from `awaitingResponse` or `stuckFunder`.
+        // We will do it a bit later when `CompletionNotice` will be received
+        self ! CompletionNotice(trigger.triggerWithId.triggerId, Nil)
+        log.error("Clearing trigger because agent died: " + trigger)
+      })
+  }
+
+
 
   @tailrec
   private def doSimStep(newNow: Int): Unit = {
