@@ -895,6 +895,12 @@ class PersonAgent(
         ) =>
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
     case Event(
+    TriggerWithId(BoardVehicleTrigger(_, vehicleId, Some(vehicleTypeId)), triggerId),
+    BasePersonData(_, currentTrip, _, currentVehicle, _, _, _, _, _, _, _)
+    ) if !currentVehicle.isEmpty && currentVehicle.head.equals(vehicleId) =>
+      log.debug("Person {} in state {} received Board for vehicle that he is already on, ignoring...", id, stateName)
+      stay() replying CompletionNotice(triggerId, Vector())
+    case Event(
         TriggerWithId(BoardVehicleTrigger(_, _, Some(vehicleTypeId)), triggerId),
         BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _)
         ) =>
