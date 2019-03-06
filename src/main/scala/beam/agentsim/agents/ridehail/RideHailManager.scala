@@ -740,7 +740,7 @@ class RideHailManager(
   }
 
   def dieIfNoChildren(): Unit = {
-    log.info("Route Request Cache hits ({} / {}) or {}%",cacheHits,cacheAttempts,Math.round(cacheHits.toDouble/cacheAttempts.toDouble*100))
+    log.info("route request cache hits ({} / {}) or {}%",cacheHits,cacheAttempts,Math.round(cacheHits.toDouble/cacheAttempts.toDouble*100))
     if (context.children.isEmpty) {
       context.stop(self)
     } else {
