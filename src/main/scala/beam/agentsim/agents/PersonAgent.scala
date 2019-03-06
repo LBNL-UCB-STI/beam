@@ -23,7 +23,7 @@ import beam.agentsim.infrastructure.ParkingManager.ParkingInquiryResponse
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.BeamSkimmer
+import beam.router.{BeamSkimmer, RouteHistory}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL_POOLED, WALK, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
@@ -59,7 +59,8 @@ object PersonAgent {
     householdRef: ActorRef,
     plan: Plan,
     sharedVehicleFleets: Seq[ActorRef],
-    beamSkimmer: BeamSkimmer
+    beamSkimmer: BeamSkimmer,
+    routeHistory: RouteHistory
   ): Props = {
     Props(
       new PersonAgent(
@@ -76,7 +77,8 @@ object PersonAgent {
         tollCalculator,
         householdRef,
         sharedVehicleFleets,
-        beamSkimmer
+        beamSkimmer,
+        routeHistory
       )
     )
   }
@@ -206,7 +208,8 @@ class PersonAgent(
   val tollCalculator: TollCalculator,
   val householdRef: ActorRef,
   val vehicleFleets: Seq[ActorRef] = Vector(),
-  val beamSkimmer: BeamSkimmer
+  val beamSkimmer: BeamSkimmer,
+  val routeHistory: RouteHistory
 ) extends DrivesVehicle[PersonData]
     with ChoosesMode
     with ChoosesParking

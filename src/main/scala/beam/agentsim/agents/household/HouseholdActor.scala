@@ -289,7 +289,8 @@ object HouseholdActor {
               self,
               person.getSelectedPlan,
               fleetManagers ++: sharedVehicleFleets :+ self,
-              beamSkimmer
+              beamSkimmer,
+              routeHistory
             ),
             person.getId.toString
           )

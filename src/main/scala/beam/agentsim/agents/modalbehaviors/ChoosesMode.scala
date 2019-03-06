@@ -423,6 +423,11 @@ trait ChoosesMode {
         theRouterResult @ RoutingResponse(_, requestId),
         choosesModeData: ChoosesModeData
         ) if choosesModeData.rideHail2TransitRoutingRequestId.contains(requestId) =>
+      theRouterResult.itineraries.view.foreach{ resp =>
+        resp.beamLegs().filter(_.mode == CAR).foreach{ leg =>
+          routeHistory.rememberRoute(leg.travelPath.linkIds,leg.startTime)
+        }
+      }
       val driveTransitTrip =
         theRouterResult.itineraries.view
           .dropWhile(_.tripClassifier != DRIVE_TRANSIT)
@@ -488,6 +493,11 @@ trait ChoosesMode {
         }
       stay() using newPersonData
     case Event(response: RoutingResponse, choosesModeData: ChoosesModeData) =>
+      response.itineraries.view.foreach{ resp =>
+        resp.beamLegs().filter(_.mode == CAR).foreach{ leg =>
+          routeHistory.rememberRoute(leg.travelPath.linkIds,leg.startTime)
+        }
+      }
       val theRouterResult = response.copy(itineraries = response.itineraries.map { it =>
         it.copy(
           it.legs.flatMap(

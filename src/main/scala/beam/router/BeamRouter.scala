@@ -523,7 +523,8 @@ object BeamRouter {
     mode: BeamMode,
     beamServices: BeamServices,
     originUTM: Coord,
-    destinationUTM: Coord
+    destinationUTM: Coord,
+    requestIdOpt: Option[Int] = None
   ) = {
     val leg = BeamLeg(
       departTime,
@@ -540,11 +541,21 @@ object BeamRouter {
         }.sum
       )
     )
-    EmbodyWithCurrentTravelTime(
-      leg,
-      vehicle.id,
-      vehicle.vehicleTypeId
-    )
+    requestIdOpt match{
+      case Some(reqId) =>
+        EmbodyWithCurrentTravelTime(
+          leg,
+          vehicle.id,
+          vehicle.vehicleTypeId,
+          reqId
+        )
+      case None =>
+        EmbodyWithCurrentTravelTime(
+          leg,
+          vehicle.id,
+          vehicle.vehicleTypeId
+        )
+    }
   }
 
   def matsimLegToEmbodyRequest(

@@ -363,6 +363,15 @@ class RideHailManager(
   }
   log.info("Initialized {} ride hailing agents", numRideHailAgents)
 
+  def storeRoutes(responses: List[RoutingResponse]) = {
+    responses.foreach { _.itineraries.view.foreach { resp =>
+        resp.beamLegs().filter(_.mode == CAR).foreach { leg =>
+          routeHistory.rememberRoute(leg.travelPath.linkIds, leg.startTime)
+        }
+      }
+    }
+  }
+
   override def receive: Receive = LoggingReceive {
     case LogActorState =>
       ReflectionUtils.logFields(log, this, 0)
@@ -496,6 +505,7 @@ class RideHailManager(
      */
     case RoutingResponses(tick, responses)
         if reservationIdToRequest.contains(routeRequestIdToRideHailRequestId(responses.head.requestId)) =>
+      storeRoutes(responses)
       numPendingRoutingRequestsForReservations = numPendingRoutingRequestsForReservations - responses.size
       responses.foreach { routeResponse =>
         val request = reservationIdToRequest(routeRequestIdToRideHailRequestId(routeResponse.requestId))
@@ -513,6 +523,7 @@ class RideHailManager(
       val (request, singleOccupantQuoteAndPoolingInfo) = inquiryIdToInquiryAndResponse(
         routeRequestIdToRideHailRequestId(responses.head.requestId)
       )
+      storeRoutes(responses)
 
       // If any response contains no RIDE_HAIL legs, then the router failed
       if (responses.exists(!_.itineraries.exists(_.tripClassifier.equals(RIDE_HAIL)))) {
@@ -729,7 +740,7 @@ class RideHailManager(
   }
 
   def dieIfNoChildren(): Unit = {
-    log.info("Route Request Cache hist ({} / {}) or {}%",cacheHits,cacheAttempts,Math.round(cacheHits.toDouble/cacheAttempts.toDouble*100))
+    log.info("Route Request Cache hits ({} / {}) or {}%",cacheHits,cacheAttempts,Math.round(cacheHits.toDouble/cacheAttempts.toDouble*100))
     if (context.children.isEmpty) {
       context.stop(self)
     } else {
@@ -856,7 +867,8 @@ class RideHailManager(
           CAR,
           beamServices,
           rReq.originUTM,
-          rReq.destinationUTM
+          rReq.destinationUTM,
+          Some(rReq.requestId)
         )
         RouteOrEmbodyRequest(None, Some(embodyReq))
       case None =>
