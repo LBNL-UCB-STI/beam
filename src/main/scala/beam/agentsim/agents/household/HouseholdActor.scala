@@ -41,6 +41,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.PopulationUtils
 import org.matsim.households
 import org.matsim.households.Household
+import scala.collection.JavaConverters._
 
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
@@ -223,7 +224,7 @@ object HouseholdActor {
 
 //          var optimalPlan = cavScheduler.getKBestSchedules(1).head.cavFleetSchedule
           val optimalPlan = cavScheduler.getBestCAVScheduleWithLongestChain
-          if (optimalPlan.isEmpty || optimalPlan.head.schedule.size <= 1) {
+          if (optimalPlan.isEmpty){
             cavs = List()
           } else {
             val requestsAndUpdatedPlans = optimalPlan.filter(_.schedule.size > 1).map {
