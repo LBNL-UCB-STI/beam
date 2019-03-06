@@ -829,6 +829,21 @@ class PersonAgent(
   }
 
   val myUnhandled: StateFunction = {
+    case Event(IllegalTriggerGoToError(reason), _) =>
+      stop(Failure(reason))
+    case Event(StateTimeout, _) =>
+      log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
+      stop(
+        Failure(
+          "Timeout - this probably means this agent was not getting a reply it was expecting."
+        )
+      )
+    case Event(Finish, _) =>
+      if (stateName == Moving) {
+        log.warning("Still travelling at end of simulation.")
+        log.warning(s"Events leading up to this point:\n\t${getLog.mkString("\n\t")}")
+      }
+      stop
     case Event(
         TriggerWithId(BoardVehicleTrigger(_, _, Some(vehicleTypeId)), triggerId),
         ChoosesModeData(
@@ -895,21 +910,6 @@ class PersonAgent(
       stop(Failure("Unexpected RideHailResponse"))
     case Event(ParkingInquiryResponse(_, _), _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))
-    case Event(IllegalTriggerGoToError(reason), _) =>
-      stop(Failure(reason))
-    case Event(StateTimeout, _) =>
-      log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
-      stop(
-        Failure(
-          "Timeout - this probably means this agent was not getting a reply it was expecting."
-        )
-      )
-    case Event(Finish, _) =>
-      if (stateName == Moving) {
-        log.warning("Still travelling at end of simulation.")
-        log.warning(s"Events leading up to this point:\n\t${getLog.mkString("\n\t")}")
-      }
-      stop
   }
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))

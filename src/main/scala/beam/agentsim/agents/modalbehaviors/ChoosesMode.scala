@@ -165,7 +165,9 @@ trait ChoosesMode {
           }
         case Some(mode) if availableModes.contains(mode) =>
           Some(WALK)
-        case _ =>
+        case None if choosesModeData.personData.numberOfReplanningAttempts >= 3 =>
+          Some(WALK)
+        case None =>
           None
       }
 
