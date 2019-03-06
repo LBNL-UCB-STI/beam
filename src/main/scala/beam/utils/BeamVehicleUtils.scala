@@ -131,7 +131,6 @@ object BeamVehicleUtils {
     }
   }
 
-
   def beamFuelTypeToMatsimEngineInfo(beamVehicleType: BeamVehicleType): EngineInformationImpl = {
     val fuelConsumptionInJoulePerMeter = beamVehicleType.primaryFuelConsumptionInJoulePerMeter
     beamVehicleType.primaryFuelType match {
