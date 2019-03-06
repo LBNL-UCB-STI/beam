@@ -1,6 +1,7 @@
 package beam.router.model
 
 import beam.agentsim.events.SpaceTime
+import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.WALK
 
@@ -58,8 +59,8 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
 
 object BeamLeg {
 
-  def dummyLeg(startTime: Int, mode: BeamMode = WALK): BeamLeg =
-    new BeamLeg(0, mode, 0, BeamPath(Vector(), Vector(), None, SpaceTime.zero, SpaceTime.zero, 0))
+  def dummyLeg(startTime: Int, location: Location, mode: BeamMode = WALK): BeamLeg =
+    new BeamLeg(0, mode, 0, BeamPath(Vector(), Vector(), None, SpaceTime(location,startTime), SpaceTime(location,startTime), 0))
       .updateStartTime(startTime)
 
   def makeLegsConsistent(legs: List[Option[BeamLeg]]): List[Option[BeamLeg]] = {

@@ -184,7 +184,7 @@ object PersonAgent {
     if (trip.tripClassifier != WALK) {
       trip.copy(
         legs = trip.legs
-          .dropRight(1) :+ EmbodiedBeamLeg.dummyLegAt(endTime, bodyVehicleId, true)
+          .dropRight(1) :+ EmbodiedBeamLeg.dummyLegAt(endTime, bodyVehicleId, true, trip.legs.dropRight(1).last.beamLeg.travelPath.endPoint.loc)
       )
     } else {
       trip

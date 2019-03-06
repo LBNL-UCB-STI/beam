@@ -14,16 +14,13 @@ import beam.agentsim
 import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
+import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -35,7 +32,7 @@ import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, _}
-import beam.router.BeamSkimmer
+import beam.router.{BeamRouter, BeamSkimmer, RouteHistory}
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
@@ -207,7 +204,8 @@ class RideHailManager(
   val boundingBox: Envelope,
   val surgePricingManager: RideHailSurgePricingManager,
   val tncIterationStats: Option[TNCIterationStats],
-  val beamSkimmer: BeamSkimmer
+  val beamSkimmer: BeamSkimmer,
+  val routeHistory: RouteHistory
 ) extends Actor
     with ActorLogging
     with HasServices
@@ -306,6 +304,10 @@ class RideHailManager(
   private val numRideHailAgents = math.round(
     beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation
   )
+
+  // Cache analysis
+  private var cacheAttempts = 0
+  private var cacheHits = 0
 
   private val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   private val rideHailinitialLocationSpatialPlot = new SpatialPlot(1100, 1100, 50)
@@ -727,6 +729,7 @@ class RideHailManager(
   }
 
   def dieIfNoChildren(): Unit = {
+    log.info("Route Request Cache hist ({} / {}) or {}%",cacheHits,cacheAttempts,Math.round(cacheHits.toDouble/cacheAttempts.toDouble*100))
     if (context.children.isEmpty) {
       context.stop(self)
     } else {
@@ -840,8 +843,28 @@ class RideHailManager(
   }
 
   def requestRoutes(tick: Int, routingRequests: List[RoutingRequest]): Unit = {
+    cacheAttempts = cacheAttempts + 1
+    val routeOrEmbodyReqs = routingRequests.map{ rReq =>
+    routeHistory.getRoute(beamServices.geo.getNearestR5EdgeToUTMCoord(transportNetwork.streetLayer,rReq.originUTM),
+      beamServices.geo.getNearestR5EdgeToUTMCoord(transportNetwork.streetLayer,rReq.destinationUTM), rReq.departureTime) match {
+      case Some(rememberedRoute) =>
+        cacheHits = cacheHits + 1
+        val embodyReq = BeamRouter.linkIdsToEmbodyRequest(
+          rememberedRoute,
+          rReq.streetVehicles.head,
+          rReq.departureTime,
+          CAR,
+          beamServices,
+          rReq.originUTM,
+          rReq.destinationUTM
+        )
+        RouteOrEmbodyRequest(None, Some(embodyReq))
+      case None =>
+        RouteOrEmbodyRequest(Some(rReq), None)
+      }
+    }
     Future
-      .sequence(routingRequests.map(akka.pattern.ask(router, _).mapTo[RoutingResponse]))
+      .sequence(routeOrEmbodyReqs.map(req => akka.pattern.ask(router, if (req.routeReq.isDefined) { req.routeReq.get } else { req.embodyReq.get }).mapTo[RoutingResponse]))
       .map(RoutingResponses(tick, _)) pipeTo self
   }
 
