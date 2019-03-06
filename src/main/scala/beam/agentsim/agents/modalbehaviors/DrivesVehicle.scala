@@ -648,7 +648,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
   def processLinkEvents(vehicleId: Id[Vehicle], leg: BeamLeg): Unit = {
     val path = leg.travelPath
-    if (path.linkTravelTime.nonEmpty) {
+    if (path.linkTravelTime.nonEmpty & path.linkIds.size > 1) {
       // FIXME once done with debugging, make this code faster
       // We don't need the travel time for the last link, so we drop it (dropRight(1))
       val avgTravelTimeWithoutLast = path.linkTravelTime.dropRight(1)
