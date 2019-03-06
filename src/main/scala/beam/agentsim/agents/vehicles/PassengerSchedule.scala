@@ -5,6 +5,7 @@ import beam.router.model.BeamLeg
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
+import beam.agentsim.agents.vehicles.PassengerSchedule.Manifest
 
 import scala.collection.immutable.TreeMap
 
@@ -41,6 +42,17 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
     schedule.filter(legManifest => legManifest._2.riders.contains(passenger)).keys.toList
   }
 
+  def updateStartTimes(newStartTimeOfFirstLeg: Int): PassengerSchedule = {
+    var newSchedule = TreeMap[BeamLeg, Manifest]()(BeamLegOrdering)
+    var runningStartTime = newStartTimeOfFirstLeg
+    schedule.foreach { legAndMan =>
+      val newLeg = legAndMan._1.updateStartTime(Math.max(runningStartTime, legAndMan._1.startTime))
+      runningStartTime = newLeg.endTime
+      newSchedule = newSchedule + (newLeg -> legAndMan._2)
+    }
+    new PassengerSchedule(newSchedule)
+  }
+
   override def toString: String = {
     schedule.map(keyVal => s"${keyVal._1.toString} -> ${keyVal._2.toString}").mkString("--")
   }
@@ -48,7 +60,7 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
 }
 
 //Specialized copy of Ordering.by[Tuple2] so we can control compare
-//Also has the benefit of not requiring allocation of a Tuple2, which turned out to be costly at scale
+//Also has the benefit of not requiring allocation of a Tuple2, which turned outWriter to be costly at scale
 object BeamLegOrdering extends Ordering[BeamLeg] {
 
   def compare(a: BeamLeg, b: BeamLeg): Int = {
@@ -70,6 +82,16 @@ object PassengerSchedule {
 
   def apply(): PassengerSchedule =
     new PassengerSchedule(TreeMap[BeamLeg, Manifest]()(BeamLegOrdering))
+
+  case class Manifest(
+    riders: Set[VehiclePersonId] = Set.empty,
+    boarders: Set[VehiclePersonId] = Set.empty,
+    alighters: Set[VehiclePersonId] = Set.empty
+  ) {
+    override def toString: String = {
+      s"[${riders.size}riders;${boarders.size}boarders;${alighters.size}alighters]"
+    }
+  }
 }
 
 case class VehiclePersonId(
@@ -77,13 +99,3 @@ case class VehiclePersonId(
   personId: Id[Person],
   personRef: ActorRef
 )
-
-case class Manifest(
-  riders: Set[VehiclePersonId] = Set.empty,
-  boarders: Set[VehiclePersonId] = Set.empty,
-  alighters: Set[VehiclePersonId] = Set.empty
-) {
-  override def toString: String = {
-    s"[${riders.size}riders;${boarders.size}boarders;${alighters.size}alighters]"
-  }
-}

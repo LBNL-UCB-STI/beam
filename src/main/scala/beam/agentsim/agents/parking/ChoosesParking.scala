@@ -7,8 +7,8 @@ import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
-import beam.agentsim.agents.vehicles.{BeamVehicleType, PassengerSchedule}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicleType, PassengerSchedule}
 import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
@@ -16,8 +16,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.{CAR, WALK}
-import beam.router.model.{BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.r5.R5RoutingWorker
+import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 
 import scala.concurrent.duration.Duration
@@ -60,16 +59,18 @@ trait ChoosesParking extends {
       stay using data
     case Event(StateTimeout, data: BasePersonData) =>
       val (tick, _) = releaseTickAndTriggerId()
-      val stall = currentBeamVehicle.stall.getOrElse(
+      val stall = currentBeamVehicle.stall.getOrElse {
+        val theVehicle = currentBeamVehicle
         throw new RuntimeException(log.format("My vehicle {} is not parked.", currentBeamVehicle.id))
-      )
+      }
       parkingManager ! ReleaseParkingStall(stall.id)
       val nextLeg = data.passengerSchedule.schedule.head._1
       val distance = beamServices.geo.distUTMInMeters(stall.locationUTM, nextLeg.travelPath.endPoint.loc)
       val energyCharge: Double = 0.0 //TODO
-      val timeCost: Double = scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF
+      val timeCost
+        : Double = 0.0 //scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF,  ZN UPDATE: Also need to change VOT function
       val score = calculateScore(distance, stall.cost, energyCharge, timeCost)
-      eventsManager.processEvent(new LeavingParkingEvent(tick, stall, score, id, currentBeamVehicle.id))
+      eventsManager.processEvent(LeavingParkingEvent(tick, stall, score, id, currentBeamVehicle.id))
       currentBeamVehicle.unsetParkingStall()
       goto(WaitingToDrive) using data
 
@@ -95,7 +96,8 @@ trait ChoosesParking extends {
       //cost
       //location
 
-      val distance = beamServices.geo.distUTMInMeters(stall.locationUTM, nextLeg.travelPath.endPoint.loc)
+      val distance =
+        beamServices.geo.distUTMInMeters(stall.locationUTM, beamServices.geo.wgs2Utm(nextLeg.travelPath.endPoint.loc))
       // If the stall is co-located with our destination... then continue on but add the stall to PersonData
       if (distance <= distanceThresholdToIgnoreWalking) {
         val (_, triggerId) = releaseTickAndTriggerId()
@@ -107,7 +109,6 @@ trait ChoosesParking extends {
         goto(WaitingToDrive) using data
       } else {
         // Else the stall requires a diversion in travel, calc the new routes (in-vehicle to the stall and walking to the destination)
-        // In our routing requests we set mustParkAtEnd to false to prevent the router from splitting our routes for us
         import context.dispatcher
         val currentPoint = nextLeg.travelPath.startPoint
         val currentLocUTM = beamServices.geo.wgs2Utm(currentPoint.loc)
@@ -186,7 +187,13 @@ trait ChoosesParking extends {
         )
       } else {
         (
-          routingResponse1.itineraries.filter(_.tripClassifier == CAR).head.legs(1),
+          routingResponse1.itineraries.view
+            .filter(_.tripClassifier == CAR)
+            .head
+            .legs
+            .view
+            .filter(_.beamLeg.mode == CAR)
+            .head,
           routingResponse2.itineraries.head.legs.head
         )
       }

@@ -28,7 +28,7 @@ if __name__ == '__main__':
     remove_idx = numpy.random.choice(numpy.arange(len(pop)), size=len(pop)-sample_size, replace=False)
     remove_idx.sort()
     remove_idx = remove_idx[::-1]  #Needs to be sorted descending because the pop list shrinks with
-    # each root.remove below. If you do not do this, you get an index out of range error.
+    # each root.remove below. If you do not do this, you get an index outWriter of range error.
     for i in remove_idx:
         root.remove(pop[i])
     plans.write(out_sample_path)

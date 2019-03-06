@@ -40,7 +40,7 @@
 //      val maybeId = routeResponsesByDriver.keys.find(rideHailManager.getIdleVehicles.contains(_))
 //      maybeId.map(rideHailManager.getIdleVehicles(_))
 //    }
-//    // If agentLoc None, we grab the closest Idle agents but filter out any with a range that
+//    // If agentLoc None, we grab the closest Idle agents but filter outWriter any with a range that
 //    // obviously cannot make the trip
 //    agentLocationOpt = agentLocationOpt match {
 //      case None =>
@@ -118,7 +118,7 @@
 //    }
 //  }
 //
-//  // Fine the closest Idle agents but filter out any with a range that
+//  // Fine the closest Idle agents but filter outWriter any with a range that
 //  // obviously cannot make the trip (range is less than 1.36xEuclidean distance). this 1.36 factor is
 //  // informed by https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3835347/pdf/nihms436252.pdf and basically
 //  // means that we allow for some routes to surprise us and be less than the average ratio of routed to

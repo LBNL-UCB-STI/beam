@@ -49,7 +49,7 @@ class ZonalParkingManagerSpec
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(config)
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
-    val geo = new GeoUtilsImpl(theServices)
+    val geo = new GeoUtilsImpl(config)
     when(theServices.geo).thenReturn(geo)
     theServices
   }

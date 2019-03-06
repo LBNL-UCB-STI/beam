@@ -1,5 +1,6 @@
 package beam.agentsim.events.handling;
 
+import beam.agentsim.events.ScalaEvent;
 import beam.sim.BeamServices;
 import beam.utils.DebugLib;
 import org.matsim.api.core.v01.events.Event;
@@ -7,6 +8,7 @@ import org.matsim.core.utils.io.UncheckedIOException;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -16,7 +18,7 @@ import java.util.Set;
  */
 public class BeamEventsWriterCSV extends BeamEventsWriterBase {
 
-    private LinkedHashMap<String, Integer> attributeToColumnIndexMapping = new LinkedHashMap<>();
+    private final LinkedHashMap<String, Integer> attributeToColumnIndexMapping = new LinkedHashMap<>();
 
     BeamEventsWriterCSV(String outfilename, BeamEventsLogger eventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
         super(outfilename, eventLogger, beamServices, eventTypeToLog);
@@ -37,11 +39,11 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
         for (String attribute : attributeToColumnIndexMapping.keySet()) {
             attributeToColumnIndexMapping.put(attribute, counter++);
             try {
-                this.out.append(attribute);
+                this.outWriter.append(attribute);
                 if (counter < attributeToColumnIndexMapping.keySet().size()) {
-                    this.out.append(",");
+                    this.outWriter.append(",");
                 } else {
-                    this.out.append("\n");
+                    this.outWriter.append("\n");
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -50,16 +52,16 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
     }
 
     @Override
-    public void closeFile() {
-        try {
-            this.out.close();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+    public void reset(final int iter) {
     }
 
     @Override
-    public void reset(final int iter) {
+    public void closeFile() {
+        try {
+            this.outWriter.close();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     @Override
@@ -83,35 +85,55 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
                 String str = row[i];
                 if (str != null) {
                     if (str.contains(",")) {
-                        this.out.append('"');
-                        this.out.append(str);
-                        this.out.append('"');
+                        this.outWriter.append('"');
+                        this.outWriter.append(str);
+                        this.outWriter.append('"');
                     } else {
-                        this.out.append(str);
+                        this.outWriter.append(str);
                     }
                 }
                 if (i < row.length - 1) {
-                    this.out.append(",");
+                    this.outWriter.append(",");
                 } else {
-                    this.out.append("\n");
+                    this.outWriter.append("\n");
                 }
             }
-            this.out.flush();
+            this.outWriter.flush();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     private void registerClass(Class cla) {
-        Field[] fields = cla.getFields();
-        for (Field field : fields) {
-            if ((field.getName().startsWith("ATTRIBUTE_") && (eventTypeToLog == null || !field.getName().startsWith("ATTRIBUTE_TYPE"))) ||
-                    (field.getName().startsWith("VERBOSE_") && (eventTypeToLog == null || !field.getName().startsWith("VERBOSE_")))
-                    ) {
-                try {
-                    attributeToColumnIndexMapping.put(field.get(null).toString(), 0);
-                } catch (IllegalArgumentException | IllegalAccessException e) {
-                    e.printStackTrace();
+        // ScalaEvent classes are from scala, so we have to have special treatment for them
+        // scala's val and var are not actual fields, but methods (getters and setters)
+        if (ScalaEvent.class.isAssignableFrom(cla)) {
+            for(Method method : cla.getDeclaredMethods()) {
+                String name = method.getName();
+                if ((name.startsWith("ATTRIBUTE_") && (eventTypeToLog == null || !name.startsWith("ATTRIBUTE_TYPE"))) ||
+                        (name.startsWith("VERBOSE_") && (eventTypeToLog == null || !name.startsWith("VERBOSE_")))
+                ) {
+                    try {
+                        // Call static method
+                        String value = (String)method.invoke(null);
+                        attributeToColumnIndexMapping.put(value, 0);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+        else {
+            Field[] fields = cla.getFields();
+            for (Field field : fields) {
+                if ((field.getName().startsWith("ATTRIBUTE_") && (eventTypeToLog == null || !field.getName().startsWith("ATTRIBUTE_TYPE"))) ||
+                        (field.getName().startsWith("VERBOSE_") && (eventTypeToLog == null || !field.getName().startsWith("VERBOSE_")))
+                ) {
+                    try {
+                        attributeToColumnIndexMapping.put(field.get(null).toString(), 0);
+                    } catch (IllegalArgumentException | IllegalAccessException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
         }

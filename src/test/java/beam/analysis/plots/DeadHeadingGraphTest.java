@@ -8,7 +8,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 public class DeadHeadingGraphTest {
-    private DeadHeadingAnalysis deadHeadingStats = new DeadHeadingAnalysis(true);
+    private final DeadHeadingAnalysis deadHeadingStats = new DeadHeadingAnalysis(true);
 
     @BeforeClass
     public static void setUpClass() {

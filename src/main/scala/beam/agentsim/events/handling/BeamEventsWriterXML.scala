@@ -40,7 +40,7 @@ class BeamEventsWriterXML(
       }
       //write the event tag to the xml file
       val eventElem = s"\t<event ${keyValues.mkString(" ")}/>\n"
-      this.out.append(eventElem)
+      this.outWriter.append(eventElem)
     } catch {
       case e: Exception =>
         throw e
@@ -55,8 +55,8 @@ class BeamEventsWriterXML(
       """<?xml version="1.0" encoding="utf-8"?>
 <events version="1.0">""".stripMargin
     try {
-      this.out.write(header)
-      this.out.write("\n")
+      this.outWriter.write(header)
+      this.outWriter.write("\n")
     } catch {
       case e: IOException =>
         throw new UncheckedIOException(e)
@@ -68,8 +68,8 @@ class BeamEventsWriterXML(
     */
   override def closeFile(): Unit = {
     try {
-      this.out.write("</events>")
-      this.out.close()
+      this.outWriter.write("</events>")
+      this.outWriter.close()
     } catch {
       case e: IOException =>
         throw new UncheckedIOException(e)

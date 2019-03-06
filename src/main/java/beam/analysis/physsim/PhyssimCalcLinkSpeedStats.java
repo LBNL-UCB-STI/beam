@@ -82,7 +82,7 @@ public class PhyssimCalcLinkSpeedStats {
             String heading = "Bin,AverageLinkSpeed\n";
             bw.write(heading);
             for (int i = 0; i < processedData.size(); i++) {
-                String line = String.valueOf(i) + "," + String.valueOf(i) + "," + String.valueOf(processedData.get(i)) + "\n";
+                String line = i + "," + i + "," + processedData.get(i) + "\n";
                 bw.write(line);
             }
             bw.close();

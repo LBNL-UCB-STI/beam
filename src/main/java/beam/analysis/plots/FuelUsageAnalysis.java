@@ -3,7 +3,6 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationSummaryAnalysis;
-import beam.analysis.PathTraversalSpatialTemporalTableGenerator;
 import beam.analysis.via.CSVWriter;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
@@ -29,9 +28,9 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "Energy Use [MJ]";
     static final String fileBaseName = "energyUse.png";
-    private Set<String> modesFuel = new TreeSet<>();
-    private Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
-    private Map<String, Double> fuelConsumedByFuelType = new HashMap<>();
+    private final Set<String> modesFuel = new TreeSet<>();
+    private final Map<Integer, Map<String, Double>> hourModeFuelage = new HashMap<>();
+    private final Map<String, Double> fuelConsumedByFuelType = new HashMap<>();
     private final boolean writeGraph;
 
     private final StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statsComputation;
@@ -73,8 +72,8 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
 
     @Override
     public void processStats(Event event) {
-        if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE))
-            processFuelUsage(event);
+        if (event instanceof PathTraversalEvent)
+            processFuelUsage((PathTraversalEvent)event);
     }
 
     @Override
@@ -102,14 +101,13 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
         return statsComputation.compute(new Tuple<>(hourModeFuelage, modesFuel));
     }
 
-    private void processFuelUsage(Event event) {
+    private void processFuelUsage(PathTraversalEvent event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
-        Map<String, String> eventAttributes = event.getAttributes();
-        String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
-        String originalMode = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
-        String vehicleId = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
-        double lengthInMeters = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
-        String fuelString = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_FUEL);
+        String vehicleType = event.vehicleType();
+        String originalMode = event.mode().value();
+        String vehicleId = event.vehicleId().toString();
+        double lengthInMeters = event.legLength();
+        String fuelString = Double.toString(event.primaryFuelConsumed());
 
         String mode = originalMode;
         if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHailVehicle")) {
@@ -117,7 +115,7 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
         }
         modesFuel.add(mode);
         try {
-            Double fuel = PathTraversalSpatialTemporalTableGenerator.getFuelConsumptionInMJ(vehicleId, originalMode, fuelString, lengthInMeters, vehicleType);
+            Double fuel = Double.parseDouble(fuelString);
             Map<String, Double> hourData = hourModeFuelage.get(hour);
             if (hourData == null) {
                 hourData = new HashMap<>();
@@ -137,8 +135,8 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
         } catch (Exception e) {
             e.printStackTrace();
         }
-        String fuelType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_FUEL_TYPE);
-        double fuel = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_FUEL));
+        String fuelType = event.primaryFuelType();
+        double fuel = event.primaryFuelConsumed();
         fuelConsumedByFuelType.merge(fuelType, fuel, (d1, d2) -> d1 + d2);
     }
 

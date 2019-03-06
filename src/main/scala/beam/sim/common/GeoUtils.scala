@@ -2,7 +2,7 @@ package beam.sim.common
 
 import beam.agentsim.events.SpaceTime
 import beam.sim.config.BeamConfig
-import beam.sim.{BeamServices, HasServices}
+import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.{Split, StreetLayer}
 import com.google.inject.{ImplementedBy, Inject}
@@ -16,16 +16,24 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
   */
 
 @ImplementedBy(classOf[GeoUtilsImpl])
-trait GeoUtils extends HasServices {
+trait GeoUtils extends ExponentialLazyLogging {
+
+  def localCRS: String
+
   lazy val utm2Wgs: GeotoolsTransformation =
-    new GeotoolsTransformation(beamServices.beamConfig.beam.spatial.localCRS, "EPSG:4326")
+    new GeotoolsTransformation(localCRS, "EPSG:4326")
   lazy val wgs2Utm: GeotoolsTransformation =
-    new GeotoolsTransformation("EPSG:4326", beamServices.beamConfig.beam.spatial.localCRS)
+    new GeotoolsTransformation("EPSG:4326", localCRS)
 
   def wgs2Utm(spacetime: SpaceTime): SpaceTime = SpaceTime(wgs2Utm(spacetime.loc), spacetime.time)
 
   def wgs2Utm(coord: Coord): Coord = {
-    wgs2Utm.transform(coord)
+    if (coord.getX < -180 || coord.getX > 180 || coord.getY < -90 || coord.getY > 90) {
+      logger.warn(s"Coordinate does not appear to be in WGS. No conversion will happen: $coord")
+      coord
+    } else {
+      wgs2Utm.transform(coord)
+    }
   }
 
   def wgs2Utm(envelope: Envelope): Envelope = {
@@ -125,6 +133,14 @@ object GeoUtils {
     Math.sqrt(Math.pow(coord1.getX - coord2.getX, 2.0) + Math.pow(coord1.getY - coord2.getY, 2.0))
   }
 
+  def minkowskiDistFormula(coord1: Coord, coord2: Coord): Double = {
+    // source: Rizwan Shahid et al, Comparison of distance measures in spatial analytical modeling for health service planning
+    val exponent: Double = 3 / 2.toDouble
+    val a = Math.pow(Math.abs(coord1.getX - coord2.getX), exponent)
+    val b = Math.pow(Math.abs(coord1.getY - coord2.getY), exponent)
+    Math.pow(a + b, 1 / exponent)
+  }
+
   def distLatLon2Meters(x1: Double, y1: Double, x2: Double, y2: Double): Double = {
     //    http://stackoverflow.com/questions/837872/calculate-distance-in-meters-when-you-know-longitude-and-latitude-in-java
     val earthRadius = 6371000
@@ -199,4 +215,6 @@ object GeoUtils {
   }
 }
 
-class GeoUtilsImpl @Inject()(override val beamServices: BeamServices) extends GeoUtils {}
+class GeoUtilsImpl @Inject()(val beamConfig: BeamConfig) extends GeoUtils {
+  override def localCRS: String = beamConfig.beam.spatial.localCRS
+}

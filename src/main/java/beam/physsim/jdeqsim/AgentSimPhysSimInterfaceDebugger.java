@@ -28,11 +28,11 @@ public class AgentSimPhysSimInterfaceDebugger {
 
     private void exploreAdjacentLinkConnectivity(Event event) {
         Map<String, String> eventAttributes = event.getAttributes();
-        String mode_ = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
-        String links_ = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
-        String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
-        String vehicleId_ = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
-        double fuel = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_FUEL));
+        String mode_ = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE());
+        String links_ = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS());
+        String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE());
+        String vehicleId_ = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID());
+        double fuel = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_PRIMARY_FUEL()));
 
         if (mode_.equalsIgnoreCase("subway")) {
             DebugLib.emptyFunctionForSettingBreakPoint();
@@ -46,7 +46,7 @@ public class AgentSimPhysSimInterfaceDebugger {
             int linkIdInt = Integer.parseInt(linkIds_.get(i));
             int nextlinkIdInt = Integer.parseInt(linkIds_.get(i + 1));
             EdgeStore.Edge currentEdge = transportNetwork.streetLayer.edgeStore.getCursor(linkIdInt);
-            ///System.out.println(linkIdInt + "-> (" + currentEdge.getFromVertex() + "," + currentEdge.getToVertex() + ")");
+            ///System.outWriter.println(linkIdInt + "-> (" + currentEdge.getFromVertex() + "," + currentEdge.getToVertex() + ")");
             EdgeStore.Edge nextEdge = transportNetwork.streetLayer.edgeStore.getCursor(nextlinkIdInt);
 
             double distanceBetweenEdgesInMeters = geoUtils.distUTMInMeters(new Coord(currentEdge.getGeometry().getCoordinate().x, currentEdge.getGeometry().getCoordinate().y), new Coord(nextEdge.getGeometry().getCoordinate().x, nextEdge.getGeometry().getCoordinate().y));

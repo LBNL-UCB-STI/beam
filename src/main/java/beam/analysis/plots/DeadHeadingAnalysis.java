@@ -16,6 +16,8 @@ import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -34,17 +36,20 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     private static final String fileNameBase = "rideHail";
     private static final String dataFileBaseName = "rideHailStats";
     private static final int DEFAULT_OCCURRENCE = 1;
-    private static Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
-    private static Map<Integer, Map<Integer, Double>> deadHeadingsTnc0Map = new HashMap<>();
+    private static final Map<String, Map<Integer, Map<Integer, Integer>>> deadHeadingsMap = new HashMap<>();
+    private static final Map<Integer, Map<Integer, Double>> deadHeadingsTnc0Map = new HashMap<>();
     private static int maxPassengersSeenOnGenericCase = 0;
-    private Map<String, Map<Integer, List<Event>>> vehicleEvents = new HashMap<>();
-    private Map<String, Map<Integer, List<Event>>> vehicleEventsCache = new HashMap<>();
+    private final Map<String, Map<Integer, List<PathTraversalEvent>>> vehicleEvents = new HashMap<>();
+    private final Map<String, Map<Integer, List<PathTraversalEvent>>> vehicleEventsCache = new HashMap<>();
     private Double passengerVkt = 0d;
     private Double deadHeadingVkt = 0d;
     private Double repositioningVkt = 0d;
     private int reservationCount = 0;
-    private boolean writeGraph;
-    private static List<String> excludeModes = Arrays.asList("car", "walk", "ride_hail", "subway");
+    private final boolean writeGraph;
+    private static final List<String> excludeModes = Arrays.asList("car", "walk", "ride_hail", "subway");
+
+    private final Logger log = LoggerFactory.getLogger(DeadHeadingAnalysis.class);
+
 
     public DeadHeadingAnalysis(boolean writeGraph){
         this.writeGraph = writeGraph;
@@ -60,6 +65,9 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
             if (i == 0) {
                 return "repositioning";
             }
+            else if(i == 1){
+                return "deadheading";
+            }
             return Integer.toString(i - 1);
         } else {
             if (i == 0) {
@@ -74,8 +82,8 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
 
     @Override
     public void processStats(Event event) {
-        if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE))
-            processDeadHeading(event);
+        if (event instanceof PathTraversalEvent)
+            processDeadHeading((PathTraversalEvent)event);
     }
 
     @Override
@@ -116,12 +124,12 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
 
     // Deadheading Distance Graph
 
-    private void processDeadHeading(Event event) {
+    private void processDeadHeading(PathTraversalEvent event) {
 
-        // Process Event for "tnc_passenger_per_trip.png" graph
+        // Process PathTraversalEvent for "tnc_passenger_per_trip.png" graph
         processEventForTncDeadheadingDistanceGraph(event);
 
-        // Process Event for "tnc_deadheading_distance.png" graph
+        // Process PathTraversalEvent for "tnc_deadheading_distance.png" graph
         processEventForTncPassengerPerTripGraph(event);
     }
 
@@ -131,7 +139,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
 
         for (String vid : vehicleIds) {
 
-            Map<Integer, List<Event>> vehicleData = vehicleEvents.get(vid);
+            Map<Integer, List<PathTraversalEvent>> vehicleData = vehicleEvents.get(vid);
 
             if (vehicleData != null) {
                 List<Integer> hourKeys = new ArrayList<>(vehicleData.keySet());
@@ -141,7 +149,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                 for (int k = 0; k < n; k++) {
 
                     int hourKey = hourKeys.get(k);
-                    List<Event> vehicleHourData = vehicleData.get(hourKey);
+                    List<PathTraversalEvent> vehicleHourData = vehicleData.get(hourKey);
 
                     int m = vehicleHourData.size();
                     if (k == (n - 1)) {
@@ -150,8 +158,8 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
 
                     for (int i = 0; i < m; i++) {
 
-                        Event oldEvent = vehicleHourData.get(i);
-                        Double length2 = Double.parseDouble(oldEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LENGTH));
+                        PathTraversalEvent oldEvent = vehicleHourData.get(i);
+                        Double length2 = oldEvent.legLength();
 
                         updateDeadHeadingTNCMap(length2, hourKey, -1);
                     }
@@ -162,23 +170,22 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         vehicleEvents.clear();
     }
 
-    private void processEventForTncDeadheadingDistanceGraph(Event event) {
+    private void processEventForTncDeadheadingDistanceGraph(PathTraversalEvent event) {
 
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
-        Map<String, String> attributes = event.getAttributes();
-        String mode = attributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
-        String vehicle_id = attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+        String mode = event.mode().value();
+        String vehicle_id = event.vehicleId().toString();
         String graphName = getGraphNameAgainstModeAndVehicleId(mode, vehicle_id);
-        Integer _num_passengers = getPathTraversalEventNumOfPassengers(attributes);
+        Integer _num_passengers = event.numberOfPassengers();
 
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
-            Double length = Double.parseDouble(attributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
+            Double length = event.legLength();
 
             if (_num_passengers > 0) {
 
                 reservationCount++;
 
-                Map<Integer, List<Event>> vehicleData = vehicleEvents.get(vehicle_id);
+                Map<Integer, List<PathTraversalEvent>> vehicleData = vehicleEvents.get(vehicle_id);
 
                 if (vehicleData != null) {
                     List<Integer> hourKeys = new ArrayList<>(vehicleData.keySet());
@@ -188,7 +195,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                     for (int k = 0; k < n; k++) {
 
                         int hourKey = hourKeys.get(k);
-                        List<Event> vehicleHourData = vehicleData.get(hourKey);
+                        List<PathTraversalEvent> vehicleHourData = vehicleData.get(hourKey);
 
                         int m = vehicleHourData.size();
                         if (k == (n - 1)) {
@@ -197,15 +204,15 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
 
                         for (int i = 0; i < m; i++) {
 
-                            Event oldEvent = vehicleHourData.get(i);
-                            Double length2 = Double.parseDouble(oldEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LENGTH));
+                            PathTraversalEvent oldEvent = vehicleHourData.get(i);
+                            Double length2 = oldEvent.legLength();
 
                             updateDeadHeadingTNCMap(length2, hourKey, -1);
                         }
 
                         if (k == (n - 1)) {
                             Event oldEvent = vehicleHourData.get(m);
-                            Double length2 = Double.parseDouble(oldEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_LENGTH));
+                            Double length2 =((PathTraversalEvent)oldEvent).legLength();
 
                             updateDeadHeadingTNCMap(length2, hourKey, 0);
                         }
@@ -217,12 +224,12 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                 vehicleEvents.remove(vehicle_id);
             } else {
 
-                Map<Integer, List<Event>> vehicleData = vehicleEvents.get(vehicle_id);
+                Map<Integer, List<PathTraversalEvent>> vehicleData = vehicleEvents.get(vehicle_id);
                 if (vehicleData == null) {
                     vehicleData = new HashMap<>();
                 }
 
-                List<Event> eventsList = vehicleData.get(hour);
+                List<PathTraversalEvent> eventsList = vehicleData.get(hour);
 
                 if (eventsList == null) {
                     eventsList = new ArrayList<>();
@@ -290,7 +297,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         }
 
         int lengthOfDataSet = TNC_MAX_PASSENGERS + 2;
-        double dataSet[][] = new double[lengthOfDataSet][maxHour + 1];
+        double[][] dataSet = new double[lengthOfDataSet][maxHour + 1];
 
         //dataSet[0] = getDeadHeadingDataSetTnc0ModeOccurrencePerHour(maxHour, -1);
 
@@ -339,7 +346,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         Set<String> vehicleIds = vehicleEventsCache.keySet();
 
         for (String vid : vehicleIds) {
-            Map<Integer, List<Event>> vehicleData = vehicleEventsCache.get(vid);
+            Map<Integer, List<PathTraversalEvent>> vehicleData = vehicleEventsCache.get(vid);
 
             if (vehicleData != null) {
                 List<Integer> hourKeys = new ArrayList<>(vehicleData.keySet());
@@ -349,7 +356,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                 for (int k = 0; k < n; k++) {
 
                     int hourKey = hourKeys.get(k);
-                    List<Event> vehicleHourData = vehicleData.get(hourKey);
+                    List<PathTraversalEvent> vehicleHourData = vehicleData.get(hourKey);
 
                     int m = vehicleHourData.size();
                     if (k == (n - 1)) {
@@ -358,9 +365,9 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
 
                     for (int i = 0; i < m; i++) {
 
-                        Event oldEvent = vehicleHourData.get(i);
+                        PathTraversalEvent oldEvent = vehicleHourData.get(i);
 
-                        String mode = oldEvent.getAttributes().get(PathTraversalEvent.ATTRIBUTE_MODE);
+                        String mode =  oldEvent.mode().value();
                         String graphName = getGraphNameAgainstModeAndVehicleId(mode, vid);
 
                         updateNumPassengerInDeadHeadingsMap(hourKey, graphName, -1);
@@ -372,13 +379,12 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         vehicleEventsCache.clear();
     }
 
-    private void processEventForTncPassengerPerTripGraph(Event event) {
+    private void processEventForTncPassengerPerTripGraph(PathTraversalEvent event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
-        Map<String, String> attributes = event.getAttributes();
-        String mode = attributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
-        String vehicle_id = attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+        String mode = event.mode().value();
+        String vehicle_id =  event.vehicleId().toString();
         String graphName = getGraphNameAgainstModeAndVehicleId(mode, vehicle_id);
-        Integer _num_passengers = getPathTraversalEventNumOfPassengers(attributes);
+        Integer _num_passengers = event.numberOfPassengers();
         boolean validCase = isValidCase(graphName, _num_passengers);
 
         // Process Event for "tnc_passenger_per_trip.png" graph
@@ -394,7 +400,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
             //updateNumPassengerInDeadHeadingsMap(hour,graphName,_num_passengers);
 
             if (_num_passengers > 0) {
-                Map<Integer, List<Event>> vehicleData = vehicleEventsCache.get(vehicle_id);
+                Map<Integer, List<PathTraversalEvent>> vehicleData = vehicleEventsCache.get(vehicle_id);
 
                 if (vehicleData != null) {
                     List<Integer> hourKeys = new ArrayList<>(vehicleData.keySet());
@@ -404,7 +410,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                     for (int k = 0; k < n; k++) {
 
                         int hourKey = hourKeys.get(k);
-                        List<Event> vehicleHourData = vehicleData.get(hourKey);
+                        List<PathTraversalEvent> vehicleHourData = vehicleData.get(hourKey);
 
                         int m = vehicleHourData.size();
                         if (k == (n - 1)) {
@@ -426,12 +432,12 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                 vehicleEventsCache.remove(vehicle_id);
             } else {
 
-                Map<Integer, List<Event>> vehicleData = vehicleEventsCache.get(vehicle_id);
+                Map<Integer, List<PathTraversalEvent>> vehicleData = vehicleEventsCache.get(vehicle_id);
                 if (vehicleData == null) {
                     vehicleData = new HashMap<>();
                 }
 
-                List<Event> eventsList = vehicleData.get(hour);
+                List<PathTraversalEvent> eventsList = vehicleData.get(hour);
 
                 if (eventsList == null) {
                     eventsList = new ArrayList<>();
@@ -490,7 +496,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         } else {
             maxPassengers = maxPassengersSeenOnGenericCase;
         }
-        double dataSet[][];
+        double[][] dataSet;
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC) || graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR)) {
 
             int dataSetLength = maxPassengers + 2;
@@ -641,7 +647,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC)) {
             return "Number of Passengers per Trip [TNC]";
         } else if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.TNC_DEAD_HEADING_DISTANCE)) {
-            return "Dead Heading Distance [TNC]";
+            return "Trip Distance [TNC]";
         } else if (graphName.equalsIgnoreCase(GraphsStatsAgentSimEventsListener.CAR)) {
             return "Number of Passengers per Trip [Car]";
         } else {
@@ -675,17 +681,6 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
             legendItemList.add(getLegendText(graphName, i, bucketSize));
         }
         return legendItemList;
-    }
-
-    private Integer getPathTraversalEventNumOfPassengers(Map<String, String> eventAttributes) {
-        String num_passengers = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS);
-        Integer _num_passengers = null;
-        try {
-            _num_passengers = Integer.parseInt(num_passengers);
-        } catch (NumberFormatException nfe) {
-            nfe.printStackTrace();
-        }
-        return _num_passengers;
     }
 
     private String getGraphNameAgainstModeAndVehicleId(String mode, String vehicle_id) {
@@ -761,7 +756,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
             }
             out.flush();
         } catch (IOException e) {
-            System.out.println("CSV generation failed." + e);
+            log.error("CSV generation failed.", e);
         }
     }
 
@@ -771,19 +766,20 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     public void collectEvents(Event event) {
         String type = event.getEventType();
         // We care only about PathTraversalEvent!
-        if (!type.equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE))
+        if (!(event instanceof PathTraversalEvent)) {
             return;
+        }
 
-        Map<String, String> attributes = event.getAttributes();
-        String mode = getEventMode(attributes);
-        String vehicleId = getVehicleId(attributes);
+        PathTraversalEvent pte = (PathTraversalEvent)event;
+        String mode = pte.mode().value();
+        String vehicleId = pte.vehicleId().toString();
 
         if (mode.equalsIgnoreCase("car") && !vehicleId.contains("ride")) {
             IGraphPassengerPerTrip graph = passengerPerTripMap.get("car");
             if (graph == null) {
                 graph = new CarPassengerPerTrip("car");
             }
-            graph.collectEvent(event, attributes);
+            graph.collectEvent(pte);
 
             passengerPerTripMap.put("car", graph);
 
@@ -792,7 +788,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
             if (graph == null) {
                 graph = new TncPassengerPerTrip();
             }
-            graph.collectEvent(event, attributes);
+            graph.collectEvent(pte);
 
             passengerPerTripMap.put("tnc", graph);
         } else {
@@ -801,21 +797,13 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                 if (graph == null) {
                     graph = new GenericPassengerPerTrip(mode);
                 }
-                graph.collectEvent(event, attributes);
+                graph.collectEvent(pte);
                 passengerPerTripMap.put(mode, graph);
             }
         }
     }
 
-    Map<String, IGraphPassengerPerTrip> passengerPerTripMap = new HashMap<>();
-
-    private String getVehicleId(Map<String, String> attributes) {
-        return attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
-    }
-
-    private String getEventMode(Map<String, String> attributes) {
-        return attributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
-    }
+    final Map<String, IGraphPassengerPerTrip> passengerPerTripMap = new HashMap<>();
 
     @Override
     public List<OutputDataDescription> getOutputDataDescriptions() {

@@ -15,7 +15,7 @@ import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
-import beam.router.FreeFlowTravelTime
+import beam.router.{BeamSkimmer, FreeFlowTravelTime, RouteHistory}
 import beam.router.osm.TollCalculator
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.MetricsSupport
@@ -25,7 +25,6 @@ import beam.utils._
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
@@ -47,7 +46,9 @@ class BeamMobsim @Inject()(
   val eventsManager: EventsManager,
   val actorSystem: ActorSystem,
   val rideHailSurgePricingManager: RideHailSurgePricingManager,
-  val rideHailIterationHistory: RideHailIterationHistory
+  val rideHailIterationHistory: RideHailIterationHistory,
+  val routeHistory: RouteHistory,
+  val beamSkimmer: BeamSkimmer
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
@@ -114,7 +115,8 @@ class BeamMobsim @Inject()(
               parkingManager,
               envelopeInUTM,
               rideHailSurgePricingManager,
-              rideHailIterationHistory.oscillationAdjustedTNCIterationStats
+              rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
+              beamSkimmer
             )
           ),
           "RideHailManager"
@@ -148,7 +150,9 @@ class BeamMobsim @Inject()(
             rideHailManager,
             parkingManager,
             sharedVehicleFleets,
-            eventsManager
+            eventsManager,
+            routeHistory,
+            beamSkimmer
           ),
           "population"
         )

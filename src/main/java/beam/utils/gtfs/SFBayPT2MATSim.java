@@ -21,7 +21,7 @@ import static beam.utils.gtfs.GtfsFunctions.opNameToPath;
 /**
  * Runs GTFS Schedule Mapping.
  * <p>
- * Currently farms out GTFS data requests to {@link TransitDataDownloader}.
+ * Currently farms outWriter GTFS data requests to {@link TransitDataDownloader}.
  * <p>
  * TODO: Make a better API for download and storage.
  * <p>

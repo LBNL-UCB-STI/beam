@@ -68,7 +68,7 @@ object FuelUsageStatsGraphSpec {
       val originalMode = evn.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE)
       val vehicleId = evn.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
       val lengthInMeters = evn.getAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH).toDouble
-      val fuelString = evn.getAttributes.get(PathTraversalEvent.ATTRIBUTE_FUEL)
+      val fuelString = evn.getAttributes.get(PathTraversalEvent.ATTRIBUTE_PRIMARY_FUEL)
 
       val mode =
         if (originalMode.equalsIgnoreCase("car") && vehicleId.contains("rideHailVehicle"))
@@ -76,14 +76,7 @@ object FuelUsageStatsGraphSpec {
         else
           originalMode
 
-      val fuel = PathTraversalSpatialTemporalTableGenerator.getFuelConsumptionInMJ(
-        vehicleId,
-        originalMode,
-        fuelString,
-        lengthInMeters,
-        vehicleType
-      )
-      counter :+ (mode, fuel)
+      counter :+ (mode, fuelString.toDouble)
     }
 
     def counterValue = counter

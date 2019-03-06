@@ -13,6 +13,7 @@ import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.collection.JavaConverters;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -39,7 +40,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
     private final StatsFactory statsFactory;
     private final BeamConfig beamConfig;
 
-    private Logger log = LoggerFactory.getLogger(GraphsStatsAgentSimEventsListener.class);
+    private final Logger log = LoggerFactory.getLogger(GraphsStatsAgentSimEventsListener.class);
 
     // No Arg Constructor
     public GraphsStatsAgentSimEventsListener(BeamServices services) {
@@ -60,7 +61,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
 
         eventsManager.addHandler(this);
         CONTROLLER_IO = controlerIO;
-        PathTraversalSpatialTemporalTableGenerator.setVehicles(services.vehicleTypes());
+        PathTraversalSpatialTemporalTableGenerator.setVehicles(JavaConverters.mapAsJavaMap(services.vehicleTypes()));
     }
 
     // helper methods

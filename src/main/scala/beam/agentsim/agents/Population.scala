@@ -8,18 +8,15 @@ import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
-import beam.agentsim.agents.vehicles.{BeamVehicle, BicycleFactory}
-import beam.agentsim.vehicleId2BeamVehicleId
+import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.router.{BeamSkimmer, RouteHistory}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
-import beam.sim.population.AttributesOfIndividual
-import beam.utils.BeamVehicleUtils.makeHouseholdVehicle
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
-import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.{mutable, JavaConverters}
@@ -35,7 +32,9 @@ class Population(
   val rideHailManager: ActorRef,
   val parkingManager: ActorRef,
   val sharedVehicleFleets: Seq[ActorRef],
-  val eventsManager: EventsManager
+  val eventsManager: EventsManager,
+  val routeHistory: RouteHistory,
+  val beamSkimmer: BeamSkimmer
 ) extends Actor
     with ActorLogging {
 
@@ -127,7 +126,9 @@ class Population(
               household,
               householdVehicles,
               homeCoord,
-              sharedVehicleFleets
+              sharedVehicleFleets,
+              routeHistory,
+              beamSkimmer
             ),
             household.getId.toString
           )
@@ -154,22 +155,8 @@ object Population {
     household: Household,
     beamServices: BeamServices
   ): Map[Id[BeamVehicle], BeamVehicle] = {
-    val houseHoldVehicles: Iterable[Id[Vehicle]] =
-      JavaConverters.collectionAsScalaIterable(household.getVehicleIds)
-
-    // Add bikes
-    if (beamServices.beamConfig.beam.agentsim.agents.vehicles.bicycles.useBikes) {
-      val bikeFactory = new BicycleFactory(beamServices.matsimServices.getScenario, beamServices)
-      bikeFactory.bicyclePrepareForSim()
-    }
-    houseHoldVehicles
-      .map({ id =>
-        makeHouseholdVehicle(beamServices.privateVehicles, id) match {
-          case Right(vehicle) => beam.agentsim.vehicleId2BeamVehicleId(id) -> vehicle
-          case Left(e)        => throw e
-        }
-      })
-      .toMap
+    val houseHoldVehicles = JavaConverters.collectionAsScalaIterable(household.getVehicleIds)
+    houseHoldVehicles.map(i => Id.create(i, classOf[BeamVehicle]) -> beamServices.privateVehicles(i)).toMap
   }
 
   def personInitialLocation(person: Person): Coord =
@@ -189,7 +176,9 @@ object Population {
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
     sharedVehicleFleets: Seq[ActorRef],
-    eventsManager: EventsManager
+    eventsManager: EventsManager,
+    routeHistory: RouteHistory,
+    beamSkimmer: BeamSkimmer
   ): Props = {
     Props(
       new Population(
@@ -202,7 +191,9 @@ object Population {
         rideHailManager,
         parkingManager,
         sharedVehicleFleets,
-        eventsManager
+        eventsManager,
+        routeHistory,
+        beamSkimmer
       )
     )
   }

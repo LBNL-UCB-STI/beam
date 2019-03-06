@@ -32,7 +32,7 @@ public class GraphUtils {
     /**
      * Map < iteration number, ride hailing revenue>
      */
-    public static Map<Integer, RideHailDistanceRowModel> RIDE_HAIL_REVENUE_MAP = new HashMap<>();
+    public static final Map<Integer, RideHailDistanceRowModel> RIDE_HAIL_REVENUE_MAP = new HashMap<>();
 
     static {
         colors.add(Color.GREEN);

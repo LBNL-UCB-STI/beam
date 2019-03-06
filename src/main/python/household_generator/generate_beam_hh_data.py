@@ -267,7 +267,7 @@ if __name__ == '__main__':
     from .download_allocate_generate import create_bayes_net, download_tract_data, \
         generate_synthetic_people_and_households
 
-    # Comment out next line if you have already run this once
+    # Comment outWriter next line if you have already run this once
     # (i.e., <AOI_NAME>_<person|household>_pums_data.csv generated)
     create_household_and_population_dfs()
 

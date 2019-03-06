@@ -63,20 +63,20 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private static PhyssimCalcLinkSpeedDistributionStats linkSpeedDistributionStatsGraph;
     private final ActorRef router;
     private final OutputDirectoryHierarchy controlerIO;
-    private Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
-    private Scenario agentSimScenario;
+    private final Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
+    private final Scenario agentSimScenario;
     private Population jdeqsimPopulation;
     private TravelTime previousTravelTime;
 
 
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
-    private BeamConfig beamConfig;
-    private Random rand = MatsimRandom.getRandom();
+    private final BeamConfig beamConfig;
+    private final Random rand = MatsimRandom.getRandom();
 
-    private boolean agentSimPhysSimInterfaceDebuggerEnabled;
+    private final boolean agentSimPhysSimInterfaceDebuggerEnabled;
 
-    private List<CompletableFuture> completableFutures = new ArrayList<>();
+    private final List<CompletableFuture> completableFutures = new ArrayList<>();
 
     public AgentSimToPhysSimPlanConverter(EventsManager eventsManager,
                                           TransportNetwork transportNetwork,
@@ -263,13 +263,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
 
         if (event instanceof PathTraversalEvent) {
-            PathTraversalEvent pathTraversalEvent = (PathTraversalEvent) event;
-            Map<String, String> eventAttributes = pathTraversalEvent.getAttributes();
-            String mode = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE);
+            PathTraversalEvent pte = (PathTraversalEvent) event;
+            String mode =  pte.mode().value();
 
             // pt sampling
-            // TODO: if requested, add beam.physsim.ptSamplingMode (pathTraversal | busLine), which controls if instead of filtering out
-            // pathTraversal, a busLine should be filtered out, avoiding jumping buses in visualization (but making traffic flows less precise).
+            // TODO: if requested, add beam.physsim.ptSamplingMode (pathTraversal | busLine), which controls if instead of filtering outWriter
+            // pathTraversal, a busLine should be filtered outWriter, avoiding jumping buses in visualization (but making traffic flows less precise).
 
             if (mode.equalsIgnoreCase(BUS) && rand.nextDouble() > beamConfig.beam().physsim().ptSampleSize()) {
                 return;
@@ -278,9 +277,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
             if (isPhyssimMode(mode)) {
 
-                String links = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS);
-                double departureTime = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME));
-                String vehicleId = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID);
+                double departureTime = pte.departureTime();
+                String vehicleId = pte.vehicleId().toString();
 
                 Id<Person> personId = Id.createPersonId(vehicleId);
                 initializePersonAndPlanIfNeeded(personId);
@@ -288,7 +286,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 // add previous activity and leg to plan
                 Person person = jdeqsimPopulation.getPersons().get(personId);
                 Plan plan = person.getSelectedPlan();
-                Leg leg = createLeg(CAR, links, departureTime);
+                Leg leg = createLeg(CAR, pte.linkIdsJava(), departureTime);
 
                 if (leg == null) {
                     return; // dont't process leg further, if empty
@@ -313,11 +311,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
     }
 
-    private Leg createLeg(String mode, String links, double departureTime) {
+    private Leg createLeg(String mode,  List<Object> links, double departureTime) {
         List<Id<Link>> linkIds = new ArrayList<>();
 
-        for (String link : links.equals("") ? new String[]{} : links.split(",")) {
-            Id<Link> linkId = Id.createLinkId(link.trim());
+        // FIXME Is there any better way not to have `Object`??
+        for (Object link : links) {
+            Id<Link> linkId = Id.createLinkId((int)link);
             linkIds.add(linkId);
         }
 

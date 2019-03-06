@@ -9,15 +9,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class AgencyRevenueAnalysis implements IterationSummaryAnalysis {
-    private Map<String,Double> agencyRevenue = new HashMap<>();
+    private final Map<String,Double> agencyRevenue = new HashMap<>();
 
     @Override
     public void processStats(Event event) {
-        if (event instanceof AgencyRevenueEvent || event.getEventType().equalsIgnoreCase(AgencyRevenueEvent.EVENT_TYPE)){
-            Map<String, String> attributes = event.getAttributes();
-            String agencyId = attributes.get(AgencyRevenueEvent.ATTRIBUTE_AGENCY_ID);
-            Double revenue = Double.parseDouble(attributes.get(AgencyRevenueEvent.ATTRIBUTE_REVENUE));
-
+        if (event instanceof AgencyRevenueEvent){
+            AgencyRevenueEvent agencyRevenueEvent = (AgencyRevenueEvent)event;
+            String agencyId = agencyRevenueEvent.getAgencyId();
+            Double revenue = agencyRevenueEvent.revenue;
             if (!agencyRevenue.containsKey(agencyId)){
                 agencyRevenue.put(agencyId,0.0);
             }

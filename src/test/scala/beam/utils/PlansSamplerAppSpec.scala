@@ -1,5 +1,6 @@
 package beam.utils
 
+import beam.sim.population.PopulationAdjustment
 import beam.tags.{ExcludeRegular, Periodic}
 import beam.utils.plan.sampling.PlansSampler
 import org.matsim.core.config.ConfigUtils
@@ -39,9 +40,9 @@ class PlansSamplerAppSpec extends WordSpecLike with Matchers {
 
       attributes.getAttribute(
         attributes.toString.split(";")(0).stripPrefix("key="),
-        "available-modes"
+        PopulationAdjustment.EXCLUDED_MODES
       ) should equal(
-        "car,ride_hail,ride_hail_transit,bike,walk,walk_transit,bus,funicular,gondola,cable_car,ferry,tram,transit,rail,subway"
+        ""
       )
     }
   }

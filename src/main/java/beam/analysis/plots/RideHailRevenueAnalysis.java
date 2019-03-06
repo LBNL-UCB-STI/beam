@@ -97,10 +97,10 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
     private void writeRideHailRevenueCsv(ArrayBuffer<?> data) {
         try {
             String fileName = outputDirectoryHiearchy.getOutputFilename(fileBaseName + ".csv");
-            BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)));
+            BufferedWriter outWriter = new BufferedWriter(new FileWriter(new File(fileName)));
 
-            out.write("iteration #,revenue");
-            out.newLine();
+            outWriter.write("iteration #,revenue");
+            outWriter.newLine();
 
             Iterator iterator = data.iterator();
             for (int i = 0; iterator.hasNext(); i++) {
@@ -110,12 +110,12 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
                     model = new RideHailDistanceRowModel();
                 model.setRideHailRevenue(revenue);
                 GraphUtils.RIDE_HAIL_REVENUE_MAP.put(i, model); //this map is used in RideHailStats.java
-                out.write(i + "," + revenue);
-                out.newLine();
+                outWriter.write(i + "," + revenue);
+                outWriter.newLine();
             }
 
-            out.flush();
-            out.close();
+            outWriter.flush();
+            outWriter.close();
 
         } catch (IOException e) {
             e.printStackTrace();

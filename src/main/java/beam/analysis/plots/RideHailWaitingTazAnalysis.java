@@ -54,13 +54,11 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
             PersonEntersVehicleEvent personEntersVehicleEvent = (PersonEntersVehicleEvent) event;
             Id<Person> personId = personEntersVehicleEvent.getPersonId();
             String _personId = personId.toString();
-            Map<String, String> personEntersVehicleEventAttributes = event.getAttributes();
-            if (rideHailWaitingQueue.containsKey(personId.toString()) && personEntersVehicleEventAttributes.get("vehicle").contains("rideHailVehicle")) {
+            if (rideHailWaitingQueue.containsKey(personId.toString()) && personEntersVehicleEvent.getVehicleId().toString().contains("rideHailVehicle")) {
                 //process and add the waiting time to the total time spent by all the passengers on waiting for a ride hail
                 ReserveRideHailEvent reserveRideHailEvent = (ReserveRideHailEvent) rideHailWaitingQueue.get(_personId);
-                Map<String, String> reserveRideHailEventAttributes = reserveRideHailEvent.getAttributes();
-                Coord pickUpCorod = beamServices.geo().wgs2Utm(new Coord(Double.parseDouble(reserveRideHailEventAttributes.get("startX")),Double.parseDouble(reserveRideHailEventAttributes.get("startY"))));
-                TAZTreeMap.TAZ pickUpLocationTAZ = beamServices.tazTreeMap().getTAZ(pickUpCorod.getX(),pickUpCorod.getY());
+                Coord pickupCoord = beamServices.geo().wgs2Utm(new Coord(reserveRideHailEvent.originX, reserveRideHailEvent.originY));
+                TAZTreeMap.TAZ pickUpLocationTAZ = beamServices.tazTreeMap().getTAZ(pickupCoord.getX(),pickupCoord.getY());
                 double waitingTime = personEntersVehicleEvent.getTime() - reserveRideHailEvent.getTime();
                 processRideHailWaitingTimesAndTaz(reserveRideHailEvent, waitingTime,pickUpLocationTAZ);
                 // Remove the passenger from the waiting queue , as the passenger entered the vehicle.
@@ -94,10 +92,10 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
         String heading = "timeBin,TAZ,avgWait,medianWait,numberOfPickups,avgPoolingDelay,numberOfPooledPickups";
         String fileBaseName = "rideHailWaitingStats";
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileBaseName + ".csv");
-        BufferedWriter out = IOUtils.getBufferedWriter(csvFileName);
+        BufferedWriter outWriter = IOUtils.getBufferedWriter(csvFileName);
         try {
-            out.write(heading);
-            out.newLine();
+            outWriter.write(heading);
+            outWriter.newLine();
             dataMap.forEach((k,v) -> {
                 DoubleStream valuesAsDouble = v.stream()
                         .mapToDouble(x -> x);
@@ -106,14 +104,14 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
                 String line = k.getFirst() + "," + k.getSecond().toString() + "," + stats.getAverage() + "," +
                         MathUtils.median(v) + "," + stats.getCount() + "," + 0 + "," + 0;
                 try {
-                    out.write(line);
-                    out.newLine();
+                    outWriter.write(line);
+                    outWriter.newLine();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             });
-            out.flush();
-            out.close();
+            outWriter.flush();
+            outWriter.close();
         } catch (IOException e) {
             e.printStackTrace();
         }

@@ -73,10 +73,10 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
 
-    case MobilityStatusInquiry(whenWhere) =>
+    case MobilityStatusInquiry(_, whenWhere, _) =>
       // Search box: 1000 meters around query location
       val boundingBox = new Envelope(new Coordinate(whenWhere.loc.getX, whenWhere.loc.getY))
-      boundingBox.expandBy(1000.0)
+      boundingBox.expandBy(5000.0)
 
       val nearbyVehicles = availableVehiclesIndex.query(boundingBox).asScala.toVector.asInstanceOf[Vector[BeamVehicle]]
       nearbyVehicles.sortBy(veh => CoordUtils.calcEuclideanDistance(veh.spaceTime.loc, whenWhere.loc))
@@ -84,10 +84,10 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         Token(vehicle.id, self, vehicle.toStreetVehicle)
       })
 
-    case TryToBoardVehicle(vehicleId, who) =>
-      availableVehicles.get(vehicleId) match {
-        case Some(vehicle) =>
-          availableVehicles.remove(vehicleId)
+    case TryToBoardVehicle(token, who) =>
+      availableVehicles.get(token.id) match {
+        case Some(vehicle) if token.streetVehicle.locationUTM == vehicle.spaceTime =>
+          availableVehicles.remove(token.id)
           val removed = availableVehiclesIndex.remove(
             new Envelope(new Coordinate(vehicle.spaceTime.loc.getX, vehicle.spaceTime.loc.getY)),
             vehicle
@@ -96,8 +96,8 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
             log.error("Didn't find a vehicle in my spatial index, at the location I thought it would be.")
           }
           who ! Boarded(vehicle)
-          log.debug("Checked out " + vehicleId)
-        case None =>
+          log.debug("Checked out " + token.id)
+        case _ =>
           who ! NotAvailable
       }
 
@@ -114,7 +114,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       )
       log.debug("Checked in " + vehicle.id)
 
-    case ReleaseVehicleAndReply(vehicle) =>
+    case ReleaseVehicleAndReply(vehicle, _) =>
       availableVehicles += vehicle.id -> vehicle
       availableVehiclesIndex.insert(
         new Envelope(new Coordinate(vehicle.spaceTime.loc.getX, vehicle.spaceTime.loc.getY)),

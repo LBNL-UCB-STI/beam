@@ -21,7 +21,7 @@ public class CsvToMap implements ICsvReader{
 
         while ((line = bufferedReader.readLine()) != null) {
 
-            //System.out.println(line);
+            //System.outWriter.println(line);
             if(i == 0){
                 headers = line.split(",");
             }else {
@@ -52,7 +52,7 @@ public class CsvToMap implements ICsvReader{
 
         while ((line = bufferedReader.readLine()) != null) {
 
-            //System.out.println(line);
+            //System.outWriter.println(line);
             if(i == 0){
                 headers = line.split(",");
             }else {

@@ -186,7 +186,7 @@ public class MATSim2GTFS {
 //            });
 
 
-        // Write out to GTFS
+        // Write outWriter to GTFS
         gtfsFeed.toFile(args[2]);
     }
 

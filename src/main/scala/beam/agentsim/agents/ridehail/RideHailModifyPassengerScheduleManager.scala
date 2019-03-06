@@ -88,7 +88,7 @@ class RideHailModifyPassengerScheduleManager(
                 val reservationStatus = reservationModifyStatuses.head
                 assert(
                   reservationStatus.status != InterruptMessageStatus.UNDEFINED,
-                  "reservation message should not be undefined but at least should have sent out interrupt"
+                  "reservation message should not be undefined but at least should have sent outWriter interrupt"
                 )
                 if (reservationStatus.status == InterruptMessageStatus.INTERRUPT_SENT) {
                   // Success! Continue with reservation process
@@ -186,9 +186,6 @@ class RideHailModifyPassengerScheduleManager(
 
   def sendCompletionAndScheduleNewTimeout(batchDispatchType: BatchDispatchType, tick: Int): Unit = {
     val (currentTick, triggerId) = releaseTickAndTriggerId()
-    if (tick != currentTick) {
-      val i = 0
-    }
     val timerTrigger = batchDispatchType match {
       case BatchedReservation =>
         BufferedRideHailRequestsTrigger(
