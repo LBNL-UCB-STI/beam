@@ -1,7 +1,9 @@
 import com.amazonaws.services.lambda.model.InvocationType
 import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
+import org.unbrokendome.gradle.plugins.helm.command.tasks.*
 
 import java.time.Instant
+import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
@@ -26,9 +28,12 @@ buildscript {
 plugins {
     id "net.ltgt.apt" version "0.5"
     id "de.undercouch.download" version "3.2.0"
-    id "org.scoverage" version "2.1.0"
+    id "org.scoverage" version "3.0.0"
     id 'org.ajoberstar.grgit' version '1.7.2'
     id 'maven-publish'
+    id 'org.unbroken-dome.helm' version '0.3.0'
+    id 'org.unbroken-dome.helm-commands' version '0.3.0'
+    id 'org.unbroken-dome.helm-releases' version '0.3.0'
 }
 
 //ext {
@@ -81,7 +86,7 @@ if (project.hasProperty('env')) {
 allprojects {
     repositories {
         maven { url 'http://download.osgeo.org/webdav/geotools/' }
-       // maven { url "http://maven.geotoolkit.org/" }
+        // maven { url "http://maven.geotoolkit.org/" }
         maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
         maven { url "http://central.maven.org/maven2" }
         maven { url "http://repo.maven.apache.org/maven2" }
@@ -206,7 +211,7 @@ dependencies {
     compile group: 'io.circe', name: "circe-parser_${scalaBinaryVersion}", version: circeBinaryVersion
 
     compile group: 'com.typesafe.play', name: "play-json_${scalaBinaryVersion}", version: '2.6.3'
-    compile (group: 'com.github.romix.akka', name: "akka-kryo-serialization_${scalaBinaryVersion}", version: '0.5.2') {
+    compile(group: 'com.github.romix.akka', name: "akka-kryo-serialization_${scalaBinaryVersion}", version: '0.5.2') {
         exclude group: 'com.esotericsoftware', module: 'kryo'
     }
     compile group: 'com.esotericsoftware', name: 'kryo', version: '4.0.2'
@@ -247,8 +252,6 @@ dependencies {
     //compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.7'
 //    compile group: 'org.fusesource.leveldbjni', name: 'leveldbjni-all', version: '1.8'
     //compile group: 'com.google.protobuf', name: 'protobuf-java', version: '2.5.0'
-
-    scoverage "org.scoverage:scalac-scoverage-plugin_${scalaBinaryVersion}:1.3.1", "org.scoverage:scalac-scoverage-runtime_${scalaBinaryVersion}:1.3.1"
 
     compile 'org.apache.commons:commons-compress:1.18'
 }
@@ -571,7 +574,7 @@ def jfrWithMem = ["-XX:+UnlockCommercialFeatures", "-XX:+UnlockDiagnosticVMOptio
                   "-XX:+FlightRecorder", "-XX:FlightRecorderOptions=disk=true,maxage=10h,dumponexit=true,loglevel=info"]
 
 // UseParallelGC
-applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${myAvailableRam/2}g",
+applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${myAvailableRam / 2}g",
                              "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M"] + logGC
 
 println(applicationDefaultJvmArgs)
@@ -641,7 +644,7 @@ tasks.withType(ScalaCompile) {
     scalaCompileOptions.additionalParameters = ["-unchecked", "-deprecation", "-feature", "-Xfatal-warnings"]
 }
 
-task fmt(dependsOn: scalafmtAll) 
+task fmt(dependsOn: scalafmtAll)
 task checkScalaFmt() {
     doLast {
         try {
@@ -686,4 +689,99 @@ shadowJar {
         resource = 'reference.conf'
     }
     mergeServiceFiles()
+}
+
+helm {
+    home = file("${project.buildDir}/helm")
+    filtering {
+        values.put 'beamImage', 'beammodel/beam'
+        values.put 'beamImageTag', 'latest'
+        values.put 'bucketName', 'beam-config'
+        values.put 'authorName', 'Kirill Mitin'
+        values.put 'authorEmail', 'mitin.kirill.ol@gmail.com'
+    }
+    lint {
+        strict = true
+    }
+
+    charts {
+        standalone {
+            chartName = 'beam-master-local'
+            chartVersion = '0.1.0'
+            sourceDir = file('kubernetes/beam-master-local')
+        }
+
+        cluster {
+            chartName = 'beam-cluster'
+            chartVersion = '0.1.0'
+            sourceDir = file('kubernetes/beam-cluster')
+        }
+    }
+
+    releases {
+        standalone {
+            from charts.standalone
+            replace = true
+        }
+        cluster {
+            from charts.cluster
+            replace = true
+        }
+    }
+}
+
+task helmInit(type: HelmInit) {
+    upgrade = true
+}
+
+task deployStandaloneChart(dependsOn: [helmPackageStandaloneChart, helmInit], type: HelmInstall) {
+    def date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
+    chart = "${project.buildDir}/helm/charts/beam-master-local-0.1.0.tgz"
+    releaseName = "beam-local-${date}"
+}
+
+task helmStandaloneList(dependsOn: [helmInit], type: Exec) {
+    executable 'helm'
+    args 'ls', '-q', 'beam-local'
+    standardOutput = new ByteArrayOutputStream()
+    ext.charts = {
+        return standardOutput.toString().replace('\n', ' ')
+    }
+}
+
+task removeStandaloneCharts(dependsOn: [helmStandaloneList]) {
+    doLast {
+        exec {
+            def charts = Arrays.asList(helmStandaloneList.charts().trim().split(' '))
+            executable 'helm'
+            def argList =  ["delete", "--purge"] + charts
+            args = argList
+        }
+    }
+}
+
+task deployClusterChart(dependsOn: [helmPackageClusterChart, helmInit], type: HelmInstall) {
+    def date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
+    chart = "${project.buildDir}/helm/charts/beam-cluster-0.1.0.tgz"
+    releaseName = "beam-cluster-${date}"
+}
+
+task helmClusterList(dependsOn: [helmInit], type: Exec) {
+    executable 'helm'
+    args 'ls', '-q', 'beam-cluster'
+    standardOutput = new ByteArrayOutputStream()
+    ext.charts = {
+        return standardOutput.toString().replace('\n', ' ')
+    }
+}
+
+task removeClusterCharts(dependsOn: [helmClusterList]) {
+    doLast {
+        exec {
+            def charts = Arrays.asList(helmClusterList.charts().trim().split(' '))
+            executable 'helm'
+            def argList =  ["delete", "--purge"] + charts
+            args = argList
+        }
+    }
 }

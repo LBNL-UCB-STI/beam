@@ -14,8 +14,8 @@ secret:
   docker: dockerhub
 
 deployment:
-  image: "beammodel/beam"
-  imageTag: "latest"
+  image: ${beamImage}
+  imageTag: ${beamImageTag}
   pullPolicy: Always
   pullSecret: dockerhub
   # Additional pod labels
@@ -25,7 +25,7 @@ deployment:
 daemonset:
   image: "kmitin/s3fs"
   imageTag: "latest"
-  bucket: "beam-config"
+  bucket: ${bucketName}
   region: "us-west-2"
   pullPolicy: Always
 
@@ -48,5 +48,5 @@ job:
   worker:
     hostname: beam-worker
     replicas: 3
-  image: "beammodel/beam"
-  imageTag: "latest"
+  image: ${beamImage}
+  imageTag: ${beamImageTag}

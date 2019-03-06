@@ -1,12 +1,12 @@
 apiVersion: v1
-name: beam-cluster
-version: 0.1.0
+name: ${chartName}
+version: ${chartVersion}
 appVersion: 0.6.0
-description: Beam Cluster Running
+description: Beam Cluster Run
 keywords:
   - beam
 home: http://http://beam.lbl.gov
 maintainers:
-  - name: Kirill Mitin
-    email: mitin.kirill.ol@gmail.com
+  - name: ${authorName}
+    email: ${authorEmail}
 engine: gotpl
