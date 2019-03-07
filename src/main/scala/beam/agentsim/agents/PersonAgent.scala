@@ -419,38 +419,49 @@ class PersonAgent(
     /*
      * Learn as passenger that it is time to board the vehicle
      */
-    case Event(
+    case ev @ Event(
         TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter, theMode), triggerId),
         data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _)
-    ) if vehicleToEnter.equals(currentLeg.beamVehicleId) =>
-      logDebug(s"PersonEntersVehicle: $vehicleToEnter")
-      eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
+//    ) if vehicleToEnter.equals(currentLeg.beamVehicleId) =>
+    ) =>
+      if(vehicleToEnter.equals(currentLeg.beamVehicleId)){
+        if(theMode == CAV || data.currentTrip.get.tripClassifier == CAV){
+          val i = 0
+        }
+        logDebug(s"PersonEntersVehicle: $vehicleToEnter")
+        eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
-      val mode = data.currentTrip.get.tripClassifier
+        val mode = data.currentTrip.get.tripClassifier
 
-      if (currentLeg.cost > 0.0) {
-        if (beamServices.agencyAndRouteByVehicleIds.contains(
-              vehicleToEnter
-            )) {
-          val agencyId = beamServices.agencyAndRouteByVehicleIds(vehicleToEnter)._1
-          eventsManager.processEvent(new AgencyRevenueEvent(tick, agencyId, currentLeg.cost))
+        if (currentLeg.cost > 0.0) {
+          if (beamServices.agencyAndRouteByVehicleIds.contains(
+                vehicleToEnter
+              )) {
+            val agencyId = beamServices.agencyAndRouteByVehicleIds(vehicleToEnter)._1
+            eventsManager.processEvent(new AgencyRevenueEvent(tick, agencyId, currentLeg.cost))
+          }
+
+          eventsManager.processEvent(
+            new PersonCostEvent(
+              tick,
+              id,
+              mode.value,
+              0.0, // incentive applies to a whole trip and is accounted for at Arrival
+              0.0, // only drivers pay tolls, if a toll is in the fare it's still a fare
+              currentLeg.cost
+            )
+          )
         }
 
-        eventsManager.processEvent(
-          new PersonCostEvent(
-            tick,
-            id,
-            mode.value,
-            0.0, // incentive applies to a whole trip and is accounted for at Arrival
-            0.0, // only drivers pay tolls, if a toll is in the fare it's still a fare
-            currentLeg.cost
-          )
+        goto(Moving) replying CompletionNotice(triggerId) using data.copy(
+          currentVehicle = vehicleToEnter +: currentVehicle
         )
+      }else{
+        if(theMode == CAV || data.currentTrip.get.tripClassifier == CAV){
+          val i = 0
+        }
+        myUnhandled(ev)
       }
-
-      goto(Moving) replying CompletionNotice(triggerId) using data.copy(
-        currentVehicle = vehicleToEnter +: currentVehicle
-      )
   }
 
   when(Moving) {
