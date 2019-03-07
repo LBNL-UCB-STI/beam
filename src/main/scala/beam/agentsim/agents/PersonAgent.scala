@@ -420,12 +420,12 @@ class PersonAgent(
      * Learn as passenger that it is time to board the vehicle
      */
     case ev @ Event(
-        TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter, theMode), triggerId),
-        data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _)
+          TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter, theMode), triggerId),
+          data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _)
 //    ) if vehicleToEnter.equals(currentLeg.beamVehicleId) =>
-    ) =>
-      if(vehicleToEnter.equals(currentLeg.beamVehicleId)){
-        if(theMode == CAV || data.currentTrip.get.tripClassifier == CAV){
+        ) =>
+      if (vehicleToEnter.equals(currentLeg.beamVehicleId)) {
+        if (theMode == CAV || data.currentTrip.get.tripClassifier == CAV) {
           val i = 0
         }
         logDebug(s"PersonEntersVehicle: $vehicleToEnter")
@@ -456,8 +456,8 @@ class PersonAgent(
         goto(Moving) replying CompletionNotice(triggerId) using data.copy(
           currentVehicle = vehicleToEnter +: currentVehicle
         )
-      }else{
-        if(theMode == CAV || data.currentTrip.get.tripClassifier == CAV){
+      } else {
+        if (theMode == CAV || data.currentTrip.get.tripClassifier == CAV) {
           val i = 0
         }
         myUnhandled(ev)

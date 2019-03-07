@@ -877,11 +877,23 @@ trait ChoosesMode {
               val walk1 = EmbodiedBeamLeg.dummyLegAt(_currentTick.get, body.id, false)
               val cavLegs = cavTripLegs.legs.size match {
                 case 0 =>
-                  List(EmbodiedBeamLeg.dummyLegAt(_currentTick.get, body.id, false, CAV, cavTripLegs.cavOpt.map(_.beamVehicleType.id).getOrElse(BeamVehicleType.defaultCarBeamVehicleType.id), false))
+                  List(
+                    EmbodiedBeamLeg.dummyLegAt(
+                      _currentTick.get,
+                      body.id,
+                      false,
+                      CAV,
+                      cavTripLegs.cavOpt
+                        .map(_.beamVehicleType.id)
+                        .getOrElse(BeamVehicleType.defaultCarBeamVehicleType.id),
+                      false
+                    )
+                  )
                 case _ =>
                   cavTripLegs.legs
               }
-              val walk2 = EmbodiedBeamLeg.dummyLegAt(_currentTick.get + cavLegs.map(_.beamLeg.duration).sum, body.id, true)
+              val walk2 =
+                EmbodiedBeamLeg.dummyLegAt(_currentTick.get + cavLegs.map(_.beamLeg.duration).sum, body.id, true)
               val cavTrip = EmbodiedBeamTrip(walk1 +: cavLegs.toVector :+ walk2)
               goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(cavTrip))
             case _ =>
@@ -1115,7 +1127,7 @@ object ChoosesMode {
       cavTripLegs = if (withPrivateCAV) {
         None
       } else {
-        Some(CavTripLegsResponse(None,List()))
+        Some(CavTripLegsResponse(None, List()))
       }
     )
   }

@@ -13,7 +13,11 @@ import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavT
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, VehicleOrToken}
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.agents.ridehail.RideHailAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck, ModifyPassengerScheduleAcks}
+import beam.agentsim.agents.ridehail.RideHailAgent.{
+  ModifyPassengerSchedule,
+  ModifyPassengerScheduleAck,
+  ModifyPassengerScheduleAcks
+}
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
@@ -403,17 +407,23 @@ object HouseholdActor {
         personAndActivityToLegs.get((person.personId, originActivity)) match {
           case Some(legs) =>
             val cav = personAndActivityToCav.get((person.personId, originActivity)).get
-            sender() ! CavTripLegsResponse(Some(cav),legs.map(bLeg => EmbodiedBeamLeg(
-              bLeg.copy(mode = CAV),
-              cav.id,
-              cav.beamVehicleType.id,
-              false,
-              0.0,
-              false,
-              false
-            )))
+            sender() ! CavTripLegsResponse(
+              Some(cav),
+              legs.map(
+                bLeg =>
+                  EmbodiedBeamLeg(
+                    bLeg.copy(mode = CAV),
+                    cav.id,
+                    cav.beamVehicleType.id,
+                    false,
+                    0.0,
+                    false,
+                    false
+                )
+              )
+            )
           case _ =>
-            sender() ! CavTripLegsResponse(None,List())
+            sender() ! CavTripLegsResponse(None, List())
         }
       case CancelCAVTrip(person) =>
         log.debug("Removing person {} from plan to use CAVs")
