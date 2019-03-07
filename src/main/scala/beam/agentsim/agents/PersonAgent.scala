@@ -422,11 +422,7 @@ class PersonAgent(
     case Event(
         TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter, theMode), triggerId),
         data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _)
-        ) =>
-//    ) if vehicleToEnter.equals(currentLeg.beamVehicleId) =>
-      if (theMode == CAV) {
-        val i = 0
-      }
+    ) if vehicleToEnter.equals(currentLeg.beamVehicleId) =>
       logDebug(s"PersonEntersVehicle: $vehicleToEnter")
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
