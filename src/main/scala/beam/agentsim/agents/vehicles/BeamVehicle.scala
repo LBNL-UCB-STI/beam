@@ -5,7 +5,7 @@ import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
 import beam.agentsim.agents.vehicles.ConsumptionRateFilterStore.{Primary, Secondary}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car}
+import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car, RideHail}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
@@ -217,6 +217,8 @@ class BeamVehicle(
       case Car if isCAV =>
         CAV
       case Car =>
+        CAR
+      case RideHail =>
         CAR
       case Body =>
         WALK

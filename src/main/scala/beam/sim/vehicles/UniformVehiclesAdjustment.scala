@@ -37,4 +37,15 @@ case class UniformVehiclesAdjustment(beamServices: BeamServices) extends Vehicle
     }.toList
     result
   }
+
+  override def sampleVehicleTypesForCategory(
+     numVehicles: Int,
+     vehicleCategory: VehicleCategory
+  ): List[BeamVehicleType] = {
+    val result = Range(0, numVehicles).map { i =>
+      val newRand = randUnif.get
+      vehicleTypesAndProbabilitiesByCategory(vehicleCategory).find(_._2 >= newRand).get._1
+    }.toList
+    result
+  }
 }

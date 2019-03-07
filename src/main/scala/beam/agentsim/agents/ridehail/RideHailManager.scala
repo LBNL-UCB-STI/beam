@@ -19,11 +19,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -41,6 +37,7 @@ import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.RideHailFleetInitializer.RideHailAgentInputData
 import beam.sim._
+import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils._
 import beam.utils.logging.LogActorState
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
@@ -52,13 +49,17 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.{Activity, Person, Population}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.vehicles.Vehicle
+import org.matsim.vehicles.{Vehicle, VehicleType}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.math.{max, min}
+import probability_monad.Distribution.lognormal
+
+
 
 object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLocation, Double)] {
   override def compare(
@@ -316,11 +317,30 @@ class RideHailManager(
       val persons: Iterable[Person] = RandomUtils
         .shuffle(scenario.getPopulation.getPersons.values().asScala, rand)
         .take(numRideHailAgents.toInt)
+      val vehicleTypes = VehiclesAdjustment
+        .getVehicleAdjustment(beamServices)
+        .sampleVehicleTypesForCategory(
+          numVehicles = numRideHailAgents.toInt,
+          vehicleCategory = VehicleCategory.RideHail
+        )
+      var activityEndTimes: ArrayBuffer[Int] = new ArrayBuffer[Int]()
+      scenario.getPopulation.getPersons.asScala.map(_._2.getSelectedPlan.getPlanElements.asScala.filter(_.isInstanceOf[Activity]).map(_.asInstanceOf[Activity].getEndTime.toInt).filter(_ > 0).map(activityEndTimes += _))
       val fleetData: ArrayBuffer[RideHailFleetInitializer.RideHailAgentInputData] = new ArrayBuffer(persons.size)
-      persons.foreach { person =>
+      persons.zipWithIndex.foreach { case(person, idx) =>
         try {
+          val vehicleType = vehicleTypes(idx)
           val rideInitialLocation: Location = getRideInitLocation(person)
-          fleetData += createRideHailVehicleAndAgent(person.getId.toString, rideInitialLocation, None, None)
+          if (vehicleType.automationLevel >= 4) {
+            val shiftDuration = math.round(math.exp( rand.nextGaussian() * 0.67 + 0.60) * 3600)
+            val shiftMidPointTime = activityEndTimes(rand.nextInt(activityEndTimes.length))
+            val shiftStartTime = max(shiftMidPointTime - (shiftDuration / 2).toInt, 10)
+            val shiftEndTime = min(shiftMidPointTime + (shiftDuration / 2).toInt, 24*3600)
+            val shiftString = convertToShiftString(ArrayBuffer(shiftStartTime),ArrayBuffer(shiftEndTime))
+            fleetData += createRideHailVehicleAndAgent(person.getId.toString, vehicleType, rideInitialLocation, shiftString, None)
+          } else {
+            val shiftString = convertToShiftString(ArrayBuffer(0),ArrayBuffer(24*3600))
+            fleetData += createRideHailVehicleAndAgent(person.getId.toString, vehicleType, rideInitialLocation, shiftString, None)
+          }
         } catch {
           case ex: Throwable =>
             log.error(ex, s"Could not createRideHailVehicleAndAgent: ${ex.getMessage}")
@@ -334,6 +354,7 @@ class RideHailManager(
       new RideHailFleetInitializer().init(beamServices) foreach { fleetData =>
         createRideHailVehicleAndAgent(
           fleetData.id.split("-").toList.tail.mkString("-"),
+          BeamVehicleType.defaultCarBeamVehicleType,
           new Coord(fleetData.initialLocationX, fleetData.initialLocationY),
           fleetData.shifts,
           fleetData.toGeofence
@@ -931,6 +952,7 @@ class RideHailManager(
 
   def createRideHailVehicleAndAgent(
     rideHailAgentIdentifier: String,
+    rideHailBeamVehicleType: BeamVehicleType,
     rideInitialLocation: Coord,
     shifts: Option[String],
     geofence: Option[Geofence]
@@ -942,17 +964,17 @@ class RideHailManager(
         beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
         classOf[BeamVehicleType]
       )
-    val ridehailBeamVehicleType = beamServices.vehicleTypes
-      .getOrElse(ridehailBeamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
+//    val ridehailBeamVehicleType = beamServices.vehicleTypes
+//      .getOrElse(ridehailBeamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
     val rideHailAgentPersonId: Id[RideHailAgent] =
       Id.create(rideHailAgentName, classOf[RideHailAgent])
-    val powertrain = Option(ridehailBeamVehicleType.primaryFuelConsumptionInJoulePerMeter)
+    val powertrain = Option(rideHailBeamVehicleType.primaryFuelConsumptionInJoulePerMeter)
       .map(new Powertrain(_))
       .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
     val rideHailBeamVehicle = new BeamVehicle(
       rideHailVehicleId,
       powertrain,
-      ridehailBeamVehicleType
+      rideHailBeamVehicleType
     )
     rideHailBeamVehicle.spaceTime = SpaceTime((rideInitialLocation, 0))
     rideHailBeamVehicle.manager = Some(self)
@@ -1241,4 +1263,13 @@ class RideHailManager(
     rideInitialLocation
   }
 
+  private def convertToShiftString(startTimes: ArrayBuffer[Int], endTimes: ArrayBuffer[Int]): Option[String] = {
+    if (startTimes.length != endTimes.length) {
+      None
+    } else {
+      var outStr: String = new String
+      (startTimes zip endTimes).foreach(x => outStr += ("{" + x._1.toString + ":" + x._2.toString + "}"))
+      return Option(outStr)
+    }
+  }
 }
