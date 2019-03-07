@@ -330,7 +330,7 @@ class RideHailManager(
         try {
           val vehicleType = vehicleTypes(idx)
           val rideInitialLocation: Location = getRideInitLocation(person)
-          if (vehicleType.automationLevel < 4) {
+          if (vehicleType.automationLevel < 5) {
             val shiftDuration = math.round(math.exp( rand.nextGaussian() * 0.67 + 0.60) * 3600)
             val shiftMidPointTime = activityEndTimes(rand.nextInt(activityEndTimes.length))
             val shiftStartTime = max(shiftMidPointTime - (shiftDuration / 2).toInt, 10)
