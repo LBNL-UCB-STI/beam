@@ -20,7 +20,7 @@ class VehicleCsvReader(config: BeamConfig) {
   }
 
   def getLinkToGradeRecordsUsing(csvParser: CsvParser): Iterable[Record] = {
-    val filePath = config.beam.agentsim.agents.vehicles.linkToGradePercentFile
+    val filePath = config.beam.agentsim.agents.vehicles.linkToGradePercentFilePath
     filePath match {
       case "" =>
         List[Record]()
