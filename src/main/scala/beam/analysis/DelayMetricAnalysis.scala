@@ -60,7 +60,7 @@ class DelayMetricAnalysis @Inject()(
     event match {
       case pathTraversalEvent: PathTraversalEvent =>
         val mode = pathTraversalEvent.mode
-        if (mode.equals(CAR.value)) {
+        if (mode.value.equalsIgnoreCase(CAR.value)) {
           val linkIds = pathTraversalEvent.linkIds
           val linkTravelTimes = pathTraversalEvent.linkTravelTimes
           assert(linkIds.length == linkTravelTimes.length)
@@ -82,7 +82,7 @@ class DelayMetricAnalysis @Inject()(
   def process(index: Int, link: Link, travelTime: Double): Unit = {
     val freeLength = link.getLength
     val freeSpeed = link.getFreespeed
-    var freeFlowDelay = travelTime - (freeLength / freeSpeed).round.toInt
+    var freeFlowDelay = travelTime - (freeLength / freeSpeed).toInt
     if (freeFlowDelay >= 0) {
       val existingFreeFlowDelay = cumulativeDelay(index)
       val existingLinkLength = cumulativeLength(index)
