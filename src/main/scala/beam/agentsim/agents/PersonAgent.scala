@@ -13,6 +13,7 @@ import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
+import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.VehicleCategory.Bike
 import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
@@ -404,8 +405,8 @@ class PersonAgent(
       handleFailedRideHailReservation(error, response, data)
     // RIDE HAIL SUCCESS
     // no trigger needed here since we're going to Waiting anyway without any other actions needed
-    case Event(RideHailResponse(req, _, None, triggersToSchedule), data: BasePersonData) =>
-      handleSuccessfulReservation(triggersToSchedule, data)
+    case Event(RideHailResponse(req, travelProposal, None, triggersToSchedule), data: BasePersonData) =>
+      handleSuccessfulReservation(triggersToSchedule, data, travelProposal)
     // RIDE HAIL FAILURE
     case Event(
         response @ RideHailResponse(_, _, Some(error), _),
@@ -419,9 +420,13 @@ class PersonAgent(
      * Learn as passenger that it is time to board the vehicle
      */
     case Event(
-        TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter, mode), triggerId),
+        TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter, theMode), triggerId),
         data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _)
         ) =>
+//    ) if vehicleToEnter.equals(currentLeg.beamVehicleId) =>
+      if(theMode == CAV){
+        val i = 0
+      }
       logDebug(s"PersonEntersVehicle: $vehicleToEnter")
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
@@ -783,7 +788,8 @@ class PersonAgent(
 
   def handleSuccessfulReservation(
     triggersToSchedule: Vector[ScheduleTrigger],
-    data: BasePersonData
+    data: BasePersonData,
+    travelProposal: Option[TravelProposal] = None
   ): FSM.State[BeamAgentState, PersonData] = {
     if (_currentTriggerId.isDefined) {
       val (tick, triggerId) = releaseTickAndTriggerId()
@@ -793,7 +799,13 @@ class PersonAgent(
       // if _currentTriggerId is empty, this means we have received the reservation response from a batch
       // vehicle allocation process. It's ok, the trigger is with the ride hail manager.
     }
-    goto(Waiting) using data
+    val newData = travelProposal match {
+      case Some(newTrip) =>
+        data.copy(restOfCurrentTrip = data.restOfCurrentTrip.takeWhile(_.isRideHail).map(_.copy(beamVehicleId = newTrip.rideHailAgentLocation.vehicleId)))
+      case None =>
+        data
+    }
+    goto(Waiting) using newData
 
   }
 
