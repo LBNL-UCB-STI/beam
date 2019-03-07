@@ -2,6 +2,8 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.ReplanningEvent;
+import beam.sim.config.BeamConfig;
+import beam.utils.TestConfigUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.matsim.api.core.v01.events.Event;
@@ -45,7 +47,7 @@ public class RealizedModeGraphTest {
             return super.compute(stat);
         }
 
-    },true);
+    },true, BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve()));
 
     @Before
     public void setUpCRC() {
