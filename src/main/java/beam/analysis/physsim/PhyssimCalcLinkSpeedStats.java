@@ -4,11 +4,13 @@ import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
 import beam.sim.OutputDataDescription;
 import beam.sim.config.BeamConfig;
 import beam.utils.OutputDataDescriptor;
+import org.apache.commons.collections.map.HashedMap;
 import org.jfree.chart.*;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
+import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
@@ -99,9 +101,14 @@ public class PhyssimCalcLinkSpeedStats {
     // generate the data required as input to generate a graph 
     private Map<Integer, Double> generateInputDataForGraph(TravelTimeCalculator travelTimeCalculator) {
         TravelTime travelTime = travelTimeCalculator.getLinkTravelTimes();
-        List<Double> avgSpeedPerLink = new ArrayList<>();
+        Set<Double> avgSpeedPerLink = new HashSet<>();
         Map<Integer, Double> binAvgSpeedMap = new HashMap<>();
+        Map<Id<Link>, Double> linkFreeSpeed = new HashedMap();
         //for each bin
+        for (Link link : this.network.getLinks().values()) {
+            double freespeed = link.getFreespeed();
+            linkFreeSpeed.put(link.getId(), freespeed);
+        }
         for (int idx = 0; idx < noOfBins; idx++) {
             //for each link
             for (Link link : this.network.getLinks().values()) {
@@ -111,17 +118,21 @@ public class PhyssimCalcLinkSpeedStats {
                 double averageTime = travelTime.getLinkTravelTime(link, idx * binSize, null, null);
                 double averageSpeed = linkLength / averageTime;
                 //calculate the average speed of the link
-                double averageSpeedToFreeSpeedRatio = averageSpeed / freeSpeed;
-                avgSpeedPerLink.add(averageSpeedToFreeSpeedRatio);
+                if (averageSpeed >= linkFreeSpeed.get(link.getId())){
+                    double averageSpeedToFreeSpeedRatio = averageSpeed / freeSpeed;
+                    avgSpeedPerLink.add(averageSpeedToFreeSpeedRatio);
+                }
+
             }
             // compute the sum of average speeds of all links for the current bin
             double sumOfAvgSpeeds = avgSpeedPerLink
                     .stream()
                     .mapToDouble(Double::doubleValue)
                     .sum();
-            avgSpeedPerLink.clear();
+
             //Save the bin -> total links average speed mappings
-            binAvgSpeedMap.put(idx,(sumOfAvgSpeeds/this.network.getLinks().size())*100);
+            binAvgSpeedMap.put(idx,(sumOfAvgSpeeds/avgSpeedPerLink.size())*100);
+            avgSpeedPerLink.clear();
         }
         return binAvgSpeedMap;
     }
