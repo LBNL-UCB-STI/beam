@@ -1,7 +1,6 @@
 package beam.agentsim.agents.choice.mode
 
-import beam.agentsim.agents.choice.logit.MultinomialLogit.MnlData
-import beam.agentsim.agents.choice.logit.{AlternativeAttributes, MultinomialLogit}
+import beam.agentsim.agents.choice.logit.{AlternativeAttributes, MnlData, MultinomialLogit}
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode

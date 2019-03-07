@@ -1,7 +1,6 @@
 package beam.agentsim.agents.choice.logit
 
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{LccmData, Mandatory, Nonmandatory, TourType}
-import beam.agentsim.agents.choice.logit.MultinomialLogit.MnlData
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.core.utils.io.IOUtils
 import org.supercsv.cellprocessor.constraint.NotNull
