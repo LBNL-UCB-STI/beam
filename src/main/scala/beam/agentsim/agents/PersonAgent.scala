@@ -424,7 +424,7 @@ class PersonAgent(
         data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _)
         ) =>
 //    ) if vehicleToEnter.equals(currentLeg.beamVehicleId) =>
-      if(theMode == CAV){
+      if (theMode == CAV) {
         val i = 0
       }
       logDebug(s"PersonEntersVehicle: $vehicleToEnter")
@@ -801,7 +801,11 @@ class PersonAgent(
     }
     val newData = travelProposal match {
       case Some(newTrip) =>
-        data.copy(restOfCurrentTrip = data.restOfCurrentTrip.takeWhile(_.isRideHail).map(_.copy(beamVehicleId = newTrip.rideHailAgentLocation.vehicleId)))
+        data.copy(
+          restOfCurrentTrip = data.restOfCurrentTrip
+            .takeWhile(_.isRideHail)
+            .map(_.copy(beamVehicleId = newTrip.rideHailAgentLocation.vehicleId))
+        )
       case None =>
         data
     }
