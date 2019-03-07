@@ -419,9 +419,9 @@ class PersonAgent(
      * Learn as passenger that it is time to board the vehicle
      */
     case Event(
-        TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter, _), triggerId),
+        TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter, mode), triggerId),
         data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _)
-        ) if vehicleToEnter.equals(currentLeg.beamVehicleId)=>
+        ) =>
       logDebug(s"PersonEntersVehicle: $vehicleToEnter")
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
