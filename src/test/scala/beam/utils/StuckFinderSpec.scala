@@ -20,21 +20,10 @@ class StuckFinderSpec
     TestKit.shutdownActorSystem(system)
   }
 
-  val threshold = Thresholds$Elm(
-    ActorTypeToMaxNumberOfMessages(Some(100), Some(100), Some(100), Some(100)),
-    100,
-    classOf[InitializeTrigger].getCanonicalName
-  )
+  val threshold = Thresholds$Elm(ActorTypeToMaxNumberOfMessages(Some(100), Some(100), Some(100), Some(100)), 100, classOf[InitializeTrigger].getCanonicalName)
 
-  val stuckAgentDetectionCfg =
-    StuckAgentDetection(
-      enabled = true,
-      checkMaxNumberOfMessagesEnabled = true,
-      defaultTimeoutMs = 100,
-      checkIntervalMs = 100,
-      overallSimulationTimeoutMs = 60000,
-      thresholds = List(threshold)
-    )
+  val stuckAgentDetectionCfg = StuckAgentDetection(enabled = true, checkMaxNumberOfMessagesEnabled = true, defaultTimeoutMs = 100, checkIntervalMs = 100, overallSimulationTimeoutMs = 60000,
+    thresholds = List(threshold))
 
   val devNull = system.actorOf(TestActors.blackholeProps)
   val st = ScheduledTrigger(TriggerWithId(InitializeTrigger(1), 1L), devNull, 1)
@@ -62,16 +51,7 @@ class StuckFinderSpec
       s.add(7, st.copy(priority = 7), isNew = true)
 
       val seq = s.detectStuckAgents(threshold.markAsStuckAfterMs + 11)
-      seq should be(
-        Seq(
-          ValueWithTime(st.copy(priority = 2), 2),
-          ValueWithTime(st.copy(priority = 4), 4),
-          ValueWithTime(st.copy(priority = 5), 5),
-          ValueWithTime(st.copy(priority = 7), 7),
-          ValueWithTime(st.copy(priority = 9), 9),
-          ValueWithTime(st.copy(priority = 10), 10)
-        )
-      )
+      seq should be(Seq(ValueWithTime(st.copy(priority = 2), 2), ValueWithTime(st.copy(priority = 4), 4), ValueWithTime(st.copy(priority = 5), 5), ValueWithTime(st.copy(priority = 7), 7), ValueWithTime(st.copy(priority = 9), 9), ValueWithTime(st.copy(priority = 10), 10)))
     }
   }
 }
