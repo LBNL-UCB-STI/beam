@@ -42,7 +42,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
     runCarSharingTest(config)
   }
 
-  "Running a car-sharing-only scenario with one car per person at home" must "result in everybody driving" in {
+  "Running a car-sharing-only scenario with one car per person at home" must "result in everybody driving" ignore {
     val config = ConfigFactory
       .parseString("""
         |beam.outputs.events.fileOutputFormats = xml
