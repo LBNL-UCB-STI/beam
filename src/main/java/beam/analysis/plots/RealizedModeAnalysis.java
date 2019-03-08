@@ -134,12 +134,20 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
         writeToReferenceCSV();
 
         DefaultCategoryDataset replanningModeCountDataset = replanningCountModeChoiceDataset();
-        createReplanningCountModeChoiceGraph(replanningModeCountDataset, event.getIteration());
+        if(replanningModeCountDataset != null && writeGraph) {
+            createReplanningCountModeChoiceGraph(replanningModeCountDataset, event.getIteration());
+        }
+
         writeToReplanningCSV(event);
 
         rootAffectedModeCount.put(event.getIteration(), affectedModeCount.values().stream().reduce(Integer::sum).orElse(0));
-        fileName = outputDirectoryHierarchy.getOutputFilename("replanningCountModeChoice.png");
-        writeToRootReplanningCountModeChoice(fileName);
+
+        CategoryDataset rootReplanningDataset = rootReplanningCountModeChoiceDataset();
+
+        if(rootReplanningDataset != null && writeGraph) {
+            fileName = outputDirectoryHierarchy.getOutputFilename("replanningCountModeChoice.png");
+            createRootReplaningModeChoiceCountGraph(rootReplanningDataset, fileName);
+        }
 
     }
 
@@ -153,11 +161,6 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
         affectedModeCount.clear();
     }
 
-    private void writeToRootReplanningCountModeChoice(String fileName) throws IOException{
-        CategoryDataset dataset = rootReplanningCountModeChoiceDataset();
-        createRootReplaningModeChoiceCountGraph(dataset, fileName);
-
-    }
 
     // The modeChoice events for same person as of replanning event will be excluded in the form of CRC, CRCRC, CRCRCRC so on.
     private void processRealizedMode(Event event) {
