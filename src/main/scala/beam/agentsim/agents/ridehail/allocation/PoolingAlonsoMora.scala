@@ -64,17 +64,17 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     vehicleAllocationRequest: AllocationRequests
   ): AllocationResponse = {
     rideHailManager.log.debug("Alloc requests {}", vehicleAllocationRequest.requests.size)
-    var toPool: Set[RideHailRequest] = Set()
-    var notToPool: Set[RideHailRequest] = Set()
+    var toAllocate: Set[RideHailRequest] = Set()
+    var toFinalize: Set[RideHailRequest] = Set()
     var allocResponses: List[VehicleAllocation] = List()
     var alreadyAllocated: Set[Id[Vehicle]] = Set()
     vehicleAllocationRequest.requests.foreach {
       case (request, routingResponses) if routingResponses.isEmpty =>
-        toPool += request
+        toAllocate += request
       case (request, _) =>
-        notToPool += request
+        toFinalize += request
     }
-    notToPool.foreach { request =>
+    toFinalize.foreach { request =>
       val routeResponses = vehicleAllocationRequest.requests(request)
       val indexedResponses = routeResponses.map(resp => (resp.requestId -> resp)).toMap
 
@@ -129,13 +129,13 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         }
       }
     }
-    if (toPool.size > 0) {
+    if (toAllocate.size > 0) {
       implicit val skimmer: BeamSkimmer = rideHailManager.beamSkimmer
-      val pooledAllocationReqs = toPool.filter(_.asPooled)
+      val pooledAllocationReqs = toAllocate.filter(_.asPooled)
       val poolCustomerReqs = pooledAllocationReqs.map(
         rhr => createPersonRequest(rhr.customer, rhr.pickUpLocationUTM, tick, rhr.destinationUTM)
       )
-      val customerIdToReqs = toPool.map(rhr => rhr.customer.personId -> rhr).toMap
+      val customerIdToReqs = toAllocate.map(rhr => rhr.customer.personId -> rhr).toMap
       val availVehicles = rideHailManager.vehicleManager.availableRideHailVehicles.values
         .map(veh => createVehicleAndSchedule(veh.vehicleId.toString, veh.currentLocationUTM.loc, tick))
 
@@ -227,7 +227,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         allocResponses = allocResponses :+ NoVehicleAllocated(unsatisfiedReq)
       }
       // Now satisfy the solo customers
-      toPool.filterNot(_.asPooled).foreach { req =>
+      toAllocate.filterNot(_.asPooled).foreach { req =>
         Pooling.serveOneRequest(req, tick, alreadyAllocated, rideHailManager) match {
           case res @ RoutingRequiredToAllocateVehicle(_, routes) =>
             allocResponses = allocResponses :+ res
