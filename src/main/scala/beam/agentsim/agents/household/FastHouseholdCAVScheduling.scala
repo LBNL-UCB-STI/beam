@@ -247,7 +247,7 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
     routeHistory: RouteHistory
   ): (List[Option[RouteOrEmbodyRequest]], CAVSchedule) = {
     var newMobilityRequests = List[MobilityRequest]()
-    val requestList = (schedule.reverse :+ schedule.head).tail
+    val requestList = (schedule.tail :+ schedule.head)
       .sliding(2)
       .map { wayPoints =>
         val orig = wayPoints(0)
