@@ -116,7 +116,8 @@ class BeamMobsim @Inject()(
               envelopeInUTM,
               rideHailSurgePricingManager,
               rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
-              beamSkimmer
+              beamSkimmer,
+              routeHistory
             )
           ),
           "RideHailManager"

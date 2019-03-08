@@ -201,7 +201,8 @@ class PersonAgentSpec
           parkingManager,
           tollCalculator,
           self,
-          beamSkimmer = new BeamSkimmer()
+          beamSkimmer = new BeamSkimmer(),
+          routeHistory = new RouteHistory()
         )
       )
 
