@@ -29,8 +29,9 @@ import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.RoutingResponse
+import beam.router.Modes.BeamMode.CAV
 import beam.router.{BeamSkimmer, RouteHistory}
-import beam.router.model.BeamLeg
+import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
@@ -41,8 +42,8 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.PopulationUtils
 import org.matsim.households
 import org.matsim.households.Household
-import scala.collection.JavaConverters._
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -405,9 +406,24 @@ object HouseholdActor {
       case CavTripLegsRequest(person, originActivity) =>
         personAndActivityToLegs.get((person.personId, originActivity)) match {
           case Some(legs) =>
-            sender() ! CavTripLegsResponse(legs)
+            val cav = personAndActivityToCav.get((person.personId, originActivity)).get
+            sender() ! CavTripLegsResponse(
+              Some(cav),
+              legs.map(
+                bLeg =>
+                  EmbodiedBeamLeg(
+                    bLeg.copy(mode = CAV),
+                    cav.id,
+                    cav.beamVehicleType.id,
+                    false,
+                    0.0,
+                    false,
+                    false
+                )
+              )
+            )
           case _ =>
-            sender() ! CavTripLegsResponse(List())
+            sender() ! CavTripLegsResponse(None, List())
         }
       case CancelCAVTrip(person) =>
         log.debug("Removing person {} from plan to use CAVs")

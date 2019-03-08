@@ -557,7 +557,7 @@ trait ChoosesMode {
       }
       stay using newPersonData
     case Event(cavTripLegsResponse: CavTripLegsResponse, choosesModeData: ChoosesModeData) =>
-      stay using choosesModeData.copy(cavTripLegs = Some(cavTripLegsResponse.legs))
+      stay using choosesModeData.copy(cavTripLegs = Some(cavTripLegsResponse))
   } using completeChoiceIfReady)
 
   def isRideHailToTransitResponse(response: RoutingResponse): Boolean = {
@@ -900,38 +900,27 @@ trait ChoosesMode {
               // Special case, if you are using household CAV, no choice was necessary you just use this mode
               // Construct the embodied trip to allow for processing by FinishingModeChoice and scoring
               assert(choosesModeData.availablePersonalStreetVehicles.size > 0)
-              val cavStreetVehicle = choosesModeData.availablePersonalStreetVehicles.head.streetVehicle
-              val cavLeg = if (cavTripLegs.isEmpty) {
-                EmbodiedBeamLeg.dummyLegAt(
-                  _currentTick.get,
-                  body.id,
-                  false,
-                  cavStreetVehicle.locationUTM.loc,
-                  CAV,
-                  cavStreetVehicle.vehicleTypeId,
-                  false
-                )
-              } else {
-                val cavBeamLeg = cavTripLegs.tail.foldLeft(cavTripLegs.head.copy(mode = CAV))(_.appendLeg(_))
-                EmbodiedBeamLeg(
-                  cavBeamLeg,
-                  cavStreetVehicle.id,
-                  cavStreetVehicle.vehicleTypeId,
-                  false,
-                  0.0,
-                  false,
-                  false
-                )
+              val walk1 = EmbodiedBeamLeg.dummyLegAt(_currentTick.get, body.id, false)
+              val cavLegs = cavTripLegs.legs.size match {
+                case 0 =>
+                  List(
+                    EmbodiedBeamLeg.dummyLegAt(
+                      _currentTick.get,
+                      body.id,
+                      false,
+                      CAV,
+                      cavTripLegs.cavOpt
+                        .map(_.beamVehicleType.id)
+                        .getOrElse(BeamVehicleType.defaultCarBeamVehicleType.id),
+                      false
+                    )
+                  )
+                case _ =>
+                  cavTripLegs.legs
               }
-              val walk1 =
-                EmbodiedBeamLeg.dummyLegAt(_currentTick.get, body.id, false, cavLeg.beamLeg.travelPath.startPoint.loc)
-              val walk2 = EmbodiedBeamLeg.dummyLegAt(
-                _currentTick.get + cavLeg.beamLeg.duration,
-                body.id,
-                true,
-                cavLeg.beamLeg.travelPath.endPoint.loc
-              )
-              val cavTrip = EmbodiedBeamTrip(Vector(walk1, cavLeg, walk2))
+              val walk2 =
+                EmbodiedBeamLeg.dummyLegAt(_currentTick.get + cavLegs.map(_.beamLeg.duration).sum, body.id, true)
+              val cavTrip = EmbodiedBeamTrip(walk1 +: cavLegs.toVector :+ walk2)
               goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(cavTrip))
             case _ =>
               // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
@@ -1088,7 +1077,7 @@ object ChoosesMode {
     availablePersonalStreetVehicles: Vector[VehicleOrToken] = Vector(),
     expectedMaxUtilityOfLatestChoice: Option[Double] = None,
     isWithinTripReplanning: Boolean = false,
-    cavTripLegs: Option[List[BeamLeg]] = None
+    cavTripLegs: Option[CavTripLegsResponse] = None
   ) extends PersonData {
     override def currentVehicle: VehicleStack = personData.currentVehicle
 
@@ -1119,7 +1108,7 @@ object ChoosesMode {
     rideHail2TransitRoutingResponse: Option[EmbodiedBeamTrip] = None,
     rideHail2TransitAccessResult: Option[RideHailResponse] = None,
     rideHail2TransitEgressResult: Option[RideHailResponse] = None,
-    cavTripLegs: Option[List[BeamLeg]] = None
+    cavTripLegs: Option[CavTripLegsResponse] = None
   )
 
   def makeResponsePlaceholders(
@@ -1164,7 +1153,7 @@ object ChoosesMode {
       cavTripLegs = if (withPrivateCAV) {
         None
       } else {
-        Some(List())
+        Some(CavTripLegsResponse(None, List()))
       }
     )
   }
@@ -1172,5 +1161,6 @@ object ChoosesMode {
   case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[Vehicle])
 
   case class CavTripLegsRequest(person: VehiclePersonId, originActivity: Activity)
-  case class CavTripLegsResponse(legs: List[BeamLeg])
+  case class CavTripLegsResponse(cavOpt: Option[BeamVehicle], legs: List[EmbodiedBeamLeg])
+
 }
