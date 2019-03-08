@@ -178,7 +178,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
     if (msgCount > maxMsgPerActorType) {
       exceedMaxNumberOfMessages.append(st)
       logger.warn(
-        s"$st is exceed max number of messages threshold. Trigger type: '$triggerClazz', current count: $msgCount, max: $maxMsgPerActorType"
+        s"$st has exceeded max number of messages threshold. Trigger type: '$triggerClazz', current count: $msgCount, max: $maxMsgPerActorType"
       )
     }
   }
