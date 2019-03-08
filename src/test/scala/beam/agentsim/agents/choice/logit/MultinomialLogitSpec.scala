@@ -46,7 +46,7 @@ class MultinomialLogitSpec extends WordSpecLike with Matchers with BeamHelper {
 
     "should evaluate utility functions as expected" in {
       val util = mnl.getUtilityOfAlternative(alts(0))
-      util should equal(1.7)
+      ((util - 1.7).abs < 0.000000001) should be(true)
     }
     "should evaluate expected max utility as expected" in {
       val util = mnl.getExpectedMaximumUtility(alts)
