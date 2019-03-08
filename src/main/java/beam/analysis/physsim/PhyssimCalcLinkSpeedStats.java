@@ -105,10 +105,7 @@ public class PhyssimCalcLinkSpeedStats {
         Map<Integer, Double> binAvgSpeedMap = new HashMap<>();
         Map<Id<Link>, Double> linkFreeSpeed = new HashedMap();
         //for each bin
-        for (Link link : this.network.getLinks().values()) {
-            double freespeed = link.getFreespeed();
-            linkFreeSpeed.put(link.getId(), freespeed);
-        }
+
         for (int idx = 0; idx < noOfBins; idx++) {
             //for each link
             for (Link link : this.network.getLinks().values()) {
@@ -117,8 +114,8 @@ public class PhyssimCalcLinkSpeedStats {
                 double linkLength = link.getLength();
                 double averageTime = travelTime.getLinkTravelTime(link, idx * binSize, null, null);
                 double averageSpeed = linkLength / averageTime;
-                //calculate the average speed of the link
-                if (averageSpeed >= linkFreeSpeed.get(link.getId())){
+                //calculate the average speed of the linkgetFreespeed
+                if (averageSpeed >= link.getFreespeed()){
                     double averageSpeedToFreeSpeedRatio = averageSpeed / freeSpeed;
                     avgSpeedPerLink.add(averageSpeedToFreeSpeedRatio);
                 }
@@ -131,7 +128,7 @@ public class PhyssimCalcLinkSpeedStats {
                     .sum();
 
             //Save the bin -> total links average speed mappings
-            binAvgSpeedMap.put(idx,(sumOfAvgSpeeds/avgSpeedPerLink.size())*100);
+            binAvgSpeedMap.put(idx,(sumOfAvgSpeeds/this.network.getLinks().size())*100);
             avgSpeedPerLink.clear();
         }
         return binAvgSpeedMap;

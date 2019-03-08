@@ -52,7 +52,7 @@ public class PhyssimCalcLinkSpeedStatsTest {
 
     @Test
     public void shouldReturnAverageRelativeSpeedPercentageOfSpecificBin() {
-        double expectedResult = 101.0;
+        double expectedResult = 4.0;
         double actualResult = physsimCalcLinkSpeedStats.getAverageSpeedPercentageOfBin(23,travelTimeCalculator);
         assertEquals(expectedResult, Math.ceil(actualResult),0);
     }
