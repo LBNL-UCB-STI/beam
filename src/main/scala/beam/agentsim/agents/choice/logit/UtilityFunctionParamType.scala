@@ -13,7 +13,7 @@ object UtilityFunctionParamType {
     override def op(coefficient: Double, paramValue: Double): Double = coefficient
   }
   case object Multiplier extends UtilityFunctionParamType {
-    override def op(coefficient: Double,paramValue: Double): Double = coefficient * paramValue
+    override def op(coefficient: Double, paramValue: Double): Double = coefficient * paramValue
   }
 
   def apply(s: String): UtilityFunctionParamType = {
