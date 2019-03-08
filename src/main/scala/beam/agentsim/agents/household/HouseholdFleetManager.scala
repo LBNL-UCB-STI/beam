@@ -69,7 +69,7 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
     case ReleaseVehicle(vehicle) =>
       vehicle.unsetDriver()
       if (availableVehicles.contains(vehicle)) {
-        log.error("You can't release vehicle {} because I have it already", vehicle.id)
+        log.warning("I can't release vehicle {} because I have it already", vehicle.id)
       } else {
         availableVehicles = vehicle :: availableVehicles
         log.debug("Vehicle {} is now available", vehicle.id)
@@ -78,7 +78,7 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
     case ReleaseVehicleAndReply(vehicle, _) =>
       vehicle.unsetDriver()
       if (availableVehicles.contains(vehicle)) {
-        sender ! Failure(new RuntimeException(s"You can't release vehicle ${vehicle.id} because I have it already"))
+        sender ! Failure(new RuntimeException(s"I can't release vehicle ${vehicle.id} because I have it already"))
       } else {
         availableVehicles = vehicle :: availableVehicles
         log.debug("Vehicle {} is now available", vehicle.id)
