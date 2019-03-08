@@ -13,7 +13,7 @@ import beam.router.{BeamSkimmer, RouteHistory}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.population.{Activity, Person}
+import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
@@ -78,6 +78,7 @@ class Population(
 
   private def initHouseholds(iterId: Option[String] = None): Unit = {
     import scala.concurrent.ExecutionContext.Implicits.global
+
     try {
       // Have to wait for households to create people so they can send their first trigger to the scheduler
       val houseHoldsInitialized =
