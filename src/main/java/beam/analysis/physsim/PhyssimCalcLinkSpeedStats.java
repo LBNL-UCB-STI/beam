@@ -107,12 +107,8 @@ public class PhyssimCalcLinkSpeedStats {
         for (int idx = 0; idx < noOfBins; idx++) {
             //for each link
             for (Link link : this.network.getLinks().values()) {
-                int binSize = 3600;
-                double freeSpeed = link.getFreespeed(idx * binSize);
-                double linkLength = link.getLength();
-                double averageTime = travelTime.getLinkTravelTime(link, idx * binSize, null, null);
-                double averageSpeed = linkLength / averageTime;
-                if (averageSpeed >= freeSpeed) {
+                FreeAverageSpeed freeAverageSpeed = usedLink(idx, link , travelTime);
+                if (freeAverageSpeed.getAverageSpeed() >= freeAverageSpeed.getFreeSpeed()) {
                     usedLinks.add(link);
                 }
             }
@@ -120,13 +116,8 @@ public class PhyssimCalcLinkSpeedStats {
         for (int idx = 0; idx < noOfBins; idx++) {
             //for each link
             for (Link link : usedLinks) {
-                int binSize = 3600;
-                double freeSpeed = link.getFreespeed(idx * binSize);
-                double linkLength = link.getLength();
-                double averageTime = travelTime.getLinkTravelTime(link, idx * binSize, null, null);
-                double averageSpeed = linkLength / averageTime;
-                //calculate the average speed of the link
-                double averageSpeedToFreeSpeedRatio = averageSpeed / freeSpeed;
+                FreeAverageSpeed freeAverageSpeed = usedLink(idx, link , travelTime);
+                double averageSpeedToFreeSpeedRatio = freeAverageSpeed.getAverageSpeed() / freeAverageSpeed.getFreeSpeed();
                 avgSpeedPerLink.add(averageSpeedToFreeSpeedRatio);
             }
             // compute the sum of average speeds of all links for the current bin
@@ -141,6 +132,14 @@ public class PhyssimCalcLinkSpeedStats {
         return binAvgSpeedMap;
     }
 
+    private FreeAverageSpeed usedLink(int idx , Link link, TravelTime travelTime){
+        int binSize = 3600;
+        double freeSpeed = link.getFreespeed(idx * binSize);
+        double linkLength = link.getLength();
+        double averageTime = travelTime.getLinkTravelTime(link, idx * binSize, null, null);
+        double averageSpeed = linkLength / averageTime;
+        return new FreeAverageSpeed(freeSpeed, averageSpeed);
+    }
     //create the Category Data set
     private CategoryDataset generateGraphCategoryDataSet(Map<Integer, Double> processedData) {
         double[][] dataSet = buildDataSetFromProcessedData(processedData);
@@ -231,6 +230,24 @@ public class PhyssimCalcLinkSpeedStats {
 
     public int getNumberOfBins() {
         return noOfBins;
+    }
+
+    class FreeAverageSpeed {
+        private double freeSpeed;
+        private double averageSpeed;
+
+        public FreeAverageSpeed(double freeSpeed, double averageSpeed) {
+            this.freeSpeed = freeSpeed;
+            this.averageSpeed = averageSpeed;
+        }
+
+        public double getFreeSpeed() {
+            return freeSpeed;
+        }
+
+        public double getAverageSpeed() {
+            return averageSpeed;
+        }
     }
 
 }
