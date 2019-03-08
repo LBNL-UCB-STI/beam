@@ -811,7 +811,7 @@ class PersonAgent(
         data.copy(
           restOfCurrentTrip = data.restOfCurrentTrip
             .takeWhile(_.isRideHail)
-            .map(_.copy(beamVehicleId = newTrip.rideHailAgentLocation.vehicleId))
+            .map(_.copy(beamVehicleId = newTrip.rideHailAgentLocation.vehicleId)) ++ data.restOfCurrentTrip.dropWhile(_.isRideHail)
         )
       case None =>
         data
