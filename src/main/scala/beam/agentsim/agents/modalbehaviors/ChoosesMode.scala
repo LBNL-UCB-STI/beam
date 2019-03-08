@@ -908,7 +908,7 @@ trait ChoosesMode {
                       _currentTick.get,
                       body.id,
                       false,
-                      choosesModeData.currentLocation,
+                      choosesModeData.currentLocation.loc,
                       CAV,
                       cavTripLegs.cavOpt
                         .map(_.beamVehicleType.id)
