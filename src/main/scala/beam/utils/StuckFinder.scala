@@ -19,7 +19,8 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
   private var lastUpdatedTime: Long = 0
   private var numCriticalStuckMessages = 0
 
-  private val actorToTriggerMessages: mutable.Map[ActorRef, mutable.Map[Class[_], Int]] = mutable.Map[ActorRef, mutable.Map[Class[_], Int]]()
+  private val actorToTriggerMessages: mutable.Map[ActorRef, mutable.Map[Class[_], Int]] =
+    mutable.Map[ActorRef, mutable.Map[Class[_], Int]]()
 
   if (!cfg.enabled) { logger.info("StuckFinder is ** DISABLED **") } else { verifyTypesExist() }
 
