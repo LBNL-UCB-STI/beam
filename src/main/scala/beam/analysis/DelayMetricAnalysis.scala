@@ -4,7 +4,7 @@ import java.util
 
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
-import beam.router.Modes.BeamMode.CAR
+import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.utils.NetworkHelper
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -60,7 +60,7 @@ class DelayMetricAnalysis @Inject()(
     event match {
       case pathTraversalEvent: PathTraversalEvent =>
         val mode = pathTraversalEvent.mode
-        if (mode.value.equalsIgnoreCase(CAR.value)) {
+        if (AgentSimToPhysSimPlanConverter.isPhyssimMode(mode.value)) {
           val linkIds = pathTraversalEvent.linkIds
           val linkTravelTimes = pathTraversalEvent.linkTravelTimes
           assert(linkIds.length == linkTravelTimes.length)
