@@ -13,11 +13,7 @@ import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavT
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, VehicleOrToken}
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.agents.ridehail.RideHailAgent.{
-  ModifyPassengerSchedule,
-  ModifyPassengerScheduleAck,
-  ModifyPassengerScheduleAcks
-}
+import beam.agentsim.agents.ridehail.RideHailAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck, ModifyPassengerScheduleAcks}
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
 import beam.agentsim.agents.{HasTickAndTrigger, InitializeTrigger, PersonAgent}
@@ -31,6 +27,7 @@ import beam.router.BeamRouter.RoutingResponse
 import beam.router.{BeamSkimmer, RouteHistory}
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
+import beam.sandbox.CavRun
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import com.conveyal.r5.transit.TransportNetwork
@@ -221,16 +218,17 @@ object HouseholdActor {
             limitCavToXPersons = Int.MaxValue
           )(beamServices.matsimServices.getScenario.getPopulation)
 
-//          var optimalPlan = cavScheduler.getKBestSchedules(1).head.cavFleetSchedule
-          val optimalPlan = cavScheduler.getBestCAVScheduleWithLongestChain
+          //val optimalPlan = cavScheduler.getKBestCAVSchedules(1).headOption.getOrElse(List.empty)
+          val optimalPlan = cavScheduler.getBestProductiveSchedule
           if (optimalPlan.isEmpty || optimalPlan.head.schedule.size <= 1) {
             cavs = List()
           } else {
-            val requestsAndUpdatedPlans = optimalPlan.filter(_.schedule.size > 1).map {
+            val optimalPlan2 = optimalPlan.filter(_.schedule.size > 1)
+            val requestsAndUpdatedPlans = optimalPlan2.map {
               _.toRoutingRequests(beamServices, transportNetwork, routeHistory)
             }
             val routingRequests = requestsAndUpdatedPlans.flatMap(_._1.flatten)
-            cavPlans ++= requestsAndUpdatedPlans.map(_._2)
+            cavPlans ++= optimalPlan2
             val memberMap = household.members.map(person => person.getId -> person).toMap
             cavPlans.foreach { plan =>
               personAndActivityToCav = personAndActivityToCav ++ plan.schedule

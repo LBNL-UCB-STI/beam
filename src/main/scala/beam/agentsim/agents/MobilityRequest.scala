@@ -5,10 +5,10 @@ import beam.router.Modes.BeamMode
 import org.matsim.api.core.v01.population.Activity
 
 sealed trait MobilityRequestTrait
-case object Pickup extends MobilityRequestTrait
-case object Dropoff extends MobilityRequestTrait
-case object Relocation extends MobilityRequestTrait
-case object Init extends MobilityRequestTrait
+case object Pickup extends MobilityRequestTrait { override def toString: String = "pickup" }
+case object Dropoff extends MobilityRequestTrait { override def toString: String = "dropoff" }
+case object Relocation extends MobilityRequestTrait { override def toString: String = "relocation" }
+case object Init extends MobilityRequestTrait{ override def toString: String = "init" }
 
 case class MobilityRequest(
   person: Option[VehiclePersonId],
@@ -19,7 +19,8 @@ case class MobilityRequest(
   tag: MobilityRequestTrait,
   serviceTime: Int,
   pickupRequest: Option[MobilityRequest] = None,
-  routingRequestId: Option[Int] = None
+  routingRequestId: Option[Int] = None,
+  vehicleOccupancy: Option[Int] = None
 ) {
   val nextActivity = Some(trip.activity)
 

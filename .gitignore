@@ -47,3 +47,5 @@ test/input/siouxfalls/*.csv
 /src/main/python/household_generator/.idea/
 *Rdata
 !/test/input/siouxfalls/r5/siouxareametro-sd-us.zip
+src/main/scala/beam/sandbox
+test/scala/beam/sandbox
