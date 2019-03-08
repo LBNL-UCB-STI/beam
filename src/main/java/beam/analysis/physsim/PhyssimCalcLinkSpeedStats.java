@@ -101,10 +101,25 @@ public class PhyssimCalcLinkSpeedStats {
         TravelTime travelTime = travelTimeCalculator.getLinkTravelTimes();
         List<Double> avgSpeedPerLink = new ArrayList<>();
         Map<Integer, Double> binAvgSpeedMap = new HashMap<>();
+        Set<Link> usedLinks = new HashSet<>();
+
         //for each bin
         for (int idx = 0; idx < noOfBins; idx++) {
             //for each link
             for (Link link : this.network.getLinks().values()) {
+                int binSize = 3600;
+                double freeSpeed = link.getFreespeed(idx * binSize);
+                double linkLength = link.getLength();
+                double averageTime = travelTime.getLinkTravelTime(link, idx * binSize, null, null);
+                double averageSpeed = linkLength / averageTime;
+                if (averageSpeed >= freeSpeed) {
+                    usedLinks.add(link);
+                }
+            }
+        }
+        for (int idx = 0; idx < noOfBins; idx++) {
+            //for each link
+            for (Link link : usedLinks) {
                 int binSize = 3600;
                 double freeSpeed = link.getFreespeed(idx * binSize);
                 double linkLength = link.getLength();
@@ -121,7 +136,7 @@ public class PhyssimCalcLinkSpeedStats {
                     .sum();
             avgSpeedPerLink.clear();
             //Save the bin -> total links average speed mappings
-            binAvgSpeedMap.put(idx,(sumOfAvgSpeeds/this.network.getLinks().size())*100);
+            binAvgSpeedMap.put(idx, (sumOfAvgSpeeds / usedLinks.size()) * 100);
         }
         return binAvgSpeedMap;
     }
@@ -143,7 +158,7 @@ public class PhyssimCalcLinkSpeedStats {
 
     private void generateAverageLinkSpeedGraph(CategoryDataset dataSet, int iterationNumber) {
         // Settings legend and title for the plot
-        String plotTitle = "Average Link speed over a day";
+        String plotTitle = "Average Link speed over a day [used links only]";
         String x_axis = "Bin";
         String y_axis = "AverageLinkSpeed";
         int width = 800;
