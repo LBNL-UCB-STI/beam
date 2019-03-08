@@ -900,7 +900,12 @@ trait ChoosesMode {
               // Special case, if you are using household CAV, no choice was necessary you just use this mode
               // Construct the embodied trip to allow for processing by FinishingModeChoice and scoring
               assert(choosesModeData.availablePersonalStreetVehicles.size > 0)
-              val walk1 = EmbodiedBeamLeg.dummyLegAt(_currentTick.get, body.id, false,cavTripLegs.legs.head.beamLeg.travelPath.startPoint.loc)
+              val walk1 = EmbodiedBeamLeg.dummyLegAt(
+                _currentTick.get,
+                body.id,
+                false,
+                cavTripLegs.legs.head.beamLeg.travelPath.startPoint.loc
+              )
               val cavLegs = cavTripLegs.legs.size match {
                 case 0 =>
                   List(
@@ -920,7 +925,12 @@ trait ChoosesMode {
                   cavTripLegs.legs
               }
               val walk2 =
-                EmbodiedBeamLeg.dummyLegAt(_currentTick.get + cavLegs.map(_.beamLeg.duration).sum, body.id, true, cavTripLegs.legs.last.beamLeg.travelPath.endPoint.loc)
+                EmbodiedBeamLeg.dummyLegAt(
+                  _currentTick.get + cavLegs.map(_.beamLeg.duration).sum,
+                  body.id,
+                  true,
+                  cavTripLegs.legs.last.beamLeg.travelPath.endPoint.loc
+                )
               val cavTrip = EmbodiedBeamTrip(walk1 +: cavLegs.toVector :+ walk2)
               goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(cavTrip))
             case _ =>
