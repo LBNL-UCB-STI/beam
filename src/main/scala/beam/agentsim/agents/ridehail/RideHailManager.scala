@@ -249,7 +249,7 @@ class RideHailManager(
     CacheBuilder
       .newBuilder()
       .maximumSize(
-        (10 * beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation * beamServices.beamConfig.beam.agentsim.numAgents).toLong
+        (5 * beamServices.beamConfig.beam.agentsim.numAgents).toLong // ZN: Changed this from 10x ride hail fleet, which is now not directly set
       )
       .expireAfterWrite(1, TimeUnit.MINUTES)
       .build()
@@ -304,8 +304,12 @@ class RideHailManager(
   // Are we in the middle of processing a batch?
   var currentlyProcessingTimeoutTrigger: Option[TriggerWithId] = None
 
+  private val numHouseholdVehicles = scenario.getHouseholds.getHouseholds.values().asScala.map(_.getVehicleIds.size()).sum / beamServices.beamConfig.beam.agentsim.agents.vehicles.householdVehicleFleetSizeSampleFactor
   private val numRideHailAgents = math.round(
-    beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation
+     numHouseholdVehicles *
+      beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.portionOfInitialVehicleFleet /
+       beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.effectiveVehicleReplacementMultiplier
+//    beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation
   )
 
   private val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
