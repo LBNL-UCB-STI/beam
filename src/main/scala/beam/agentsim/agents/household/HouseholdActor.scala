@@ -290,7 +290,8 @@ object HouseholdActor {
               self,
               person.getSelectedPlan,
               fleetManagers ++: sharedVehicleFleets :+ self,
-              beamSkimmer
+              beamSkimmer,
+              routeHistory
             ),
             person.getId.toString
           )
@@ -325,7 +326,6 @@ object HouseholdActor {
           routingResponses.foreach { resp =>
             resp.itineraries.headOption.map { itin =>
               val theLeg = itin.legs.head.beamLeg
-            //            routeHistory.rememberRoute(theLeg.travelPath.linkIds,theLeg.startTime)
             }
           }
           // Create a passenger schedule for each CAV in the plan
