@@ -43,7 +43,7 @@ class FastHouseholdCAVScheduling(
       .sortBy(_._1)
       .map(_._2)
       .take(k)
-      .map(_.schedulesMap.values.toList)
+      .map(_.schedulesMap.values.filter(_.schedule.size > 1).toList)
   }
 
   // get k lowest scored schedules
@@ -56,7 +56,7 @@ class FastHouseholdCAVScheduling(
       .sortBy(_._1)
       .map(_._2)
       .take(k)
-      .map(_.schedulesMap.values.toList)
+      .map(_.schedulesMap.values.filter(_.schedule.size > 1).toList)
   }
 
   // ***
@@ -73,7 +73,7 @@ class FastHouseholdCAVScheduling(
         .sortBy(_.householdScheduleCost.totalTravelTime)
         .take(1)
     }
-    output.headOption.map(_.schedulesMap.values.toList).getOrElse(List.empty)
+    output.headOption.map(_.schedulesMap.values.filter(_.schedule.size > 1).toList).getOrElse(List.empty)
   }
 
   def getAllFeasibleSchedules: List[HouseholdSchedule] = {
@@ -102,6 +102,8 @@ class FastHouseholdCAVScheduling(
           }
         }
         householdSchedules.-=(emptySchedule)
+//        beam.sandbox.CavRun
+//          .perfSchedules(householdSchedules.map(x => (x.schedulesMap.values.toList, x.householdScheduleCost)).toList)
         householdSchedules.toList
       case _ => List.empty[HouseholdSchedule]
     }
@@ -243,7 +245,7 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
     beamServices: BeamServices,
     transportNetwork: TransportNetwork,
     routeHistory: RouteHistory
-  ): (List[Option[RouteOrEmbodyRequest]], List[MobilityRequest]) = {
+  ): (List[Option[RouteOrEmbodyRequest]], CAVSchedule) = {
     var newMobilityRequests = List[MobilityRequest]()
     val requestList = (schedule.reverse :+ schedule.head).tail
       .sliding(2)
@@ -309,7 +311,7 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
         }
       }
       .toList
-    (requestList, newMobilityRequests)
+    (requestList, CAVSchedule(newMobilityRequests, cav, occupancy))
   }
 
 }

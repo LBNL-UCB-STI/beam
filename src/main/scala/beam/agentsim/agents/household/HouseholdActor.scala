@@ -13,7 +13,11 @@ import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavT
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, VehicleOrToken}
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.agents.ridehail.RideHailAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck, ModifyPassengerScheduleAcks}
+import beam.agentsim.agents.ridehail.RideHailAgent.{
+  ModifyPassengerSchedule,
+  ModifyPassengerScheduleAck,
+  ModifyPassengerScheduleAcks
+}
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
 import beam.agentsim.agents._
@@ -218,15 +222,14 @@ object HouseholdActor {
 
           //val optimalPlan = cavScheduler.getKBestCAVSchedules(1).headOption.getOrElse(List.empty)
           val optimalPlan = cavScheduler.getBestProductiveSchedule
-          if (optimalPlan.isEmpty || optimalPlan.head.schedule.size <= 1) {
+          if (optimalPlan.isEmpty || !optimalPlan.exists(_.schedule.size > 1)) {
             cavs = List()
           } else {
-            val optimalPlan2 = optimalPlan.filter(_.schedule.size > 1)
-            val requestsAndUpdatedPlans = optimalPlan2.map {
+            val requestsAndUpdatedPlans = optimalPlan.filter(_.schedule.size > 1).map {
               _.toRoutingRequests(beamServices, transportNetwork, routeHistory)
             }
             val routingRequests = requestsAndUpdatedPlans.flatMap(_._1.flatten)
-            cavPlans ++= optimalPlan2
+            cavPlans ++= requestsAndUpdatedPlans.map(_._2)
             val memberMap = household.members.map(person => person.getId -> person).toMap
             cavPlans.foreach { plan =>
               personAndActivityToCav = personAndActivityToCav ++ plan.schedule
