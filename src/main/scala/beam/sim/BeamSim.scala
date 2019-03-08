@@ -172,8 +172,10 @@ class BeamSim @Inject()(
       val summaryStatsFile = Paths.get(event.getServices.getControlerIO.getOutputFilename("summaryStats.csv")).toFile
       writeSummaryStats(summaryStatsFile)
 
-      val fileNames = iterationSummaryStats.flatMap(_.keySet).distinct.sorted
-      fileNames.foreach(file => createSummaryStatsGraph(file, event.getIteration))
+      if(beamServices.beamConfig.beam.outputs.writeGraphs) {
+        val fileNames = iterationSummaryStats.flatMap(_.keySet).distinct.sorted
+        fileNames.foreach(file => createSummaryStatsGraph(file, event.getIteration))
+      }
 
       // rideHailIterationHistoryActor ! CollectRideHailStats
       tncIterationsStatsCollector
