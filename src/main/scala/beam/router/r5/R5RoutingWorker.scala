@@ -116,12 +116,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = TrieMap()
         override var personHouseholds: Map[Id[Person], Household] = Map()
         val fuelTypePrices: Map[FuelType, Double] =
-          readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
+          readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
 
         val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] =
-          readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
+          readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath, fuelTypePrices)
 
-        private val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile).getParent
+        private val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
         private val vehicleCsvReader = new VehicleCsvReader(beamConfig)
         private val consumptionRateFilterStore =
           new ConsumptionRateFilterStoreImpl(
@@ -140,17 +140,17 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         // TODO Fix me once `TrieMap` is removed
         val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
           TrieMap(
-            readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq: _*
+            readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath, vehicleTypes).toSeq: _*
           )
 
         override val modeIncentives: ModeIncentive =
-          ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.file)
-        override val ptFares: PtFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.file)
+          ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath)
+        override val ptFares: PtFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath)
         override def startNewIteration(): Unit = throw new Exception("???")
         override def matsimServices_=(x$1: org.matsim.core.controler.MatsimServices): Unit = ???
         override val rideHailTransitModes: List[BeamMode] = BeamMode.massTransitModes
         override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap =
-          beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
+          beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
 
         override def matsimServices: org.matsim.core.controler.MatsimServices = ???
 
