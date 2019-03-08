@@ -102,8 +102,6 @@ class FastHouseholdCAVScheduling(
           }
         }
         householdSchedules.-=(emptySchedule)
-//        beam.sandbox.CavRun
-//          .perfSchedules(householdSchedules.map(x => (x.schedulesMap.values.toList, x.householdScheduleCost)).toList)
         householdSchedules.toList
       case _ => List.empty[HouseholdSchedule]
     }
@@ -193,9 +191,6 @@ class FastHouseholdCAVScheduling(
           if (newTotalTravelTime > newHouseholdScheduleCost.baseTotalTravelTime)
             return None
           val sumOfDelays = (pickupReq.serviceTime - pickupReq.time) + (serviceTime - curReq.time)
-          if (sumOfDelays < 0) {
-            println("neg")
-          }
           newHouseholdScheduleCost = newHouseholdScheduleCost.copy(
             tripTravelTime = newHouseholdScheduleCost.tripTravelTime + (curReq.trip -> cavTripTravelTime),
             totalTravelTime = newTotalTravelTime,
