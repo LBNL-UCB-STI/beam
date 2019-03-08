@@ -175,7 +175,9 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
         m.get(getActorType(actor))
       }
       .getOrElse(Int.MaxValue)
-    if (msgCount > maxMsgPerActorType) {
+    val diff = maxMsgPerActorType - msgCount
+    // Do we exceed the maxMsgPerActorType by 1?
+    if (diff == -1) {
       exceedMaxNumberOfMessages.append(st)
       logger.warn(
         s"$st has exceeded max number of messages threshold. Trigger type: '$triggerClazz', current count: $msgCount, max: $maxMsgPerActorType"
@@ -222,7 +224,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
     }.toMap
   }
 
-  private def getActorType(actorRef: ActorRef): String = {
+  def getActorType(actorRef: ActorRef): String = {
     if (actorRef.path.parent.name == "router" && actorRef.path.name.indexOf("TransitDriverAgent-") != -1) {
       "TransitDriverAgent"
     } else if (actorRef.path.parent.name == "population" || actorRef.path.parent.parent.name == "population") {
