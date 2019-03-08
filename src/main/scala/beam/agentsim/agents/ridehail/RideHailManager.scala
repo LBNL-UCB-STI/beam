@@ -542,7 +542,12 @@ class RideHailManager(
         val travelProposal = TravelProposal(
           singleOccupantQuoteAndPoolingInfo.rideHailAgentLocation,
           driverPassengerSchedule,
-          calcFare(request, singleOccupantQuoteAndPoolingInfo.rideHailAgentLocation.vehicleTypeId, driverPassengerSchedule, baseFare),
+          calcFare(
+            request,
+            singleOccupantQuoteAndPoolingInfo.rideHailAgentLocation.vehicleTypeId,
+            driverPassengerSchedule,
+            baseFare
+          ),
           singleOccupantQuoteAndPoolingInfo.poolingInfo
         )
         travelProposalCache.put(request.requestId.toString, travelProposal)
