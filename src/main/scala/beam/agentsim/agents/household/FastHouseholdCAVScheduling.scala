@@ -136,7 +136,7 @@ class FastHouseholdCAVScheduling(
       requests: List[MobilityRequest],
       timeWindow: Map[MobilityRequestTrait, Int]
     ): Option[HouseholdSchedule] = {
-      if (cavSchedule.occupancy > cav.beamVehicleType.seatingCapacity)
+      if (cavSchedule.occupancy >= cav.beamVehicleType.seatingCapacity)
         return None
 
       val sortedRequests = (cavSchedule.schedule ++ requests).filter(_.tag != Relocation).sortBy(_.time)
