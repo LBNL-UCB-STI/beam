@@ -154,7 +154,7 @@ public class PhyssimCalcLinkSpeedStats {
 
     private void generateAverageLinkSpeedGraph(CategoryDataset dataSet, int iterationNumber) {
         // Settings legend and title for the plot
-        String plotTitle = "Average Link speed over a day";
+        String plotTitle = "Average Link speed over a day [used links only]";
         String x_axis = "Bin";
         String y_axis = "AverageLinkSpeed";
         int width = 800;
