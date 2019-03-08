@@ -55,6 +55,8 @@ class ConsumptionRateFilterStoreImpl(
   private val speedBinHeader = "speed_mph_float_bins"
   private val gradeBinHeader = "grade_percent_float_bins"
   private val lanesBinHeader = "num_lanes_int_bins"
+  private val milesHeader = "miles"
+  private val gallonsHeader = "gallons"
   private val rateHeader = "rate"
 
   private val primaryConsumptionRateFiltersByVehicleType: Map[BeamVehicleType, Future[ConsumptionRateFilter]] =
@@ -223,7 +225,7 @@ class VehicleEnergy(
 
   private def loadLinkIdToGradeMapFromCSV: Map[Int, Double] = {
     val linkIdHeader = "id"
-    val gradeHeader = "average_gradient"
+    val gradeHeader = "average_gradient_percent"
     linkToGradeRecordsIterableUsing(csvParser)
       .map(csvRecord => {
         val linkId = csvRecord.getInt(linkIdHeader)
