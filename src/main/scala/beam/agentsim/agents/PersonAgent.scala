@@ -422,9 +422,7 @@ class PersonAgent(
     case ev @ Event(
           TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter, theMode), triggerId),
           data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _)
-//    ) if vehicleToEnter.equals(currentLeg.beamVehicleId) =>
         ) =>
-      if (vehicleToEnter.equals(currentLeg.beamVehicleId)) {
         if (theMode == CAV || data.currentTrip.get.tripClassifier == CAV) {
           val i = 0
         }
@@ -456,12 +454,6 @@ class PersonAgent(
         goto(Moving) replying CompletionNotice(triggerId) using data.copy(
           currentVehicle = vehicleToEnter +: currentVehicle
         )
-      } else {
-        if (theMode == CAV || data.currentTrip.get.tripClassifier == CAV) {
-          val i = 0
-        }
-        myUnhandled(ev)
-      }
   }
 
   when(Moving) {

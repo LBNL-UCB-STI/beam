@@ -282,6 +282,7 @@ class RideHailManager(
       self,
       this
     )
+  private val DefaultCostPerMile = beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile
   private val DefaultCostPerMinute = beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute
   tncIterationStats.foreach(_.logMap())
   private val DefaultCostPerSecond = DefaultCostPerMinute / 60.0d
@@ -541,7 +542,7 @@ class RideHailManager(
         val travelProposal = TravelProposal(
           singleOccupantQuoteAndPoolingInfo.rideHailAgentLocation,
           driverPassengerSchedule,
-          calcFare(request, driverPassengerSchedule, baseFare),
+          calcFare(request, singleOccupantQuoteAndPoolingInfo.rideHailAgentLocation.vehicleTypeId, driverPassengerSchedule, baseFare),
           singleOccupantQuoteAndPoolingInfo.poolingInfo
         )
         travelProposalCache.put(request.requestId.toString, travelProposal)
@@ -746,15 +747,24 @@ class RideHailManager(
 
   def calcFare(
     request: RideHailRequest,
+    rideHailVehicleTypeId: Id[BeamVehicleType],
     trip: PassengerSchedule,
     baseFare: Double
   ): Map[Id[Person], Double] = {
-    val farePerSecond = DefaultCostPerSecond * surgePricingManager
+    val timeFare = DefaultCostPerSecond * surgePricingManager
       .getSurgeLevel(
         request.pickUpLocationUTM,
         request.departAt
-      )
-    val fare = (trip.legsWithPassenger(request.customer).map(_.duration).sum.toDouble * farePerSecond) + baseFare
+      ) * trip.legsWithPassenger(request.customer).map(_.duration).sum.toDouble
+    val distanceFare = DefaultCostPerMile * trip.schedule.keys.map(_.travelPath.distanceInM / 1609).sum
+
+    val timeFareAdjusted = beamServices.vehicleTypes.get(rideHailVehicleTypeId) match {
+      case Some(vehicleType) if vehicleType.automationLevel > 3 =>
+        0.0
+      case _ =>
+        timeFare
+    }
+    val fare = distanceFare + timeFareAdjusted + baseFare
 
     Map(request.customer.personId -> fare)
   }
@@ -1066,12 +1076,14 @@ class RideHailManager(
     }
   }
 
+  //TODO this doesn't distinguish fare by customer, lumps them all together
   def createTravelProposal(alloc: VehicleMatchedToCustomers): TravelProposal = {
     val passSched = pickDropsToPassengerSchedule(alloc.pickDropIdWithRoutes)
+    val baseFare = alloc.pickDropIdWithRoutes.map(_.leg.map(_.cost)).flatten.sum
     TravelProposal(
       alloc.rideHailAgentLocation,
       passSched,
-      calcFare(alloc.request, passSched, 0),
+      calcFare(alloc.request, alloc.rideHailAgentLocation.vehicleTypeId, passSched, baseFare),
       None
     )
   }
