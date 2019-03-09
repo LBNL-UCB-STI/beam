@@ -32,10 +32,10 @@ import scala.collection.concurrent.TrieMap
 //TODO to be validated against google api
 class BeamSkimmer @Inject()() extends IterationEndsListener {
   // The OD/Mode/Time Matrix
-  var previousSkims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = TrieMap()
-  var skims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = TrieMap()
-  var previousModalAverage: TrieMap[BeamMode, SkimInternal] = TrieMap()
-  var modalAverage: TrieMap[BeamMode, SkimInternal] = TrieMap()
+  private var previousSkims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = TrieMap()
+  private var skims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = TrieMap()
+  private var previousModalAverage: TrieMap[BeamMode, SkimInternal] = TrieMap()
+  private var modalAverage: TrieMap[BeamMode, SkimInternal] = TrieMap()
 
   def getTimeDistanceAndCost(
     origin: Location,
