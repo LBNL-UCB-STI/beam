@@ -187,7 +187,7 @@ class BeamSkimmer @Inject()() extends IterationEndsListener {
   }
 
   def mergeAverage(existingAverage: Double, existingCount: Int, newValue: Double): Double =
-    ((existingAverage * existingCount + newValue) / (existingCount + 1))
+    (existingAverage * existingCount + newValue) / (existingCount + 1)
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val fileHeader = "hour,mode,origTaz,destTaz,travelTimeInS,cost,distanceInM,numObservations"
