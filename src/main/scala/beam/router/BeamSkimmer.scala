@@ -48,7 +48,7 @@ class BeamSkimmer @Inject()() extends IterationEndsListener {
     beamServicesOpt match {
       case Some(beamServices) =>
         val origTaz = beamServices.tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
-        val destTaz = beamServices.tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
+        val destTaz = beamServices.tazTreeMap.getTAZ(destination.getX, destination.getY).tazId
         getSkimValue(departureTime, mode, origTaz, destTaz) match {
           case Some(skimValue) =>
             skimValue.toSkimExternal
@@ -89,7 +89,7 @@ class BeamSkimmer @Inject()() extends IterationEndsListener {
     beamServices: BeamServices
   ): (Double, Double) = {
     val origTaz = beamServices.tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
-    val destTaz = beamServices.tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
+    val destTaz = beamServices.tazTreeMap.getTAZ(destination.getX, destination.getY).tazId
     val solo = getSkimValue(departureTime, RIDE_HAIL, origTaz, destTaz) match {
       case Some(skimValue) if skimValue.count > 5 =>
         skimValue
