@@ -22,7 +22,7 @@ import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import beam.utils.FileUtils
-import com.google.inject.{Inject, Provider}
+import com.google.inject.Inject
 import org.matsim.api.core.v01.Id
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
