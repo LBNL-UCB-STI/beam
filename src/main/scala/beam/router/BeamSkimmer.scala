@@ -189,14 +189,12 @@ class BeamSkimmer @Inject()() extends IterationEndsListener {
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val fileHeader = "hour,mode,origTaz,destTaz,travelTimeInS,cost,distanceInM,numObservations"
-    // Output file relative path
-    val filePath = event.getServices.getControlerIO.getIterationFilename(
+    val fileRelativePath = event.getServices.getControlerIO.getIterationFilename(
       event.getServices.getIterationNumber,
       BeamSkimmer.outputFileBaseName + ".csv.gz"
     )
-    //write the data to an output file
     FileUtils.writeToFile(
-      filePath,
+      fileRelativePath,
       Some(fileHeader),
       skims
         .map { keyVal =>
