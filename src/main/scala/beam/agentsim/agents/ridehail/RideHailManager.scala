@@ -249,7 +249,7 @@ class RideHailManager(
     CacheBuilder
       .newBuilder()
       .maximumSize(
-        (5 * beamServices.beamConfig.beam.agentsim.numAgents).toLong // ZN: Changed this from 10x ride hail fleet, which is now not directly set
+        5 * beamServices.personHouseholds.size // ZN: Changed this from 10x ride hail fleet, which is now not directly set
       )
       .expireAfterWrite(1, TimeUnit.MINUTES)
       .build()
