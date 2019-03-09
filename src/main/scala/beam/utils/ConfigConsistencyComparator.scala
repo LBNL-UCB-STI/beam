@@ -59,6 +59,10 @@ object ConfigConsistencyComparator extends LazyLogging {
     logStringBuilder.append(bottom)
 
     logger.info(logStringBuilder.toString)
+
+    if (notFoundFiles.nonEmpty) {
+      throw new IllegalArgumentException("There are not found files.")
+    }
   }
 
   def findDeprecatedKeys(userConf: TypesafeConfig, templateConf: TypesafeConfig): Seq[String] = {
@@ -112,7 +116,7 @@ object ConfigConsistencyComparator extends LazyLogging {
       .entrySet()
       .asScala
       .map(entry => (entry.getKey, resolve(entry.getKey, entry.getValue)))
-      .filter { case (key, value) => key.endsWith(".file") && !new File(value).isFile }
+      .filter { case (key, value) => key.toLowerCase.endsWith("filepath") && !new File(value).isFile }
       .toSeq
   }
 
