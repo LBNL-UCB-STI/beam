@@ -132,8 +132,8 @@ class BeamSkimmer @Inject()() extends IterationEndsListener {
 
   private def getSkimValue(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Option[SkimInternal] = {
     skims.get((timeToBin(time), mode, orig, dest)) match {
-      case Some(skim) =>
-        Some(skim)
+      case value @ Some(_) =>
+        value
       case None =>
         previousSkims.get((timeToBin(time), mode, orig, dest))
     }
