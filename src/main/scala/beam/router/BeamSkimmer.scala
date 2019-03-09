@@ -144,8 +144,6 @@ class BeamSkimmer @Inject()() extends IterationEndsListener {
     val correctedTrip = mode match {
       case WALK =>
         trip.beamLegs()
-      case RIDE_HAIL =>
-        trip.beamLegs().drop(1).dropRight(1)
       case _ =>
         trip.beamLegs().drop(1).dropRight(1)
     }
@@ -186,8 +184,9 @@ class BeamSkimmer @Inject()() extends IterationEndsListener {
     Math.floorMod(Math.floor(departTime.toDouble / 3600.0).toInt, 24)
   }
 
-  def mergeAverage(existingAverage: Double, existingCount: Int, newValue: Double): Double =
+  def mergeAverage(existingAverage: Double, existingCount: Int, newValue: Double): Double = {
     (existingAverage * existingCount + newValue) / (existingCount + 1)
+  }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val fileHeader = "hour,mode,origTaz,destTaz,travelTimeInS,cost,distanceInM,numObservations"
