@@ -139,7 +139,7 @@ class BeamSkimmer @Inject()() extends IterationEndsListener {
     }
   }
 
-  def observeTrip(trip: EmbodiedBeamTrip, beamServices: BeamServices) = {
+  def observeTrip(trip: EmbodiedBeamTrip, beamServices: BeamServices): Option[SkimInternal] = {
     val mode = trip.tripClassifier
     val correctedTrip = mode match {
       case WALK =>
@@ -182,11 +182,11 @@ class BeamSkimmer @Inject()() extends IterationEndsListener {
     }
   }
 
-  def timeToBin(departTime: Int) = {
+  def timeToBin(departTime: Int): Int = {
     Math.floorMod(Math.floor(departTime.toDouble / 3600.0).toInt, 24)
   }
 
-  def mergeAverage(existingAverage: Double, existingCount: Int, newValue: Double) =
+  def mergeAverage(existingAverage: Double, existingCount: Int, newValue: Double): Double =
     ((existingAverage * existingCount + newValue) / (existingCount + 1))
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
