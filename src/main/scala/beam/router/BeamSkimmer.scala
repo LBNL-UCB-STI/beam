@@ -22,7 +22,7 @@ import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import beam.utils.FileUtils
-import com.google.inject.{Inject, Provider}
+import com.google.inject.Inject
 import org.matsim.api.core.v01.Id
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
@@ -32,10 +32,9 @@ import scala.collection.concurrent.TrieMap
 //TODO to be validated against google api
 class BeamSkimmer @Inject()() extends IterationEndsListener {
   // The OD/Mode/Time Matrix
-  var previousSkims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = TrieMap()
-  var skims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = TrieMap()
-  var previousModalAverage: TrieMap[BeamMode, SkimInternal] = TrieMap()
-  var modalAverage: TrieMap[BeamMode, SkimInternal] = TrieMap()
+  private var previousSkims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = TrieMap()
+  private var skims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = TrieMap()
+  private val modalAverage: TrieMap[BeamMode, SkimInternal] = TrieMap()
 
   def getTimeDistanceAndCost(
     origin: Location,
@@ -132,20 +131,18 @@ class BeamSkimmer @Inject()() extends IterationEndsListener {
 
   private def getSkimValue(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Option[SkimInternal] = {
     skims.get((timeToBin(time), mode, orig, dest)) match {
-      case Some(skim) =>
-        Some(skim)
+      case someSkim @ Some(_) =>
+        someSkim
       case None =>
         previousSkims.get((timeToBin(time), mode, orig, dest))
     }
   }
 
-  def observeTrip(trip: EmbodiedBeamTrip, beamServices: BeamServices) = {
+  def observeTrip(trip: EmbodiedBeamTrip, beamServices: BeamServices): Option[SkimInternal] = {
     val mode = trip.tripClassifier
     val correctedTrip = mode match {
       case WALK =>
         trip.beamLegs()
-      case RIDE_HAIL =>
-        trip.beamLegs().drop(1).dropRight(1)
       case _ =>
         trip.beamLegs().drop(1).dropRight(1)
     }
@@ -182,21 +179,20 @@ class BeamSkimmer @Inject()() extends IterationEndsListener {
     }
   }
 
-  def timeToBin(departTime: Int) = {
+  def timeToBin(departTime: Int): Int = {
     Math.floorMod(Math.floor(departTime.toDouble / 3600.0).toInt, 24)
   }
 
-  def mergeAverage(existingAverage: Double, existingCount: Int, newValue: Double) =
-    ((existingAverage * existingCount + newValue) / (existingCount + 1))
+  def mergeAverage(existingAverage: Double, existingCount: Int, newValue: Double): Double = {
+    (existingAverage * existingCount + newValue) / (existingCount + 1)
+  }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val fileHeader = "hour,mode,origTaz,destTaz,travelTimeInS,cost,distanceInM,numObservations"
-    // Output file relative path
     val filePath = event.getServices.getControlerIO.getIterationFilename(
       event.getServices.getIterationNumber,
       BeamSkimmer.outputFileBaseName + ".csv.gz"
     )
-    //write the data to an output file
     FileUtils.writeToFile(
       filePath,
       Some(fileHeader),
