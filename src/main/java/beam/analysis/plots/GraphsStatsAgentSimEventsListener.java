@@ -104,13 +104,13 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
                     // TODO: Asif there should be no need to write to root and then read (just quick hack) -> update interface on methods, which need that data to pass in memory
                     ModeChosenAnalysis modeChoseStats = (ModeChosenAnalysis) statsFactory.getAnalysis(StatsType.ModeChosen);
                     modeChoseStats.writeToRootCSV(ModeChosenAnalysis.getModeChoiceFileBaseName());
-                    if (beamConfig.beam().calibration().mode().benchmarkFileLoc().trim().length() > 0) {
+                    if (beamConfig.beam().calibration().mode().benchmarkFilePath().trim().length() > 0) {
                         String outPath = CONTROLLER_IO.getOutputFilename(ModeChosenAnalysis.getModeChoiceFileBaseName() + ".csv");
-                        Double modesAbsoluteError = new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFileLoc())
+                        Double modesAbsoluteError = new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFilePath())
                                 .evaluateFromRun(outPath, ErrorComparisonType.AbsoluteError());
                         log.info("modesAbsoluteError: " + modesAbsoluteError);
 
-                        Double modesRMSPError = new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFileLoc())
+                        Double modesRMSPError = new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFilePath())
                                 .evaluateFromRun(outPath, ErrorComparisonType.RMSPE());
                         log.info("modesRMSPError: " + modesRMSPError);
                     }
