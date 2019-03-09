@@ -147,8 +147,8 @@ class BeamSkimmer @Inject()(
 
   private def getSkimValue(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Option[SkimInternal] = {
     skims.get((timeToBin(time), mode, orig, dest)) match {
-      case value @ Some(_) =>
-        value
+      case someSkim @ Some(_) =>
+        someSkim
       case None =>
         previousSkims.get((timeToBin(time), mode, orig, dest))
     }
@@ -205,7 +205,7 @@ class BeamSkimmer @Inject()(
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val fileHeader = "hour,mode,origTaz,destTaz,travelTimeInS,cost,distanceInM,numObservations"
-    val fileRelativePath = event.getServices.getControlerIO.getIterationFilename(
+    val filePath = event.getServices.getControlerIO.getIterationFilename(
       event.getServices.getIterationNumber,
       BeamSkimmer.outputFileBaseName + ".csv.gz"
     )
