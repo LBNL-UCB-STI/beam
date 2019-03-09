@@ -34,7 +34,7 @@ case class BeamVehicleType(
 ) {
 
   def isCaccEnabled: Boolean = {
-    automationLevel >= 1
+    automationLevel >= 3
   }
 }
 object BeamVehicleType {

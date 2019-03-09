@@ -98,7 +98,7 @@ public class JDEQSimMain {
         // If caccVehicles is empty let say 10 of 100 are caccvehicles
         Map caccVehicles = getRandomCaccVehicles(scenario, caccShare);
 
-        CACCSettings caccSettings=new CACCSettings(caccVehicles,new Hao2018CaccRoadCapacityAdjustmentFunction(100));
+        CACCSettings caccSettings=new CACCSettings(caccVehicles,new Hao2018CaccRoadCapacityAdjustmentFunction(2000,20));
         JDEQSimulation jdeqSimulationWithCacc = new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager, caccSettings);
         jdeqSimulationWithCacc.run();
         //eventsManager.finishProcessing();
