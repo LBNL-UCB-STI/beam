@@ -269,7 +269,8 @@ trait BeamHelper extends LazyLogging {
     // Initialize logger at first (need to create folder and etc)
     initializeLogger(config)
     // Now we can check config consistency - it will log it to the log file too
-    ConfigConsistencyComparator.parseBeamTemplateConfFile(parsedArgs.configLocation.get)
+    val rootFolder = config.getString("beam.inputDirectory").replaceAll("\\\\", "/")
+    ConfigConsistencyComparator.parseBeamTemplateConfFile(rootFolder, parsedArgs.configLocation.get)
 
     parsedArgs.clusterType match {
       case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path

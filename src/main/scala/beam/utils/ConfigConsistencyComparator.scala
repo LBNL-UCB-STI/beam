@@ -20,7 +20,7 @@ object ConfigConsistencyComparator extends LazyLogging {
   private val bottom = sessionSeparator + eol
   private val consistentFileMessage = buildTopicTile("All good, your config file is fully consistent!")
 
-  def parseBeamTemplateConfFile(userConfFileLocation: String): Unit = {
+  def parseBeamTemplateConfFile(rootFolder: String, userConfFileLocation: String): Unit = {
     val configResolver = ConfigResolveOptions
       .defaults()
       .setAllowUnresolved(true)
@@ -50,7 +50,7 @@ object ConfigConsistencyComparator extends LazyLogging {
       logStringBuilder.append(consistentFileMessage)
     }
 
-    val notFoundFiles = findNotFoundFiles(userConf)
+    val notFoundFiles = findNotFoundFiles(rootFolder, userConf)
     if (notFoundFiles.nonEmpty) {
       val title = "The following files were not found:"
       logStringBuilder.append(buildTopicWithKeysAndValues(title, notFoundFiles))
@@ -101,7 +101,7 @@ object ConfigConsistencyComparator extends LazyLogging {
        |""".stripMargin
   }
 
-  def findNotFoundFiles(userConf: TypesafeConfig): Seq[(String, String)] = {
+  def findNotFoundFiles(rootFolder: String, userConf: TypesafeConfig): Seq[(String, String)] = {
 
     def resolve(key: String, value: ConfigValue): String = {
       try {
@@ -112,12 +112,21 @@ object ConfigConsistencyComparator extends LazyLogging {
     }
 
     ConfigResolveOptions.defaults()
-    userConf
+    val filePaths = userConf
       .entrySet()
       .asScala
       .map(entry => (entry.getKey, resolve(entry.getKey, entry.getValue)))
-      .filter { case (key, value) => key.toLowerCase.endsWith("filepath") && !new File(value).isFile }
+      .filter { case (key, value) => key.toLowerCase.endsWith("filepath") }
       .toSeq
+
+    filePaths.filter {
+      case (key, value) =>
+        val fullPath = value
+          .replace("${beam.inputDirectory}", rootFolder)
+          .replaceAll("\"", "")
+        val canRead = new File(fullPath).canRead
+        !canRead
+    }
   }
 
   private def buildStringFromKeysAndValues(pairs: Seq[(String, String)]): String = {
