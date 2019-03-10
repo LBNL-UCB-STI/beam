@@ -276,7 +276,6 @@ object BeamSkimmer {
   case class Skim(time: Int, distance: Double, cost: Double, count: Int)
 
   private def readCsvFile(filePath: String): TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = {
-    println(s"@@@@@@@### reading csv file:$filePath")
     var mapReader: ICsvMapReader = null
     val res = TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal]()
     try {
