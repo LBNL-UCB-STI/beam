@@ -210,7 +210,7 @@ class BeamSkimmer @Inject()(
       BeamSkimmer.outputFileBaseName + ".csv.gz"
     )
     FileUtils.writeToFile(
-      fileRelativePath,
+      filePath,
       Some(fileHeader),
       skims
         .map { keyVal =>
