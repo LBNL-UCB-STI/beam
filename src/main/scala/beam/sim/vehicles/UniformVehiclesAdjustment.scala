@@ -5,11 +5,9 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Coord
-import probability_monad.Distribution
+import scala.util.Random
 
 case class UniformVehiclesAdjustment(beamServices: BeamServices) extends VehiclesAdjustment {
-  val randUnif = Distribution.uniform
-  val probabilities = randUnif.sample(beamServices.vehicleTypes.size)
 
   val vehicleTypesAndProbabilitiesByCategory = beamServices.vehicleTypes.values.groupBy(_.vehicleCategory).map {
     catAndType =>
@@ -32,8 +30,8 @@ case class UniformVehiclesAdjustment(beamServices: BeamServices) extends Vehicle
   ): List[BeamVehicleType] = {
 
     val result = Range(0, numVehicles).map { i =>
-      val newRand = randUnif.get
-      vehicleTypesAndProbabilitiesByCategory(vehicleCategory).find(_._2 >= newRand).get._1
+      val newRand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
+      vehicleTypesAndProbabilitiesByCategory(vehicleCategory).find(_._2 >= newRand.nextDouble()).get._1
     }.toList
     result
   }
