@@ -32,13 +32,13 @@ class RouteHistory @Inject()() extends LazyLogging {
   }
 
   def getRoute(orig: Int, dest: Int, time: Int): Option[IndexedSeq[Int]] = {
-    cacheRequests = cacheRequests + 1
+    cacheRequests += 1
     val timeBin = timeToBin(time)
     routeHistory.get(timeBin) match {
       case Some(subMap) =>
         subMap.get(orig) match {
           case Some(subSubMap) =>
-            cacheHits = cacheHits + 1
+            cacheHits += 1
             subSubMap.get(dest)
           case None =>
             None
