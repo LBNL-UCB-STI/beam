@@ -255,6 +255,11 @@ trait BeamHelper extends LazyLogging {
   def runBeamUsing(args: Array[String], isConfigArgRequired: Boolean = true): Unit = {
     val (parsedArgs, config) = prepareConfig(args, isConfigArgRequired)
 
+    // Initialize logger at first (need to create folder and etc)
+    initializeLogger(config)
+    // Now we can check config consistency - it will log it to the log file too
+    ConfigConsistencyComparator.parseBeamTemplateConfFile(parsedArgs.configLocation.get)
+
     parsedArgs.clusterType match {
       case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
       case _ =>
@@ -275,8 +280,6 @@ trait BeamHelper extends LazyLogging {
       !isConfigArgRequired || (isConfigArgRequired && parsedArgs.config.isDefined),
       "Please provide a valid configuration file."
     )
-
-    ConfigConsistencyComparator.parseBeamTemplateConfFile(parsedArgs.configLocation.get)
 
     if (parsedArgs.configLocation.get.contains("\\")) {
       throw new RuntimeException("wrong config path, expected:forward slash, found: backward slash")
@@ -440,12 +443,10 @@ trait BeamHelper extends LazyLogging {
       beamConfig.beam.outputs.addTimestampToOutputDirectory
     )
 
-    LoggingUtil.createFileLogger(outputDirectory)
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
 
     logger.info("Starting beam on branch {} at commit {}.", BashUtils.getBranch, BashUtils.getCommitHash)
-    new java.io.File(outputDirectory).mkdirs
     val outConf = Paths.get(outputDirectory, "beam.conf")
     val location = config.getString("config")
 
@@ -562,6 +563,17 @@ trait BeamHelper extends LazyLogging {
         rdr = beam.utils.scenario.matsim.CsvScenarioReader
       )
     } else throw new NotImplementedError(s"ScenarioSource '${src}' is not yet implemented")
+  }
+
+  private def initializeLogger(config: TypesafeConfig): Unit = {
+    val beamConfig = BeamConfig(config)
+    val outputDirectory = FileUtils.getConfigOutputFile(
+      beamConfig.beam.outputs.baseOutputDirectory,
+      beamConfig.beam.agentsim.simulationName,
+      beamConfig.beam.outputs.addTimestampToOutputDirectory
+    )
+    new java.io.File(outputDirectory).mkdirs
+    LoggingUtil.createFileLogger(outputDirectory)
   }
 }
 
