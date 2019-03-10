@@ -64,10 +64,12 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
 
   @Override
   public void resetStats() {
-    personCostByCostType.clear();
-    personCostByActivityType.clear();
+    personIdCost.clear();
     activityTypeCount.clear();
+    personCostByActivityType.clear();
     personCostCount.clear();
+    personCostByCostType.clear();
+
     numberOfTrips = 0;
     totalNetCost = 0;
   }
