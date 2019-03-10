@@ -27,6 +27,9 @@ public class GraphUtils {
     private static final Color VERY_DARK_BLUE = new Color(0,0,153);
     private static final Color VERY_DARK_RED = new Color(153,0,0);
     private static final Color VERY_DARK_GREEN = new Color(0,102,0);
+    private static final Color OLIVE = new Color(107,142,35);
+    private static final Color THISTLE = new Color(216,191,216);
+    private static final Color CADETBLUE = new Color(95,158,160);
 
 
     /**
@@ -52,11 +55,12 @@ public class GraphUtils {
         colorsForModes.put("walk_transit", PURPLE);
         colorsForModes.put("drive_transit", VERY_LIGHT_BLUE);
         colorsForModes.put("subway",LIGHT_BROWN );
-        colorsForModes.put("others", Color.DARK_GRAY);
-        colorsForModes.put("bike", Color.LIGHT_GRAY);
+        colorsForModes.put("cav", THISTLE);
+        colorsForModes.put("bike", OLIVE);
         colorsForModes.put("tram", VERY_LIGHT_GREEN);
         colorsForModes.put("rail", VERY_DARK_BLUE);
         colorsForModes.put("bus", LIGHT_YELLOW);
+        colorsForModes.put("ride_hail_pooled", CADETBLUE);
 
     }
 
