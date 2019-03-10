@@ -12,7 +12,7 @@ class RouteHistory @Inject()() extends LazyLogging {
   @volatile private var cacheRequests = 0
   @volatile private var cacheHits = 0
 
-  private def timeToBin(departTime: Int) = {
+  private def timeToBin(departTime: Int): Int = {
     Math.floorMod(Math.floor(departTime.toDouble / 3600.0).toInt, 24)
   }
 
