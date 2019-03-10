@@ -51,6 +51,17 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 
 trait BeamHelper extends LazyLogging {
+  val logo: String = """
+                       |  ________
+                       |  ___  __ )__________ _______ ___
+                       |  __  __  |  _ \  __ `/_  __ `__ \
+                       |  _  /_/ //  __/ /_/ /_  / / / / /
+                       |  /_____/ \___/\__,_/ /_/ /_/ /_/
+                       |
+                       | _____________________________________
+                       |
+     """.stripMargin
+
   private val argsParser = new scopt.OptionParser[Arguments]("beam") {
     opt[String]("config")
       .action(
@@ -574,6 +585,8 @@ trait BeamHelper extends LazyLogging {
     )
     new java.io.File(outputDirectory).mkdirs
     LoggingUtil.createFileLogger(outputDirectory)
+
+    logger.info(logo)
   }
 }
 
