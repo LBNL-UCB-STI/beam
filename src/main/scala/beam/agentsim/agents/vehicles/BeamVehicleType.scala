@@ -59,6 +59,17 @@ object BeamVehicleType {
     BeamVehicleType.defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter
   )
 
+  val defaultBicycleBeamVehicleType: BeamVehicleType = BeamVehicleType(
+    Id.create("BIKE_TYPE_DEFAULT", classOf[BeamVehicleType]),
+    1,
+    0,
+    1.5,
+    Food,
+    defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter / 5.0, // 5x more efficient than walking
+    defaultHumanBodyBeamVehicleType.primaryFuelCapacityInJoule, // same capacity as human body
+    vehicleCategory = Bike
+  )
+
   // Transit default based on Diesel Bus
   val defaultTransitBeamVehicleType: BeamVehicleType =
     BeamVehicleType(
