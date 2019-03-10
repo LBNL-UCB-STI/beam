@@ -82,7 +82,7 @@ class DelayMetricAnalysis @Inject()(
   def process(index: Int, link: Link, travelTime: Double): Unit = {
     val freeLength = link.getLength
     val freeSpeed = link.getFreespeed
-    var freeFlowDelay = travelTime - (freeLength / freeSpeed).toInt
+    var freeFlowDelay = travelTime - (freeLength / freeSpeed)
     if (freeFlowDelay >= 0) {
       val existingFreeFlowDelay = cumulativeDelay(index)
       val existingLinkLength = cumulativeLength(index)
