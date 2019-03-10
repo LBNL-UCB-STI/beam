@@ -1,5 +1,11 @@
 package beam.router
 
+import java.io.{BufferedInputStream, FileInputStream, FileReader, InputStreamReader, Reader}
+import java.util.concurrent.TimeUnit
+import java.util.zip.GZIPInputStream
+
+import scala.collection.concurrent.TrieMap
+
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
@@ -19,22 +25,44 @@ import beam.router.Modes.BeamMode.{
   WALK_TRANSIT
 }
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
-import beam.sim.BeamServices
+import beam.sim.{BeamServices, BeamWarmStart}
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig
 import beam.utils.FileUtils
 import com.google.inject.Inject
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
-
-import scala.collection.concurrent.TrieMap
+import org.supercsv.io.{CsvMapReader, ICsvMapReader}
+import org.supercsv.prefs.CsvPreference
 
 //TODO to be validated against google api
-class BeamSkimmer @Inject()() extends IterationEndsListener {
+class BeamSkimmer @Inject()(
+  beamConfig: BeamConfig
+) extends IterationEndsListener {
+
+  private val SKIMS_FILE_NAME = "skims.csv.gz"
+
   // The OD/Mode/Time Matrix
-  private var previousSkims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = TrieMap()
+  private var previousSkims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = initialPreviousSkims()
   private var skims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = TrieMap()
   private val modalAverage: TrieMap[BeamMode, SkimInternal] = TrieMap()
+
+  private def skimsFilePath: Option[String] = {
+    val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
+    BeamWarmStart(beamConfig, maxHour).getWarmStartFilePath(SKIMS_FILE_NAME)
+  }
+
+  private def initialPreviousSkims(): TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = {
+    if (beamConfig.beam.warmStart.enabled) {
+      skimsFilePath
+        .map(BeamSkimmer.readCsvFile)
+        .getOrElse(TrieMap.empty)
+    } else {
+      TrieMap.empty
+    }
+  }
 
   def getTimeDistanceAndCost(
     origin: Location,
@@ -244,5 +272,52 @@ object BeamSkimmer {
   case class SkimInternal(time: Double, distance: Double, cost: Double, count: Int) {
     def toSkimExternal: Skim = Skim(time.toInt, distance, cost, count)
   }
+
   case class Skim(time: Int, distance: Double, cost: Double, count: Int)
+
+  private def readCsvFile(filePath: String): TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = {
+    var mapReader: ICsvMapReader = null
+    val res = TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal]()
+    try {
+      val reader = buildReader(filePath)
+      mapReader = new CsvMapReader(reader, CsvPreference.STANDARD_PREFERENCE)
+      val header = mapReader.getHeader(true)
+      var line: java.util.Map[String, String] = mapReader.read(header: _*)
+      while (null != line) {
+        val hour = line.get("hour")
+        val mode = line.get("mode")
+        val origTazId = line.get("origTaz")
+        val destTazId = line.get("destTaz")
+        val cost = line.get("cost")
+        val distanceInMeters = line.get("distanceInM")
+        val numObservations = line.get("numObservations")
+
+        val key = (
+          hour.toInt,
+          BeamMode.fromString(mode.toLowerCase()).get,
+          Id.create(origTazId, classOf[TAZ]),
+          Id.create(destTazId, classOf[TAZ]),
+        )
+        val value = SkimInternal(hour.toDouble, distanceInMeters.toDouble, cost.toDouble, numObservations.toInt)
+        res.put(key, value)
+        line = mapReader.read(header: _*)
+      }
+
+    } finally {
+      if (null != mapReader)
+        mapReader.close()
+    }
+    res
+  }
+
+  private def buildReader(filePath: String): Reader = {
+    if (filePath.endsWith(".gz")) {
+      new InputStreamReader(
+        new GZIPInputStream(new BufferedInputStream(new FileInputStream(filePath)))
+      )
+    } else {
+      new FileReader(filePath)
+    }
+  }
+
 }
