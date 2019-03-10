@@ -288,9 +288,6 @@ object BeamSkimmer {
         val mode = line.get("mode")
         val origTazId = line.get("origTaz")
         val destTazId = line.get("destTaz")
-
-        Id.create(origTazId, classOf[TAZ])
-        // val travelTimeInS = line.get("travelTimeInS")
         val cost = line.get("cost")
         val distanceInMeters = line.get("distanceInM")
         val numObservations = line.get("numObservations")
