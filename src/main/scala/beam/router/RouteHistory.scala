@@ -7,13 +7,13 @@ import probability_monad.Distribution
 import scala.collection.concurrent.TrieMap
 
 class RouteHistory @Inject()() extends LazyLogging {
-  var routeHistory: TrieMap[Int, TrieMap[Int, TrieMap[Int, IndexedSeq[Int]]]] = TrieMap()
-  val randNormal = Distribution.normal
-  val randUnif = Distribution.uniform
-  @volatile var cacheRequests = 0
-  @volatile var cacheHits = 0
+  private var routeHistory: TrieMap[Int, TrieMap[Int, TrieMap[Int, IndexedSeq[Int]]]] = TrieMap()
+  private val randNormal = Distribution.normal
+  private val randUnif = Distribution.uniform
+  @volatile private var cacheRequests = 0
+  @volatile private var cacheHits = 0
 
-  def timeToBin(departTime: Int) = {
+  private def timeToBin(departTime: Int) = {
     Math.floorMod(Math.floor(departTime.toDouble / 3600.0).toInt, 24)
   }
 
