@@ -179,10 +179,7 @@ object RouteHistory {
           TrieMap(destTazId -> route)
         )
 
-        originReference.getOrElseUpdate(
-          destTazId,
-          route
-        )
+        originReference.update(destTazId, route)
 
         line = mapReader.read(header: _*)
       }
