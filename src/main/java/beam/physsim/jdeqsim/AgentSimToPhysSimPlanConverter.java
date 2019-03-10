@@ -11,6 +11,7 @@ import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.calibration.impl.example.CountsObjectiveFunction;
 import beam.physsim.jdeqsim.cacc.CACCSettings;
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.Hao2018CaccRoadCapacityAdjustmentFunction;
+import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation;
 import beam.router.BeamRouter;
 import beam.router.r5.R5RoutingWorker$;
 import beam.sim.BeamServices;
@@ -143,8 +144,13 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         //JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
 
-        CACCSettings caccSettings=new CACCSettings(caccVehiclesMap,new Hao2018CaccRoadCapacityAdjustmentFunction(2000,20));
-        beam.physsim.jdeqsim.cacc.sim.JDEQSimulation jdeqSimulation = new beam.physsim.jdeqsim.cacc.sim.JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccSettings);
+        CACCSettings caccSettings = new CACCSettings(
+                caccVehiclesMap,
+                new Hao2018CaccRoadCapacityAdjustmentFunction(
+                        beamConfig.beam().physsim().jdeqsim().caccMinRoadCapacity(),
+                        beamConfig.beam().physsim().jdeqsim().caccMinSpeedMetersPerSec()
+                ));
+        JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccSettings);
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents,  agentSimScenario.getConfig().travelTimeCalculator());
 

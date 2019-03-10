@@ -37,6 +37,7 @@ case class BeamVehicleType(
     automationLevel >= 3
   }
 }
+
 object BeamVehicleType {
 
   // Consumption rate: https://www.brianmac.co.uk/energyexp.htm
