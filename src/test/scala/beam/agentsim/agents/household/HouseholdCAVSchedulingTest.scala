@@ -63,7 +63,7 @@ class HouseholdCAVSchedulingTest
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
   private val matsimConfig = configBuilder.buildMatSamConf()
-  private val skimmer: BeamSkimmer = new BeamSkimmer()
+  private val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig)
 
   private lazy val beamSvc: BeamServices = {
     val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")

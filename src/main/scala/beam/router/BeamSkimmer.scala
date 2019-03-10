@@ -39,7 +39,7 @@ import org.supercsv.prefs.CsvPreference
 
 //TODO to be validated against google api
 class BeamSkimmer @Inject()(
-  beamConfig: Option[BeamConfig] = None
+  beamConfig: BeamConfig
 ) extends IterationEndsListener {
 
   private val SKIMS_FILE_NAME = "skims.csv.gz"
@@ -50,14 +50,12 @@ class BeamSkimmer @Inject()(
   private val modalAverage: TrieMap[BeamMode, SkimInternal] = TrieMap()
 
   private def skimsFilePath: Option[String] = {
-    beamConfig.flatMap { config =>
-      val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
-      BeamWarmStart(config, maxHour).getWarmStartFilePath(SKIMS_FILE_NAME)
-    }
+    val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
+    BeamWarmStart(beamConfig, maxHour).getWarmStartFilePath(SKIMS_FILE_NAME)
   }
 
   private def initialPreviousSkims(): TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = {
-    if (beamConfig.exists(_.beam.warmStart.enabled)) {
+    if (beamConfig.beam.warmStart.enabled) {
       skimsFilePath
         .map(BeamSkimmer.readCsvFile)
         .getOrElse(TrieMap.empty)
