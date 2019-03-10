@@ -1,6 +1,7 @@
 package beam.router
 
 import java.io.{BufferedInputStream, FileInputStream, FileReader, InputStreamReader, Reader}
+import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
 
 import scala.collection.concurrent.TrieMap
@@ -24,12 +25,13 @@ import beam.router.Modes.BeamMode.{
   WALK_TRANSIT
 }
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
-import beam.sim.BeamServices
+import beam.sim.{BeamServices, BeamWarmStart}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.FileUtils
 import com.google.inject.Inject
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.supercsv.io.{CsvMapReader, ICsvMapReader}
@@ -37,16 +39,28 @@ import org.supercsv.prefs.CsvPreference
 
 //TODO to be validated against google api
 class BeamSkimmer @Inject()(
-  beamConfig: BeamConfig = null // TODO: temporary default value to avoid changing clients
+  beamConfig: Option[BeamConfig] = None
 ) extends IterationEndsListener {
+
+  private val SKIMS_FILE_NAME = "skims.csv.gz"
+
   // The OD/Mode/Time Matrix
   private var previousSkims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = initialPreviousSkims()
   private var skims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = TrieMap()
   private val modalAverage: TrieMap[BeamMode, SkimInternal] = TrieMap()
 
+  private def skimsFilePath: Option[String] = {
+    beamConfig.flatMap { config =>
+      val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
+      BeamWarmStart(config, maxHour).getWarmStartFilePath(SKIMS_FILE_NAME)
+    }
+  }
+
   private def initialPreviousSkims(): TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = {
-    if (beamConfig != null && beamConfig.beam.warmStart.enabled) {
-      BeamSkimmer.readCsvFile(beamConfig.beam.warmStart.filePath)
+    if (beamConfig.exists(_.beam.warmStart.enabled)) {
+      skimsFilePath
+        .map(BeamSkimmer.readCsvFile)
+        .getOrElse(TrieMap.empty)
     } else {
       TrieMap.empty
     }
@@ -264,6 +278,7 @@ object BeamSkimmer {
   case class Skim(time: Int, distance: Double, cost: Double, count: Int)
 
   private def readCsvFile(filePath: String): TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = {
+    println(s"@@@@@@@### reading csv file:$filePath")
     var mapReader: ICsvMapReader = null
     val res = TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal]()
     try {
@@ -274,8 +289,10 @@ object BeamSkimmer {
       while (null != line) {
         val hour = line.get("hour")
         val mode = line.get("mode")
-        val origTaz = line.get("origTaz")
-        val destTaz = line.get("destTaz")
+        val origTazId = line.get("origTaz")
+        val destTazId = line.get("destTaz")
+
+        Id.create(origTazId, classOf[TAZ])
         // val travelTimeInS = line.get("travelTimeInS")
         val cost = line.get("cost")
         val distanceInMeters = line.get("distanceInM")
@@ -284,9 +301,8 @@ object BeamSkimmer {
         val key = (
           hour.toInt,
           BeamMode.fromString(mode.toLowerCase()).get,
-          // TODO: not sure how to build TAZ object based on this CSV content
-          new TAZ(origTaz, new Coord(origTaz.toDouble, destTaz.toDouble), distanceInMeters.toDouble).tazId,
-          new TAZ(origTaz, new Coord(origTaz.toDouble, destTaz.toDouble), distanceInMeters.toDouble).tazId,
+          Id.create(origTazId, classOf[TAZ]),
+          Id.create(destTazId, classOf[TAZ]),
         )
         val value = SkimInternal(hour.toDouble, distanceInMeters.toDouble, cost.toDouble, numObservations.toInt)
         res.put(key, value)
