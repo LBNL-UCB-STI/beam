@@ -50,7 +50,7 @@ class RouteHistory @Inject()() extends LazyLogging {
     }
   }
 
-  def expireRoutes(fracToExpire: Double) = {
+  def expireRoutes(fracToExpire: Double): Unit = {
     logger.info(
       "Overall cache hits {}/{} ({}%)",
       cacheHits,
