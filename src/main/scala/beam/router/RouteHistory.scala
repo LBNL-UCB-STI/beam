@@ -8,7 +8,6 @@ import scala.collection.concurrent.TrieMap
 
 class RouteHistory @Inject()() extends LazyLogging {
   private var routeHistory: TrieMap[Int, TrieMap[Int, TrieMap[Int, IndexedSeq[Int]]]] = TrieMap()
-  private val randNormal = Distribution.normal
   private val randUnif = Distribution.uniform
   @volatile private var cacheRequests = 0
   @volatile private var cacheHits = 0
