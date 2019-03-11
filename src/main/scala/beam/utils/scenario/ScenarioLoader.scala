@@ -121,7 +121,18 @@ class ScenarioLoader(
           householdSize = household.getMemberIds.size,
           householdPopulation = null,
           householdLocation = coord
-        )
+        ).toBuffer
+
+      vehicleTypes.appendAll(VehiclesAdjustment
+        .getVehicleAdjustment(beamServices)
+        .sampleVehicleTypesForHousehold(
+          numVehicles = 1,
+          vehicleCategory = VehicleCategory.Bike,
+          householdIncome = household.getIncome.getIncome,
+          householdSize = household.getMemberIds.size,
+          householdPopulation = null,
+          householdLocation = coord
+        ))
 
       val vehicleIds = new java.util.ArrayList[Id[Vehicle]]
       vehicleTypes.foreach { beamVehicleType =>
