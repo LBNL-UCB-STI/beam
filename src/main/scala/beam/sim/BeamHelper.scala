@@ -301,11 +301,11 @@ trait BeamHelper extends LazyLogging {
     if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
           .equalsIgnoreCase("ModeChoiceLCCM")) {
       Files.copy(
-        Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile),
+        Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.filePath),
         Paths.get(
           outputDirectory,
           Paths
-            .get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile)
+            .get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.filePath)
             .getFileName
             .toString
         )
@@ -425,7 +425,7 @@ trait BeamHelper extends LazyLogging {
     if (isMetricsEnable) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
 
     val configBuilder = new MatSimBeamConfigBuilder(config)
-    val matsimConfig = configBuilder.buildMatSamConf()
+    val matsimConfig = configBuilder.buildMatSimConf()
     if (!beamConfig.beam.outputs.writeGraphs) {
       matsimConfig.counts.setOutputFormat("txt")
       matsimConfig.controler.setCreateGraphs(false)

@@ -25,8 +25,9 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
     private static final String work = "Work";
     private static final String home = "Home";
 
+    private final scala.collection.Set<Id<BeamVehicleType>> vehicleTypes;
+
     private Map<String, Double> secondsTraveledByVehicleType = new HashMap<>();
-	private scala.collection.Set<Id<BeamVehicleType>> vehicleTypes;
     private Scenario scenario;
     private NetworkHelper networkHelper;
 
@@ -152,9 +153,11 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
         totalVehicleDelayHome = 0.0;
         totalVehicleDelaySecondary = 0.0;
         totalVehicleDelay = 0.0;
-        secondsTraveledByVehicleType.clear();
+
         personsByVehicleIds.clear();
+        personIdDelays.clear();
         buses.clear();
+        secondsTraveledByVehicleType.clear();
     }
 
     @Override

@@ -52,7 +52,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
     private final StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation;
 
     public RealizedModeAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation, boolean writeGraph, BeamConfig beamConfig) {
-        String benchMarkFileLocation = beamConfig.beam().calibration().mode().benchmarkFileLoc();
+        String benchMarkFileLocation = beamConfig.beam().calibration().mode().benchmarkFilePath();
         this.statComputation = statComputation;
         this.writeGraph = writeGraph;
         benchMarkData = benchMarkCSVLoader(benchMarkFileLocation);

@@ -607,7 +607,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     // The following 2 (Board and Alight) can happen idiosyncratically if a person ended up taking a much longer than expected
     // trip and meanwhile a CAV was scheduled to pick them up (and then drop them off) for the next trip, but they're still driving baby
     case Event(
-        TriggerWithId(BoardVehicleTrigger(_, vehicleId, vehicleTypeId), triggerId),
+        TriggerWithId(BoardVehicleTrigger(tick, vehicleId, vehicleTypeId), triggerId),
         data @ LiterallyDrivingData(_, _)
         ) =>
       val currentLeg = data.passengerSchedule.schedule.keys.view
@@ -616,10 +616,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         .getOrElse(throw new RuntimeException("Current Leg is not available."))
       stay() replying CompletionNotice(
         triggerId,
-        Vector(ScheduleTrigger(BoardVehicleTrigger(currentLeg.endTime, vehicleId, vehicleTypeId), self))
+        Vector(ScheduleTrigger(BoardVehicleTrigger(Math.max(currentLeg.endTime, tick), vehicleId, vehicleTypeId), self))
       )
     case Event(
-        TriggerWithId(AlightVehicleTrigger(_, vehicleId, vehicleTypeId), triggerId),
+        TriggerWithId(AlightVehicleTrigger(tick, vehicleId, vehicleTypeId), triggerId),
         data @ LiterallyDrivingData(_, _)
         ) =>
       val currentLeg = data.passengerSchedule.schedule.keys.view
@@ -628,7 +628,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         .getOrElse(throw new RuntimeException("Current Leg is not available."))
       stay() replying CompletionNotice(
         triggerId,
-        Vector(ScheduleTrigger(AlightVehicleTrigger(currentLeg.endTime + 1, vehicleId, vehicleTypeId), self))
+        Vector(
+          ScheduleTrigger(AlightVehicleTrigger(Math.max(currentLeg.endTime + 1, tick), vehicleId, vehicleTypeId), self)
+        )
       )
   }
 
@@ -646,7 +648,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
   def processLinkEvents(vehicleId: Id[Vehicle], leg: BeamLeg): Unit = {
     val path = leg.travelPath
-    if (path.linkTravelTime.nonEmpty) {
+    if (path.linkTravelTime.nonEmpty & path.linkIds.size > 1) {
       // FIXME once done with debugging, make this code faster
       // We don't need the travel time for the last link, so we drop it (dropRight(1))
       val avgTravelTimeWithoutLast = path.linkTravelTime.dropRight(1)
