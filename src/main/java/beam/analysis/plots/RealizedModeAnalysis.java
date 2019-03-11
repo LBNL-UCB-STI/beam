@@ -548,7 +548,9 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
                 if(benchMarkData.get(d) == null){
                     builder.append(",0.0");
                 }
-                builder.append("," + benchMarkData.get(d)*100/sum);
+                else {
+                    builder.append("," + benchMarkData.get(d) * 100 / sum);
+                }
             }
             out.write(builder.toString());
             out.newLine();
