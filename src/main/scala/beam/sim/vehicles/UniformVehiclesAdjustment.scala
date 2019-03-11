@@ -7,8 +7,6 @@ import beam.sim.BeamServices
 import org.matsim.api.core.v01.Coord
 import probability_monad.Distribution
 
-import scala.collection.mutable
-
 case class UniformVehiclesAdjustment(beamServices: BeamServices) extends VehiclesAdjustment {
   val randUnif = Distribution.uniform
   val probabilities = randUnif.sample(beamServices.vehicleTypes.size)
@@ -36,8 +34,7 @@ case class UniformVehiclesAdjustment(beamServices: BeamServices) extends Vehicle
     val result = Range(0, numVehicles).map { i =>
       val newRand = randUnif.get
       vehicleTypesAndProbabilitiesByCategory(vehicleCategory).find(_._2 >= newRand).get._1
-    }.toBuffer
-    result.append(BeamVehicleType.defaultBicycleBeamVehicleType)
-    result.toList
+    }.toList
+    result
   }
 }
