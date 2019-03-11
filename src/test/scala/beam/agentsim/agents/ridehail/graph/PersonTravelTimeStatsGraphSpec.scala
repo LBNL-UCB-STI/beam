@@ -112,7 +112,7 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
             String,
             util.Map[Integer, util.List[lang.Double]]
           ]
-        ): Tuple[util.List[String], Tuple[Array[Array[Double]], java.lang.Double]] = {
+        ): Tuple[util.List[String], Tuple[Array[Array[Double]], util.Map[String, lang.Double]]] = {
           promise.success(stat)
           super.compute(stat)
         }
@@ -142,7 +142,7 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
         new AbstractModule() {
           override def install(): Unit = {
             addControlerListenerBinding().to(classOf[PersonTravelTimeStatsGraph])
-          }
+            }
 
           @Provides def provideGraph(
             eventsManager: EventsManager

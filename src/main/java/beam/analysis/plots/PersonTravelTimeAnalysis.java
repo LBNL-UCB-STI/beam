@@ -36,36 +36,51 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     private static final String yAxisTitle = "Average Travel Time [min]";
     private static final String otherMode = "others";
     private static final  String carMode = "car";
+    private static final  String busMode = "bus";
+    private static final  String rideHailMode = "ride_hail";
     static String fileBaseName = "averageTravelTimes";
     private final String fileNameForRootGraph = "averageCarTravelTimes";
+    private final String averageBusTravelTimeRootGraphName = "averageBusTravelTimes";
+    private final String averageRideHailTravelTimeRootGraphName = "averageRideHailTravelTimes";
     private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
     private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
     private List<Double> averageTime = new ArrayList<>();
+    private List<Double> busAverageTime = new ArrayList<>();
+    private List<Double> rideHailAverageTime = new ArrayList<>();
 
-    private final StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> statComputation;
+    private final StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Map<String,Double>>>> statComputation;
     private final boolean writeGraph;
 
-    public PersonTravelTimeAnalysis(StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> statComputation, boolean writeGraph) {
+    public PersonTravelTimeAnalysis(StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Map<String,Double>>>> statComputation, boolean writeGraph) {
         this.statComputation = statComputation;
         this.writeGraph = writeGraph;
     }
 
-    public static class PersonTravelTimeComputation implements StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> {
+    public static class PersonTravelTimeComputation implements StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Map<String,Double>>>> {
 
         @Override
-        public Tuple<List<String>, Tuple<double[][], Double>> compute(Map<String, Map<Integer, List<Double>>> stat) {
+        public Tuple<List<String>, Tuple<double[][], Map<String,Double>>> compute(Map<String, Map<Integer, List<Double>>> stat) {
             List<String> modeKeys = GraphsStatsAgentSimEventsListener.getSortedStringList(stat.keySet());
             List<Integer> hoursList = stat.values().stream().flatMap(m -> m.keySet().stream()).sorted().collect(Collectors.toList());
+            Map<String,Double> dayAverageDataByMode = new HashMap<>();
             int maxHour = hoursList.get(hoursList.size() - 1);
             double[][] data = new double[modeKeys.size()][maxHour + 1];
             for (int i = 0; i < modeKeys.size(); i++) {
                 data[i] = buildAverageTimesDataset(stat.get(modeKeys.get(i)));
             }
-            double dayAverageData = 0.0;
             if(stat.get(carMode)!=null) {
-                dayAverageData = buildDayAverageDataset(stat.get(carMode));
+                double dayAverageData = buildDayAverageDataset(stat.get(carMode));
+                dayAverageDataByMode.put(carMode,dayAverageData);
             }
-            return new Tuple<>(modeKeys, new Tuple<>(data, dayAverageData));
+            if(stat.get(busMode)!=null) {
+                double dayBusAverageData = buildDayAverageDataset(stat.get(busMode));
+                dayAverageDataByMode.put(busMode,dayBusAverageData);
+            }
+            if(stat.get(rideHailMode)!=null) {
+                double dayRideHailAverageData = buildDayAverageDataset(stat.get(rideHailMode));
+                dayAverageDataByMode.put(rideHailMode,dayRideHailAverageData);
+            }
+            return new Tuple<>(modeKeys, new Tuple<>(data, dayAverageDataByMode));
         }
 
         private double[] buildAverageTimesDataset(Map<Integer, List<Double>> times) {
@@ -112,7 +127,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     @Override
     public void createGraph(IterationEndsEvent event) throws IOException {
-        Tuple<List<String>, Tuple<double[][], Double>> data = compute();
+        Tuple<List<String>, Tuple<double[][], Map<String,Double>>> data = compute();
         List<String> modes = data.getFirst();
         double[][] dataSets = data.getSecond().getFirst();
         if(writeGraph){
@@ -122,13 +137,17 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
                 CategoryDataset averageDataset = buildAverageTimesDatasetGraph(modes.get(i), singleDataSet);
                 createAverageTimesGraph(averageDataset, event.getIteration(), modes.get(i));
             }
-            averageTime.add(data.getSecond().getSecond());
+            averageTime.add(data.getSecond().getSecond().getOrDefault(carMode,0.0));
+            busAverageTime.add(data.getSecond().getSecond().getOrDefault(busMode,0.0));
+            rideHailAverageTime.add(data.getSecond().getSecond().getOrDefault(rideHailMode,0.0));
             createRootGraphForAverageCarTravelTime(event);
+            createRootGraphForAverageBusTravelTime(event);
+            createRootGraphForAverageRideHailTravelTime(event);
         }
-        createCSV(data, event.getIteration());
+        createCSV(data.getFirst(),data.getSecond().getFirst(), event.getIteration());
     }
 
-    public void createRootGraphForAverageCarTravelTime(IterationEndsEvent event) throws IOException{
+    private void createRootGraphForAverageCarTravelTime(IterationEndsEvent event) throws IOException{
         double[][] singleCarDataSet = new double[1][event.getIteration()+1];
         for (int i =0 ;i <= event.getIteration() ;i++){
             singleCarDataSet[0][i] = averageTime.get(i);
@@ -139,13 +158,33 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         createCarAverageTimesGraphForRootIteration(averageCarDatasetForRootIteration,carMode,fileName);
     }
 
-    Tuple<List<String>, Tuple<double[][], Double>> compute() {
+    private void createRootGraphForAverageBusTravelTime(IterationEndsEvent event) throws IOException{
+        double[][] singleBusDataSet = new double[1][event.getIteration()+1];
+        for (int i =0 ;i <= event.getIteration() ;i++){
+            singleBusDataSet[0][i] = busAverageTime.get(i);
+        }
+        CategoryDataset averageBusDatasetForRootIteration = buildAverageTimeDatasetGraphForRoot(busMode,singleBusDataSet);
+        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
+        String fileName = outputDirectoryHierarchy.getOutputFilename( averageBusTravelTimeRootGraphName + ".png");
+        createCarAverageTimesGraphForRootIteration(averageBusDatasetForRootIteration,busMode,fileName);
+    }
+
+    private void createRootGraphForAverageRideHailTravelTime(IterationEndsEvent event) throws IOException{
+        double[][] singleRideHailDataSet = new double[1][event.getIteration()+1];
+        for (int i =0 ;i <= event.getIteration() ;i++){
+            singleRideHailDataSet[0][i] = rideHailAverageTime.get(i);
+        }
+        CategoryDataset averageRideHailDatasetForRootIteration = buildAverageTimeDatasetGraphForRoot(rideHailMode,singleRideHailDataSet);
+        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
+        String fileName = outputDirectoryHierarchy.getOutputFilename( averageRideHailTravelTimeRootGraphName + ".png");
+        createCarAverageTimesGraphForRootIteration(averageRideHailDatasetForRootIteration,rideHailMode,fileName);
+    }
+
+    Tuple<List<String>, Tuple<double[][], Map<String,Double>>> compute() {
         return statComputation.compute(hourlyPersonTravelTimes);
     }
 
-    private void createCSV(Tuple<List<String>, Tuple<double[][], Double>> data, int iteration) {
-        List<String> modes = data.getFirst();
-        double[][] dataSets = data.getSecond().getFirst();
+    private void createCSV(List<String> modes, double[][] dataSets, int iteration) {
         String csvFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration, fileBaseName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             StringBuilder heading = new StringBuilder("TravelTimeMode\\Hour");
@@ -155,7 +194,6 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             }
             out.write(heading.toString());
             out.newLine();
-
 
             for (int category = 0; category < dataSets.length; category++) {
                 out.write(modes.get(category));
