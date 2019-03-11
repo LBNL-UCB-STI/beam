@@ -40,12 +40,10 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     private static final  String cavMode = "cav";
     static String fileBaseName = "averageTravelTimes";
     private final String fileNameForRootGraph = "averageCarTravelTimes";
-    private final String averageBusTravelTimeRootGraphName = "averageBusTravelTimes";
     private final String averageCavTravelTimeRootGraphName = "averageCavTravelTimes";
     private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
     private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
     private List<Double> averageTime = new ArrayList<>();
-    private List<Double> busAverageTime = new ArrayList<>();
     private List<Double> cavAverageTime = new ArrayList<>();
 
     private final StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Map<String,Double>>>> statComputation;
@@ -71,10 +69,6 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             if(stat.get(carMode)!=null) {
                 double dayAverageData = buildDayAverageDataset(stat.get(carMode));
                 dayAverageDataByMode.put(carMode,dayAverageData);
-            }
-            if(stat.get(busMode)!=null) {
-                double dayBusAverageData = buildDayAverageDataset(stat.get(busMode));
-                dayAverageDataByMode.put(busMode,dayBusAverageData);
             }
             if(stat.get(cavMode)!=null) {
                 double dayCavAverageData = buildDayAverageDataset(stat.get(cavMode));
@@ -138,18 +132,20 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
                 createAverageTimesGraph(averageDataset, event.getIteration(), modes.get(i));
             }
             averageTime.add(data.getSecond().getSecond().getOrDefault(carMode,0.0));
-            busAverageTime.add(data.getSecond().getSecond().getOrDefault(busMode,0.0));
             cavAverageTime.add(data.getSecond().getSecond().getOrDefault(cavMode,0.0));
             //generate the average travel time analysis graph for CAR mode
             createRootGraphForAverageCarTravelTime(event);
-            //generate the average travel time analysis graph for BUS mode
-            createRootGraphForAverageBusTravelTime(event);
             //generate the average travel time analysis graph for CAV mode
             createRootGraphForAverageCavTravelTime(event);
         }
         createCSV(data.getFirst(),data.getSecond().getFirst(), event.getIteration());
     }
 
+    /**
+     * Creates a average travel times analysis graph(for CAR mode only) in the output folder's root location
+     * @param event An instance of IterationEndsEvent
+     * @throws IOException exception handling
+     */
     private void createRootGraphForAverageCarTravelTime(IterationEndsEvent event) throws IOException{
         double[][] singleCarDataSet = new double[1][event.getIteration()+1];
         for (int i =0 ;i <= event.getIteration() ;i++){
@@ -158,27 +154,11 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         CategoryDataset averageCarDatasetForRootIteration = buildAverageTimeDatasetGraphForRoot(carMode,singleCarDataSet);
         OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
         String fileName = outputDirectoryHierarchy.getOutputFilename( fileNameForRootGraph + ".png");
-        createCarAverageTimesGraphForRootIteration(averageCarDatasetForRootIteration,carMode,fileName);
+        createAverageTimesGraphForRootIteration(averageCarDatasetForRootIteration,carMode,fileName);
     }
 
     /**
-     * Creates a average travel times analysis graph(for bus mode only) in the output folder's root location
-     * @param event An instance of IterationEndsEvent
-     * @throws IOException exception handling
-     */
-    private void createRootGraphForAverageBusTravelTime(IterationEndsEvent event) throws IOException{
-        double[][] singleBusDataSet = new double[1][event.getIteration()+1];
-        for (int i =0 ;i <= event.getIteration() ;i++){
-            singleBusDataSet[0][i] = busAverageTime.get(i);
-        }
-        CategoryDataset averageBusDatasetForRootIteration = buildAverageTimeDatasetGraphForRoot(busMode,singleBusDataSet);
-        OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
-        String fileName = outputDirectoryHierarchy.getOutputFilename( averageBusTravelTimeRootGraphName + ".png");
-        createCarAverageTimesGraphForRootIteration(averageBusDatasetForRootIteration,busMode,fileName);
-    }
-
-    /**
-     * Creates a average travel times analysis graph(for cav mode only) in the output folder's root location
+     * Creates a average travel times analysis graph(for CAV mode only) in the output folder's root location
      * @param event An instance of IterationEndsEvent
      * @throws IOException exception handling
      */
@@ -190,7 +170,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         CategoryDataset averageCavDatasetForRootIteration = buildAverageTimeDatasetGraphForRoot(cavMode,singleCavDataSet);
         OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
         String fileName = outputDirectoryHierarchy.getOutputFilename( averageCavTravelTimeRootGraphName + ".png");
-        createCarAverageTimesGraphForRootIteration(averageCavDatasetForRootIteration,cavMode,fileName);
+        createAverageTimesGraphForRootIteration(averageCavDatasetForRootIteration,cavMode,fileName);
     }
 
     Tuple<List<String>, Tuple<double[][], Map<String,Double>>> compute() {
@@ -332,8 +312,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
-    private void createCarAverageTimesGraphForRootIteration(CategoryDataset dataset, String mode, String fileName) throws IOException {
-
+    private void createAverageTimesGraphForRootIteration(CategoryDataset dataset, String mode, String fileName) throws IOException {
         String graphTitle = "Average Travel Time [" + mode + "]";
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisRootTitle, yAxisTitle, fileName, false);
         CategoryPlot plot = chart.getCategoryPlot();
