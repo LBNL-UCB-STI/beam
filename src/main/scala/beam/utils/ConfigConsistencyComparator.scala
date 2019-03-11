@@ -20,6 +20,8 @@ object ConfigConsistencyComparator extends LazyLogging {
   private val bottom = sessionSeparator + eol
   private val consistentFileMessage = buildTopicTile("All good, your config file is fully consistent!")
 
+  val logStringBuilder = new StringBuilder(top)
+
   def parseBeamTemplateConfFile(userConfFileLocation: String): Unit = {
     val configResolver = ConfigResolveOptions
       .defaults()
@@ -30,8 +32,6 @@ object ConfigConsistencyComparator extends LazyLogging {
     val userMatsimConf = baseUserConf.withOnlyPath("matsim")
     val userConf = userBeamConf.withFallback(userMatsimConf).resolve(configResolver)
     val templateConf = ConfigFactory.parseFile(new File("src/main/resources/beam-template.conf")).resolve()
-
-    val logStringBuilder = new StringBuilder(top)
 
     val deprecatedKeys = findDeprecatedKeys(userConf, templateConf)
     if (deprecatedKeys.nonEmpty) {
