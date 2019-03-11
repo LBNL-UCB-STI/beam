@@ -86,7 +86,7 @@ class AlonsoMoraPoolingAlgForRideHailSpec
 
   describe("AlonsoMoraPoolingAlgForRideHail") {
     it("Creates a consistent plan") {
-      implicit val skimmer: BeamSkimmer = new BeamSkimmer()
+      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig)
       val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenario1
       val alg: AlonsoMoraPoolingAlgForRideHail =
         new AlonsoMoraPoolingAlgForRideHail(
