@@ -12,8 +12,8 @@ case class UniformVehiclesAdjustment(beamServices: BeamServices) extends Vehicle
   private val realDistribution: UniformRealDistribution = new UniformRealDistribution()
   realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
-  private val vehicleTypesAndProbabilitiesByCategory = beamServices.vehicleTypes.values.groupBy(x => (x.vehicleCategory, matchCarUse(x.id.toString))).map {
-    catAndType =>
+  private val vehicleTypesAndProbabilitiesByCategory =
+    beamServices.vehicleTypes.values.groupBy(x => (x.vehicleCategory, matchCarUse(x.id.toString))).map { catAndType =>
       val probSum = catAndType._2.map(_.sampleProbabilityWithinCategory).sum
       val cumulProbs = catAndType._2
         .map(_.sampleProbabilityWithinCategory / probSum)
@@ -21,7 +21,7 @@ case class UniformVehiclesAdjustment(beamServices: BeamServices) extends Vehicle
         .drop(1)
         .toList :+ 1.0
       (catAndType._1, catAndType._2.zip(cumulProbs).map(pair => (pair._1, pair._2)))
-  }
+    }
 
   override def sampleVehicleTypesForHousehold(
     numVehicles: Int,
@@ -34,19 +34,18 @@ case class UniformVehiclesAdjustment(beamServices: BeamServices) extends Vehicle
 
     (1 to numVehicles).map { _ =>
       val newRand = realDistribution.sample()
-      vehicleTypesAndProbabilitiesByCategory((vehicleCategory,"Personal Vehicle")).find(_._2 >= newRand).get._1
+      vehicleTypesAndProbabilitiesByCategory((vehicleCategory, "Personal Vehicle")).find(_._2 >= newRand).get._1
     }.toList
   }
 
-  override def sampleVehicleTypesForCategory(
+  override def sampleRideHailVehicleTypes(
     numVehicles: Int,
     vehicleCategory: VehicleCategory
   ): List[BeamVehicleType] = {
-    val result = Range(0, numVehicles).map { i =>
-      val newRand = randUnif.get
+    (1 to numVehicles).map { _ =>
+      val newRand = realDistribution.sample()
       vehicleTypesAndProbabilitiesByCategory((vehicleCategory, "Ride Hail Vehicle")).find(_._2 >= newRand).get._1
     }.toList
-    result
   }
 
   private def matchCarUse(vehicleTypeId: String): String = {

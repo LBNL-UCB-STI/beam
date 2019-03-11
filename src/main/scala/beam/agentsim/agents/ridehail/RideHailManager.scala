@@ -320,7 +320,7 @@ class RideHailManager(
         .take(numRideHailAgents.toInt)
       val vehicleTypes = VehiclesAdjustment
         .getVehicleAdjustment(beamServices)
-        .sampleVehicleTypesForCategory(
+        .sampleRideHailVehicleTypes(
           numVehicles = numRideHailAgents.toInt,
           vehicleCategory = VehicleCategory.Car
         )
