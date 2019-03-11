@@ -62,7 +62,7 @@ class HouseholdCAVSchedulingTest
   private lazy val beamConfig = BeamConfig(system.settings.config)
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-  private val matsimConfig = configBuilder.buildMatSamConf()
+  private val matsimConfig = configBuilder.buildMatSimConf()
   private val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig)
 
   private lazy val beamSvc: BeamServices = {

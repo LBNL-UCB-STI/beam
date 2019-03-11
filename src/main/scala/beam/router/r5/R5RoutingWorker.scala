@@ -86,7 +86,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         beamConfig.beam.agentsim.simulationName,
         beamConfig.beam.outputs.addTimestampToOutputDirectory
       )
-      val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+      val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
       ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
       LoggingUtil.createFileLogger(outputDirectory)
