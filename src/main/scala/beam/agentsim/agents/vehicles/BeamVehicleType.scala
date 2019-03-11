@@ -83,6 +83,17 @@ object BeamVehicleType {
     vehicleCategory = Car
   )
 
+  val defaultBikeBeamVehicleType: BeamVehicleType = BeamVehicleType(
+    Id.create("BIKE-TYPE-DEFAULT", classOf[BeamVehicleType]),
+    2,
+    0,
+    1.5,
+    Gasoline,
+    defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter / 5.0, // 5x more efficient than walking
+    defaultHumanBodyBeamVehicleType.primaryFuelCapacityInJoule, // same capacity as human body
+    vehicleCategory = Bike
+  )
+
   def isHumanVehicle(beamVehicleId: Id[Vehicle]): Boolean =
     beamVehicleId.toString.startsWith("body")
 
