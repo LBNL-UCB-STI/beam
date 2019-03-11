@@ -228,22 +228,6 @@ class RideHailManager(
       case _: AssertionError => Stop
     }
 
-  private val vehicleType = beamServices.vehicleTypes
-    .getOrElse(
-      Id.create(
-        beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
-        classOf[BeamVehicleType]
-      ),
-      throw new RuntimeException(
-        "Ride Hail vehicle type (param: beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId) could not be found"
-      )
-    )
-  if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= vehicleType.primaryFuelCapacityInJoule / vehicleType.primaryFuelConsumptionInJoulePerMeter * 0.8) {
-    throw new RuntimeException(
-      "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
-    )
-  }
-
   /**
     * Customer inquiries awaiting reservation confirmation.
     */
@@ -338,7 +322,7 @@ class RideHailManager(
         .getVehicleAdjustment(beamServices)
         .sampleVehicleTypesForCategory(
           numVehicles = numRideHailAgents.toInt,
-          vehicleCategory = VehicleCategory.RideHail
+          vehicleCategory = VehicleCategory.Car
         )
       var activityEndTimes: ArrayBuffer[Int] = new ArrayBuffer[Int]()
       scenario.getPopulation.getPersons.asScala.map(
@@ -353,6 +337,12 @@ class RideHailManager(
         case (person, idx) =>
           try {
             val vehicleType = vehicleTypes(idx)
+            if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= vehicleType.primaryFuelCapacityInJoule / vehicleType.primaryFuelConsumptionInJoulePerMeter * 0.8) {
+              println("THIS SHOULDN'T BE HAPPENING")
+              throw new RuntimeException(
+                "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
+              )
+            }
             val rideInitialLocation: Location = getRideInitLocation(person)
             if (vehicleType.automationLevel < 4) {
               val shiftDuration = math.round(math.exp(rand.nextGaussian() * 0.67 + 0.60) * 3600)
