@@ -37,16 +37,16 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     private static final String otherMode = "others";
     private static final  String carMode = "car";
     private static final  String busMode = "bus";
-    private static final  String rideHailMode = "ride_hail";
+    private static final  String cavMode = "cav";
     static String fileBaseName = "averageTravelTimes";
     private final String fileNameForRootGraph = "averageCarTravelTimes";
     private final String averageBusTravelTimeRootGraphName = "averageBusTravelTimes";
-    private final String averageRideHailTravelTimeRootGraphName = "averageRideHailTravelTimes";
+    private final String averageCavTravelTimeRootGraphName = "averageCavTravelTimes";
     private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
     private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
     private List<Double> averageTime = new ArrayList<>();
     private List<Double> busAverageTime = new ArrayList<>();
-    private List<Double> rideHailAverageTime = new ArrayList<>();
+    private List<Double> cavAverageTime = new ArrayList<>();
 
     private final StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Map<String,Double>>>> statComputation;
     private final boolean writeGraph;
@@ -76,9 +76,9 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
                 double dayBusAverageData = buildDayAverageDataset(stat.get(busMode));
                 dayAverageDataByMode.put(busMode,dayBusAverageData);
             }
-            if(stat.get(rideHailMode)!=null) {
-                double dayRideHailAverageData = buildDayAverageDataset(stat.get(rideHailMode));
-                dayAverageDataByMode.put(rideHailMode,dayRideHailAverageData);
+            if(stat.get(cavMode)!=null) {
+                double dayCavAverageData = buildDayAverageDataset(stat.get(cavMode));
+                dayAverageDataByMode.put(cavMode,dayCavAverageData);
             }
             return new Tuple<>(modeKeys, new Tuple<>(data, dayAverageDataByMode));
         }
@@ -139,10 +139,10 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             }
             averageTime.add(data.getSecond().getSecond().getOrDefault(carMode,0.0));
             busAverageTime.add(data.getSecond().getSecond().getOrDefault(busMode,0.0));
-            rideHailAverageTime.add(data.getSecond().getSecond().getOrDefault(rideHailMode,0.0));
+            cavAverageTime.add(data.getSecond().getSecond().getOrDefault(cavMode,0.0));
             createRootGraphForAverageCarTravelTime(event);
             createRootGraphForAverageBusTravelTime(event);
-            createRootGraphForAverageRideHailTravelTime(event);
+            createRootGraphForAverageCavTravelTime(event);
         }
         createCSV(data.getFirst(),data.getSecond().getFirst(), event.getIteration());
     }
@@ -150,6 +150,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     private void createRootGraphForAverageCarTravelTime(IterationEndsEvent event) throws IOException{
         double[][] singleCarDataSet = new double[1][event.getIteration()+1];
         for (int i =0 ;i <= event.getIteration() ;i++){
+            System.out.println("Car mode times : " + averageTime.get(i));
             singleCarDataSet[0][i] = averageTime.get(i);
         }
         CategoryDataset averageCarDatasetForRootIteration = buildAverageTimeDatasetGraphForRoot(carMode,singleCarDataSet);
@@ -161,6 +162,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     private void createRootGraphForAverageBusTravelTime(IterationEndsEvent event) throws IOException{
         double[][] singleBusDataSet = new double[1][event.getIteration()+1];
         for (int i =0 ;i <= event.getIteration() ;i++){
+            System.out.println("Bus mode times : " + busAverageTime.get(i));
             singleBusDataSet[0][i] = busAverageTime.get(i);
         }
         CategoryDataset averageBusDatasetForRootIteration = buildAverageTimeDatasetGraphForRoot(busMode,singleBusDataSet);
@@ -169,15 +171,16 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         createCarAverageTimesGraphForRootIteration(averageBusDatasetForRootIteration,busMode,fileName);
     }
 
-    private void createRootGraphForAverageRideHailTravelTime(IterationEndsEvent event) throws IOException{
-        double[][] singleRideHailDataSet = new double[1][event.getIteration()+1];
+    private void createRootGraphForAverageCavTravelTime(IterationEndsEvent event) throws IOException{
+        double[][] singleCavDataSet = new double[1][event.getIteration()+1];
         for (int i =0 ;i <= event.getIteration() ;i++){
-            singleRideHailDataSet[0][i] = rideHailAverageTime.get(i);
+            System.out.println("CAV mode times : " + cavAverageTime.get(i));
+            singleCavDataSet[0][i] = cavAverageTime.get(i);
         }
-        CategoryDataset averageRideHailDatasetForRootIteration = buildAverageTimeDatasetGraphForRoot(rideHailMode,singleRideHailDataSet);
+        CategoryDataset averageCavDatasetForRootIteration = buildAverageTimeDatasetGraphForRoot(cavMode,singleCavDataSet);
         OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
-        String fileName = outputDirectoryHierarchy.getOutputFilename( averageRideHailTravelTimeRootGraphName + ".png");
-        createCarAverageTimesGraphForRootIteration(averageRideHailDatasetForRootIteration,rideHailMode,fileName);
+        String fileName = outputDirectoryHierarchy.getOutputFilename( averageCavTravelTimeRootGraphName + ".png");
+        createCarAverageTimesGraphForRootIteration(averageCavDatasetForRootIteration,cavMode,fileName);
     }
 
     Tuple<List<String>, Tuple<double[][], Map<String,Double>>> compute() {

@@ -142,7 +142,7 @@ class PersonTravelTimeStatsGraphSpec extends WordSpecLike with Matchers with Int
         new AbstractModule() {
           override def install(): Unit = {
             addControlerListenerBinding().to(classOf[PersonTravelTimeStatsGraph])
-            }
+          }
 
           @Provides def provideGraph(
             eventsManager: EventsManager
