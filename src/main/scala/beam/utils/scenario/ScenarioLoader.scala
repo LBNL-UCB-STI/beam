@@ -100,6 +100,8 @@ class ScenarioLoader(
 
     var vehicleCounter: Int = 0
     var initialVehicleCounter: Int = 0
+    var totalCarCount: Int = 0
+
     val scaleFactor = beamServices.beamConfig.beam.agentsim.agents.vehicles.householdVehicleFleetSizeSampleFactor
     val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
@@ -145,7 +147,7 @@ class ScenarioLoader(
           .getOrElse(BeamVehicleType.defaultBikeBeamVehicleType)
       )
       initialVehicleCounter += householdInfo.cars.toInt
-
+      totalCarCount += vehicleTypes.count(_.vehicleCategory.toString == "Car")
       val vehicleIds = new java.util.ArrayList[Id[Vehicle]]
       vehicleTypes.foreach { beamVehicleType =>
         val vt = VehicleUtils.getFactory.createVehicleType(Id.create(beamVehicleType.id, classOf[VehicleType]))
@@ -164,7 +166,7 @@ class ScenarioLoader(
 
     }
     logger.info(
-      s"Created $vehicleCounter vehicles, scaling initial value of $initialVehicleCounter by a factor of $scaleFactor"
+      s"Created $totalCarCount vehicles, scaling initial value of $initialVehicleCounter by a factor of $scaleFactor"
     )
   }
 
