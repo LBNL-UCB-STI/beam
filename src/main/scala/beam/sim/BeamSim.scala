@@ -275,7 +275,7 @@ class BeamSim @Inject()(
 
     val fileNamePath = beamServices.matsimServices.getControlerIO.getOutputFilename(fileName + ".png")
     val index = fileNamePath.lastIndexOf("/")
-    val outDir = new File(fileNamePath.substring(0, index) + "/summaryStats")
+    val outDir = new File(fileNamePath.substring(0, index).replace(':', '_') + "/summaryStats")
     if (!outDir.isDirectory) Files.createDirectories(outDir.toPath)
     val newPath = outDir.getPath + fileNamePath.substring(index)
 
