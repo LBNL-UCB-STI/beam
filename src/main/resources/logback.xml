@@ -3,6 +3,7 @@
 
     <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
 
+<!--
    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <layout class="ch.qos.logback.classic.PatternLayout">
             <Pattern>
@@ -10,6 +11,7 @@
             </Pattern>
         </layout>
     </appender>
+-->
 
     <root level="info">
         <appender-ref ref="STDOUT"/>
