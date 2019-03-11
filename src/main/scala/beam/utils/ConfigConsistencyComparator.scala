@@ -25,7 +25,7 @@ object ConfigConsistencyComparator extends LazyLogging {
       .defaults()
       .setAllowUnresolved(true)
 
-    val baseUserConf = ConfigFactory.parseFile(new File(userConfFileLocation))
+    val baseUserConf = BeamConfigUtils.parseFileSubstitutingInputDirectory(new File(userConfFileLocation))
     val userBeamConf = baseUserConf.withOnlyPath("beam")
     val userMatsimConf = baseUserConf.withOnlyPath("matsim")
     val userConf = userBeamConf.withFallback(userMatsimConf).resolve(configResolver)
