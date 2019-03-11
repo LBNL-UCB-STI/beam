@@ -136,7 +136,7 @@ class BeamSkimmer @Inject()(
           case Some(skim) =>
             skim
           case None =>
-            SkimInternal(1.1, 0, 0.6, 0)
+            SkimInternal(1.1, 0, beamConfig.beam.agentsim.agents.rideHail.pooledToRegularRideCostRatio, 0)
         }
     }
     (pooled.time / solo.time, pooled.cost / solo.cost)
