@@ -23,7 +23,7 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
 
     val beamConfig = BeamConfig(baseConfig)
     val configBuilder = new MatSimBeamConfigBuilder(baseConfig)
-    val matsimConfig = configBuilder.buildMatSamConf()
+    val matsimConfig = configBuilder.buildMatSimConf()
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 

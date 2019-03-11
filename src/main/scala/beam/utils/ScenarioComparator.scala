@@ -72,7 +72,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
       .withValue("beam.outputs.baseOutputDirectory", ConfigValueFactory.fromAnyRef(testOutputDir))
       .resolve()
 
-    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
 
     //matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     //  ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
@@ -93,7 +93,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
       .parseFileSubstitutingInputDirectory(configFile)
       .withValue("beam.outputs.baseOutputDirectory", ConfigValueFactory.fromAnyRef(testOutputDir))
       .resolve()
-    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
 
     val beamServices = getBeamServices(config)

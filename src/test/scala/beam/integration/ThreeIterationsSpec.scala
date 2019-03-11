@@ -23,7 +23,7 @@ class ThreeIterationsSpec extends FlatSpec with BeamHelper with MockitoSugar {
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .resolve()
     val configBuilder = new MatSimBeamConfigBuilder(config)
-    val matsimConfig = configBuilder.buildMatSamConf()
+    val matsimConfig = configBuilder.buildMatSimConf()
     matsimConfig.controler().setLastIteration(2)
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     val beamConfig = BeamConfig(config)

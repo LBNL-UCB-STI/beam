@@ -65,7 +65,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
 
   private def runCarSharingTest(config: Config): Unit = {
     val configBuilder = new MatSimBeamConfigBuilder(config)
-    val matsimConfig = configBuilder.buildMatSamConf()
+    val matsimConfig = configBuilder.buildMatSimConf()
     val beamConfig = BeamConfig(config)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
