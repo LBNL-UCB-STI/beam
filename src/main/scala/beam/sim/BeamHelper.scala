@@ -425,7 +425,7 @@ trait BeamHelper extends LazyLogging {
     if (isMetricsEnable) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
 
     val configBuilder = new MatSimBeamConfigBuilder(config)
-    val matsimConfig = configBuilder.buildMatSamConf()
+    val matsimConfig = configBuilder.buildMatSimConf()
     if (!beamConfig.beam.outputs.writeGraphs) {
       matsimConfig.counts.setOutputFormat("txt")
       matsimConfig.controler.setCreateGraphs(false)
