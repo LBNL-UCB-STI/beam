@@ -60,7 +60,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
   private lazy val beamConfig = BeamConfig(system.settings.config)
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-  private val matsimConfig = configBuilder.buildMatSamConf()
+  private val matsimConfig = configBuilder.buildMatSimConf()
 
   private lazy val beamSvc: BeamServices = {
     val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
