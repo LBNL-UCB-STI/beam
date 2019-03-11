@@ -140,8 +140,11 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             averageTime.add(data.getSecond().getSecond().getOrDefault(carMode,0.0));
             busAverageTime.add(data.getSecond().getSecond().getOrDefault(busMode,0.0));
             cavAverageTime.add(data.getSecond().getSecond().getOrDefault(cavMode,0.0));
+            //generate the average travel time analysis graph for CAR mode
             createRootGraphForAverageCarTravelTime(event);
+            //generate the average travel time analysis graph for BUS mode
             createRootGraphForAverageBusTravelTime(event);
+            //generate the average travel time analysis graph for CAV mode
             createRootGraphForAverageCavTravelTime(event);
         }
         createCSV(data.getFirst(),data.getSecond().getFirst(), event.getIteration());
@@ -150,7 +153,6 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     private void createRootGraphForAverageCarTravelTime(IterationEndsEvent event) throws IOException{
         double[][] singleCarDataSet = new double[1][event.getIteration()+1];
         for (int i =0 ;i <= event.getIteration() ;i++){
-            System.out.println("Car mode times : " + averageTime.get(i));
             singleCarDataSet[0][i] = averageTime.get(i);
         }
         CategoryDataset averageCarDatasetForRootIteration = buildAverageTimeDatasetGraphForRoot(carMode,singleCarDataSet);
@@ -159,10 +161,14 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         createCarAverageTimesGraphForRootIteration(averageCarDatasetForRootIteration,carMode,fileName);
     }
 
+    /**
+     * Creates a average travel times analysis graph(for bus mode only) in the output folder's root location
+     * @param event An instance of IterationEndsEvent
+     * @throws IOException exception handling
+     */
     private void createRootGraphForAverageBusTravelTime(IterationEndsEvent event) throws IOException{
         double[][] singleBusDataSet = new double[1][event.getIteration()+1];
         for (int i =0 ;i <= event.getIteration() ;i++){
-            System.out.println("Bus mode times : " + busAverageTime.get(i));
             singleBusDataSet[0][i] = busAverageTime.get(i);
         }
         CategoryDataset averageBusDatasetForRootIteration = buildAverageTimeDatasetGraphForRoot(busMode,singleBusDataSet);
@@ -171,10 +177,14 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         createCarAverageTimesGraphForRootIteration(averageBusDatasetForRootIteration,busMode,fileName);
     }
 
+    /**
+     * Creates a average travel times analysis graph(for cav mode only) in the output folder's root location
+     * @param event An instance of IterationEndsEvent
+     * @throws IOException exception handling
+     */
     private void createRootGraphForAverageCavTravelTime(IterationEndsEvent event) throws IOException{
         double[][] singleCavDataSet = new double[1][event.getIteration()+1];
         for (int i =0 ;i <= event.getIteration() ;i++){
-            System.out.println("CAV mode times : " + cavAverageTime.get(i));
             singleCavDataSet[0][i] = cavAverageTime.get(i);
         }
         CategoryDataset averageCavDatasetForRootIteration = buildAverageTimeDatasetGraphForRoot(cavMode,singleCavDataSet);
