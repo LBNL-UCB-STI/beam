@@ -88,7 +88,7 @@ class ScenarioLoader(
   }
 
   private def drawFromBinomial(randomSeed: java.util.Random, nTrials: Int, p: Double): Int = {
-    Seq.fill(nTrials)(randomSeed.nextDouble).count( _ < p)
+    Seq.fill(nTrials)(randomSeed.nextDouble).count(_ < p)
   }
 
   private[utils] def applyHousehold(
@@ -155,7 +155,9 @@ class ScenarioLoader(
       scenarioHouseholdAttributes.putAttribute(household.getId.toString, "homecoordy", coord.getY)
 
     }
-    logger.info(s"Created $vehicleCounter vehicles, scaling initial value of $initialVehicleCounter by a factor of $scaleFactor")
+    logger.info(
+      s"Created $vehicleCounter vehicles, scaling initial value of $initialVehicleCounter by a factor of $scaleFactor"
+    )
   }
 
   private[utils] def applyPersons(persons: Iterable[PersonInfo]): Unit = {

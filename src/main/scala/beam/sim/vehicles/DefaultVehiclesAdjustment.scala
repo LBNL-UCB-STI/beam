@@ -12,7 +12,7 @@ case class DefaultVehiclesAdjustment(beamServices: BeamServices) extends Vehicle
   override def sampleVehicleTypesForCategory(
     numVehicles: Int,
     vehicleCategory: VehicleCategory
-   ): List[BeamVehicleType] = {
+  ): List[BeamVehicleType] = {
     Range(0, numVehicles).map { i =>
       if (vehicleCategory == VehicleCategory.Car) {
         vehicleTypesByCategory

@@ -20,7 +20,11 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{
+  CouldNotFindRouteToCustomer,
+  DriverNotFoundError,
+  RideHailVehicleTakenError
+}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -59,8 +63,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.math.{max, min}
 import probability_monad.Distribution.lognormal
-
-
 
 object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLocation, Double)] {
   override def compare(
@@ -307,11 +309,15 @@ class RideHailManager(
   // Are we in the middle of processing a batch?
   var currentlyProcessingTimeoutTrigger: Option[TriggerWithId] = None
 
-  private val numHouseholdVehicles = scenario.getHouseholds.getHouseholds.values().asScala.map(_.getVehicleIds.size()).sum / beamServices.beamConfig.beam.agentsim.agents.vehicles.householdVehicleFleetSizeSampleFactor
+  private val numHouseholdVehicles = scenario.getHouseholds.getHouseholds
+    .values()
+    .asScala
+    .map(_.getVehicleIds.size())
+    .sum / beamServices.beamConfig.beam.agentsim.agents.vehicles.householdVehicleFleetSizeSampleFactor
   private val numRideHailAgents = math.round(
-     numHouseholdVehicles *
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.portionOfInitialVehicleFleet /
-       beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.effectiveVehicleReplacementMultiplier
+    numHouseholdVehicles *
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.portionOfInitialVehicleFleet /
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.effectiveVehicleReplacementMultiplier
 //    beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation
   )
 
@@ -335,28 +341,47 @@ class RideHailManager(
           vehicleCategory = VehicleCategory.RideHail
         )
       var activityEndTimes: ArrayBuffer[Int] = new ArrayBuffer[Int]()
-      scenario.getPopulation.getPersons.asScala.map(_._2.getSelectedPlan.getPlanElements.asScala.filter(_.isInstanceOf[Activity]).map(_.asInstanceOf[Activity].getEndTime.toInt).filter(_ > 0).map(activityEndTimes += _))
+      scenario.getPopulation.getPersons.asScala.map(
+        _._2.getSelectedPlan.getPlanElements.asScala
+          .filter(_.isInstanceOf[Activity])
+          .map(_.asInstanceOf[Activity].getEndTime.toInt)
+          .filter(_ > 0)
+          .map(activityEndTimes += _)
+      )
       val fleetData: ArrayBuffer[RideHailFleetInitializer.RideHailAgentInputData] = new ArrayBuffer(persons.size)
-      persons.zipWithIndex.foreach { case(person, idx) =>
-        try {
-          val vehicleType = vehicleTypes(idx)
-          val rideInitialLocation: Location = getRideInitLocation(person)
-          if (vehicleType.automationLevel < 4) {
-            val shiftDuration = math.round(math.exp( rand.nextGaussian() * 0.67 + 0.60) * 3600)
-            val shiftMidPointTime = activityEndTimes(rand.nextInt(activityEndTimes.length))
-            val shiftStartTime = max(shiftMidPointTime - (shiftDuration / 2).toInt, 10)
-            val shiftEndTime = min(shiftMidPointTime + (shiftDuration / 2).toInt, 24*3600)
-            val shiftString = convertToShiftString(ArrayBuffer(shiftStartTime),ArrayBuffer(shiftEndTime))
-            fleetData += createRideHailVehicleAndAgent(person.getId.toString, vehicleType, rideInitialLocation, shiftString, None)
-          } else {
-            val shiftString = convertToShiftString(ArrayBuffer(0),ArrayBuffer(24*3600))
-            fleetData += createRideHailVehicleAndAgent(person.getId.toString, vehicleType, rideInitialLocation, shiftString, None)
+      persons.zipWithIndex.foreach {
+        case (person, idx) =>
+          try {
+            val vehicleType = vehicleTypes(idx)
+            val rideInitialLocation: Location = getRideInitLocation(person)
+            if (vehicleType.automationLevel < 4) {
+              val shiftDuration = math.round(math.exp(rand.nextGaussian() * 0.67 + 0.60) * 3600)
+              val shiftMidPointTime = activityEndTimes(rand.nextInt(activityEndTimes.length))
+              val shiftStartTime = max(shiftMidPointTime - (shiftDuration / 2).toInt, 10)
+              val shiftEndTime = min(shiftMidPointTime + (shiftDuration / 2).toInt, 24 * 3600)
+              val shiftString = convertToShiftString(ArrayBuffer(shiftStartTime), ArrayBuffer(shiftEndTime))
+              fleetData += createRideHailVehicleAndAgent(
+                person.getId.toString,
+                vehicleType,
+                rideInitialLocation,
+                shiftString,
+                None
+              )
+            } else {
+              val shiftString = convertToShiftString(ArrayBuffer(0), ArrayBuffer(24 * 3600))
+              fleetData += createRideHailVehicleAndAgent(
+                person.getId.toString,
+                vehicleType,
+                rideInitialLocation,
+                shiftString,
+                None
+              )
+            }
+          } catch {
+            case ex: Throwable =>
+              log.error(ex, s"Could not createRideHailVehicleAndAgent: ${ex.getMessage}")
+              throw ex
           }
-        } catch {
-          case ex: Throwable =>
-            log.error(ex, s"Could not createRideHailVehicleAndAgent: ${ex.getMessage}")
-            throw ex
-        }
       }
 
       new RideHailFleetInitializer().writeFleetData(beamServices, fleetData)

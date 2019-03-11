@@ -39,8 +39,8 @@ case class UniformVehiclesAdjustment(beamServices: BeamServices) extends Vehicle
   }
 
   override def sampleVehicleTypesForCategory(
-     numVehicles: Int,
-     vehicleCategory: VehicleCategory
+    numVehicles: Int,
+    vehicleCategory: VehicleCategory
   ): List[BeamVehicleType] = {
     val result = Range(0, numVehicles).map { i =>
       val newRand = randUnif.get

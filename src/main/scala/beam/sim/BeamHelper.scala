@@ -482,7 +482,9 @@ trait BeamHelper extends LazyLogging {
     beamServices: BeamServices
   ): Unit = {
     if (beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation < 1) {
-      val numAgents = math.round(beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation * scenario.getPopulation.getPersons.size())
+      val numAgents = math.round(
+        beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation * scenario.getPopulation.getPersons.size()
+      )
       val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
       val notSelectedHouseholdIds = mutable.Set[Id[Household]]()
       val notSelectedVehicleIds = mutable.Set[Id[Vehicle]]()
