@@ -87,8 +87,10 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
 
     private double  getNextAvailableTimeForLeavingStreet(double simTime){
+        double speedAdjustmentFactor=0.5;
+
         return simTime + this.link.getLength()
-                / this.link.getFreespeed(simTime);
+                / this.link.getFreespeed(simTime)*speedAdjustmentFactor;
     }
 
 
