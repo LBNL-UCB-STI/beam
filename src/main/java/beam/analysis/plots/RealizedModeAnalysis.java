@@ -2,6 +2,7 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.ReplanningEvent;
+import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
@@ -15,10 +16,7 @@ import org.matsim.core.utils.collections.Tuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -28,7 +26,9 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
 
 
     private static final String graphTitle = "Realized Mode Histogram";
+    private static final String referenceGraphTitle = "Reference Realized Mode Histogram";
     private static final String replanningGraphTitle = "Replanning Event Count";
+    private static final String rootReplanningGraphTitle = "ReplanningEvent Count";
     private static final String yAxisTitleForReplanning = "count";
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# mode chosen";
@@ -37,9 +37,12 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
     private Map<String, Stack<ModeHour>> hourPerson = new HashMap<>();
     private Map<Integer, Map<String, Double>> realizedModeChoiceInIteration = new HashMap<>();
     private Map<Integer, Integer> affectedModeCount = new HashMap<>();
+    private Map<Integer, Integer> rootAffectedModeCount = new HashMap<>();
     private Set<String> iterationTypeSet = new HashSet<>();
     private Set<String> cumulativeMode = new TreeSet<>();
     private Map<String, Map<Integer, Map<String, Integer>>> personHourModeCount = new HashMap<>();
+    private Map<String , Double> benchMarkData;
+    private Set<String> cumulativeReferenceMode = new TreeSet<>();
 
     //This map will always hold value as 0 or 1
     private Map<String, Integer> personIdList = new HashMap<>();
@@ -48,9 +51,11 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
     private final boolean writeGraph;
     private final StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation;
 
-    public RealizedModeAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation, boolean writeGraph) {
+    public RealizedModeAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation, boolean writeGraph, BeamConfig beamConfig) {
+        String benchMarkFileLocation = beamConfig.beam().calibration().mode().benchmarkFilePath();
         this.statComputation = statComputation;
         this.writeGraph = writeGraph;
+        benchMarkData = benchMarkCSVLoader(benchMarkFileLocation);
     }
 
     public static class RealizedModesStatsComputation implements StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> {
@@ -109,19 +114,32 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
             createModesFrequencyGraph(modesFrequencyDataset, event.getIteration());
 
         OutputDirectoryHierarchy outputDirectoryHierarchy = event.getServices().getControlerIO();
+
         String fileName;
         CategoryDataset dataset = buildRealizedModeChoiceDatasetForGraph();
         if (dataset != null && writeGraph) {
             fileName = outputDirectoryHierarchy.getOutputFilename("realizedModeChoice.png");
-            createRootRealizedModeChoosenGraph(dataset, fileName);
+            createRootRealizedModeChoosenGraph(dataset, graphTitle, "# mode choosen" , fileName, cumulativeMode );
+        }
+
+        CategoryDataset referenceDataset = buildRealizedModeChoiceReferenceDatasetForGraph();
+        if(referenceDataset != null && writeGraph){
+            fileName = outputDirectoryHierarchy.getOutputFilename("referenceRealizedModeChoice.png");
+            cumulativeReferenceMode.addAll(benchMarkData.keySet());
+            createRootRealizedModeChoosenGraph(referenceDataset,referenceGraphTitle, "# mode choosen(Percent)" , fileName , cumulativeReferenceMode);
         }
 
         writeToRootCSV();
         writeToCSV(event);
+        writeToReferenceCSV();
 
         DefaultCategoryDataset replanningModeCountDataset = replanningCountModeChoiceDataset();
         createReplanningCountModeChoiceGraph(replanningModeCountDataset, event.getIteration());
         writeToReplanningCSV(event);
+
+        rootAffectedModeCount.put(event.getIteration(), affectedModeCount.values().stream().reduce(Integer::sum).orElse(0));
+        fileName = outputDirectoryHierarchy.getOutputFilename("replanningCountModeChoice.png");
+        writeToRootReplanningCountModeChoice(fileName);
 
     }
 
@@ -133,6 +151,12 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
         personIdList.clear();
         personHourModeCount.clear();
         affectedModeCount.clear();
+    }
+
+    private void writeToRootReplanningCountModeChoice(String fileName) throws IOException{
+        CategoryDataset dataset = rootReplanningCountModeChoiceDataset();
+        createRootReplaningModeChoiceCountGraph(dataset, fileName);
+
     }
 
     // The modeChoice events for same person as of replanning event will be excluded in the form of CRC, CRCRC, CRCRCRC so on.
@@ -312,6 +336,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
             }
         });
         cumulativeMode.addAll(modes);
+        cumulativeReferenceMode.addAll(modes);
         return modes;
     }
 
@@ -344,17 +369,66 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
         return statComputation.compute(new Tuple<>(realizedModeChoiceInIteration, cumulativeMode));
     }
 
-    // generating graph in root directory
-    private void createRootRealizedModeChoosenGraph(CategoryDataset dataset, String fileName) throws IOException {
+
+    //reference realized mode detaset
+    private CategoryDataset buildRealizedModeChoiceReferenceDatasetForGraph() throws IOException {
+        CategoryDataset categoryDataset = null;
+        double[][] dataset = statComputation.compute(new Tuple<>(realizedModeChoiceInIteration, cumulativeReferenceMode));
+
+        if (dataset != null) {
+            categoryDataset = createReferenceCategoryDataset("it.", dataset);
+        }
+        return categoryDataset;
+    }
+
+    // The data is converted into average and compared with the data of benchmark.
+    private CategoryDataset createReferenceCategoryDataset(String columnKeyPrefix, double[][] data) {
+        DefaultCategoryDataset result = new DefaultCategoryDataset();
+        List<String> modesChosenList = GraphsStatsAgentSimEventsListener.getSortedStringList(benchMarkData.keySet());
+        double sum = benchMarkData.values().stream().reduce((x, y) -> x + y).orElse(0.0);
+        for (int i = 0; i < modesChosenList.size(); i++) {
+            String rowKey = String.valueOf(i + 1);
+            result.addValue((benchMarkData.get(modesChosenList.get(i)) * 100) / sum, rowKey, "benchmark");
+        }
+        int max = 0;
+        for (double[] aData : data) {
+            if (aData.length > max) {
+                max = aData.length;
+            }
+        }
+        double[] sumOfColumns = new double[max];
+        for (double[] aData : data) {
+            for (int c = 0; c < aData.length; c++) {
+                sumOfColumns[c] += aData[c];
+            }
+        }
+
+        for (int r = 0; r < data.length; r++) {
+            String rowKey = String.valueOf(r + 1);
+            for (int c = 0; c < data[r].length; c++) {
+                String columnKey = columnKeyPrefix + c;
+                result.addValue((data[r][c] * 100) / sumOfColumns[c], rowKey, columnKey);
+            }
+        }
+        return result;
+    }
+
+    // generating realized mode and reference realized mode graphs in root directory
+    private void createRootRealizedModeChoosenGraph(CategoryDataset dataset, String graphTitle , String yAxisTitle,  String fileName, Set<String> modeSet) throws IOException {
         boolean legend = true;
-        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, "Iteration", "# mode choosen", fileName, legend);
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, "Iteration", yAxisTitle, fileName, legend);
         CategoryPlot plot = chart.getCategoryPlot();
-        List<String> modesChosenList = new ArrayList<>(cumulativeMode);
+        List<String> modesChosenList = new ArrayList<>(modeSet);
         Collections.sort(modesChosenList);
         GraphUtils.plotLegendItems(plot, modesChosenList, dataset.getRowCount());
         GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
+    // generating graph in root directory for replanningCountModeChoice
+    private void createRootReplaningModeChoiceCountGraph(CategoryDataset dataset, String fileName) throws IOException {
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, rootReplanningGraphTitle, "Iteration", "Number of events", fileName, false);
+        GraphUtils.saveJFreeChartAsPNG(chart, fileName, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+    }
 
     double[][] buildModesFrequencyDataset() {
 
@@ -377,6 +451,12 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
         return dataset;
     }
 
+
+    public DefaultCategoryDataset rootReplanningCountModeChoiceDataset() {
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+        rootAffectedModeCount.forEach((k,v) -> dataset.addValue((Number) v , 0, k));
+        return dataset;
+    }
 
     private void writeToCSV(IterationEndsEvent event) {
 
@@ -454,6 +534,68 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
     }
 
 
+    public void writeToReferenceCSV(){
+        String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("referenceRealizedModeChoice.csv");
+        try(BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)))){
+            Set<String> modes = cumulativeReferenceMode;
+            String heading = modes.stream().reduce((x, y) -> x + "," + y).orElse("");
+            out.write("iterations,"+heading);
+            out.newLine();
+
+            StringBuilder builder = new StringBuilder("benchmark");
+            double sum = benchMarkData.values().stream().reduce((x, y) -> x + y).orElse(0.0);
+            for(String d:cumulativeReferenceMode){
+                if(benchMarkData.get(d) == null){
+                    builder.append(",0.0");
+                }
+                else {
+                    builder.append("," + benchMarkData.get(d) * 100 / sum);
+                }
+            }
+            out.write(builder.toString());
+            out.newLine();
+
+
+            int max = realizedModeChoiceInIteration.keySet().stream().mapToInt(x -> x).max().orElse(0);
+
+            double[] sumInIteration = new double[max + 1];
+            for (int iteration = 0; iteration <= max; iteration++) {
+                Map<String, Double> modeCount = realizedModeChoiceInIteration.get(iteration);
+                if (modeCount != null) {
+                    for (String mode : modes) {
+                        if (modeCount.get(mode) != null) {
+                            sumInIteration[iteration] += modeCount.get(mode);
+                        }
+                    }
+                }
+            }
+
+            for (int iteration = 0; iteration <= max; iteration++) {
+                Map<String, Double> modeCount = realizedModeChoiceInIteration.get(iteration);
+                builder = new StringBuilder(iteration + "");
+                if (modeCount != null) {
+                    for (String mode : modes) {
+                        if (modeCount.get(mode) != null) {
+                            builder.append(",").append((modeCount.get(mode) * 100) / sumInIteration[iteration]);
+                        } else {
+                            builder.append(",0");
+                        }
+                    }
+                } else {
+                    for (String ignored : modes) {
+                        builder.append(",0");
+                    }
+                }
+                out.write(builder.toString());
+                out.newLine();
+            }
+
+        }catch (IOException ex){
+            log.error("error in generating csv " , ex);
+
+        }
+    }
+
     private void writeToReplanningCSV(IterationEndsEvent event) {
         String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(event.getIteration(), "replanningCountModeChoice.csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)))) {
@@ -478,6 +620,24 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
 
     public Map<Integer, Integer> getAffectedModeCount() {
         return affectedModeCount;
+    }
+
+    private Map<String, Double> benchMarkCSVLoader(String path) {
+
+        Map<String, Double> benchMarkData = new HashMap<>();
+
+        try (FileReader fileReader = new FileReader(path)) {
+            BufferedReader bufferedReader = new BufferedReader(fileReader);
+            String mode[] = bufferedReader.readLine().split(",");
+            String modeData[] = bufferedReader.readLine().split(",");
+
+            for (int i = 1; i < mode.length; i++) {
+                benchMarkData.put(mode[i], Double.parseDouble(modeData[i]));
+            }
+        } catch (Exception ex) {
+            log.warn("Unable to load benchmark CSV via path '{}'", path);
+        }
+        return benchMarkData;
     }
 
     public class ModeHour {

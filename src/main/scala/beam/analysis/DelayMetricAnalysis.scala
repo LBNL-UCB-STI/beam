@@ -4,10 +4,10 @@ import java.util
 
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
-import beam.router.Modes.BeamMode.CAR
+import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.utils.NetworkHelper
+import beam.utils.logging.ExponentialLazyLogging
 import com.google.inject.Inject
-import com.typesafe.scalalogging.LazyLogging
 import org.jfree.chart.plot.CategoryPlot
 import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.events.Event
@@ -26,7 +26,7 @@ class DelayMetricAnalysis @Inject()(
   controlerIO: OutputDirectoryHierarchy,
   networkHelper: NetworkHelper
 ) extends BasicEventHandler
-    with LazyLogging {
+    with ExponentialLazyLogging {
 
   eventsManager.addHandler(this)
 
@@ -60,7 +60,7 @@ class DelayMetricAnalysis @Inject()(
     event match {
       case pathTraversalEvent: PathTraversalEvent =>
         val mode = pathTraversalEvent.mode
-        if (mode.equals(CAR.value)) {
+        if (AgentSimToPhysSimPlanConverter.isPhyssimMode(mode.value)) {
           val linkIds = pathTraversalEvent.linkIds
           val linkTravelTimes = pathTraversalEvent.linkTravelTimes
           assert(linkIds.length == linkTravelTimes.length)
@@ -82,7 +82,7 @@ class DelayMetricAnalysis @Inject()(
   def process(index: Int, link: Link, travelTime: Double): Unit = {
     val freeLength = link.getLength
     val freeSpeed = link.getFreespeed
-    var freeFlowDelay = travelTime - (freeLength / freeSpeed).round.toInt
+    var freeFlowDelay = travelTime - (freeLength / freeSpeed)
     if (freeFlowDelay >= 0) {
       val existingFreeFlowDelay = cumulativeDelay(index)
       val existingLinkLength = cumulativeLength(index)

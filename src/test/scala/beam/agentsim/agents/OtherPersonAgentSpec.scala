@@ -91,6 +91,7 @@ class OtherPersonAgentSpec
     when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
     when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(theServices.beamConfig).thenReturn(config)
+    when(theServices.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
     val geo = new GeoUtilsImpl(config)
@@ -314,7 +315,7 @@ class OtherPersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(),
-          new BeamSkimmer()
+          new BeamSkimmer(config)
         )
       )
       scheduler ! StartSchedule(0)
@@ -323,11 +324,11 @@ class OtherPersonAgentSpec
       val personActor = lastSender
 
       scheduler ! ScheduleTrigger(
-        BoardVehicleTrigger(28800, busLeg.beamVehicleId),
+        BoardVehicleTrigger(28800, busLeg.beamVehicleId, Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)),
         personActor
       )
       scheduler ! ScheduleTrigger(
-        AlightVehicleTrigger(34400, busLeg.beamVehicleId),
+        AlightVehicleTrigger(34400, busLeg.beamVehicleId, Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)),
         personActor
       )
 
@@ -462,11 +463,19 @@ class OtherPersonAgentSpec
             reservationRequestBus.passengerVehiclePersonId,
             Vector(
               ScheduleTrigger(
-                BoardVehicleTrigger(35000, replannedTramLeg.beamVehicleId),
+                BoardVehicleTrigger(
+                  35000,
+                  replannedTramLeg.beamVehicleId,
+                  Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)
+                ),
                 personActor
               ),
               ScheduleTrigger(
-                AlightVehicleTrigger(40000, replannedTramLeg.beamVehicleId),
+                AlightVehicleTrigger(
+                  40000,
+                  replannedTramLeg.beamVehicleId,
+                  Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)
+                ),
                 personActor
               ) // My tram is late!
             )

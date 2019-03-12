@@ -63,7 +63,7 @@ class RideHailAgentSpec
   private val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
 
   private lazy val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-  private lazy val matsimConfig = configBuilder.buildMatSamConf()
+  private lazy val matsimConfig = configBuilder.buildMatSimConf()
 
   lazy val services: BeamServices = {
     val matsimServices = mock[MatsimServices]
@@ -344,7 +344,7 @@ class RideHailAgentSpec
       expectMsgType[VehicleEntersTrafficEvent]
 
       trigger = expectMsgPF() {
-        case t @ TriggerWithId(BoardVehicleTrigger(38800, _), _) =>
+        case t @ TriggerWithId(BoardVehicleTrigger(38800, _, _), _) =>
           t
       }
       scheduler ! CompletionNotice(trigger.triggerId)
@@ -367,7 +367,7 @@ class RideHailAgentSpec
       val notifyVehicleIdle = expectMsgType[NotifyVehicleIdle]
       rideHailAgent ! NotifyVehicleResourceIdleReply(notifyVehicleIdle.triggerId, Vector())
       trigger = expectMsgPF() {
-        case t @ TriggerWithId(AlightVehicleTrigger(48800, _), _) =>
+        case t @ TriggerWithId(AlightVehicleTrigger(48800, _, _), _) =>
           t
       }
       scheduler ! CompletionNotice(trigger.triggerId)
