@@ -1,16 +1,17 @@
 package beam.physsim.jdeqsim.cacc.sim;
 
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.RoadCapacityAdjustmentFunction;
+import beam.utils.DebugLib;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.core.mobsim.jdeqsim.Scheduler;
-import org.matsim.core.mobsim.jdeqsim.Vehicle;
-import static beam.physsim.jdeqsim.cacc.sim.JDEQSimulation.isCACCVehicle;
+
+import java.util.HashMap;
 
 public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
-    //TODO: where is output, test outputs for change in travel time
     public double CACC;
     private static RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction;
+    private HashMap<Vehicle,Double> caccShareEncounteredByVehicle=new HashMap<>();
 
 
     public Road(Scheduler scheduler, Link link) {
@@ -24,33 +25,43 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
         Road.roadCapacityAdjustmentFunction = roadCapacityAdjustmentFunction;
     }
 
-    public double getShareCACC() {
+    public void updateCACCShareEncounteredByVehicle(Vehicle vehicle) {
 
         double numCACC = 0;
-        for (org.matsim.core.mobsim.jdeqsim.Vehicle vehicle : carsOnTheRoad) {
-            if (isCACCVehicle.containsKey(vehicle.getOwnerPerson().getId().toString()) && isCACCVehicle.get(vehicle.getOwnerPerson().getId().toString())) {
+        for (org.matsim.core.mobsim.jdeqsim.Vehicle veh : carsOnTheRoad) {
+            if (vehicle.isCACCVehicle()) {
                 numCACC++;
             }
         }
 
-        if (carsOnTheRoad.size() == 0) return 0;
-        return (numCACC / carsOnTheRoad.size());
+        if (carsOnTheRoad.size()>0 && !vehicle.getOwnerPerson().getId().toString().contains("bus")){
+            DebugLib.emptyFunctionForSettingBreakPoint();
+        }
+
+        // if we would set this to 0, no car would be worse than CACC and have a worse road capacity, which does not make sense
+        double caccShare=1.0;
+        if (carsOnTheRoad.size()!= 0) {
+            caccShare = (numCACC / carsOnTheRoad.size());
+        }
+
+        caccShareEncounteredByVehicle.put(vehicle,caccShare);
+
     }
 
     @Override
-    public void enterRoad(Vehicle vehicle, double simTime) {
+    public void enterRoad(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime) {
 
-        double caccShare = getShareCACC();
+        updateCACCShareEncounteredByVehicle((Vehicle) vehicle);
 
         double nextAvailableTimeForLeavingStreet = getNextAvailableTimeForLeavingStreet(simTime);
 
-        markCarAsProcessed(vehicle);
+        markCarAsProcessed((Vehicle) vehicle);
 
         updateEarliestDepartureTimeOfCar(nextAvailableTimeForLeavingStreet);
 
         if (onlyOneCarRoad()) {
             nextAvailableTimeForLeavingStreet = Math.max(nextAvailableTimeForLeavingStreet,
-                    this.timeOfLastLeavingVehicle + (1/roadCapacityAdjustmentFunction.getCapacityWithCACC(link,caccShare)));
+                    this.timeOfLastLeavingVehicle + (1/roadCapacityAdjustmentFunction.getCapacityWithCACC(link,caccShareEncounteredByVehicle.remove(vehicle))));
             vehicle.scheduleEndRoadMessage(nextAvailableTimeForLeavingStreet, this);
         }
 

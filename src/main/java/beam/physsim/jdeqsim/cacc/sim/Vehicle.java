@@ -29,4 +29,8 @@ public class Vehicle extends org.matsim.core.mobsim.jdeqsim.Vehicle {
 		super(scheduler, ownerPerson, activityDurationInterpretation);
 		this.isCACCVehicle=isCACCVehicle;
 	}
+
+	public Boolean isCACCVehicle() {
+		return isCACCVehicle;
+	}
 }

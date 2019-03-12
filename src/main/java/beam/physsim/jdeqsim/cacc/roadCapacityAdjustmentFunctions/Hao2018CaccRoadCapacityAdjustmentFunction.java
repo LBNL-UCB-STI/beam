@@ -1,6 +1,7 @@
 package beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions;
 
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.RoadCapacityAdjustmentFunction;
+import beam.utils.DebugLib;
 import org.matsim.api.core.v01.network.Link;
 
 
@@ -26,6 +27,11 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
 
     public double getCapacityWithCACC(Link link, double fractionCACCOnRoad){
         double initialCapacity=link.getFlowCapacityPerSec();
+
+        if (fractionCACCOnRoad>0 && fractionCACCOnRoad<1.0){
+            DebugLib.emptyFunctionForSettingBreakPoint();
+        }
+
 
         if (initialCapacity>=caccMinRoadCapacity && link.getFreespeed()>caccMinSpeedMetersPerSec) {
             return (2152.777778 * fractionCACCOnRoad * fractionCACCOnRoad * fractionCACCOnRoad - 764.8809524 * fractionCACCOnRoad * fractionCACCOnRoad + 456.1507937 * fractionCACCOnRoad + 1949.047619) / 1949.047619 * initialCapacity;
