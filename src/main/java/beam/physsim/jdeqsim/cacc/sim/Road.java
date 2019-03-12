@@ -34,6 +34,10 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
             }
         }
 
+        if (carsOnTheRoad.size()>2 & carsOnTheRoad.size()!=numCACC){
+            DebugLib.emptyFunctionForSettingBreakPoint();
+        }
+
         if (carsOnTheRoad.size()>0 && !vehicle.getOwnerPerson().getId().toString().contains("bus")){
             DebugLib.emptyFunctionForSettingBreakPoint();
         }
