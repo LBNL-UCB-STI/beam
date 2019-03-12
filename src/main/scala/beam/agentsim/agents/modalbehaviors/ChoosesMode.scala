@@ -904,7 +904,9 @@ trait ChoosesMode {
                 _currentTick.get,
                 body.id,
                 false,
-                if(cavTripLegs.legs.isEmpty){choosesModeData.currentLocation.loc}else{cavTripLegs.legs.head.beamLeg.travelPath.startPoint.loc}
+                if (cavTripLegs.legs.isEmpty) { choosesModeData.currentLocation.loc } else {
+                  cavTripLegs.legs.head.beamLeg.travelPath.startPoint.loc
+                }
               )
               val cavLegs = cavTripLegs.legs.size match {
                 case 0 =>
@@ -929,7 +931,9 @@ trait ChoosesMode {
                   _currentTick.get + cavLegs.map(_.beamLeg.duration).sum,
                   body.id,
                   true,
-                  if(cavTripLegs.legs.isEmpty){choosesModeData.currentLocation.loc}else{cavTripLegs.legs.last.beamLeg.travelPath.endPoint.loc}
+                  if (cavTripLegs.legs.isEmpty) { choosesModeData.currentLocation.loc } else {
+                    cavTripLegs.legs.last.beamLeg.travelPath.endPoint.loc
+                  }
                 )
               val cavTrip = EmbodiedBeamTrip(walk1 +: cavLegs.toVector :+ walk2)
               goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(cavTrip))
