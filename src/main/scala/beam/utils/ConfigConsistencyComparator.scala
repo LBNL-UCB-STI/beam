@@ -116,7 +116,7 @@ object ConfigConsistencyComparator extends LazyLogging {
       .entrySet()
       .asScala
       .map(entry => (entry.getKey, resolve(entry.getKey, entry.getValue)))
-      .filter { case (key, value) => key.toLowerCase.endsWith("filepath") && !new File(value).isFile }
+      .filter { case (key, value) => key.toLowerCase.endsWith("filepath") && value.nonEmpty && !new File(value).isFile }
       .toSeq
   }
 
