@@ -4,6 +4,7 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.WALK
+import beam.utils.TravelTimeUtils
 
 /**
   *
@@ -27,6 +28,14 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
       )
   }
 
+  def scaleToNewDuration(newDuration: Int): BeamLeg = {
+    val newTravelPath = this.travelPath.copy(linkTravelTime = TravelTimeUtils.scaleTravelTime(newDuration,this.travelPath.linkTravelTime.sum,this.travelPath.linkTravelTime))
+    this
+      .copy(
+        duration = newDuration,
+        travelPath = newTravelPath
+      )
+  }
   def scaleLegDuration(scaleBy: Double): BeamLeg = {
     val newTravelPath = this.travelPath.scaleTravelTimes(scaleBy)
     this
