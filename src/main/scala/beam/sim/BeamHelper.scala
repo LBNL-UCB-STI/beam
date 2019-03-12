@@ -439,7 +439,7 @@ trait BeamHelper extends LazyLogging {
       case (vehicleType, groupedValues) =>
         s"$vehicleType (${groupedValues.size})"
     } mkString " , "
-    logger.info(s"Vehicles assigned to house holds : $vehicleInfo")
+    logger.info(s"Vehicles assigned to households : $vehicleInfo")
 
     run(beamServices)
   }
