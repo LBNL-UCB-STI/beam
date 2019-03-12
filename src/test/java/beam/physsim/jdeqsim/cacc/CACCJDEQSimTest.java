@@ -1,7 +1,6 @@
 package beam.physsim.jdeqsim.cacc;
 
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation;
-import beam.physsim.jdeqsim.cacc.travelTimeFunctions.CACCTravelTimeFunctionA;
 import org.junit.Test;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.population.Person;
@@ -48,8 +47,8 @@ public class CACCJDEQSimTest {
         }
 
         // TODO: pass vehicle to isCACC mapping to JDEQSim //Done\\
-        JDEQSimulation jdeqSimulation=new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager, isCACCVehicle, new CACCTravelTimeFunctionA());
-        jdeqSimulation.run();
+        //JDEQSimulation jdeqSimulation=new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager, isCACCVehicle, new CACCTravelTimeFunctionA());
+        //jdeqSimulation.run();
         //eventsManager.finishProcessing();
 
 
