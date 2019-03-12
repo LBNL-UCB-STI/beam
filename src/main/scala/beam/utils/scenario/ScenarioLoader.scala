@@ -94,6 +94,8 @@ class ScenarioLoader(
 
     var vehicleCounter: Int = 0
 
+    val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamServices)
+
     households.foreach { householdInfo =>
       val id = Id.create(householdInfo.householdId.id, classOf[org.matsim.households.Household])
       val household = new HouseholdsFactoryImpl().createHousehold(id)
@@ -112,8 +114,8 @@ class ScenarioLoader(
         case None =>
           logger.warn(s"Could not find persons for the `household_id` '${householdInfo.householdId}'")
       }
-      val vehicleTypes = VehiclesAdjustment
-        .getVehicleAdjustment(beamServices)
+
+      val vehicleTypes = vehiclesAdjustment
         .sampleVehicleTypesForHousehold(
           numVehicles = householdInfo.cars.toInt,
           vehicleCategory = VehicleCategory.Car,
