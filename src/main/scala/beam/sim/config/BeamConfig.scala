@@ -1560,6 +1560,8 @@ object BeamConfig {
       defaultWriteInterval: scala.Int,
       displayPerformanceTimings: scala.Boolean,
       events: BeamConfig.Beam.Outputs.Events,
+      generalizedLinkStats: BeamConfig.Beam.Outputs.GeneralizedLinkStats,
+      generalizedLinkStatsInterval: scala.Int,
       stats: BeamConfig.Beam.Outputs.Stats,
       writeEventsInterval: scala.Int,
       writeGraphs: scala.Boolean,
@@ -1582,6 +1584,21 @@ object BeamConfig {
               else
                 "ActivityEndEvent,ActivityStartEvent,PersonEntersVehicleEvent,PersonLeavesVehicleEvent,ModeChoiceEvent,PathTraversalEvent,ReserveRideHailEvent,ReplanningEvent,RefuelEvent,ParkEvent,LeavingParkingEvent",
             fileOutputFormats = if (c.hasPathOrNull("fileOutputFormats")) c.getString("fileOutputFormats") else "csv"
+          )
+        }
+      }
+
+      case class GeneralizedLinkStats(
+        endTime: scala.Int,
+        startTime: scala.Int
+      )
+
+      object GeneralizedLinkStats {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Outputs.GeneralizedLinkStats = {
+          BeamConfig.Beam.Outputs.GeneralizedLinkStats(
+            endTime = if (c.hasPathOrNull("endTime")) c.getInt("endTime") else 32400,
+            startTime = if (c.hasPathOrNull("startTime")) c.getInt("startTime") else 25200
           )
         }
       }
@@ -1614,6 +1631,12 @@ object BeamConfig {
             if (c.hasPathOrNull("events")) c.getConfig("events")
             else com.typesafe.config.ConfigFactory.parseString("events{}")
           ),
+          generalizedLinkStats = BeamConfig.Beam.Outputs.GeneralizedLinkStats(
+            if (c.hasPathOrNull("generalizedLinkStats")) c.getConfig("generalizedLinkStats")
+            else com.typesafe.config.ConfigFactory.parseString("generalizedLinkStats{}")
+          ),
+          generalizedLinkStatsInterval =
+            if (c.hasPathOrNull("generalizedLinkStatsInterval")) c.getInt("generalizedLinkStatsInterval") else 0,
           stats = BeamConfig.Beam.Outputs.Stats(
             if (c.hasPathOrNull("stats")) c.getConfig("stats")
             else com.typesafe.config.ConfigFactory.parseString("stats{}")

@@ -105,6 +105,8 @@ class ScenarioLoader(
     val scaleFactor = beamServices.beamConfig.beam.agentsim.agents.vehicles.householdVehicleFleetSizeSampleFactor
     val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
+    val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamServices)
+
     households.foreach { householdInfo =>
       val id = Id.create(householdInfo.householdId.id, classOf[org.matsim.households.Household])
       val household = new HouseholdsFactoryImpl().createHousehold(id)
@@ -123,8 +125,8 @@ class ScenarioLoader(
         case None =>
           logger.warn(s"Could not find persons for the `household_id` '${householdInfo.householdId}'")
       }
-      val vehicleTypes = VehiclesAdjustment
-        .getVehicleAdjustment(beamServices)
+
+      val vehicleTypes = vehiclesAdjustment
         .sampleVehicleTypesForHousehold(
           numVehicles = if (scaleFactor > 1) {
             householdInfo.cars.toInt + drawFromBinomial(rand, householdInfo.cars.toInt + 1, scaleFactor - 1) // NOTE: This is an approximation, will over-do it
