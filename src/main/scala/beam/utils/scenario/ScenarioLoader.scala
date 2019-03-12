@@ -124,11 +124,13 @@ class ScenarioLoader(
         )
         .toBuffer
 
-      vehicleTypes.append(
         beamServices.vehicleTypes.values
-          .find(_.vehicleCategory == VehicleCategory.Bike)
-          .getOrElse(BeamVehicleType.defaultBikeBeamVehicleType)
-      )
+          .find(_.vehicleCategory == VehicleCategory.Bike) match {
+          case Some(vehType) =>
+            vehicleTypes.append(vehType)
+          case None =>
+            throw new RuntimeException("Bike not found in vehicle types.")
+        }
 
       val vehicleIds = new java.util.ArrayList[Id[Vehicle]]
       vehicleTypes.foreach { beamVehicleType =>
