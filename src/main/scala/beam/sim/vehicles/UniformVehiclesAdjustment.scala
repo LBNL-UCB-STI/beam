@@ -46,14 +46,16 @@ case class UniformVehiclesAdjustment(beamServices: BeamServices) extends Vehicle
     numVehicles: Int,
     vehicleCategory: VehicleCategory
   ): List[BeamVehicleType] = {
-    val vehTypeWithProbability = vehicleTypesAndProbabilitiesByCategory.getOrElse((vehicleCategory, "Ride Hail Vehicle"), vehicleTypesAndProbabilitiesByCategory(vehicleCategory, "Usage Not Set"))
+    val vehTypeWithProbability = vehicleTypesAndProbabilitiesByCategory.getOrElse(
+      (vehicleCategory, "Ride Hail Vehicle"),
+      vehicleTypesAndProbabilitiesByCategory(vehicleCategory, "Usage Not Set")
+    )
     (1 to numVehicles).map { _ =>
       val newRand = realDistribution.sample()
       val (vehType, _) = vehTypeWithProbability.find { case (_, prob) => prob >= newRand }.get
       vehType
     }.toList
   }
-
 
   private def matchCarUse(vehicleTypeId: String): String = {
     vehicleTypeId.toString.split("_").headOption match {
