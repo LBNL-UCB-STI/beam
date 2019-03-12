@@ -95,6 +95,7 @@ class PersonAgentSpec
     when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
     when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(theServices.beamConfig).thenReturn(beamConfig)
+    when(theServices.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
@@ -152,7 +153,7 @@ class PersonAgentSpec
   )
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-  private val matsimConfig = configBuilder.buildMatSamConf()
+  private val matsimConfig = configBuilder.buildMatSimConf()
 
   describe("A PersonAgent") {
 
@@ -200,7 +201,8 @@ class PersonAgentSpec
           parkingManager,
           tollCalculator,
           self,
-          beamSkimmer = new BeamSkimmer()
+          beamSkimmer = new BeamSkimmer(beamConfig),
+          routeHistory = new RouteHistory()
         )
       )
 
@@ -262,7 +264,7 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(),
-          new BeamSkimmer()
+          new BeamSkimmer(beamConfig)
         )
       )
 
@@ -487,7 +489,7 @@ class PersonAgentSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(),
-          new BeamSkimmer()
+          new BeamSkimmer(beamConfig)
         )
       )
       scheduler ! StartSchedule(0)
@@ -558,11 +560,11 @@ class PersonAgentSpec
 
       val reservationRequestBus = expectMsgType[ReservationRequest]
       scheduler ! ScheduleTrigger(
-        BoardVehicleTrigger(28800, busLeg.beamVehicleId),
+        BoardVehicleTrigger(28800, busLeg.beamVehicleId, Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)),
         personActor
       )
       scheduler ! ScheduleTrigger(
-        AlightVehicleTrigger(30000, busLeg.beamVehicleId),
+        AlightVehicleTrigger(30000, busLeg.beamVehicleId, Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)),
         personActor
       )
       lastSender ! ReservationResponse(
@@ -596,11 +598,19 @@ class PersonAgentSpec
             reservationRequestTram.passengerVehiclePersonId,
             Vector(
               ScheduleTrigger(
-                BoardVehicleTrigger(30000, tramLeg.beamVehicleId),
+                BoardVehicleTrigger(
+                  30000,
+                  tramLeg.beamVehicleId,
+                  Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)
+                ),
                 personActor
               ),
               ScheduleTrigger(
-                AlightVehicleTrigger(32000, tramLeg.beamVehicleId),
+                AlightVehicleTrigger(
+                  32000,
+                  tramLeg.beamVehicleId,
+                  Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)
+                ),
                 personActor
               ) // My tram is late!
             )

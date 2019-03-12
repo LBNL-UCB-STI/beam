@@ -45,7 +45,7 @@ object RideHailTestHelper {
   def buildMatsimConfig(config: Config): MatSimConfig = {
     val configBuilder = new MatSimBeamConfigBuilder(config)
 
-    val matsimConfig = configBuilder.buildMatSamConf()
+    val matsimConfig = configBuilder.buildMatSimConf()
     matsimConfig.controler().setLastIteration(0)
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     matsimConfig
