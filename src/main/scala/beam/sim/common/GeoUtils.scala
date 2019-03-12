@@ -29,7 +29,7 @@ trait GeoUtils extends ExponentialLazyLogging {
 
   def wgs2Utm(coord: Coord): Coord = {
     if (coord.getX < -180 || coord.getX > 180 || coord.getY < -90 || coord.getY > 90) {
-      logger.warn(s"Coordinate $coord does not appear to be in WGS. No conversion will happen.")
+      logger.warn(s"Coordinate does not appear to be in WGS. No conversion will happen: $coord")
       coord
     } else {
       wgs2Utm.transform(coord)
@@ -57,8 +57,12 @@ trait GeoUtils extends ExponentialLazyLogging {
   def distLatLon2Meters(x1: Double, y1: Double, x2: Double, y2: Double): Double =
     GeoUtils.distLatLon2Meters(x1, y1, x2, y2)
 
-  def getNearestR5Edge(streetLayer: StreetLayer, coord: Coord, maxRadius: Double = 1E5): Int = {
-    val theSplit = getR5Split(streetLayer, coord, maxRadius, StreetMode.WALK)
+  def getNearestR5EdgeToUTMCoord(streetLayer: StreetLayer, coordUTM: Coord, maxRadius: Double = 1E5): Int = {
+    getNearestR5Edge(streetLayer, utm2Wgs(coordUTM), maxRadius)
+  }
+
+  def getNearestR5Edge(streetLayer: StreetLayer, coordWGS: Coord, maxRadius: Double = 1E5): Int = {
+    val theSplit = getR5Split(streetLayer, coordWGS, maxRadius, StreetMode.WALK)
     if (theSplit == null) {
       Int.MinValue
     } else {
