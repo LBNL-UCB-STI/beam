@@ -26,7 +26,11 @@ class DelayMetricAnalysis @Inject()(
   controlerIO: OutputDirectoryHierarchy,
   networkHelper: NetworkHelper
 ) extends BasicEventHandler
+<<<<<<< HEAD
     with ExponentialLazyLogging {
+=======
+    with ExponentialLazyLogging{
+>>>>>>> 04b48af... correctly scale travel times in transit legs
 
   eventsManager.addHandler(this)
 
