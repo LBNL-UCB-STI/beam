@@ -5,15 +5,20 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.sim.BeamServices
 import org.apache.commons.math3.distribution.UniformRealDistribution
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.{Coord, Id}
 
 case class UniformVehiclesAdjustment(beamServices: BeamServices) extends VehiclesAdjustment {
 
   private val realDistribution: UniformRealDistribution = new UniformRealDistribution()
   realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
+  var vehicleTypes = beamServices.vehicleTypes
+  if(vehicleTypes.values.count(x => matchCarUse(x.id.toString) == "Ride Hail Vehicle") == 0) {
+    vehicleTypes += Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypePrefix + "_CAR_DEFAULT", classOf[BeamVehicleType]) -> BeamVehicleType.defaultCarBeamVehicleType
+  }
+
   private val vehicleTypesAndProbabilitiesByCategory =
-    beamServices.vehicleTypes.values.groupBy(x => (x.vehicleCategory, matchCarUse(x.id.toString))).map { catAndType =>
+    vehicleTypes.values.groupBy(x => (x.vehicleCategory, matchCarUse(x.id.toString))).map { catAndType =>
       val probSum = catAndType._2.map(_.sampleProbabilityWithinCategory).sum
       val cumulProbs = catAndType._2
         .map(_.sampleProbabilityWithinCategory / probSum)

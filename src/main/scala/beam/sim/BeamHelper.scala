@@ -51,6 +51,19 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 
 trait BeamHelper extends LazyLogging {
+
+  val beamAsciiArt: String =
+    """
+    |  ________
+    |  ___  __ )__________ _______ ___
+    |  __  __  |  _ \  __ `/_  __ `__ \
+    |  _  /_/ //  __/ /_/ /_  / / / / /
+    |  /_____/ \___/\__,_/ /_/ /_/ /_/
+    |
+    | _____________________________________
+    |
+    """.stripMargin
+
   private val argsParser = new scopt.OptionParser[Arguments]("beam") {
     opt[String]("config")
       .action(
@@ -440,7 +453,10 @@ trait BeamHelper extends LazyLogging {
       beamConfig.beam.outputs.addTimestampToOutputDirectory
     )
 
-    LoggingUtil.createFileLogger(outputDirectory)
+    val log = LoggingUtil.createFileLogger(outputDirectory, beamConfig.beam.logger.keepConsoleAppenderOn)
+    LoggingUtil.logToFile(beamAsciiArt)
+    LoggingUtil.logToFile(ConfigConsistencyComparator.logStringBuilder.toString())
+
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
 
