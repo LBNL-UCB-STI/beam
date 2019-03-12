@@ -67,8 +67,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
         val attributes =
           person.getCustomAttributes.get(BEAM_ATTRIBUTES).asInstanceOf[AttributesOfIndividual]
 
-        val modeChoiceCalculator =
-          beamServices.modeChoiceCalculatorFactory(attributes).asInstanceOf[ModeChoiceMultinomialLogit]
+        val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributes)
 
         // The scores attribute is only relevant to LCCM, but we need to include a default value to avoid NPE during writing of plans
         person.getSelectedPlan.getAttributes
@@ -85,8 +84,8 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
 
         //write generalized link stats to file
         val interval = beamServices.beamConfig.beam.debug.agentTripScoresInterval
-        if (interval > 0) {
-          registerLinkCosts(this.trips, attributes, modeChoiceCalculator)
+        if (interval > 0 && modeChoiceCalculator.isInstanceOf[ModeChoiceMultinomialLogit]) {
+          registerLinkCosts(this.trips, attributes, modeChoiceCalculator.asInstanceOf[ModeChoiceMultinomialLogit])
         }
       }
 
