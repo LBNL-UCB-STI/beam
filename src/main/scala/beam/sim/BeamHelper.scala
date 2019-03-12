@@ -51,6 +51,19 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 
 trait BeamHelper extends LazyLogging {
+
+  val beamAsciiArt: String =
+    """
+    |  ________
+    |  ___  __ )__________ _______ ___
+    |  __  __  |  _ \  __ `/_  __ `__ \
+    |  _  /_/ //  __/ /_/ /_  / / / / /
+    |  /_____/ \___/\__,_/ /_/ /_/ /_/
+    |
+    | _____________________________________
+    |
+    """.stripMargin
+
   private val argsParser = new scopt.OptionParser[Arguments]("beam") {
     opt[String]("config")
       .action(
@@ -301,11 +314,11 @@ trait BeamHelper extends LazyLogging {
     if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
           .equalsIgnoreCase("ModeChoiceLCCM")) {
       Files.copy(
-        Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile),
+        Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.filePath),
         Paths.get(
           outputDirectory,
           Paths
-            .get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.paramFile)
+            .get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.filePath)
             .getFileName
             .toString
         )
@@ -425,7 +438,7 @@ trait BeamHelper extends LazyLogging {
     if (isMetricsEnable) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
 
     val configBuilder = new MatSimBeamConfigBuilder(config)
-    val matsimConfig = configBuilder.buildMatSamConf()
+    val matsimConfig = configBuilder.buildMatSimConf()
     if (!beamConfig.beam.outputs.writeGraphs) {
       matsimConfig.counts.setOutputFormat("txt")
       matsimConfig.controler.setCreateGraphs(false)
@@ -440,7 +453,10 @@ trait BeamHelper extends LazyLogging {
       beamConfig.beam.outputs.addTimestampToOutputDirectory
     )
 
-    LoggingUtil.createFileLogger(outputDirectory)
+    val log = LoggingUtil.createFileLogger(outputDirectory, beamConfig.beam.logger.keepConsoleAppenderOn)
+    LoggingUtil.logToFile(beamAsciiArt)
+    LoggingUtil.logToFile(ConfigConsistencyComparator.logStringBuilder.toString())
+
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
 
