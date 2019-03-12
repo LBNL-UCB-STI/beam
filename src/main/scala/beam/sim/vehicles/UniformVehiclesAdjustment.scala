@@ -12,13 +12,8 @@ case class UniformVehiclesAdjustment(beamServices: BeamServices) extends Vehicle
   private val realDistribution: UniformRealDistribution = new UniformRealDistribution()
   realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
-  var vehicleTypes = beamServices.vehicleTypes
-  if(vehicleTypes.values.count(x => matchCarUse(x.id.toString) == "Ride Hail Vehicle") == 0) {
-    vehicleTypes += Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypePrefix + "_CAR_DEFAULT", classOf[BeamVehicleType]) -> BeamVehicleType.defaultCarBeamVehicleType
-  }
-
   private val vehicleTypesAndProbabilitiesByCategory =
-    vehicleTypes.values.groupBy(x => (x.vehicleCategory, matchCarUse(x.id.toString))).map { catAndType =>
+    beamServices.vehicleTypes.values.groupBy(x => (x.vehicleCategory, matchCarUse(x.id.toString))).map { catAndType =>
       val probSum = catAndType._2.map(_.sampleProbabilityWithinCategory).sum
       val cumulProbs = catAndType._2
         .map(_.sampleProbabilityWithinCategory / probSum)
@@ -49,7 +44,14 @@ case class UniformVehiclesAdjustment(beamServices: BeamServices) extends Vehicle
   ): List[BeamVehicleType] = {
     (1 to numVehicles).map { _ =>
       val newRand = realDistribution.sample()
-      vehicleTypesAndProbabilitiesByCategory((vehicleCategory, "Ride Hail Vehicle")).find(_._2 >= newRand).get._1
+      vehicleTypesAndProbabilitiesByCategory
+        .getOrElse(
+          (vehicleCategory, "Ride Hail Vehicle"),
+          vehicleTypesAndProbabilitiesByCategory((vehicleCategory, "Usage Not Set"))
+        )
+        .find(_._2 >= newRand)
+        .get
+        ._1
     }.toList
   }
 
