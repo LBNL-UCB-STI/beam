@@ -428,6 +428,19 @@ trait BeamHelper extends LazyLogging {
 
     samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices)
 
+    val houseHoldVehiclesInScenario: Iterable[Id[Vehicle]] = scenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap(_.getVehicleIds.asScala)
+    val vehiclesGroupedByType = houseHoldVehiclesInScenario.groupBy(
+      v => beamServices.privateVehicles.get(v).map(_.beamVehicleType.id.toString).getOrElse("")
+    )
+    val vehicleInfo = vehiclesGroupedByType map {
+      case (vehicleType, groupedValues) =>
+        s"$vehicleType (${groupedValues.size})"
+    } mkString " , "
+    logger.info(s"Vehicles assigned to households : $vehicleInfo")
+
     run(beamServices)
   }
 
