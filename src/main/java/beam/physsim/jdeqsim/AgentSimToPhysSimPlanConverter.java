@@ -150,7 +150,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                         beamConfig.beam().physsim().jdeqsim().caccMinRoadCapacity(),
                         beamConfig.beam().physsim().jdeqsim().caccMinSpeedMetersPerSec()
                 ));
-        JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccSettings);
+        double speedAdjustmentFactor = beamConfig.beam().physsim().speedAdjustmentFactor();
+        JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccSettings, speedAdjustmentFactor);
+
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents,  agentSimScenario.getConfig().travelTimeCalculator());
 

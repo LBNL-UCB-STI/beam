@@ -29,6 +29,7 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
 
 	////////CHANGES/////////
 	public static Map<String ,Boolean> isCACCVehicle;
+	private double speedAdjustmentFactor;
 
 	Double caccShare = null;
 
@@ -38,13 +39,14 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
 	Scheduler scheduler;
 
 	@Inject
-	public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, CACCSettings caccSettings) {
+	public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events, CACCSettings caccSettings, double speedAdjustmentFactor) {
 
 		super(config, scenario, events);
 
 		this.isCACCVehicle = caccSettings.isCACCVehicle();
 		Road.setRoadCapacityAdjustmentFunction (caccSettings.roadCapacityAdjustmentFunction());
 		this.caccShare = caccShare;
+		this.speedAdjustmentFactor = speedAdjustmentFactor;
 
 		this._events = events;
 		this._config = config;
@@ -78,7 +80,7 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
 		// initialize network
 		org.matsim.core.mobsim.jdeqsim.Road road;
 		for (Link link : this.scenario.getNetwork().getLinks().values()) {
-			road = new Road(scheduler, link);
+			road = new Road(scheduler, link, speedAdjustmentFactor);
 			allRoads.put(link.getId(), road);
 		}
 		Road.setAllRoads(allRoads);

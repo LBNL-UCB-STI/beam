@@ -12,11 +12,13 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
     public double CACC;
     private static RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction;
     private HashMap<Vehicle,Double> caccShareEncounteredByVehicle=new HashMap<>();
+    private double speedAdjustmentFactor;
 
 
-    public Road(Scheduler scheduler, Link link) {
+    public Road(Scheduler scheduler, Link link , double speedAdjustmentFactor) {
 
         super(scheduler, link);
+        this.speedAdjustmentFactor = speedAdjustmentFactor;
     }
 
 
@@ -87,12 +89,9 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
 
     private double  getNextAvailableTimeForLeavingStreet(double simTime){
-        double speedAdjustmentFactor=0.5;
 
         return simTime + this.link.getLength()
                 / this.link.getFreespeed(simTime)*speedAdjustmentFactor;
     }
-
-
 
 }
