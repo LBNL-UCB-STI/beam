@@ -90,7 +90,7 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
         double speedAdjustmentFactor=0.5;
 
         return simTime + this.link.getLength()
-                / this.link.getFreespeed(simTime)*speedAdjustmentFactor;
+                / (this.link.getFreespeed(simTime)*speedAdjustmentFactor);
     }
 
 
