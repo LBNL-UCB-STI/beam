@@ -1,7 +1,7 @@
 package beam.utils.scenario
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.sim.vehicles.VehiclesAdjustment
@@ -94,6 +94,8 @@ class ScenarioLoader(
 
     var vehicleCounter: Int = 0
 
+    val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamServices)
+
     households.foreach { householdInfo =>
       val id = Id.create(householdInfo.householdId.id, classOf[org.matsim.households.Household])
       val household = new HouseholdsFactoryImpl().createHousehold(id)
@@ -112,8 +114,8 @@ class ScenarioLoader(
         case None =>
           logger.warn(s"Could not find persons for the `household_id` '${householdInfo.householdId}'")
       }
-      val vehicleTypes = VehiclesAdjustment
-        .getVehicleAdjustment(beamServices)
+
+      val vehicleTypes = vehiclesAdjustment
         .sampleVehicleTypesForHousehold(
           numVehicles = householdInfo.cars.toInt,
           vehicleCategory = VehicleCategory.Car,
@@ -122,6 +124,13 @@ class ScenarioLoader(
           householdPopulation = null,
           householdLocation = coord
         )
+        .toBuffer
+
+      vehicleTypes.append(
+        beamServices.vehicleTypes.values
+          .find(_.vehicleCategory == VehicleCategory.Bike)
+          .getOrElse(BeamVehicleType.defaultBikeBeamVehicleType)
+      )
 
       val vehicleIds = new java.util.ArrayList[Id[Vehicle]]
       vehicleTypes.foreach { beamVehicleType =>

@@ -8,7 +8,6 @@ import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import com.google.inject.Inject
-import com.typesafe.scalalogging.LazyLogging
 import org.jfree.chart.plot.CategoryPlot
 import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.events.Event
@@ -27,7 +26,7 @@ class DelayMetricAnalysis @Inject()(
   controlerIO: OutputDirectoryHierarchy,
   networkHelper: NetworkHelper
 ) extends BasicEventHandler
-    with ExponentialLazyLogging{
+    with ExponentialLazyLogging {
 
   eventsManager.addHandler(this)
 
