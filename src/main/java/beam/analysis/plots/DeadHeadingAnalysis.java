@@ -113,6 +113,8 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         deadHeadingsMap.clear();
         deadHeadingsTnc0Map.clear();
         maxPassengersSeenOnGenericCase = 0;
+        vehicleEvents.clear();
+        vehicleEventsCache.clear();
 
         passengerVkt = 0d;
         deadHeadingVkt = 0d;
@@ -134,7 +136,6 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     }
 
     private void processDeadHeadingDistanceRemainingRepositionings() {
-        // it's a dirty way to fix memory leak. Most probably vehicleEvents should be cleaned in resetStats!
         try {
             Set<String> vehicleIds = vehicleEvents.keySet();
 
@@ -345,7 +346,6 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
 
     // Deadheading Passenger Per Trip Graph
     private void processDeadHeadingPassengerPerTripRemainingRepositionings() {
-        // it's a dirty way to fix memory leak. Most probably vehicleEventsCache should be cleaned in resetStats!
         try {
             Set<String> vehicleIds = vehicleEventsCache.keySet();
 
