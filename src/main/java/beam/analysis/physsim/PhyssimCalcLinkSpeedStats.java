@@ -215,23 +215,4 @@ public class PhyssimCalcLinkSpeedStats {
     public int getNumberOfBins() {
         return noOfBins;
     }
-
-    class FreeAverageSpeed {
-        private double freeSpeed;
-        private double averageSpeed;
-
-        public FreeAverageSpeed(double freeSpeed, double averageSpeed) {
-            this.freeSpeed = freeSpeed;
-            this.averageSpeed = averageSpeed;
-        }
-
-        public double getFreeSpeed() {
-            return freeSpeed;
-        }
-
-        public double getAverageSpeed() {
-            return averageSpeed;
-        }
-    }
-
 }
