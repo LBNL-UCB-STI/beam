@@ -71,9 +71,7 @@ class DelayMetricAnalysis @Inject()(
               val linkId = linkIds(index)
               try {
                 val link = networkHelper.getLinkUnsafe(linkId)
-                if (link != null) {
-                  process(linkId, link, linkTravelTimes(index))
-                }
+                process(linkId, link, linkTravelTimes(index))
               } catch {
                 case e: Exception =>
                   logger.warn("Link[{}] is skipped from delay analysis due to exception, {}", linkId, e)
