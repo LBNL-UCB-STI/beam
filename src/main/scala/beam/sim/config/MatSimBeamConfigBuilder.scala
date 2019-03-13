@@ -30,7 +30,7 @@ import scala.util.Try
   */
 class MatSimBeamConfigBuilder(beamConf: Config) extends LazyLogging {
 
-  def buildMatSamConf(): config.Config = {
+  def buildMatSimConf(): config.Config = {
     val matSimConfig = ConfigUtils.createConfig(beamConf.getString("beam.inputDirectory"))
     val maybeParameterSets =
       MatSimBeamConfigBuilder.concreteClassesOfType[MatsimParameters].collect {

@@ -63,7 +63,7 @@ class RideHailAgentSpec
   private val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
 
   private lazy val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-  private lazy val matsimConfig = configBuilder.buildMatSamConf()
+  private lazy val matsimConfig = configBuilder.buildMatSimConf()
 
   lazy val services: BeamServices = {
     val matsimServices = mock[MatsimServices]
