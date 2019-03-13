@@ -1,13 +1,10 @@
 package beam.agentsim.agents.ridehail.graph
 import java.util
-import java.util.concurrent.CopyOnWriteArrayList
-
 import beam.agentsim.agents.ridehail.graph.RealizedModeStatsGraphSpec.{RealizedModeStatsGraph, StatsValidationHandler}
 import beam.agentsim.events.{ModeChoiceEvent, ReplanningEvent}
-import beam.analysis.plots.{GraphsStatsAgentSimEventsListener, RealizedModeAnalysis}
+import beam.analysis.plots.RealizedModeAnalysis
 import beam.integration.IntegrationSpecCommon
 import beam.sim.config.BeamConfig
-import beam.utils.TestConfigUtils
 import com.google.inject.Provides
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.api.experimental.events.EventsManager
@@ -59,10 +56,9 @@ object RealizedModeStatsGraphSpec {
   }
 
   class StatsValidationHandler extends BasicEventHandler {
-    private lazy val counter = new CopyOnWriteArrayList[String]()
-    private var personsId = Set[String]()
-    private var lastPersonMode = Map[String, String]()
-
+    private var personsId = Map[String, Int]()
+    private var counter = Map[String, Double]()
+    private var personModeCounter = Map[String, Set[String]]()
     override def handleEvent(event: Event): Unit = event match {
       case evn if evn.getEventType.equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE) =>
         updateModeChoice(evn)
@@ -76,24 +72,29 @@ object RealizedModeStatsGraphSpec {
     private def updateModeChoice(evn: Event): Unit = {
       val mode = evn.getAttributes.get(ModeChoiceEvent.ATTRIBUTE_MODE)
       val personId = evn.getAttributes.get(ModeChoiceEvent.ATTRIBUTE_PERSON_ID)
-      if (personsId.contains(personId)) {
-        personsId = personsId - personId
+      if (personsId.contains(personId) && personsId(personId).equals(1)) {
+        personsId += personId -> 0
+        val modes = personModeCounter(personId) + mode
+        personModeCounter = personModeCounter + (personId -> modes)
       } else {
-        counter.add(mode)
-        lastPersonMode = lastPersonMode + (personId -> mode)
+        val modes = personModeCounter.getOrElse(personId, Set[String]())
+        modes.foreach(mode => counter += mode -> (counter.getOrElse(mode, 0.0) + 1.0 / modes.size))
+        personsId = personsId - personId
+        personModeCounter = personModeCounter - personId
+        personModeCounter += personId -> Set(mode)
       }
     }
 
     private def updateReplanning(evn: Event): Unit = {
-      val personId = evn.getAttributes.get(ReplanningEvent.ATTRIBUTE_PERSON)
-      personsId = personsId + personId
-      val mode = lastPersonMode.get(personId)
-      mode.foreach { m =>
-        lastPersonMode = lastPersonMode - personId
-      }
+      personsId += evn.getAttributes.get(ReplanningEvent.ATTRIBUTE_PERSON) -> 1
     }
 
-    def counterValue: Seq[String] = counter.asScala
+    def counterValue: Map[String, Double] = {
+      personModeCounter.values.foreach { modes =>
+        modes.foreach(mode => counter += mode -> (counter.getOrElse(mode, 0.0) + 1.0 / modes.size))
+      }
+      counter
+    }
   }
 
 }
@@ -123,15 +124,12 @@ class RealizedModeStatsGraphSpec extends WordSpecLike with Matchers with Integra
           parseEventFile(iteration, handler)
           promise.future.foreach { a =>
             val modes = handler.counterValue
-              .groupBy(identity)
-              .map { case (mode, ms) => mode -> ms.size }
-
             val all = a.asScala.values
               .flatMap(_.asScala)
               .groupBy(_._1)
-              .map { case (s, is) => s -> is.map(_._2.toInt).sum }
+              .map { case (s, is) => s -> is.map(_._2).reduce((a, b) => a + b) }
 
-            modes shouldEqual all
+            Map(modes.toSeq.sortBy(_._1): _*) shouldEqual Map(all.toSeq.sortBy(_._1): _*)
           }
         }
       }
