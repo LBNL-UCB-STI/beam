@@ -60,7 +60,7 @@ class ZonalParkingManagerSpec
 
       val config = BeamConfig(
         system.settings.config.withValue(
-          "beam.agentsim.taz.parking",
+          "beam.agentsim.taz.parkingFilePath",
           ConfigValueFactory.fromAnyRef(
             "test/test-resources/beam/agentsim/infrastructure/taz-parking-reserved-rhm.csv"
           )
@@ -88,7 +88,7 @@ class ZonalParkingManagerSpec
 
       val config = BeamConfig(
         system.settings.config.withValue(
-          "beam.agentsim.taz.parking",
+          "beam.agentsim.taz.parkingFilePath",
           ConfigValueFactory.fromAnyRef(
             "test/test-resources/beam/agentsim/infrastructure/taz-parking-reserved-any.csv"
           )

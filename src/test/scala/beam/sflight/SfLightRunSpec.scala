@@ -44,7 +44,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
         .withFallback(testConfig("test/input/sf-light/sf-light-0.5k.conf"))
         .resolve()
       val configBuilder = new MatSimBeamConfigBuilder(config)
-      val matsimConfig = configBuilder.buildMatSamConf()
+      val matsimConfig = configBuilder.buildMatSimConf()
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
       val beamConfig = BeamConfig(config)
 

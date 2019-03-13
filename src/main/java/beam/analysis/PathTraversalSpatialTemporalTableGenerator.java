@@ -14,7 +14,6 @@ import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.collections.Tuple;
-import scala.collection.concurrent.TrieMap;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -431,7 +430,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         String links = attributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS());
         Integer numOfPassengers = Integer.parseInt(attributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS()));
         double lengthInMeters = Double.parseDouble(attributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH()));
-        String fuelString = attributes.get(PathTraversalEvent.ATTRIBUTE_FUEL());
+        String fuelString = attributes.get(PathTraversalEvent.ATTRIBUTE_PRIMARY_FUEL());
 
         double fuel = Double.parseDouble(fuelString);
 

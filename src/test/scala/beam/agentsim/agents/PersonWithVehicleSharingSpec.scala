@@ -24,7 +24,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerPr
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
-import beam.router.RouteHistory
+import beam.router.{BeamSkimmer, RouteHistory}
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
@@ -100,6 +100,7 @@ class PersonWithVehicleSharingSpec
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(theServices.networkHelper).thenReturn(networkHelper)
+    when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
 
     theServices
   }
@@ -107,13 +108,18 @@ class PersonWithVehicleSharingSpec
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(
       alternatives: IndexedSeq[EmbodiedBeamTrip],
-      attributesOfIndividual: AttributesOfIndividual
+      attributesOfIndividual: AttributesOfIndividual,
+      destinationActivity: Option[Activity]
     ): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
 
     override val beamServices: BeamServices = beamSvc
 
-    override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
+    override def utilityOf(
+      alternative: EmbodiedBeamTrip,
+      attributesOfIndividual: AttributesOfIndividual,
+      destinationActivity: Option[Activity]
+    ): Double = 0.0
 
     override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0D
 
@@ -125,7 +131,7 @@ class PersonWithVehicleSharingSpec
   }
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-  private val matsimConfig = configBuilder.buildMatSamConf()
+  private val matsimConfig = configBuilder.buildMatSimConf()
 
   describe("A PersonAgent") {
 
@@ -185,7 +191,8 @@ class PersonWithVehicleSharingSpec
             Map(),
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
-            new RouteHistory()
+            new RouteHistory(),
+            new BeamSkimmer(beamConfig)
           )
         )
       )
@@ -326,7 +333,8 @@ class PersonWithVehicleSharingSpec
             Map(),
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
-            new RouteHistory()
+            new RouteHistory(),
+            new BeamSkimmer(beamConfig)
           )
         )
       )
@@ -566,7 +574,8 @@ class PersonWithVehicleSharingSpec
           Map(),
           new Coord(0.0, 0.0),
           Vector(mockSharedVehicleFleet.ref),
-          new RouteHistory()
+          new RouteHistory(),
+          new BeamSkimmer(beamConfig)
         )
       )
 

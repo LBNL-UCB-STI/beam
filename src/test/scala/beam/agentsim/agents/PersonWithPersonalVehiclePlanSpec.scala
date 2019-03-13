@@ -19,7 +19,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerPr
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, WALK}
-import beam.router.RouteHistory
+import beam.router.{BeamSkimmer, RouteHistory}
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
@@ -32,7 +32,7 @@ import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{BeamVehicleUtils, NetworkHelperImpl, StuckFinder}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.TeleportationArrivalEvent
 import org.matsim.core.config.ConfigUtils
@@ -95,6 +95,7 @@ class PersonWithPersonalVehiclePlanSpec
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(theServices.networkHelper).thenReturn(networkHelper)
+    when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
 
     theServices
   }
@@ -102,13 +103,18 @@ class PersonWithPersonalVehiclePlanSpec
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(
       alternatives: IndexedSeq[EmbodiedBeamTrip],
-      attributesOfIndividual: AttributesOfIndividual
+      attributesOfIndividual: AttributesOfIndividual,
+      destinationActivity: Option[Activity]
     ): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
 
     override val beamServices: BeamServices = beamSvc
 
-    override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
+    override def utilityOf(
+      alternative: EmbodiedBeamTrip,
+      attributesOfIndividual: AttributesOfIndividual,
+      destinationActivity: Option[Activity]
+    ): Double = 0.0
 
     override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0D
 
@@ -120,7 +126,7 @@ class PersonWithPersonalVehiclePlanSpec
   }
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-  private val matsimConfig = configBuilder.buildMatSamConf()
+  private val matsimConfig = configBuilder.buildMatSimConf()
 
   describe("A PersonAgent") {
 
@@ -188,7 +194,8 @@ class PersonWithPersonalVehiclePlanSpec
             Map(beamVehicle.id -> beamVehicle),
             new Coord(0.0, 0.0),
             Vector(),
-            new RouteHistory()
+            new RouteHistory(),
+            new BeamSkimmer(beamConfig)
           )
         )
       )
@@ -349,9 +356,9 @@ class PersonWithPersonalVehiclePlanSpec
     }
 
     it("should know how to take a bicycle trip when it's already in its plan") {
-      val fuelTypePrices = readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
+      val fuelTypePrices = readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
       val vehicleTypes =
-        readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
+        readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath, fuelTypePrices)
       when(beamSvc.vehicleTypes).thenReturn(vehicleTypes)
 
       val eventsManager = new EventsManagerImpl()
@@ -414,7 +421,8 @@ class PersonWithPersonalVehiclePlanSpec
             Map(beamVehicle.id -> beamVehicle),
             new Coord(0.0, 0.0),
             Vector(),
-            new RouteHistory()
+            new RouteHistory(),
+            new BeamSkimmer(beamConfig)
           )
         )
       )
@@ -555,7 +563,8 @@ class PersonWithPersonalVehiclePlanSpec
           Map(car1.id -> car1, car2.id -> car2),
           new Coord(0.0, 0.0),
           Vector(),
-          new RouteHistory()
+          new RouteHistory(),
+          new BeamSkimmer(beamConfig)
         )
       )
       val personActor = householdActor.getSingleChild(person.getId.toString)
@@ -648,7 +657,8 @@ class PersonWithPersonalVehiclePlanSpec
           Map(beamVehicle.id -> beamVehicle),
           new Coord(0.0, 0.0),
           Vector(),
-          new RouteHistory()
+          new RouteHistory(),
+          new BeamSkimmer(beamConfig)
         )
       )
       scheduler ! StartSchedule(0)
