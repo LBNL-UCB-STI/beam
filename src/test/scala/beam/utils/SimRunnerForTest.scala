@@ -51,7 +51,7 @@ abstract class SimRunnerForTest {
 
   // Next things are pretty cheap in initialization, so let it be non-lazy
   val beamCfg = BeamConfig(config)
-  val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+  val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
   val fareCalculator = new FareCalculator(beamCfg.beam.routing.r5.directory)
   val tollCalculator = new TollCalculator(beamCfg)
   val geoUtil = new GeoUtilsImpl(beamCfg)

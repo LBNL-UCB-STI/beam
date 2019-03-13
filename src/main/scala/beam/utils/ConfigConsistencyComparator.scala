@@ -20,18 +20,18 @@ object ConfigConsistencyComparator extends LazyLogging {
   private val bottom = sessionSeparator + eol
   private val consistentFileMessage = buildTopicTile("All good, your config file is fully consistent!")
 
+  val logStringBuilder = new StringBuilder(top)
+
   def parseBeamTemplateConfFile(userConfFileLocation: String): Unit = {
     val configResolver = ConfigResolveOptions
       .defaults()
       .setAllowUnresolved(true)
 
-    val baseUserConf = ConfigFactory.parseFile(new File(userConfFileLocation))
+    val baseUserConf = BeamConfigUtils.parseFileSubstitutingInputDirectory(new File(userConfFileLocation))
     val userBeamConf = baseUserConf.withOnlyPath("beam")
     val userMatsimConf = baseUserConf.withOnlyPath("matsim")
     val userConf = userBeamConf.withFallback(userMatsimConf).resolve(configResolver)
     val templateConf = ConfigFactory.parseFile(new File("src/main/resources/beam-template.conf")).resolve()
-
-    val logStringBuilder = new StringBuilder(top)
 
     val deprecatedKeys = findDeprecatedKeys(userConf, templateConf)
     if (deprecatedKeys.nonEmpty) {
@@ -59,6 +59,10 @@ object ConfigConsistencyComparator extends LazyLogging {
     logStringBuilder.append(bottom)
 
     logger.info(logStringBuilder.toString)
+
+    if (notFoundFiles.nonEmpty) {
+      throw new IllegalArgumentException("There are not found files.")
+    }
   }
 
   def findDeprecatedKeys(userConf: TypesafeConfig, templateConf: TypesafeConfig): Seq[String] = {
@@ -112,7 +116,7 @@ object ConfigConsistencyComparator extends LazyLogging {
       .entrySet()
       .asScala
       .map(entry => (entry.getKey, resolve(entry.getKey, entry.getValue)))
-      .filter { case (key, value) => key.endsWith(".file") && !new File(value).isFile }
+      .filter { case (key, value) => key.toLowerCase.endsWith("filepath") && value.nonEmpty && !new File(value).isFile }
       .toSeq
   }
 

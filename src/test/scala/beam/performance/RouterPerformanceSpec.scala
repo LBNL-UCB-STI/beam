@@ -109,7 +109,7 @@ class RouterPerformanceSpec
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     val tollCalculator = mock[TollCalculator]
     when(tollCalculator.calcTollByOsmIds(any())).thenReturn(0.0)
-    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
     network = scenario.getNetwork
     router = system.actorOf(
@@ -317,7 +317,7 @@ class RouterPerformanceSpec
   }
 
   def getMultiNodeDijkstra: LeastCostPathCalculator = {
-    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
     val travelTime = new FreeSpeedTravelTime
     val travelDisutility = new RandomizingTimeDistanceTravelDisutilityFactory(
       TransportMode.car,
@@ -329,7 +329,7 @@ class RouterPerformanceSpec
   }
 
   def getFastMultiNodeDijkstra: LeastCostPathCalculator = {
-    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
     val travelTime = new FreeSpeedTravelTime
     val travelDisutility = new RandomizingTimeDistanceTravelDisutilityFactory(
       TransportMode.car,
