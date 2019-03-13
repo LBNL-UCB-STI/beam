@@ -1,29 +1,17 @@
 package beam.router
 
-import java.io.{BufferedInputStream, FileInputStream, FileReader, InputStreamReader, Reader}
+import java.io._
 import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
 
 import scala.collection.concurrent.TrieMap
-
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.BeamSkimmer._
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  BIKE,
-  CAR,
-  CAV,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
 import beam.sim.{BeamServices, BeamWarmStart}
 import beam.sim.common.GeoUtils
@@ -34,6 +22,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
+import org.matsim.core.utils.io.IOUtils
 import org.supercsv.io.{CsvMapReader, ICsvMapReader}
 import org.supercsv.prefs.CsvPreference
 
@@ -245,54 +234,50 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
     beamServicesOpt match {
       case Some(beamServices) =>
         val dummyId = Id.create("NA", classOf[BeamVehicleType])
-        FileUtils.writeToFile(
-          filePath,
-          Some(fileHeader),
-          beamServices.tazTreeMap.getTAZs
-            .map { origin =>
-              beamServices.tazTreeMap.getTAZs.map {
-                destination =>
-                  uniqueModes.map {
-                    mode =>
-                      uniqueTimeBins
-                        .map {
-                          timeBin =>
-                            val theSkim = getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
-                              .map(_.toSkimExternal)
-                              .getOrElse {
-                                if (origin.equals(destination)) {
-                                  val newDestCoord = new Coord(
-                                    origin.coord.getX,
-                                    origin.coord.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
-                                  )
-                                  getSkimDefaultValue(
-                                    mode,
-                                    origin.coord,
-                                    newDestCoord,
-                                    timeBin * 3600,
-                                    dummyId,
-                                    beamServices
-                                  )
-                                } else {
-                                  getSkimDefaultValue(
-                                    mode,
-                                    origin.coord,
-                                    destination.coord,
-                                    timeBin * 3600,
-                                    dummyId,
-                                    beamServices
-                                  )
-                                }
+        val writer = IOUtils.getBufferedWriter(filePath)
+        writer.write(fileHeader)
+        writer.write("\n")
+        beamServices.tazTreeMap.getTAZs
+          .foreach { origin =>
+            beamServices.tazTreeMap.getTAZs.foreach { destination =>
+                uniqueModes.foreach {
+                  mode =>
+                    uniqueTimeBins
+                      .foreach{
+                        timeBin =>
+                          val theSkim = getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
+                            .map(_.toSkimExternal)
+                            .getOrElse {
+                              if (origin.equals(destination)) {
+                                val newDestCoord = new Coord(
+                                  origin.coord.getX,
+                                  origin.coord.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
+                                )
+                                getSkimDefaultValue(
+                                  mode,
+                                  origin.coord,
+                                  newDestCoord,
+                                  timeBin * 3600,
+                                  dummyId,
+                                  beamServices
+                                )
+                              } else {
+                                getSkimDefaultValue(
+                                  mode,
+                                  origin.coord,
+                                  destination.coord,
+                                  timeBin * 3600,
+                                  dummyId,
+                                  beamServices
+                                )
                               }
-                            s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.cost},${theSkim.distance},${theSkim.count}"
-                        }
-                  }.flatten
-              }.flatten
+                            }
+                          writer.write(s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.cost},${theSkim.distance},${theSkim.count}\n")
+                      }
+                }
             }
-            .flatten
-            .mkString("\n"),
-          None
-        )
+          }
+        writer.close()
       case None =>
         FileUtils.writeToFile(
           filePath,
