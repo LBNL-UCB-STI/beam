@@ -116,11 +116,7 @@ class ScenarioLoader(
         .getVehicleAdjustment(beamServices)
         .sampleVehicleTypesForHousehold(
           numVehicles = householdInfo.cars.toInt,
-          vehicleCategory = VehicleCategory.Car,
-          householdIncome = household.getIncome.getIncome,
-          householdSize = household.getMemberIds.size,
-          householdPopulation = null,
-          householdLocation = coord
+          vehicleCategory = VehicleCategory.Car
         )
 
       val vehicleIds = new java.util.ArrayList[Id[Vehicle]]

@@ -13,11 +13,18 @@ trait VehiclesAdjustment extends LazyLogging {
   def sampleVehicleTypesForHousehold(
     numVehicles: Int,
     vehicleCategory: VehicleCategory,
+  ): List[BeamVehicleType]
+
+  def sampleVehicleTypesForHousehold(
+    numVehicles: Int,
+    vehicleCategory: VehicleCategory,
     householdIncome: Double,
     householdSize: Int,
     householdPopulation: Population,
     householdLocation: Coord
-  ): List[BeamVehicleType]
+  ): List[BeamVehicleType] = {
+    throw new NotImplementedError("Not implemented yet")
+  }
 
 }
 
@@ -26,8 +33,7 @@ object VehiclesAdjustment {
   val UNIFORM_ADJUSTMENT = "UNIFORM_ADJUSTMENT"
 
   def getVehicleAdjustment(beamServices: BeamServices): VehiclesAdjustment = {
-
-    new UniformVehiclesAdjustment(beamServices)
+    UniformVehiclesAdjustment(beamServices)
   }
 
 }
