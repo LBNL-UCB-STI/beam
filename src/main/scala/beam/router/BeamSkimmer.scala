@@ -68,7 +68,14 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
     beamServicesOpt = Some(newBeamServices)
   }
 
-  def getSkimDefaultValue(mode: BeamMode, origin: Location, destination: Location, departureTime: Int, vehicleTypeId: Id[BeamVehicleType],beamServices: BeamServices): Skim = {
+  def getSkimDefaultValue(
+    mode: BeamMode,
+    origin: Location,
+    destination: Location,
+    departureTime: Int,
+    vehicleTypeId: Id[BeamVehicleType],
+    beamServices: BeamServices
+  ): Skim = {
     val (travelDistance, travelTime) = distanceAndTime(mode, origin, destination)
     val travelCost: Double = mode match {
       case CAR | CAV =>
@@ -107,7 +114,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
           case Some(skimValue) =>
             skimValue.toSkimExternal
           case None =>
-            getSkimDefaultValue(mode,origin,destination,departureTime,vehicleTypeId,beamServices)
+            getSkimDefaultValue(mode, origin, destination, departureTime, vehicleTypeId, beamServices)
         }
       case None =>
         val (travelDistance, travelTime) = distanceAndTime(mode, origin, destination)
@@ -142,7 +149,12 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
           case Some(skim) =>
             skim
           case None =>
-            SkimInternal(1.1, 0, beamServicesOpt.get.beamConfig.beam.agentsim.agents.rideHail.pooledToRegularRideCostRatio, 0)
+            SkimInternal(
+              1.1,
+              0,
+              beamServicesOpt.get.beamConfig.beam.agentsim.agents.rideHail.pooledToRegularRideCostRatio,
+              0
+            )
         }
     }
     (pooled.time / solo.time, pooled.cost / solo.cost)
@@ -227,32 +239,58 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
       event.getServices.getIterationNumber,
       BeamSkimmer.outputFileBaseName + ".csv.gz"
     )
-    val uniqueModes = skims.map( keyVal => keyVal._1._2 ).toList.distinct
+    val uniqueModes = skims.map(keyVal => keyVal._1._2).toList.distinct
     val uniqueTimeBins = (0 to 23)
 
     beamServicesOpt match {
       case Some(beamServices) =>
-        val dummyId = Id.create("NA",classOf[BeamVehicleType])
+        val dummyId = Id.create("NA", classOf[BeamVehicleType])
         FileUtils.writeToFile(
           filePath,
           Some(fileHeader),
-          beamServices.tazTreeMap.getTAZs.map{ origin =>
-            beamServices.tazTreeMap.getTAZs.map{ destination =>
-              uniqueModes.map{ mode =>
-                uniqueTimeBins.map{ timeBin =>
-                  val theSkim = getSkimValue(timeBin * 3600,mode,origin.tazId,destination.tazId).map(_.toSkimExternal).getOrElse{
-                    if(origin.equals(destination)){
-                      val newDestCoord = new Coord(origin.coord.getX,origin.coord.getY + Math.sqrt(origin.areaInSquareMeters)/2.0)
-                      getSkimDefaultValue(mode,origin.coord,newDestCoord,timeBin*3600,dummyId,beamServices)
-                    }else{
-                      getSkimDefaultValue(mode,origin.coord,destination.coord,timeBin*3600,dummyId,beamServices)
-                    }
-                  }
-                  s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.cost},${theSkim.distance},${theSkim.count}"
-                }
+          beamServices.tazTreeMap.getTAZs
+            .map { origin =>
+              beamServices.tazTreeMap.getTAZs.map {
+                destination =>
+                  uniqueModes.map {
+                    mode =>
+                      uniqueTimeBins
+                        .map {
+                          timeBin =>
+                            val theSkim = getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
+                              .map(_.toSkimExternal)
+                              .getOrElse {
+                                if (origin.equals(destination)) {
+                                  val newDestCoord = new Coord(
+                                    origin.coord.getX,
+                                    origin.coord.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
+                                  )
+                                  getSkimDefaultValue(
+                                    mode,
+                                    origin.coord,
+                                    newDestCoord,
+                                    timeBin * 3600,
+                                    dummyId,
+                                    beamServices
+                                  )
+                                } else {
+                                  getSkimDefaultValue(
+                                    mode,
+                                    origin.coord,
+                                    destination.coord,
+                                    timeBin * 3600,
+                                    dummyId,
+                                    beamServices
+                                  )
+                                }
+                              }
+                            s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.cost},${theSkim.distance},${theSkim.count}"
+                        }
+                  }.flatten
               }.flatten
-            }.flatten
-          }.flatten.mkString("\n"),
+            }
+            .flatten
+            .mkString("\n"),
           None
         )
       case None =>
