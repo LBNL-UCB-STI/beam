@@ -41,9 +41,13 @@ trait NetworkCoordinator extends LazyLogging {
         s"Initializing router by reading network from: ${Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toAbsolutePath}"
       )
       transportNetwork = TransportNetwork.read(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
-      network = NetworkUtils.createNetwork()
-      new MatsimNetworkReader(network)
-        .readFile(beamConfig.matsim.modules.network.inputNetworkFile)
+      if(exists(Paths.get(beamConfig.matsim.modules.network.inputNetworkFile))){
+        network = NetworkUtils.createNetwork()
+        new MatsimNetworkReader(network)
+          .readFile(beamConfig.matsim.modules.network.inputNetworkFile)
+      }else{
+        createPhyssimNetwork()
+      }
     } else { // Need to create the unpruned and pruned networks from directory
       logger.info(
         s"Initializing router by creating network from directory: ${Paths.get(beamConfig.beam.routing.r5.directory).toAbsolutePath}"
@@ -57,15 +61,19 @@ trait NetworkCoordinator extends LazyLogging {
       transportNetwork = TransportNetwork.read(
         Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile
       ) // Needed because R5 closes DB on write
-      logger.info(s"Create the MATSim network from R5 network")
-      val rmNetBuilder = new R5MnetBuilder(transportNetwork, beamConfig)
-      rmNetBuilder.buildMNet()
-      network = rmNetBuilder.getNetwork
-      logger.info(s"MATSim network created")
-      new NetworkWriter(network)
-        .write(beamConfig.matsim.modules.network.inputNetworkFile)
-      logger.info(s"MATSim network written")
+      createPhyssimNetwork()
     }
+  }
+
+  def createPhyssimNetwork() = {
+    logger.info(s"Create the MATSim network from R5 network")
+    val rmNetBuilder = new R5MnetBuilder(transportNetwork, beamConfig)
+    rmNetBuilder.buildMNet()
+    network = rmNetBuilder.getNetwork
+    logger.info(s"MATSim network created")
+    new NetworkWriter(network)
+      .write(beamConfig.matsim.modules.network.inputNetworkFile)
+    logger.info(s"MATSim network written")
   }
 
   def convertFrequenciesToTrips(): Unit = {
