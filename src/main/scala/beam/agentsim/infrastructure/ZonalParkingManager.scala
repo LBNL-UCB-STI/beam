@@ -180,6 +180,8 @@ object ZonalParkingManager {
     Props(ZonalParkingManager(beamServices, random))
   }
 
+
+
   /**
     * looks for the nearest ParkingZone that meets the agent's needs
     * @param searchStartRadius small radius describing a ring shape
@@ -237,25 +239,15 @@ object ZonalParkingManager {
                   map{ PricingModel.evaluateParkingTicket(_, parkingDuration)}.
                   getOrElse(DefaultParkingPrice)
 
-            val bestTAZCharacteristicDiameter: Double = math.sqrt(bestTAZ.areaInSquareMeters)
-            val distanceToBestTAZ: Double = tazDistance(bestTAZ)
-            val availabilityPercentage: Double =
+            val availabilityRatio: Double =
               ParkingRanking.getAvailabilityPercentage(
                 availability,
                 bestParkingZone.pricingModel,
                 bestParkingZone.chargingPoint,
                 bestParkingType
               )
-            // if there is lower availability of parking, we must walk further
-            val sampleRadius: Double = (1 - availabilityPercentage) * distanceToBestTAZ
 
-            val stallLocation: Coord = if (distanceToBestTAZ < bestTAZCharacteristicDiameter) {
-              // stall coordinate should be sampled in relation to driver agent destination
-              sampleLocationForStall(random, destination, sampleRadius)
-            } else {
-              // stall coordinate should be sampled in relation to TAZ center
-              sampleLocationForStall(random, bestTAZ.coord, sampleRadius)
-            }
+            val stallLocation: Location = availabilityAwareSampling(random, destination, bestTAZ, availabilityRatio)
 
             // create a new stall instance. you win!
             val newStall = ParkingStall(
@@ -270,7 +262,6 @@ object ZonalParkingManager {
 
             Some { (bestParkingZone, newStall) }
           case None =>
-            //
             _search(thisOuterRadius, thisOuterRadius * SearchFactor)
         }
       }
@@ -284,6 +275,46 @@ object ZonalParkingManager {
         (ParkingZone.DefaultParkingZone, newStall)
     }
   }
+
+
+  /**
+    * generates stall locations per a sampling technique which induces noise as a function of stall attribute availability
+    * @param rand random generator used to create stall locations
+    * @param agent position of agent
+    * @param taz position of TAZ centroid
+    * @param availabilityRatio availability of the chosen stall type, as a ratio, i.e., in the range [0, 1]
+    * @return a sampled location
+    */
+  def availabilityAwareSampling(rand: Random, agent: Location, taz: TAZ, availabilityRatio: Double): Location = {
+
+    val xDistance: Double = taz.coord.getX - agent.getX
+    val yDistance: Double = taz.coord.getY - agent.getY
+    val tazRadius: Double = math.sqrt(taz.areaInSquareMeters) / 2
+
+    val availabilityFactor: Double =
+      if (availabilityRatio < 0.01) 1.0        // guard against pos. infinity
+      else -0.25 * math.log(availabilityRatio) // monotonically decreasing but not steep log slope
+
+    // finding a location between the agent and the TAZ centroid to sample from, scaled back by increased availability
+    val (scaledXDistance, scaledYDistance) = (
+      xDistance * availabilityFactor,
+      yDistance * availabilityFactor
+    )
+
+    // random values, scaled to the problem size, but scaled back by increased availability
+    val (sampleX, sampleY) = (
+      rand.nextGaussian * tazRadius * availabilityFactor,
+      rand.nextGaussian * tazRadius * availabilityFactor
+    )
+
+    // linear combination of current agent position, a scaled random variable, and a scaled sample centroid
+    new Coord(
+      agent.getX + sampleX + scaledXDistance,
+      agent.getY + sampleY + scaledYDistance
+    )
+  }
+
+
 
   /**
     * samples a random location near a TAZ's centroid in order to create a stall in that TAZ.
