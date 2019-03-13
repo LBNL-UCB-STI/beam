@@ -1,9 +1,6 @@
 package beam.analysis.physsim;
 
-import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
-import beam.sim.OutputDataDescription;
 import beam.sim.config.BeamConfig;
-import beam.utils.OutputDataDescriptor;
 import org.jfree.chart.*;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PlotOrientation;
@@ -23,6 +20,10 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.DoubleStream;
+import java.util.stream.IntStream;
 
 /**
  * @author Bhavya Latha Bandaru.
@@ -32,6 +33,7 @@ public class PhyssimCalcLinkSpeedStats {
 
     private static final List<Color> colors = new ArrayList<>();
     private static int noOfBins = 24;
+    private static int binSize = 3600;
 
     // Static initialization of colors
     static {
@@ -82,7 +84,7 @@ public class PhyssimCalcLinkSpeedStats {
             String heading = "Bin,AverageLinkSpeed\n";
             bw.write(heading);
             for (int i = 0; i < processedData.size(); i++) {
-                String line = i + "," + i + "," + processedData.get(i) + "\n";
+                String line = i + "," + processedData.get(i) + "\n";
                 bw.write(line);
             }
             bw.close();
@@ -99,46 +101,28 @@ public class PhyssimCalcLinkSpeedStats {
     // generate the data required as input to generate a graph 
     private Map<Integer, Double> generateInputDataForGraph(TravelTimeCalculator travelTimeCalculator) {
         TravelTime travelTime = travelTimeCalculator.getLinkTravelTimes();
-        List<Double> avgSpeedPerLink = new ArrayList<>();
-        Map<Integer, Double> binAvgSpeedMap = new HashMap<>();
-        Set<Link> usedLinks = new HashSet<>();
 
-        //for each bin
-        for (int idx = 0; idx < noOfBins; idx++) {
-            //for each link
-            for (Link link : this.network.getLinks().values()) {
-                FreeAverageSpeed freeAverageSpeed = usedLink(idx, link , travelTime);
-                if (freeAverageSpeed.getAverageSpeed() >= freeAverageSpeed.getFreeSpeed()) {
-                    usedLinks.add(link);
-                }
-            }
-        }
-        for (int idx = 0; idx < noOfBins; idx++) {
-            //for each link
-            for (Link link : usedLinks) {
-                FreeAverageSpeed freeAverageSpeed = usedLink(idx, link , travelTime);
-                double averageSpeedToFreeSpeedRatio = freeAverageSpeed.getAverageSpeed() / freeAverageSpeed.getFreeSpeed();
-                avgSpeedPerLink.add(averageSpeedToFreeSpeedRatio);
-            }
-            // compute the sum of average speeds of all links for the current bin
-            double sumOfAvgSpeeds = avgSpeedPerLink
-                    .stream()
-                    .mapToDouble(Double::doubleValue)
-                    .sum();
-            avgSpeedPerLink.clear();
-            //Save the bin -> total links average speed mappings
-            binAvgSpeedMap.put(idx, (sumOfAvgSpeeds / usedLinks.size()) * 100);
-        }
-        return binAvgSpeedMap;
+        return IntStream.range(0, noOfBins).parallel().boxed()
+                .collect(Collectors.toMap(Function.identity(),
+                        idx -> calcLinkAvgSpeedPercentage(travelTime, idx)));
     }
 
-    private FreeAverageSpeed usedLink(int idx , Link link, TravelTime travelTime){
-        int binSize = 3600;
+    private double calcLinkAvgSpeedPercentage(TravelTime travelTime, int idx) {
+        List<Double> avgSpeeds = this.network.getLinks().values().parallelStream()
+                .filter(link -> IntStream.range(0, noOfBins).parallel() // filter links with average speed >= freeSpeed
+                        .anyMatch(i -> calcSpeedRatio(i, link, travelTime) >= 1))
+                .map(link -> calcSpeedRatio(idx, link, travelTime))
+                .collect(Collectors.toList());
+        return (avgSpeeds.stream().mapToDouble(Double::doubleValue).sum() / avgSpeeds.size()) * 100;
+    }
+
+    private double calcSpeedRatio(int idx , Link link, TravelTime travelTime){
+
         double freeSpeed = link.getFreespeed(idx * binSize);
         double linkLength = link.getLength();
         double averageTime = travelTime.getLinkTravelTime(link, idx * binSize, null, null);
         double averageSpeed = linkLength / averageTime;
-        return new FreeAverageSpeed(freeSpeed, averageSpeed);
+        return averageSpeed / freeSpeed;
     }
     //create the Category Data set
     private CategoryDataset generateGraphCategoryDataSet(Map<Integer, Double> processedData) {
