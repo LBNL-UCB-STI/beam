@@ -11,7 +11,18 @@ import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.BeamSkimmer._
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  CAR,
+  CAV,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
 import beam.sim.{BeamServices, BeamWarmStart}
 import beam.sim.common.GeoUtils
@@ -240,41 +251,41 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
         beamServices.tazTreeMap.getTAZs
           .foreach { origin =>
             beamServices.tazTreeMap.getTAZs.foreach { destination =>
-                uniqueModes.foreach {
-                  mode =>
-                    uniqueTimeBins
-                      .foreach{
-                        timeBin =>
-                          val theSkim = getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
-                            .map(_.toSkimExternal)
-                            .getOrElse {
-                              if (origin.equals(destination)) {
-                                val newDestCoord = new Coord(
-                                  origin.coord.getX,
-                                  origin.coord.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
-                                )
-                                getSkimDefaultValue(
-                                  mode,
-                                  origin.coord,
-                                  newDestCoord,
-                                  timeBin * 3600,
-                                  dummyId,
-                                  beamServices
-                                )
-                              } else {
-                                getSkimDefaultValue(
-                                  mode,
-                                  origin.coord,
-                                  destination.coord,
-                                  timeBin * 3600,
-                                  dummyId,
-                                  beamServices
-                                )
-                              }
-                            }
-                          writer.write(s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.cost},${theSkim.distance},${theSkim.count}\n")
+              uniqueModes.foreach { mode =>
+                uniqueTimeBins
+                  .foreach { timeBin =>
+                    val theSkim = getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
+                      .map(_.toSkimExternal)
+                      .getOrElse {
+                        if (origin.equals(destination)) {
+                          val newDestCoord = new Coord(
+                            origin.coord.getX,
+                            origin.coord.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
+                          )
+                          getSkimDefaultValue(
+                            mode,
+                            origin.coord,
+                            newDestCoord,
+                            timeBin * 3600,
+                            dummyId,
+                            beamServices
+                          )
+                        } else {
+                          getSkimDefaultValue(
+                            mode,
+                            origin.coord,
+                            destination.coord,
+                            timeBin * 3600,
+                            dummyId,
+                            beamServices
+                          )
+                        }
                       }
-                }
+                    writer.write(
+                      s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.cost},${theSkim.distance},${theSkim.count}\n"
+                    )
+                  }
+              }
             }
           }
         writer.close()
