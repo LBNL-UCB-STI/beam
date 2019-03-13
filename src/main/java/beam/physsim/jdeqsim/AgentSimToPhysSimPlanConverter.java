@@ -385,4 +385,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             return map;
         }
     }
+
+    @Override
+    public void reset(int iteration) {
+        completableFutures.clear();
+    }
 }

@@ -175,6 +175,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     public void resetStats() {
         personLastDepartureEvents.clear();
         hourlyPersonTravelTimes.clear();
+        averageTime.clear();
     }
 
     @Override

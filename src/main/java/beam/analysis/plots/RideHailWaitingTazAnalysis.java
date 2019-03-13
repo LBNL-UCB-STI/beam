@@ -118,7 +118,7 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
     }
 
     @Override
-    public void resetStats() {
+        public void resetStats() {
         binWaitingTimesMap.clear();
         rideHailWaitingQueue.clear();
     }

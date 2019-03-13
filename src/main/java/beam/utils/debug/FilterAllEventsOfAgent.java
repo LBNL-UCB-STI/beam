@@ -21,7 +21,7 @@ public class FilterAllEventsOfAgent implements BasicEventHandler {
     public static void main(String[] args) {
         EventsManager events = EventsUtils.createEventsManager();
         FilterAllEventsOfAgent filterAllEventsOfAgent = new FilterAllEventsOfAgent("4865-4");
-        events.addHandler(filterAllEventsOfAgent);
+       events.addHandler(filterAllEventsOfAgent);
 
         MatsimEventsReader reader = new MatsimEventsReader(events);
         reader.readFile("C:\\Users\\rwaraich\\IdeaProjects\\beam-feb-2018-1\\beam\\output\\application-sfbay\\base__2018-05-09_11-56-49\\ITERS\\it.0\\0.events.xml.gz");
@@ -43,5 +43,10 @@ public class FilterAllEventsOfAgent implements BasicEventHandler {
         if (eventAttributes.containsKey("person") && eventAttributes.get("person").equalsIgnoreCase(personId)) {
             filteredEvents.add(event);
         }
+    }
+
+    @Override
+    public void reset(int iteration) {
+        filteredEvents.clear();
     }
 }

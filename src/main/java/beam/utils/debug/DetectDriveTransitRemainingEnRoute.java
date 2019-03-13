@@ -46,6 +46,11 @@ public class DetectDriveTransitRemainingEnRoute implements BasicEventHandler {
             }
         }
     }
+
+    @Override
+    public void reset(int iteration) {
+       personIdsOnDriveTransit.clear();
+    }
 }
 
 

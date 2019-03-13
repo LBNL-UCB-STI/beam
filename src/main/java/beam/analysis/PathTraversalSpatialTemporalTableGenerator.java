@@ -136,7 +136,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         if (READ_FROM_CSV) {
             // String eventCsvPath="C:\\tmp\\testing events energy\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.csv\\0.events_partial.csv";
             String eventCsvPath = "C:\\tmp\\csv analysis\\base_2017-09-27_05-05-07\\base_2017-09-27_05-05-07~\\base_2017-09-27_05-05-07\\ITERS\\it.0\\0.events.csv\\0.events.csv";
-            //String eventCsvPath="C:\\tmp\\base_2017-09-26_18-13-28\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.csv\\0.events.csv";
+            //Strvehiclesing eventCsvPath="C:\\tmp\\base_2017-09-26_18-13-28\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.csv\\0.events.csv";
             //String eventCsvPath = "C:\\tmp\\csv analysis\\sfBay_ridehail_price_high_2017-09-26_12-10-54\\test\\output\\sfBay_ridehail_price_high_2017-09-26_12-10-54\\ITERS\\it.0\\0.events.csv\\0.events.csv";
 
             //  String eventCsvPath="C:\\tmp\\csv analysis\\sfBay_ridehail_price_high_2017-09-27_05-05-15\\sfBay_ridehail_price_high_2017-09-27_05-05-15~\\sfBay_ridehail_price_high_2017-09-27_05-05-15\\ITERS\\it.0\\0.events.csv\\0.events.csv";
@@ -243,7 +243,13 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
 
     @Override
     public void reset(int iteration) {
-
+        r5NetworkLinks.clear();
+        startAndEndCoordNonRoadModes.clear();
+        vehicles.clear();
+        linkVehicleTypeTuples.clear();
+        energyConsumption.clear();
+        numberOfVehicles.clear();
+        numberOfPassengers.clear();
     }
 
     public String convertVehicleType(String vehicleType) {

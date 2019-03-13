@@ -151,6 +151,12 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
         personIdList.clear();
         personHourModeCount.clear();
         affectedModeCount.clear();
+        realizedModeChoiceInIteration.clear();
+        rootAffectedModeCount.clear();
+        iterationTypeSet.clear();
+        cumulativeMode.clear();
+        benchMarkData.clear();
+        cumulativeReferenceMode.clear();
     }
 
     private void writeToRootReplanningCountModeChoice(String fileName) throws IOException{

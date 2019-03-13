@@ -139,6 +139,11 @@ public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport {
     public void resetStats() {
         hourModeFrequency.clear();
         modesChosen.clear();
+        iterationTypeSet.clear();
+        modeChoiceInIteration.clear();
+        cumulativeModeChosenForModeChoice.clear();
+        cumulativeModeChosenForReference.clear();
+        benchMarkData.clear();
     }
 
     public List<Integer> getSortedHourModeFrequencyList() {
