@@ -41,11 +41,11 @@ trait NetworkCoordinator extends LazyLogging {
         s"Initializing router by reading network from: ${Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toAbsolutePath}"
       )
       transportNetwork = TransportNetwork.read(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
-      if(exists(Paths.get(beamConfig.matsim.modules.network.inputNetworkFile))){
+      if (exists(Paths.get(beamConfig.matsim.modules.network.inputNetworkFile))) {
         network = NetworkUtils.createNetwork()
         new MatsimNetworkReader(network)
           .readFile(beamConfig.matsim.modules.network.inputNetworkFile)
-      }else{
+      } else {
         createPhyssimNetwork()
       }
     } else { // Need to create the unpruned and pruned networks from directory
