@@ -34,7 +34,7 @@ class DelayMetricAnalysis @Inject()(
 
   private val cumulativeLength: Array[Double] = Array.ofDim[Double](networkHelper.maxLinkId + 1)
 
-  private var linkTravelsCount: Array[Int] = Array.ofDim[Int](networkHelper.maxLinkId + 1)
+  private val linkTravelsCount: Array[Int] = Array.ofDim[Int](networkHelper.maxLinkId + 1)
 
   private var linkAverageDelay: Array[DelayInLength] = Array.ofDim[DelayInLength](networkHelper.maxLinkId + 1)
 
@@ -206,7 +206,4 @@ class DelayMetricAnalysis @Inject()(
       GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT
     )
   }
-
-  def getTotalDelay: Double = cumulativeDelay.sum
-
 }
