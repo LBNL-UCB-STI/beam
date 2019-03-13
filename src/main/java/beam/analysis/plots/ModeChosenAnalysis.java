@@ -88,7 +88,7 @@ public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport {
     }
 
     public ModeChosenAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, BeamConfig beamConfig) {
-        final String benchmarkFileLoc = beamConfig.beam().calibration().mode().benchmarkFileLoc();
+        final String benchmarkFileLoc = beamConfig.beam().calibration().mode().benchmarkFilePath();
         this.statComputation = statComputation;
         benchMarkData = benchmarkCsvLoader(benchmarkFileLoc);
         writeGraph = beamConfig.beam().outputs().writeGraphs();

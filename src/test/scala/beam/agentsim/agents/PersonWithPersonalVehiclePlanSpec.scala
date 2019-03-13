@@ -125,7 +125,7 @@ class PersonWithPersonalVehiclePlanSpec
   }
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-  private val matsimConfig = configBuilder.buildMatSamConf()
+  private val matsimConfig = configBuilder.buildMatSimConf()
 
   describe("A PersonAgent") {
 
@@ -194,7 +194,7 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(),
-            new BeamSkimmer()
+            new BeamSkimmer(beamConfig)
           )
         )
       )
@@ -355,9 +355,9 @@ class PersonWithPersonalVehiclePlanSpec
     }
 
     it("should know how to take a bicycle trip when it's already in its plan") {
-      val fuelTypePrices = readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
+      val fuelTypePrices = readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
       val vehicleTypes =
-        readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
+        readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath, fuelTypePrices)
       when(beamSvc.vehicleTypes).thenReturn(vehicleTypes)
 
       val eventsManager = new EventsManagerImpl()
@@ -421,7 +421,7 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(),
-            new BeamSkimmer()
+            new BeamSkimmer(beamConfig)
           )
         )
       )
@@ -563,7 +563,7 @@ class PersonWithPersonalVehiclePlanSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(),
-          new BeamSkimmer()
+          new BeamSkimmer(beamConfig)
         )
       )
       val personActor = householdActor.getSingleChild(person.getId.toString)
@@ -657,7 +657,7 @@ class PersonWithPersonalVehiclePlanSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(),
-          new BeamSkimmer()
+          new BeamSkimmer(beamConfig)
         )
       )
       scheduler ! StartSchedule(0)
