@@ -19,6 +19,11 @@ trait VehiclesAdjustment extends LazyLogging {
     householdLocation: Coord
   ): List[BeamVehicleType]
 
+  def sampleRideHailVehicleTypes(
+    numVehicles: Int,
+    vehicleCategory: VehicleCategory
+  ): List[BeamVehicleType]
+
 }
 
 object VehiclesAdjustment {
