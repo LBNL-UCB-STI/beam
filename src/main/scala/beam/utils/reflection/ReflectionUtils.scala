@@ -4,10 +4,12 @@ import java.lang.reflect.Modifier.{isAbstract, isInterface}
 import java.lang.reflect.{Field, Modifier}
 
 import akka.event.LoggingAdapter
+import beam.utils.DebugLib
+import org.hsqldb.lib.Collection
 import org.reflections.Reflections
 import org.reflections.util.{ClasspathHelper, ConfigurationBuilder}
-import scala.collection.JavaConversions._
 
+import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
@@ -61,7 +63,7 @@ object ReflectionUtils {
     field.set(null, value)
   }
 
-  def logFields(log: LoggingAdapter, obj: Object, level: Int, indent: String = ""): Unit = {
+  def logFields(log: LoggingAdapter, obj: Object, level: Int, ignoreFields:String="", onlyPrintCollectionSize: Boolean=true, indent: String = ""): Unit = {
 
     if (obj != null) {
       log.info(obj.getClass.getSimpleName + "->logFields")
@@ -70,15 +72,20 @@ object ReflectionUtils {
         val name = field.getName
         val value = field.get(obj)
         try {
-          if (!value.toString.contains("@") || value.isInstanceOf[String]) {
-            log.info(indent + s"\t$name: $value")
+          if ((!value.toString.contains("@") || value.isInstanceOf[String]) && ! ignoreFields.contains(name)) {
+            if (onlyPrintCollectionSize && field.getType.getName.equalsIgnoreCase("scala.collection.mutable.Map")) {
+              log.info(indent + s"\t$name: ${value.asInstanceOf[scala.collection.mutable.Map[_,_]].size.toString}")
+            } else {
+              log.info(indent + s"\t$name: $value")
+            }
           }
+
         } catch {
           case e: Exception =>
         }
 
         if (level > 0) {
-          logFields(log, value, level - 1, indent + "\t")
+          logFields(log, value, level - 1,ignoreFields,onlyPrintCollectionSize, indent + "\t")
         }
       }
     }
