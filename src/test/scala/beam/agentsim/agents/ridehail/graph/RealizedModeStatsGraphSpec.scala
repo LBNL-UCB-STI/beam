@@ -90,8 +90,6 @@ object RealizedModeStatsGraphSpec {
       val mode = lastPersonMode.get(personId)
       mode.foreach { m =>
         lastPersonMode = lastPersonMode - personId
-        counter.add("others")
-        counter.remove(m)
       }
     }
 
