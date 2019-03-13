@@ -70,7 +70,9 @@ class DelayMetricAnalysis @Inject()(
             while (index < linkIds.length) {
               val linkId = linkIds(index)
               val link = networkHelper.getLinkUnsafe(linkId)
-              process(linkId, link, linkTravelTimes(index))
+              if (link != null) {
+                process(linkId, link, linkTravelTimes(index))
+              }
               index += 1
             }
           }
