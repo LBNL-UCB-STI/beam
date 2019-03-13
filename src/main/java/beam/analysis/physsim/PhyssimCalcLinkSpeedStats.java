@@ -1,9 +1,6 @@
 package beam.analysis.physsim;
 
-import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
-import beam.sim.OutputDataDescription;
 import beam.sim.config.BeamConfig;
-import beam.utils.OutputDataDescriptor;
 import org.jfree.chart.*;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PlotOrientation;
@@ -21,8 +18,13 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * @author Bhavya Latha Bandaru.
@@ -32,6 +34,7 @@ public class PhyssimCalcLinkSpeedStats {
 
     private static final List<Color> colors = new ArrayList<>();
     private static int noOfBins = 24;
+    private static int binSize = 3600;
 
     // Static initialization of colors
     static {
@@ -66,23 +69,23 @@ public class PhyssimCalcLinkSpeedStats {
         if (this.outputDirectoryHierarchy != null) {
             //If not running in test mode , write output to a csv file
             if (isNotTestMode()) {
-                this.writeCSV(processedData,outputDirectoryHierarchy.getIterationFilename(iteration, outputFileName+".csv"));
+                this.writeCSV(processedData, outputDirectoryHierarchy.getIterationFilename(iteration, outputFileName + ".csv"));
             }
             //generate the requiredGraph
-            if(beamConfig.beam().outputs().writeGraphs()){
-                generateAverageLinkSpeedGraph(dataSet,iteration);
+            if (beamConfig.beam().outputs().writeGraphs()) {
+                generateAverageLinkSpeedGraph(dataSet, iteration);
             }
         }
     }
 
     // helper method to write output to a csv file
-    private void writeCSV(Map<Integer, Double> processedData,String path) {
+    private void writeCSV(Map<Integer, Double> processedData, String path) {
         try {
             BufferedWriter bw = new BufferedWriter(new FileWriter(path));
             String heading = "Bin,AverageLinkSpeed\n";
             bw.write(heading);
             for (int i = 0; i < processedData.size(); i++) {
-                String line = i + "," + i + "," + processedData.get(i) + "\n";
+                String line = i + "," + processedData.get(i) + "\n";
                 bw.write(line);
             }
             bw.close();
@@ -99,31 +102,28 @@ public class PhyssimCalcLinkSpeedStats {
     // generate the data required as input to generate a graph 
     private Map<Integer, Double> generateInputDataForGraph(TravelTimeCalculator travelTimeCalculator) {
         TravelTime travelTime = travelTimeCalculator.getLinkTravelTimes();
-        List<Double> avgSpeedPerLink = new ArrayList<>();
-        Map<Integer, Double> binAvgSpeedMap = new HashMap<>();
-        //for each bin
-        for (int idx = 0; idx < noOfBins; idx++) {
-            //for each link
-            for (Link link : this.network.getLinks().values()) {
-                int binSize = 3600;
-                double freeSpeed = link.getFreespeed(idx * binSize);
-                double linkLength = link.getLength();
-                double averageTime = travelTime.getLinkTravelTime(link, idx * binSize, null, null);
-                double averageSpeed = linkLength / averageTime;
-                //calculate the average speed of the link
-                double averageSpeedToFreeSpeedRatio = averageSpeed / freeSpeed;
-                avgSpeedPerLink.add(averageSpeedToFreeSpeedRatio);
-            }
-            // compute the sum of average speeds of all links for the current bin
-            double sumOfAvgSpeeds = avgSpeedPerLink
-                    .stream()
-                    .mapToDouble(Double::doubleValue)
-                    .sum();
-            avgSpeedPerLink.clear();
-            //Save the bin -> total links average speed mappings
-            binAvgSpeedMap.put(idx,(sumOfAvgSpeeds/this.network.getLinks().size())*100);
-        }
-        return binAvgSpeedMap;
+
+        return IntStream.range(0, noOfBins).parallel().boxed()
+                .collect(Collectors.toMap(Function.identity(),
+                        idx -> calcLinkAvgSpeedPercentage(travelTime, idx)));
+    }
+
+    private double calcLinkAvgSpeedPercentage(TravelTime travelTime, int idx) {
+        List<Double> avgSpeeds = this.network.getLinks().values().parallelStream()
+                .filter(link -> IntStream.range(0, noOfBins).parallel() // filter links with average speed >= freeSpeed
+                        .anyMatch(i -> calcSpeedRatio(i, link, travelTime) >= 1))
+                .map(link -> calcSpeedRatio(idx, link, travelTime))
+                .collect(Collectors.toList());
+        return (avgSpeeds.stream().mapToDouble(Double::doubleValue).sum() / avgSpeeds.size()) * 100;
+    }
+
+    private double calcSpeedRatio(int idx, Link link, TravelTime travelTime) {
+
+        double freeSpeed = link.getFreespeed(idx * binSize);
+        double linkLength = link.getLength();
+        double averageTime = travelTime.getLinkTravelTime(link, idx * binSize, null, null);
+        double averageSpeed = linkLength / averageTime;
+        return averageSpeed / freeSpeed;
     }
 
     //create the Category Data set
@@ -143,7 +143,7 @@ public class PhyssimCalcLinkSpeedStats {
 
     private void generateAverageLinkSpeedGraph(CategoryDataset dataSet, int iterationNumber) {
         // Settings legend and title for the plot
-        String plotTitle = "Average Link speed over a day";
+        String plotTitle = "Average Link speed over a day [used links only]";
         String x_axis = "Bin";
         String y_axis = "AverageLinkSpeed";
         int width = 800;
@@ -166,7 +166,7 @@ public class PhyssimCalcLinkSpeedStats {
         plot.getRenderer().setSeriesPaint(0, getColor(0));
         plot.setFixedLegendItems(legendItems);
         //Save the chart as image
-        String graphImageFile = outputDirectoryHierarchy.getIterationFilename(iterationNumber, outputFileName+".png");
+        String graphImageFile = outputDirectoryHierarchy.getIterationFilename(iterationNumber, outputFileName + ".png");
         try {
             ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
                     height);
@@ -195,8 +195,7 @@ public class PhyssimCalcLinkSpeedStats {
     }
 
 
-
-    public double getAverageSpeedPercentageOfBin(int bin,TravelTimeCalculator travelTimeCalculator) {
+    public double getAverageSpeedPercentageOfBin(int bin, TravelTimeCalculator travelTimeCalculator) {
         try {
             Map<Integer, Double> processedData = generateInputDataForGraph(travelTimeCalculator);
             double[][] dataSet = buildDataSetFromProcessedData(processedData);
@@ -217,5 +216,4 @@ public class PhyssimCalcLinkSpeedStats {
     public int getNumberOfBins() {
         return noOfBins;
     }
-
 }
