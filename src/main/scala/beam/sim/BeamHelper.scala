@@ -2,7 +2,7 @@ package beam.sim
 
 import java.io.FileOutputStream
 import java.nio.file.{Files, Paths, StandardCopyOption}
-import java.util.Properties
+import java.util.{Properties, Random}
 import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
@@ -511,7 +511,11 @@ trait BeamHelper extends LazyLogging {
     matsimConfig: Config,
     beamServices: BeamServices
   ): Unit = {
-    if (scenario.getPopulation.getPersons.size() > beamConfig.beam.agentsim.numAgents) {
+    if (beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation < 1) {
+      val numAgents = math.round(
+        beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation * scenario.getPopulation.getPersons.size()
+      )
+      val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
       val notSelectedHouseholdIds = mutable.Set[Id[Household]]()
       val notSelectedVehicleIds = mutable.Set[Id[Vehicle]]()
       val notSelectedPersonIds = mutable.Set[Id[Person]]()
@@ -532,10 +536,11 @@ trait BeamHelper extends LazyLogging {
           |Number of vehicles: ${notSelectedVehicleIds.size}
           |Number of persons: ${notSelectedPersonIds.size}""".stripMargin)
 
-      val iterHouseholds = scenario.getHouseholds.getHouseholds.values().iterator()
+      val iterHouseholds = RandomUtils.shuffle(scenario.getHouseholds.getHouseholds.values().asScala, rand).iterator
       var numberOfAgents = 0
       // We start from the first household and remove its vehicles and persons from the sets to clean
       while (numberOfAgents < beamConfig.beam.agentsim.numAgents && iterHouseholds.hasNext) {
+
         val household = iterHouseholds.next()
         numberOfAgents += household.getMemberIds.size()
         household.getVehicleIds.forEach(vehicleId => notSelectedVehicleIds.remove(vehicleId))
