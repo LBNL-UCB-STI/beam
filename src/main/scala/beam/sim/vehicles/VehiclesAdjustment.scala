@@ -26,6 +26,11 @@ trait VehiclesAdjustment extends LazyLogging {
     throw new NotImplementedError("Not implemented yet")
   }
 
+  def sampleRideHailVehicleTypes(
+    numVehicles: Int,
+    vehicleCategory: VehicleCategory
+  ): List[BeamVehicleType]
+
 }
 
 object VehiclesAdjustment {
