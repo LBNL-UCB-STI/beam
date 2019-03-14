@@ -246,6 +246,9 @@ class RideHailAgent(
         ) =>
       log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
       handleNotifyVehicleResourceIdleReply(reply, data)
+    case ev @ Event(TriggerWithId(StartRefuelTrigger(tick), triggerId), _) =>
+      log.debug("state(RideHailingAgent.Offline.StartRefuelTrigger): {}", ev)
+      handleStartRefuel(tick, triggerId)
     case ev @ Event(
           TriggerWithId(EndRefuelTrigger(tick, sessionStart, energyInJoules), triggerId),
           data
@@ -294,22 +297,9 @@ class RideHailAgent(
         )
       )
       stay()
-    case ev @ Event(TriggerWithId(StartRefuelTrigger(tick), triggerId), data) =>
+    case ev @ Event(TriggerWithId(StartRefuelTrigger(tick), triggerId), _) =>
       log.debug("state(RideHailingAgent.Idle.StartRefuelTrigger): {}", ev)
-      val (sessionDuration, energyDelivered) =
-        vehicle.refuelingSessionDurationAndEnergyInJoules()
-
-      log.debug(
-        "scheduling EndRefuelTrigger at {} with {} J to be delivered",
-        tick + sessionDuration.toInt,
-        energyDelivered
-      )
-      stay() replying CompletionNotice(
-        triggerId,
-        Vector(
-          ScheduleTrigger(EndRefuelTrigger(tick + sessionDuration.toInt, tick, energyDelivered), self)
-        )
-      )
+      handleStartRefuel(tick, triggerId)
   }
 
   when(IdleInterrupted) {
@@ -385,6 +375,23 @@ class RideHailAgent(
   }
 
   override def logPrefix(): String = s"RideHailAgent $id: "
+
+  def handleStartRefuel(tick: Int, triggerId: Long) = {
+    val (sessionDuration, energyDelivered) =
+      vehicle.refuelingSessionDurationAndEnergyInJoules()
+
+    log.debug(
+      "scheduling EndRefuelTrigger at {} with {} J to be delivered",
+      tick + sessionDuration.toInt,
+      energyDelivered
+    )
+    stay() replying CompletionNotice(
+      triggerId,
+      Vector(
+        ScheduleTrigger(EndRefuelTrigger(tick + sessionDuration.toInt, tick, energyDelivered), self)
+      )
+    )
+  }
 
   def handleEndRefuel(energyInJoules: Double, tick: Int, sessionStart: Int) = {
     log.debug("Ending refuel session for {}", vehicle.id)
