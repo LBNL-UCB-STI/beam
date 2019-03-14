@@ -20,11 +20,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError, VehicleGoneError}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -718,6 +714,10 @@ class RideHailManager(
         modifyPassengerScheduleManager.cancelRepositionAttempt()
       }
 
+    case reply @ InterruptedWhileOffline(interruptId, vehicleId, tick) =>
+      modifyPassengerScheduleManager.handleInterruptReply(reply)
+
+
     case reply @ InterruptedWhileIdle(interruptId, vehicleId, tick) =>
       if (pendingAgentsSentToPark.contains(vehicleId)) {
         outOfServiceVehicleManager.handleInterruptReply(vehicleId, tick)
@@ -862,6 +862,14 @@ class RideHailManager(
     }
   }
 
+  def cancelReservationDueToFailedModifyPassengerSchedule(requestId: Int) ={
+    pendingModifyPassengerScheduleAcks.remove(requestId) match {
+      case Some(rideHailResponse) =>
+        rideHailResponse.request.customer.personRef ! RideHailResponse(rideHailResponse.request, None, Some(VehicleGoneError))
+      case None =>
+        log.error("unexpected condition, canceling reservation but no pending modify pass schedule ack found")
+    }
+  }
   def attemptToCancelCurrentRideRequest(tick: Int, requestId: Int): Unit = {
     Option(travelProposalCache.getIfPresent(requestId.toString)) match {
       case Some(travelProposal) =>
