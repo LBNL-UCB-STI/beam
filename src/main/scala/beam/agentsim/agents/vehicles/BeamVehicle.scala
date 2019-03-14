@@ -193,7 +193,7 @@ class BeamVehicle(
           case Some(chargingPoint) =>
             ChargingPoint.calculateChargingSessionLengthAndEnergyInJoule(
               chargingPoint,
-              fuelLevelInJoules,
+              primaryFuelLevelInJoules,
               beamVehicleType.primaryFuelCapacityInJoule,
               100.0,
               100.0,

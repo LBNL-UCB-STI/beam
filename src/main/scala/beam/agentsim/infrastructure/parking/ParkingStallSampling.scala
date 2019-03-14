@@ -25,7 +25,7 @@ object ParkingStallSampling {
     val tazCharacteristicRadius: Double = math.sqrt(taz.areaInSquareMeters) / 2
 
     // represent parking availability with a monotonically decreasing but not steep inverse log slope
-    val availabilityFactor: Double = math.max(1.0, -0.25 * math.log(availabilityRatio))
+    val availabilityFactor: Double = math.min(1.0, -0.25 * math.log(availabilityRatio))
 
     // finding a location between the agent and the TAZ centroid to sample from, scaled back by increased availability
     val (scaledXDistance, scaledYDistance) = (

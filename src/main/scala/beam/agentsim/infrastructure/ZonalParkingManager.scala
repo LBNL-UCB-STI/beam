@@ -155,7 +155,7 @@ object ZonalParkingManager {
     beamServices: BeamServices,
     random: Random
   ): ZonalParkingManager = {
-    val pathResourceCSV: String = beamServices.beamConfig.beam.agentsim.taz.parking
+    val pathResourceCSV: String = beamServices.beamConfig.beam.agentsim.taz.parkingFilePath
     val (stalls, searchTree) = ParkingZoneFileUtils.fromFile(pathResourceCSV)
 
     // add something like this to write to the current instance directory?
