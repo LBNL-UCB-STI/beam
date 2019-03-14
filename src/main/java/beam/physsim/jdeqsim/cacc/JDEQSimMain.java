@@ -86,7 +86,7 @@ public class JDEQSimMain {
     }
 
     public static void runSimulationWithCacc(Scenario scenario, EventCollector caccEventHanlder, double caccShare){
-
+        double speedAdjustmentFactor = 1.0;
         EventsManager eventsManager = EventsUtils.createEventsManager(scenario.getConfig());
         eventsManager.addHandler(caccEventHanlder);
         /*EventWriterXML eventsWriter = new EventWriterXML(basePath + "/output/events.xml");
@@ -99,7 +99,7 @@ public class JDEQSimMain {
         Map caccVehicles = getRandomCaccVehicles(scenario, caccShare);
 
         CACCSettings caccSettings=new CACCSettings(caccVehicles,new Hao2018CaccRoadCapacityAdjustmentFunction(2000,20));
-        JDEQSimulation jdeqSimulationWithCacc = new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager, caccSettings);
+        JDEQSimulation jdeqSimulationWithCacc = new JDEQSimulation(jdeqSimConfigGroup, scenario, eventsManager, caccSettings, speedAdjustmentFactor);
         jdeqSimulationWithCacc.run();
         //eventsManager.finishProcessing();
     }

@@ -161,8 +161,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         CACCSettings caccSettings = new CACCSettings(
                 caccVehiclesMap,roadCapacityAdjustmentFunction
                );
-        JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccSettings);
-
+        double speedAdjustmentFactor = beamConfig.beam().physsim().speedAdjustmentFactor();
+        JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccSettings, speedAdjustmentFactor);
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents,  agentSimScenario.getConfig().travelTimeCalculator());
 
         log.info("JDEQSim Start");
@@ -172,7 +172,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
 
         jdeqSimulation.run();
-
 
         if (beamConfig.beam().debug().debugEnabled()) {
             log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use After JDEQSim (after GC): "));
