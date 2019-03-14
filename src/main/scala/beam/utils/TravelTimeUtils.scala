@@ -12,7 +12,7 @@ object TravelTimeUtils {
         val delta = newTravelTime - newLinkTravelTimes.sum
         val newLast = newLinkTravelTimes.last + delta
         newLinkTravelTimes.update(newLinkTravelTimes.length - 1, newLast)
-        if(newLinkTravelTimes.sum != newTravelTime){
+        if (newLinkTravelTimes.sum != newTravelTime) {
           val i = 0
         }
         newLinkTravelTimes
