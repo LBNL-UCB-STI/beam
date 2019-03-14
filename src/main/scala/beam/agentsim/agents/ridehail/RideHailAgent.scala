@@ -246,6 +246,14 @@ class RideHailAgent(
         ) =>
       log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
       handleNotifyVehicleResourceIdleReply(reply, data)
+    case ev @ Event(
+          TriggerWithId(EndRefuelTrigger(tick, sessionStart, energyInJoules), triggerId),
+          data
+        ) =>
+      log.debug("state(RideHailingAgent.Offline.EndRefuelTrigger): {}", ev)
+      val currentLocation = handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
+      vehicle.spaceTime = SpaceTime(currentLocation, tick)
+      stay() replying CompletionNotice(triggerId)
   }
 
   when(Idle) {
@@ -275,28 +283,16 @@ class RideHailAgent(
         ) =>
       log.debug("state(RideHailingAgent.Idle.EndRefuelTrigger): {}", ev)
       holdTickAndTriggerId(tick, triggerId)
-      log.debug("Ending refuel session for {}", vehicle.id)
-      vehicle.addFuel(energyInJoules)
-      eventsManager.processEvent(
-        new RefuelEvent(
-          tick,
-          vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
-          energyInJoules,
-          tick - sessionStart,
-          vehicle.id
-        )
-      )
-      parkingManager ! ReleaseParkingStall(vehicle.stall.get.id)
+      val currentLocation = handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
       vehicle.manager.foreach(
         _ ! NotifyVehicleIdle(
           vehicle.id,
-          SpaceTime(vehicle.stall.get.locationUTM, tick),
+          SpaceTime(currentLocation, tick),
           data.passengerSchedule,
           vehicle.getState,
           _currentTriggerId
         )
       )
-      vehicle.unsetParkingStall()
       stay()
     case ev @ Event(TriggerWithId(StartRefuelTrigger(tick), triggerId), data) =>
       log.debug("state(RideHailingAgent.Idle.StartRefuelTrigger): {}", ev)
@@ -389,6 +385,24 @@ class RideHailAgent(
   }
 
   override def logPrefix(): String = s"RideHailAgent $id: "
+
+  def handleEndRefuel(energyInJoules: Double, tick: Int, sessionStart: Int) = {
+    log.debug("Ending refuel session for {}", vehicle.id)
+    vehicle.addFuel(energyInJoules)
+    eventsManager.processEvent(
+      new RefuelEvent(
+        tick,
+        vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
+        energyInJoules,
+        tick - sessionStart,
+        vehicle.id
+      )
+    )
+    parkingManager ! ReleaseParkingStall(vehicle.stall.get.id)
+    val currentLocation = vehicle.stall.get.locationUTM
+    vehicle.unsetParkingStall()
+    currentLocation
+  }
 
   def handleNotifyVehicleResourceIdleReply(
     ev: NotifyVehicleResourceIdleReply,
