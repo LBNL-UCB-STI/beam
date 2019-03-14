@@ -118,6 +118,8 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
         deadHeadingVkt = 0d;
         repositioningVkt = 0d;
         reservationCount = 0;
+        vehicleEvents.clear();
+        vehicleEventsCache.clear();
 
         passengerPerTripMap.clear();
     }
@@ -168,9 +170,10 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                 }
             }
         }
-        finally {
-            vehicleEvents.clear();
+        catch (Exception e) {
+          e.printStackTrace();
         }
+
     }
 
     private void processEventForTncDeadheadingDistanceGraph(PathTraversalEvent event) {
@@ -380,9 +383,10 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
                 }
             }
         }
-        finally {
-            vehicleEventsCache.clear();
+        catch (Exception e) {
+            e.printStackTrace();
         }
+
     }
 
     private void processEventForTncPassengerPerTripGraph(PathTraversalEvent event) {
