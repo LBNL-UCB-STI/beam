@@ -2,7 +2,7 @@ package beam.sim
 
 import java.io.FileOutputStream
 import java.nio.file.{Files, Paths, StandardCopyOption}
-import java.util.Properties
+import java.util.{Properties, Random}
 import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
@@ -11,9 +11,9 @@ import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
-import beam.router.{BeamSkimmer, RouteHistory}
 import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
+import beam.router.{BeamSkimmer, RouteHistory}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
@@ -51,6 +51,19 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 
 trait BeamHelper extends LazyLogging {
+
+  val beamAsciiArt: String =
+    """
+    |  ________
+    |  ___  __ )__________ _______ ___
+    |  __  __  |  _ \  __ `/_  __ `__ \
+    |  _  /_/ //  __/ /_/ /_  / / / / /
+    |  /_____/ \___/\__,_/ /_/ /_/ /_/
+    |
+    | _____________________________________
+    |
+    """.stripMargin
+
   private val argsParser = new scopt.OptionParser[Arguments]("beam") {
     opt[String]("config")
       .action(
@@ -415,6 +428,20 @@ trait BeamHelper extends LazyLogging {
 
     samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices)
 
+    val houseHoldVehiclesInScenario: Iterable[Id[Vehicle]] = scenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap(_.getVehicleIds.asScala)
+
+    val vehiclesGroupedByType = houseHoldVehiclesInScenario.groupBy(
+      v => beamServices.privateVehicles.get(v).map(_.beamVehicleType.id.toString).getOrElse("")
+    )
+    val vehicleInfo = vehiclesGroupedByType.map {
+      case (vehicleType, groupedValues) =>
+        s"$vehicleType (${groupedValues.size})"
+    } mkString " , "
+    logger.info(s"Vehicles assigned to households : $vehicleInfo")
+
     run(beamServices)
   }
 
@@ -425,7 +452,7 @@ trait BeamHelper extends LazyLogging {
     if (isMetricsEnable) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
 
     val configBuilder = new MatSimBeamConfigBuilder(config)
-    val matsimConfig = configBuilder.buildMatSamConf()
+    val matsimConfig = configBuilder.buildMatSimConf()
     if (!beamConfig.beam.outputs.writeGraphs) {
       matsimConfig.counts.setOutputFormat("txt")
       matsimConfig.controler.setCreateGraphs(false)
@@ -440,7 +467,10 @@ trait BeamHelper extends LazyLogging {
       beamConfig.beam.outputs.addTimestampToOutputDirectory
     )
 
-    LoggingUtil.createFileLogger(outputDirectory)
+    val log = LoggingUtil.createFileLogger(outputDirectory, beamConfig.beam.logger.keepConsoleAppenderOn)
+    LoggingUtil.logToFile(beamAsciiArt)
+    LoggingUtil.logToFile(ConfigConsistencyComparator.logStringBuilder.toString())
+
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
 
@@ -481,24 +511,36 @@ trait BeamHelper extends LazyLogging {
     matsimConfig: Config,
     beamServices: BeamServices
   ): Unit = {
-    if (scenario.getPopulation.getPersons.size() > beamConfig.beam.agentsim.numAgents) {
+    if (beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation < 1) {
+      val numAgents = math.round(
+        beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation * scenario.getPopulation.getPersons.size()
+      )
+      val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
       val notSelectedHouseholdIds = mutable.Set[Id[Household]]()
       val notSelectedVehicleIds = mutable.Set[Id[Vehicle]]()
       val notSelectedPersonIds = mutable.Set[Id[Person]]()
-      var numberOfAgents = 0
 
-      scenario.getVehicles.getVehicles
-        .keySet()
-        .forEach(vehicleId => notSelectedVehicleIds.add(vehicleId))
+      // We add all households, vehicles and persons to the sets
+      scenario.getHouseholds.getHouseholds.values().asScala.foreach { hh =>
+        hh.getVehicleIds.forEach(vehicleId => notSelectedVehicleIds.add(vehicleId))
+      }
       scenario.getHouseholds.getHouseholds
         .keySet()
         .forEach(householdId => notSelectedHouseholdIds.add(householdId))
       scenario.getPopulation.getPersons
         .keySet()
-        .forEach(persondId => notSelectedPersonIds.add(persondId))
+        .forEach(personId => notSelectedPersonIds.add(personId))
 
-      val iterHouseholds = scenario.getHouseholds.getHouseholds.values().iterator()
-      while (numberOfAgents < beamConfig.beam.agentsim.numAgents && iterHouseholds.hasNext) {
+      logger.info(s"""Before sampling:
+          |Number of households: ${notSelectedHouseholdIds.size}
+          |Number of vehicles: ${notSelectedVehicleIds.size}
+          |Number of persons: ${notSelectedPersonIds.size}""".stripMargin)
+
+      val iterHouseholds = RandomUtils.shuffle(scenario.getHouseholds.getHouseholds.values().asScala, rand).iterator
+      var numberOfAgents = 0
+      // We start from the first household and remove its vehicles and persons from the sets to clean
+      while (numberOfAgents < numAgents && iterHouseholds.hasNext) {
+
         val household = iterHouseholds.next()
         numberOfAgents += household.getMemberIds.size()
         household.getVehicleIds.forEach(vehicleId => notSelectedVehicleIds.remove(vehicleId))
@@ -506,16 +548,32 @@ trait BeamHelper extends LazyLogging {
         household.getMemberIds.forEach(persondId => notSelectedPersonIds.remove(persondId))
       }
 
-      notSelectedVehicleIds.foreach(vehicleId => scenario.getVehicles.removeVehicle(vehicleId))
+      // Remove not selected vehicles
+      notSelectedVehicleIds.foreach { vehicleId =>
+        scenario.getVehicles.removeVehicle(vehicleId)
+        beamServices.privateVehicles.remove(vehicleId)
+      }
 
+      // Remove not selected households
       notSelectedHouseholdIds.foreach { housholdId =>
         scenario.getHouseholds.getHouseholds.remove(housholdId)
         scenario.getHouseholds.getHouseholdAttributes.removeAllAttributes(housholdId.toString)
       }
 
+      // Remove not selected persons
       notSelectedPersonIds.foreach { personId =>
         scenario.getPopulation.removePerson(personId)
       }
+
+      val numOfHouseholds = scenario.getHouseholds.getHouseholds.values().size
+      val numOfVehicles =
+        scenario.getHouseholds.getHouseholds.values().asScala.flatMap(hh => hh.getVehicleIds.asScala).size
+      val numOfPersons = scenario.getPopulation.getPersons.size()
+
+      logger.info(s"""After sampling:
+           |Number of households: $numOfHouseholds. Removed: ${notSelectedHouseholdIds.size}
+           |Number of vehicles: $numOfVehicles. Removed: ${notSelectedVehicleIds.size}
+           |Number of persons: $numOfPersons. Removed: ${notSelectedPersonIds.size}""".stripMargin)
 
       beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
         .values()
