@@ -287,7 +287,6 @@ class RideHailAgent(
         )
       )
       parkingManager ! ReleaseParkingStall(vehicle.stall.get.id)
-      vehicle.unsetParkingStall()
       vehicle.manager.foreach(
         _ ! NotifyVehicleIdle(
           vehicle.id,
@@ -297,6 +296,7 @@ class RideHailAgent(
           _currentTriggerId
         )
       )
+      vehicle.unsetParkingStall()
       stay()
     case ev @ Event(TriggerWithId(StartRefuelTrigger(tick), triggerId), data) =>
       log.debug("state(RideHailingAgent.Idle.StartRefuelTrigger): {}", ev)
