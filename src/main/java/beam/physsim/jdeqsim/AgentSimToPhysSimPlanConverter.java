@@ -11,6 +11,7 @@ import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.calibration.impl.example.CountsObjectiveFunction;
 import beam.physsim.jdeqsim.cacc.CACCSettings;
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.Hao2018CaccRoadCapacityAdjustmentFunction;
+import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.RoadCapacityAdjustmentFunction;
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation;
 import beam.router.BeamRouter;
 import beam.router.r5.R5RoutingWorker$;
@@ -143,13 +144,23 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         config.setSimulationEndTime(beamConfig.matsim().modules().qsim().endTime());
         //JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
+        RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction= new Hao2018CaccRoadCapacityAdjustmentFunction(
+                beamConfig.beam().physsim().jdeqsim().caccMinRoadCapacity()*beamConfig.beam().physsim().flowCapacityFactor(),
+                beamConfig.beam().physsim().jdeqsim().caccMinSpeedMetersPerSec()
+        );
+
+
+        int caccCategoryRoadCount=0;
+        for (Link link:jdeqSimScenario.getNetwork().getLinks().values()){
+            if (roadCapacityAdjustmentFunction.isCACCCategoryRoad(link)){
+                caccCategoryRoadCount++;
+            }
+        }
+        log.info("caccCategoryRoadCount: " + caccCategoryRoadCount + " out of " + jdeqSimScenario.getNetwork().getLinks().values().size());
 
         CACCSettings caccSettings = new CACCSettings(
-                caccVehiclesMap,
-                new Hao2018CaccRoadCapacityAdjustmentFunction(
-                        beamConfig.beam().physsim().jdeqsim().caccMinRoadCapacity(),
-                        beamConfig.beam().physsim().jdeqsim().caccMinSpeedMetersPerSec()
-                ));
+                caccVehiclesMap,roadCapacityAdjustmentFunction
+               );
         JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccSettings);
 
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents,  agentSimScenario.getConfig().travelTimeCalculator());
@@ -161,6 +172,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
 
         jdeqSimulation.run();
+
 
         if (beamConfig.beam().debug().debugEnabled()) {
             log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use After JDEQSim (after GC): "));
