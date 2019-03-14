@@ -134,40 +134,43 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     }
 
     private void processDeadHeadingDistanceRemainingRepositionings() {
+        // it's a dirty way to fix memory leak. Most probably vehicleEvents should be cleaned in resetStats!
+        try {
+            Set<String> vehicleIds = vehicleEvents.keySet();
 
-        Set<String> vehicleIds = vehicleEvents.keySet();
+            for (String vid : vehicleIds) {
 
-        for (String vid : vehicleIds) {
+                Map<Integer, List<PathTraversalEvent>> vehicleData = vehicleEvents.get(vid);
 
-            Map<Integer, List<PathTraversalEvent>> vehicleData = vehicleEvents.get(vid);
+                if (vehicleData != null) {
+                    List<Integer> hourKeys = new ArrayList<>(vehicleData.keySet());
+                    Collections.sort(hourKeys);
 
-            if (vehicleData != null) {
-                List<Integer> hourKeys = new ArrayList<>(vehicleData.keySet());
-                Collections.sort(hourKeys);
+                    int n = hourKeys.size();
+                    for (int k = 0; k < n; k++) {
 
-                int n = hourKeys.size();
-                for (int k = 0; k < n; k++) {
+                        int hourKey = hourKeys.get(k);
+                        List<PathTraversalEvent> vehicleHourData = vehicleData.get(hourKey);
 
-                    int hourKey = hourKeys.get(k);
-                    List<PathTraversalEvent> vehicleHourData = vehicleData.get(hourKey);
+                        int m = vehicleHourData.size();
+                        if (k == (n - 1)) {
+                            m = vehicleHourData.size() - 1;
+                        }
 
-                    int m = vehicleHourData.size();
-                    if (k == (n - 1)) {
-                        m = vehicleHourData.size() - 1;
-                    }
+                        for (int i = 0; i < m; i++) {
 
-                    for (int i = 0; i < m; i++) {
+                            PathTraversalEvent oldEvent = vehicleHourData.get(i);
+                            Double length2 = oldEvent.legLength();
 
-                        PathTraversalEvent oldEvent = vehicleHourData.get(i);
-                        Double length2 = oldEvent.legLength();
-
-                        updateDeadHeadingTNCMap(length2, hourKey, -1);
+                            updateDeadHeadingTNCMap(length2, hourKey, -1);
+                        }
                     }
                 }
             }
         }
-
-        vehicleEvents.clear();
+        finally {
+            vehicleEvents.clear();
+        }
     }
 
     private void processEventForTncDeadheadingDistanceGraph(PathTraversalEvent event) {
@@ -342,41 +345,44 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
 
     // Deadheading Passenger Per Trip Graph
     private void processDeadHeadingPassengerPerTripRemainingRepositionings() {
+        // it's a dirty way to fix memory leak. Most probably vehicleEventsCache should be cleaned in resetStats!
+        try {
+            Set<String> vehicleIds = vehicleEventsCache.keySet();
 
-        Set<String> vehicleIds = vehicleEventsCache.keySet();
+            for (String vid : vehicleIds) {
+                Map<Integer, List<PathTraversalEvent>> vehicleData = vehicleEventsCache.get(vid);
 
-        for (String vid : vehicleIds) {
-            Map<Integer, List<PathTraversalEvent>> vehicleData = vehicleEventsCache.get(vid);
+                if (vehicleData != null) {
+                    List<Integer> hourKeys = new ArrayList<>(vehicleData.keySet());
+                    Collections.sort(hourKeys);
 
-            if (vehicleData != null) {
-                List<Integer> hourKeys = new ArrayList<>(vehicleData.keySet());
-                Collections.sort(hourKeys);
+                    int n = hourKeys.size();
+                    for (int k = 0; k < n; k++) {
 
-                int n = hourKeys.size();
-                for (int k = 0; k < n; k++) {
+                        int hourKey = hourKeys.get(k);
+                        List<PathTraversalEvent> vehicleHourData = vehicleData.get(hourKey);
 
-                    int hourKey = hourKeys.get(k);
-                    List<PathTraversalEvent> vehicleHourData = vehicleData.get(hourKey);
+                        int m = vehicleHourData.size();
+                        if (k == (n - 1)) {
+                            m = vehicleHourData.size() - 1;
+                        }
 
-                    int m = vehicleHourData.size();
-                    if (k == (n - 1)) {
-                        m = vehicleHourData.size() - 1;
-                    }
+                        for (int i = 0; i < m; i++) {
 
-                    for (int i = 0; i < m; i++) {
+                            PathTraversalEvent oldEvent = vehicleHourData.get(i);
 
-                        PathTraversalEvent oldEvent = vehicleHourData.get(i);
+                            String mode = oldEvent.mode().value();
+                            String graphName = getGraphNameAgainstModeAndVehicleId(mode, vid);
 
-                        String mode =  oldEvent.mode().value();
-                        String graphName = getGraphNameAgainstModeAndVehicleId(mode, vid);
-
-                        updateNumPassengerInDeadHeadingsMap(hourKey, graphName, -1);
+                            updateNumPassengerInDeadHeadingsMap(hourKey, graphName, -1);
+                        }
                     }
                 }
             }
         }
-
-        vehicleEventsCache.clear();
+        finally {
+            vehicleEventsCache.clear();
+        }
     }
 
     private void processEventForTncPassengerPerTripGraph(PathTraversalEvent event) {

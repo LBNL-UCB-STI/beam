@@ -90,7 +90,29 @@ class RideHailModifyPassengerScheduleManager(
                   reservationStatus.status != InterruptMessageStatus.UNDEFINED,
                   "reservation message should not be undefined but at least should have sent outWriter interrupt"
                 )
-                if (reservationStatus.status == InterruptMessageStatus.INTERRUPT_SENT) {
+                if (reply.isInstanceOf[InterruptedWhileOffline]) {
+                  // Oops, tried to reserve this vehicle before knowing it was unavailable
+                  log.debug(
+                    s"Abandoning attempt to modify passenger schedule of vehilce ${reply.vehicleId} @ ${reply.tick}"
+                  )
+                  val requestId = interruptIdToModifyPassengerScheduleStatus
+                    .remove(reply.interruptId)
+                    .get
+                    .modifyPassengerSchedule
+                    .reservationRequestId
+                    .get
+                  if (rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId)) {
+                    log.debug(
+                      "sendCompletionAndScheduleNewTimeout from line 100 @ {} with trigger {}",
+                      _currentTick,
+                      _currentTriggerId
+                    )
+                    if (rideHailManager.processBufferedRequestsOnTimeout) {
+                      sendCompletionAndScheduleNewTimeout(BatchedReservation, _currentTick.get)
+                      rideHailManager.cleanUp
+                    }
+                  }
+                } else if (reservationStatus.status == InterruptMessageStatus.INTERRUPT_SENT) {
                   // Success! Continue with reservation process
                   sendModifyPassengerScheduleMessage(
                     reservationStatus,

@@ -23,7 +23,7 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
     def initialSetup(eventHandler: BasicEventHandler): Unit = {
       val beamConfig = BeamConfig(baseConfig)
       val configBuilder = new MatSimBeamConfigBuilder(baseConfig)
-      val matsimConfig = configBuilder.buildMatSamConf()
+      val matsimConfig = configBuilder.buildMatSimConf()
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
