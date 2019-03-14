@@ -131,8 +131,8 @@ object RouteHistory {
   type OriginTazId = Int
   type DestTazId = Int
   type LinkId = Int
-  type Routes = IndexedSeq[LinkId]
-  type RouteHistoryADT = TrieMap[TimeBin, TrieMap[OriginTazId, TrieMap[DestTazId, Routes]]]
+  type Route = IndexedSeq[LinkId]
+  type RouteHistoryADT = TrieMap[TimeBin, TrieMap[OriginTazId, TrieMap[DestTazId, Route]]]
 
   private val CsvHeader = "timeBin,originTAZId,destTAZId,route"
   private val Eol = "\n"
@@ -144,25 +144,26 @@ object RouteHistory {
     routeHistory: RouteHistoryADT
   ): String = {
     val flattenedRouteHistory: Iterable[(TimeBin, OriginTazId, DestTazId, String)] = routeHistory.flatMap {
-      case (timeBin: TimeBin, origins: TrieMap[OriginTazId, TrieMap[DestTazId, Routes]]) =>
+      case (timeBin: TimeBin, origins: TrieMap[OriginTazId, TrieMap[DestTazId, Route]]) =>
         origins.flatMap {
-          case (originTazId: OriginTazId, destinations: TrieMap[DestTazId, Routes]) =>
+          case (originTazId: OriginTazId, destinations: TrieMap[DestTazId, Route]) =>
             destinations.flatMap {
-              case (destTazId: DestTazId, path: Routes) =>
+              case (destTazId: DestTazId, path: Route) =>
                 Some(timeBin, originTazId, destTazId, path.mkString(":"))
             }
         }
     }
     flattenedRouteHistory.view
-      .map { tuple =>
-        s"${tuple._1},${tuple._2},${tuple._3},${tuple._4}"
+      .map {
+        case (timeBin, originTazId, destTazId, route) =>
+          s"$timeBin,$originTazId,$destTazId,$route"
       }
       .mkString(CsvHeader + Eol, Eol, Eol)
   }
 
   private[router] def fromCsv(filePath: String): RouteHistoryADT = {
     var mapReader: ICsvMapReader = null
-    val result = TrieMap[TimeBin, TrieMap[OriginTazId, TrieMap[DestTazId, Routes]]]()
+    val result = TrieMap[TimeBin, TrieMap[OriginTazId, TrieMap[DestTazId, Route]]]()
     try {
       val reader = buildReader(filePath)
       mapReader = new CsvMapReader(reader, CsvPreference.STANDARD_PREFERENCE)
