@@ -539,7 +539,7 @@ trait BeamHelper extends LazyLogging {
       val iterHouseholds = RandomUtils.shuffle(scenario.getHouseholds.getHouseholds.values().asScala, rand).iterator
       var numberOfAgents = 0
       // We start from the first household and remove its vehicles and persons from the sets to clean
-      while (numberOfAgents < beamConfig.beam.agentsim.numAgents && iterHouseholds.hasNext) {
+      while (numberOfAgents < numAgents && iterHouseholds.hasNext) {
 
         val household = iterHouseholds.next()
         numberOfAgents += household.getMemberIds.size()
