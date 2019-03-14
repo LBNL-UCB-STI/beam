@@ -866,6 +866,7 @@ class RideHailManager(
     }
   }
 
+  // Returns true if pendingModifyPassengerScheduleAcks is empty and therefore signaling cleanup needed
   def cancelReservationDueToFailedModifyPassengerSchedule(requestId: Int): Boolean = {
     pendingModifyPassengerScheduleAcks.remove(requestId) match {
       case Some(rideHailResponse) =>
