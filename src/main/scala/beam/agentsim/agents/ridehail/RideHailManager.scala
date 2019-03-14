@@ -862,12 +862,14 @@ class RideHailManager(
     }
   }
 
-  def cancelReservationDueToFailedModifyPassengerSchedule(requestId: Int) ={
+  def cancelReservationDueToFailedModifyPassengerSchedule(requestId: Int):Boolean ={
     pendingModifyPassengerScheduleAcks.remove(requestId) match {
       case Some(rideHailResponse) =>
-        rideHailResponse.request.customer.personRef ! RideHailResponse(rideHailResponse.request, None, Some(VehicleGoneError))
+        failedAllocation(rideHailResponse.request,modifyPassengerScheduleManager.getCurrentTick.get)
+        pendingModifyPassengerScheduleAcks.isEmpty
       case None =>
         log.error("unexpected condition, canceling reservation but no pending modify pass schedule ack found")
+        false
     }
   }
   def attemptToCancelCurrentRideRequest(tick: Int, requestId: Int): Unit = {
@@ -1235,8 +1237,19 @@ class RideHailManager(
           request.customer.personRef
         )
       )
+      request.groupedWithOtherRequests.foreach { subReq =>
+        modifyPassengerScheduleManager.addTriggerToSendWithCompletion(
+          ScheduleTrigger(
+            RideHailResponseTrigger(tick, theResponse),
+            subReq.customer.personRef
+          )
+        )
+      }
     } else {
       request.customer.personRef ! theResponse
+      request.groupedWithOtherRequests.foreach { subReq =>
+        subReq.customer.personRef ! theResponse
+      }
     }
     rideHailResourceAllocationManager.removeRequestFromBuffer(request)
   }

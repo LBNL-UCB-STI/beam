@@ -94,7 +94,17 @@ class RideHailModifyPassengerScheduleManager(
                   // Oops, tried to reserve this vehicle before knowing it was unavailable
                   log.debug(s"Abandoning attempt to modify passenger schedule of vehilce ${reply.vehicleId} @ ${reply.tick}")
                   val requestId = interruptIdToModifyPassengerScheduleStatus.remove(reply.interruptId).get.modifyPassengerSchedule.reservationRequestId.get
-                  rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId)
+                  if(rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId)){
+                    log.debug(
+                      "sendCompletionAndScheduleNewTimeout from line 100 @ {} with trigger {}",
+                      _currentTick,
+                      _currentTriggerId
+                    )
+                    if(rideHailManager.processBufferedRequestsOnTimeout){
+                      sendCompletionAndScheduleNewTimeout(BatchedReservation, _currentTick.get)
+                      rideHailManager.cleanUp
+                    }
+                  }
                 }else if (reservationStatus.status == InterruptMessageStatus.INTERRUPT_SENT) {
                   // Success! Continue with reservation process
                   sendModifyPassengerScheduleMessage(
