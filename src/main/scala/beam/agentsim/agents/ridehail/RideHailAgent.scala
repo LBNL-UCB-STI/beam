@@ -240,6 +240,12 @@ class RideHailAgent(
     case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
       log.debug("state(RideHailingAgent.Offline): {}", ev)
       stay replying InterruptedWhileOffline(interruptId, vehicle.id, tick)
+    case ev @ Event(
+          reply @ NotifyVehicleResourceIdleReply(_, _),
+          data
+        ) =>
+      log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
+      handleNotifyVehicleResourceIdleReply(reply, data)
   }
 
   when(Idle) {
@@ -258,24 +264,11 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.Idle): {}", ev)
       goto(IdleInterrupted) replying InterruptedWhileIdle(interruptId, vehicle.id, tick)
     case ev @ Event(
-          NotifyVehicleResourceIdleReply(
-            triggerId: Option[Long],
-            newTriggers: Seq[ScheduleTrigger]
-          ),
+          reply @ NotifyVehicleResourceIdleReply(_, _),
           data
         ) =>
       log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
-      data.remainingShifts.isEmpty match {
-        case true =>
-          handleNotifyVehicleResourceIdleReply(triggerId, newTriggers)
-          stay
-        case false =>
-          handleNotifyVehicleResourceIdleReply(
-            triggerId,
-            newTriggers :+ ScheduleTrigger(EndShiftTrigger(data.remainingShifts.head.upperBound), self)
-          )
-          stay using data.copy(remainingShifts = data.remainingShifts.tail)
-      }
+      handleNotifyVehicleResourceIdleReply(reply, data)
     case ev @ Event(
           TriggerWithId(EndRefuelTrigger(tick, sessionStart, energyInJoules), triggerId),
           data
@@ -353,24 +346,12 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       stay() replying InterruptedWhileIdle(interruptId, vehicle.id, tick)
     case ev @ Event(
-          NotifyVehicleResourceIdleReply(
-            triggerId: Option[Long],
-            newTriggers: Seq[ScheduleTrigger]
-          ),
-          data @ RideHailAgentData(_, _, _, _, _)
+          reply @ NotifyVehicleResourceIdleReply(_, _),
+          data
         ) =>
-      log.debug("state(RideHailingAgent.IdleInterrupted.NotifyVehicleResourceIdleReply): {}", ev)
-      data.remainingShifts.isEmpty match {
-        case true =>
-          handleNotifyVehicleResourceIdleReply(triggerId, newTriggers)
-          stay
-        case false =>
-          handleNotifyVehicleResourceIdleReply(
-            triggerId,
-            newTriggers :+ ScheduleTrigger(EndShiftTrigger(data.remainingShifts.head.upperBound), self)
-          )
-          stay using data.copy(remainingShifts = data.remainingShifts.tail)
-      }
+      log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
+      handleNotifyVehicleResourceIdleReply(reply, data)
+
   }
 
   when(PassengerScheduleEmpty) {
@@ -410,9 +391,27 @@ class RideHailAgent(
   override def logPrefix(): String = s"RideHailAgent $id: "
 
   def handleNotifyVehicleResourceIdleReply(
+    ev: NotifyVehicleResourceIdleReply,
+    data: RideHailAgentData
+  ) = {
+    log.debug("state(RideHailingAgent.IdleInterrupted.NotifyVehicleResourceIdleReply): {}", ev)
+    data.remainingShifts.isEmpty match {
+      case true =>
+        completeHandleNotifyVehicleResourceIdleReply(ev.triggerId, ev.newTriggers)
+        stay
+      case false =>
+        completeHandleNotifyVehicleResourceIdleReply(
+          ev.triggerId,
+          ev.newTriggers :+ ScheduleTrigger(EndShiftTrigger(data.remainingShifts.head.upperBound), self)
+        )
+        stay using data.copy(remainingShifts = data.remainingShifts.tail)
+    }
+  }
+
+  def completeHandleNotifyVehicleResourceIdleReply(
     receivedtriggerId: Option[Long],
     newTriggers: Seq[ScheduleTrigger]
-  ): Unit = {
+  ) = {
     _currentTriggerId match {
       case Some(_) =>
         val (_, triggerId) = releaseTickAndTriggerId()
