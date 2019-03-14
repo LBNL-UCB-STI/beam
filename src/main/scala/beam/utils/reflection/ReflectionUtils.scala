@@ -63,7 +63,14 @@ object ReflectionUtils {
     field.set(null, value)
   }
 
-  def logFields(log: LoggingAdapter, obj: Object, level: Int, ignoreFields:String="", onlyPrintCollectionSize: Boolean=true, indent: String = ""): Unit = {
+  def logFields(
+    log: LoggingAdapter,
+    obj: Object,
+    level: Int,
+    ignoreFields: String = "",
+    onlyPrintCollectionSize: Boolean = true,
+    indent: String = ""
+  ): Unit = {
 
     if (obj != null) {
       log.info(obj.getClass.getSimpleName + "->logFields")
@@ -72,9 +79,9 @@ object ReflectionUtils {
         val name = field.getName
         val value = field.get(obj)
         try {
-          if ((!value.toString.contains("@") || value.isInstanceOf[String]) && ! ignoreFields.contains(name)) {
+          if ((!value.toString.contains("@") || value.isInstanceOf[String]) && !ignoreFields.contains(name)) {
             if (onlyPrintCollectionSize && field.getType.getName.equalsIgnoreCase("scala.collection.mutable.Map")) {
-              log.info(indent + s"\t$name: ${value.asInstanceOf[scala.collection.mutable.Map[_,_]].size.toString}")
+              log.info(indent + s"\t$name: ${value.asInstanceOf[scala.collection.mutable.Map[_, _]].size.toString}")
             } else {
               log.info(indent + s"\t$name: $value")
             }
@@ -85,7 +92,7 @@ object ReflectionUtils {
         }
 
         if (level > 0) {
-          logFields(log, value, level - 1,ignoreFields,onlyPrintCollectionSize, indent + "\t")
+          logFields(log, value, level - 1, ignoreFields, onlyPrintCollectionSize, indent + "\t")
         }
       }
     }

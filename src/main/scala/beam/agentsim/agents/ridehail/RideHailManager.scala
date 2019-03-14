@@ -423,7 +423,7 @@ class RideHailManager(
     case LogActorState =>
       ReflectionUtils.logFields(log, this, 0)
       ReflectionUtils.logFields(log, rideHailResourceAllocationManager, 0)
-      ReflectionUtils.logFields(log, modifyPassengerScheduleManager, 0,"config")
+      ReflectionUtils.logFields(log, modifyPassengerScheduleManager, 0, "config")
 
     case RecoverFromStuckness(tick) =>
       // This is assuming we are allocating demand and routes haven't been returned
