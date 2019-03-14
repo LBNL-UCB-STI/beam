@@ -138,32 +138,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             jdeqsimEvents.addHandler(eventsWriterXML);
         }
 
-        JDEQSimConfigGroup config = new JDEQSimConfigGroup();
-        config.setFlowCapacityFactor(beamConfig.beam().physsim().flowCapacityFactor());
-        config.setStorageCapacityFactor(beamConfig.beam().physsim().storageCapacityFactor());
-        config.setSimulationEndTime(beamConfig.matsim().modules().qsim().endTime());
-        //JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
-        RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction= new Hao2018CaccRoadCapacityAdjustmentFunction(
-                beamConfig.beam().physsim().jdeqsim().cacc().minRoadCapacity(),
-                beamConfig.beam().physsim().jdeqsim().cacc().minSpeedMetersPerSec(),beamConfig.beam().physsim().flowCapacityFactor()
-        );
-
-
-        int caccCategoryRoadCount=0;
-        for (Link link:jdeqSimScenario.getNetwork().getLinks().values()){
-            if (roadCapacityAdjustmentFunction.isCACCCategoryRoad(link)){
-                caccCategoryRoadCount++;
-            }
-        }
-        log.info("caccCategoryRoadCount: " + caccCategoryRoadCount + " out of " + jdeqSimScenario.getNetwork().getLinks().values().size());
-
-        CACCSettings caccSettings = new CACCSettings(
-                caccVehiclesMap,roadCapacityAdjustmentFunction
-               );
-        double speedAdjustmentFactor = beamConfig.beam().physsim().jdeqsim().cacc().speedAdjustmentFactor();
-        JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccSettings, speedAdjustmentFactor);
-        linkStatsGraph.notifyIterationStarts(jdeqsimEvents,  agentSimScenario.getConfig().travelTimeCalculator());
+        org.matsim.core.mobsim.jdeqsim.JDEQSimulation jdeqSimulation = getJDEQSimulation(jdeqSimScenario, beamConfig, jdeqsimEvents);
+        linkStatsGraph.notifyIterationStarts(jdeqsimEvents, agentSimScenario.getConfig().travelTimeCalculator());
 
         log.info("JDEQSim Start");
         startSegment("jdeqsim-execution", "jdeqsim");
@@ -206,7 +183,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 travelTimes, maxHour);
 
         Integer startingIterationForTravelTimesMSA = beamConfig.beam().routing().startingIterationForTravelTimesMSA();
-        if(startingIterationForTravelTimesMSA <= iterationNumber){
+        if (startingIterationForTravelTimesMSA <= iterationNumber) {
             map = processTravelTime(links, map, maxHour);
             travelTimes = previousTravelTime;
         }
@@ -250,6 +227,45 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     }
 
+    public org.matsim.core.mobsim.jdeqsim.JDEQSimulation getJDEQSimulation(MutableScenario jdeqSimScenario, BeamConfig beamConfig, EventsManager jdeqsimEvents) {
+        JDEQSimConfigGroup config = new JDEQSimConfigGroup();
+        config.setFlowCapacityFactor(beamConfig.beam().physsim().flowCapacityFactor());
+        config.setStorageCapacityFactor(beamConfig.beam().physsim().storageCapacityFactor());
+        config.setSimulationEndTime(beamConfig.matsim().modules().qsim().endTime());
+
+        org.matsim.core.mobsim.jdeqsim.JDEQSimulation jdeqSimulation = null;
+
+        if (beamConfig.beam().physsim().jdeqsim().cacc().enabled()) {
+
+
+            RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction = new Hao2018CaccRoadCapacityAdjustmentFunction(
+                    beamConfig.beam().physsim().jdeqsim().cacc().minRoadCapacity(),
+                    beamConfig.beam().physsim().jdeqsim().cacc().minSpeedMetersPerSec(), beamConfig.beam().physsim().flowCapacityFactor()
+            );
+
+
+            int caccCategoryRoadCount = 0;
+            for (Link link : jdeqSimScenario.getNetwork().getLinks().values()) {
+                if (roadCapacityAdjustmentFunction.isCACCCategoryRoad(link)) {
+                    caccCategoryRoadCount++;
+                }
+            }
+            log.info("caccCategoryRoadCount: " + caccCategoryRoadCount + " out of " + jdeqSimScenario.getNetwork().getLinks().values().size());
+
+            CACCSettings caccSettings = new CACCSettings(
+                    caccVehiclesMap, roadCapacityAdjustmentFunction
+            );
+            double speedAdjustmentFactor = beamConfig.beam().physsim().jdeqsim().cacc().speedAdjustmentFactor();
+
+            jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccSettings, speedAdjustmentFactor);
+        } else {
+            jdeqSimulation = new org.matsim.core.mobsim.jdeqsim.JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
+        }
+
+        return jdeqSimulation;
+    }
+
+
     private boolean shouldWritePhysSimEvents(int iterationNumber) {
         return shouldWriteInIteration(iterationNumber, beamConfig.beam().physsim().writeEventsInterval());
     }
@@ -277,7 +293,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     }
 
 
-    public static boolean isPhyssimMode(String mode){
+    public static boolean isPhyssimMode(String mode) {
         return mode.equalsIgnoreCase(CAR) || mode.equalsIgnoreCase(BUS);
     }
 
@@ -290,7 +306,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         if (event instanceof PathTraversalEvent) {
             PathTraversalEvent pte = (PathTraversalEvent) event;
-            String mode =  pte.mode().value();
+            String mode = pte.mode().value();
 
             // pt sampling
             // TODO: if requested, add beam.physsim.ptSamplingMode (pathTraversal | busLine), which controls if instead of filtering outWriter
@@ -342,7 +358,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
     }
 
-    private Leg createLeg(String mode,  List<Object> links, double departureTime) {
+    private Leg createLeg(String mode, List<Object> links, double departureTime) {
         List<Id<Link>> linkIds = new ArrayList<>();
 
         for (Object linkObjId : links) {
@@ -398,14 +414,14 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
 
     ////
-    public Map<String, double[]> processTravelTime(Collection<? extends Link> links, Map<String, double[]> currentTravelTimeMap, int maxHour){
+    public Map<String, double[]> processTravelTime(Collection<? extends Link> links, Map<String, double[]> currentTravelTimeMap, int maxHour) {
         int binSize = beamConfig.beam().agentsim().timeBinSize();
         TravelTime currentTravelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(binSize, currentTravelTimeMap);
 
-        if(previousTravelTime == null){
+        if (previousTravelTime == null) {
             previousTravelTime = currentTravelTime;
             return currentTravelTimeMap;
-        }else{
+        } else {
             Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeAvgArray(links, currentTravelTime, previousTravelTime, maxHour);
             TravelTime averageTravelTimes = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(binSize, map);
 
