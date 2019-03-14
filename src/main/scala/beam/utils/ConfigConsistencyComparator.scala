@@ -22,6 +22,8 @@ object ConfigConsistencyComparator extends LazyLogging {
 
   val logStringBuilder = new StringBuilder(top)
 
+  private val ignorePaths: Set[String] = Set("beam.physsim.inputNetworkFilePath")
+
   def parseBeamTemplateConfFile(userConfFileLocation: String): Unit = {
     val configResolver = ConfigResolveOptions
       .defaults()
@@ -116,7 +118,11 @@ object ConfigConsistencyComparator extends LazyLogging {
       .entrySet()
       .asScala
       .map(entry => (entry.getKey, resolve(entry.getKey, entry.getValue)))
-      .filter { case (key, value) => key.toLowerCase.endsWith("filepath") && value.nonEmpty && !new File(value).isFile }
+      .filter {
+        case (key, value) =>
+          val shouldCheck = !ignorePaths.contains(key)
+          shouldCheck && key.toLowerCase.endsWith("filepath") && value.nonEmpty && !new File(value).isFile
+      }
       .toSeq
   }
 
