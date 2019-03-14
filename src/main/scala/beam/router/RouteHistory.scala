@@ -7,7 +7,7 @@ import javax.inject.Inject
 
 import scala.collection.concurrent.TrieMap
 
-import beam.router.RouteHistory._
+import beam.router.RouteHistory.{RouteHistoryADT, _}
 import beam.sim.config.BeamConfig
 import beam.sim.BeamWarmStart
 import beam.utils.FileUtils
@@ -24,17 +24,16 @@ class RouteHistory @Inject()(
 ) extends IterationEndsListener
     with LazyLogging {
 
-  private var previousRouteHistory: TrieMap[TimeBin, TrieMap[OriginTazId, TrieMap[DestTazId, Routes]]] =
-    loadPreviousRouteHistory()
-  private var routeHistory: TrieMap[TimeBin, TrieMap[OriginTazId, TrieMap[DestTazId, Routes]]] = TrieMap()
+  private var previousRouteHistory: RouteHistoryADT = loadPreviousRouteHistory()
+  private var routeHistory: RouteHistoryADT = TrieMap()
   private val randUnif = Distribution.uniform
   @volatile private var cacheRequests = 0
   @volatile private var cacheHits = 0
 
-  def loadPreviousRouteHistory(): TrieMap[TimeBin, TrieMap[OriginTazId, TrieMap[DestTazId, IndexedSeq[LinkId]]]] = {
+  def loadPreviousRouteHistory(): RouteHistoryADT = {
     if (beamConfig.beam.warmStart.enabled) {
       routeHistoryFilePath
-        .map(RouteHistory.readCsvFile)
+        .map(RouteHistory.fromCsv)
         .getOrElse(TrieMap.empty)
     } else {
       TrieMap.empty
@@ -108,31 +107,16 @@ class RouteHistory @Inject()(
     }
   }
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    val fileHeader = "timeBin,originTAZId,destTAZId,route"
     val filePath = event.getServices.getControlerIO.getIterationFilename(
       event.getServices.getIterationNumber,
       RouteHistory.outputFileBaseName + ".csv.gz"
     )
 
-    val flattenedRouteHistory: Iterable[(TimeBin, OriginTazId, DestTazId, String)] = routeHistory.flatMap {
-      case (timeBin: TimeBin, origins: TrieMap[OriginTazId, TrieMap[DestTazId, Routes]]) =>
-        origins.flatMap {
-          case (originTazId: OriginTazId, destinations: TrieMap[DestTazId, Routes]) =>
-            destinations.flatMap {
-              case (destTazId: DestTazId, path: Routes) =>
-                Some(timeBin, originTazId, destTazId, path.mkString(":"))
-            }
-        }
-    }
-    val csvContent = flattenedRouteHistory.view
-      .map { tuple =>
-        s"${tuple._1},${tuple._2},${tuple._3},${tuple._4}"
-      }
-      .mkString("\n")
+    val csvContent = toCsv(routeHistory)
 
     FileUtils.writeToFile(
       filePath,
-      Some(fileHeader),
+      Some(CsvHeader),
       csvContent,
       None
     )
@@ -148,13 +132,37 @@ object RouteHistory {
   type DestTazId = Int
   type LinkId = Int
   type Routes = IndexedSeq[LinkId]
+  type RouteHistoryADT = TrieMap[TimeBin, TrieMap[OriginTazId, TrieMap[DestTazId, Routes]]]
+
+  private val CsvHeader = "timeBin,originTAZId,destTAZId,route"
+  private val Eol = "\n"
 
   private val outputFileBaseName = "routeHistory"
   private val outputFileName = outputFileBaseName + ".csv.gz"
 
-  private def readCsvFile(filePath: String): TrieMap[Int, TrieMap[Int, TrieMap[Int, IndexedSeq[Int]]]] = {
+  private[router] def toCsv(
+    routeHistory: RouteHistoryADT
+  ): String = {
+    val flattenedRouteHistory: Iterable[(TimeBin, OriginTazId, DestTazId, String)] = routeHistory.flatMap {
+      case (timeBin: TimeBin, origins: TrieMap[OriginTazId, TrieMap[DestTazId, Routes]]) =>
+        origins.flatMap {
+          case (originTazId: OriginTazId, destinations: TrieMap[DestTazId, Routes]) =>
+            destinations.flatMap {
+              case (destTazId: DestTazId, path: Routes) =>
+                Some(timeBin, originTazId, destTazId, path.mkString(":"))
+            }
+        }
+    }
+    flattenedRouteHistory.view
+      .map { tuple =>
+        s"${tuple._1},${tuple._2},${tuple._3},${tuple._4}"
+      }
+      .mkString(CsvHeader + Eol, Eol, Eol)
+  }
+
+  private[router] def fromCsv(filePath: String): RouteHistoryADT = {
     var mapReader: ICsvMapReader = null
-    val result = TrieMap[Int, TrieMap[Int, TrieMap[Int, IndexedSeq[Int]]]]()
+    val result = TrieMap[TimeBin, TrieMap[OriginTazId, TrieMap[DestTazId, Routes]]]()
     try {
       val reader = buildReader(filePath)
       mapReader = new CsvMapReader(reader, CsvPreference.STANDARD_PREFERENCE)
