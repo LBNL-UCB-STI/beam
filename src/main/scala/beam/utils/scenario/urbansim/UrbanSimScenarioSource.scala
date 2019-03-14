@@ -9,10 +9,10 @@ import beam.utils.scenario.urbansim.DataExchange.{
   UnitInfo,
   HouseholdInfo => UrbanHouseholdInfo
 }
-import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Coord
-
 import scala.collection.parallel.immutable.ParMap
+
+import beam.utils.logging.ExponentialLazyLogging
 
 class UrbanSimScenarioSource(
   val scenarioFolder: String,
@@ -20,7 +20,7 @@ class UrbanSimScenarioSource(
   val geoUtils: GeoUtils,
   val shouldConvertWgs2Utm: Boolean
 ) extends ScenarioSource
-    with LazyLogging {
+    with ExponentialLazyLogging {
   val fileExt: String = rdr.inputType.toFileExt
 
   val buildingFilePath: String = s"$scenarioFolder/buildings.$fileExt"
@@ -75,7 +75,7 @@ class UrbanSimScenarioSource(
     val householdIdToCoord = getHouseholdIdToCoord(householdInfo)
     householdInfo.map { householdInfo =>
       val coord = householdIdToCoord.getOrElse(householdInfo.householdId, {
-        logger.warn(s"Could not find coordinate for `householdId` '${householdInfo.householdId}'")
+        logger.warn(s"Could not find coordinate for `householdId` '{}'", householdInfo.householdId)
         new Coord(0, 0)
       })
       HouseholdInfo(

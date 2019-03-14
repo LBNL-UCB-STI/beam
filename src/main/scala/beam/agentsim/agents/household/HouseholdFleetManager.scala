@@ -25,10 +25,11 @@ import org.matsim.api.core.v01.{Coord, Id}
 import scala.concurrent.{ExecutionContext, Future}
 import akka.pattern.{ask, pipe}
 import beam.agentsim.agents.BeamAgent.Finish
+import beam.utils.logging.ExponentialLazyLogging
 
 class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehicle], BeamVehicle], homeCoord: Coord)
     extends Actor
-    with ActorLogging {
+    with ExponentialLazyLogging {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
 
@@ -64,31 +65,31 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
     case NotifyVehicleIdle(vId, whenWhere, _, _, _) =>
       val vehId = vId.asInstanceOf[Id[BeamVehicle]]
       vehicles(vehId).spaceTime = whenWhere
-      log.debug("updated vehicle {} with location {}", vehId, whenWhere)
+      logger.debug("updated vehicle {} with location {}", vehId, whenWhere)
 
     case ReleaseVehicle(vehicle) =>
       vehicle.unsetDriver()
       if (availableVehicles.contains(vehicle)) {
-        log.error("You can't release vehicle {} because I have it already", vehicle.id)
+        logger.warn("I can't release vehicle {} because I have it already", vehicle.id)
       } else {
         availableVehicles = vehicle :: availableVehicles
-        log.debug("Vehicle {} is now available", vehicle.id)
+        logger.debug("Vehicle {} is now available", vehicle.id)
       }
 
     case ReleaseVehicleAndReply(vehicle, _) =>
       vehicle.unsetDriver()
       if (availableVehicles.contains(vehicle)) {
-        sender ! Failure(new RuntimeException(s"You can't release vehicle ${vehicle.id} because I have it already"))
+        sender ! Failure(new RuntimeException(s"I can't release vehicle ${vehicle.id} because I have it already"))
       } else {
         availableVehicles = vehicle :: availableVehicles
-        log.debug("Vehicle {} is now available", vehicle.id)
+        logger.debug("Vehicle {} is now available", vehicle.id)
         sender() ! Success
       }
 
     case MobilityStatusInquiry(_, _, _) =>
       availableVehicles = availableVehicles match {
         case firstVehicle :: rest =>
-          log.debug("Vehicle {} is now taken", firstVehicle.id)
+          logger.debug("Vehicle {} is now taken", firstVehicle.id)
           firstVehicle.becomeDriver(sender)
           sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)))
           rest

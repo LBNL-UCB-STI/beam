@@ -64,7 +64,6 @@ class OutOfServiceVehicleManager(
       rideHailManagerActor
     )
     rideHailAgent.tell(Resume(), rideHailManagerActor)
-    DebugLib.emptyFunctionForSettingBreakPoint()
   }
 
   def releaseTrigger(
