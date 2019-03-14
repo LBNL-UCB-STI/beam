@@ -1,15 +1,12 @@
 package beam.physsim.jdeqsim.cacc.sim;
 
 import beam.physsim.jdeqsim.cacc.CACCSettings;
-import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.Hao2018CaccRoadCapacityAdjustmentFunction;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.api.experimental.events.EventsManager;
-import org.matsim.core.config.groups.PlansConfigGroup;
-import org.matsim.core.mobsim.framework.Mobsim;
 import org.matsim.core.mobsim.jdeqsim.*;
 import org.matsim.core.mobsim.jdeqsim.util.Timer;
 
@@ -27,10 +24,7 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
 	private final static Logger log = Logger.getLogger(JDEQSimulation.class);
 
 
-	////////CHANGES/////////
-	public static Map<String ,Boolean> isCACCVehicle;
-
-	Double caccShare = null;
+	private CACCSettings caccSettings;
 
 	EventsManager _events;
 	JDEQSimConfigGroup _config;
@@ -42,9 +36,8 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
 
 		super(config, scenario, events);
 
-		this.isCACCVehicle = caccSettings.isCACCVehicle();
+		this.caccSettings = caccSettings;
 		Road.setRoadCapacityAdjustmentFunction (caccSettings.roadCapacityAdjustmentFunction());
-		this.caccShare = caccShare;
 
 		this._events = events;
 		this._config = config;
@@ -57,6 +50,7 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
 
 	private void initializeVehicles() {
 		List<String> vehicleNotFound = new ArrayList<>();
+		Map<String, Boolean> isCACCVehicle = caccSettings.isCACCVehicle();
 
 		for (Person person : this.scenario.getPopulation().getPersons().values()) {
 
@@ -70,7 +64,9 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
 
 			new Vehicle(scheduler, person, activityDurationInterpretation, isCaccEnabled); // the vehicle registers itself to the scheduler
 		}
-		log.info("Vehilces not found in the isCACCVehicle map -> total vehicles " + this.scenario.getPopulation().getPersons().values().size() + ", not found " + vehicleNotFound.size());
+
+		String CACCenabledString=", CACC enabled: " + isCACCVehicle.entrySet().stream().filter(x -> x.getValue()).collect(Collectors.toMap(x -> x.getKey(), x -> x.getValue())).size();
+		log.info("isCACCVehicle map -> total vehicles " + this.scenario.getPopulation().getPersons().values().size() + ", not found " + vehicleNotFound.size() + CACCenabledString);
 	}
 
 	private void initializeRoads() {
@@ -97,5 +93,6 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
 
 		log.info("Time needed for one iteration (only JDEQSimulation part): " + t.getMeasuredTime() + "[ms]");
 		_events.finishProcessing();
+		caccSettings.roadCapacityAdjustmentFunction().printStats();
 	}
 }
