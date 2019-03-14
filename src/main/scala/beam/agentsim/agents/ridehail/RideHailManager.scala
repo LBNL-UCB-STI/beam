@@ -23,7 +23,8 @@ import beam.agentsim.agents.ridehail.allocation._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{
   CouldNotFindRouteToCustomer,
   DriverNotFoundError,
-  RideHailVehicleTakenError
+  RideHailVehicleTakenError,
+  VehicleGoneError
 }
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -718,6 +719,9 @@ class RideHailManager(
         modifyPassengerScheduleManager.cancelRepositionAttempt()
       }
 
+    case reply @ InterruptedWhileOffline(interruptId, vehicleId, tick) =>
+      modifyPassengerScheduleManager.handleInterruptReply(reply)
+
     case reply @ InterruptedWhileIdle(interruptId, vehicleId, tick) =>
       if (pendingAgentsSentToPark.contains(vehicleId)) {
         outOfServiceVehicleManager.handleInterruptReply(vehicleId, tick)
@@ -859,6 +863,17 @@ class RideHailManager(
         val routingRequests = createRoutingRequestsToCustomerAndDestination(inquiry.departAt, inquiry, agentLocation)
         routingRequests.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId, inquiry.requestId))
         requestRoutes(inquiry.departAt, routingRequests)
+    }
+  }
+
+  def cancelReservationDueToFailedModifyPassengerSchedule(requestId: Int): Boolean = {
+    pendingModifyPassengerScheduleAcks.remove(requestId) match {
+      case Some(rideHailResponse) =>
+        failedAllocation(rideHailResponse.request, modifyPassengerScheduleManager.getCurrentTick.get)
+        pendingModifyPassengerScheduleAcks.isEmpty
+      case None =>
+        log.error("unexpected condition, canceling reservation but no pending modify pass schedule ack found")
+        false
     }
   }
 
@@ -1227,8 +1242,19 @@ class RideHailManager(
           request.customer.personRef
         )
       )
+      request.groupedWithOtherRequests.foreach { subReq =>
+        modifyPassengerScheduleManager.addTriggerToSendWithCompletion(
+          ScheduleTrigger(
+            RideHailResponseTrigger(tick, theResponse),
+            subReq.customer.personRef
+          )
+        )
+      }
     } else {
       request.customer.personRef ! theResponse
+      request.groupedWithOtherRequests.foreach { subReq =>
+        subReq.customer.personRef ! theResponse
+      }
     }
     rideHailResourceAllocationManager.removeRequestFromBuffer(request)
   }
