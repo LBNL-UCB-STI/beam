@@ -145,8 +145,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         //JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
 
         RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction= new Hao2018CaccRoadCapacityAdjustmentFunction(
-                beamConfig.beam().physsim().jdeqsim().caccMinRoadCapacity()*beamConfig.beam().physsim().flowCapacityFactor(),
-                beamConfig.beam().physsim().jdeqsim().caccMinSpeedMetersPerSec()
+                beamConfig.beam().physsim().jdeqsim().cacc().minRoadCapacity()*beamConfig.beam().physsim().flowCapacityFactor(),
+                beamConfig.beam().physsim().jdeqsim().cacc().minSpeedMetersPerSec()
         );
 
 
@@ -161,7 +161,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         CACCSettings caccSettings = new CACCSettings(
                 caccVehiclesMap,roadCapacityAdjustmentFunction
                );
-        double speedAdjustmentFactor = beamConfig.beam().physsim().speedAdjustmentFactor();
+        double speedAdjustmentFactor = beamConfig.beam().physsim().jdeqsim().cacc().speedAdjustmentFactor();
         JDEQSimulation jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccSettings, speedAdjustmentFactor);
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents,  agentSimScenario.getConfig().travelTimeCalculator());
 
