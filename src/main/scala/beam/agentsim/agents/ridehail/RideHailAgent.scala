@@ -122,6 +122,8 @@ object RideHailAgent {
   ) extends InterruptReply
 
   case class InterruptedWhileIdle(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Int) extends InterruptReply
+  case class InterruptedWhileOffline(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Int)
+      extends InterruptReply
 
   case object Idle extends BeamAgentState
 
@@ -235,6 +237,9 @@ class RideHailAgent(
       )
       holdTickAndTriggerId(tick, triggerId)
       goto(Idle)
+    case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
+      log.debug("state(RideHailingAgent.Offline): {}", ev)
+      stay replying InterruptedWhileOffline(interruptId, vehicle.id, tick)
   }
 
   when(Idle) {

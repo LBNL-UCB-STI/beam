@@ -364,12 +364,13 @@ class PersonAgent(
     data: BasePersonData
   ): State = {
     logDebug(s"replanning because ${error.errorCode}")
-    eventsManager.processEvent(new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
+    val tick = _currentTick.getOrElse(response.request.departAt)
+    eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id)))
     goto(ChoosingMode) using ChoosesModeData(
       data.copy(currentTourMode = None, numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
       currentLocation = SpaceTime(
         beamServices.geo.wgs2Utm(data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc,
-        _currentTick.get
+        tick
       ),
       isWithinTripReplanning = true
     )
