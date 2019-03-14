@@ -1,3 +1,4 @@
 include 'beam-gui'
+include 'aws'
 
 rootProject.name = 'beam'

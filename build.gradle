@@ -1,6 +1,7 @@
 import com.amazonaws.services.lambda.model.InvocationType
 import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
-import org.unbrokendome.gradle.plugins.helm.command.tasks.*
+import org.unbrokendome.gradle.plugins.helm.command.tasks.HelmInit
+import org.unbrokendome.gradle.plugins.helm.command.tasks.HelmInstall
 
 import java.time.Instant
 import java.time.LocalDateTime
