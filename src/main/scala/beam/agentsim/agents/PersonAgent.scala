@@ -934,7 +934,7 @@ class PersonAgent(
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
     case Event(NotifyVehicleIdle(_, _, _, _, _), _) =>
       stay()
-    case Event(TriggerWithId(RideHailResponseTrigger(_,_),triggerId),_) =>
+    case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>
       stay() replying CompletionNotice(triggerId)
     case Event(RideHailResponse(request, travelProposal, error, triggersToSchedule), _) =>
       stop(Failure("Unexpected RideHailResponse"))
