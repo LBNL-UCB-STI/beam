@@ -237,7 +237,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         if (beamConfig.beam().physsim().jdeqsim().cacc().enabled()) {
 
-
+            log.info("CACC enabled");
             RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction = new Hao2018CaccRoadCapacityAdjustmentFunction(
                     beamConfig.beam().physsim().jdeqsim().cacc().minRoadCapacity(),
                     beamConfig.beam().physsim().jdeqsim().cacc().minSpeedMetersPerSec(), beamConfig.beam().physsim().flowCapacityFactor()
@@ -259,6 +259,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
             jdeqSimulation = new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccSettings, speedAdjustmentFactor);
         } else {
+            log.info("CACC disabled");
             jdeqSimulation = new org.matsim.core.mobsim.jdeqsim.JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents);
         }
 
