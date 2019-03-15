@@ -23,7 +23,8 @@ import beam.agentsim.agents.ridehail.allocation._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{
   CouldNotFindRouteToCustomer,
   DriverNotFoundError,
-  RideHailVehicleTakenError
+  RideHailVehicleTakenError,
+  VehicleGoneError
 }
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -339,10 +340,9 @@ class RideHailManager(
             val vehicleType = vehicleTypes(idx)
             if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >=
                   (vehicleType.primaryFuelCapacityInJoule / vehicleType.primaryFuelConsumptionInJoulePerMeter) * 0.8) {
-//              throw new RuntimeException(
-//                "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
-//              )
-              println("OH NO, THIS SHOULDN'T HAPPEN")
+              log.error(
+                "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
+              )
             }
             val rideInitialLocation: Location = getRideInitLocation(person)
             if (vehicleType.automationLevel < 4) {
@@ -423,7 +423,7 @@ class RideHailManager(
     case LogActorState =>
       ReflectionUtils.logFields(log, this, 0)
       ReflectionUtils.logFields(log, rideHailResourceAllocationManager, 0)
-      ReflectionUtils.logFields(log, modifyPassengerScheduleManager, 0)
+      ReflectionUtils.logFields(log, modifyPassengerScheduleManager, 0, "config")
 
     case RecoverFromStuckness(tick) =>
       // This is assuming we are allocating demand and routes haven't been returned
@@ -497,7 +497,7 @@ class RideHailManager(
             .noPendingReservations(vehicleId) || modifyPassengerScheduleManager
             .isPendingReservationEnding(vehicleId, passengerSchedule)) {
 
-        log.debug("range: {}", beamVehicleState.remainingRangeInM / 1000.0)
+        log.debug("range: {}", beamVehicleState.remainingPrimaryRangeInM / 1000.0)
         val stallOpt = pendingAgentsSentToPark.remove(vehicleId)
         if (stallOpt.isDefined) {
           log.debug("Initiate refuel session for vehicle: {}", vehicleId)
@@ -511,7 +511,8 @@ class RideHailManager(
             triggerId,
             Vector[ScheduleTrigger](startFuelTrigger)
           )
-        } else if (beamVehicleState.remainingRangeInM < beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters) {
+        } else if (beamVehicleState.remainingPrimaryRangeInM + beamVehicleState.secondaryFuelLevel
+                     .getOrElse(0.0) < beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters) {
           // not enough range to make trip
 
           if (modifyPassengerScheduleManager.vehicleHasMoreThanOneOngoingRequests(vehicleId)) {
@@ -718,6 +719,9 @@ class RideHailManager(
         modifyPassengerScheduleManager.cancelRepositionAttempt()
       }
 
+    case reply @ InterruptedWhileOffline(interruptId, vehicleId, tick) =>
+      modifyPassengerScheduleManager.handleInterruptReply(reply)
+
     case reply @ InterruptedWhileIdle(interruptId, vehicleId, tick) =>
       if (pendingAgentsSentToPark.contains(vehicleId)) {
         outOfServiceVehicleManager.handleInterruptReply(vehicleId, tick)
@@ -858,6 +862,18 @@ class RideHailManager(
         val routingRequests = createRoutingRequestsToCustomerAndDestination(inquiry.departAt, inquiry, agentLocation)
         routingRequests.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId, inquiry.requestId))
         requestRoutes(inquiry.departAt, routingRequests)
+    }
+  }
+
+  // Returns true if pendingModifyPassengerScheduleAcks is empty and therefore signaling cleanup needed
+  def cancelReservationDueToFailedModifyPassengerSchedule(requestId: Int): Boolean = {
+    pendingModifyPassengerScheduleAcks.remove(requestId) match {
+      case Some(rideHailResponse) =>
+        failedAllocation(rideHailResponse.request, modifyPassengerScheduleManager.getCurrentTick.get)
+        pendingModifyPassengerScheduleAcks.isEmpty
+      case None =>
+        log.error("unexpected condition, canceling reservation but no pending modify pass schedule ack found")
+        false
     }
   }
 
@@ -1226,8 +1242,19 @@ class RideHailManager(
           request.customer.personRef
         )
       )
+      request.groupedWithOtherRequests.foreach { subReq =>
+        modifyPassengerScheduleManager.addTriggerToSendWithCompletion(
+          ScheduleTrigger(
+            RideHailResponseTrigger(tick, theResponse),
+            subReq.customer.personRef
+          )
+        )
+      }
     } else {
       request.customer.personRef ! theResponse
+      request.groupedWithOtherRequests.foreach { subReq =>
+        subReq.customer.personRef ! theResponse
+      }
     }
     rideHailResourceAllocationManager.removeRequestFromBuffer(request)
   }
