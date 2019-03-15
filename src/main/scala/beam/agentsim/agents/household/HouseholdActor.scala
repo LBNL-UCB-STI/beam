@@ -464,7 +464,7 @@ object HouseholdActor {
             homeCoord,
             "home",
             AttributesOfIndividual.EMPTY,
-            NoNeed,
+            None,
             0,
             0
           ) flatMap {

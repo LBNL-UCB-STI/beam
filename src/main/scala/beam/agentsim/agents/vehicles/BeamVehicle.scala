@@ -9,7 +9,7 @@ import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
-import beam.agentsim.infrastructure.ParkingStall.ChargingType
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, WALK}
@@ -185,14 +185,19 @@ class BeamVehicle(
   def refuelingSessionDurationAndEnergyInJoules(): (Long, Double) = {
     stall match {
       case Some(theStall) =>
-        ChargingType.calculateChargingSessionLengthAndEnergyInJoules(
-          theStall.attributes.chargingType,
-          primaryFuelLevelInJoules,
-          beamVehicleType.primaryFuelCapacityInJoule,
-          beamVehicleType.rechargeLevel2RateLimitInWatts,
-          beamVehicleType.rechargeLevel3RateLimitInWatts,
-          None
-        )
+        theStall.chargingPointType match {
+          case Some(chargingPointType) =>
+            ChargingPointType.calculateChargingSessionLengthAndEnergyInJoule(
+              chargingPointType,
+              primaryFuelLevelInJoules,
+              beamVehicleType.primaryFuelCapacityInJoule,
+              0, // placeholder ac charging limit
+              0, // placeholder dc charging limit
+              Some(1440000L) // placeholder session duration limit (1 day in ms)
+            )
+          case None =>
+            (0, 0.0) // no refueling if there is no charger here
+        }
       case None =>
         (0, 0.0) // if we are not parked, no refueling can occur
     }

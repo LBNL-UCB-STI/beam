@@ -13,7 +13,8 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.{AnotherTrivialParkingManager, TAZTreeMap, TrivialParkingManager}
+import beam.agentsim.infrastructure.taz.TAZTreeMap
+import beam.agentsim.infrastructure.{AnotherTrivialParkingManager, TrivialParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
@@ -51,7 +52,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 
 class PersonWithPersonalVehiclePlanSpec
     extends TestKit(

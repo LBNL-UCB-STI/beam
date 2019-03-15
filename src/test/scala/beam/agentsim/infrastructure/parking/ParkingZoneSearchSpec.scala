@@ -18,7 +18,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           Seq(ParkingType.Public),
           tree,
           zones,
-          ParkingRankingFunction(parkingDuration = 100.0)
+          ParkingRanking.rankingFunction(parkingDuration = 100.0)
         )
 
         result should be (None)
@@ -26,18 +26,18 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
     }
     "search for options that do exist" should {
       "receive all of those options" in new ParkingZoneSearchSpec.SmallProblem {
-        val result: Option[(TAZ, ParkingType, ParkingZone, Double)] = ParkingZoneSearch.find(
+        val result: Option[ParkingRanking.RankingAccumulator] = ParkingZoneSearch.find(
           Option.empty[ChargingInquiryData],
           tazsInProblem,
           Seq(ParkingType.Public),
           smallTree,
           smallZones,
-          ParkingRankingFunction(parkingDuration = 100.0)
+          ParkingRanking.rankingFunction(parkingDuration = 100.0)
         )
 
         result match {
           case None => fail()
-          case Some((taz, parkingType, parkingZone, rankingValue)) =>
+          case Some(ParkingRanking.RankingAccumulator(taz, parkingType, parkingZone, rankingValue, availability)) =>
             taz should equal (taz2)
             parkingType should equal (ParkingType.Public)
             parkingZone.stallsAvailable should equal (18)

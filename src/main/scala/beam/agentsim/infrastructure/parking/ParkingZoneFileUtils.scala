@@ -20,33 +20,33 @@ object ParkingZoneFileUtils extends LazyLogging {
   /**
     * write the loaded set of parking and charging options to an instance parking file
     *
-    * @param stallSearch          the search tree of available parking options
-    * @param stalls               the stored ParkingZones
+    * @param stallSearch the search tree of available parking options
+    * @param stalls the stored ParkingZones
     * @param writeDestinationPath a file path to write to
     */
   def writeParkingZoneFile(
-                            stallSearch: ZoneSearch,
-                            stalls: Array[ParkingZone],
-                            writeDestinationPath: String
-                          ): Unit = {
+    stallSearch: ZoneSearch,
+    stalls: Array[ParkingZone],
+    writeDestinationPath: String
+  ): Unit = {
 
     val header: String = "taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor"
     val destinationFile = new File(writeDestinationPath)
 
     Try {
       for {
-        (tazId, parkingTypesSubtree) <- stallSearch.toList
+        (tazId, parkingTypesSubtree)  <- stallSearch.toList
         (parkingType, parkingZoneIds) <- parkingTypesSubtree.toList
-        parkingZoneId <- parkingZoneIds
+        parkingZoneId                 <- parkingZoneIds
       } yield {
 
         val parkingZone = stalls(parkingZoneId)
         val (pricingModel, feeInCents) = parkingZone.pricingModel match {
-          case None => ("", "")
+          case None     => ("", "")
           case Some(pm) => (s"$pm", s"${pm.cost}")
         }
-        val chargingPoint = parkingZone.chargingPoint match {
-          case None => ""
+        val chargingPoint = parkingZone.chargingPointType match {
+          case None     => ""
           case Some(cp) => s"$cp"
         }
 
@@ -102,9 +102,9 @@ object ParkingZoneFileUtils extends LazyLogging {
 
     @tailrec
     def _read(
-               stallTable: Array[ParkingZone] = Array.empty[ParkingZone],
-               searchTree: ZoneSearch = Map.empty[Id[TAZ], Map[ParkingType, List[Int]]]
-             ): (Array[ParkingZone], ZoneSearch) = {
+      stallTable: Array[ParkingZone] = Array.empty[ParkingZone],
+      searchTree: ZoneSearch = Map.empty[Id[TAZ], Map[ParkingType, List[Int]]]
+    ): (Array[ParkingZone], ZoneSearch) = {
       val csvRow = reader.readLine()
       if (csvRow == null) (stallTable, searchTree)
       else {
@@ -149,28 +149,27 @@ object ParkingZoneFileUtils extends LazyLogging {
     }
   }
 
-  private[ParkingZoneFileUtils] val ParkingFileRowRegex: Regex = "^(\\w+),(\\w+),(\\w+),(\\w+|\\w+\\(\\d+,\\w{2}\\)),(\\d+),(\\d+),(\\w+)$".r
+  private[ParkingZoneFileUtils] val ParkingFileRowRegex: Regex = "^(\\w+),(\\w+),(\\w+),(\\w+),(\\d+),(\\d+),(\\w+)$".r
 
   /**
     * parses a row of parking configuration into the data structures used to represent it
-    *
     * @param csvRow the comma-separated parking attributes
     * @return a ParkingZone and it's corresponding ParkingType and Taz Id
     */
   private[ParkingZoneFileUtils] def parseParkingZoneFromRow(
-                                                             csvRow: String,
-                                                             nextParkingZoneId: Int
-                                                           ): (Id[TAZ], ParkingType, ParkingZone) = {
+    csvRow: String,
+    nextParkingZoneId: Int
+  ): (Id[TAZ], ParkingType, ParkingZone) = {
     csvRow match {
       case ParkingFileRowRegex(
-      tazString,
-      parkingTypeString,
-      pricingModelString,
-      chargingTypeString,
-      numStallsString,
-      feeInCentsString,
-      _
-      ) =>
+          tazString,
+          parkingTypeString,
+          pricingModelString,
+          chargingTypeString,
+          numStallsString,
+          feeInCentsString,
+          _
+          ) =>
         Try {
 
           // parse this row from the source file
@@ -178,7 +177,6 @@ object ParkingZoneFileUtils extends LazyLogging {
           val parkingType = ParkingType(parkingTypeString)
           val pricingModel = PricingModel(pricingModelString, feeInCentsString)
           val chargingPoint = ChargingPointType(chargingTypeString)
-
           val numStalls = numStallsString.toInt
           val parkingZone = ParkingZone(nextParkingZoneId, numStalls, chargingPoint, pricingModel)
 
@@ -198,20 +196,20 @@ object ParkingZoneFileUtils extends LazyLogging {
   /**
     * a kind of lens-based update for the search tree
     *
-    * @param tazId       TAZ where this ParkingZone exists
+    * @param tazId TAZ where this ParkingZone exists
     * @param parkingType a parking type category we are adding/updating
     * @param parkingZone the new parking zone we are adding to the simulation
-    * @param tree        the search tree we will update
-    * @param stalls      the collection of stall data we will update
+    * @param tree the search tree we will update
+    * @param stalls the collection of stall data we will update
     * @return updated tree, stalls
     */
   private[ParkingZoneFileUtils] def addStallToSearch(
-                                                      tazId: Id[TAZ],
-                                                      parkingType: ParkingType,
-                                                      parkingZone: ParkingZone,
-                                                      tree: ZoneSearch,
-                                                      stalls: Array[ParkingZone]
-                                                    ): (Array[ParkingZone], ZoneSearch) = {
+    tazId: Id[TAZ],
+    parkingType: ParkingType,
+    parkingZone: ParkingZone,
+    tree: ZoneSearch,
+    stalls: Array[ParkingZone]
+  ): (Array[ParkingZone], ZoneSearch) = {
 
     // find any data stored already within this TAZ and with this ParkingType
     val parkingTypes = tree.getOrElse(tazId, Map())
@@ -222,7 +220,11 @@ object ParkingZoneFileUtils extends LazyLogging {
 
     // update the tree with the id of this ParkingZone
     val updatedTree =
-      tree.updated(tazId, parkingTypes.updated(parkingType, parkingZoneIds :+ parkingZone.parkingZoneId))
+      tree.updated(
+        tazId, parkingTypes.updated(
+          parkingType, parkingZoneIds :+ parkingZone.parkingZoneId
+        )
+      )
 
     (updatedStalls, updatedTree)
   }

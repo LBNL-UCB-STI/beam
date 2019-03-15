@@ -7,7 +7,7 @@ import scala.util.{Failure, Success, Try}
 
 sealed trait ChargingPointType
 
-case object ChargingPointType {
+object ChargingPointType {
 
   // some standard implementations of currently existing charging points
   case object HouseholdSocket extends ChargingPointType
@@ -76,14 +76,14 @@ case object ChargingPointType {
       case "UltraFast" => Some(CustomChargingPoint(s.trim, "250", "dc"))
       case "NoCharger" => None
       case "" => None
-      case _ => throw new IllegalArgumentException("invalid argument for chargingPoint: " + s.trim)
+      case _ => throw new IllegalArgumentException("invalid argument for ChargingPointType: " + s.trim)
     }
   }
 
 
   // matches either the standard ones or a custom one
-  def getChargingPointInstalledPowerInKw(chargingPoint: ChargingPointType): Double = {
-    chargingPoint match {
+  def getChargingPointInstalledPowerInKw(chargingPointType: ChargingPointType): Double = {
+    chargingPointType match {
       case HouseholdSocket => 2.3
       case BlueHouseholdSocket => 3.6
       case Cee16ASocket => 11
@@ -99,8 +99,8 @@ case object ChargingPointType {
     }
   }
 
-  def getChargingPointCurrent(chargingPoint: ChargingPointType): ElectricCurrentType = {
-    chargingPoint match {
+  def getChargingPointCurrent(chargingPointType: ChargingPointType): ElectricCurrentType = {
+    chargingPointType match {
       case HouseholdSocket => AC
       case BlueHouseholdSocket => AC
       case Cee16ASocket => AC
@@ -117,14 +117,14 @@ case object ChargingPointType {
   }
 
   def calculateChargingSessionLengthAndEnergyInJoule(
-                                                      chargingPoint: ChargingPointType,
+                                                      chargingPointType: ChargingPointType,
                                                       currentEnergyLevelInJoule: Double,
                                                       batteryCapacityInJoule: Double,
                                                       vehicleAcChargingLimitsInWatts: Double,
                                                       vehicleDcChargingLimitsInWatts: Double,
                                                       sessionDurationLimit: Option[Long]
                                                     ): (Long, Double) = {
-    val chargingLimits = ChargingPointType.getChargingPointCurrent(chargingPoint) match {
+    val chargingLimits = ChargingPointType.getChargingPointCurrent(chargingPointType) match {
       case AC => (vehicleAcChargingLimitsInWatts / 1000.0, batteryCapacityInJoule)
       case DC =>
         (vehicleDcChargingLimitsInWatts / 1000.0, batteryCapacityInJoule * 0.8) // DC limits charging to 0.8 * battery capacity
@@ -134,12 +134,12 @@ case object ChargingPointType {
       sessionLengthLimiter,
       Math.round(
         (chargingLimits._2 - currentEnergyLevelInJoule) / 3.6e6 / Math
-          .min(chargingLimits._1, ChargingPointType.getChargingPointInstalledPowerInKw(chargingPoint)) * 3600.0
+          .min(chargingLimits._1, ChargingPointType.getChargingPointInstalledPowerInKw(chargingPointType)) * 3600.0
       )
     )
     val sessionEnergyInJoules = sessionLength.toDouble / 3600.0 * Math.min(
       chargingLimits._1,
-      ChargingPointType.getChargingPointInstalledPowerInKw(chargingPoint)
+      ChargingPointType.getChargingPointInstalledPowerInKw(chargingPointType)
     ) * 3.6e6
     (sessionLength, sessionEnergyInJoules)
   }

@@ -2,8 +2,8 @@ package beam.agentsim.infrastructure.parking
 
 import scala.collection.Map
 import scala.util.{Failure, Success, Try}
-
 import beam.agentsim.infrastructure.charging._
+import beam.agentsim.infrastructure.parking.ParkingRanking.RankingAccumulator
 import beam.agentsim.infrastructure.taz.TAZ
 import org.matsim.api.core.v01.Id
 
@@ -34,7 +34,7 @@ object ParkingZoneSearch {
     tree: ZoneSearch,
     parkingZones: Array[ParkingZone],
     costFunction: (ParkingZone, Option[ChargingPreference]) => Double
-  ): Option[(TAZ, ParkingType, ParkingZone, Double)] = {
+  ): Option[RankingAccumulator] = {
     val found = findParkingZonesAndRanking(tazList, parkingTypes, tree, parkingZones)
     takeBestByRanking(found, chargingInquiryData, costFunction)
   }
@@ -74,6 +74,8 @@ object ParkingZoneSearch {
     }
   }
 
+
+
   /**
     * finds the best parking zone id based on maximizing it's associated cost function evaluation
     * @param found the ranked parkingZones
@@ -85,31 +87,67 @@ object ParkingZoneSearch {
     found: Iterable[(TAZ, ParkingType, ParkingZone)],
     chargingInquiryData: Option[ChargingInquiryData],
     costFunction: (ParkingZone, Option[ChargingPreference]) => Double
-  ): Option[(TAZ, ParkingType, ParkingZone, Double)] = {
-    found.foldLeft(Option.empty[(TAZ, ParkingType, ParkingZone, Double)]) { (bestZoneOption, parkingZoneTuple) =>
-      val (thisTAZ: TAZ, thisParkingType: ParkingType, thisParkingZone: ParkingZone) =
-        parkingZoneTuple
+  ): Option[RankingAccumulator] = {
+    found.
+      foldLeft(Option.empty[RankingAccumulator]) { (accOption, parkingZoneTuple) =>
+        val (thisTAZ: TAZ, thisParkingType: ParkingType, thisParkingZone: ParkingZone) =
+          parkingZoneTuple
 
-      // rank this parking zone
-      val thisRank = chargingInquiryData match {
-        case None =>
-          // not a charging vehicle
-          costFunction(thisParkingZone, None)
-        case Some(chargingData) =>
-          // consider charging costs
-          val pref: Option[ChargingPreference] = for {
-            chargingPoint      <- thisParkingZone.chargingPoint
-            chargingPreference <- chargingData.data.get(chargingPoint)
-          } yield chargingPreference
-          costFunction(thisParkingZone, pref)
-      }
+        // rank this parking zone
+        val thisRank = chargingInquiryData match {
+          case None =>
+            // not a charging vehicle
+            costFunction(thisParkingZone, None)
+          case Some(chargingData) =>
+            // consider charging costs
+            val pref: Option[ChargingPreference] = for {
+              chargingPoint      <- thisParkingZone.chargingPointType
+              chargingPreference <- chargingData.data.get(chargingPoint)
+            } yield chargingPreference
+            costFunction(thisParkingZone, pref)
+        }
+
+        // add aggregate data to this accumulator
+        val updatedAvailability: ParkingRanking.Availability =
+          accOption match {
+            case None =>
+              ParkingRanking.updateAvailability(Map.empty, thisParkingZone, thisParkingType)
+            case Some(accumulator) =>
+              ParkingRanking.updateAvailability(accumulator.availability, thisParkingZone, thisParkingType)
+          }
 
       // update fold accumulator with best-ranked parking zone along with relevant attributes
-      bestZoneOption match {
-        case None => Some { (thisTAZ, thisParkingType, thisParkingZone, thisRank) }
-        case Some((_, _, _, bestRank)) =>
-          if (bestRank < thisRank) Some { (thisTAZ, thisParkingType, thisParkingZone, thisRank) } else
-            bestZoneOption
+      accOption match {
+        case None =>
+
+          // the first zone found becomes the first accumulator
+          Some {
+            RankingAccumulator(
+              thisTAZ,
+              thisParkingType,
+              thisParkingZone,
+              thisRank,
+              updatedAvailability
+            )
+          }
+        case Some(acc: RankingAccumulator) =>
+
+          // update the aggregate data, and optionally, update the best zone if it's ranking is superior
+          if (acc.bestRankingValue < thisRank)
+            Some {
+              acc.copy(
+                bestTAZ = thisTAZ,
+                bestParkingType = thisParkingType,
+                bestParkingZone = thisParkingZone,
+                bestRankingValue = thisRank,
+                availability = updatedAvailability
+              ) }
+          else
+            Some {
+              acc.copy(
+                availability = updatedAvailability
+              )
+            }
       }
     }
   }

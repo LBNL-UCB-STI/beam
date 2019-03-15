@@ -2,7 +2,7 @@ package beam.router
 
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.BeamSkimmer._
 import beam.router.Modes.BeamMode
