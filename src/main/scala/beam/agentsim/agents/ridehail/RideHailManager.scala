@@ -327,9 +327,11 @@ class RideHailManager(
         )
       val activityEndTimes: ArrayBuffer[Int] = new ArrayBuffer[Int]()
       scenario.getPopulation.getPersons.asScala.foreach(
-        _._2.getSelectedPlan.getPlanElements.asScala.collect{
-          case activity: Activity if activity.getEndTime.toInt > 0 => activity.getEndTime.toInt
-        }.foreach(activityEndTimes += _)
+        _._2.getSelectedPlan.getPlanElements.asScala
+          .collect {
+            case activity: Activity if activity.getEndTime.toInt > 0 => activity.getEndTime.toInt
+          }
+          .foreach(activityEndTimes += _)
       )
       val fleetData: ArrayBuffer[RideHailFleetInitializer.RideHailAgentInputData] = new ArrayBuffer(persons.size)
       persons.zipWithIndex.foreach {
@@ -1400,7 +1402,7 @@ class RideHailManager(
       None
     } else {
       val outArray = scala.collection.mutable.ArrayBuffer.empty[String]
-      Array((startTimes zip endTimes).foreach( x => outArray += Array("{", x._1,":" ,x._2, "}").mkString))
+      Array((startTimes zip endTimes).foreach(x => outArray += Array("{", x._1, ":", x._2, "}").mkString))
       return Option(outArray.mkString(";"))
     }
   }
