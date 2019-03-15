@@ -6,17 +6,30 @@
             <Pattern>
                 %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
             </Pattern>
-<!--
-            <Pattern>
-                %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} %X{akkaSource} - %msg%n
-            </Pattern>
--->
+            <!--
+                        <Pattern>
+                            %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} %X{akkaSource} - %msg%n
+                        </Pattern>
+            -->
         </layout>
     </appender>
 
-    <root level="debug">
-        <appender-ref ref="STDOUT" />
+    <root level="error">
+        <appender-ref ref="STDOUT"/>
     </root>
+
+    <logger name="beam.agentsim.scheduler" level="debug" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="beam.analysis.plots" level="debug" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <logger name="beam.integration" level="debug"
+            additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
 
     <logger name="com.conveyal.r5" level="error"
             additivity="false">
