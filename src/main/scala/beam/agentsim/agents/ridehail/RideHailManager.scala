@@ -349,7 +349,7 @@ class RideHailManager(
               val shiftDuration = math.round(math.exp(rand.nextGaussian() * 0.67 + 0.60) * 3600)
               val shiftMidPointTime = activityEndTimes(rand.nextInt(activityEndTimes.length))
               val shiftStartTime = max(shiftMidPointTime - (shiftDuration / 2).toInt, 10)
-              val shiftEndTime = min(shiftMidPointTime + (shiftDuration / 2).toInt, 24 * 3600)
+              val shiftEndTime = min(shiftMidPointTime + (shiftDuration / 2).toInt, 30 * 3600)
               val shiftString = convertToShiftString(ArrayBuffer(shiftStartTime), ArrayBuffer(shiftEndTime))
               fleetData += createRideHailVehicleAndAgent(
                 person.getId.toString,
@@ -359,7 +359,7 @@ class RideHailManager(
                 None
               )
             } else {
-              val shiftString = convertToShiftString(ArrayBuffer(0), ArrayBuffer(24 * 3600))
+              val shiftString = None
               fleetData += createRideHailVehicleAndAgent(
                 person.getId.toString,
                 vehicleType,
@@ -1401,9 +1401,9 @@ class RideHailManager(
     if (startTimes.length != endTimes.length) {
       None
     } else {
-      var outStr: String = new String
-      (startTimes zip endTimes).foreach(x => outStr += ("{" + x._1.toString + ":" + x._2.toString + "}"))
-      return Option(outStr)
+      val outArray = scala.collection.mutable.ArrayBuffer.empty[String]
+      Array((startTimes zip endTimes).foreach( x => outArray += Array("{", x._1,":" ,x._2, "}").mkString))
+      return Option(outArray.mkString(";"))
     }
   }
 }
