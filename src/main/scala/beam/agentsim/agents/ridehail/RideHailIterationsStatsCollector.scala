@@ -197,14 +197,14 @@ class RideHailIterationsStatsCollector(
       vehicles.size,
       numIdleVehiclesWithoutPassenger
     )
-    logger.info(
-      "Ride hail vehicles with no passengers: {}",
-      vehicles.filter(_._2 == 0).keys.mkString(", ")
-    )
-    logger.info(
-      "Ride hail vehicles that never moved: {}",
-      vehicles.filter(_._2 == -1).keys.mkString(", ")
-    )
+//    logger.info(
+//      "Ride hail vehicles with no passengers: {}",
+//      vehicles.filter(_._2 == 0).keys.mkString(", ")
+//    )
+//    logger.info(
+//      "Ride hail vehicles that never moved: {}",
+//      vehicles.filter(_._2 == -1).keys.mkString(", ")
+//    )
   }
 
   private def getNoOfIdlingVehicle(tazId: String, binIndex: Int): Int = {

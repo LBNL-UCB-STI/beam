@@ -69,7 +69,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
       .withValue("matsim.modules.strategy.ModuleProbability_1", ConfigValueFactory.fromAnyRef(0.3))
       .withValue("matsim.modules.strategy.ModuleProbability_2", ConfigValueFactory.fromAnyRef(0.7))
       .withValue(
-        "beam.agentsim.taz.parking",
+        "beam.agentsim.taz.parkingFilePath",
         ConfigValueFactory.fromAnyRef(s"test/input/beamville/parking/taz-parking-$parkingScenario.csv")
       )
       .withValue(

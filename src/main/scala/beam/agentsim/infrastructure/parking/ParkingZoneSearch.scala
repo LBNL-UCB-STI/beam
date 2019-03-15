@@ -74,8 +74,6 @@ object ParkingZoneSearch {
     }
   }
 
-
-
   /**
     * finds the best parking zone id based on maximizing it's associated cost function evaluation
     * @param found the ranked parkingZones
@@ -88,38 +86,36 @@ object ParkingZoneSearch {
     chargingInquiryData: Option[ChargingInquiryData],
     costFunction: (ParkingZone, Option[ChargingPreference]) => Double
   ): Option[RankingAccumulator] = {
-    found.
-      foldLeft(Option.empty[RankingAccumulator]) { (accOption, parkingZoneTuple) =>
-        val (thisTAZ: TAZ, thisParkingType: ParkingType, thisParkingZone: ParkingZone) =
-          parkingZoneTuple
+    found.foldLeft(Option.empty[RankingAccumulator]) { (accOption, parkingZoneTuple) =>
+      val (thisTAZ: TAZ, thisParkingType: ParkingType, thisParkingZone: ParkingZone) =
+        parkingZoneTuple
 
-        // rank this parking zone
-        val thisRank = chargingInquiryData match {
+      // rank this parking zone
+      val thisRank = chargingInquiryData match {
+        case None =>
+          // not a charging vehicle
+          costFunction(thisParkingZone, None)
+        case Some(chargingData) =>
+          // consider charging costs
+          val pref: Option[ChargingPreference] = for {
+            chargingPoint      <- thisParkingZone.chargingPointType
+            chargingPreference <- chargingData.data.get(chargingPoint)
+          } yield chargingPreference
+          costFunction(thisParkingZone, pref)
+      }
+
+      // add aggregate data to this accumulator
+      val updatedAvailability: ParkingRanking.Availability =
+        accOption match {
           case None =>
-            // not a charging vehicle
-            costFunction(thisParkingZone, None)
-          case Some(chargingData) =>
-            // consider charging costs
-            val pref: Option[ChargingPreference] = for {
-              chargingPoint      <- thisParkingZone.chargingPointType
-              chargingPreference <- chargingData.data.get(chargingPoint)
-            } yield chargingPreference
-            costFunction(thisParkingZone, pref)
+            ParkingRanking.updateAvailability(Map.empty, thisParkingZone, thisParkingType)
+          case Some(accumulator) =>
+            ParkingRanking.updateAvailability(accumulator.availability, thisParkingZone, thisParkingType)
         }
-
-        // add aggregate data to this accumulator
-        val updatedAvailability: ParkingRanking.Availability =
-          accOption match {
-            case None =>
-              ParkingRanking.updateAvailability(Map.empty, thisParkingZone, thisParkingType)
-            case Some(accumulator) =>
-              ParkingRanking.updateAvailability(accumulator.availability, thisParkingZone, thisParkingType)
-          }
 
       // update fold accumulator with best-ranked parking zone along with relevant attributes
       accOption match {
         case None =>
-
           // the first zone found becomes the first accumulator
           Some {
             RankingAccumulator(
@@ -131,7 +127,6 @@ object ParkingZoneSearch {
             )
           }
         case Some(acc: RankingAccumulator) =>
-
           // update the aggregate data, and optionally, update the best zone if it's ranking is superior
           if (acc.bestRankingValue < thisRank)
             Some {
@@ -141,8 +136,8 @@ object ParkingZoneSearch {
                 bestParkingZone = thisParkingZone,
                 bestRankingValue = thisRank,
                 availability = updatedAvailability
-              ) }
-          else
+              )
+            } else
             Some {
               acc.copy(
                 availability = updatedAvailability

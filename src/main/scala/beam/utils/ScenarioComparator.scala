@@ -9,13 +9,14 @@ import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles._
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.Modes
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
+import beam.utils.BeamVehicleUtils._
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.Id
@@ -24,10 +25,11 @@ import org.matsim.core.controler.ControlerI
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
-
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.util.control.Breaks
+
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 
 object ScenarioComparator extends App with Comparator[MutableScenario] {
 
@@ -72,7 +74,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
       .withValue("beam.outputs.baseOutputDirectory", ConfigValueFactory.fromAnyRef(testOutputDir))
       .resolve()
 
-    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
 
     //matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     //  ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
@@ -93,7 +95,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
       .parseFileSubstitutingInputDirectory(configFile)
       .withValue("beam.outputs.baseOutputDirectory", ConfigValueFactory.fromAnyRef(testOutputDir))
       .resolve()
-    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
 
     val beamServices = getBeamServices(config)
@@ -119,12 +121,12 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
 
       // TODO Fix me once `TrieMap` is removed
       val fuelTypePrices: Map[FuelType, Double] =
-        readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
+        readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
 
       val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] =
-        readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
+        readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath, fuelTypePrices)
 
-      private val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile).getParent
+      private val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
       private val vehicleCsvReader = new VehicleCsvReader(beamConfig)
       private val consumptionRateFilterStore =
         new ConsumptionRateFilterStoreImpl(
@@ -143,16 +145,16 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
       // TODO Fix me once `TrieMap` is removed
       val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
         TrieMap(
-          readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq: _*
+          readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath, vehicleTypes).toSeq: _*
         )
 
       override def startNewIteration(): Unit = throw new Exception("???")
 
       override def matsimServices_=(x$1: org.matsim.core.controler.MatsimServices): Unit = ???
 
-      override val tazTreeMap: beam.agentsim.infrastructure.taz.TAZTreeMap =
-        beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
-      override lazy val modeIncentives: ModeIncentive = ???
+      override val tazTreeMap: TAZTreeMap =
+        beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
+      override val modeIncentives: ModeIncentive = ???
 
       override def matsimServices: org.matsim.core.controler.MatsimServices = ???
 

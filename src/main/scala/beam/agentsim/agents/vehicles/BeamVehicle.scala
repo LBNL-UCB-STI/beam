@@ -126,7 +126,11 @@ class BeamVehicle(
     */
   def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): FuelConsumed = {
     val fuelConsumptionData =
-      BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
+      if (beamServices.beamConfig.beam.agentsim.agents.vehicles.enableNewVehicleEnergyConsumptionLogic) {
+        BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
+      } else {
+        IndexedSeq()
+      }
 
     val primaryEnergyForFullLeg =
       if (beamServices.beamConfig.beam.agentsim.agents.vehicles.enableNewVehicleEnergyConsumptionLogic)
@@ -186,17 +190,17 @@ class BeamVehicle(
     stall match {
       case Some(theStall) =>
         theStall.chargingPointType match {
-          case Some(chargingPointType) =>
+          case Some(chargingPoint) =>
             ChargingPointType.calculateChargingSessionLengthAndEnergyInJoule(
-              chargingPointType,
+              chargingPoint,
               primaryFuelLevelInJoules,
               beamVehicleType.primaryFuelCapacityInJoule,
-              0, // placeholder ac charging limit
-              0, // placeholder dc charging limit
-              Some(1440000L) // placeholder session duration limit (1 day in ms)
+              100.0,
+              100.0,
+              None
             )
           case None =>
-            (0, 0.0) // no refueling if there is no charger here
+            (0, 0.0)
         }
       case None =>
         (0, 0.0) // if we are not parked, no refueling can occur
@@ -206,7 +210,9 @@ class BeamVehicle(
   def getState: BeamVehicleState =
     BeamVehicleState(
       primaryFuelLevelInJoules,
+      beamVehicleType.secondaryFuelCapacityInJoule,
       primaryFuelLevelInJoules / powerTrain.estimateConsumptionInJoules(1),
+      beamVehicleType.secondaryFuelCapacityInJoule.map(_ / beamVehicleType.secondaryFuelConsumptionInJoulePerMeter.get),
       driver,
       stall
     )
@@ -246,8 +252,10 @@ object BeamVehicle {
   }
 
   case class BeamVehicleState(
-    fuelLevel: Double,
-    remainingRangeInM: Double,
+    primaryFuelLevel: Double,
+    secondaryFuelLevel: Option[Double],
+    remainingPrimaryRangeInM: Double,
+    remainingSecondaryRangeInM: Option[Double],
     driver: Option[ActorRef],
     stall: Option[ParkingStall]
   )

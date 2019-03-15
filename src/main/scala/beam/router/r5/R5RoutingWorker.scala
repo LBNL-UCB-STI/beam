@@ -87,10 +87,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         beamConfig.beam.agentsim.simulationName,
         beamConfig.beam.outputs.addTimestampToOutputDirectory
       )
-      val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+      val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
       ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
-      LoggingUtil.createFileLogger(outputDirectory)
+      LoggingUtil.createFileLogger(outputDirectory, beamConfig.beam.logger.keepConsoleAppenderOn)
       matsimConfig.controler.setOutputDirectory(outputDirectory)
       matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
@@ -117,12 +117,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = TrieMap()
         override var personHouseholds: Map[Id[Person], Household] = Map()
         val fuelTypePrices: Map[FuelType, Double] =
-          readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamFuelTypesFile).toMap
+          readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
 
         val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] =
-          readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile, fuelTypePrices)
+          readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath, fuelTypePrices)
 
-        private val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.beamVehicleTypesFile).getParent
+        private val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
         private val vehicleCsvReader = new VehicleCsvReader(beamConfig)
         private val consumptionRateFilterStore =
           new ConsumptionRateFilterStoreImpl(
@@ -141,17 +141,17 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         // TODO Fix me once `TrieMap` is removed
         val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
           TrieMap(
-            readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.beamVehiclesFile, vehicleTypes).toSeq: _*
+            readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath, vehicleTypes).toSeq: _*
           )
 
         override val modeIncentives: ModeIncentive =
-          ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.file)
-        override val ptFares: PtFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.file)
+          ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath)
+        override val ptFares: PtFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath)
         override def startNewIteration(): Unit = throw new Exception("???")
         override def matsimServices_=(x$1: org.matsim.core.controler.MatsimServices): Unit = ???
         override val rideHailTransitModes: List[BeamMode] = BeamMode.massTransitModes
         override val tazTreeMap: TAZTreeMap =
-          beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.file)
+          beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
 
         override def matsimServices: org.matsim.core.controler.MatsimServices = ???
 
@@ -537,7 +537,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             )
           }
         } else {
-          Some(dummyLeg(routingRequest.departureTime))
+          Some(dummyLeg(routingRequest.departureTime, vehicle.locationUTM.loc))
         }
       } else {
         None
@@ -1181,7 +1181,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     // Optionally add a Dummy walk BeamLeg to the end of that trip
     if (isRouteForPerson && access.mode != LegMode.WALK) {
       if (!isTransit)
-        legsWithFares += LegWithFare(dummyLeg(legsWithFares.last.leg.endTime), 0.0)
+        legsWithFares += LegWithFare(
+          dummyLeg(legsWithFares.last.leg.endTime, legsWithFares.last.leg.travelPath.endPoint.loc),
+          0.0
+        )
     }
 
     if (isTransit) {
@@ -1242,7 +1245,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         val egress = option.egress.get(itinerary.connection.egress)
         legsWithFares ++= buildStreetBasedLegs(egress, arrivalTime)
         if (isRouteForPerson && egress.mode != LegMode.WALK)
-          legsWithFares += LegWithFare(dummyLeg(arrivalTime + egress.duration), 0.0)
+          legsWithFares += LegWithFare(
+            dummyLeg(arrivalTime + egress.duration, legsWithFares.last.leg.travelPath.endPoint.loc),
+            0.0
+          )
       }
     }
     maybeUseVehicleOnEgress.foreach { legWithFare =>
@@ -1251,7 +1257,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       legsWithFares += LegWithFare(updatedLeg, legWithFare.fare)
     }
     if (maybeUseVehicleOnEgress.nonEmpty && isRouteForPerson) {
-      legsWithFares += LegWithFare(dummyLeg(legsWithFares.last.leg.endTime), 0.0)
+      legsWithFares += LegWithFare(
+        dummyLeg(legsWithFares.last.leg.endTime, legsWithFares.last.leg.travelPath.endPoint.loc),
+        0.0
+      )
     }
     // TODO is it correct way to find first non-dummy leg
     val fistNonDummyLeg = legsWithFares.collectFirst {
