@@ -126,7 +126,11 @@ class BeamVehicle(
     */
   def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): FuelConsumed = {
     val fuelConsumptionData =
-      BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
+      if (beamServices.beamConfig.beam.agentsim.agents.vehicles.enableNewVehicleEnergyConsumptionLogic) {
+        BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
+      } else {
+        IndexedSeq()
+      }
 
     val primaryEnergyForFullLeg =
       if (beamServices.beamConfig.beam.agentsim.agents.vehicles.enableNewVehicleEnergyConsumptionLogic)
@@ -206,7 +210,9 @@ class BeamVehicle(
   def getState: BeamVehicleState =
     BeamVehicleState(
       primaryFuelLevelInJoules,
+      beamVehicleType.secondaryFuelCapacityInJoule,
       primaryFuelLevelInJoules / powerTrain.estimateConsumptionInJoules(1),
+      beamVehicleType.secondaryFuelCapacityInJoule.map(_ / beamVehicleType.secondaryFuelConsumptionInJoulePerMeter.get),
       driver,
       stall
     )
@@ -246,8 +252,10 @@ object BeamVehicle {
   }
 
   case class BeamVehicleState(
-    fuelLevel: Double,
-    remainingRangeInM: Double,
+    primaryFuelLevel: Double,
+    secondaryFuelLevel: Option[Double],
+    remainingPrimaryRangeInM: Double,
+    remainingSecondaryRangeInM: Option[Double],
     driver: Option[ActorRef],
     stall: Option[ParkingStall]
   )

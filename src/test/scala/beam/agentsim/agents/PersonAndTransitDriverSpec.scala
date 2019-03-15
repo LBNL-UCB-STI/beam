@@ -139,7 +139,7 @@ class PersonAndTransitDriverSpec
   )
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-  private val matsimConfig = configBuilder.buildMatSamConf()
+  private val matsimConfig = configBuilder.buildMatSimConf()
 
   describe("A PersonAgent") {
 
@@ -349,7 +349,7 @@ class PersonAndTransitDriverSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(),
-          new BeamSkimmer()
+          new BeamSkimmer(beamConfig)
         )
       )
 

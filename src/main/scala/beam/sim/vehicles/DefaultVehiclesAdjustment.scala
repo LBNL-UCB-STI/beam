@@ -9,6 +9,17 @@ case class DefaultVehiclesAdjustment(beamServices: BeamServices) extends Vehicle
   val carId: Id[BeamVehicleType] = Id.create("Car", classOf[BeamVehicleType])
   val vehicleTypesByCategory: BeamVehicleType = beamServices.vehicleTypes.values.find(vt => vt.id == carId).get
 
+  override def sampleRideHailVehicleTypes(
+    numVehicles: Int,
+    vehicleCategory: VehicleCategory
+  ): List[BeamVehicleType] = {
+    Range(0, numVehicles).map { i =>
+      if (vehicleCategory == VehicleCategory.Car) {
+        vehicleTypesByCategory
+      } else throw new NotImplementedError(vehicleCategory.toString)
+    }.toList
+  }
+
   override def sampleVehicleTypesForHousehold(
     numVehicles: Int,
     vehicleCategory: VehicleCategory,

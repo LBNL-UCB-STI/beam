@@ -18,6 +18,7 @@ import scala.collection.mutable
 abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager) extends LazyLogging {
 
   private var bufferedRideHailRequests = Map[RideHailRequest, List[RoutingResponse]]()
+  private var secondaryBufferedRideHailRequests = Map[RideHailRequest, List[RoutingResponse]]()
   private var awaitingRoutes = Set[RideHailRequest]()
 
   /*
@@ -54,6 +55,15 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    */
   def addRequestToBuffer(request: RideHailRequest) = {
     bufferedRideHailRequests = bufferedRideHailRequests + (request -> List())
+  }
+
+  def addRequestToSecondaryBuffer(request: RideHailRequest) = {
+    secondaryBufferedRideHailRequests = secondaryBufferedRideHailRequests + (request -> List())
+  }
+
+  def clearPrimaryBufferAndFillFromSecondary = {
+    bufferedRideHailRequests = secondaryBufferedRideHailRequests
+    secondaryBufferedRideHailRequests = Map()
   }
 
   def getBufferSize = bufferedRideHailRequests.size

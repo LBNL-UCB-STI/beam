@@ -43,7 +43,7 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
         )
         .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(0))
       val configBuilder = new MatSimBeamConfigBuilder(config)
-      val matsimConfig = configBuilder.buildMatSamConf()
+      val matsimConfig = configBuilder.buildMatSimConf()
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
       val beamConfig = BeamConfig(config)
 

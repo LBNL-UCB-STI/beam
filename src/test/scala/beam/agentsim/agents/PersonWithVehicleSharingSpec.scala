@@ -131,7 +131,7 @@ class PersonWithVehicleSharingSpec
   }
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-  private val matsimConfig = configBuilder.buildMatSamConf()
+  private val matsimConfig = configBuilder.buildMatSimConf()
 
   describe("A PersonAgent") {
 
@@ -192,7 +192,7 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(),
-            new BeamSkimmer()
+            new BeamSkimmer(beamConfig)
           )
         )
       )
@@ -334,7 +334,7 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(),
-            new BeamSkimmer()
+            new BeamSkimmer(beamConfig)
           )
         )
       )
@@ -575,7 +575,7 @@ class PersonWithVehicleSharingSpec
           new Coord(0.0, 0.0),
           Vector(mockSharedVehicleFleet.ref),
           new RouteHistory(),
-          new BeamSkimmer()
+          new BeamSkimmer(beamConfig)
         )
       )
 

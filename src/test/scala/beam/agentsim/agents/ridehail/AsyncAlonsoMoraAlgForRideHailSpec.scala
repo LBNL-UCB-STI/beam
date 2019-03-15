@@ -60,7 +60,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
   private lazy val beamConfig = BeamConfig(system.settings.config)
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-  private val matsimConfig = configBuilder.buildMatSamConf()
+  private val matsimConfig = configBuilder.buildMatSimConf()
 
   private lazy val beamSvc: BeamServices = {
     val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
@@ -81,7 +81,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
 
   describe("AsyncAlonsoMoraAlgForRideHailSpec") {
     it("Creates a consistent plan") {
-      implicit val skimmer: BeamSkimmer = new BeamSkimmer()
+      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig)
       val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenario1
       val alg: AsyncAlonsoMoraAlgForRideHail =
         new AsyncAlonsoMoraAlgForRideHail(
@@ -107,7 +107,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
       import org.matsim.core.scenario.ScenarioUtils
       val sc = ScenarioUtils.createScenario(ConfigUtils.createConfig())
       new PopulationReader(sc).readFile("test/input/sf-light/sample/25k/population.xml.gz")
-      implicit val skimmer: BeamSkimmer = new BeamSkimmer()
+      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig)
 
       val requests = mutable.ListBuffer.empty[CustomerRequest]
       sc.getPopulation.getPersons.values.asScala.map(p => BeamPlan(p.getSelectedPlan)).foreach { plan =>
