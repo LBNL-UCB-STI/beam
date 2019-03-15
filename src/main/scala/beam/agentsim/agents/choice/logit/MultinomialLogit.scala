@@ -1,146 +1,128 @@
 package beam.agentsim.agents.choice.logit
 
-import beam.agentsim.agents.choice.logit.UtilityParam.{Intercept, Multiplier, UtilityParamType}
+import beam.agentsim.agents.choice.logit.UtilityFunctionParamType.{Intercept, Multiplier}
 import com.typesafe.scalalogging.LazyLogging
-import org.supercsv.cellprocessor.constraint.NotNull
-import org.supercsv.cellprocessor.ift.CellProcessor
-import org.supercsv.cellprocessor.{Optional, ParseDouble}
 
-import scala.beans.BeanProperty
 import scala.util.Random
 
 /**
-  * BEAM
+  * General implementation of a MultinomialLogit model
+  *
+  * @param utilityFunctionParams map contains all utility functions for all options that should be evaluated
+  * @param common
+  * @tparam A
+  * @tparam T
   */
-case class MultinomialLogit(alternativeParams: Map[String, AlternativeParams]) extends LazyLogging {
+class MultinomialLogit[A, T](
+  val utilityFunctionParams: Map[A, Set[UtilityFunctionParam[T]]],
+  val commonUtility: Option[UtilityFunction[A, T]] = None
+) extends LazyLogging {
 
+  /**
+    * Sample over a set of [[Alternative]]s by calculating the probabilities of each alternative
+    * and then draw one randomly.
+    *
+    * For details see page 103, formula 5.8 in
+    * Ben-Akiva, M., & Lerman, S. R. (1994). Discrete choice analysis : theory and application to travel demand. 6th print. Cambridge (Mass.): MIT press.
+    *
+    * @param alternatives the alternatives that should be sampled
+    * @param random a random we can sample on
+    * @return
+    */
   def sampleAlternative(
-    alternatives: Vector[AlternativeAttributes],
+    alternatives: Vector[Alternative[T, A]],
     random: Random
-  ): Option[String] = {
+  ): Option[Alternative[T, A]] = {
     val expV = alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt)))
     // If any is +Inf then choose that as the certain alternative
     val indsOfPosInf = for (theExpV <- expV.zipWithIndex if theExpV._1 == Double.PositiveInfinity)
       yield theExpV._2
     if (indsOfPosInf.nonEmpty) {
       // Take the first
-      Some(alternatives(indsOfPosInf.head).alternativeName)
+      Some(alternatives(indsOfPosInf.head))
     } else {
       val sumExpV = expV.sum
-      val cumulProbs = expV.map(_ / sumExpV).scanLeft(0.0)(_ + _).zipWithIndex
+      val cumProb = expV.map(_ / sumExpV).scanLeft(0.0)(_ + _).zipWithIndex
       val randDraw = random.nextDouble()
-      val idxAboveDraw = for (prob <- cumulProbs if prob._1 > randDraw) yield prob._2
+      val idxAboveDraw = for (prob <- cumProb if prob._1 > randDraw) yield prob._2
       if (idxAboveDraw.isEmpty) {
         None
       } else {
         val chosenIdx = idxAboveDraw.head - 1
-        Some(alternatives(chosenIdx).alternativeName)
+        Some(alternatives(chosenIdx))
       }
     }
   }
 
-  def getExpectedMaximumUtility(alternatives: Vector[AlternativeAttributes]): Double = {
+  /**
+    * Get the expected maximum utility over a set of [[Alternative]]s
+    *
+    * @param alternatives the alternatives that should be evaluated
+    * @return
+    */
+  def getExpectedMaximumUtility(alternatives: Vector[Alternative[T, A]]): Double = {
     Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
   }
 
-  def getUtilityOfAlternative(alternative: AlternativeAttributes): Double = {
-    if (!alternativeParams.contains(alternative.alternativeName)) {
-      -1E100
-    } else {
-      (alternativeParams.getOrElse("COMMON", AlternativeParams.empty).params ++ alternativeParams(
-        alternative.alternativeName
-      ).params)
-        .map { theParam =>
-          if (alternative.attributes.contains(theParam._1)) {
-            theParam._2.paramType match {
-              case Multiplier =>
-                (theParam._2.paramValue * alternative.attributes(theParam._1)).toDouble
-              case Intercept =>
-                theParam._2.paramValue.toDouble
-            }
-          } else if (theParam._1.equalsIgnoreCase("intercept") || theParam._1.equalsIgnoreCase(
-                       "asc"
-                     )) {
-            theParam._2.paramValue.toDouble
-          } else {
-            -1E100
-          }
-        }
-        .toVector
-        .sum
+  /**
+    * Calculate the utility of the provided alternative based on the utility functions provided during the initialization of
+    * the MultinomialLogit model. If the provided utility functions are not able to evaluate the provided alternative
+    * (e.g. there is no function for the provided alternative) the provided utility is -1E100
+    *
+    * @param alternative the alternative to evaluate
+    * @return
+    */
+  def getUtilityOfAlternative(alternative: Alternative[T, A]): Double = {
+
+    // if we have commonParams provided we wanna use them
+    val commonParams = commonUtility match {
+      case Some(x) => x.params
+      case None    => Set()
     }
 
+    val evaluated: Iterable[Double] = for {
+      theseParams                                         <- utilityFunctionParams.get(alternative.alternativeId).toList
+      UtilityFunctionParam(param, paramType, coefficient) <- theseParams ++ commonParams
+    } yield {
+      val thisParam: Double = alternative.attributes.get(param).getOrElse(0)
+      paramType.op(coefficient, thisParam)
+    }
+    if (evaluated.isEmpty) -1E100 else evaluated.sum
   }
 }
 
 object MultinomialLogit {
 
-  def apply(theData: IndexedSeq[MnlData]): MultinomialLogit = {
-    val theParams = theData.groupBy(_.alternative).map { mnlData =>
-      mnlData._1 -> mnlData._2.map { paramData =>
-        UtilityParam(
-          paramData.paramName,
-          paramData.paramValue,
-          UtilityParam.StringToUtilityParamType(paramData.paramType)
-        )
-      }
-    }
-    MultinomialLogit(theParams.map {
-      case (altName, utilParams) =>
-        altName -> AlternativeParams(
-          altName,
-          utilParams.map(utilParam => utilParam.paramName -> utilParam).toMap
-        )
-    })
+  def apply[A, T](utilityFunctionParams: Map[A, Set[UtilityFunctionParam[T]]]): MultinomialLogit[A, T] = {
+    new MultinomialLogit(utilityFunctionParams)
   }
 
-  /*private def getProcessors = {
-    Array[CellProcessor](
-      new NotNull, // alt
-      new NotNull, // name
-      new NotNull, // type
-      new Optional(new ParseDouble()) // value
-    )
-  }*/
-
-  class MnlData(
-    @BeanProperty var alternative: String = "COMMON",
-    @BeanProperty var paramName: String = "",
-    @BeanProperty var paramType: String = "",
-    @BeanProperty var paramValue: Double = Double.NaN
-  ) extends Cloneable {
-    override def clone(): AnyRef = new MnlData(alternative, paramName, paramType, paramValue)
+  def apply[A, T](utilityFunctionData: IndexedSeq[UtilityFunction[A, T]]): MultinomialLogit[A, T] = {
+    new MultinomialLogit(reduceInputData(utilityFunctionData))
   }
-}
 
-// Params for model
-case class AlternativeParams(alternativeName: String, params: Map[String, UtilityParam])
+  def apply[A, T](
+    utilityFunctionData: IndexedSeq[UtilityFunction[A, T]],
+    commonUtility: Option[UtilityFunction[A, T]]
+  ): MultinomialLogit[A, T] = {
+    new MultinomialLogit(reduceInputData(utilityFunctionData), commonUtility)
+  }
 
-object AlternativeParams {
-  def empty: AlternativeParams = AlternativeParams("", Map())
-}
-
-case class UtilityParam(paramName: String, paramValue: Double, paramType: UtilityParamType)
-
-// Alternative attributes
-case class AlternativeAttributes(alternativeName: String, attributes: Map[String, Double])
-
-object UtilityParam {
-
-  def StringToUtilityParamType(str: String): UtilityParamType = {
-    str.toLowerCase match {
-      case "intercept" =>
-        Intercept
-      case "multiplier" =>
-        Multiplier
-      case _ =>
-        throw new RuntimeException(s"Unknown Utility Parameter Type $str")
+  /**
+    * Reduce the provided input data to ensure that we have unique [[UtilityFunctionParam]]s for each utility function
+    *
+    * @param utilityFunctionData the provided utility functions that should be reduced
+    * @tparam A
+    * @tparam T
+    * @return
+    */
+  private def reduceInputData[A, T](
+    utilityFunctionData: IndexedSeq[UtilityFunction[A, T]]
+  ): Map[A, Set[UtilityFunctionParam[T]]] = {
+    utilityFunctionData.groupBy(_.alternativeId).map { data =>
+      data._1 -> data._2.flatMap { utilityFunction =>
+        utilityFunction.params
+      }.toSet
     }
   }
-
-  sealed trait UtilityParamType
-
-  case object Intercept extends UtilityParamType
-
-  case object Multiplier extends UtilityParamType
 }
