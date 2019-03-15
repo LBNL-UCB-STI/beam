@@ -56,8 +56,6 @@ object TAZ {
     }
   }
 
-
-
   /**
     * performs a concentric ring search from the present location to find TAZs up to the SearchMaxRadius
     * @param tazQuadTree tree to search
@@ -67,11 +65,11 @@ object TAZ {
     * @return the TAZs found in the first search ring which locates a TAZ center, along with their distances, not sorted
     */
   def ringSearch(
-                  tazQuadTree: QuadTree[TAZ],
-                  searchCenter: Location,
-                  startRadius: Double,
-                  maxRadius: Double
-                ): List[(TAZ, Double)] = {
+    tazQuadTree: QuadTree[TAZ],
+    searchCenter: Location,
+    startRadius: Double,
+    maxRadius: Double
+  ): List[(TAZ, Double)] = {
 
     def _find(innerRadius: Double, outerRadius: Double): List[TAZ] = {
       if (innerRadius > maxRadius) List.empty[TAZ]

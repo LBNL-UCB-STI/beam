@@ -47,6 +47,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
       }
     }
   }
+
 }
 
 object ParkingZoneSearchSpec {

@@ -9,13 +9,14 @@ import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles._
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.Modes
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
+import beam.utils.BeamVehicleUtils._
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.Id
@@ -24,7 +25,6 @@ import org.matsim.core.controler.ControlerI
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
-
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.util.control.Breaks
@@ -150,7 +150,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
 
       override def matsimServices_=(x$1: org.matsim.core.controler.MatsimServices): Unit = ???
 
-      override val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap =
+      override val tazTreeMap: TAZTreeMap =
         beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
       override val modeIncentives: ModeIncentive = ???
 

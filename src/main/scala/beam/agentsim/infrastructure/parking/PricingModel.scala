@@ -42,6 +42,8 @@ object PricingModel {
   def apply(s: String, cost: String, intervalSeconds: String = DefaultPricingInterval.toString): Option[PricingModel] =
     s.toLowerCase match {
 
+      case "" => None
+
       case "flatfee" =>
         val costInt = parseNumeric(cost, s)
         val intervalInt = parseNumeric(intervalSeconds, s)
@@ -53,10 +55,8 @@ object PricingModel {
         Some(Block(costInt, intervalInt))
 
       case _ =>
-        // we could log the data that did not lead to parsing here
-        None
+        throw new java.io.IOException(s"Pricing Model is invalid: $s")
     }
-
 
   /**
     * computes the cost of this pricing model for some duration. only considers the PricingModel, and does not include any fueling costs
@@ -66,12 +66,10 @@ object PricingModel {
     */
   def evaluateParkingTicket(pricingModel: PricingModel, parkingDurationInSeconds: Int): Double = {
     pricingModel match {
-      case FlatFee(cost, _) => cost
+      case FlatFee(cost, _)             => cost
       case Block(cost, intervalSeconds) => (parkingDurationInSeconds / intervalSeconds) * cost
     }
   }
-
-
 
   /**
     * helper function that converts a value to an integer

@@ -7,15 +7,12 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.infrastructure.ParkingManager._
 import beam.agentsim.infrastructure.charging.ChargingInquiryData
-import beam.agentsim.infrastructure.parking.ParkingRanking.RankingAccumulator
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
 import beam.sim.{BeamServices, HasServices}
-import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.collections.QuadTree
-
 
 class ZonalParkingManager(
   val beamServices: BeamServices,
@@ -155,7 +152,7 @@ object ZonalParkingManager {
     beamServices: BeamServices,
     random: Random
   ): ZonalParkingManager = {
-    val pathResourceCSV: String = beamServices.beamConfig.beam.agentsim.taz.parking
+    val pathResourceCSV: String = beamServices.beamConfig.beam.agentsim.taz.parkingFilePath
     val (stalls, searchTree) = ParkingZoneFileUtils.fromFile(pathResourceCSV)
 
     // add something like this to write to the current instance directory?
@@ -212,13 +209,13 @@ object ZonalParkingManager {
       if (thisInnerRadius > searchMaxRadius) None
       else {
         val tazDistance: Map[TAZ, Double] =
-          tazQuadTree.
-            getRing(destination.getX, destination.getY, thisInnerRadius, thisOuterRadius).
-            asScala.
-            map { taz =>
+          tazQuadTree
+            .getRing(destination.getX, destination.getY, thisInnerRadius, thisOuterRadius)
+            .asScala
+            .map { taz =>
               (taz, GeoUtils.distFormula(taz.coord, destination))
-            }.
-            toMap
+            }
+            .toMap
         val tazList: List[TAZ] = tazDistance.keys.toList
 
         ParkingZoneSearch.find(
@@ -229,33 +226,30 @@ object ZonalParkingManager {
           stalls,
           ParkingRanking.rankingFunction(parkingDuration = parkingDuration)
         ) match {
-          case Some(RankingAccumulator(bestTAZ, bestParkingType, bestParkingZone, bestRankingValue, availability)) =>
-
+          case Some(
+              ParkingRanking.RankingAccumulator(
+                bestTAZ,
+                bestParkingType,
+                bestParkingZone,
+                bestRankingValue,
+                availability
+              )
+              ) =>
             val stallPrice: Double =
-              bestParkingZone.
-                pricingModel.
-                  map{ PricingModel.evaluateParkingTicket(_, parkingDuration)}.
-                  getOrElse(DefaultParkingPrice)
+              bestParkingZone.pricingModel
+                .map { PricingModel.evaluateParkingTicket(_, parkingDuration) }
+                .getOrElse(DefaultParkingPrice)
 
-            val bestTAZCharacteristicDiameter: Double = math.sqrt(bestTAZ.areaInSquareMeters)
-            val distanceToBestTAZ: Double = tazDistance(bestTAZ)
-            val availabilityPercentage: Double =
+            val availabilityRatio: Double =
               ParkingRanking.getAvailabilityPercentage(
                 availability,
                 bestParkingZone.pricingModel,
                 bestParkingZone.chargingPointType,
                 bestParkingType
               )
-            // if there is lower availability of parking, we must walk further
-            val sampleRadius: Double = (1 - availabilityPercentage) * distanceToBestTAZ
 
-            val stallLocation: Coord = if (distanceToBestTAZ < bestTAZCharacteristicDiameter) {
-              // stall coordinate should be sampled in relation to driver agent destination
-              sampleLocationForStall(random, destination, sampleRadius)
-            } else {
-              // stall coordinate should be sampled in relation to TAZ center
-              sampleLocationForStall(random, bestTAZ.coord, sampleRadius)
-            }
+            val stallLocation: Location =
+              ParkingStallSampling.availabilityAwareSampling(random, destination, bestTAZ, availabilityRatio)
 
             // create a new stall instance. you win!
             val newStall = ParkingStall(
@@ -270,7 +264,6 @@ object ZonalParkingManager {
 
             Some { (bestParkingZone, newStall) }
           case None =>
-            //
             _search(thisOuterRadius, thisOuterRadius * SearchFactor)
         }
       }
@@ -283,23 +276,5 @@ object ZonalParkingManager {
         val newStall = ParkingStall.DefaultStall(destination)
         (ParkingZone.DefaultParkingZone, newStall)
     }
-  }
-
-  /**
-    * samples a random location near a TAZ's centroid in order to create a stall in that TAZ.
-    * previous dev's note: make these distributions more custom to the TAZ and stall type
-    * @param rand random generator
-    * @param center location we are sampling from
-    *
-    * @return a coordinate near that TAZ
-    */
-  def sampleLocationForStall(rand: Random, center: Location, radius: Double): Location = {
-    val lambda = 0.01
-    val deltaRadiusX = -math.log(1 - (1 - math.exp(-lambda * radius)) * rand.nextDouble()) / lambda
-    val deltaRadiusY = -math.log(1 - (1 - math.exp(-lambda * radius)) * rand.nextDouble()) / lambda
-
-    val x = center.getX + deltaRadiusX
-    val y = center.getY + deltaRadiusY
-    new Location(x, y)
   }
 }
