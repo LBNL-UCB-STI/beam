@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.infrastructure.charging.ChargingPoint
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.taz.TAZ
 import org.matsim.api.core.v01.Id
 import org.scalatest.{Matchers, WordSpec}
@@ -37,10 +37,10 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
                       case Some(PricingModel.FlatFee(cost, _)) => cost should equal (testFeeInCents)
                       case x => fail(s"found $x but expected $testPricingModel pricing model type in the parking zone")
                     }
-                    parkingZone.chargingPoint match {
+                    parkingZone.chargingPointType match {
                       case None => fail("should have found a charging point in the parking zone")
                       case Some(chargingPoint) =>
-                        chargingPoint should equal (ChargingPoint.TeslaSuperCharger)
+                        chargingPoint should equal (ChargingPointType.TeslaSuperCharger)
                     }
 
                 }
@@ -91,7 +91,7 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
 
 object ParkingZoneFileUtilsSpec {
   trait PositiveTestData {
-    val testChargingType: ChargingPoint = ChargingPoint.TeslaSuperCharger
+    val testChargingType: ChargingPointType = ChargingPointType.TeslaSuperCharger
     val testNumStalls: Int = 7
     val testFeeInCents: Int = 100
     val testPricingModel: String = "FlatFee"
