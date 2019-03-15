@@ -78,10 +78,10 @@ object ParkingZoneFileUtils extends LazyLogging {
     * @param filePath location in FS of taz parking data file (.csv) with a header row
     * @return table and tree
     */
-  def fromFile(filePath: String, dropHeader: Boolean = true): (Array[ParkingZone], ZoneSearch) =
+  def fromFile(filePath: String, header: Boolean = true): (Array[ParkingZone], ZoneSearch) =
     Try {
       val reader = IOUtils.getBufferedReader(filePath)
-      if (dropHeader) reader.readLine()
+      if (header) reader.readLine()
       reader
     } match {
       case Success(reader) =>
@@ -125,11 +125,11 @@ object ParkingZoneFileUtils extends LazyLogging {
     * @param csvFileContents each line from a file to be read
     * @return table and search tree
     */
-  def fromIterator(csvFileContents: Iterator[String], dropHeader: Boolean = true): (Array[ParkingZone], ZoneSearch) = {
+  def fromIterator(csvFileContents: Iterator[String], header: Boolean = true): (Array[ParkingZone], ZoneSearch) = {
 
     val accumulator = (Array.empty[ParkingZone], Map.empty[Id[TAZ], Map[ParkingType, List[Int]]]: ZoneSearch)
 
-    val maybeWithoutHeader = if (dropHeader) csvFileContents.drop(1) else csvFileContents
+    val maybeWithoutHeader = if (header) csvFileContents.drop(1) else csvFileContents
 
     maybeWithoutHeader.foldLeft(accumulator) { (accumulator, csvRow) =>
       Try {

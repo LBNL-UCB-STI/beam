@@ -1,6 +1,5 @@
 package beam.agentsim.events
 
-
 import java.util
 
 import beam.agentsim.events.ParkEvent.ATTRIBUTE_COST
@@ -15,8 +14,6 @@ import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
 
 import collection.JavaConverters._
-
-
 
 case class LeavingParkingEvent(
   time: Double,

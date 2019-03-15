@@ -10,6 +10,7 @@ import org.matsim.api.core.v01.Coord
   * sampling methods for randomly generating stall locations from aggregate information
   */
 object ParkingStallSampling {
+
   /**
     * generates stall locations per a sampling technique which induces noise as a function of stall attribute availability
     * @param rand random generator used to create stall locations
@@ -47,8 +48,6 @@ object ParkingStallSampling {
       agent.getY + sampleY + scaledYDistance
     )
   }
-
-
 
   /**
     * samples a random location near a TAZ's centroid in order to create a stall in that TAZ.

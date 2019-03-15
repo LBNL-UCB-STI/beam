@@ -14,7 +14,6 @@ import beam.sim.common.GeoUtils
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.core.utils.collections.QuadTree
 
-
 class ZonalParkingManager(
   val beamServices: BeamServices,
   parkingZones: Array[ParkingZone],
@@ -135,8 +134,6 @@ class ZonalParkingManager(
   }
 }
 
-
-
 object ZonalParkingManager {
 
   val ParkingDurationForRideHailAgents: Int = 30 * 60 // 30 minutes?
@@ -180,8 +177,6 @@ object ZonalParkingManager {
     Props(ZonalParkingManager(beamServices, random))
   }
 
-
-
   /**
     * looks for the nearest ParkingZone that meets the agent's needs
     * @param searchStartRadius small radius describing a ring shape
@@ -214,13 +209,13 @@ object ZonalParkingManager {
       if (thisInnerRadius > searchMaxRadius) None
       else {
         val tazDistance: Map[TAZ, Double] =
-          tazQuadTree.
-            getRing(destination.getX, destination.getY, thisInnerRadius, thisOuterRadius).
-            asScala.
-            map { taz =>
+          tazQuadTree
+            .getRing(destination.getX, destination.getY, thisInnerRadius, thisOuterRadius)
+            .asScala
+            .map { taz =>
               (taz, GeoUtils.distFormula(taz.coord, destination))
-            }.
-            toMap
+            }
+            .toMap
         val tazList: List[TAZ] = tazDistance.keys.toList
 
         ParkingZoneSearch.find(
@@ -231,13 +226,19 @@ object ZonalParkingManager {
           stalls,
           ParkingRanking.rankingFunction(parkingDuration = parkingDuration)
         ) match {
-          case Some(ParkingRanking.RankingAccumulator(bestTAZ, bestParkingType, bestParkingZone, bestRankingValue, availability)) =>
-
+          case Some(
+              ParkingRanking.RankingAccumulator(
+                bestTAZ,
+                bestParkingType,
+                bestParkingZone,
+                bestRankingValue,
+                availability
+              )
+              ) =>
             val stallPrice: Double =
-              bestParkingZone.
-                pricingModel.
-                  map{ PricingModel.evaluateParkingTicket(_, parkingDuration)}.
-                  getOrElse(DefaultParkingPrice)
+              bestParkingZone.pricingModel
+                .map { PricingModel.evaluateParkingTicket(_, parkingDuration) }
+                .getOrElse(DefaultParkingPrice)
 
             val availabilityRatio: Double =
               ParkingRanking.getAvailabilityPercentage(
@@ -247,7 +248,8 @@ object ZonalParkingManager {
                 bestParkingType
               )
 
-            val stallLocation: Location = ParkingStallSampling.availabilityAwareSampling(random, destination, bestTAZ, availabilityRatio)
+            val stallLocation: Location =
+              ParkingStallSampling.availabilityAwareSampling(random, destination, bestTAZ, availabilityRatio)
 
             // create a new stall instance. you win!
             val newStall = ParkingStall(
