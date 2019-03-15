@@ -36,7 +36,7 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
     public Hao2018CaccRoadCapacityAdjustmentFunction(double caccMinRoadCapacity, double caccMinSpeedMetersPerSec, double flowCapacityFactor){
         this.flowCapacityFactor = flowCapacityFactor;
         log.info("caccMinRoadCapacity: " + caccMinRoadCapacity + ", caccMinSpeedMetersPerSec: " + caccMinSpeedMetersPerSec );
-        this.caccMinRoadCapacity = caccMinRoadCapacity*flowCapacityFactor;
+        this.caccMinRoadCapacity = caccMinRoadCapacity;
         this.caccMinSpeedMetersPerSec = caccMinSpeedMetersPerSec;
     }
 
@@ -52,7 +52,7 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
 
 
         double initialCapacity=link.getFlowCapacityPerSec();
-
+        double updatedCapacity=initialCapacity;
 
 
         if (isCACCCategoryRoad(link)) {
@@ -77,7 +77,7 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
 
 
             nonCACCCategoryRoadsTravelled++;
-            double updatedCapacity=(2152.777778 * fractionCACCOnRoad * fractionCACCOnRoad * fractionCACCOnRoad - 764.8809524 * fractionCACCOnRoad * fractionCACCOnRoad + 456.1507937 * fractionCACCOnRoad + 1949.047619) / 1949.047619 * initialCapacity;
+            updatedCapacity=(2152.777778 * fractionCACCOnRoad * fractionCACCOnRoad * fractionCACCOnRoad - 764.8809524 * fractionCACCOnRoad * fractionCACCOnRoad + 456.1507937 * fractionCACCOnRoad + 1949.047619) / 1949.047619 * initialCapacity;
 
 
             if (updatedCapacity<initialCapacity){
@@ -89,12 +89,12 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
                 }
             }
 
-            return updatedCapacity;
 
-        } else {
-           caccCategoryRoadsTravelled++;
-           return initialCapacity;
+
         }
+
+
+        return initialCapacity*flowCapacityFactor;
 
     }
 
