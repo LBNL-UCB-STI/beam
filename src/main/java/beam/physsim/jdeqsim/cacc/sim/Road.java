@@ -148,18 +148,13 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
     }
 
 
-
-
-    @Override
-    public void leaveRoad(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime) {
-
+    private void preLeaveRoad(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime){
         gap_= (LinkedList<Double>) getField(this , "gap");
         interestedInEnteringRoad_=(LinkedList<org.matsim.core.mobsim.jdeqsim.Vehicle>) getField(this,"interestedInEnteringRoad");
         deadlockPreventionMessages_=(LinkedList<DeadlockPreventionMessage>) getField(this,"deadlockPreventionMessages");
         timeOfLastEnteringVehicle_ =(Double) getField(this,"timeOfLastEnteringVehicle");
         gapTravelTime_ =(Double)getField(this,"gapTravelTime");
         inverseInFlowCapacity_ =(Double)getField(this,"inverseInFlowCapacity");
-
 
         assert (this.carsOnTheRoad.getFirst() == vehicle);
         assert (this.interestedInEnteringRoad_.size()==this.deadlockPreventionMessages_.size());
@@ -168,10 +163,6 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
         this.earliestDepartureTimeOfCar.removeFirst();
         this.timeOfLastLeavingVehicle = simTime;
 
-        /*
-         * the next car waiting for entering the road should now be alloted a
-         * time for entering the road
-         */
         if (this.interestedInEnteringRoad_.size() > 0) {
             org.matsim.core.mobsim.jdeqsim.Vehicle nextVehicle = this.interestedInEnteringRoad_.removeFirst();
             DeadlockPreventionMessage m = this.deadlockPreventionMessages_.removeFirst();
@@ -187,27 +178,20 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
         } else {
             if (this.gap_ != null) {
 
-                /*
-                 * as long as the road is not full once, there is no need to
-                 * keep track of the gaps
-                 */
                 this.gap_.add(simTime + this.gapTravelTime_);
 
-                /*
-                 * if no one is interested in entering this road (precondition)
-                 * and there are no cars on the road, then reset gap (this is
-                 * required, for enterRequest to function properly)
-                 */
                 if (this.carsOnTheRoad.size() == 0) {
                     this.gap_ = null;
                 }
             }
         }
+    }
 
-        /*
-         * tell the car behind the fist car (which is the first car now), when
-         * it reaches the end of the read
-         */
+
+    @Override
+    public void leaveRoad(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime) {
+        preLeaveRoad(vehicle,simTime);
+
         if (this.carsOnTheRoad.size() > 0) {
             org.matsim.core.mobsim.jdeqsim.Vehicle nextVehicle = this.carsOnTheRoad.getFirst();
             double nextAvailableTimeForLeavingStreet = Math.max(this.earliestDepartureTimeOfCar.getFirst(),
