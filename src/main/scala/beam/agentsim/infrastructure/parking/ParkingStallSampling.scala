@@ -22,9 +22,11 @@ object ParkingStallSampling {
 
     val xDistance: Double = taz.coord.getX - agent.getX
     val yDistance: Double = taz.coord.getY - agent.getY
-    val tazCharacteristicRadius: Double = math.sqrt(taz.areaInSquareMeters) / 2
+    val tazCharacteristicDiameter: Double = math.sqrt(taz.areaInSquareMeters)
+    val sampleStandardDeviation: Double = tazCharacteristicDiameter * 0.33
 
-    // represent parking availability with a monotonically decreasing but not steep inverse log slope
+    // this coefficient models the effect of parking supply constraint on the distance a parking stall
+    // might be placed from the agent's desired destination
     val availabilityFactor: Double = math.min(1.0, -0.25 * math.log(availabilityRatio))
 
     // finding a location between the agent and the TAZ centroid to sample from, scaled back by increased availability
@@ -35,8 +37,8 @@ object ParkingStallSampling {
 
     // random values, scaled to the problem size, but scaled back by increased availability
     val (sampleX, sampleY) = (
-      rand.nextGaussian * tazCharacteristicRadius * availabilityFactor,
-      rand.nextGaussian * tazCharacteristicRadius * availabilityFactor
+      rand.nextGaussian * sampleStandardDeviation * availabilityFactor,
+      rand.nextGaussian * sampleStandardDeviation * availabilityFactor
     )
 
     // linear combination of current agent position, a scaled random variable, and a scaled sample centroid
