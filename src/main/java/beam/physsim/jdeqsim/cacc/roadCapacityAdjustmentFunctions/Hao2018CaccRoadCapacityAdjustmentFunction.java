@@ -27,11 +27,13 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
     private int numberOfTimesOnlyCACCTravellingOnCACCEnabledRoads=0;
 
     private double capacityIncreaseSum=0;
+    private double percentageCapacityIncreaseSum=0;
 
 
     private int nonCACCCategoryRoadsTravelled=0;
     private int caccCategoryRoadsTravelled=0;
     private double flowCapacityFactor;
+
 
     public Hao2018CaccRoadCapacityAdjustmentFunction(double caccMinRoadCapacity, double caccMinSpeedMetersPerSec, double flowCapacityFactor){
         this.flowCapacityFactor = flowCapacityFactor;
@@ -43,20 +45,25 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
 
 
     public boolean isCACCCategoryRoad(Link link){
-        double initialCapacity=link.getFlowCapacityPerSec();
+        double initialCapacity=link.getCapacity();
 
-        return initialCapacity>=caccMinRoadCapacity*flowCapacityFactor && link.getFreespeed()>caccMinSpeedMetersPerSec;
+
+        return initialCapacity>=caccMinRoadCapacity && link.getFreespeed()>=caccMinSpeedMetersPerSec;
     }
 
-    public double getCapacityWithCACC(Link link, double fractionCACCOnRoad){
+    public double getCapacityWithCACCPerSecond(Link link, double fractionCACCOnRoad){
 
 
-        double initialCapacity=link.getFlowCapacityPerSec();
+        double initialCapacity=link.getCapacity();
         double updatedCapacity=initialCapacity;
 
 
         if (isCACCCategoryRoad(link)) {
             caccCategoryRoadsTravelled++;
+            updatedCapacity=(2152.777778 * fractionCACCOnRoad * fractionCACCOnRoad * fractionCACCOnRoad - 764.8809524 * fractionCACCOnRoad * fractionCACCOnRoad + 456.1507937 * fractionCACCOnRoad + 1949.047619) / 1949.047619 * initialCapacity;
+
+
+
             if (fractionCACCOnRoad==1){
                 numberOfTimesOnlyCACCTravellingOnCACCEnabledRoads++;
             }
@@ -65,34 +72,30 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
                 numberOfTimesOnlyNonCACCTravellingOnCACCEnabledRoads++;
             }
 
-            if (fractionCACCOnRoad>0 && fractionCACCOnRoad<1.0){
-                // System.out.println("Hao2018CaccRoadCapacityAdjustmentFunction - linkId:" + link.getId() + ";vehicle:" + ";fractionCACCOnRoad:" + fractionCACCOnRoad + ", initialCapacity" + initialCapacity);
+            if (fractionCACCOnRoad>0 && fractionCACCOnRoad<=1.0){
                 numberOfMixedVehicleTypeEncountersOnCACCCategoryRoads++;
+                capacityIncreaseSum+=updatedCapacity-initialCapacity;
+                percentageCapacityIncreaseSum+=(updatedCapacity/initialCapacity-1.0);
             }
 
-            updatedCapacity=(2152.777778 * fractionCACCOnRoad * fractionCACCOnRoad * fractionCACCOnRoad - 764.8809524 * fractionCACCOnRoad * fractionCACCOnRoad + 456.1507937 * fractionCACCOnRoad + 1949.047619) / 1949.047619 * initialCapacity;
 
             if (updatedCapacity<initialCapacity){
                log.error("updatedCapacity (" + updatedCapacity +") is lower than initialCapacity (" + initialCapacity + ").");
-            } else {
-                if (fractionCACCOnRoad>0 && fractionCACCOnRoad<=1.0){
-                    numberOfMixedVehicleTypeEncountersOnCACCCategoryRoads++;
-                    capacityIncreaseSum+=updatedCapacity-initialCapacity;
-                }
             }
 
         } else {
             nonCACCCategoryRoadsTravelled++;
         }
 
-        return initialCapacity;
+        return updatedCapacity /3600;
     }
 
     public void printStats(){
-        log.info("average road capacity increase: " + capacityIncreaseSum/numberOfMixedVehicleTypeEncountersOnCACCCategoryRoads*1/flowCapacityFactor);
+        log.info("average road capacity increase: " + capacityIncreaseSum/numberOfMixedVehicleTypeEncountersOnCACCCategoryRoads);
+        log.info("average road capacity increase (%): " + percentageCapacityIncreaseSum/numberOfMixedVehicleTypeEncountersOnCACCCategoryRoads*100.0);
         log.info("number of mixed vehicle type encounters (non-CACC/CACC) on CACC category roads: " + numberOfMixedVehicleTypeEncountersOnCACCCategoryRoads);
         log.info("numberOfTimesOnlyCACCTravellingOnCACCEnabledRoads: " + numberOfTimesOnlyCACCTravellingOnCACCEnabledRoads);
         log.info("numberOfTimesOnlyNonCACCTravellingOnCACCEnabledRoads: " + numberOfTimesOnlyNonCACCTravellingOnCACCEnabledRoads);
-        log.info(" caccCategoryRoadsTravelled / nonCACCCategoryRoadsTravelled ratio: " + 1.0 * caccCategoryRoadsTravelled / nonCACCCategoryRoadsTravelled);
+        log.info("caccCategoryRoadsTravelled / nonCACCCategoryRoadsTravelled ratio: " + 1.0 * caccCategoryRoadsTravelled / nonCACCCategoryRoadsTravelled);
     }
 }

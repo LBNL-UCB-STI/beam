@@ -1,6 +1,5 @@
 package beam.physsim.jdeqsim.cacc.sim;
 
-import beam.docs.ReflectionUtil;
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.RoadCapacityAdjustmentFunction;
 import beam.utils.DebugLib;
 import org.matsim.api.core.v01.network.Link;
@@ -118,7 +117,7 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
             caccShare=caccShareEncounteredByVehicle.remove(vehicle);
         }
 
-        return (1/roadCapacityAdjustmentFunction.getCapacityWithCACC(link,caccShare));
+        return (1/roadCapacityAdjustmentFunction.getCapacityWithCACCPerSecond(link,caccShare)*config.getFlowCapacityFactor());
     }
 
 
