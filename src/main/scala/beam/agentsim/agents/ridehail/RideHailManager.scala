@@ -294,16 +294,14 @@ class RideHailManager(
   // Are we in the middle of processing a batch?
   var currentlyProcessingTimeoutTrigger: Option[TriggerWithId] = None
 
-  private val numHouseholdVehicles = scenario.getHouseholds.getHouseholds
+  private val initialNumHouseholdVehicles = scenario.getHouseholds.getHouseholds
     .values()
     .asScala
     .map(_.getVehicleIds.size())
-    .sum / beamServices.beamConfig.beam.agentsim.agents.vehicles.householdVehicleFleetSizeSampleFactor
+    .sum / beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet // Undo sampling to estimate initial number
   private val numRideHailAgents = math.round(
-    numHouseholdVehicles *
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.portionOfInitialVehicleFleet /
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.effectiveVehicleReplacementMultiplier
-//    beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation
+    initialNumHouseholdVehicles *
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet
   )
 
   // Cache analysis
@@ -340,10 +338,9 @@ class RideHailManager(
             val vehicleType = vehicleTypes(idx)
             if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >=
                   (vehicleType.primaryFuelCapacityInJoule / vehicleType.primaryFuelConsumptionInJoulePerMeter) * 0.8) {
-//              throw new RuntimeException(
-//                "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
-//              )
-              println("OH NO, THIS SHOULDN'T HAPPEN")
+              log.error(
+                "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
+              )
             }
             val rideInitialLocation: Location = getRideInitLocation(person)
             if (vehicleType.automationLevel < 4) {
@@ -498,7 +495,7 @@ class RideHailManager(
             .noPendingReservations(vehicleId) || modifyPassengerScheduleManager
             .isPendingReservationEnding(vehicleId, passengerSchedule)) {
 
-        log.debug("range: {}", beamVehicleState.remainingRangeInM / 1000.0)
+        log.debug("range: {}", beamVehicleState.remainingPrimaryRangeInM / 1000.0)
         val stallOpt = pendingAgentsSentToPark.remove(vehicleId)
         if (stallOpt.isDefined) {
           log.debug("Initiate refuel session for vehicle: {}", vehicleId)
@@ -512,7 +509,8 @@ class RideHailManager(
             triggerId,
             Vector[ScheduleTrigger](startFuelTrigger)
           )
-        } else if (beamVehicleState.remainingRangeInM < beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters) {
+        } else if (beamVehicleState.remainingPrimaryRangeInM + beamVehicleState.secondaryFuelLevel
+                     .getOrElse(0.0) < beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters) {
           // not enough range to make trip
 
           if (modifyPassengerScheduleManager.vehicleHasMoreThanOneOngoingRequests(vehicleId)) {
@@ -866,6 +864,7 @@ class RideHailManager(
     }
   }
 
+  // Returns true if pendingModifyPassengerScheduleAcks is empty and therefore signaling cleanup needed
   def cancelReservationDueToFailedModifyPassengerSchedule(requestId: Int): Boolean = {
     pendingModifyPassengerScheduleAcks.remove(requestId) match {
       case Some(rideHailResponse) =>
