@@ -234,80 +234,149 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    writeObservedSkims(event)
+    if(beamServicesOpt.isDefined)writeCarSkimsForPeakNonPeakPeriods(event)
+    // Writing full skims are very large, but code is preserved here in case we want to enable it.
+    // TODO make this a configurable output "writeFullSkimsInterval" with default of 0
+//    if(beamServicesOpt.isDefined)writeFullSkims(event)
+    previousSkims = skims
+    skims = new TrieMap()
+  }
+
+  def averageAndWriteSkims(timePeriodString: String, hoursIncluded: List[Int], origin: TAZ, destination: TAZ, mode: BeamMode.CAR.type, get: BeamServices, dummyId: Id[BeamVehicleType], writer: BufferedWriter) = {
+    val individualSkims = hoursIncluded.map{ timeBin =>
+      getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
+        .map(_.toSkimExternal)
+        .getOrElse {
+          val adjustedDestCoord = if (origin.equals(destination)) {
+            new Coord(
+              origin.coord.getX,
+              origin.coord.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
+            )
+          }else {
+            destination.coord
+          }
+          getSkimDefaultValue(
+            mode,
+            origin.coord,
+            adjustedDestCoord,
+            timeBin * 3600,
+            dummyId,
+            beamServicesOpt.get
+          )
+        }
+    }
+    val weights = individualSkims.map(sk => Math.max(sk.count,1).toDouble)
+    val sumWeights = weights.sum
+    val weightedDistance = individualSkims.map(_.distance).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
+    val weightedTime = individualSkims.map(_.time).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
+    val weightedCost = individualSkims.map(_.cost).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
+    writer.write(
+      s"$timePeriodString,$mode,${origin.tazId},${destination.tazId},${weightedTime},${weightedCost},${weightedDistance},${sumWeights}\n"
+    )
+  }
+
+  def writeCarSkimsForPeakNonPeakPeriods(event: IterationEndsEvent) = {
+    val morningPeakHours = (7 to 8).toList
+    val afternoonPeakHours = (15 to 16).toList
+    val nonPeakHours = (0 to 6).toList ++ (9 to 14).toList ++ (17 to 23).toList
+    val modes = List(CAR)
+    val fileHeader = "period,mode,origTaz,destTaz,travelTimeInS,cost,distanceInM,numObservations"
+    val filePath = event.getServices.getControlerIO.getIterationFilename(
+      event.getServices.getIterationNumber,
+      BeamSkimmer.excerptSkimsFileBaseName + ".csv.gz"
+    )
+    val dummyId = Id.create("NA", classOf[BeamVehicleType])
+    val writer = IOUtils.getBufferedWriter(filePath)
+    writer.write(fileHeader)
+    writer.write("\n")
+    beamServicesOpt.get.tazTreeMap.getTAZs
+      .foreach { origin =>
+        beamServicesOpt.get.tazTreeMap.getTAZs.foreach { destination =>
+          modes.foreach { mode =>
+            averageAndWriteSkims("AM",morningPeakHours,origin,destination,mode,beamServicesOpt.get,dummyId,writer)
+            averageAndWriteSkims("PM",afternoonPeakHours,origin,destination,mode,beamServicesOpt.get,dummyId,writer)
+            averageAndWriteSkims("OffPeak",nonPeakHours,origin,destination,mode,beamServicesOpt.get,dummyId,writer)
+          }
+        }
+      }
+    writer.close()
+  }
+  def writeFullSkims(event: IterationEndsEvent) = {
     val fileHeader = "hour,mode,origTaz,destTaz,travelTimeInS,cost,distanceInM,numObservations"
     val filePath = event.getServices.getControlerIO.getIterationFilename(
       event.getServices.getIterationNumber,
-      BeamSkimmer.outputFileBaseName + ".csv.gz"
+      BeamSkimmer.fullSkimsFileBaseName + ".csv.gz"
     )
     val uniqueModes = skims.map(keyVal => keyVal._1._2).toList.distinct
     val uniqueTimeBins = (0 to 23)
 
-    beamServicesOpt match {
-      case Some(beamServices) =>
-        val dummyId = Id.create("NA", classOf[BeamVehicleType])
-        val writer = IOUtils.getBufferedWriter(filePath)
-        writer.write(fileHeader)
-        writer.write("\n")
-        beamServices.tazTreeMap.getTAZs
-          .foreach { origin =>
-            beamServices.tazTreeMap.getTAZs.foreach { destination =>
-              uniqueModes.foreach { mode =>
-                uniqueTimeBins
-                  .foreach { timeBin =>
-                    val theSkim = getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
-                      .map(_.toSkimExternal)
-                      .getOrElse {
-                        if (origin.equals(destination)) {
-                          val newDestCoord = new Coord(
-                            origin.coord.getX,
-                            origin.coord.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
-                          )
-                          getSkimDefaultValue(
-                            mode,
-                            origin.coord,
-                            newDestCoord,
-                            timeBin * 3600,
-                            dummyId,
-                            beamServices
-                          )
-                        } else {
-                          getSkimDefaultValue(
-                            mode,
-                            origin.coord,
-                            destination.coord,
-                            timeBin * 3600,
-                            dummyId,
-                            beamServices
-                          )
-                        }
-                      }
-                    writer.write(
-                      s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.cost},${theSkim.distance},${theSkim.count}\n"
-                    )
+    val dummyId = Id.create("NA", classOf[BeamVehicleType])
+    val writer = IOUtils.getBufferedWriter(filePath)
+    writer.write(fileHeader)
+    writer.write("\n")
+    beamServicesOpt.get.tazTreeMap.getTAZs
+      .foreach { origin =>
+        beamServicesOpt.get.tazTreeMap.getTAZs.foreach { destination =>
+          uniqueModes.foreach { mode =>
+            uniqueTimeBins
+              .foreach { timeBin =>
+                val theSkim = getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
+                  .map(_.toSkimExternal)
+                  .getOrElse {
+                    if (origin.equals(destination)) {
+                      val newDestCoord = new Coord(
+                        origin.coord.getX,
+                        origin.coord.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
+                      )
+                      getSkimDefaultValue(
+                        mode,
+                        origin.coord,
+                        newDestCoord,
+                        timeBin * 3600,
+                        dummyId,
+                        beamServicesOpt.get
+                      )
+                    } else {
+                      getSkimDefaultValue(
+                        mode,
+                        origin.coord,
+                        destination.coord,
+                        timeBin * 3600,
+                        dummyId,
+                        beamServicesOpt.get
+                      )
+                    }
                   }
+                writer.write(
+                  s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.cost},${theSkim.distance},${theSkim.count}\n"
+                )
               }
-            }
           }
-        writer.close()
-      case None =>
-        FileUtils.writeToFile(
-          filePath,
-          Some(fileHeader),
-          skims
-            .map { keyVal =>
-              s"${keyVal._1._1},${keyVal._1._2},${keyVal._1._3},${keyVal._1._4},${keyVal._2.time},${keyVal._2.cost},${keyVal._2.distance},${keyVal._2.count}"
-            }
-            .mkString("\n"),
-          None
-        )
+        }
+      }
+    writer.close()
+  }
+  def writeObservedSkims(event: IterationEndsEvent) = {
+    val fileHeader = "hour,mode,origTaz,destTaz,travelTimeInS,cost,distanceInM,numObservations"
+    val filePath = event.getServices.getControlerIO.getIterationFilename(
+      event.getServices.getIterationNumber,
+      BeamSkimmer.observedSkimsFileBaseName + ".csv.gz"
+    )
+    val writer = IOUtils.getBufferedWriter(filePath)
+    writer.write(fileHeader)
+    writer.write("\n")
+    skims.foreach{ keyVal =>
+              writer.write(s"${keyVal._1._1},${keyVal._1._2},${keyVal._1._3},${keyVal._1._4},${keyVal._2.time},${keyVal._2.cost},${keyVal._2.distance},${keyVal._2.count}\n")
     }
-    previousSkims = skims
-    skims = new TrieMap()
+    writer.close
   }
 }
 
 object BeamSkimmer {
-  val outputFileBaseName = "skims"
+  val observedSkimsFileBaseName = "skims"
+  val fullSkimsFileBaseName = "skimsFull"
+  val excerptSkimsFileBaseName = "skimsExcerpt"
 
   // 22.2 mph (9.924288 meter per second), is the average speed in cities
   //TODO better estimate can be drawn from city size
