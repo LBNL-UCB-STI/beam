@@ -30,15 +30,27 @@ import org.apache.commons.lang3.text.WordUtils
 import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.controler.events.{ControlerEvent, IterationEndsEvent, ShutdownEvent, StartupEvent}
-import org.matsim.core.controler.listener.{IterationEndsListener, ShutdownListener, StartupListener}
-
+import org.matsim.core.controler.events.{
+  ControlerEvent,
+  IterationEndsEvent,
+  IterationStartsEvent,
+  ShutdownEvent,
+  StartupEvent
+}
+import org.matsim.core.controler.listener.{
+  IterationEndsListener,
+  IterationStartsListener,
+  ShutdownListener,
+  StartupListener
+}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
+
+import beam.utils.logging.ExponentialLazyLogging
 
 class BeamSim @Inject()(
   private val actorSystem: ActorSystem,
@@ -50,6 +62,7 @@ class BeamSim @Inject()(
   private val networkHelper: NetworkHelper,
   private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator
 ) extends StartupListener
+    with IterationStartsListener
     with IterationEndsListener
     with ShutdownListener
     with LazyLogging
@@ -146,6 +159,10 @@ class BeamSim @Inject()(
     //new RideHailDebugEventHandler(eventsManager)
 
     FailFast.run(beamServices)
+  }
+
+  override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    ExponentialLazyLogging.reset()
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
@@ -399,4 +416,5 @@ class BeamSim @Inject()(
         }
       }
   }
+
 }
