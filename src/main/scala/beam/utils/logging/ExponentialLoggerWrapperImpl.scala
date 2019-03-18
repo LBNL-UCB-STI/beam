@@ -44,8 +44,8 @@ class ExponentialLoggerWrapperImpl(name: String) extends LoggerWrapper {
   }
 
   private def processMessage(messageTemplate: String, args: Any*)(func: Func): Unit = {
-    // by focusing on first 20 characters, we allow people to avoid overaly verbost logging while keeping some unique info in the message,
-    // just put that info at the end
+    // by focusing on first 20 characters, we allow people to avoid verbose messages
+    // while keeping some unique info in the message. just put that info at the end
     val first20Characters = messageTemplate.substring(0, 19)
     val newValue = messages.merge(first20Characters, 1, (counter, incValue) => counter + incValue)
     if (isNumberPowerOfTwo(newValue)) {
@@ -58,7 +58,7 @@ class ExponentialLoggerWrapperImpl(name: String) extends LoggerWrapper {
 
 }
 
-object ExponentialLoggerWrapperImpl {
+private[logging] object ExponentialLoggerWrapperImpl {
 
   def isNumberPowerOfTwo(number: Int): Boolean = {
     number > 0 && ((number & (number - 1)) == 0)

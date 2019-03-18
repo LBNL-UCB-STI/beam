@@ -143,7 +143,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
       val isStuck = diff > cfg.overallSimulationTimeoutMs
       if (isStuck) {
         numCriticalStuckMessages = numCriticalStuckMessages + 1
-        if (beam.utils.logging.ExponentialLoggerWrapperImpl.isNumberPowerOfTwo(numCriticalStuckMessages)) {
+        if (MathUtils.isNumberPowerOfTwo(numCriticalStuckMessages)) {
           logger.error(s"Critical. No progress in overall simulation for last $diff ms")
         }
       }
