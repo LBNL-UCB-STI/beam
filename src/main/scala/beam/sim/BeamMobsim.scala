@@ -70,6 +70,7 @@ class BeamMobsim @Inject()(
     if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("run.start (after GC): "))
     beamServices.startNewIteration()
+    beamSkimmer.setBeamServices(beamServices)
     eventsManager.initProcessing()
     val iteration = actorSystem.actorOf(
       Props(new Actor with ActorLogging {

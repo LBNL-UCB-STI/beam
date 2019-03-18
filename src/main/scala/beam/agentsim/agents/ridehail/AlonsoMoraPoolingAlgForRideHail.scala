@@ -201,8 +201,7 @@ object AlonsoMoraPoolingAlgForRideHail {
       dst.activity.getCoord,
       src.time,
       BeamMode.CAR,
-      BeamVehicleType.defaultCarBeamVehicleType.id,
-      Some(beamServices)
+      BeamVehicleType.defaultCarBeamVehicleType.id
     )
   }
 
