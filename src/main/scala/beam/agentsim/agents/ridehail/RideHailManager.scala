@@ -297,8 +297,15 @@ class RideHailManager(
   private val initialNumHouseholdVehicles = scenario.getHouseholds.getHouseholds
     .values()
     .asScala
-    .map(_.getVehicleIds.size())
-    .sum / beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet // Undo sampling to estimate initial number
+    .flatMap { hh =>
+      hh.getVehicleIds.asScala.map { vehId =>
+        beamServices.privateVehicles.get(vehId).get.beamVehicleType
+      }
+    }
+    .filter(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car)
+    .size / beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
+  // Undo sampling to estimate initial number
+
   private val numRideHailAgents = math.round(
     initialNumHouseholdVehicles *
     beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet
@@ -868,7 +875,8 @@ class RideHailManager(
   def cancelReservationDueToFailedModifyPassengerSchedule(requestId: Int): Boolean = {
     pendingModifyPassengerScheduleAcks.remove(requestId) match {
       case Some(rideHailResponse) =>
-        failedAllocation(rideHailResponse.request, modifyPassengerScheduleManager.getCurrentTick.get)
+        val theTick = modifyPassengerScheduleManager.getCurrentTick.getOrElse(rideHailResponse.request.departAt)
+        failedAllocation(rideHailResponse.request, theTick)
         pendingModifyPassengerScheduleAcks.isEmpty
       case None =>
         log.error("unexpected condition, canceling reservation but no pending modify pass schedule ack found")
