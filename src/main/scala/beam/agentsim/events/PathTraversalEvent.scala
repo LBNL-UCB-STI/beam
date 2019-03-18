@@ -36,6 +36,7 @@ case class PathTraversalEvent(
   endLegPrimaryFuelLevel: Double,
   endLegSecondaryFuelLevel: Double,
   amountPaid: Double
+  //linkIdsToLaneOptions: IndexedSeq[(Int, Option[Int])]
 ) extends Event(time)
     with ScalaEvent {
   import PathTraversalEvent._
@@ -72,6 +73,7 @@ case class PathTraversalEvent(
     attr.put(ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL, endLegSecondaryFuelLevel.toString)
     attr.put(ATTRIBUTE_SEATING_CAPACITY, seatingCapacity.toString)
     attr.put(ATTRIBUTE_TOLL_PAID, amountPaid.toString)
+    //attr.put(ATTRIBUTE_LINKID_WITH_LANE_MAP, linkIdsToLaneOptions.map{case ((linkId, laneOption)) => s"$linkId:${laneOption.getOrElse(0)}"}.mkString(","))
     attr
   }
 }
@@ -102,6 +104,7 @@ object PathTraversalEvent {
   val ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL: String = "endLegSecondaryFuelLevel"
   val ATTRIBUTE_TOLL_PAID: String = "tollPaid"
   val ATTRIBUTE_SEATING_CAPACITY: String = "seatingCapacity"
+  //val ATTRIBUTE_LINKID_WITH_LANE_MAP: String = "linkIdToLaneMap"
 
   def apply(
     time: Double,
@@ -115,6 +118,7 @@ object PathTraversalEvent {
     endLegPrimaryFuelLevel: Double,
     endLegSecondaryFuelLevel: Double,
     amountPaid: Double
+    //linkIdsToLaneOptions: IndexedSeq[(Int, Option[Int])]
   ): PathTraversalEvent = {
     new PathTraversalEvent(
       time = time,
@@ -141,6 +145,7 @@ object PathTraversalEvent {
       endLegPrimaryFuelLevel = endLegPrimaryFuelLevel,
       endLegSecondaryFuelLevel = endLegSecondaryFuelLevel,
       amountPaid = amountPaid
+      //linkIdsToLaneOptions = linkIdsToLaneOptions
     )
   }
 
@@ -174,6 +179,10 @@ object PathTraversalEvent {
     val endLegPrimaryFuelLevel: Double = attr(ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL).toDouble
     val endLegSecondaryFuelLevel: Double = attr(ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL).toDouble
     val amountPaid: Double = attr(ATTRIBUTE_TOLL_PAID).toDouble
+    /*val linkIdsToLaneOptions = attr(ATTRIBUTE_LINKID_WITH_LANE_MAP).split(",").map(x=>{
+      val linkIdToLaneSplit = x.split(":")
+      (linkIdToLaneSplit(0).toInt, Some(linkIdToLaneSplit(1).toInt))
+    })*/
     PathTraversalEvent(
       time,
       vehicleId,
@@ -199,6 +208,7 @@ object PathTraversalEvent {
       endLegPrimaryFuelLevel,
       endLegSecondaryFuelLevel,
       amountPaid
+      //linkIdsToLaneOptions
     )
   }
 }
