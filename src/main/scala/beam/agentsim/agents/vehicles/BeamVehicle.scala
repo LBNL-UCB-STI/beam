@@ -228,6 +228,11 @@ class BeamVehicle(
 
   def isCAV: Boolean = beamVehicleType.automationLevel > 3
 
+  def initializeFuelLevels = {
+    primaryFuelLevelInJoules = beamVehicleType.primaryFuelCapacityInJoule
+    secondaryFuelLevelInJoules = beamVehicleType.secondaryFuelCapacityInJoule.getOrElse(0.0)
+  }
+
   override def toString = s"$id ($beamVehicleType.id)"
 }
 
