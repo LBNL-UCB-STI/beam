@@ -39,19 +39,18 @@ import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
-import org.matsim.api.core.v01.population.Leg
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{immutable, mutable}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.util.Try
-import scala.collection.JavaConverters._
 
 class BeamRouter(
   services: BeamServices,
@@ -125,7 +124,7 @@ class BeamRouter(
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   // TODO FIX ME
-  val travelTimeAndCost = new TravelTimeAndCost {
+  val travelTimeAndCost: TravelTimeAndCost = new TravelTimeAndCost {
     override def overrideTravelTimeAndCostFor(
       origin: Location,
       destination: Location,
@@ -209,8 +208,12 @@ class BeamRouter(
       notifyNewWorkerIfWorkAvailable(m.address, receivePath = "MemberUp[compute]")
     case other: MemberEvent =>
       log.info("MemberEvent: {}", other)
-      remoteNodes -= other.member.address
-      removeUnavailableMemberFromAvailableWorkers(other.member)
+      other match {
+        case MemberExited(_) | MemberRemoved(_, _) =>
+          remoteNodes -= other.member.address
+          removeUnavailableMemberFromAvailableWorkers(other.member)
+        case _ =>
+      }
     //Why is this a removal?
     case UnreachableMember(m) =>
       log.info("UnreachableMember: {}", m)
@@ -296,10 +299,15 @@ class BeamRouter(
 
   private def removeUnavailableMemberFromAvailableWorkers(
     member: Member
-  ) = {
-    val worker = Await.result(workerFrom(member.address).resolveOne, 60.seconds)
-    if (availableWorkers.contains(worker)) { availableWorkers.remove(worker) }
-    //TODO: If there is work outstanding then it needs handled
+  ): Unit = {
+    try {
+      val worker = Await.result(workerFrom(member.address).resolveOne, 60.seconds)
+      if (availableWorkers.contains(worker)) { availableWorkers.remove(worker) }
+      //TODO: If there is work outstanding then it needs handled
+    } catch {
+      case ex: Throwable =>
+        log.error(ex, s"removeUnavailableMemberFromAvailableWorkers failed with: ${ex.getMessage}")
+    }
   }
 
   private def notifyNewWorkerIfWorkAvailable(

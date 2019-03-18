@@ -191,6 +191,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           currentBeamVehicle.primaryFuelLevelInJoules,
           currentBeamVehicle.secondaryFuelLevelInJoules,
           tollOnCurrentLeg
+          //fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkNumberOfLanes))
         )
       )
 
@@ -348,6 +349,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           currentBeamVehicle.primaryFuelLevelInJoules,
           currentBeamVehicle.secondaryFuelLevelInJoules,
           tollOnCurrentLeg
+          //fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkNumberOfLanes))
         )
       )
 

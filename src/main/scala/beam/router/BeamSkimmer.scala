@@ -1,11 +1,10 @@
 package beam.router
 
-import java.io.{BufferedInputStream, FileInputStream, FileReader, InputStreamReader, Reader}
+import java.io._
 import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
 
 import scala.collection.concurrent.TrieMap
-
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
@@ -34,15 +33,16 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
+import org.matsim.core.utils.io.IOUtils
 import org.supercsv.io.{CsvMapReader, ICsvMapReader}
 import org.supercsv.prefs.CsvPreference
 
 //TODO to be validated against google api
-class BeamSkimmer @Inject()(
-  beamConfig: BeamConfig
-) extends IterationEndsListener {
+class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsListener {
 
   private val SKIMS_FILE_NAME = "skims.csv.gz"
+
+  private var beamServicesOpt: Option[BeamServices] = None
 
   // The OD/Mode/Time Matrix
   private var previousSkims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = initialPreviousSkims()
@@ -64,13 +64,47 @@ class BeamSkimmer @Inject()(
     }
   }
 
+  def setBeamServices(newBeamServices: BeamServices) = {
+    beamServicesOpt = Some(newBeamServices)
+  }
+
+  def getSkimDefaultValue(
+    mode: BeamMode,
+    origin: Location,
+    destination: Location,
+    departureTime: Int,
+    vehicleTypeId: Id[BeamVehicleType],
+    beamServices: BeamServices
+  ): Skim = {
+    val (travelDistance, travelTime) = distanceAndTime(mode, origin, destination)
+    val travelCost: Double = mode match {
+      case CAR | CAV =>
+        DrivingCost.estimateDrivingCost(
+          new BeamLeg(
+            departureTime,
+            mode,
+            travelTime,
+            new BeamPath(null, null, None, null, null, travelDistance)
+          ),
+          vehicleTypeId,
+          beamServices
+        )
+      case RIDE_HAIL =>
+        beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0
+      case RIDE_HAIL_POOLED =>
+        0.6 * (beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0)
+      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT => 0.25 * travelDistance / 1609
+      case _                                                          => 0.0
+    }
+    Skim(travelTime, travelDistance, travelCost, 0)
+  }
+
   def getTimeDistanceAndCost(
     origin: Location,
     destination: Location,
     departureTime: Int,
     mode: BeamMode,
-    vehicleTypeId: org.matsim.api.core.v01.Id[BeamVehicleType],
-    beamServicesOpt: Option[BeamServices] = None
+    vehicleTypeId: Id[BeamVehicleType]
   ): Skim = {
     beamServicesOpt match {
       case Some(beamServices) =>
@@ -80,27 +114,7 @@ class BeamSkimmer @Inject()(
           case Some(skimValue) =>
             skimValue.toSkimExternal
           case None =>
-            val (travelDistance, travelTime) = distanceAndTime(mode, origin, destination)
-            val travelCost: Double = mode match {
-              case CAR | CAV =>
-                DrivingCost.estimateDrivingCost(
-                  new BeamLeg(
-                    departureTime,
-                    mode,
-                    travelTime,
-                    new BeamPath(null, null, None, null, null, travelDistance)
-                  ),
-                  vehicleTypeId,
-                  beamServices
-                )
-              case RIDE_HAIL =>
-                beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0
-              case RIDE_HAIL_POOLED =>
-                0.6 * (beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0)
-              case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT => 0.25 * travelDistance / 1609
-              case _                                                          => 0.0
-            }
-            Skim(travelTime, travelDistance, travelCost, 0)
+            getSkimDefaultValue(mode, origin, destination, departureTime, vehicleTypeId, beamServices)
         }
       case None =>
         val (travelDistance, travelTime) = distanceAndTime(mode, origin, destination)
@@ -112,11 +126,10 @@ class BeamSkimmer @Inject()(
     origin: Location,
     destination: Location,
     departureTime: Int,
-    vehicleTypeId: org.matsim.api.core.v01.Id[BeamVehicleType],
-    beamServices: BeamServices
+    vehicleTypeId: org.matsim.api.core.v01.Id[BeamVehicleType]
   ): (Double, Double) = {
-    val origTaz = beamServices.tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
-    val destTaz = beamServices.tazTreeMap.getTAZ(destination.getX, destination.getY).tazId
+    val origTaz = beamServicesOpt.get.tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
+    val destTaz = beamServicesOpt.get.tazTreeMap.getTAZ(destination.getX, destination.getY).tazId
     val solo = getSkimValue(departureTime, RIDE_HAIL, origTaz, destTaz) match {
       case Some(skimValue) if skimValue.count > 5 =>
         skimValue
@@ -136,7 +149,12 @@ class BeamSkimmer @Inject()(
           case Some(skim) =>
             skim
           case None =>
-            SkimInternal(1.1, 0, beamConfig.beam.agentsim.agents.rideHail.pooledToRegularRideCostRatio, 0)
+            SkimInternal(
+              1.1,
+              0,
+              beamServicesOpt.get.beamConfig.beam.agentsim.agents.rideHail.pooledToRegularRideCostRatio,
+              0
+            )
         }
     }
     (pooled.time / solo.time, pooled.cost / solo.cost)
@@ -216,28 +234,189 @@ class BeamSkimmer @Inject()(
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    writeObservedSkims(event)
+    if (beamServicesOpt.isDefined) writeCarSkimsForPeakNonPeakPeriods(event)
+    // Writing full skims are very large, but code is preserved here in case we want to enable it.
+    // TODO make this a configurable output "writeFullSkimsInterval" with default of 0
+//    if(beamServicesOpt.isDefined)writeFullSkims(event)
+    previousSkims = skims
+    skims = new TrieMap()
+  }
+
+  def averageAndWriteSkims(
+    timePeriodString: String,
+    hoursIncluded: List[Int],
+    origin: TAZ,
+    destination: TAZ,
+    mode: BeamMode.CAR.type,
+    get: BeamServices,
+    dummyId: Id[BeamVehicleType],
+    writer: BufferedWriter
+  ) = {
+    val individualSkims = hoursIncluded.map { timeBin =>
+      getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
+        .map(_.toSkimExternal)
+        .getOrElse {
+          val adjustedDestCoord = if (origin.equals(destination)) {
+            new Coord(
+              origin.coord.getX,
+              origin.coord.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
+            )
+          } else {
+            destination.coord
+          }
+          getSkimDefaultValue(
+            mode,
+            origin.coord,
+            adjustedDestCoord,
+            timeBin * 3600,
+            dummyId,
+            beamServicesOpt.get
+          )
+        }
+    }
+    val weights = individualSkims.map(sk => Math.max(sk.count, 1).toDouble)
+    val sumWeights = weights.sum
+    val weightedDistance = individualSkims.map(_.distance).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
+    val weightedTime = individualSkims.map(_.time).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
+    val weightedCost = individualSkims.map(_.cost).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
+    writer.write(
+      s"$timePeriodString,$mode,${origin.tazId},${destination.tazId},${weightedTime},${weightedCost},${weightedDistance},${sumWeights}\n"
+    )
+  }
+
+  def writeCarSkimsForPeakNonPeakPeriods(event: IterationEndsEvent) = {
+    val morningPeakHours = (7 to 8).toList
+    val afternoonPeakHours = (15 to 16).toList
+    val nonPeakHours = (0 to 6).toList ++ (9 to 14).toList ++ (17 to 23).toList
+    val modes = List(CAR)
+    val fileHeader = "period,mode,origTaz,destTaz,travelTimeInS,cost,distanceInM,numObservations"
+    val filePath = event.getServices.getControlerIO.getIterationFilename(
+      event.getServices.getIterationNumber,
+      BeamSkimmer.excerptSkimsFileBaseName + ".csv.gz"
+    )
+    val dummyId = Id.create("NA", classOf[BeamVehicleType])
+    val writer = IOUtils.getBufferedWriter(filePath)
+    writer.write(fileHeader)
+    writer.write("\n")
+    beamServicesOpt.get.tazTreeMap.getTAZs
+      .foreach { origin =>
+        beamServicesOpt.get.tazTreeMap.getTAZs.foreach { destination =>
+          modes.foreach { mode =>
+            averageAndWriteSkims(
+              "AM",
+              morningPeakHours,
+              origin,
+              destination,
+              mode,
+              beamServicesOpt.get,
+              dummyId,
+              writer
+            )
+            averageAndWriteSkims(
+              "PM",
+              afternoonPeakHours,
+              origin,
+              destination,
+              mode,
+              beamServicesOpt.get,
+              dummyId,
+              writer
+            )
+            averageAndWriteSkims(
+              "OffPeak",
+              nonPeakHours,
+              origin,
+              destination,
+              mode,
+              beamServicesOpt.get,
+              dummyId,
+              writer
+            )
+          }
+        }
+      }
+    writer.close()
+  }
+
+  def writeFullSkims(event: IterationEndsEvent) = {
     val fileHeader = "hour,mode,origTaz,destTaz,travelTimeInS,cost,distanceInM,numObservations"
     val filePath = event.getServices.getControlerIO.getIterationFilename(
       event.getServices.getIterationNumber,
-      BeamSkimmer.outputFileBaseName + ".csv.gz"
+      BeamSkimmer.fullSkimsFileBaseName + ".csv.gz"
     )
-    FileUtils.writeToFile(
-      filePath,
-      Some(fileHeader),
-      skims
-        .map { keyVal =>
-          s"${keyVal._1._1},${keyVal._1._2},${keyVal._1._3},${keyVal._1._4},${keyVal._2.time},${keyVal._2.cost},${keyVal._2.distance},${keyVal._2.count}"
+    val uniqueModes = skims.map(keyVal => keyVal._1._2).toList.distinct
+    val uniqueTimeBins = (0 to 23)
+
+    val dummyId = Id.create("NA", classOf[BeamVehicleType])
+    val writer = IOUtils.getBufferedWriter(filePath)
+    writer.write(fileHeader)
+    writer.write("\n")
+    beamServicesOpt.get.tazTreeMap.getTAZs
+      .foreach { origin =>
+        beamServicesOpt.get.tazTreeMap.getTAZs.foreach { destination =>
+          uniqueModes.foreach { mode =>
+            uniqueTimeBins
+              .foreach { timeBin =>
+                val theSkim = getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
+                  .map(_.toSkimExternal)
+                  .getOrElse {
+                    if (origin.equals(destination)) {
+                      val newDestCoord = new Coord(
+                        origin.coord.getX,
+                        origin.coord.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
+                      )
+                      getSkimDefaultValue(
+                        mode,
+                        origin.coord,
+                        newDestCoord,
+                        timeBin * 3600,
+                        dummyId,
+                        beamServicesOpt.get
+                      )
+                    } else {
+                      getSkimDefaultValue(
+                        mode,
+                        origin.coord,
+                        destination.coord,
+                        timeBin * 3600,
+                        dummyId,
+                        beamServicesOpt.get
+                      )
+                    }
+                  }
+                writer.write(
+                  s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.cost},${theSkim.distance},${theSkim.count}\n"
+                )
+              }
+          }
         }
-        .mkString("\n"),
-      None
+      }
+    writer.close()
+  }
+
+  def writeObservedSkims(event: IterationEndsEvent) = {
+    val fileHeader = "hour,mode,origTaz,destTaz,travelTimeInS,cost,distanceInM,numObservations"
+    val filePath = event.getServices.getControlerIO.getIterationFilename(
+      event.getServices.getIterationNumber,
+      BeamSkimmer.observedSkimsFileBaseName + ".csv.gz"
     )
-    previousSkims = skims
-    skims = new TrieMap()
+    val writer = IOUtils.getBufferedWriter(filePath)
+    writer.write(fileHeader)
+    writer.write("\n")
+    skims.foreach { keyVal =>
+      writer.write(
+        s"${keyVal._1._1},${keyVal._1._2},${keyVal._1._3},${keyVal._1._4},${keyVal._2.time},${keyVal._2.cost},${keyVal._2.distance},${keyVal._2.count}\n"
+      )
+    }
+    writer.close
   }
 }
 
 object BeamSkimmer {
-  val outputFileBaseName = "skims"
+  val observedSkimsFileBaseName = "skims"
+  val fullSkimsFileBaseName = "skimsFull"
+  val excerptSkimsFileBaseName = "skimsExcerpt"
 
   // 22.2 mph (9.924288 meter per second), is the average speed in cities
   //TODO better estimate can be drawn from city size
