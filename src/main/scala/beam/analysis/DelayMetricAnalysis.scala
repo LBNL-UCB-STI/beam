@@ -52,7 +52,7 @@ class DelayMetricAnalysis @Inject()(
   private val networkUtilizedGraphTitle = "Physsim Network Utilization"
   private val xAxisName_NetworkUtilized = "hour"
   private val yAxisName_NetworkUtilized = "Network Percent Used"
-  private val linkUtilization = scala.collection.mutable.SortedMap[Int,Set[Int]]()
+  private val linkUtilization = scala.collection.mutable.SortedMap[Int, Set[Int]]()
 
   var totalTravelTime = 0.0
 
@@ -64,7 +64,6 @@ class DelayMetricAnalysis @Inject()(
   override def handleEvent(event: Event): Unit = {
     event match {
       case pathTraversalEvent: PathTraversalEvent =>
-
         calculateNetworkUtilization(pathTraversalEvent)
 
         val mode = pathTraversalEvent.mode
@@ -126,9 +125,9 @@ class DelayMetricAnalysis @Inject()(
     totalTravelTime = 0
   }
 
-  def calculateNetworkUtilization(pathTraversalEvent: PathTraversalEvent): Unit ={
+  def calculateNetworkUtilization(pathTraversalEvent: PathTraversalEvent): Unit = {
 
-    val time = pathTraversalEvent.time/3600
+    val time = pathTraversalEvent.time / 3600
     val utilizedLinks = pathTraversalEvent.linkIds.toSet
     linkUtilization += time.toInt -> (linkUtilization.getOrElse(time.toInt, Set[Int]()) ++ utilizedLinks)
   }
@@ -219,16 +218,16 @@ class DelayMetricAnalysis @Inject()(
     )
   }
 
-  def createNetworkUtilizationGraph(iterationNumber:Int): Unit = {
-    val dataset = new  DefaultCategoryDataset
+  def createNetworkUtilizationGraph(iterationNumber: Int): Unit = {
+    val dataset = new DefaultCategoryDataset
     val totalLink = networkHelper.allLinks.length
-    for(hour <- 1 to linkUtilization.keysIterator.max){
-      dataset.addValue((linkUtilization.getOrElse(hour, Set()).size * 100).toDouble/totalLink, 0, hour)
+    for (hour <- 1 to linkUtilization.keysIterator.max) {
+      dataset.addValue((linkUtilization.getOrElse(hour, Set()).size * 100).toDouble / totalLink, 0, hour)
     }
 
     val graphImageFile: String =
-      GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "physsimNetworkUtilization.png")
-
+      GraphsStatsAgentSimEventsListener.CONTROLLER_IO
+        .getIterationFilename(iterationNumber, "physsimNetworkUtilization.png")
 
     val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
       dataset,
