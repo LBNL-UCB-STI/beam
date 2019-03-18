@@ -24,7 +24,7 @@ class RouteHistorySpec extends FlatSpec with BeforeAndAfter {
 
   it should "serialize to a CSV content" in {
 
-    val csvContent = RouteHistory.toCsv(routeHistoryAsObject)
+    val csvContent = RouteHistory.toCsv(routeHistoryAsObject).mkString
 
     assert(csvContent === routeHistoryAsCsvString)
   }

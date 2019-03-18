@@ -1,6 +1,6 @@
 package beam.router
 
-import java.io.{BufferedInputStream, FileInputStream, FileReader, InputStreamReader, Reader}
+import java.io._
 import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
 import javax.inject.Inject
@@ -112,13 +112,9 @@ class RouteHistory @Inject()(
       RouteHistory.outputFileBaseName + ".csv.gz"
     )
 
-    val csvContent = toCsv(routeHistory)
-
     FileUtils.writeToFile(
       filePath,
-      Some(CsvHeader),
-      csvContent,
-      None
+      toCsv(routeHistory),
     )
     previousRouteHistory = routeHistory
     routeHistory = new TrieMap()
@@ -134,16 +130,14 @@ object RouteHistory {
   type Route = IndexedSeq[LinkId]
   type RouteHistoryADT = TrieMap[TimeBin, TrieMap[OriginTazId, TrieMap[DestTazId, Route]]]
 
-  private val CsvHeader = "timeBin,originTAZId,destTAZId,route"
-  private val Eol = "\n"
+  private val CsvHeader: String = "timeBin,originTAZId,destTAZId,route"
+  private val Eol: String = "\n"
 
   private val outputFileBaseName = "routeHistory"
   private val outputFileName = outputFileBaseName + ".csv.gz"
 
-  private[router] def toCsv(
-    routeHistory: RouteHistoryADT
-  ): String = {
-    val flattenedRouteHistory: Iterable[(TimeBin, OriginTazId, DestTazId, String)] = routeHistory.flatMap {
+  private[router] def toCsv(routeHistory: RouteHistoryADT): Iterator[String] = {
+    val flattenedRouteHistory: Iterator[(TimeBin, OriginTazId, DestTazId, String)] = routeHistory.toIterator.flatMap {
       case (timeBin: TimeBin, origins: TrieMap[OriginTazId, TrieMap[DestTazId, Route]]) =>
         origins.flatMap {
           case (originTazId: OriginTazId, destinations: TrieMap[DestTazId, Route]) =>
@@ -153,12 +147,12 @@ object RouteHistory {
             }
         }
     }
-    flattenedRouteHistory.view
+    val body: Iterator[String] = flattenedRouteHistory
       .map {
         case (timeBin, originTazId, destTazId, route) =>
-          s"$timeBin,$originTazId,$destTazId,$route"
+          s"$timeBin,$originTazId,$destTazId,$route$Eol"
       }
-      .mkString(CsvHeader + Eol, Eol, Eol)
+    Iterator(CsvHeader, Eol) ++ body
   }
 
   private[router] def fromCsv(filePath: String): RouteHistoryADT = {
