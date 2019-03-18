@@ -186,7 +186,8 @@ class VehicleEnergy(
       _
     ) = fuelConsumptionData
     val numberOfLanes: Int = numberOfLanesOption.getOrElse(0)
-    val speedInMilesPerHour: Double = speedInMetersPerSecondOption.map(convertFromMetersPerSecondToMilesPerHour)
+    val speedInMilesPerHour: Double = speedInMetersPerSecondOption
+      .map(convertFromMetersPerSecondToMilesPerHour)
       .getOrElse(0)
     val gradePercent: Double = linkIdToGradePercentMap.getOrElse(linkId, 0)
     (powerTrainPriority match {
