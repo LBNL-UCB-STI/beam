@@ -321,7 +321,7 @@ class RideHailManager(
 
   beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.initType match {
     case "PROCEDURAL" =>
-      val averageOnDutySecondsPerDay = 3.96 * 3600.0 // Measured from Austin Data, assuming drivers took at least 4 trips
+      val averageOnDutyHoursPerDay = 3.96 // Measured from Austin Data, assuming drivers took at least 4 trips
       val meanLogShiftDurationHours = 1.02
       val stdLogShiftDurationHours = 0.44
       var equivalentNumberOfDrivers = 0.0
@@ -338,55 +338,61 @@ class RideHailManager(
       )
       val fleetData: ArrayBuffer[RideHailFleetInitializer.RideHailAgentInputData] = new ArrayBuffer
       var idx = 0
-      while ((equivalentNumberOfDrivers < numRideHailAgents.toDouble) && (idx < persons.length)) {
-        try {
-          val person = persons(idx)
-          val vehicleType = VehiclesAdjustment
-            .getVehicleAdjustment(beamServices)
-            .sampleRideHailVehicleTypes(
-              numVehicles = 1,
-              vehicleCategory = VehicleCategory.Car
-            )
-            .head
-          if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >=
-                (vehicleType.primaryFuelCapacityInJoule / vehicleType.primaryFuelConsumptionInJoulePerMeter) * 0.8) {
-            log.error(
-              "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
-            )
+      while (equivalentNumberOfDrivers < numRideHailAgents.toDouble) {
+        if (idx >= persons.length) {
+          log.error(
+            "Can't have more ridehail drivers than total population"
+          )
+        } else {
+          try {
+            val person = persons(idx)
+            val vehicleType = VehiclesAdjustment
+              .getVehicleAdjustment(beamServices)
+              .sampleRideHailVehicleTypes(
+                numVehicles = 1,
+                vehicleCategory = VehicleCategory.Car
+              )
+              .head
+            if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >=
+                  (vehicleType.primaryFuelCapacityInJoule / vehicleType.primaryFuelConsumptionInJoulePerMeter) * 0.8) {
+              log.error(
+                "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
+              )
+            }
+            val rideInitialLocation: Location = getRideInitLocation(person)
+            if (vehicleType.automationLevel < 4) {
+              val shiftDuration =
+                math.round(math.exp(rand.nextGaussian() * stdLogShiftDurationHours + meanLogShiftDurationHours) * 3600)
+              val shiftMidPointTime = activityEndTimes(rand.nextInt(activityEndTimes.length))
+              val shiftStartTime = max(shiftMidPointTime - (shiftDuration / 2).toInt, 10)
+              val shiftEndTime = min(shiftMidPointTime + (shiftDuration / 2).toInt, 30 * 3600)
+              equivalentNumberOfDrivers += (shiftEndTime - shiftStartTime) / (averageOnDutyHoursPerDay * 3600)
+              val shiftString = convertToShiftString(ArrayBuffer(shiftStartTime), ArrayBuffer(shiftEndTime))
+              fleetData += createRideHailVehicleAndAgent(
+                person.getId.toString,
+                vehicleType,
+                rideInitialLocation,
+                shiftString,
+                None
+              )
+            } else {
+              val shiftString = None
+              fleetData += createRideHailVehicleAndAgent(
+                person.getId.toString,
+                vehicleType,
+                rideInitialLocation,
+                shiftString,
+                None
+              )
+              equivalentNumberOfDrivers += 1.0
+            }
+          } catch {
+            case ex: Throwable =>
+              log.error(ex, s"Could not createRideHailVehicleAndAgent: ${ex.getMessage}")
+              throw ex
           }
-          val rideInitialLocation: Location = getRideInitLocation(person)
-          if (vehicleType.automationLevel < 4) {
-            val shiftDuration =
-              math.round(math.exp(rand.nextGaussian() * stdLogShiftDurationHours + meanLogShiftDurationHours) * 3600)
-            val shiftMidPointTime = activityEndTimes(rand.nextInt(activityEndTimes.length))
-            val shiftStartTime = max(shiftMidPointTime - (shiftDuration / 2).toInt, 10)
-            val shiftEndTime = min(shiftMidPointTime + (shiftDuration / 2).toInt, 30 * 3600)
-            equivalentNumberOfDrivers += (shiftEndTime - shiftStartTime) / averageOnDutySecondsPerDay
-            val shiftString = convertToShiftString(ArrayBuffer(shiftStartTime), ArrayBuffer(shiftEndTime))
-            fleetData += createRideHailVehicleAndAgent(
-              person.getId.toString,
-              vehicleType,
-              rideInitialLocation,
-              shiftString,
-              None
-            )
-          } else {
-            val shiftString = None
-            fleetData += createRideHailVehicleAndAgent(
-              person.getId.toString,
-              vehicleType,
-              rideInitialLocation,
-              shiftString,
-              None
-            )
-            equivalentNumberOfDrivers += 1.0
-          }
-        } catch {
-          case ex: Throwable =>
-            log.error(ex, s"Could not createRideHailVehicleAndAgent: ${ex.getMessage}")
-            throw ex
+          idx += 1
         }
-        idx += 1
       }
 
       new RideHailFleetInitializer().writeFleetData(beamServices, fleetData)
