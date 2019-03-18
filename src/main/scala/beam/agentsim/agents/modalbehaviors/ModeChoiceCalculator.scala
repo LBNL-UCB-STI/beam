@@ -25,12 +25,20 @@ trait ModeChoiceCalculator extends HasServices {
     beamServices.beamConfig.matsim.modules.global.randomSeed
   )
 
-  def scaleTimeByVot(
+  def getGeneralizedTimeOfTrip(
+    embodiedBeamTrip: EmbodiedBeamTrip,
+    attributesOfIndividual: Option[AttributesOfIndividual] = None,
+    destinationActivity: Option[Activity] = None
+  ): Double = {
+    embodiedBeamTrip.legs.map(_.beamLeg.duration).sum
+  }
+
+  def getGeneralizedTime(
     time: Double,
     beamMode: Option[BeamMode] = None,
     beamLeg: Option[EmbodiedBeamLeg] = None
   ): Double = {
-    time / 3600 * beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
+    time / 3600 // Convert seconds to hours
   }
 
   def apply(

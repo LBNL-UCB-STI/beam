@@ -29,7 +29,7 @@ case class AttributesOfIndividual(
 
   // Get Value of Travel Time for a specific leg of a travel alternative:
   // If it is a car leg, we use link-specific multipliers, otherwise we just look at the entire leg travel time and mode
-  def getVOT(
+  def getGeneralizedTime(
     embodiedBeamLeg: EmbodiedBeamLeg,
     modeMultipliers: mutable.Map[Option[BeamMode], Double],
     situationMultipliers: mutable.Map[(timeSensitivity, congestionLevel, roadwayType, automationLevel), Double],
@@ -43,16 +43,14 @@ case class AttributesOfIndividual(
       case Some(activity) =>
         activity.getType().equalsIgnoreCase("work")
     }
-    val theVOT = embodiedBeamLeg.beamLeg.mode match {
+    val theGeneralizedTime = embodiedBeamLeg.beamLeg.mode match {
       case CAR => // NOTE: Ride hail legs are classified as CAR mode. Retained both for flexibility (but could delete the other cases)
         if (embodiedBeamLeg.isRideHail) {
           if (embodiedBeamLeg.isPooledTrip) {
             getPooledFactor(embodiedBeamLeg, poolingMultipliers, beamServices) *
-            getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeMultipliers) *
-            unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
+            getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeMultipliers)
           } else {
-            getModeVotMultiplier(Option(RIDE_HAIL), modeMultipliers) *
-            unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
+            getModeVotMultiplier(Option(RIDE_HAIL), modeMultipliers)
           }
         } else if (embodiedBeamLeg.asDriver) {
           // Situation multipliers are only relevant when the agent is driving
@@ -63,25 +61,24 @@ case class AttributesOfIndividual(
             isWorkTrip,
             getAutomationLevel(embodiedBeamLeg, beamServices)
           ) *
-          getModeVotMultiplier(Option(CAR), modeMultipliers) *
-          unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
+          getModeVotMultiplier(Option(CAR), modeMultipliers)
         } else {
           // Assume that not driving and not ridehail means CAV
-          getModeVotMultiplier(Option(CAV), modeMultipliers) *
-          unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
+          getModeVotMultiplier(Option(CAV), modeMultipliers)
         }
       case RIDE_HAIL =>
-        getModeVotMultiplier(Option(RIDE_HAIL), modeMultipliers) *
-        unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
+        getModeVotMultiplier(Option(RIDE_HAIL), modeMultipliers)
       case RIDE_HAIL_POOLED =>
         getPooledFactor(embodiedBeamLeg, poolingMultipliers, beamServices) *
-        getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeMultipliers) *
-        unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
+        getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeMultipliers)
       case _ =>
-        getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeMultipliers) *
-        unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
+        getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeMultipliers)
     }
-    theVOT
+    theGeneralizedTime
+  }
+
+  def getVOT(): Double = {
+    valueOfTime
   }
 
   private def getAutomationLevel(embodiedBeamLeg: EmbodiedBeamLeg, beamServices: BeamServices): automationLevel = {

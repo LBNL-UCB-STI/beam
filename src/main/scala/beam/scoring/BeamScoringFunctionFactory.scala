@@ -143,14 +143,14 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
               .map(_.asInstanceOf[Activity])
               .lift(tripIndex + 1)
             trip.legs.foreach { leg =>
-              val generalizedLegCost = attributes.getVOT(
+              val generalizedLegCost = attributes.getGeneralizedTime(
                 leg,
                 modeChoiceMultinomialLogit.modeMultipliers,
                 modeChoiceMultinomialLogit.situationMultipliers,
                 modeChoiceMultinomialLogit.poolingMultipliers,
                 beamServices,
                 destinationActivity
-              )
+              ) * attributes.getVOT()
               val legLength = leg.beamLeg.travelPath.distanceInM
               leg.beamLeg.travelPath.linkIds.zipWithIndex.foreach {
                 case (linkId, index) =>

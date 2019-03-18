@@ -6,7 +6,7 @@ import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeT
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
-import beam.router.model.EmbodiedBeamTrip
+import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
@@ -76,6 +76,41 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
   def timeAndCost(mct: ModeCostTimeTransfer): Double = {
     mct.scaledTime + mct.cost
+  }
+
+  override def getGeneralizedTimeOfTrip(
+    embodiedBeamTrip: EmbodiedBeamTrip,
+    attributesOfIndividual: Option[AttributesOfIndividual],
+    destinationActivity: Option[Activity]
+  ): Double = {
+    attributesOfIndividual match {
+      case Some(attributes) =>
+        embodiedBeamTrip.legs
+          .map(
+            x =>
+              attributes
+                .getGeneralizedTime(
+                  x,
+                  modeMultipliers,
+                  situationMultipliers,
+                  poolingMultipliers,
+                  beamServices,
+                  destinationActivity
+              )
+          )
+          .sum / 3600
+      case None =>
+        embodiedBeamTrip.legs
+          .map(x => x.beamLeg.duration * modeMultipliers.getOrElse(Some(x.beamLeg.mode), 1.0))
+          .sum / 3600
+    }
+  }
+  override def getGeneralizedTime(
+    time: Double,
+    beamMode: Option[BeamMode] = None,
+    beamLeg: Option[EmbodiedBeamLeg] = None
+  ): Double = {
+    time / 3600 * modeMultipliers.getOrElse(beamMode, 1.0)
   }
 
   def altsToModeCostTimeTransfers(
@@ -150,16 +185,11 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
           0
       }
       assert(numTransfers >= 0)
-      val scaledTime = altAndIdx._1.legs
-        .map(
-          x =>
-            attributesOfIndividual
-              .getVOT(x, modeMultipliers, situationMultipliers, poolingMultipliers, beamServices, destinationActivity)
-        )
-        .sum +
-      attributesOfIndividual.getModeVotMultiplier(None, modeMultipliers) * attributesOfIndividual.unitConversionVOTT(
-        waitTime
-      )
+      val scaledTime = (getGeneralizedTimeOfTrip(altAndIdx._1, Some(attributesOfIndividual), destinationActivity) + getGeneralizedTime(
+        waitTime.toDouble,
+        None,
+        None
+      )) * attributesOfIndividual.valueOfTime
       ModeCostTimeTransfer(
         mode,
         incentivizedCost,
