@@ -79,6 +79,7 @@ class HouseholdCAVSchedulingTest
     when(theServices.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
     theServices
   }
+  skimmer.setBeamServices(beamSvc)
 
   describe("HouseholdCAVScheduling") {
 
