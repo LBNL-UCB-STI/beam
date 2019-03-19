@@ -742,10 +742,12 @@ class PersonAgent(
                 0.0 // the cost as paid by person has already been accounted for, this event is just about the incentive
               )
             )
-
+          val generalizedTime =
+            modeChoiceCalculator.getGeneralizedTimeOfTrip(data.currentTrip.get, Some(attributes), nextActivity(data))
           // Correct the trip to deal with ride hail / disruptions and then register to skimmer
           beamSkimmer.observeTrip(
             correctTripEndTime(data.currentTrip.get, tick, bodyVehiclePersonId.vehicleId),
+            generalizedTime,
             beamServices
           )
 

@@ -96,7 +96,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
       case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT => 0.25 * travelDistance / 1609
       case _                                                          => 0.0
     }
-    Skim(travelTime, travelDistance, travelCost, 0)
+    Skim(travelTime, 0.0, 0.0, travelDistance, travelCost, 0)
   }
 
   def getTimeDistanceAndCost(
@@ -118,7 +118,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
         }
       case None =>
         val (travelDistance, travelTime) = distanceAndTime(mode, origin, destination)
-        Skim(travelTime, travelDistance, 0.0, 0)
+        Skim(travelTime, travelDistance, 0.0, 0.0, 0.0, 0)
     }
   }
 
@@ -138,7 +138,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
           case Some(skim) =>
             skim
           case None =>
-            SkimInternal(1.0, 0, 1.0, 0)
+            SkimInternal(1.0, 0.0, 0.0, 0, 1.0, 0)
         }
     }
     val pooled = getSkimValue(departureTime, RIDE_HAIL_POOLED, origTaz, destTaz) match {
@@ -151,6 +151,8 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
           case None =>
             SkimInternal(
               1.1,
+              0.0,
+              0.0,
               0,
               beamServicesOpt.get.beamConfig.beam.agentsim.agents.rideHail.pooledToRegularRideCostRatio,
               0
@@ -184,7 +186,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
     }
   }
 
-  def observeTrip(trip: EmbodiedBeamTrip, beamServices: BeamServices): Option[SkimInternal] = {
+  def observeTrip(trip: EmbodiedBeamTrip, generalizedTime: Double, beamServices: BeamServices): Option[SkimInternal] = {
     val mode = trip.tripClassifier
     val correctedTrip = mode match {
       case WALK =>
@@ -207,6 +209,8 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
     val payload =
       SkimInternal(
         trip.totalTravelTimeInSecs.toDouble,
+        0.0,
+        0.0,
         trip.beamLegs().map(_.travelPath.distanceInM).sum,
         trip.costEstimate,
         1
@@ -215,6 +219,8 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
       case Some(existingSkim) =>
         val newPayload = SkimInternal(
           mergeAverage(existingSkim.time, existingSkim.count, payload.time),
+          0.0,
+          0.0,
           mergeAverage(existingSkim.distance, existingSkim.count, payload.distance),
           mergeAverage(existingSkim.cost, existingSkim.count, payload.cost),
           existingSkim.count + 1
@@ -448,11 +454,11 @@ object BeamSkimmer {
     TRANSIT           -> transitSpeedMeterPerSec
   )
 
-  case class SkimInternal(time: Double, distance: Double, cost: Double, count: Int) {
-    def toSkimExternal: Skim = Skim(time.toInt, distance, cost, count)
+  case class SkimInternal(time: Double, generalizedTime: Double, generalizedCost: Double, distance: Double, cost: Double, count: Int) {
+    def toSkimExternal: Skim = Skim(time.toInt, generalizedTime, generalizedCost, distance, cost, count)
   }
 
-  case class Skim(time: Int, distance: Double, cost: Double, count: Int)
+  case class Skim(time: Int, generalizedTime: Double, generalizedCost: Double, distance: Double, cost: Double, count: Int)
 
   private def readCsvFile(filePath: String): TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = {
     var mapReader: ICsvMapReader = null
@@ -477,7 +483,7 @@ object BeamSkimmer {
           Id.create(origTazId, classOf[TAZ]),
           Id.create(destTazId, classOf[TAZ]),
         )
-        val value = SkimInternal(hour.toDouble, distanceInMeters.toDouble, cost.toDouble, numObservations.toInt)
+        val value = SkimInternal(hour.toDouble, 0.0, 0.0, distanceInMeters.toDouble, cost.toDouble, numObservations.toInt)
         res.put(key, value)
         line = mapReader.read(header: _*)
       }
