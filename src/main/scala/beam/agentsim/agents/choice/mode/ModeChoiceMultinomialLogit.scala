@@ -122,35 +122,9 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity]
   ): IndexedSeq[ModeCostTimeTransfer] = {
-    val walkTripStartTime = alternatives
-      .find(_.tripClassifier == WALK)
-      .map(_.legs.head.beamLeg.startTime)
-    val transitFareDefaults =
-      TransitFareDefaults.estimateTransitFares(alternatives)
-    val rideHailDefaults = RideHailDefaults.estimateRideHailCost(alternatives)
-
     alternatives.zipWithIndex.map { altAndIdx =>
       val mode = altAndIdx._1.tripClassifier
-      val totalCost: Double = mode match {
-        case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
-          (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice
-        case RIDE_HAIL | RIDE_HAIL_POOLED =>
-          (altAndIdx._1.costEstimate + rideHailDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice
-        case RIDE_HAIL_TRANSIT =>
-          (altAndIdx._1.legs.view
-            .filter(_.beamLeg.mode.isTransit)
-            .map(_.cost)
-            .sum + transitFareDefaults(
-            altAndIdx._2
-          )) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice +
-          (altAndIdx._1.legs.view
-            .filter(_.isRideHail)
-            .map(_.cost)
-            .sum + rideHailDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice
-        case _ =>
-          altAndIdx._1.costEstimate
-      }
-
+      val totalCost = getNonTimeCost(altAndIdx._1)
       val incentive: Double = beamServices.modeIncentives.computeIncentive(attributesOfIndividual, mode)
 
       val incentivizedCost =
@@ -179,7 +153,9 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
           0
       }
       assert(numTransfers >= 0)
-      val scaledTime = attributesOfIndividual.getVOT(getGeneralizedTimeOfTrip(altAndIdx._1, Some(attributesOfIndividual), destinationActivity))
+      val scaledTime = attributesOfIndividual.getVOT(
+        getGeneralizedTimeOfTrip(altAndIdx._1, Some(attributesOfIndividual), destinationActivity)
+      )
       ModeCostTimeTransfer(
         mode,
         incentivizedCost,
