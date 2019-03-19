@@ -163,6 +163,7 @@ class BeamSim @Inject()(
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     ExponentialLazyLogging.reset()
+    beamServices.privateVehicles.values.foreach(_.initializeFuelLevels)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {

@@ -321,28 +321,38 @@ class RideHailManager(
 
   beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.initType match {
     case "PROCEDURAL" =>
-      val persons: Iterable[Person] = RandomUtils
+      val averageOnDutyHoursPerDay = 3.52 // Measured from Austin Data, assuming drivers took at least 4 trips
+      val meanLogShiftDurationHours = 1.02
+      val stdLogShiftDurationHours = 0.44
+      var equivalentNumberOfDrivers = 0.0
+      val persons: List[Person] = RandomUtils
         .shuffle(scenario.getPopulation.getPersons.values().asScala, rand)
-        .take(numRideHailAgents.toInt)
-      val vehicleTypes = VehiclesAdjustment
-        .getVehicleAdjustment(beamServices)
-        .sampleRideHailVehicleTypes(
-          numVehicles = numRideHailAgents.toInt,
-          vehicleCategory = VehicleCategory.Car
-        )
-      var activityEndTimes: ArrayBuffer[Int] = new ArrayBuffer[Int]()
-      scenario.getPopulation.getPersons.asScala.map(
+        .toList
+      val activityEndTimes: ArrayBuffer[Int] = new ArrayBuffer[Int]()
+      scenario.getPopulation.getPersons.asScala.foreach(
         _._2.getSelectedPlan.getPlanElements.asScala
-          .filter(_.isInstanceOf[Activity])
-          .map(_.asInstanceOf[Activity].getEndTime.toInt)
-          .filter(_ > 0)
-          .map(activityEndTimes += _)
+          .collect {
+            case activity: Activity if activity.getEndTime.toInt > 0 => activity.getEndTime.toInt
+          }
+          .foreach(activityEndTimes += _)
       )
-      val fleetData: ArrayBuffer[RideHailFleetInitializer.RideHailAgentInputData] = new ArrayBuffer(persons.size)
-      persons.zipWithIndex.foreach {
-        case (person, idx) =>
+      val fleetData: ArrayBuffer[RideHailFleetInitializer.RideHailAgentInputData] = new ArrayBuffer
+      var idx = 0
+      while (equivalentNumberOfDrivers < numRideHailAgents.toDouble) {
+        if (idx >= persons.length) {
+          log.error(
+            "Can't have more ridehail drivers than total population"
+          )
+        } else {
           try {
-            val vehicleType = vehicleTypes(idx)
+            val person = persons(idx)
+            val vehicleType = VehiclesAdjustment
+              .getVehicleAdjustment(beamServices)
+              .sampleRideHailVehicleTypes(
+                numVehicles = 1,
+                vehicleCategory = VehicleCategory.Car
+              )
+              .head
             if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >=
                   (vehicleType.primaryFuelCapacityInJoule / vehicleType.primaryFuelConsumptionInJoulePerMeter) * 0.8) {
               log.error(
@@ -351,10 +361,13 @@ class RideHailManager(
             }
             val rideInitialLocation: Location = getRideInitLocation(person)
             if (vehicleType.automationLevel < 4) {
-              val shiftDuration = math.round(math.exp(rand.nextGaussian() * 0.67 + 0.60) * 3600)
+              val shiftDuration =
+                math.round(math.exp(rand.nextGaussian() * stdLogShiftDurationHours + meanLogShiftDurationHours) * 3600)
               val shiftMidPointTime = activityEndTimes(rand.nextInt(activityEndTimes.length))
               val shiftStartTime = max(shiftMidPointTime - (shiftDuration / 2).toInt, 10)
-              val shiftEndTime = min(shiftMidPointTime + (shiftDuration / 2).toInt, 24 * 3600)
+              val shiftEndTime = min(shiftMidPointTime + (shiftDuration / 2).toInt, 30 * 3600)
+              equivalentNumberOfDrivers += (shiftEndTime - shiftStartTime) / (averageOnDutyHoursPerDay * 3600)
+
               val shiftString = convertToShiftString(ArrayBuffer(shiftStartTime), ArrayBuffer(shiftEndTime))
               fleetData += createRideHailVehicleAndAgent(
                 person.getId.toString,
@@ -364,7 +377,7 @@ class RideHailManager(
                 None
               )
             } else {
-              val shiftString = convertToShiftString(ArrayBuffer(0), ArrayBuffer(24 * 3600))
+              val shiftString = None
               fleetData += createRideHailVehicleAndAgent(
                 person.getId.toString,
                 vehicleType,
@@ -372,15 +385,19 @@ class RideHailManager(
                 shiftString,
                 None
               )
+              equivalentNumberOfDrivers += 1.0
             }
           } catch {
             case ex: Throwable =>
               log.error(ex, s"Could not createRideHailVehicleAndAgent: ${ex.getMessage}")
               throw ex
           }
+          idx += 1
+        }
       }
 
       new RideHailFleetInitializer().writeFleetData(beamServices, fleetData)
+      log.info("Initialized {} ride hailing shifts", idx)
 
     case "FILE" =>
       new RideHailFleetInitializer().init(beamServices) foreach { fleetData =>
@@ -1407,9 +1424,9 @@ class RideHailManager(
     if (startTimes.length != endTimes.length) {
       None
     } else {
-      var outStr: String = new String
-      (startTimes zip endTimes).foreach(x => outStr += ("{" + x._1.toString + ":" + x._2.toString + "}"))
-      return Option(outStr)
+      val outArray = scala.collection.mutable.ArrayBuffer.empty[String]
+      Array((startTimes zip endTimes).foreach(x => outArray += Array("{", x._1, ":", x._2, "}").mkString))
+      return Option(outArray.mkString(";"))
     }
   }
 }
