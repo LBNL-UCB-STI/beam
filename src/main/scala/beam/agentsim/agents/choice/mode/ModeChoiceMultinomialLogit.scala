@@ -88,7 +88,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     val waitingTime = embodiedBeamTrip.totalTravelTimeInSecs - embodiedBeamTrip.legs.map(_.beamLeg.duration).sum
     embodiedBeamTrip.legs
       .map(x => getGeneralizedTimeOfLeg(x, attributesOfIndividual, destinationActivity))
-      .sum + getGeneralizedTime(waitingTime / 3600, None, None)
+      .sum + getGeneralizedTime(waitingTime, None, None)
   }
 
   override def getGeneralizedTimeOfLeg(
@@ -178,22 +178,8 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         case _ =>
           0
       }
-      val waitTime = mode match {
-        case RIDE_HAIL | RIDE_HAIL_POOLED =>
-          altAndIdx._1.legs.head.beamLeg.startTime - walkTripStartTime.getOrElse(
-            altAndIdx._1.legs.head.beamLeg.startTime
-          )
-        case RIDE_HAIL_TRANSIT =>
-          0 // TODO getting this would require we put wait time into EmbodiedBeamLeg, which is the right next step
-        case _ =>
-          0
-      }
       assert(numTransfers >= 0)
-      val scaledTime = (getGeneralizedTimeOfTrip(altAndIdx._1, Some(attributesOfIndividual), destinationActivity) + getGeneralizedTime(
-        waitTime.toDouble / 3600,
-        None,
-        None
-      )) * attributesOfIndividual.valueOfTime
+      val scaledTime = getGeneralizedTimeOfTrip(altAndIdx._1, Some(attributesOfIndividual), destinationActivity) * attributesOfIndividual.valueOfTime
       ModeCostTimeTransfer(
         mode,
         incentivizedCost,

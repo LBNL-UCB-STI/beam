@@ -76,8 +76,8 @@ case class AttributesOfIndividual(
     theGeneralizedTimeMultiplier * embodiedBeamLeg.beamLeg.duration / 3600
   }
 
-  def getVOT(): Double = {
-    valueOfTime
+  def getVOT(scaledTime: Double): Double = {
+    valueOfTime * scaledTime
   }
 
   private def getAutomationLevel(embodiedBeamLeg: EmbodiedBeamLeg, beamServices: BeamServices): automationLevel = {
