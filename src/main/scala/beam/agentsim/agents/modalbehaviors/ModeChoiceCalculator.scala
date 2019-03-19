@@ -34,8 +34,11 @@ trait ModeChoiceCalculator extends HasServices {
     embodiedBeamTrip.totalTravelTimeInSecs
   }
 
-  def getGeneralizedTimeOfLeg(embodiedBeamLeg: EmbodiedBeamLeg, attributesOfIndividual: Option[AttributesOfIndividual],
-                              destinationActivity: Option[Activity]): Double = {
+  def getGeneralizedTimeOfLeg(
+    embodiedBeamLeg: EmbodiedBeamLeg,
+    attributesOfIndividual: Option[AttributesOfIndividual],
+    destinationActivity: Option[Activity]
+  ): Double = {
     embodiedBeamLeg.beamLeg.duration
   }
 

@@ -85,11 +85,15 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
   ): Double = {
     val waitingTime = embodiedBeamTrip.totalTravelTimeInSecs - embodiedBeamTrip.legs.map(_.beamLeg.duration).sum
     embodiedBeamTrip.legs
-          .map(x => getGeneralizedTimeOfLeg(x, attributesOfIndividual, destinationActivity)).sum + getGeneralizedTime(waitingTime,None,None)
+      .map(x => getGeneralizedTimeOfLeg(x, attributesOfIndividual, destinationActivity))
+      .sum + getGeneralizedTime(waitingTime, None, None)
   }
 
-  override def getGeneralizedTimeOfLeg(embodiedBeamLeg: EmbodiedBeamLeg, attributesOfIndividual: Option[AttributesOfIndividual],
-                                       destinationActivity: Option[Activity]): Double = {
+  override def getGeneralizedTimeOfLeg(
+    embodiedBeamLeg: EmbodiedBeamLeg,
+    attributesOfIndividual: Option[AttributesOfIndividual],
+    destinationActivity: Option[Activity]
+  ): Double = {
     attributesOfIndividual match {
       case Some(attributes) =>
         attributes.getGeneralizedTime(
@@ -99,7 +103,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
           poolingMultipliers,
           beamServices,
           destinationActivity
-      ) / 3600
+        ) / 3600
       case None =>
         embodiedBeamLeg.beamLeg.duration * modeMultipliers.getOrElse(Some(embodiedBeamLeg.beamLeg.mode), 1.0) / 3600
     }
