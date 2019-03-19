@@ -494,6 +494,7 @@ object BeamSkimmer {
     cost: Double,
     count: Int
   ) {
+    //NOTE: All times in seconds here
     def toSkimExternal: Skim = Skim(time.toInt, generalizedTime, generalizedCost, distance, cost, count)
   }
 
@@ -520,6 +521,9 @@ object BeamSkimmer {
         val origTazId = line.get("origTaz")
         val destTazId = line.get("destTaz")
         val cost = line.get("cost")
+        val time = line.get("travelTimeInS")
+        val generalizedTime = line.get("generalizedTimeInS")
+        val generalizedCost = line.get("generalizedCost")
         val distanceInMeters = line.get("distanceInM")
         val numObservations = line.get("numObservations")
 
@@ -530,7 +534,7 @@ object BeamSkimmer {
           Id.create(destTazId, classOf[TAZ]),
         )
         val value =
-          SkimInternal(hour.toDouble, 0.0, 0.0, distanceInMeters.toDouble, cost.toDouble, numObservations.toInt)
+          SkimInternal(time.toDouble, generalizedTime.toDouble, generalizedCost.toDouble, distanceInMeters.toDouble, cost.toDouble, numObservations.toInt)
         res.put(key, value)
         line = mapReader.read(header: _*)
       }
