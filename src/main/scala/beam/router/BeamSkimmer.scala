@@ -152,7 +152,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
           case Some(skim) =>
             skim
           case None =>
-            SkimInternal(1.0, 0.0, 0.0, 0, 1.0, 0)
+            SkimInternal(1.0, 1.0, 1.0, 0, 1.0, 0)
         }
     }
     val pooled = getSkimValue(departureTime, RIDE_HAIL_POOLED, origTaz, destTaz) match {
@@ -165,8 +165,8 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
           case None =>
             SkimInternal(
               1.1,
-              0.0,
-              0.0,
+              1.1,
+              beamServicesOpt.get.beamConfig.beam.agentsim.agents.rideHail.pooledToRegularRideCostRatio * 1.1,
               0,
               beamServicesOpt.get.beamConfig.beam.agentsim.agents.rideHail.pooledToRegularRideCostRatio,
               0
@@ -534,7 +534,14 @@ object BeamSkimmer {
           Id.create(destTazId, classOf[TAZ]),
         )
         val value =
-          SkimInternal(time.toDouble, generalizedTime.toDouble, generalizedCost.toDouble, distanceInMeters.toDouble, cost.toDouble, numObservations.toInt)
+          SkimInternal(
+            time.toDouble,
+            generalizedTime.toDouble,
+            generalizedCost.toDouble,
+            distanceInMeters.toDouble,
+            cost.toDouble,
+            numObservations.toInt
+          )
         res.put(key, value)
         line = mapReader.read(header: _*)
       }
