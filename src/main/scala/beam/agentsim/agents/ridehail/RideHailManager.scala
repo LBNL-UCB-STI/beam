@@ -367,6 +367,7 @@ class RideHailManager(
               val shiftStartTime = max(shiftMidPointTime - (shiftDuration / 2).toInt, 10)
               val shiftEndTime = min(shiftMidPointTime + (shiftDuration / 2).toInt, 30 * 3600)
               equivalentNumberOfDrivers += (shiftEndTime - shiftStartTime) / (averageOnDutyHoursPerDay * 3600)
+
               val shiftString = convertToShiftString(ArrayBuffer(shiftStartTime), ArrayBuffer(shiftEndTime))
               fleetData += createRideHailVehicleAndAgent(
                 person.getId.toString,
