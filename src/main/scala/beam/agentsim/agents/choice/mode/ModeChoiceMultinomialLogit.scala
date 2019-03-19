@@ -179,7 +179,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
           0
       }
       assert(numTransfers >= 0)
-      val scaledTime = getGeneralizedTimeOfTrip(altAndIdx._1, Some(attributesOfIndividual), destinationActivity) * attributesOfIndividual.valueOfTime
+      val scaledTime = attributesOfIndividual.getVOT(getGeneralizedTimeOfTrip(altAndIdx._1, Some(attributesOfIndividual), destinationActivity))
       ModeCostTimeTransfer(
         mode,
         incentivizedCost,
