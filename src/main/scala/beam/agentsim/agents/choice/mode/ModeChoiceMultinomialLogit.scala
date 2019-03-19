@@ -189,7 +189,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         waitTime.toDouble,
         None,
         None
-      )) * attributesOfIndividual.valueOfTime
+      )) * attributesOfIndividual.valueOfTime / 3600.0
       ModeCostTimeTransfer(
         mode,
         incentivizedCost,

@@ -39,7 +39,7 @@ trait ModeChoiceCalculator extends HasServices {
     beamMode: Option[BeamMode] = None,
     beamLeg: Option[EmbodiedBeamLeg] = None
   ): Double = {
-    time / 3600 // Convert seconds to hours
+    time
   }
 
   def apply(

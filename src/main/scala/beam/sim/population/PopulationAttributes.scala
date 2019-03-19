@@ -43,7 +43,7 @@ case class AttributesOfIndividual(
       case Some(activity) =>
         activity.getType().equalsIgnoreCase("work")
     }
-    val theGeneralizedTime = embodiedBeamLeg.beamLeg.mode match {
+    val theGeneralizedTimeMultiplier = embodiedBeamLeg.beamLeg.mode match {
       case CAR => // NOTE: Ride hail legs are classified as CAR mode. Retained both for flexibility (but could delete the other cases)
         if (embodiedBeamLeg.isRideHail) {
           if (embodiedBeamLeg.isPooledTrip) {
@@ -74,7 +74,7 @@ case class AttributesOfIndividual(
       case _ =>
         getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeMultipliers)
     }
-    theGeneralizedTime
+    theGeneralizedTimeMultiplier * embodiedBeamLeg.beamLeg.duration
   }
 
   def getVOT(): Double = {

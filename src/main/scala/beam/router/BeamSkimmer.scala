@@ -118,7 +118,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
         }
       case None =>
         val (travelDistance, travelTime) = distanceAndTime(mode, origin, destination)
-        Skim(travelTime, 0.0, 0.0, travelDistance, 0.0, 0)
+        Skim(travelTime, travelTime, travelTime * beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime / 3600, travelDistance, 0.0, 0)
     }
   }
 
