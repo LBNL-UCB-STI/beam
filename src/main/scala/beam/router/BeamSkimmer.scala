@@ -96,7 +96,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
       case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT => 0.25 * travelDistance / 1609
       case _                                                          => 0.0
     }
-    Skim(travelTime, 0.0, 0.0, travelDistance, travelCost, 0)
+    Skim(travelTime, travelTime, travelCost + travelTime * beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime, travelDistance, travelCost, 0)
   }
 
   def getTimeDistanceAndCost(
@@ -186,7 +186,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
     }
   }
 
-  def observeTrip(trip: EmbodiedBeamTrip, generalizedTime: Double, beamServices: BeamServices): Option[SkimInternal] = {
+  def observeTrip(trip: EmbodiedBeamTrip, generalizedTime: Double, generalizedCost: Double, beamServices: BeamServices): Option[SkimInternal] = {
     val mode = trip.tripClassifier
     val correctedTrip = mode match {
       case WALK =>
@@ -209,8 +209,8 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
     val payload =
       SkimInternal(
         trip.totalTravelTimeInSecs.toDouble,
-        0.0,
-        0.0,
+        generalizedTime,
+        generalizedCost,
         trip.beamLegs().map(_.travelPath.distanceInM).sum,
         trip.costEstimate,
         1

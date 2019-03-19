@@ -744,10 +744,12 @@ class PersonAgent(
             )
           val generalizedTime =
             modeChoiceCalculator.getGeneralizedTimeOfTrip(data.currentTrip.get, Some(attributes), nextActivity(data))
+          val generalizedCost = modeChoiceCalculator.getNonTimeCost(data.currentTrip.get) + attributes.getVOT() * generalizedTime
           // Correct the trip to deal with ride hail / disruptions and then register to skimmer
           beamSkimmer.observeTrip(
             correctTripEndTime(data.currentTrip.get, tick, bodyVehiclePersonId.vehicleId),
             generalizedTime,
+            generalizedCost,
             beamServices
           )
 
