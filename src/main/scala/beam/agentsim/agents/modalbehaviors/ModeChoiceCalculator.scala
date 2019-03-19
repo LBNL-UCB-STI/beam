@@ -31,7 +31,7 @@ trait ModeChoiceCalculator extends HasServices {
     attributesOfIndividual: Option[AttributesOfIndividual] = None,
     destinationActivity: Option[Activity] = None
   ): Double = {
-    embodiedBeamTrip.totalTravelTimeInSecs
+    embodiedBeamTrip.totalTravelTimeInSecs / 3600
   }
 
   def getGeneralizedTimeOfLeg(
@@ -39,7 +39,7 @@ trait ModeChoiceCalculator extends HasServices {
     attributesOfIndividual: Option[AttributesOfIndividual],
     destinationActivity: Option[Activity]
   ): Double = {
-    embodiedBeamLeg.beamLeg.duration
+    embodiedBeamLeg.beamLeg.duration / 3600
   }
 
   def getGeneralizedTime(
@@ -47,7 +47,7 @@ trait ModeChoiceCalculator extends HasServices {
     beamMode: Option[BeamMode] = None,
     beamLeg: Option[EmbodiedBeamLeg] = None
   ): Double = {
-    time
+    time / 3600
   }
 
   def apply(
