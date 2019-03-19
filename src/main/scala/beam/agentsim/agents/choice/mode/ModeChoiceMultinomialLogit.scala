@@ -83,28 +83,28 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     attributesOfIndividual: Option[AttributesOfIndividual],
     destinationActivity: Option[Activity]
   ): Double = {
+    val waitingTime = embodiedBeamTrip.totalTravelTimeInSecs - embodiedBeamTrip.legs.map(_.beamLeg.duration).sum
+    embodiedBeamTrip.legs
+          .map(x => getGeneralizedTimeOfLeg(x, attributesOfIndividual, destinationActivity)).sum + getGeneralizedTime(waitingTime,None,None)
+  }
+
+  override def getGeneralizedTimeOfLeg(embodiedBeamLeg: EmbodiedBeamLeg, attributesOfIndividual: Option[AttributesOfIndividual],
+                                       destinationActivity: Option[Activity]): Double = {
     attributesOfIndividual match {
       case Some(attributes) =>
-        embodiedBeamTrip.legs
-          .map(
-            x =>
-              attributes
-                .getGeneralizedTime(
-                  x,
-                  modeMultipliers,
-                  situationMultipliers,
-                  poolingMultipliers,
-                  beamServices,
-                  destinationActivity
-              )
-          )
-          .sum / 3600
+        attributes.getGeneralizedTime(
+          embodiedBeamLeg,
+          modeMultipliers,
+          situationMultipliers,
+          poolingMultipliers,
+          beamServices,
+          destinationActivity
+      ) / 3600
       case None =>
-        embodiedBeamTrip.legs
-          .map(x => x.beamLeg.duration * modeMultipliers.getOrElse(Some(x.beamLeg.mode), 1.0))
-          .sum / 3600
+        embodiedBeamLeg.beamLeg.duration * modeMultipliers.getOrElse(Some(embodiedBeamLeg.beamLeg.mode), 1.0) / 3600
     }
   }
+
   override def getGeneralizedTime(
     time: Double,
     beamMode: Option[BeamMode] = None,
