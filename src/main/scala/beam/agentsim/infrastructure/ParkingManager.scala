@@ -21,7 +21,7 @@ object ParkingManager {
     destinationUtm: Location,
     activityType: String,
     attributesOfIndividual: AttributesOfIndividual,
-    chargingInquiryData: Option[ChargingInquiryData],
+    chargingInquiryData: Option[ChargingInquiryData[String, String]],
     arrivalTime: Long,
     parkingDuration: Double,
 //    reservedFor: ReservedParkingType = ParkingStall.Any,

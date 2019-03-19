@@ -28,7 +28,7 @@ object ParkingZoneSearch {
     * @return the TAZ with the best ParkingZone, it's ParkingType, and the ranking value of that ParkingZone
     */
   def find(
-    chargingInquiryData: Option[ChargingInquiryData],
+    chargingInquiryData: Option[ChargingInquiryData[String, String]],
     tazList: Seq[TAZ],
     parkingTypes: Seq[ParkingType],
     tree: ZoneSearch,
@@ -83,7 +83,7 @@ object ParkingZoneSearch {
     */
   def takeBestByRanking(
     found: Iterable[(TAZ, ParkingType, ParkingZone)],
-    chargingInquiryData: Option[ChargingInquiryData],
+    chargingInquiryData: Option[ChargingInquiryData[String, String]],
     costFunction: (ParkingZone, Option[ChargingPreference]) => Double
   ): Option[RankingAccumulator] = {
     found.foldLeft(Option.empty[RankingAccumulator]) { (accOption, parkingZoneTuple) =>

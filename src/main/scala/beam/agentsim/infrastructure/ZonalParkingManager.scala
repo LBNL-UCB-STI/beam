@@ -197,7 +197,7 @@ object ZonalParkingManager {
     destination: Location,
     parkingDuration: Int,
     parkingTypes: Seq[ParkingType],
-    chargingInquiryData: Option[ChargingInquiryData],
+    chargingInquiryData: Option[ChargingInquiryData[String, String]],
     searchTree: ParkingZoneSearch.ZoneSearch,
     stalls: Array[ParkingZone],
     tazQuadTree: QuadTree[TAZ],
