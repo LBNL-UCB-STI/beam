@@ -243,7 +243,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                     beamConfig.beam().physsim().jdeqsim().cacc().minSpeedMetersPerSec(), beamConfig.beam().physsim().flowCapacityFactor(),
                     iterationNumber,
                     controlerIO,
-                    beamConfig.beam().physsim().jdeqsim().cacc().capacityPlansWriteInterval()
+                    beamConfig.beam().physsim().jdeqsim().cacc().capacityPlansWriteInterval(),
+                    beamConfig.beam().outputs().stats().binSize()
                     );
 
 
