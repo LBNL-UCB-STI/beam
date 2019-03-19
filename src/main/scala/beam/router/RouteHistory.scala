@@ -124,25 +124,25 @@ class RouteHistory @Inject()(
 
 object RouteHistory {
   type TimeBin = Int
-  type OriginTazId = Int
-  type DestTazId = Int
+  type OriginLinkId = Int
+  type DestLinkId = Int
   type LinkId = Int
   type Route = IndexedSeq[LinkId]
-  type RouteHistoryADT = TrieMap[TimeBin, TrieMap[OriginTazId, TrieMap[DestTazId, Route]]]
+  type RouteHistoryADT = TrieMap[TimeBin, TrieMap[OriginLinkId, TrieMap[DestLinkId, Route]]]
 
-  private val CsvHeader: String = "timeBin,originTAZId,destTAZId,route"
+  private val CsvHeader: String = "timeBin,originLinkId,destLinkId,route"
   private val Eol: String = "\n"
 
   private val outputFileBaseName = "routeHistory"
   private val outputFileName = outputFileBaseName + ".csv.gz"
 
   private[router] def toCsv(routeHistory: RouteHistoryADT): Iterator[String] = {
-    val flattenedRouteHistory: Iterator[(TimeBin, OriginTazId, DestTazId, String)] = routeHistory.toIterator.flatMap {
-      case (timeBin: TimeBin, origins: TrieMap[OriginTazId, TrieMap[DestTazId, Route]]) =>
+    val flattenedRouteHistory: Iterator[(TimeBin, OriginLinkId, DestLinkId, String)] = routeHistory.toIterator.flatMap {
+      case (timeBin: TimeBin, origins: TrieMap[OriginLinkId, TrieMap[DestLinkId, Route]]) =>
         origins.flatMap {
-          case (originTazId: OriginTazId, destinations: TrieMap[DestTazId, Route]) =>
+          case (originTazId: OriginLinkId, destinations: TrieMap[DestLinkId, Route]) =>
             destinations.flatMap {
-              case (destTazId: DestTazId, path: Route) =>
+              case (destTazId: DestLinkId, path: Route) =>
                 Some(timeBin, originTazId, destTazId, path.mkString(":"))
             }
         }
@@ -157,7 +157,7 @@ object RouteHistory {
 
   private[router] def fromCsv(filePath: String): RouteHistoryADT = {
     var mapReader: ICsvMapReader = null
-    val result = TrieMap[TimeBin, TrieMap[OriginTazId, TrieMap[DestTazId, Route]]]()
+    val result = TrieMap[TimeBin, TrieMap[OriginLinkId, TrieMap[DestLinkId, Route]]]()
     try {
       val reader = buildReader(filePath)
       mapReader = new CsvMapReader(reader, CsvPreference.STANDARD_PREFERENCE)
