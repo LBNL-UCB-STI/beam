@@ -168,9 +168,11 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
   lazy val modeMultipliers: mutable.Map[Option[BeamMode], Double] =
     mutable.Map[Option[BeamMode], Double](
-      Some(TRANSIT)   -> modalBehaviors.modeVotMultiplier.transit,
-      Some(RIDE_HAIL) -> modalBehaviors.modeVotMultiplier.rideHail,
-      Some(CAV)       -> modalBehaviors.modeVotMultiplier.CAV,
+      Some(TRANSIT)           -> modalBehaviors.modeVotMultiplier.transit,
+      Some(RIDE_HAIL)         -> modalBehaviors.modeVotMultiplier.rideHail,
+      Some(RIDE_HAIL_POOLED)  -> modalBehaviors.modeVotMultiplier.rideHailPooled,
+      Some(RIDE_HAIL_TRANSIT) -> modalBehaviors.modeVotMultiplier.rideHailTransit,
+      Some(CAV)               -> modalBehaviors.modeVotMultiplier.CAV,
 //      Some(WAITING)          -> modalBehaviors.modeVotMultiplier.waiting, TODO think of alternative for waiting. For now assume "NONE" is waiting
       Some(BIKE) -> modalBehaviors.modeVotMultiplier.bike,
       Some(WALK) -> modalBehaviors.modeVotMultiplier.walk,
