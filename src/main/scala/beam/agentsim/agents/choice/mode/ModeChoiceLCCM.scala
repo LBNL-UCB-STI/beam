@@ -180,10 +180,10 @@ class ModeChoiceLCCM(
       conditionedOnModalityStyle,
       tourType,
       best.cost,
-      scaleTimeByVot(
+      getGeneralizedTime(
         best.walkTime + best.waitTime + best.vehicleTime + best.bikeTime,
         Some(best.mode)
-      )
+      ) * beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
     )
   }
 
