@@ -63,7 +63,10 @@ class ConsumptionRateFilterStoreImpl(
   private val conversionRateForJoulesPerMeterConversionFromKwhPer100Miles = 22.37
 
   private val primaryConsumptionRateFiltersByVehicleType: Map[BeamVehicleType, Future[ConsumptionRateFilter]] =
-    beginLoadingConsumptionRateFiltersFor(primaryConsumptionRateFilePathsByVehicleType, bvt => Some(bvt.primaryFuelType))
+    beginLoadingConsumptionRateFiltersFor(
+      primaryConsumptionRateFilePathsByVehicleType,
+      bvt => Some(bvt.primaryFuelType)
+    )
   private val secondaryConsumptionRateFiltersByVehicleType: Map[BeamVehicleType, Future[ConsumptionRateFilter]] =
     beginLoadingConsumptionRateFiltersFor(secondaryConsumptionRateFilePathsByVehicleType, _.secondaryFuelType)
 
@@ -73,8 +76,10 @@ class ConsumptionRateFilterStoreImpl(
   def getSecondaryConsumptionRateFilterFor(vehicleType: BeamVehicleType) =
     secondaryConsumptionRateFiltersByVehicleType.get(vehicleType)
 
-  private def beginLoadingConsumptionRateFiltersFor(files: IndexedSeq[(BeamVehicleType, Option[String])],
-                                                    fuelTypeSelector: BeamVehicleType => Option[FuelType]) = {
+  private def beginLoadingConsumptionRateFiltersFor(
+    files: IndexedSeq[(BeamVehicleType, Option[String])],
+    fuelTypeSelector: BeamVehicleType => Option[FuelType]
+  ) = {
     files.collect {
       case (vehicleType, Some(filePath)) if !filePath.trim.isEmpty => {
         val consumptionFuture = Future {
@@ -92,8 +97,11 @@ class ConsumptionRateFilterStoreImpl(
     }.toMap
   }
 
-  private def loadConsumptionRatesFromCSVFor(file: String, csvParser: CsvParser,
-                                             fuelTypeOption: Option[FuelType]): ConsumptionRateFilter = {
+  private def loadConsumptionRatesFromCSVFor(
+    file: String,
+    csvParser: CsvParser,
+    fuelTypeOption: Option[FuelType]
+  ): ConsumptionRateFilter = {
     val currentRateFilter = mutable.Map.empty[Range, mutable.Map[Range, mutable.Map[Range, Double]]]
     csvRecordsForFilePathUsing(csvParser, java.nio.file.Paths.get(baseFilePath.getOrElse(""), file).toString)
       .foreach(csvRecord => {
@@ -107,7 +115,7 @@ class ConsumptionRateFilterStoreImpl(
             "Erroring early to bring attention and get it fixed."
           )
         val rate =
-          if(fuelTypeOption.exists(_ == FuelType.Electricity)) convertFromKwhPer100MilesToJoulesPerMeter(rawRate)
+          if (fuelTypeOption.exists(_ == FuelType.Electricity)) convertFromKwhPer100MilesToJoulesPerMeter(rawRate)
           else convertFromGallonsPer100MilesToJoulesPerMeter(rawRate)
 
         currentRateFilter.get(speedInMilesPerHourBin) match {
@@ -117,7 +125,7 @@ class ConsumptionRateFilterStoreImpl(
                 numberOfLanesFilter.get(numberOfLanesBin) match {
                   case Some(firstRate) =>
                     val rawFirstRate =
-                      if(fuelTypeOption.exists(_ == FuelType.Electricity))
+                      if (fuelTypeOption.exists(_ == FuelType.Electricity))
                         convertFromJoulesPerMeterToKwhPer100Miles(firstRate)
                       else convertFromJoulesPerMeterToGallonsPer100Miles(firstRate)
                     log.error(
