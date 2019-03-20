@@ -1386,12 +1386,9 @@ class RideHailManager(
           val radius =
             beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
           val activityLocations: List[Location] =
-            person.getSelectedPlan.getPlanElements
-              .asScala
-              .collect {
-                case activity: Activity => activity.getCoord()
-              }
-              .toList
+            person.getSelectedPlan.getPlanElements.asScala.collect {
+              case activity: Activity => activity.getCoord()
+            }.toList
           val randomActivityLocation: Location = activityLocations(rand.nextInt(activityLocations.length))
           new Coord(
             randomActivityLocation.getX + radius * (rand.nextDouble() - 0.5),
