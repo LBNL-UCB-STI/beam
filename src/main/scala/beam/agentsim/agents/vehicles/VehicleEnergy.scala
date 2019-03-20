@@ -1,6 +1,7 @@
 package beam.agentsim.agents.vehicles
 
 import beam.agentsim.agents.vehicles.ConsumptionRateFilterStore.{PowerTrainPriority, Primary, Secondary}
+import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.sim.common.Range
 import beam.sim.config.BeamConfig
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
@@ -58,12 +59,13 @@ class ConsumptionRateFilterStoreImpl(
   private val milesHeader = "miles"
   private val gallonsHeader = "gallons"
   private val rateHeader = "rate"
-  val conversionRateForJoulesPerMeterConversionFromGallonsPer100Miles = 746.86
+  private val conversionRateForJoulesPerMeterConversionFromGallonsPer100Miles = 746.86
+  private val conversionRateForJoulesPerMeterConversionFromKwhPer100Miles = 22.37
 
   private val primaryConsumptionRateFiltersByVehicleType: Map[BeamVehicleType, Future[ConsumptionRateFilter]] =
-    beginLoadingConsumptionRateFiltersFor(primaryConsumptionRateFilePathsByVehicleType)
+    beginLoadingConsumptionRateFiltersFor(primaryConsumptionRateFilePathsByVehicleType, bvt => Some(bvt.primaryFuelType))
   private val secondaryConsumptionRateFiltersByVehicleType: Map[BeamVehicleType, Future[ConsumptionRateFilter]] =
-    beginLoadingConsumptionRateFiltersFor(secondaryConsumptionRateFilePathsByVehicleType)
+    beginLoadingConsumptionRateFiltersFor(secondaryConsumptionRateFilePathsByVehicleType, _.secondaryFuelType)
 
   def getPrimaryConsumptionRateFilterFor(vehicleType: BeamVehicleType) =
     primaryConsumptionRateFiltersByVehicleType.get(vehicleType)
@@ -71,7 +73,8 @@ class ConsumptionRateFilterStoreImpl(
   def getSecondaryConsumptionRateFilterFor(vehicleType: BeamVehicleType) =
     secondaryConsumptionRateFiltersByVehicleType.get(vehicleType)
 
-  private def beginLoadingConsumptionRateFiltersFor(files: IndexedSeq[(BeamVehicleType, Option[String])]) = {
+  private def beginLoadingConsumptionRateFiltersFor(files: IndexedSeq[(BeamVehicleType, Option[String])],
+                                                    fuelTypeSelector: BeamVehicleType => Option[FuelType]) = {
     files.collect {
       case (vehicleType, Some(filePath)) if !filePath.trim.isEmpty => {
         val consumptionFuture = Future {
@@ -80,7 +83,8 @@ class ConsumptionRateFilterStoreImpl(
           settings.setHeaderExtractionEnabled(true)
           settings.detectFormatAutomatically()
           val csvParser = new CsvParser(settings)
-          loadConsumptionRatesFromCSVFor(filePath, csvParser)
+          vehicleType.primaryFuelType == FuelType.Electricity
+          loadConsumptionRatesFromCSVFor(filePath, csvParser, fuelTypeSelector(vehicleType))
         }
         consumptionFuture.failed.map(ex => log.error(s"Error while loading consumption rate filter: $ex"))
         vehicleType -> consumptionFuture
@@ -88,7 +92,8 @@ class ConsumptionRateFilterStoreImpl(
     }.toMap
   }
 
-  private def loadConsumptionRatesFromCSVFor(file: String, csvParser: CsvParser): ConsumptionRateFilter = {
+  private def loadConsumptionRatesFromCSVFor(file: String, csvParser: CsvParser,
+                                             fuelTypeOption: Option[FuelType]): ConsumptionRateFilter = {
     val currentRateFilter = mutable.Map.empty[Range, mutable.Map[Range, mutable.Map[Range, Double]]]
     csvRecordsForFilePathUsing(csvParser, java.nio.file.Paths.get(baseFilePath.getOrElse(""), file).toString)
       .foreach(csvRecord => {
@@ -101,7 +106,9 @@ class ConsumptionRateFilterStoreImpl(
             s"Record $csvRecord does not contain a valid rate. " +
             "Erroring early to bring attention and get it fixed."
           )
-        val rate = convertFromGallonsPer100MilesToJoulesPerMeter(rawRate)
+        val rate =
+          if(fuelTypeOption.exists(_ == FuelType.Electricity)) convertFromKwhPer100MilesToJoulesPerMeter(rawRate)
+          else convertFromGallonsPer100MilesToJoulesPerMeter(rawRate)
 
         currentRateFilter.get(speedInMilesPerHourBin) match {
           case Some(gradePercentFilter) => {
@@ -109,7 +116,10 @@ class ConsumptionRateFilterStoreImpl(
               case Some(numberOfLanesFilter) => {
                 numberOfLanesFilter.get(numberOfLanesBin) match {
                   case Some(firstRate) =>
-                    val rawFirstRate = convertFromJoulesPerMeterToGallonsPer100Miles(firstRate)
+                    val rawFirstRate =
+                      if(fuelTypeOption.exists(_ == FuelType.Electricity))
+                        convertFromJoulesPerMeterToKwhPer100Miles(firstRate)
+                      else convertFromJoulesPerMeterToGallonsPer100Miles(firstRate)
                     log.error(
                       "Two rates found for the same bin combination: " +
                       "Speed In Miles Per Hour Bin = {}; Grade Percent Bin = {}; Number of Lanes Bin = {}. " +
@@ -145,6 +155,12 @@ class ConsumptionRateFilterStoreImpl(
 
   private def convertFromJoulesPerMeterToGallonsPer100Miles(rate: Double): Double =
     rate / conversionRateForJoulesPerMeterConversionFromGallonsPer100Miles
+
+  private def convertFromKwhPer100MilesToJoulesPerMeter(rate: Double): Double =
+    rate * conversionRateForJoulesPerMeterConversionFromKwhPer100Miles
+
+  private def convertFromJoulesPerMeterToKwhPer100Miles(rate: Double): Double =
+    rate / conversionRateForJoulesPerMeterConversionFromKwhPer100Miles
 }
 
 class VehicleEnergy(
