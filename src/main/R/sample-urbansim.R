@@ -5,8 +5,10 @@ setwd('/Users/critter/Dropbox/ucb/vto/beam-all/beam') # for development and debu
 source('./src/main/R/beam-utilities.R')
 load.libraries(c('optparse','stringr'),quietly=T)
 
-in.dir <- '/Users/critter/Dropbox/ucb/vto/beam-colin/urbansim/urbansim-sfbay/'
-out.dir <- '/Users/critter/Dropbox/ucb/vto/beam-colin/urbansim/urbansim-sf/'
+in.dir <- '/Users/critter/Dropbox/ucb/vto/beam-all/beam/production/sfbay/urbansim/'
+out.dir <- '/Users/critter/Dropbox/ucb/vto/beam-colin/urbansim/urbansim-sf-2/'
+
+make.dir(out.dir)
 
 build <- csv2rdata(pp(in.dir,'buildings.csv'))
 hh <- csv2rdata(pp(in.dir,'households.csv'))

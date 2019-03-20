@@ -175,7 +175,7 @@ class BeamVehicle(
     }
     primaryFuelLevelInJoules = primaryFuelLevelInJoules - primaryEnergyConsumed
     secondaryFuelLevelInJoules = secondaryFuelLevelInJoules - secondaryEnergyConsumed
-    FuelConsumed(primaryEnergyConsumed, secondaryEnergyConsumed)
+    FuelConsumed(primaryEnergyConsumed, secondaryEnergyConsumed) //, fuelConsumptionData)
   }
 
   def addFuel(fuelInJoules: Double): Unit = {
@@ -228,12 +228,17 @@ class BeamVehicle(
 
   def isCAV: Boolean = beamVehicleType.automationLevel > 3
 
+  def initializeFuelLevels = {
+    primaryFuelLevelInJoules = beamVehicleType.primaryFuelCapacityInJoule
+    secondaryFuelLevelInJoules = beamVehicleType.secondaryFuelCapacityInJoule.getOrElse(0.0)
+  }
+
   override def toString = s"$id ($beamVehicleType.id)"
 }
 
 object BeamVehicle {
 
-  case class FuelConsumed(primaryFuel: Double, secondaryFuel: Double)
+  case class FuelConsumed(primaryFuel: Double, secondaryFuel: Double) //, fuelConsumptionData: IndexedSeq[FuelConsumptionData])
 
   def noSpecialChars(theString: String): String =
     theString.replaceAll("[\\\\|\\\\^]+", ":")
