@@ -14,6 +14,8 @@ import scala.collection.JavaConverters._
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 
+/*case class LoggingData(linkId: Int, gradientOption: Option[Double], rate: Option[Double], consumption: Option[Double])*/
+
 class VehicleCsvReader(config: BeamConfig) {
 
   def getVehicleEnergyRecordsUsing(csvParser: CsvParser, filePath: String): Iterable[Record] = {
@@ -105,8 +107,8 @@ class ConsumptionRateFilterStoreImpl(
     val currentRateFilter = mutable.Map.empty[Range, mutable.Map[Range, mutable.Map[Range, Double]]]
     csvRecordsForFilePathUsing(csvParser, java.nio.file.Paths.get(baseFilePath.getOrElse(""), file).toString)
       .foreach(csvRecord => {
-        val speedInMilesPerHourBin = convertRecordStringToRange(csvRecord.getString(speedBinHeader))
-        val gradePercentBin = convertRecordStringToRange(csvRecord.getString(gradeBinHeader))
+        val speedInMilesPerHourBin = convertRecordStringToRange(csvRecord.getString(speedBinHeader), isDouble = true)
+        val gradePercentBin = convertRecordStringToRange(csvRecord.getString(gradeBinHeader), isDouble = true)
         val numberOfLanesBin = convertRecordStringToRange(csvRecord.getString(lanesBinHeader))
         val rawRate = csvRecord.getDouble(rateHeader)
         if (rawRate == null)
@@ -155,8 +157,8 @@ class ConsumptionRateFilterStoreImpl(
     }
   }
 
-  private def convertRecordStringToRange(recordString: String) =
-    Range(recordString.replace(",", ":").replace(" ", ""))
+  private def convertRecordStringToRange(recordString: String, isDouble: Boolean = false) =
+    Range(recordString.replace(",", ":").replace(" ", ""), isDouble)
 
   private def convertFromGallonsPer100MilesToJoulesPerMeter(rate: Double): Double =
     rate * conversionRateForJoulesPerMeterConversionFromGallonsPer100Miles
@@ -189,13 +191,18 @@ class VehicleEnergy(
     fallBack: BeamVehicle.FuelConsumptionData => Double,
     powerTrainPriority: PowerTrainPriority
   ): Double = {
+    /*(Double, IndexedSeq[LoggingData]) = {*/
+    /*val loggingData = mutable.Buffer.empty[LoggingData]*/
     val consumptionsInJoules: IndexedSeq[Double] = fuelConsumptionDatas
       .map(fuelConsumptionData => {
+        /*val (rateInJoulesPerMeter, gradientOption) = getRateUsing(fuelConsumptionData, fallBack, powerTrainPriority)*/
         val rateInJoulesPerMeter = getRateUsing(fuelConsumptionData, fallBack, powerTrainPriority)
         val distance = fuelConsumptionData.linkLength.getOrElse(0.0)
-        rateInJoulesPerMeter * distance
+        val finalConsumption = rateInJoulesPerMeter * distance
+        /*loggingData += LoggingData(fuelConsumptionData.linkId, gradientOption, Option(rateInJoulesPerMeter), Option(finalConsumption))*/
+        finalConsumption
       })
-    consumptionsInJoules.sum
+    consumptionsInJoules.sum /*(consumptionsInJoules.sum, loggingData.toIndexedSeq)*/
   }
 
   private def getRateUsing(
@@ -203,6 +210,7 @@ class VehicleEnergy(
     fallBack: BeamVehicle.FuelConsumptionData => Double,
     powerTrainPriority: PowerTrainPriority
   ): Double = {
+    /*(Double, Option[Double]) = {*/
     val BeamVehicle.FuelConsumptionData(
       linkId,
       vehicleType,
@@ -228,6 +236,8 @@ class VehicleEnergy(
           getRateUsing(consumptionRateFilterFuture, numberOfLanes, speedInMilesPerHour, gradePercent)
       )
       .getOrElse(fallBack(fuelConsumptionData))
+    /*.map(x=>(x,Option(gradePercent)))
+      .getOrElse((fallBack(fuelConsumptionData), Option(gradePercent)))*/
   }
 
   private def getRateUsing(
