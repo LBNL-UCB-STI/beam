@@ -5,8 +5,8 @@ import java.util.concurrent.TimeUnit
 import akka.actor.Status.Success
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
-import akka.pattern._
 import akka.util.Timeout
+import akka.pattern._
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavTripLegsResponse}
@@ -19,17 +19,20 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{
   ModifyPassengerScheduleAcks
 }
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
+import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
-import beam.agentsim.agents._
+import beam.agentsim.agents.{HasTickAndTrigger, InitializeTrigger, PersonAgent}
+import beam.agentsim.agents.{Dropoff, Pickup}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.RoutingResponse
-import beam.router.model.BeamLeg
-import beam.router.osm.TollCalculator
+import beam.router.Modes.BeamMode.CAV
 import beam.router.{BeamSkimmer, RouteHistory}
+import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
+import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import com.conveyal.r5.transit.TransportNetwork
@@ -40,6 +43,7 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.households
 import org.matsim.households.Household
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -95,8 +99,7 @@ object HouseholdActor {
   case class ReleaseVehicle(vehicle: BeamVehicle)
   case class ReleaseVehicleAndReply(vehicle: BeamVehicle, tick: Option[Int] = None)
   case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken])
-  case class ReadyForCAVPickup(personId: Id[Person], tick: Int)
-  case class CAVPickupConfirmed(triggersToSchedule: Vector[ScheduleTrigger])
+  case class CancelCAVTrip(person: VehiclePersonId)
 
   /**
     * Implementation of intra-household interaction in BEAM using actors.
@@ -220,9 +223,9 @@ object HouseholdActor {
             limitCavToXPersons = Int.MaxValue
           )(beamServices.matsimServices.getScenario.getPopulation)
 
-          //val optimalPlan = cavScheduler.getKBestCAVSchedules(1).headOption.getOrElse(List.empty)
-          val optimalPlan = cavScheduler.getBestProductiveSchedule
-          if (optimalPlan.isEmpty || !optimalPlan.exists(_.schedule.size > 1)) {
+          var optimalPlan = cavScheduler.getKBestCAVSchedules(1)
+//          val optimalPlan = cavScheduler.getBestCAVScheduleWithLongestChain
+          if (optimalPlan.isEmpty) {
             cavs = List()
           } else {
             val requestsAndUpdatedPlans = optimalPlan.filter(_.schedule.size > 1).map {
@@ -287,7 +290,8 @@ object HouseholdActor {
               self,
               person.getSelectedPlan,
               fleetManagers ++: sharedVehicleFleets :+ self,
-              beamSkimmer
+              beamSkimmer,
+              routeHistory
             ),
             person.getId.toString
           )
@@ -403,9 +407,31 @@ object HouseholdActor {
       case CavTripLegsRequest(person, originActivity) =>
         personAndActivityToLegs.get((person.personId, originActivity)) match {
           case Some(legs) =>
-            sender() ! CavTripLegsResponse(legs)
+            val cav = personAndActivityToCav.get((person.personId, originActivity)).get
+            sender() ! CavTripLegsResponse(
+              Some(cav),
+              legs.map(
+                bLeg =>
+                  EmbodiedBeamLeg(
+                    bLeg.copy(mode = CAV),
+                    cav.id,
+                    cav.beamVehicleType.id,
+                    false,
+                    0.0,
+                    false,
+                    false
+                )
+              )
+            )
           case _ =>
-            sender() ! CavTripLegsResponse(List())
+            sender() ! CavTripLegsResponse(None, List())
+        }
+      case CancelCAVTrip(person) =>
+        log.debug("Removing person {} from plan to use CAVs")
+        personAndActivityToCav.filter(_._1._1.equals(person.personId)).foreach { persActAndCAV =>
+          persActAndCAV._2.driver.get ! RemovePassengerFromTrip(person)
+          personAndActivityToCav = personAndActivityToCav - persActAndCAV._1
+          personAndActivityToLegs = personAndActivityToLegs - persActAndCAV._1
         }
 
       case NotifyVehicleIdle(vId, whenWhere, _, _, _) =>
