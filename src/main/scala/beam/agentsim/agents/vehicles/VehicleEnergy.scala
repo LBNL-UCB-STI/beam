@@ -90,7 +90,6 @@ class ConsumptionRateFilterStoreImpl(
           settings.setHeaderExtractionEnabled(true)
           settings.detectFormatAutomatically()
           val csvParser = new CsvParser(settings)
-          vehicleType.primaryFuelType == FuelType.Electricity
           loadConsumptionRatesFromCSVFor(filePath, csvParser, fuelTypeSelector(vehicleType))
         }
         consumptionFuture.failed.map(ex => log.error(s"Error while loading consumption rate filter: $ex"))
