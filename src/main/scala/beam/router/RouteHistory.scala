@@ -165,8 +165,8 @@ object RouteHistory {
       var line: java.util.Map[String, String] = mapReader.read(header: _*)
       while (null != line) {
         val timeBin = line.get("timeBin").toInt
-        val origTazId = line.get("originTAZId").toInt
-        val destTazId = line.get("destTAZId").toInt
+        val origTazId = line.get("originLinkId").toInt
+        val destTazId = line.get("destLinkId").toInt
         val route: IndexedSeq[Int] = line
           .get("route")
           .split(":")
