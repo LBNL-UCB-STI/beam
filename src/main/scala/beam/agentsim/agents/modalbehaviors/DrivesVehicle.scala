@@ -54,9 +54,11 @@ object DrivesVehicle {
 
   case class EndLegTrigger(tick: Int) extends Trigger
 
-  case class AlightVehicleTrigger(tick: Int, vehicleId: Id[Vehicle]) extends Trigger
+  case class AlightVehicleTrigger(tick: Int, vehicleId: Id[Vehicle], vehicleTypeId: Option[Id[BeamVehicleType]] = None)
+      extends Trigger
 
-  case class BoardVehicleTrigger(tick: Int, vehicleId: Id[Vehicle]) extends Trigger
+  case class BoardVehicleTrigger(tick: Int, vehicleId: Id[Vehicle], vehicleTypeId: Option[Id[BeamVehicleType]] = None)
+      extends Trigger
 
   case class StopDriving(tick: Int)
 
@@ -148,7 +150,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       data.passengerSchedule.schedule(currentLeg).alighters.foreach { pv =>
         logDebug(s"Scheduling AlightVehicleTrigger for Person $pv.personRef @ $tick")
         scheduler ! ScheduleTrigger(
-          AlightVehicleTrigger(tick, data.currentVehicle.head),
+          AlightVehicleTrigger(tick, data.currentVehicle.head, Some(currentBeamVehicle.beamVehicleType.id)),
           pv.personRef
         )
       }
@@ -189,6 +191,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           currentBeamVehicle.primaryFuelLevelInJoules,
           currentBeamVehicle.secondaryFuelLevelInJoules,
           tollOnCurrentLeg
+          //fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkNumberOfLanes))
         )
       )
 
@@ -278,27 +281,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         case None =>
           stay()
       }
-
-    // The following 2 (Board and Alight) can happen idiosyncratically if a person ended up taking a much longer than expected
-    // trip and meanwhile a CAV was scheduled to pick them up (and then drop them off) for the next trip, but they're still driving baby
-    case Event(TriggerWithId(BoardVehicleTrigger(_, vehicleId), triggerId), data) =>
-      val currentLeg = data.passengerSchedule.schedule.keys.view
-        .drop(data.currentLegPassengerScheduleIndex)
-        .headOption
-        .getOrElse(throw new RuntimeException("Current Leg is not available."))
-      stay() replying CompletionNotice(
-        triggerId,
-        Vector(ScheduleTrigger(BoardVehicleTrigger(currentLeg.endTime, vehicleId), self))
-      )
-    case Event(TriggerWithId(AlightVehicleTrigger(_, vehicleId), triggerId), data) =>
-      val currentLeg = data.passengerSchedule.schedule.keys.view
-        .drop(data.currentLegPassengerScheduleIndex)
-        .headOption
-        .getOrElse(throw new RuntimeException("Current Leg is not available."))
-      stay() replying CompletionNotice(
-        triggerId,
-        Vector(ScheduleTrigger(AlightVehicleTrigger(currentLeg.endTime + 1, vehicleId), self))
-      )
   }
 
   when(DrivingInterrupted) {
@@ -367,6 +349,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           currentBeamVehicle.primaryFuelLevelInJoules,
           currentBeamVehicle.secondaryFuelLevelInJoules,
           tollOnCurrentLeg
+          //fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkNumberOfLanes))
         )
       )
 
@@ -427,7 +410,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               s"Scheduling BoardVehicleTrigger at $tick for Person ${personVehicle.personId} into vehicle ${data.currentVehicle.head}"
             )
             ScheduleTrigger(
-              BoardVehicleTrigger(tick, data.currentVehicle.head),
+              BoardVehicleTrigger(tick, data.currentVehicle.head, Some(currentBeamVehicle.beamVehicleType.id)),
               personVehicle.personRef
             )
           }
@@ -531,7 +514,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       val boardTrigger = if (legsInThePast.nonEmpty) {
         Vector(
           ScheduleTrigger(
-            BoardVehicleTrigger(legsInThePast.head.startTime, data.currentVehicle.head),
+            BoardVehicleTrigger(
+              legsInThePast.head.startTime,
+              data.currentVehicle.head,
+              Some(currentBeamVehicle.beamVehicleType.id)
+            ),
             sender()
           )
         )
@@ -541,7 +528,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       val alightTrigger = if (legsInThePast.nonEmpty && legsInThePast.size == legs.size) {
         Vector(
           ScheduleTrigger(
-            AlightVehicleTrigger(legsInThePast.last.endTime, data.currentVehicle.head),
+            AlightVehicleTrigger(
+              legsInThePast.last.endTime,
+              data.currentVehicle.head,
+              Some(currentBeamVehicle.beamVehicleType.id)
+            ),
             sender()
           )
         )
@@ -556,7 +547,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           if (stateName == Driving && legs.head == currentLeg) {
             Vector(
               ScheduleTrigger(
-                BoardVehicleTrigger(currentLeg.startTime, data.currentVehicle.head),
+                BoardVehicleTrigger(
+                  currentLeg.startTime,
+                  data.currentVehicle.head,
+                  Some(currentBeamVehicle.beamVehicleType.id)
+                ),
                 sender()
               )
             )
@@ -610,8 +605,35 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       log.debug("DrivesVehicle.StopDrivingIfNoPassengerOnBoard -> unhandled + {}", stateName)
 
       handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
-    //stay()
 
+    // The following 2 (Board and Alight) can happen idiosyncratically if a person ended up taking a much longer than expected
+    // trip and meanwhile a CAV was scheduled to pick them up (and then drop them off) for the next trip, but they're still driving baby
+    case Event(
+        TriggerWithId(BoardVehicleTrigger(tick, vehicleId, vehicleTypeId), triggerId),
+        data @ LiterallyDrivingData(_, _)
+        ) =>
+      val currentLeg = data.passengerSchedule.schedule.keys.view
+        .drop(data.currentLegPassengerScheduleIndex)
+        .headOption
+        .getOrElse(throw new RuntimeException("Current Leg is not available."))
+      stay() replying CompletionNotice(
+        triggerId,
+        Vector(ScheduleTrigger(BoardVehicleTrigger(Math.max(currentLeg.endTime, tick), vehicleId, vehicleTypeId), self))
+      )
+    case Event(
+        TriggerWithId(AlightVehicleTrigger(tick, vehicleId, vehicleTypeId), triggerId),
+        data @ LiterallyDrivingData(_, _)
+        ) =>
+      val currentLeg = data.passengerSchedule.schedule.keys.view
+        .drop(data.currentLegPassengerScheduleIndex)
+        .headOption
+        .getOrElse(throw new RuntimeException("Current Leg is not available."))
+      stay() replying CompletionNotice(
+        triggerId,
+        Vector(
+          ScheduleTrigger(AlightVehicleTrigger(Math.max(currentLeg.endTime + 1, tick), vehicleId, vehicleTypeId), self)
+        )
+      )
   }
 
   private def hasRoomFor(
@@ -628,7 +650,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
   def processLinkEvents(vehicleId: Id[Vehicle], leg: BeamLeg): Unit = {
     val path = leg.travelPath
-    if (path.linkTravelTime.nonEmpty) {
+    if (path.linkTravelTime.nonEmpty & path.linkIds.size > 1) {
       // FIXME once done with debugging, make this code faster
       // We don't need the travel time for the last link, so we drop it (dropRight(1))
       val avgTravelTimeWithoutLast = path.linkTravelTime.dropRight(1)

@@ -20,7 +20,7 @@ class VehicleCsvReader(config: BeamConfig) {
   }
 
   def getLinkToGradeRecordsUsing(csvParser: CsvParser): Iterable[Record] = {
-    val filePath = config.beam.agentsim.agents.vehicles.linkToGradePercentFile
+    val filePath = config.beam.agentsim.agents.vehicles.linkToGradePercentFilePath
     filePath match {
       case "" =>
         List[Record]()
@@ -55,6 +55,8 @@ class ConsumptionRateFilterStoreImpl(
   private val speedBinHeader = "speed_mph_float_bins"
   private val gradeBinHeader = "grade_percent_float_bins"
   private val lanesBinHeader = "num_lanes_int_bins"
+  private val milesHeader = "miles"
+  private val gallonsHeader = "gallons"
   private val rateHeader = "rate"
 
   private val primaryConsumptionRateFiltersByVehicleType: Map[BeamVehicleType, Future[ConsumptionRateFilter]] =
@@ -150,6 +152,7 @@ class VehicleEnergy(
   type ConsumptionRateFilter = Map[Range, Map[Range, Map[Range, Double]]] //speed->(gradePercent->(numberOfLanes->rate))
   private lazy val linkIdToGradePercentMap = loadLinkIdToGradeMapFromCSV
   val conversionRateForJoulesPerMeterConversionFromGallonsPer100Miles = 746.86
+  private val conversionRateForMilesPerHourFromMetersPerSecond = 2.23694
 
   def getFuelConsumptionEnergyInJoulesUsing(
     fuelConsumptionDatas: IndexedSeq[BeamVehicle.FuelConsumptionData],
@@ -177,13 +180,15 @@ class VehicleEnergy(
       _,
       _,
       _,
-      speedInMilesPerHourOption,
+      speedInMetersPerSecondOption,
       _,
       _,
       _
     ) = fuelConsumptionData
     val numberOfLanes: Int = numberOfLanesOption.getOrElse(0)
-    val speedInMilesPerHour: Double = speedInMilesPerHourOption.getOrElse(0)
+    val speedInMilesPerHour: Double = speedInMetersPerSecondOption
+      .map(convertFromMetersPerSecondToMilesPerHour)
+      .getOrElse(0)
     val gradePercent: Double = linkIdToGradePercentMap.getOrElse(linkId, 0)
     (powerTrainPriority match {
       case Primary   => consumptionRateFilterStore.getPrimaryConsumptionRateFilterFor(vehicleType)
@@ -221,9 +226,12 @@ class VehicleEnergy(
   private def convertFromGallonsPer100MilesToJoulesPerMeter(rate: Double): Double =
     rate * conversionRateForJoulesPerMeterConversionFromGallonsPer100Miles
 
+  private def convertFromMetersPerSecondToMilesPerHour(mps: Double): Double =
+    mps * conversionRateForMilesPerHourFromMetersPerSecond
+
   private def loadLinkIdToGradeMapFromCSV: Map[Int, Double] = {
     val linkIdHeader = "id"
-    val gradeHeader = "average_gradient"
+    val gradeHeader = "average_gradient_percent"
     linkToGradeRecordsIterableUsing(csvParser)
       .map(csvRecord => {
         val linkId = csvRecord.getInt(linkIdHeader)

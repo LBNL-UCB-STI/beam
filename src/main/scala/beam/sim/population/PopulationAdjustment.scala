@@ -202,11 +202,6 @@ object PopulationAdjustment extends LazyLogging {
     person: Person
   ): AttributesOfIndividual = {
     val personAttributes = population.getPersonAttributes
-    // Read person attribute "valueOfTime" and default it to the respective config value if not found
-    val valueOfTime: Double =
-      Option(personAttributes.getAttribute(person.getId.toString, "valueOfTime"))
-        .map(_.asInstanceOf[Double])
-        .getOrElse(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
     // Read excluded-modes set for the person and calculate the possible available modes for the person
     val excludedModes = AvailableModeUtils.getExcludedModesForPerson(population, person.getId.toString)
     val availableModes: Seq[BeamMode] = BeamMode.allModes.filterNot { mode =>
@@ -229,6 +224,14 @@ object PopulationAdjustment extends LazyLogging {
           agentsim.agents.Population.getVehiclesFromHousehold(household, beamServices)
         HouseholdAttributes(household, houseHoldVehicles)
     }
+    // Read person attribute "valueOfTime", use function of HH income if not, and default it to the respective config value if neither is found
+    val valueOfTime: Double =
+      Option(personAttributes.getAttribute(person.getId.toString, "valueOfTime"))
+        .map(_.asInstanceOf[Double])
+        .getOrElse(
+          IncomeToValueOfTime(householdAttributes.householdIncome)
+            .getOrElse(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
+        )
     // Generate the AttributesOfIndividual object as save it as custom attribute - "beam-attributes" for the person
     AttributesOfIndividual(
       householdAttributes,
@@ -240,5 +243,13 @@ object PopulationAdjustment extends LazyLogging {
       Some(income)
     )
   }
-
+  private def IncomeToValueOfTime(income: Double): Option[Double] = {
+    val workHoursPerYear = 51 * 40 // TODO: Make nonlinear--eg https://ac.els-cdn.com/S0965856411001613/1-s2.0-S0965856411001613-main.pdf
+    val wageFactor = 0.5
+    if (income > 0) {
+      Some(income / workHoursPerYear * wageFactor)
+    } else {
+      None
+    }
+  }
 }

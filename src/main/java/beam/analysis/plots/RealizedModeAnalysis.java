@@ -4,6 +4,7 @@ import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.ReplanningEvent;
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
+import org.apache.commons.collections.map.HashedMap;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.data.category.CategoryDataset;
@@ -52,7 +53,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
     private final StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation;
 
     public RealizedModeAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Double>>, Set<String>>, double[][]> statComputation, boolean writeGraph, BeamConfig beamConfig) {
-        String benchMarkFileLocation = beamConfig.beam().calibration().mode().benchmarkFileLoc();
+        String benchMarkFileLocation = beamConfig.beam().calibration().mode().benchmarkFilePath();
         this.statComputation = statComputation;
         this.writeGraph = writeGraph;
         benchMarkData = benchMarkCSVLoader(benchMarkFileLocation);
@@ -166,7 +167,7 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
         if (event instanceof ModeChoiceEvent) {
             ModeChoiceEvent mce = (ModeChoiceEvent) event;
             String mode = mce.mode;
-            String personId = mce.personId.toString();
+            String personId = mce.getPersonId().toString();
             Map<String, String> tags = new HashMap<>();
             tags.put("stats-type", "mode-choice");
             tags.put("hour", "" + (hour + 1));
@@ -174,23 +175,21 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
             countOccurrenceJava(mode, 1, ShortLevel(), tags);
 
             if (personIdList.containsKey(personId) && personIdList.get(personId) == 1) {
-                personIdList.merge(personId, -1, Integer::sum);
+                personIdList.put(personId, 0);
                 setHourPersonMode(hour, personId, mode, true);
                 return;
             }
 
+            if (personIdList.remove(personId) != null) {
+                updateHourMode(personId);
+                personHourModeCount.remove(personId);
+            }
             if (hourData == null) {
                 hourData = new HashMap<>();
             }
 
             hourData.merge(mode, 1.0, Double::sum);
             hourModeFrequency.put(hour, hourData);
-
-            if (personIdList.remove(personId) != null) {
-                updateHourMode(personId);
-                personHourModeCount.remove(personId);
-            }
-
             ModeHour modeHour = new ModeHour(mode, hour);
             Stack<ModeHour> modeHours = hourPerson.get(personId);
             if (modeHours == null) {
@@ -210,21 +209,21 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
 
 
             if (personIdList.containsKey(person) && personIdList.get(person) == 0) {
-                personIdList.merge(person, 1, Integer::sum);
+                personIdList.put(person, 1);
                 return;
             }
 
             if (modeHours != null && modeHours.size() > 0
                     && !personIdList.containsKey(person)) {
 
-                personIdList.merge(person, 1, Integer::sum);
+                personIdList.put(person, 1);
 
                 ModeHour modeHour = modeHours.pop();
                 hourPerson.put(person, modeHours);
 
                 hourData = hourModeFrequency.get(modeHour.getHour());
                 hourData.merge(modeHour.getMode(), -1.0, Double::sum);
-                hourModeFrequency.put(hour, hourData);
+                hourModeFrequency.put(modeHour.getHour(), hourData);
             }
         }
     }
@@ -233,19 +232,47 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
     public void updateHourMode(String personId) {
         Map<Integer, Map<String, Integer>> hourModeCount = personHourModeCount.get(personId);
         if (hourModeCount != null) {
-            double sum = hourModeCount.values().stream().map(Map::values).mapToInt(i -> i.stream().mapToInt(Integer::intValue).sum()).sum();
-            Set<Integer> hours = hourModeCount.keySet();
+            double countSum = hourModeCount.values().stream().map(Map::values).mapToInt(i -> i.stream().mapToInt(Integer::intValue).sum()).sum();
 
-            for (Integer h : hours) {
-                Map<String, Integer> modeCounts = hourModeCount.get(h);
-                if (sum >= 2) {
-                    modeCounts.forEach((k, v) -> {        //k is mode, v is modecount
-                        Map<String, Double> oldHourData = hourModeFrequency.get(h);
-                        if(oldHourData != null){
-                            oldHourData.merge(k, (double) v / sum, Double::sum);
-                            hourModeFrequency.put(h, oldHourData);
+            Set<String> modes = new HashSet<>();
+            hourModeCount.values().stream().map(Map::keySet).forEach(modes::addAll);
+            Set<Integer> hours = hourModeCount.keySet();
+            double sum = modes.size();
+            if (countSum>=2 && sum == 1) {
+                Optional<Integer> optionalHour = hours.stream().findFirst();
+                if (optionalHour.isPresent()) {
+                    int hour = optionalHour.get();
+                    Map<String, Double> oldHourData = hourModeFrequency.get(hour);
+                    if (oldHourData == null) {
+                        oldHourData = new HashedMap();
+                    }
+                    Optional<String> optionalMode = modes.stream().findFirst();
+                    if (optionalMode.isPresent()) {
+                        oldHourData.merge(optionalMode.get(), 1.0, Double::sum);
+                        hourModeFrequency.put(hour, oldHourData);
+                    }
+                }
+
+            } else if (countSum >= 2 && sum > 1) {
+                for (String mode : modes) {
+                    Integer hour = null;
+                    for (Integer h : hours) {
+                        Map<String, Integer> modeCount = hourModeCount.get(h);
+                        if(modeCount != null) {
+                            Integer tmpModeCount = modeCount.get(mode);
+                            if (tmpModeCount != null) {
+                                hour = h;
+                            }
                         }
-                    });
+                    }
+                    if(hour !=null) {
+                        Map<String, Double> oldHourData = hourModeFrequency.get(hour);
+                        if (oldHourData == null) {
+                            oldHourData = new HashedMap();
+                        }
+                        oldHourData.merge(mode, 1.0 / sum, Double::sum);
+                        hourModeFrequency.put(hour, oldHourData);
+                    }
                 }
             }
         }
@@ -260,9 +287,11 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
         if (modeCnt == null) {
             modeCnt = new HashMap<>();
         }
-        if (isUpdateExisting)
-            modeCnt.put(mode, 1);
+        if (isUpdateExisting) {
+            modeCnt.merge(mode, 1, Integer::sum);
+        }
         else {
+            modeCnt.clear();
             hourModeCount.clear();
             modeCnt.put(mode, 1);
         }
@@ -548,7 +577,9 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
                 if(benchMarkData.get(d) == null){
                     builder.append(",0.0");
                 }
-                builder.append("," + benchMarkData.get(d)*100/sum);
+                else {
+                    builder.append("," + benchMarkData.get(d) * 100 / sum);
+                }
             }
             out.write(builder.toString());
             out.newLine();
