@@ -140,17 +140,17 @@ object RouteHistory {
     val flattenedRouteHistory: Iterator[(TimeBin, OriginLinkId, DestLinkId, String)] = routeHistory.toIterator.flatMap {
       case (timeBin: TimeBin, origins: TrieMap[OriginLinkId, TrieMap[DestLinkId, Route]]) =>
         origins.flatMap {
-          case (originTazId: OriginLinkId, destinations: TrieMap[DestLinkId, Route]) =>
+          case (originLinkId: OriginLinkId, destinations: TrieMap[DestLinkId, Route]) =>
             destinations.flatMap {
-              case (destTazId: DestLinkId, path: Route) =>
-                Some(timeBin, originTazId, destTazId, path.mkString(":"))
+              case (destLinkId: DestLinkId, path: Route) =>
+                Some(timeBin, originLinkId, destLinkId, path.mkString(":"))
             }
         }
     }
     val body: Iterator[String] = flattenedRouteHistory
       .map {
-        case (timeBin, originTazId, destTazId, route) =>
-          s"$timeBin,$originTazId,$destTazId,$route$Eol"
+        case (timeBin, originLinkId, destLinkId, route) =>
+          s"$timeBin,$originLinkId,$destLinkId,$route$Eol"
       }
     Iterator(CsvHeader, Eol) ++ body
   }
@@ -165,8 +165,8 @@ object RouteHistory {
       var line: java.util.Map[String, String] = mapReader.read(header: _*)
       while (null != line) {
         val timeBin = line.get("timeBin").toInt
-        val origTazId = line.get("originLinkId").toInt
-        val destTazId = line.get("destLinkId").toInt
+        val origLinkId = line.get("originLinkId").toInt
+        val destLinkId = line.get("destLinkId").toInt
         val route: IndexedSeq[Int] = line
           .get("route")
           .split(":")
@@ -174,15 +174,15 @@ object RouteHistory {
 
         val timeBinReference = result.getOrElseUpdate(
           timeBin,
-          TrieMap(origTazId -> TrieMap(destTazId -> route))
+          TrieMap(origLinkId -> TrieMap(destLinkId -> route))
         )
 
         val originReference = timeBinReference.getOrElseUpdate(
-          origTazId,
-          TrieMap(destTazId -> route)
+          origLinkId,
+          TrieMap(destLinkId -> route)
         )
 
-        originReference.update(destTazId, route)
+        originReference.update(destLinkId, route)
 
         line = mapReader.read(header: _*)
       }
