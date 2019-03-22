@@ -141,7 +141,7 @@ object FileUtils extends LazyLogging {
     }
   }
 
-   /**
+  /**
     * Writes data to the output file at specified path.
     * @param filePath path of the output file to write data to
     * @param fileHeader an optional header to be appended (if any)
