@@ -191,7 +191,7 @@ class PersonWithVehicleSharingSpec
             Map(),
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
-            new RouteHistory(),
+            new RouteHistory(beamConfig),
             new BeamSkimmer(beamConfig)
           )
         )
@@ -333,7 +333,7 @@ class PersonWithVehicleSharingSpec
             Map(),
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
-            new RouteHistory(),
+            new RouteHistory(beamConfig),
             new BeamSkimmer(beamConfig)
           )
         )
@@ -574,7 +574,7 @@ class PersonWithVehicleSharingSpec
           Map(),
           new Coord(0.0, 0.0),
           Vector(mockSharedVehicleFleet.ref),
-          new RouteHistory(),
+          new RouteHistory(beamConfig),
           new BeamSkimmer(beamConfig)
         )
       )

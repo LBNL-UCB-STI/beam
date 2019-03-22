@@ -348,7 +348,7 @@ class PersonAndTransitDriverSpec
           vehicles = Map(),
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
-          new RouteHistory(),
+          new RouteHistory(beamConfig),
           new BeamSkimmer(beamConfig)
         )
       )
