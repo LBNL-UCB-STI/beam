@@ -153,10 +153,10 @@ class FastHouseholdCAVSchedulingSpec
       println(s"*** scenario 5 *** ${schedules1.size} combinations")
       // second check
       val schedules2 = alg.getBestProductiveSchedule
-      schedules2.foldLeft(0)(_ + _.schedule.size) shouldBe 11
+      schedules2.foldLeft(0)(_ + _.schedule.size) shouldBe 10
       // third check
       val schedules3 = alg.getKBestSchedules(1)
-      schedules3.head.foldLeft(0)(_ + _.schedule.size) shouldBe 11
+      schedules3.head.foldLeft(0)(_ + _.schedule.size) shouldBe 10
     }
 
     it("be scalable") {
