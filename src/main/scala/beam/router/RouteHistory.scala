@@ -1,16 +1,49 @@
 package beam.router
 
-import com.typesafe.scalalogging.LazyLogging
+import java.io._
+import java.util.concurrent.TimeUnit
+import java.util.zip.GZIPInputStream
 import javax.inject.Inject
-import probability_monad.Distribution
 
 import scala.collection.concurrent.TrieMap
 
-class RouteHistory @Inject()() extends LazyLogging {
-  private var routeHistory: TrieMap[Int, TrieMap[Int, TrieMap[Int, IndexedSeq[Int]]]] = TrieMap()
+import beam.router.RouteHistory.{RouteHistoryADT, _}
+import beam.sim.config.BeamConfig
+import beam.sim.BeamWarmStart
+import beam.utils.FileUtils
+import com.typesafe.scalalogging.LazyLogging
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
+import org.matsim.core.controler.events.IterationEndsEvent
+import org.matsim.core.controler.listener.IterationEndsListener
+import org.supercsv.io.{CsvMapReader, ICsvMapReader}
+import org.supercsv.prefs.CsvPreference
+import probability_monad.Distribution
+
+class RouteHistory @Inject()(
+  beamConfig: BeamConfig
+) extends IterationEndsListener
+    with LazyLogging {
+
+  private var previousRouteHistory: RouteHistoryADT = loadPreviousRouteHistory()
+  private var routeHistory: RouteHistoryADT = TrieMap()
   private val randUnif = Distribution.uniform
   @volatile private var cacheRequests = 0
   @volatile private var cacheHits = 0
+
+  def loadPreviousRouteHistory(): RouteHistoryADT = {
+    if (beamConfig.beam.warmStart.enabled) {
+      routeHistoryFilePath
+        .map(RouteHistory.fromCsv)
+        .getOrElse(TrieMap.empty)
+    } else {
+      TrieMap.empty
+    }
+  }
+
+  private def routeHistoryFilePath: Option[String] = {
+    val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
+    BeamWarmStart(beamConfig, maxHour).getWarmStartFilePath(RouteHistory.outputFileName)
+  }
 
   private def timeToBin(departTime: Int): Int = {
     Math.floorMod(Math.floor(departTime.toDouble / 3600.0).toInt, 24)
@@ -73,4 +106,101 @@ class RouteHistory @Inject()() extends LazyLogging {
       }
     }
   }
+  override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    val filePath = event.getServices.getControlerIO.getIterationFilename(
+      event.getServices.getIterationNumber,
+      RouteHistory.outputFileBaseName + ".csv.gz"
+    )
+
+    FileUtils.writeToFile(
+      filePath,
+      toCsv(routeHistory),
+    )
+    previousRouteHistory = routeHistory
+    routeHistory = new TrieMap()
+  }
+
+}
+
+object RouteHistory {
+  type TimeBin = Int
+  type OriginLinkId = Int
+  type DestLinkId = Int
+  type LinkId = Int
+  type Route = IndexedSeq[LinkId]
+  type RouteHistoryADT = TrieMap[TimeBin, TrieMap[OriginLinkId, TrieMap[DestLinkId, Route]]]
+
+  private val CsvHeader: String = "timeBin,originLinkId,destLinkId,route"
+  private val Eol: String = "\n"
+
+  private val outputFileBaseName = "routeHistory"
+  private val outputFileName = outputFileBaseName + ".csv.gz"
+
+  private[router] def toCsv(routeHistory: RouteHistoryADT): Iterator[String] = {
+    val flattenedRouteHistory: Iterator[(TimeBin, OriginLinkId, DestLinkId, String)] = routeHistory.toIterator.flatMap {
+      case (timeBin: TimeBin, origins: TrieMap[OriginLinkId, TrieMap[DestLinkId, Route]]) =>
+        origins.flatMap {
+          case (originLinkId: OriginLinkId, destinations: TrieMap[DestLinkId, Route]) =>
+            destinations.flatMap {
+              case (destLinkId: DestLinkId, path: Route) =>
+                Some(timeBin, originLinkId, destLinkId, path.mkString(":"))
+            }
+        }
+    }
+    val body: Iterator[String] = flattenedRouteHistory
+      .map {
+        case (timeBin, originLinkId, destLinkId, route) =>
+          s"$timeBin,$originLinkId,$destLinkId,$route$Eol"
+      }
+    Iterator(CsvHeader, Eol) ++ body
+  }
+
+  private[router] def fromCsv(filePath: String): RouteHistoryADT = {
+    var mapReader: ICsvMapReader = null
+    val result = TrieMap[TimeBin, TrieMap[OriginLinkId, TrieMap[DestLinkId, Route]]]()
+    try {
+      val reader = buildReader(filePath)
+      mapReader = new CsvMapReader(reader, CsvPreference.STANDARD_PREFERENCE)
+      val header = mapReader.getHeader(true)
+      var line: java.util.Map[String, String] = mapReader.read(header: _*)
+      while (null != line) {
+        val timeBin = line.get("timeBin").toInt
+        val origLinkId = line.get("originLinkId").toInt
+        val destLinkId = line.get("destLinkId").toInt
+        val route: IndexedSeq[Int] = line
+          .get("route")
+          .split(":")
+          .map(_.toInt)
+
+        val timeBinReference = result.getOrElseUpdate(
+          timeBin,
+          TrieMap(origLinkId -> TrieMap(destLinkId -> route))
+        )
+
+        val originReference = timeBinReference.getOrElseUpdate(
+          origLinkId,
+          TrieMap(destLinkId -> route)
+        )
+        originReference.update(destLinkId, route)
+
+        line = mapReader.read(header: _*)
+      }
+
+    } finally {
+      if (null != mapReader)
+        mapReader.close()
+    }
+    result
+  }
+
+  private def buildReader(filePath: String): Reader = {
+    if (filePath.endsWith(".gz")) {
+      new InputStreamReader(
+        new GZIPInputStream(new BufferedInputStream(new FileInputStream(filePath)))
+      )
+    } else {
+      new FileReader(filePath)
+    }
+  }
+
 }
