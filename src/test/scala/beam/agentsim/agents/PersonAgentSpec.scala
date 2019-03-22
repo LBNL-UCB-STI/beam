@@ -202,7 +202,7 @@ class PersonAgentSpec
           tollCalculator,
           self,
           beamSkimmer = new BeamSkimmer(beamConfig),
-          routeHistory = new RouteHistory()
+          routeHistory = new RouteHistory(beamConfig)
         )
       )
 
@@ -263,7 +263,7 @@ class PersonAgentSpec
           Map(),
           new Coord(0.0, 0.0),
           Vector(),
-          new RouteHistory(),
+          new RouteHistory(beamConfig),
           new BeamSkimmer(beamConfig)
         )
       )
@@ -488,7 +488,7 @@ class PersonAgentSpec
           vehicles = Map(),
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
-          new RouteHistory(),
+          new RouteHistory(beamConfig),
           new BeamSkimmer(beamConfig)
         )
       )

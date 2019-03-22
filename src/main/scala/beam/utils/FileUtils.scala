@@ -129,6 +129,18 @@ object FileUtils extends LazyLogging {
     }
   }
 
+  def writeToFile(filePath: String, content: Iterator[String]): Unit = {
+    val bw = IOUtils.getBufferedWriter(filePath)
+    try {
+      content.foreach(bw.append)
+    } catch {
+      case e: IOException =>
+        logger.error(s"Error while writing data to file - $filePath", e)
+    } finally {
+      bw.close()
+    }
+  }
+
   /**
     * Writes data to the output file at specified path.
     * @param filePath path of the output file to write data to
