@@ -1151,7 +1151,7 @@ class RideHailManager(
       ridehailBeamVehicleTypeId,
       SpaceTime(rideInitialLocation, 0)
     )
-    // Put the agent outWriter of service and let the agent tell us when it's Idle (aka ready for service)
+    // Put the agent out of service and let the agent tell us when it's Idle (aka ready for service)
     vehicleManager.putOutOfService(agentLocation)
 
     rideHailinitialLocationSpatialPlot
@@ -1386,9 +1386,12 @@ class RideHailManager(
           val radius =
             beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
           val activityLocations: List[Location] =
-            person.getSelectedPlan.getPlanElements.asScala.collect {
-              case activity: Activity => activity.getCoord()
-            }.toList
+            person.getSelectedPlan.getPlanElements.asScala
+              .collect {
+                case activity: Activity => activity.getCoord()
+              }
+              .toList
+              .dropRight(1)
           val randomActivityLocation: Location = activityLocations(rand.nextInt(activityLocations.length))
           new Coord(
             randomActivityLocation.getX + radius * (rand.nextDouble() - 0.5),
