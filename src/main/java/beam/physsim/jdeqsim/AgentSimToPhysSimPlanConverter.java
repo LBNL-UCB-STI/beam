@@ -314,7 +314,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
             // pt sampling
             // TODO: if requested, add beam.physsim.ptSamplingMode (pathTraversal | busLine), which controls if instead of filtering outWriter
-            // pathTraversal, a busLine should be filtered outWriter, avoiding jumping buses in visualization (but making traffic flows less precise).
+            // pathTraversal, a busLine should be filtered out, avoiding jumping buses in visualization (but making traffic flows less precise).
 
             if (mode.equalsIgnoreCase(BUS) && rand.nextDouble() > beamConfig.beam().physsim().ptSampleSize()) {
                 return;

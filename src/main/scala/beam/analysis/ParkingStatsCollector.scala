@@ -223,7 +223,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
               hourOfEvent -> taz,
               ParkingStatsCollector.ParkingStats(List.empty, List.empty, List.empty)
             )
-            val outboundParkingTimes = parkingStats.outboundParkingTimeOverhead :+ outboundParkingTime
+            val outboundParkingTimes = outboundParkingTime +: parkingStats.outboundParkingTimeOverhead
             parkingStatsByBinAndTaz.put(
               hourOfEvent -> taz,
               parkingStats.copy(outboundParkingTimeOverhead = outboundParkingTimes)
@@ -262,9 +262,8 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
               hourOfEvent -> taz,
               ParkingStatsCollector.ParkingStats(List.empty, List.empty, List.empty)
             )
-            val inboundParkingTimes = parkingStats.inboundParkingTimeOverhead :+ inboundParkingTime
-            val inboundParkingCosts = parkingStats.inboundParkingCostOverhead :+ personInboundParkingStats.parkingCost
-              .getOrElse(0D)
+            val inboundParkingTimes = inboundParkingTime +: parkingStats.inboundParkingTimeOverhead
+            val inboundParkingCosts = personInboundParkingStats.parkingCost.getOrElse(0D) +: parkingStats.inboundParkingCostOverhead
             parkingStatsByBinAndTaz.put(
               hourOfEvent -> taz,
               parkingStats.copy(
