@@ -236,7 +236,7 @@ class BeamWarmStartSpec extends WordSpecLike with Matchers with BeforeAndAfterAl
       actualStats shouldEqual expectedStats
     }
 
-    "find outWriter files, if run results are at deeper level" in {
+    "find out files, if run results are at deeper level" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case11")
       createDirs(Paths.get(caseDataPath.toString, "level1/level2/level3/level4/ITERS/it.0/../it.1"))
       val expectedPlans = copyPlans(caseDataPath, OUTPUT_PLANS)
