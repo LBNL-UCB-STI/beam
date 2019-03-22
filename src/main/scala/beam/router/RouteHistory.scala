@@ -181,7 +181,6 @@ object RouteHistory {
           origLinkId,
           TrieMap(destLinkId -> route)
         )
-
         originReference.update(destLinkId, route)
 
         line = mapReader.read(header: _*)
