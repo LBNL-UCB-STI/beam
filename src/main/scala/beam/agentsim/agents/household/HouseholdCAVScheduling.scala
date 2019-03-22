@@ -167,8 +167,7 @@ case class CAVSchedule(
         request.activity.getCoord,
         request.time,
         CAR,
-        cav.beamVehicleType.id,
-        beamServices
+        cav.beamVehicleType.id
       )
       .time
     val prevServiceTime = schedule.head.serviceTime

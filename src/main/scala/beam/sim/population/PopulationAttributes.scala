@@ -1,5 +1,6 @@
 package beam.sim.population
 
+import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
@@ -29,11 +30,9 @@ case class AttributesOfIndividual(
 
   // Get Value of Travel Time for a specific leg of a travel alternative:
   // If it is a car leg, we use link-specific multipliers, otherwise we just look at the entire leg travel time and mode
-  def getVOT(
+  def getGeneralizedTimeOfLegForMNL(
     embodiedBeamLeg: EmbodiedBeamLeg,
-    modeMultipliers: mutable.Map[Option[BeamMode], Double],
-    situationMultipliers: mutable.Map[(timeSensitivity, congestionLevel, roadwayType, automationLevel), Double],
-    poolingMultipliers: mutable.Map[automationLevel, Double],
+    modeChoiceModel: ModeChoiceMultinomialLogit,
     beamServices: BeamServices,
     destinationActivity: Option[Activity]
   ): Double = {
@@ -43,45 +42,42 @@ case class AttributesOfIndividual(
       case Some(activity) =>
         activity.getType().equalsIgnoreCase("work")
     }
-    val theVOT = embodiedBeamLeg.beamLeg.mode match {
+    val theGeneralizedTimeMultiplier = embodiedBeamLeg.beamLeg.mode match {
       case CAR => // NOTE: Ride hail legs are classified as CAR mode. Retained both for flexibility (but could delete the other cases)
         if (embodiedBeamLeg.isRideHail) {
           if (embodiedBeamLeg.isPooledTrip) {
-            getPooledFactor(embodiedBeamLeg, poolingMultipliers, beamServices) *
-            getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeMultipliers) *
-            unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
+            getPooledFactor(embodiedBeamLeg, modeChoiceModel.poolingMultipliers, beamServices) *
+            getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeChoiceModel.modeMultipliers)
           } else {
-            getModeVotMultiplier(Option(RIDE_HAIL), modeMultipliers) *
-            unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
+            getModeVotMultiplier(Option(RIDE_HAIL), modeChoiceModel.modeMultipliers)
           }
         } else if (embodiedBeamLeg.asDriver) {
           // Situation multipliers are only relevant when the agent is driving
           getPathVotMultiplier(
             embodiedBeamLeg.beamLeg,
-            situationMultipliers,
+            modeChoiceModel.situationMultipliers,
             beamServices,
             isWorkTrip,
             getAutomationLevel(embodiedBeamLeg, beamServices)
           ) *
-          getModeVotMultiplier(Option(CAR), modeMultipliers) *
-          unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
+          getModeVotMultiplier(Option(CAR), modeChoiceModel.modeMultipliers)
         } else {
           // Assume that not driving and not ridehail means CAV
-          getModeVotMultiplier(Option(CAV), modeMultipliers) *
-          unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
+          getModeVotMultiplier(Option(CAV), modeChoiceModel.modeMultipliers)
         }
       case RIDE_HAIL =>
-        getModeVotMultiplier(Option(RIDE_HAIL), modeMultipliers) *
-        unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
+        getModeVotMultiplier(Option(RIDE_HAIL), modeChoiceModel.modeMultipliers)
       case RIDE_HAIL_POOLED =>
-        getPooledFactor(embodiedBeamLeg, poolingMultipliers, beamServices) *
-        getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeMultipliers) *
-        unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
+        getPooledFactor(embodiedBeamLeg, modeChoiceModel.poolingMultipliers, beamServices) *
+        getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeChoiceModel.modeMultipliers)
       case _ =>
-        getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeMultipliers) *
-        unitConversionVOTT(embodiedBeamLeg.beamLeg.duration)
+        getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel.modeMultipliers)
     }
-    theVOT
+    theGeneralizedTimeMultiplier * embodiedBeamLeg.beamLeg.duration / 3600
+  }
+
+  def getVOT(generalizedTime: Double): Double = {
+    valueOfTime * generalizedTime
   }
 
   private def getAutomationLevel(embodiedBeamLeg: EmbodiedBeamLeg, beamServices: BeamServices): automationLevel = {
