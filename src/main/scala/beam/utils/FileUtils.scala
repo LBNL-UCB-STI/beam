@@ -141,4 +141,32 @@ object FileUtils extends LazyLogging {
     }
   }
 
+   /**
+    * Writes data to the output file at specified path.
+    * @param filePath path of the output file to write data to
+    * @param fileHeader an optional header to be appended (if any)
+    * @param data data to be written to the file
+    * @param fileFooter an optional footer to be appended (if any)
+    */
+  def writeToFileJava(
+    filePath: String,
+    fileHeader: java.util.Optional[String],
+    data: String,
+    fileFooter: java.util.Optional[String]
+  ): Unit = {
+    val bw = IOUtils.getBufferedWriter(filePath) //new BufferedWriter(new FileWriter(filePath))
+    try {
+      if (fileHeader.isPresent)
+        bw.append(fileHeader.get + "\n")
+      bw.append(data)
+      if (fileFooter.isPresent)
+        bw.append("\n" + fileFooter.get)
+    } catch {
+      case e: IOException =>
+        logger.error(s"Error while writing data to file - $filePath : " + e.getMessage, e)
+    } finally {
+      bw.close()
+    }
+  }
+
 }

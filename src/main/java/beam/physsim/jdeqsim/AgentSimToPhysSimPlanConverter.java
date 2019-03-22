@@ -139,7 +139,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
 
 
-        org.matsim.core.mobsim.jdeqsim.JDEQSimulation jdeqSimulation = getJDEQSimulation(jdeqSimScenario, beamConfig, jdeqsimEvents);
+        org.matsim.core.mobsim.jdeqsim.JDEQSimulation jdeqSimulation = getJDEQSimulation(jdeqSimScenario, beamConfig, jdeqsimEvents,iterationNumber,beamServices.matsimServices().getControlerIO());
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents, agentSimScenario.getConfig().travelTimeCalculator());
 
         log.info("JDEQSim Start");
@@ -227,7 +227,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     }
 
-    public org.matsim.core.mobsim.jdeqsim.JDEQSimulation getJDEQSimulation(MutableScenario jdeqSimScenario, BeamConfig beamConfig, EventsManager jdeqsimEvents) {
+    public org.matsim.core.mobsim.jdeqsim.JDEQSimulation getJDEQSimulation(MutableScenario jdeqSimScenario, BeamConfig beamConfig, EventsManager jdeqsimEvents, int iterationNumber, OutputDirectoryHierarchy controlerIO) {
         JDEQSimConfigGroup config = new JDEQSimConfigGroup();
         config.setFlowCapacityFactor(beamConfig.beam().physsim().flowCapacityFactor());
         config.setStorageCapacityFactor(beamConfig.beam().physsim().storageCapacityFactor());
@@ -240,8 +240,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             log.info("CACC enabled");
             RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction = new Hao2018CaccRoadCapacityAdjustmentFunction(
                     beamConfig.beam().physsim().jdeqsim().cacc().minRoadCapacity(),
-                    beamConfig.beam().physsim().jdeqsim().cacc().minSpeedMetersPerSec(), beamConfig.beam().physsim().flowCapacityFactor()
-            );
+                    beamConfig.beam().physsim().jdeqsim().cacc().minSpeedMetersPerSec(), beamConfig.beam().physsim().flowCapacityFactor(),
+                    iterationNumber,
+                    controlerIO,
+                    beamConfig.beam().physsim().jdeqsim().cacc().capacityPlansWriteInterval()
+                    );
 
 
             int caccCategoryRoadCount = 0;
