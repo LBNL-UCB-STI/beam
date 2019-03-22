@@ -7,7 +7,11 @@ import scala.util.Random
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
-import beam.agentsim.infrastructure.ParkingManager.{DepotParkingInquiry, DepotParkingInquiryResponse, ParkingStockAttributes}
+import beam.agentsim.infrastructure.ParkingManager.{
+  DepotParkingInquiry,
+  DepotParkingInquiryResponse,
+  ParkingStockAttributes
+}
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl

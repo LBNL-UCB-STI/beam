@@ -11,7 +11,12 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeIncentive
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
-import beam.agentsim.agents.household.HouseholdActor.{HouseholdActor, MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
+import beam.agentsim.agents.household.HouseholdActor.{
+  HouseholdActor,
+  MobilityStatusInquiry,
+  MobilityStatusResponse,
+  ReleaseVehicle
+}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -53,7 +58,7 @@ import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 import scala.collection.mutable.ListBuffer
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.ExecutionContext
 
 import beam.agentsim.infrastructure.taz.TAZTreeMap

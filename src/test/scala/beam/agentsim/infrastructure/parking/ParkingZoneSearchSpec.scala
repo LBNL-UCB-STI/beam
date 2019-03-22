@@ -21,7 +21,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           ParkingRanking.rankingFunction(parkingDuration = 100.0)
         )
 
-        result should be (None)
+        result should be(None)
       }
     }
     "search for options that do exist" should {
@@ -38,11 +38,11 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         result match {
           case None => fail()
           case Some(ParkingRanking.RankingAccumulator(taz, parkingType, parkingZone, rankingValue, availability)) =>
-            taz should equal (taz2)
-            parkingType should equal (ParkingType.Public)
-            parkingZone.stallsAvailable should equal (18)
-            parkingZone.maxStalls should equal (18)
-            parkingZone.parkingZoneId should equal (1)
+            taz should equal(taz2)
+            parkingType should equal(ParkingType.Public)
+            parkingZone.stallsAvailable should equal(18)
+            parkingZone.maxStalls should equal(18)
+            parkingZone.parkingZoneId should equal(1)
         }
       }
     }
@@ -51,7 +51,9 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
 }
 
 object ParkingZoneSearchSpec {
+
   trait SmallProblem {
+
     val sourceData: Iterator[String] =
       """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
         |1,Workplace,FlatFee,UltraFast,7,0,unused
