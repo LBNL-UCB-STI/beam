@@ -1151,7 +1151,7 @@ class RideHailManager(
       ridehailBeamVehicleTypeId,
       SpaceTime(rideInitialLocation, 0)
     )
-    // Put the agent outWriter of service and let the agent tell us when it's Idle (aka ready for service)
+    // Put the agent out of service and let the agent tell us when it's Idle (aka ready for service)
     vehicleManager.putOutOfService(agentLocation)
 
     rideHailinitialLocationSpatialPlot
