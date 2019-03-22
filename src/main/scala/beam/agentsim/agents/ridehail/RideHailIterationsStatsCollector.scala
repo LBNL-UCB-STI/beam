@@ -192,7 +192,7 @@ class RideHailIterationsStatsCollector(
     // val numIdleVehicles = vehicles.count(_._2 < 1)
 
     logger.info(
-      "{} rideHail vehicles (outWriter of {}) were never moved and {} vehicles were moved without a passenger, during whole day.",
+      "{} rideHail vehicles (out of {}) were never moved and {} vehicles were moved without a passenger, during whole day.",
       numAlwaysIdleVehicles,
       vehicles.size,
       numIdleVehiclesWithoutPassenger

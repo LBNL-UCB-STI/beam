@@ -3,8 +3,12 @@ package beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions;
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.RoadCapacityAdjustmentFunction;
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation;
 import beam.utils.DebugLib;
+import beam.utils.FileUtils;
 import org.apache.log4j.Logger;
 import org.matsim.api.core.v01.network.Link;
+import org.matsim.core.controler.OutputDirectoryHierarchy;
+
+import java.util.Optional;
 
 
 /*
@@ -25,38 +29,37 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
     private int numberOfMixedVehicleTypeEncountersOnCACCCategoryRoads=0;
     private int numberOfTimesOnlyNonCACCTravellingOnCACCEnabledRoads=0;
     private int numberOfTimesOnlyCACCTravellingOnCACCEnabledRoads=0;
+    private StringBuffer capacityStatsCollector = new StringBuffer();
 
     private double capacityIncreaseSum=0;
     private double percentageCapacityIncreaseSum=0;
-
+    private int currentIterationNumber;
+    private int writeInterval;
+    private OutputDirectoryHierarchy controllerIO;
 
     private int nonCACCCategoryRoadsTravelled=0;
     private int caccCategoryRoadsTravelled=0;
     private double flowCapacityFactor;
 
 
-    public Hao2018CaccRoadCapacityAdjustmentFunction(double caccMinRoadCapacity, double caccMinSpeedMetersPerSec, double flowCapacityFactor){
+    public Hao2018CaccRoadCapacityAdjustmentFunction(double caccMinRoadCapacity, double caccMinSpeedMetersPerSec, double flowCapacityFactor, int iterationNumber, OutputDirectoryHierarchy controllerIO, int writeInterval){
         this.flowCapacityFactor = flowCapacityFactor;
         log.info("caccMinRoadCapacity: " + caccMinRoadCapacity + ", caccMinSpeedMetersPerSec: " + caccMinSpeedMetersPerSec );
         this.caccMinRoadCapacity = caccMinRoadCapacity;
         this.caccMinSpeedMetersPerSec = caccMinSpeedMetersPerSec;
+        this.currentIterationNumber = iterationNumber;
+        this.controllerIO = controllerIO;
+        this.writeInterval = writeInterval;
     }
-
-
 
     public boolean isCACCCategoryRoad(Link link){
         double initialCapacity=link.getCapacity();
-
-
         return initialCapacity>=caccMinRoadCapacity && link.getFreespeed()>=caccMinSpeedMetersPerSec;
     }
 
     public double getCapacityWithCACCPerSecond(Link link, double fractionCACCOnRoad){
-
-
         double initialCapacity=link.getCapacity();
         double updatedCapacity=initialCapacity;
-
 
         if (isCACCCategoryRoad(link)) {
             caccCategoryRoadsTravelled++;
@@ -80,8 +83,12 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
 
 
             if (updatedCapacity<initialCapacity){
-               log.error("updatedCapacity (" + updatedCapacity +") is lower than initialCapacity (" + initialCapacity + ").");
+                log.error("updatedCapacity (" + updatedCapacity +") is lower than initialCapacity (" + initialCapacity + ").");
             }
+
+            String dataLine = link.getId().toString() + "," + fractionCACCOnRoad + "," + initialCapacity + "," + updatedCapacity;
+            capacityStatsCollector.append(dataLine).append("\n");
+
 
         } else {
             nonCACCCategoryRoadsTravelled++;
@@ -97,5 +104,18 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
         log.info("numberOfTimesOnlyCACCTravellingOnCACCEnabledRoads: " + numberOfTimesOnlyCACCTravellingOnCACCEnabledRoads);
         log.info("numberOfTimesOnlyNonCACCTravellingOnCACCEnabledRoads: " + numberOfTimesOnlyNonCACCTravellingOnCACCEnabledRoads);
         log.info("caccCategoryRoadsTravelled / nonCACCCategoryRoadsTravelled ratio: " + 1.0 * caccCategoryRoadsTravelled / nonCACCCategoryRoadsTravelled);
+        writeCapacityStats(currentIterationNumber,capacityStatsCollector.toString());
+    }
+
+    private void writeCapacityStats(int iterationNumber,String statsData) {
+        if (isWriteEnabled(iterationNumber)) {
+            String header = "linkId,fractionCACCOnRoad,initialCapacity,updatedCapacity";
+            String filePath = controllerIO.getIterationFilename(iterationNumber,"caccCapacityStats.csv.gz");
+            FileUtils.writeToFileJava(filePath,Optional.of(header),statsData, Optional.empty());
+        }
+    }
+
+    private boolean isWriteEnabled(int iterationNumber) {
+        return  (writeInterval > 0 && iterationNumber % writeInterval == 0);
     }
 }
