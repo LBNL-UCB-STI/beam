@@ -213,7 +213,7 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
     }
 
     /**
-     * dump outWriter all stop names
+     * dump out all stop names
      */
     public String dumpStops(TIntIntMap stops) {
         if (DUMP_STOPS) {
