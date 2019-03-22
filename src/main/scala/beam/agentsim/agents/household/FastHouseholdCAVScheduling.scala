@@ -1,6 +1,7 @@
 package beam.agentsim.agents.household
 import akka.actor.ActorRef
 import beam.agentsim.agents._
+import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
 import beam.agentsim.agents.planning.{BeamPlan, Trip}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehiclePersonId}
@@ -239,7 +240,6 @@ class FastHouseholdCAVScheduling(
 }
 
 case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupancy: Int) {
-  case class RouteOrEmbodyRequest(routeReq: Option[RoutingRequest], embodyReq: Option[EmbodyWithCurrentTravelTime])
 
   def toRoutingRequests(
     beamServices: BeamServices,
@@ -314,6 +314,10 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
     (requestList, CAVSchedule(newMobilityRequests, cav, occupancy))
   }
 
+}
+
+object CAVSchedule {
+  case class RouteOrEmbodyRequest(routeReq: Option[RoutingRequest], embodyReq: Option[EmbodyWithCurrentTravelTime])
 }
 
 case class HouseholdTrips(
