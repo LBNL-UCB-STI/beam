@@ -37,21 +37,21 @@ import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.ExecutionContext
 
 class FastHouseholdCAVSchedulingSpec
-  extends TestKit(
-    ActorSystem(
-      name = "FastHouseholdCAVSchedulingTest",
-      config = ConfigFactory
-        .parseString(
-          """
+    extends TestKit(
+      ActorSystem(
+        name = "FastHouseholdCAVSchedulingTest",
+        config = ConfigFactory
+          .parseString(
+            """
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
         akka.test.timefactor = 2
         """
-        )
-        .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+          )
+          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+      )
     )
-  )
     with Matchers
     with FunSpecLike
     with BeforeAndAfterAll
@@ -153,10 +153,10 @@ class FastHouseholdCAVSchedulingSpec
       println(s"*** scenario 5 *** ${schedules1.size} combinations")
       // second check
       val schedules2 = alg.getBestProductiveSchedule
-      schedules2.foldLeft(0)(_+_.schedule.size) shouldBe 11
+      schedules2.foldLeft(0)(_ + _.schedule.size) shouldBe 11
       // third check
       val schedules3 = alg.getKBestSchedules(1)
-      schedules3.head.foldLeft(0)(_+_.schedule.size) shouldBe 11
+      schedules3.head.foldLeft(0)(_ + _.schedule.size) shouldBe 11
     }
 
     it("be scalable") {

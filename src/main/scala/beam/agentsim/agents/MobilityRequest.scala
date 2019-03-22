@@ -8,7 +8,7 @@ sealed trait MobilityRequestTrait
 case object Pickup extends MobilityRequestTrait { override def toString: String = "pickup" }
 case object Dropoff extends MobilityRequestTrait { override def toString: String = "dropoff" }
 case object Relocation extends MobilityRequestTrait { override def toString: String = "relocation" }
-case object Init extends MobilityRequestTrait{ override def toString: String = "init" }
+case object Init extends MobilityRequestTrait { override def toString: String = "init" }
 
 case class MobilityRequest(
   person: Option[VehiclePersonId],
