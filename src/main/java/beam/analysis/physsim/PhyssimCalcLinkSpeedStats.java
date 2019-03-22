@@ -99,7 +99,7 @@ public class PhyssimCalcLinkSpeedStats {
         return beamConfig != null;
     }
 
-    // generate the data required as input to generate a graph 
+    // generate the data required as input to generate a graph
     private Map<Integer, Double> generateInputDataForGraph(TravelTimeCalculator travelTimeCalculator) {
         TravelTime travelTime = travelTimeCalculator.getLinkTravelTimes();
 
