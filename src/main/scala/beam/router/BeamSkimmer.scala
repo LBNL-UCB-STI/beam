@@ -1,41 +1,43 @@
 package beam.router
 
-import java.io._
+import java.awt.Color
+import java.io.{File, FileInputStream, _}
 import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
 
-import scala.collection.concurrent.TrieMap
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.analysis.plots.GraphUtils
 import beam.router.BeamRouter.Location
 import beam.router.BeamSkimmer._
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  BIKE,
-  CAR,
-  CAV,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
-import beam.sim.{BeamServices, BeamWarmStart}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
-import beam.utils.FileUtils
+import beam.sim.{BeamServices, BeamWarmStart}
 import com.google.inject.Inject
+import com.vividsolutions.jts.geom.Geometry
+import org.geotools.feature.FeatureIterator
+import org.geotools.geojson.feature.FeatureJSON
+import org.jfree.chart.ChartFactory
+import org.jfree.chart.plot.{PlotOrientation, XYPlot}
+import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer
+import org.jfree.data.xy.{XYSeries, XYSeriesCollection}
+import org.jfree.util.ShapeUtilities
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.utils.io.IOUtils
+import org.opengis.feature.Feature
+import org.opengis.feature.simple.SimpleFeature
 import org.supercsv.io.{CsvMapReader, ICsvMapReader}
 import org.supercsv.prefs.CsvPreference
+
+import scala.collection.concurrent.TrieMap
+import scala.language.implicitConversions
 
 //TODO to be validated against google api
 class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsListener {
@@ -276,7 +278,9 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
     mode: BeamMode.CAR.type,
     get: BeamServices,
     dummyId: Id[BeamVehicleType],
-    writer: BufferedWriter
+    writer: BufferedWriter,
+    trie: TrieMap[Path, Float],
+    series: XYSeries
   ) = {
     val individualSkims = hoursIncluded.map { timeBin =>
       getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
@@ -315,10 +319,26 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
       .zip(weights)
       .map(tup => tup._1 * tup._2)
       .sum / sumWeights
+
+    if (trie.contains(Path(origin.tazId, destination.tazId))) {
+      series.add(weightedTime, trie(Path(origin.tazId, destination.tazId)))
+    }
+
     writer.write(
       s"$timePeriodString,$mode,${origin.tazId},${destination.tazId},${weightedTime},${weightedGeneralizedTime},${weightedCost},${weightedGeneralizedCost},${weightedDistance},${sumWeights}\n"
     )
   }
+
+  private implicit def simpleFeatureIterator[F <: Feature](it: FeatureIterator[F]) = new Iterator[F] {
+    override def hasNext: Boolean = if (!it.hasNext) {
+      it.close()
+      false
+    } else true
+
+    override def next(): F = it.next()
+  }
+
+  case class Path(from: Id[TAZ], to: Id[TAZ])
 
   def writeCarSkimsForPeakNonPeakPeriods(event: IterationEndsEvent) = {
     val morningPeakHours = (7 to 8).toList
@@ -335,6 +355,47 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
     val writer = IOUtils.getBufferedWriter(filePath)
     writer.write(fileHeader)
     writer.write("\n")
+
+    val fjson = new FeatureJSON
+    val file = new File(beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileCensustracts)
+    val fileIn = new FileInputStream(file)
+    val features = fjson.readFeatureCollection(fileIn).features()
+
+    val trie: TrieMap[Path, Float] = TrieMap.empty
+    val series: XYSeries = new XYSeries("Time")
+
+    if (beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileCensustracts.nonEmpty &&
+      beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileAggregates.nonEmpty) {
+      val CensusTractHash: Map[Int, Id[TAZ]] = features.map(feature =>
+      {
+        val centroid = feature.asInstanceOf[SimpleFeature].getDefaultGeometry.asInstanceOf[Geometry].getCentroid
+        val coord = beamServicesOpt.get.geo.wgs2Utm(new Coord(centroid.getX, centroid.getY))
+        (feature.getProperty("MOVEMENT_ID").getValue.toString.toInt, beamServicesOpt.get.tazTreeMap.getTAZ(coord.getX, coord.getY).tazId)
+      }).toMap
+
+      var mapReader: ICsvMapReader = null
+      try {
+        val reader = buildReader(beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileAggregates)
+        mapReader = new CsvMapReader(reader, CsvPreference.STANDARD_PREFERENCE)
+        val header = mapReader.getHeader(true)
+        var line: java.util.Map[String, String] = mapReader.read(header: _*)
+        while (null != line) {
+          val sourceid = line.get("sourceid").toInt
+          val dstid = line.get("dstid").toInt
+          val mean_travel_time = line.get("mean_travel_time").toFloat
+
+          if (CensusTractHash.contains(sourceid) && CensusTractHash.contains(dstid)) {
+            trie.put(Path(CensusTractHash(sourceid), CensusTractHash(dstid)), mean_travel_time)
+          }
+
+          line = mapReader.read(header: _*)
+        }
+      } finally {
+        if (null != mapReader)
+          mapReader.close()
+      }
+    }
+
     beamServicesOpt.get.tazTreeMap.getTAZs
       .foreach { origin =>
         beamServicesOpt.get.tazTreeMap.getTAZs.foreach { destination =>
@@ -347,7 +408,9 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
               mode,
               beamServicesOpt.get,
               dummyId,
-              writer
+              writer,
+              trie,
+              series
             )
             averageAndWriteSkims(
               "PM",
@@ -357,7 +420,9 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
               mode,
               beamServicesOpt.get,
               dummyId,
-              writer
+              writer,
+              trie,
+              series
             )
             averageAndWriteSkims(
               "OffPeak",
@@ -367,11 +432,44 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
               mode,
               beamServicesOpt.get,
               dummyId,
-              writer
+              writer,
+              trie,
+              series
             )
           }
         }
       }
+
+    if (beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileCensustracts.nonEmpty &&
+      beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileAggregates.nonEmpty &&
+      beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileChart.nonEmpty) {
+      val dataset = new XYSeriesCollection
+      dataset.addSeries(series)
+
+      val chart = ChartFactory.createScatterPlot(
+        "Projection / Real Data",
+        "Projection", "Real Data",
+        dataset,
+        PlotOrientation.VERTICAL,
+        false, true, false);
+
+      val xyplot = chart.getPlot.asInstanceOf[XYPlot]
+
+      val renderer = new XYLineAndShapeRenderer
+      renderer.setSeriesShape(0, ShapeUtilities.createDiamond(1))
+      renderer.setSeriesPaint(0, Color.RED)
+      renderer.setSeriesLinesVisible(0, false)
+
+      xyplot.setRenderer(0, renderer)
+
+      GraphUtils.saveJFreeChartAsPNG(
+        chart,
+        beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileChart,
+        1000,
+        1000
+      )
+    }
+
     writer.close()
   }
 
