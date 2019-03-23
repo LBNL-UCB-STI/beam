@@ -464,7 +464,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
 
       GraphUtils.saveJFreeChartAsPNG(
         chart,
-        beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileChart,
+        event.getServices.getControlerIO.getIterationFilename(event.getIteration, beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileChart),
         1000,
         1000
       )
