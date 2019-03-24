@@ -398,7 +398,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
       event.getServices.getIterationNumber,
       BeamSkimmer.fullSkimsFileBaseName + ".csv.gz"
     )
-    val uniqueModes = skims.map(keyVal => keyVal._1._2).toList.distinct
+    val uniqueModes = skims.map(keyVal => keyVal._1._2).toList.distinct.filter(_.toString == "CAR")
     val uniqueTimeBins = (0 to 23)
 
     val dummyId = Id.create("NA", classOf[BeamVehicleType])
