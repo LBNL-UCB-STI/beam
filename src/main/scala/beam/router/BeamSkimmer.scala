@@ -402,10 +402,12 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
     val uniqueTimeBins = (0 to 23)
 
     val dummyId = Id.create("NA", classOf[BeamVehicleType])
+
+    /*
     val writer = IOUtils.getBufferedWriter(filePath)
     writer.write(fileHeader)
     writer.write("\n")
-
+    */
 
     val filePathObservedVsSimulated = event.getServices.getControlerIO.getIterationFilename(
       event.getServices.getIterationNumber,
@@ -496,14 +498,16 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
                   )
                 }
 
+                /*
                 writer.write(
                   s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedTime},${theSkim.distance},${theSkim.count}\n"
                 )
+                */
               }
           }
         }
       }
-    writer.close()
+    // writer.close()
 
     if (beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileCensustracts.nonEmpty &&
       beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileAggregates.nonEmpty &&
