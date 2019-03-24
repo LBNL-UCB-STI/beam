@@ -265,7 +265,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
     if (beamServicesOpt.isDefined) writeCarSkimsForPeakNonPeakPeriods(event)
     // Writing full skims are very large, but code is preserved here in case we want to enable it.
     // TODO make this a configurable output "writeFullSkimsInterval" with default of 0
-//    if(beamServicesOpt.isDefined)writeFullSkims(event)
+    if(beamServicesOpt.isDefined) writeFullSkims(event)
     previousSkims = skims
     skims = new TrieMap()
   }
@@ -278,9 +278,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
     mode: BeamMode.CAR.type,
     get: BeamServices,
     dummyId: Id[BeamVehicleType],
-    writer: BufferedWriter,
-    trie: TrieMap[Path, Float],
-    series: XYSeries
+    writer: BufferedWriter
   ) = {
     val individualSkims = hoursIncluded.map { timeBin =>
       getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
@@ -320,10 +318,6 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
       .map(tup => tup._1 * tup._2)
       .sum / sumWeights
 
-    if (trie.contains(Path(origin.tazId, destination.tazId))) {
-      series.add(weightedTime, trie(Path(origin.tazId, destination.tazId)))
-    }
-
     writer.write(
       s"$timePeriodString,$mode,${origin.tazId},${destination.tazId},${weightedTime},${weightedGeneralizedTime},${weightedCost},${weightedGeneralizedCost},${weightedDistance},${sumWeights}\n"
     )
@@ -355,6 +349,71 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
     val writer = IOUtils.getBufferedWriter(filePath)
     writer.write(fileHeader)
     writer.write("\n")
+
+    beamServicesOpt.get.tazTreeMap.getTAZs
+      .foreach { origin =>
+        beamServicesOpt.get.tazTreeMap.getTAZs.foreach { destination =>
+          modes.foreach { mode =>
+            averageAndWriteSkims(
+              "AM",
+              morningPeakHours,
+              origin,
+              destination,
+              mode,
+              beamServicesOpt.get,
+              dummyId,
+              writer
+            )
+            averageAndWriteSkims(
+              "PM",
+              afternoonPeakHours,
+              origin,
+              destination,
+              mode,
+              beamServicesOpt.get,
+              dummyId,
+              writer
+            )
+            averageAndWriteSkims(
+              "OffPeak",
+              nonPeakHours,
+              origin,
+              destination,
+              mode,
+              beamServicesOpt.get,
+              dummyId,
+              writer
+            )
+          }
+        }
+      }
+
+    writer.close()
+  }
+
+  def writeFullSkims(event: IterationEndsEvent) = {
+    val fileHeader =
+      "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations"
+    val filePath = event.getServices.getControlerIO.getIterationFilename(
+      event.getServices.getIterationNumber,
+      BeamSkimmer.fullSkimsFileBaseName + ".csv.gz"
+    )
+    val uniqueModes = skims.map(keyVal => keyVal._1._2).toList.distinct
+    val uniqueTimeBins = (0 to 23)
+
+    val dummyId = Id.create("NA", classOf[BeamVehicleType])
+    val writer = IOUtils.getBufferedWriter(filePath)
+    writer.write(fileHeader)
+    writer.write("\n")
+
+
+    val filePathObservedVsSimulated = event.getServices.getControlerIO.getIterationFilename(
+      event.getServices.getIterationNumber,
+      "tazODTravelTimeObservedVsSimulated.csv.gz"
+    )
+    val writerObservedVsSimulated = IOUtils.getBufferedWriter(filePathObservedVsSimulated)
+    writerObservedVsSimulated.write("fromTAZId,toTAZId,hour,timeSimulated,timeObserved")
+    writerObservedVsSimulated.write("\n")
 
     val fjson = new FeatureJSON
     val file = new File(beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileCensustracts)
@@ -399,97 +458,6 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
     beamServicesOpt.get.tazTreeMap.getTAZs
       .foreach { origin =>
         beamServicesOpt.get.tazTreeMap.getTAZs.foreach { destination =>
-          modes.foreach { mode =>
-            averageAndWriteSkims(
-              "AM",
-              morningPeakHours,
-              origin,
-              destination,
-              mode,
-              beamServicesOpt.get,
-              dummyId,
-              writer,
-              trie,
-              series
-            )
-            averageAndWriteSkims(
-              "PM",
-              afternoonPeakHours,
-              origin,
-              destination,
-              mode,
-              beamServicesOpt.get,
-              dummyId,
-              writer,
-              trie,
-              series
-            )
-            averageAndWriteSkims(
-              "OffPeak",
-              nonPeakHours,
-              origin,
-              destination,
-              mode,
-              beamServicesOpt.get,
-              dummyId,
-              writer,
-              trie,
-              series
-            )
-          }
-        }
-      }
-
-    if (beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileCensustracts.nonEmpty &&
-      beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileAggregates.nonEmpty &&
-      beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileChart.nonEmpty) {
-      val dataset = new XYSeriesCollection
-      dataset.addSeries(series)
-
-      val chart = ChartFactory.createScatterPlot(
-        "Projection / Real Data",
-        "Projection", "Real Data",
-        dataset,
-        PlotOrientation.VERTICAL,
-        false, true, false);
-
-      val xyplot = chart.getPlot.asInstanceOf[XYPlot]
-
-      val renderer = new XYLineAndShapeRenderer
-      renderer.setSeriesShape(0, ShapeUtilities.createDiamond(1))
-      renderer.setSeriesPaint(0, Color.RED)
-      renderer.setSeriesLinesVisible(0, false)
-
-      xyplot.setRenderer(0, renderer)
-
-      GraphUtils.saveJFreeChartAsPNG(
-        chart,
-        event.getServices.getControlerIO.getIterationFilename(event.getIteration, beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileChart),
-        1000,
-        1000
-      )
-    }
-
-    writer.close()
-  }
-
-  def writeFullSkims(event: IterationEndsEvent) = {
-    val fileHeader =
-      "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations"
-    val filePath = event.getServices.getControlerIO.getIterationFilename(
-      event.getServices.getIterationNumber,
-      BeamSkimmer.fullSkimsFileBaseName + ".csv.gz"
-    )
-    val uniqueModes = skims.map(keyVal => keyVal._1._2).toList.distinct
-    val uniqueTimeBins = (0 to 23)
-
-    val dummyId = Id.create("NA", classOf[BeamVehicleType])
-    val writer = IOUtils.getBufferedWriter(filePath)
-    writer.write(fileHeader)
-    writer.write("\n")
-    beamServicesOpt.get.tazTreeMap.getTAZs
-      .foreach { origin =>
-        beamServicesOpt.get.tazTreeMap.getTAZs.foreach { destination =>
           uniqueModes.foreach { mode =>
             uniqueTimeBins
               .foreach { timeBin =>
@@ -520,6 +488,14 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
                       )
                     }
                   }
+
+                if (trie.contains(Path(origin.tazId, destination.tazId))) {
+                  series.add(theSkim.time, trie(Path(origin.tazId, destination.tazId)))
+                  writerObservedVsSimulated.write(
+                    s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${trie(Path(origin.tazId, destination.tazId))}\n"
+                  )
+                }
+
                 writer.write(
                   s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedTime},${theSkim.distance},${theSkim.count}\n"
                 )
@@ -528,6 +504,38 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
         }
       }
     writer.close()
+
+    if (beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileCensustracts.nonEmpty &&
+      beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileAggregates.nonEmpty &&
+      beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileChart.nonEmpty) {
+      val dataset = new XYSeriesCollection
+      dataset.addSeries(series)
+
+      val chart = ChartFactory.createScatterPlot(
+        "TAZ TravelTimes Observed Vs. Simulated",
+        "Simulated", "Observed",
+        dataset,
+        PlotOrientation.VERTICAL,
+        false, true, false);
+
+      val xyplot = chart.getPlot.asInstanceOf[XYPlot]
+
+      val renderer = new XYLineAndShapeRenderer
+      renderer.setSeriesShape(0, ShapeUtilities.createDiamond(1))
+      renderer.setSeriesPaint(0, Color.RED)
+      renderer.setSeriesLinesVisible(0, false)
+
+      xyplot.setRenderer(0, renderer)
+
+      GraphUtils.saveJFreeChartAsPNG(
+        chart,
+        event.getServices.getControlerIO.getIterationFilename(event.getIteration, beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileChart),
+        1000,
+        1000
+      )
+    }
+
+    writerObservedVsSimulated.close()
   }
 
   def writeObservedSkims(event: IterationEndsEvent) = {
@@ -540,7 +548,9 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
     val writer = IOUtils.getBufferedWriter(filePath)
     writer.write(fileHeader)
     writer.write("\n")
+
     skims.foreach { keyVal =>
+
       writer.write(
         s"${keyVal._1._1},${keyVal._1._2},${keyVal._1._3},${keyVal._1._4},${keyVal._2.time},${keyVal._2.generalizedTime},${keyVal._2.cost},${keyVal._2.generalizedCost},${keyVal._2.distance},${keyVal._2.count}\n"
       )
