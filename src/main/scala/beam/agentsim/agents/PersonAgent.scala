@@ -184,7 +184,7 @@ object PersonAgent {
   def bodyVehicleIdFromPersonID(id: Id[Person]) = BeamVehicle.createId(id, Some("body"))
 
   def correctTripEndTime(trip: EmbodiedBeamTrip, endTime: Int, bodyVehicleId: Id[BeamVehicle]) = {
-    if (trip.tripClassifier != WALK) {
+    if (trip.tripClassifier != WALK && trip.tripClassifier != WALK_TRANSIT) {
       trip.copy(
         legs = trip.legs
           .dropRight(1) :+ EmbodiedBeamLeg
@@ -364,12 +364,13 @@ class PersonAgent(
     data: BasePersonData
   ): State = {
     logDebug(s"replanning because ${error.errorCode}")
-    eventsManager.processEvent(new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
+    val tick = _currentTick.getOrElse(response.request.departAt)
+    eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id)))
     goto(ChoosingMode) using ChoosesModeData(
       data.copy(currentTourMode = None, numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
       currentLocation = SpaceTime(
         beamServices.geo.wgs2Utm(data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc,
-        _currentTick.get
+        tick
       ),
       isWithinTripReplanning = true
     )
@@ -741,10 +742,16 @@ class PersonAgent(
                 0.0 // the cost as paid by person has already been accounted for, this event is just about the incentive
               )
             )
-
+          val correctedTrip = correctTripEndTime(data.currentTrip.get, tick, bodyVehiclePersonId.vehicleId)
+          val generalizedTime =
+            modeChoiceCalculator.getGeneralizedTimeOfTrip(correctedTrip, Some(attributes), nextActivity(data))
+          val generalizedCost = modeChoiceCalculator.getNonTimeCost(correctedTrip) + attributes
+            .getVOT(generalizedTime)
           // Correct the trip to deal with ride hail / disruptions and then register to skimmer
           beamSkimmer.observeTrip(
-            correctTripEndTime(data.currentTrip.get, tick, bodyVehiclePersonId.vehicleId),
+            correctedTrip,
+            generalizedTime,
+            generalizedCost,
             beamServices
           )
 
@@ -933,6 +940,8 @@ class PersonAgent(
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
     case Event(NotifyVehicleIdle(_, _, _, _, _), _) =>
       stay()
+    case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>
+      stay() replying CompletionNotice(triggerId)
     case Event(RideHailResponse(request, travelProposal, error, triggersToSchedule), _) =>
       stop(Failure("Unexpected RideHailResponse"))
     case Event(ParkingInquiryResponse(_, _), _) =>

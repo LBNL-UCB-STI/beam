@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 public class VehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
     private Map<String, Double> milesTraveledByVehicleType = new HashMap<>();
     private Set<Id<BeamVehicleType>> vehicleTypes;
+    private String humanBodyVehicleType = BeamVehicleType.defaultHumanBodyBeamVehicleType().toString();
 
     public VehicleMilesTraveledAnalysis(Set<Id<BeamVehicleType>> vehicleTypes) {
         this.vehicleTypes = vehicleTypes;
@@ -27,7 +28,7 @@ public class VehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
             double lengthInMeters = pte.legLength();
 
             milesTraveledByVehicleType.merge(vehicleType, lengthInMeters, (d1, d2) -> d1 + d2);
-            if (!vehicleType.equalsIgnoreCase(BeamVehicleType.defaultHumanBodyBeamVehicleType().toString())) {
+            if (!vehicleType.equalsIgnoreCase(humanBodyVehicleType)) {
                 milesTraveledByVehicleType.merge("total", lengthInMeters, (d1, d2) -> d1 + d2);
             }
 
