@@ -37,6 +37,7 @@ import org.supercsv.io.{CsvMapReader, ICsvMapReader}
 import org.supercsv.prefs.CsvPreference
 
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 import scala.language.implicitConversions
 
 //TODO to be validated against google api
@@ -50,6 +51,17 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
   private var previousSkims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = initialPreviousSkims()
   private var skims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = TrieMap()
   private val modalAverage: TrieMap[BeamMode, SkimInternal] = TrieMap()
+
+  case class PathCache(from: Id[TAZ], to: Id[TAZ], hod: Int)
+
+  private implicit def simpleFeatureIterator[F <: Feature](it: FeatureIterator[F]) = new Iterator[F] {
+    override def hasNext: Boolean = if (!it.hasNext) {
+      it.close()
+      false
+    } else true
+
+    override def next(): F = it.next()
+  }
 
   private def skimsFilePath: Option[String] = {
     val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
@@ -265,7 +277,13 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
     if (beamServicesOpt.isDefined) writeCarSkimsForPeakNonPeakPeriods(event)
     // Writing full skims are very large, but code is preserved here in case we want to enable it.
     // TODO make this a configurable output "writeFullSkimsInterval" with default of 0
-    if(beamServicesOpt.isDefined) writeFullSkims(event)
+    // if(beamServicesOpt.isDefined) writeFullSkims(event)
+
+    if (beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileCensustracts.nonEmpty &&
+      beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileAggregates.nonEmpty) {
+      writeTravelTimeObservedVsSimulated(event)
+    }
+
     previousSkims = skims
     skims = new TrieMap()
   }
@@ -322,17 +340,6 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
       s"$timePeriodString,$mode,${origin.tazId},${destination.tazId},${weightedTime},${weightedGeneralizedTime},${weightedCost},${weightedGeneralizedCost},${weightedDistance},${sumWeights}\n"
     )
   }
-
-  private implicit def simpleFeatureIterator[F <: Feature](it: FeatureIterator[F]) = new Iterator[F] {
-    override def hasNext: Boolean = if (!it.hasNext) {
-      it.close()
-      false
-    } else true
-
-    override def next(): F = it.next()
-  }
-
-  case class Path(from: Id[TAZ], to: Id[TAZ], hod: Int)
 
   def writeCarSkimsForPeakNonPeakPeriods(event: IterationEndsEvent) = {
     val morningPeakHours = (7 to 8).toList
@@ -391,23 +398,11 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
     writer.close()
   }
 
-  def writeFullSkims(event: IterationEndsEvent) = {
-    val fileHeader =
-      "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations"
-    val filePath = event.getServices.getControlerIO.getIterationFilename(
-      event.getServices.getIterationNumber,
-      BeamSkimmer.fullSkimsFileBaseName + ".csv.gz"
-    )
-    val uniqueModes = skims.map(keyVal => keyVal._1._2).toList.distinct.filter(_.toString == "CAR")
+  def writeTravelTimeObservedVsSimulated(event: IterationEndsEvent): Unit = {
+    val uniqueModes = List(CAR)
     val uniqueTimeBins = (0 to 23)
 
     val dummyId = Id.create("NA", classOf[BeamVehicleType])
-
-    /*
-    val writer = IOUtils.getBufferedWriter(filePath)
-    writer.write(fileHeader)
-    writer.write("\n")
-    */
 
     val filePathObservedVsSimulated = event.getServices.getControlerIO.getIterationFilename(
       event.getServices.getIterationNumber,
@@ -422,40 +417,37 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
     val fileIn = new FileInputStream(file)
     val features = fjson.readFeatureCollection(fileIn).features()
 
-    val trie: TrieMap[Path, Float] = TrieMap.empty
+    val observedTravelTimes: mutable.HashMap[PathCache, Float] = scala.collection.mutable.HashMap.empty
     val series: XYSeries = new XYSeries("Time")
 
-    if (beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileCensustracts.nonEmpty &&
-      beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileAggregates.nonEmpty) {
-      val CensusTractHash: Map[Int, Id[TAZ]] = features.map(feature =>
-      {
-        val centroid = feature.asInstanceOf[SimpleFeature].getDefaultGeometry.asInstanceOf[Geometry].getCentroid
-        val coord = beamServicesOpt.get.geo.wgs2Utm(new Coord(centroid.getX, centroid.getY))
-        (feature.getProperty("MOVEMENT_ID").getValue.toString.toInt, beamServicesOpt.get.tazTreeMap.getTAZ(coord.getX, coord.getY).tazId)
-      }).toMap
+    val CensusTractHash: Map[Int, Id[TAZ]] = features.map(feature =>
+    {
+      val centroid = feature.asInstanceOf[SimpleFeature].getDefaultGeometry.asInstanceOf[Geometry].getCentroid
+      val coord = beamServicesOpt.get.geo.wgs2Utm(new Coord(centroid.getX, centroid.getY))
+      (feature.getProperty("MOVEMENT_ID").getValue.toString.toInt, beamServicesOpt.get.tazTreeMap.getTAZ(coord.getX, coord.getY).tazId)
+    }).toMap
 
-      var mapReader: ICsvMapReader = null
-      try {
-        val reader = buildReader(beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileAggregates)
-        mapReader = new CsvMapReader(reader, CsvPreference.STANDARD_PREFERENCE)
-        val header = mapReader.getHeader(true)
-        var line: java.util.Map[String, String] = mapReader.read(header: _*)
-        while (null != line) {
-          val sourceid = line.get("sourceid").toInt
-          val dstid = line.get("dstid").toInt
-          val mean_travel_time = line.get("mean_travel_time").toFloat
-          val hod = line.get("hod").toInt
+    var mapReader: ICsvMapReader = null
+    try {
+      val reader = buildReader(beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileAggregates)
+      mapReader = new CsvMapReader(reader, CsvPreference.STANDARD_PREFERENCE)
+      val header = mapReader.getHeader(true)
+      var line: java.util.Map[String, String] = mapReader.read(header: _*)
+      while (null != line) {
+        val sourceid = line.get("sourceid").toInt
+        val dstid = line.get("dstid").toInt
+        val mean_travel_time = line.get("mean_travel_time").toFloat
+        val hod = line.get("hod").toInt
 
-          if (CensusTractHash.contains(sourceid) && CensusTractHash.contains(dstid)) {
-            trie.put(Path(CensusTractHash(sourceid), CensusTractHash(dstid), hod), mean_travel_time)
-          }
-
-          line = mapReader.read(header: _*)
+        if (CensusTractHash.contains(sourceid) && CensusTractHash.contains(dstid)) {
+          observedTravelTimes.put(PathCache(CensusTractHash(sourceid), CensusTractHash(dstid), hod), mean_travel_time)
         }
-      } finally {
-        if (null != mapReader)
-          mapReader.close()
+
+        line = mapReader.read(header: _*)
       }
+    } finally {
+      if (null != mapReader)
+        mapReader.close()
     }
 
     beamServicesOpt.get.tazTreeMap.getTAZs
@@ -492,55 +484,114 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
                     }
                   }
 
-                if (trie.contains(Path(origin.tazId, destination.tazId, timeBin))) {
-                  series.add(theSkim.time, trie(Path(origin.tazId, destination.tazId, timeBin)))
+                if (observedTravelTimes.contains(PathCache(origin.tazId, destination.tazId, timeBin))) {
+                  if (beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileChart.nonEmpty) {
+                    series.add(theSkim.time, observedTravelTimes(PathCache(origin.tazId, destination.tazId, timeBin)))
+                  }
                   writerObservedVsSimulated.write(
-                    s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${trie(Path(origin.tazId, destination.tazId, timeBin))}\n"
+                    s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${observedTravelTimes(PathCache(origin.tazId, destination.tazId, timeBin))}\n"
                   )
                 }
-
-                /*
-                writer.write(
-                  s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedTime},${theSkim.distance},${theSkim.count}\n"
-                )
-                */
               }
           }
         }
       }
-    // writer.close()
-
-    if (beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileCensustracts.nonEmpty &&
-      beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileAggregates.nonEmpty &&
-      beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileChart.nonEmpty) {
-      val dataset = new XYSeriesCollection
-      dataset.addSeries(series)
-
-      val chart = ChartFactory.createScatterPlot(
-        "TAZ TravelTimes Observed Vs. Simulated",
-        "Simulated", "Observed",
-        dataset,
-        PlotOrientation.VERTICAL,
-        false, true, false);
-
-      val xyplot = chart.getPlot.asInstanceOf[XYPlot]
-
-      val renderer = new XYLineAndShapeRenderer
-      renderer.setSeriesShape(0, ShapeUtilities.createDiamond(1))
-      renderer.setSeriesPaint(0, Color.RED)
-      renderer.setSeriesLinesVisible(0, false)
-
-      xyplot.setRenderer(0, renderer)
-
-      GraphUtils.saveJFreeChartAsPNG(
-        chart,
-        event.getServices.getControlerIO.getIterationFilename(event.getIteration, beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileChart),
-        1000,
-        1000
-      )
-    }
-
     writerObservedVsSimulated.close()
+
+    if (beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileChart.nonEmpty) {
+      generateChart(event, series)
+    }
+  }
+
+  def generateChart(event: IterationEndsEvent, series: XYSeries): Unit = {
+    val dataset = new XYSeriesCollection
+    dataset.addSeries(series)
+
+    val chart = ChartFactory.createScatterPlot(
+      "TAZ TravelTimes Observed Vs. Simulated",
+      "Simulated", "Observed",
+      dataset,
+      PlotOrientation.VERTICAL,
+      false, true, false);
+
+    val xyplot = chart.getPlot.asInstanceOf[XYPlot]
+
+    val renderer = new XYLineAndShapeRenderer
+    renderer.setSeriesShape(0, ShapeUtilities.createDiamond(1))
+    renderer.setSeriesPaint(0, Color.RED)
+    renderer.setSeriesLinesVisible(0, false)
+
+    xyplot.setRenderer(0, renderer)
+
+    GraphUtils.saveJFreeChartAsPNG(
+      chart,
+      event.getServices.getControlerIO.getIterationFilename(
+        event.getIteration,
+        beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileChart
+      ),
+      1000,
+      1000
+    )
+  }
+
+  def writeFullSkims(event: IterationEndsEvent) = {
+    val fileHeader =
+      "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations"
+    val filePath = event.getServices.getControlerIO.getIterationFilename(
+      event.getServices.getIterationNumber,
+      BeamSkimmer.fullSkimsFileBaseName + ".csv.gz"
+    )
+    val uniqueModes = skims.map(keyVal => keyVal._1._2).toList.distinct
+    val uniqueTimeBins = (0 to 23)
+
+    val dummyId = Id.create("NA", classOf[BeamVehicleType])
+
+    val writer = IOUtils.getBufferedWriter(filePath)
+    writer.write(fileHeader)
+    writer.write("\n")
+
+    beamServicesOpt.get.tazTreeMap.getTAZs
+      .foreach { origin =>
+        beamServicesOpt.get.tazTreeMap.getTAZs.foreach { destination =>
+          uniqueModes.foreach { mode =>
+            uniqueTimeBins
+              .foreach { timeBin =>
+                val theSkim = getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
+                  .map(_.toSkimExternal)
+                  .getOrElse {
+                    if (origin.equals(destination)) {
+                      val newDestCoord = new Coord(
+                        origin.coord.getX,
+                        origin.coord.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
+                      )
+                      getSkimDefaultValue(
+                        mode,
+                        origin.coord,
+                        newDestCoord,
+                        timeBin * 3600,
+                        dummyId,
+                        beamServicesOpt.get
+                      )
+                    } else {
+                      getSkimDefaultValue(
+                        mode,
+                        origin.coord,
+                        destination.coord,
+                        timeBin * 3600,
+                        dummyId,
+                        beamServicesOpt.get
+                      )
+                    }
+                  }
+
+                writer.write(
+                  s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedTime},${theSkim.distance},${theSkim.count}\n"
+                )
+              }
+          }
+        }
+      }
+    writer.close()
   }
 
   def writeObservedSkims(event: IterationEndsEvent) = {
