@@ -332,7 +332,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
     override def next(): F = it.next()
   }
 
-  case class Path(from: Id[TAZ], to: Id[TAZ])
+  case class Path(from: Id[TAZ], to: Id[TAZ], hod: Int)
 
   def writeCarSkimsForPeakNonPeakPeriods(event: IterationEndsEvent) = {
     val morningPeakHours = (7 to 8).toList
@@ -444,9 +444,10 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
           val sourceid = line.get("sourceid").toInt
           val dstid = line.get("dstid").toInt
           val mean_travel_time = line.get("mean_travel_time").toFloat
+          val hod = line.get("hod").toInt
 
           if (CensusTractHash.contains(sourceid) && CensusTractHash.contains(dstid)) {
-            trie.put(Path(CensusTractHash(sourceid), CensusTractHash(dstid)), mean_travel_time)
+            trie.put(Path(CensusTractHash(sourceid), CensusTractHash(dstid), hod), mean_travel_time)
           }
 
           line = mapReader.read(header: _*)
@@ -491,10 +492,10 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
                     }
                   }
 
-                if (trie.contains(Path(origin.tazId, destination.tazId))) {
-                  series.add(theSkim.time, trie(Path(origin.tazId, destination.tazId)))
+                if (trie.contains(Path(origin.tazId, destination.tazId, timeBin))) {
+                  series.add(theSkim.time, trie(Path(origin.tazId, destination.tazId, timeBin)))
                   writerObservedVsSimulated.write(
-                    s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${trie(Path(origin.tazId, destination.tazId))}\n"
+                    s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${trie(Path(origin.tazId, destination.tazId, timeBin))}\n"
                   )
                 }
 
