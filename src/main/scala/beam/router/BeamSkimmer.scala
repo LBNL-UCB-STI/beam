@@ -490,7 +490,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
                     series.add(theSkim.time, timeObserved)
                   }
                   writerObservedVsSimulated.write(
-                    s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved)}\n"
+                    s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved}\n"
                   )
                 }
               }
