@@ -484,12 +484,13 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig) extends IterationEndsLis
                     }
                   }
 
-                if (observedTravelTimes.contains(PathCache(origin.tazId, destination.tazId, timeBin))) {
+                val key = PathCache(origin.tazId, destination.tazId, timeBin)
+                observedTravelTimes.get(key).foreach { timeObserved =>
                   if (beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileChart.nonEmpty) {
-                    series.add(theSkim.time, observedTravelTimes(PathCache(origin.tazId, destination.tazId, timeBin)))
+                    series.add(theSkim.time, timeObserved)
                   }
                   writerObservedVsSimulated.write(
-                    s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${observedTravelTimes(PathCache(origin.tazId, destination.tazId, timeBin))}\n"
+                    s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved)}\n"
                   )
                 }
               }
