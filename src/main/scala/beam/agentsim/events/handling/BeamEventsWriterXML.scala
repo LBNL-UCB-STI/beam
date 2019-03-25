@@ -1,7 +1,6 @@
 package beam.agentsim.events.handling
 
 import java.io.IOException
-import java.util
 
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.events.Event
@@ -23,6 +22,8 @@ class BeamEventsWriterXML(
   beamServices: BeamServices,
   eventTypeToLog: Class[_]
 ) extends BeamEventsWriterBase(outFileName, beamEventLogger, beamServices, eventTypeToLog) {
+
+  val specialChars: Array[Char] = Array('<', '>', '\"', '&')
 
   writeHeaders()
 
@@ -83,7 +84,7 @@ class BeamEventsWriterXML(
     */
   private def encodeAttributeValue(attributeValue: String): String = {
     // Replace special characters(if any) with encoded strings
-    attributeValue.find(List('<', '>', '\"', '&').contains(_)) match {
+    attributeValue.find(specialChars.contains(_)) match {
       case Some(_) =>
         attributeValue
           .replaceAll("<", "&lt;")
