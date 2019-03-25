@@ -148,7 +148,7 @@ class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServi
 
   private def getTimeBinIndex(time: Double): Int = Math.floor(time / timeBinSize).toInt // - 1
 
-  // TODO: print revenue each iteration outWriter
+  // TODO: print revenue each iteration out
 
   def addRideCost(time: Double, cost: Double, pickupLocation: Location): Unit = {
 

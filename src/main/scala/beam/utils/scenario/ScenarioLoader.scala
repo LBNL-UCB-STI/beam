@@ -102,7 +102,7 @@ class ScenarioLoader(
     var initialVehicleCounter: Int = 0
     var totalCarCount: Int = 0
 
-    val scaleFactor = beamServices.beamConfig.beam.agentsim.agents.vehicles.householdVehicleFleetSizeSampleFactor
+    val scaleFactor = beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
     val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
     val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamServices)

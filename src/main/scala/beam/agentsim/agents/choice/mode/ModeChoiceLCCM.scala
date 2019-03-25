@@ -64,7 +64,7 @@ class ModeChoiceLCCM(
     } else {
       val bestInGroup = altsToBestInGroup(alternatives, tourType)
       /*
-       * Fill outWriter the input data structures required by the MNL models
+       * Fill out the input data structures required by the MNL models
        */
       val modeChoiceInputData = bestInGroup.map { alt =>
         val theParams = Map(
@@ -180,10 +180,10 @@ class ModeChoiceLCCM(
       conditionedOnModalityStyle,
       tourType,
       best.cost,
-      scaleTimeByVot(
+      getGeneralizedTime(
         best.walkTime + best.waitTime + best.vehicleTime + best.bikeTime,
         Some(best.mode)
-      )
+      ) * beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
     )
   }
 

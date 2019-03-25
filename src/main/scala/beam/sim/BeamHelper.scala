@@ -213,6 +213,7 @@ trait BeamHelper extends LazyLogging {
           addControlerListenerBinding().to(classOf[BeamSim])
           addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
           addControlerListenerBinding().to(classOf[BeamSkimmer])
+          addControlerListenerBinding().to(classOf[RouteHistory])
 
           addControlerListenerBinding().to(classOf[ActivityLocationPlotter])
           addControlerListenerBinding().to(classOf[GraphSurgePricing])
@@ -533,7 +534,7 @@ trait BeamHelper extends LazyLogging {
 
       logger.info(s"""Before sampling:
           |Number of households: ${notSelectedHouseholdIds.size}
-          |Number of vehicles: ${notSelectedVehicleIds.size}
+          |Number of vehicles: ${getVehicleGroupingStringUsing(notSelectedVehicleIds.toIndexedSeq, beamServices)}
           |Number of persons: ${notSelectedPersonIds.size}""".stripMargin)
 
       val iterHouseholds = RandomUtils.shuffle(scenario.getHouseholds.getHouseholds.values().asScala, rand).iterator
@@ -566,13 +567,15 @@ trait BeamHelper extends LazyLogging {
       }
 
       val numOfHouseholds = scenario.getHouseholds.getHouseholds.values().size
-      val numOfVehicles =
-        scenario.getHouseholds.getHouseholds.values().asScala.flatMap(hh => hh.getVehicleIds.asScala).size
+      val vehicles = scenario.getHouseholds.getHouseholds.values.asScala.flatMap(hh => hh.getVehicleIds.asScala)
       val numOfPersons = scenario.getPopulation.getPersons.size()
 
       logger.info(s"""After sampling:
            |Number of households: $numOfHouseholds. Removed: ${notSelectedHouseholdIds.size}
-           |Number of vehicles: $numOfVehicles. Removed: ${notSelectedVehicleIds.size}
+           |Number of vehicles: ${getVehicleGroupingStringUsing(vehicles.toIndexedSeq, beamServices)}. Removed: ${getVehicleGroupingStringUsing(
+                       notSelectedVehicleIds.toIndexedSeq,
+                       beamServices
+                     )}
            |Number of persons: $numOfPersons. Removed: ${notSelectedPersonIds.size}""".stripMargin)
 
       beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
@@ -592,6 +595,17 @@ trait BeamHelper extends LazyLogging {
         .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
         .toMap
     }
+  }
+
+  private def getVehicleGroupingStringUsing(vehicleIds: IndexedSeq[Id[Vehicle]], beamServices: BeamServices): String = {
+    vehicleIds
+      .groupBy(
+        vehicleId => beamServices.privateVehicles.get(vehicleId).map(_.beamVehicleType.id.toString).getOrElse("")
+      )
+      .map {
+        case (vehicleType, vehicleIds) => s"$vehicleType (${vehicleIds.size})"
+      }
+      .mkString(" , ")
   }
 
   def getScenarioSource(beamServices: BeamServices, beamConfig: BeamConfig): ScenarioSource = {
