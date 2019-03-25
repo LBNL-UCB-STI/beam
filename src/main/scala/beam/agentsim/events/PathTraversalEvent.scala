@@ -35,8 +35,15 @@ case class PathTraversalEvent(
   secondaryFuelConsumed: Double,
   endLegPrimaryFuelLevel: Double,
   endLegSecondaryFuelLevel: Double,
-  amountPaid: Double
-  //linkIdsToLaneOptions: IndexedSeq[(Int, Option[Int])]
+  amountPaid: Double /*,
+  linkIdsToLaneOptions: IndexedSeq[(Int, Option[Int])],
+  linkIdsToSpeedOptions: IndexedSeq[(Int, Option[Double])],
+  linkIdsToGradientOptions: IndexedSeq[(Int, Option[Double])],
+  linkIdsToLengthOptions: IndexedSeq[(Int, Option[Double])],
+  linkIdsToSelectedRateOptions: IndexedSeq[(Int, Option[Double])],
+  linkIdsToConsumptionOptions: IndexedSeq[(Int, Option[Double])],
+  secondaryLinkIdsToSelectedRateOptions: IndexedSeq[(Int, Option[Double])],
+  secondaryLinkIdsToConsumptionOptions: IndexedSeq[(Int, Option[Double])]*/
 ) extends Event(time)
     with ScalaEvent {
   import PathTraversalEvent._
@@ -73,7 +80,17 @@ case class PathTraversalEvent(
     attr.put(ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL, endLegSecondaryFuelLevel.toString)
     attr.put(ATTRIBUTE_SEATING_CAPACITY, seatingCapacity.toString)
     attr.put(ATTRIBUTE_TOLL_PAID, amountPaid.toString)
-    //attr.put(ATTRIBUTE_LINKID_WITH_LANE_MAP, linkIdsToLaneOptions.map{case ((linkId, laneOption)) => s"$linkId:${laneOption.getOrElse(0)}"}.mkString(","))
+    /*
+    attr.put(ATTRIBUTE_LINKID_WITH_LANE_MAP, linkIdsToLaneOptions.map{case ((linkId, laneOption)) => s"$linkId:${laneOption.getOrElse(0)}"}.mkString(","))
+    attr.put(ATTRIBUTE_LINKID_WITH_SPEED_MAP, linkIdsToSpeedOptions.map{case ((linkId, speedOption)) => s"$linkId:${speedOption.getOrElse(0)}"}.mkString(","))
+    attr.put(ATTRIBUTE_LINKID_WITH_SELECTED_GRADIENT_MAP, linkIdsToGradientOptions.map{case ((linkId, gradientOption)) => s"$linkId:${gradientOption.getOrElse(0)}"}.mkString(","))
+    attr.put(ATTRIBUTE_LINKID_WITH_LENGTH_MAP, linkIdsToLengthOptions.map{case ((linkId, lengthOption)) => s"$linkId:${lengthOption.getOrElse(0)}"}.mkString(","))
+    attr.put(ATTRIBUTE_LINKID_WITH_SELECTED_RATE_MAP, linkIdsToSelectedRateOptions.map{case ((linkId, rateOption)) => s"$linkId:${rateOption.getOrElse(0)}"}.mkString(","))
+    attr.put(ATTRIBUTE_LINKID_WITH_FINAL_CONSUMPTION_MAP, linkIdsToConsumptionOptions.map{case ((linkId, consumptionOption)) => s"$linkId:${consumptionOption.getOrElse(0)}"}.mkString(","))
+    attr.put(ATTRIBUTE_SECONDARY_LINKID_WITH_SELECTED_RATE_MAP, secondaryLinkIdsToSelectedRateOptions.map{case ((linkId, rateOption)) => s"$linkId:${rateOption.getOrElse(0)}"}.mkString(","))
+    attr.put(ATTRIBUTE_SECONDARY_LINKID_WITH_FINAL_CONSUMPTION_MAP, secondaryLinkIdsToConsumptionOptions.map{case ((linkId, consumptionOption)) => s"$linkId:${consumptionOption.getOrElse(0)}"}.mkString(","))
+     */
+
     attr
   }
 }
@@ -104,7 +121,16 @@ object PathTraversalEvent {
   val ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL: String = "endLegSecondaryFuelLevel"
   val ATTRIBUTE_TOLL_PAID: String = "tollPaid"
   val ATTRIBUTE_SEATING_CAPACITY: String = "seatingCapacity"
-  //val ATTRIBUTE_LINKID_WITH_LANE_MAP: String = "linkIdToLaneMap"
+  /*
+  val ATTRIBUTE_LINKID_WITH_LANE_MAP: String = "linkIdToLaneMap"
+  val ATTRIBUTE_LINKID_WITH_SPEED_MAP: String = "linkIdToSpeedMap"
+  val ATTRIBUTE_LINKID_WITH_SELECTED_GRADIENT_MAP: String = "linkIdToSelectedGradientMap"
+  val ATTRIBUTE_LINKID_WITH_LENGTH_MAP: String = "linkIdToLengthMap"
+  val ATTRIBUTE_LINKID_WITH_SELECTED_RATE_MAP: String = "primaryLinkIdToSelectedRateMap"
+  val ATTRIBUTE_LINKID_WITH_FINAL_CONSUMPTION_MAP: String = "primaryLinkIdToFinalConsumptionMap"
+  val ATTRIBUTE_SECONDARY_LINKID_WITH_SELECTED_RATE_MAP: String = "secondaryLinkIdToSelectedRateMap"
+  val ATTRIBUTE_SECONDARY_LINKID_WITH_FINAL_CONSUMPTION_MAP: String = "secondaryLinkIdToFinalConsumptionMap"
+   */
 
   def apply(
     time: Double,
@@ -117,8 +143,15 @@ object PathTraversalEvent {
     secondaryFuelConsumed: Double,
     endLegPrimaryFuelLevel: Double,
     endLegSecondaryFuelLevel: Double,
-    amountPaid: Double
-    //linkIdsToLaneOptions: IndexedSeq[(Int, Option[Int])]
+    amountPaid: Double /*,
+    linkIdsToLaneOptions: IndexedSeq[(Int, Option[Int])],
+    linkIdsToSpeedOptions: IndexedSeq[(Int, Option[Double])],
+    linkIdsToGradientOptions: IndexedSeq[(Int, Option[Double])],
+    linkIdsToLengthOptions: IndexedSeq[(Int, Option[Double])],
+    linkIdsToSelectedRateOptions: IndexedSeq[(Int, Option[Double])],
+    linkIdsToConsumptionOptions: IndexedSeq[(Int, Option[Double])],
+    secondaryLinkIdsToSelectedRateOptions: IndexedSeq[(Int, Option[Double])],
+    secondaryLinkIdsToConsumptionOptions: IndexedSeq[(Int, Option[Double])]*/
   ): PathTraversalEvent = {
     new PathTraversalEvent(
       time = time,
@@ -144,8 +177,15 @@ object PathTraversalEvent {
       secondaryFuelConsumed = secondaryFuelConsumed,
       endLegPrimaryFuelLevel = endLegPrimaryFuelLevel,
       endLegSecondaryFuelLevel = endLegSecondaryFuelLevel,
-      amountPaid = amountPaid
-      //linkIdsToLaneOptions = linkIdsToLaneOptions
+      amountPaid = amountPaid /*,
+      linkIdsToLaneOptions = linkIdsToLaneOptions,
+      linkIdsToSpeedOptions = linkIdsToSpeedOptions,
+      linkIdsToGradientOptions = linkIdsToGradientOptions,
+      linkIdsToLengthOptions = linkIdsToLengthOptions,
+      linkIdsToSelectedRateOptions = linkIdsToSelectedRateOptions,
+      linkIdsToConsumptionOptions = linkIdsToConsumptionOptions,
+      secondaryLinkIdsToSelectedRateOptions = secondaryLinkIdsToSelectedRateOptions,
+      secondaryLinkIdsToConsumptionOptions = secondaryLinkIdsToConsumptionOptions*/
     )
   }
 
@@ -179,10 +219,40 @@ object PathTraversalEvent {
     val endLegPrimaryFuelLevel: Double = attr(ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL).toDouble
     val endLegSecondaryFuelLevel: Double = attr(ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL).toDouble
     val amountPaid: Double = attr(ATTRIBUTE_TOLL_PAID).toDouble
-    /*val linkIdsToLaneOptions = attr(ATTRIBUTE_LINKID_WITH_LANE_MAP).split(",").map(x=>{
+    /*
+    val linkIdsToLaneOptions = attr(ATTRIBUTE_LINKID_WITH_LANE_MAP).split(",").map(x=>{
       val linkIdToLaneSplit = x.split(":")
       (linkIdToLaneSplit(0).toInt, Some(linkIdToLaneSplit(1).toInt))
-    })*/
+    })
+    val linkIdsToSpeedOptions = attr(ATTRIBUTE_LINKID_WITH_SPEED_MAP).split(",").map(x=>{
+      val linkIdToSpeedSplit = x.split(":")
+      (linkIdToSpeedSplit(0).toInt, Some(linkIdToSpeedSplit(1).toDouble))
+    })
+    val linkIdsToGradientOptions = attr(ATTRIBUTE_LINKID_WITH_SELECTED_GRADIENT_MAP).split(",").map(x=>{
+      val linkIdToGradientSplit = x.split(":")
+      (linkIdToGradientSplit(0).toInt, Some(linkIdToGradientSplit(1).toDouble))
+    })
+    val linkIdsToLengthOptions = attr(ATTRIBUTE_LINKID_WITH_LENGTH_MAP).split(",").map(x=>{
+      val linkIdToLengthSplit = x.split(":")
+      (linkIdToLengthSplit(0).toInt, Some(linkIdToLengthSplit(1).toDouble))
+    })
+    val linkIdsToSelectedRateOptions = attr(ATTRIBUTE_LINKID_WITH_SELECTED_RATE_MAP).split(",").map(x=>{
+      val linkIdToRateSplit = x.split(":")
+      (linkIdToRateSplit(0).toInt, Some(linkIdToRateSplit(1).toDouble))
+    })
+    val linkIdsToConsumptionOptions = attr(ATTRIBUTE_LINKID_WITH_FINAL_CONSUMPTION_MAP).split(",").map(x=>{
+      val linkIdToConsumptionSplit = x.split(":")
+      (linkIdToConsumptionSplit(0).toInt, Some(linkIdToConsumptionSplit(1).toDouble))
+    })
+    val secondaryLinkIdsToSelectedRateOptions = attr(ATTRIBUTE_SECONDARY_LINKID_WITH_SELECTED_RATE_MAP).split(",").map(x=>{
+      val linkIdToRateSplit = x.split(":")
+      (linkIdToRateSplit(0).toInt, Some(linkIdToRateSplit(1).toDouble))
+    })
+    val secondaryLinkIdsToConsumptionOptions = attr(ATTRIBUTE_SECONDARY_LINKID_WITH_FINAL_CONSUMPTION_MAP).split(",").map(x=>{
+      val linkIdToConsumptionSplit = x.split(":")
+      (linkIdToConsumptionSplit(0).toInt, Some(linkIdToConsumptionSplit(1).toDouble))
+    })
+     */
     PathTraversalEvent(
       time,
       vehicleId,
@@ -207,8 +277,15 @@ object PathTraversalEvent {
       secondaryFuelConsumed,
       endLegPrimaryFuelLevel,
       endLegSecondaryFuelLevel,
-      amountPaid
-      //linkIdsToLaneOptions
+      amountPaid /*,
+      linkIdsToLaneOptions,
+      linkIdsToSpeedOptions,
+      linkIdsToGradientOptions,
+      linkIdsToLengthOptions,
+      linkIdsToSelectedRateOptions,
+      linkIdsToConsumptionOptions,
+      secondaryLinkIdsToSelectedRateOptions,
+      secondaryLinkIdsToConsumptionOptions*/
     )
   }
 }

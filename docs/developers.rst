@@ -364,6 +364,102 @@ You can find details about scheduling a continuous integration build under DevOp
 
 .. _Configure Periodic Jobs: http://beam.readthedocs.io/en/latest/devops.html#configure-periodic-jobs
 
+
+Instructions for forking BEAM
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+These instructions are based on `this page <https://confluence.atlassian.com/bitbucket/current-limitations-for-git-lfs-with-bitbucket-828781638.html>`_
+
+1. Clone BEAM repo
+
+.. code-block:: bash
+
+    git clone https://github.com/LBNL-UCB-STI/beam
+
+    cd beam
+
+
+When asked for user name and password for LFS server (http://52.15.173.229:8080) enter anything but do not leave them blank.
+
+2. Fetch Git LFS files
+
+.. code-block:: bash
+
+    git lfs fetch origin
+
+Many tutorials on cloning Git LFS repos say one should use
+
+.. code-block:: bash
+
+    git lfs fetch --all origin
+
+However, in BEAM this represents over 15 GB data and often fails.
+
+3. Add new origin
+
+.. code-block:: bash
+
+    git remote add new-origin <URL to new repo>
+
+4. Create internal master branch, master branch will used to track public repo
+
+.. code-block:: bash
+
+    git branch master-internal
+    git checkout master-internal
+
+5. Update .lfsconfig to have only the new LFS repo
+
+.. code-block:: bash
+
+    [lfs] url = <URL to new LFS repo>
+
+Note: for Bitbucket, the <URL to new LFS repo> is <URL to new repo>/info/lfs
+
+6. Commit changes
+
+.. code-block:: bash
+
+    git commit --all
+
+7. Push to new repo
+
+.. code-block:: bash
+
+    git push new-origin --all
+
+**There will be errors saying that many files are missing (LFS upload missing objects). That is OK.**
+
+.. note:: As of this writing, the repo has around 250 MB LFS data. However, the push fails if the LFS server sets a low limit on LFS data. For example, it fails for Bitbucket free which sets a limit of 1 GB LFS data
+
+8. Set master-internal as default branch in the repository's website.
+
+9. Clone the new repo
+
+.. code-block:: bash
+
+    git clone <URL to new repo>
+    cd <folder of new repo>
+
+.. note:: Cloning might take a few minutes since the repo is quite large.
+
+If everything turned out well, the cloning process should not ask for the credentials for BEAM's LFS server (http://52.15.173.229:8080).
+
+10. Add public repo as upstream remote
+
+.. code-block:: bash
+
+   git remote add upstream https://github.com/LBNL-UCB-STI/beam
+
+
+11. Set master branch to track public remote and pull latest changes
+
+.. code-block:: bash
+
+   git fetch upstream
+   git checkout -b master upstream/master
+   git pull
+
+
 Scala tips
 ^^^^^^^^^^
 Scala Collection

@@ -199,7 +199,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
     time: Int,
     response: RoutingResponse
   ): Unit = {
-    val writer = new BufferedWriter(new FileWriter(new File("d:/test-outWriter.txt"), true))
+    val writer = new BufferedWriter(new FileWriter(new File("d:/test-out.txt"), true))
     response.itineraries.foreach(
       it =>
         writer.append(
