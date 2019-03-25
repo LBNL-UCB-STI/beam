@@ -40,7 +40,6 @@ import org.jfree.util.ShapeUtilities
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.events.IterationEndsEvent
-import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.utils.io.IOUtils
 import org.opengis.feature.Feature
 import org.opengis.feature.simple.SimpleFeature
@@ -52,10 +51,7 @@ import scala.collection.mutable
 import scala.language.implicitConversions
 
 //TODO to be validated against google api
-class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamServices)
-    extends IterationEndsListener
-    with LazyLogging {
-
+class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamServices) extends LazyLogging {
   import BeamSkimmer._
 
   private val SKIMS_FILE_NAME = "skims.csv.gz"
@@ -268,7 +264,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     (existingAverage * existingCount + newValue) / (existingCount + 1)
   }
 
-  override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+  def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     writeObservedSkims(event)
     writeCarSkimsForPeakNonPeakPeriods(event)
 
@@ -409,7 +405,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     writerObservedVsSimulated.write("fromTAZId,toTAZId,hour,timeSimulated,timeObserved")
     writerObservedVsSimulated.write("\n")
 
-    val series: XYSeries = new XYSeries("Time")
+    val series: XYSeries = new XYSeries("Time", false)
 
     beamServices.tazTreeMap.getTAZs
       .foreach { origin =>
@@ -458,6 +454,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
           }
         }
       }
+
     writerObservedVsSimulated.close()
 
     if (beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileChart.nonEmpty) {
@@ -468,7 +465,6 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   def generateChart(event: IterationEndsEvent, series: XYSeries): Unit = {
     val dataset = new XYSeriesCollection
     dataset.addSeries(series)
-
     val chart = ChartFactory.createScatterPlot(
       "TAZ TravelTimes Observed Vs. Simulated",
       "Simulated",
@@ -720,6 +716,7 @@ object BeamSkimmer extends LazyLogging {
           mapReader.close()
       }
     }
+    logger.info(s"observedTravelTimes size is ${observedTravelTimes.keys.size}")
     observedTravelTimes.toMap
   }
 
