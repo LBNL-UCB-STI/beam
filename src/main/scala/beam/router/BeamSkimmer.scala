@@ -61,15 +61,19 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   private var skims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = TrieMap()
   private val modalAverage: TrieMap[BeamMode, SkimInternal] = TrieMap()
 
-  private val observedTravelTimes: Map[PathCache, Float] = {
-    val tazToMovId: Map[TAZ, Int] = buildTAZ2MovementId(
-      beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileCensustracts,
-      beamServices.geo,
-      beamServices.tazTreeMap
-    )
-    val movId2Taz: Map[Int, TAZ] = tazToMovId.map { case (k, v) => v -> k }
+  private val observedTravelTimesOpt: Option[Map[PathCache, Float]] = {
+    val censustractsFile = beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileCensustracts
+    val aggFile = beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileAggregates
 
-    buildPathCache2TravelTime(beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileAggregates, movId2Taz)
+    if (censustractsFile.nonEmpty && aggFile.nonEmpty) {
+      val tazToMovId: Map[TAZ, Int] = buildTAZ2MovementId(
+        censustractsFile,
+        beamServices.geo,
+        beamServices.tazTreeMap
+      )
+      val movId2Taz: Map[Int, TAZ] = tazToMovId.map { case (k, v) => v -> k }
+      Some(buildPathCache2TravelTime(aggFile, movId2Taz))
+    } else None
   }
 
   private def skimsFilePath: Option[String] = {
@@ -265,16 +269,24 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   }
 
   def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    writeObservedSkims(event)
-    writeCarSkimsForPeakNonPeakPeriods(event)
-
+    ProfilingUtils.timed(s"writeObservedSkims on iteration ${event.getIteration}", x => logger.info(x)) {
+      writeObservedSkims(event)
+    }
+    ProfilingUtils.timed(s"writeCarSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}", x => logger.info(x)) {
+      writeCarSkimsForPeakNonPeakPeriods(event)
+    }
     // Writing full skims are very large, but code is preserved here in case we want to enable it.
     // TODO make this a configurable output "writeFullSkimsInterval" with default of 0
     // if(beamServicesOpt.isDefined) writeFullSkims(event)
 
-    if (beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileCensustracts.nonEmpty &&
-        beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileAggregates.nonEmpty) {
-      writeTravelTimeObservedVsSimulated(event)
+    observedTravelTimesOpt.foreach { observedTravelTimes =>
+      ProfilingUtils.timed(
+        s"writeTravelTimeObservedVsSimulated on iteration ${event.getIteration}",
+        x => logger.info(x)
+      ) {
+
+        writeTravelTimeObservedVsSimulated(event, observedTravelTimes)
+      }
     }
 
     previousSkims = skims
@@ -391,7 +403,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     writer.close()
   }
 
-  def writeTravelTimeObservedVsSimulated(event: IterationEndsEvent): Unit = {
+  def writeTravelTimeObservedVsSimulated(event: IterationEndsEvent, pathToTime: Map[PathCache, Float]): Unit = {
     val uniqueModes = List(CAR)
     val uniqueTimeBins = (0 to 23)
 
@@ -442,7 +454,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
                   }
 
                 val key = PathCache(origin.tazId, destination.tazId, timeBin)
-                observedTravelTimes.get(key).foreach { timeObserved =>
+                pathToTime.get(key).foreach { timeObserved =>
                   if (beamConfig.beam.calibration.roadNetwork.travelTimes.benchmarkFileChart.nonEmpty) {
                     series.add(theSkim.time, timeObserved)
                   }
@@ -716,7 +728,7 @@ object BeamSkimmer extends LazyLogging {
           mapReader.close()
       }
     }
-    logger.info(s"observedTravelTimes size is ${observedTravelTimes.keys.size}")
+    logger.info(s"observedTravelTimesOpt size is ${observedTravelTimes.keys.size}")
     observedTravelTimes.toMap
   }
 
