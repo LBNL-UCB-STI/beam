@@ -19,14 +19,14 @@ class ParkingStallSamplingTestSpec extends WordSpec with Matchers {
             taz,
             availabilityRatio
           )
-          distance(agent, result) should equal (0.0)
+          distance(agent, result) should equal(0.0)
         }
       }
       ">75% availability" should {
         "place parking stall very close to agent location" in new ParkingStallSamplingTestSpec.SquareTAZWorld {
           for {
-            availabilityRatio <- (100 until 75 by -1).map{ _.toDouble * 0.01 }
-            _ <- 1 to trialsPerTest
+            availabilityRatio <- (100 until 75 by -1).map { _.toDouble * 0.01 }
+            _                 <- 1 to trialsPerTest
           } {
             val result = ParkingStallSampling.availabilityAwareSampling(
               random,
@@ -46,8 +46,8 @@ class ParkingStallSamplingTestSpec extends WordSpec with Matchers {
       ">50% availability" should {
         "place parking stall in a wider field with relation to the agent" in new ParkingStallSamplingTestSpec.SquareTAZWorld {
           for {
-            availabilityRatio <- (75 until 50 by -1).map{ _.toDouble * 0.01 }
-            _ <- 1 to trialsPerTest
+            availabilityRatio <- (75 until 50 by -1).map { _.toDouble * 0.01 }
+            _                 <- 1 to trialsPerTest
           } {
             val result = ParkingStallSampling.availabilityAwareSampling(
               random,
@@ -67,8 +67,8 @@ class ParkingStallSamplingTestSpec extends WordSpec with Matchers {
       ">25% availability" should {
         "place parking stall in a range that is nearly as wide as the TAZ with relation to the agent" in new ParkingStallSamplingTestSpec.SquareTAZWorld {
           for {
-            availabilityRatio <- (50 until 25 by -1).map{ _.toDouble * 0.01 }
-            _ <- 1 to trialsPerTest
+            availabilityRatio <- (50 until 25 by -1).map { _.toDouble * 0.01 }
+            _                 <- 1 to trialsPerTest
           } {
             val result = ParkingStallSampling.availabilityAwareSampling(
               random,
@@ -89,8 +89,8 @@ class ParkingStallSamplingTestSpec extends WordSpec with Matchers {
         "place 99.9% of parking stalls in a range that is within 125% of TAZ diameter with relation to the TAZ centroid" in new ParkingStallSamplingTestSpec.SquareTAZWorld {
           var (counter, max) = (0, 0)
           for {
-            availabilityRatio <- (25 until 0 by -1).map{ _.toDouble * 0.01 }
-            _ <- 1 to trialsPerTest
+            availabilityRatio <- (25 until 0 by -1).map { _.toDouble * 0.01 }
+            _                 <- 1 to trialsPerTest
           } {
 
             val result = ParkingStallSampling.availabilityAwareSampling(
@@ -117,7 +117,6 @@ class ParkingStallSamplingTestSpec extends WordSpec with Matchers {
 
 }
 
-
 object ParkingStallSamplingTestSpec {
 
   // a parking problem which is a square coordinate system in the range x=[0,1000],y=[0,1000]
@@ -131,13 +130,13 @@ object ParkingStallSamplingTestSpec {
 
     val taz: TAZ = new TAZ(
       Id.create("taz", classOf[TAZ]),
-      new Coord (tazX, tazY),
+      new Coord(tazX, tazY),
       tazArea
     )
 
     val agent: Coord = new Coord(100.0, 100.0)
 
     // Euclidian distance for tests
-    def distance(a: Coord, b: Coord): Double = math.sqrt(math.pow(a.getY-b.getY, 2) + math.pow(a.getX-b.getX, 2))
+    def distance(a: Coord, b: Coord): Double = math.sqrt(math.pow(a.getY - b.getY, 2) + math.pow(a.getX - b.getX, 2))
   }
 }
