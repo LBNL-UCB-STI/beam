@@ -133,6 +133,7 @@ class BeamVehicle(
       }
 
     val primaryEnergyForFullLeg =
+      /*val (primaryEnergyForFullLeg, primaryLoggingData) =*/
       if (beamServices.beamConfig.beam.agentsim.agents.vehicles.enableNewVehicleEnergyConsumptionLogic)
         beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
           fuelConsumptionData,
@@ -140,12 +141,15 @@ class BeamVehicle(
           Primary
         )
       else powerTrain.estimateConsumptionInJoules(fuelConsumptionData)
+    /*else (powerTrain.estimateConsumptionInJoules(fuelConsumptionData), IndexedSeq.empty[LoggingData])*/
     var primaryEnergyConsumed = primaryEnergyForFullLeg
     var secondaryEnergyConsumed = 0.0
+    /*var secondaryLoggingData = IndexedSeq.empty[LoggingData]*/
     if (primaryFuelLevelInJoules < primaryEnergyForFullLeg) {
       if (secondaryFuelLevelInJoules > 0.0) {
         // Use secondary fuel if possible
         val secondaryEnergyForFullLeg =
+          /*val (secondaryEnergyForFullLeg, secondaryLoggingData) =*/
           if (beamServices.beamConfig.beam.agentsim.agents.vehicles.enableNewVehicleEnergyConsumptionLogic)
             beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
               fuelConsumptionData,
@@ -153,6 +157,7 @@ class BeamVehicle(
               Secondary
             )
           else powerTrain.estimateConsumptionInJoules(fuelConsumptionData)
+        /*else (powerTrain.estimateConsumptionInJoules(fuelConsumptionData), IndexedSeq.empty[LoggingData])*/
         secondaryEnergyConsumed = secondaryEnergyForFullLeg * (primaryEnergyForFullLeg - primaryFuelLevelInJoules) / primaryEnergyConsumed
         if (secondaryFuelLevelInJoules < secondaryEnergyConsumed) {
           logger.warn(
@@ -175,7 +180,10 @@ class BeamVehicle(
     }
     primaryFuelLevelInJoules = primaryFuelLevelInJoules - primaryEnergyConsumed
     secondaryFuelLevelInJoules = secondaryFuelLevelInJoules - secondaryEnergyConsumed
-    FuelConsumed(primaryEnergyConsumed, secondaryEnergyConsumed) //, fuelConsumptionData)
+    FuelConsumed(
+      primaryEnergyConsumed,
+      secondaryEnergyConsumed /*, fuelConsumptionData, primaryLoggingData, secondaryLoggingData*/
+    )
   }
 
   def addFuel(fuelInJoules: Double): Unit = {
@@ -238,7 +246,12 @@ class BeamVehicle(
 
 object BeamVehicle {
 
-  case class FuelConsumed(primaryFuel: Double, secondaryFuel: Double) //, fuelConsumptionData: IndexedSeq[FuelConsumptionData])
+  case class FuelConsumed(
+    primaryFuel: Double,
+    secondaryFuel: Double /*, fuelConsumptionData: IndexedSeq[FuelConsumptionData],
+                          primaryLoggingData: IndexedSeq[LoggingData],
+                          secondaryLoggingData: IndexedSeq[LoggingData]*/
+  )
 
   def noSpecialChars(theString: String): String =
     theString.replaceAll("[\\\\|\\\\^]+", ":")
