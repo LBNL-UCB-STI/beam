@@ -696,33 +696,35 @@ object BeamSkimmer extends LazyLogging {
 
   def buildPathCache2TravelTime(pathToAggregateFile: String, movId2Taz: Map[Int, TAZ]): Map[PathCache, Float] = {
     val observedTravelTimes: mutable.HashMap[PathCache, Float] = scala.collection.mutable.HashMap.empty
-    var mapReader: ICsvMapReader = null
-    try {
-      val reader = buildReader(pathToAggregateFile)
-      mapReader = new CsvMapReader(reader, CsvPreference.STANDARD_PREFERENCE)
-      val header = mapReader.getHeader(true)
-      var line: java.util.Map[String, String] = mapReader.read(header: _*)
-      while (null != line) {
-        val sourceid = line.get("sourceid").toInt
-        val dstid = line.get("dstid").toInt
-        val mean_travel_time = line.get("mean_travel_time").toFloat
-        val hod = line.get("hod").toInt
+    ProfilingUtils.timed(s"buildPathCache2TravelTime from '$pathToAggregateFile'", x => logger.info(x)) {
+      var mapReader: ICsvMapReader = null
+      try {
+        val reader = buildReader(pathToAggregateFile)
+        mapReader = new CsvMapReader(reader, CsvPreference.STANDARD_PREFERENCE)
+        val header = mapReader.getHeader(true)
+        var line: java.util.Map[String, String] = mapReader.read(header: _*)
+        while (null != line) {
+          val sourceid = line.get("sourceid").toInt
+          val dstid = line.get("dstid").toInt
+          val mean_travel_time = line.get("mean_travel_time").toFloat
+          val hod = line.get("hod").toInt
 
-        if (movId2Taz.contains(sourceid) && movId2Taz.contains(dstid)) {
-          observedTravelTimes.put(PathCache(movId2Taz(sourceid).tazId, movId2Taz(dstid).tazId, hod), mean_travel_time)
+          if (movId2Taz.contains(sourceid) && movId2Taz.contains(dstid)) {
+            observedTravelTimes.put(PathCache(movId2Taz(sourceid).tazId, movId2Taz(dstid).tazId, hod), mean_travel_time)
+          }
+
+          line = mapReader.read(header: _*)
         }
-
-        line = mapReader.read(header: _*)
+      } finally {
+        if (null != mapReader)
+          mapReader.close()
       }
-    } finally {
-      if (null != mapReader)
-        mapReader.close()
     }
     observedTravelTimes.toMap
   }
 
   def buildTAZ2MovementId(filePath: String, geo: GeoUtils, tazTreeMap: TAZTreeMap): Map[TAZ, Int] = {
-    ProfilingUtils.timed(s"buildCensusHash from '$filePath'", x => logger.info(x)) {
+    ProfilingUtils.timed(s"buildTAZ2MovementId from '$filePath'", x => logger.info(x)) {
       val mapper: Feature => (TAZ, Int, Double) = (feature: Feature) => {
         val centroid = feature.asInstanceOf[SimpleFeature].getDefaultGeometry.asInstanceOf[Geometry].getCentroid
         val wgsCoord = new Coord(centroid.getX, centroid.getY)
