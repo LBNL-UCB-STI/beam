@@ -35,19 +35,19 @@ object ParkingZoneSearch {
     parkingZones: Array[ParkingZone],
     costFunction: (ParkingZone, Option[ChargingPreference]) => Double
   ): Option[RankingAccumulator] = {
-    val found = findParkingZonesAndRanking(tazList, parkingTypes, tree, parkingZones)
+    val found = findParkingZones(tazList, parkingTypes, tree, parkingZones)
     takeBestByRanking(found, chargingInquiryData, costFunction)
   }
 
   /**
-    * look for matching ParkingZones, optionally based on charging infrastructure requirements, within a TAZ, which have vacancies
+    * look for matching ParkingZones, within a TAZ, which have vacancies
     * @param tazList the TAZ we are looking in
     * @param parkingTypes the parking types we are interested in
     * @param tree search tree of parking infrastructure
     * @param parkingZones stored ParkingZone data
     * @return list of discovered ParkingZones
     */
-  def findParkingZonesAndRanking(
+  def findParkingZones(
     tazList: Seq[TAZ],
     parkingTypes: Seq[ParkingType],
     tree: ZoneSearch,
