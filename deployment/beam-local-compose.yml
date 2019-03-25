@@ -2,9 +2,7 @@ version: '3'
 services:
 
   beam-worker:
-    image: beammodel/beam
-    env_file:
-      - beam-variables.env
+    image: beammodel/beam:0.6.2
     ports:
       - "2552"
     volumes:
@@ -16,9 +14,11 @@ services:
     environment:
       HOSTNAME_COMMAND: "ifconfig | grep \"inet addr:\" | awk  -F'[: ]+' '!/127/{print $$4}'"
       BEAM_OUTPUT: /opt/output
+    depends_on:
+      - beam-master
 
   beam-master:
-    image: beammodel/beam
+    image: beammodel/beam:0.6.2
     hostname: beam-master
     ports:
       - "2552"
@@ -30,5 +30,3 @@ services:
     command: ["--config",  "/opt/config/simulation/beam.conf", "--cluster-type", "master", "--node-host", "beam-master", "--node-port", "2552", "--seed-address", "beam-master:2552"]
     environment:
       BEAM_OUTPUT: /opt/output
-    depends_on:
-      - beam-worker

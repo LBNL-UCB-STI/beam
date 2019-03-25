@@ -1,0 +1,29 @@
+daemonset:
+  image: "kmitin/s3fs"
+  imageTag: "latest"
+  bucket: ${bucketName}
+  region: "us-west-2"
+  pullPolicy: Always
+  resources:
+    limits:
+      cpu: 300m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+volume:
+  fuse:
+    name: devfuse
+    path: /dev/fuse
+    host: /dev/fuse
+  data:
+    name: mount-data
+    path: /s3data
+    host: /dev/data-s3fs
+
+global:
+  namespace: ${simulationNamespace}
+  creation: ${creationTime}
+  secret:
+    docker: dockerhub

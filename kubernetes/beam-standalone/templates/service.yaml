@@ -5,7 +5,7 @@ metadata:
     app: {{ template "beam-simulation.service" . }}
     {{- include "beam-simulation.release_labels" . | indent 4 }}
   name: {{ template "beam-simulation.service" . }}
-  namespace: {{ template "beam-simulation.namespace" . }}
+  namespace: {{ .Values.global.namespace }}
 spec:
   clusterIP: {{ .Values.service.akkaPort.type }}
   ports:

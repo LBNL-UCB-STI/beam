@@ -7,7 +7,7 @@ metadata:
     "helm.sh/hook-weight": "4"
     {{- include "beam-simulation.release_labels" . | indent 4 }}
   name: {{ template "beam-simulation.worker.service" . }}
-  namespace: {{ template "beam-simulation.namespace" . }}
+  namespace: {{ .Values.global.namespace }}
 spec:
   clusterIP: {{ .Values.service.akkaPort.worker.type }}
   ports:
@@ -20,7 +20,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: {{ template "beam-simulation.worker.set" . }}
-  namespace: {{ template "beam-simulation.namespace" . }}
+  namespace: {{ .Values.global.namespace }}
   labels:
     "helm.sh/hook": "post-install"
     "helm.sh/hook-weight": "4"
@@ -49,7 +49,7 @@ spec:
             path: {{ .Values.volume.data.host }}
 
       imagePullSecrets:
-        - name: {{ .Values.secret.docker }}
+        - name: {{ .Values.global.secret.docker }}
 
       containers:
 

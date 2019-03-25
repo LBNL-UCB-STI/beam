@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: data-provider
-  namespace: beam-master-local-2018-10-24-1540398978
   labels:
     app: data-provider
 spec:
@@ -50,7 +49,7 @@ spec:
         lifecycle:
           postStart:
             exec:
-              command: ["/bin/bash", "-c", "sleep 5 && cp -rv /data/beamville /data/dtd /data/common /s3data/"]
+              command: ["/bin/bash", "-c", "sleep 5 && cp -rv /data/sf-light /data/beamville /data/dtd /data/common /s3data/"]
       imagePullSecrets:
       - name: dockerhub
       volumes:

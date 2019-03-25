@@ -10,9 +10,6 @@ service:
       type: None
       port: 2552
 
-secret:
-  docker: dockerhub
-
 deployment:
   image: ${beamImage}
   imageTag: ${beamImageTag}
@@ -22,18 +19,7 @@ deployment:
   # ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
   podLabels: {}
 
-daemonset:
-  image: "kmitin/s3fs"
-  imageTag: "latest"
-  bucket: ${bucketName}
-  region: "us-west-2"
-  pullPolicy: Always
-
 volume:
-  fuse:
-    name: devfuse
-    path: /dev/fuse
-    host: /dev/fuse
   data:
     name: mount-data
     path: /s3data
@@ -50,3 +36,9 @@ job:
     replicas: 3
   image: ${beamImage}
   imageTag: ${beamImageTag}
+
+global:
+  namespace: ${simulationNamespace}
+  creation: ${creationTime}
+  secret:
+    docker: dockerhub

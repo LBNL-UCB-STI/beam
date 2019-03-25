@@ -73,11 +73,11 @@ trait BeamHelper extends LazyLogging {
       )
       .text("If running as a cluster, specify master or worker")
     opt[String]("node-host")
-      .action((value, args) => args.copy(nodeHost = Option(value)))
+      .action((value, args) => args.copy(nodeHost = Option(resolveEnv(value))))
       .validate(value => if (value.trim.isEmpty) failure("node-host cannot be empty") else success)
       .text("Host used to run the remote actor system")
     opt[String]("node-port")
-      .action((value, args) => args.copy(nodePort = Option(value)))
+      .action((value, args) => args.copy(nodePort = Option(resolveEnv(value))))
       .validate(value => if (value.trim.isEmpty) failure("node-port cannot be empty") else success)
       .text("Port used to run the remote actor system")
     opt[String]("seed-address")
@@ -109,31 +109,10 @@ trait BeamHelper extends LazyLogging {
     )
   }
 
-  private def updateConfigForClusterUsing(
-    parsedArgs: Arguments,
-    config: TypesafeConfig
-  ): TypesafeConfig = {
-    (for {
-      seedAddress <- parsedArgs.seedAddress
-      nodeHost    <- parsedArgs.nodeHost
-      nodePort    <- parsedArgs.nodePort
-    } yield {
-
-      val hostName = Some(nodeHost)
-        .filterNot(_.contains("$"))
-        .getOrElse(System.getenv(nodeHost.replace("$", "")))
-
-      config.withFallback(
-        ConfigFactory.parseMap(
-          Map(
-            "seed.address" -> seedAddress,
-            "node.host"    -> hostName,
-            "node.port"    -> nodePort
-          ).asJava
-        )
-      )
-    }).getOrElse(config)
-  }
+  private def resolveEnv(prop: String): String =
+    Some(prop)
+      .filterNot(_.contains("$"))
+      .getOrElse(System.getenv(prop.replace("$", "")))
 
   private def embedSelectArgumentsIntoConfig(
     parsedArgs: Arguments,
@@ -276,10 +255,7 @@ trait BeamHelper extends LazyLogging {
     ConfigConsistencyComparator(parsedArgs.configLocation.get)
 
     val location = ConfigFactory.parseString("config=" + parsedArgs.configLocation.get)
-    val config = embedSelectArgumentsIntoConfig(parsedArgs, {
-      if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
-      else parsedArgs.config.get
-    }).withFallback(location).resolve()
+    val config = embedSelectArgumentsIntoConfig(parsedArgs, parsedArgs.config.get).withFallback(location).resolve()
 
     (parsedArgs, config)
   }

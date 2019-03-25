@@ -35,6 +35,7 @@ plugins {
     id 'org.unbroken-dome.helm' version '0.3.0'
     id 'org.unbroken-dome.helm-commands' version '0.3.0'
     id 'org.unbroken-dome.helm-releases' version '0.3.0'
+    id 'org.unbroken-dome.helm-publish' version '0.3.0'
 }
 
 //ext {
@@ -694,28 +695,55 @@ shadowJar {
 
 helm {
     home = file("${project.buildDir}/helm")
+
+    def dateCreation = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"))
+
     filtering {
         values.put 'beamImage', 'beammodel/beam'
-        values.put 'beamImageTag', 'latest'
+        values.put 'beamImageTag', '0.6.2'
         values.put 'bucketName', 'beam-config'
         values.put 'authorName', 'Kirill Mitin'
         values.put 'authorEmail', 'mitin.kirill.ol@gmail.com'
+        values.put 'creationTime', dateCreation
     }
     lint {
         strict = true
     }
 
     charts {
-        standalone {
-            chartName = 'beam-master-local'
+        common {
+            chartName = 'beam-common'
             chartVersion = '0.1.0'
-            sourceDir = file('kubernetes/beam-master-local')
+            sourceDir = file('kubernetes/beam-common')
+        }
+
+        standalone {
+            chartName = 'beam-standalone'
+            chartVersion = '0.1.0'
+            sourceDir = file('kubernetes/beam-standalone')
+
+            filtering {
+                values.put 'simulationNamespace', "standalone-${dateCreation}"
+            }
+
+            dependencies {
+                add(name: 'common', chart: 'beam-common')
+            }
+
         }
 
         cluster {
             chartName = 'beam-cluster'
             chartVersion = '0.1.0'
             sourceDir = file('kubernetes/beam-cluster')
+
+            filtering {
+                values.put 'simulationNamespace', "cluster-${dateCreation}"
+            }
+
+            dependencies {
+                add(name: 'common', chart: 'common')
+            }
         }
     }
 
@@ -735,15 +763,15 @@ task helmInit(type: HelmInit) {
     upgrade = true
 }
 
-task deployStandaloneChart(dependsOn: [helmPackageStandaloneChart, helmInit], type: HelmInstall) {
-    def date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
-    chart = "${project.buildDir}/helm/charts/beam-master-local-0.1.0.tgz"
-    releaseName = "beam-local-${date}"
+task deployStandaloneChart(dependsOn: [helmPackageStandaloneChart, helmPackageCommonChart, helmInit], type: HelmInstall) {
+    def date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"))
+    chart = "${project.buildDir}/helm/charts/beam-standalone-0.1.0.tgz"
+    releaseName = "beam-standalone-${date}"
 }
 
 task helmStandaloneList(dependsOn: [helmInit], type: Exec) {
     executable 'helm'
-    args 'ls', '-q', 'beam-local'
+    args 'ls', '-q', 'beam-standalone'
     standardOutput = new ByteArrayOutputStream()
     ext.charts = {
         return standardOutput.toString().replace('\n', ' ')
@@ -761,7 +789,7 @@ task removeStandaloneCharts(dependsOn: [helmStandaloneList]) {
     }
 }
 
-task deployClusterChart(dependsOn: [helmPackageClusterChart, helmInit], type: HelmInstall) {
+task deployClusterChart(dependsOn: [helmPackageClusterChart, helmPackageCommonChart, helmInit], type: HelmInstall) {
     def date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
     chart = "${project.buildDir}/helm/charts/beam-cluster-0.1.0.tgz"
     releaseName = "beam-cluster-${date}"

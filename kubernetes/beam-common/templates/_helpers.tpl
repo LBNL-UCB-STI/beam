@@ -18,17 +18,7 @@
 
 {{- define "beam-simulation.data" -}}
 {{- $revision := htmlDate now -}}
-{{- printf "%s-%s-%d-data" .Chart.Name $revision .Release.Time.Seconds | trunc 63 -}}
-{{- end -}}
-
-{{- define "beam-simulation.job" -}}
-{{- $revision := htmlDate now -}}
-{{- printf "%s-%s-%d-job" .Chart.Name $revision .Release.Time.Seconds | trunc 63 -}}
-{{- end -}}
-
-{{- define "beam-simulation.service" -}}
-{{- $revision := htmlDate now -}}
-{{- printf "%s-%s-%d-service" .Chart.Name $revision .Release.Time.Seconds | trunc 63 -}}
+{{- printf "%s-data" .Chart.Name | trunc 63 -}}
 {{- end -}}
 
 {{- define "beam-simulation.release_labels" }}
@@ -38,6 +28,7 @@ app.kubernetes.io/name: {{ .Chart.Name | quote }}
 app.kubernetes.io/instance: {{ .Release.Name | quote }}
 app.kubernetes.io/version: {{ .Chart.Version | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+app.kubernetes.io/time: {{ .Values.global.creation | quote }}
 {{- end }}
 
 {{- define "beam-simulation.fullname" -}}

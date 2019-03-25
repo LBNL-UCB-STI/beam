@@ -2,7 +2,7 @@ apiVersion: v1
 name: ${chartName}
 version: ${chartVersion}
 appVersion: 0.6.0
-description: Beam Single Master Local Run
+description: Beam Common Depoyment
 keywords:
   - beam
 home: http://http://beam.lbl.gov
