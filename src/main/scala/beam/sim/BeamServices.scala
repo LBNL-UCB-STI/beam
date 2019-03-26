@@ -165,6 +165,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   }
 
   val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig)
+  skimmer.setBeamServices(this)
 
   // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
   // say, a yacht or personal bus, but I think this will be fine for now.

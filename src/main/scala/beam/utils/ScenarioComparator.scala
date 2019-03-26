@@ -125,6 +125,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
         readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath, fuelTypePrices)
 
       override lazy val skimmer: BeamSkimmer = ???
+      skimmer.setBeamServices(this)
 
       private val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
       private val vehicleCsvReader = new VehicleCsvReader(beamConfig)
@@ -163,8 +164,8 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
       override lazy val ptFares: PtFares = ???
       override def networkHelper: NetworkHelper = ???
       override def setTransitFleetSizes(
-        tripFleetSizeMap: mutable.HashMap[String, Integer]
-      ): Unit = {}
+                                         tripFleetSizeMap: mutable.HashMap[String, Integer]
+                                       ): Unit = {}
     }
 
     beamServices
@@ -218,14 +219,14 @@ object HouseHoldComparator extends Comparator[Household] {
       Collections.sort(o2.getVehicleIds)
 
       if (!(o1.getId == o2.getId &&
-          o1.getIncome.getCurrency == o2.getIncome.getCurrency &&
-          o1.getIncome.getIncome == o2.getIncome.getIncome &&
-          o1.getIncome.getIncomePeriod.equals(o2.getIncome.getIncomePeriod) &&
-          o1.getAttributes.toString.equals(o2.getAttributes.toString) &&
-          //o1.getIncome.getIncomePeriod.values().deep == o2.getIncome.getIncomePeriod.values.deep &&
-          /*Vehicle ids dont match because we are generating vehicles on the fly dynamically in the case of csv data*/
-//          o1.getVehicleIds.equals(o2.getVehicleIds) &&
-          o1.getMemberIds.equals(o2.getMemberIds)))
+        o1.getIncome.getCurrency == o2.getIncome.getCurrency &&
+        o1.getIncome.getIncome == o2.getIncome.getIncome &&
+        o1.getIncome.getIncomePeriod.equals(o2.getIncome.getIncomePeriod) &&
+        o1.getAttributes.toString.equals(o2.getAttributes.toString) &&
+        //o1.getIncome.getIncomePeriod.values().deep == o2.getIncome.getIncomePeriod.values.deep &&
+        /*Vehicle ids dont match because we are generating vehicles on the fly dynamically in the case of csv data*/
+        //          o1.getVehicleIds.equals(o2.getVehicleIds) &&
+        o1.getMemberIds.equals(o2.getMemberIds)))
         flag = 1
     }
 
@@ -290,7 +291,7 @@ object VehicleComparator extends Comparator[BeamVehicle] {
 
   override def compare(v1: BeamVehicle, v2: BeamVehicle): Int = {
     if (v1.id == v2.id
-        && v1.beamVehicleType.equals(v2.beamVehicleType)) 0
+      && v1.beamVehicleType.equals(v2.beamVehicleType)) 0
     else 1
   }
 
@@ -327,8 +328,8 @@ object PersonComparator extends Comparator[Person] {
 
   override def compare(p1: Person, p2: Person): Int = {
     if (p1.getId == p2.getId &&
-        p1.getPlans.size() == p2.getPlans.size() &&
-        compareSelectedPlans(p1.getSelectedPlan, p2.getSelectedPlan)) 0
+      p1.getPlans.size() == p2.getPlans.size() &&
+      compareSelectedPlans(p1.getSelectedPlan, p2.getSelectedPlan)) 0
     else 1
   }
 
