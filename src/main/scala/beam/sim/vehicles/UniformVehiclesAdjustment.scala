@@ -29,10 +29,9 @@ case class UniformVehiclesAdjustment(beamServices: BeamServices) extends Vehicle
     householdIncome: Double,
     householdSize: Int,
     householdPopulation: Population,
-    householdLocation: Coord
+    householdLocation: Coord,
+    realDistribution: UniformRealDistribution
   ): List[BeamVehicleType] = {
-    val realDistribution: UniformRealDistribution = new UniformRealDistribution()
-    realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
     val vehTypeWithProbability = vehicleTypesAndProbabilitiesByCategory(vehicleCategory, "Usage Not Set")
     (1 to numVehicles).map { _ =>
       val newRand = realDistribution.sample()

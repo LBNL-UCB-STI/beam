@@ -17,7 +17,8 @@ trait VehiclesAdjustment extends LazyLogging {
     householdIncome: Double,
     householdSize: Int,
     householdPopulation: Population,
-    householdLocation: Coord
+    householdLocation: Coord,
+    realDistribution: UniformRealDistribution
   ): List[BeamVehicleType]
 
   def sampleRideHailVehicleTypes(

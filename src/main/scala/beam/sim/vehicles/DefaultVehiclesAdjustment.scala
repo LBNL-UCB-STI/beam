@@ -28,7 +28,8 @@ case class DefaultVehiclesAdjustment(beamServices: BeamServices) extends Vehicle
     householdIncome: Double,
     householdSize: Int,
     householdPopulation: Population,
-    householdLocation: Coord
+    householdLocation: Coord,
+    realDistribution: UniformRealDistribution
   ): List[BeamVehicleType] = {
     Range(0, numVehicles).map { i =>
       if (vehicleCategory == VehicleCategory.Car) {
