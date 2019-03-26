@@ -5,7 +5,6 @@ import java.net.URL
 import java.nio.file.{Files, Paths}
 import java.text.SimpleDateFormat
 import java.util.stream
-import java.util.zip.GZIPInputStream
 
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
@@ -15,7 +14,6 @@ import org.matsim.core.config.Config
 import org.matsim.core.utils.io.IOUtils
 
 import scala.language.reflectiveCalls
-import scala.util.Try
 
 /**
   * Created by sfeygin on 1/30/17.
@@ -24,7 +22,7 @@ object FileUtils extends LazyLogging {
 
   val runStartTime: String = getDateString
 
-  def setConfigOutputFile(beamConfig: BeamConfig, matsimConfig: Config): Unit = {
+  def setConfigOutputFile(beamConfig: BeamConfig, matsimConfig: Config): String = {
     val baseOutputDir = Paths.get(beamConfig.beam.outputs.baseOutputDirectory)
     if (!Files.exists(baseOutputDir)) baseOutputDir.toFile.mkdir()
 
@@ -40,6 +38,7 @@ object FileUtils extends LazyLogging {
     outputDir.mkdir()
     logger.debug(s"Beam output directory is: ${outputDir.getAbsolutePath}")
     matsimConfig.controler.setOutputDirectory(outputDir.getAbsolutePath)
+    outputDir.getAbsolutePath
   }
 
   def getConfigOutputFile(

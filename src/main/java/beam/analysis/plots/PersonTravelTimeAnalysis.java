@@ -36,7 +36,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     private static final String yAxisTitle = "Average Travel Time [min]";
     private static final String otherMode = "others";
     private static final  String carMode = "car";
-    static String fileBaseName = "averageTravelTimes";
+    public static String fileBaseName = "averageTravelTimes";
     private final String fileNameForRootGraph = "averageCarTravelTimes";
     private Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
     private Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
@@ -282,7 +282,6 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     }
 
     private void createCarAverageTimesGraphForRootIteration(CategoryDataset dataset, String mode, String fileName) throws IOException {
-
         String graphTitle = "Average Travel Time [" + mode + "]";
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataset, graphTitle, xAxisRootTitle, yAxisTitle, fileName, false);
         CategoryPlot plot = chart.getCategoryPlot();
@@ -296,12 +295,23 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     }
 
+    private static String toString(double[][] lines) {
+        StringBuilder result = new StringBuilder();
+        for (double[] columns: lines) {
+            for (double value: columns) {
+                result.append(value).append(",");
+            }
+//            result.deleteCharAt(result.length()-1);
+            result.append("\n");
+        }
+        return result.toString();
+    }
+
     private CategoryDataset buildAverageTimeDatasetGraphForRoot(String mode , double[][] dataset){
         return createCategoryRootDataset(mode,"",dataset);
     }
 
     private static CategoryDataset createCategoryRootDataset(String rowKeyPrefix, String columnKeyPrefix, double[][] data) {
-
         DefaultCategoryDataset result = new DefaultCategoryDataset();
         for (int r = 0; r < data.length; r++) {
             String rowKey = rowKeyPrefix + (r + 1);
@@ -311,6 +321,5 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             }
         }
         return result;
-
     }
 }
