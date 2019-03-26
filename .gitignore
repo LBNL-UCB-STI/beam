@@ -48,3 +48,5 @@ test/input/siouxfalls/*.csv
 *Rdata
 !/test/input/siouxfalls/r5/siouxareametro-sd-us.zip
 physsim-network.xml
+src/main/scala/beam/sandbox
+test/scala/beam/sandbox
