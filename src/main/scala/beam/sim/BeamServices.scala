@@ -13,6 +13,7 @@ import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamPath, EmbodiedBeamLeg}
@@ -62,6 +63,8 @@ trait BeamServices {
   val modeIncentives: ModeIncentive
   val ptFares: PtFares
   var iterationNumber: Int = -1
+
+  val skimmer: BeamSkimmer
 
   def startNewIteration()
 
@@ -160,6 +163,8 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
     iterationNumber += 1
     Metrics.iterationNumber = iterationNumber
   }
+
+  val skimmer: BeamSkimmer = BeamSkimmer(beamConfig)
 
   // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
   // say, a yacht or personal bus, but I think this will be fine for now.
