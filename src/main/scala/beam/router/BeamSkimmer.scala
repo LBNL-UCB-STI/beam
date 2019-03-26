@@ -759,4 +759,19 @@ object BeamSkimmer extends LazyLogging {
       tazId2MovIdByMinDistance
     }
   }
+  private def distanceAndTime(mode: BeamMode, origin: Location, destination: Location) = {
+    val speed = mode match {
+      case CAR | CAV | RIDE_HAIL                                      => carSpeedMeterPerSec
+      case RIDE_HAIL_POOLED                                           => carSpeedMeterPerSec * 1.1
+      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT => transitSpeedMeterPerSec
+      case BIKE                                                       => bicycleSpeedMeterPerSec
+      case _                                                          => walkSpeedMeterPerSec
+    }
+    val travelDistance: Int = Math.ceil(GeoUtils.minkowskiDistFormula(origin, destination)).toInt
+    val travelTime: Int = Math
+      .ceil(travelDistance / speed)
+      .toInt + ((travelDistance / trafficSignalSpacing).toInt * waitingTimeAtAnIntersection).toInt
+    (travelDistance, travelTime)
+  }
+
 }
