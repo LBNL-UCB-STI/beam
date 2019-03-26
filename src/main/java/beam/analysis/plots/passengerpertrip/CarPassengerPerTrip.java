@@ -19,6 +19,7 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
     final String graphName;
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# trips";
+    private static  double matriXDataSet[][] ;
 
     final Map<Integer, Map<Integer, Integer>> numPassengerToEventFrequencyBin = new HashMap<>();
 
@@ -57,19 +58,20 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
     public void process(IterationEndsEvent event) throws IOException {
 
         CategoryDataset dataSet = getCategoryDataSet();
+        writeCSV(matriXDataSet ,dataSet.getRowCount(), event.getIteration());
         draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle);
     }
 
     @Override
     public CategoryDataset getCategoryDataSet() {
 
-        double[][] dataSet = new double[maxPassengers + 1][maxHour + 1];
+        matriXDataSet = new double[maxPassengers + 1][maxHour + 1];
 
         for (int numberOfpassengers = 0; numberOfpassengers < maxPassengers + 1; numberOfpassengers++) {
-            dataSet[numberOfpassengers] = getEventFrequenciesBinByNumberOfPassengers(numberOfpassengers, maxHour);
+            matriXDataSet[numberOfpassengers] = getEventFrequenciesBinByNumberOfPassengers(numberOfpassengers, maxHour);
         }
 
-        return DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
+        return DatasetUtilities.createCategoryDataset("Mode ", "", matriXDataSet);
     }
 
     @Override
