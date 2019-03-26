@@ -12,6 +12,7 @@ import beam.sim.config.BeamConfig
 import com.conveyal.osmlib.OSM
 import com.google.common.collect.Maps
 import com.typesafe.scalalogging.LazyLogging
+import gnu.trove.map.hash.TIntObjectHashMap
 import javax.inject.Inject
 import org.apache.commons.collections4.MapUtils
 
@@ -23,8 +24,15 @@ import scala.util.control.NonFatal
 class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
   import beam.utils.FileUtils._
 
-  private val tollsByLinkId: java.util.Map[Int, Array[Toll]] =
-    readTollPrices(config.beam.agentsim.toll.filePath)
+  private val tollsByLinkId: TIntObjectHashMap[Array[Toll]] = {
+    val map: util.Map[Int, Array[Toll]] = readTollPrices(config.beam.agentsim.toll.filePath)
+    val intHashMap = new TIntObjectHashMap[Array[Toll]]()
+    map.asScala.foreach {
+      case (k, v) =>
+        intHashMap.put(k, v)
+    }
+    intHashMap
+  }
   private val tollsByWayId: java.util.Map[Long, Array[Toll]] = readFromCacheFileOrOSM()
 
   logger.info("tollsByLinkId size: {}", tollsByLinkId.size)
