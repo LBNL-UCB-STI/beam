@@ -12,6 +12,9 @@ import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
+import org.jfree.data.xy.XYDataset;
+import org.jfree.data.xy.XYSeries;
+import org.jfree.data.xy.XYSeriesCollection;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 
@@ -54,7 +57,9 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
     private int nonCACCCategoryRoadsTravelled=0;
     private int caccCategoryRoadsTravelled=0;
     private double flowCapacityFactor;
-    private Map<Integer,Double> caccEnabledVehiclesTravellingRatio = new HashMap<>();
+    private Map<Integer,Double> caccEnabledVehiclesOverCaccRoads = new HashMap<>();
+    private Map<Integer,Double> nonCaccEnabledVehiclesOverCaccRoads = new HashMap<>();
+    private Map<Double,Double> caccCapacityIncrease = new HashMap<>();
 
     public Hao2018CaccRoadCapacityAdjustmentFunction(double caccMinRoadCapacity, double caccMinSpeedMetersPerSec, double flowCapacityFactor, int iterationNumber, OutputDirectoryHierarchy controllerIO, int writeInterval,int binSize){
         this.flowCapacityFactor = flowCapacityFactor;
@@ -105,7 +110,15 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
             capacityStatsCollector.append(dataLine).append("\n");
 
             int hourOfSimulation = (int)(simTime / binSize);
-            caccEnabledVehiclesTravellingRatio.put(hourOfSimulation, (double) (numberOfTimesOnlyCACCTravellingOnCACCEnabledRoads / caccCategoryRoadsTravelled) *100);
+
+            double caccVehiclesRatio = ((double)numberOfTimesOnlyCACCTravellingOnCACCEnabledRoads / (double)caccCategoryRoadsTravelled);
+            caccEnabledVehiclesOverCaccRoads.put(hourOfSimulation,caccVehiclesRatio * 100.0);
+
+            double nonCaccVehiclesRatio = ((double)numberOfTimesOnlyNonCACCTravellingOnCACCEnabledRoads / (double)caccCategoryRoadsTravelled);
+            nonCaccEnabledVehiclesOverCaccRoads.put(hourOfSimulation,nonCaccVehiclesRatio * 100.0);
+
+            double capacityIncrease = (updatedCapacity/initialCapacity)-1.0;
+            caccCapacityIncrease.put(fractionCACCOnRoad * 100.0,capacityIncrease * 100.0);
 
         } else {
             nonCACCCategoryRoadsTravelled++;
@@ -122,7 +135,9 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
         log.info("numberOfTimesOnlyNonCACCTravellingOnCACCEnabledRoads: " + numberOfTimesOnlyNonCACCTravellingOnCACCEnabledRoads);
         log.info("caccCategoryRoadsTravelled / nonCACCCategoryRoadsTravelled ratio: " + 1.0 * caccCategoryRoadsTravelled / nonCACCCategoryRoadsTravelled);
         writeCapacityStats(currentIterationNumber,capacityStatsCollector.toString());
-        createGraph(currentIterationNumber,caccEnabledVehiclesTravellingRatio);
+        createCaccVehiclesDistributionGraph(currentIterationNumber,caccEnabledVehiclesOverCaccRoads);
+        createNonCaccVehiclesDistributionGraph(currentIterationNumber,nonCaccEnabledVehiclesOverCaccRoads);
+        createCapacityIncreaseGraph(currentIterationNumber,caccCapacityIncrease);
         reset();
     }
 
@@ -138,19 +153,19 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
         return  (writeInterval > 0 && iterationNumber % writeInterval == 0);
     }
 
-    public void createGraph(int iterationNumber , Map<Integer,Double> vehiclesTravellingRatio) {
+    private void createCaccVehiclesDistributionGraph(int iterationNumber, Map<Integer, Double> caccEnabledVehiclesOverCaccRoads) {
 
-        int noOfBins = Collections.max(vehiclesTravellingRatio.keySet()) + 1;
+        int noOfBins = Collections.max(caccEnabledVehiclesOverCaccRoads.keySet()) + 1;
         double[][] dataMatrix = new double[100][noOfBins];
-        for (int i = 0; i < vehiclesTravellingRatio.size(); i++) {
-            dataMatrix[0][i] = vehiclesTravellingRatio.getOrDefault(i,0.0);
+        for (int i = 0; i < caccEnabledVehiclesOverCaccRoads.size(); i++) {
+            dataMatrix[0][i] = caccEnabledVehiclesOverCaccRoads.getOrDefault(i,0.0);
         }
 
         CategoryDataset dataSet = DatasetUtilities.createCategoryDataset("", "", dataMatrix);
 
         String plotTitle = "CACC vehicles distribution over the day";
-        String x_axis = "Time Bin";
-        String y_axis = "Percentage of CACC vehicles over CACC roads";
+        String x_axis = "Hour";
+        String y_axis = "CACC vehicles over CACC roads (%)";
         int width = 1000;
         int height = 600;
 
@@ -170,11 +185,70 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
 
+    private void createNonCaccVehiclesDistributionGraph(int iterationNumber, Map<Integer, Double> nonCaccEnabledVehiclesOverCaccRoads) {
+
+        int noOfBins = Collections.max(nonCaccEnabledVehiclesOverCaccRoads.keySet()) + 1;
+        double[][] dataMatrix = new double[100][noOfBins];
+        for (int i = 0; i < nonCaccEnabledVehiclesOverCaccRoads.size(); i++) {
+            dataMatrix[0][i] = nonCaccEnabledVehiclesOverCaccRoads.getOrDefault(i,0.0);
+        }
+
+        CategoryDataset dataSet = DatasetUtilities.createCategoryDataset("", "", dataMatrix);
+
+        String plotTitle = "Non CACC vehicles distribution over the day";
+        String x_axis = "Hour";
+        String y_axis = "Non CACC vehicles over CACC roads (%)";
+        int width = 1000;
+        int height = 600;
+
+        // Setting orientation for the plot
+        PlotOrientation orientation = PlotOrientation.VERTICAL;
+
+        // Create the chart
+        final JFreeChart chart = ChartFactory
+                .createStackedBarChart(plotTitle, x_axis, y_axis, dataSet, orientation, false, true, true);
+        chart.setBackgroundPaint(new Color(255, 255, 255));
+
+        //Save the chart as image
+        String graphImageFile = controllerIO.getIterationFilename(iterationNumber,"nonCaccVehiclesDistribution.png");
+        try {
+            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
+                    height);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void createCapacityIncreaseGraph(int iterationNumber, Map<Double, Double> caccCapacityIncrease) {
+
+        String plotTitle = "CACC - Road Capacity Increase";
+        String x_axis = "CACC on Road (%)";
+        String y_axis = "Road Capacity Increase (%)";
+        int width = 1000;
+        int height = 600;
+
+        XYSeriesCollection dataset = new XYSeriesCollection();
+        XYSeries series = new XYSeries("cacc");
+        caccCapacityIncrease.forEach(series::add);
+        dataset.addSeries(series);
+
+        JFreeChart chart = ChartFactory.createScatterPlot(
+                plotTitle,
+                x_axis, y_axis, dataset);
+
+        String graphImageFile = controllerIO.getIterationFilename(iterationNumber,"caccRoadCapacityIncrease.png");
+        try {
+            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
+                    height);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private void reset() {
-        caccEnabledVehiclesTravellingRatio.clear();
+        caccEnabledVehiclesOverCaccRoads.clear();
     }
 
 }
