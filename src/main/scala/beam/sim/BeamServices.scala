@@ -164,7 +164,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
     Metrics.iterationNumber = iterationNumber
   }
 
-  val skimmer: BeamSkimmer = BeamSkimmer(beamConfig)
+  val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig)
 
   // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
   // say, a yacht or personal bus, but I think this will be fine for now.

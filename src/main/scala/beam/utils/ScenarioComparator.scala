@@ -9,7 +9,7 @@ import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles._
-import beam.router.Modes
+import beam.router.{BeamSkimmer, Modes}
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
@@ -123,6 +123,8 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
 
       val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] =
         readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath, fuelTypePrices)
+
+      override lazy val skimmer: BeamSkimmer = ???
 
       private val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
       private val vehicleCsvReader = new VehicleCsvReader(beamConfig)

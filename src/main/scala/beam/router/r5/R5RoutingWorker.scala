@@ -127,6 +127,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override lazy val vehicleEnergy: VehicleEnergy = ???
         override lazy val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = ???
 
+        override lazy val skimmer: BeamSkimmer = ???
+
         override val modeIncentives: ModeIncentive =
           ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath)
         override val ptFares: PtFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath)
