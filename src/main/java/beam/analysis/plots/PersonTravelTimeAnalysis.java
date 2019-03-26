@@ -295,18 +295,6 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     }
 
-    private static String toString(double[][] lines) {
-        StringBuilder result = new StringBuilder();
-        for (double[] columns: lines) {
-            for (double value: columns) {
-                result.append(value).append(",");
-            }
-//            result.deleteCharAt(result.length()-1);
-            result.append("\n");
-        }
-        return result.toString();
-    }
-
     private CategoryDataset buildAverageTimeDatasetGraphForRoot(String mode , double[][] dataset){
         return createCategoryRootDataset(mode,"",dataset);
     }
