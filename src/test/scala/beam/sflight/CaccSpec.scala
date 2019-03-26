@@ -29,6 +29,7 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
                      |beam.outputs.events.fileOutputFormats = xml
                      |beam.agentsim.lastIteration = 0
                      |beam.physsim.jdeqsim.cacc.enabled = $caccEnabled
+                     |beam.agentsim.agents.vehicles.vehiclesFilePath = $${beam.inputDirectory}"/sample/1k/vehicles-cav.csv"
                    """.stripMargin)
       .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf"))
       .resolve()
@@ -81,7 +82,7 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
       val avgWithCaccEnabled = runSimulationAndReturnAvgCarTravelTimes(true)
       val avgWithCaccDisabled = runSimulationAndReturnAvgCarTravelTimes(false)
 
-      assert(avgWithCaccEnabled >= avgWithCaccDisabled)
+      assert(avgWithCaccEnabled <= avgWithCaccDisabled)
     }
 
   }
