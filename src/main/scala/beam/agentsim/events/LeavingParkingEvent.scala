@@ -2,17 +2,17 @@ package beam.agentsim.events
 
 import java.util
 
+import scala.collection.JavaConverters._
+
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{Event, GenericEvent}
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
-
-import collection.JavaConverters._
 
 case class LeavingParkingEvent(
   time: Double,
@@ -32,9 +32,6 @@ case class LeavingParkingEvent(
 
   override def getEventType: String = EVENT_TYPE
 
-  val pricingModelString = pricingModel.map { _.toString }.getOrElse("None")
-  val chargingPointString = ChargingPointType.map { _.toString }.getOrElse("None")
-
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
     attr.put(ATTRIBUTE_SCORE, score.toString)
@@ -42,7 +39,7 @@ case class LeavingParkingEvent(
     attr.put(ATTRIBUTE_VEHICLE_ID, vehicleId.toString)
     attr.put(ATTRIBUTE_PARKING_TYPE, parkingType.toString)
     attr.put(ATTRIBUTE_PRICING_MODEL, optionalToString(pricingModel))
-    attr.put(ATTRIBUTE_CHARGING_TYPE, optionalToString(chargingType))
+    attr.put(ATTRIBUTE_CHARGING_TYPE, optionalToString(ChargingPointType))
     attr.put(ATTRIBUTE_PARKING_TAZ, tazId.toString)
 
     attr

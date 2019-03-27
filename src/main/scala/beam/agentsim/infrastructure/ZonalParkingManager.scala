@@ -3,6 +3,7 @@ package beam.agentsim.infrastructure
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.util.Random
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.infrastructure.ParkingManager._
@@ -12,6 +13,7 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
 import beam.sim.{BeamServices, HasServices}
+import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.collections.QuadTree
 
 class ZonalParkingManager(
@@ -71,6 +73,7 @@ class ZonalParkingManager(
         zoneSearchTree,
         parkingZones,
         beamServices.tazTreeMap.tazQuadTree,
+        beamServices.geo.distUTMInMeters,
         rand
       )
 
@@ -112,6 +115,7 @@ class ZonalParkingManager(
         zoneSearchTree,
         parkingZones,
         beamServices.tazTreeMap.tazQuadTree,
+        beamServices.geo.distUTMInMeters,
         rand
       )
 
@@ -181,7 +185,7 @@ object ZonalParkingManager {
     * looks for the nearest ParkingZone that meets the agent's needs
     * @param searchStartRadius small radius describing a ring shape
     * @param searchMaxRadius larger radius describing a ring shape
-    * @param destination coordinates of this request
+    * @param destinationUTM coordinates of this request
     * @param parkingDuration duration requested for this parking, used to calculate cost in ranking
     * @param parkingTypes types of parking this request is interested in
     * @param chargingInquiryData optional inquiry preferences for charging options
@@ -192,16 +196,17 @@ object ZonalParkingManager {
     * @return a stall from the found ParkingZone, or a ParkingStall.DefaultStall
     */
   def incrementalParkingZoneSearch(
-    searchStartRadius: Double,
-    searchMaxRadius: Double,
-    destination: Location,
-    parkingDuration: Int,
-    parkingTypes: Seq[ParkingType],
+    searchStartRadius  : Double,
+    searchMaxRadius    : Double,
+    destinationUTM     : Location,
+    parkingDuration    : Int,
+    parkingTypes       : Seq[ParkingType],
     chargingInquiryData: Option[ChargingInquiryData[String, String]],
-    searchTree: ParkingZoneSearch.ZoneSearch,
-    stalls: Array[ParkingZone],
-    tazQuadTree: QuadTree[TAZ],
-    random: Random
+    searchTree         : ParkingZoneSearch.ZoneSearch,
+    stalls             : Array[ParkingZone],
+    tazQuadTree        : QuadTree[TAZ],
+    distanceFunction   : (Coord, Coord) => Double,
+    random             : Random
   ): (ParkingZone, ParkingStall) = {
 
     @tailrec
@@ -210,29 +215,32 @@ object ZonalParkingManager {
       else {
         val tazDistance: Map[TAZ, Double] =
           tazQuadTree
-            .getRing(destination.getX, destination.getY, thisInnerRadius, thisOuterRadius)
+            .getRing(destinationUTM.getX, destinationUTM.getY, thisInnerRadius, thisOuterRadius)
             .asScala
             .map { taz =>
-              (taz, GeoUtils.distFormula(taz.coord, destination))
+              (taz, GeoUtils.distFormula(taz.coord, destinationUTM))
             }
             .toMap
         val tazList: List[TAZ] = tazDistance.keys.toList
 
         ParkingZoneSearch.find(
+          destinationUTM,
           chargingInquiryData,
           tazList,
           parkingTypes,
           searchTree,
           stalls,
-          ParkingRanking.rankingFunction(parkingDuration = parkingDuration)
+          ParkingRanking.rankingFunction(parkingDuration = parkingDuration),
+          distanceFunction,
+          random
         ) match {
           case Some(
               ParkingRanking.RankingAccumulator(
                 bestTAZ,
                 bestParkingType,
                 bestParkingZone,
-                bestRankingValue,
-                availability
+                bestCoord,
+                bestRankingValue
               )
               ) =>
             val stallPrice: Double =
@@ -240,22 +248,11 @@ object ZonalParkingManager {
                 .map { PricingModel.evaluateParkingTicket(_, parkingDuration) }
                 .getOrElse(DefaultParkingPrice)
 
-            val availabilityRatio: Double =
-              ParkingRanking.getAvailabilityPercentage(
-                availability,
-                bestParkingZone.pricingModel,
-                bestParkingZone.chargingPointType,
-                bestParkingType
-              )
-
-            val stallLocation: Location =
-              ParkingStallSampling.availabilityAwareSampling(random, destination, bestTAZ, availabilityRatio)
-
             // create a new stall instance. you win!
             val newStall = ParkingStall(
               bestTAZ.tazId,
               bestParkingZone.parkingZoneId,
-              stallLocation,
+              bestCoord,
               stallPrice,
               bestParkingZone.chargingPointType,
               bestParkingZone.pricingModel,
@@ -273,7 +270,7 @@ object ZonalParkingManager {
       case Some(result) =>
         result
       case None =>
-        val newStall = ParkingStall.DefaultStall(destination)
+        val newStall = ParkingStall.DefaultStall(destinationUTM)
         (ParkingZone.DefaultParkingZone, newStall)
     }
   }
