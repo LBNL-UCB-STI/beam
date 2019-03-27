@@ -66,7 +66,6 @@ class FastHouseholdCAVSchedulingSpec
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
   private val matsimConfig = configBuilder.buildMatSimConf()
-  private val skimmer: BeamSkimmer = new BeamSkimmer(beamCfg)
 
   private lazy val beamSvc: BeamServices = new BeamServices {
     val tazTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
@@ -100,6 +99,8 @@ class FastHouseholdCAVSchedulingSpec
     override def networkHelper: NetworkHelper = ???
     override def setTransitFleetSizes(tripFleetSizeMap: mutable.HashMap[String, Integer]): Unit = ???
   }
+
+  private lazy val skimmer: BeamSkimmer = new BeamSkimmer(beamCfg, beamSvc)
 
   describe("A Household CAV Scheduler") {
     it("generates two schedules") {
