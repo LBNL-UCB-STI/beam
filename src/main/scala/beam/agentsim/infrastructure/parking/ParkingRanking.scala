@@ -31,9 +31,9 @@ object ParkingRanking {
     }
 
     // TODO: integrate cost of charge here
-    val chargingCost: Double = parkingZone.chargingPoint match {
+    val chargingCost: Double = parkingZone.chargingPointType match {
       case None => 0.0
-      case Some(chargingPoint) =>
+      case Some(chargingPointType) =>
         val chargingPointCost: Double = PlaceholderForChargingCosts
 
         // TODO: mapping from preference to VoT??
@@ -60,7 +60,7 @@ object ParkingRanking {
   case class AvailableParkingAttributes(
     parkingType: ParkingType,
     pricingModel: Option[PricingModel],
-    chargingPoint: Option[ChargingPoint]
+    chargingPoint: Option[ChargingPointType]
   )
 
   /**
@@ -111,7 +111,7 @@ object ParkingRanking {
     // construct availability-oriented representation of this parking data
     val (thisAttributes, thisCounts) = {
       (
-        AvailableParkingAttributes(parkingType, parkingZone.pricingModel, parkingZone.chargingPoint),
+        AvailableParkingAttributes(parkingType, parkingZone.pricingModel, parkingZone.chargingPointType),
         AggregateAvailability(parkingZone.stallsAvailable, parkingZone.maxStalls)
       )
     }
@@ -141,7 +141,7 @@ object ParkingRanking {
   def getAvailabilityPercentage(
     availability: Availability,
     pricingModel: Option[PricingModel],
-    chargingPoint: Option[ChargingPoint],
+    chargingPoint: Option[ChargingPointType],
     parkingType: ParkingType
   ): Double = {
 

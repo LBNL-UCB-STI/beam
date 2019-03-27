@@ -3,7 +3,7 @@ package beam.agentsim.events
 import java.util
 
 import beam.agentsim.infrastructure.ParkingStall
-import beam.agentsim.infrastructure.charging.ChargingPoint
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
 import beam.agentsim.infrastructure.taz.TAZ
 import org.matsim.api.core.v01.events.{Event, GenericEvent}
@@ -21,7 +21,7 @@ case class ParkEvent(
   locationUTM: Coord,
   parkingType: ParkingType,
   pricingModel: Option[PricingModel],
-  chargingPoint: Option[ChargingPoint]
+  chargingPointType: Option[ChargingPointType]
 ) extends Event(time)
     with ScalaEvent {
   import ParkEvent._
@@ -36,7 +36,7 @@ case class ParkEvent(
     val attr: util.Map[String, String] = super.getAttributes
 
     val pricingModelString = pricingModel.map { _.toString }.getOrElse("None")
-    val chargingPointString = chargingPoint.map { _.toString }.getOrElse("None")
+    val chargingPointString = chargingPointType.map { _.toString }.getOrElse("None")
 
     attr.put(ATTRIBUTE_VEHICLE_ID, vehicleId.toString)
     attr.put(ATTRIBUTE_DRIVER_ID, driverId.toString)
@@ -74,7 +74,7 @@ object ParkEvent {
       stall.locationUTM,
       stall.parkingType,
       stall.pricingModel,
-      stall.chargingPoint
+      stall.chargingPointType
     )
 
   def apply(genericEvent: GenericEvent): ParkEvent = {
@@ -89,7 +89,7 @@ object ParkEvent {
     val locationUTM: Coord = new Coord(attr(ATTRIBUTE_LOCATION_X).toDouble, attr(ATTRIBUTE_LOCATION_Y).toDouble)
     val parkingType: ParkingType = ParkingType(attr(ATTRIBUTE_PARKING_TYPE))
     val pricingModel: Option[PricingModel] = PricingModel(attr(ATTRIBUTE_PRICING_MODEL), cost)
-    val chargingType: Option[ChargingPoint] = ChargingPoint(attr(ATTRIBUTE_CHARGING_TYPE))
+    val chargingType: Option[ChargingPointType] = ChargingPointType(attr(ATTRIBUTE_CHARGING_TYPE))
     new ParkEvent(time, driverId, vehicleId, tazId, locationUTM, parkingType, pricingModel, chargingType)
   }
 }

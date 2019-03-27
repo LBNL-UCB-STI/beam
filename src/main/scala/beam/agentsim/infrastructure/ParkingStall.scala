@@ -1,19 +1,19 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
-import beam.agentsim.infrastructure.charging.ChargingPoint
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.{Coord, Id}
 
 case class ParkingStall(
-  tazId: Id[TAZ],
-  parkingZoneId: Int,
-  locationUTM: Location,
-  cost: Double,
-  chargingPoint: Option[ChargingPoint],
-  pricingModel: Option[PricingModel],
-  parkingType: ParkingType
+                         tazId: Id[TAZ],
+                         parkingZoneId: Int,
+                         locationUTM: Location,
+                         cost: Double,
+                         chargingPointType: Option[ChargingPointType],
+                         pricingModel: Option[PricingModel],
+                         parkingType: ParkingType
 )
 
 object ParkingStall {
@@ -32,7 +32,7 @@ object ParkingStall {
       parkingZoneId = ParkingZone.DefaultParkingZoneId,
       locationUTM = location,
       cost = CostOfEmergencyStall,
-      chargingPoint = None,
+      chargingPointType = None,
       pricingModel = None,
       parkingType = ParkingType.Public
     )

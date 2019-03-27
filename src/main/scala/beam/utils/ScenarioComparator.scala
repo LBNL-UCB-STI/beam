@@ -29,6 +29,8 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.util.control.Breaks
 
+import beam.agentsim.infrastructure.taz.TAZTreeMap
+
 object ScenarioComparator extends App with Comparator[MutableScenario] {
 
   val testOutputDir = "output/test/"

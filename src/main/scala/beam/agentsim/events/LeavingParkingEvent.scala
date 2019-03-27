@@ -3,12 +3,12 @@ package beam.agentsim.events
 import java.util
 
 import beam.agentsim.infrastructure.ParkingStall
-import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.charging._
+import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
-import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{Event, GenericEvent}
 import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.events.{Event, GenericEvent}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
 
@@ -22,7 +22,7 @@ case class LeavingParkingEvent(
   score: Double,
   parkingType: ParkingType,
   pricingModel: Option[PricingModel],
-  chargingType: Option[ChargingPoint]
+  ChargingPointType: Option[ChargingPointType]
 ) extends Event(time)
     with HasPersonId
     with ScalaEvent {
@@ -31,6 +31,9 @@ case class LeavingParkingEvent(
   override def getPersonId: Id[Person] = personId
 
   override def getEventType: String = EVENT_TYPE
+
+  val pricingModelString = pricingModel.map { _.toString }.getOrElse("None")
+  val chargingPointString = ChargingPointType.map { _.toString }.getOrElse("None")
 
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
@@ -80,7 +83,7 @@ object LeavingParkingEvent {
       score,
       stall.parkingType,
       stall.pricingModel,
-      stall.chargingPoint
+      stall.chargingPointType
     )
 
   def apply(genericEvent: GenericEvent): LeavingParkingEvent = {
@@ -93,7 +96,7 @@ object LeavingParkingEvent {
     val score: Double = attr(ATTRIBUTE_SCORE).toDouble
     val parkingType: ParkingType = ParkingType(attr(ATTRIBUTE_PARKING_TYPE))
     val pricingModel: Option[PricingModel] = PricingModel(attr(ATTRIBUTE_PRICING_MODEL), "0")  // TODO: cost (fee) should be an attribute of this event, but adding it will break a lot of tests
-    val chargingType: Option[ChargingPoint] = ChargingPoint(attr(ATTRIBUTE_CHARGING_TYPE))
+    val chargingType: Option[ChargingPointType] = ChargingPointType(attr(ATTRIBUTE_CHARGING_TYPE))
     LeavingParkingEvent(time, personId, vehicleId, tazId, score, parkingType, pricingModel, chargingType)
   }
 }

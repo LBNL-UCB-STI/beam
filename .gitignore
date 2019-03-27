@@ -13,7 +13,7 @@ libs
 !.idea/runConfigurations/Run*
 .cache*
 target/
-beam.iml
+*.iml
 out/
 beam.ipr
 beam.iws

@@ -2,7 +2,6 @@ package beam.analysis.plots;
 
 import beam.agentsim.events.ReserveRideHailEvent;
 import beam.agentsim.infrastructure.taz.TAZ;
-import beam.agentsim.infrastructure.taz.TAZTreeMap;
 import beam.sim.BeamServices;
 import beam.utils.MathUtils;
 import org.matsim.api.core.v01.Coord;

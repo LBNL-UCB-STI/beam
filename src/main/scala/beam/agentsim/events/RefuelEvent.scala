@@ -25,7 +25,7 @@ class RefuelEvent(
   override def getEventType: String = EVENT_TYPE
 
   val pricingModelString = stall.pricingModel.map { _.toString }.getOrElse("None")
-  val chargingPointString = stall.chargingPoint.map { _.toString }.getOrElse("None")
+  val chargingPointString = stall.chargingPointType.map { _.toString }.getOrElse("None")
 
   override def getAttributes: util.Map[String, String] = {
     val attributes = super.getAttributes

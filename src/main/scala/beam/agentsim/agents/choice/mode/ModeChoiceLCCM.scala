@@ -3,7 +3,7 @@ package beam.agentsim.agents.choice.mode
 import java.util.Random
 
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, TourType}
-import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoiceModel}
+import beam.agentsim.agents.choice.logit.{Alternative, LatentClassChoiceModel}
 import beam.agentsim.agents.choice.mode.ModeChoiceLCCM.ModeChoiceData
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
@@ -71,10 +71,10 @@ class ModeChoiceLCCM(
           "cost" -> alt.cost,
           "time" -> (alt.walkTime + alt.bikeTime + alt.vehicleTime + alt.waitTime)
         )
-        AlternativeAttributes(alt.mode.value, theParams)
+        Alternative(alt.mode.value, theParams)
       }
 
-      val attribIndivData: AlternativeAttributes = {
+      val attribIndivData: Alternative[String, String] = {
         val theParams: Map[String, Double] = Map(
           "income"        -> attributesOfIndividual.householdAttributes.householdIncome,
           "householdSize" -> attributesOfIndividual.householdAttributes.householdSize,
@@ -86,17 +86,17 @@ class ModeChoiceLCCM(
           "numCars"  -> attributesOfIndividual.householdAttributes.numCars,
           "numBikes" -> attributesOfIndividual.householdAttributes.numBikes
         )
-        AlternativeAttributes("dummy", theParams)
+        Alternative("dummy", theParams)
       }
 
       val classMembershipInputData =
-        lccm.classMembershipModels.head._2.alternativeParams.keySet.map { theClassName =>
+        lccm.classMembershipModels.head._2.utilityFunctionParams.keySet.map { theClassName =>
           val modeChoiceExpectedMaxUtility = lccm
             .modeChoiceModels(tourType)(theClassName)
             .getExpectedMaximumUtility(modeChoiceInputData)
           val surplusAttrib: Map[String, Double] =
             Map("surplus" -> modeChoiceExpectedMaxUtility)
-          AlternativeAttributes(theClassName, attribIndivData.attributes ++ surplusAttrib)
+          Alternative(theClassName, attribIndivData.attributes ++ surplusAttrib)
         }.toVector
 
       /*
@@ -113,16 +113,16 @@ class ModeChoiceLCCM(
           )
         case Some(chosenClass) =>
           val chosenModeOpt = lccm
-            .modeChoiceModels(tourType)(chosenClass)
+            .modeChoiceModels(tourType)(chosenClass.alternativeId)
             .sampleAlternative(modeChoiceInputData, new Random())
           expectedMaximumUtility = lccm
-            .modeChoiceModels(tourType)(chosenClass)
+            .modeChoiceModels(tourType)(chosenClass.alternativeId)
             .getExpectedMaximumUtility(modeChoiceInputData)
 
           chosenModeOpt match {
             case Some(chosenMode) =>
               val chosenAlt =
-                bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode))
+                bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode.alternativeId))
               if (chosenAlt.isEmpty) {
                 None
               } else {
@@ -142,14 +142,14 @@ class ModeChoiceLCCM(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     conditionedOnModalityStyle: String,
     tourType: TourType
-  ): Option[String] = {
+  ): Option[Alternative[String, String]] = {
     val bestInGroup = altsToBestInGroup(alternatives, tourType)
     val modeChoiceInputData = bestInGroup.map { alt =>
       val theParams = Map(
         "cost" -> alt.cost,
         "time" -> (alt.walkTime + alt.bikeTime + alt.vehicleTime + alt.waitTime)
       )
-      AlternativeAttributes(alt.mode.value, theParams)
+      Alternative(alt.mode.value, theParams)
     }
     lccm
       .modeChoiceModels(tourType)(conditionedOnModalityStyle)
@@ -162,7 +162,7 @@ class ModeChoiceLCCM(
   ): Map[String, Double] = {
     lccm
       .classMembershipModels(tourType)
-      .alternativeParams
+      .utilityFunctionParams
       .keySet
       .map(theStyle => (theStyle, utilityOf(embodiedBeamTrip, theStyle, tourType)))
       .toMap
@@ -258,7 +258,7 @@ class ModeChoiceLCCM(
     val theParams = Map("cost" -> cost, "time" -> time)
     lccm
       .modeChoiceModels(tourType)(conditionedOnModalityStyle)
-      .getUtilityOfAlternative(AlternativeAttributes(mode.value, theParams))
+      .getUtilityOfAlternative(Alternative(mode.value, theParams))
   }
 
   override def utilityOf(
@@ -311,7 +311,7 @@ class ModeChoiceLCCM(
     lccm
       .classMembershipModels(Mandatory)
       .getUtilityOfAlternative(
-        AlternativeAttributes(
+        Alternative(
           attributesOfIndividual.modalityStyle.get,
           Map(
             "income"        -> attributesOfIndividual.householdAttributes.householdIncome,

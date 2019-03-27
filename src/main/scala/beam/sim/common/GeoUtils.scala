@@ -137,8 +137,16 @@ object GeoUtils {
     Math.sqrt(Math.pow(coord1.getX - coord2.getX, 2.0) + Math.pow(coord1.getY - coord2.getY, 2.0))
   }
 
+  /**
+    * Calculate the Minkowski distance between two coordinates. Provided coordinates need to be in UTM.
+    *
+    * Source: Shahid, Rizwan, u. a. „Comparison of Distance Measures in Spatial Analytical Modeling for Health Service Planning“. BMC Health Services Research, Bd. 9, Nr. 1, Dezember 2009. Crossref, doi:10.1186/1472-6963-9-200.
+    *
+    * @param coord1 first coordinate in UTM
+    * @param coord2 second coordinate in UTM
+    * @return distance in meters
+    */
   def minkowskiDistFormula(coord1: Coord, coord2: Coord): Double = {
-    // source: Rizwan Shahid et al, Comparison of distance measures in spatial analytical modeling for health service planning
     val exponent: Double = 3 / 2.toDouble
     val a = Math.pow(Math.abs(coord1.getX - coord2.getX), exponent)
     val b = Math.pow(Math.abs(coord1.getY - coord2.getY), exponent)
@@ -170,6 +178,7 @@ object GeoUtils {
 
   /**
     * Get the desired direction to be taken , based on the angle between the coordinates
+    *
     * @param source source coordinates
     * @param destination destination coordinates
     * @return Direction to be taken ( L / SL / HL / R / HR / SR / S)
@@ -190,6 +199,7 @@ object GeoUtils {
 
   /**
     * Generate the vector coordinates from the link nodes
+    *
     * @param link link in the network
     * @return vector coordinates
     */
@@ -202,6 +212,7 @@ object GeoUtils {
 
   /**
     * Computes the angle between two coordinates
+    *
     * @param source source coordinates
     * @param destination destination coordinates
     * @return angle between the coordinates (in radians).

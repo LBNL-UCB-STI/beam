@@ -9,7 +9,7 @@ import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
-import beam.agentsim.infrastructure.charging.ChargingPoint
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, WALK}
@@ -197,9 +197,9 @@ class BeamVehicle(
   def refuelingSessionDurationAndEnergyInJoules(): (Long, Double) = {
     stall match {
       case Some(theStall) =>
-        theStall.chargingPoint match {
+        theStall.chargingPointType match {
           case Some(chargingPoint) =>
-            ChargingPoint.calculateChargingSessionLengthAndEnergyInJoule(
+            ChargingPointType.calculateChargingSessionLengthAndEnergyInJoule(
               chargingPoint,
               primaryFuelLevelInJoules,
               beamVehicleType.primaryFuelCapacityInJoule,

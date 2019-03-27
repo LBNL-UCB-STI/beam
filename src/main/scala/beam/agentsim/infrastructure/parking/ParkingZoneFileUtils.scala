@@ -7,7 +7,7 @@ import scala.collection.Map
 import scala.util.{Failure, Success, Try}
 import scala.util.matching.Regex
 
-import beam.agentsim.infrastructure.charging.ChargingPoint
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearch
 import beam.agentsim.infrastructure.taz.TAZ
 import com.typesafe.scalalogging.LazyLogging
@@ -45,7 +45,7 @@ object ParkingZoneFileUtils extends LazyLogging {
           case None     => ("", "")
           case Some(pm) => (s"$pm", s"${pm.cost}")
         }
-        val chargingPoint = parkingZone.chargingPoint match {
+        val chargingPoint = parkingZone.chargingPointType match {
           case None     => ""
           case Some(cp) => s"$cp"
         }
@@ -176,7 +176,7 @@ object ParkingZoneFileUtils extends LazyLogging {
           val taz = Id.create(tazString.toUpperCase, classOf[TAZ])
           val parkingType = ParkingType(parkingTypeString)
           val pricingModel = PricingModel(pricingModelString, feeInCentsString)
-          val chargingPoint = ChargingPoint(chargingTypeString)
+          val chargingPoint = ChargingPointType(chargingTypeString)
           val numStalls = numStallsString.toInt
           val parkingZone = ParkingZone(nextParkingZoneId, numStalls, chargingPoint, pricingModel)
 
@@ -220,7 +220,11 @@ object ParkingZoneFileUtils extends LazyLogging {
 
     // update the tree with the id of this ParkingZone
     val updatedTree =
-      tree.updated(tazId, parkingTypes.updated(parkingType, parkingZoneIds :+ parkingZone.parkingZoneId))
+      tree.updated(
+        tazId, parkingTypes.updated(
+          parkingType, parkingZoneIds :+ parkingZone.parkingZoneId
+        )
+      )
 
     (updatedStalls, updatedTree)
   }

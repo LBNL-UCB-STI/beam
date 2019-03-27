@@ -1,7 +1,6 @@
 package beam.agentsim.agents.choice.mode
 
-import beam.agentsim.agents.choice.logit.MultinomialLogit.MnlData
-import beam.agentsim.agents.choice.logit.{AlternativeAttributes, MultinomialLogit}
+import beam.agentsim.agents.choice.logit._
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
@@ -25,7 +24,7 @@ import scala.util.Random
 /**
   * BEAM
   */
-class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: MultinomialLogit)
+class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: MultinomialLogit[String, String])
     extends ModeChoiceCalculator
     with ExponentialLazyLogging {
 
@@ -53,7 +52,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         } else {
           Map()
         }
-        AlternativeAttributes(mct.mode.value, theParams ++ transferParam)
+        Alternative(mct.mode.value, theParams ++ transferParam)
       }.toVector
 
       val chosenModeOpt = model.sampleAlternative(inputData, new Random())
@@ -62,7 +61,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       chosenModeOpt match {
         case Some(chosenMode) =>
           val chosenModeCostTime =
-            bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode))
+            bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode.alternativeId))
           if (chosenModeCostTime.isEmpty || chosenModeCostTime.head.index < 0) {
             None
           } else {
@@ -245,7 +244,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         "transfer" -> numTransfers.toDouble,
         "cost"     -> cost
       )
-    model.getUtilityOfAlternative(AlternativeAttributes(mode.value, variables))
+    model.getUtilityOfAlternative(Alternative(mode.value, variables))
   }
 
   override def computeAllDayUtility(
@@ -257,48 +256,132 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
 object ModeChoiceMultinomialLogit {
 
-  def buildModelFromConfig(mnlConfig: Agents.ModalBehaviors.MulitnomialLogit): MultinomialLogit = {
-    val mnlData: Vector[MnlData] = Vector(
-      new MnlData("COMMON", "cost", "multiplier", -1.0),
-      new MnlData("car", "intercept", "intercept", mnlConfig.params.car_intercept),
-      new MnlData("cav", "intercept", "intercept", mnlConfig.params.cav_intercept),
-      new MnlData("walk", "intercept", "intercept", mnlConfig.params.walk_intercept),
-      new MnlData(
-        "ride_hail",
-        "intercept",
-        "intercept",
-        mnlConfig.params.ride_hail_intercept
-      ),
-      new MnlData(
-        "ride_hail_pooled",
-        "intercept",
-        "intercept",
-        mnlConfig.params.ride_hail_pooled_intercept
-      ),
-      new MnlData("bike", "intercept", "intercept", mnlConfig.params.bike_intercept),
-      new MnlData(
-        "walk_transit",
-        "intercept",
-        "intercept",
-        mnlConfig.params.walk_transit_intercept
-      ),
-      new MnlData("walk_transit", "transfer", "multiplier", mnlConfig.params.transfer),
-      new MnlData(
-        "drive_transit",
-        "intercept",
-        "intercept",
-        mnlConfig.params.drive_transit_intercept
-      ),
-      new MnlData("drive_transit", "transfer", "multiplier", mnlConfig.params.transfer),
-      new MnlData(
-        "ride_hail_transit",
-        "intercept",
-        "intercept",
-        mnlConfig.params.ride_hail_transit_intercept
-      ),
-      new MnlData("ride_hail_transit", "transfer", "multiplier", mnlConfig.params.transfer)
+  def buildModelFromConfig(mnlConfig: Agents.ModalBehaviors.MulitnomialLogit): MultinomialLogit[String, String] = {
+
+    val commonUtility = Some(
+      UtilityFunction[String, String](
+        "COMMON",
+        Set(UtilityFunctionParam("cost", UtilityFunctionParamType("multiplier"), -1))
+      )
     )
-    MultinomialLogit(mnlData)
+
+    val mnlUtilityFunctions: Vector[UtilityFunction[String, String]] = Vector(
+      UtilityFunction[String, String](
+        "car",
+        Set(UtilityFunctionParam("intercept", UtilityFunctionParamType("intercept"), mnlConfig.params.car_intercept))
+      ),
+      UtilityFunction[String, String](
+        "cav",
+        Set(UtilityFunctionParam("intercept", UtilityFunctionParamType("intercept"), mnlConfig.params.cav_intercept))
+      ),
+      UtilityFunction[String, String](
+        "walk",
+        Set(UtilityFunctionParam("intercept", UtilityFunctionParamType("intercept"), mnlConfig.params.walk_intercept))
+      ),
+      UtilityFunction[String, String](
+        "ride_hail",
+        Set(
+          UtilityFunctionParam("intercept", UtilityFunctionParamType("intercept"), mnlConfig.params.ride_hail_intercept)
+        )
+      ),
+      UtilityFunction[String, String](
+        "ride_hail_pooled",
+        Set(
+          UtilityFunctionParam(
+            "intercept",
+            UtilityFunctionParamType("intercept"),
+            mnlConfig.params.ride_hail_pooled_intercept
+          )
+        )
+      ),
+      UtilityFunction[String, String](
+        "ride_hail_transit",
+        Set(
+          UtilityFunctionParam(
+            "intercept",
+            UtilityFunctionParamType("intercept"),
+            mnlConfig.params.ride_hail_transit_intercept
+          ),
+          UtilityFunctionParam(
+            "transfer",
+            UtilityFunctionParamType("multiplier"),
+            mnlConfig.params.transfer
+          )
+        )
+      ),
+      UtilityFunction[String, String](
+        "bike",
+        Set(UtilityFunctionParam("intercept", UtilityFunctionParamType("intercept"), mnlConfig.params.bike_intercept))
+      ),
+      UtilityFunction[String, String](
+        "walk_transit",
+        Set(
+          UtilityFunctionParam(
+            "intercept",
+            UtilityFunctionParamType("intercept"),
+            mnlConfig.params.walk_transit_intercept
+          ),
+          UtilityFunctionParam("transfer", UtilityFunctionParamType("multiplier"), mnlConfig.params.transfer)
+        )
+      ),
+      UtilityFunction[String, String](
+        "drive_transit",
+        Set(
+          UtilityFunctionParam(
+            "intercept",
+            UtilityFunctionParamType("intercept"),
+            mnlConfig.params.drive_transit_intercept
+          ),
+          UtilityFunctionParam("transfer", UtilityFunctionParamType("multiplier"), mnlConfig.params.transfer)
+        )
+      ),
+    )
+
+//    val mnlData: Vector[MnlData] = Vector(
+//      new MnlData("COMMON", "cost", "multiplier", -1.0),
+//      new MnlData("car", "intercept", "intercept", mnlConfig.params.car_intercept),
+//      new MnlData("cav", "intercept", "intercept", mnlConfig.params.cav_intercept),
+//      new MnlData("walk", "intercept", "intercept", mnlConfig.params.walk_intercept),
+//      new MnlData(
+//        "ride_hail",
+//        "intercept",
+//        "intercept",
+//        mnlConfig.params.ride_hail_intercept
+//      ),
+//      new MnlData(
+//        "ride_hail_pooled",
+//        "intercept",
+//        "intercept",
+//        mnlConfig.params.ride_hail_pooled_intercept
+//      ),
+//      new MnlData("bike", "intercept", "intercept", mnlConfig.params.bike_intercept),
+//      new MnlData(
+//        "walk_transit",
+//        "intercept",
+//        "intercept",
+//        mnlConfig.params.walk_transit_intercept
+//      ),
+//      new MnlData("walk_transit", "transfer", "multiplier", mnlConfig.params.transfer),
+//      new MnlData(
+//        "drive_transit",
+//        "intercept",
+//        "intercept",
+//        mnlConfig.params.drive_transit_intercept
+//      ),
+//      new MnlData("drive_transit", "transfer", "multiplier", mnlConfig.params.transfer),
+//      new MnlData(
+//        "ride_hail_transit",
+//        "intercept",
+//        "intercept",
+//        mnlConfig.params.ride_hail_transit_intercept
+//      ),
+//      new MnlData("ride_hail_transit", "transfer", "multiplier", mnlConfig.params.transfer)
+//    )
+
+    MultinomialLogit(
+      mnlUtilityFunctions,
+      commonUtility
+    )
   }
 
   case class ModeCostTimeTransfer(
