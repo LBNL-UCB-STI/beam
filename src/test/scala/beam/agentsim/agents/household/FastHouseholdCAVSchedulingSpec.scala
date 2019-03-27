@@ -1,39 +1,41 @@
 package beam.agentsim.agents.household
 import java.util.concurrent.TimeUnit
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
-import beam.agentsim.agents.choice.mode.ModeIncentive
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
+import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.{FuelType, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleCategory.Car
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleEnergy}
 import beam.agentsim.agents.{Dropoff, Pickup}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
-import beam.sim.common.GeoUtilsImpl
+import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.{BeamVehicleUtils, DateUtils, MatsimServicesMock, NetworkHelper}
 import com.typesafe.config.ConfigFactory
-import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.{Activity, Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.config.ConfigUtils
-import org.matsim.core.controler.MatsimServices
+import org.matsim.core.controler.{ControlerI, MatsimServices}
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.households.{Household, HouseholdImpl, HouseholdsFactoryImpl, HouseholdsReaderV10}
-import org.mockito.Mockito.{when, withSettings}
+import org.matsim.vehicles.Vehicle
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
 
+import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.List
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.ExecutionContext
 
 class FastHouseholdCAVSchedulingSpec
@@ -60,25 +62,39 @@ class FastHouseholdCAVSchedulingSpec
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = system.dispatcher
-  private lazy val beamConfig = BeamConfig(system.settings.config)
+  private lazy val beamCfg = BeamConfig(system.settings.config)
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
   private val matsimConfig = configBuilder.buildMatSimConf()
-  private val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig)
+  private val skimmer: BeamSkimmer = new BeamSkimmer(beamCfg)
 
-  private lazy val beamSvc: BeamServices = {
-    val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
-    val theServices = mock[BeamServices](withSettings().stubOnly())
-    when(theServices.matsimServices).thenReturn(mock[MatsimServices])
-    when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
-    when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
-    when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
-    when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
-    when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
-    when(theServices.fuelTypePrices).thenReturn(mock[Map[FuelType, Double]])
-    when(theServices.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
-    theServices
+  private lazy val beamSvc: BeamServices = new BeamServices {
+    val tazTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
+    val beamConfig = beamCfg
+
+    override var matsimServices: MatsimServices =  new MatsimServicesMock(null, mock[Scenario])
+
+    override val modeIncentives = ModeIncentive(Map[BeamMode, List[Incentive]]())
+    val fuelTypePrices: Map[FuelType, Double] =
+      BeamVehicleUtils.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
+
+    val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] =
+      BeamVehicleUtils.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath, fuelTypePrices)
+
+    override val geo: GeoUtils = new GeoUtilsImpl(beamConfig)
+    override lazy val controler: ControlerI = ???
+    override lazy val vehicleEnergy: VehicleEnergy = ???
+    override var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
+    override lazy val dates: DateUtils =  ???
+    override var beamRouter: ActorRef = _
+    override lazy val rideHailTransitModes: Seq[BeamMode] = ???
+    override lazy val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = ???
+    override var personHouseholds: Map[Id[Person], Household] = _
+    override lazy val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = ???
+    override lazy val ptFares: PtFares = ???
+    override def startNewIteration(): Unit = ???
+    override def networkHelper: NetworkHelper = ???
+    override def setTransitFleetSizes(tripFleetSizeMap:  mutable.HashMap[String, Integer]): Unit = ???
   }
 
   describe("A Household CAV Scheduler") {
