@@ -79,11 +79,11 @@ object PricingModel {
     */
   def parseNumeric(valueString: String, model: String): Int = {
     Try {
-      valueString.toInt
+      valueString.toDouble.toInt // catches decimal entries as well
     } match {
       case Failure(_) =>
         throw new IllegalArgumentException(
-          s"could not parse $model parking attribute $valueString to an Integer (cannot be decimal)."
+          s"could not parse $model parking attribute $valueString to an Integer."
         )
       case Success(valueInt) => valueInt
     }

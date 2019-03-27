@@ -77,6 +77,7 @@ object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLo
 object RideHailManager {
 
   val INITIAL_RIDE_HAIL_LOCATION_HOME = "HOME"
+  val INITIAL_RIDE_HAIL_LOCATION_RANDOM_ACTIVITY = "RANDOM_ACTIVITY"
   val INITIAL_RIDE_HAIL_LOCATION_UNIFORM_RANDOM = "UNIFORM_RANDOM"
   val INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER = "ALL_AT_CENTER"
   val INITIAL_RIDE_HAIL_LOCATION_ALL_IN_CORNER = "ALL_IN_CORNER"
@@ -1149,7 +1150,7 @@ class RideHailManager(
       ridehailBeamVehicleTypeId,
       SpaceTime(rideInitialLocation, 0)
     )
-    // Put the agent outWriter of service and let the agent tell us when it's Idle (aka ready for service)
+    // Put the agent out of service and let the agent tell us when it's Idle (aka ready for service)
     vehicleManager.putOutOfService(agentLocation)
 
     rideHailinitialLocationSpatialPlot
@@ -1378,15 +1379,30 @@ class RideHailManager(
   }
 
   def getRideInitLocation(person: Person): Location = {
-    val personInitialLocation: Location =
-      person.getSelectedPlan.getPlanElements
-        .iterator()
-        .next()
-        .asInstanceOf[Activity]
-        .getCoord
     val rideInitialLocation: Location =
       beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.name match {
+        case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_RANDOM_ACTIVITY =>
+          val radius =
+            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
+          val activityLocations: List[Location] =
+            person.getSelectedPlan.getPlanElements.asScala
+              .collect {
+                case activity: Activity => activity.getCoord()
+              }
+              .toList
+              .dropRight(1)
+          val randomActivityLocation: Location = activityLocations(rand.nextInt(activityLocations.length))
+          new Coord(
+            randomActivityLocation.getX + radius * (rand.nextDouble() - 0.5),
+            randomActivityLocation.getY + radius * (rand.nextDouble() - 0.5)
+          )
         case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_HOME =>
+          val personInitialLocation: Location =
+            person.getSelectedPlan.getPlanElements
+              .iterator()
+              .next()
+              .asInstanceOf[Activity]
+              .getCoord
           val radius =
             beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
           new Coord(
@@ -1409,6 +1425,12 @@ class RideHailManager(
           new Coord(x, y)
         case unknown =>
           log.error(s"unknown rideHail.initialLocation $unknown, assuming HOME")
+          val personInitialLocation: Location =
+            person.getSelectedPlan.getPlanElements
+              .iterator()
+              .next()
+              .asInstanceOf[Activity]
+              .getCoord
           val radius =
             beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
           new Coord(

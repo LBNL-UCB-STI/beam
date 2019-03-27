@@ -54,7 +54,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 
 class PersonAgentSpec
@@ -203,7 +203,7 @@ class PersonAgentSpec
           tollCalculator,
           self,
           beamSkimmer = new BeamSkimmer(beamConfig),
-          routeHistory = new RouteHistory()
+          routeHistory = new RouteHistory(beamConfig)
         )
       )
 
@@ -264,7 +264,7 @@ class PersonAgentSpec
           Map(),
           new Coord(0.0, 0.0),
           Vector(),
-          new RouteHistory(),
+          new RouteHistory(beamConfig),
           new BeamSkimmer(beamConfig)
         )
       )
@@ -489,7 +489,7 @@ class PersonAgentSpec
           vehicles = Map(),
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
-          new RouteHistory(),
+          new RouteHistory(beamConfig),
           new BeamSkimmer(beamConfig)
         )
       )

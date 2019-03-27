@@ -53,7 +53,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 
 class PersonAndTransitDriverSpec
     extends TestKit(
@@ -348,7 +348,7 @@ class PersonAndTransitDriverSpec
           vehicles = Map(),
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
-          new RouteHistory(),
+          new RouteHistory(beamConfig),
           new BeamSkimmer(beamConfig)
         )
       )

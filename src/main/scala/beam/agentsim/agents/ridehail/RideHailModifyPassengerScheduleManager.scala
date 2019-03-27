@@ -88,7 +88,7 @@ class RideHailModifyPassengerScheduleManager(
                 val reservationStatus = reservationModifyStatuses.head
                 assert(
                   reservationStatus.status != InterruptMessageStatus.UNDEFINED,
-                  "reservation message should not be undefined but at least should have sent outWriter interrupt"
+                  "reservation message should not be undefined but at least should have sent out interrupt"
                 )
                 if (reply.isInstanceOf[InterruptedWhileOffline]) {
                   // Oops, tried to reserve this vehicle before knowing it was unavailable

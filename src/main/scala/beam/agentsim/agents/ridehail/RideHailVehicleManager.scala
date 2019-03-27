@@ -161,7 +161,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     } else if (outOfServiceRideHailVehicles.contains(vehicleId)) {
       OutOfService
     } else {
-      logger.error(s"Vehicle {} does not have a service status, assuming outWriter of service", vehicleId)
+      logger.error(s"Vehicle {} does not have a service status, assuming out of service", vehicleId)
       OutOfService
     }
   }

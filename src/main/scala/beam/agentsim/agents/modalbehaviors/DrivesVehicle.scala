@@ -190,8 +190,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           fuelConsumed.secondaryFuel,
           currentBeamVehicle.primaryFuelLevelInJoules,
           currentBeamVehicle.secondaryFuelLevelInJoules,
-          tollOnCurrentLeg
-          //fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkNumberOfLanes))
+          tollOnCurrentLeg /*,
+          fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkNumberOfLanes)),
+          fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.freeFlowSpeed)),
+          fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.gradientOption)),
+          fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkLength)),
+          fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.rate)),
+          fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.consumption)),
+          fuelConsumed.secondaryLoggingData.map(x=>(x.linkId, x.rate)),
+          fuelConsumed.secondaryLoggingData.map(x=>(x.linkId, x.consumption))*/
         )
       )
 
@@ -348,8 +355,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           fuelConsumed.secondaryFuel,
           currentBeamVehicle.primaryFuelLevelInJoules,
           currentBeamVehicle.secondaryFuelLevelInJoules,
-          tollOnCurrentLeg
-          //fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkNumberOfLanes))
+          tollOnCurrentLeg /*,
+          fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkNumberOfLanes)),
+          fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.freeFlowSpeed)),
+          fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.gradientOption)),
+          fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkLength)),
+          fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.rate)),
+          fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.consumption)),
+          fuelConsumed.secondaryLoggingData.map(x=>(x.linkId, x.rate)),
+          fuelConsumed.secondaryLoggingData.map(x=>(x.linkId, x.consumption))*/
         )
       )
 

@@ -20,6 +20,12 @@ class ParkingZone(
                    val chargingPointType: Option[ChargingPointType],
                    val pricingModel: Option[PricingModel]
 ) {
+  /**
+    * the percentage of parking available in this ParkingZone
+    * @return percentage [0.0, 1.0]
+    */
+  def availability: Double = if (maxStalls == 0) 0.0 else stallsAvailable.toDouble / maxStalls
+
   override def toString: String = {
     val chargeString = chargingPointType match {
       case None    => "chargingType = None"
