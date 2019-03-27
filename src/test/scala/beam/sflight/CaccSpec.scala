@@ -111,4 +111,5 @@ object CaccSpec {
     val relevantTimes = allHourAvg.filterNot(_ == 0D)
     relevantTimes.sum / relevantTimes.length
   }
+
 }
