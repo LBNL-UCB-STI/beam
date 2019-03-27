@@ -178,7 +178,7 @@ class ScenarioLoader(
   }
 
   private def assignVehicles(households: Iterable[Household]): Iterable[(Household, List[BeamVehicleType])] {
-    
+
   }
 
   private[utils] def applyPersons(persons: Iterable[PersonInfo]): Unit = {
