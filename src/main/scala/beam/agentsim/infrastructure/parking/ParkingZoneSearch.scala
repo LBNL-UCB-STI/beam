@@ -20,12 +20,15 @@ object ParkingZoneSearch {
 
   /**
     * find the best parking alternative for the data in this request
+    * @param destinationUTM coordinates of this request
     * @param chargingInquiryData ChargingPreference per type of ChargingPoint
     * @param tazList the TAZ we are looking in
     * @param parkingTypes the parking types we are interested in
     * @param tree search tree of parking infrastructure
     * @param parkingZones stored ParkingZone data
-    * @param costFunction ranking function for comparing options
+    * @param rankingFunction ranking function for comparing options
+    * @param distanceFunction a function that computes the distance between two coordinates
+    * @param random random generator
     * @return the TAZ with the best ParkingZone, it's ParkingType, and the ranking value of that ParkingZone
     */
   def find(
@@ -35,20 +38,22 @@ object ParkingZoneSearch {
     parkingTypes: Seq[ParkingType],
     tree: ZoneSearch,
     parkingZones: Array[ParkingZone],
-    costFunction: ParkingRanking.RankingFunction,
+    rankingFunction: ParkingRanking.RankingFunction,
     distanceFunction: (Coord, Coord) => Double,
     random: Random
   ): Option[RankingAccumulator] = {
     val found = findParkingZones(destinationUTM, tazList, parkingTypes, tree, parkingZones, random)
-    takeBestByRanking(destinationUTM, found, chargingInquiryData, costFunction, distanceFunction)
+    takeBestByRanking(destinationUTM, found, chargingInquiryData, rankingFunction, distanceFunction)
   }
 
   /**
     * look for matching ParkingZones, within a TAZ, which have vacancies
+    * @param destinationUTM coordinates of this request
     * @param tazList the TAZ we are looking in
     * @param parkingTypes the parking types we are interested in
     * @param tree search tree of parking infrastructure
     * @param parkingZones stored ParkingZone data
+    * @param random random generator
     * @return list of discovered ParkingZones
     */
   def findParkingZones(
@@ -85,16 +90,18 @@ object ParkingZoneSearch {
 
   /**
     * finds the best parking zone id based on maximizing it's associated cost function evaluation
+    * @param destinationUTM coordinates of this request
     * @param found the ranked parkingZones
-    * @param costFunction ranking function for comparing options
     * @param chargingInquiryData ChargingPreference per type of ChargingPoint
-    * @return the best parking zone, it's TAZ, ParkingType, and ranking evaluation
+    * @param rankingFunction ranking function for comparing options
+    * @param distanceFunction a function that computes the distance between two coordinates
+    * @return the best parking option based on our cost function ranking evaluation
     */
   def takeBestByRanking(
     destinationUTM: Coord,
     found: Iterable[(TAZ, ParkingType, ParkingZone, Coord)],
     chargingInquiryData: Option[ChargingInquiryData[String, String]],
-    costFunction: ParkingRanking.RankingFunction,
+    rankingFunction: ParkingRanking.RankingFunction,
     distanceFunction: (Coord, Coord) => Double
   ): Option[RankingAccumulator] = {
     found.foldLeft(Option.empty[RankingAccumulator]) { (accOption, parkingZoneTuple) =>
@@ -108,14 +115,14 @@ object ParkingZoneSearch {
       val thisRank = chargingInquiryData match {
         case None =>
           // not a charging vehicle
-          costFunction(thisParkingZone, walkingDistance, None)
+          rankingFunction(thisParkingZone, walkingDistance, None)
         case Some(chargingData) =>
           // consider charging costs
           val pref: Option[ChargingPreference] = for {
             chargingPoint      <- thisParkingZone.chargingPointType
             chargingPreference <- chargingData.data.get(chargingPoint)
           } yield chargingPreference
-          costFunction(thisParkingZone, walkingDistance, pref)
+          rankingFunction(thisParkingZone, walkingDistance, pref)
       }
 
       // update fold accumulator with best-ranked parking zone along with relevant attributes
