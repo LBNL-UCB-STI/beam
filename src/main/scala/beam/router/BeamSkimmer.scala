@@ -302,7 +302,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     get: BeamServices,
     dummyId: Id[BeamVehicleType],
     writer: BufferedWriter
-  ) = {
+  ): Unit = {
     val individualSkims = hoursIncluded.map { timeBin =>
       getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
         .map(_.toSkimExternal)
@@ -346,7 +346,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     )
   }
 
-  def writeCarSkimsForPeakNonPeakPeriods(event: IterationEndsEvent) = {
+  def writeCarSkimsForPeakNonPeakPeriods(event: IterationEndsEvent): Unit = {
     val morningPeakHours = (7 to 8).toList
     val afternoonPeakHours = (15 to 16).toList
     val nonPeakHours = (0 to 6).toList ++ (9 to 14).toList ++ (17 to 23).toList
@@ -486,7 +486,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
       false,
       true,
       false
-    );
+    )
 
     val xyplot = chart.getPlot.asInstanceOf[XYPlot]
 
@@ -508,7 +508,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     )
   }
 
-  def writeFullSkims(event: IterationEndsEvent) = {
+  def writeFullSkims(event: IterationEndsEvent): Unit = {
     val fileHeader =
       "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations"
     val filePath = event.getServices.getControlerIO.getIterationFilename(
@@ -568,7 +568,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     writer.close()
   }
 
-  def writeObservedSkims(event: IterationEndsEvent) = {
+  def writeObservedSkims(event: IterationEndsEvent): Unit = {
     val fileHeader =
       "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations"
     val filePath = event.getServices.getControlerIO.getIterationFilename(
