@@ -18,6 +18,7 @@ import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 class ScenarioLoader(
   var scenario: MutableScenario,
@@ -174,6 +175,10 @@ class ScenarioLoader(
     logger.info(
       s"Created $totalCarCount vehicles, scaling initial value of $initialVehicleCounter by a factor of $scaleFactor"
     )
+  }
+
+  private def assignVehicles(households: Iterable[Household]): Iterable[(Household, List[BeamVehicleType])] {
+    
   }
 
   private[utils] def applyPersons(persons: Iterable[PersonInfo]): Unit = {
