@@ -35,7 +35,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.List
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.ExecutionContext
 
 class FastHouseholdCAVSchedulingSpec
@@ -72,20 +72,24 @@ class FastHouseholdCAVSchedulingSpec
     val tazTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
     val beamConfig = beamCfg
 
-    override var matsimServices: MatsimServices =  new MatsimServicesMock(null, mock[Scenario])
+    override var matsimServices: MatsimServices = new MatsimServicesMock(null, mock[Scenario])
 
     override val modeIncentives = ModeIncentive(Map[BeamMode, List[Incentive]]())
+
     val fuelTypePrices: Map[FuelType, Double] =
       BeamVehicleUtils.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
 
     val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] =
-      BeamVehicleUtils.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath, fuelTypePrices)
+      BeamVehicleUtils.readBeamVehicleTypeFile(
+        beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath,
+        fuelTypePrices
+      )
 
     override val geo: GeoUtils = new GeoUtilsImpl(beamConfig)
     override lazy val controler: ControlerI = ???
     override lazy val vehicleEnergy: VehicleEnergy = ???
     override var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
-    override lazy val dates: DateUtils =  ???
+    override lazy val dates: DateUtils = ???
     override var beamRouter: ActorRef = _
     override lazy val rideHailTransitModes: Seq[BeamMode] = ???
     override lazy val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = ???
@@ -94,7 +98,7 @@ class FastHouseholdCAVSchedulingSpec
     override lazy val ptFares: PtFares = ???
     override def startNewIteration(): Unit = ???
     override def networkHelper: NetworkHelper = ???
-    override def setTransitFleetSizes(tripFleetSizeMap:  mutable.HashMap[String, Integer]): Unit = ???
+    override def setTransitFleetSizes(tripFleetSizeMap: mutable.HashMap[String, Integer]): Unit = ???
   }
 
   describe("A Household CAV Scheduler") {
