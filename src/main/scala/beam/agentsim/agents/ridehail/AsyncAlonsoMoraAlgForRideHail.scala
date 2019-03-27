@@ -5,6 +5,8 @@ import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
+import beam.sim.common.GeoUtils
+
 import org.jgrapht.graph.DefaultEdge
 import org.matsim.core.utils.collections.QuadTree
 
@@ -26,13 +28,17 @@ class AsyncAlonsoMoraAlgForRideHail(
     val vertices = MListBuffer.empty[RTVGraphNode]
     val edges = MListBuffer.empty[(RTVGraphNode, RTVGraphNode)]
     val finalRequestsList = MListBuffer.empty[RideHailTrip]
+    val center = v.getLastDropoff.activity.getCoord
     spatialDemand
       .getDisk(
-        v.getLastDropoff.activity.getCoord.getX,
-        v.getLastDropoff.activity.getCoord.getY,
+        center.getX,
+        center.getY,
         timeWindow(Pickup) * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
       )
-      .asScala take maxRequestsPerVehicle foreach (
+      .asScala
+      .toList
+      .sortBy(x => GeoUtils.minkowskiDistFormula(center, x.pickup.activity.getCoord))
+      .take(maxRequestsPerVehicle) foreach (
       r =>
         AlonsoMoraPoolingAlgForRideHail
           .getRidehailSchedule(timeWindow, v.schedule ++ List(r.pickup, r.dropoff), beamServices) match {
