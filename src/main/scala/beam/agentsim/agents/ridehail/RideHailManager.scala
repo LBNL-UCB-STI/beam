@@ -52,6 +52,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.vividsolutions.jts.geom.Envelope
+import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.{Activity, Person, Population}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -317,6 +318,8 @@ class RideHailManager(
   private var cacheHits = 0
 
   private val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
+  val realDistribution: UniformRealDistribution = new UniformRealDistribution()
+  realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
   private val rideHailinitialLocationSpatialPlot = new SpatialPlot(1100, 1100, 50)
   val resources: mutable.Map[Id[BeamVehicle], BeamVehicle] = mutable.Map[Id[BeamVehicle], BeamVehicle]()
 
@@ -351,7 +354,8 @@ class RideHailManager(
               .getVehicleAdjustment(beamServices)
               .sampleRideHailVehicleTypes(
                 numVehicles = 1,
-                vehicleCategory = VehicleCategory.Car
+                vehicleCategory = VehicleCategory.Car,
+                realDistribution
               )
               .head
             if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >=
