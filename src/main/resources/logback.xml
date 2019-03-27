@@ -37,7 +37,7 @@
         <appender-ref ref="STDOUT"/>
     </Logger>
 
-    <Logger name="beam.router.r5.R5RoutingWorker" level="INFO" additivity="false">
+    <Logger name="beam.router.r5.R5RoutingWorker" level="INFO" additivity="true">
         <appender-ref ref="STDOUT"/>
     </Logger>
     <!--<Logger name="beam.agentsim.agents.vehicles.BeamVehicle" level="error" additivity="false">-->

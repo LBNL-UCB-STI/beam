@@ -9,6 +9,7 @@ import beam.sim.BeamServices
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.Population
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
@@ -106,6 +107,8 @@ class ScenarioLoader(
     val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
     val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamServices)
+    val realDistribution: UniformRealDistribution = new UniformRealDistribution()
+    realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
     households.foreach { householdInfo =>
       val id = Id.create(householdInfo.householdId.id, classOf[org.matsim.households.Household])
@@ -139,7 +142,8 @@ class ScenarioLoader(
           householdIncome = household.getIncome.getIncome,
           householdSize = household.getMemberIds.size,
           householdPopulation = null,
-          householdLocation = coord
+          householdLocation = coord,
+          realDistribution
         )
         .toBuffer
 
