@@ -1,16 +1,15 @@
 package beam.agentsim.infrastructure.parking
 
+import beam.agentsim.agents.choice.logit.Alternative
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.taz.TAZ
-
-import scala.collection.Map
 
 object ParkingRanking {
 
   val PlaceholderForChargingCosts = 0.0
 
   /**
-    * computes the cost of a given parking alternative based on the stall rental and optional charging capabilities
+    * computes the cost (= utility) of a given parking alternative based on the stall rental and optional charging capabilities
     *
     * @param parkingDuration duration agent will use parking stall
     * @param parkingZone the zone, which is a set of parking attributes in a TAZ with similar attributes
@@ -19,7 +18,7 @@ object ParkingRanking {
     */
   def rankingFunction(parkingDuration: Double)(
     parkingZone: ParkingZone,
-    chargingPreferenceOption: Option[ChargingPreference]
+    chargingInquiryOption: Option[ChargingInquiry]
   ): Double = {
     val price: Double = parkingZone.pricingModel match {
       case None => 0.0
@@ -30,22 +29,42 @@ object ParkingRanking {
         }
     }
 
-    // TODO: integrate cost of charge here
-    val chargingCost: Double = parkingZone.chargingPointType match {
-      case None => 0.0
-      case Some(chargingPointType) =>
-        val chargingPointCost: Double = PlaceholderForChargingCosts
+    val chargingSpotCosts: Double = chargingInquiryOption match {
+      case None => 0.0 // not a BEV / PHEV
+      case Some(chargingData) => { // BEV / PHEV -> we use our utility function
 
-        // TODO: mapping from preference to VoT??
-        val needAsPriceSignal: Double = chargingPreferenceOption match {
-          case None                     => 0.0D
-          case Some(chargingPreference) => PlaceholderForChargingCosts
+        chargingData.utility match {
+          case None => 0 // vehicle MUST charge -> we neglect the costs for charging, as we don't care
+          case Some(utilityFunction) => {
+
+            val installedCapacity = parkingZone.chargingPointType match {
+              case Some(chargingPoint) => ChargingPointType.getChargingPointInstalledPowerInKw(chargingPoint)
+              case None                => 0
+            }
+
+            val price = 16 // todo incorporate in chargingPointType as attribute
+            val walkingDistance = 1 // todo beamServices.geo.distUTMInMeters(stallLoc, inquiry.destinationUtm)
+            val VoT = chargingData.vot
+
+            //build alternative from data
+            // - beta1 * price * installedCapacity * 1h => -$
+            // - beta2 * (wd/1.4 / 3600.0 * VoT) => -$
+            // - beta3 * installedCapacity
+            val alternative = Alternative[String, String](
+              parkingZone.toString,
+              Map(
+                "energyPriceFactor" -> (price * installedCapacity),
+                "distanceFactor"    -> (walkingDistance / 1.4 / 3600.0) * VoT, // todo might be removed if we calculate the walking distance independently of charging
+                "installedCapacity" -> installedCapacity
+              )
+            )
+            utilityFunction.getUtilityOfAlternative(alternative)
+          }
         }
-
-        chargingPointCost + needAsPriceSignal
+      }
     }
 
-    price + chargingCost
+    price + chargingSpotCosts
   }
 
   /**
@@ -81,6 +100,7 @@ object ParkingRanking {
 
   /**
     * accumulator used to carry the best-ranked parking attributes along with aggregate search data
+    *
     * @param bestTAZ TAZ where best-ranked ParkingZone is stored
     * @param bestParkingType ParkingType related to the best-ranked ParkingZone
     * @param bestParkingZone the best-ranked ParkingZone
@@ -132,6 +152,7 @@ object ParkingRanking {
 
   /**
     * comes up with a percentage of availability of a set of parking attributes within a search
+    *
     * @param availability the accumulated availability data
     * @param pricingModel the pricing model attribute counted
     * @param chargingPoint the charging point attribute counted

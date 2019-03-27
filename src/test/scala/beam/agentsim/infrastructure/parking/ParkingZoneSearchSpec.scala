@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.infrastructure.charging.ChargingInquiryData
+import beam.agentsim.infrastructure.charging.ChargingInquiry
 import beam.agentsim.infrastructure.taz._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest.{Matchers, WordSpec}
@@ -13,7 +13,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         val zones: Array[ParkingZone] = Array()
 
         val result = ParkingZoneSearch.find(
-          Option.empty[ChargingInquiryData],
+          Option.empty[ChargingInquiry],
           Seq(TAZ.DefaultTAZ),
           Seq(ParkingType.Public),
           tree,
@@ -27,7 +27,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
     "search for options that do exist" should {
       "receive all of those options" in new ParkingZoneSearchSpec.SmallProblem {
         val result: Option[ParkingRanking.RankingAccumulator] = ParkingZoneSearch.find(
-          Option.empty[ChargingInquiryData],
+          Option.empty[ChargingInquiry],
           tazsInProblem,
           Seq(ParkingType.Public),
           smallTree,

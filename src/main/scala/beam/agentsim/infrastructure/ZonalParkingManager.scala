@@ -6,7 +6,7 @@ import scala.util.Random
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.infrastructure.ParkingManager._
-import beam.agentsim.infrastructure.charging.ChargingInquiryData
+import beam.agentsim.infrastructure.charging.ChargingInquiry
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
@@ -197,7 +197,7 @@ object ZonalParkingManager {
     destination: Location,
     parkingDuration: Int,
     parkingTypes: Seq[ParkingType],
-    chargingInquiryData: Option[ChargingInquiryData[String, String]],
+    chargingInquiryData: Option[ChargingInquiry],
     searchTree: ParkingZoneSearch.ZoneSearch,
     stalls: Array[ParkingZone],
     tazQuadTree: QuadTree[TAZ],

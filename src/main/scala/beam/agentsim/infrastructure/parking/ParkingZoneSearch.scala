@@ -1,5 +1,7 @@
 package beam.agentsim.infrastructure.parking
 
+import beam.agentsim.agents.choice.logit.MultinomialLogit
+
 import scala.collection.Map
 import scala.util.{Failure, Success, Try}
 import beam.agentsim.infrastructure.charging._
@@ -19,6 +21,7 @@ object ParkingZoneSearch {
 
   /**
     * find the best parking alternative for the data in this request
+    *
     * @param chargingInquiryData ChargingPreference per type of ChargingPoint
     * @param tazList the TAZ we are looking in
     * @param parkingTypes the parking types we are interested in
@@ -28,19 +31,20 @@ object ParkingZoneSearch {
     * @return the TAZ with the best ParkingZone, it's ParkingType, and the ranking value of that ParkingZone
     */
   def find(
-    chargingInquiryData: Option[ChargingInquiryData[String, String]],
+    chargingInquiry: Option[ChargingInquiry],
     tazList: Seq[TAZ],
     parkingTypes: Seq[ParkingType],
     tree: ZoneSearch,
     parkingZones: Array[ParkingZone],
-    costFunction: (ParkingZone, Option[ChargingPreference]) => Double
+    costFunction: (ParkingZone, Option[ChargingInquiry]) => Double
   ): Option[RankingAccumulator] = {
     val found = findParkingZonesAndRanking(tazList, parkingTypes, tree, parkingZones)
-    takeBestByRanking(found, chargingInquiryData, costFunction)
+    takeBestByRanking(found, chargingInquiry, costFunction)
   }
 
   /**
     * look for matching ParkingZones, optionally based on charging infrastructure requirements, within a TAZ, which have vacancies
+    *
     * @param tazList the TAZ we are looking in
     * @param parkingTypes the parking types we are interested in
     * @param tree search tree of parking infrastructure
@@ -76,6 +80,7 @@ object ParkingZoneSearch {
 
   /**
     * finds the best parking zone id based on maximizing it's associated cost function evaluation
+    *
     * @param found the ranked parkingZones
     * @param costFunction ranking function for comparing options
     * @param chargingInquiryData ChargingPreference per type of ChargingPoint
@@ -83,26 +88,15 @@ object ParkingZoneSearch {
     */
   def takeBestByRanking(
     found: Iterable[(TAZ, ParkingType, ParkingZone)],
-    chargingInquiryData: Option[ChargingInquiryData[String, String]],
-    costFunction: (ParkingZone, Option[ChargingPreference]) => Double
+    chargingInquiry: Option[ChargingInquiry],
+    costFunction: (ParkingZone, Option[ChargingInquiry]) => Double
   ): Option[RankingAccumulator] = {
     found.foldLeft(Option.empty[RankingAccumulator]) { (accOption, parkingZoneTuple) =>
       val (thisTAZ: TAZ, thisParkingType: ParkingType, thisParkingZone: ParkingZone) =
         parkingZoneTuple
 
       // rank this parking zone
-      val thisRank = chargingInquiryData match {
-        case None =>
-          // not a charging vehicle
-          costFunction(thisParkingZone, None)
-        case Some(chargingData) =>
-          // consider charging costs
-          val pref: Option[ChargingPreference] = for {
-            chargingPoint      <- thisParkingZone.chargingPointType
-            chargingPreference <- chargingData.data.get(chargingPoint)
-          } yield chargingPreference
-          costFunction(thisParkingZone, pref)
-      }
+      val thisRank = costFunction(thisParkingZone, chargingInquiry) // todo respect for vehicle plug / station
 
       // add aggregate data to this accumulator
       val updatedAvailability: ParkingRanking.Availability =

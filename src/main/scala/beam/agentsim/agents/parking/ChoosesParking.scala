@@ -9,12 +9,12 @@ import beam.agentsim.agents.choice.logit.UtilityFunctionParamType.Multiplier
 import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunction, UtilityFunctionParam}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
-import beam.agentsim.agents.vehicles.FuelType.Electricity
+import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule}
 import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
-import beam.agentsim.infrastructure.charging.ChargingInquiryData
+import beam.agentsim.infrastructure.charging.ChargingInquiry
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
@@ -41,33 +41,37 @@ trait ChoosesParking extends {
 
   def getChargingInquiryData(
     personData: BasePersonData,
-    beamVehicleType: BeamVehicleType
-  ): Option[ChargingInquiryData[String, String]] = {
+    beamVehicle: BeamVehicle
+  ): Option[ChargingInquiry] = {
 
-    // the utility function // todo config param
+    // the utility function // as todo config param
+    // todo calibrate
     val beta1 = 1
     val beta2 = 1
     val beta3 = 0.001
+    val distanceBuffer = 25000 // in meter (the distance that should be considered as buffer for range estimation
+
+    // todo for all charginginquiries: extract plugs from vehicles and pass it over to ZM
 
     val mnl = MultinomialLogit[String, String](
       Vector(
         UtilityFunction(
           "ParkingSpot",
           Set(
-            UtilityFunctionParam[String]("beta1", Multiplier, -beta3),
-            UtilityFunctionParam[String]("beta2", Multiplier, -beta2),
-            UtilityFunctionParam[String]("beta3", Multiplier, -beta1)
+            UtilityFunctionParam[String]("energyPriceFactor", Multiplier, -beta1),
+            UtilityFunctionParam[String]("distanceFactor", Multiplier, -beta2),
+            UtilityFunctionParam[String]("installedCapacity", Multiplier, beta3)
           )
         )
       )
     )
 
-    (beamVehicleType.primaryFuelType, beamVehicleType.secondaryFuelType) match {
-      case (Electricity, _) => { //BEV
+    (beamVehicle.beamVehicleType.primaryFuelType, beamVehicle.beamVehicleType.secondaryFuelType) match {
+      case (Electricity, None) => { //BEV
         //calculate the remaining driving distance in meters, reduced by 10% of the installed battery capacity as safety margin
         val remainingDrivingDist = (beamServices
           .privateVehicles(personData.currentVehicle.head)
-          .primaryFuelLevelInJoules / beamVehicleType.primaryFuelConsumptionInJoulePerMeter) * 0.9
+          .primaryFuelLevelInJoules / beamVehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter) - distanceBuffer
         log.debug(s"Remaining distance until BEV has only 10% of it's SOC left =  $remainingDrivingDist meter")
 
         val remainingTourDist = nextActivity(personData) match {
@@ -76,23 +80,26 @@ trait ChoosesParking extends {
             currentTour(personData).trips
               .slice(nextActIdx, currentTour(personData).trips.length)
               .sliding(2, 1)
-              .toList
+              .toList // todo try without list
               .foldLeft(0d) { (sum, pair) =>
                 sum + Math
                   .ceil(GeoUtils.minkowskiDistFormula(pair.head.activity.getCoord, pair.last.activity.getCoord))
               }
-          case None => 0 // if we don't have any more trips we don't need a chargingInquiry as we are @home again
+          case None =>
+            0 // if we don't have any more trips we don't need a chargingInquiry as we are @home again => assumption: charging @home always takes place
         }
 
         remainingTourDist match {
-          case 0                                              => None
-          case _ if remainingDrivingDist <= remainingTourDist => ChargingInquiryData(None) // must
-          case _ if remainingDrivingDist > remainingTourDist  => ChargingInquiryData(Some(mnl)) // opportunistic
+          case 0 => None
+          case _ if remainingDrivingDist <= remainingTourDist =>
+            ChargingInquiry(None, None, beamVehicle, attributes.valueOfTime) // must
+          case _ if remainingDrivingDist > remainingTourDist =>
+            ChargingInquiry(Some(mnl), None, beamVehicle, attributes.valueOfTime) // opportunistic
         }
 
       }
-      case (_, Some(Electricity)) => { // PHEV
-        ChargingInquiryData(Some(mnl)) // PHEV is always opportunistic
+      case (Electricity, Some(Gasoline)) => { // PHEV
+        ChargingInquiry(Some(mnl), None, beamVehicle, attributes.valueOfTime) // PHEV is always opportunistic
       }
       case _ => None
     }
@@ -111,7 +118,7 @@ trait ChoosesParking extends {
         beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc),
         nextActivity(personData).get.getType,
         attributes,
-        getChargingInquiryData(personData, currentBeamVehicle.beamVehicleType),
+        getChargingInquiryData(personData, currentBeamVehicle),
         lastLeg.beamLeg.endTime,
         nextActivity(personData).get.getEndTime - lastLeg.beamLeg.endTime.toDouble
       )

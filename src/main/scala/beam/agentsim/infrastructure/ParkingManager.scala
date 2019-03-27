@@ -3,7 +3,7 @@ package beam.agentsim.infrastructure
 import akka.actor.Actor
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 //import beam.agentsim.infrastructure.ParkingStall.{ChargingPreference, ReservedParkingType}
-import beam.agentsim.infrastructure.charging.ChargingInquiryData
+import beam.agentsim.infrastructure.charging.ChargingInquiry
 import beam.router.BeamRouter.Location
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.ParkingManagerIdGenerator
@@ -21,7 +21,7 @@ object ParkingManager {
     destinationUtm: Location,
     activityType: String,
     attributesOfIndividual: AttributesOfIndividual,
-    chargingInquiryData: Option[ChargingInquiryData[String, String]],
+    chargingInquiryData: Option[ChargingInquiry],
     arrivalTime: Long,
     parkingDuration: Double,
 //    reservedFor: ReservedParkingType = ParkingStall.Any,
