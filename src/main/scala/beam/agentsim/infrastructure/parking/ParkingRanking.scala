@@ -3,7 +3,6 @@ package beam.agentsim.infrastructure.parking
 import beam.agentsim.agents.choice.logit.Alternative
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.taz.TAZ
-import scala.collection.Map
 
 import org.matsim.api.core.v01.Coord
 

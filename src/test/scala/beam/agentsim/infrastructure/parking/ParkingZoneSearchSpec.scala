@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure.parking
 
 import scala.util.Random
 
-import beam.agentsim.infrastructure.charging.ChargingInquiryData
+import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.taz._
 import beam.sim.common.GeoUtils
 import org.matsim.api.core.v01.{Coord, Id}
@@ -17,7 +17,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
 
         val result = ParkingZoneSearch.find(
           destinationInMiddle,
-          Option.empty[ChargingInquiryData[String, String]],
+          Option.empty[ChargingInquiry],
           Seq(TAZ.DefaultTAZ),
           Seq(ParkingType.Public),
           tree,
@@ -34,7 +34,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
       "find a spot in the nearest TAZ with full availability which places the stall exactly at the driver's destination" in new ParkingZoneSearchSpec.SimpleParkingAlternatives {
         val result: Option[ParkingRanking.RankingAccumulator] = ParkingZoneSearch.find(
           destinationNearTazA,
-          Option.empty[ChargingInquiryData[String,String]],
+          Option.empty[ChargingInquiry],
           tazsInProblem,
           Seq(ParkingType.Public),
           parkingSearchTree,
@@ -73,7 +73,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
 
         val result: Option[ParkingRanking.RankingAccumulator] = ParkingZoneSearch.find(
           destinationInMiddle,
-          Option.empty[ChargingInquiryData[String,String]],
+          Option.empty[ChargingInquiry],
           tazsInProblem,
           Seq(ParkingType.Public),
           parkingSearchTree,

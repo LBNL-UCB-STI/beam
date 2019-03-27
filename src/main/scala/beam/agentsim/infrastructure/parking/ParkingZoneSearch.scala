@@ -21,7 +21,7 @@ object ParkingZoneSearch {
   /**
     * find the best parking alternative for the data in this request
     * @param destinationUTM coordinates of this request
-    * @param chargingInquiryData ChargingPreference per type of ChargingPoint
+    * @param chargingInquiry ChargingPreference per type of ChargingPoint
     * @param tazList the TAZ we are looking in
     * @param parkingTypes the parking types we are interested in
     * @param tree search tree of parking infrastructure
@@ -33,7 +33,7 @@ object ParkingZoneSearch {
     */
   def find(
     destinationUTM: Coord,
-    chargingInquiryData: Option[ChargingInquiryData[String, String]],
+    chargingInquiry: Option[ChargingInquiry],
     tazList: Seq[TAZ],
     parkingTypes: Seq[ParkingType],
     tree: ZoneSearch,
@@ -43,7 +43,7 @@ object ParkingZoneSearch {
     random: Random
   ): Option[RankingAccumulator] = {
     val found = findParkingZones(destinationUTM, tazList, parkingTypes, tree, parkingZones, random)
-    takeBestByRanking(destinationUTM, found, chargingInquiryData, rankingFunction, distanceFunction)
+    takeBestByRanking(destinationUTM, found, chargingInquiry, rankingFunction, distanceFunction)
   }
 
   /**
@@ -92,7 +92,7 @@ object ParkingZoneSearch {
     * finds the best parking zone id based on maximizing it's associated cost function evaluation
     * @param destinationUTM coordinates of this request
     * @param found the ranked parkingZones
-    * @param chargingInquiryData ChargingPreference per type of ChargingPoint
+    * @param chargingInquiry ChargingPreference per type of ChargingPoint
     * @param rankingFunction ranking function for comparing options
     * @param distanceFunction a function that computes the distance between two coordinates
     * @return the best parking option based on our cost function ranking evaluation
@@ -100,7 +100,7 @@ object ParkingZoneSearch {
   def takeBestByRanking(
     destinationUTM: Coord,
     found: Iterable[(TAZ, ParkingType, ParkingZone, Coord)],
-    chargingInquiryData: Option[ChargingInquiryData[String, String]],
+    chargingInquiry: Option[ChargingInquiry],
     rankingFunction: ParkingRanking.RankingFunction,
     distanceFunction: (Coord, Coord) => Double
   ): Option[RankingAccumulator] = {
@@ -112,18 +112,7 @@ object ParkingZoneSearch {
       val walkingDistance: Double = distanceFunction(destinationUTM, stallLocation)
 
       // rank this parking zone
-      val thisRank = chargingInquiryData match {
-        case None =>
-          // not a charging vehicle
-          rankingFunction(thisParkingZone, walkingDistance, None)
-        case Some(chargingData) =>
-          // consider charging costs
-          val pref: Option[ChargingPreference] = for {
-            chargingPoint      <- thisParkingZone.chargingPointType
-            chargingPreference <- chargingData.data.get(chargingPoint)
-          } yield chargingPreference
-          rankingFunction(thisParkingZone, walkingDistance, pref)
-      }
+      val thisRank = rankingFunction(thisParkingZone, walkingDistance, chargingInquiry)
 
       // update fold accumulator with best-ranked parking zone along with relevant attributes
       accOption match {
