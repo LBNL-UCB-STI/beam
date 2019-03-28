@@ -315,7 +315,7 @@ class OtherPersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(config),
-          new BeamSkimmer(config)
+          new BeamSkimmer(config, beamSvc)
         )
       )
       scheduler ! StartSchedule(0)
