@@ -24,7 +24,15 @@ case class FixedNonReservingFleet(config: SharedFleets$Elm.FixedNonReserving) ex
       Id.create(config.vehicleTypeId, classOf[BeamVehicleType]),
       throw new RuntimeException("Vehicle type id not found: " + config.vehicleTypeId)
     )
-    Props(new FixedNonReservingFleetManager(parkingManager, initialSharedVehicleLocations, vehicleType, beamServices, skimmer))
+    Props(
+      new FixedNonReservingFleetManager(
+        parkingManager,
+        initialSharedVehicleLocations,
+        vehicleType,
+        beamServices,
+        skimmer
+      )
+    )
   }
 }
 

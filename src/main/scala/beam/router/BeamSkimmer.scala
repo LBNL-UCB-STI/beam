@@ -9,7 +9,18 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  CAR,
+  CAV,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -224,7 +235,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   }
 
   def timeToBin(departTime: Int, timeWindow: Double = 3600.0): Int = {
-    Math.floorMod(Math.floor(departTime.toDouble / timeWindow).toInt, (24*3600/timeWindow).toInt)
+    Math.floorMod(Math.floor(departTime.toDouble / timeWindow).toInt, (24 * 3600 / timeWindow).toInt)
   }
 
   def mergeAverage(existingAverage: Double, existingCount: Int, newValue: Double): Double = {
@@ -444,22 +455,25 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   // Skim Plus
   private var previousSkimsPlus: TrieMap[(TimeBin, Id[TAZ], VehiclesManager), SkimPlus] = TrieMap()
   private var skimsPlus: TrieMap[(TimeBin, Id[TAZ], VehiclesManager), SkimPlus] = TrieMap()
-  def observeVehicleInquiry(who: Id[Person],
-                            whenWhere: SpaceTime,
-                            vehicleManager: VehiclesManager,
-                            beamServices: BeamServices
-                           ): Unit = {
-    val timeBin = timeToBin(whenWhere.time, 15*60.0)
+
+  def observeVehicleInquiry(
+    who: Id[Person],
+    whenWhere: SpaceTime,
+    vehicleManager: VehiclesManager,
+    beamServices: BeamServices
+  ): Unit = {
+    val timeBin = timeToBin(whenWhere.time, 15 * 60.0)
     val idTAZ = beamServices.tazTreeMap.getTAZ(whenWhere.loc.getX, whenWhere.loc.getY).tazId
     val key = (timeBin, idTAZ, vehicleManager)
     val payload = SkimPlus(1)
     skimsPlus.get(key) match {
       case Some(existingSkim) =>
-        skimsPlus.put(key, SkimPlus(existingSkim.availableVehicles+1))
+        skimsPlus.put(key, SkimPlus(existingSkim.availableVehicles + 1))
       case None =>
         skimsPlus.put(key, payload)
     }
   }
+
   def writeObservedSkimsPlus(event: IterationEndsEvent): Unit = {
     val filePath = event.getServices.getControlerIO.getIterationFilename(
       event.getServices.getIterationNumber,
