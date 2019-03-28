@@ -14,7 +14,7 @@ import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
-import beam.router.{BeamRouter, RouteHistory}
+import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
@@ -43,13 +43,13 @@ import org.matsim.core.controler.listener.{
   ShutdownListener,
   StartupListener
 }
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
-
 import beam.utils.logging.ExponentialLazyLogging
 
 class BeamSim @Inject()(
@@ -60,7 +60,9 @@ class BeamSim @Inject()(
   private val eventsManager: EventsManager,
   private val scenario: Scenario,
   private val networkHelper: NetworkHelper,
-  private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator
+  private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator,
+  private val beamSkimmer: BeamSkimmer,
+  private val travelTimeObserved: TravelTimeObserved
 ) extends StartupListener
     with IterationStartsListener
     with IterationEndsListener
@@ -167,6 +169,13 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    // ORDER IS IMPORTANT HERE!
+    // travelTimeObserved use skimmer to write `TravelTimeObservedVsSimulated`
+    // `beamSkimmer.notifyIterationEnds(event)` will clear skims, so `travelTimeObserved.writeTravelTimeObservedVsSimulated` must be first
+    travelTimeObserved.writeTravelTimeObservedVsSimulated(event)
+
+    beamSkimmer.notifyIterationEnds(event)
+
     if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
