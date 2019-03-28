@@ -951,6 +951,7 @@ object BeamConfig {
         }
 
         case class Vehicles(
+          downsamplingMethod: java.lang.String,
           enableNewVehicleEnergyConsumptionLogic: scala.Boolean,
           fractionOfInitialVehicleFleet: scala.Double,
           fuelTypesFilePath: java.lang.String,
@@ -1028,6 +1029,9 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles = {
             BeamConfig.Beam.Agentsim.Agents.Vehicles(
+              downsamplingMethod =
+                if (c.hasPathOrNull("downsamplingMethod")) c.getString("downsamplingMethod")
+                else "SECONDARY_VEHICLES_FIRST",
               enableNewVehicleEnergyConsumptionLogic = !c.hasPathOrNull("enableNewVehicleEnergyConsumptionLogic") || c
                 .getBoolean("enableNewVehicleEnergyConsumptionLogic"),
               fractionOfInitialVehicleFleet =
