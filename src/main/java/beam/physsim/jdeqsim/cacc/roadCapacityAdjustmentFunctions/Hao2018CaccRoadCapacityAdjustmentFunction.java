@@ -126,8 +126,8 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
         log.info("caccCategoryRoadsTravelled / nonCACCCategoryRoadsTravelled ratio: " + 1.0 * caccCategoryRoadsTravelled / nonCACCCategoryRoadsTravelled);
         writeCapacityStats(currentIterationNumber,capacityStatsCollector.toString());
         if(writeGraphs) {
-            generateCapacityIncreaseScatterPlotGraph(currentIterationNumber,caccCapacityIncrease);
-            generateCapacityIncreaseHistogramGraph(currentIterationNumber,caccCapacityIncrease);
+            CaccRoadCapacityGraphs.generateCapacityIncreaseScatterPlotGraph(currentIterationNumber,caccCapacityIncrease,controllerIO.getIterationFilename(currentIterationNumber,"caccRoadCapacityIncrease.png"));
+            CaccRoadCapacityGraphs.generateCapacityIncreaseHistogramGraph(currentIterationNumber,caccCapacityIncrease,controllerIO.getIterationFilename(currentIterationNumber,"caccRoadCapacityHistogram.png"));
         }
         reset();
     }
@@ -144,13 +144,21 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
         return  (writeInterval > 0 && iterationNumber % writeInterval == 0);
     }
 
+
+    private void reset() {
+        caccCapacityIncrease.clear();
+    }
+
+}
+
+class CaccRoadCapacityGraphs {
     /**
      * A scattered plot that analyses the percentage of increase of road capacity observed for a given fraction of CACC enabled travelling on
      * CACC enabled roads
      * @param iterationNumber current iteration number
      * @param caccCapacityIncrease data map for the graph
      */
-    private void generateCapacityIncreaseScatterPlotGraph(int iterationNumber, Map<Double, Double> caccCapacityIncrease) {
+    static void generateCapacityIncreaseScatterPlotGraph(int iterationNumber, Map<Double, Double> caccCapacityIncrease, String graphImageFile) {
         String plotTitle = "CACC - Road Capacity Increase";
         String x_axis = "CACC on Road (%)";
         String y_axis = "Road Capacity Increase (%)";
@@ -166,7 +174,6 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
                 plotTitle,
                 x_axis, y_axis, dataset);
 
-        String graphImageFile = controllerIO.getIterationFilename(iterationNumber,"caccRoadCapacityIncrease.png");
         try {
             ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
                     height);
@@ -181,7 +188,7 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
      * @param iterationNumber current iteration number
      * @param caccCapacityIncrease data map for the graph
      */
-    private void generateCapacityIncreaseHistogramGraph(int iterationNumber, Map<Double, Double> caccCapacityIncrease) {
+    static void generateCapacityIncreaseHistogramGraph(int iterationNumber, Map<Double, Double> caccCapacityIncrease, String graphImageFile) {
 
         String plotTitle = "CACC Road Capacity Increase Histogram";
         String x_axis = "Road Capacity Increase (%)";
@@ -191,7 +198,7 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
 
         Collection<Double> capacityIncreaseValues = caccCapacityIncrease.values();
         Double[] value = caccCapacityIncrease.values().toArray(new Double[capacityIncreaseValues.size()]);
-            int number = 10;
+        int number = 10;
         HistogramDataset dataset = new HistogramDataset();
         dataset.setType(HistogramType.FREQUENCY);
         dataset.addSeries("CACC Capacity",ArrayUtils.toPrimitive(value),number,0.0,100.0);
@@ -200,17 +207,12 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
                 plotTitle,
                 x_axis, y_axis, dataset,PlotOrientation.VERTICAL,false,true,true);
 
-        String graphImageFile = controllerIO.getIterationFilename(iterationNumber,"caccRoadCapacityHistogram.png");
         try {
             ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
                     height);
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    private void reset() {
-        caccCapacityIncrease.clear();
     }
 
 }
