@@ -27,7 +27,7 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
     val config = ConfigFactory
       .parseString(s"""
                      |beam.outputs.events.fileOutputFormats = xml
-                     |beam.agentsim.lastIteration = 0
+                     |beam.agentsim.lastIteration = 1
                      |beam.physsim.jdeqsim.cacc.enabled = $caccEnabled
                      |beam.agentsim.agents.vehicles.vehiclesFilePath = $${beam.inputDirectory}"/sample/1k/vehicles-cav.csv"
                    """.stripMargin)
@@ -74,7 +74,7 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
     val outputDirectoryHierarchy =
       new OutputDirectoryHierarchy(outputDir, OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles)
 
-    outputDirectoryHierarchy.getIterationFilename(0, PersonTravelTimeAnalysis.fileBaseName + ".csv")
+    outputDirectoryHierarchy.getIterationFilename(1, PersonTravelTimeAnalysis.fileBaseName + ".csv")
   }
 
   "SF Light" must {
