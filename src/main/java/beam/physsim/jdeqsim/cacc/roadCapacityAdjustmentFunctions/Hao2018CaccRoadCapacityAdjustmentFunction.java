@@ -166,7 +166,7 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
                 plotTitle,
                 x_axis, y_axis, dataset);
 
-        String graphImageFile = controllerIO.getIterationFilename(iterationNumber,"caccRoadCapacityHistorgram.png");
+        String graphImageFile = controllerIO.getIterationFilename(iterationNumber,"caccRoadCapacityIncrease.png");
         try {
             ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
                     height);
@@ -200,7 +200,7 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
                 plotTitle,
                 x_axis, y_axis, dataset,PlotOrientation.VERTICAL,false,true,true);
 
-        String graphImageFile = controllerIO.getIterationFilename(iterationNumber,"caccRoadCapacityIncreaseFrequencies.png");
+        String graphImageFile = controllerIO.getIterationFilename(iterationNumber,"caccRoadCapacityHistogram.png");
         try {
             ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
                     height);
