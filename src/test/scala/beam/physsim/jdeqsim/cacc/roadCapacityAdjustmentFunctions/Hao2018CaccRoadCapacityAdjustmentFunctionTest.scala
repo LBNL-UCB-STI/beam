@@ -62,7 +62,7 @@ class Hao2018CaccRoadCapacityAdjustmentFunctionTest extends FunSpec {
     ) {
       val linkCapacity = minRoadCapacity + 1
       val link = buildLink(capacity = linkCapacity, freeSpeed = minSpeedMetersPerSecond + 1)
-      val fractionOnRoad = 10D
+      val fractionOnRoad = javaRandom.nextDouble()
       val expectedCapacity = capacityFunction.calculateCapacity(fractionOnRoad, linkCapacity) / NumberOfSecondsInOneHour
 
       assertResult(expectedCapacity) {
@@ -76,7 +76,7 @@ class Hao2018CaccRoadCapacityAdjustmentFunctionTest extends FunSpec {
       val nonCacLink = buildLink(capacity = linkCapacity, freeSpeed = minSpeedMetersPerSecond + 1)
       val expectedCapacityWithCaccPersecond = linkCapacity / NumberOfSecondsInOneHour
 
-      val fractionOnRoad = 10D
+      val fractionOnRoad = javaRandom.nextDouble()
       val result = capacityFunction.getCapacityWithCACCPerSecond(nonCacLink, fractionOnRoad)
 
       assertResult(expectedCapacityWithCaccPersecond) {
