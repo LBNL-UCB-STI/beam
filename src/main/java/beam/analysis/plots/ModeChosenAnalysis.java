@@ -88,7 +88,7 @@ public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport {
     }
 
     public ModeChosenAnalysis(StatsComputation<Tuple<Map<Integer, Map<String, Integer>>, Set<String>>, double[][]> statComputation, BeamConfig beamConfig) {
-        final String benchmarkFileLoc = beamConfig.beam().calibration().mode().benchmarkFileLoc();
+        final String benchmarkFileLoc = beamConfig.beam().calibration().mode().benchmarkFilePath();
         this.statComputation = statComputation;
         benchMarkData = benchmarkCsvLoader(benchmarkFileLoc);
         writeGraph = beamConfig.beam().outputs().writeGraphs();
@@ -100,8 +100,8 @@ public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport {
 
     @Override
     public void processStats(Event event) {
-        if (event instanceof ModeChoiceEvent || event.getEventType().equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE))
-            processModeChoice(event);
+        if (event instanceof ModeChoiceEvent)
+            processModeChoice((ModeChoiceEvent)event);
     }
 
     @Override
@@ -145,9 +145,9 @@ public class ModeChosenAnalysis implements GraphAnalysis, MetricsSupport {
         return GraphsStatsAgentSimEventsListener.getSortedIntegerList(hourModeFrequency.keySet());
     }
 
-    private void processModeChoice(Event event) {
+    private void processModeChoice(ModeChoiceEvent event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
-        String mode = event.getAttributes().get(ModeChoiceEvent.ATTRIBUTE_MODE);
+        String mode = event.mode;
         Map<String, String> tags = new HashMap<>();
         tags.put("stats-type", "mode-choice");
         tags.put("hour", "" + (hour + 1));

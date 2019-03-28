@@ -9,8 +9,13 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.EmbodiedBeamTrip
-import beam.sim.BeamServices
+import beam.sim.{BeamServices, MapStringDouble}
 import beam.sim.population.AttributesOfIndividual
+import org.matsim.api.core.v01.population.Activity
+import org.matsim.api.core.v01.population.Person
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 
 /**
   * ModeChoiceLCCM
@@ -43,7 +48,8 @@ class ModeChoiceLCCM(
 
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
-    attributesOfIndividual: AttributesOfIndividual
+    attributesOfIndividual: AttributesOfIndividual,
+    destinationActivity: Option[Activity]
   ): Option[EmbodiedBeamTrip] = {
     choose(alternatives, attributesOfIndividual, Mandatory)
   }
@@ -58,7 +64,7 @@ class ModeChoiceLCCM(
     } else {
       val bestInGroup = altsToBestInGroup(alternatives, tourType)
       /*
-       * Fill outWriter the input data structures required by the MNL models
+       * Fill out the input data structures required by the MNL models
        */
       val modeChoiceInputData = bestInGroup.map { alt =>
         val theParams = Map(
@@ -174,10 +180,10 @@ class ModeChoiceLCCM(
       conditionedOnModalityStyle,
       tourType,
       best.cost,
-      scaleTimeByVot(
+      getGeneralizedTime(
         best.walkTime + best.waitTime + best.vehicleTime + best.bikeTime,
         Some(best.mode)
-      )
+      ) * beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
     )
   }
 
@@ -255,7 +261,73 @@ class ModeChoiceLCCM(
       .getUtilityOfAlternative(AlternativeAttributes(mode.value, theParams))
   }
 
-  override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
+  override def utilityOf(
+    alternative: EmbodiedBeamTrip,
+    attributesOfIndividual: AttributesOfIndividual,
+    destinationActivity: Option[Activity]
+  ): Double = 0.0
+
+  override def computeAllDayUtility(
+    trips: ListBuffer[EmbodiedBeamTrip],
+    person: Person,
+    attributesOfIndividual: AttributesOfIndividual
+  ) = {
+    // Compute and log all-day score w.r.t. all modality styles
+    // One of them has many suspicious-looking 0.0 values. Probably something which
+    // should be minus infinity or exception instead.
+    val vectorOfUtilities = List("class1", "class2", "class3", "class4", "class5", "class6")
+      .map { style =>
+        style -> beamServices.modeChoiceCalculatorFactory(
+          attributesOfIndividual.copy(modalityStyle = Some(style))
+        )
+      }
+      .toMap
+      .mapValues(
+        modeChoiceCalculatorForStyle =>
+          trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip, attributesOfIndividual, None)).sum
+      )
+      .toArray
+      .toMap // to force computation DO NOT TOUCH IT, because here is call-by-name and it's lazy which will hold a lot of memory !!! :)
+
+    person.getSelectedPlan.getAttributes
+      .putAttribute("scores", MapStringDouble(vectorOfUtilities))
+
+    val logsum = Option(
+      math.log(
+        person.getPlans.asScala.view
+          .map(
+            plan =>
+              plan.getAttributes
+                .getAttribute("scores")
+                .asInstanceOf[MapStringDouble]
+                .data(attributesOfIndividual.modalityStyle.get)
+          )
+          .map(score => math.exp(score))
+          .sum
+      )
+    ).filterNot(x => x < -100D).getOrElse(-100D)
+
+    // Score of being in class given this outcome
+    lccm
+      .classMembershipModels(Mandatory)
+      .getUtilityOfAlternative(
+        AlternativeAttributes(
+          attributesOfIndividual.modalityStyle.get,
+          Map(
+            "income"        -> attributesOfIndividual.householdAttributes.householdIncome,
+            "householdSize" -> attributesOfIndividual.householdAttributes.householdSize.toDouble,
+            "male" -> (if (attributesOfIndividual.isMale) {
+                         1.0
+                       } else {
+                         0.0
+                       }),
+            "numCars"  -> attributesOfIndividual.householdAttributes.numCars.toDouble,
+            "numBikes" -> attributesOfIndividual.householdAttributes.numBikes.toDouble,
+            "surplus"  -> logsum // not the logsum-thing (yet), but the conditional utility of this actual plan given the class
+          )
+        )
+      )
+  }
 
 }
 

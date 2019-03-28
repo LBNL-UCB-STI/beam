@@ -83,31 +83,6 @@ File: :code:`~/Library/LaunchAgents/setenv.BEAM_OUTPUT.plist`::
       </dict>
     </plist>
 
-
-GIT-LFS Configuration
-^^^^^^^^^^^^^^^^^^^^^
-
-The installation process for git-lfs client(`v2.3.4`_, latest installer has some issue with node-git-lfs) is very simple. For detailed documentation please consult `github guide`_ for Mac, windows and Linux.
-
-.. _v2.3.4: https://github.com/git-lfs/git-lfs/releases/tag/v2.3.4
-.. _github guide: https://help.github.com/articles/installing-git-large-file-storage/
-
-To verify successful installation, run following command::
-
-    $ git lfs install
-    Git LFS initialized.
-
-To confirm that you have installed the correct version of client run the following command::
-
-   $ git lfs env
-
-It will print out the installed version, and please make sure it is `git-lfs/2.3.4`.
-
-To update the text pointers with the actual contents of files, run the following command (if it requests credentials, use any username and leave the password empty)::
-
-   $ git lfs pull
-   Git LFS: (98 of 123 files) 343.22 MB / 542.18 MB
-   
 GIT-LFS timeout - how to proceed
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Sometimes it is possible to face a timeout issue when trying to push huge files. The steps below can be followed:
@@ -388,6 +363,102 @@ This code marks the test with `com.beam.tags.Periodic` tag. You can also specify
 You can find details about scheduling a continuous integration build under DevOps section `Configure Periodic Jobs`_.
 
 .. _Configure Periodic Jobs: http://beam.readthedocs.io/en/latest/devops.html#configure-periodic-jobs
+
+
+Instructions for forking BEAM
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+These instructions are based on `this page <https://confluence.atlassian.com/bitbucket/current-limitations-for-git-lfs-with-bitbucket-828781638.html>`_
+
+1. Clone BEAM repo
+
+.. code-block:: bash
+
+    git clone https://github.com/LBNL-UCB-STI/beam
+
+    cd beam
+
+
+When asked for user name and password for LFS server (http://52.15.173.229:8080) enter anything but do not leave them blank.
+
+2. Fetch Git LFS files
+
+.. code-block:: bash
+
+    git lfs fetch origin
+
+Many tutorials on cloning Git LFS repos say one should use
+
+.. code-block:: bash
+
+    git lfs fetch --all origin
+
+However, in BEAM this represents over 15 GB data and often fails.
+
+3. Add new origin
+
+.. code-block:: bash
+
+    git remote add new-origin <URL to new repo>
+
+4. Create internal master branch, master branch will used to track public repo
+
+.. code-block:: bash
+
+    git branch master-internal
+    git checkout master-internal
+
+5. Update .lfsconfig to have only the new LFS repo
+
+.. code-block:: bash
+
+    [lfs] url = <URL to new LFS repo>
+
+Note: for Bitbucket, the <URL to new LFS repo> is <URL to new repo>/info/lfs
+
+6. Commit changes
+
+.. code-block:: bash
+
+    git commit --all
+
+7. Push to new repo
+
+.. code-block:: bash
+
+    git push new-origin --all
+
+**There will be errors saying that many files are missing (LFS upload missing objects). That is OK.**
+
+.. note:: As of this writing, the repo has around 250 MB LFS data. However, the push fails if the LFS server sets a low limit on LFS data. For example, it fails for Bitbucket free which sets a limit of 1 GB LFS data
+
+8. Set master-internal as default branch in the repository's website.
+
+9. Clone the new repo
+
+.. code-block:: bash
+
+    git clone <URL to new repo>
+    cd <folder of new repo>
+
+.. note:: Cloning might take a few minutes since the repo is quite large.
+
+If everything turned out well, the cloning process should not ask for the credentials for BEAM's LFS server (http://52.15.173.229:8080).
+
+10. Add public repo as upstream remote
+
+.. code-block:: bash
+
+   git remote add upstream https://github.com/LBNL-UCB-STI/beam
+
+
+11. Set master branch to track public remote and pull latest changes
+
+.. code-block:: bash
+
+   git fetch upstream
+   git checkout -b master upstream/master
+   git pull
+
 
 Scala tips
 ^^^^^^^^^^

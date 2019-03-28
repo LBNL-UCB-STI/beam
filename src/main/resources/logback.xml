@@ -27,7 +27,7 @@
         <appender-ref ref="STDOUT"/>
     </root>
 
-    <logger name="com.conveyal.r5" level="error"
+    <logger name="com.conveyal" level="error"
             additivity="false">
         <appender-ref ref="STDOUT"/>
     </logger>
@@ -49,7 +49,7 @@
         <appender-ref ref="STDOUT"/>
     </Logger>
 
-    <Logger name="beam.router.r5.R5RoutingWorker" level="INFO" additivity="false">
+    <Logger name="beam.router.r5.R5RoutingWorker" level="INFO" additivity="true">
         <appender-ref ref="STDOUT"/>
     </Logger>
     <!--<Logger name="beam.agentsim.agents.vehicles.BeamVehicle" level="error" additivity="false">-->
@@ -100,4 +100,7 @@
         <appender-ref ref="STDOUT"/>
     </Logger>
 
+    <Logger name="org.apache.parquet" level="WARN" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
 </configuration>

@@ -23,7 +23,7 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices, BeamWarmStart}
 import beam.utils.TestConfigUtils.testConfig
-import beam.utils.{DateUtils, FileUtils, NetworkHelper, NetworkHelperImpl}
+import beam.utils.{DateUtils, FileUtils, NetworkHelperImpl}
 import com.typesafe.config.{Config, ConfigValueFactory}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
@@ -94,11 +94,14 @@ class WarmStartRoutingSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
-    when(services.vehicleTypes).thenReturn(TrieMap[Id[BeamVehicleType], BeamVehicleType]())
+    when(services.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
     when(services.fuelTypePrices).thenReturn(Map[FuelType, Double]().withDefaultValue(0.0))
     var networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
+
+    val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
+    when(services.networkHelper).thenReturn(networkHelper)
 
     val fareCalculator = mock[FareCalculator]
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
@@ -127,13 +130,12 @@ class WarmStartRoutingSpec
 
     iterationConfig = config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef(path))
     val configBuilder = new MatSimBeamConfigBuilder(iterationConfig)
-    val matsimConfig = configBuilder.buildMatSamConf()
+    val matsimConfig = configBuilder.buildMatSimConf()
     matsimConfig.controler().setLastIteration(2)
     matsimConfig.controler.setOutputDirectory(path)
     networkCoordinator = new DefaultNetworkCoordinator(BeamConfig(iterationConfig))
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
-    val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
     scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     val injector = org.matsim.core.controler.Injector.createInjector(
@@ -189,7 +191,7 @@ class WarmStartRoutingSpec
       var response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption.totalTravelTimeInSecs == 76)
+      assert(carOption.totalTravelTimeInSecs == 145)
 
       BeamWarmStart(services.beamConfig, maxHour).warmStartTravelTime(router, scenario)
 
@@ -212,7 +214,7 @@ class WarmStartRoutingSpec
 
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption2 = response.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption2.totalTravelTimeInSecs == 55)
+      assert(carOption2.totalTravelTimeInSecs == 105)
     }
 
     "show a decrease in travel time after three iterations if warm start times are doubled" in {
@@ -245,7 +247,7 @@ class WarmStartRoutingSpec
       var response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption.totalTravelTimeInSecs == 110)
+      assert(carOption.totalTravelTimeInSecs == 203)
 
       BeamWarmStart(BeamConfig(iterationConfig), maxHour).warmStartTravelTime(router, scenario)
       router1 ! RoutingRequest(

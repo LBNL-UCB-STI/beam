@@ -8,6 +8,7 @@ import beam.sim.population.PopulationAdjustment.BEAM_ATTRIBUTES
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT}
 import beam.utils.BeamVehicleUtils
+import beam.utils.matsim_conversion.MatsimConversionTool
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PopulationAttrib.Rank
 import beam.utils.scripts.PopulationWriterCSV
@@ -502,7 +503,8 @@ object PlansSampler {
 
   def run(): Unit = {
 
-    val carVehicleType = BeamVehicleUtils.beamVehicleTypeToMatsimVehicleType(BeamVehicleType.defaultCarBeamVehicleType)
+    val carVehicleType =
+      MatsimConversionTool.beamVehicleTypeToMatsimVehicleType(BeamVehicleType.defaultCarBeamVehicleType)
 
     newVehicles.addVehicleType(carVehicleType)
 
@@ -569,26 +571,26 @@ object PlansSampler {
             }
           }
           PopulationUtils.copyFromTo(srcPlan, newPlan)
-        val homeActs = newPlan.getPlanElements.asScala
-          .collect { case activity: Activity if activity.getType.equalsIgnoreCase("Home") => activity }
+          val homeActs = newPlan.getPlanElements.asScala
+            .collect { case activity: Activity if activity.getType.equalsIgnoreCase("Home") => activity }
 
-        homePlan match {
-          case None =>
-            homePlan = Some(newPlan)
-            val homeCoord = homeActs.head.getCoord
-            newHHAttributes.putAttribute(hhId.toString, HomeCoordX.entryName, homeCoord.getX)
-            newHHAttributes.putAttribute(hhId.toString, HomeCoordY.entryName, homeCoord.getY)
-            newHHAttributes.putAttribute(hhId.toString, HousingType.entryName, "House")
-            snapPlanActivityLocsToNearestLink(newPlan)
+          homePlan match {
+            case None =>
+              homePlan = Some(newPlan)
+              val homeCoord = homeActs.head.getCoord
+              newHHAttributes.putAttribute(hhId.toString, HomeCoordX.entryName, homeCoord.getX)
+              newHHAttributes.putAttribute(hhId.toString, HomeCoordY.entryName, homeCoord.getY)
+              newHHAttributes.putAttribute(hhId.toString, HousingType.entryName, "House")
+              snapPlanActivityLocsToNearestLink(newPlan)
 
-          case Some(hp) =>
-            val firstAct = PopulationUtils.getFirstActivity(hp)
-            val firstActCoord = firstAct.getCoord
-            for (act <- homeActs) {
-              act.setCoord(firstActCoord)
-            }
-            snapPlanActivityLocsToNearestLink(newPlan)
-        }
+            case Some(hp) =>
+              val firstAct = PopulationUtils.getFirstActivity(hp)
+              val firstActCoord = firstAct.getCoord
+              for (act <- homeActs) {
+                act.setCoord(firstActCoord)
+              }
+              snapPlanActivityLocsToNearestLink(newPlan)
+          }
 
           PersonUtils.setAge(newPerson, synthPerson.age)
           val sex = if (synthPerson.sex == 0) {

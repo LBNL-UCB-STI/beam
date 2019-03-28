@@ -3,6 +3,7 @@ package beam.utils.plan.sampling
 import java.util
 
 import beam.router.Modes.BeamMode
+import beam.sim.BeamServices
 import beam.sim.population.{AttributesOfIndividual, PopulationAdjustment}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Person, Plan, Population}
@@ -18,7 +19,7 @@ object AvailableModeUtils extends LazyLogging {
 
   class AllowAllModes extends PermissibleModesCalculator {
     override def getPermissibleModes(plan: Plan): util.Collection[String] = {
-      JavaConverters.asJavaCollection(BeamMode.allTripModes.map(_.toString))
+      JavaConverters.asJavaCollection(BeamMode.allModes.map(_.toString))
     }
   }
 
@@ -68,6 +69,15 @@ object AvailableModeUtils extends LazyLogging {
     val attributesOfIndividual = person.getCustomAttributes
       .get(PopulationAdjustment.BEAM_ATTRIBUTES)
       .asInstanceOf[AttributesOfIndividual]
+    setModesForPerson(person, population, permissibleModes, attributesOfIndividual)
+  }
+
+  def setModesForPerson(
+    person: Person,
+    population: Population,
+    permissibleModes: Seq[String],
+    attributesOfIndividual: AttributesOfIndividual
+  ): Unit = {
     val excludedModes = getExcludedModesForPerson(population, person.getId.toString)
     val availableModes = if (excludedModes.nonEmpty) {
       permissibleModes.filterNot(am => excludedModes.exists(em => em.equalsIgnoreCase(am)))
@@ -84,6 +94,24 @@ object AvailableModeUtils extends LazyLogging {
       case e: Exception =>
         logger.error("Error while converting available mode string to respective Beam Mode Enums : " + e.getMessage, e)
     }
+  }
+
+  def setAvailableModesForPerson_v2(
+    beamServices: BeamServices,
+    person: Person,
+    population: Population,
+    permissibleModes: Seq[String]
+  ): Unit = {
+    val attributesOfIndividual = Option(
+      person.getCustomAttributes
+        .get(PopulationAdjustment.BEAM_ATTRIBUTES)
+        .asInstanceOf[AttributesOfIndividual]
+    ).getOrElse {
+      val attribs = PopulationAdjustment.createAttributesOfIndividual(beamServices, population, person)
+      person.getCustomAttributes.put(PopulationAdjustment.BEAM_ATTRIBUTES, attribs)
+      attribs
+    }
+    setModesForPerson(person, population, permissibleModes, attributesOfIndividual)
   }
 
   /**

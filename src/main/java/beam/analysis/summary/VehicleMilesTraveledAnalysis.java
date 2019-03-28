@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 public class VehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
     private Map<String, Double> milesTraveledByVehicleType = new HashMap<>();
     private Set<Id<BeamVehicleType>> vehicleTypes;
+    private String humanBodyVehicleType = BeamVehicleType.defaultHumanBodyBeamVehicleType().toString();
 
     public VehicleMilesTraveledAnalysis(Set<Id<BeamVehicleType>> vehicleTypes) {
         this.vehicleTypes = vehicleTypes;
@@ -21,10 +22,10 @@ public class VehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
 
     @Override
     public void processStats(Event event) {
-        if (event instanceof PathTraversalEvent || event.getEventType().equalsIgnoreCase(PathTraversalEvent.EVENT_TYPE)) {
-            Map<String, String> eventAttributes = event.getAttributes();
-            String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE);
-            double lengthInMeters = Double.parseDouble(eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH));
+        if (event instanceof PathTraversalEvent) {
+            PathTraversalEvent pte = (PathTraversalEvent)event;
+            String vehicleType = pte.vehicleType();
+            double lengthInMeters = pte.legLength();
 
             milesTraveledByVehicleType.merge(vehicleType, lengthInMeters, (d1, d2) -> d1 + d2);
             if (isMotorizedMode(vehicleType)) {

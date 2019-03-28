@@ -1,11 +1,19 @@
 package beam.sim.population
 
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode._
+import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
 import org.matsim.api.core.v01.Id
 import org.matsim.households.{Household, IncomeImpl}
 import org.matsim.households.Income.IncomePeriod
+import org.matsim.api.core.v01.population._
+import beam.sim.BeamServices
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
+
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 sealed trait PopulationAttributes
 
@@ -19,6 +27,158 @@ case class AttributesOfIndividual(
   income: Option[Double]
 ) extends PopulationAttributes {
   lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
+
+  // Get Value of Travel Time for a specific leg of a travel alternative:
+  // If it is a car leg, we use link-specific multipliers, otherwise we just look at the entire leg travel time and mode
+  def getGeneralizedTimeOfLegForMNL(
+    embodiedBeamLeg: EmbodiedBeamLeg,
+    modeChoiceModel: ModeChoiceMultinomialLogit,
+    beamServices: BeamServices,
+    destinationActivity: Option[Activity]
+  ): Double = {
+    val isWorkTrip = destinationActivity match {
+      case None =>
+        false
+      case Some(activity) =>
+        activity.getType().equalsIgnoreCase("work")
+    }
+    val theGeneralizedTimeMultiplier = embodiedBeamLeg.beamLeg.mode match {
+      case CAR => // NOTE: Ride hail legs are classified as CAR mode. Retained both for flexibility (but could delete the other cases)
+        if (embodiedBeamLeg.isRideHail) {
+          if (embodiedBeamLeg.isPooledTrip) {
+            getPooledFactor(embodiedBeamLeg, modeChoiceModel.poolingMultipliers, beamServices) *
+            getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeChoiceModel.modeMultipliers)
+          } else {
+            getModeVotMultiplier(Option(RIDE_HAIL), modeChoiceModel.modeMultipliers)
+          }
+        } else if (embodiedBeamLeg.asDriver) {
+          // Situation multipliers are only relevant when the agent is driving
+          getPathVotMultiplier(
+            embodiedBeamLeg.beamLeg,
+            modeChoiceModel.situationMultipliers,
+            beamServices,
+            isWorkTrip,
+            getAutomationLevel(embodiedBeamLeg, beamServices)
+          ) *
+          getModeVotMultiplier(Option(CAR), modeChoiceModel.modeMultipliers)
+        } else {
+          // Assume that not driving and not ridehail means CAV
+          getModeVotMultiplier(Option(CAV), modeChoiceModel.modeMultipliers)
+        }
+      case RIDE_HAIL =>
+        getModeVotMultiplier(Option(RIDE_HAIL), modeChoiceModel.modeMultipliers)
+      case RIDE_HAIL_POOLED =>
+        getPooledFactor(embodiedBeamLeg, modeChoiceModel.poolingMultipliers, beamServices) *
+        getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeChoiceModel.modeMultipliers)
+      case _ =>
+        getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel.modeMultipliers)
+    }
+    theGeneralizedTimeMultiplier * embodiedBeamLeg.beamLeg.duration / 3600
+  }
+
+  def getVOT(generalizedTime: Double): Double = {
+    valueOfTime * generalizedTime
+  }
+
+  private def getAutomationLevel(embodiedBeamLeg: EmbodiedBeamLeg, beamServices: BeamServices): automationLevel = {
+    // Use default if it exists, otherwise look up from vehicle ID
+    val vehicleAutomationLevel = beamServices
+      .getDefaultAutomationLevel()
+      .getOrElse(beamServices.vehicleTypes(embodiedBeamLeg.beamVehicleTypeId).automationLevel)
+    vehicleAutomationLevel match {
+      case 1 => levelLE2
+      case 2 => levelLE2
+      case 3 => level3
+      case 4 => level4
+      case 5 => level5
+      case _ => levelLE2
+    }
+
+  }
+  private def getPathVotMultiplier(
+    beamLeg: BeamLeg,
+    situationMultipliers: mutable.Map[(timeSensitivity, congestionLevel, roadwayType, automationLevel), Double],
+    beamServices: BeamServices,
+    isWorkTrip: Boolean,
+    vehicleAutomationLevel: automationLevel
+  ): Double = {
+    // Iterate over links in a path. Get average multiplier weighted by link travel time
+    val pathTravelTime = beamLeg.travelPath.linkTravelTime.sum
+    pathTravelTime match {
+      case 0 =>
+        1.0
+      case _ =>
+        (beamLeg.travelPath.linkIds zip beamLeg.travelPath.linkTravelTime)
+          .map(
+            x =>
+              getSituationMultiplier(x._1, x._2, isWorkTrip, situationMultipliers, vehicleAutomationLevel, beamServices) * x._2
+          )
+          .sum / pathTravelTime
+    }
+  }
+
+  // Convert from seconds to hours and bring in person's base VOT
+  def unitConversionVOTT(duration: Double): Double = {
+    valueOfTime / 3600 * duration
+  }
+
+  def getModeVotMultiplier(
+    beamMode: Option[BeamMode],
+    modeMultipliers: mutable.Map[Option[BeamMode], Double]
+  ): Double = {
+    modeMultipliers.getOrElse(beamMode, 1.0)
+  }
+
+  private def getPooledFactor(
+    embodiedBeamLeg: EmbodiedBeamLeg,
+    poolingMultipliers: mutable.Map[automationLevel, Double],
+    beamServices: BeamServices
+  ): Double = {
+    val vehicleAutomationLevel = getAutomationLevel(embodiedBeamLeg, beamServices)
+    poolingMultipliers.getOrElse(vehicleAutomationLevel, 1.0)
+  }
+
+  private def getLinkCharacteristics(
+    linkID: Int,
+    travelTime: Double,
+    beamServices: BeamServices
+  ): (congestionLevel, roadwayType) = {
+    // Note: cutoffs for congested (2/3 free flow speed) and highway (ff speed > 20 m/s) are arbitrary and could be inputs
+    val currentLink = beamServices.networkHelper.getLink(linkID).get
+    val freeSpeed: Double = currentLink.getFreespeed()
+    val currentSpeed: Double = if (travelTime == 0) { freeSpeed } else { currentLink.getLength() / travelTime }
+    if (currentSpeed < 0.67 * freeSpeed) {
+      if (freeSpeed > 20) {
+        (highCongestion, highway)
+      } else {
+        (highCongestion, nonHighway)
+      }
+    } else {
+      if (freeSpeed > 20) {
+        (lowCongestion, highway)
+      } else {
+        (lowCongestion, nonHighway)
+      }
+    }
+  }
+
+  private def getSituationMultiplier(
+    linkID: Int,
+    travelTime: Double,
+    isWorkTrip: Boolean = true,
+    situationMultipliers: mutable.Map[(timeSensitivity, congestionLevel, roadwayType, automationLevel), Double],
+    vehicleAutomationLevel: automationLevel,
+    beamServices: BeamServices
+  ): Double = {
+    val sensitivity: timeSensitivity = if (isWorkTrip) {
+      highSensitivity
+    } else {
+      lowSensitivity
+    }
+    val (congestion, roadway) = getLinkCharacteristics(linkID, travelTime, beamServices)
+    situationMultipliers.getOrElse((sensitivity, congestion, roadway, vehicleAutomationLevel), 1.0)
+  }
+
 }
 
 object AttributesOfIndividual {

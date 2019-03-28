@@ -5,12 +5,13 @@ import java.util
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.Modes.BeamMode.CAR
-import beam.utils.{LinkWithIndex, NetworkHelper}
+import beam.utils.NetworkHelper
+import beam.utils.logging.ExponentialLazyLogging
 import com.google.inject.Inject
-import com.typesafe.scalalogging.LazyLogging
 import org.jfree.chart.plot.CategoryPlot
 import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.events.Event
+import org.matsim.api.core.v01.network.Link
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -25,17 +26,17 @@ class DelayMetricAnalysis @Inject()(
   controlerIO: OutputDirectoryHierarchy,
   networkHelper: NetworkHelper
 ) extends BasicEventHandler
-    with LazyLogging {
+    with ExponentialLazyLogging {
 
   eventsManager.addHandler(this)
 
-  private val cumulativeDelay: Array[Double] = Array.ofDim[Double](networkHelper.totalNumberOfLinks)
+  private val cumulativeDelay: Array[Double] = Array.ofDim[Double](networkHelper.maxLinkId + 1)
 
-  private val cumulativeLength: Array[Double] = Array.ofDim[Double](networkHelper.totalNumberOfLinks)
+  private val cumulativeLength: Array[Double] = Array.ofDim[Double](networkHelper.maxLinkId + 1)
 
-  private var linkTravelsCount: Array[Int] = Array.ofDim[Int](networkHelper.totalNumberOfLinks)
+  private var linkTravelsCount: Array[Int] = Array.ofDim[Int](networkHelper.maxLinkId + 1)
 
-  private var linkAverageDelay: Array[DelayInLength] = Array.ofDim[DelayInLength](networkHelper.totalNumberOfLinks)
+  private var linkAverageDelay: Array[DelayInLength] = Array.ofDim[DelayInLength](networkHelper.maxLinkId + 1)
 
   private val bins = Array(0, 500, 1000, 2000, 3000)
   private val legends = Array("0-500", "500-1000", "1000-2000", "2000-3000", "3000+")
@@ -48,6 +49,11 @@ class DelayMetricAnalysis @Inject()(
   private val graphTitle = "Total Delay by Binned Link Capacity"
   private val yAxisAverageGraphName = "Average Delay Intensity (sec/km)"
   private val averageGraphTitle = "Average Delay per Kilometer"
+  private val networkUtilizedGraphTitle = "Physsim Network Utilization"
+  private val xAxisName_NetworkUtilized = "hour"
+  private val yAxisName_NetworkUtilized = "Network Percent Used"
+  private val linkUtilization = scala.collection.mutable.SortedMap[Int, Set[Int]]()
+
   var totalTravelTime = 0.0
 
   /**
@@ -58,18 +64,20 @@ class DelayMetricAnalysis @Inject()(
   override def handleEvent(event: Event): Unit = {
     event match {
       case pathTraversalEvent: PathTraversalEvent =>
-        val mode = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE)
-        if (mode.equals(CAR.value)) {
-          val linkIds = pathTraversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS).split(",")
-          val linkTravelTimes = pathTraversalEvent.getLinkTravelTimes.split(",").map(_.toInt)
+        calculateNetworkUtilization(pathTraversalEvent)
+
+        val mode = pathTraversalEvent.mode
+        if (mode.value.equalsIgnoreCase(CAR.value)) {
+          val linkIds = pathTraversalEvent.linkIds
+          val linkTravelTimes = pathTraversalEvent.linkTravelTimes
           assert(linkIds.length == linkTravelTimes.length)
 
           if (linkIds.nonEmpty) {
             var index = 0
             while (index < linkIds.length) {
               val linkId = linkIds(index)
-              val linkWithIndex = networkHelper.getLinkWithIndexUnsafe(linkId)
-              process(linkWithIndex, linkTravelTimes(index))
+              val link = networkHelper.getLinkUnsafe(linkId)
+              process(linkId, link, linkTravelTimes(index))
               index += 1
             }
           }
@@ -78,12 +86,10 @@ class DelayMetricAnalysis @Inject()(
     }
   }
 
-  def process(linkWithIndex: LinkWithIndex, travelTime: Double): Unit = {
-    val link = linkWithIndex.link
-    val index = linkWithIndex.index
+  def process(index: Int, link: Link, travelTime: Double): Unit = {
     val freeLength = link.getLength
     val freeSpeed = link.getFreespeed
-    var freeFlowDelay = travelTime - (freeLength / freeSpeed).round.toInt
+    var freeFlowDelay = travelTime - (freeLength / freeSpeed)
     if (freeFlowDelay >= 0) {
       val existingFreeFlowDelay = cumulativeDelay(index)
       val existingLinkLength = cumulativeLength(index)
@@ -113,17 +119,24 @@ class DelayMetricAnalysis @Inject()(
     util.Arrays.fill(cumulativeDelay, 0.0)
     util.Arrays.fill(cumulativeLength, 0.0)
     util.Arrays.fill(linkTravelsCount, 0)
-    linkAverageDelay = Array.ofDim[DelayInLength](networkHelper.totalNumberOfLinks)
+    linkAverageDelay = Array.ofDim[DelayInLength](networkHelper.maxLinkId)
     capacitiesDelay.clear
+    linkUtilization.clear()
     totalTravelTime = 0
+  }
+
+  def calculateNetworkUtilization(pathTraversalEvent: PathTraversalEvent): Unit = {
+
+    val time = pathTraversalEvent.time / 3600
+    val utilizedLinks = pathTraversalEvent.linkIds.toSet
+    linkUtilization += time.toInt -> (linkUtilization.getOrElse(time.toInt, Set[Int]()) ++ utilizedLinks)
   }
 
   def categoryDelayCapacityDataset(iteration: Int): Unit = {
     cumulativeDelay.zipWithIndex.foreach {
       case (delay, index) =>
-        val linkId = networkHelper.getLinkIdUnsafe(index)
-        val linkWithIndex = networkHelper.getLinkWithIndexUnsafe(linkId)
-        val capacity = linkWithIndex.link.getCapacity
+        val link = networkHelper.getLinkUnsafe(index)
+        val capacity = link.getCapacity
         val bin = largeset(capacity)
         val capacityDelay = capacitiesDelay.getOrElse(bin, 0.0)
         capacitiesDelay(bin) = delay + capacityDelay
@@ -161,6 +174,7 @@ class DelayMetricAnalysis @Inject()(
     }
     averageDelayDataset(event)
     createDelayAveragePerKilometerGraph()
+    createNetworkUtilizationGraph(event.getIteration)
   }
 
   def createDelayCapacityGraph(fileName: String): Unit = {
@@ -199,6 +213,34 @@ class DelayMetricAnalysis @Inject()(
     GraphUtils.saveJFreeChartAsPNG(
       chart,
       fileName,
+      GraphsStatsAgentSimEventsListener.GRAPH_WIDTH,
+      GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT
+    )
+  }
+
+  def createNetworkUtilizationGraph(iterationNumber: Int): Unit = {
+    val dataset = new DefaultCategoryDataset
+    val totalLink = networkHelper.allLinks.length
+    for (hour <- 1 to linkUtilization.keysIterator.max) {
+      dataset.addValue((linkUtilization.getOrElse(hour, Set()).size * 100).toDouble / totalLink, 0, hour)
+    }
+
+    val graphImageFile: String =
+      GraphsStatsAgentSimEventsListener.CONTROLLER_IO
+        .getIterationFilename(iterationNumber, "physsimNetworkUtilization.png")
+
+    val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
+      dataset,
+      networkUtilizedGraphTitle,
+      xAxisName_NetworkUtilized,
+      yAxisName_NetworkUtilized,
+      graphImageFile,
+      false
+    )
+
+    GraphUtils.saveJFreeChartAsPNG(
+      chart,
+      graphImageFile,
       GraphsStatsAgentSimEventsListener.GRAPH_WIDTH,
       GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT
     )

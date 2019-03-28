@@ -1,5 +1,6 @@
 package beam.agentsim.agents.ridehail.allocation
 
+import akka.actor.ActorRef
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, PoolingInfo}
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
@@ -17,6 +18,7 @@ import scala.collection.mutable
 abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager) extends LazyLogging {
 
   private var bufferedRideHailRequests = Map[RideHailRequest, List[RoutingResponse]]()
+  private var secondaryBufferedRideHailRequests = Map[RideHailRequest, List[RoutingResponse]]()
   private var awaitingRoutes = Set[RideHailRequest]()
 
   /*
@@ -54,6 +56,17 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   def addRequestToBuffer(request: RideHailRequest) = {
     bufferedRideHailRequests = bufferedRideHailRequests + (request -> List())
   }
+
+  def addRequestToSecondaryBuffer(request: RideHailRequest) = {
+    secondaryBufferedRideHailRequests = secondaryBufferedRideHailRequests + (request -> List())
+  }
+
+  def clearPrimaryBufferAndFillFromSecondary = {
+    bufferedRideHailRequests = secondaryBufferedRideHailRequests
+    secondaryBufferedRideHailRequests = Map()
+  }
+
+  def getBufferSize = bufferedRideHailRequests.size
 
   def addRouteForRequestToBuffer(request: RideHailRequest, routingResponse: RoutingResponse) = {
     if (awaitingRoutes.contains(request)) awaitingRoutes -= request
@@ -143,8 +156,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
           case Some(agentETA) =>
             alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId
             val pickDropIdAndLegs = List(
-              PickDropIdAndLeg(request.customer, routingResponses.head.itineraries.head.legs.headOption),
-              PickDropIdAndLeg(request.customer, routingResponses.last.itineraries.head.legs.headOption)
+              PickDropIdAndLeg(Some(request.customer), routingResponses.head.itineraries.head.legs.headOption),
+              PickDropIdAndLeg(Some(request.customer), routingResponses.last.itineraries.head.legs.headOption)
             )
             VehicleMatchedToCustomers(request, agentETA.agentLocation, pickDropIdAndLegs)
           case None =>
@@ -175,6 +188,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    */
   def reservationCompletionNotice(personId: Id[Person], vehicleId: Id[Vehicle]): Unit = {}
 
+  def getUnprocessedCustomers: Set[RideHailRequest] = awaitingRoutes
+
   /*
    * This is deprecated.
    */
@@ -188,6 +203,7 @@ object RideHailResourceAllocationManager {
   val EV_MANAGER = "EV_MANAGER"
   val IMMEDIATE_DISPATCH_WITH_OVERWRITE = "IMMEDIATE_DISPATCH_WITH_OVERWRITE"
   val POOLING = "POOLING"
+  val POOLING_ALONSO_MORA = "POOLING_ALONSO_MORA"
   val REPOSITIONING_LOW_WAITING_TIMES = "REPOSITIONING_LOW_WAITING_TIMES"
   val RANDOM_REPOSITIONING = "RANDOM_REPOSITIONING"
   val DUMMY_DISPATCH_WITH_BUFFERING = "DUMMY_DISPATCH_WITH_BUFFERING"
@@ -204,6 +220,8 @@ object RideHailResourceAllocationManager {
         new DefaultRideHailResourceAllocationManager(rideHailManager)
       case RideHailResourceAllocationManager.POOLING =>
         new Pooling(rideHailManager)
+      case RideHailResourceAllocationManager.POOLING_ALONSO_MORA =>
+        new PoolingAlonsoMora(rideHailManager)
       case RideHailResourceAllocationManager.REPOSITIONING_LOW_WAITING_TIMES =>
         new RepositioningLowWaitingTimes(rideHailManager)
       case RideHailResourceAllocationManager.RANDOM_REPOSITIONING =>
@@ -257,7 +275,7 @@ case class VehicleMatchedToCustomers(
   rideHailAgentLocation: RideHailAgentLocation,
   pickDropIdWithRoutes: List[PickDropIdAndLeg]
 ) extends VehicleAllocation
-case class PickDropIdAndLeg(personId: VehiclePersonId, leg: Option[EmbodiedBeamLeg])
+case class PickDropIdAndLeg(personId: Option[VehiclePersonId], leg: Option[EmbodiedBeamLeg])
 
 case class AllocationRequests(requests: Map[RideHailRequest, List[RoutingResponse]])
 

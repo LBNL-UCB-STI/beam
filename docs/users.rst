@@ -17,13 +17,72 @@ System Requirements
 * To verify your JRE: https://www.java.com/en/download/help/version_manual.xml
 * To download JRE 1.8 (AKA JRE 8): http://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html
 * We also recommend downloading the VIA vizualization app and obtaining a free or paid license: https://simunto.com/via/
-* Git installed
+* Git and Git-LFS
+
+Prerequisites :
+^^^^^^^^^^^^^^^
+
+**Install Java**
+
+BEAM requires Java 1.8 JDK / JRE to be installed. If a different version of java is already installed on your system, please upgrade the version to 1.8.
+See this `link <https://www.java.com/en/download/help/version_manual.xml>`_ for steps to check the current version of your JRE.
+
+If java is not already installed on your system , please follow this `download manual <https://www.java.com/en/download/manual.jsp>`_ to install java on your system.
+
+Please note that BEAM is currently compatible only with Java 1.8 and is not compatible with any of the older or recent versions.
+
+**Install Gradle**
+
+BEAM uses `gradle <https://gradle.org>`_ as its build tool. If gradle is not already installed, check this `gradle installation guide <https://gradle.org/install>`_ for steps on how to download and install gradle.
+Once gradle is successfully installed , verify the installation by running the command
+
+.. code-block:: bash
+
+    gradle
 
 
-Installing
-^^^^^^^^^^
+GIT-LFS Configuration
+^^^^^^^^^^^^^^^^^^^^^
 
-Install gradle: https://gradle.org/install/
+The installation process for git-lfs client(`v2.3.4`_, latest installer has some issue with node-git-lfs) is very simple. For detailed documentation please consult `github guide`_ for Mac, windows and Linux.
+
+.. _v2.3.4: https://github.com/git-lfs/git-lfs/releases/tag/v2.3.4
+.. _github guide: https://help.github.com/articles/installing-git-large-file-storage/
+
+To verify successful installation, run following command::
+
+    $ git lfs install
+    Git LFS initialized.
+
+To confirm that you have installed the correct version of client run the following command::
+
+   $ git lfs env
+
+It will print out the installed version, and please make sure it is `git-lfs/2.3.4`.
+
+To update the text pointers with the actual contents of files, run the following command (if it requests credentials, use any username and leave the password empty)::
+
+   $ git lfs pull
+   Git LFS: (98 of 123 files) 343.22 MB / 542.18 MB
+
+
+**Installing git lfs on windows :**
+
+With Git LFS windows installation, it is common to have the wrong version of git-lfs installed, because in these latest git client version on windows, git lfs comes packaged with the git client.
+
+When installing the git client one needs to uncheck git lfs installation. If mistakenly you installed git lfs with the git client, the following steps are needed to correct it (uninstalling git lfs and installing the required version does not work...):
+
+    * Uninstall git
+    * Install the git client (uncheck lfs installation)
+    * Install git lfs version 2.3.4 separately
+
+Another alternative to above is to get the old git-lfs.exe from the release archives and replace the executable found in
+
+`[INSTALL PATH]\\mingw6\\bin` and `[INSTALL PATH]\\cmd`, where the default installation path usually is `C:\\Program Files\\Git`
+
+
+Installing BEAM
+^^^^^^^^^^^^^^^
 
 Clone the beam repository::
 
@@ -47,14 +106,96 @@ Now you're ready to run BEAM!
 
 Running BEAM
 ^^^^^^^^^^^^
+
 Inside of the respository is a folder 'test/input' containing several scenarios and configurations you can experiment with.
 
 The simplest, smallest, and fastest is the beamville scenario (described below). Try to run beamville with this command::
 
   ./gradlew :run -PappArgs="['--config', 'test/input/beamville/beam.conf']"
 
+
+The BEAM application by default sets max RAM allocation to 140g (see **maxRAM** setting in gradle.properties). This needs to
+be adjusted based on the available memory on your system.
+
+The max allocatable RAM value can be overriden by setting the environment variable **MAXRAM** to the required value.
+
+On Ubuntu , the environment variable can be set using the below command :
+
+.. code-block:: bash
+
+    export MAXRAM=10g
+
+where 10g = 10GB
+
+Similarly on windows it can be set using the below command :
+
+.. code-block:: bash
+
+    setx MAXRAM="10g"
+
+
 The outputs are written to the 'output' directory, should see results appear in a sub-folder called "beamville_%DATE_TIME%".
 
+Optionally you can also run BEAM from your favourite IDE . Check the below section on how to configure and run BEAM using Intellij IDEA.
+
+
+Running BEAM with Intellij IDE
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+IntelliJ IDEA community edition is an open source IDE available for free. It can be downloaded from `here <https://www.jetbrains.com/idea/download/#section=windows>`_
+
+After successful download , run the executable and follow the installation wizard to install Intellij IDEA.
+
+When running the IDE for the first time , it asks to import previous settings (if any) from a local path, if no previous settings to choose , select "Do not import settings" and click Ok.
+
+**Importing BEAM project into IDE**
+
+Once the IDE is successfully installed , proceed with the below steps to import BEAM into the IDE.
+
+1. Open the IDE and agree to the privacy policy and continue
+     (Optional) IDEA walks you through some default configurations set up here . In case you want to skip these steps , choose "Skip and install defaults" and go to step 2
+      * Select a UI theme of choice and go to Next: Default Plugins
+      * Select only the required plugins (gradle , java are mandatory) and disable the others and go to Next:Feature plugins
+      * Install scala and click "Start using Intellij IDEA"
+2. In the welcome menu , select "Import Project" and provide the location of the locally cloned BEAM project
+3. Inside the import project screen, select "Import project from external model" and choose "Gradle" from the available and click Next
+4. Click Finish.
+
+The project should now be successfully imported into the IDE and a build should be initiated automatically. If no build is triggered automatically , you can manually trigger one by going to Build > Build Project.
+
+**Installing scala plugin**
+
+If optional configuration in step 1 of above section was skipped , scala plugin will not be added automatically .
+To manually enable scala plugin go to File > Settings > Plugins. Search for scala plugin and click Install.
+
+**Setting up scala SDK**
+
+Since BEAM is built with java/scala . A scala sdk module needs to be configured to run BEAM. Check the below steps on how to add a scala module to IDEA
+* Go to File > Project Settings > Global Libraries
+* Click + and select Scala SDK
+* Select the required scala SDK from the list , if no SDK found click Create.
+* Click "Browse" and select the scala home path or click "Download" (choose 2.12.x version)
+
+**Running BEAM from IDE**
+
+BEAM requires some arguments to be specified during run-time like the scenario configuration.
+These configuration settings can be added as a run configuration inside the IDE.
+
+Steps to add a new configuration :
+
+* Go to Run > Edit Configurations
+* Click + and from the templates list and select "Application"
+* Fill in the following values
+
+  * Main Class : beam.sim.RunBeam
+  * VM options : -Xmx8g
+  * Program Arguments : --config test/input/beamville/beam.conf (this runs beaamville scenario, changes the folder path to run a different scenario)
+  * Working Directory : /home/beam/BEAM
+  * Environment Variables : PWD=/home/beam/BEAM
+  * use submodule of path : beam.beam.main
+* Click Ok to save the configuration.
+
+To add a configuration for a different scenario , follow the above steps and change the folder path to point to the required scenario in program arguments
 
 Scenarios
 ^^^^^^^^^
@@ -444,5 +585,3 @@ Copy the osmosis command generated by conversion tool and run from the command l
 * VM Options: -Xmx2g (or more if a large scenario)
 * Program arguments, path to beam config file from above, (e.g. --config "test/input/siouxfalls/siouxfalls.conf")
 * Environment variables: PWD=/path/to/beam/folder
-
-

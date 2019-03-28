@@ -2,6 +2,7 @@ package beam.sim.common
 
 import beam.agentsim.events.SpaceTime
 import beam.sim.config.BeamConfig
+import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.{Split, StreetLayer}
 import com.google.inject.{ImplementedBy, Inject}
@@ -15,7 +16,7 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
   */
 
 @ImplementedBy(classOf[GeoUtilsImpl])
-trait GeoUtils {
+trait GeoUtils extends ExponentialLazyLogging {
 
   def localCRS: String
 
@@ -27,7 +28,12 @@ trait GeoUtils {
   def wgs2Utm(spacetime: SpaceTime): SpaceTime = SpaceTime(wgs2Utm(spacetime.loc), spacetime.time)
 
   def wgs2Utm(coord: Coord): Coord = {
-    wgs2Utm.transform(coord)
+    if (coord.getX < -180 || coord.getX > 180 || coord.getY < -90 || coord.getY > 90) {
+      logger.warn(s"Coordinate does not appear to be in WGS. No conversion will happen: $coord")
+      coord
+    } else {
+      wgs2Utm.transform(coord)
+    }
   }
 
   def wgs2Utm(envelope: Envelope): Envelope = {
@@ -51,8 +57,12 @@ trait GeoUtils {
   def distLatLon2Meters(x1: Double, y1: Double, x2: Double, y2: Double): Double =
     GeoUtils.distLatLon2Meters(x1, y1, x2, y2)
 
-  def getNearestR5Edge(streetLayer: StreetLayer, coord: Coord, maxRadius: Double = 1E5): Int = {
-    val theSplit = getR5Split(streetLayer, coord, maxRadius, StreetMode.WALK)
+  def getNearestR5EdgeToUTMCoord(streetLayer: StreetLayer, coordUTM: Coord, maxRadius: Double = 1E5): Int = {
+    getNearestR5Edge(streetLayer, utm2Wgs(coordUTM), maxRadius)
+  }
+
+  def getNearestR5Edge(streetLayer: StreetLayer, coordWGS: Coord, maxRadius: Double = 1E5): Int = {
+    val theSplit = getR5Split(streetLayer, coordWGS, maxRadius, StreetMode.WALK)
     if (theSplit == null) {
       Int.MinValue
     } else {

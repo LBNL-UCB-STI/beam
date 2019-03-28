@@ -15,8 +15,8 @@ public class TollRevenueAnalysis implements BeamAnalysis, IterationSummaryAnalys
 
     @Override
     public void processStats(Event event) {
-        if (event.getEventType().equals(PathTraversalEvent.EVENT_TYPE)) {
-            tollRevenue += Double.parseDouble(event.getAttributes().get(PathTraversalEvent.ATTRIBUTE_TOLL_PAID));
+        if (event instanceof PathTraversalEvent) {
+            tollRevenue += ((PathTraversalEvent)event).amountPaid();
         }
     }
 

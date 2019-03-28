@@ -5,15 +5,18 @@ import java.io.File
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.TollRevenueAnalysis
-import beam.integration.ReadEvents._
-import beam.router.Modes.BeamMode.CAR
+import beam.integration.EventReader._
+import beam.router.Modes.BeamMode.{BIKE, CAR}
+import beam.router.r5.NetworkCoordinator
 import beam.sim.BeamHelper
 import com.typesafe.config.{Config, ConfigValueFactory}
-import org.matsim.api.core.v01.population.{Activity, Leg}
+import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.population.routes.NetworkRoute
-import org.matsim.core.scenario.ScenarioUtils
+import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
+import org.matsim.households.Household
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
@@ -26,10 +29,20 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     .withValue("beam.routing.transitOnStreetNetwork", ConfigValueFactory.fromAnyRef("true"))
     .resolve()
 
-  var matsimConfig: org.matsim.core.config.Config = _
+  private var scenario: MutableScenario = _
+  private var networkCoordinator: NetworkCoordinator = _
+  private var personHouseholds: Map[Id[Person], Household] = _
 
   override protected def beforeAll(): Unit = {
-    matsimConfig = runBeamWithConfig(config)._1
+    val stuff = setupBeamWithConfig(config)
+    scenario = stuff._1
+    networkCoordinator = stuff._3
+    runBeam(config, scenario, networkCoordinator)
+    personHouseholds = scenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
+      .toMap
   }
 
   it should "contain the same bus trips entries" in {
@@ -45,7 +58,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
   private def tripsFromEvents(vehicleType: String) = {
     val trips = for {
-      event <- fromFile(getEventsFilePath(matsimConfig, "xml").getAbsolutePath)
+      event <- fromFile(getEventsFilePath(scenario.getConfig, "xml").getAbsolutePath)
       if event.getAttributes.get("vehicleType") == vehicleType
       vehicleTag <- event.getAttributes.asScala.get("vehicle")
     } yield vehicleTag.split(":")(1).split("-").take(3).mkString("-")
@@ -70,7 +83,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
   private def stopToStopLegsFromEventsByTrip(vehicleType: String) = {
     val pathTraversals = for {
-      event <- fromFile(getEventsFilePath(matsimConfig, "xml").getAbsolutePath)
+      event <- fromFile(getEventsFilePath(scenario.getConfig, "xml").getAbsolutePath)
       if event.getEventType == "PathTraversal"
       if event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE) == vehicleType
     } yield event
@@ -87,12 +100,12 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
   }
 
   it should "also be available as csv file" in {
-    assert(getEventsFilePath(matsimConfig, "csv").exists())
+    assert(getEventsFilePath(scenario.getConfig, "csv").exists())
   }
 
   it should "contain at least one paid toll" in {
     val tollEvents = for {
-      event <- fromFile(getEventsFilePath(matsimConfig, "xml").getAbsolutePath)
+      event <- fromFile(getEventsFilePath(scenario.getConfig, "xml").getAbsolutePath)
       if event.getEventType == "PathTraversal"
       if event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_TOLL_PAID).toDouble != 0.0
     } yield event
@@ -101,19 +114,21 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
   it should "yield positive toll revenue according to TollRevenueAnalysis" in {
     val analysis = new TollRevenueAnalysis
-    fromFile(getEventsFilePath(matsimConfig, "xml").getAbsolutePath)
+    fromFile(getEventsFilePath(scenario.getConfig, "xml").getAbsolutePath)
       .foreach(analysis.processStats)
     val tollRevenue = analysis.getSummaryStats.get(TollRevenueAnalysis.ATTRIBUTE_TOLL_REVENUE)
     tollRevenue should not equal 0.0
   }
 
   it should "also produce experienced plans which make sense" in {
-    val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
-    new PopulationReader(scenario).readFile(
-      s"${matsimConfig.controler().getOutputDirectory}/ITERS/it.0/0.experiencedPlans.xml.gz"
+    val experiencedScenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
+    new PopulationReader(experiencedScenario).readFile(
+      s"${scenario.getConfig.controler().getOutputDirectory}/ITERS/it.0/0.experiencedPlans.xml.gz"
     )
-    assert(scenario.getPopulation.getPersons.size() == 50)
-    scenario.getPopulation.getPersons.values().forEach { person =>
+    assert(experiencedScenario.getPopulation.getPersons.size() == 50)
+    var nCarTrips = 0
+    var nBikeTrips = 0
+    experiencedScenario.getPopulation.getPersons.values().forEach { person =>
       val experiencedPlan = person.getPlans.get(0)
       assert(experiencedPlan.getPlanElements.size() > 1)
       experiencedPlan.getPlanElements.asScala.sliding(2).foreach {
@@ -123,20 +138,28 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
           assert(leg.getDepartureTime + leg.getTravelTime == activity.getStartTime)
           if (leg.getMode == CAR.matsimMode) {
             assert(leg.getRoute.isInstanceOf[NetworkRoute])
+            nCarTrips += 1
+          } else if (leg.getMode == BIKE.matsimMode) {
+            assert(leg.getRoute.isInstanceOf[NetworkRoute])
+            nBikeTrips += 1
           }
       }
       val beamPlan = BeamPlan(experiencedPlan)
       beamPlan.tours.foreach { tour =>
         if (tour.trips.size > 1) {
-          if (tour.trips.head.leg.get.getMode == "car") {
-            assert(
-              tour.trips.last.leg.get.getMode == "car",
-              "If I leave home by car, I must get home by car: " + person.getId
-            )
+          for (mode <- List("car", "bike")) {
+            if (tour.trips.head.leg.get.getMode == mode) {
+              assert(
+                tour.trips.last.leg.get.getMode == mode,
+                s"If I leave home by $mode, I must get home by $mode: " + person.getId
+              )
+            }
           }
         }
       }
     }
+    assert(nCarTrips != 0, "At least some people must go by car")
+    assert(nBikeTrips != 0, "At least some people must go by bike")
   }
 
 }
