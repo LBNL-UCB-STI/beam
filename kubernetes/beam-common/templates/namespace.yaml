@@ -16,7 +16,7 @@ metadata:
     "helm.sh/hook-weight": "2"
 spec:
   hard:
-    requests.cpu: "3"
-    requests.memory: 4Gi
-    limits.cpu: "4"
-    limits.memory: 5Gi
+    requests.cpu: "28"
+    requests.memory: 58Gi
+    limits.cpu: "30"
+    limits.memory: 62Gi

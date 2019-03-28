@@ -52,18 +52,18 @@ spec:
           image: {{ .Values.job.image }}:{{ .Values.job.imageTag }}
           resources:
             limits:
-              cpu: "1"
-              memory: 1200Mi
+              cpu: "7"
+              memory: 15Gi
             requests:
-              cpu: "0.7"
-              memory: 1Gi
-          args: ["--config",  {{ printf "%s/beamville/beam.conf" .Values.volume.data.path | quote }}, "--cluster-type", "master", "--node-host", {{ include "beam-simulation.master.service" . | quote }}, "--node-port", {{ .Values.service.akkaPort.master.port | quote }}, "--seed-address", {{ printf "%s:%s" ( include "beam-simulation.master.service" . ) .Values.service.akkaPort.master.port | quote }}]
+              cpu: "6"
+              memory: 13Gi
+          args: ["--config",  {{ printf "%s/sf-light/sf-light-25k.conf" .Values.volume.data.path | quote }}, "--cluster-type", "master", "--node-host", {{ include "beam-simulation.master.service" . | quote }}, "--node-port", {{ .Values.service.akkaPort.master.port | quote }}, "--seed-address", {{ printf "%s:%s" ( include "beam-simulation.master.service" . ) .Values.service.akkaPort.master.port | quote }}]
           imagePullPolicy: Always
           env:
             - name: BEAM_OUTPUT
               value: {{ .Values.volume.output.path | quote }}
             - name: JAVA_OPTS
-              value: '"-Xmx1G" "-Xms500m"'
+              value: '"-Xmx13G" "-Xms6G"'
           ports:
             # akka remoting
             - name: {{ .Values.service.akkaPort.master.name | quote }}

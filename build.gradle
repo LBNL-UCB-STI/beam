@@ -763,6 +763,10 @@ task helmInit(type: HelmInit) {
     upgrade = true
 }
 
+helmInit.dependsOn clean
+
+helmUpdateStandaloneChartDependencies.dependsOn helmPackageCommonChart
+
 task deployStandaloneChart(dependsOn: [helmPackageStandaloneChart, helmPackageCommonChart, helmInit], type: HelmInstall) {
     def date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"))
     chart = "${project.buildDir}/helm/charts/beam-standalone-0.1.0.tgz"
@@ -788,8 +792,9 @@ task removeStandaloneCharts(dependsOn: [helmStandaloneList]) {
         }
     }
 }
+helmUpdateClusterChartDependencies.dependsOn helmPackageCommonChart
 
-task deployClusterChart(dependsOn: [helmPackageClusterChart, helmPackageCommonChart, helmInit], type: HelmInstall) {
+task deployClusterChart(dependsOn: [helmPackageCommonChart, helmPackageClusterChart, helmInit], type: HelmInstall) {
     def date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
     chart = "${project.buildDir}/helm/charts/beam-cluster-0.1.0.tgz"
     releaseName = "beam-cluster-${date}"
