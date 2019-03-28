@@ -1,5 +1,5 @@
 package beam.router
-import java.awt.Color
+import java.awt.{BasicStroke, Color}
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.TAZTreeMap
@@ -15,6 +15,7 @@ import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Geometry
 import org.jfree.chart.ChartFactory
+import org.jfree.chart.annotations.{XYLineAnnotation, XYTextAnnotation}
 import org.jfree.chart.plot.{PlotOrientation, XYPlot}
 import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer
 import org.jfree.data.xy.{XYSeries, XYSeriesCollection}
@@ -173,6 +174,22 @@ object TravelTimeObserved extends LazyLogging {
   }
 
   def generateChart(series: XYSeries, path: String): Unit = {
+    def drawLineHelper(color: Color, percent: Int, xyplot: XYPlot) = {
+      xyplot.addAnnotation(
+        new XYLineAnnotation(
+          0,
+          0,
+          xyplot.getDomainAxis.getRange.getUpperBound * 100 / (100 + percent),
+          xyplot.getRangeAxis.getRange.getUpperBound,
+          new BasicStroke(1f),
+          color
+        ))
+
+      xyplot.addAnnotation(
+        new XYTextAnnotation(s"$percent%", 1000 * 100 / (100 + percent), 1000)
+      )
+    }
+
     val dataset = new XYSeriesCollection
     dataset.addSeries(series)
     val chart = ChartFactory.createScatterPlot(
@@ -186,12 +203,47 @@ object TravelTimeObserved extends LazyLogging {
       false
     )
 
-    val xyplot = chart.getPlot.asInstanceOf[XYPlot]
+    val xyplot: XYPlot = chart.getPlot.asInstanceOf[XYPlot]
 
     val renderer = new XYLineAndShapeRenderer
     renderer.setSeriesShape(0, ShapeUtilities.createDiamond(1))
     renderer.setSeriesPaint(0, Color.RED)
     renderer.setSeriesLinesVisible(0, false)
+
+    xyplot.getDomainAxis.setAutoRange(false)
+    xyplot.getRangeAxis.setAutoRange(false)
+    xyplot.getDomainAxis.setRange(0.0, Math.max(series.getMaxX, series.getMaxY))
+    xyplot.getRangeAxis.setRange(0.0, Math.max(series.getMaxX, series.getMaxY))
+
+    // diagonal line
+    chart.getXYPlot.addAnnotation(
+      new XYLineAnnotation(
+        0,
+        0,
+        xyplot.getDomainAxis.getRange.getUpperBound,
+        xyplot.getRangeAxis.getRange.getUpperBound
+      )
+    )
+
+    val percents: Map[Int, Color] = Map(
+      15 -> Color.RED,
+      30 -> Color.BLUE
+    )
+
+    percents.foreach {
+      case (percent: Int, color: Color) =>
+        drawLineHelper(
+          color,
+          percent,
+          xyplot
+        )
+
+        drawLineHelper(
+          color,
+          -percent,
+          xyplot
+        )
+    }
 
     xyplot.setRenderer(0, renderer)
 
