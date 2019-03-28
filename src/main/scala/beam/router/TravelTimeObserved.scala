@@ -87,39 +87,15 @@ class TravelTimeObserved @Inject()(
               .foreach { timeBin =>
                 val key = PathCache(origin.tazId, destination.tazId, timeBin)
                 observedTravelTimes.get(key).foreach { timeObserved =>
-                  val theSkim = skimmer
+                  skimmer
                     .getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
                     .map(_.toSkimExternal)
-                    .getOrElse {
-                      if (origin.equals(destination)) {
-                        val newDestCoord = new Coord(
-                          origin.coord.getX,
-                          origin.coord.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
-                        )
-                        skimmer.getSkimDefaultValue(
-                          mode,
-                          origin.coord,
-                          newDestCoord,
-                          timeBin * 3600,
-                          dummyId,
-                          beamServices
-                        )
-                      } else {
-                        skimmer.getSkimDefaultValue(
-                          mode,
-                          origin.coord,
-                          destination.coord,
-                          timeBin * 3600,
-                          dummyId,
-                          beamServices
-                        )
-                      }
+                    .foreach { theSkim =>
+                      series.add(theSkim.time, timeObserved)
+                      writerObservedVsSimulated.write(
+                        s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved}\n"
+                      )
                     }
-
-                  series.add(theSkim.time, timeObserved)
-                  writerObservedVsSimulated.write(
-                    s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved}\n"
-                  )
                 }
               }
           }
