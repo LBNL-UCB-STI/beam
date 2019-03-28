@@ -18,7 +18,6 @@ import org.matsim.core.scenario.MutableScenario
 import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
-import scala.collection.mutable.LinkedHashMap
 import java.util.Random
 
 import scala.collection.JavaConverters._

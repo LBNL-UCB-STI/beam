@@ -21,7 +21,7 @@ import org.matsim.core.router.util.{LeastCostPathCalculatorFactory, TravelDisuti
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.core.scoring.ScoringFunctionFactory
 
-private class MatsimServicesMock(
+class MatsimServicesMock(
   override val getControlerIO: OutputDirectoryHierarchy,
   override val getScenario: Scenario
 ) extends MatsimServices {
