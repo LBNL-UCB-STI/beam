@@ -7,13 +7,8 @@ import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import beam.agentsim.Resource.{Boarded, NotAvailable, NotifyVehicleIdle, TryToBoardVehicle}
-import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.household.HouseholdActor.{
-  MobilityStatusInquiry,
-  MobilityStatusResponse,
-  ReleaseVehicle,
-  ReleaseVehicleAndReply
-}
+import beam.agentsim.agents.{InitializeTrigger, Pickup}
+import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle, ReleaseVehicleAndReply}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.Token
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
@@ -22,6 +17,8 @@ import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInqui
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.router.BeamSkimmer
+import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import com.vividsolutions.jts.geom.{Coordinate, Envelope}
 import com.vividsolutions.jts.index.quadtree.Quadtree
@@ -35,7 +32,9 @@ import scala.concurrent.{ExecutionContext, Future}
 private[vehiclesharing] class FixedNonReservingFleetManager(
   val parkingManager: ActorRef,
   val locations: Iterable[Coord],
-  val vehicleType: BeamVehicleType
+  val vehicleType: BeamVehicleType,
+  val beamServices: BeamServices,
+  val skimmer: BeamSkimmer
 ) extends Actor
     with ActorLogging {
 
@@ -73,7 +72,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
 
-    case MobilityStatusInquiry(_, whenWhere, _) =>
+    case MobilityStatusInquiry(personId, whenWhere, _) =>
       // Search box: 1000 meters around query location
       val boundingBox = new Envelope(new Coordinate(whenWhere.loc.getX, whenWhere.loc.getY))
       boundingBox.expandBy(5000.0)
@@ -83,6 +82,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       sender ! MobilityStatusResponse(nearbyVehicles.take(5).map { vehicle =>
         Token(vehicle.id, self, vehicle.toStreetVehicle)
       })
+      skimmer.observeVehicleInquiry(personId, whenWhere, "default", beamServices)
 
     case TryToBoardVehicle(token, who) =>
       availableVehicles.get(token.id) match {
