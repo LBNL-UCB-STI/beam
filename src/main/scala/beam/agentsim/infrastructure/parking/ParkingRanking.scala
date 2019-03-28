@@ -8,6 +8,8 @@ import org.matsim.api.core.v01.Coord
 
 object ParkingRanking {
 
+  type ParkingAlternative = (TAZ, ParkingType, ParkingZone, Coord)
+
   type RankingFunction = (ParkingZone, Double, Option[ChargingInquiry]) => Double
 
   val PlaceholderForChargingCosts = 0.0
@@ -17,7 +19,7 @@ object ParkingRanking {
     *
     * @param parkingDuration duration agent will use parking stall
     * @param parkingZone the zone, which is a set of parking attributes in a TAZ with similar attributes
-    * @param chargingPreferenceOption an optional charging preference from the agent, used to rank by "need"
+    * @param chargingInquiryOption an optional charging preference from the agent, used to rank by "need"
     * @return utility of parking
     */
   def rankingFunction(parkingDuration: Double)(
@@ -35,7 +37,8 @@ object ParkingRanking {
     }
 
     val chargingSpotCosts: Double = chargingInquiryOption match {
-      case None => 0.0 // not a BEV / PHEV
+      case None =>
+        0.0 // not a BEV / PHEV
       case Some(chargingData) => { // BEV / PHEV -> we use our utility function
 
         chargingData.utility match {
@@ -48,7 +51,7 @@ object ParkingRanking {
             }
 
             val price = 16 // todo incorporate in chargingPointType as attribute
-            val walkingDistance = 1 // todo beamServices.geo.distUTMInMeters(stallLoc, inquiry.destinationUtm)
+
             val VoT = chargingData.vot
 
             //build alternative from data
@@ -59,7 +62,7 @@ object ParkingRanking {
               parkingZone.toString,
               Map(
                 "energyPriceFactor" -> (price * installedCapacity),
-                "distanceFactor"    -> (walkingDistance / 1.4 / 3600.0) * VoT, // todo might be removed if we calculate the walking distance independently of charging
+                "distanceFactor"    -> (distanceToStall / 1.4 / 3600.0) * VoT,
                 "installedCapacity" -> installedCapacity
               )
             )

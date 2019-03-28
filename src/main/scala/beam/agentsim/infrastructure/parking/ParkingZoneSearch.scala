@@ -1,8 +1,8 @@
 package beam.agentsim.infrastructure.parking
 
-import scala.collection.Map
-import scala.util.{Failure, Random, Success, Try}
+import beam.agentsim.agents.choice.logit.{Alternative, MultinomialLogit}
 
+import scala.util.{Failure, Random, Success, Try}
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.parking.ParkingRanking.RankingAccumulator
 import beam.agentsim.infrastructure.taz.TAZ
@@ -88,10 +88,78 @@ object ParkingZoneSearch {
     }
   }
 
+
+  /**
+    * samples from the set of discovered stalls using a multinomial logit function
+    * @param found the discovered parkingZones
+    * @param destinationUTM coordinates of this request
+    * @param parkingDuration the duration of the forthcoming agent activity
+    * @param valueOfTime this agent's value of time
+    * @param utilityFunction a multinomial logit function for sampling utility from a set of parking alternatives
+    * @param distanceFunction a function that computes the distance between two coordinates
+    * @param random random generator
+    * @return the parking alternative that will be used for parking this agent's vehicle
+    */
+  def takeBestBySampling(
+                          found: Iterable[ParkingRanking.ParkingAlternative],
+                          destinationUTM: Coord,
+                          parkingDuration: Int,
+                          valueOfTime: Double,
+                          utilityFunction: MultinomialLogit[ParkingRanking.ParkingAlternative, String],
+                          distanceFunction: (Coord, Coord) => Double,
+                          random: Random
+                        ): Option[RankingAccumulator] = {
+
+    val alternatives: Iterable[Alternative[String, ParkingRanking.ParkingAlternative]] =
+      found.
+        map{ alt =>
+
+          val (_, _, parkingZone, stallCoordinate) = alt
+
+          val parkingTicket: Double = parkingZone.pricingModel match {
+            case Some(pricingModel) =>
+              PricingModel.evaluateParkingTicket(pricingModel, parkingDuration)
+            case None =>
+              0.0
+          }
+
+          val installedCapacity = parkingZone.chargingPointType match {
+            case Some(chargingPoint) => ChargingPointType.getChargingPointInstalledPowerInKw(chargingPoint)
+            case None                => 0
+          }
+
+          val distance: Double = distanceFunction(destinationUTM, stallCoordinate)
+
+          Alternative[String, (TAZ, ParkingType, ParkingZone, Coord)](
+            alt,
+            Map(
+              "energyPriceFactor" -> (parkingTicket * installedCapacity),
+              "distanceFactor"    -> (distance / 1.4 / 3600.0) * valueOfTime,
+              "installedCapacity" -> installedCapacity
+            )
+          )
+        }
+
+    // todo: sampleAlternative cannot return None, maybe doesn't need to be returning an Option[], but, what is it's behavior if the input is empty?
+    utilityFunction.sampleAlternative(alternatives.toVector, random).
+      map{ alternative =>
+        val (taz, parkingType, parkingZone, coordinate) = alternative.alternativeId
+        // todo: report sampled utility value here? would be nice for calling function to be able to log
+        val utility = 0.0
+        RankingAccumulator(
+          taz,
+          parkingType,
+          parkingZone,
+          coordinate,
+          utility
+        )
+      }
+  }
+
   /**
     * finds the best parking zone id based on maximizing it's associated cost function evaluation
     * @param destinationUTM coordinates of this request
-    * @param found the ranked parkingZones
+    * @param found the discovered parkingZones
     * @param chargingInquiry ChargingPreference per type of ChargingPoint
     * @param rankingFunction ranking function for comparing options
     * @param distanceFunction a function that computes the distance between two coordinates
@@ -104,6 +172,7 @@ object ParkingZoneSearch {
     rankingFunction: ParkingRanking.RankingFunction,
     distanceFunction: (Coord, Coord) => Double
   ): Option[RankingAccumulator] = {
+
     found.foldLeft(Option.empty[RankingAccumulator]) { (accOption, parkingZoneTuple) =>
 
       val (thisTAZ: TAZ, thisParkingType: ParkingType, thisParkingZone: ParkingZone, stallLocation: Coord) =

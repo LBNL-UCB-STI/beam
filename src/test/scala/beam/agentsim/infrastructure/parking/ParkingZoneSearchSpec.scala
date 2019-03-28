@@ -66,9 +66,10 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
       "find a spot near their destination but with some variance due to the availability of parking" in new ParkingZoneSearchSpec.SimpleParkingAlternatives {
 
         // make TAZ A's parking stalls have very low availability
-        parkingZones(0).stallsAvailable = 1
-        // make TAZ B's parking stalls have medium availability
-        parkingZones(1).stallsAvailable = 14
+
+        parkingZones(0).stallsAvailable = 10 // in 100
+        // make TAZ B's parking stalls have high availability
+        parkingZones(1).stallsAvailable = 90 // in 100
 
 
         val result: Option[ParkingRanking.RankingAccumulator] = ParkingZoneSearch.find(
@@ -94,8 +95,8 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
             parkingType should equal(ParkingType.Public)
             parkingZone.parkingZoneId should equal(1)
 
-            // since availability is 14/18 = 77%, the location of the stall should be
-            // close to the destination coordinate (1,1). It should be near within a small bounds (1.0)
+            // since availability for TAZ B is 90/100 = 90%, the location of the stall should be
+            // close to the destination coordinate (5,5). It should be near within a small bounds (1.0)
             val deviationBounds: Double = 2.0
             math.abs(stallCoord.getX - destinationInMiddle.getX) should be < deviationBounds
             math.abs(stallCoord.getY - destinationInMiddle.getY) should be < deviationBounds
@@ -116,12 +117,12 @@ object ParkingZoneSearchSpec {
 
     // in this scenario, there are two TAZs: one at (0,0) and one at (10,10)
     // there are three agent destinations which are being considered
-    // the TAZs have a slightly different number of stalls but are otherwise the same
+    // the TAZs should be equal in utility for a request at (5,5) unless modified
 
     val sourceData: Iterator[String] =
       """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
-        |A,Public,Block,UltraFast,7,0,unused
-        |B,Public,Block,UltraFast,18,0,unused
+        |A,Public,Block,UltraFast,100,0,unused
+        |B,Public,Block,UltraFast,100,0,unused
         |
       """.stripMargin.split("\n").toIterator
     val (parkingZones, parkingSearchTree) = ParkingZoneFileUtils.fromIterator(sourceData)
