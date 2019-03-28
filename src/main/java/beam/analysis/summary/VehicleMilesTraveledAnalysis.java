@@ -46,8 +46,7 @@ public class VehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
                 e -> e.getValue() * 0.000621371192 // unit conversion from meters to miles
         ));
 
-        vehicleTypes.foreach(vt -> result.merge("vehicleMilesTraveled_" + vt.toString(),0D, (d1, d2) -> d1 + d2));
-
+        vehicleTypes.foreach(vt -> result.put("vehicleMilesTraveled_" + vt.toString(),milesTraveledByVehicleType.getOrDefault(vt.toString(), 0.0) * 0.000621371192));
         return result;
     }
 }
