@@ -3,6 +3,7 @@ package beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions;
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.RoadCapacityAdjustmentFunction;
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation;
+import beam.sim.config.BeamConfig;
 import beam.utils.DebugLib;
 import beam.utils.FileUtils;
 import org.apache.commons.lang.ArrayUtils;
@@ -53,6 +54,7 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
     private double percentageCapacityIncreaseSum=0;
     private int currentIterationNumber;
     private int writeInterval;
+    private boolean writeGraphs;
     private int binSize;
     private OutputDirectoryHierarchy controllerIO;
 
@@ -61,15 +63,18 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
     private double flowCapacityFactor;
     private Map<Double,Double> caccCapacityIncrease = new HashMap<>();
 
-    public Hao2018CaccRoadCapacityAdjustmentFunction(double caccMinRoadCapacity, double caccMinSpeedMetersPerSec, double flowCapacityFactor, int iterationNumber, OutputDirectoryHierarchy controllerIO, int writeInterval,int binSize){
-        this.flowCapacityFactor = flowCapacityFactor;
+    public Hao2018CaccRoadCapacityAdjustmentFunction(BeamConfig beamConfig,int iterationNumber,OutputDirectoryHierarchy controllerIO){
+        double caccMinRoadCapacity = beamConfig.beam().physsim().jdeqsim().cacc().minRoadCapacity();
+        double caccMinSpeedMetersPerSec = beamConfig.beam().physsim().jdeqsim().cacc().minSpeedMetersPerSec();
         log.info("caccMinRoadCapacity: " + caccMinRoadCapacity + ", caccMinSpeedMetersPerSec: " + caccMinSpeedMetersPerSec );
+        this.flowCapacityFactor = beamConfig.beam().physsim().flowCapacityFactor();
         this.caccMinRoadCapacity = caccMinRoadCapacity;
         this.caccMinSpeedMetersPerSec = caccMinSpeedMetersPerSec;
         this.currentIterationNumber = iterationNumber;
         this.controllerIO = controllerIO;
-        this.writeInterval = writeInterval;
-        this.binSize = binSize;
+        this.writeInterval = beamConfig.beam().physsim().jdeqsim().cacc().capacityPlansWriteInterval();
+        this.binSize = beamConfig.beam().outputs().stats().binSize();
+        this.writeGraphs = beamConfig.beam().outputs().writeGraphs();
     }
 
     public boolean isCACCCategoryRoad(Link link){
@@ -127,8 +132,10 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
         log.info("numberOfTimesOnlyNonCACCTravellingOnCACCEnabledRoads: " + numberOfTimesOnlyNonCACCTravellingOnCACCEnabledRoads);
         log.info("caccCategoryRoadsTravelled / nonCACCCategoryRoadsTravelled ratio: " + 1.0 * caccCategoryRoadsTravelled / nonCACCCategoryRoadsTravelled);
         writeCapacityStats(currentIterationNumber,capacityStatsCollector.toString());
-        generateCapacityIncreaseScatterPlotGraph(currentIterationNumber,caccCapacityIncrease);
-        generateCapacityIncreaseHistogramGraph(currentIterationNumber,caccCapacityIncrease);
+        if(writeGraphs) {
+            generateCapacityIncreaseScatterPlotGraph(currentIterationNumber,caccCapacityIncrease);
+            generateCapacityIncreaseHistogramGraph(currentIterationNumber,caccCapacityIncrease);
+        }
         reset();
     }
 
@@ -144,8 +151,13 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
         return  (writeInterval > 0 && iterationNumber % writeInterval == 0);
     }
 
+    /**
+     * A scattered plot that analyses the percentage of increase of road capacity observed for a given fraction of CACC enabled travelling on
+     * CACC enabled roads
+     * @param iterationNumber current iteration number
+     * @param caccCapacityIncrease data map for the graph
+     */
     private void generateCapacityIncreaseScatterPlotGraph(int iterationNumber, Map<Double, Double> caccCapacityIncrease) {
-
         String plotTitle = "CACC - Road Capacity Increase";
         String x_axis = "CACC on Road (%)";
         String y_axis = "Road Capacity Increase (%)";
@@ -170,9 +182,14 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
         }
     }
 
+    /**
+     * A histogram graph that charts the frequencies of CACC enabled road percentage increase observed in a simulation
+     * @param iterationNumber current iteration number
+     * @param caccCapacityIncrease data map for the graph
+     */
     private void generateCapacityIncreaseHistogramGraph(int iterationNumber, Map<Double, Double> caccCapacityIncrease) {
 
-        String plotTitle = "Frequencies of CACC capacity increase";
+        String plotTitle = "Frequencies of CACC Road Capacity Increase";
         String x_axis = "CACC Capacity Increase (%)";
         String y_axis = "Frequency of observations";
         int width = 1000;
