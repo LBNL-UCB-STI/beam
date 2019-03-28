@@ -1,10 +1,6 @@
 package beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions;
 
-import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
-import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.RoadCapacityAdjustmentFunction;
-import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation;
 import beam.sim.config.BeamConfig;
-import beam.utils.DebugLib;
 import beam.utils.FileUtils;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
@@ -12,22 +8,19 @@ import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartUtilities;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.PlotOrientation;
-import org.jfree.data.category.CategoryDataset;
-import org.jfree.data.general.DatasetUtilities;
 import org.jfree.data.statistics.HistogramDataset;
 import org.jfree.data.statistics.HistogramType;
-import org.jfree.data.xy.XYDataset;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 
-import java.awt.*;
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 
 /*
@@ -173,7 +166,7 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
                 plotTitle,
                 x_axis, y_axis, dataset);
 
-        String graphImageFile = controllerIO.getIterationFilename(iterationNumber,"caccRoadCapacityIncrease.png");
+        String graphImageFile = controllerIO.getIterationFilename(iterationNumber,"caccRoadCapacityHistorgram.png");
         try {
             ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
                     height);
@@ -183,15 +176,16 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
     }
 
     /**
-     * A histogram graph that charts the frequencies of CACC enabled road percentage increase observed in a simulation
+     * A histogram graph that chart+
+     * s the frequencies of CACC enabled road percentage increase observed in a simulation
      * @param iterationNumber current iteration number
      * @param caccCapacityIncrease data map for the graph
      */
     private void generateCapacityIncreaseHistogramGraph(int iterationNumber, Map<Double, Double> caccCapacityIncrease) {
 
-        String plotTitle = "Frequencies of CACC Road Capacity Increase";
-        String x_axis = "CACC Capacity Increase (%)";
-        String y_axis = "Frequency of observations";
+        String plotTitle = "CACC Road Capacity Increase Histogram";
+        String x_axis = "Road Capacity Increase (%)";
+        String y_axis = "Frequency";
         int width = 1000;
         int height = 600;
 
