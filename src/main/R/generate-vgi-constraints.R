@@ -21,10 +21,10 @@ out.dirs <- list()
 out.dirs[['base']]            <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-12_13-05-59-base/',0)
 #out.dirs[['base-tou-night']]  <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-12_13-05-59-base/',0)
 #out.dirs[['base-tou-both']]   <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-12_13-05-59-base/',0)
-out.dirs[['morework-8x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
+#out.dirs[['morework-8x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
 #out.dirs[['morework-8x-tou-night']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
 #out.dirs[['morework-8x-tou-both']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-09_22-27-18-morework-8x/',0)
-out.dirs[['morework-4x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-10_15-12-08-morework-4x/',0)
+#out.dirs[['morework-4x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-10_15-12-08-morework-4x/',0)
 #out.dirs[['morework-4x-tou-night']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-10_15-12-08-morework-4x/',0)
 #out.dirs[['morework-4x-tou-both']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-10_15-12-08-morework-4x/',0)
 #out.dirs[['morework-2x']] <- c('/Users/critter/Documents/beam/beam-output/calibration/calibration_2018-03-21_16-50-05-morework-2x/',0)
@@ -519,7 +519,78 @@ if(F){
     facet_grid(scen~final.type)+labs(x="Charging Session Start Hour",y="Energy Demanded in Charging Session (MWh)",fill="Hours of flexibility") + 
     theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), strip.text.x = element_text(size = 10, face = "bold"), strip.text.y = element_text(size = 10, face = "bold"), axis.text.x = element_text(angle=0, size=10), axis.title.x = element_text(size=12) , axis.text.y = element_text(angle=0, size=10), axis.title.y = element_text(size=12),legend.position="bottom", legend.title = element_text( size = 12), legend.text = element_text( size = 12)  , plot.title = element_text(size=14, hjust=0.5))  + 
     scale_x_continuous(breaks=seq(0,24,6))
+
+  # Make another plot where we over-represent fast charging and we emulate 100kW and 350kW fast chargers
+  sessions[,fast:=power>25]
+  sessions[,i:=1:(.N)]
+  sessions.more.fast <- copy(sessions)
+  sessions.more.fast.ultra <- copy(sessions)
+  sessions.more.fast.ultra.ultra <- copy(sessions)
+  do.not.replace <- c()
+  for(n in 1:20){
+    for(fast.i in 1:nrow(sessions[fast==T])){
+      to.replace <- sessions.more.fast[fast==T][fast.i]
+      replace.target <- sessions.more.fast[fast==F & !i%in%do.not.replace][abs(energy - to.replace$energy) < 0.5 & abs(start - to.replace$start) < 1 & final.type == to.replace$final.type]
+      if(nrow(replace.target)==0){
+        replace.target <- sessions.more.fast[fast==F & !i%in%do.not.replace][abs(energy - to.replace$energy) < 1 & abs(start - to.replace$start) < 2 & final.type == to.replace$final.type]
+        if(nrow(replace.target)==0){
+          replace.target <- sessions.more.fast[fast==F & !i%in%do.not.replace][abs(energy - to.replace$energy) < 2 & abs(start - to.replace$start) < 4 & final.type == to.replace$final.type]
+          if(nrow(replace.target)==0){
+            replace.target <- sessions.more.fast[fast==F & !i%in%do.not.replace][abs(energy - to.replace$energy) < 2 & abs(start - to.replace$start) < 4]
+            if(nrow(replace.target)==0){
+              replace.target <- sessions.more.fast[fast==F & !i%in%do.not.replace][abs(energy - to.replace$energy) < 2 & abs(start - to.replace$start) < 8]
+              if(nrow(replace.target)==0){
+                replace.target <- sessions.more.fast[fast==F & !i%in%do.not.replace][abs(energy - to.replace$energy) < 2]
+                if(nrow(replace.target)==0){
+                  replace.target <- sessions.more.fast[fast==F & !i%in%do.not.replace][abs(energy - to.replace$energy) < 4]
+                  if(nrow(replace.target)==0){
+                    replace.target <- sessions.more.fast[fast==F & !i%in%do.not.replace][abs(energy - to.replace$energy) < 8]
+                    if(nrow(replace.target)==0){
+                      replace.target <- sessions.more.fast[fast==F & !i%in%do.not.replace]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      if(nrow(replace.target)==0){
+        stop('hey')
+      }
+      replace.target.i <- replace.target[sample(nrow(replace.target),1)]$i
+      sessions.more.fast[i==replace.target.i,':='(energy=to.replace$energy,plugTime=to.replace$plugTime,chargeTime=to.replace$chargeTime,power=to.replace$power,person='resampled',decisionEventId='resampled',hour=to.replace$hour)]
+      sessions.more.fast.ultra[i==replace.target.i,':='(energy=to.replace$energy,plugTime=to.replace$plugTime/2,chargeTime=to.replace$chargeTime/2,power=100,person='resampled',decisionEventId='resampled',hour=to.replace$hour)]
+      sessions.more.fast.ultra.ultra[i==replace.target.i,':='(energy=to.replace$energy,plugTime=to.replace$plugTime/7,chargeTime=to.replace$chargeTime/7,power=350,person='resampled',decisionEventId='resampled',hour=to.replace$hour)]
+      do.not.replace <- c(do.not.replace,replace.target.i)
+    }
+  }
+  sessions.more.fast[,fast:=power>25]
+  sessions.more.fast[,scen:='6% Sessions Use 50kW Fast Chargers']
+  sessions.more.fast[,flex:=plugTime-chargeTime]
+  sessions.more.fast[,flex.bin:=names(flex.bins)[findInterval(flex,flex.bins)+1]]
+  sessions.more.fast[,flex.bin:=factor(flex.bin,levels=names(flex.bins))]
+  sessions.more.fast.ultra[,fast:=power>25]
+  sessions.more.fast.ultra[,scen:='6% Sessions Use 100kW Fast Chargers']
+  sessions.more.fast.ultra[,flex:=plugTime-chargeTime]
+  sessions.more.fast.ultra[,flex.bin:=names(flex.bins)[findInterval(flex,flex.bins)+1]]
+  sessions.more.fast.ultra[,flex.bin:=factor(flex.bin,levels=names(flex.bins))]
+  sessions.more.fast.ultra.ultra[,fast:=power>25]
+  sessions.more.fast.ultra.ultra[,scen:='6% Sessions Use 350kW Fast Chargers']
+  sessions.more.fast.ultra.ultra[,flex:=plugTime-chargeTime]
+  sessions.more.fast.ultra.ultra[,flex.bin:=names(flex.bins)[findInterval(flex,flex.bins)+1]]
+  sessions.more.fast.ultra.ultra[,flex.bin:=factor(flex.bin,levels=names(flex.bins))]
+  ggplot(rbindlist(list(sessions,sessions.more.fast,sessions.more.fast.ultra,sessions.more.fast.ultra.ultra))[,.(n=.N,energy=sum(energy)),by=c('scen','hour','flex.bin')],aes(x=hour,y=energy/1e3,fill=flex.bin))+geom_bar(stat='identity')+
+    facet_wrap(~scen)+labs(x="Charging Session Start Hour",y="Energy Demanded in Charging Session (MWh)",fill="Hours of flexibility") + 
+    theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), strip.text.x = element_text(size = 10, face = "bold"), strip.text.y = element_text(size = 10, face = "bold"), axis.text.x = element_text(angle=0, size=10), axis.title.x = element_text(size=12) , axis.text.y = element_text(angle=0, size=10), axis.title.y = element_text(size=12),legend.position="bottom", legend.title = element_text( size = 12), legend.text = element_text( size = 12)  , plot.title = element_text(size=14, hjust=0.5))  + 
+    scale_x_continuous(breaks=seq(0,24,6))
+  ggplot(rbindlist(list(sessions,sessions.more.fast,sessions.more.fast.ultra,sessions.more.fast.ultra.ultra))[,.(n=.N,power=sum(power)),by=c('scen','hour','flex.bin')],aes(x=hour,y=power/1e3,fill=flex.bin))+geom_bar(stat='identity')+
+    facet_wrap(~scen)+labs(x="Charging Session Start Hour",y="Power Demanded in Charging Session (MW)",fill="Hours of flexibility") + 
+    theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), strip.text.x = element_text(size = 10, face = "bold"), strip.text.y = element_text(size = 10, face = "bold"), axis.text.x = element_text(angle=0, size=10), axis.title.x = element_text(size=12) , axis.text.y = element_text(angle=0, size=10), axis.title.y = element_text(size=12),legend.position="bottom", legend.title = element_text( size = 12), legend.text = element_text( size = 12)  , plot.title = element_text(size=14, hjust=0.5))  + 
+    scale_x_continuous(breaks=seq(0,24,6))
 }
+
+
 
 # Compare the scenarios against each other
 all <- list()
