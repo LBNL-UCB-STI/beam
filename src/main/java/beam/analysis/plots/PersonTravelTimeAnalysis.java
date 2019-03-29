@@ -124,6 +124,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             }
             averageTime.add(data.getSecond().getSecond());
             createRootGraphForAverageCarTravelTime(event);
+            createNonArrivalAgentAtTheEndOfSimulationGraph(event.getIteration());
         }
         createCSV(data, event.getIteration());
     }
@@ -278,6 +279,18 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         CategoryPlot plot = chart.getCategoryPlot();
         GraphUtils.plotLegendItems(plot, dataset.getRowCount());
         String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, fileName);
+        GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
+    }
+
+    private void createNonArrivalAgentAtTheEndOfSimulationGraph( int iterationNumber) throws IOException {
+        DefaultCategoryDataset defaultCategoryDataset = new DefaultCategoryDataset();
+        personLastDepartureEvents.keySet().forEach(m -> defaultCategoryDataset.addValue((Number) personLastDepartureEvents.get(m).size(),0,m));
+        String graphTitle = "Non Arrived Agents at End of Simulation";
+
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(defaultCategoryDataset, graphTitle, "modes", "count", "NonArrivedAgentsAtTheEndOfSimulation.png", false);
+        CategoryPlot plot = chart.getCategoryPlot();
+        GraphUtils.plotLegendItems(plot, defaultCategoryDataset.getRowCount());
+        String graphImageFile = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "NonArrivedAgentsAtTheEndOfSimulation.png");
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
     }
 
