@@ -82,7 +82,7 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
       for (String costType : costTypes) {
         String statType = String.format("total%s_%s", costType, mode.value());
         if(personCostCount.containsKey(statType)){
-          cost = personCostByCostType.get(statType) / personCostCount.get(statType);
+          cost = personCostByCostType.get(statType);
         }
         personCostByCostType.put(statType, cost);
       }
