@@ -33,6 +33,9 @@ class MultinomialLogit[A, T](
     alternatives: Vector[Alternative[T, A]],
     random: Random
   ): Option[Alternative[T, A]] = {
+    if (alternatives.isEmpty)
+      return None
+
     val expV = alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt)))
     // If any is +Inf then choose that as the certain alternative
     val indsOfPosInf = for (theExpV <- expV.zipWithIndex if theExpV._1 == Double.PositiveInfinity)
