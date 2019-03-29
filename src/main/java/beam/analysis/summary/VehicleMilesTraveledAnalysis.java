@@ -14,7 +14,6 @@ import java.util.stream.Collectors;
 public class VehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
     private Map<String, Double> milesTraveledByVehicleType = new HashMap<>();
     private Set<Id<BeamVehicleType>> vehicleTypes;
-    private String humanBodyVehicleType = BeamVehicleType.defaultHumanBodyBeamVehicleType().toString();
 
     public VehicleMilesTraveledAnalysis(Set<Id<BeamVehicleType>> vehicleTypes) {
         this.vehicleTypes = vehicleTypes;
@@ -27,20 +26,20 @@ public class VehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
             String vehicleType = pte.vehicleType();
             double lengthInMeters = pte.legLength();
 
-            milesTraveledByVehicleType.merge(vehicleType, lengthInMeters, (d1, d2) -> d1 + d2);
+            milesTraveledByVehicleType.merge(vehicleType, lengthInMeters, Double::sum);
             if (isMotorizedMode(vehicleType)) {
-                milesTraveledByVehicleType.merge("total", lengthInMeters, (d1, d2) -> d1 + d2);
+                milesTraveledByVehicleType.merge("total", lengthInMeters, Double::sum);
             }
 
         }
     }
 
     private boolean isMotorizedMode(String vehicleType){
-        return !vehicleType.equalsIgnoreCase(BeamVehicleType.defaultHumanBodyBeamVehicleType().id().toString()) && !vehicleType.equalsIgnoreCase(BeamVehicleType.defaultBicycleBeamVehicleType().id().toString());
+        return !vehicleType.equalsIgnoreCase(BeamVehicleType.defaultHumanBodyBeamVehicleType().id().toString()) && !vehicleType.equalsIgnoreCase(BeamVehicleType.defaultBikeBeamVehicleType().id().toString());
     }
 
     private String getTitle(String key){
-        String prefix=null;
+        String prefix;
         if (key.contains("total")){
             prefix= "motorizedVehicleMilesTraveled_";
         } else {
@@ -62,7 +61,7 @@ public class VehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
                 e -> e.getValue() * 0.000621371192 // unit conversion from meters to miles
         ));
 
-        vehicleTypes.foreach(vt -> result.merge("vehicleMilesTraveled_" + vt.toString(),0D, (d1, d2) -> d1 + d2));
+        vehicleTypes.foreach(vt -> result.merge("vehicleMilesTraveled_" + vt.toString(),0D, Double::sum));
 
         return result;
     }
