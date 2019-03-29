@@ -285,7 +285,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     private void createNonArrivalAgentAtTheEndOfSimulationGraph( int iterationNumber) throws IOException {
         DefaultCategoryDataset defaultCategoryDataset = new DefaultCategoryDataset();
         personLastDepartureEvents.keySet().forEach(m -> defaultCategoryDataset.addValue((Number) personLastDepartureEvents.get(m).size(),0,m));
-        String graphTitle = "Non Arrived Agents";
+        String graphTitle = "Non Arrived Agents at End of Simulation";
 
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(defaultCategoryDataset, graphTitle, "modes", "count", "NonArrivedAgentsAtTheEndOfSimulation.png", false);
         CategoryPlot plot = chart.getCategoryPlot();
