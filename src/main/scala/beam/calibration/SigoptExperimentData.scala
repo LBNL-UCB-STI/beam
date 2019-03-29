@@ -18,7 +18,8 @@ case class SigoptExperimentData(
 ) extends LazyLogging {
 
   val baseConfig: Config =
-    ConfigFactory.parseFile(Paths.get(experimentDef.getHeader.getBeamTemplateConfPath).toFile)
+    ConfigFactory
+      .parseFile(Paths.get(experimentDef.getHeader.getBeamTemplateConfPath).toFile)
       .withFallback(ConfigFactory.parseString(s"config=${experimentDef.getHeader.getBeamTemplateConfPath}"))
 
   // Always default to single JVM if incorrect entry
