@@ -2,8 +2,8 @@ package beam.sim
 
 import java.io.FileOutputStream
 import java.nio.file.{Files, Paths, StandardCopyOption}
-import java.util.{Properties, Random}
 import java.util.concurrent.TimeUnit
+import java.util.{Properties, Random}
 
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.events.handling.BeamEventsHandling
@@ -11,9 +11,9 @@ import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
-import beam.router.{BeamSkimmer, RouteHistory}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
@@ -212,7 +212,6 @@ trait BeamHelper extends LazyLogging {
 
           addControlerListenerBinding().to(classOf[BeamSim])
           addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
-          addControlerListenerBinding().to(classOf[BeamSkimmer])
           addControlerListenerBinding().to(classOf[RouteHistory])
 
           addControlerListenerBinding().to(classOf[ActivityLocationPlotter])
@@ -254,6 +253,7 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[RideHailIterationHistory]).asEagerSingleton()
           bind(classOf[RouteHistory]).asEagerSingleton()
           bind(classOf[BeamSkimmer]).asEagerSingleton()
+          bind(classOf[TravelTimeObserved]).asEagerSingleton()
           bind(classOf[TollCalculator]).asEagerSingleton()
 
           // Override EventsManager
