@@ -42,16 +42,17 @@ case class AttributesOfIndividual(
     isRideHail: Boolean = false,
     isPooledTrip: Boolean = false
   ): Double = {
+    // NOTE: This is in hours
     val isWorkTrip = destinationActivity match {
       case None =>
         false
       case Some(activity) =>
         activity.getType().equalsIgnoreCase("work")
     }
-    val vehicleAutomationLevel = getAutomationLevel(beamVehicleTypeId, beamServices)
 
     val multiplier = beamMode match {
       case CAR =>
+        val vehicleAutomationLevel = getAutomationLevel(beamVehicleTypeId, beamServices)
         if (isRideHail) {
           if (isPooledTrip) {
             getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeChoiceModel.modeMultipliers) *
@@ -81,6 +82,7 @@ case class AttributesOfIndividual(
     beamServices: BeamServices,
     destinationActivity: Option[Activity]
   ): Double = {
+    //NOTE: This gives answers in hours
     embodiedBeamLeg.beamLeg.mode match {
       case CAR => // NOTE: Ride hail legs are classified as CAR mode. For now we only need to loop through links here
         val idsAndTravelTimes =

@@ -83,8 +83,8 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
         writeTripScoresToCSV()
 
         //write generalized link stats to file
-        val interval = beamServices.beamConfig.beam.debug.agentTripScoresInterval
-        if (interval > 0 && modeChoiceCalculator.isInstanceOf[ModeChoiceMultinomialLogit]) {
+
+        if (modeChoiceCalculator.isInstanceOf[ModeChoiceMultinomialLogit]) {
           registerLinkCosts(this.trips, attributes, modeChoiceCalculator.asInstanceOf[ModeChoiceMultinomialLogit])
         }
       }
@@ -174,7 +174,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
                     .put(linkId, newTravelTimeAverage -> newTravelTimesCount)
 
                   val newCostsCount = observedCostsCount + 1
-                  val newCostsAverage = ((existingAverageCost * observedCostsCount) + linkCost) / observedCostsCount
+                  val newCostsAverage = ((existingAverageCost * observedCostsCount) + linkCost) / newCostsCount
                   BeamScoringFunctionFactory.linkAverageCosts
                     .put(linkId, newCostsAverage -> newCostsCount)
 
@@ -186,7 +186,7 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
                   val newGeneralizedTimesCount = observedGeneralizedTimesCount + 1
                   val newGeneralizedTimesAverage = ((existingAverageGeneralizedTime * observedGeneralizedTimesCount) + generalizedLinkTime) / newGeneralizedTimesCount
                   BeamScoringFunctionFactory.linkAverageGeneralizedTimes
-                    .put(linkId, newGeneralizedTimesAverage -> newGeneralizedTimesCount)
+                    .put(linkId, newGeneralizedTimesAverage / 3600 -> newGeneralizedTimesCount) // NOTE: Store in seconds, not hours
               }
             }
         }
@@ -230,7 +230,8 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
         val avgTravelTime =
           BeamScoringFunctionFactory.linkAverageTravelTimes.get(linkId).map(_._1.toString).getOrElse("")
         val avgCost = BeamScoringFunctionFactory.linkAverageCosts.get(linkId).map(_._1.toString).getOrElse("")
-        val generalizedTravelTime = ""
+        val generalizedTravelTime =
+          BeamScoringFunctionFactory.linkAverageGeneralizedTimes.get(linkId).map(_._1.toString).getOrElse("")
         val generalizedCost =
           BeamScoringFunctionFactory.linkAverageGeneralizedCosts.get(linkId).map(_._1.toString).getOrElse("")
         s"$linkId,$avgTravelTime,$avgCost,$generalizedTravelTime,$generalizedCost"
