@@ -184,9 +184,9 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
                     .put(linkId, newGeneralizedCostsAverage -> newGeneralizedCostsCount)
 
                   val newGeneralizedTimesCount = observedGeneralizedTimesCount + 1
-                  val newGeneralizedTimesAverage = ((existingAverageGeneralizedTime * observedGeneralizedTimesCount) + generalizedLinkTime) / newGeneralizedTimesCount
+                  val newGeneralizedTimesAverage = ((existingAverageGeneralizedTime * observedGeneralizedTimesCount) + generalizedLinkTime * 3600) / newGeneralizedTimesCount
                   BeamScoringFunctionFactory.linkAverageGeneralizedTimes
-                    .put(linkId, newGeneralizedTimesAverage / 3600 -> newGeneralizedTimesCount) // NOTE: Store in seconds, not hours
+                    .put(linkId, newGeneralizedTimesAverage -> newGeneralizedTimesCount) // NOTE: Store in seconds, not hours
               }
             }
         }
