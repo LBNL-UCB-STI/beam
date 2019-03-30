@@ -19,6 +19,7 @@ import org.jfree.chart.annotations.{XYLineAnnotation, XYTextAnnotation}
 import org.jfree.chart.plot.{PlotOrientation, XYPlot}
 import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer
 import org.jfree.data.xy.{XYSeries, XYSeriesCollection}
+import org.jfree.ui.RectangleInsets
 import org.jfree.util.ShapeUtilities
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -187,7 +188,10 @@ object TravelTimeObserved extends LazyLogging {
       )
 
       xyplot.addAnnotation(
-        new XYTextAnnotation(s"$percent%", 1000 * 100 / (100 + percent), 1000)
+        new XYTextAnnotation(s"$percent%",
+          xyplot.getDomainAxis.getRange.getUpperBound / 2 * 100 / (100 + percent),
+          xyplot.getDomainAxis.getRange.getUpperBound / 2
+        )
       )
     }
 
@@ -211,10 +215,15 @@ object TravelTimeObserved extends LazyLogging {
     renderer.setSeriesPaint(0, Color.RED)
     renderer.setSeriesLinesVisible(0, false)
 
+    val max = Math.max(series.getMaxX, series.getMaxY)
+
     xyplot.getDomainAxis.setAutoRange(false)
     xyplot.getRangeAxis.setAutoRange(false)
-    xyplot.getDomainAxis.setRange(0.0, Math.max(series.getMaxX, series.getMaxY))
-    xyplot.getRangeAxis.setRange(0.0, Math.max(series.getMaxX, series.getMaxY))
+    xyplot.getDomainAxis.setRange(0.0, max)
+    xyplot.getRangeAxis.setRange(0.0, max)
+
+    xyplot.getDomainAxis.setTickLabelInsets(new RectangleInsets(10.0, 10.0, 10.0, 10.0))
+    xyplot.getRangeAxis.setTickLabelInsets(new RectangleInsets(10.0, 10.0, 10.0, 10.0))
 
     // diagonal line
     chart.getXYPlot.addAnnotation(
