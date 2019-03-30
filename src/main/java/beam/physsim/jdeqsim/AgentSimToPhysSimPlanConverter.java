@@ -159,8 +159,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         String objectiveFunction = beamConfig.beam().calibration().objectiveFunction();
         if (this.controlerIO != null
-                && (objectiveFunction.equals("CountsObjectiveFunction")
-                || objectiveFunction.equals("ModeChoiceAndCountsObjectiveFunction"))) {
+                && objectiveFunction.toLowerCase().contains("counts")) {
             try {
                 String outPath =
                         controlerIO
