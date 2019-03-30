@@ -188,7 +188,8 @@ object TravelTimeObserved extends LazyLogging {
       )
 
       xyplot.addAnnotation(
-        new XYTextAnnotation(s"$percent%",
+        new XYTextAnnotation(
+          s"$percent%",
           xyplot.getDomainAxis.getRange.getUpperBound / 2 * 100 / (100 + percent),
           xyplot.getDomainAxis.getRange.getUpperBound / 2
         )
