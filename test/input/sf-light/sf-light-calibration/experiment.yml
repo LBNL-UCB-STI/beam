@@ -16,8 +16,8 @@ header:
       IS_PARALLEL: "false"
 
       runName: "Fall18-calib-run5"
-      beamBranch: "cs/#496-deploy-ev-to-sfbay-4ci"
-      beamCommit: "0b3e07a22a19f0b69c7c27fb5ec88a0c62ac8998"
+      beamBranch: "zb/#1577-fix-calibration-runner-4ci"
+      beamCommit: "HEAD"
       deployMode: "execute"
       executeClass: "beam.calibration.RunCalibration"
       beamBatch: "false"

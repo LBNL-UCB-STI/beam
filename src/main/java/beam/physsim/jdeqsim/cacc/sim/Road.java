@@ -101,7 +101,7 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
 
             nextAvailableTimeForLeavingStreet=Math.max(nextAvailableTimeForLeavingStreet,
-                    this.timeOfLastLeavingVehicle + getInverseCapacity(vehicle));
+                    this.timeOfLastLeavingVehicle + getInverseCapacity(vehicle,simTime));
             vehicle.scheduleEndRoadMessage(nextAvailableTimeForLeavingStreet, this);
         }
 
@@ -110,14 +110,14 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
 
 
-    private double getInverseCapacity(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle){
+    private double getInverseCapacity(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime){
         double caccShare=getInitialCACCShare((Vehicle) vehicle);
 
         if (caccShareEncounteredByVehicle.containsKey(vehicle)){
             caccShare=caccShareEncounteredByVehicle.remove(vehicle);
         }
 
-        return (1/roadCapacityAdjustmentFunction.getCapacityWithCACCPerSecond(link,caccShare)*config.getFlowCapacityFactor());
+        return (1/roadCapacityAdjustmentFunction.getCapacityWithCACCPerSecond(link,caccShare,simTime)*config.getFlowCapacityFactor());
     }
 
 
@@ -169,7 +169,7 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
             this.scheduler.unschedule(m);
 
             double nextAvailableTimeForEnteringStreet = Math.max(this.timeOfLastEnteringVehicle_
-                    + getInverseCapacity(vehicle), simTime + this.gapTravelTime_);
+                    + getInverseCapacity(vehicle,simTime), simTime + this.gapTravelTime_);
 
             this.noOfCarsPromisedToEnterRoad++;
 
@@ -194,7 +194,7 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
         if (this.carsOnTheRoad.size() > 0) {
             org.matsim.core.mobsim.jdeqsim.Vehicle nextVehicle = this.carsOnTheRoad.getFirst();
             double nextAvailableTimeForLeavingStreet = Math.max(this.earliestDepartureTimeOfCar.getFirst(),
-                    this.timeOfLastLeavingVehicle + getInverseCapacity(vehicle));
+                    this.timeOfLastLeavingVehicle + getInverseCapacity(vehicle,simTime));
             nextVehicle.scheduleEndRoadMessage(nextAvailableTimeForLeavingStreet, this);
         }
 
