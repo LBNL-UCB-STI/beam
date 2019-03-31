@@ -562,7 +562,6 @@ trait BeamHelper extends LazyLogging {
       }
 
       val csvWriter = new FileWriter("householdVehicles.csv", true)
-
       csvWriter.write("vehicleId,vehicleType,householdId\n")
 
       scenario.getHouseholds.getHouseholds.values.asScala.foreach { householdId =>
