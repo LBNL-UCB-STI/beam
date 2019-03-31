@@ -1,6 +1,6 @@
 package beam.sim
 
-import java.io.FileOutputStream
+import java.io.{FileOutputStream, FileWriter}
 import java.nio.file.{Files, Paths, StandardCopyOption}
 import java.util.concurrent.TimeUnit
 import java.util.{Properties, Random}
@@ -11,9 +11,9 @@ import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
-import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
@@ -353,12 +353,7 @@ trait BeamHelper extends LazyLogging {
     if (isMetricsEnable) Kamon.start(clusterConfig.withFallback(ConfigFactory.defaultReference()))
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
-    import akka.cluster.singleton.{
-      ClusterSingletonManager,
-      ClusterSingletonManagerSettings,
-      ClusterSingletonProxy,
-      ClusterSingletonProxySettings
-    }
+    import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
@@ -565,6 +560,22 @@ trait BeamHelper extends LazyLogging {
       notSelectedPersonIds.foreach { personId =>
         scenario.getPopulation.removePerson(personId)
       }
+
+      val csvWriter = new FileWriter("householdVehicles.csv", true)
+
+      csvWriter.write("vehicleId,vehicleType,householdId\n")
+
+      scenario.getHouseholds.getHouseholds.values.asScala.foreach { householdId =>
+        householdId.getVehicleIds.asScala.foreach { vehicle =>
+          csvWriter.write(
+            beamServices.privateVehicles.get(vehicle).get.id + "," +
+            beamServices.privateVehicles.get(vehicle).map(_.beamVehicleType.id.toString).getOrElse("") +
+            "," + householdId.getId + "\n"
+          )
+        }
+      }
+
+      csvWriter.close()
 
       val numOfHouseholds = scenario.getHouseholds.getHouseholds.values().size
       val vehicles = scenario.getHouseholds.getHouseholds.values.asScala.flatMap(hh => hh.getVehicleIds.asScala)
