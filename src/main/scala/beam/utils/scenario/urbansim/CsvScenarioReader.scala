@@ -114,7 +114,7 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
   }
 
   private def toParcelAttribute(rec: java.util.Map[String, String]): ParcelAttribute = {
-    val primaryId = getIfNotNull(rec, "primary_id")
+    val primaryId = getIfNotNull(rec, "parcel_id")
     val x = getIfNotNull(rec, "x").toDouble
     val y = getIfNotNull(rec, "y").toDouble
     ParcelAttribute(primaryId = primaryId, x = x, y = y)

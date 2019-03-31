@@ -28,7 +28,7 @@ class UrbanSimScenarioSource(
   val householdFilePath: String = s"$scenarioFolder/households.$fileExt"
   val planFilePath: String = s"$scenarioFolder/plans.$fileExt"
   val unitFilePath: String = s"$scenarioFolder/units.$fileExt"
-  val parcelAttrFilePath: String = s"$scenarioFolder/parcel_attr.$fileExt"
+  val parcelAttrFilePath: String = s"$scenarioFolder/parcels.$fileExt"
 
   override def getPersons: Iterable[PersonInfo] = {
     rdr.readPersonsFile(personFilePath).map { person =>
