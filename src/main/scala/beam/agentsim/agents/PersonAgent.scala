@@ -737,7 +737,7 @@ class PersonAgent(
                 tick,
                 id,
                 currentTrip.tripClassifier.value,
-                incentive,
+                math.min(incentive, currentTrip.costEstimate),
                 0.0,
                 0.0 // the cost as paid by person has already been accounted for, this event is just about the incentive
               )
