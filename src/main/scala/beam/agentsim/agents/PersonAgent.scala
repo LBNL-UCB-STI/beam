@@ -232,6 +232,9 @@ class PersonAgent(
 
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
+  var totEnergyConsumption: Double = 0.0
+  var currentEnergyConsumption: Double = 0.0
+
   override def logDepth: Int = 30
 
   startWith(Uninitialized, BasePersonData())
@@ -466,9 +469,11 @@ class PersonAgent(
      * Learn as passenger that it is time to alight the vehicle
      */
     case Event(
-        TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit, _), triggerId),
+        TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit, _, energyConsumedOption), triggerId),
         data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _)
         ) if vehicleToExit.equals(currentVehicle.head) =>
+      currentEnergyConsumption = energyConsumedOption.map(x => x.primaryFuel + x.secondaryFuel).getOrElse(0.0)
+      totEnergyConsumption += currentEnergyConsumption
       logDebug(s"PersonLeavesVehicle: $vehicleToExit")
       eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, vehicleToExit))
       holdTickAndTriggerId(tick, triggerId)
@@ -752,6 +757,7 @@ class PersonAgent(
             correctedTrip,
             generalizedTime,
             generalizedCost,
+            currentEnergyConsumption,
             beamServices
           )
 
@@ -898,7 +904,7 @@ class PersonAgent(
         ) =>
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
     case Event(
-        TriggerWithId(AlightVehicleTrigger(_, _, Some(vehicleTypeId)), triggerId),
+        TriggerWithId(AlightVehicleTrigger(_, _, Some(vehicleTypeId), _), triggerId),
         ChoosesModeData(
           BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _),
           _,
@@ -934,7 +940,7 @@ class PersonAgent(
         ) =>
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
     case Event(
-        TriggerWithId(AlightVehicleTrigger(_, _, Some(vehicleTypeId)), triggerId),
+        TriggerWithId(AlightVehicleTrigger(_, _, Some(vehicleTypeId), _), triggerId),
         BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _)
         ) =>
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
