@@ -175,13 +175,13 @@ object TravelTimeObserved extends LazyLogging {
   }
 
   def generateChart(series: XYSeries, path: String): Unit = {
-    def drawLineHelper(color: Color, percent: Int, xyplot: XYPlot) = {
+    def drawLineHelper(color: Color, percent: Int, xyplot: XYPlot, max: Double) = {
       xyplot.addAnnotation(
         new XYLineAnnotation(
           0,
           0,
-          xyplot.getDomainAxis.getRange.getUpperBound * 100 / (100 + percent),
-          xyplot.getRangeAxis.getRange.getUpperBound,
+          max * 2 * Math.cos(Math.toRadians(45 + percent)),
+          max * 2 * Math.sin(Math.toRadians(45 + percent)),
           new BasicStroke(1f),
           color
         )
@@ -190,8 +190,8 @@ object TravelTimeObserved extends LazyLogging {
       xyplot.addAnnotation(
         new XYTextAnnotation(
           s"$percent%",
-          xyplot.getDomainAxis.getRange.getUpperBound / 2 * 100 / (100 + percent),
-          xyplot.getDomainAxis.getRange.getUpperBound / 2
+          max * Math.cos(Math.toRadians(45 + percent)) / 2,
+          max * Math.sin(Math.toRadians(45 + percent)) / 2
         )
       )
     }
@@ -246,13 +246,15 @@ object TravelTimeObserved extends LazyLogging {
         drawLineHelper(
           color,
           percent,
-          xyplot
+          xyplot,
+          max
         )
 
         drawLineHelper(
           color,
           -percent,
-          xyplot
+          xyplot,
+          max
         )
     }
 
