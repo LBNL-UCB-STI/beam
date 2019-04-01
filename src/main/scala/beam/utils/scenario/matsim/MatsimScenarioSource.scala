@@ -1,5 +1,5 @@
 package beam.utils.scenario.matsim
-import beam.utils.scenario.{HouseholdInfo, PersonInfo, PlanInfo, ScenarioSource}
+import beam.utils.scenario.{HouseholdInfo, PersonInfo, PlanElement, ScenarioSource}
 
 class MatsimScenarioSource(val scenarioFolder: String, val rdr: MatsimScenarioReader) extends ScenarioSource {
 
@@ -12,7 +12,7 @@ class MatsimScenarioSource(val scenarioFolder: String, val rdr: MatsimScenarioRe
   override def getPersons: Iterable[PersonInfo] = {
     rdr.readPersonsFile(personFilePath)
   }
-  override def getPlans: Iterable[PlanInfo] = {
+  override def getPlans: Iterable[PlanElement] = {
     rdr.readPlansFile(planFilePath)
   }
   override def getHousehold: Iterable[HouseholdInfo] = {
