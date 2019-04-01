@@ -44,7 +44,7 @@ object GpxCompareSimulationVsReference {
           val dstid = tazTreeMap.getTAZ(line.get("toTAZId"))
           val timeSimulated = line.get("timeSimulated").toInt
 
-          if (timeSimulated > minimumTime)
+          if (timeSimulated >= minimumTime)
             sourceid.foreach(source => {
               dstid.foreach {
                 destination =>
