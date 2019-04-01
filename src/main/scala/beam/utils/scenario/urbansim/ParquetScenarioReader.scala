@@ -103,7 +103,7 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
   }
 
   private[scenario] def toParcelAttribute(rec: GenericRecord): ParcelAttribute = {
-    val primaryId = getIfNotNull(rec, "primary_id").toString
+    val primaryId = getIfNotNull(rec, "parcel_id").toString
     val x = getIfNotNull(rec, "x").asInstanceOf[Double]
     val y = getIfNotNull(rec, "y").asInstanceOf[Double]
     ParcelAttribute(primaryId = primaryId, x = x, y = y)
