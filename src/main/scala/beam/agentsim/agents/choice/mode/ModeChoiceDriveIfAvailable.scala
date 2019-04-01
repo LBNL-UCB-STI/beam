@@ -1,13 +1,11 @@
 package beam.agentsim.agents.choice.mode
 
-import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes
 import beam.router.Modes.BeamMode.CAR
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
-import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
 
 import scala.collection.mutable.ListBuffer
