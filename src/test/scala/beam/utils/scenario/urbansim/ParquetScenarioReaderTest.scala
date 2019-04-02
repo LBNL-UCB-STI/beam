@@ -16,7 +16,7 @@ class GenericRecordMock(val map: java.util.Map[String, AnyRef]) extends GenericR
   override def getSchema: Schema = ???
 }
 
-class ParquetUrbanSimScenarioReaderTest extends WordSpec with Matchers with MockitoSugar {
+class ParquetScenarioReaderTest extends WordSpec with Matchers with MockitoSugar {
   "A ParquetScenarioReader" should {
     "get the value by key returns value" when {
       "it is not null" in {
@@ -41,7 +41,7 @@ class ParquetUrbanSimScenarioReaderTest extends WordSpec with Matchers with Mock
 
     "be able to create ParcelAttribute from GenericRecord" in {
       val gr = new GenericRecordMock(
-        Map("primary_id" -> "1".asInstanceOf[AnyRef], "x" -> 1.0.asInstanceOf[AnyRef], "y" -> 2.0.asInstanceOf[AnyRef]).asJava
+        Map("parcel_id" -> "1".asInstanceOf[AnyRef], "x" -> 1.0.asInstanceOf[AnyRef], "y" -> 2.0.asInstanceOf[AnyRef]).asJava
       )
       ParquetScenarioReader.toParcelAttribute(gr) should be(ParcelAttribute(primaryId = "1", x = 1.0, y = 2.0))
     }
@@ -67,18 +67,20 @@ class ParquetUrbanSimScenarioReaderTest extends WordSpec with Matchers with Mock
     "be able to create PlanInfo from GenericRecord" in {
       val gr = new GenericRecordMock(
         Map(
-          "personId"    -> "1".asInstanceOf[AnyRef],
-          "planElement" -> "leg".asInstanceOf[AnyRef],
-          "x"           -> 2.0.asInstanceOf[AnyRef],
-          "y"           -> 3.0.asInstanceOf[AnyRef],
-          "endTime"     -> 4.0.asInstanceOf[AnyRef],
-          "mode"        -> "mode".asInstanceOf[AnyRef],
+          "personId"         -> "1".asInstanceOf[AnyRef],
+          "planElement"      -> "leg".asInstanceOf[AnyRef],
+          "planElementIndex" -> 1L.asInstanceOf[AnyRef],
+          "x"                -> 2.0.asInstanceOf[AnyRef],
+          "y"                -> 3.0.asInstanceOf[AnyRef],
+          "endTime"          -> 4.0.asInstanceOf[AnyRef],
+          "mode"             -> "mode".asInstanceOf[AnyRef],
         ).asJava
       )
       ParquetScenarioReader.toPlanInfo(gr) should be(
-        PlanInfo(
+        PlanElement(
           personId = "1",
           planElement = "leg",
+          planElementIndex = 1,
           activityType = None,
           x = Some(2.0),
           y = Some(3.0),
