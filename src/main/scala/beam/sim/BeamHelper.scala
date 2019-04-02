@@ -6,6 +6,7 @@ import java.util.concurrent.TimeUnit
 import java.util.{Properties, Random}
 
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
@@ -353,7 +354,12 @@ trait BeamHelper extends LazyLogging {
     if (isMetricsEnable) Kamon.start(clusterConfig.withFallback(ConfigFactory.defaultReference()))
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
-    import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
+    import akka.cluster.singleton.{
+      ClusterSingletonManager,
+      ClusterSingletonManagerSettings,
+      ClusterSingletonProxy,
+      ClusterSingletonProxySettings
+    }
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
@@ -381,6 +387,26 @@ trait BeamHelper extends LazyLogging {
       if (isMetricsEnable) Kamon.shutdown()
       logger.info("Exiting BEAM")
     }), scala.concurrent.duration.Duration.Inf)
+  }
+
+  def writeScenarioPrivateVehicles(scenario: MutableScenario, beamServices: BeamServices) = {
+    val csvWriter: FileWriter = new FileWriter("householdVehicles.csv", true)
+    try {
+      csvWriter.write("vehicleId,vehicleType,householdId\n")
+      scenario.getHouseholds.getHouseholds.values.asScala.foreach { householdId =>
+        householdId.getVehicleIds.asScala.foreach { vehicle =>
+          beamServices
+            .privateVehicles
+            .get(vehicle)
+            .map(
+              v => v.id.toString + "," + v.beamVehicleType.id.toString + "," + householdId.getId.toString + "\n"
+            )
+            .map((csvWriter.write(_)))
+        }
+      }
+    } finally {
+      csvWriter.close()
+    }
   }
 
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
@@ -561,20 +587,7 @@ trait BeamHelper extends LazyLogging {
         scenario.getPopulation.removePerson(personId)
       }
 
-      val csvWriter = new FileWriter("householdVehicles.csv", true)
-      csvWriter.write("vehicleId,vehicleType,householdId\n")
-
-      scenario.getHouseholds.getHouseholds.values.asScala.foreach { householdId =>
-        householdId.getVehicleIds.asScala.foreach { vehicle =>
-          csvWriter.write(
-            beamServices.privateVehicles.get(vehicle).get.id + "," +
-            beamServices.privateVehicles.get(vehicle).map(_.beamVehicleType.id.toString).getOrElse("") +
-            "," + householdId.getId + "\n"
-          )
-        }
-      }
-
-      csvWriter.close()
+      writeScenarioPrivateVehicles(scenario, beamServices)
 
       val numOfHouseholds = scenario.getHouseholds.getHouseholds.values().size
       val vehicles = scenario.getHouseholds.getHouseholds.values.asScala.flatMap(hh => hh.getVehicleIds.asScala)
