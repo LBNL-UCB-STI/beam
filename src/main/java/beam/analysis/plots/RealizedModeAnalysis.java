@@ -133,7 +133,8 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
             createRootRealizedModeChoosenGraph(referenceDataset,referenceGraphTitle, "# mode choosen(Percent)" , fileName , cumulativeReferenceMode);
         }
 
-        writeToReplaningChainCSV(event);
+        Map<String, Integer> modeCount = calculateModeCount();
+        writeToReplaningChainCSV(event, modeCount);
         writeToRootCSV();
         writeToCSV(event);
         writeToReferenceCSV();
@@ -630,53 +631,59 @@ public class RealizedModeAnalysis implements GraphAnalysis, MetricsSupport {
         }
     }
 
-    private void writeToReplaningChainCSV(IterationEndsEvent event) {
-        String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(event.getIteration(), "replanningEventChain.csv");
+    public Map<String, Integer> calculateModeCount(){
+
         String REPLANNING_SEPARATOR = "-"+ReplanningEvent.EVENT_TYPE+"-";
-        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(fileName)))) {
-            String heading = "modeChoiceReplanningEventChain,count";
-            out.write(heading);
-            out.newLine();
-            Set<String> persons = personReplanningChain.keySet();
-            Map<String, Integer> modeCount = new HashedMap();
-            for(String person: persons){
-                List<String> modes = personReplanningChain.get(person);
-                if(modes.size() > 1){
-                    StringBuffer lastMode = new StringBuffer();
-                    boolean isLastReplaning = false;
-                    for(String mode: modes){
-                        if(ReplanningEvent.EVENT_TYPE.equals(mode)){
-                            lastMode.append(REPLANNING_SEPARATOR);
-                            isLastReplaning = true;
+        Set<String> persons = personReplanningChain.keySet();
+        //This is holding modes-replanning-modes as key and there count as value
+        Map<String, Integer> modeCount = new HashMap<>();
+        for(String person: persons){
+            List<String> modes = personReplanningChain.get(person);
+            if(modes.size() > 1){
+                StringBuffer lastModes = new StringBuffer();
+                for(String mode: modes){
+                    if(ReplanningEvent.EVENT_TYPE.equals(mode)){
+                        lastModes.append(REPLANNING_SEPARATOR);
+                    }
+                    else if(lastModes.toString().endsWith(REPLANNING_SEPARATOR)){
+                        //This is used to decrease previous key count(if any)
+                        String lastModeCount = lastModes.substring(0, lastModes.length()- REPLANNING_SEPARATOR.length());
+                        if(modeCount.containsKey(lastModeCount)){
+                            modeCount.merge(lastModeCount, -1, Integer::sum);
                         }
-                        else{
-                            if(isLastReplaning){
-                                //This is used to remove previous count string(if any)
-                                String lastModeCount = lastMode.substring(0, lastMode.length()- REPLANNING_SEPARATOR.length());
-                                if(modeCount.containsKey(lastModeCount)){
-                                    modeCount.merge(lastModeCount, -1, Integer::sum);
-                                }
-                                lastMode.append(mode);
-                                modeCount.merge(lastMode.toString(), 1, Integer::sum);
-                            }else{
-                                lastMode = new StringBuffer(mode);
-                            }
-                            isLastReplaning = false;
-                        }
+                        lastModes.append(mode);
+                        modeCount.merge(lastModes.toString(), 1, Integer::sum);
+                    }else{
+                        lastModes = new StringBuffer(mode);
                     }
                 }
             }
+        }
+        return modeCount;
+    }
 
-            Set<String> modes = modeCount.keySet();
-            for(String mode: modes){
-                int count = modeCount.get(mode);
-                if(count > 0){
-                    out.write(mode+","+count);
-                    out.newLine();
+    private void writeToReplaningChainCSV(IterationEndsEvent event, Map<String, Integer> modeCount) {
+        String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(event.getIteration(), "replanningEventChain.csv");
+
+        try(FileWriter fileWriter = new FileWriter(new File(fileName))){
+            try (BufferedWriter out = new BufferedWriter(fileWriter)) {
+                String heading = "modeChoiceReplanningEventChain,count";
+                out.write(heading);
+                out.newLine();
+                Set<String> modes = modeCount.keySet();
+                for(String mode: modes){
+                    int count = modeCount.get(mode);
+                    if(count > 0){
+                        out.write(mode+","+count);
+                        out.newLine();
+                    }
                 }
+            } catch (IOException ex) {
+                log.error("exception occurred due to ", ex);
             }
-        } catch (IOException ex) {
-            log.error("exception occurred due to ", ex);
+        }
+        catch (IOException exception){
+            log.error("exception occurred due to ", exception);
         }
     }
 
