@@ -81,7 +81,7 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
 
         if (isCACCCategoryRoad(link)) {
             caccCategoryRoadsTravelled++;
-            updatedCapacity=(2152.777778 * fractionCACCOnRoad * fractionCACCOnRoad * fractionCACCOnRoad - 764.8809524 * fractionCACCOnRoad * fractionCACCOnRoad + 456.1507937 * fractionCACCOnRoad + 1949.047619) / 1949.047619 * initialCapacity;
+            updatedCapacity= calculateCapacity(fractionCACCOnRoad, initialCapacity);
 
 
 
@@ -115,6 +115,10 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
         }
 
         return updatedCapacity /3600;
+    }
+
+    double calculateCapacity(double fractionCACCOnRoad, double initialCapacity) {
+        return (2152.777778 * fractionCACCOnRoad * fractionCACCOnRoad * fractionCACCOnRoad - 764.8809524 * fractionCACCOnRoad * fractionCACCOnRoad + 456.1507937 * fractionCACCOnRoad + 1949.047619) / 1949.047619 * initialCapacity;
     }
 
     public void printStats(){
