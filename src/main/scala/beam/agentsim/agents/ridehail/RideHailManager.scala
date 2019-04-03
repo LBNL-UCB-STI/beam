@@ -23,8 +23,7 @@ import beam.agentsim.agents.ridehail.allocation._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{
   CouldNotFindRouteToCustomer,
   DriverNotFoundError,
-  RideHailVehicleTakenError,
-  VehicleGoneError
+  RideHailVehicleTakenError
 }
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -37,10 +36,10 @@ import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, _}
-import beam.router.{BeamRouter, BeamSkimmer, RouteHistory}
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
+import beam.router.{BeamRouter, BeamSkimmer, RouteHistory}
 import beam.sim.RideHailFleetInitializer.RideHailAgentInputData
 import beam.sim._
 import beam.sim.vehicles.VehiclesAdjustment
@@ -52,10 +51,11 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.vividsolutions.jts.geom.Envelope
+import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.{Activity, Person, Population}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.vehicles.{Vehicle, VehicleType}
+import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -63,7 +63,6 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.math.{max, min}
-import probability_monad.Distribution.lognormal
 
 object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLocation, Double)] {
   override def compare(
@@ -317,6 +316,8 @@ class RideHailManager(
   private var cacheHits = 0
 
   private val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
+  val realDistribution: UniformRealDistribution = new UniformRealDistribution()
+  realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
   private val rideHailinitialLocationSpatialPlot = new SpatialPlot(1100, 1100, 50)
   val resources: mutable.Map[Id[BeamVehicle], BeamVehicle] = mutable.Map[Id[BeamVehicle], BeamVehicle]()
 
@@ -326,9 +327,9 @@ class RideHailManager(
       val meanLogShiftDurationHours = 1.02
       val stdLogShiftDurationHours = 0.44
       var equivalentNumberOfDrivers = 0.0
-      val persons: List[Person] = RandomUtils
+      val persons: Array[Person] = RandomUtils
         .shuffle(scenario.getPopulation.getPersons.values().asScala, rand)
-        .toList
+        .toArray
       val activityEndTimes: ArrayBuffer[Int] = new ArrayBuffer[Int]()
       scenario.getPopulation.getPersons.asScala.foreach(
         _._2.getSelectedPlan.getPlanElements.asScala
@@ -351,7 +352,8 @@ class RideHailManager(
               .getVehicleAdjustment(beamServices)
               .sampleRideHailVehicleTypes(
                 numVehicles = 1,
-                vehicleCategory = VehicleCategory.Car
+                vehicleCategory = VehicleCategory.Car,
+                realDistribution
               )
               .head
             if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >=

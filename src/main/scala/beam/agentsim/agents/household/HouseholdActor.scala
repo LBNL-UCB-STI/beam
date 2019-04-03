@@ -222,9 +222,9 @@ object HouseholdActor {
             limitCavToXPersons = Int.MaxValue
           )(beamServices.matsimServices.getScenario.getPopulation)
 
-          var optimalPlan = cavScheduler.getKBestCAVSchedules(1)
-//          val optimalPlan = cavScheduler.getBestCAVScheduleWithLongestChain
-          if (optimalPlan.isEmpty) {
+          //val optimalPlan = cavScheduler.getKBestCAVSchedules(1).headOption.getOrElse(List.empty)
+          val optimalPlan = cavScheduler.getBestProductiveSchedule
+          if (optimalPlan.isEmpty || !optimalPlan.exists(_.schedule.size > 1)) {
             cavs = List()
           } else {
             val requestsAndUpdatedPlans = optimalPlan.filter(_.schedule.size > 1).map {
