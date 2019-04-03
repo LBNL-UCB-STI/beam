@@ -30,6 +30,7 @@ import org.supercsv.io.{CsvMapReader, ICsvMapReader}
 import org.supercsv.prefs.CsvPreference
 
 import scala.collection.mutable
+import scala.collection.mutable.HashMap
 
 class TravelTimeObserved @Inject()(
   val beamConfig: BeamConfig,
@@ -76,18 +77,20 @@ class TravelTimeObserved @Inject()(
       "tazODTravelTimeObservedVsSimulated.csv.gz"
     )
     val writerObservedVsSimulated = IOUtils.getBufferedWriter(filePathObservedVsSimulated)
-    writerObservedVsSimulated.write("fromTAZId,toTAZId,hour,timeSimulated,timeObserved")
+    writerObservedVsSimulated.write("fromTAZId,toTAZId,hour,timeSimulated,timeObserved,counts")
     writerObservedVsSimulated.write("\n")
 
     val series: XYSeries = new XYSeries("Time", false)
+    val counts = new HashMap[PathCache, Int]().withDefaultValue(0)
 
     beamServices.tazTreeMap.getTAZs
-      .foreach { origin =>
+      .foreach { origin: TAZ =>
         beamServices.tazTreeMap.getTAZs.foreach { destination =>
           uniqueModes.foreach { mode =>
             uniqueTimeBins
               .foreach { timeBin =>
                 val key = PathCache(origin.tazId, destination.tazId, timeBin)
+                counts(key) += 1
                 observedTravelTimes.get(key).foreach { timeObserved =>
                   skimmer
                     .getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
@@ -95,7 +98,7 @@ class TravelTimeObserved @Inject()(
                     .foreach { theSkim =>
                       series.add(theSkim.time, timeObserved)
                       writerObservedVsSimulated.write(
-                        s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved}\n"
+                        s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved},${counts(key)}\n"
                       )
                     }
                 }
