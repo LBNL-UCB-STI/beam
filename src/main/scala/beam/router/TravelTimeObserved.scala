@@ -83,7 +83,7 @@ class TravelTimeObserved @Inject()(
     val counts = new mutable.HashMap[PathCache, Int]().withDefaultValue(0)
 
     beamServices.tazTreeMap.getTAZs
-      .foreach { origin: TAZ =>
+      .foreach { origin =>
         beamServices.tazTreeMap.getTAZs.foreach { destination =>
           uniqueModes.foreach { mode =>
             uniqueTimeBins
