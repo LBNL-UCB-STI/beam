@@ -88,7 +88,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
   protected def currentBeamVehicle = beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
   protected val fuelConsumedByTrip: mutable.Map[Id[Person], FuelConsumed] = mutable.Map()
 
-  case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime, toll: Double)
+  case class PassengerScheduleEmptyMessage(
+    lastVisited: SpaceTime,
+    toll: Double,
+    fuelConsumed: Option[FuelConsumed] = None
+  )
 
   private def handleStopDrivingIfNoPassengerOnBoard(
     tick: Int,
@@ -118,6 +122,14 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
   var nextNotifyVehicleResourceIdle: Option[NotifyVehicleIdle] = None
 
+  def updateFuelConsumedByTrip(idp: Id[Person], fuelConsumed: FuelConsumed, factor: Int = 1): Unit = {
+    val existingFuel = fuelConsumedByTrip.getOrElse(idp, FuelConsumed(0, 0))
+    fuelConsumedByTrip(idp) = FuelConsumed(
+      existingFuel.primaryFuel + fuelConsumed.primaryFuel / factor,
+      existingFuel.secondaryFuel + fuelConsumed.secondaryFuel / factor
+    )
+  }
+
   when(Driving) {
     case ev @ Event(
           TriggerWithId(EndLegTrigger(tick), triggerId),
@@ -135,15 +147,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       val fuelConsumed = currentBeamVehicle.useFuel(currentLeg, beamServices)
 
       val nbPassengers = data.passengerSchedule.schedule(currentLeg).riders.size
-      data.passengerSchedule.schedule(currentLeg).riders foreach { rider =>
-        val existingFuel = fuelConsumedByTrip match {
-          case rider.personId => fuelConsumedByTrip(rider.personId)
-          case _              => FuelConsumed(0, 0)
+      if (nbPassengers > 0) {
+        data.passengerSchedule.schedule(currentLeg).riders foreach { rider =>
+          updateFuelConsumedByTrip(rider.personId, fuelConsumed, nbPassengers)
         }
-        fuelConsumedByTrip(rider.personId) = FuelConsumed(
-          existingFuel.primaryFuel + fuelConsumed.primaryFuel / nbPassengers,
-          existingFuel.secondaryFuel + fuelConsumed.secondaryFuel / nbPassengers
-        )
+      } else {
+        updateFuelConsumedByTrip(id.asInstanceOf[Id[Person]], fuelConsumed)
       }
 
       if (isLastLeg) {
@@ -261,8 +270,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               .travelPath
               .endPoint
           ),
-          tollsAccumulated
+          tollsAccumulated,
+          Some(fuelConsumedByTrip(id.asInstanceOf[Id[Person]]))
         )
+        fuelConsumedByTrip.remove(id.asInstanceOf[Id[Person]])
         tollsAccumulated = 0.0
         goto(PassengerScheduleEmpty) using data
           .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
