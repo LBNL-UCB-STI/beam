@@ -30,7 +30,6 @@ import org.supercsv.io.{CsvMapReader, ICsvMapReader}
 import org.supercsv.prefs.CsvPreference
 
 import scala.collection.mutable
-import scala.collection.mutable.HashMap
 
 class TravelTimeObserved @Inject()(
   val beamConfig: BeamConfig,
@@ -81,7 +80,7 @@ class TravelTimeObserved @Inject()(
     writerObservedVsSimulated.write("\n")
 
     val series: XYSeries = new XYSeries("Time", false)
-    val counts = new HashMap[PathCache, Int]().withDefaultValue(0)
+    val counts = new mutable.HashMap[PathCache, Int]().withDefaultValue(0)
 
     beamServices.tazTreeMap.getTAZs
       .foreach { origin: TAZ =>
