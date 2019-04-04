@@ -9,7 +9,7 @@ trait UrbanSimScenarioReader {
   def readParcelAttrFile(path: String): Array[ParcelAttribute]
   def readBuildingsFile(path: String): Array[BuildingInfo]
   def readPersonsFile(path: String): Array[PersonInfo]
-  def readPlansFile(path: String): Array[PlanInfo]
+  def readPlansFile(path: String): Array[PlanElement]
   def readHouseholdsFile(path: String): Array[HouseholdInfo]
 }
 

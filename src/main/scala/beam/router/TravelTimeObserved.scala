@@ -19,6 +19,7 @@ import org.jfree.chart.annotations.{XYLineAnnotation, XYTextAnnotation}
 import org.jfree.chart.plot.{PlotOrientation, XYPlot}
 import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer
 import org.jfree.data.xy.{XYSeries, XYSeriesCollection}
+import org.jfree.ui.RectangleInsets
 import org.jfree.util.ShapeUtilities
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -174,20 +175,24 @@ object TravelTimeObserved extends LazyLogging {
   }
 
   def generateChart(series: XYSeries, path: String): Unit = {
-    def drawLineHelper(color: Color, percent: Int, xyplot: XYPlot) = {
+    def drawLineHelper(color: Color, percent: Int, xyplot: XYPlot, max: Double) = {
       xyplot.addAnnotation(
         new XYLineAnnotation(
           0,
           0,
-          xyplot.getDomainAxis.getRange.getUpperBound * 100 / (100 + percent),
-          xyplot.getRangeAxis.getRange.getUpperBound,
+          max * 2 * Math.cos(Math.toRadians(45 + percent)),
+          max * 2 * Math.sin(Math.toRadians(45 + percent)),
           new BasicStroke(1f),
           color
         )
       )
 
       xyplot.addAnnotation(
-        new XYTextAnnotation(s"$percent%", 1000 * 100 / (100 + percent), 1000)
+        new XYTextAnnotation(
+          s"$percent%",
+          max * Math.cos(Math.toRadians(45 + percent)) / 2,
+          max * Math.sin(Math.toRadians(45 + percent)) / 2
+        )
       )
     }
 
@@ -211,10 +216,15 @@ object TravelTimeObserved extends LazyLogging {
     renderer.setSeriesPaint(0, Color.RED)
     renderer.setSeriesLinesVisible(0, false)
 
+    val max = Math.max(series.getMaxX, series.getMaxY)
+
     xyplot.getDomainAxis.setAutoRange(false)
     xyplot.getRangeAxis.setAutoRange(false)
-    xyplot.getDomainAxis.setRange(0.0, Math.max(series.getMaxX, series.getMaxY))
-    xyplot.getRangeAxis.setRange(0.0, Math.max(series.getMaxX, series.getMaxY))
+    xyplot.getDomainAxis.setRange(0.0, max)
+    xyplot.getRangeAxis.setRange(0.0, max)
+
+    xyplot.getDomainAxis.setTickLabelInsets(new RectangleInsets(10.0, 10.0, 10.0, 10.0))
+    xyplot.getRangeAxis.setTickLabelInsets(new RectangleInsets(10.0, 10.0, 10.0, 10.0))
 
     // diagonal line
     chart.getXYPlot.addAnnotation(
@@ -236,13 +246,15 @@ object TravelTimeObserved extends LazyLogging {
         drawLineHelper(
           color,
           percent,
-          xyplot
+          xyplot,
+          max
         )
 
         drawLineHelper(
           color,
           -percent,
-          xyplot
+          xyplot,
+          max
         )
     }
 

@@ -28,7 +28,7 @@ class UrbanSimScenarioSource(
   val householdFilePath: String = s"$scenarioFolder/households.$fileExt"
   val planFilePath: String = s"$scenarioFolder/plans.$fileExt"
   val unitFilePath: String = s"$scenarioFolder/units.$fileExt"
-  val parcelAttrFilePath: String = s"$scenarioFolder/parcel_attr.$fileExt"
+  val parcelAttrFilePath: String = s"$scenarioFolder/parcels.$fileExt"
 
   override def getPersons: Iterable[PersonInfo] = {
     rdr.readPersonsFile(personFilePath).map { person =>
@@ -40,8 +40,14 @@ class UrbanSimScenarioSource(
       )
     }
   }
-  override def getPlans: Iterable[PlanInfo] = {
-    rdr.readPlansFile(planFilePath).map { plan =>
+  override def getPlans: Iterable[PlanElement] = {
+    val rawPlanElements = rdr.readPlansFile(planFilePath)
+    val planElements = dropCorruptedPlanElements(rawPlanElements)
+    logger.info(
+      s"$planFilePath contains ${rawPlanElements.size} planElement, after removing corrupted data: ${planElements.length}"
+    )
+
+    planElements.map { plan =>
       val coord = (plan.x, plan.y) match {
         case (Some(x), Some(y)) =>
           val c =
@@ -59,9 +65,10 @@ class UrbanSimScenarioSource(
         case _ =>
           None
       }
-      PlanInfo(
+      PlanElement(
         personId = PersonId(plan.personId),
         planElement = plan.planElement,
+        planElementIndex = plan.planElementIndex,
         activityType = plan.activityType,
         x = coord.map(_.getX),
         y = coord.map(_.getY),
@@ -139,5 +146,18 @@ class UrbanSimScenarioSource(
         }
         unitId -> coord
     }.seq
+  }
+
+  private def dropCorruptedPlanElements(rawPlans: Array[DataExchange.PlanElement]): Array[DataExchange.PlanElement] = {
+    val correctPlanElements = rawPlans
+      .groupBy(x => x.personId)
+      .filter {
+        case (k, v) =>
+          val isCorrupted = v.exists(x => x.planElementIndex == 1 && x.endTime.isEmpty)
+          !isCorrupted
+      }
+      .flatMap { case (k, v) => v.sortBy(x => x.planElementIndex) }
+      .toArray
+    correctPlanElements
   }
 }
