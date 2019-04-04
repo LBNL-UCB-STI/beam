@@ -5,7 +5,9 @@ if [ "$#" -ne 2 ]; then
     exit 1;
 fi
 
-zip -r beam.zip . -x "output/*"
-zip -ur beam.zip $1/ITERS/it.$2
+filename=$(basename $1)
 
-aws --region "us-east-2" s3 cp beam.zip s3://beam-outputs/
+zip -r "$filename.zip" . -x "output/*"
+zip -ur "$filename.zip" $1/ITERS/it.$2
+
+aws --region "us-east-2" s3 cp "$filename.zip" s3://beam-outputs/
