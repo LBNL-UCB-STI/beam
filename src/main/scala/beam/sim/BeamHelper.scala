@@ -389,7 +389,7 @@ trait BeamHelper extends LazyLogging {
     }), scala.concurrent.duration.Duration.Inf)
   }
 
-  def writeScenarioPrivateVehicles(scenario: MutableScenario, beamServices: BeamServices) = {
+  def writeScenarioPrivateVehicles(scenario: MutableScenario, beamServices: BeamServices): Unit = {
     val csvWriter: FileWriter = new FileWriter("householdVehicles.csv", true)
     try {
       csvWriter.write("vehicleId,vehicleType,householdId\n")
@@ -400,7 +400,7 @@ trait BeamHelper extends LazyLogging {
             .map(
               v => v.id.toString + "," + v.beamVehicleType.id.toString + "," + householdId.getId.toString + "\n"
             )
-            .map((csvWriter.write(_)))
+            .foreach(csvWriter.write)
         }
       }
     } finally {
