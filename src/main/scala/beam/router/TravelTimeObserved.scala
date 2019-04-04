@@ -2,8 +2,8 @@ package beam.router
 import java.awt.{BasicStroke, Color}
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.infrastructure.TAZTreeMap
-import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.agentsim.infrastructure.taz.TAZTreeMap
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.analysis.plots.GraphUtils
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR

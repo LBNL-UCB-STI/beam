@@ -10,7 +10,8 @@ import beam.agentsim.infrastructure.charging.ChargingPointType
   * stores the number of stalls in use for a zone of parking stalls with a common set of attributes
   * @param parkingZoneId the Id of this Zone, which directly corresponds to the Array index of this used in the ParkingZoneSearch Array[ParkingZone]
   * @param stallsAvailable a (mutable) count of stalls free, which is mutated to track the current state of stalls in a way that is logically similar to a semiphore
-  * @param ChargingPointType if this stall has charging, this is the type of charging
+  * @param maxStalls
+  * @param chargingPointType if this stall has charging, this is the type of charging
   * @param pricingModel if this stall has pricing, this is the type of pricing
   */
 class ParkingZone(
