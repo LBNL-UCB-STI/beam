@@ -395,8 +395,7 @@ trait BeamHelper extends LazyLogging {
       csvWriter.write("vehicleId,vehicleType,householdId\n")
       scenario.getHouseholds.getHouseholds.values.asScala.foreach { householdId =>
         householdId.getVehicleIds.asScala.foreach { vehicle =>
-          beamServices
-            .privateVehicles
+          beamServices.privateVehicles
             .get(vehicle)
             .map(
               v => v.id.toString + "," + v.beamVehicleType.id.toString + "," + householdId.getId.toString + "\n"
