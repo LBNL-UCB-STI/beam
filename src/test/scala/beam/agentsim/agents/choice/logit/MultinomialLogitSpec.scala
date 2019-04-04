@@ -65,12 +65,15 @@ class MultinomialLogitSpec extends WordSpecLike with Matchers with BeamHelper {
   "An MNL Model with arbitrary data" must {
 
     // the alternatives as objects
-    sealed trait Mode
+    sealed trait Mode extends AlternativeType
 
     object Car extends Mode
-    object Walk extends Mode
 
-    object Common extends Mode
+    object Walk extends AlternativeType[Mode] with Mode {
+      override def alternativeTypeId: Mode = Car
+    }
+
+
 
     // the function parameters as objects
     sealed trait FunctionParam

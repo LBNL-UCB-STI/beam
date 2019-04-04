@@ -143,7 +143,7 @@ object ParkingZoneSearch {
     // todo: sampleAlternative cannot return None, maybe doesn't need to be returning an Option[], but, what is it's behavior if the input is empty?
     utilityFunction.sampleAlternative(alternatives.toVector, random).
       map{ alternative =>
-        val (taz, parkingType, parkingZone, coordinate) = alternative.alternativeId
+        val (taz, parkingType, parkingZone, coordinate) = alternative.alternativeTypeId
         // todo: report sampled utility value here? would be nice for calling function to be able to log
         val utility = 0.0
         RankingAccumulator(

@@ -113,16 +113,16 @@ class ModeChoiceLCCM(
           )
         case Some(chosenClass) =>
           val chosenModeOpt = lccm
-            .modeChoiceModels(tourType)(chosenClass.alternativeId)
+            .modeChoiceModels(tourType)(chosenClass.alternativeTypeId)
             .sampleAlternative(modeChoiceInputData, new Random())
           expectedMaximumUtility = lccm
-            .modeChoiceModels(tourType)(chosenClass.alternativeId)
+            .modeChoiceModels(tourType)(chosenClass.alternativeTypeId)
             .getExpectedMaximumUtility(modeChoiceInputData)
 
           chosenModeOpt match {
             case Some(chosenMode) =>
               val chosenAlt =
-                bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode.alternativeId))
+                bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode.alternativeTypeId))
               if (chosenAlt.isEmpty) {
                 None
               } else {
