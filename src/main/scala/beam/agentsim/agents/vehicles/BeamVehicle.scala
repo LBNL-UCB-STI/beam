@@ -125,23 +125,15 @@ class BeamVehicle(
     * @return FuelConsumed
     */
   def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): FuelConsumed = {
-    val fuelConsumptionData =
-      if (beamServices.beamConfig.beam.agentsim.agents.vehicles.enableNewVehicleEnergyConsumptionLogic) {
-        BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
-      } else {
-        IndexedSeq()
-      }
+    val fuelConsumptionData = BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
 
     val primaryEnergyForFullLeg =
-      /*val (primaryEnergyForFullLeg, primaryLoggingData) =*/
-      if (beamServices.beamConfig.beam.agentsim.agents.vehicles.enableNewVehicleEnergyConsumptionLogic)
+    /*val (primaryEnergyForFullLeg, primaryLoggingData) =*/
         beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
           fuelConsumptionData,
           fallBack = powerTrain.getRateInJoulesPerMeter,
           Primary
         )
-      else powerTrain.estimateConsumptionInJoules(fuelConsumptionData)
-    /*else (powerTrain.estimateConsumptionInJoules(fuelConsumptionData), IndexedSeq.empty[LoggingData])*/
     var primaryEnergyConsumed = primaryEnergyForFullLeg
     var secondaryEnergyConsumed = 0.0
     /*var secondaryLoggingData = IndexedSeq.empty[LoggingData]*/
@@ -149,15 +141,12 @@ class BeamVehicle(
       if (secondaryFuelLevelInJoules > 0.0) {
         // Use secondary fuel if possible
         val secondaryEnergyForFullLeg =
-          /*val (secondaryEnergyForFullLeg, secondaryLoggingData) =*/
-          if (beamServices.beamConfig.beam.agentsim.agents.vehicles.enableNewVehicleEnergyConsumptionLogic)
+        /*val (secondaryEnergyForFullLeg, secondaryLoggingData) =*/
             beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
               fuelConsumptionData,
               fallBack = powerTrain.getRateInJoulesPerMeter,
               Secondary
             )
-          else powerTrain.estimateConsumptionInJoules(fuelConsumptionData)
-        /*else (powerTrain.estimateConsumptionInJoules(fuelConsumptionData), IndexedSeq.empty[LoggingData])*/
         secondaryEnergyConsumed = secondaryEnergyForFullLeg * (primaryEnergyForFullLeg - primaryFuelLevelInJoules) / primaryEnergyConsumed
         if (secondaryFuelLevelInJoules < secondaryEnergyConsumed) {
           logger.warn(
