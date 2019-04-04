@@ -80,7 +80,14 @@ class TravelTimeObserved @Inject()(
     writerObservedVsSimulated.write("\n")
 
     val series: XYSeries = new XYSeries("Time", false)
-    val counts = new mutable.HashMap[PathCache, Int]().withDefaultValue(0)
+    val counts = new mutable.HashMap[(TAZ, TAZ), Int]().withDefaultValue(0)
+
+    beamServices.tazTreeMap.getTAZs
+      .foreach { origin =>
+        beamServices.tazTreeMap.getTAZs.foreach { destination =>
+          counts((origin, destination)) += 1
+        }
+      }
 
     beamServices.tazTreeMap.getTAZs
       .foreach { origin =>
@@ -89,7 +96,6 @@ class TravelTimeObserved @Inject()(
             uniqueTimeBins
               .foreach { timeBin =>
                 val key = PathCache(origin.tazId, destination.tazId, timeBin)
-                counts(key) += 1
                 observedTravelTimes.get(key).foreach { timeObserved =>
                   skimmer
                     .getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
@@ -97,7 +103,7 @@ class TravelTimeObserved @Inject()(
                     .foreach { theSkim =>
                       series.add(theSkim.time, timeObserved)
                       writerObservedVsSimulated.write(
-                        s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved},${counts(key)}\n"
+                        s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved},${counts(origin, destination)}\n"
                       )
                     }
                 }
