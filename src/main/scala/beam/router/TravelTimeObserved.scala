@@ -80,14 +80,6 @@ class TravelTimeObserved @Inject()(
     writerObservedVsSimulated.write("\n")
 
     val series: XYSeries = new XYSeries("Time", false)
-    val counts = new mutable.HashMap[(TAZ, TAZ), Int]().withDefaultValue(0)
-
-    beamServices.tazTreeMap.getTAZs
-      .foreach { origin =>
-        beamServices.tazTreeMap.getTAZs.foreach { destination =>
-          counts((origin, destination)) += 1
-        }
-      }
 
     beamServices.tazTreeMap.getTAZs
       .foreach { origin =>
@@ -103,7 +95,7 @@ class TravelTimeObserved @Inject()(
                     .foreach { theSkim =>
                       series.add(theSkim.time, timeObserved)
                       writerObservedVsSimulated.write(
-                        s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved},${counts(origin, destination)}\n"
+                        s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved},${theSkim.count}\n"
                       )
                     }
                 }
