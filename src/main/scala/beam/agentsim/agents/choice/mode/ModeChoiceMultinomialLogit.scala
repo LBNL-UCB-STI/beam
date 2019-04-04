@@ -61,7 +61,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       chosenModeOpt match {
         case Some(chosenMode) =>
           val chosenModeCostTime =
-            bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode.alternativeId))
+            bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode.alternativeTypeId))
           if (chosenModeCostTime.isEmpty || chosenModeCostTime.head.index < 0) {
             None
           } else {
@@ -258,12 +258,7 @@ object ModeChoiceMultinomialLogit {
 
   def buildModelFromConfig(mnlConfig: Agents.ModalBehaviors.MulitnomialLogit): MultinomialLogit[String, String] = {
 
-    val commonUtility = Some(
-      UtilityFunction[String, String](
-        "COMMON",
-        Set(UtilityFunctionParam("cost", UtilityFunctionParamType("multiplier"), -1))
-      )
-    )
+    val commonUtility = Set(UtilityFunctionParam("cost", UtilityFunctionParamType("multiplier"), -1))
 
     val mnlUtilityFunctions: Vector[UtilityFunction[String, String]] = Vector(
       UtilityFunction[String, String](

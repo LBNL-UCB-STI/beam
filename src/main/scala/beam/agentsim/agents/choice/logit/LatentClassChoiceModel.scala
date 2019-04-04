@@ -105,7 +105,7 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
         val altsToInclude =
           mnlData.map(_.params.filter(_.paramId.equalsIgnoreCase("asc")))
         theLatentClass -> MultinomialLogit(
-          mnlData.filter(mnlRow => altsToInclude.contains(mnlRow.alternativeId))
+          mnlData.filter(mnlRow => altsToInclude.contains(mnlRow.alternativeTypeId))
         )
       }.toMap
     }.toMap

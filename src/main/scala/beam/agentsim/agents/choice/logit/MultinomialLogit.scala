@@ -1,6 +1,5 @@
 package beam.agentsim.agents.choice.logit
 
-import beam.agentsim.agents.choice.logit.UtilityFunctionParamType.{Intercept, Multiplier}
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.util.Random
@@ -8,14 +7,13 @@ import scala.util.Random
 /**
   * General implementation of a MultinomialLogit model
   *
-  * @param utilityFunctionParams map contains all utility functions for all options that should be evaluated
-  * @param common
-  * @tparam A
+  * @param utilityFunctionParams mapping of types of alternatives to its set of utility function parameters
+  * @param commonParams a set of parameter that should be applied to all alternatives, no mater of their specific alternative type
   * @tparam T
   */
-class MultinomialLogit[A, T](
-  val utilityFunctionParams: Map[A, Set[UtilityFunctionParam[T]]],
-  val commonUtility: Option[UtilityFunction[A, T]] = None
+class MultinomialLogit[T](
+  val utilityFunctionParams: Map[AlternativeType, Set[UtilityFunctionParam[T]]],
+  val commonParams: Set[UtilityFunctionParam[T]] = Set.empty[UtilityFunctionParam[T]]
 ) extends LazyLogging {
 
   /**
@@ -30,9 +28,12 @@ class MultinomialLogit[A, T](
     * @return
     */
   def sampleAlternative(
-    alternatives: Vector[Alternative[T, A]],
+    alternatives: Vector[Alternative[T]],
     random: Random
-  ): Option[Alternative[T, A]] = {
+  ): Option[Alternative[T]] = {
+    if (alternatives.isEmpty)
+      return None
+
     val expV = alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt)))
     // If any is +Inf then choose that as the certain alternative
     val indsOfPosInf = for (theExpV <- expV.zipWithIndex if theExpV._1 == Double.PositiveInfinity)
@@ -60,7 +61,7 @@ class MultinomialLogit[A, T](
     * @param alternatives the alternatives that should be evaluated
     * @return
     */
-  def getExpectedMaximumUtility(alternatives: Vector[Alternative[T, A]]): Double = {
+  def getExpectedMaximumUtility(alternatives: Vector[Alternative[T]]): Double = {
     Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
   }
 
@@ -72,16 +73,10 @@ class MultinomialLogit[A, T](
     * @param alternative the alternative to evaluate
     * @return
     */
-  def getUtilityOfAlternative(alternative: Alternative[T, A]): Double = {
-
-    // if we have commonParams provided we wanna use them
-    val commonParams = commonUtility match {
-      case Some(x) => x.params
-      case None    => Set()
-    }
+  def getUtilityOfAlternative(alternative: Alternative[T]): Double = {
 
     val evaluated: Iterable[Double] = for {
-      theseParams                                         <- utilityFunctionParams.get(alternative.alternativeId).toList
+      theseParams                                         <- utilityFunctionParams.get(alternative.alternativeTypeId).toList
       UtilityFunctionParam(param, paramType, coefficient) <- theseParams ++ commonParams
     } yield {
       val thisParam: Double = alternative.attributes.get(param).getOrElse(0)
@@ -93,18 +88,20 @@ class MultinomialLogit[A, T](
 
 object MultinomialLogit {
 
-  def apply[A, T](utilityFunctionParams: Map[A, Set[UtilityFunctionParam[T]]]): MultinomialLogit[A, T] = {
+  def apply[T](
+    utilityFunctionParams: Map[AlternativeType, Set[UtilityFunctionParam[T]]]
+  ): MultinomialLogit[T] = {
     new MultinomialLogit(utilityFunctionParams)
   }
 
-  def apply[A, T](utilityFunctionData: IndexedSeq[UtilityFunction[A, T]]): MultinomialLogit[A, T] = {
+  def apply[T](utilityFunctionData: IndexedSeq[UtilityFunction[T]]): MultinomialLogit[T] = {
     new MultinomialLogit(reduceInputData(utilityFunctionData))
   }
 
-  def apply[A, T](
-    utilityFunctionData: IndexedSeq[UtilityFunction[A, T]],
-    commonUtility: Option[UtilityFunction[A, T]]
-  ): MultinomialLogit[A, T] = {
+  def apply[T](
+    utilityFunctionData: IndexedSeq[UtilityFunction[T]],
+    commonUtility: Set[UtilityFunctionParam[T]]
+  ): MultinomialLogit[T] = {
     new MultinomialLogit(reduceInputData(utilityFunctionData), commonUtility)
   }
 
@@ -117,9 +114,9 @@ object MultinomialLogit {
     * @return
     */
   private def reduceInputData[A, T](
-    utilityFunctionData: IndexedSeq[UtilityFunction[A, T]]
-  ): Map[A, Set[UtilityFunctionParam[T]]] = {
-    utilityFunctionData.groupBy(_.alternativeId).map { data =>
+    utilityFunctionData: IndexedSeq[UtilityFunction[T]]
+  ): Map[AlternativeType, Set[UtilityFunctionParam[T]]] = {
+    utilityFunctionData.groupBy(_.alternativeTypeId).map { data =>
       data._1 -> data._2.flatMap { utilityFunction =>
         utilityFunction.params
       }.toSet
