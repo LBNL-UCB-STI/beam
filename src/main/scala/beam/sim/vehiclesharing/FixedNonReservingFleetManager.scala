@@ -3,24 +3,20 @@ package beam.sim.vehiclesharing
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Success
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import beam.agentsim.Resource.{Boarded, NotAvailable, NotifyVehicleIdle, TryToBoardVehicle}
-import beam.agentsim.agents.{InitializeTrigger, Pickup}
-import beam.agentsim.agents.household.HouseholdActor.{
-  MobilityStatusInquiry,
-  MobilityStatusResponse,
-  ReleaseVehicle,
-  ReleaseVehicleAndReply
-}
+import beam.agentsim.agents.InitializeTrigger
+import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle, ReleaseVehicleAndReply}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.Token
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
-import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
+import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamSkimmer
 import beam.sim.BeamServices
@@ -34,17 +30,31 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
+case class VehicleSharingRepositioningTrigger(tick: Int) extends Trigger
+
 private[vehiclesharing] class FixedNonReservingFleetManager(
+  val scheduler: ActorRef,
   val parkingManager: ActorRef,
   val locations: Iterable[Coord],
   val vehicleType: BeamVehicleType,
   val beamServices: BeamServices,
   val skimmer: BeamSkimmer
 ) extends Actor
-    with ActorLogging {
+    with ActorLogging
+    with Stash {
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
+
+  var currentlyProcessingTimeoutTrigger: Option[TriggerWithId] = None
+  val repositioningManager =
+    new RepositioningManager(
+      log,
+      self,
+      this,
+      scheduler,
+      beamServices.beamConfig
+    )
 
   private val vehicles = (locations.zipWithIndex map {
     case (location, ix) =>
@@ -62,7 +72,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   private val availableVehiclesIndex = new Quadtree
 
   override def receive: Receive = {
-    case TriggerWithId(InitializeTrigger(_), triggerId) =>
+    case TriggerWithId(InitializeTrigger(tick), triggerId) =>
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.
       Future
@@ -76,6 +86,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         })
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
+      scheduler ! ScheduleTrigger(VehicleSharingRepositioningTrigger(tick), self)
 
     case MobilityStatusInquiry(personId, whenWhere, _) =>
       // Search box: 1000 meters around query location
@@ -127,6 +138,18 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       )
       log.debug("Checked in " + vehicle.id)
       sender() ! Success
+
+    case trigger @ TriggerWithId(VehicleSharingRepositioningTrigger(tick), triggerId) =>
+      currentlyProcessingTimeoutTrigger match {
+        case Some(_) =>
+          stash()
+          repositioningManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
+          repositioningManager.sendCompletionAndScheduleNewTimeout(Reposition, tick)
+        case None =>
+          currentlyProcessingTimeoutTrigger = Some(trigger)
+          repositioningManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
+          repositioningManager.sendCompletionAndScheduleNewTimeout(Reposition, tick)
+      }
   }
 
   def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(
