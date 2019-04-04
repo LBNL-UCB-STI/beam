@@ -565,6 +565,7 @@ if(F){
       do.not.replace <- c(do.not.replace,replace.target.i)
     }
   }
+  sessions
   sessions.more.fast[,fast:=power>25]
   sessions.more.fast[,scen:='6% Sessions Use 50kW Fast Chargers']
   sessions.more.fast[,flex:=plugTime-chargeTime]
@@ -580,14 +581,51 @@ if(F){
   sessions.more.fast.ultra.ultra[,flex:=plugTime-chargeTime]
   sessions.more.fast.ultra.ultra[,flex.bin:=names(flex.bins)[findInterval(flex,flex.bins)+1]]
   sessions.more.fast.ultra.ultra[,flex.bin:=factor(flex.bin,levels=names(flex.bins))]
-  ggplot(rbindlist(list(sessions,sessions.more.fast,sessions.more.fast.ultra,sessions.more.fast.ultra.ultra))[,.(n=.N,energy=sum(energy)),by=c('scen','hour','flex.bin')],aes(x=hour,y=energy/1e3,fill=flex.bin))+geom_bar(stat='identity')+
+  all.sessions <- rbindlist(list(sessions,sessions.more.fast,sessions.more.fast.ultra,sessions.more.fast.ultra.ultra))
+  ggplot(all.sessions[,.(n=.N,energy=sum(energy)),by=c('scen','hour','flex.bin')],aes(x=hour,y=energy/1e3,fill=flex.bin))+geom_bar(stat='identity')+
     facet_wrap(~scen)+labs(x="Charging Session Start Hour",y="Energy Demanded in Charging Session (MWh)",fill="Hours of flexibility") + 
     theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), strip.text.x = element_text(size = 10, face = "bold"), strip.text.y = element_text(size = 10, face = "bold"), axis.text.x = element_text(angle=0, size=10), axis.title.x = element_text(size=12) , axis.text.y = element_text(angle=0, size=10), axis.title.y = element_text(size=12),legend.position="bottom", legend.title = element_text( size = 12), legend.text = element_text( size = 12)  , plot.title = element_text(size=14, hjust=0.5))  + 
     scale_x_continuous(breaks=seq(0,24,6))
-  ggplot(rbindlist(list(sessions,sessions.more.fast,sessions.more.fast.ultra,sessions.more.fast.ultra.ultra))[,.(n=.N,power=sum(power)),by=c('scen','hour','flex.bin')],aes(x=hour,y=power/1e3,fill=flex.bin))+geom_bar(stat='identity')+
+  ggplot(all.sessions[,.(n=.N,power=sum(power)),by=c('scen','hour','flex.bin')],aes(x=hour,y=power/1e3,fill=flex.bin))+geom_bar(stat='identity')+
     facet_wrap(~scen)+labs(x="Charging Session Start Hour",y="Power Demanded in Charging Session (MW)",fill="Hours of flexibility") + 
     theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), strip.text.x = element_text(size = 10, face = "bold"), strip.text.y = element_text(size = 10, face = "bold"), axis.text.x = element_text(angle=0, size=10), axis.title.x = element_text(size=12) , axis.text.y = element_text(angle=0, size=10), axis.title.y = element_text(size=12),legend.position="bottom", legend.title = element_text( size = 12), legend.text = element_text( size = 12)  , plot.title = element_text(size=14, hjust=0.5))  + 
     scale_x_continuous(breaks=seq(0,24,6))
+
+  # Look at flexibility divided by vehicle range
+  if(!'vehicleClassName' %in% names(sessions)){
+    sessions <- join.on(sessions,peeps,'person','personId',c('batteryCapacityInKWh','vehicleClassName'))
+    sessions[vehicleClassName!='PHEV',vehicleClassName:='BEV']
+  }
+  median.kwh <- sessions[,.(med=median(batteryCapacityInKWh)),by='vehicleClassName']
+  sessions[vehicleClassName=='BEV',low.range:=ifelse(batteryCapacityInKWh<=median.kwh[vehicleClassName=='BEV']$med,'Low Range','High Range')]
+  sessions[vehicleClassName=='PHEV',low.range:=ifelse(batteryCapacityInKWh<=median.kwh[vehicleClassName=='PHEV']$med,'Low Range','High Range')]
+  if(!'max.energy' %in% names(sessions)){
+    max.energy <- sessions[,.(sum.energy=sum(energy)),by=c('hour','low.range','vehicleClassName')][,.(max.energy=max(sum.energy)),by=c('low.range','vehicleClassName')]
+    sessions <- join.on(sessions,max.energy,c('low.range','vehicleClassName'),c('low.range','vehicleClassName'),'max.energy')
+  }
+
+  ggplot(sessions[,.(n=.N,energy=sum(energy)/max.energy[1]*100),by=c('hour','flex.bin','low.range','vehicleClassName')],aes(x=hour,y=energy,fill=flex.bin))+geom_bar(stat='identity')+
+    facet_wrap(vehicleClassName~low.range)+labs(x="Charging Session Start Hour",y="% of Max Energy Demanded in Charging Session",fill="Hours of flexibility") + 
+    theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"), strip.text.x = element_text(size = 10, face = "bold"), strip.text.y = element_text(size = 10, face = "bold"), axis.text.x = element_text(angle=0, size=10), axis.title.x = element_text(size=12) , axis.text.y = element_text(angle=0, size=10), axis.title.y = element_text(size=12),legend.position="bottom", legend.title = element_text( size = 12), legend.text = element_text( size = 12)  , plot.title = element_text(size=14, hjust=0.5))  + 
+    scale_x_continuous(breaks=seq(0,24,6))
+  
+
+  # Turn sessions into load to show impact on power
+  ts <- seq(0,ceiling(max(ev$hr)),by=1)
+
+     #Debugging
+    #ev[,list(hr=sort(c(ts,hr)),
+                  #hr.min=sort(c(ts,hr.min)),
+                  #kw=repeat_last(rev(repeat_last(rev(my.approx(hr,kw,xout=sort(c(ts,hr)),method='constant')$y))))
+                  #),by=c('person','siteType')]
+    soc.raw <- ev[,list(hr=sort(c(ts,hr)),
+                    hr.min=sort(c(ts,hr.min)),
+                    kw=repeat_last(rev(repeat_last(rev(approx(hr,kw,xout=sort(c(ts,hr)),method='constant')$y)))),
+                    kw.min=repeat_last(rev(repeat_last(rev(approx(hr,kw,xout=sort(c(ts,hr.min)),method='constant')$y)))),
+                    energy.level=repeat_last(rev(repeat_last(rev(approx(hr,energy.level,xout=sort(c(ts,hr)),method='linear')$y)))),
+                    energy.level.min=repeat_last(rev(repeat_last(rev(my.approx(hr.min,energy.level.min,xout=sort(c(ts,hr.min)),method='linear')$y)))),
+                    veh.type=veh.type[1]),
+                     by=c('scenario','person','final.type')]
 }
 
 
