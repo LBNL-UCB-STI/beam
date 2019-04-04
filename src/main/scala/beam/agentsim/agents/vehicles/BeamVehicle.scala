@@ -125,15 +125,16 @@ class BeamVehicle(
     * @return FuelConsumed
     */
   def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): FuelConsumed = {
-    val fuelConsumptionData = BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
+    val fuelConsumptionData =
+      BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
 
     val primaryEnergyForFullLeg =
-    /*val (primaryEnergyForFullLeg, primaryLoggingData) =*/
-        beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
-          fuelConsumptionData,
-          fallBack = powerTrain.getRateInJoulesPerMeter,
-          Primary
-        )
+      /*val (primaryEnergyForFullLeg, primaryLoggingData) =*/
+      beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
+        fuelConsumptionData,
+        fallBack = powerTrain.getRateInJoulesPerMeter,
+        Primary
+      )
     var primaryEnergyConsumed = primaryEnergyForFullLeg
     var secondaryEnergyConsumed = 0.0
     /*var secondaryLoggingData = IndexedSeq.empty[LoggingData]*/
@@ -141,12 +142,12 @@ class BeamVehicle(
       if (secondaryFuelLevelInJoules > 0.0) {
         // Use secondary fuel if possible
         val secondaryEnergyForFullLeg =
-        /*val (secondaryEnergyForFullLeg, secondaryLoggingData) =*/
-            beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
-              fuelConsumptionData,
-              fallBack = powerTrain.getRateInJoulesPerMeter,
-              Secondary
-            )
+          /*val (secondaryEnergyForFullLeg, secondaryLoggingData) =*/
+          beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
+            fuelConsumptionData,
+            fallBack = powerTrain.getRateInJoulesPerMeter,
+            Secondary
+          )
         secondaryEnergyConsumed = secondaryEnergyForFullLeg * (primaryEnergyForFullLeg - primaryFuelLevelInJoules) / primaryEnergyConsumed
         if (secondaryFuelLevelInJoules < secondaryEnergyConsumed) {
           logger.warn(
