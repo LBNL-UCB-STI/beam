@@ -4,7 +4,8 @@ import java.io._
 import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.choice.mode.DrivingCost
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
@@ -27,6 +28,8 @@ import beam.sim.{BeamServices, BeamWarmStart}
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
+import com.vividsolutions.jts.index.quadtree.Quadtree
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -34,6 +37,7 @@ import org.matsim.core.utils.io.IOUtils
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
+import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.language.implicitConversions
 import scala.util.control.NonFatal
@@ -244,8 +248,8 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     }
   }
 
-  def timeToBin(departTime: Int): Int = {
-    Math.floorMod(Math.floor(departTime.toDouble / 3600.0).toInt, 24)
+  def timeToBin(departTime: Int, timeWindow: Double = 3600.0): Int = {
+    Math.floorMod(Math.floor(departTime.toDouble / timeWindow).toInt, (24 * 3600 / timeWindow).toInt)
   }
 
   def mergeAverage(existingAverage: Double, existingCount: Int, newValue: Double): Double = {
@@ -259,12 +263,17 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     ProfilingUtils.timed(s"writeCarSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}", x => logger.info(x)) {
       writeCarSkimsForPeakNonPeakPeriods(event)
     }
+    ProfilingUtils.timed(s"writeObservedSkimsPlus on iteration ${event.getIteration}", x => logger.info(x)) {
+      writeObservedSkimsPlus(event)
+    }
     // Writing full skims are very large, but code is preserved here in case we want to enable it.
     // TODO make this a configurable output "writeFullSkimsInterval" with default of 0
     // if(beamServicesOpt.isDefined) writeFullSkims(event)
 
     previousSkims = skims
     skims = new TrieMap()
+    previousSkimsPlus = skimsPlus
+    skimsPlus = new TrieMap()
   }
 
   def averageAndWriteSkims(
@@ -456,6 +465,79 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     }
     writer.close()
   }
+
+  // **********
+  // Skim Plus
+  private var previousSkimsPlus: TrieMap[(TimeBin, Id[TAZ], VehiclesManager), SkimPlus] = TrieMap()
+  private var skimsPlus: TrieMap[(TimeBin, Id[TAZ], VehiclesManager), SkimPlus] = TrieMap()
+  private val timeWindow: Int = 5 * 60
+
+  def getSkimPlusValue(time: Int, taz: Id[TAZ], vehiclesManager: VehiclesManager): Option[SkimPlus] = {
+    val timeBin = timeToBin(time, timeWindow)
+    previousSkimsPlus.get((timeBin, taz, vehiclesManager))
+  }
+
+  def getSkimPlusValues(
+    startTime: Int,
+    endTime: Int,
+    taz: Id[TAZ],
+    vehiclesManager: VehiclesManager
+  ): Vector[SkimPlus] = {
+    (timeToBin(startTime, timeWindow) to timeToBin(endTime, timeWindow))
+      .map { i =>
+        previousSkimsPlus.get((i, taz, vehiclesManager))
+      }
+      .toVector
+      .flatten
+  }
+
+  def observeVehicleInquiryByTAZ(
+    who: Id[Person],
+    whenWhere: SpaceTime,
+    vehiclesManager: VehiclesManager,
+    vehicles: Quadtree
+  ): Unit = {
+    val timeBin = timeToBin(whenWhere.time, timeWindow)
+    val taz = beamServices.tazTreeMap.getTAZ(whenWhere.loc.getX, whenWhere.loc.getY)
+    val key = (timeBin, taz.tazId, vehiclesManager)
+    val vehiclesInTAZ = vehicles
+      .queryAll()
+      .asScala
+      .count(
+        v =>
+          taz == beamServices.tazTreeMap
+            .getTAZ(v.asInstanceOf[BeamVehicle].spaceTime.loc.getX, v.asInstanceOf[BeamVehicle].spaceTime.loc.getY)
+      )
+    skimsPlus.put(
+      key,
+      skimsPlus.get(key) match {
+        case Some(exSkimPlus) =>
+          exSkimPlus
+            .copy(availableVehicles = exSkimPlus.availableVehicles + vehiclesInTAZ, demand = exSkimPlus.demand + 1)
+        case None => SkimPlus(availableVehicles = vehiclesInTAZ, demand = 1)
+      }
+    )
+  }
+
+  def writeObservedSkimsPlus(event: IterationEndsEvent): Unit = {
+    val filePath = event.getServices.getControlerIO.getIterationFilename(
+      event.getServices.getIterationNumber,
+      BeamSkimmer.observedSkimsPlusFileBaseName + ".csv.gz"
+    )
+    val writer = IOUtils.getBufferedWriter(filePath)
+    writer.write(observedSkimsPlusHeader.mkString(","))
+    writer.write("\n")
+
+    skimsPlus.foreach { keyVal =>
+      val (bin, taz, vehicleManager) = keyVal._1
+      val skimP = keyVal._2
+      writer.write(
+        s"$bin,$taz,$vehicleManager,${skimP.availableVehicles}\n"
+      )
+    }
+    writer.close()
+  }
+  // *********
 }
 
 object BeamSkimmer extends LazyLogging {
@@ -561,4 +643,13 @@ object BeamSkimmer extends LazyLogging {
     }
     res
   }
+
+  // *******
+  // Skim Plus
+  private val observedSkimsPlusFileBaseName = "skimsPlus"
+  private val observedSkimsPlusHeader = "time,taz,vehicleManager,availableVehicles".split(",")
+  type TimeBin = Int
+  type VehiclesManager = String
+  case class SkimPlus(availableVehicles: Int = 0, demand: Int = 0)
+  //
 }

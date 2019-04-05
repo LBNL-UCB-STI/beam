@@ -16,7 +16,6 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
-import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamSkimmer
 import beam.sim.BeamServices
@@ -84,7 +83,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         })
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
-      if(beamServices.iterationNumber > 0)
+      if (beamServices.iterationNumber > 0)
         scheduler ! ScheduleTrigger(VehicleSharingRepositioningTrigger(tick), self)
 
     case MobilityStatusInquiry(personId, whenWhere, _) =>
