@@ -118,7 +118,11 @@ case class AttributesOfIndividual(
         // Use default if it exists, otherwise look up from vehicle ID
         beamServices
           .getDefaultAutomationLevel()
-          .getOrElse(beamServices.vehicleTypes(beamVehicleTypeId).automationLevel)
+          .getOrElse(
+            beamServices.vehicleTypes
+              .getOrElse(beamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
+              .automationLevel
+          )
       case None =>
         1
     }
