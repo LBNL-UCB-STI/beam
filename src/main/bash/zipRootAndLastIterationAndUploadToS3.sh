@@ -7,7 +7,7 @@ fi
 
 filename=$1
 
-zip -r "$filename.zip" $filename -x "$filename/ITERS/*"
+zip -r "$filename.zip" $filename -x "$filename/ITERS/**\*"
 zip -ur "$filename.zip" $filename/ITERS/it.$2
 
 aws --region "us-east-2" s3 cp "$filename.zip" s3://beam-outputs/
