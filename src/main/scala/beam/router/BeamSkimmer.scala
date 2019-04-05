@@ -542,7 +542,7 @@ object BeamSkimmer extends LazyLogging {
             distanceInMeters.toDouble,
             cost.toDouble,
             numObservations.toInt,
-            energy.toDouble
+            Option(energy).map(_.toDouble).getOrElse(0.0)
           )
         res.put(key, value)
         line = mapReader.read(header: _*)
