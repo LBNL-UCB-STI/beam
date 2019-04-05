@@ -4,23 +4,12 @@ import java.io._
 import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.choice.mode.DrivingCost
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  BIKE,
-  CAR,
-  CAV,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -28,6 +17,8 @@ import beam.sim.{BeamServices, BeamWarmStart}
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
+import com.vividsolutions.jts.geom.{Coordinate, Envelope}
+import com.vividsolutions.jts.index.quadtree.Quadtree
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
@@ -38,6 +29,7 @@ import org.supercsv.prefs.CsvPreference
 
 import scala.collection.concurrent.TrieMap
 import scala.language.implicitConversions
+import scala.collection.JavaConverters._
 
 //TODO to be validated against google api
 class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamServices) extends LazyLogging {
@@ -455,23 +447,32 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   // Skim Plus
   private var previousSkimsPlus: TrieMap[(TimeBin, Id[TAZ], VehiclesManager), SkimPlus] = TrieMap()
   private var skimsPlus: TrieMap[(TimeBin, Id[TAZ], VehiclesManager), SkimPlus] = TrieMap()
+  private val timeWindow: Int = 5*60
 
-  def observeVehicleInquiry(
-    who: Id[Person],
-    whenWhere: SpaceTime,
-    vehicleManager: VehiclesManager,
-    beamServices: BeamServices
-  ): Unit = {
-    val timeBin = timeToBin(whenWhere.time, 15 * 60.0)
-    val idTAZ = beamServices.tazTreeMap.getTAZ(whenWhere.loc.getX, whenWhere.loc.getY).tazId
-    val key = (timeBin, idTAZ, vehicleManager)
-    val payload = SkimPlus(1)
-    skimsPlus.get(key) match {
-      case Some(existingSkim) =>
-        skimsPlus.put(key, SkimPlus(existingSkim.availableVehicles + 1))
-      case None =>
-        skimsPlus.put(key, payload)
-    }
+  def getSkimPlusValue(time: Int, taz: Id[TAZ], vehiclesManager: VehiclesManager): Option[SkimPlus] = {
+    val timeBin = timeToBin(time, timeWindow)
+    previousSkimsPlus.get((timeBin, taz, vehiclesManager))
+  }
+
+  def getSkimPlusValues(startTime: Int, endTime: Int, taz: Id[TAZ], vehiclesManager: VehiclesManager): Vector[SkimPlus] = {
+    (timeToBin(startTime, timeWindow) to timeToBin(endTime, timeWindow)).map { i =>
+      previousSkimsPlus.get((i, taz, vehiclesManager))
+    }.toVector.flatten
+  }
+
+  def observeVehicleInquiryByTAZ(who: Id[Person], whenWhere: SpaceTime, vehiclesManager: VehiclesManager, vehicles: Quadtree): Unit = {
+    val timeBin = timeToBin(whenWhere.time, timeWindow)
+    val taz = beamServices.tazTreeMap.getTAZ(whenWhere.loc.getX, whenWhere.loc.getY)
+    val key = (timeBin, taz.tazId, vehiclesManager)
+    val vehiclesInTAZ = vehicles.queryAll().asScala.count(v =>
+      taz == beamServices.tazTreeMap.getTAZ(
+        v.asInstanceOf[BeamVehicle].spaceTime.loc.getX,
+        v.asInstanceOf[BeamVehicle].spaceTime.loc.getY))
+    skimsPlus.put(key,
+      skimsPlus.get(key) match {
+        case Some(exSkimPlus) => exSkimPlus.copy(availableVehicles = exSkimPlus.availableVehicles + vehiclesInTAZ, demand = exSkimPlus.demand + 1)
+        case None => SkimPlus(availableVehicles = vehiclesInTAZ, demand = 1)
+      })
   }
 
   def writeObservedSkimsPlus(event: IterationEndsEvent): Unit = {
@@ -601,6 +602,6 @@ object BeamSkimmer extends LazyLogging {
   private val observedSkimsPlusHeader = "time,taz,vehicleManager,availableVehicles".split(",")
   type TimeBin = Int
   type VehiclesManager = String
-  case class SkimPlus(availableVehicles: Int) {}
+  case class SkimPlus(availableVehicles: Int = 0, demand: Int = 0)
   //
 }

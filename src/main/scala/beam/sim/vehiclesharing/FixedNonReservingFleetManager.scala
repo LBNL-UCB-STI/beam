@@ -30,8 +30,6 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
-case class VehicleSharingRepositioningTrigger(tick: Int) extends Trigger
-
 private[vehiclesharing] class FixedNonReservingFleetManager(
   val scheduler: ActorRef,
   val parkingManager: ActorRef,
@@ -46,14 +44,14 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
 
-  var currentlyProcessingTimeoutTrigger: Option[TriggerWithId] = None
   val repositioningManager =
     new RepositioningManager(
       log,
       self,
       this,
       scheduler,
-      beamServices.beamConfig
+      beamServices,
+      skimmer
     )
 
   private val vehicles = (locations.zipWithIndex map {
@@ -86,7 +84,8 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         })
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
-      scheduler ! ScheduleTrigger(VehicleSharingRepositioningTrigger(tick), self)
+      if(beamServices.iterationNumber > 0)
+        scheduler ! ScheduleTrigger(VehicleSharingRepositioningTrigger(tick), self)
 
     case MobilityStatusInquiry(personId, whenWhere, _) =>
       // Search box: 1000 meters around query location
@@ -98,7 +97,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       sender ! MobilityStatusResponse(nearbyVehicles.take(5).map { vehicle =>
         Token(vehicle.id, self, vehicle.toStreetVehicle)
       })
-      skimmer.observeVehicleInquiry(personId, whenWhere, "default", beamServices)
+      skimmer.observeVehicleInquiryByTAZ(personId, whenWhere, "default", availableVehiclesIndex)
 
     case TryToBoardVehicle(token, who) =>
       availableVehicles.get(token.id) match {
@@ -139,17 +138,8 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       log.debug("Checked in " + vehicle.id)
       sender() ! Success
 
-    case trigger @ TriggerWithId(VehicleSharingRepositioningTrigger(tick), triggerId) =>
-      currentlyProcessingTimeoutTrigger match {
-        case Some(_) =>
-          stash()
-          repositioningManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
-          repositioningManager.sendCompletionAndScheduleNewTimeout(Reposition, tick)
-        case None =>
-          currentlyProcessingTimeoutTrigger = Some(trigger)
-          repositioningManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
-          repositioningManager.sendCompletionAndScheduleNewTimeout(Reposition, tick)
-      }
+    case TriggerWithId(VehicleSharingRepositioningTrigger(tick), triggerId) =>
+      repositioningManager.relocate(tick, triggerId)
   }
 
   def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(
