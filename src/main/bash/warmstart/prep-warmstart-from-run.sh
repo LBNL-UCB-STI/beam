@@ -11,6 +11,7 @@ mkdir -p ${run_path}/ITERS/it.0
 
 cp ${src_it}/*.linkstats.csv.gz ${run_path}/ITERS/it.0/0.linkstats.csv.gz
 cp ${src_it}/*.plans.xml.gz ${run_path}/output_plans.xml.gz
+cp ${src_it}/*.skims.csv.gz ${run_path}/ITERS/it.0/0.skims.csv.gz
 
 cd prepare-warmstart
 zip -r "${run_name}_warmstart.zip" "$run_name"
