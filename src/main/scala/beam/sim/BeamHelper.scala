@@ -389,8 +389,8 @@ trait BeamHelper extends LazyLogging {
     }), scala.concurrent.duration.Duration.Inf)
   }
 
-  def writeScenarioPrivateVehicles(scenario: MutableScenario, beamServices: BeamServices): Unit = {
-    val csvWriter: FileWriter = new FileWriter("householdVehicles.csv", true)
+  def writeScenarioPrivateVehicles(scenario: MutableScenario, beamServices: BeamServices, outputDir: String): Unit = {
+    val csvWriter: FileWriter = new FileWriter(outputDir + "/householdVehicles.csv", true)
     try {
       csvWriter.write("vehicleId,vehicleType,householdId\n")
       scenario.getHouseholds.getHouseholds.values.asScala.foreach { householdId =>
@@ -413,14 +413,15 @@ trait BeamHelper extends LazyLogging {
 
     // beam.utils.scenario.CsvScenarioWriter.write(scenario, "c:/temp/csv_scenario_1k/")
 
-    runBeam(config, scenario, networkCoordinator)
+    runBeam(config, scenario, networkCoordinator, outputDir)
     (scenario.getConfig, outputDir)
   }
 
   def runBeam(
     config: TypesafeConfig,
     scenario: MutableScenario,
-    networkCoordinator: NetworkCoordinator
+    networkCoordinator: NetworkCoordinator,
+    outputDir: String
   ): Unit = {
     val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
@@ -447,7 +448,7 @@ trait BeamHelper extends LazyLogging {
       }
     }
 
-    samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices)
+    samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices, outputDir)
 
     val houseHoldVehiclesInScenario: Iterable[Id[Vehicle]] = scenario.getHouseholds.getHouseholds
       .values()
@@ -530,7 +531,8 @@ trait BeamHelper extends LazyLogging {
     scenario: MutableScenario,
     beamConfig: BeamConfig,
     matsimConfig: Config,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    outputDir: String
   ): Unit = {
     if (beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation < 1) {
       val numAgents = math.round(
@@ -586,7 +588,7 @@ trait BeamHelper extends LazyLogging {
         scenario.getPopulation.removePerson(personId)
       }
 
-      writeScenarioPrivateVehicles(scenario, beamServices)
+      writeScenarioPrivateVehicles(scenario, beamServices, outputDir)
 
       val numOfHouseholds = scenario.getHouseholds.getHouseholds.values().size
       val vehicles = scenario.getHouseholds.getHouseholds.values.asScala.flatMap(hh => hh.getVehicleIds.asScala)
