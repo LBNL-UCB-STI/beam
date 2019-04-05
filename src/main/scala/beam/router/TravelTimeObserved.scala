@@ -76,7 +76,7 @@ class TravelTimeObserved @Inject()(
       "tazODTravelTimeObservedVsSimulated.csv.gz"
     )
     val writerObservedVsSimulated = IOUtils.getBufferedWriter(filePathObservedVsSimulated)
-    writerObservedVsSimulated.write("fromTAZId,toTAZId,hour,timeSimulated,timeObserved")
+    writerObservedVsSimulated.write("fromTAZId,toTAZId,hour,timeSimulated,timeObserved,counts")
     writerObservedVsSimulated.write("\n")
 
     val series: XYSeries = new XYSeries("Time", false)
@@ -95,7 +95,7 @@ class TravelTimeObserved @Inject()(
                     .foreach { theSkim =>
                       series.add(theSkim.time, timeObserved)
                       writerObservedVsSimulated.write(
-                        s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved}\n"
+                        s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved},${theSkim.count}\n"
                       )
                     }
                 }
