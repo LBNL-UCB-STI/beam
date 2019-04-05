@@ -1,5 +1,5 @@
 package beam.router
-import java.awt.Color
+import java.awt.{BasicStroke, Color}
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.TAZTreeMap
@@ -15,9 +15,11 @@ import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Geometry
 import org.jfree.chart.ChartFactory
+import org.jfree.chart.annotations.{XYLineAnnotation, XYTextAnnotation}
 import org.jfree.chart.plot.{PlotOrientation, XYPlot}
 import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer
 import org.jfree.data.xy.{XYSeries, XYSeriesCollection}
+import org.jfree.ui.RectangleInsets
 import org.jfree.util.ShapeUtilities
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -74,7 +76,7 @@ class TravelTimeObserved @Inject()(
       "tazODTravelTimeObservedVsSimulated.csv.gz"
     )
     val writerObservedVsSimulated = IOUtils.getBufferedWriter(filePathObservedVsSimulated)
-    writerObservedVsSimulated.write("fromTAZId,toTAZId,hour,timeSimulated,timeObserved")
+    writerObservedVsSimulated.write("fromTAZId,toTAZId,hour,timeSimulated,timeObserved,counts")
     writerObservedVsSimulated.write("\n")
 
     val series: XYSeries = new XYSeries("Time", false)
@@ -93,7 +95,7 @@ class TravelTimeObserved @Inject()(
                     .foreach { theSkim =>
                       series.add(theSkim.time, timeObserved)
                       writerObservedVsSimulated.write(
-                        s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved}\n"
+                        s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved},${theSkim.count}\n"
                       )
                     }
                 }
@@ -173,6 +175,27 @@ object TravelTimeObserved extends LazyLogging {
   }
 
   def generateChart(series: XYSeries, path: String): Unit = {
+    def drawLineHelper(color: Color, percent: Int, xyplot: XYPlot, max: Double) = {
+      xyplot.addAnnotation(
+        new XYLineAnnotation(
+          0,
+          0,
+          max * 2 * Math.cos(Math.toRadians(45 + percent)),
+          max * 2 * Math.sin(Math.toRadians(45 + percent)),
+          new BasicStroke(1f),
+          color
+        )
+      )
+
+      xyplot.addAnnotation(
+        new XYTextAnnotation(
+          s"$percent%",
+          max * Math.cos(Math.toRadians(45 + percent)) / 2,
+          max * Math.sin(Math.toRadians(45 + percent)) / 2
+        )
+      )
+    }
+
     val dataset = new XYSeriesCollection
     dataset.addSeries(series)
     val chart = ChartFactory.createScatterPlot(
@@ -186,12 +209,54 @@ object TravelTimeObserved extends LazyLogging {
       false
     )
 
-    val xyplot = chart.getPlot.asInstanceOf[XYPlot]
+    val xyplot: XYPlot = chart.getPlot.asInstanceOf[XYPlot]
 
     val renderer = new XYLineAndShapeRenderer
     renderer.setSeriesShape(0, ShapeUtilities.createDiamond(1))
     renderer.setSeriesPaint(0, Color.RED)
     renderer.setSeriesLinesVisible(0, false)
+
+    val max = Math.max(series.getMaxX, series.getMaxY)
+
+    xyplot.getDomainAxis.setAutoRange(false)
+    xyplot.getRangeAxis.setAutoRange(false)
+    xyplot.getDomainAxis.setRange(0.0, max)
+    xyplot.getRangeAxis.setRange(0.0, max)
+
+    xyplot.getDomainAxis.setTickLabelInsets(new RectangleInsets(10.0, 10.0, 10.0, 10.0))
+    xyplot.getRangeAxis.setTickLabelInsets(new RectangleInsets(10.0, 10.0, 10.0, 10.0))
+
+    // diagonal line
+    chart.getXYPlot.addAnnotation(
+      new XYLineAnnotation(
+        0,
+        0,
+        xyplot.getDomainAxis.getRange.getUpperBound,
+        xyplot.getRangeAxis.getRange.getUpperBound
+      )
+    )
+
+    val percents: Map[Int, Color] = Map(
+      15 -> Color.RED,
+      30 -> Color.BLUE
+    )
+
+    percents.foreach {
+      case (percent: Int, color: Color) =>
+        drawLineHelper(
+          color,
+          percent,
+          xyplot,
+          max
+        )
+
+        drawLineHelper(
+          color,
+          -percent,
+          xyplot,
+          max
+        )
+    }
 
     xyplot.setRenderer(0, renderer)
 
