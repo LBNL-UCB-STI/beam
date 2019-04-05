@@ -126,7 +126,8 @@ class BeamVehicle(
     */
   def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): FuelConsumed = {
     val fuelConsumptionData =
-      BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
+      BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper,
+        beamServices.vehicleEnergy.vehicleEnergyMappingExistsFor(beamVehicleType))
 
     val primaryEnergyForFullLeg =
       /*val (primaryEnergyForFullLeg, primaryLoggingData) =*/
@@ -285,7 +286,8 @@ object BeamVehicle {
   def collectFuelConsumptionData(
     beamLeg: BeamLeg,
     theVehicleType: BeamVehicleType,
-    networkHelper: NetworkHelper
+    networkHelper: NetworkHelper,
+    onlyLength: Boolean = false
   ): IndexedSeq[FuelConsumptionData] = {
     if (beamLeg.mode.isTransit & !Modes.isOnStreetTransit(beamLeg.mode)) {
       Vector.empty
@@ -297,10 +299,10 @@ object BeamVehicle {
 //      val nextLinkIds = linkIds.takeRight(linkIds.size - 1)
       linkIds.zipWithIndex.map {
         case (id, idx) =>
-          val travelTime = linkTravelTimes(idx)
+          val travelTime = if(onlyLength) 0 else linkTravelTimes(idx)
 //          val arrivalTime = linkArrivalTimes(idx)
           val currentLink: Option[Link] = networkHelper.getLink(id)
-          val averageSpeed = try {
+          val averageSpeed = if(onlyLength) 0 else try {
             if (travelTime > 0) currentLink.map(_.getLength).getOrElse(0.0) / travelTime else 0
           } catch {
             case _: Exception => 0.0
@@ -324,11 +326,11 @@ object BeamVehicle {
           FuelConsumptionData(
             linkId = id,
             vehicleType = theVehicleType,
-            linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt).headOption,
+            linkNumberOfLanes = if(onlyLength) None else currentLink.map(_.getNumberOfLanes().toInt).headOption,
             linkCapacity = None, //currentLink.map(_.getCapacity),
             linkLength = currentLink.map(_.getLength),
-            averageSpeed = Some(averageSpeed),
-            freeFlowSpeed = currentLink.map(_.getFreespeed),
+            averageSpeed = if(onlyLength) None else Some(averageSpeed),
+            freeFlowSpeed = if(onlyLength) None else currentLink.map(_.getFreespeed),
             linkArrivalTime = None, //Some(arrivalTime),
             turnAtLinkEnd = None, //Some(turnAtLinkEnd),
             numberOfStops = None //Some(numStops)

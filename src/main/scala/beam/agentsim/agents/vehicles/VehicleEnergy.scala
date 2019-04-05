@@ -43,6 +43,8 @@ trait ConsumptionRateFilterStore {
   type ConsumptionRateFilter = Map[Range, Map[Range, Map[Range, Double]]] //speed->(gradePercent->(numberOfLanes->rate))
   def getPrimaryConsumptionRateFilterFor(vehicleType: BeamVehicleType): Option[Future[ConsumptionRateFilter]]
   def getSecondaryConsumptionRateFilterFor(vehicleType: BeamVehicleType): Option[Future[ConsumptionRateFilter]]
+  def hasPrimaryConsumptionRateFilterFor(vehicleType: BeamVehicleType): Boolean
+  def hasSecondaryConsumptionRateFilterFor(vehicleType: BeamVehicleType): Boolean
 }
 
 class ConsumptionRateFilterStoreImpl(
@@ -77,6 +79,12 @@ class ConsumptionRateFilterStoreImpl(
 
   def getSecondaryConsumptionRateFilterFor(vehicleType: BeamVehicleType) =
     secondaryConsumptionRateFiltersByVehicleType.get(vehicleType)
+
+  def hasPrimaryConsumptionRateFilterFor(vehicleType: BeamVehicleType): Boolean =
+    primaryConsumptionRateFiltersByVehicleType.keySet.exists(_ == vehicleType)
+
+  def hasSecondaryConsumptionRateFilterFor(vehicleType: BeamVehicleType): Boolean =
+    secondaryConsumptionRateFiltersByVehicleType.keySet.exists(_ == vehicleType)
 
   private def beginLoadingConsumptionRateFiltersFor(
     files: IndexedSeq[(BeamVehicleType, Option[String])],
@@ -184,6 +192,11 @@ class VehicleEnergy(
   type ConsumptionRateFilter = Map[Range, Map[Range, Map[Range, Double]]] //speed->(gradePercent->(numberOfLanes->rate))
   private lazy val linkIdToGradePercentMap = loadLinkIdToGradeMapFromCSV
   private val conversionRateForMilesPerHourFromMetersPerSecond = 2.23694
+
+  def vehicleEnergyMappingExistsFor(vehicleType: BeamVehicleType): Boolean = {
+    consumptionRateFilterStore.hasPrimaryConsumptionRateFilterFor(vehicleType) ||
+      consumptionRateFilterStore.hasSecondaryConsumptionRateFilterFor(vehicleType)
+  }
 
   def getFuelConsumptionEnergyInJoulesUsing(
     fuelConsumptionDatas: IndexedSeq[BeamVehicle.FuelConsumptionData],
