@@ -257,13 +257,13 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   }
 
   def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    ProfilingUtils.timed(s"writeObservedSkims on iteration ${event.getIteration}", x => logger.info(x)) {
+    ProfilingUtils.timed(s"writeObservedSkims on iteration ${event.getIteration}", logger.info) {
       writeObservedSkims(event)
     }
-    ProfilingUtils.timed(s"writeCarSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}", x => logger.info(x)) {
+    ProfilingUtils.timed(s"writeCarSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}", logger.info) {
       writeCarSkimsForPeakNonPeakPeriods(event)
     }
-    ProfilingUtils.timed(s"writeObservedSkimsPlus on iteration ${event.getIteration}", x => logger.info(x)) {
+    ProfilingUtils.timed(s"writeObservedSkimsPlus on iteration ${event.getIteration}", logger.info) {
       writeObservedSkimsPlus(event)
     }
     // Writing full skims are very large, but code is preserved here in case we want to enable it.
