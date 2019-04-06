@@ -14,7 +14,12 @@ trait FleetType {
 }
 
 case class FixedNonReservingFleet(config: SharedFleets$Elm.FixedNonReserving) extends FleetType {
-  override def props(beamServices: BeamServices, skimmer: BeamSkimmer, scheduler: ActorRef, parkingManager: ActorRef): Props = {
+  override def props(
+    beamServices: BeamServices,
+    skimmer: BeamSkimmer,
+    scheduler: ActorRef,
+    parkingManager: ActorRef
+  ): Props = {
     val initialSharedVehicleLocations =
       beamServices.matsimServices.getScenario.getPopulation.getPersons
         .values()
@@ -38,7 +43,12 @@ case class FixedNonReservingFleet(config: SharedFleets$Elm.FixedNonReserving) ex
 }
 
 case class InexhaustibleReservingFleet(config: SharedFleets$Elm.InexhaustibleReserving) extends FleetType {
-  override def props(beamServices: BeamServices, skimmer: BeamSkimmer, scheduler: ActorRef, parkingManager: ActorRef): Props = {
+  override def props(
+    beamServices: BeamServices,
+    skimmer: BeamSkimmer,
+    scheduler: ActorRef,
+    parkingManager: ActorRef
+  ): Props = {
     val vehicleType = beamServices.vehicleTypes.getOrElse(
       Id.create(config.vehicleTypeId, classOf[BeamVehicleType]),
       throw new RuntimeException("Vehicle type id not found: " + config.vehicleTypeId)

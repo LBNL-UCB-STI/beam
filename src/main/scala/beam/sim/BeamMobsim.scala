@@ -135,12 +135,14 @@ class BeamMobsim @Inject()(
         }
 
         private val sharedVehicleFleets = config.agents.vehicles.sharedFleets.map { fleetConfig =>
-          context.actorOf(Fleets.lookup(fleetConfig).props(beamServices, beamSkimmer, scheduler, parkingManager), fleetConfig.name)
+          context.actorOf(
+            Fleets.lookup(fleetConfig).props(beamServices, beamSkimmer, scheduler, parkingManager),
+            fleetConfig.name
+          )
         }
         sharedVehicleFleets.foreach(context.watch)
         sharedVehicleFleets.foreach(scheduler ! ScheduleTrigger(InitializeTrigger(0), _))
         //sharedVehicleFleets.foreach(scheduler ! ScheduleTrigger(VehicleSharingRepositioningTrigger(0), _))
-
 
         private val population = context.actorOf(
           Population.props(
