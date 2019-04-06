@@ -85,7 +85,8 @@ object BeamVehicleType {
     Gasoline,
     3656.0,
     3655980000.0,
-    vehicleCategory = Car
+    vehicleCategory = Car,
+    automationLevel = 1
   )
 
   val defaultBikeBeamVehicleType: BeamVehicleType = BeamVehicleType(

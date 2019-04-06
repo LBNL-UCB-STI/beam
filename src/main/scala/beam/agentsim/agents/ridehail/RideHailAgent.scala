@@ -341,7 +341,7 @@ class RideHailAgent(
   }
 
   when(PassengerScheduleEmpty) {
-    case ev @ Event(PassengerScheduleEmptyMessage(_, _), data) =>
+    case ev @ Event(PassengerScheduleEmptyMessage(_, _, _), data) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
       goto(Idle) using data
         .withPassengerSchedule(PassengerSchedule())
@@ -354,7 +354,7 @@ class RideHailAgent(
   }
 
   when(PassengerScheduleEmptyInterrupted) {
-    case ev @ Event(PassengerScheduleEmptyMessage(_, _), data) =>
+    case ev @ Event(PassengerScheduleEmptyMessage(_, _, _), data) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       goto(IdleInterrupted) using data
         .withPassengerSchedule(PassengerSchedule())

@@ -89,7 +89,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                                           OutputDirectoryHierarchy controlerIO,
                                           Scenario scenario,
                                           BeamServices beamServices) {
-
         eventsManager.addHandler(this);
         this.beamServices = beamServices;
         this.controlerIO = controlerIO;
@@ -159,8 +158,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         String objectiveFunction = beamConfig.beam().calibration().objectiveFunction();
         if (this.controlerIO != null
-                && (objectiveFunction.equals("CountsObjectiveFunction")
-                || objectiveFunction.equals("ModeChoiceAndCountsObjectiveFunction"))) {
+                && objectiveFunction.toLowerCase().contains("counts")) {
             try {
                 String outPath =
                         controlerIO
@@ -414,7 +412,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     }
 
 
-    ////
     public Map<String, double[]> processTravelTime(Collection<? extends Link> links, Map<String, double[]> currentTravelTimeMap, int maxHour) {
         int binSize = beamConfig.beam().agentsim().timeBinSize();
         TravelTime currentTravelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(binSize, currentTravelTimeMap);

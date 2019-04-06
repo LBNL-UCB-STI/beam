@@ -51,8 +51,8 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     readAs[PersonInfo](path, "readPersonsFile", toPersonInfo)
   }
 
-  def readPlansFile(path: String): Array[PlanInfo] = {
-    readAs[PlanInfo](path, "readPlansFile", toPlanInfo)
+  def readPlansFile(path: String): Array[PlanElement] = {
+    readAs[PlanElement](path, "readPlansFile", toPlanInfo)
   }
 
   def readHouseholdsFile(path: String): Array[HouseholdInfo] = {
@@ -79,18 +79,20 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     HouseholdInfo(householdId = householdId, cars = cars, income = income, unitId = unitId, buildingId = buildingId)
   }
 
-  private def toPlanInfo(rec: java.util.Map[String, String]): PlanInfo = {
+  private def toPlanInfo(rec: java.util.Map[String, String]): PlanElement = {
     // Somehow Plan file has columns in camelCase, not snake_case
     val personId = getIfNotNull(rec, "personId")
     val planElement = getIfNotNull(rec, "planElement")
+    val planElementIndex = getIfNotNull(rec, "planElementIndex").toInt
     val activityType = Option(rec.get("activityType"))
     val x = Option(rec.get("x")).map(_.toDouble)
     val y = Option(rec.get("y")).map(_.toDouble)
     val endTime = Option(rec.get("endTime")).map(_.toDouble)
     val mode = Option(rec.get("mode")).map(_.toString)
-    PlanInfo(
+    PlanElement(
       personId = personId,
       planElement = planElement,
+      planElementIndex = planElementIndex,
       activityType = activityType,
       x = x,
       y = y,
@@ -114,7 +116,7 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
   }
 
   private def toParcelAttribute(rec: java.util.Map[String, String]): ParcelAttribute = {
-    val primaryId = getIfNotNull(rec, "primary_id")
+    val primaryId = getIfNotNull(rec, "parcel_id")
     val x = getIfNotNull(rec, "x").toDouble
     val y = getIfNotNull(rec, "y").toDouble
     ParcelAttribute(primaryId = primaryId, x = x, y = y)
