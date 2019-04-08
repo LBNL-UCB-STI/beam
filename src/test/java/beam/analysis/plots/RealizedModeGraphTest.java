@@ -11,6 +11,7 @@ import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.collections.Tuple;
 
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -120,4 +121,23 @@ public class RealizedModeGraphTest {
         assertEquals(expectedCount ,actualCount);
     }
 
+    @Test
+    public void testShouldPassShouldReturnReplannigSequenceCount(){
+        Integer expectedCount = 13;
+        Integer actualCount = realizedModeStats.calculateModeCount().values().stream().reduce(Integer::sum).orElse(0);
+        assertEquals(expectedCount ,actualCount);
+    }
+
+    @Test
+    public void testShouldPassShouldReturnReplannigCount(){
+        Integer replanningEventInFile = 19;
+        String replanning = "-"+ReplanningEvent.EVENT_TYPE+"-";
+        Map<String, Integer> modeCount = realizedModeStats.calculateModeCount();
+        Integer totalReplanningCount = 0;
+        for(String mode: modeCount.keySet()){
+            int replanningCount = mode.split(replanning).length-1;
+            totalReplanningCount += replanningCount * modeCount.get(mode);
+        }
+        assertEquals(replanningEventInFile ,totalReplanningCount);
+    }
 }
