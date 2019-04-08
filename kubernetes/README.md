@@ -26,7 +26,11 @@ which automatically will be created on each node.
 
 Such custom container is base on FUSE alpine [https://en.wikipedia.org/wiki/Filesystem_in_Userspace][FUSE] which bounds
 S3 bucket to workers filesystem, needs to be deployed only once after cluster creation and allows simulation fetch inputs
-from S3. 
+from S3.
+It copies configs from S3 bucket to each node and such will be used by simulation.
+
+S3_BUCKET: beam-config <br/>
+S3_REGION: us-west-2
 
 Dockerfile also placed to the same folder.
 

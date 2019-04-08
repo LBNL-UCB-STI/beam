@@ -32,18 +32,20 @@ spec:
           image: {{ .Values.job.image }}:{{ .Values.job.imageTag }}
           resources:
             limits:
-              cpu: "1.5"
-              memory: 4Gi
+              cpu: "6"
+              memory: 14Gi
             requests:
-              cpu: "1"
-              memory: 3Gi
-          args: ["--config", {{ printf "%s/sf-light/sf-light-25k.conf" .Values.volume.data.path | quote }}, "--cluster-type", "master", "--node-host", {{ .Values.job.hostname | quote }}, "--node-port", "2552", "--seed-address", {{ printf "%s:2552" .Values.job.hostname | quote }}, "--use-local-worker", "true"]
+              cpu: "4"
+              memory: 12Gi
+          args: ["--config", {{ printf "%s/sf-light/sf-light-25k.conf" .Values.volume.data.path | quote }}, "--cluster-type", "master", "--node-host", {{ (include "beam-simulation.service" . ) | quote }}, "--node-port", "2552", "--seed-address", {{ printf "%s:2552" (include "beam-simulation.service" . ) | quote }}, "--use-local-worker", "true"]
           imagePullPolicy: Always
           env:
             - name: BEAM_OUTPUT
               value: {{ .Values.volume.output.path | quote }}
             - name: JAVA_OPTS
-              value: '"-Xmx2G" "-Xms1G" "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005"'
+              value: '"-Xmx12G" "-Xms6G"'
+            - name: MAXRAM
+              value: '12g'
           ports:
             # akka remoting
             - name: {{ .Values.service.akkaPort.name | quote }}

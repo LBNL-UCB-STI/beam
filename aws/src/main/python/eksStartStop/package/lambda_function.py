@@ -1,7 +1,16 @@
 # coding=utf-8
+import os
+import os.path
+import sys
 from datetime import datetime
 
-import os
+envLambdaTaskRoot = os.environ["LAMBDA_TASK_ROOT"]
+print("LAMBDA_TASK_ROOT env var:" + os.environ["LAMBDA_TASK_ROOT"])
+print("sys.path:" + str(sys.path))
+
+sys.path.insert(0, envLambdaTaskRoot + "/package")
+print("sys.path:" + str(sys.path))
+
 import time
 import json
 import boto3
@@ -26,13 +35,14 @@ def init_cloudformation(region):
     cf = boto3.client('cloudformation', region_name=region)
 
 
-def createEksStack(time_token):
+def create_eks_stack(time_token):
     response = cf.create_stack(
         StackName="beam-eks-{dt}".format(dt=time_token),
         TemplateURL='https://amazon-eks.s3-us-west-2.amazonaws.com/cloudformation/2019-02-11/amazon-eks-vpc-sample.yaml',
         RollbackConfiguration={
             'MonitoringTimeInMinutes': 0
         },
+        RoleARN='arn:aws:iam::340032650202:role/BeamEksDeployment',
         TimeoutInMinutes=10,
         Capabilities=[
             'CAPABILITY_IAM',
@@ -43,14 +53,14 @@ def createEksStack(time_token):
     return response['StackId']
 
 
-def createWorkersStack(time_token, ec2_instance, outputs, region):
+def create_workers_stack(time_token, ec2_instance, outputs, region, cluster_name):
     response = cf.create_stack(
         StackName="beam-eks-workers-{dt}".format(dt=time_token),
         TemplateURL='https://amazon-eks.s3-us-west-2.amazonaws.com/cloudformation/2019-02-11/amazon-eks-nodegroup.yaml',
         Parameters=[
             {
                 'ParameterKey': 'ClusterName',
-                'ParameterValue': "beam-cluster-{t}".format(t=time_token)
+                'ParameterValue': cluster_name
             },
             {
                 'ParameterKey': 'ClusterControlPlaneSecurityGroup',
@@ -84,6 +94,7 @@ def createWorkersStack(time_token, ec2_instance, outputs, region):
         RollbackConfiguration={
             'MonitoringTimeInMinutes': 0
         },
+        RoleARN='arn:aws:iam::340032650202:role/BeamEksDeployment',
         TimeoutInMinutes=10,
         Capabilities=[
             'CAPABILITY_IAM',
@@ -93,7 +104,8 @@ def createWorkersStack(time_token, ec2_instance, outputs, region):
     )
     return response['StackId']
 
-def getStackOutputs(stackName):
+
+def get_stack_outputs(stackName):
     status = None
     while status != 'CREATE_COMPLETE':
         time.sleep(10)
@@ -106,14 +118,30 @@ def getStackOutputs(stackName):
     return outputs
 
 
-def createCluster(outputs, time_token):
+def wait_cluster_outputs(cluster_name):
+    status = None
+    while status != 'ACTIVE':
+        time.sleep(10)
+        cluster_description = eks.describe_cluster(name=cluster_name)
+        status = cluster_description['cluster']['status']
+
+
+def create_cluster(outputs, time_token):
     cluster_details = eks.create_cluster(
         name="beam-cluster-{t}".format(t=time_token),
         version='1.11',
-        roleArn='arn:aws:iam::340032650202:role/eksServiceRole',
+        roleArn='arn:aws:iam::340032650202:role/BeamEksDeployment',
         resourcesVpcConfig={
             'subnetIds': outputs['SubnetIds'].split(','),
             'securityGroupIds': outputs['SecurityGroups'].split(',')
+        },
+        logging={
+            'clusterLogging': [
+                {
+                    'types': ['api', 'audit', 'authenticator', 'controllerManager', 'scheduler'],
+                    'enabled': True
+                },
+            ]
         }
     )
     return cluster_details['cluster']['name']
@@ -127,13 +155,15 @@ def instance_handler(event):
     init_eks(region)
     init_cloudformation(region)
 
-    stack_id = createEksStack(time_str)
-    otp = getStackOutputs(stack_id)
-    cluster_details = createCluster(otp, time_str)
-    workers_stack_id = createWorkersStack(time_str, instance_id, otp, region)
-    workers_outputs = getStackOutputs(workers_stack_id)
+    stack_id = create_cluster(time_str)
+    otp = get_stack_outputs(stack_id)
+    cluster_details = create_cluster(otp, time_str)
+    wait_cluster_outputs(cluster_details)
+    workers_stack_id = create_workers_stack(time_str, instance_id, otp, region, cluster_details)
+    workers_outputs = get_stack_outputs(workers_stack_id)
 
     return workers_outputs
+
 
 def lambda_handler(event, context):
     res = instance_handler(event)

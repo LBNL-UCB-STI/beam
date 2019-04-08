@@ -52,18 +52,18 @@ spec:
           image: {{ .Values.job.image }}:{{ .Values.job.imageTag }}
           resources:
             limits:
-              cpu: "7"
-              memory: 15Gi
+              cpu: "12"
+              memory: 30Gi
             requests:
-              cpu: "6"
-              memory: 13Gi
+              cpu: "10"
+              memory: 28Gi
           args: ["--config",  {{ printf "%s/sf-light/sf-light-25k.conf" .Values.volume.data.path | quote }}, "--cluster-type", "master", "--node-host", {{ include "beam-simulation.master.service" . | quote }}, "--node-port", {{ .Values.service.akkaPort.master.port | quote }}, "--seed-address", {{ printf "%s:%s" ( include "beam-simulation.master.service" . ) .Values.service.akkaPort.master.port | quote }}]
           imagePullPolicy: Always
           env:
             - name: BEAM_OUTPUT
               value: {{ .Values.volume.output.path | quote }}
             - name: JAVA_OPTS
-              value: '"-Xmx13G" "-Xms6G"'
+              value: '"-Xmx28G" "-Xms14G"'
           ports:
             # akka remoting
             - name: {{ .Values.service.akkaPort.master.name | quote }}
