@@ -80,7 +80,7 @@ class TravelTimeObserved @Inject()(
     val seriesPerCount = mutable.HashMap[Int, XYSeries]()
     val buckets = Vector(10, 100, 1000, 10000)
 
-    def getClosest(num: Double)= buckets.minBy(v => math.abs(v - num))
+    def getClosest(num: Double) = buckets.minBy(v => math.abs(v - num))
 
     beamServices.tazTreeMap.getTAZs
       .foreach { origin =>
@@ -97,8 +97,7 @@ class TravelTimeObserved @Inject()(
                       val closestBucket = getClosest(theSkim.count)
 
                       if (!seriesPerCount.contains(closestBucket))
-                        seriesPerCount(closestBucket) =
-                          new XYSeries(closestBucket.toString, false)
+                        seriesPerCount(closestBucket) = new XYSeries(closestBucket.toString, false)
 
                       val series = seriesPerCount(closestBucket)
                       series.add(theSkim.time, timeObserved)
