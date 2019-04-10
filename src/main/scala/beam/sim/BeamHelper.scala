@@ -6,7 +6,6 @@ import java.util.concurrent.TimeUnit
 import java.util.{Properties, Random}
 
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
@@ -39,7 +38,6 @@ import org.matsim.core.config.Config
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
-import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.households.Household
@@ -257,12 +255,7 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[TravelTimeObserved]).asEagerSingleton()
           bind(classOf[TollCalculator]).asEagerSingleton()
 
-          // Override EventsManager
-          if (beamConfig.beam.debug.debugEnabled) {
-            bind(classOf[EventsManager]).to(classOf[EventsManagerImpl]).asEagerSingleton()
-          } else {
-            bind(classOf[EventsManager]).to(classOf[LoggingParallelEventsManager]).asEagerSingleton()
-          }
+          bind(classOf[EventsManager]).to(classOf[LoggingEventsManager]).asEagerSingleton()
         }
       }
     )
