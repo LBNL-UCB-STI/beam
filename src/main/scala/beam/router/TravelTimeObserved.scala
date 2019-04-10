@@ -17,10 +17,8 @@ import com.vividsolutions.jts.geom.Geometry
 import org.jfree.chart.ChartFactory
 import org.jfree.chart.annotations.{XYLineAnnotation, XYTextAnnotation}
 import org.jfree.chart.plot.{PlotOrientation, XYPlot}
-import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer
 import org.jfree.data.xy.{XYSeries, XYSeriesCollection}
 import org.jfree.ui.RectangleInsets
-import org.jfree.util.ShapeUtilities
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.utils.io.IOUtils
@@ -79,7 +77,8 @@ class TravelTimeObserved @Inject()(
     writerObservedVsSimulated.write("fromTAZId,toTAZId,hour,timeSimulated,timeObserved,counts")
     writerObservedVsSimulated.write("\n")
 
-    val series: XYSeries = new XYSeries("Time", false)
+    val seriesPerCount = mutable.HashMap[Int, XYSeries]()
+    val counts = mutable.HashMap[(TAZ, TAZ), Int]().withDefaultValue(0)
 
     beamServices.tazTreeMap.getTAZs
       .foreach { origin =>
@@ -93,9 +92,15 @@ class TravelTimeObserved @Inject()(
                     .getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
                     .map(_.toSkimExternal)
                     .foreach { theSkim =>
+                      if (!seriesPerCount.contains(counts(origin, destination)))
+                        seriesPerCount(counts(origin, destination)) =
+                          new XYSeries(java.util.UUID.randomUUID.toString, false)
+
+                      val series = seriesPerCount(counts(origin, destination))
                       series.add(theSkim.time, timeObserved)
+                      seriesPerCount.update(counts(origin, destination), series)
                       writerObservedVsSimulated.write(
-                        s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved},${theSkim.count}\n"
+                        s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved},${counts(origin, destination)}\n"
                       )
                     }
                 }
@@ -108,7 +113,7 @@ class TravelTimeObserved @Inject()(
 
     val chartPath =
       event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, chartName)
-    generateChart(series, chartPath)
+    generateChart(seriesPerCount, chartPath)
   }
 }
 
@@ -174,7 +179,7 @@ object TravelTimeObserved extends LazyLogging {
     observedTravelTimes.toMap
   }
 
-  def generateChart(series: XYSeries, path: String): Unit = {
+  def generateChart(seriesPerCount: mutable.Map[Int, XYSeries], path: String): Unit = {
     def drawLineHelper(color: Color, percent: Int, xyplot: XYPlot, max: Double) = {
       xyplot.addAnnotation(
         new XYLineAnnotation(
@@ -196,8 +201,9 @@ object TravelTimeObserved extends LazyLogging {
       )
     }
 
-    val dataset = new XYSeriesCollection
-    dataset.addSeries(series)
+    var dataset = new XYSeriesCollection()
+    seriesPerCount.values.foreach(dataset.addSeries)
+
     val chart = ChartFactory.createScatterPlot(
       "TAZ TravelTimes Observed Vs. Simulated",
       "Simulated",
@@ -209,19 +215,36 @@ object TravelTimeObserved extends LazyLogging {
       false
     )
 
-    val xyplot: XYPlot = chart.getPlot.asInstanceOf[XYPlot]
+    val xyplot = chart.getPlot.asInstanceOf[XYPlot]
+    xyplot.setDomainCrosshairVisible(false)
+    xyplot.setRangeCrosshairVisible(false)
 
-    val renderer = new XYLineAndShapeRenderer
-    renderer.setSeriesShape(0, ShapeUtilities.createDiamond(1))
-    renderer.setSeriesPaint(0, Color.RED)
-    renderer.setSeriesLinesVisible(0, false)
+    val colors = List(
+      new Color(125, 125, 250), // light blue
+      new Color(32, 32, 253), // dark blue
+      new Color(255, 87, 126), // light red
+      new Color(255, 0, 60) // dark red
+    )
 
-    val max = Math.max(series.getMaxX, series.getMaxY)
+    (1 to seriesPerCount.size).map(
+      counter =>
+        xyplot
+          .getRendererForDataset(xyplot.getDataset(0))
+          .setSeriesPaint(counter, colors(counter % colors.length))
+    )
+
+    val max = Math.max(
+      dataset.getDomainLowerBound(false),
+      dataset.getRangeUpperBound(false)
+    )
+
+    if (max > 0) {
+      xyplot.getDomainAxis.setRange(0.0, max)
+      xyplot.getRangeAxis.setRange(0.0, max)
+    }
 
     xyplot.getDomainAxis.setAutoRange(false)
     xyplot.getRangeAxis.setAutoRange(false)
-    xyplot.getDomainAxis.setRange(0.0, max)
-    xyplot.getRangeAxis.setRange(0.0, max)
 
     xyplot.getDomainAxis.setTickLabelInsets(new RectangleInsets(10.0, 10.0, 10.0, 10.0))
     xyplot.getRangeAxis.setTickLabelInsets(new RectangleInsets(10.0, 10.0, 10.0, 10.0))
@@ -257,8 +280,6 @@ object TravelTimeObserved extends LazyLogging {
           max
         )
     }
-
-    xyplot.setRenderer(0, renderer)
 
     GraphUtils.saveJFreeChartAsPNG(
       chart,
