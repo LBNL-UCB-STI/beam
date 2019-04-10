@@ -28,6 +28,8 @@ class LoggingEventsManager @Inject()(config: Config) extends EventsManager with 
   private val blockingQueue: BlockingQueue[Event] = new LinkedBlockingQueue[Event]
   private val isFinished: AtomicBoolean = new AtomicBoolean(false)
   private var dedicatedHandler: Option[Future[Unit]] = None
+  private val stacktraceToException: collection.mutable.HashMap[StackTraceElement, Exception] =
+    collection.mutable.HashMap()
 
   override def processEvent(event: Event): Unit = {
     blockingQueue.add(event)
@@ -48,6 +50,7 @@ class LoggingEventsManager @Inject()(config: Config) extends EventsManager with 
 
   override def initProcessing(): Unit = {
     numOfEvents.set(0)
+    stacktraceToException.clear()
     tryLog("initProcessing", eventManager.initProcessing())
     isFinished.set(false)
     dedicatedHandler = Some(createDedicatedHandler)
@@ -69,6 +72,8 @@ class LoggingEventsManager @Inject()(config: Config) extends EventsManager with 
     val e = System.currentTimeMillis()
     logger.info(s"finishProcessing executed in ${e - s} ms")
     logger.info(s"Overall processed events: ${numOfEvents.get()}")
+
+    logErrorsDuringEventProcessing()
   }
 
   private def tryLog(what: String, body: => Unit): Unit = {
@@ -109,12 +114,41 @@ class LoggingEventsManager @Inject()(config: Config) extends EventsManager with 
     val end = System.currentTimeMillis()
     logger.info("Stopped dedicated handler(handleBlocking). Took {} ms to process after stop", end - start)
   }
+
   private def tryToProcessEvent(event: Event): Unit = {
     try {
       eventManager.processEvent(event)
     } catch {
-      case t: Throwable =>
-        logger.error(s"Failed to process event '$event'. Error: ${t.getMessage}", t)
+      case ex: Exception =>
+        if (shouldLog(ex)) {
+          logger.error(s"Failed to process event '$event'. Error: ${ex.getMessage}", ex)
+          getSource(ex).foreach { ste =>
+            stacktraceToException.put(ste, ex)
+          }
+        }
+    }
+  }
+
+  private def logErrorsDuringEventProcessing(): Unit = {
+    if (stacktraceToException.nonEmpty) {
+      logger.error("There were errors during events processing: ")
+      stacktraceToException.foreach {
+        case (st, ex) =>
+          logger.error(st.toString, ex)
+      }
+    }
+  }
+
+  private def getSource(ex: Exception): Option[StackTraceElement] = {
+    // http://jawspeak.com/2010/05/26/hotspot-caused-exceptions-to-lose-their-stack-traces-in-production-and-the-fix/
+    // JVM can optimize away stack traces in certain exceptions if they happen enough, that's why `ex.getStackTrace.headOption`
+    ex.getStackTrace.headOption
+  }
+
+  private def shouldLog(ex: Exception): Boolean = {
+    getSource(ex).exists { ste =>
+      val shouldLog = !stacktraceToException.contains(ste)
+      shouldLog
     }
   }
 }
