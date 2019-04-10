@@ -78,7 +78,6 @@ class TravelTimeObserved @Inject()(
     writerObservedVsSimulated.write("\n")
 
     val seriesPerCount = mutable.HashMap[Int, XYSeries]()
-    val counts = mutable.HashMap[(TAZ, TAZ), Int]().withDefaultValue(0)
 
     beamServices.tazTreeMap.getTAZs
       .foreach { origin =>
@@ -92,15 +91,15 @@ class TravelTimeObserved @Inject()(
                     .getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
                     .map(_.toSkimExternal)
                     .foreach { theSkim =>
-                      if (!seriesPerCount.contains(counts(origin, destination)))
-                        seriesPerCount(counts(origin, destination)) =
-                          new XYSeries(java.util.UUID.randomUUID.toString, false)
+                      if (!seriesPerCount.contains(theSkim.count))
+                        seriesPerCount(theSkim.count) =
+                          new XYSeries(theSkim.count.toString, false)
 
-                      val series = seriesPerCount(counts(origin, destination))
+                      val series = seriesPerCount(theSkim.count)
                       series.add(theSkim.time, timeObserved)
-                      seriesPerCount.update(counts(origin, destination), series)
+                      seriesPerCount.update(theSkim.count, series)
                       writerObservedVsSimulated.write(
-                        s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved},${counts(origin, destination)}\n"
+                        s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved},${theSkim.count}\n"
                       )
                     }
                 }
@@ -210,7 +209,7 @@ object TravelTimeObserved extends LazyLogging {
       "Observed",
       dataset,
       PlotOrientation.VERTICAL,
-      false,
+      true,
       true,
       false
     )
