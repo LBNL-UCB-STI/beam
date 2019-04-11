@@ -37,7 +37,7 @@ object FailFast extends LazyLogging {
     if (beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds != 0 &&
         beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow < beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds) {
       throw new RuntimeException(
-        "Scheduler Parallelism Window must be greater then Request Buffer Timeout"
+        "Scheduler Parallelism Window must be less then Request Buffer Timeout"
       )
     }
   }
