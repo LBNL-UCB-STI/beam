@@ -1,5 +1,11 @@
+import com.amazonaws.services.lambda.AWSLambda
 import com.amazonaws.services.lambda.model.InvocationType
+import com.amazonaws.services.lambda.model.InvokeRequest
+import com.amazonaws.services.lambda.model.LogType
+import com.google.common.base.Charsets
+import com.google.common.io.Files
 import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
+import jp.classmethod.aws.gradle.lambda.AWSLambdaPluginExtension
 import org.unbrokendome.gradle.plugins.helm.command.tasks.HelmInit
 import org.unbrokendome.gradle.plugins.helm.command.tasks.HelmInstall
 
@@ -7,6 +13,9 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+
+import groovy.json.JsonSlurper
+
 
 buildscript {
     repositories {
@@ -342,12 +351,12 @@ apply plugin: "base"
 apply plugin: "jp.classmethod.aws.lambda"
 
 aws {
-    profileName = "gradle"
+    profileName = "default"
     region = "us-east-2"
 }
 
 lambda {
-    region = "us-east-2"
+    region = "us-west-2"
 }
 
 def getCurrentGitBranch() {
@@ -815,6 +824,88 @@ task removeClusterCharts(dependsOn: [helmClusterList]) {
             executable 'helm'
             def argList =  ["delete", "--purge"] + charts
             args = argList
+        }
+    }
+}
+
+task initEksCreation(type: AWSLambdaInvokeTask) {
+    def date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"))
+    functionName = "eksCreation"
+    invocationType = InvocationType.Event
+    def pload = """{
+    "region": "${project.findProperty('regionId')}",
+    "instance_id": "${project.findProperty('instanceType') ?: defaultInstanceType}",
+    "creation_tag": "${date}"
+}"""
+    payload = pload
+    ext.creation = date
+    doLast {
+        println date
+    }
+}
+
+task describeEksOutput(dependsOn: initEksCreation) {
+    def pload = """{
+    "region": "${project.findProperty('regionId')}",
+    "creation_tag": "${initEksCreation.creation}"
+    }"""
+
+    doLast {
+        def parsed
+
+        while (!parsed) {
+            sleep(5 * 1000)
+            AWSLambdaPluginExtension ext = getProject().getExtensions().getByType(AWSLambdaPluginExtension.class)
+            AWSLambda lambda = ext.getClient()
+            InvokeRequest request = new InvokeRequest()
+                    .withFunctionName("eksDescribe")
+                    .withInvocationType(InvocationType.RequestResponse)
+                    .withLogType(LogType.None)
+            request.setPayload(pload)
+            def res = lambda.invoke(request)
+
+            def jsonSlurper = new JsonSlurper()
+            def p = jsonSlurper.parseText(new String(res.payload.array(), "UTF-8"))
+
+            parsed = jsonSlurper.parseText(p.body)
+        }
+
+        exec {
+            executable 'aws'
+            args = ["eks", "--region", "us-west-2", "update-kubeconfig", "--name", parsed.cluster, "--role-arn", "arn:aws:iam::340032650202:role/BeamEksDeployment"]
+        }
+        println parsed.NodeInstanceRole
+        ext.nodeInstance = parsed.NodeInstanceRole
+    }
+}
+
+task bindWorkerNodes(dependsOn: describeEksOutput) {
+    def sourceFile = file('kubernetes/default/node-auth.yaml')
+    def str = Files.toString(sourceFile, Charsets.UTF_8);
+    doLast {
+        def replaced = str.replace('{{nodeInstance}}', describeEksOutput.nodeInstance)
+        Files.write(replaced, file("${project.buildDir}/node-auth.yaml"), Charsets.UTF_8)
+
+        exec {
+            executable 'kubectl'
+            args = ['apply', '-f', "${project.buildDir}/node-auth.yaml"]
+        }
+    }
+}
+
+//////////////////////////////////////////////////////////////////////
+// gradle createEksCluster -PregionId=us-west-2 -PinstanceType=c5.xlarge
+//////////////////////////////////////////////////////////////////////
+
+task createEksCluster(dependsOn: bindWorkerNodes) {
+    doLast {
+        exec {
+            executable 'kubectl'
+            args = ['apply', '-f', 'kubernetes/default/secrets.yaml']
+        }
+        exec {
+            executable 'kubectl'
+            args = ['apply', '-f', 'kubernetes/default/s3-daemonset.yaml']
         }
     }
 }

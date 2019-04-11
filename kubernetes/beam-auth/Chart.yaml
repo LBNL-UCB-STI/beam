@@ -1,0 +1,12 @@
+apiVersion: v1
+name: ${chartName}
+version: ${chartVersion}
+appVersion: 0.6.0
+description: Beam Auth Cluster
+keywords:
+  - beam
+home: http://http://beam.lbl.gov
+maintainers:
+  - name: ${authorName}
+    email: ${authorEmail}
+engine: gotpl

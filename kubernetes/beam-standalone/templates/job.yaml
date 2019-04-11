@@ -32,18 +32,18 @@ spec:
           image: {{ .Values.job.image }}:{{ .Values.job.imageTag }}
           resources:
             limits:
-              cpu: "6"
-              memory: 14Gi
+              cpu: "3"
+              memory: 7Gi
             requests:
-              cpu: "4"
-              memory: 12Gi
-          args: ["--config", {{ printf "%s/sf-light/sf-light-25k.conf" .Values.volume.data.path | quote }}, "--cluster-type", "master", "--node-host", {{ (include "beam-simulation.service" . ) | quote }}, "--node-port", "2552", "--seed-address", {{ printf "%s:2552" (include "beam-simulation.service" . ) | quote }}, "--use-local-worker", "true"]
+              cpu: "3"
+              memory: 5Gi
+          args: ["--config", {{ printf "%s/sf-light/sf-light-1k.conf" .Values.volume.data.path | quote }}, "--cluster-type", "master", "--node-host", {{ (include "beam-simulation.service" . ) | quote }}, "--node-port", "2552", "--seed-address", {{ printf "%s:2552" (include "beam-simulation.service" . ) | quote }}, "--use-local-worker", "true"]
           imagePullPolicy: Always
           env:
             - name: BEAM_OUTPUT
               value: {{ .Values.volume.output.path | quote }}
             - name: JAVA_OPTS
-              value: '"-Xmx12G" "-Xms6G"'
+              value: '"-Xmx5G" "-Xms3G"'
             - name: MAXRAM
               value: '12g'
           ports:

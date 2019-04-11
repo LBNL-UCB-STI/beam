@@ -35,7 +35,7 @@ def init_cloudformation(region):
     cf = boto3.client('cloudformation', region_name=region)
 
 
-def create_eks_stack(time_token):
+def create_eks_stack(time_token, tag):
     response = cf.create_stack(
         StackName="beam-eks-{dt}".format(dt=time_token),
         TemplateURL='https://amazon-eks.s3-us-west-2.amazonaws.com/cloudformation/2019-02-11/amazon-eks-vpc-sample.yaml',
@@ -48,12 +48,18 @@ def create_eks_stack(time_token):
             'CAPABILITY_IAM',
         ],
         OnFailure='ROLLBACK',
-        EnableTerminationProtection=False
+        EnableTerminationProtection=False,
+        Tags=[
+            {
+                'Key': 'creation',
+                'Value': tag
+            },
+        ]
     )
     return response['StackId']
 
 
-def create_workers_stack(time_token, ec2_instance, outputs, region, cluster_name):
+def create_workers_stack(time_token, ec2_instance, outputs, region, cluster_name, tag):
     response = cf.create_stack(
         StackName="beam-eks-workers-{dt}".format(dt=time_token),
         TemplateURL='https://amazon-eks.s3-us-west-2.amazonaws.com/cloudformation/2019-02-11/amazon-eks-nodegroup.yaml',
@@ -100,7 +106,13 @@ def create_workers_stack(time_token, ec2_instance, outputs, region, cluster_name
             'CAPABILITY_IAM',
         ],
         OnFailure='ROLLBACK',
-        EnableTerminationProtection=False
+        EnableTerminationProtection=False,
+        Tags=[
+            {
+                'Key': 'creation',
+                'Value': tag
+            },
+        ]
     )
     return response['StackId']
 
@@ -151,21 +163,23 @@ def instance_handler(event):
     time_str = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     region = event.get('region', os.environ['REGION'])
     instance_id = event.get('instance_id', os.environ['SYSTEM_INSTANCE'])
+    tag = event.get('creation_tag')
 
     init_eks(region)
     init_cloudformation(region)
 
-    stack_id = create_cluster(time_str)
+    stack_id = create_eks_stack(time_str, tag)
     otp = get_stack_outputs(stack_id)
     cluster_details = create_cluster(otp, time_str)
     wait_cluster_outputs(cluster_details)
-    workers_stack_id = create_workers_stack(time_str, instance_id, otp, region, cluster_details)
+    workers_stack_id = create_workers_stack(time_str, instance_id, otp, region, cluster_details, tag)
     workers_outputs = get_stack_outputs(workers_stack_id)
 
     return workers_outputs
 
 
 def lambda_handler(event, context):
+    print event
     res = instance_handler(event)
     return {
         'statusCode': 200,

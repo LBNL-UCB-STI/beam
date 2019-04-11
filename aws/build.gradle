@@ -1,7 +1,10 @@
+import com.amazonaws.services.lambda.AWSLambda
 import com.amazonaws.services.lambda.model.InvocationType
-import com.amazonaws.services.lambda.model.InvokeResult
+import com.amazonaws.services.lambda.model.InvokeRequest
+import com.amazonaws.services.lambda.model.LogType
 import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
-
+import jp.classmethod.aws.gradle.lambda.AWSLambdaMigrateFunctionTask
+import jp.classmethod.aws.gradle.lambda.AWSLambdaPluginExtension
 
 buildscript {
     repositories {
@@ -22,33 +25,33 @@ apply plugin: "base"
 apply plugin: "jp.classmethod.aws.lambda"
 
 aws {
-    profileName = "gradle"
+    profileName = "default"
     region = "us-east-2"
 }
 
 lambda {
-    region = "us-east-2"
+    region = "us-west-2"
 }
 
 task deploy(type: AWSLambdaInvokeTask) {
     doFirst {
-        if(!project.hasProperty('runName')) {
+        if (!project.hasProperty('runName')) {
             throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deploy -PrunName=sfbay-performance-run')
         }
 
         switch (project.findProperty('deployMode')) {
             case 'config':
-                if(!project.hasProperty('beamConfigs') && !project.hasProperty(getCurrentGitBranch()+'.configs')) {
+                if (!project.hasProperty('beamConfigs') && !project.hasProperty(getCurrentGitBranch() + '.configs')) {
                     throw new GradleException('beamConfigs is required to deploy config run.')
                 }
                 break
             case 'experiment':
-                if(!project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch()+'.experiments')) {
+                if (!project.hasProperty('beamExperiments') && !project.hasProperty(getCurrentGitBranch() + '.experiments')) {
                     throw new GradleException('beamExperiments is required to deploy experement.')
                 }
                 break
             case 'execute':
-                if(!project.hasProperty('executeClass') || !project.hasProperty('executeArgs')) {
+                if (!project.hasProperty('executeClass') || !project.hasProperty('executeArgs')) {
                     throw new GradleException('executeClass and executeArgs are required to deploy execute.')
                 }
                 break
@@ -63,8 +66,10 @@ task deploy(type: AWSLambdaInvokeTask) {
   "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
   "commit": "${beamCommit ?: 'HEAD'}",
   "deploy_mode": "${project.findProperty('deployMode')}",
-  "configs": "${project.findProperty('beamConfigs') ?: project.findProperty(getCurrentGitBranch()+'.configs') }",
-  "experiments": "${project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch()+'.experiments') }",
+  "configs": "${project.findProperty('beamConfigs') ?: project.findProperty(getCurrentGitBranch() + '.configs')}",
+  "experiments": "${
+        project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch() + '.experiments')
+    }",
   "execute_class": "${project.findProperty('executeClass')}",
   "execute_args": "${project.findProperty('executeArgs')}",
   "max_ram": "${maxRAM ?: '2g'}",
@@ -136,7 +141,7 @@ def checkInstanceId() {
 }
 
 def buildPayload(command) {
-    println "command:"+command
+    println "command:" + command
     return """{
   "instance_ids": "${project.findProperty('instanceIds')}",
   "region": "$region",
@@ -161,4 +166,50 @@ def getCurrentGitBranch() {
     } catch (e) {
     }
     return gitBranch
+}
+
+task installPythonDependency(type: Exec) {
+    workingDir 'src/main/python/eksStartStop/package'
+    executable 'python'
+    args '-m', 'pip', 'install', '-r', 'requirements.txt', '-t', '.'
+}
+
+task packageEksCreationFunction(dependsOn: [installPythonDependency], type: Zip) {
+    from fileTree('src/main/python/eksStartStop/package')
+    from ('src/main/python/eksStartStop/lambda_function.py')
+    include '**/'
+    archiveFileName = 'function.zip'
+}
+
+task packageEksCheckFunction(type: Zip) {
+    from fileTree('src/main/python/eksDescribe')
+    include '**/'
+    archiveFileName = 'function.zip'
+}
+
+task eksCreationFunction(dependsOn: packageEksCreationFunction, type: AWSLambdaMigrateFunctionTask) {
+    functionName = "eksCreation"
+    role = "arn:aws:iam::340032650202:role/BeamEksDeployment"
+    functionDescription = "Beam Cluster Simulation Environment"
+    zipFile = packageEksCreationFunction.archivePath
+    handler = "lambda_function.lambda_handler"
+    runtime = "Python27"
+    timeout = 900
+    memorySize = 256
+    environment = [
+            REGION: "us-west-2",
+            SYSTEM_INSTANCE: "t3.nano"
+    ]
+}
+
+task eksDescribeFunction(dependsOn: packageEksCheckFunction, type: AWSLambdaMigrateFunctionTask) {
+    functionName = "eksDescribe"
+    role = "arn:aws:iam::340032650202:role/BeamEksDeployment"
+    functionDescription = "Beam Cluster Simulation Output"
+    zipFile = packageEksCheckFunction.archivePath
+    handler = "lambda_function.lambda_handler"
+    runtime = "Python27"
+    environment = [
+            REGION: "us-west-2"
+    ]
 }

@@ -33,7 +33,7 @@ job:
     hostname: beam-master
   worker:
     hostname: beam-worker
-    replicas: 3
+    replicas: 2
   image: ${beamImage}
   imageTag: ${beamImageTag}
 
