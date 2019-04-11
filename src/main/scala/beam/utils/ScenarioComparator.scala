@@ -77,7 +77,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
 
     //matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     //  ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
-    //  LoggingUtil.createFileLogger(outputDirectory)
+    //  LoggingUtil.initLogger(outputDirectory)
     //  matsimConfig.controler.setOutputDirectory(outputDirectory)
     //  matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
