@@ -210,7 +210,7 @@ object PathTraversalEvent {
     val legLength: Double = attr(ATTRIBUTE_LENGTH).toDouble
     val linkIdsAsStr = attr(ATTRIBUTE_LINK_IDS)
     val linkIds: IndexedSeq[Int] = if (linkIdsAsStr == "") IndexedSeq.empty else linkIdsAsStr.split(",").map(_.toInt)
-    val linkTravelTimeStr = attr(ATTRIBUTE_LINK_TRAVEL_TIME)
+    val linkTravelTimeStr = attr.getOrElse(ATTRIBUTE_LINK_TRAVEL_TIME, "")
     val linkTravelTime: IndexedSeq[Int] =
       if (linkTravelTimeStr == "") IndexedSeq.empty else linkTravelTimeStr.split(",").map(_.toInt)
     val startX: Double = attr(ATTRIBUTE_START_COORDINATE_X).toDouble
