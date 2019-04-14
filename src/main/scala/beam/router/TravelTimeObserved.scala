@@ -77,10 +77,7 @@ class TravelTimeObserved @Inject()(
     writerObservedVsSimulated.write("fromTAZId,toTAZId,hour,timeSimulated,timeObserved,counts")
     writerObservedVsSimulated.write("\n")
 
-    val seriesPerCount = mutable.HashMap[Int, XYSeries]()
-    val buckets = Vector(10, 100, 1000, 10000)
-
-    def getClosest(num: Double) = buckets.minBy(v => math.abs(v - num))
+    var series = new mutable.ListBuffer[(Int, Double, Double)]()
 
     beamServices.tazTreeMap.getTAZs
       .foreach { origin =>
@@ -94,14 +91,7 @@ class TravelTimeObserved @Inject()(
                     .getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
                     .map(_.toSkimExternal)
                     .foreach { theSkim =>
-                      val closestBucket = getClosest(theSkim.count)
-
-                      if (!seriesPerCount.contains(closestBucket))
-                        seriesPerCount(closestBucket) = new XYSeries(closestBucket.toString, false)
-
-                      val series = seriesPerCount(closestBucket)
-                      series.add(theSkim.time, timeObserved)
-                      seriesPerCount.update(closestBucket, series)
+                      series += ((theSkim.count, theSkim.time, timeObserved))
                       writerObservedVsSimulated.write(
                         s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved},${theSkim.count}\n"
                       )
@@ -116,7 +106,7 @@ class TravelTimeObserved @Inject()(
 
     val chartPath =
       event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, chartName)
-    generateChart(seriesPerCount, chartPath)
+    generateChart(series, chartPath)
   }
 }
 
@@ -182,7 +172,7 @@ object TravelTimeObserved extends LazyLogging {
     observedTravelTimes.toMap
   }
 
-  def generateChart(seriesPerCount: mutable.Map[Int, XYSeries], path: String): Unit = {
+  def generateChart(series: mutable.ListBuffer[(Int, Double, Double)], path: String): Unit = {
     def drawLineHelper(color: Color, percent: Int, xyplot: XYPlot, max: Double) = {
       xyplot.addAnnotation(
         new XYLineAnnotation(
@@ -204,7 +194,22 @@ object TravelTimeObserved extends LazyLogging {
       )
     }
 
+    val maxSkimCount = series.map(_._1).max
+    val bucketsNum = Math.min(maxSkimCount, 4)
+    val buckets = (1 to bucketsNum).map(_ * maxSkimCount / bucketsNum)
+    def getClosest(num: Double) = buckets.minBy(v => math.abs(v - num))
+
     var dataset = new XYSeriesCollection()
+    val seriesPerCount = mutable.HashMap[Int, XYSeries]()
+    series.foreach{
+      case (count, simulatedTime, observedTime) =>
+        val closestBucket = getClosest(count)
+
+        if (!seriesPerCount.contains(closestBucket))
+          seriesPerCount(closestBucket) = new XYSeries(closestBucket.toString, false)
+
+        seriesPerCount(closestBucket).add(simulatedTime, observedTime)
+    }
     seriesPerCount.values.foreach(dataset.addSeries)
 
     val chart = ChartFactory.createScatterPlot(
