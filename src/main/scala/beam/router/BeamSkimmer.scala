@@ -36,6 +36,7 @@ import org.supercsv.prefs.CsvPreference
 
 import scala.collection.concurrent.TrieMap
 import scala.language.implicitConversions
+import scala.util.control.NonFatal
 
 //TODO to be validated against google api
 class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamServices) extends LazyLogging {
@@ -55,9 +56,15 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
 
   private def initialPreviousSkims(): TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = {
     if (beamConfig.beam.warmStart.enabled) {
-      skimsFilePath
-        .map(BeamSkimmer.readCsvFile)
-        .getOrElse(TrieMap.empty)
+      try {
+        skimsFilePath
+          .map(BeamSkimmer.readCsvFile)
+          .getOrElse(TrieMap.empty)
+      } catch {
+        case NonFatal(ex) =>
+          logger.error(s"Could not load previous skim from '${skimsFilePath}': ${ex.getMessage}", ex)
+          TrieMap.empty
+      }
     } else {
       TrieMap.empty
     }
@@ -542,7 +549,7 @@ object BeamSkimmer extends LazyLogging {
             distanceInMeters.toDouble,
             cost.toDouble,
             numObservations.toInt,
-            energy.toDouble
+            Option(energy).map(_.toDouble).getOrElse(0.0)
           )
         res.put(key, value)
         line = mapReader.read(header: _*)

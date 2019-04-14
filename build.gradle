@@ -146,7 +146,7 @@ dependencies {
         exclude group: 'org.matsim', module: 'matsim'
     }
 
-    compile(group: 'org.matsim', name: 'matsim', version: '0.10.0-beam-1') {
+    compile(group: 'com.github.wrashid.matsim', name: 'matsim', version: '0.10.1-beam-6') {
         exclude group: 'log4j', module: 'log4j'
     }
 
