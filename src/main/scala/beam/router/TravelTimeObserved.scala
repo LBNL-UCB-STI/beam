@@ -210,7 +210,10 @@ object TravelTimeObserved extends LazyLogging {
 
         seriesPerCount(closestBucket).add(simulatedTime, observedTime)
     }
-    seriesPerCount.values.foreach(dataset.addSeries)
+    seriesPerCount.toSeq.sortBy(_._1).foreach {
+      case (_, seriesToAdd) =>
+        dataset.addSeries(seriesToAdd)
+    }
 
     val chart = ChartFactory.createScatterPlot(
       "TAZ TravelTimes Observed Vs. Simulated",
