@@ -95,6 +95,7 @@ class ChangeModeForTour(
   ): (Double, Double) = {
     val originCoord = origin.getCoord
     val destCoord = dest.getCoord
+    // Why not just `beamServices.geo.distUTMInMeters(originCoord, destCoord)`??
     val tripDistanceInMeters = beamServices.geo
       .distLatLon2Meters(beamServices.geo.utm2Wgs(originCoord), beamServices.geo.utm2Wgs(destCoord))
     val distanceCost = distanceScaling(beamMode, tripDistanceInMeters)

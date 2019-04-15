@@ -52,15 +52,9 @@ trait GeoUtils extends ExponentialLazyLogging {
     utm2Wgs.transform(coord)
   }
 
-  def distUTMInMeters(coord1: Coord, coord2: Coord): Double = {
-    Math.sqrt(Math.pow(coord1.getX - coord2.getX, 2.0) + Math.pow(coord1.getY - coord2.getY, 2.0))
-  }
+  def distUTMInMeters(coord1: Coord, coord2: Coord): Double = GeoUtils.distUTMInMeters(coord1, coord2)
 
-  def distLatLon2Meters(coord1: Coord, coord2: Coord): Double =
-    distLatLon2Meters(coord1.getX, coord1.getY, coord2.getX, coord2.getY)
-
-  def distLatLon2Meters(x1: Double, y1: Double, x2: Double, y2: Double): Double =
-    GeoUtils.distLatLon2Meters(x1, y1, x2, y2)
+  def distLatLon2Meters(coord1: Coord, coord2: Coord): Double = distUTMInMeters(wgs2Utm(coord1), wgs2Utm(coord2))
 
   def getNearestR5EdgeToUTMCoord(streetLayer: StreetLayer, coordUTM: Coord, maxRadius: Double = 1E5): Int = {
     getNearestR5Edge(streetLayer, utm2Wgs(coordUTM), maxRadius)
@@ -227,20 +221,6 @@ object GeoUtils {
     Math.pow(a + b, 1 / exponent)
   }
 
-  def distLatLon2Meters(x1: Double, y1: Double, x2: Double, y2: Double): Double = {
-    //    http://stackoverflow.com/questions/837872/calculate-distance-in-meters-when-you-know-longitude-and-latitude-in-java
-    val earthRadius = 6371000
-    val distX = Math.toRadians(x2 - x1)
-    val distY = Math.toRadians(y2 - y1)
-    val a = Math.sin(distX / 2) * Math.sin(distX / 2) + Math.cos(Math.toRadians(x1)) * Math.cos(
-      Math.toRadians(x2)
-    ) * Math.sin(distY / 2) * Math.sin(distY / 2)
-    val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-    val dist = earthRadius * c
-    dist
-
-  }
-
   sealed trait TurningDirection
   case object Straight extends TurningDirection
   case object SoftLeft extends TurningDirection
@@ -300,6 +280,9 @@ object GeoUtils {
     }
   }
 
+  def distUTMInMeters(coord1: Coord, coord2: Coord): Double = {
+    Math.sqrt(Math.pow(coord1.getX - coord2.getX, 2.0) + Math.pow(coord1.getY - coord2.getY, 2.0))
+  }
 }
 
 class GeoUtilsImpl @Inject()(val beamConfig: BeamConfig) extends GeoUtils {
