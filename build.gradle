@@ -115,11 +115,9 @@ dependencies {
 
     // LGPL
     compile group: 'org.geotools', name: 'gt-main', version: '13.0'
-    compile group: 'org.geotools', name: 'gt-referencing', version: '13.0'
     compile group: 'org.geotools', name: 'gt-shapefile', version: '13.0'
-    runtime group: 'org.geotools', name: 'gt-epsg-hsql', version: '13.0'
     compile group: 'org.geotools', name: 'gt-referencing', version: '15.2'
-    compile group: 'org.geotools', name: 'gt-epsg-hsql', version: '15.2'
+    compile group: 'org.geotools', name: 'gt-epsg-wkt', version: '15.2'
     compile group: 'org.jfree', name: 'jfreechart', version: '1.0.14'
 
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.4'
@@ -281,7 +279,7 @@ configurations.all {
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-o', '-l', 'beam.tags.ExcludeRegular']
+    args = ['-R', 'build/classes/scala/test', '-oD', '-l', 'beam.tags.ExcludeRegular']
     classpath = sourceSets.test.runtimeClasspath
 }
 build.dependsOn spec
