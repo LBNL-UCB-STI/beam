@@ -88,7 +88,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         })
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
-      if (beamServices.iterationNumber > 0)
+      if (beamServices.iterationNumber > 0 || beamServices.beamConfig.beam.warmStart.enabled)
         scheduler ! ScheduleTrigger(VehicleSharingRepositioningTrigger(tick), self)
 
     case MobilityStatusInquiry(personId, whenWhere, _) =>
@@ -143,7 +143,20 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       sender() ! Success
 
     case TriggerWithId(VehicleSharingRepositioningTrigger(tick), triggerId) =>
-      repositioningManager.relocate(tick, triggerId)
+      repositioningManager.reposition(tick, triggerId, availableVehiclesIndex)
+
+    case TriggerWithId(VehicleSharingTeleportationTrigger(tick, vehicle), triggerId) =>
+      repositioningManager.teleport(vehicle, tick)
+
+    case VehiclesForReposition(vehicle, where) =>
+      val removed = availableVehiclesIndex.remove(
+        new Envelope(new Coordinate(vehicle.spaceTime.loc.getX, vehicle.spaceTime.loc.getY)),
+        vehicle
+      )
+      if (!removed) {
+        log.error("Didn't find a vehicle in my spatial index, at the location I thought it would be.")
+      }
+      scheduler ! ScheduleTrigger(VehicleSharingTeleportationTrigger(where.time, vehicle), self)
   }
 
   def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(

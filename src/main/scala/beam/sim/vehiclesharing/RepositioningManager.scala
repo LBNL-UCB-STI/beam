@@ -2,12 +2,14 @@ package beam.sim.vehiclesharing
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import beam.agentsim.agents.HasTickAndTrigger
-import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleAndReply
+import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.router.BeamSkimmer
 import beam.sim.BeamServices
-import org.matsim.api.core.v01.Id
+import com.vividsolutions.jts.index.quadtree.Quadtree
 
 class RepositioningManager(
   val log: LoggingAdapter,
@@ -20,19 +22,15 @@ class RepositioningManager(
 
   val timeStep: Int = 15 * 60
 
-  def relocate(tick: Int, triggerId: Long): Unit = {
+  def teleport(vehicle: BeamVehicle, tick: Int): Unit = {
+    vehicle.manager.get ! ReleaseVehicleAndReply(vehicle, Some(tick))
+  }
+
+  def reposition(tick: Int, triggerId: Long, vehicles: Quadtree): Unit = {
     val nextTick = tick + timeStep
-    val skims = skimmer.getSkimPlusValues(tick, nextTick, Id.create(4, classOf[TAZ]), "default")
-    if (skims.nonEmpty) {
-      val minAvailability = skims.map(_.availableVehicles).min
-      val avgDemand = skims
-        .foldLeft((0.0, 1)) {
-          case ((avg, idx), next) => (avg + (next.demand - avg) / idx, idx + 1)
-        }
-        ._1
-      println(
-        s"reposition tick ======> $tick | minAvailability: $minAvailability | avgDemand: $avgDemand"
-      )
+    new AvailabilityBasedRepositioning(skimmer, services, vehicles).
+      getVehiclesForReposition(tick, nextTick).foreach {
+      x => x.vehicle.manager.get ! x
     }
     scheduleNextRelocation(nextTick, triggerId)
   }
@@ -50,3 +48,5 @@ class RepositioningManager(
 }
 
 case class VehicleSharingRepositioningTrigger(tick: Int) extends Trigger
+case class VehicleSharingTeleportationTrigger(tick: Int, vehicle: BeamVehicle) extends Trigger
+case class VehiclesForReposition(vehicle: BeamVehicle, where: SpaceTime)

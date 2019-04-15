@@ -9,18 +9,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  BIKE,
-  CAR,
-  CAV,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -257,13 +246,13 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   }
 
   def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    ProfilingUtils.timed(s"writeObservedSkims on iteration ${event.getIteration}", logger.info) {
+    ProfilingUtils.timed(s"writeObservedSkims on iteration ${event.getIteration}", x => logger.info(x)) {
       writeObservedSkims(event)
     }
-    ProfilingUtils.timed(s"writeCarSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}", logger.info) {
+    ProfilingUtils.timed(s"writeCarSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}", x => logger.info(x)) {
       writeCarSkimsForPeakNonPeakPeriods(event)
     }
-    ProfilingUtils.timed(s"writeObservedSkimsPlus on iteration ${event.getIteration}", logger.info) {
+    ProfilingUtils.timed(s"writeObservedSkimsPlus on iteration ${event.getIteration}", x => logger.info(x)) {
       writeObservedSkimsPlus(event)
     }
     // Writing full skims are very large, but code is preserved here in case we want to enable it.
@@ -468,9 +457,13 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
 
   // **********
   // Skim Plus
-  private var previousSkimsPlus: TrieMap[(TimeBin, Id[TAZ], VehiclesManager), SkimPlus] = TrieMap()
+  private var previousSkimsPlus: TrieMap[(TimeBin, Id[TAZ], VehiclesManager), SkimPlus] = initialPreviousSkimsPlus()
   private var skimsPlus: TrieMap[(TimeBin, Id[TAZ], VehiclesManager), SkimPlus] = TrieMap()
   private val timeWindow: Int = 5 * 60
+  private def skimsPlusFilePath: Option[String] = {
+    val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
+    BeamWarmStart(beamConfig, maxHour).getWarmStartFilePath(observedSkimsPlusFileBaseName + ".csv.gz")
+  }
 
   def getSkimPlusValue(time: Int, taz: Id[TAZ], vehiclesManager: VehiclesManager): Option[SkimPlus] = {
     val timeBin = timeToBin(time, timeWindow)
@@ -532,10 +525,26 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
       val (bin, taz, vehicleManager) = keyVal._1
       val skimP = keyVal._2
       writer.write(
-        s"$bin,$taz,$vehicleManager,${skimP.availableVehicles}\n"
+        s"$bin,$taz,$vehicleManager,${skimP.availableVehicles},${skimP.demand}\n"
       )
     }
     writer.close()
+  }
+
+  private def initialPreviousSkimsPlus(): TrieMap[(TimeBin, Id[TAZ], VehiclesManager), SkimPlus] = {
+    if (beamConfig.beam.warmStart.enabled) {
+      try {
+        skimsPlusFilePath
+          .map(BeamSkimmer.readSkimPlusFile)
+          .getOrElse(TrieMap.empty)
+      } catch {
+        case NonFatal(ex) =>
+          logger.error(s"Could not load previous skim from '${skimsFilePath}': ${ex.getMessage}", ex)
+          TrieMap.empty
+      }
+    } else {
+      TrieMap.empty
+    }
   }
   // *********
 }
@@ -647,9 +656,34 @@ object BeamSkimmer extends LazyLogging {
   // *******
   // Skim Plus
   private val observedSkimsPlusFileBaseName = "skimsPlus"
-  private val observedSkimsPlusHeader = "time,taz,vehicleManager,availableVehicles".split(",")
+  private val observedSkimsPlusHeader = "time,taz,vehicleManager,availableVehicles,demand".split(",")
   type TimeBin = Int
   type VehiclesManager = String
   case class SkimPlus(availableVehicles: Int = 0, demand: Int = 0)
+
+  private def readSkimPlusFile(filePath: String): TrieMap[(TimeBin, Id[TAZ], VehiclesManager), SkimPlus] = {
+    val mapReader = new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
+    val res = TrieMap[(TimeBin, Id[TAZ], VehiclesManager), SkimPlus]()
+    try {
+      val header = mapReader.getHeader(true)
+      var line: java.util.Map[String, String] = mapReader.read(header: _*)
+      while (null != line) {
+        val time = line.get("time")
+        val tazid = line.get("taz")
+        val vehicleManager = line.get("vehicleManager")
+        val availableVehicles = line.get("availableVehicles")
+        val demand = line.get("demand")
+        res.put(
+          (time.toInt, Id.create(tazid, classOf[TAZ]), vehicleManager),
+          SkimPlus(availableVehicles.toInt, demand.toInt)
+        )
+        line = mapReader.read(header: _*)
+      }
+    } finally {
+      if (null != mapReader)
+        mapReader.close()
+    }
+    res
+  }
   //
 }
