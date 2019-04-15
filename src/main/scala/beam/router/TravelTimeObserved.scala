@@ -201,7 +201,7 @@ object TravelTimeObserved extends LazyLogging {
 
     var dataset = new XYSeriesCollection()
     val seriesPerCount = mutable.HashMap[Int, XYSeries]()
-    series.foreach{
+    series.foreach {
       case (count, simulatedTime, observedTime) =>
         val closestBucket = getClosest(count)
 
