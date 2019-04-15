@@ -50,7 +50,7 @@ targetCompatibility = 1.8
 
 compileScala.options.encoding = 'UTF-8'
 def scalaBinaryVersion = "2.12"
-def akkaBinaryVersion = "2.5.17"
+def akkaBinaryVersion = "2.5.22"
 def circeBinaryVersion = "0.7.1"
 def slf4jVersion = "1.7.25"
 def kamonVersion = "0.6.7"
@@ -146,7 +146,7 @@ dependencies {
         exclude group: 'org.matsim', module: 'matsim'
     }
 
-    compile(group: 'org.matsim', name: 'matsim', version: '0.10.0-beam-1') {
+    compile(group: 'com.github.wrashid.matsim', name: 'matsim', version: '0.10.1-beam-6') {
         exclude group: 'log4j', module: 'log4j'
     }
 
