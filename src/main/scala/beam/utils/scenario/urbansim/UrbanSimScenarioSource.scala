@@ -41,11 +41,13 @@ class UrbanSimScenarioSource(
     }
   }
   override def getPlans: Iterable[PlanElement] = {
-    val rawPlanElements = rdr.readPlansFile(planFilePath)
-    val planElements = dropCorruptedPlanElements(rawPlanElements)
-    logger.error(
-      s"$planFilePath contains ${rawPlanElements.length} planElement, after removing corrupted data: ${planElements.length}"
-    )
+    val rawPlanElements: Array[DataExchange.PlanElement] = rdr.readPlansFile(planFilePath)
+    val planElements: Array[DataExchange.PlanElement] = dropCorruptedPlanElements(rawPlanElements)
+    if (rawPlanElements.length != planElements.length) {
+      logger.error(
+        s"$planFilePath contains ${rawPlanElements.length} planElement, after removing corrupted data: ${planElements.length}"
+      )
+    }
 
     planElements.map { plan =>
       val coord = (plan.x, plan.y) match {
