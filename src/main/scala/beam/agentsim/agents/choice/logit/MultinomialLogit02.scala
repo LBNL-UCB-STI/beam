@@ -41,7 +41,7 @@ class MultinomialLogit02[A, T](
           getUtilityOfAlternative(alt, attributes) match {
             case None => set
             case Some(thisUtility) =>
-              set.+((alt, math.exp(thisUtility)))
+              set + ((alt, math.exp(thisUtility)))
           }
       }
 
@@ -54,22 +54,23 @@ class MultinomialLogit02[A, T](
           // denominator used for transforming utility values into draw probabilities
           val sumOfExponentialUtilities: Double = altsWithUtilitySortedDesc.map{ case (_, u) => u }.sum
 
-          // transform alternatives into a list ordered by successive draw thresholds (prefix-stacked probabilities)
+          // transform alternatives into a list in descending order by successive draw thresholds (prefix-stacked probabilities)
           val asProbabilitySpread: List[MultinomialLogit02.MNLSample[A]] =
             altsWithUtilitySortedDesc.
               foldLeft((0.0, List.empty[MultinomialLogit02.MNLSample[A]])){ case ((prefix, stackedProbabilitiesList), (alt, expUtility)) =>
                 val probability: Double = expUtility / sumOfExponentialUtilities
                 val nextDrawThreshold: Double = prefix + probability
-                (nextDrawThreshold, stackedProbabilitiesList :+ MultinomialLogit02.MNLSample(alt, expUtility, nextDrawThreshold, probability))
+                val nextStackedProbabilitiesList = MultinomialLogit02.MNLSample(alt, expUtility, nextDrawThreshold, probability) +: stackedProbabilitiesList
+
+                (nextDrawThreshold, nextStackedProbabilitiesList)
               }._2
 
           val randomDraw: Double = random.nextDouble
 
           // take the first alternative which exceeds the random draw
-          // reverses order and discards while the probability's draw threshold exceeds the random draw
-          // and will leave us with a list who's last element is the largest just below the draw value
+          // we discard while the probability's draw threshold exceeds the random draw
+          // and will leave us with a list who's first element is the largest just below the draw value
           asProbabilitySpread.
-            reverse.
             dropWhile{ _.drawThreshold > randomDraw }.
             headOption
         }
@@ -114,34 +115,26 @@ class MultinomialLogit02[A, T](
     attributes: Map[T, Double]
   ): Option[Double] = {
 
-    utilityFunctions.get(alternative) flatMap { utilFnsForAlt =>
+    // get common utility values even if they aren't present in the alternative
+    val commonUtility: Iterable[Double] = for {
+      (attrs, mnlOperation) <- common
+      functionParam = attributes.getOrElse(attrs, 0.0)
+    } yield {
+      mnlOperation(functionParam)
+    }
 
-      val overlappingAttributes: List[T] = for {
-        subType <- utilFnsForAlt.keys.toSet.union(attributes.keys.toSet).toList
-      } yield {
-        subType
-      }
+    val alternativeUtility: Iterable[Double] = for {
+      utilFnsForAlt <- utilityFunctions.get(alternative).toList
+      attribute       <- utilFnsForAlt.keys.toSet.union(attributes.keys.toSet).toList
+      mnlOperation  <- utilFnsForAlt.get(attribute)
+      functionParam <- attributes.get(attribute)
+    } yield {
+      mnlOperation(functionParam)
+    }
 
-      // get utility values for attributes of the alternative that the mnl also shares
-      val alternativeSpecificUtility: Iterable[Double] = for {
-        attribute     <- overlappingAttributes
-        mnlOperation  <- utilFnsForAlt.get(attribute)
-        functionParam <- attributes.get(attribute)
-      } yield {
-        mnlOperation(functionParam)
-      }
-
-      // get common utility values even if they aren't present in the alternative
-      val commonUtility: Iterable[Double] = for {
-        (attrs, mnlOperation) <- common
-        functionParam = attributes.getOrElse(attrs, 0.0)
-      } yield {
-        mnlOperation(functionParam)
-      }
-
-      val totalUtility: Iterable[Double] = commonUtility ++ alternativeSpecificUtility
-      if (totalUtility.isEmpty) None
-      else Some(totalUtility.sum)
+    commonUtility ++ alternativeUtility match {
+      case Nil => None
+      case totalUtility: Iterable[Double] => Some{ totalUtility.sum }
     }
   }
 }
