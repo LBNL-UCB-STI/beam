@@ -13,13 +13,14 @@ import akka.util.Timeout
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
-import beam.router.BeamRouter.{IntermodalUse, Location, RoutingRequest, RoutingResponse}
+import beam.router.BeamRouter.{IntermodalUse, Location, RoutingRequest, RoutingResponse, UpdateTravelTimeLocal}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.R5RoutingWorker
-import beam.sim.BeamHelper
+import beam.sim.config.BeamConfig
+import beam.sim.{BeamHelper, BeamWarmStart}
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
 import com.typesafe.scalalogging.LazyLogging
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
@@ -30,6 +31,7 @@ import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import io.circe.syntax._
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.matsim.api.core.v01.Id
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.vehicles.Vehicle
 import shapeless.Lazy
 
@@ -137,6 +139,15 @@ object R5RoutingApp extends BeamHelper {
     val workerRouter: ActorRef = actorSystem.actorOf(Props(classOf[R5RoutingWorker], cfg), name = "workerRouter")
     val f = Await.result(workerRouter ? Identify(0), Duration.Inf)
     logger.info("R5RoutingWorker is initialized!")
+
+    val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
+    val warmStart = BeamWarmStart(BeamConfig(cfg), maxHour)
+    logger.info(s"warmStart isEnabled?: ${warmStart.isWarmMode}")
+
+    warmStart.read.foreach { travelTime =>
+      workerRouter ! UpdateTravelTimeLocal(travelTime)
+      logger.info("Send `UpdateTravelTimeLocal`")
+    }
 
     val interface = "0.0.0.0"
     val port = 9000
