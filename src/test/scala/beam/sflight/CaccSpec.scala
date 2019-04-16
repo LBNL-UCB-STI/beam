@@ -17,18 +17,13 @@ import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap, Matchers, WordSpecL
 
 class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap {
 
-  private var configMap: ConfigMap = _
-
-  override def beforeAll(configMap: ConfigMap): Unit = {
-    this.configMap = configMap
-  }
-
-  private def runSimulationAndReturnAvgCarTravelTimes(caccEnabled: Boolean): Double = {
+  private def runSimulationAndReturnAvgCarTravelTimes(caccEnabled: Boolean, iterationNumber: Int): Double = {
     val config = ConfigFactory
       .parseString(s"""
                      |beam.outputs.events.fileOutputFormats = xml
-                     |beam.agentsim.lastIteration = 1
+                     |beam.agentsim.lastIteration = $iterationNumber
                      |beam.physsim.jdeqsim.cacc.enabled = $caccEnabled
+                     |beam.physsim.jdeqsim.cacc.minSpeedMetersPerSec = 0
                      |beam.agentsim.agents.vehicles.vehiclesFilePath = $${beam.inputDirectory}"/sample/1k/vehicles-cav.csv"
                    """.stripMargin)
       .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf"))
@@ -63,29 +58,31 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
     val controller = services.controler
     controller.run()
 
-    CaccSpec.avgCarModeFromCsv(extractFileName(matsimConfig, beamConfig, outputDir))
+    CaccSpec.avgCarModeFromCsv(extractFileName(matsimConfig, beamConfig, outputDir, iterationNumber))
   }
 
   private def extractFileName(
     matsimConfig: Config,
     beamConfig: BeamConfig,
-    outputDir: String
+    outputDir: String,
+    iterationNumber: Int
   ): String = {
     val outputDirectoryHierarchy =
       new OutputDirectoryHierarchy(outputDir, OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles)
 
-    outputDirectoryHierarchy.getIterationFilename(1, PersonTravelTimeAnalysis.fileBaseName + ".csv")
+    outputDirectoryHierarchy.getIterationFilename(iterationNumber, PersonTravelTimeAnalysis.fileBaseName + ".csv")
   }
 
   "SF Light" must {
-    "run 1k scenario car averageTravelTimes(deqsim.cacc.enabled=true) >= averageTravelTimes(deqsim.cacc.enabled=false)" in {
-      val avgWithCaccEnabled = runSimulationAndReturnAvgCarTravelTimes(true)
-      val avgWithCaccDisabled = runSimulationAndReturnAvgCarTravelTimes(false)
+    "run 1k scenario car averageTravelTimes(deqsim.cacc.enabled=true) <= averageTravelTimes(deqsim.cacc.enabled=false)" in {
+      val iteration = 1
+      val avgWithCaccEnabled = runSimulationAndReturnAvgCarTravelTimes(caccEnabled = true, iteration)
+      val avgWithCaccDisabled = runSimulationAndReturnAvgCarTravelTimes(caccEnabled = false, iteration)
 
       assert(avgWithCaccEnabled <= avgWithCaccDisabled)
     }
-
   }
+
 }
 
 object CaccSpec {

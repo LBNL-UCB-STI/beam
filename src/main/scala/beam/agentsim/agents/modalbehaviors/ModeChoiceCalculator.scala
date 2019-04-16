@@ -89,7 +89,7 @@ trait ModeChoiceCalculator extends HasServices {
       case _ =>
         embodiedBeamTrip.costEstimate
     }
-    totalCost
+    totalCost + embodiedBeamTrip.replanningPenalty
   }
 
   def computeAllDayUtility(
