@@ -1,4 +1,5 @@
 package beam.router
+import java.awt.geom.Ellipse2D
 import java.awt.{BasicStroke, Color}
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
@@ -19,6 +20,7 @@ import org.jfree.chart.annotations.{XYLineAnnotation, XYTextAnnotation}
 import org.jfree.chart.plot.{PlotOrientation, XYPlot}
 import org.jfree.data.xy.{XYSeries, XYSeriesCollection}
 import org.jfree.ui.RectangleInsets
+import org.jfree.util.ShapeUtilities
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.utils.io.IOUtils
@@ -237,12 +239,14 @@ object TravelTimeObserved extends LazyLogging {
       new Color(255, 0, 60) // dark red
     )
 
-    (1 to seriesPerCount.size).map(
+    (0 to seriesPerCount.size - 1).map {
       counter =>
-        xyplot
+        val renderer = xyplot
           .getRendererForDataset(xyplot.getDataset(0))
-          .setSeriesPaint(counter, colors(counter % colors.length))
-    )
+
+        renderer.setSeriesShape(counter, new Ellipse2D.Double(0, 0, 5, 5))
+        renderer.setSeriesPaint(counter, colors(counter % colors.length))
+    }
 
     val max = Math.max(
       dataset.getDomainLowerBound(false),
