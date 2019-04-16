@@ -239,13 +239,12 @@ object TravelTimeObserved extends LazyLogging {
       new Color(255, 0, 60) // dark red
     )
 
-    (0 to seriesPerCount.size - 1).map {
-      counter =>
-        val renderer = xyplot
-          .getRendererForDataset(xyplot.getDataset(0))
+    (0 to seriesPerCount.size - 1).map { counter =>
+      val renderer = xyplot
+        .getRendererForDataset(xyplot.getDataset(0))
 
-        renderer.setSeriesShape(counter, new Ellipse2D.Double(0, 0, 5, 5))
-        renderer.setSeriesPaint(counter, colors(counter % colors.length))
+      renderer.setSeriesShape(counter, new Ellipse2D.Double(0, 0, 5, 5))
+      renderer.setSeriesPaint(counter, colors(counter % colors.length))
     }
 
     val max = Math.max(
