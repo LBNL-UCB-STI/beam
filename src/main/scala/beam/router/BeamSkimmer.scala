@@ -105,7 +105,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
       travelDistance,
       travelCost,
       0,
-      0.0 // TODO get default energy information
+      0.0 // TODO get default fuel information
     )
   }
 
@@ -192,11 +192,11 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   }
 
   def observeTrip(
-    trip: EmbodiedBeamTrip,
-    generalizedTimeInHours: Double,
-    generalizedCost: Double,
-    energyConsumption: Double,
-    beamServices: BeamServices
+                   trip: EmbodiedBeamTrip,
+                   generalizedTimeInHours: Double,
+                   generalizedCost: Double,
+                   fuelConsumed: Double,
+                   beamServices: BeamServices
   ): Option[SkimInternal] = {
     val mode = trip.tripClassifier
     val correctedTrip = mode match {
@@ -217,6 +217,11 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
       .tazId
     val timeBin = timeToBin(origLeg.startTime)
     val key = (timeBin, mode, origTaz, destTaz)
+    val scaledFuel = mode match {
+      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT =>
+        fuelConsumed * beamConfig.beam.agentsim.tuning.transitCapacity.getOrElse(1.0)
+      case _ => fuelConsumed
+    }
     val payload =
       SkimInternal(
         trip.totalTravelTimeInSecs.toDouble,
@@ -225,7 +230,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
         trip.beamLegs().map(_.travelPath.distanceInM).sum,
         trip.costEstimate,
         1,
-        energyConsumption
+        scaledFuel
       )
     skims.get(key) match {
       case Some(existingSkim) =>
@@ -236,7 +241,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
           mergeAverage(existingSkim.distance, existingSkim.count, payload.distance),
           mergeAverage(existingSkim.cost, existingSkim.count, payload.cost),
           existingSkim.count + 1,
-          mergeAverage(existingSkim.energy, existingSkim.count, payload.energy)
+          mergeAverage(existingSkim.fuel, existingSkim.count, payload.fuel)
         )
         skims.put(key, newPayload)
       case None =>
@@ -314,10 +319,10 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
       .zip(weights)
       .map(tup => tup._1 * tup._2)
       .sum / sumWeights
-    val weightedEnergy = individualSkims.map(_.energy).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
+    val weightedFuel = individualSkims.map(_.fuel).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
 
     writer.write(
-      s"$timePeriodString,$mode,${origin.tazId},${destination.tazId},${weightedTime},${weightedGeneralizedTime},${weightedCost},${weightedGeneralizedCost},${weightedDistance},${sumWeights},$weightedEnergy\n"
+      s"$timePeriodString,$mode,${origin.tazId},${destination.tazId},$weightedTime,$weightedGeneralizedTime,$weightedCost,$weightedGeneralizedCost,$weightedDistance,$sumWeights,$weightedFuel\n"
     )
   }
 
@@ -327,7 +332,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     val nonPeakHours = (0 to 6).toList ++ (9 to 14).toList ++ (17 to 23).toList
     val modes = List(CAR)
     val fileHeader =
-      "period,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations,energy"
+      "period,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations,fuel"
     val filePath = event.getServices.getControlerIO.getIterationFilename(
       event.getServices.getIterationNumber,
       BeamSkimmer.excerptSkimsFileBaseName + ".csv.gz"
@@ -380,7 +385,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
 
   def writeFullSkims(event: IterationEndsEvent): Unit = {
     val fileHeader =
-      "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations,energy"
+      "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations,fuel"
     val filePath = event.getServices.getControlerIO.getIterationFilename(
       event.getServices.getIterationNumber,
       BeamSkimmer.fullSkimsFileBaseName + ".csv.gz"
@@ -429,7 +434,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
                   }
 
                 writer.write(
-                  s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedTime},${theSkim.distance},${theSkim.count},${theSkim.energy}\n"
+                  s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedTime},${theSkim.distance},${theSkim.count},${theSkim.fuel}\n"
                 )
               }
           }
@@ -440,7 +445,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
 
   def writeObservedSkims(event: IterationEndsEvent): Unit = {
     val fileHeader =
-      "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations,energy"
+      "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations,fuel"
     val filePath = event.getServices.getControlerIO.getIterationFilename(
       event.getServices.getIterationNumber,
       BeamSkimmer.observedSkimsFileBaseName + ".csv.gz"
@@ -451,7 +456,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
 
     skims.foreach { keyVal =>
       writer.write(
-        s"${keyVal._1._1},${keyVal._1._2},${keyVal._1._3},${keyVal._1._4},${keyVal._2.time},${keyVal._2.generalizedTime},${keyVal._2.cost},${keyVal._2.generalizedCost},${keyVal._2.distance},${keyVal._2.count},${keyVal._2.energy}\n"
+        s"${keyVal._1._1},${keyVal._1._2},${keyVal._1._3},${keyVal._1._4},${keyVal._2.time},${keyVal._2.generalizedTime},${keyVal._2.cost},${keyVal._2.generalizedCost},${keyVal._2.distance},${keyVal._2.count},${keyVal._2.fuel}\n"
       )
     }
     writer.close()
@@ -494,26 +499,26 @@ object BeamSkimmer extends LazyLogging {
   )
 
   case class SkimInternal(
-    time: Double,
-    generalizedTime: Double,
-    generalizedCost: Double,
-    distance: Double,
-    cost: Double,
-    count: Int,
-    energy: Double
+                           time: Double,
+                           generalizedTime: Double,
+                           generalizedCost: Double,
+                           distance: Double,
+                           cost: Double,
+                           count: Int,
+                           fuel: Double
   ) {
     //NOTE: All times in seconds here
-    def toSkimExternal: Skim = Skim(time.toInt, generalizedTime, generalizedCost, distance, cost, count, energy)
+    def toSkimExternal: Skim = Skim(time.toInt, generalizedTime, generalizedCost, distance, cost, count, fuel)
   }
 
   case class Skim(
-    time: Int,
-    generalizedTime: Double,
-    generalizedCost: Double,
-    distance: Double,
-    cost: Double,
-    count: Int,
-    energy: Double
+                   time: Int,
+                   generalizedTime: Double,
+                   generalizedCost: Double,
+                   distance: Double,
+                   cost: Double,
+                   count: Int,
+                   fuel: Double
   )
 
   private def readCsvFile(filePath: String): TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = {
@@ -533,7 +538,7 @@ object BeamSkimmer extends LazyLogging {
         val generalizedCost = line.get("generalizedCost")
         val distanceInMeters = line.get("distanceInM")
         val numObservations = line.get("numObservations")
-        val energy = line.get("energy")
+        val fuel = line.get("fuel")
 
         val key = (
           hour.toInt,
@@ -549,7 +554,7 @@ object BeamSkimmer extends LazyLogging {
             distanceInMeters.toDouble,
             cost.toDouble,
             numObservations.toInt,
-            Option(energy).map(_.toDouble).getOrElse(0.0)
+            Option(fuel).map(_.toDouble).getOrElse(0.0)
           )
         res.put(key, value)
         line = mapReader.read(header: _*)
