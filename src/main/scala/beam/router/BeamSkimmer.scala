@@ -192,11 +192,11 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   }
 
   def observeTrip(
-                   trip: EmbodiedBeamTrip,
-                   generalizedTimeInHours: Double,
-                   generalizedCost: Double,
-                   fuelConsumed: Double,
-                   beamServices: BeamServices
+    trip: EmbodiedBeamTrip,
+    generalizedTimeInHours: Double,
+    generalizedCost: Double,
+    fuelConsumed: Double,
+    beamServices: BeamServices
   ): Option[SkimInternal] = {
     val mode = trip.tripClassifier
     val correctedTrip = mode match {
@@ -499,26 +499,26 @@ object BeamSkimmer extends LazyLogging {
   )
 
   case class SkimInternal(
-                           time: Double,
-                           generalizedTime: Double,
-                           generalizedCost: Double,
-                           distance: Double,
-                           cost: Double,
-                           count: Int,
-                           fuel: Double
+    time: Double,
+    generalizedTime: Double,
+    generalizedCost: Double,
+    distance: Double,
+    cost: Double,
+    count: Int,
+    fuel: Double
   ) {
     //NOTE: All times in seconds here
     def toSkimExternal: Skim = Skim(time.toInt, generalizedTime, generalizedCost, distance, cost, count, fuel)
   }
 
   case class Skim(
-                   time: Int,
-                   generalizedTime: Double,
-                   generalizedCost: Double,
-                   distance: Double,
-                   cost: Double,
-                   count: Int,
-                   fuel: Double
+    time: Int,
+    generalizedTime: Double,
+    generalizedCost: Double,
+    distance: Double,
+    cost: Double,
+    count: Int,
+    fuel: Double
   )
 
   private def readCsvFile(filePath: String): TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = {
