@@ -769,6 +769,12 @@ helm {
 
 task helmInit(type: HelmInit) {
     upgrade = true
+    doLast {
+        exec {
+            executable 'kubectl'
+            args = ['patch', 'deploy', '--namespace', 'kube-system', 'tiller-deploy', '-p', '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}']
+        }
+    }
 }
 
 helmInit.dependsOn clean
@@ -906,6 +912,14 @@ task createEksCluster(dependsOn: bindWorkerNodes) {
         exec {
             executable 'kubectl'
             args = ['apply', '-f', 'kubernetes/default/s3-daemonset.yaml']
+        }
+        exec {
+            executable 'kubectl'
+            args = ['create', 'serviceaccount', '--namespace', 'kube-system', 'tiller']
+        }
+        exec {
+            executable 'kubectl'
+            args = ['create', 'clusterrolebinding', 'tiller-cluster-rule', '--clusterrole=cluster-admin', '--serviceaccount=kube-system:tiller']
         }
     }
 }
