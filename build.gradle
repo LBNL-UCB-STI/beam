@@ -153,7 +153,7 @@ dependencies {
     compile "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
     compile "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
 
-    compile(group: 'com.github.michaz', name: 'r5', version: 'mz-tolls-SNAPSHOT', changing: true) {
+    compile(group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'mz-tolls-SNAPSHOT', changing: true) {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
