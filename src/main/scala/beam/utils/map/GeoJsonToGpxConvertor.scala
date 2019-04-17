@@ -1,4 +1,6 @@
-package beam.utils
+package beam.utils.map
+
+import beam.utils.GeoJsonReader
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Geometry
 import org.matsim.api.core.v01.Coord

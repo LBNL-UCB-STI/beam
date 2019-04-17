@@ -959,7 +959,7 @@ trait ChoosesMode {
                       .head
                 }
               val expensiveWalkTrip = EmbodiedBeamTrip(
-                Vector(originalWalkTripLeg.copy(cost = 100))
+                Vector(originalWalkTripLeg.copy(replanningPenalty = 100.0))
               )
 
               goto(FinishingModeChoice) using choosesModeData.copy(

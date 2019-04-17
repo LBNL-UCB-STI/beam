@@ -14,7 +14,8 @@ case class EmbodiedBeamLeg(
   asDriver: Boolean,
   cost: Double,
   unbecomeDriverOnCompletion: Boolean,
-  isPooledTrip: Boolean = false
+  isPooledTrip: Boolean = false,
+  replanningPenalty: Double = 0
 ) {
 
   val isHumanBodyVehicle: Boolean =
