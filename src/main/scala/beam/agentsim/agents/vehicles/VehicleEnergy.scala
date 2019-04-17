@@ -195,7 +195,7 @@ class VehicleEnergy(
 
   def vehicleEnergyMappingExistsFor(vehicleType: BeamVehicleType): Boolean = {
     consumptionRateFilterStore.hasPrimaryConsumptionRateFilterFor(vehicleType) ||
-      consumptionRateFilterStore.hasSecondaryConsumptionRateFilterFor(vehicleType)
+    consumptionRateFilterStore.hasSecondaryConsumptionRateFilterFor(vehicleType)
   }
 
   def getFuelConsumptionEnergyInJoulesUsing(

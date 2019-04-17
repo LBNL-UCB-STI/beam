@@ -126,8 +126,12 @@ class BeamVehicle(
     */
   def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): FuelConsumed = {
     val fuelConsumptionData =
-      BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper,
-        beamServices.vehicleEnergy.vehicleEnergyMappingExistsFor(beamVehicleType))
+      BeamVehicle.collectFuelConsumptionData(
+        beamLeg,
+        beamVehicleType,
+        beamServices.networkHelper,
+        beamServices.vehicleEnergy.vehicleEnergyMappingExistsFor(beamVehicleType)
+      )
 
     val primaryEnergyForFullLeg =
       /*val (primaryEnergyForFullLeg, primaryLoggingData) =*/
@@ -299,14 +303,17 @@ object BeamVehicle {
 //      val nextLinkIds = linkIds.takeRight(linkIds.size - 1)
       linkIds.zipWithIndex.map {
         case (id, idx) =>
-          val travelTime = if(onlyLength) 0 else linkTravelTimes(idx)
+          val travelTime = if (onlyLength) 0 else linkTravelTimes(idx)
 //          val arrivalTime = linkArrivalTimes(idx)
           val currentLink: Option[Link] = networkHelper.getLink(id)
-          val averageSpeed = if(onlyLength) 0 else try {
-            if (travelTime > 0) currentLink.map(_.getLength).getOrElse(0.0) / travelTime else 0
-          } catch {
-            case _: Exception => 0.0
-          }
+          val averageSpeed =
+            if (onlyLength) 0
+            else
+              try {
+                if (travelTime > 0) currentLink.map(_.getLength).getOrElse(0.0) / travelTime else 0
+              } catch {
+                case _: Exception => 0.0
+              }
           // get the next link , and calculate the direction to be taken based on the angle between the two links
 //          val nextLink = if (idx < nextLinkIds.length) {
 //            networkHelper.getLink(nextLinkIds(idx))
@@ -326,11 +333,11 @@ object BeamVehicle {
           FuelConsumptionData(
             linkId = id,
             vehicleType = theVehicleType,
-            linkNumberOfLanes = if(onlyLength) None else currentLink.map(_.getNumberOfLanes().toInt).headOption,
+            linkNumberOfLanes = if (onlyLength) None else currentLink.map(_.getNumberOfLanes().toInt).headOption,
             linkCapacity = None, //currentLink.map(_.getCapacity),
             linkLength = currentLink.map(_.getLength),
-            averageSpeed = if(onlyLength) None else Some(averageSpeed),
-            freeFlowSpeed = if(onlyLength) None else currentLink.map(_.getFreespeed),
+            averageSpeed = if (onlyLength) None else Some(averageSpeed),
+            freeFlowSpeed = if (onlyLength) None else currentLink.map(_.getFreespeed),
             linkArrivalTime = None, //Some(arrivalTime),
             turnAtLinkEnd = None, //Some(turnAtLinkEnd),
             numberOfStops = None //Some(numStops)
