@@ -144,12 +144,12 @@ class ScenarioLoader(
           .toBuffer
 
         beamServices.vehicleTypes.values
-        .find(_.vehicleCategory == VehicleCategory.Bike) match {
-        case Some(vehType) =>
-          vehicleTypes.append(vehType)
-        case None =>
-          throw new RuntimeException("Bike not found in vehicle types.")
-      }
+          .find(_.vehicleCategory == VehicleCategory.Bike) match {
+          case Some(vehType) =>
+            vehicleTypes.append(vehType)
+          case None =>
+            throw new RuntimeException("Bike not found in vehicle types.")
+        }
         initialVehicleCounter += householdInfo.cars.toInt
         totalCarCount += vehicleTypes.count(_.vehicleCategory.toString == "Car")
 
