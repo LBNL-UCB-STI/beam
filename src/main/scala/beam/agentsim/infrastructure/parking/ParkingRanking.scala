@@ -4,52 +4,45 @@ import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.taz.TAZ
 import scala.collection.Map
 
+import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Coord
 
 object ParkingRanking {
-
-  type RankingFunction = (ParkingZone, Double, Option[ChargingPreference]) => Double
 
   val PlaceholderForChargingCosts = 0.0
 
   /**
     * computes the cost of a given parking alternative based on the stall rental and optional charging capabilities
-    *
-    * @param parkingDuration duration agent will use parking stall
     * @param parkingZone the zone, which is a set of parking attributes in a TAZ with similar attributes
-    * @param chargingPreferenceOption an optional charging preference from the agent, used to rank by "need"
+    * @param parkingDuration duration of the agent's activity and therefore time parking
+    * @param distanceToStall walking distance to cells
+    * @param valueOfTime agent's value of time
     * @return utility of parking
     */
-  def rankingFunction(parkingDuration: Double)(
+  def apply(
     parkingZone: ParkingZone,
+    parkingDuration: Double,
     distanceToStall: Double,
-    chargingPreferenceOption: Option[ChargingPreference]
+    valueOfTime: Double
   ): Double = {
     val price: Double = parkingZone.pricingModel match {
       case None => 0.0
       case Some(pricingModel) =>
-        pricingModel match {
-          case PricingModel.FlatFee(cost, _)      => cost * 100.0
-          case PricingModel.Block(cost, interval) => parkingDuration / interval * (cost * 100.0)
-        }
+        // convert to dollars; calculate duration if block-based pricing
+        PricingModel.evaluateParkingTicket(pricingModel, parkingDuration.toInt)
+
+//        pricingModel match {
+//          case PricingModel.FlatFee(cost, _)      => cost.toDouble / 100.0
+//          case PricingModel.Block(cost, interval) => parkingDuration.toDouble / interval.toDouble * (cost.toDouble / 100.0)
+//        }
     }
 
-    // TODO: integrate cost of charge here
-    val chargingCost: Double = parkingZone.chargingPointType match {
-      case None => 0.0
-      case Some(chargingPointType) =>
-        val chargingPointCost: Double = PlaceholderForChargingCosts
+    // assumes 1.4 m/s walking speed, distance in meters, value of time in seconds
+    val valueOfTimeSpentWalking: Double = distanceToStall / 1.4 / 3600.0 * valueOfTime
 
-        // TODO: mapping from preference to VoT??
-        val needAsPriceSignal: Double = chargingPreferenceOption match {
-          case None                     => 0.0D
-          case Some(chargingPreference) => PlaceholderForChargingCosts
-        }
+    // TODO: include cost of charge here
 
-        chargingPointCost + needAsPriceSignal
-    }
-
-    price + chargingCost
+    - price - valueOfTimeSpentWalking - PlaceholderForChargingCosts
   }
 
 

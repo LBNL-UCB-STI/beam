@@ -28,7 +28,7 @@ object ParkingStallSampling {
 
     // this coefficient models the effect of parking supply constraint on the distance a parking stall
     // might be placed from the agent's desired destination
-    val availabilityFactor: Double = math.min(1.0, -0.25 * math.log(availabilityRatio))
+    val availabilityFactor: Double = if (availabilityRatio < 0.01) 1.0 else -0.25 * math.log(availabilityRatio)
 
     // finding a location between the agent and the TAZ centroid to sample from, scaled back by increased availability
     val (scaledXDistance, scaledYDistance) = (
@@ -36,18 +36,19 @@ object ParkingStallSampling {
       yDistance * availabilityFactor
     )
 
-    // random values, scaled to the problem size, but scaled back by increased availability
+    // the random variable has a standard deviation made of an inverse of parking availability and scaled out
+    // proportionally to 1/3 the diameter of the TAZ.
+    // random value offset by the agent location and additionally offset by the distance from agent
+    // to TAZ centroid with inverse availability also being a factor here.
     val (sampleX, sampleY) = (
-      rand.nextGaussian * sampleStandardDeviation * availabilityFactor,
-      rand.nextGaussian * sampleStandardDeviation * availabilityFactor
+      (rand.nextGaussian * availabilityFactor * sampleStandardDeviation) + agent.getX + scaledXDistance,
+      (rand.nextGaussian * availabilityFactor * sampleStandardDeviation) + agent.getY + scaledYDistance
     )
 
-    // linear combination of current agent position, a scaled random variable, and a scaled sample centroid
-    new Coord(
-      agent.getX + sampleX + scaledXDistance,
-      agent.getY + sampleY + scaledYDistance
-    )
+    new Coord(sampleX, sampleY)
   }
+
+
 
   /**
     * samples a random location near a TAZ's centroid in order to create a stall in that TAZ.
@@ -56,6 +57,8 @@ object ParkingStallSampling {
     * @param center location we are sampling from
     *
     * @return a coordinate near that TAZ
+    *
+    * @deprecated
     */
   def sampleLocationForStall(rand: Random, center: Location, radius: Double): Location = {
     val lambda = 0.01

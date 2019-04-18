@@ -7,7 +7,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest.{Matchers, WordSpec}
 
 class ParkingStallSamplingTestSpec extends WordSpec with Matchers {
-  val trialsPerTest: Int = 1000
+  val trialsPerTest: Int = 100
   "testAvailabilityAwareSampling" when {
     "square TAZ with agent destination near corner" when {
       "100% availability" should {
@@ -106,6 +106,8 @@ class ParkingStallSamplingTestSpec extends WordSpec with Matchers {
           }
 
           // confirm samples perform within tolerance
+          // since we are using gaussian random, we sometimes have outliers, but we require that 99.9% of values are
+          // in an expected bounds
           val targetPercentError: Double = 0.001
           val integerScale: Int = 10000
           val ratioAsInteger: Int = math.ceil((counter.toDouble / max.toDouble) * integerScale).toInt
@@ -122,7 +124,7 @@ object ParkingStallSamplingTestSpec {
   // a parking problem which is a square coordinate system in the range x=[0,1000],y=[0,1000]
   // with agent destination at position (100,100)
   trait SquareTAZWorld {
-    val random: Random = Random
+    val random: Random = new Random(0L)
 
     val (tazX: Double, tazY: Double) = (500.0, 500.0)
     val tazD: Double = 1000.0

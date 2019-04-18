@@ -14,8 +14,19 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.io.IOUtils
 
-// utilities to load parking zone information from a file
+// utilities to read/write parking zone information from/to a file
 object ParkingZoneFileUtils extends LazyLogging {
+
+  /**
+    * used to parse a row of the parking file
+    *
+    */
+  val ParkingFileRowRegex: Regex = "^(\\w+),(\\w+),(\\w+),(\\w+),(\\d+),(\\d+),(\\w+)$".r
+
+  /**
+    * header for parking files (used for writing new parking files)
+    */
+  val ParkingFileHeader: String = "taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor"
 
   /**
     * write the loaded set of parking and charging options to an instance parking file
@@ -30,7 +41,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     writeDestinationPath: String
   ): Unit = {
 
-    val header: String = "taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor"
+
     val destinationFile = new File(writeDestinationPath)
 
     Try {
@@ -56,7 +67,7 @@ object ParkingZoneFileUtils extends LazyLogging {
       case Failure(e) =>
         throw new RuntimeException(s"failed while converting parking configuration to csv format.\n$e")
       case Success(rows) =>
-        val newlineFormattedCSVOutput: String = (List(header) ::: rows).mkString("\n")
+        val newlineFormattedCSVOutput: String = (List(ParkingFileHeader) ::: rows).mkString("\n")
         Try {
           destinationFile.getParentFile.mkdirs()
           val writer = IOUtils.getBufferedWriter(writeDestinationPath)
@@ -149,14 +160,14 @@ object ParkingZoneFileUtils extends LazyLogging {
     }
   }
 
-  private[ParkingZoneFileUtils] val ParkingFileRowRegex: Regex = "^(\\w+),(\\w+),(\\w+),(\\w+),(\\d+),(\\d+),(\\w+)$".r
+
 
   /**
     * parses a row of parking configuration into the data structures used to represent it
     * @param csvRow the comma-separated parking attributes
     * @return a ParkingZone and it's corresponding ParkingType and Taz Id
     */
-  private[ParkingZoneFileUtils] def parseParkingZoneFromRow(
+  def parseParkingZoneFromRow(
     csvRow: String,
     nextParkingZoneId: Int
   ): (Id[TAZ], ParkingType, ParkingZone) = {
@@ -178,7 +189,7 @@ object ParkingZoneFileUtils extends LazyLogging {
           val pricingModel = PricingModel(pricingModelString, feeInCentsString)
           val chargingPoint = ChargingPointType(chargingTypeString)
           val numStalls = numStallsString.toInt
-          val parkingZone = ParkingZone(nextParkingZoneId, numStalls, chargingPoint, pricingModel)
+          val parkingZone = ParkingZone(nextParkingZoneId, taz, numStalls, chargingPoint, pricingModel)
 
           (taz, parkingType, parkingZone)
 

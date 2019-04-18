@@ -67,6 +67,7 @@ class ZonalParkingManager(
         500.0,
         ZonalParkingManager.MaxSearchRadius,
         inquiry.customerLocationUtm,
+        ZonalParkingManager.DepotParkingValueOfTime,
         ZonalParkingManager.ParkingDurationForRideHailAgents,
         Seq(ParkingType.Public),
         None,
@@ -109,6 +110,7 @@ class ZonalParkingManager(
         500.0,
         ZonalParkingManager.MaxSearchRadius,
         inquiry.customerLocationUtm,
+        inquiry.attributesOfIndividual.valueOfTime,
         inquiry.parkingDuration.toInt,
         preferredParkingTypes,
         inquiry.chargingInquiryData,
@@ -145,6 +147,7 @@ object ZonalParkingManager {
   val MaxSearchRadius: Double = 10e3
   val DefaultParkingPrice: Double = 0.0
   val ParkingAvailabilityThreshold: Double = 0.25
+  val DepotParkingValueOfTime: Double = 0.0 // ride hail drivers do not have a value of time
 
   /**
     * constructs a ZonalParkingManager
@@ -199,6 +202,7 @@ object ZonalParkingManager {
     searchStartRadius  : Double,
     searchMaxRadius    : Double,
     destinationUTM     : Location,
+    valueOfTime        : Double,
     parkingDuration    : Int,
     parkingTypes       : Seq[ParkingType],
     chargingInquiryData: Option[ChargingInquiryData[String, String]],
@@ -225,12 +229,13 @@ object ZonalParkingManager {
 
         ParkingZoneSearch.find(
           destinationUTM,
+          valueOfTime,
+          parkingDuration,
           chargingInquiryData,
           tazList,
           parkingTypes,
           searchTree,
           stalls,
-          ParkingRanking.rankingFunction(parkingDuration = parkingDuration),
           distanceFunction,
           random
         ) match {
