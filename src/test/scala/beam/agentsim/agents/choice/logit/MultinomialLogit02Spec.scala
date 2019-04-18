@@ -56,7 +56,7 @@ class MultinomialLogit02Spec extends WordSpecLike with Matchers {
       mnl.getUtilityOfAlternative(alts.head._1, alts.head._2) match {
         case None => fail()
         case Some(util) =>
-          (util - 1.7).abs should be < 0.000000001
+          (util - 1.7).abs should be < 0.000000001 // todo fails due to wrong evaluation of commons / utility of alternative
       }
 
     }
