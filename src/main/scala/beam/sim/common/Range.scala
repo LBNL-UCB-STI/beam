@@ -50,11 +50,11 @@ object Range {
     }
   }
 
-  def apply(pattern: String, isDouble: Boolean = false): Range = {
+  def apply(exp: String, isDouble: Boolean = false): Range = {
     val softBoundValue = if (isDouble) 0 else 1
-    if (pattern == null || pattern.isEmpty) Range.empty()
+    if (exp == null || exp.isEmpty) Range.empty()
     else {
-      val endpoints = pattern.split(":")
+      val endpoints = exp.split(":")
       val lowerEndpoint = Try(
         endpoints(0).substring(1).toInt
         + (if (endpoints(0).startsWith("(")) 1 else 0)
