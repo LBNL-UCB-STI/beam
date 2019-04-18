@@ -169,10 +169,7 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    // ORDER IS IMPORTANT HERE!
-    // travelTimeObserved use skimmer to write `TravelTimeObservedVsSimulated`
-    // `beamSkimmer.notifyIterationEnds(event)` will clear skims, so `travelTimeObserved.writeTravelTimeObservedVsSimulated` must be first
-    travelTimeObserved.writeTravelTimeObservedVsSimulated(event)
+    travelTimeObserved.notifyIterationEnds(event)
 
     beamSkimmer.notifyIterationEnds(event)
 

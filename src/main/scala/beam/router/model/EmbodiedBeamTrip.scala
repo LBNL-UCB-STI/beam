@@ -1,6 +1,5 @@
 package beam.router.model
 
-import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{
   BIKE,
