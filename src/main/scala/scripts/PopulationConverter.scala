@@ -17,14 +17,12 @@ object PopulationConverter extends XmlFileConverter {
 
   private def toPerson(node: Node): Person = {
     val plan: Node = (node \ "plan").head
-    val r = Person(
+    Person(
       id = node.attributes("id").toString.toInt,
       planScore = plan.attributes("score").text.toDouble,
       planSelected = plan.attributes("selected").text.toLowerCase == "yes",
       activities = (plan \\ "activity").map(toActivity)
     )
-//    println(r)
-    r
   }
 
   private def toActivity(node: Node): Activity = {
