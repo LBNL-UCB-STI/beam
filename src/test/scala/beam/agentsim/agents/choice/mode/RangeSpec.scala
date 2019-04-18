@@ -48,6 +48,6 @@ class RangeSpec extends FlatSpec {
   }
 
   "[10:1]" should "throw RuntimeException" in {
-    assertThrows[RuntimeException](Range("[10:1]", closeRange = true))
+    assertThrows[RuntimeException](Range("[10:1]", closeRange = true, isDouble = false))
   }
 }

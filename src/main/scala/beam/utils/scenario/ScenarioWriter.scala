@@ -5,7 +5,7 @@ import java.io.FileWriter
 import beam.utils.FileUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.{Activity, Leg, Person, PlanElement}
+import org.matsim.api.core.v01.population.{Activity, Leg, Person, PlanElement => MatsimPlanElement}
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households.Household
 import org.supercsv.io.CsvMapWriter
@@ -32,7 +32,7 @@ object CsvScenarioWriter extends ScenarioWriter with LazyLogging {
     logger.info(s"Wrote ${scenario.getHouseholds.getHouseholds.size()} households to the folder ${path}")
   }
 
-  private def writePlanInfo(plans: Iterable[PlanInfo], path: String): Unit = {
+  private def writePlanInfo(plans: Iterable[PlanElement], path: String): Unit = {
     writeCSV(path + "/plans.csv", Seq("personId", "planElement", "activityType", "x", "y", "endTime", "mode")) {
       plans.map { planInfo =>
         Map(
@@ -95,19 +95,20 @@ object CsvScenarioWriter extends ScenarioWriter with LazyLogging {
     }.toMap
   }
 
-  private def getPlanInfo(scenario: MutableScenario): Iterable[PlanInfo] = {
+  private def getPlanInfo(scenario: MutableScenario): Iterable[PlanElement] = {
     scenario.getPopulation.getPersons.asScala.flatMap {
       case (id, person) =>
         // We get only selected plan!
         Option(person.getSelectedPlan).map { plan =>
-          plan.getPlanElements.asScala.map { planElement =>
-            toPlanInfo(plan.getPerson.getId.toString, planElement)
+          plan.getPlanElements.asScala.zipWithIndex.map {
+            case (planElement, index) =>
+              toPlanInfo(plan.getPerson.getId.toString, planElement, index)
           }
         }
     }.flatten
   }
 
-  private def toPlanInfo(personId: String, planElement: PlanElement): PlanInfo = {
+  private def toPlanInfo(personId: String, planElement: MatsimPlanElement, index: Int): PlanElement = {
     planElement match {
       case leg: Leg =>
         // Set mode to None, if it's empty string
@@ -116,9 +117,10 @@ object CsvScenarioWriter extends ScenarioWriter with LazyLogging {
           else Some(mode)
         }
 
-        PlanInfo(
+        PlanElement(
           personId = PersonId(personId),
           planElement = "leg",
+          planElementIndex = index,
           activityType = None,
           x = None,
           y = None,
@@ -126,9 +128,10 @@ object CsvScenarioWriter extends ScenarioWriter with LazyLogging {
           mode = mode
         )
       case act: Activity =>
-        PlanInfo(
+        PlanElement(
           personId = PersonId(personId),
           planElement = "activity",
+          planElementIndex = index,
           activityType = Option(act.getType),
           x = Option(act.getCoord.getX),
           y = Option(act.getCoord.getY),

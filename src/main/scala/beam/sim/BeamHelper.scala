@@ -1,9 +1,9 @@
 package beam.sim
 
-import java.io.FileOutputStream
+import java.io.{FileOutputStream, FileWriter}
 import java.nio.file.{Files, Paths, StandardCopyOption}
-import java.util.Properties
 import java.util.concurrent.TimeUnit
+import java.util.{Properties, Random}
 
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.events.handling.BeamEventsHandling
@@ -11,9 +11,9 @@ import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
-import beam.router.{BeamSkimmer, RouteHistory}
 import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
@@ -38,7 +38,6 @@ import org.matsim.core.config.Config
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
-import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.households.Household
@@ -51,6 +50,19 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 
 trait BeamHelper extends LazyLogging {
+
+  val beamAsciiArt: String =
+    """
+    |  ________
+    |  ___  __ )__________ _______ ___
+    |  __  __  |  _ \  __ `/_  __ `__ \
+    |  _  /_/ //  __/ /_/ /_  / / / / /
+    |  /_____/ \___/\__,_/ /_/ /_/ /_/
+    |
+    | _____________________________________
+    |
+    """.stripMargin
+
   private val argsParser = new scopt.OptionParser[Arguments]("beam") {
     opt[String]("config")
       .action(
@@ -199,7 +211,7 @@ trait BeamHelper extends LazyLogging {
 
           addControlerListenerBinding().to(classOf[BeamSim])
           addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
-          addControlerListenerBinding().to(classOf[BeamSkimmer])
+          addControlerListenerBinding().to(classOf[RouteHistory])
 
           addControlerListenerBinding().to(classOf[ActivityLocationPlotter])
           addControlerListenerBinding().to(classOf[GraphSurgePricing])
@@ -240,14 +252,10 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[RideHailIterationHistory]).asEagerSingleton()
           bind(classOf[RouteHistory]).asEagerSingleton()
           bind(classOf[BeamSkimmer]).asEagerSingleton()
+          bind(classOf[TravelTimeObserved]).asEagerSingleton()
           bind(classOf[TollCalculator]).asEagerSingleton()
 
-          // Override EventsManager
-          if (beamConfig.beam.debug.debugEnabled) {
-            bind(classOf[EventsManager]).to(classOf[EventsManagerImpl]).asEagerSingleton()
-          } else {
-            bind(classOf[EventsManager]).to(classOf[LoggingParallelEventsManager]).asEagerSingleton()
-          }
+          bind(classOf[EventsManager]).to(classOf[LoggingEventsManager]).asEagerSingleton()
         }
       }
     )
@@ -282,7 +290,7 @@ trait BeamHelper extends LazyLogging {
       throw new RuntimeException("wrong config path, expected:forward slash, found: backward slash")
     }
 
-    val location = ConfigFactory.parseString("config=" + parsedArgs.configLocation.get)
+    val location = ConfigFactory.parseString(s"config=${parsedArgs.configLocation.get}")
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
       if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
       else parsedArgs.config.get
@@ -374,19 +382,39 @@ trait BeamHelper extends LazyLogging {
     }), scala.concurrent.duration.Duration.Inf)
   }
 
+  def writeScenarioPrivateVehicles(scenario: MutableScenario, beamServices: BeamServices, outputDir: String): Unit = {
+    val csvWriter: FileWriter = new FileWriter(outputDir + "/householdVehicles.csv", true)
+    try {
+      csvWriter.write("vehicleId,vehicleType,householdId\n")
+      scenario.getHouseholds.getHouseholds.values.asScala.foreach { householdId =>
+        householdId.getVehicleIds.asScala.foreach { vehicle =>
+          beamServices.privateVehicles
+            .get(vehicle)
+            .map(
+              v => v.id.toString + "," + v.beamVehicleType.id.toString + "," + householdId.getId.toString + "\n"
+            )
+            .foreach(csvWriter.write)
+        }
+      }
+    } finally {
+      csvWriter.close()
+    }
+  }
+
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
     val (scenario, outputDir, networkCoordinator) = setupBeamWithConfig(config)
 
     // beam.utils.scenario.CsvScenarioWriter.write(scenario, "c:/temp/csv_scenario_1k/")
 
-    runBeam(config, scenario, networkCoordinator)
+    runBeam(config, scenario, networkCoordinator, outputDir)
     (scenario.getConfig, outputDir)
   }
 
   def runBeam(
     config: TypesafeConfig,
     scenario: MutableScenario,
-    networkCoordinator: NetworkCoordinator
+    networkCoordinator: NetworkCoordinator,
+    outputDir: String
   ): Unit = {
     val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
@@ -413,7 +441,21 @@ trait BeamHelper extends LazyLogging {
       }
     }
 
-    samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices)
+    samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices, outputDir)
+
+    val houseHoldVehiclesInScenario: Iterable[Id[Vehicle]] = scenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap(_.getVehicleIds.asScala)
+
+    val vehiclesGroupedByType = houseHoldVehiclesInScenario.groupBy(
+      v => beamServices.privateVehicles.get(v).map(_.beamVehicleType.id.toString).getOrElse("")
+    )
+    val vehicleInfo = vehiclesGroupedByType.map {
+      case (vehicleType, groupedValues) =>
+        s"$vehicleType (${groupedValues.size})"
+    } mkString " , "
+    logger.info(s"Vehicles assigned to households : $vehicleInfo")
 
     run(beamServices)
   }
@@ -440,7 +482,10 @@ trait BeamHelper extends LazyLogging {
       beamConfig.beam.outputs.addTimestampToOutputDirectory
     )
 
-    LoggingUtil.createFileLogger(outputDirectory)
+    val log = LoggingUtil.createFileLogger(outputDirectory, beamConfig.beam.logger.keepConsoleAppenderOn)
+    LoggingUtil.logToFile(beamAsciiArt)
+    LoggingUtil.logToFile(ConfigConsistencyComparator.logStringBuilder.toString())
+
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
 
@@ -479,26 +524,39 @@ trait BeamHelper extends LazyLogging {
     scenario: MutableScenario,
     beamConfig: BeamConfig,
     matsimConfig: Config,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    outputDir: String
   ): Unit = {
-    if (scenario.getPopulation.getPersons.size() > beamConfig.beam.agentsim.numAgents) {
+    if (beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation < 1) {
+      val numAgents = math.round(
+        beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation * scenario.getPopulation.getPersons.size()
+      )
+      val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
       val notSelectedHouseholdIds = mutable.Set[Id[Household]]()
       val notSelectedVehicleIds = mutable.Set[Id[Vehicle]]()
       val notSelectedPersonIds = mutable.Set[Id[Person]]()
-      var numberOfAgents = 0
 
-      scenario.getVehicles.getVehicles
-        .keySet()
-        .forEach(vehicleId => notSelectedVehicleIds.add(vehicleId))
+      // We add all households, vehicles and persons to the sets
+      scenario.getHouseholds.getHouseholds.values().asScala.foreach { hh =>
+        hh.getVehicleIds.forEach(vehicleId => notSelectedVehicleIds.add(vehicleId))
+      }
       scenario.getHouseholds.getHouseholds
         .keySet()
         .forEach(householdId => notSelectedHouseholdIds.add(householdId))
       scenario.getPopulation.getPersons
         .keySet()
-        .forEach(persondId => notSelectedPersonIds.add(persondId))
+        .forEach(personId => notSelectedPersonIds.add(personId))
 
-      val iterHouseholds = scenario.getHouseholds.getHouseholds.values().iterator()
-      while (numberOfAgents < beamConfig.beam.agentsim.numAgents && iterHouseholds.hasNext) {
+      logger.info(s"""Before sampling:
+          |Number of households: ${notSelectedHouseholdIds.size}
+          |Number of vehicles: ${getVehicleGroupingStringUsing(notSelectedVehicleIds.toIndexedSeq, beamServices)}
+          |Number of persons: ${notSelectedPersonIds.size}""".stripMargin)
+
+      val iterHouseholds = RandomUtils.shuffle(scenario.getHouseholds.getHouseholds.values().asScala, rand).iterator
+      var numberOfAgents = 0
+      // We start from the first household and remove its vehicles and persons from the sets to clean
+      while (numberOfAgents < numAgents && iterHouseholds.hasNext) {
+
         val household = iterHouseholds.next()
         numberOfAgents += household.getMemberIds.size()
         household.getVehicleIds.forEach(vehicleId => notSelectedVehicleIds.remove(vehicleId))
@@ -506,16 +564,36 @@ trait BeamHelper extends LazyLogging {
         household.getMemberIds.forEach(persondId => notSelectedPersonIds.remove(persondId))
       }
 
-      notSelectedVehicleIds.foreach(vehicleId => scenario.getVehicles.removeVehicle(vehicleId))
+      // Remove not selected vehicles
+      notSelectedVehicleIds.foreach { vehicleId =>
+        scenario.getVehicles.removeVehicle(vehicleId)
+        beamServices.privateVehicles.remove(vehicleId)
+      }
 
+      // Remove not selected households
       notSelectedHouseholdIds.foreach { housholdId =>
         scenario.getHouseholds.getHouseholds.remove(housholdId)
         scenario.getHouseholds.getHouseholdAttributes.removeAllAttributes(housholdId.toString)
       }
 
+      // Remove not selected persons
       notSelectedPersonIds.foreach { personId =>
         scenario.getPopulation.removePerson(personId)
       }
+
+      writeScenarioPrivateVehicles(scenario, beamServices, outputDir)
+
+      val numOfHouseholds = scenario.getHouseholds.getHouseholds.values().size
+      val vehicles = scenario.getHouseholds.getHouseholds.values.asScala.flatMap(hh => hh.getVehicleIds.asScala)
+      val numOfPersons = scenario.getPopulation.getPersons.size()
+
+      logger.info(s"""After sampling:
+           |Number of households: $numOfHouseholds. Removed: ${notSelectedHouseholdIds.size}
+           |Number of vehicles: ${getVehicleGroupingStringUsing(vehicles.toIndexedSeq, beamServices)}. Removed: ${getVehicleGroupingStringUsing(
+                       notSelectedVehicleIds.toIndexedSeq,
+                       beamServices
+                     )}
+           |Number of persons: $numOfPersons. Removed: ${notSelectedPersonIds.size}""".stripMargin)
 
       beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
         .values()
@@ -534,6 +612,17 @@ trait BeamHelper extends LazyLogging {
         .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
         .toMap
     }
+  }
+
+  private def getVehicleGroupingStringUsing(vehicleIds: IndexedSeq[Id[Vehicle]], beamServices: BeamServices): String = {
+    vehicleIds
+      .groupBy(
+        vehicleId => beamServices.privateVehicles.get(vehicleId).map(_.beamVehicleType.id.toString).getOrElse("")
+      )
+      .map {
+        case (vehicleType, vehicleIds) => s"$vehicleType (${vehicleIds.size})"
+      }
+      .mkString(" , ")
   }
 
   def getScenarioSource(beamServices: BeamServices, beamConfig: BeamConfig): ScenarioSource = {

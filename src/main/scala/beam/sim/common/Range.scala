@@ -28,8 +28,8 @@ object Range {
 
   val pattern = """\[-?\d*\:-?\d*\]"""
 
-  def apply(exp: String, closeRange: Boolean): Range = {
-    if (!closeRange) return Range(exp)
+  def apply(exp: String, closeRange: Boolean, isDouble: Boolean): Range = {
+    if (!closeRange) return Range(exp, isDouble)
 
     if (exp == null || exp.isEmpty) Range.empty()
     else if (!exp.matches(pattern))
@@ -50,10 +50,11 @@ object Range {
     }
   }
 
-  def apply(exp: String): Range = {
-    if (exp == null || exp.isEmpty) Range.empty()
+  def apply(pattern: String, isDouble: Boolean = false): Range = {
+    val softBoundValue = if (isDouble) 0 else 1
+    if (pattern == null || pattern.isEmpty) Range.empty()
     else {
-      val endpoints = exp.split(":")
+      val endpoints = pattern.split(":")
       val lowerEndpoint = Try(
         endpoints(0).substring(1).toInt
         + (if (endpoints(0).startsWith("(")) 1 else 0)
@@ -65,6 +66,7 @@ object Range {
       Range(lowerEndpoint, upperEndpoint)
     }
   }
+
 
   def apply(lowerEndpoint: Int, upperEndpoint: Int): Range = {
     if (lowerEndpoint == 0 && upperEndpoint == 0)

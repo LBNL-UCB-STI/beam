@@ -36,12 +36,13 @@ import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, _}
-import beam.router.{BeamRouter, BeamSkimmer, RouteHistory}
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
+import beam.router.{BeamRouter, BeamSkimmer, RouteHistory}
 import beam.sim.RideHailFleetInitializer.RideHailAgentInputData
 import beam.sim._
+import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils._
 import beam.utils.logging.LogActorState
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
@@ -50,6 +51,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.vividsolutions.jts.geom.Envelope
+import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.{Activity, Person, Population}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -60,6 +62,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.math.{max, min}
 
 object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLocation, Double)] {
   override def compare(
@@ -73,6 +76,7 @@ object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLo
 object RideHailManager {
 
   val INITIAL_RIDE_HAIL_LOCATION_HOME = "HOME"
+  val INITIAL_RIDE_HAIL_LOCATION_RANDOM_ACTIVITY = "RANDOM_ACTIVITY"
   val INITIAL_RIDE_HAIL_LOCATION_UNIFORM_RANDOM = "UNIFORM_RANDOM"
   val INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER = "ALL_AT_CENTER"
   val INITIAL_RIDE_HAIL_LOCATION_ALL_IN_CORNER = "ALL_IN_CORNER"
@@ -225,22 +229,6 @@ class RideHailManager(
       case _: AssertionError => Stop
     }
 
-  private val vehicleType = beamServices.vehicleTypes
-    .getOrElse(
-      Id.create(
-        beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
-        classOf[BeamVehicleType]
-      ),
-      throw new RuntimeException(
-        "Ride Hail vehicle type (param: beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleTypeId) could not be found"
-      )
-    )
-  if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >= vehicleType.primaryFuelCapacityInJoule / vehicleType.primaryFuelConsumptionInJoulePerMeter * 0.8) {
-    throw new RuntimeException(
-      "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
-    )
-  }
-
   /**
     * Customer inquiries awaiting reservation confirmation.
     */
@@ -250,7 +238,7 @@ class RideHailManager(
     CacheBuilder
       .newBuilder()
       .maximumSize(
-        (10 * beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation * beamServices.beamConfig.beam.agentsim.numAgents).toLong
+        5 * beamServices.personHouseholds.size // ZN: Changed this from 10x ride hail fleet, which is now not directly set
       )
       .expireAfterWrite(1, TimeUnit.MINUTES)
       .build()
@@ -306,8 +294,21 @@ class RideHailManager(
   // Are we in the middle of processing a batch?
   var currentlyProcessingTimeoutTrigger: Option[TriggerWithId] = None
 
+  private val initialNumHouseholdVehicles = scenario.getHouseholds.getHouseholds
+    .values()
+    .asScala
+    .flatMap { hh =>
+      hh.getVehicleIds.asScala.map { vehId =>
+        beamServices.privateVehicles.get(vehId).get.beamVehicleType
+      }
+    }
+    .filter(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car)
+    .size / beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
+  // Undo sampling to estimate initial number
+
   private val numRideHailAgents = math.round(
-    beamServices.beamConfig.beam.agentsim.numAgents.toDouble * beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation
+    initialNumHouseholdVehicles *
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet
   )
 
   // Cache analysis
@@ -315,32 +316,97 @@ class RideHailManager(
   private var cacheHits = 0
 
   private val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
+  val realDistribution: UniformRealDistribution = new UniformRealDistribution()
+  realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
   private val rideHailinitialLocationSpatialPlot = new SpatialPlot(1100, 1100, 50)
   val resources: mutable.Map[Id[BeamVehicle], BeamVehicle] = mutable.Map[Id[BeamVehicle], BeamVehicle]()
 
   beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.initType match {
     case "PROCEDURAL" =>
-      val persons: Iterable[Person] = RandomUtils
+      val averageOnDutyHoursPerDay = 3.52 // Measured from Austin Data, assuming drivers took at least 4 trips
+      val meanLogShiftDurationHours = 1.02
+      val stdLogShiftDurationHours = 0.44
+      var equivalentNumberOfDrivers = 0.0
+      val persons: Array[Person] = RandomUtils
         .shuffle(scenario.getPopulation.getPersons.values().asScala, rand)
-        .take(numRideHailAgents.toInt)
-      val fleetData: ArrayBuffer[RideHailFleetInitializer.RideHailAgentInputData] = new ArrayBuffer(persons.size)
-      persons.foreach { person =>
-        try {
-          val rideInitialLocation: Location = getRideInitLocation(person)
-          fleetData += createRideHailVehicleAndAgent(person.getId.toString, rideInitialLocation, None, None)
-        } catch {
-          case ex: Throwable =>
-            log.error(ex, s"Could not createRideHailVehicleAndAgent: ${ex.getMessage}")
-            throw ex
+        .toArray
+      val activityEndTimes: ArrayBuffer[Int] = new ArrayBuffer[Int]()
+      scenario.getPopulation.getPersons.asScala.foreach(
+        _._2.getSelectedPlan.getPlanElements.asScala
+          .collect {
+            case activity: Activity if activity.getEndTime.toInt > 0 => activity.getEndTime.toInt
+          }
+          .foreach(activityEndTimes += _)
+      )
+      val fleetData: ArrayBuffer[RideHailFleetInitializer.RideHailAgentInputData] = new ArrayBuffer
+      var idx = 0
+      while (equivalentNumberOfDrivers < numRideHailAgents.toDouble) {
+        if (idx >= persons.length) {
+          log.error(
+            "Can't have more ridehail drivers than total population"
+          )
+        } else {
+          try {
+            val person = persons(idx)
+            val vehicleType = VehiclesAdjustment
+              .getVehicleAdjustment(beamServices)
+              .sampleRideHailVehicleTypes(
+                numVehicles = 1,
+                vehicleCategory = VehicleCategory.Car,
+                realDistribution
+              )
+              .head
+            if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >=
+                  (vehicleType.primaryFuelCapacityInJoule / vehicleType.primaryFuelConsumptionInJoulePerMeter) * 0.8) {
+              log.error(
+                "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
+              )
+            }
+            val rideInitialLocation: Location = getRideInitLocation(person)
+            if (vehicleType.automationLevel < 4) {
+              val shiftDuration =
+                math.round(math.exp(rand.nextGaussian() * stdLogShiftDurationHours + meanLogShiftDurationHours) * 3600)
+              val shiftMidPointTime = activityEndTimes(rand.nextInt(activityEndTimes.length))
+              val shiftStartTime = max(shiftMidPointTime - (shiftDuration / 2).toInt, 10)
+              val shiftEndTime = min(shiftMidPointTime + (shiftDuration / 2).toInt, 30 * 3600)
+              equivalentNumberOfDrivers += (shiftEndTime - shiftStartTime) / (averageOnDutyHoursPerDay * 3600)
+
+              val shiftString = convertToShiftString(ArrayBuffer(shiftStartTime), ArrayBuffer(shiftEndTime))
+              fleetData += createRideHailVehicleAndAgent(
+                person.getId.toString,
+                vehicleType,
+                rideInitialLocation,
+                shiftString,
+                None
+              )
+            } else {
+              val shiftString = None
+              fleetData += createRideHailVehicleAndAgent(
+                person.getId.toString,
+                vehicleType,
+                rideInitialLocation,
+                shiftString,
+                None
+              )
+              equivalentNumberOfDrivers += 1.0
+            }
+          } catch {
+            case ex: Throwable =>
+              log.error(ex, s"Could not createRideHailVehicleAndAgent: ${ex.getMessage}")
+              throw ex
+          }
+          idx += 1
         }
       }
 
       new RideHailFleetInitializer().writeFleetData(beamServices, fleetData)
+      log.info("Initialized {} ride hailing shifts", idx)
 
     case "FILE" =>
       new RideHailFleetInitializer().init(beamServices) foreach { fleetData =>
         createRideHailVehicleAndAgent(
           fleetData.id.split("-").toList.tail.mkString("-"),
+          BeamVehicleType.defaultCarBeamVehicleType,
           new Coord(fleetData.initialLocationX, fleetData.initialLocationY),
           fleetData.shifts,
           fleetData.toGeofence
@@ -382,7 +448,7 @@ class RideHailManager(
     case LogActorState =>
       ReflectionUtils.logFields(log, this, 0)
       ReflectionUtils.logFields(log, rideHailResourceAllocationManager, 0)
-      ReflectionUtils.logFields(log, modifyPassengerScheduleManager, 0)
+      ReflectionUtils.logFields(log, modifyPassengerScheduleManager, 0, "config")
 
     case RecoverFromStuckness(tick) =>
       // This is assuming we are allocating demand and routes haven't been returned
@@ -456,7 +522,7 @@ class RideHailManager(
             .noPendingReservations(vehicleId) || modifyPassengerScheduleManager
             .isPendingReservationEnding(vehicleId, passengerSchedule)) {
 
-        log.debug("range: {}", beamVehicleState.remainingRangeInM / 1000.0)
+        log.debug("range: {}", beamVehicleState.remainingPrimaryRangeInM / 1000.0)
         val stallOpt = pendingAgentsSentToPark.remove(vehicleId)
         if (stallOpt.isDefined) {
           log.debug("Initiate refuel session for vehicle: {}", vehicleId)
@@ -470,7 +536,8 @@ class RideHailManager(
             triggerId,
             Vector[ScheduleTrigger](startFuelTrigger)
           )
-        } else if (beamVehicleState.remainingRangeInM < beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters) {
+        } else if (beamVehicleState.remainingPrimaryRangeInM + beamVehicleState.secondaryFuelLevel
+                     .getOrElse(0.0) < beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters) {
           // not enough range to make trip
 
           if (modifyPassengerScheduleManager.vehicleHasMoreThanOneOngoingRequests(vehicleId)) {
@@ -677,6 +744,9 @@ class RideHailManager(
         modifyPassengerScheduleManager.cancelRepositionAttempt()
       }
 
+    case reply @ InterruptedWhileOffline(interruptId, vehicleId, tick) =>
+      modifyPassengerScheduleManager.handleInterruptReply(reply)
+
     case reply @ InterruptedWhileIdle(interruptId, vehicleId, tick) =>
       if (pendingAgentsSentToPark.contains(vehicleId)) {
         outOfServiceVehicleManager.handleInterruptReply(vehicleId, tick)
@@ -818,6 +888,19 @@ class RideHailManager(
         val routingRequests = createRoutingRequestsToCustomerAndDestination(inquiry.departAt, inquiry, agentLocation)
         routingRequests.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId, inquiry.requestId))
         requestRoutes(inquiry.departAt, routingRequests)
+    }
+  }
+
+  // Returns true if pendingModifyPassengerScheduleAcks is empty and therefore signaling cleanup needed
+  def cancelReservationDueToFailedModifyPassengerSchedule(requestId: Int): Boolean = {
+    pendingModifyPassengerScheduleAcks.remove(requestId) match {
+      case Some(rideHailResponse) =>
+        val theTick = modifyPassengerScheduleManager.getCurrentTick.getOrElse(rideHailResponse.request.departAt)
+        failedAllocation(rideHailResponse.request, theTick)
+        pendingModifyPassengerScheduleAcks.isEmpty
+      case None =>
+        log.error("unexpected condition, canceling reservation but no pending modify pass schedule ack found")
+        false
     }
   }
 
@@ -1015,6 +1098,7 @@ class RideHailManager(
 
   def createRideHailVehicleAndAgent(
     rideHailAgentIdentifier: String,
+    rideHailBeamVehicleType: BeamVehicleType,
     rideInitialLocation: Coord,
     shifts: Option[String],
     geofence: Option[Geofence]
@@ -1026,17 +1110,17 @@ class RideHailManager(
         beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
         classOf[BeamVehicleType]
       )
-    val ridehailBeamVehicleType = beamServices.vehicleTypes
-      .getOrElse(ridehailBeamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
+//    val ridehailBeamVehicleType = beamServices.vehicleTypes
+//      .getOrElse(ridehailBeamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
     val rideHailAgentPersonId: Id[RideHailAgent] =
       Id.create(rideHailAgentName, classOf[RideHailAgent])
-    val powertrain = Option(ridehailBeamVehicleType.primaryFuelConsumptionInJoulePerMeter)
+    val powertrain = Option(rideHailBeamVehicleType.primaryFuelConsumptionInJoulePerMeter)
       .map(new Powertrain(_))
       .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
     val rideHailBeamVehicle = new BeamVehicle(
       rideHailVehicleId,
       powertrain,
-      ridehailBeamVehicleType
+      rideHailBeamVehicleType
     )
     rideHailBeamVehicle.spaceTime = SpaceTime((rideInitialLocation, 0))
     rideHailBeamVehicle.manager = Some(self)
@@ -1069,7 +1153,7 @@ class RideHailManager(
       ridehailBeamVehicleTypeId,
       SpaceTime(rideInitialLocation, 0)
     )
-    // Put the agent outWriter of service and let the agent tell us when it's Idle (aka ready for service)
+    // Put the agent out of service and let the agent tell us when it's Idle (aka ready for service)
     vehicleManager.putOutOfService(agentLocation)
 
     rideHailinitialLocationSpatialPlot
@@ -1185,8 +1269,19 @@ class RideHailManager(
           request.customer.personRef
         )
       )
+      request.groupedWithOtherRequests.foreach { subReq =>
+        modifyPassengerScheduleManager.addTriggerToSendWithCompletion(
+          ScheduleTrigger(
+            RideHailResponseTrigger(tick, theResponse),
+            subReq.customer.personRef
+          )
+        )
+      }
     } else {
       request.customer.personRef ! theResponse
+      request.groupedWithOtherRequests.foreach { subReq =>
+        subReq.customer.personRef ! theResponse
+      }
     }
     rideHailResourceAllocationManager.removeRequestFromBuffer(request)
   }
@@ -1287,15 +1382,30 @@ class RideHailManager(
   }
 
   def getRideInitLocation(person: Person): Location = {
-    val personInitialLocation: Location =
-      person.getSelectedPlan.getPlanElements
-        .iterator()
-        .next()
-        .asInstanceOf[Activity]
-        .getCoord
     val rideInitialLocation: Location =
       beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.name match {
+        case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_RANDOM_ACTIVITY =>
+          val radius =
+            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
+          val activityLocations: List[Location] =
+            person.getSelectedPlan.getPlanElements.asScala
+              .collect {
+                case activity: Activity => activity.getCoord()
+              }
+              .toList
+              .dropRight(1)
+          val randomActivityLocation: Location = activityLocations(rand.nextInt(activityLocations.length))
+          new Coord(
+            randomActivityLocation.getX + radius * (rand.nextDouble() - 0.5),
+            randomActivityLocation.getY + radius * (rand.nextDouble() - 0.5)
+          )
         case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_HOME =>
+          val personInitialLocation: Location =
+            person.getSelectedPlan.getPlanElements
+              .iterator()
+              .next()
+              .asInstanceOf[Activity]
+              .getCoord
           val radius =
             beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
           new Coord(
@@ -1318,6 +1428,12 @@ class RideHailManager(
           new Coord(x, y)
         case unknown =>
           log.error(s"unknown rideHail.initialLocation $unknown, assuming HOME")
+          val personInitialLocation: Location =
+            person.getSelectedPlan.getPlanElements
+              .iterator()
+              .next()
+              .asInstanceOf[Activity]
+              .getCoord
           val radius =
             beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
           new Coord(
@@ -1328,4 +1444,13 @@ class RideHailManager(
     rideInitialLocation
   }
 
+  private def convertToShiftString(startTimes: ArrayBuffer[Int], endTimes: ArrayBuffer[Int]): Option[String] = {
+    if (startTimes.length != endTimes.length) {
+      None
+    } else {
+      val outArray = scala.collection.mutable.ArrayBuffer.empty[String]
+      Array((startTimes zip endTimes).foreach(x => outArray += Array("{", x._1, ":", x._2, "}").mkString))
+      return Option(outArray.mkString(";"))
+    }
+  }
 }

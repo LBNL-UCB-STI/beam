@@ -34,7 +34,12 @@ case class BeamVehicleType(
   primaryVehicleEnergyFile: Option[String] = None,
   secondaryVehicleEnergyFile: Option[String] = None,
   sampleProbabilityWithinCategory: Double = 1.0
-)
+) {
+
+  def isCaccEnabled: Boolean = {
+    automationLevel >= 3
+  }
+}
 
 object BeamVehicleType {
 
@@ -80,7 +85,19 @@ object BeamVehicleType {
     Gasoline,
     3656.0,
     3655980000.0,
-    vehicleCategory = Car
+    vehicleCategory = Car,
+    automationLevel = 1
+  )
+
+  val defaultBikeBeamVehicleType: BeamVehicleType = BeamVehicleType(
+    Id.create("BIKE-TYPE-DEFAULT", classOf[BeamVehicleType]),
+    2,
+    0,
+    1.5,
+    Gasoline,
+    defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter / 5.0, // 5x more efficient than walking
+    defaultHumanBodyBeamVehicleType.primaryFuelCapacityInJoule, // same capacity as human body
+    vehicleCategory = Bike
   )
 
   def isHumanVehicle(beamVehicleId: Id[Vehicle]): Boolean =

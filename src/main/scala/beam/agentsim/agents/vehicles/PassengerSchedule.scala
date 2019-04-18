@@ -60,7 +60,7 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
 }
 
 //Specialized copy of Ordering.by[Tuple2] so we can control compare
-//Also has the benefit of not requiring allocation of a Tuple2, which turned outWriter to be costly at scale
+//Also has the benefit of not requiring allocation of a Tuple2, which turned out to be costly at scale
 object BeamLegOrdering extends Ordering[BeamLeg] {
 
   def compare(a: BeamLeg, b: BeamLeg): Int = {
