@@ -5,7 +5,6 @@ import scala.xml.parsing.ConstructingParser
 import java.io.File
 
 object PopulationConverter extends XmlFileConverter {
-  private val LineSeparator: String = "\n"
 
   private case class Person(id: Int, planScore: Double, planSelected: Boolean, activities: Seq[Activity]) {
     override def toString: String = Seq(id, planScore, planScore, activities.mkString("[", ":", "]")).mkString(",")
