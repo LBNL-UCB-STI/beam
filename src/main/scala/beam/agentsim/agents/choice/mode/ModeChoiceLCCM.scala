@@ -66,7 +66,7 @@ class ModeChoiceLCCM(
     } else {
       val bestInGroup = altsToBestInGroup(alternatives, tourType)
       /*
-       * Fill outWriter the input data structures required by the MNL models
+       * Fill out the input data structures required by the MNL models
        */
       val modeChoiceInputData = bestInGroup.map { alt =>
         val theParams = Map(
@@ -183,10 +183,10 @@ class ModeChoiceLCCM(
       conditionedOnModalityStyle,
       tourType,
       best.cost,
-      scaleTimeByVot(
+      getGeneralizedTime(
         best.walkTime + best.waitTime + best.vehicleTime + best.bikeTime,
         Some(best.mode)
-      )
+      ) * beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
     )
   }
 
@@ -275,7 +275,7 @@ class ModeChoiceLCCM(
     trips: ListBuffer[EmbodiedBeamTrip],
     person: Person,
     attributesOfIndividual: AttributesOfIndividual
-  ) = {
+  ): Double = {
     // Compute and log all-day score w.r.t. all modality styles
     // One of them has many suspicious-looking 0.0 values. Probably something which
     // should be minus infinity or exception instead.

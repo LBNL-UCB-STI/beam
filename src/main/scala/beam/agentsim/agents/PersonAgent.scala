@@ -15,6 +15,7 @@ import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail._
+import beam.agentsim.agents.vehicles.BeamVehicle.FuelConsumed
 import beam.agentsim.agents.vehicles.VehicleCategory.Bike
 import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
 import beam.agentsim.agents.vehicles._
@@ -184,7 +185,7 @@ object PersonAgent {
   def bodyVehicleIdFromPersonID(id: Id[Person]) = BeamVehicle.createId(id, Some("body"))
 
   def correctTripEndTime(trip: EmbodiedBeamTrip, endTime: Int, bodyVehicleId: Id[BeamVehicle]) = {
-    if (trip.tripClassifier != WALK) {
+    if (trip.tripClassifier != WALK && trip.tripClassifier != WALK_TRANSIT) {
       trip.copy(
         legs = trip.legs
           .dropRight(1) :+ EmbodiedBeamLeg
@@ -231,6 +232,23 @@ class PersonAgent(
       .asInstanceOf[AttributesOfIndividual]
 
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
+
+  var totFuelConsumed = FuelConsumed(0.0, 0.0)
+  var curFuelConsumed = FuelConsumed(0.0, 0.0)
+
+  def updateFuelConsumed(fuelOption: Option[FuelConsumed]) = {
+    val newFuelConsumed = fuelOption.getOrElse(FuelConsumed(0.0, 0.0))
+    curFuelConsumed = FuelConsumed(
+      curFuelConsumed.primaryFuel + newFuelConsumed.primaryFuel,
+      curFuelConsumed.secondaryFuel + newFuelConsumed.secondaryFuel
+    )
+    totFuelConsumed = FuelConsumed(
+      totFuelConsumed.primaryFuel + curFuelConsumed.primaryFuel,
+      totFuelConsumed.secondaryFuel + curFuelConsumed.secondaryFuel
+    )
+  }
+
+  def resetFuelConsumed() = curFuelConsumed = FuelConsumed(0.0, 0.0)
 
   override def logDepth: Int = 30
 
@@ -466,9 +484,10 @@ class PersonAgent(
      * Learn as passenger that it is time to alight the vehicle
      */
     case Event(
-        TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit, _), triggerId),
+        TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit, _, energyConsumedOption), triggerId),
         data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _)
         ) if vehicleToExit.equals(currentVehicle.head) =>
+      updateFuelConsumed(energyConsumedOption)
       logDebug(s"PersonLeavesVehicle: $vehicleToExit")
       eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, vehicleToExit))
       holdTickAndTriggerId(tick, triggerId)
@@ -478,9 +497,10 @@ class PersonAgent(
       )
   }
 
-  // Callback from DrivesVehicle. Analogous to AlightVehicleTrigger, but when driving ourselves.
+  // Callback from DrivesVehicle. Analogous to AlightVehicleTrigger, but when driving ourselve s.
   when(PassengerScheduleEmpty) {
-    case Event(PassengerScheduleEmptyMessage(_, toll), data: BasePersonData) =>
+    case Event(PassengerScheduleEmptyMessage(_, toll, energyConsumedOption), data: BasePersonData) =>
+      updateFuelConsumed(energyConsumedOption)
       val netTripCosts = data.currentTripCosts // This includes tolls because it comes from leg.cost
       if (toll > 0.0 || netTripCosts > 0.0)
         eventsManager.processEvent(
@@ -737,17 +757,25 @@ class PersonAgent(
                 tick,
                 id,
                 currentTrip.tripClassifier.value,
-                incentive,
+                math.min(incentive, currentTrip.costEstimate),
                 0.0,
                 0.0 // the cost as paid by person has already been accounted for, this event is just about the incentive
               )
             )
-
+          val correctedTrip = correctTripEndTime(data.currentTrip.get, tick, bodyVehiclePersonId.vehicleId)
+          val generalizedTime =
+            modeChoiceCalculator.getGeneralizedTimeOfTrip(correctedTrip, Some(attributes), nextActivity(data))
+          val generalizedCost = modeChoiceCalculator.getNonTimeCost(correctedTrip) + attributes
+            .getVOT(generalizedTime)
           // Correct the trip to deal with ride hail / disruptions and then register to skimmer
           beamSkimmer.observeTrip(
-            correctTripEndTime(data.currentTrip.get, tick, bodyVehiclePersonId.vehicleId),
+            correctedTrip,
+            generalizedTime,
+            generalizedCost,
+            curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel,
             beamServices
           )
+          resetFuelConsumed()
 
           eventsManager.processEvent(
             new ActivityStartEvent(
@@ -892,7 +920,7 @@ class PersonAgent(
         ) =>
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
     case Event(
-        TriggerWithId(AlightVehicleTrigger(_, _, Some(vehicleTypeId)), triggerId),
+        TriggerWithId(AlightVehicleTrigger(_, _, Some(vehicleTypeId), _), triggerId),
         ChoosesModeData(
           BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _),
           _,
@@ -928,7 +956,7 @@ class PersonAgent(
         ) =>
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
     case Event(
-        TriggerWithId(AlightVehicleTrigger(_, _, Some(vehicleTypeId)), triggerId),
+        TriggerWithId(AlightVehicleTrigger(_, _, Some(vehicleTypeId), _), triggerId),
         BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _)
         ) =>
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)

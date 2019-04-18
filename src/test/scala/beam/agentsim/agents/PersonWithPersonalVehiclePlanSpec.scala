@@ -19,17 +19,17 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerPr
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, WALK}
-import beam.router.{BeamSkimmer, RouteHistory}
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
+import beam.router.{BeamSkimmer, RouteHistory}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile}
 import beam.utils.TestConfigUtils.testConfig
-import beam.utils.{BeamVehicleUtils, NetworkHelperImpl, StuckFinder}
+import beam.utils.{NetworkHelperImpl, StuckFinder}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population.{Activity, Person}
@@ -193,8 +193,8 @@ class PersonWithPersonalVehiclePlanSpec
             Map(beamVehicle.id -> beamVehicle),
             new Coord(0.0, 0.0),
             Vector(),
-            new RouteHistory(),
-            new BeamSkimmer(beamConfig)
+            new RouteHistory(beamConfig),
+            new BeamSkimmer(beamConfig, beamSvc)
           )
         )
       )
@@ -420,8 +420,8 @@ class PersonWithPersonalVehiclePlanSpec
             Map(beamVehicle.id -> beamVehicle),
             new Coord(0.0, 0.0),
             Vector(),
-            new RouteHistory(),
-            new BeamSkimmer(beamConfig)
+            new RouteHistory(beamConfig),
+            new BeamSkimmer(beamConfig, beamSvc)
           )
         )
       )
@@ -562,8 +562,8 @@ class PersonWithPersonalVehiclePlanSpec
           Map(car1.id -> car1, car2.id -> car2),
           new Coord(0.0, 0.0),
           Vector(),
-          new RouteHistory(),
-          new BeamSkimmer(beamConfig)
+          new RouteHistory(beamConfig),
+          new BeamSkimmer(beamConfig, beamSvc)
         )
       )
       val personActor = householdActor.getSingleChild(person.getId.toString)
@@ -656,8 +656,8 @@ class PersonWithPersonalVehiclePlanSpec
           Map(beamVehicle.id -> beamVehicle),
           new Coord(0.0, 0.0),
           Vector(),
-          new RouteHistory(),
-          new BeamSkimmer(beamConfig)
+          new RouteHistory(beamConfig),
+          new BeamSkimmer(beamConfig, beamSvc)
         )
       )
       scheduler ! StartSchedule(0)

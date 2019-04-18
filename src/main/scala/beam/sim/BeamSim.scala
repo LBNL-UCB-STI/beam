@@ -14,7 +14,7 @@ import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
-import beam.router.{BeamRouter, RouteHistory}
+import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
@@ -30,8 +30,19 @@ import org.apache.commons.lang3.text.WordUtils
 import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.controler.events.{ControlerEvent, IterationEndsEvent, ShutdownEvent, StartupEvent}
-import org.matsim.core.controler.listener.{IterationEndsListener, ShutdownListener, StartupListener}
+import org.matsim.core.controler.events.{
+  ControlerEvent,
+  IterationEndsEvent,
+  IterationStartsEvent,
+  ShutdownEvent,
+  StartupEvent
+}
+import org.matsim.core.controler.listener.{
+  IterationEndsListener,
+  IterationStartsListener,
+  ShutdownListener,
+  StartupListener
+}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -39,6 +50,7 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
+import beam.utils.logging.ExponentialLazyLogging
 
 class BeamSim @Inject()(
   private val actorSystem: ActorSystem,
@@ -48,8 +60,11 @@ class BeamSim @Inject()(
   private val eventsManager: EventsManager,
   private val scenario: Scenario,
   private val networkHelper: NetworkHelper,
-  private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator
+  private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator,
+  private val beamSkimmer: BeamSkimmer,
+  private val travelTimeObserved: TravelTimeObserved
 ) extends StartupListener
+    with IterationStartsListener
     with IterationEndsListener
     with ShutdownListener
     with LazyLogging
@@ -148,7 +163,19 @@ class BeamSim @Inject()(
     FailFast.run(beamServices)
   }
 
+  override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    ExponentialLazyLogging.reset()
+    beamServices.privateVehicles.values.foreach(_.initializeFuelLevels)
+  }
+
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    // ORDER IS IMPORTANT HERE!
+    // travelTimeObserved use skimmer to write `TravelTimeObservedVsSimulated`
+    // `beamSkimmer.notifyIterationEnds(event)` will clear skims, so `travelTimeObserved.writeTravelTimeObservedVsSimulated` must be first
+    travelTimeObserved.writeTravelTimeObservedVsSimulated(event)
+
+    beamSkimmer.notifyIterationEnds(event)
+
     if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
@@ -399,4 +426,5 @@ class BeamSim @Inject()(
         }
       }
   }
+
 }

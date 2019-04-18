@@ -4,13 +4,12 @@ import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.mode._
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, HasServices}
-import org.matsim.api.core.v01.population.Activity
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Activity, Person}
 
-import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
@@ -19,18 +18,32 @@ import scala.util.Random
   */
 trait ModeChoiceCalculator extends HasServices {
 
-  import ModeChoiceCalculator._
-
   implicit lazy val random: Random = new Random(
     beamServices.beamConfig.matsim.modules.global.randomSeed
   )
 
-  def scaleTimeByVot(
+  def getGeneralizedTimeOfTrip(
+    embodiedBeamTrip: EmbodiedBeamTrip,
+    attributesOfIndividual: Option[AttributesOfIndividual] = None,
+    destinationActivity: Option[Activity] = None
+  ): Double = {
+    embodiedBeamTrip.totalTravelTimeInSecs / 3600
+  }
+
+  def getGeneralizedTimeOfLeg(
+    embodiedBeamLeg: EmbodiedBeamLeg,
+    attributesOfIndividual: Option[AttributesOfIndividual],
+    destinationActivity: Option[Activity]
+  ): Double = {
+    embodiedBeamLeg.beamLeg.duration / 3600
+  }
+
+  def getGeneralizedTime(
     time: Double,
     beamMode: Option[BeamMode] = None,
     beamLeg: Option[EmbodiedBeamLeg] = None
   ): Double = {
-    time / 3600 * beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
+    time / 3600
   }
 
   def apply(
@@ -46,6 +59,34 @@ trait ModeChoiceCalculator extends HasServices {
   ): Double
 
   def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double
+
+  def getNonTimeCost(embodiedBeamTrip: EmbodiedBeamTrip): Double = {
+
+    val totalCost = embodiedBeamTrip.tripClassifier match {
+      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
+        val transitFareDefault =
+          TransitFareDefaults.estimateTransitFares(IndexedSeq(embodiedBeamTrip)).head
+        (embodiedBeamTrip.costEstimate + transitFareDefault) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice
+      case RIDE_HAIL | RIDE_HAIL_POOLED =>
+        val rideHailDefault = RideHailDefaults.estimateRideHailCost(IndexedSeq(embodiedBeamTrip)).head
+        (embodiedBeamTrip.costEstimate + rideHailDefault) * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice
+      case RIDE_HAIL_TRANSIT =>
+        val transitFareDefault =
+          TransitFareDefaults.estimateTransitFares(IndexedSeq(embodiedBeamTrip)).head
+        val rideHailDefault = RideHailDefaults.estimateRideHailCost(IndexedSeq(embodiedBeamTrip)).head
+        (embodiedBeamTrip.legs.view
+          .filter(_.beamLeg.mode.isTransit)
+          .map(_.cost)
+          .sum + transitFareDefault) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice +
+        (embodiedBeamTrip.legs.view
+          .filter(_.isRideHail)
+          .map(_.cost)
+          .sum + rideHailDefault * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice)
+      case _ =>
+        embodiedBeamTrip.costEstimate
+    }
+    totalCost + embodiedBeamTrip.replanningPenalty
+  }
 
   def computeAllDayUtility(
     trips: ListBuffer[EmbodiedBeamTrip],

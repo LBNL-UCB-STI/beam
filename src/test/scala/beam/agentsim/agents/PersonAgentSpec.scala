@@ -201,8 +201,8 @@ class PersonAgentSpec
           parkingManager,
           tollCalculator,
           self,
-          beamSkimmer = new BeamSkimmer(beamConfig),
-          routeHistory = new RouteHistory()
+          beamSkimmer = new BeamSkimmer(beamConfig, beamSvc),
+          routeHistory = new RouteHistory(beamConfig)
         )
       )
 
@@ -263,8 +263,8 @@ class PersonAgentSpec
           Map(),
           new Coord(0.0, 0.0),
           Vector(),
-          new RouteHistory(),
-          new BeamSkimmer(beamConfig)
+          new RouteHistory(beamConfig),
+          new BeamSkimmer(beamConfig, beamSvc)
         )
       )
 
@@ -488,8 +488,8 @@ class PersonAgentSpec
           vehicles = Map(),
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
-          new RouteHistory(),
-          new BeamSkimmer(beamConfig)
+          new RouteHistory(beamConfig),
+          new BeamSkimmer(beamConfig, beamSvc)
         )
       )
       scheduler ! StartSchedule(0)
