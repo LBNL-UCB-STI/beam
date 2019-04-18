@@ -2,6 +2,9 @@ package beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions;
 
 import beam.sim.config.BeamConfig;
 import beam.utils.FileUtils;
+import org.apache.commons.collections4.MapIterator;
+import org.apache.commons.collections4.MultiValuedMap;
+import org.apache.commons.collections4.multimap.ArrayListValuedHashMap;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.log4j.Logger;
 import org.jfree.chart.ChartFactory;
@@ -17,10 +20,8 @@ import org.matsim.core.controler.OutputDirectoryHierarchy;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Stream;
 
 
 /*
@@ -54,7 +55,9 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
     private int nonCACCCategoryRoadsTravelled=0;
     private int caccCategoryRoadsTravelled=0;
     private double flowCapacityFactor;
-    private Map<Double,Double> caccCapacityIncrease = new HashMap<>();
+    private MultiValuedMap<Double,Double> caccCapacityIncrease = new ArrayListValuedHashMap<>();
+    private Map<String,Double> caccLinkCapacityIncrease = new HashMap<>();
+    private Map<String,Double> allLinksCapacityIncrease = new HashMap<>();
 
     public Hao2018CaccRoadCapacityAdjustmentFunction(BeamConfig beamConfig,int iterationNumber,OutputDirectoryHierarchy controllerIO){
         double caccMinRoadCapacity = beamConfig.beam().physsim().jdeqsim().cacc().minRoadCapacity();
@@ -107,12 +110,16 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
             String dataLine = link.getId().toString() + "," + fractionCACCOnRoad + "," + initialCapacity + "," + updatedCapacity;
             capacityStatsCollector.append(dataLine).append("\n");
 
-            double capacityIncrease = (updatedCapacity/initialCapacity)-1.0;
-            caccCapacityIncrease.put(fractionCACCOnRoad * 100.0,capacityIncrease * 100.0);
+            double capacityIncreaseForCACCEnabledRoads = (updatedCapacity/initialCapacity)-1.0;
+            caccCapacityIncrease.put(fractionCACCOnRoad * 100.0,capacityIncreaseForCACCEnabledRoads * 100.0);
+            caccLinkCapacityIncrease.put(link.getId().toString(),capacityIncreaseForCACCEnabledRoads * 100.0);
 
         } else {
             nonCACCCategoryRoadsTravelled++;
         }
+
+        double capacityIncreaseForAllRoads = (updatedCapacity/initialCapacity)-1.0;
+        allLinksCapacityIncrease.put(link.getId().toString(),capacityIncreaseForAllRoads * 100.0);
 
         return updatedCapacity /3600;
     }
@@ -129,9 +136,10 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
         log.info("numberOfTimesOnlyNonCACCTravellingOnCACCEnabledRoads: " + numberOfTimesOnlyNonCACCTravellingOnCACCEnabledRoads);
         log.info("caccCategoryRoadsTravelled / nonCACCCategoryRoadsTravelled ratio: " + 1.0 * caccCategoryRoadsTravelled / nonCACCCategoryRoadsTravelled);
         writeCapacityStats(currentIterationNumber,capacityStatsCollector.toString());
-        if(writeGraphs) {
-            CaccRoadCapacityGraphs.generateCapacityIncreaseScatterPlotGraph(currentIterationNumber,caccCapacityIncrease,controllerIO.getIterationFilename(currentIterationNumber,"caccRoadCapacityIncrease.png"));
-            CaccRoadCapacityGraphs.generateCapacityIncreaseHistogramGraph(currentIterationNumber,caccCapacityIncrease,controllerIO.getIterationFilename(currentIterationNumber,"caccRoadCapacityHistogram.png"));
+        if(writeGraphs){
+            CaccRoadCapacityGraphs.generateCapacityIncreaseScatterPlotGraph(caccCapacityIncrease,controllerIO.getIterationFilename(currentIterationNumber,"caccRoadCapacityIncrease.png"));
+            CaccRoadCapacityGraphs.generateCapacityIncreaseHistogramGraph(caccLinkCapacityIncrease,controllerIO.getIterationFilename(currentIterationNumber,"caccRoadCapacityHistogram.png"),"CACC Roads Capacity Increase Histogram");
+            CaccRoadCapacityGraphs.generateCapacityIncreaseHistogramGraph(allLinksCapacityIncrease,controllerIO.getIterationFilename(currentIterationNumber,"allCategoryRoadCapacityHistogram.png"),"All Category Roads Capacity Increase Histogram");
         }
         reset();
     }
@@ -159,10 +167,10 @@ class CaccRoadCapacityGraphs {
     /**
      * A scattered plot that analyses the percentage of increase of road capacity observed for a given fraction of CACC enabled travelling on
      * CACC enabled roads
-     * @param iterationNumber current iteration number
      * @param caccCapacityIncrease data map for the graph
+     * @param graphImageFile output graph file name
      */
-    static void generateCapacityIncreaseScatterPlotGraph(int iterationNumber, Map<Double, Double> caccCapacityIncrease, String graphImageFile) {
+    static void generateCapacityIncreaseScatterPlotGraph(MultiValuedMap<Double, Double> caccCapacityIncrease, String graphImageFile) {
         String plotTitle = "CACC - Road Capacity Increase";
         String x_axis = "CACC on Road (%)";
         String y_axis = "Road Capacity Increase (%)";
@@ -171,7 +179,7 @@ class CaccRoadCapacityGraphs {
 
         XYSeriesCollection dataset = new XYSeriesCollection();
         XYSeries series = new XYSeries("cacc");
-        caccCapacityIncrease.forEach(series::add);
+        caccCapacityIncrease.entries().forEach(e -> series.add(e.getKey(),e.getValue()));
         dataset.addSeries(series);
 
         JFreeChart chart = ChartFactory.createScatterPlot(
@@ -189,23 +197,20 @@ class CaccRoadCapacityGraphs {
     /**
      * A histogram graph that chart+
      * s the frequencies of CACC enabled road percentage increase observed in a simulation
-     * @param iterationNumber current iteration number
-     * @param caccCapacityIncrease data map for the graph
+     * @param capacityIncreaseFrequencies data map for the graph
+     * @param graphImageFile output graph file name
      */
-    static void generateCapacityIncreaseHistogramGraph(int iterationNumber, Map<Double, Double> caccCapacityIncrease, String graphImageFile) {
-
-        String plotTitle = "CACC Road Capacity Increase Histogram";
+    static void generateCapacityIncreaseHistogramGraph(Map<String,Double> capacityIncreaseFrequencies, String graphImageFile, String plotTitle) {
         String x_axis = "Road Capacity Increase (%)";
         String y_axis = "Frequency";
         int width = 1000;
         int height = 600;
 
-        Collection<Double> capacityIncreaseValues = caccCapacityIncrease.values();
-        Double[] value = caccCapacityIncrease.values().toArray(new Double[capacityIncreaseValues.size()]);
-        int number = 10;
+        Double[] value = capacityIncreaseFrequencies.values().toArray(new Double[0]);
+        int number = 20;
         HistogramDataset dataset = new HistogramDataset();
         dataset.setType(HistogramType.FREQUENCY);
-        dataset.addSeries("CACC Capacity",ArrayUtils.toPrimitive(value),number,0.0,100.0);
+        dataset.addSeries("Road Capacity",ArrayUtils.toPrimitive(value),number,0.0,100.0);
 
         JFreeChart chart = ChartFactory.createHistogram(
                 plotTitle,
