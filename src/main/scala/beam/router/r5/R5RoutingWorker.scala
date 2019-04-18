@@ -25,7 +25,6 @@ import beam.router.model.RoutingModel.LinksTimesDistances
 import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.{MinSpeedUsage, R5Request, TripWithFares}
-import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
 import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -1043,13 +1042,15 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val egressRouter = findEgressPaths(request, timeValueOfMoney)
       import scala.collection.JavaConverters._
       //latency 2nd step
-      val router = new BeamMcRaptorSuboptimalPathProfileRouter(
+      val router = new McRaptorSuboptimalPathProfileRouter(
         transportNetwork,
         request,
         accessRouter.mapValues(_.getReachedStops).asJava,
-        egressRouter.mapValues(_.getReachedStops).asJava
+        egressRouter.mapValues(_.getReachedStops).asJava,
+        (t: Int) => new SuboptimalDominatingList(request.suboptimalMinutes),
+        null
       )
-      router.NUMBER_OF_SEARCHES = beamServices.beamConfig.beam.routing.r5.numberOfSamples
+//      router.NUMBER_OF_SEARCHES = beamServices.beamConfig.beam.routing.r5.numberOfSamples
       val usefullpathList = new util.ArrayList[PathWithTimes]
       // getPaths actually returns a set, which is important so that things are deduplicated. However we need a list
       // so we can sort it below.
