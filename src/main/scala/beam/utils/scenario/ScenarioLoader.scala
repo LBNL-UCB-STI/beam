@@ -143,13 +143,16 @@ class ScenarioLoader(
           )
           .toBuffer
 
-        vehicleTypes.append(
-          beamServices.vehicleTypes.values
-            .find(_.vehicleCategory == VehicleCategory.Bike)
-            .getOrElse(BeamVehicleType.defaultBikeBeamVehicleType)
-        )
+        beamServices.vehicleTypes.values
+          .find(_.vehicleCategory == VehicleCategory.Bike) match {
+          case Some(vehType) =>
+            vehicleTypes.append(vehType)
+          case None =>
+            throw new RuntimeException("Bike not found in vehicle types.")
+        }
         initialVehicleCounter += householdInfo.cars.toInt
         totalCarCount += vehicleTypes.count(_.vehicleCategory.toString == "Car")
+
         val vehicleIds = new java.util.ArrayList[Id[Vehicle]]
         vehicleTypes.foreach { beamVehicleType =>
           val vt = VehicleUtils.getFactory.createVehicleType(Id.create(beamVehicleType.id, classOf[VehicleType]))
