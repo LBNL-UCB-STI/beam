@@ -33,6 +33,9 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
     !_.asDriver
   )
 
+  @transient
+  lazy val replanningPenalty: Double = legs.map(_.replanningPenalty).sum
+
   val totalTravelTimeInSecs: Int = legs.lastOption.map(_.beamLeg.endTime - legs.head.beamLeg.startTime).getOrElse(0)
 
   def beamLegs(): IndexedSeq[BeamLeg] =

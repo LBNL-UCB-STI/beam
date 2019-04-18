@@ -4,6 +4,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.{Coord, Scenario}
 
 trait VehiclesAdjustment extends LazyLogging {
@@ -16,12 +17,14 @@ trait VehiclesAdjustment extends LazyLogging {
     householdIncome: Double,
     householdSize: Int,
     householdPopulation: Population,
-    householdLocation: Coord
+    householdLocation: Coord,
+    realDistribution: UniformRealDistribution
   ): List[BeamVehicleType]
 
   def sampleRideHailVehicleTypes(
     numVehicles: Int,
-    vehicleCategory: VehicleCategory
+    vehicleCategory: VehicleCategory,
+    realDistribution: UniformRealDistribution
   ): List[BeamVehicleType]
 
 }

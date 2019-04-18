@@ -9,9 +9,6 @@ import org.matsim.api.core.v01.{Coord, Id}
 
 case class UniformVehiclesAdjustment(beamServices: BeamServices) extends VehiclesAdjustment {
 
-  private val realDistribution: UniformRealDistribution = new UniformRealDistribution()
-  realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
-
   private val vehicleTypesAndProbabilitiesByCategory: Map[(VehicleCategory, String), Array[(BeamVehicleType, Double)]] =
     beamServices.vehicleTypes.values.groupBy(x => (x.vehicleCategory, matchCarUse(x.id.toString))).map {
       case (cat, vehTypes) =>
@@ -32,7 +29,8 @@ case class UniformVehiclesAdjustment(beamServices: BeamServices) extends Vehicle
     householdIncome: Double,
     householdSize: Int,
     householdPopulation: Population,
-    householdLocation: Coord
+    householdLocation: Coord,
+    realDistribution: UniformRealDistribution
   ): List[BeamVehicleType] = {
     val vehTypeWithProbability = vehicleTypesAndProbabilitiesByCategory(vehicleCategory, "Usage Not Set")
     (1 to numVehicles).map { _ =>
@@ -44,7 +42,8 @@ case class UniformVehiclesAdjustment(beamServices: BeamServices) extends Vehicle
 
   override def sampleRideHailVehicleTypes(
     numVehicles: Int,
-    vehicleCategory: VehicleCategory
+    vehicleCategory: VehicleCategory,
+    realDistribution: UniformRealDistribution
   ): List[BeamVehicleType] = {
     val vehTypeWithProbability = vehicleTypesAndProbabilitiesByCategory.getOrElse(
       (vehicleCategory, "Ride Hail Vehicle"),

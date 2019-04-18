@@ -65,7 +65,6 @@ public class GraphUtils {
     }
 
     public static JFreeChart createStackedBarChartWithDefaultSettings(CategoryDataset dataset, String graphTitle, String xAxisTitle, String yAxisTitle, String fileName, boolean legend) {
-
         boolean toolTips = false;
         boolean urls = false;
         PlotOrientation orientation = PlotOrientation.VERTICAL;

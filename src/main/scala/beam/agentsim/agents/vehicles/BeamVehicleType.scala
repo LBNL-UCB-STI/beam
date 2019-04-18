@@ -34,7 +34,12 @@ case class BeamVehicleType(
   primaryVehicleEnergyFile: Option[String] = None,
   secondaryVehicleEnergyFile: Option[String] = None,
   sampleProbabilityWithinCategory: Double = 1.0
-)
+) {
+
+  def isCaccEnabled: Boolean = {
+    automationLevel >= 3
+  }
+}
 
 object BeamVehicleType {
 
@@ -80,7 +85,8 @@ object BeamVehicleType {
     Gasoline,
     3656.0,
     3655980000.0,
-    vehicleCategory = Car
+    vehicleCategory = Car,
+    automationLevel = 1
   )
 
   def isHumanVehicle(beamVehicleId: Id[Vehicle]): Boolean =
