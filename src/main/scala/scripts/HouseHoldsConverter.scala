@@ -11,7 +11,7 @@ object HouseHoldsConverter extends XmlFileConverter {
     override def toString: String = {
       val membersAsStr = members.mkString(ArrayFieldStartDelimiter, ArrayElementsDelimiter, ArrayFieldFinishDelimiter)
       val vehiclesAsStr = vehicles.mkString(ArrayFieldStartDelimiter, ArrayElementsDelimiter, ArrayFieldFinishDelimiter)
-      Seq(id, Income, membersAsStr, vehiclesAsStr).mkString(FieldSeparator)
+      Seq(id, income, membersAsStr, vehiclesAsStr).mkString(FieldSeparator)
     }
   }
 
