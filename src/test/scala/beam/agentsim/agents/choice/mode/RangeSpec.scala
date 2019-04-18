@@ -47,7 +47,7 @@ class RangeSpec extends FlatSpec {
     assert(!Range("[1:10)").has(10))
   }
 
-  "[10:1]" should "throw RuntimeException" in {
+  "lower value that is greater than higher value" should "throw RuntimeException" in {
     assertThrows[RuntimeException](Range("[10:1]", closeRange = true, isDouble = false))
   }
 }
