@@ -1,15 +1,15 @@
 package beam.agentsim.agents.choice.logit
 
-import scala.util.Random
 
+import scala.util.Random
 import org.scalatest.{Matchers, WordSpecLike}
 
 class MultinomialLogit02Spec extends WordSpecLike with Matchers {
 
   "An MNL Model with standard data" must {
     val utilityFunctions = Map(
-      "car"  -> Map("intercept" -> MNLOperation.Intercept(3.0)),
-      "walk" -> Map("intercept" -> MNLOperation.Intercept(4.0))
+      "car"  -> Map("intercept" -> UtilityFunctionOperation.Intercept(3.0)),
+      "walk" -> Map("intercept" -> UtilityFunctionOperation.Intercept(4.0))
     )
 
 //    val utilityFunctions = Vector(
@@ -24,8 +24,8 @@ class MultinomialLogit02Spec extends WordSpecLike with Matchers {
 //    )
 
     val common = Map(
-      "cost" -> MNLOperation.Multiplier(-0.01),
-      "time" -> MNLOperation.Multiplier(-0.02)
+      "cost" -> UtilityFunctionOperation.Multiplier(-0.01),
+      "time" -> UtilityFunctionOperation.Multiplier(-0.02)
     )
 
 //    val common = Some(
@@ -38,7 +38,7 @@ class MultinomialLogit02Spec extends WordSpecLike with Matchers {
 //      )
 //    )
 
-    val mnl = new MultinomialLogit02(utilityFunctions, common)
+    val mnl = new MultinomialLogit(utilityFunctions, common)
 
     val rand = new Random()
 

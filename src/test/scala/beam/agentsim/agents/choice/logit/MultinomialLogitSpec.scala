@@ -1,5 +1,6 @@
 package beam.agentsim.agents.choice.logit
 
+import beam.agentsim.agents.choice.logit.{Alternative, MultinomialLogit_old, UtilityFunction, UtilityFunctionParam, UtilityFunctionParamType}
 import beam.sim.BeamHelper
 import org.scalatest.{Matchers, WordSpecLike}
 

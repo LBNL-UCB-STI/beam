@@ -4,7 +4,7 @@ package beam.agentsim.agents.choice.logit
   * Utility function that can be applied to evaluate an alternative based on a set of coefficients.
   *
   * Each [[alternativeId]] *should* be unique.
-  * In some logit model implementations (e.g. [[MultinomialLogit]]) the provided set of [[UtilityFunctionParam]]
+  * In some logit model implementations (e.g. [[MultinomialLogit_old]]) the provided set of [[UtilityFunctionParam]]
   * is aggregated if multiple [[UtilityFunction]]s with the same [[alternativeId]] are provided and
   * the [[params]] sets are joined (and duplicates dropped, if any!)
   *

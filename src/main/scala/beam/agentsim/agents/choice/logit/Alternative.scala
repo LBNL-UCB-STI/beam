@@ -2,7 +2,7 @@ package beam.agentsim.agents.choice.logit
 
 /**
   * Represents one alternative available to an agent to choose from and is used to evaluate one or a set of several
-  * alternatives an agent can choose from in [[MultinomialLogit]]
+  * alternatives an agent can choose from in [[MultinomialLogit_old]]
   *
   * @param alternativeId the general identifier of the alternative that should be evaluated (e.g. car)
   * @param attributes the attributes of the alternative that should be taken into account for evaluation
