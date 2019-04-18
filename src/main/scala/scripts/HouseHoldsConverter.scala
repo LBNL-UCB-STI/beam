@@ -28,15 +28,12 @@ object HouseHoldsConverter extends XmlFileConverter {
   }
 
   private def toHousehold(node: Node): Household = {
-    val r = Household(
+    Household(
       id = node.attributes("id").toString.toInt,
       income = toIncome((node \ "income").head),
       members = (node \ "members" \ "personId").map(toPerson),
       vehicles = (node \ "vehicles" \ "vehicleDefinitionId").map(toVehicle)
     )
-    println(r)
-    r
-//    Household(0, Income("USD", "2019", "VALUE"), Seq())
   }
 
   private def toIncome(node: Node): Income = {
