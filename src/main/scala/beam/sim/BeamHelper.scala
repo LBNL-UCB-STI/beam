@@ -1,9 +1,9 @@
 package beam.sim
 
-import java.io.FileOutputStream
+import java.io.{FileOutputStream, FileWriter}
 import java.nio.file.{Files, Paths, StandardCopyOption}
-import java.util.{Properties, Random}
 import java.util.concurrent.TimeUnit
+import java.util.{Properties, Random}
 
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.events.handling.BeamEventsHandling
@@ -13,7 +13,7 @@ import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
-import beam.router.{BeamSkimmer, RouteHistory}
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
@@ -38,7 +38,6 @@ import org.matsim.core.config.Config
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
-import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.households.Household
@@ -212,7 +211,6 @@ trait BeamHelper extends LazyLogging {
 
           addControlerListenerBinding().to(classOf[BeamSim])
           addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
-          addControlerListenerBinding().to(classOf[BeamSkimmer])
           addControlerListenerBinding().to(classOf[RouteHistory])
 
           addControlerListenerBinding().to(classOf[ActivityLocationPlotter])
@@ -254,14 +252,10 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[RideHailIterationHistory]).asEagerSingleton()
           bind(classOf[RouteHistory]).asEagerSingleton()
           bind(classOf[BeamSkimmer]).asEagerSingleton()
+          bind(classOf[TravelTimeObserved]).asEagerSingleton()
           bind(classOf[TollCalculator]).asEagerSingleton()
 
-          // Override EventsManager
-          if (beamConfig.beam.debug.debugEnabled) {
-            bind(classOf[EventsManager]).to(classOf[EventsManagerImpl]).asEagerSingleton()
-          } else {
-            bind(classOf[EventsManager]).to(classOf[LoggingParallelEventsManager]).asEagerSingleton()
-          }
+          bind(classOf[EventsManager]).to(classOf[LoggingEventsManager]).asEagerSingleton()
         }
       }
     )
@@ -296,7 +290,7 @@ trait BeamHelper extends LazyLogging {
       throw new RuntimeException("wrong config path, expected:forward slash, found: backward slash")
     }
 
-    val location = ConfigFactory.parseString("config=" + parsedArgs.configLocation.get)
+    val location = ConfigFactory.parseString(s"config=${parsedArgs.configLocation.get}")
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
       if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
       else parsedArgs.config.get
@@ -388,19 +382,39 @@ trait BeamHelper extends LazyLogging {
     }), scala.concurrent.duration.Duration.Inf)
   }
 
+  def writeScenarioPrivateVehicles(scenario: MutableScenario, beamServices: BeamServices, outputDir: String): Unit = {
+    val csvWriter: FileWriter = new FileWriter(outputDir + "/householdVehicles.csv", true)
+    try {
+      csvWriter.write("vehicleId,vehicleType,householdId\n")
+      scenario.getHouseholds.getHouseholds.values.asScala.foreach { householdId =>
+        householdId.getVehicleIds.asScala.foreach { vehicle =>
+          beamServices.privateVehicles
+            .get(vehicle)
+            .map(
+              v => v.id.toString + "," + v.beamVehicleType.id.toString + "," + householdId.getId.toString + "\n"
+            )
+            .foreach(csvWriter.write)
+        }
+      }
+    } finally {
+      csvWriter.close()
+    }
+  }
+
   def runBeamWithConfig(config: TypesafeConfig): (Config, String) = {
     val (scenario, outputDir, networkCoordinator) = setupBeamWithConfig(config)
 
     // beam.utils.scenario.CsvScenarioWriter.write(scenario, "c:/temp/csv_scenario_1k/")
 
-    runBeam(config, scenario, networkCoordinator)
+    runBeam(config, scenario, networkCoordinator, outputDir)
     (scenario.getConfig, outputDir)
   }
 
   def runBeam(
     config: TypesafeConfig,
     scenario: MutableScenario,
-    networkCoordinator: NetworkCoordinator
+    networkCoordinator: NetworkCoordinator,
+    outputDir: String
   ): Unit = {
     val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
@@ -427,7 +441,7 @@ trait BeamHelper extends LazyLogging {
       }
     }
 
-    samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices)
+    samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices, outputDir)
 
     val houseHoldVehiclesInScenario: Iterable[Id[Vehicle]] = scenario.getHouseholds.getHouseholds
       .values()
@@ -510,7 +524,8 @@ trait BeamHelper extends LazyLogging {
     scenario: MutableScenario,
     beamConfig: BeamConfig,
     matsimConfig: Config,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    outputDir: String
   ): Unit = {
     if (beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation < 1) {
       val numAgents = math.round(
@@ -565,6 +580,8 @@ trait BeamHelper extends LazyLogging {
       notSelectedPersonIds.foreach { personId =>
         scenario.getPopulation.removePerson(personId)
       }
+
+      writeScenarioPrivateVehicles(scenario, beamServices, outputDir)
 
       val numOfHouseholds = scenario.getHouseholds.getHouseholds.values().size
       val vehicles = scenario.getHouseholds.getHouseholds.values.asScala.flatMap(hh => hh.getVehicleIds.asScala)

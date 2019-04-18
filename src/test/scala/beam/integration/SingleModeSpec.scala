@@ -111,7 +111,7 @@ class SingleModeSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        new BeamSkimmer(services.beamConfig)
+        new BeamSkimmer(services.beamConfig, services)
       )
       mobsim.run()
       events.foreach {
@@ -154,7 +154,7 @@ class SingleModeSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        new BeamSkimmer(services.beamConfig)
+        new BeamSkimmer(services.beamConfig, services)
       )
       mobsim.run()
       events.foreach {
@@ -216,7 +216,7 @@ class SingleModeSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        new BeamSkimmer(services.beamConfig)
+        new BeamSkimmer(services.beamConfig, services)
       )
       mobsim.run()
       events.collect {
@@ -283,7 +283,7 @@ class SingleModeSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        new BeamSkimmer(services.beamConfig)
+        new BeamSkimmer(services.beamConfig, services)
       )
       mobsim.run()
       events.collect {

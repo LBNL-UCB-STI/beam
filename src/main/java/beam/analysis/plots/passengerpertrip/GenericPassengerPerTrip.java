@@ -14,6 +14,7 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# trips";
     private static final int DEFAULT_OCCURRENCE = 1;
+    private static double[][] matrixDataSet;
     int eventCounter = 0;
     int maxHour = 0;
 
@@ -51,14 +52,15 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
 
         CategoryDataset dataSet = getCategoryDataSet();
         draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle);
+        writeCSV(matrixDataSet,dataSet.getRowCount(),event.getIteration());
     }
 
     @Override
     public CategoryDataset getCategoryDataSet() {
 
-        double[][] dataSet = buildDeadHeadingDataSet(deadHeadingsMap.get(graphName), graphName);
+        matrixDataSet = buildDeadHeadingDataSet(deadHeadingsMap.get(graphName), graphName);
 
-        return DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
+        return DatasetUtilities.createCategoryDataset("Mode ", "", matrixDataSet);
     }
 
     private double[][] buildDeadHeadingDataSet(Map<Integer, Map<Integer, Integer>> data, String graphName) {

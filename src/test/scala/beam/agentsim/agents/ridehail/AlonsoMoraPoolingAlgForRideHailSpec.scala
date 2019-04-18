@@ -5,27 +5,24 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
-import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
 import beam.agentsim.agents.choice.mode.ModeIncentive
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail.{CustomerRequest, RVGraph, VehicleAndSchedule, _}
-import beam.agentsim.agents.vehicles.{BeamVehicleType, VehiclePersonId}
 import beam.agentsim.agents.vehicles.FuelType.FuelType
+import beam.agentsim.agents.vehicles.{BeamVehicleType, VehiclePersonId}
+import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
-import beam.router.osm.TollCalculator
-import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.utils.NetworkHelperImpl
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import com.vividsolutions.jts.geom.Envelope
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.controler.MatsimServices
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.core.utils.collections.QuadTree
@@ -86,7 +83,7 @@ class AlonsoMoraPoolingAlgForRideHailSpec
 
   describe("AlonsoMoraPoolingAlgForRideHail") {
     it("Creates a consistent plan") {
-      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig)
+      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig, beamSvc)
       val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenario1
       val alg: AlonsoMoraPoolingAlgForRideHail =
         new AlonsoMoraPoolingAlgForRideHail(

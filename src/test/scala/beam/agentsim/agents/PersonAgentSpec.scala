@@ -202,7 +202,7 @@ class PersonAgentSpec
           parkingManager,
           tollCalculator,
           self,
-          beamSkimmer = new BeamSkimmer(beamConfig),
+          beamSkimmer = new BeamSkimmer(beamConfig, beamSvc),
           routeHistory = new RouteHistory(beamConfig)
         )
       )
@@ -265,7 +265,7 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig)
+          new BeamSkimmer(beamConfig, beamSvc)
         )
       )
 
@@ -490,7 +490,7 @@ class PersonAgentSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig)
+          new BeamSkimmer(beamConfig, beamSvc)
         )
       )
       scheduler ! StartSchedule(0)

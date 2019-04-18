@@ -7,8 +7,10 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCateg
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.sim.vehicles.VehiclesAdjustment
+import beam.utils.RandomUtils
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.Population
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
@@ -17,6 +19,7 @@ import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 class ScenarioLoader(
   var scenario: MutableScenario,
@@ -81,7 +84,7 @@ class ScenarioLoader(
 
   private[utils] def getPersonsWithPlan(
     persons: Iterable[PersonInfo],
-    plans: Iterable[PlanInfo]
+    plans: Iterable[PlanElement]
   ): Iterable[PersonInfo] = {
     val personIdsWithPlan = plans.map(_.personId).toSet
     persons.filter(person => personIdsWithPlan.contains(person.personId))
@@ -103,73 +106,119 @@ class ScenarioLoader(
     var totalCarCount: Int = 0
 
     val scaleFactor = beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
-    val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
     val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamServices)
+    val realDistribution: UniformRealDistribution = new UniformRealDistribution()
+    realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
-    households.foreach { householdInfo =>
-      val id = Id.create(householdInfo.householdId.id, classOf[org.matsim.households.Household])
-      val household = new HouseholdsFactoryImpl().createHousehold(id)
-      val coord = if (beamServices.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
-        beamServices.geo.wgs2Utm(new Coord(householdInfo.x, householdInfo.y))
-      } else {
-        new Coord(householdInfo.x, householdInfo.y)
-      }
+    assignVehicles(households).foreach {
+      case (householdInfo, nVehicles) =>
+        val id = Id.create(householdInfo.householdId.id, classOf[org.matsim.households.Household])
+        val household = new HouseholdsFactoryImpl().createHousehold(id)
+        val coord = if (beamServices.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
+          beamServices.geo.wgs2Utm(new Coord(householdInfo.x, householdInfo.y))
+        } else {
+          new Coord(householdInfo.x, householdInfo.y)
+        }
 
-      household.setIncome(new IncomeImpl(householdInfo.income, Income.IncomePeriod.year))
+        household.setIncome(new IncomeImpl(householdInfo.income, Income.IncomePeriod.year))
 
-      householdIdToPersons.get(householdInfo.householdId) match {
-        case Some(persons) =>
-          val personIds = persons.map(x => Id.createPersonId(x.personId.id)).toList.asJava
-          household.setMemberIds(personIds)
-        case None =>
-          logger.warn(s"Could not find persons for the `household_id` '${householdInfo.householdId}'")
-      }
+        householdIdToPersons.get(householdInfo.householdId) match {
+          case Some(persons) =>
+            val personIds = persons.map(x => Id.createPersonId(x.personId.id)).toList.asJava
+            household.setMemberIds(personIds)
+          case None =>
+            logger.warn(s"Could not find persons for the `household_id` '${householdInfo.householdId}'")
+        }
 
-      val vehicleTypes = vehiclesAdjustment
-        .sampleVehicleTypesForHousehold(
-          numVehicles = if (scaleFactor > 1) {
-            householdInfo.cars.toInt + drawFromBinomial(rand, householdInfo.cars.toInt + 1, scaleFactor - 1) // NOTE: This is an approximation, will over-do it
-          } else if (scaleFactor < 1) {
-            drawFromBinomial(rand, householdInfo.cars.toInt, scaleFactor)
-          } else {
-            householdInfo.cars.toInt
-          },
-          vehicleCategory = VehicleCategory.Car,
-          householdIncome = household.getIncome.getIncome,
-          householdSize = household.getMemberIds.size,
-          householdPopulation = null,
-          householdLocation = coord
+        val vehicleTypes = vehiclesAdjustment
+          .sampleVehicleTypesForHousehold(
+            numVehicles = nVehicles,
+            vehicleCategory = VehicleCategory.Car,
+            householdIncome = household.getIncome.getIncome,
+            householdSize = household.getMemberIds.size,
+            householdPopulation = null,
+            householdLocation = coord,
+            realDistribution
+          )
+          .toBuffer
+
+        vehicleTypes.append(
+          beamServices.vehicleTypes.values
+            .find(_.vehicleCategory == VehicleCategory.Bike)
+            .getOrElse(BeamVehicleType.defaultBikeBeamVehicleType)
         )
-        .toBuffer
-
-      vehicleTypes.append(
-        beamServices.vehicleTypes.values
-          .find(_.vehicleCategory == VehicleCategory.Bike)
-          .getOrElse(BeamVehicleType.defaultBikeBeamVehicleType)
-      )
-      initialVehicleCounter += householdInfo.cars.toInt
-      totalCarCount += vehicleTypes.count(_.vehicleCategory.toString == "Car")
-      val vehicleIds = new java.util.ArrayList[Id[Vehicle]]
-      vehicleTypes.foreach { beamVehicleType =>
-        val vt = VehicleUtils.getFactory.createVehicleType(Id.create(beamVehicleType.id, classOf[VehicleType]))
-        val vehicle = VehicleUtils.getFactory.createVehicle(Id.createVehicleId(vehicleCounter), vt)
-        vehicleIds.add(vehicle.getId)
-        val bvId = Id.create(vehicle.getId, classOf[BeamVehicle])
-        val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
-        val beamVehicle = new BeamVehicle(bvId, powerTrain, beamVehicleType)
-        beamServices.privateVehicles.put(beamVehicle.id, beamVehicle)
-        vehicleCounter = vehicleCounter + 1
-      }
-      household.setVehicleIds(vehicleIds)
-      scenarioHouseholds.put(household.getId, household)
-      scenarioHouseholdAttributes.putAttribute(household.getId.toString, "homecoordx", coord.getX)
-      scenarioHouseholdAttributes.putAttribute(household.getId.toString, "homecoordy", coord.getY)
+        initialVehicleCounter += householdInfo.cars.toInt
+        totalCarCount += vehicleTypes.count(_.vehicleCategory.toString == "Car")
+        val vehicleIds = new java.util.ArrayList[Id[Vehicle]]
+        vehicleTypes.foreach { beamVehicleType =>
+          val vt = VehicleUtils.getFactory.createVehicleType(Id.create(beamVehicleType.id, classOf[VehicleType]))
+          val vehicle = VehicleUtils.getFactory.createVehicle(Id.createVehicleId(vehicleCounter), vt)
+          vehicleIds.add(vehicle.getId)
+          val bvId = Id.create(vehicle.getId, classOf[BeamVehicle])
+          val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
+          val beamVehicle = new BeamVehicle(bvId, powerTrain, beamVehicleType)
+          beamServices.privateVehicles.put(beamVehicle.id, beamVehicle)
+          vehicleCounter = vehicleCounter + 1
+        }
+        household.setVehicleIds(vehicleIds)
+        scenarioHouseholds.put(household.getId, household)
+        scenarioHouseholdAttributes.putAttribute(household.getId.toString, "homecoordx", coord.getX)
+        scenarioHouseholdAttributes.putAttribute(household.getId.toString, "homecoordy", coord.getY)
 
     }
     logger.info(
       s"Created $totalCarCount vehicles, scaling initial value of $initialVehicleCounter by a factor of $scaleFactor"
     )
+  }
+
+  // Iterable[(HouseholdInfo, List[BeamVehicleType])]
+
+  private def assignVehicles(households: Iterable[HouseholdInfo]): Iterable[(HouseholdInfo, Int)] = {
+    beamServices.beamConfig.beam.agentsim.agents.vehicles.downsamplingMethod match {
+      case "SECONDARY_VEHICLES_FIRST" =>
+        val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
+        val hh_car_count = collection.mutable.Map(households.groupBy(_.cars.toInt).toSeq: _*)
+        val totalCars = households.foldLeft(0)(_ + _.cars.toInt)
+        val goalCarTotal = math
+          .round(beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet * totalCars)
+          .toInt
+        var currentTotalCars = totalCars
+        hh_car_count.keys.toSeq.sorted.reverse.foreach { key =>
+          if (currentTotalCars > goalCarTotal) {
+            if (currentTotalCars - hh_car_count(key).size > goalCarTotal) {
+              currentTotalCars -= hh_car_count(key).size
+              hh_car_count(key - 1) ++= hh_car_count(key)
+              hh_car_count -= key
+            } else {
+              val householdsInGroup = hh_car_count(key).size
+              val numberToRemain = householdsInGroup - (currentTotalCars - goalCarTotal)
+              val shuffled = RandomUtils.shuffle(hh_car_count(key), rand)
+              hh_car_count(key) = shuffled.take(numberToRemain)
+              hh_car_count(key - 1) ++= shuffled.takeRight(householdsInGroup - numberToRemain)
+              currentTotalCars -= (currentTotalCars - goalCarTotal)
+            }
+          }
+        }
+        val householdsOut = ArrayBuffer[HouseholdInfo]()
+        val nVehiclesOut = ArrayBuffer[Int]()
+        hh_car_count.toSeq.foreach { hhGroup =>
+          householdsOut ++= hhGroup._2
+          nVehiclesOut ++= ArrayBuffer.fill(hhGroup._2.size)(hhGroup._1)
+        }
+        householdsOut.zip(nVehiclesOut)
+      case "RANDOM" =>
+        val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
+        val nVehiclesOut = ArrayBuffer[Int]()
+        households.foreach { household =>
+          nVehiclesOut += drawFromBinomial(
+            rand,
+            household.cars.toInt,
+            beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
+          )
+        }
+        households.zip(nVehiclesOut)
+    }
   }
 
   private[utils] def applyPersons(persons: Iterable[PersonInfo]): Unit = {
@@ -187,7 +236,7 @@ class ScenarioLoader(
     }
   }
 
-  private[utils] def applyPlans(plans: Iterable[PlanInfo]): Unit = {
+  private[utils] def applyPlans(plans: Iterable[PlanElement]): Unit = {
     plans.foreach { planInfo =>
       val person = population.getPersons.get(Id.createPersonId(planInfo.personId.id))
       if (person != null) {
