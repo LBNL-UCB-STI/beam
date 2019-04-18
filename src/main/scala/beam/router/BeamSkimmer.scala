@@ -201,16 +201,18 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     val mode = trip.tripClassifier
     val correctedTrip = mode match {
       case WALK =>
-        trip.beamLegs()
+        trip
       case _ =>
-        trip.beamLegs().drop(1).dropRight(1)
+        val legs = trip.legs.drop(1).dropRight(1)
+        EmbodiedBeamTrip(legs)
     }
-    val origLeg = correctedTrip.head
+    val beamLegs = correctedTrip.beamLegs()
+    val origLeg = beamLegs.head
     val origCoord = beamServices.geo.wgs2Utm(origLeg.travelPath.startPoint.loc)
     val origTaz = beamServices.tazTreeMap
       .getTAZ(origCoord.getX, origCoord.getY)
       .tazId
-    val destLeg = correctedTrip.last
+    val destLeg = beamLegs.last
     val destCoord = beamServices.geo.wgs2Utm(destLeg.travelPath.endPoint.loc)
     val destTaz = beamServices.tazTreeMap
       .getTAZ(destCoord.getX, destCoord.getY)
@@ -219,11 +221,11 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     val key = (timeBin, mode, origTaz, destTaz)
     val payload =
       SkimInternal(
-        trip.totalTravelTimeInSecs.toDouble,
+        correctedTrip.totalTravelTimeInSecs.toDouble,
         generalizedTimeInHours * 3600,
         generalizedCost,
-        trip.beamLegs().map(_.travelPath.distanceInM).sum,
-        trip.costEstimate,
+        beamLegs.map(_.travelPath.distanceInM).sum,
+        correctedTrip.costEstimate,
         1,
         energyConsumption
       )
