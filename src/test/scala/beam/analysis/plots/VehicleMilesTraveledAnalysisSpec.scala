@@ -26,10 +26,17 @@ class VehicleMilesTraveledAnalysisSpec extends GenericAnalysisSpec with Matchers
     "calculate total vehicle traveled " in {
 
       import scala.collection.JavaConverters._
-      summaryStats.asScala.filterNot(_._1.equalsIgnoreCase("motorizedVehicleMilesTraveled_total"))
-        .filterNot(_._1.equalsIgnoreCase(s"motorizedVehicleMilesTraveled_${BeamVehicleType.defaultHumanBodyBeamVehicleType.id}"))
-        .filterNot(_._1.startsWith("vehicleMilesTraveled_")).values.map(_.doubleValue()).sum.round shouldBe
-        summaryStats.get("motorizedVehicleMilesTraveled_total").doubleValue().round
+      summaryStats.asScala
+        .filterNot(_._1.equalsIgnoreCase("motorizedVehicleMilesTraveled_total"))
+        .filterNot(
+          _._1.equalsIgnoreCase(s"motorizedVehicleMilesTraveled_${BeamVehicleType.defaultHumanBodyBeamVehicleType.id}")
+        )
+        .filterNot(_._1.startsWith("vehicleMilesTraveled_"))
+        .values
+        .map(_.doubleValue())
+        .sum
+        .round shouldBe
+      summaryStats.get("motorizedVehicleMilesTraveled_total").doubleValue().round
     }
   }
 }
