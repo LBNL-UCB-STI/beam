@@ -17,6 +17,7 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
 import beam.utils.plan.sampling.AvailableModeUtils
+import com.google.inject.Injector
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Person, Plan}
@@ -105,6 +106,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
 
   def getBeamServices(config: com.typesafe.config.Config): BeamServices = {
     val beamServices: BeamServices = new BeamServices {
+      override lazy val injector: Injector = ???
       override lazy val controler: ControlerI = ???
       override val beamConfig: BeamConfig = BeamConfig(config)
       override lazy val geo: beam.sim.common.GeoUtils = new GeoUtilsImpl(beamConfig)
