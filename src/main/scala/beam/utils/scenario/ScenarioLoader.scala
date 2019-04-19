@@ -18,8 +18,6 @@ import org.matsim.core.scenario.MutableScenario
 import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
-import java.util.Random
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
@@ -86,7 +84,7 @@ class ScenarioLoader(
 
   private[utils] def getPersonsWithPlan(
     persons: Iterable[PersonInfo],
-    plans: Iterable[PlanInfo]
+    plans: Iterable[PlanElement]
   ): Iterable[PersonInfo] = {
     val personIdsWithPlan = plans.map(_.personId).toSet
     persons.filter(person => personIdsWithPlan.contains(person.personId))
@@ -145,13 +143,16 @@ class ScenarioLoader(
           )
           .toBuffer
 
-        vehicleTypes.append(
-          beamServices.vehicleTypes.values
-            .find(_.vehicleCategory == VehicleCategory.Bike)
-            .getOrElse(BeamVehicleType.defaultBikeBeamVehicleType)
-        )
+        beamServices.vehicleTypes.values
+          .find(_.vehicleCategory == VehicleCategory.Bike) match {
+          case Some(vehType) =>
+            vehicleTypes.append(vehType)
+          case None =>
+            throw new RuntimeException("Bike not found in vehicle types.")
+        }
         initialVehicleCounter += householdInfo.cars.toInt
         totalCarCount += vehicleTypes.count(_.vehicleCategory.toString == "Car")
+
         val vehicleIds = new java.util.ArrayList[Id[Vehicle]]
         vehicleTypes.foreach { beamVehicleType =>
           val vt = VehicleUtils.getFactory.createVehicleType(Id.create(beamVehicleType.id, classOf[VehicleType]))
@@ -238,7 +239,7 @@ class ScenarioLoader(
     }
   }
 
-  private[utils] def applyPlans(plans: Iterable[PlanInfo]): Unit = {
+  private[utils] def applyPlans(plans: Iterable[PlanElement]): Unit = {
     plans.foreach { planInfo =>
       val person = population.getPersons.get(Id.createPersonId(planInfo.personId.id))
       if (person != null) {

@@ -40,6 +40,7 @@ import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.google.common.util.concurrent.ThreadFactoryBuilder
+import com.google.inject.Injector
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Person
@@ -104,6 +105,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val vehicleCsvReader: VehicleCsvReader = new VehicleCsvReader(beamConfig)
 
       val beamServices: BeamServices = new BeamServices {
+        override lazy val injector: Injector = ???
         override lazy val controler: ControlerI = ???
         override val beamConfig: BeamConfig = BeamConfig(config)
         override lazy val geo: GeoUtils = new GeoUtilsImpl(beamConfig)
@@ -142,6 +144,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override def setTransitFleetSizes(
           tripFleetSizeMap: mutable.HashMap[String, Integer]
         ): Unit = {}
+
       }
 
       val defaultTravelTimeByLink = (time: Int, linkId: Int, mode: StreetMode) => {

@@ -27,15 +27,21 @@
         <appender-ref ref="STDOUT"/>
     </root>
 
-    <logger name="com.conveyal" level="error"
-            additivity="false">
+    <logger name="com.conveyal" level="error" additivity="false">
         <appender-ref ref="STDOUT"/>
     </logger>
 
-    <logger name="org.matsim" level="error"
-            additivity="false">
+    <!--    MATSIM -->
+    <logger name="org.matsim" level="ERROR">
         <appender-ref ref="STDOUT"/>
     </logger>
+    <Logger name="org.matsim.core.controler.corelisteners.DumpDataAtEndImpl" level="OFF">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+    <Logger name="org.matsim.core.events" level="WARN">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+
 
     <logger name="beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter" level="ERROR" additivity="false">
         <appender-ref ref="STDOUT"/>
@@ -87,9 +93,6 @@
         <appender-ref ref="STDOUT"/>
     </Logger>
 
-    <Logger name="org.matsim.core.controler.corelisteners.DumpDataAtEndImpl" level="OFF">
-        <appender-ref ref="STDOUT"/>
-    </Logger>
 
     <Logger name="beam.calibration" level="Info" additivity="false">
         <appender-ref ref="STDOUT"/>
@@ -103,4 +106,6 @@
     <Logger name="org.apache.parquet" level="WARN" additivity="false">
         <appender-ref ref="STDOUT"/>
     </Logger>
+
+
 </configuration>
