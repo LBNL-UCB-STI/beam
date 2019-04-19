@@ -20,7 +20,7 @@ import beam.router.{BeamSkimmer, FreeFlowTravelTime, RouteHistory}
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
-import beam.sim.vehiclesharing.{Fleets, VehicleSharingRepositioningTrigger}
+import beam.sim.vehiclesharing.{Fleets, RepositionManager, REPVehicleRepositionTrigger}
 import beam.utils._
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
@@ -136,13 +136,13 @@ class BeamMobsim @Inject()(
 
         private val sharedVehicleFleets = config.agents.vehicles.sharedFleets.map { fleetConfig =>
           context.actorOf(
-            Fleets.lookup(fleetConfig).props(beamServices, beamSkimmer, scheduler, parkingManager),
+            Fleets.lookup(fleetConfig).props(beamServices, beamSkimmer, parkingManager, repositionManager),
             fleetConfig.name
           )
         }
         sharedVehicleFleets.foreach(context.watch)
         sharedVehicleFleets.foreach(scheduler ! ScheduleTrigger(InitializeTrigger(0), _))
-        //sharedVehicleFleets.foreach(scheduler ! ScheduleTrigger(VehicleSharingRepositioningTrigger(0), _))
+        sharedVehicleFleets.foreach(repositionManager ! _)
 
         private val population = context.actorOf(
           Population.props(
@@ -207,6 +207,7 @@ class BeamMobsim @Inject()(
 
             population ! Finish
             rideHailManager ! Finish
+            repositionManager ! Finish
             context.stop(scheduler)
             context.stop(errorListener)
             context.stop(parkingManager)

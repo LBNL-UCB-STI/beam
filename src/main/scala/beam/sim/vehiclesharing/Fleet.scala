@@ -10,15 +10,23 @@ import org.matsim.api.core.v01.{Id, Scenario}
 import scala.collection.JavaConverters._
 
 trait FleetType {
-  def props(beamServices: BeamServices, beamSkimmer: BeamSkimmer, scheduler: ActorRef, parkingManager: ActorRef): Props
+
+  def props(
+    beamServices: BeamServices,
+    beamSkimmer: BeamSkimmer,
+    beamScheduler: ActorRef,
+    parkingManager: ActorRef,
+    repositionManager: ActorRef
+  ): Props
 }
 
 case class FixedNonReservingFleet(config: SharedFleets$Elm.FixedNonReserving) extends FleetType {
   override def props(
     beamServices: BeamServices,
     skimmer: BeamSkimmer,
-    scheduler: ActorRef,
-    parkingManager: ActorRef
+    beamScheduler: ActorRef,
+    parkingManager: ActorRef,
+    repositionManager: ActorRef
   ): Props = {
     val initialSharedVehicleLocations =
       beamServices.matsimServices.getScenario.getPopulation.getPersons
@@ -29,16 +37,16 @@ case class FixedNonReservingFleet(config: SharedFleets$Elm.FixedNonReserving) ex
       Id.create(config.vehicleTypeId, classOf[BeamVehicleType]),
       throw new RuntimeException("Vehicle type id not found: " + config.vehicleTypeId)
     )
-    Props(
-      new FixedNonReservingFleetManager(
-        scheduler,
-        parkingManager,
-        initialSharedVehicleLocations,
-        vehicleType,
-        beamServices,
-        skimmer
-      )
-    )
+    Props(new FixedNonReservingFleetManager(
+      parkingManager,
+      initialSharedVehicleLocations,
+      vehicleType,
+      beamScheduler,
+      beamServices,
+      skimmer
+    ))
+    //repositionManager ! fleetManager
+    //Props(fleetManager)
   }
 }
 
@@ -46,8 +54,9 @@ case class InexhaustibleReservingFleet(config: SharedFleets$Elm.InexhaustibleRes
   override def props(
     beamServices: BeamServices,
     skimmer: BeamSkimmer,
-    scheduler: ActorRef,
-    parkingManager: ActorRef
+    beamScheduler: ActorRef,
+    parkingManager: ActorRef,
+    repositionManager: ActorRef
   ): Props = {
     val vehicleType = beamServices.vehicleTypes.getOrElse(
       Id.create(config.vehicleTypeId, classOf[BeamVehicleType]),

@@ -8,19 +8,14 @@ import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import beam.agentsim.Resource.{Boarded, NotAvailable, NotifyVehicleIdle, TryToBoardVehicle}
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.household.HouseholdActor.{
-  MobilityStatusInquiry,
-  MobilityStatusResponse,
-  ReleaseVehicle,
-  ReleaseVehicleAndReply
-}
+import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle, ReleaseVehicleAndReply}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.Token
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall.NoNeed
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
+import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamSkimmer
 import beam.sim.BeamServices
@@ -35,28 +30,19 @@ import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
 private[vehiclesharing] class FixedNonReservingFleetManager(
-  val scheduler: ActorRef,
   val parkingManager: ActorRef,
   val locations: Iterable[Coord],
   val vehicleType: BeamVehicleType,
+  val mainScheduler: ActorRef,
   val beamServices: BeamServices,
-  val skimmer: BeamSkimmer
+  val beamSkimmer: BeamSkimmer
 ) extends Actor
     with ActorLogging
-    with Stash {
+    with Stash
+    with RepositionManager {
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
-
-  val repositioningManager =
-    new RepositioningManager(
-      log,
-      self,
-      this,
-      scheduler,
-      beamServices,
-      skimmer
-    )
 
   private val vehicles = (locations.zipWithIndex map {
     case (location, ix) =>
@@ -73,7 +59,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   private val availableVehicles = mutable.Map[Id[BeamVehicle], BeamVehicle]()
   private val availableVehiclesIndex = new Quadtree
 
-  override def receive: Receive = {
+  override def receive: Receive = super[RepositionManager].receive orElse { // Reposition
     case TriggerWithId(InitializeTrigger(tick), triggerId) =>
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.
@@ -88,8 +74,6 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         })
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
-      if (beamServices.iterationNumber > 0 || beamServices.beamConfig.beam.warmStart.enabled)
-        scheduler ! ScheduleTrigger(VehicleSharingRepositioningTrigger(tick), self)
 
     case MobilityStatusInquiry(personId, whenWhere, _) =>
       // Search box: 1000 meters around query location
@@ -101,7 +85,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       sender ! MobilityStatusResponse(nearbyVehicles.take(5).map { vehicle =>
         Token(vehicle.id, self, vehicle.toStreetVehicle)
       })
-      skimmer.observeVehicleInquiryByTAZ(personId, whenWhere, "default", availableVehiclesIndex)
+      self ! REPVehicleInquiry(personId, whenWhere)
 
     case TryToBoardVehicle(token, who) =>
       availableVehicles.get(token.id) match {
@@ -141,22 +125,6 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       )
       log.debug("Checked in " + vehicle.id)
       sender() ! Success
-
-    case TriggerWithId(VehicleSharingRepositioningTrigger(tick), triggerId) =>
-      repositioningManager.reposition(tick, triggerId, availableVehiclesIndex)
-
-    case TriggerWithId(VehicleSharingTeleportationTrigger(tick, vehicle), triggerId) =>
-      repositioningManager.teleport(vehicle, tick)
-
-    case VehiclesForReposition(vehicle, where) =>
-      val removed = availableVehiclesIndex.remove(
-        new Envelope(new Coordinate(vehicle.spaceTime.loc.getX, vehicle.spaceTime.loc.getY)),
-        vehicle
-      )
-      if (!removed) {
-        log.error("Didn't find a vehicle in my spatial index, at the location I thought it would be.")
-      }
-      scheduler ! ScheduleTrigger(VehicleSharingTeleportationTrigger(where.time, vehicle), self)
   }
 
   def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(
@@ -168,5 +136,14 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
     0,
     0
   )
+
+  override def getId: Id[VehicleManager] = Id.create("FixedNonReservingFleetManager", classOf[VehicleManager])
+  override def getAvailableVehicles: Quadtree = availableVehiclesIndex
+  override def getActorRef: ActorRef = self
+  override def getScheduler: ActorRef = mainScheduler
+  override def getBeamServices: BeamServices = beamServices
+  override def getRepositionAlgorithm: RepositionAlgorithm = new AvailabilityBasedRepositioning(beamSkimmer, beamServices)
+  override def getTimeStep: Int = 15 * 60
+  override def getBeamSkimmer: BeamSkimmer = beamSkimmer
 
 }

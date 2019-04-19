@@ -10,40 +10,48 @@ import com.vividsolutions.jts.index.quadtree.Quadtree
 import scala.collection.mutable
 import scala.collection.JavaConverters._
 
+
 private[vehiclesharing] class AvailabilityBasedRepositioning(
-  skimmer: BeamSkimmer,
-  beamServices: BeamServices,
-  vehicles: Quadtree
-) {
+  beamSkimmer: BeamSkimmer,
+  beamServices: BeamServices
+) extends RepositionAlgorithm {
 
   case class RepositioningRequest(taz: TAZ, availableVehicles: Int, shortage: Int)
 
-  val oversuppliedTAZ =
-    mutable.TreeSet.empty[RepositioningRequest](Ordering.by[RepositioningRequest, Int](_.availableVehicles))
-  val undersuppliedTAZ = mutable.TreeSet.empty[RepositioningRequest](Ordering.by[RepositioningRequest, Int](_.shortage))
+  val LABEL: String = "availability"
 
-  def getVehiclesForReposition(startTime: Int, endTime: Int): List[VehiclesForReposition] = {
+
+
+  override def getVehiclesForReposition(startTime: Int, endTime: Int, repositionManager: RepositionManager): List[(BeamVehicle, SpaceTime)] = {
+    val relocate = beamServices.iterationNumber > 0 || beamServices.beamConfig.beam.warmStart.enabled
+    val oversuppliedTAZ =
+      mutable.TreeSet.empty[RepositioningRequest](Ordering.by[RepositioningRequest, Int](_.availableVehicles))
+    val undersuppliedTAZ = mutable.TreeSet.empty[RepositioningRequest](Ordering.by[RepositioningRequest, Int](_.shortage))
+
     beamServices.tazTreeMap.getTAZs.foreach { taz =>
-      val availability =
-        skimmer.getSkimPlusValues(startTime, endTime, taz.tazId, "default").foldLeft((0.0, 1, Int.MaxValue)) {
-          case ((avg, idx, minAV), next) =>
-            (avg + (next.demand - avg) / idx, idx + 1, Math.min(minAV, next.availableVehicles))
+      if(relocate) {
+        val availability = beamSkimmer.getSkimPlusValues(startTime, endTime, taz.tazId, repositionManager.getId, LABEL).min.toInt
+        val demandVect = beamSkimmer.getSkimPlusValues(startTime, endTime, taz.tazId, repositionManager.getId, "demand")
+        val demand = demandVect.sum/demandVect.size
+
+        if (availability > 0 && availability < Int.MaxValue) {
+          oversuppliedTAZ.add(RepositioningRequest(taz, availability, 0))
+        } else if (availability == 0) {
+          undersuppliedTAZ.add(RepositioningRequest(taz, 0, 1))
         }
-      if (availability._3 > 0 && availability._3 < Int.MaxValue) {
-        oversuppliedTAZ.add(RepositioningRequest(taz, availability._3, 0))
-      } else if (availability._3 == 0) {
-        undersuppliedTAZ.add(RepositioningRequest(taz, 0, 1))
+        println(
+          s"reposition tick ======> $startTime | minAvailability: $availability | avgDemand: $demand"
+        )
       }
-      println(
-        s"reposition tick ======> $startTime | minAvailability: ${availability._3} | avgDemand: ${availability._1}"
-      )
+      // collect skim
+      beamSkimmer.observeVehicleAvailabilityByTAZ(startTime, taz, repositionManager.getId, LABEL, repositionManager.getAvailableVehicles)
     }
 
-    val vehiclesForReposition = new mutable.ListBuffer[VehiclesForReposition]()
+    val vehiclesForReposition = new mutable.ListBuffer[(BeamVehicle, SpaceTime)]()
     oversuppliedTAZ.foreach { os =>
       var destinationOption: Option[(RepositioningRequest, Double)] = None
       undersuppliedTAZ.foreach { us =>
-        destinationOption = skimmer.getSkimValue(0, BeamMode.CAR, os.taz.tazId, us.taz.tazId).map {
+        destinationOption = beamSkimmer.getSkimValue(0, BeamMode.CAR, os.taz.tazId, us.taz.tazId).map {
           case skim if destinationOption.isDefined && skim.time < destinationOption.get._2 => (us, skim.time)
           case skim if destinationOption.isEmpty                                           => (us, skim.time)
         }
@@ -52,7 +60,7 @@ private[vehiclesharing] class AvailabilityBasedRepositioning(
         case Some(destination) =>
           undersuppliedTAZ.remove(destination._1)
           val arrivalTime = startTime + destination._2.round.toInt
-          val vehiclesInTAZ = vehicles
+          val vehiclesInTAZ = repositionManager.getAvailableVehicles
             .queryAll()
             .asScala
             .filter(
@@ -67,7 +75,7 @@ private[vehiclesharing] class AvailabilityBasedRepositioning(
             .foreach(
               v =>
                 vehiclesForReposition.prepend(
-                  VehiclesForReposition(
+                  (
                     v.asInstanceOf[BeamVehicle],
                     new SpaceTime(destination._1.taz.coord, arrivalTime)
                   )
