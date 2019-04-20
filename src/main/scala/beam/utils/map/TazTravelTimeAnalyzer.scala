@@ -13,10 +13,10 @@ import beam.sim.config.BeamConfig
 import beam.utils.map.R5NetworkPlayground.prepareConfig
 import beam.utils.{EventReader, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events.Event
 
-case class Taz2TazWithPathTraversal(startTaz: TAZ, endTaz: TAZ, pathTraversalEvent: PathTraversalEvent)
+case class Taz2TazWithPathTraversal(startTazId: Id[TAZ], endTazId: Id[TAZ], pathTraversalEvent: PathTraversalEvent, hourToTravelTime: Seq[HourToTravelTime] = Seq.empty)
 case class HourToTravelTime(hour: Int, travelTime: Float)
 
 object TazTravelTimeAnalyzer extends LazyLogging{
@@ -55,22 +55,22 @@ object TazTravelTimeAnalyzer extends LazyLogging{
           val endUtmCoord: Coord = wgsToUtm(geoUtils, pte.endX, pte.endY)
           val endTaz = tazTreeMap.getTAZ(endUtmCoord.getX, endUtmCoord.getY)
 
-          Taz2TazWithPathTraversal(startTaz, endTaz, pte)
+          Taz2TazWithPathTraversal(startTaz.tazId, endTaz.tazId, pte)
         }
       }
 
-      val withObservedTravelTimes: Array[(Taz2TazWithPathTraversal, Array[HourToTravelTime])] = tazWithPathTraversals.map { x =>
+      val withObservedTravelTimes: Array[Taz2TazWithPathTraversal] = tazWithPathTraversals.map { x =>
         val rngSeconds = Range(x.pathTraversalEvent.departureTime, x.pathTraversalEvent.arrivalTime, 3600)
         val acrossHours = rngSeconds.map { time => time / 3600 }.toArray
 
         val hourToObserved = acrossHours.flatMap { hour =>
-          val key = PathCache(x.startTaz.tazId, x.endTaz.tazId, hour)
+          val key = PathCache(x.startTazId, x.endTazId, hour)
           observedTravelTime.get(key).map(travelTime => HourToTravelTime(hour, travelTime))
         }
         if (hourToObserved.length >= 2)
           logger.info(hourToObserved.toList.toString())
-        x -> hourToObserved
-      }.filter { case (taz, xs) => xs.nonEmpty }
+        x.copy(hourToTravelTime = hourToObserved)
+      }.filter { x => x.hourToTravelTime.nonEmpty }
 
       logger.info(s"tazWithPathTraversals size: ${tazWithPathTraversals.size}")
       logger.info(s"withObservedTravelTimes size: ${withObservedTravelTimes.size}")
