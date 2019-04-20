@@ -14,16 +14,13 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode._
-import beam.router.model.{BeamPath, EmbodiedBeamLeg}
 import beam.sim.BeamServices.getTazTreeMap
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
-import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
 import beam.sim.metrics.Metrics
-import beam.utils.{DateUtils, NetworkHelper}
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
+import beam.utils.{DateUtils, NetworkHelper}
 import com.google.inject.{ImplementedBy, Inject, Injector}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
@@ -32,7 +29,6 @@ import org.matsim.core.utils.collections.QuadTree
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 import org.slf4j.LoggerFactory
-import org.matsim.api.core.v01.network.{Link, Network}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
@@ -40,6 +36,7 @@ import scala.concurrent.duration.FiniteDuration
 
 @ImplementedBy(classOf[BeamServicesImpl])
 trait BeamServices {
+  val injector: Injector
   val controler: ControlerI
   val beamConfig: BeamConfig
   val vehicleEnergy: VehicleEnergy
