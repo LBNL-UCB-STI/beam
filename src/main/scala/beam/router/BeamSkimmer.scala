@@ -197,6 +197,16 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     }
   }
 
+  def getPreviousSkimValueOrDefault(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Skim = {
+    previousSkims.get((timeToBin(time), mode, orig, dest)) match {
+      case someSkim @ Some(_) => someSkim.get.toSkimExternal
+      case None =>
+        val origTaz = beamServices.tazTreeMap.getTAZ(orig).get.coord
+        val destTaz = beamServices.tazTreeMap.getTAZ(dest).get.coord
+        getSkimDefaultValue(mode, origTaz, destTaz, time, Id.create("NA", classOf[BeamVehicleType]), beamServices)
+    }
+  }
+
   def observeTrip(
     trip: EmbodiedBeamTrip,
     generalizedTimeInHours: Double,
@@ -481,12 +491,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     BeamWarmStart(beamConfig, maxHour).getWarmStartFilePath(observedSkimsPlusFileBaseName + ".csv.gz")
   }
 
-  def getSkimPlusValue(time: Int, taz: Id[TAZ], vehiclesManager: Id[VehicleManager], label: Label): Option[Double] = {
-    val timeBin = timeToBin(time, timeWindow)
-    previousSkimsPlus.get((timeBin, taz, vehiclesManager, label))
-  }
-
-  def getSkimPlusValues(
+  def getPreviousSkimPlusValues(
     startTime: Int,
     endTime: Int,
     taz: Id[TAZ],
@@ -547,9 +552,9 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     writer.write(observedSkimsPlusHeader.mkString(","))
     writer.write("\n")
 
-    skimsPlus.foreach { keyVal =>
-      val (bin, taz, vehicleManager, label) = keyVal._1
-      writer.write(s"$bin,$taz,$vehicleManager,$label,$keyVal._2\n")
+    skimsPlus.foreach { case (k, v) =>
+      val (bin, taz, vehicleManager, label) = k
+      writer.write(s"$bin,$taz,$vehicleManager,$label,$v\n")
     }
     writer.close()
   }
@@ -679,10 +684,9 @@ object BeamSkimmer extends LazyLogging {
   // *******
   // Skim Plus
   private val observedSkimsPlusFileBaseName = "skimsPlus"
-  private val observedSkimsPlusHeader = "time,taz,vehicleManager,availableVehicles,demand".split(",")
+  private val observedSkimsPlusHeader = "time,taz,manager,label,value".split(",")
   type TimeBin = Int
   type Label = String
-  case class SkimPlus(availableVehicles: Int = 0, demand: Int = 0)
 
   private def readSkimPlusFile(filePath: String): TrieMap[(TimeBin, Id[TAZ], Id[VehicleManager], Label), Double] = {
     val mapReader = new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
@@ -693,11 +697,11 @@ object BeamSkimmer extends LazyLogging {
       while (null != line) {
         val time = line.get("time")
         val tazid = line.get("taz")
-        val vehicleManager = line.get("vehicleManager")
+        val manager = line.get("manager")
         val label = line.get("label")
         val value = line.get("value").toDouble
         res.put(
-          (time.toInt, Id.create(tazid, classOf[TAZ]), Id.create(vehicleManager, classOf[VehicleManager]), label),
+          (time.toInt, Id.create(tazid, classOf[TAZ]), Id.create(manager, classOf[VehicleManager]), label),
           value
         )
         line = mapReader.read(header: _*)

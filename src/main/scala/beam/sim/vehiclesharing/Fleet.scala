@@ -15,8 +15,7 @@ trait FleetType {
     beamServices: BeamServices,
     beamSkimmer: BeamSkimmer,
     beamScheduler: ActorRef,
-    parkingManager: ActorRef,
-    repositionManager: ActorRef
+    parkingManager: ActorRef
   ): Props
 }
 
@@ -25,8 +24,7 @@ case class FixedNonReservingFleet(config: SharedFleets$Elm.FixedNonReserving) ex
     beamServices: BeamServices,
     skimmer: BeamSkimmer,
     beamScheduler: ActorRef,
-    parkingManager: ActorRef,
-    repositionManager: ActorRef
+    parkingManager: ActorRef
   ): Props = {
     val initialSharedVehicleLocations =
       beamServices.matsimServices.getScenario.getPopulation.getPersons
@@ -45,8 +43,6 @@ case class FixedNonReservingFleet(config: SharedFleets$Elm.FixedNonReserving) ex
       beamServices,
       skimmer
     ))
-    //repositionManager ! fleetManager
-    //Props(fleetManager)
   }
 }
 
@@ -55,8 +51,7 @@ case class InexhaustibleReservingFleet(config: SharedFleets$Elm.InexhaustibleRes
     beamServices: BeamServices,
     skimmer: BeamSkimmer,
     beamScheduler: ActorRef,
-    parkingManager: ActorRef,
-    repositionManager: ActorRef
+    parkingManager: ActorRef
   ): Props = {
     val vehicleType = beamServices.vehicleTypes.getOrElse(
       Id.create(config.vehicleTypeId, classOf[BeamVehicleType]),

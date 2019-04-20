@@ -20,8 +20,6 @@ private[vehiclesharing] class AvailabilityBasedRepositioning(
 
   val LABEL: String = "availability"
 
-
-
   override def getVehiclesForReposition(startTime: Int, endTime: Int, repositionManager: RepositionManager): List[(BeamVehicle, SpaceTime)] = {
     val relocate = beamServices.iterationNumber > 0 || beamServices.beamConfig.beam.warmStart.enabled
     val oversuppliedTAZ =
@@ -30,9 +28,10 @@ private[vehiclesharing] class AvailabilityBasedRepositioning(
 
     beamServices.tazTreeMap.getTAZs.foreach { taz =>
       if(relocate) {
-        val availability = beamSkimmer.getSkimPlusValues(startTime, endTime, taz.tazId, repositionManager.getId, LABEL).min.toInt
-        val demandVect = beamSkimmer.getSkimPlusValues(startTime, endTime, taz.tazId, repositionManager.getId, "demand")
-        val demand = demandVect.sum/demandVect.size
+        val availabilityVect = beamSkimmer.getPreviousSkimPlusValues(startTime, endTime, taz.tazId, repositionManager.getId, LABEL)
+        val availability = availabilityVect.drop(1).foldLeft(availabilityVect.headOption.getOrElse(0.0).toInt){(minV, cur) => Math.min(minV, cur.toInt)}
+        val demandVect = beamSkimmer.getPreviousSkimPlusValues(startTime, endTime, taz.tazId, repositionManager.getId, repositionManager.getDemandLabel)
+        val demand = demandVect.foldLeft((0.0, 0)){case ((avgV, countV), cur) => ((avgV*countV+cur)/(cur+1), countV+1)}._1
 
         if (availability > 0 && availability < Int.MaxValue) {
           oversuppliedTAZ.add(RepositioningRequest(taz, availability, 0))
@@ -51,9 +50,11 @@ private[vehiclesharing] class AvailabilityBasedRepositioning(
     oversuppliedTAZ.foreach { os =>
       var destinationOption: Option[(RepositioningRequest, Double)] = None
       undersuppliedTAZ.foreach { us =>
-        destinationOption = beamSkimmer.getSkimValue(0, BeamMode.CAR, os.taz.tazId, us.taz.tazId).map {
-          case skim if destinationOption.isDefined && skim.time < destinationOption.get._2 => (us, skim.time)
-          case skim if destinationOption.isEmpty                                           => (us, skim.time)
+        val skim = beamSkimmer.getPreviousSkimValueOrDefault(startTime, BeamMode.CAR, os.taz.tazId, us.taz.tazId)
+        destinationOption = destinationOption match {
+          case Some(someDest) if skim.time < someDest._2 => Some((us, skim.time))
+          case Some(someDest) if skim.time >= someDest._2 => destinationOption
+          case None => Some((us, skim.time))
         }
       }
       destinationOption match {

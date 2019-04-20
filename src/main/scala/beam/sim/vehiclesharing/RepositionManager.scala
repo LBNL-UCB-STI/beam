@@ -44,12 +44,10 @@ trait RepositionManager extends Actor with ActorLogging {
   override def receive: Receive = {
     case TriggerWithId(REPVehicleRepositionTrigger(tick), triggerId) =>
       val nextTick = tick + getTimeStep
-      if (getBeamServices.iterationNumber > 0 || getBeamServices.beamConfig.beam.warmStart.enabled) {
-        getRepositionAlgorithm.getVehiclesForReposition(tick, nextTick, this) foreach {
-          case (vehicle, whereWhen) =>
-            vehicle.manager.get ! REPVehicleReposition(vehicle, whereWhen)
-            getScheduler ! ScheduleTrigger(REPVehicleTeleportTrigger(whereWhen.time, whereWhen, vehicle), getActorRef)
-        }
+      getRepositionAlgorithm.getVehiclesForReposition(tick, nextTick, this) foreach {
+        case (vehicle, whereWhen) =>
+          vehicle.manager.get ! REPVehicleReposition(vehicle, whereWhen)
+          getScheduler ! ScheduleTrigger(REPVehicleTeleportTrigger(whereWhen.time, whereWhen, vehicle), getActorRef)
       }
       // reschedule
       getScheduler.tell(
