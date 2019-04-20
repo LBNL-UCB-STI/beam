@@ -26,7 +26,7 @@ case class PathTraversalEvent(
   mode: BeamMode,
   legLength: Double,
   linkIds: IndexedSeq[Int],
-  linkTravelTimes: IndexedSeq[Int],
+  linkTravelTime: IndexedSeq[Int],
   startX: Double,
   startY: Double,
   endX: Double,
@@ -66,6 +66,7 @@ case class PathTraversalEvent(
     attr.put(ATTRIBUTE_ARRIVAL_TIME, arrivalTime.toString)
     attr.put(ATTRIBUTE_MODE, mode.value)
     attr.put(ATTRIBUTE_LINK_IDS, linkIds.mkString(","))
+    attr.put(ATTRIBUTE_LINK_TRAVEL_TIME, linkTravelTime.mkString(","))
     attr.put(ATTRIBUTE_PRIMARY_FUEL_TYPE, primaryFuelType)
     attr.put(ATTRIBUTE_SECONDARY_FUEL_TYPE, secondaryFuelType)
     attr.put(ATTRIBUTE_PRIMARY_FUEL, primaryFuelConsumed.toString)
@@ -106,6 +107,7 @@ object PathTraversalEvent {
   val ATTRIBUTE_NUM_PASS: String = "numPassengers"
 
   val ATTRIBUTE_LINK_IDS: String = "links"
+  val ATTRIBUTE_LINK_TRAVEL_TIME: String = "linkTravelTime"
   val ATTRIBUTE_MODE: String = "mode"
   val ATTRIBUTE_DEPARTURE_TIME: String = "departureTime"
   val ATTRIBUTE_ARRIVAL_TIME: String = "arrivalTime"
@@ -168,7 +170,7 @@ object PathTraversalEvent {
       mode = beamLeg.mode,
       legLength = beamLeg.travelPath.distanceInM,
       linkIds = beamLeg.travelPath.linkIds,
-      linkTravelTimes = beamLeg.travelPath.linkTravelTime,
+      linkTravelTime = beamLeg.travelPath.linkTravelTime,
       startX = beamLeg.travelPath.startPoint.loc.getX,
       startY = beamLeg.travelPath.startPoint.loc.getY,
       endX = beamLeg.travelPath.endPoint.loc.getX,
@@ -208,8 +210,9 @@ object PathTraversalEvent {
     val legLength: Double = attr(ATTRIBUTE_LENGTH).toDouble
     val linkIdsAsStr = attr(ATTRIBUTE_LINK_IDS)
     val linkIds: IndexedSeq[Int] = if (linkIdsAsStr == "") IndexedSeq.empty else linkIdsAsStr.split(",").map(_.toInt)
-    // TODO. We don't dump link travel time, shall we ?
-    val linkTravelTimes: IndexedSeq[Int] = IndexedSeq.empty
+    val linkTravelTimeStr = attr.getOrElse(ATTRIBUTE_LINK_TRAVEL_TIME, "")
+    val linkTravelTime: IndexedSeq[Int] =
+      if (linkTravelTimeStr == "") IndexedSeq.empty else linkTravelTimeStr.split(",").map(_.toInt)
     val startX: Double = attr(ATTRIBUTE_START_COORDINATE_X).toDouble
     val startY: Double = attr(ATTRIBUTE_START_COORDINATE_Y).toDouble
     val endX: Double = attr(ATTRIBUTE_END_COORDINATE_X).toDouble
@@ -268,7 +271,7 @@ object PathTraversalEvent {
       mode,
       legLength,
       linkIds,
-      linkTravelTimes,
+      linkTravelTime,
       startX,
       startY,
       endX,

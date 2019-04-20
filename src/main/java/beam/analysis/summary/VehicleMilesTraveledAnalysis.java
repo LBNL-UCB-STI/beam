@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 public class VehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
     private Map<String, Double> milesTraveledByVehicleType = new HashMap<>();
     private Set<Id<BeamVehicleType>> vehicleTypes;
-    private String humanBodyVehicleType = BeamVehicleType.defaultHumanBodyBeamVehicleType().toString();
+    private String humanBodyVehicleType = BeamVehicleType.defaultHumanBodyBeamVehicleType().id().toString();
 
     public VehicleMilesTraveledAnalysis(Set<Id<BeamVehicleType>> vehicleTypes) {
         this.vehicleTypes = vehicleTypes;
