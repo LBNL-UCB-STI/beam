@@ -17,7 +17,7 @@ import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.events.Event
 
 case class Taz2TazWithPathTraversal(startTaz: TAZ, endTaz: TAZ, pathTraversalEvent: PathTraversalEvent)
-case class HourToTravelTimes(hour: Int, travelTimes: List[Float])
+case class HourToTravelTime(hour: Int, travelTime: Float)
 
 object TazTravelTimeAnalyzer extends LazyLogging{
   def filter(event: Event): Boolean = {
@@ -59,17 +59,14 @@ object TazTravelTimeAnalyzer extends LazyLogging{
         }
       }
 
-      val withObservedTravelTimes: Array[(Taz2TazWithPathTraversal, Array[HourToTravelTimes])] = tazWithPathTraversals.map { x =>
+      val withObservedTravelTimes: Array[(Taz2TazWithPathTraversal, Array[HourToTravelTime])] = tazWithPathTraversals.map { x =>
         val rngSeconds = Range(x.pathTraversalEvent.departureTime, x.pathTraversalEvent.arrivalTime, 3600)
         val acrossHours = rngSeconds.map { time => time / 3600 }.toArray
 
-        val hourToObserved = acrossHours.map { hour =>
-          // Both direction lookup, not sure is it correct
-          val startEnd = PathCache(x.startTaz.tazId, x.endTaz.tazId, hour)
-          val endStart = PathCache(x.endTaz.tazId, x.startTaz.tazId, hour)
-          HourToTravelTimes(hour, List(observedTravelTime.get(startEnd), observedTravelTime.get(endStart)).flatten)
-        }.filter(_.travelTimes.nonEmpty)
-
+        val hourToObserved = acrossHours.flatMap { hour =>
+          val key = PathCache(x.startTaz.tazId, x.endTaz.tazId, hour)
+          observedTravelTime.get(key).map(travelTime => HourToTravelTime(hour, travelTime))
+        }
         if (hourToObserved.length >= 2)
           logger.info(hourToObserved.toList.toString())
         x -> hourToObserved
