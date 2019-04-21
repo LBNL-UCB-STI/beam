@@ -72,6 +72,7 @@ class OtherPersonAgentSpec
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
+    with beam.utils.InjectableMock
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
@@ -94,6 +95,7 @@ class OtherPersonAgentSpec
     when(theServices.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
+    when(theServices.injector).thenReturn(injector)
     val geo = new GeoUtilsImpl(config)
     when(theServices.geo).thenReturn(geo)
     // TODO Is it right to return defaultTazTreeMap?

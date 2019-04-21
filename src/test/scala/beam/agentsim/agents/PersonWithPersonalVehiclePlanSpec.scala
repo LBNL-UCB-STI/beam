@@ -72,6 +72,7 @@ class PersonWithPersonalVehiclePlanSpec
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
+    with beam.utils.InjectableMock
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
@@ -95,6 +96,7 @@ class PersonWithPersonalVehiclePlanSpec
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(theServices.networkHelper).thenReturn(networkHelper)
     when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
+    when(theServices.injector).thenReturn(injector)
 
     theServices
   }
