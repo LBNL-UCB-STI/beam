@@ -181,8 +181,8 @@ object HouseholdActor {
             fleetManager
         }
         // If any of my vehicles are CAVs then go through scheduling process
-        var cavs = vehicles.filter(_._2.beamVehicleType.automationLevel > 3).map(_._2).toList
-        if (cavs.size > 0) {
+        var cavs = vehicles.values.filter(_.beamVehicleType.automationLevel > 3).toList
+        if (cavs.nonEmpty) {
 //          log.debug("Household {} has {} CAVs and will do some planning", household.getId, cavs.size)
           cavs.foreach { cav =>
             val cavDriverRef: ActorRef = context.actorOf(
