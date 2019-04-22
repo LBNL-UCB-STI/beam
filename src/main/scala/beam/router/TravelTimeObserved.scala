@@ -96,8 +96,8 @@ class TravelTimeObserved @Inject()(
                     .map(_.toSkimExternal)
                     .foreach { theSkim =>
                       series += ((theSkim.count, theSkim.time, timeObserved))
-                      for(count <- 1 to theSkim.count)
-                        deltasOfObservedSimulatedTimes +=  theSkim.time - timeObserved
+                      for (count <- 1 to theSkim.count)
+                        deltasOfObservedSimulatedTimes += theSkim.time - timeObserved
                       writerObservedVsSimulated.write(
                         s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved},${theSkim.count}\n"
                       )
@@ -186,9 +186,18 @@ object TravelTimeObserved extends LazyLogging {
     observedTravelTimes.toMap
   }
 
-  def generateHistogram(dataset: HistogramDataset, path: String): Unit ={
+  def generateHistogram(dataset: HistogramDataset, path: String): Unit = {
     dataset.setType(HistogramType.FREQUENCY)
-    val chart = ChartFactory.createHistogram("Simulated-Observed Frequency","Simulated-Observed","Frequency",dataset,PlotOrientation.VERTICAL,true,false,false)
+    val chart = ChartFactory.createHistogram(
+      "Simulated-Observed Frequency",
+      "Simulated-Observed",
+      "Frequency",
+      dataset,
+      PlotOrientation.VERTICAL,
+      true,
+      false,
+      false
+    )
     GraphUtils.saveJFreeChartAsPNG(
       chart,
       path,
