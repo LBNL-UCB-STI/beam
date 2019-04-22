@@ -76,7 +76,7 @@ class OtherPersonAgentSpec
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
-  lazy val config = BeamConfig(system.settings.config)
+  lazy val beamConfig = BeamConfig(system.settings.config)
   lazy val eventsManager = new EventsManagerImpl()
 
   lazy val dummyAgentId: Id[Person] = Id.createPersonId("dummyAgent")
@@ -91,12 +91,12 @@ class OtherPersonAgentSpec
     when(theServices.matsimServices).thenReturn(mock[MatsimServices])
     when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
     when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
-    when(theServices.beamConfig).thenReturn(config)
+    when(theServices.beamConfig).thenReturn(beamConfig)
     when(theServices.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
     when(theServices.injector).thenReturn(injector)
-    val geo = new GeoUtilsImpl(config)
+    val geo = new GeoUtilsImpl(beamConfig)
     when(theServices.geo).thenReturn(geo)
     // TODO Is it right to return defaultTazTreeMap?
     when(theServices.tazTreeMap).thenReturn(BeamServices.defaultTazTreeMap)
@@ -139,7 +139,7 @@ class OtherPersonAgentSpec
     "ParkingManager"
   )
 
-  private lazy val networkCoordinator = new DefaultNetworkCoordinator(config)
+  private lazy val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
 
   describe("A PersonAgent FSM") {
     it("should also work when the first bus is late") {
@@ -276,10 +276,10 @@ class OtherPersonAgentSpec
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
-          config,
+          beamConfig,
           stopTick = 1000000,
           maxWindow = 10,
-          new StuckFinder(config.beam.debug.stuckAgentDetection)
+          new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
 
@@ -316,8 +316,8 @@ class OtherPersonAgentSpec
           Map(),
           new Coord(0.0, 0.0),
           Vector(),
-          new RouteHistory(config),
-          new BeamSkimmer(config, beamSvc)
+          new RouteHistory(beamConfig),
+          new BeamSkimmer(beamConfig, beamSvc)
         )
       )
       scheduler ! StartSchedule(0)
