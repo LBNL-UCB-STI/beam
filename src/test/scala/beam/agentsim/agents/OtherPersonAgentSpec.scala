@@ -87,7 +87,7 @@ class OtherPersonAgentSpec
   lazy val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
   lazy val beamSvc: BeamServices = {
-    val theServices = mock[BeamServices](withSettings().stubOnly())
+    lazy val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(mock[MatsimServices])
     when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
     when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
@@ -95,13 +95,14 @@ class OtherPersonAgentSpec
     when(theServices.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
-    when(theServices.injector).thenReturn(injector)
-    val geo = new GeoUtilsImpl(beamConfig)
+    lazy val geo = new GeoUtilsImpl(beamConfig)
     when(theServices.geo).thenReturn(geo)
     // TODO Is it right to return defaultTazTreeMap?
     when(theServices.tazTreeMap).thenReturn(BeamServices.defaultTazTreeMap)
     theServices
   }
+
+  setupInjectableMock(beamConfig, beamSvc)
 
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(
