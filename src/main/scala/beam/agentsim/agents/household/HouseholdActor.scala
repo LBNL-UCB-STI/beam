@@ -365,7 +365,7 @@ object HouseholdActor {
                   passengersToAdd = passengersToAdd + person
                 }
               }
-              if (serviceRequest.routingRequestId.isDefined && indexedResponses(serviceRequest.routingRequestId.get).itineraries.size > 0) {
+              if (serviceRequest.routingRequestId.isDefined && indexedResponses(serviceRequest.routingRequestId.get).itineraries.nonEmpty) {
                 if (updatedLegsIterator.hasNext) {
                   val leg = updatedLegsIterator.next
                   passengersToAdd.foreach { pass =>
@@ -384,7 +384,7 @@ object HouseholdActor {
           Future
             .sequence(
               cavPassengerSchedules
-                .filter(_._2.schedule.size > 0)
+                .filter(_._2.schedule.nonEmpty)
                 .map { cavAndSchedule =>
                   akka.pattern
                     .ask(
