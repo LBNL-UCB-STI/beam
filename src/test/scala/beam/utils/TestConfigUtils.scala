@@ -20,7 +20,7 @@ object TestConfigUtils {
 }
 
 trait InjectableMock extends MockitoSugar {
-  val injector  = mock[com.google.inject.Injector](withSettings().stubOnly())
+  val injector = mock[com.google.inject.Injector](withSettings().stubOnly())
   val config: BeamConfig
   val beamSvc: BeamServices
   private val x = new beam.router.TravelTimeObserved(config, beamSvc)
