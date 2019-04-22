@@ -1,6 +1,6 @@
 package beam.utils.map
 
-import java.io.Closeable
+import java.io.{BufferedWriter, Closeable}
 
 import beam.agentsim.events.PathTraversalEvent
 import beam.agentsim.infrastructure.TAZTreeMap
@@ -15,16 +15,26 @@ import beam.utils.{EventReader, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events.Event
+import org.matsim.core.utils.io.IOUtils
 
-case class Taz2TazWithPathTraversal(startTazId: Id[TAZ], endTazId: Id[TAZ], pathTraversalEvent: PathTraversalEvent, hourToTravelTime: Seq[HourToTravelTime] = Seq.empty)
+case class Taz2TazWithPathTraversal(
+   startTazId: Id[TAZ],
+   endTazId: Id[TAZ],
+   pathTraversalEvent: PathTraversalEvent,
+   hour: Int = -1,
+   observedTravelTime: Option[Float] = None
+)
 case class HourToTravelTime(hour: Int, travelTime: Float)
 
-object TazTravelTimeAnalyzer extends LazyLogging{
+object TazTravelTimeAnalyzer extends LazyLogging {
+
   def filter(event: Event): Boolean = {
     // We need only PathTraversal with mode `CAR`
     val isNeededEvent = event.getEventType == "PathTraversal" && Option(event.getAttributes.get("mode")).contains("car")
     isNeededEvent
   }
+
+
 
   def main(args: Array[String]): Unit = {
     val (_, cfg) = prepareConfig(args, true)
@@ -37,7 +47,8 @@ object TazTravelTimeAnalyzer extends LazyLogging{
     val observedTravelTime: Map[PathCache, Float] = getObservedTravelTime(beamConfig, geoUtils, tazTreeMap)
 
     // This is lazy, it just creates an iterator
-    val (events: Iterator[Event], closable: Closeable) = EventReader.fromCsvFile("C:/repos/beam-data-analysis/0.events.csv.gz", filter)
+    val (events: Iterator[Event], closable: Closeable) =
+      EventReader.fromCsvFile("C:/temp/htt/0.events.csv.gz", filter)
 
     try {
       // Actual reading happens here because we force computation by `toArray`
@@ -59,27 +70,101 @@ object TazTravelTimeAnalyzer extends LazyLogging{
         }
       }
 
-      val withObservedTravelTimes: Array[Taz2TazWithPathTraversal] = tazWithPathTraversals.map { x =>
-        val rngSeconds = Range(x.pathTraversalEvent.departureTime, x.pathTraversalEvent.arrivalTime, 3600)
-        val acrossHours = rngSeconds.map { time => time / 3600 }.toArray
-
-        val hourToObserved = acrossHours.flatMap { hour =>
+      val withObservedTravelTimes: Array[Taz2TazWithPathTraversal] = tazWithPathTraversals
+        .map { x =>
+          val hour = x.pathTraversalEvent.departureTime / 3600
           val key = PathCache(x.startTazId, x.endTazId, hour)
-          observedTravelTime.get(key).map(travelTime => HourToTravelTime(hour, travelTime))
+          val travelTime = observedTravelTime.get(key)
+          x.copy(hour = hour, observedTravelTime = travelTime)
         }
-        if (hourToObserved.length >= 2)
-          logger.info(hourToObserved.toList.toString())
-        x.copy(hourToTravelTime = hourToObserved)
-      }.filter { x => x.hourToTravelTime.nonEmpty }
+        .filter(x => x.observedTravelTime.isDefined)
 
-      logger.info(s"tazWithPathTraversals size: ${tazWithPathTraversals.size}")
       logger.info(s"withObservedTravelTimes size: ${withObservedTravelTimes.size}")
 
+      val writer = IOUtils.getBufferedWriter("c:/temp/htt/tazODTravelTimeObservedVsSimulated_derived.csv")
+      writer.write("fromTAZId,toTAZId,tazStartY,tazStartX,tazEndY,tazEndX,distance,linkIds,diffBetweenStart,diffBetweenEnd,pteStartY,pteStartX,pteEndY,pteEndX,departureTime,hour,timeSimulated,timeObserved,counts")
+      writer.write("\n")
+
+      withObservedTravelTimes
+        .withFilter(x => x.pathTraversalEvent.departureTime >= 0 && x.pathTraversalEvent.departureTime <= 3600 * 23)
+        .foreach { ot =>
+          writer.write(ot.startTazId.toString)
+          writer.write(',')
+
+          writer.write(ot.endTazId.toString)
+          writer.write(',')
+
+          val startTaz = tazTreeMap.getTAZ(ot.startTazId).get
+          val wgsStartCoord = geoUtils.utm2Wgs(startTaz.coord)
+
+          writeCoord(writer, wgsStartCoord)
+
+          val endTaz = tazTreeMap.getTAZ(ot.endTazId).get
+          val wgsEndCoord = geoUtils.utm2Wgs(endTaz.coord)
+          writeCoord(writer, wgsEndCoord)
+
+          writer.write(ot.pathTraversalEvent.legLength.toString)
+          writer.write(',')
+
+          writer.write(ot.pathTraversalEvent.linkIds.mkString(" ").toString)
+          writer.write(',')
+
+          val wgsPteStart = new Coord(ot.pathTraversalEvent.startX, ot.pathTraversalEvent.startY)
+          val startDiff = geoUtils.distUTMInMeters(startTaz.coord, geoUtils.wgs2Utm(wgsPteStart))
+          writer.write(startDiff.toString)
+          writer.write(',')
+
+          val wgsPteEnd = new Coord(ot.pathTraversalEvent.endX, ot.pathTraversalEvent.endY)
+          val endDiff = geoUtils.distUTMInMeters(endTaz.coord, geoUtils.wgs2Utm(wgsPteEnd))
+          writer.write(endDiff.toString)
+          writer.write(',')
+
+          writeCoord(writer, wgsPteStart)
+
+          writeCoord(writer, wgsPteEnd)
+
+          writer.write(ot.pathTraversalEvent.departureTime.toString)
+          writer.write(',')
+
+          writer.write(ot.hour.toString)
+          writer.write(',')
+
+          val simulatedTravelTime = (ot.pathTraversalEvent.arrivalTime - ot.pathTraversalEvent.departureTime).toString
+          writer.write(simulatedTravelTime)
+          writer.write(',')
+
+          writer.write(ot.observedTravelTime.get.toString)
+          writer.write(',')
+
+          writer.write("1")
+          writer.newLine()
+        }
+
+      writer.flush()
+      writer.close()
+
       logger.info(withObservedTravelTimes.take(10).toList.toString)
-    }
-    finally {
+    } finally {
       closable.close()
     }
+  }
+
+//  private def average(xs: Array[Taz2TazWithPathTraversal]): Taz2TazWithPathTraversal = {
+// withObservedTravelTimes can contain multiple entries per (startTazId, endTazId, hour). We need average them
+//    val observed = xs.flatMap(_.observedTravelTime)
+//    val totalObserved = observed.sum
+//    val avgObserved = totalObserved / observed.length
+//
+//    val simulated = xs.map(x => x.pathTraversalEvent.arrivalTime - x.pathTraversalEvent.departureTime)
+//
+//  }
+
+  private def writeCoord(writer: BufferedWriter, wgsCoord: Coord): Unit = {
+    writer.write(wgsCoord.getY.toString)
+    writer.write(',')
+
+    writer.write(wgsCoord.getX.toString)
+    writer.write(',')
   }
 
   private def wgsToUtm(geoUtils: GeoUtils, x: Double, y: Double): Coord = {
@@ -88,7 +173,11 @@ object TazTravelTimeAnalyzer extends LazyLogging{
     startUtmCoord
   }
 
-  private def getObservedTravelTime(beamConfig: BeamConfig, geoUtils: GeoUtils, tazTreeMap: TAZTreeMap): Map[PathCache, Float] = {
+  private def getObservedTravelTime(
+    beamConfig: BeamConfig,
+    geoUtils: GeoUtils,
+    tazTreeMap: TAZTreeMap
+  ): Map[PathCache, Float] = {
 
     val zoneBoundariesFilePath = beamConfig.beam.calibration.roadNetwork.travelTimes.zoneBoundariesFilePath
     val zoneODTravelTimesFilePath = beamConfig.beam.calibration.roadNetwork.travelTimes.zoneODTravelTimesFilePath
