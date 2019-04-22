@@ -465,7 +465,7 @@ object HouseholdActor {
       // Do nothing
     }
 
-    def handleReleaseVehicle(vehicle: BeamVehicle, tickOpt: Option[Int]) = {
+    def handleReleaseVehicle(vehicle: BeamVehicle, tickOpt: Option[Int]): Unit = {
       if (vehicle.beamVehicleType.automationLevel <= 3) {
         vehicle.unsetDriver()
         if (!availableVehicles.contains(vehicle)) {
