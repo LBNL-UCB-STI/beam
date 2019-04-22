@@ -322,7 +322,7 @@ object HouseholdActor {
           completeInitialization(triggerId, Vector())
         } else {
           // Index the responses by Id
-          val indexedResponses = routingResponses.map(resp => (resp.requestId -> resp)).toMap
+          val indexedResponses = routingResponses.map(resp => resp.requestId -> resp).toMap
           routingResponses.foreach { resp =>
             resp.itineraries.headOption.map { itin =>
               val theLeg = itin.legs.head.beamLeg
