@@ -43,7 +43,6 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.households
 import org.matsim.households.Household
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -412,13 +411,13 @@ object HouseholdActor {
               legs.map(
                 bLeg =>
                   EmbodiedBeamLeg(
-                    bLeg.copy(mode = CAV),
-                    cav.id,
-                    cav.beamVehicleType.id,
-                    false,
-                    0.0,
-                    false,
-                    false
+                    beamLeg = bLeg.copy(mode = CAV),
+                    beamVehicleId = cav.id,
+                    beamVehicleTypeId = cav.beamVehicleType.id,
+                    asDriver = false,
+                    cost = 0D,
+                    unbecomeDriverOnCompletion = false,
+                    isPooledTrip = false
                 )
               )
             )
