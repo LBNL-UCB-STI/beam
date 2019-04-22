@@ -406,7 +406,7 @@ object HouseholdActor {
       case CavTripLegsRequest(person, originActivity) =>
         personAndActivityToLegs.get((person.personId, originActivity)) match {
           case Some(legs) =>
-            val cav = personAndActivityToCav.get((person.personId, originActivity)).get
+            val cav = personAndActivityToCav((person.personId, originActivity))
             sender() ! CavTripLegsResponse(
               Some(cav),
               legs.map(
