@@ -111,8 +111,6 @@ class PersonAgentSpec
     theServices
   }
 
-  setupInjectableMock(beamConfig, beamSvc)
-
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(
       alternatives: IndexedSeq[EmbodiedBeamTrip],
@@ -136,6 +134,8 @@ class PersonAgentSpec
       person: Person,
       attributesOfIndividual: AttributesOfIndividual
     ): Double = 0.0
+
+    setupInjectableMock(beamConfig, beamSvc)
   }
 
   // Mock a transit driver (who has to be a child of a mock router)
