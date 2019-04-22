@@ -1,6 +1,5 @@
 package beam.router
 
-import java.io._
 import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.choice.mode.DrivingCost
@@ -272,16 +271,15 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     skims = new TrieMap()
   }
 
-  def averageAndWriteSkims(
+  def getExcerptData(
     timePeriodString: String,
     hoursIncluded: List[Int],
     origin: TAZ,
     destination: TAZ,
     mode: BeamMode,
     get: BeamServices,
-    dummyId: Id[BeamVehicleType],
-    writer: BufferedWriter
-  ): Unit = {
+    dummyId: Id[BeamVehicleType]
+  ): ExcerptData = {
     val individualSkims = hoursIncluded.map { timeBin =>
       getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
         .map(_.toSkimExternal)
@@ -321,8 +319,18 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
       .sum / sumWeights
     val weightedEnergy = individualSkims.map(_.energy).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
 
-    writer.write(
-      s"$timePeriodString,$mode,${origin.tazId},${destination.tazId},${weightedTime},${weightedGeneralizedTime},${weightedCost},${weightedGeneralizedCost},${weightedDistance},${sumWeights},$weightedEnergy\n"
+    ExcerptData(
+      timePeriodString = timePeriodString,
+      mode = mode,
+      originTazId = origin.tazId,
+      destinationTazId = destination.tazId,
+      weightedTime = weightedTime,
+      weightedGeneralizedTime = weightedGeneralizedTime,
+      weightedCost = weightedCost,
+      weightedGeneralizedCost = weightedGeneralizedCost,
+      weightedDistance = weightedDistance,
+      sumWeights = sumWeights,
+      weightedEnergy = weightedEnergy
     )
   }
 
@@ -342,44 +350,49 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     writer.write(fileHeader)
     writer.write("\n")
 
-    beamServices.tazTreeMap.getTAZs
-      .foreach { origin =>
-        beamServices.tazTreeMap.getTAZs.foreach { destination =>
-          modes.foreach { mode =>
-            averageAndWriteSkims(
+    val weightedSkims = ProfilingUtils.timed("Get weightedSkims for modes", x => logger.info(x)) {
+      modes.toParArray.flatMap { mode =>
+        beamServices.tazTreeMap.getTAZs.flatMap { origin =>
+          beamServices.tazTreeMap.getTAZs.flatMap { destination =>
+            val am = getExcerptData(
               "AM",
               morningPeakHours,
               origin,
               destination,
               mode,
               beamServices,
-              dummyId,
-              writer
+              dummyId
             )
-            averageAndWriteSkims(
+            val pm = getExcerptData(
               "PM",
               afternoonPeakHours,
               origin,
               destination,
               mode,
               beamServices,
-              dummyId,
-              writer
+              dummyId
             )
-            averageAndWriteSkims(
+            val offPeak = getExcerptData(
               "OffPeak",
               nonPeakHours,
               origin,
               destination,
               mode,
               beamServices,
-              dummyId,
-              writer
+              dummyId
             )
+            List(am, pm, offPeak)
           }
         }
       }
+    }
+    logger.info(s"weightedSkims size: ${weightedSkims.size}")
 
+    weightedSkims.foreach { ws =>
+      writer.write(
+        s"${ws.timePeriodString},${ws.mode},${ws.originTazId},${ws.destinationTazId},${ws.weightedTime},${ws.weightedGeneralizedTime},${ws.weightedCost},${ws.weightedGeneralizedCost},${ws.weightedDistance},${ws.sumWeights},${ws.weightedEnergy}\n"
+      )
+    }
     writer.close()
   }
 
@@ -519,6 +532,20 @@ object BeamSkimmer extends LazyLogging {
     cost: Double,
     count: Int,
     energy: Double
+  )
+
+  case class ExcerptData(
+    timePeriodString: String,
+    mode: BeamMode,
+    originTazId: Id[TAZ],
+    destinationTazId: Id[TAZ],
+    weightedTime: Double,
+    weightedGeneralizedTime: Double,
+    weightedCost: Double,
+    weightedGeneralizedCost: Double,
+    weightedDistance: Double,
+    sumWeights: Double,
+    weightedEnergy: Double
   )
 
   private def readCsvFile(filePath: String): TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = {
