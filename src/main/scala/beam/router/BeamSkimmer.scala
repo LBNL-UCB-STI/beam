@@ -260,8 +260,11 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     ProfilingUtils.timed(s"writeObservedSkims on iteration ${event.getIteration}", x => logger.info(x)) {
       writeObservedSkims(event)
     }
-    ProfilingUtils.timed(s"writeCarSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}", x => logger.info(x)) {
-      writeCarSkimsForPeakNonPeakPeriods(event)
+    ProfilingUtils.timed(
+      s"writeAllModeSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}",
+      x => logger.info(x)
+    ) {
+      writeAllModeSkimsForPeakNonPeakPeriods(event)
     }
     // Writing full skims are very large, but code is preserved here in case we want to enable it.
     // TODO make this a configurable output "writeFullSkimsInterval" with default of 0
@@ -276,7 +279,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     hoursIncluded: List[Int],
     origin: TAZ,
     destination: TAZ,
-    mode: BeamMode.CAR.type,
+    mode: BeamMode,
     get: BeamServices,
     dummyId: Id[BeamVehicleType],
     writer: BufferedWriter
@@ -325,11 +328,11 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     )
   }
 
-  def writeCarSkimsForPeakNonPeakPeriods(event: IterationEndsEvent): Unit = {
+  def writeAllModeSkimsForPeakNonPeakPeriods(event: IterationEndsEvent): Unit = {
     val morningPeakHours = (7 to 8).toList
     val afternoonPeakHours = (15 to 16).toList
     val nonPeakHours = (0 to 6).toList ++ (9 to 14).toList ++ (17 to 23).toList
-    val modes = List(CAR)
+    val modes = BeamMode.allModes
     val fileHeader =
       "period,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations,energy"
     val filePath = event.getServices.getControlerIO.getIterationFilename(
