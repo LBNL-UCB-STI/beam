@@ -4,7 +4,7 @@ import java.awt.{BasicStroke, Color}
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
-import beam.analysis.plots.GraphUtils
+import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
@@ -19,6 +19,7 @@ import org.jfree.chart.ChartFactory
 import org.jfree.chart.annotations.{XYLineAnnotation, XYTextAnnotation}
 import org.jfree.chart.plot.{PlotOrientation, XYPlot}
 import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer
+import org.jfree.data.statistics.{HistogramDataset, HistogramType}
 import org.jfree.data.xy.{XYSeries, XYSeriesCollection}
 import org.jfree.ui.RectangleInsets
 import org.jfree.util.ShapeUtilities
@@ -119,6 +120,8 @@ class TravelTimeObserved @Inject()(
     writerObservedVsSimulated.write("\n")
 
     val series: XYSeries = new XYSeries("Time", false)
+    val categoryDataset = new HistogramDataset
+    var deltasOfObservedSimulatedTimes = new mutable.ListBuffer[Double]
 
     beamServices.tazTreeMap.getTAZs
       .foreach { origin =>
@@ -133,6 +136,8 @@ class TravelTimeObserved @Inject()(
                     .map(_.toSkimExternal)
                     .foreach { theSkim =>
                       series.add(theSkim.time, timeObserved)
+                      for(count <- 1 to theSkim.count)
+                        deltasOfObservedSimulatedTimes +=  theSkim.time - timeObserved
                       writerObservedVsSimulated.write(
                         s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved},${theSkim.count}\n"
                       )
@@ -145,14 +150,24 @@ class TravelTimeObserved @Inject()(
 
     writerObservedVsSimulated.close()
 
+    categoryDataset.addSeries("Simulated-Observed", deltasOfObservedSimulatedTimes.toArray, histogramBinSize)
+
     val chartPath =
       event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, chartName)
+    val histogramPath =
+      event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, histogramName)
+
     generateChart(series, chartPath)
+    generateHistogram(categoryDataset, histogramPath)
+
   }
 }
 
+
 object TravelTimeObserved extends LazyLogging {
   val chartName: String = "scatterplot_simulation_vs_reference.png"
+  val histogramName: String = "simulation_vs_reference_histogram.png"
+  val histogramBinSize: Int = 200
 
   case class PathCache(from: Id[TAZ], to: Id[TAZ], hod: Int)
 
@@ -211,6 +226,17 @@ object TravelTimeObserved extends LazyLogging {
     }
     logger.info(s"observedTravelTimesOpt size is ${observedTravelTimes.keys.size}")
     observedTravelTimes.toMap
+  }
+
+  def generateHistogram(dataset: HistogramDataset, path: String): Unit ={
+    dataset.setType(HistogramType.FREQUENCY)
+    val chart = ChartFactory.createHistogram("Simulated-Observed Frequency","Simulated-Observed","Frequency",dataset,PlotOrientation.VERTICAL,true,false,false)
+    GraphUtils.saveJFreeChartAsPNG(
+      chart,
+      path,
+      GraphsStatsAgentSimEventsListener.GRAPH_WIDTH,
+      GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT
+    )
   }
 
   def generateChart(series: XYSeries, path: String): Unit = {
