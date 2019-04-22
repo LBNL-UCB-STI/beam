@@ -101,7 +101,6 @@ class PersonAgentSpec
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
-    when(theServices.injector).thenReturn(injector)
 
     var map = TrieMap[Id[Vehicle], (String, String)]()
     map += (Id.createVehicleId("my_bus")  -> ("", ""))
@@ -111,6 +110,8 @@ class PersonAgentSpec
 
     theServices
   }
+
+  setupInjectableMock(beamConfig, beamSvc)
 
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(

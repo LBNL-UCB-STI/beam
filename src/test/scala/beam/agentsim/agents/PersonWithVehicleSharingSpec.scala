@@ -106,10 +106,11 @@ class PersonWithVehicleSharingSpec
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(theServices.networkHelper).thenReturn(networkHelper)
     when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
-    when(theServices.injector).thenReturn(injector)
 
     theServices
   }
+
+  setupInjectableMock(beamConfig, beamSvc)
 
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(
