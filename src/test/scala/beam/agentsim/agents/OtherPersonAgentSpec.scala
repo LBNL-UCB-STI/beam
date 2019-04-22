@@ -102,8 +102,6 @@ class OtherPersonAgentSpec
     theServices
   }
 
-  setupInjectableMock(beamConfig, beamSvc)
-
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(
       alternatives: IndexedSeq[EmbodiedBeamTrip],
@@ -132,6 +130,8 @@ class OtherPersonAgentSpec
       person: Person,
       attributesOfIndividual: AttributesOfIndividual
     ): Double = 0.0
+
+    setupInjectableMock(beamConfig, beamSvc)
   }
 
   private lazy val parkingManager = system.actorOf(

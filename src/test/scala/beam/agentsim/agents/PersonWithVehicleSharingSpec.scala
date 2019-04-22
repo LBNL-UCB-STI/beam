@@ -110,8 +110,6 @@ class PersonWithVehicleSharingSpec
     theServices
   }
 
-  setupInjectableMock(beamConfig, beamSvc)
-
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(
       alternatives: IndexedSeq[EmbodiedBeamTrip],
@@ -135,6 +133,8 @@ class PersonWithVehicleSharingSpec
       person: Person,
       attributesOfIndividual: AttributesOfIndividual
     ): Double = 0.0
+
+    setupInjectableMock(beamConfig, beamSvc)
   }
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
