@@ -60,7 +60,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
         val previousSkims = skimsFilePath
           .map(BeamSkimmer.readCsvFile)
           .getOrElse(TrieMap.empty)
-        logger.info(s"Previous skims successfully loaded from path '${skimsFilePath.getOrElse(",")}'")
+        logger.info(s"Previous skims successfully loaded from path - '${skimsFilePath.getOrElse("NO PATH SPECIFIED")}'")
         previousSkims
       } catch {
         case NonFatal(ex) =>
