@@ -310,7 +310,7 @@ object HouseholdActor {
       case RoutingResponses(tick, routingResponses) =>
         // Check if there are any broken routes, for now we cancel the whole cav plan if this happens and give a warning
         // a more robust implementation would re-plan but without the person who's mobility led to the bad route
-        if (routingResponses.find(_.itineraries.isEmpty).size > 0) {
+        if (routingResponses.exists(_.itineraries.isEmpty)) {
           log.warning(
             "Failed CAV routing responses for household {} aborting use of CAVs for this house.",
             household.getId
