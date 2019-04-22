@@ -369,7 +369,7 @@ object HouseholdActor {
                 if (updatedLegsIterator.hasNext) {
                   val leg = updatedLegsIterator.next
                   passengersToAdd.foreach { pass =>
-                    val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg
+                    val legsForPerson = pickDropsForGrouping.getOrElse(pass, List()) :+ leg
                     pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
                   }
                 } else {
