@@ -20,7 +20,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.WALK_TRANSIT
-import beam.router.{BeamSkimmer, RouteHistory}
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
@@ -31,6 +31,7 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.{NetworkHelperImpl, StuckFinder}
 import beam.utils.TestConfigUtils.testConfig
+import com.google.inject.{AbstractModule, Guice, Injector}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.{Link, Network}
@@ -84,10 +85,17 @@ class PersonAndTransitDriverSpec
   private lazy val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
   private lazy val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
+  lazy val guiceInjector: Injector = Guice.createInjector(new AbstractModule() {
+    protected def configure(): Unit = {
+      bind(classOf[TravelTimeObserved]).toInstance(mock[TravelTimeObserved])
+    }
+  })
+
   private lazy val beamSvc: BeamServices = {
     val matsimServices = mock[MatsimServices]
 
     val theServices = mock[BeamServices](withSettings().stubOnly())
+    when(theServices.injector).thenReturn(guiceInjector)
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
     when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
