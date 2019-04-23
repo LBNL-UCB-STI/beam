@@ -13,6 +13,7 @@ import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.collection.JavaConverters;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -55,12 +56,12 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
         try{
             statsFactory.createStats();
         }catch (Exception e){
-            log.error("exception: {}", e.getMessage());
+            log.error("exception: {}", e);
         }
 
         eventsManager.addHandler(this);
         CONTROLLER_IO = controlerIO;
-        PathTraversalSpatialTemporalTableGenerator.setVehicles(services.vehicleTypes());
+        PathTraversalSpatialTemporalTableGenerator.setVehicles(JavaConverters.mapAsJavaMap(services.vehicleTypes()));
     }
 
     // helper methods
@@ -102,20 +103,17 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
 
                     // TODO: Asif there should be no need to write to root and then read (just quick hack) -> update interface on methods, which need that data to pass in memory
                     ModeChosenAnalysis modeChoseStats = (ModeChosenAnalysis) statsFactory.getAnalysis(StatsType.ModeChosen);
-                    modeChoseStats.writeToRootCSV(ModeChosenAnalysis.getModeChoiceFileBaseName());
-                    if (beamConfig.beam().calibration().mode().benchmarkFileLoc().trim().length() > 0) {
-                        String outPath = CONTROLLER_IO.getOutputFilename(ModeChosenAnalysis.getModeChoiceFileBaseName() + ".csv");
-                        Double modesAbsoluteError = new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFileLoc())
-                                .evaluateFromRun(outPath, ErrorComparisonType.AbsoluteError());
+                    String outPath = CONTROLLER_IO.getOutputFilename(ModeChosenAnalysis.getModeChoiceFileBaseName() + ".csv");
+                    modeChoseStats.writeToRootCSV(outPath);
+                    if (beamConfig.beam().calibration().mode().benchmarkFilePath().trim().length() > 0) {
+                        Double modesAbsoluteError = new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFilePath()).evaluateFromRun(outPath, ErrorComparisonType.AbsoluteError());
                         log.info("modesAbsoluteError: " + modesAbsoluteError);
-
-                        Double modesRMSPError = new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFileLoc())
-                                .evaluateFromRun(outPath, ErrorComparisonType.RMSPE());
+                        Double modesRMSPError = new ModeChoiceObjectiveFunction(beamConfig.beam().calibration().mode().benchmarkFilePath()).evaluateFromRun(outPath, ErrorComparisonType.RMSPE());
                         log.info("modesRMSPError: " + modesRMSPError);
                     }
                 }
             } catch (Exception e) {
-                log.error("exception: {}", e.getMessage());
+                log.error("exception: {}", e);
             }
 
     }

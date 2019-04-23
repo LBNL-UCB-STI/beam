@@ -25,13 +25,21 @@ case class BeamVehicleType(
   secondaryFuelType: Option[FuelType] = None,
   secondaryFuelConsumptionInJoulePerMeter: Option[Double] = None,
   secondaryFuelCapacityInJoule: Option[Double] = None,
-  automationLevel: Option[String] = None,
+  automationLevel: Int = 1,
   maxVelocity: Option[Double] = None,
   passengerCarUnit: Double = 1,
   rechargeLevel2RateLimitInWatts: Option[Double] = None,
   rechargeLevel3RateLimitInWatts: Option[Double] = None,
-  vehicleCategory: VehicleCategory
-)
+  vehicleCategory: VehicleCategory,
+  primaryVehicleEnergyFile: Option[String] = None,
+  secondaryVehicleEnergyFile: Option[String] = None,
+  sampleProbabilityWithinCategory: Double = 1.0
+) {
+
+  def isCaccEnabled: Boolean = {
+    automationLevel >= 3
+  }
+}
 
 object BeamVehicleType {
 
@@ -51,17 +59,6 @@ object BeamVehicleType {
       2.21e6,
       vehicleCategory = Body
     )
-
-  val defaultBicycleBeamVehicleType: BeamVehicleType = BeamVehicleType(
-    Id.create("BIKE_TYPE_DEFAULT", classOf[BeamVehicleType]),
-    1,
-    0,
-    1.5,
-    Food,
-    defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter / 5.0, // 5x more efficient than walking
-    defaultHumanBodyBeamVehicleType.primaryFuelCapacityInJoule, // same capacity as human body
-    vehicleCategory = Bike
-  )
 
   val powerTrainForHumanBody: Powertrain = new Powertrain(
     BeamVehicleType.defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter
@@ -88,7 +85,19 @@ object BeamVehicleType {
     Gasoline,
     3656.0,
     3655980000.0,
-    vehicleCategory = Car
+    vehicleCategory = Car,
+    automationLevel = 1
+  )
+
+  val defaultBikeBeamVehicleType: BeamVehicleType = BeamVehicleType(
+    Id.create("BIKE-TYPE-DEFAULT", classOf[BeamVehicleType]),
+    2,
+    0,
+    1.5,
+    Gasoline,
+    defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter / 5.0, // 5x more efficient than walking
+    defaultHumanBodyBeamVehicleType.primaryFuelCapacityInJoule, // same capacity as human body
+    vehicleCategory = Bike
   )
 
   def isHumanVehicle(beamVehicleId: Id[Vehicle]): Boolean =

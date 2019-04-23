@@ -142,7 +142,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
       val isStuck = diff > cfg.overallSimulationTimeoutMs
       if (isStuck) {
         numCriticalStuckMessages = numCriticalStuckMessages + 1
-        if (beam.utils.logging.ExponentialLoggerWrapperImpl.isNumberPowerOfTwo(numCriticalStuckMessages)) {
+        if (MathUtils.isNumberPowerOfTwo(numCriticalStuckMessages)) {
           logger.error(s"Critical. No progress in overall simulation for last $diff ms")
         }
       }
@@ -174,10 +174,12 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
         m.get(getActorType(actor))
       }
       .getOrElse(Int.MaxValue)
-    if (msgCount > maxMsgPerActorType) {
+    val diff = maxMsgPerActorType - msgCount
+    // Do we exceed the maxMsgPerActorType by 1?
+    if (diff == -1) {
       exceedMaxNumberOfMessages.append(st)
       logger.warn(
-        s"$st is exceed max number of messages threshold. Trigger type: '$triggerClazz', current count: $msgCount, max: $maxMsgPerActorType"
+        s"$st has exceeded max number of messages threshold. Trigger type: '$triggerClazz', current count: $msgCount, max: $maxMsgPerActorType"
       )
     }
   }
@@ -221,7 +223,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
     }.toMap
   }
 
-  private def getActorType(actorRef: ActorRef): String = {
+  def getActorType(actorRef: ActorRef): String = {
     if (actorRef.path.parent.name == "router" && actorRef.path.name.indexOf("TransitDriverAgent-") != -1) {
       "TransitDriverAgent"
     } else if (actorRef.path.parent.name == "population" || actorRef.path.parent.parent.name == "population") {

@@ -37,7 +37,7 @@ class ZonalParkingManager(
   var stallNum = 0
   val rand = new Random()
 
-  val pathResourceCSV: String = beamServices.beamConfig.beam.agentsim.taz.parking
+  val pathResourceCSV: String = beamServices.beamConfig.beam.agentsim.taz.parkingFilePath
 
   val defaultStallAttributes = StallAttributes(
     Id.create("NA", classOf[TAZ]),
@@ -89,7 +89,7 @@ class ZonalParkingManager(
   }
 
   def updatePooledResources(): Unit = {
-    if (Files.exists(Paths.get(beamServices.beamConfig.beam.agentsim.taz.parking))) {
+    if (Files.exists(Paths.get(beamServices.beamConfig.beam.agentsim.taz.parkingFilePath))) {
       readCsvFile(pathResourceCSV).foreach(f => {
         pooledResources.update(f._1, f._2)
       })
@@ -105,6 +105,8 @@ class ZonalParkingManager(
   updatePooledResources()
 
   val indexer: IndexerForZonalParkingManager = new IndexerForZonalParkingManager(pooledResources.toMap)
+
+  log.info("Zonal Parking Manager loaded with {} total stalls", pooledResources.map(_._2._numStalls).sum)
 
   override def receive: Receive = {
     case ReleaseParkingStall(stallId) =>
@@ -311,6 +313,7 @@ class ZonalParkingManager(
       case Some(stall) => stall
       case None =>
         if (startSearchRadius * 2.0 > ZonalParkingManager.maxSearchRadius) {
+//          log.error("No stall found for inquiry: {}",inquiry)
           stallNum = stallNum + 1
           new ParkingStall(
             Id.create(stallNum, classOf[ParkingStall]),

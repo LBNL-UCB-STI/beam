@@ -180,7 +180,7 @@ class TransitInitializer(
                 mode,
                 duration,
                 transitPaths(from)(departureTimeFrom, duration, tripVehId)
-              )
+              ).scaleToNewDuration(duration)
           }
           (tripVehId, (route, legs))
         }

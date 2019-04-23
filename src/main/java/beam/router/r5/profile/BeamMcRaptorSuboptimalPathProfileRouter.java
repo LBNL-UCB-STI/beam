@@ -213,7 +213,7 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
     }
 
     /**
-     * dump outWriter all stop names
+     * dump out all stop names
      */
     public String dumpStops(TIntIntMap stops) {
         if (DUMP_STOPS) {
@@ -686,13 +686,13 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
         }
 
         public int hashCode() {
-            return state.patternHash;
+            return 31 * state.patternHash + state.accessMode.hashCode();
         }
 
         public boolean equals(Object o) {
             if (o instanceof BeamStatePatternKey) {
-                return Arrays.equals(state.patterns, ((BeamStatePatternKey) o).state.patterns) &&
-                        state.accessMode == ((BeamStatePatternKey) o).state.accessMode;
+                McRaptorState otherState = ((BeamStatePatternKey) o).state;
+                return state.accessMode == otherState.accessMode && Arrays.equals(state.patterns, otherState.patterns);
             }
 
             return false;

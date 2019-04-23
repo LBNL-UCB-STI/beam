@@ -4,7 +4,6 @@ import beam.agentsim.events.PathTraversalEvent;
 import com.google.common.base.CaseFormat;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
-import org.matsim.api.core.v01.events.Event;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
 import java.io.IOException;
@@ -20,6 +19,7 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
     final String graphName;
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# trips";
+    private static  double matriXDataSet[][] ;
 
     final Map<Integer, Map<Integer, Integer>> numPassengerToEventFrequencyBin = new HashMap<>();
 
@@ -28,7 +28,7 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
     }
 
     @Override
-    public void collectEvent(Event event, Map<String, String> attributes) {
+    public void collectEvent(PathTraversalEvent event) {
 
         eventCounter++;
 
@@ -36,7 +36,7 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
         maxHour = maxHour < h ? h : maxHour;
 
 
-        Integer numPassengers = Integer.parseInt(attributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS));
+        Integer numPassengers = event.numberOfPassengers();
 
         Map<Integer, Integer> eventFrequencyBin = numPassengerToEventFrequencyBin.get(numPassengers);
         if(eventFrequencyBin == null){
@@ -58,19 +58,20 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
     public void process(IterationEndsEvent event) throws IOException {
 
         CategoryDataset dataSet = getCategoryDataSet();
+        writeCSV(matriXDataSet ,dataSet.getRowCount(), event.getIteration());
         draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle);
     }
 
     @Override
     public CategoryDataset getCategoryDataSet() {
 
-        double[][] dataSet = new double[maxPassengers + 1][maxHour + 1];
+        matriXDataSet = new double[maxPassengers + 1][maxHour + 1];
 
         for (int numberOfpassengers = 0; numberOfpassengers < maxPassengers + 1; numberOfpassengers++) {
-            dataSet[numberOfpassengers] = getEventFrequenciesBinByNumberOfPassengers(numberOfpassengers, maxHour);
+            matriXDataSet[numberOfpassengers] = getEventFrequenciesBinByNumberOfPassengers(numberOfpassengers, maxHour);
         }
 
-        return DatasetUtilities.createCategoryDataset("Mode ", "", dataSet);
+        return DatasetUtilities.createCategoryDataset("Mode ", "", matriXDataSet);
     }
 
     @Override
