@@ -7,6 +7,8 @@ import scala.xml.parsing.ConstructingParser
 
 object HouseHoldsConverter extends XmlFileConverter {
 
+  override val fields: Seq[String] = Seq("householdId", "income", "memberPersonIds", "vehicleIds")
+
   private case class Household(id: Int, income: Income, members: Seq[Person], vehicles: Seq[Vehicle]) {
     override def toString: String = {
       val membersAsStr = members.mkString(ArrayFieldStartDelimiter, ArrayElementsDelimiter, ArrayFieldFinishDelimiter)
@@ -45,28 +47,21 @@ object HouseHoldsConverter extends XmlFileConverter {
   }
 
   private def toVehicle(node: Node): Vehicle = {
-    Vehicle(
-      refId = node.attributes("refId").text.toInt
-    )
+    Vehicle(refId = node.attributes("refId").text.toInt)
   }
 
   private def toPerson(node: Node): Person = {
-    Person(
-      refId = node.attributes("refId").text.toInt
-    )
+    Person(refId = node.attributes("refId").text.toInt)
   }
 
-  override def toCsv(sourceFile: File, destinationFile: File): Iterator[String] = {
+  override def contentIterator(sourceFile: File): Iterator[String] = {
     val parser = ConstructingParser.fromFile(sourceFile, preserveWS = true)
     val doc = parser.document()
     val householdNodes: NodeSeq = doc.docElem \\ "households" \ "household"
 
-//    println(householdNodes.take(2))
-    // TODO: change header
-    val header = Iterator("householdId;income;memberPersonIds;vehicleIds", LineSeparator)
-    val contentIterator = householdNodes.toIterator.map(node => toHousehold(node).toString + LineSeparator)
-    header ++ contentIterator
+    householdNodes.toIterator.map(node => toHousehold(node).toString + LineSeparator)
   }
+
 }
 
 /*

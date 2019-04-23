@@ -6,6 +6,8 @@ import java.io.File
 
 object PopulationConverter extends XmlFileConverter {
 
+  override val fields: Seq[String] = Seq("id", "planScore", "planSelected", "activities{type,x,y,link,endTime}")
+
   private case class Person(id: Int, planScore: Double, planSelected: Boolean, activities: Seq[Activity]) {
     override def toString: String = Seq(id, planScore, planScore, activities.mkString("[", ":", "]")).mkString(",")
   }
@@ -33,14 +35,13 @@ object PopulationConverter extends XmlFileConverter {
       endTime = node.attribute("end_time").map(_.text).getOrElse("")
     )
   }
-  override def toCsv(sourceFile: File, destinationFile: File): Iterator[String] = {
+  override def contentIterator(sourceFile: File): Iterator[String] = {
     val parser = ConstructingParser.fromFile(sourceFile, preserveWS = true)
     val doc = parser.document().docElem
     val peopleNodes: NodeSeq = doc \\ "population" \ "person"
-    val header = Iterator("id;planScore;planSelected;activities{type,x,y,link,endTime}", LineSeparator)
-    val contentIterator = peopleNodes.toIterator.map(node => toPerson(node).toString + LineSeparator)
-    header ++ contentIterator
+    peopleNodes.toIterator.map(node => toPerson(node).toString + LineSeparator)
   }
+
 }
 
 /*
