@@ -964,6 +964,9 @@ object BeamConfig {
 
         object Vehicles {
           case class SharedFleets$Elm(
+            fixed_non_reserving_random_dist: scala.Option[
+              BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingRandomlyDistributed
+            ],
             fixed_non_reserving: scala.Option[
               BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReserving
             ],
@@ -975,6 +978,23 @@ object BeamConfig {
           )
 
           object SharedFleets$Elm {
+            case class FixedNonReservingRandomlyDistributed(
+              vehicleTypeId: java.lang.String,
+              fleetSize: Int
+            )
+
+            object FixedNonReservingRandomlyDistributed {
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingRandomlyDistributed = {
+                BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingRandomlyDistributed(
+                  vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedCar",
+                  fleetSize = if (c.hasPathOrNull("fleetSize")) c.getInt("fleetSize") else 0
+                )
+              }
+            }
+
             case class FixedNonReserving(
               vehicleTypeId: java.lang.String
             )
@@ -1007,6 +1027,13 @@ object BeamConfig {
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm = {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm(
+                fixed_non_reserving_random_dist =
+                  if (c.hasPathOrNull("fixed_non_reserving_random_dist"))
+                    scala.Some(
+                      BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm
+                        .FixedNonReservingRandomlyDistributed(c.getConfig("fixed_non_reserving_random_dist"))
+                    )
+                  else None,
                 fixed_non_reserving =
                   if (c.hasPathOrNull("fixed-non-reserving"))
                     scala.Some(

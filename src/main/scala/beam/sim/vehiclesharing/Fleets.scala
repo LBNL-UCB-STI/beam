@@ -6,6 +6,9 @@ object Fleets {
 
   def lookup(config: BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm): FleetType = {
     config.managerType match {
+      case "fixed_non_reserving_random_dist" =>
+        val value: SharedFleets$Elm.FixedNonReservingRandomlyDistributed = config.fixed_non_reserving_random_dist.get
+        FixedNonReservingRandomlyDistributedFleet(value)
       case "inexhaustible-reserving" =>
         val value: SharedFleets$Elm.InexhaustibleReserving = config.inexhaustible_reserving.get
         InexhaustibleReservingFleet(value)
