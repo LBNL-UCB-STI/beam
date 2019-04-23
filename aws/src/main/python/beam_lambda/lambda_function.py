@@ -230,7 +230,7 @@ def deploy_handler(event):
     if shutdown_behaviour not in shutdown_behaviours:
         shutdown_behaviour = os.environ['SHUTDOWN_BEHAVIOUR']
 
-    if volume_size < 64 or volume_size > 256:
+    if volume_size < 64 or volume_size > 512:
         volume_size = 64
 
     selected_script = CONFIG_SCRIPT
