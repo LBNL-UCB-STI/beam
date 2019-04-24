@@ -22,17 +22,18 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{TRANSIT, WALK_TRANSIT}
-import beam.router.{BeamSkimmer, RouteHistory}
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
+import com.google.inject.{AbstractModule, Guice, Injector}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.{Link, Network}
@@ -72,10 +73,11 @@ class OtherPersonAgentSpec
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
+    with beam.utils.InjectableMock
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
-  lazy val config = BeamConfig(system.settings.config)
+  lazy val beamConfig = BeamConfig(system.settings.config)
   lazy val eventsManager = new EventsManagerImpl()
 
   lazy val dummyAgentId: Id[Person] = Id.createPersonId("dummyAgent")
@@ -85,16 +87,23 @@ class OtherPersonAgentSpec
 
   lazy val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
+  lazy val guiceInjector: Injector = Guice.createInjector(new AbstractModule() {
+    protected def configure(): Unit = {
+      bind(classOf[TravelTimeObserved]).toInstance(mock[TravelTimeObserved])
+    }
+  })
+
   lazy val beamSvc: BeamServices = {
-    val theServices = mock[BeamServices](withSettings().stubOnly())
+    lazy val injector = guiceInjector
+    lazy val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(mock[MatsimServices])
     when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
     when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
-    when(theServices.beamConfig).thenReturn(config)
+    when(theServices.beamConfig).thenReturn(beamConfig)
     when(theServices.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
-    val geo = new GeoUtilsImpl(config)
+    lazy val geo = new GeoUtilsImpl(beamConfig)
     when(theServices.geo).thenReturn(geo)
     // TODO Is it right to return defaultTazTreeMap?
     when(theServices.tazTreeMap).thenReturn(BeamServices.defaultTazTreeMap)
@@ -129,6 +138,8 @@ class OtherPersonAgentSpec
       person: Person,
       attributesOfIndividual: AttributesOfIndividual
     ): Double = 0.0
+
+    setupInjectableMock(beamConfig, beamSvc)
   }
 
   private lazy val parkingManager = system.actorOf(
@@ -137,7 +148,7 @@ class OtherPersonAgentSpec
     "ParkingManager"
   )
 
-  private lazy val networkCoordinator = new DefaultNetworkCoordinator(config)
+  private lazy val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
 
   describe("A PersonAgent FSM") {
     it("should also work when the first bus is late") {
@@ -274,10 +285,10 @@ class OtherPersonAgentSpec
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
-          config,
+          beamConfig,
           stopTick = 1000000,
           maxWindow = 10,
-          new StuckFinder(config.beam.debug.stuckAgentDetection)
+          new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
 
@@ -314,8 +325,8 @@ class OtherPersonAgentSpec
           Map(),
           new Coord(0.0, 0.0),
           Vector(),
-          new RouteHistory(config),
-          new BeamSkimmer(config, beamSvc)
+          new RouteHistory(beamConfig),
+          new BeamSkimmer(beamConfig, beamSvc)
         )
       )
       scheduler ! StartSchedule(0)
