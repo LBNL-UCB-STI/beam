@@ -345,10 +345,10 @@ object TravelTimeObserved extends LazyLogging {
     )
 
     val percents = List(
-      (18 , Color.RED, -50.0) ,
-      (-18 , Color.RED, 100.0) ,
-      (36 , Color.BLUE, -83.0) ,
-      (-36 , Color.BLUE, 500.0)
+      (18, Color.RED, -50.0),
+      (-18, Color.RED, 100.0),
+      (36, Color.BLUE, -83.0),
+      (-36, Color.BLUE, 500.0)
     )
 
     percents.foreach {
