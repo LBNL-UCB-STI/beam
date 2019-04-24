@@ -1,6 +1,7 @@
 package beam.utils
 import java.io.File
 
+import beam.router.{BeamSkimmer, TravelTimeObserved}
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
@@ -77,6 +78,8 @@ abstract class SimRunnerForTest {
       bind(classOf[BeamConfig]).toInstance(beamCfg)
       bind(classOf[beam.sim.common.GeoUtils]).toInstance(geoUtil)
       bind(classOf[NetworkHelper]).toInstance(networkHelper)
+      bind(classOf[BeamSkimmer]).asEagerSingleton()
+      bind(classOf[TravelTimeObserved]).asEagerSingleton()
       bind(classOf[ControlerI]).toProvider(Providers.of(null))
     }
   })

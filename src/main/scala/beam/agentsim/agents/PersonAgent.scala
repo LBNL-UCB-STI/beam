@@ -3,8 +3,8 @@ package beam.agentsim.agents
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, Props, Stash}
 import beam.agentsim.Resource._
-import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.BeamAgent._
+import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.household.HouseholdActor.{CancelCAVTrip, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
@@ -17,7 +17,6 @@ import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.BeamVehicle.FuelConsumed
 import beam.agentsim.agents.vehicles.VehicleCategory.Bike
-import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
 import beam.agentsim.events.resources.ReservationError
@@ -25,11 +24,11 @@ import beam.agentsim.infrastructure.ParkingManager.ParkingInquiryResponse
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.{BeamSkimmer, RouteHistory}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL_POOLED, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, CAV, WALK, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import com.conveyal.r5.transit.TransportNetwork
@@ -217,6 +216,8 @@ class PersonAgent(
     with ChoosesMode
     with ChoosesParking
     with Stash {
+
+  val travelTimeObserved: TravelTimeObserved = beamServices.injector.getInstance(classOf[TravelTimeObserved])
 
   val body = new BeamVehicle(
     bodyVehicleIdFromPersonID(id),
@@ -774,6 +775,12 @@ class PersonAgent(
             generalizedCost,
             curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel,
             beamServices
+          )
+          travelTimeObserved.observeTrip(
+            correctedTrip,
+            generalizedTime,
+            generalizedCost,
+            curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel
           )
           resetFuelConsumed()
 
