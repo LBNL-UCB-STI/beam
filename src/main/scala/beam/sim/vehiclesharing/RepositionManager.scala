@@ -17,11 +17,13 @@ import org.matsim.api.core.v01.population.Person
 case class REPVehicleReposition(vehicle: BeamVehicle, whereWhen: SpaceTime, idTAZ: Id[TAZ])
 case class REPVehicleInquiry(personId: Id[Person], whereWhen: SpaceTime)
 case class REPVehicleRepositionTrigger(tick: Int) extends Trigger
-case class REPVehicleTeleportTrigger(tick: Int, whereWhen: SpaceTime, vehicle: BeamVehicle, idTAZ: Id[TAZ]) extends Trigger
+case class REPVehicleTeleportTrigger(tick: Int, whereWhen: SpaceTime, vehicle: BeamVehicle, idTAZ: Id[TAZ])
+    extends Trigger
 
 trait VehicleManager
 
 trait RepositionAlgorithm {
+
   def getVehiclesForReposition(
     startTime: Int,
     endTime: Int,

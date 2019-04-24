@@ -568,9 +568,10 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     writer.write(observedSkimsPlusHeader.mkString(","))
     writer.write("\n")
 
-    skimsPlus.foreach { case (k, v) =>
-      val (bin, taz, vehicleManager, label) = k
-      writer.write(s"$bin,$taz,$vehicleManager,$label,$v\n")
+    skimsPlus.foreach {
+      case (k, v) =>
+        val (bin, taz, vehicleManager, label) = k
+        writer.write(s"$bin,$taz,$vehicleManager,$label,$v\n")
     }
     writer.close()
   }
