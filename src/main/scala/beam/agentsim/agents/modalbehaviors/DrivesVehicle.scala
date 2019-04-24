@@ -146,8 +146,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
       val fuelConsumed = currentBeamVehicle.useFuel(currentLeg, beamServices)
 
-      val nbPassengers = data.passengerSchedule.schedule(currentLeg).riders.size
+      var nbPassengers = data.passengerSchedule.schedule(currentLeg).riders.size
       if (nbPassengers > 0) {
+        if (currentLeg.mode.isTransit) {
+          nbPassengers =
+            (nbPassengers / beamServices.beamConfig.beam.agentsim.tuning.transitCapacity.getOrElse(1.0)).toInt
+        }
         data.passengerSchedule.schedule(currentLeg).riders foreach { rider =>
           updateFuelConsumedByTrip(rider.personId, fuelConsumed, nbPassengers)
         }
