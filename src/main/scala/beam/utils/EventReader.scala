@@ -22,16 +22,17 @@ class DummyEvent(attribs: java.util.Map[String, String]) extends Event(attribs.g
 }
 
 object EventReader {
+
   def fromCsvFile(filePath: String, filterPredicate: Event => Boolean): (Iterator[Event], Closeable) = {
     readAs[Event](filePath, x => new DummyEvent(x), filterPredicate)
   }
 
   private def readAs[T](path: String, mapper: java.util.Map[String, String] => T, filterPredicate: T => Boolean)(
     implicit ct: ClassTag[T]
-  ): (Iterator[T], Closeable)  = {
-      val csvRdr = new CsvMapReader(FileUtils.readerFromFile(path), CsvPreference.STANDARD_PREFERENCE)
-      val header = csvRdr.getHeader(true)
-      var line = csvRdr.read(header: _*)
+  ): (Iterator[T], Closeable) = {
+    val csvRdr = new CsvMapReader(FileUtils.readerFromFile(path), CsvPreference.STANDARD_PREFERENCE)
+    val header = csvRdr.getHeader(true)
+    var line = csvRdr.read(header: _*)
     (Iterator.continually(csvRdr.read(header: _*)).takeWhile(_ != null).map(mapper).filter(filterPredicate), csvRdr)
   }
 
