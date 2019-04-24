@@ -16,7 +16,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
 import beam.router.osm.TollCalculator
-import beam.router.{BeamSkimmer, FreeFlowTravelTime, RouteHistory}
+import beam.router.{BeamRouter, BeamSkimmer, FreeFlowTravelTime, RouteHistory}
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
@@ -246,6 +246,7 @@ class BeamMobsim @Inject()(
       "BeamMobsim.iteration"
     )
     Await.result(iteration ? "Run!", timeout.duration)
+    beamServices.beamRouter ! BeamRouter.IterationFinished(beamServices.iterationNumber)
 
     logger.info("Agentsim finished.")
     eventsManager.finishProcessing()
