@@ -42,7 +42,7 @@ class MultinomialLogit02Spec extends WordSpecLike with Matchers {
 
     val rand = new Random()
 
-    val alts = List(
+    val alts = Map(
       "car"  -> Map("cost" -> 30.0, "time" -> 50.0),
       "walk" -> Map("cost" -> 0.0, "time"  -> 40.0)
     )
@@ -56,14 +56,14 @@ class MultinomialLogit02Spec extends WordSpecLike with Matchers {
       mnl.getUtilityOfAlternative(alts.head._1, alts.head._2) match {
         case None => fail()
         case Some(util) =>
-          (util - 1.7).abs should be < 0.000000001 // todo fails due to wrong evaluation of commons / utility of alternative
+          (util - 1.7).abs should be < 0.000000001
       }
 
     }
-//    "should evaluate expected max utility as expected" in {
-//      val util = mnl.getExpectedMaximumUtility(alts)
-//      Math.abs(util - 3.401413) < 0.00001 should be(true)
-//    }
+    "should evaluate expected max utility as expected" in {
+      val util = mnl.getExpectedMaximumUtility(alts)
+      Math.abs(util.get - 3.401413) < 0.00001 should be(true)
+    }
 //    "should sample higher probability alternatives more often" in {
 //      // With these inputs, we expect "walk" ~81% of the time, which translates to an almost certainty that majority
 //      // will be walk with 100 trials (p-val 3.00491e-12)

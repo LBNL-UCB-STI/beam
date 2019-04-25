@@ -101,7 +101,7 @@ class MultinomialLogit[A, T](
         (alt, attributes) <- alternatives
         utility           <- getUtilityOfAlternative(alt, attributes)
       } yield {
-        utility
+        Math.exp(utility)
       }
 
     if (utilityOfAlternatives.isEmpty) None
