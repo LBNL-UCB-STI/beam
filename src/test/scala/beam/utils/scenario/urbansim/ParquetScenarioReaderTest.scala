@@ -94,7 +94,7 @@ class ParquetScenarioReaderTest extends WordSpec with Matchers with MockitoSugar
       val gr = new GenericRecordMock(
         Map(
           "household_id" -> "1".asInstanceOf[AnyRef],
-          "cars"         -> 1.asInstanceOf[AnyRef],
+          "cars"         -> 1.0.asInstanceOf[AnyRef],
           "unit_id"      -> "2".asInstanceOf[AnyRef],
           "building_id"  -> "3".asInstanceOf[AnyRef],
           "income"       -> 4.0.asInstanceOf[AnyRef]
