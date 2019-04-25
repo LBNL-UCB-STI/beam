@@ -60,7 +60,7 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
 
   private[scenario] def toHouseholdInfo(rec: GenericRecord): HouseholdInfo = {
     val householdId = getIfNotNull(rec, "household_id").toString
-    val cars = getIfNotNull(rec, "cars").asInstanceOf[Double]
+    val cars = getIfNotNull(rec, "cars").asInstanceOf[Double].toInt
     val unitId = getIfNotNull(rec, "unit_id").toString
     val buildingId = getIfNotNull(rec, "building_id").toString
     val income = getIfNotNull(rec, "income").asInstanceOf[Double]
