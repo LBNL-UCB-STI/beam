@@ -101,7 +101,7 @@ class ParquetScenarioReaderTest extends WordSpec with Matchers with MockitoSugar
         ).asJava
       )
       ParquetScenarioReader.toHouseholdInfo(gr) should be(
-        HouseholdInfo(householdId = "1", cars = 1.0, income = 4.0, unitId = "2", buildingId = "3")
+        HouseholdInfo(householdId = "1", cars = 1, income = 4.0, unitId = "2", buildingId = "3")
       )
     }
   }
