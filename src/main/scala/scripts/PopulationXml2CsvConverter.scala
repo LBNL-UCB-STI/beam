@@ -55,7 +55,6 @@ class PopulationXml2CsvConverter(householdsXml: File, populationAttributesXml: F
     override def toString: String = Seq(objectId, excludedModes, rank).mkString(FieldSeparator)
   }
 
-
   private def toHouseholdMembers(node: Node): HouseholdMembers = {
     val householdId = node.attributes("id").text.toInt
     val memberIds = (node \ "members" \ "personId").map { node =>
@@ -65,7 +64,6 @@ class PopulationXml2CsvConverter(householdsXml: File, populationAttributesXml: F
   }
 
   private def toPerson(node: Node, memberToHousehold: MemberToHousehold, member2Rank: MemberToRank): Person = {
-    //    val plan: Node = (node \ "plan").head
     val memberId = node.attributes("id").toString.toInt
     Person(
       personId = memberId,

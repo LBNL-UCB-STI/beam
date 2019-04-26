@@ -79,22 +79,12 @@ class HouseholdsXml2CsvConverter(householdAttributesXml: File) extends Xml2CsvFi
     )
   }
 
-  //  private def toVehicle(node: Node): Vehicle = {
-  //    Vehicle(refId = node.attributes("refId").text.toInt)
-  //  }
-  //
-  //  private def toPerson(node: Node): Person = {
-  //    Person(refId = node.attributes("refId").text.toInt)
-  //  }
-
   override def contentIterator(sourceFile: File): Iterator[String] = {
     val parser = ConstructingParser.fromFile(sourceFile, preserveWS = true)
     val doc = parser.document()
     val householdNodes: NodeSeq = doc.docElem \\ "households" \ "household"
     val householdIdsToAttributes = readHouseHoldIdToAttributes()
-//    println(householdIdsToAttributes)
-//    Iterator()
-        householdNodes.toIterator.map(node => toHousehold(node, householdIdsToAttributes).toString + LineSeparator)
+    householdNodes.toIterator.map(node => toHousehold(node, householdIdsToAttributes).toString + LineSeparator)
   }
 
 }

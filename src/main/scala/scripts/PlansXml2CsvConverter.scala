@@ -5,15 +5,6 @@ import java.io.File
 import scala.xml.parsing.ConstructingParser
 import scala.xml.{Node, NodeSeq}
 
-/*
-*** plans.csv.gz
-personId,planId,planElementIndex,planElementType,activityType,x,y,endTime,mode
-
-planElementType: ACT or LEG
-mode: car, bike, walk
-activityType: home, shopping
-
- */
 object PlansXml2CsvConverter extends Xml2CsvFileConverter {
 
   override protected def fields: Seq[String] = Seq("personId", "planId", "planElementType", "activityIndex",
@@ -26,8 +17,8 @@ object PlansXml2CsvConverter extends Xml2CsvFileConverter {
     }
   }
 
-  private case class Activity(activityIndex: Int, activityType: String, locationX: Double, locationY: Double, endTime: Option[String], mode: String)
-
+  private case class Activity(activityIndex: Int, activityType: String,
+                              locationX: Double, locationY: Double, endTime: Option[String], mode: String)
 
   private def toActivity(node: Node, index: Int): Activity = {
     Activity(
@@ -83,4 +74,12 @@ object PlansXml2CsvConverter extends Xml2CsvFileConverter {
 			<activity type="Home" x="166321.9" y="1568.87" />
 		</plan>
 	</person>
- */
+
+*** plans.csv.gz
+personId,planId,planElementIndex,planElementType,activityType,x,y,endTime,mode
+
+planElementType: ACT or LEG
+mode: car, bike, walk
+activityType: home, shopping
+
+*/
