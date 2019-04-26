@@ -57,15 +57,19 @@ trait NetworkCoordinator extends LazyLogging {
         true,
         false
       ) // Uses the new signature Andrew created
+
+      // FIXME HACK: It is not only creates PhysSim, but also fixes the speed and the length of `weird` links.
+      // Please, fix me in the future
+      createPhyssimNetwork()
+
       transportNetwork.write(Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile)
       transportNetwork = TransportNetwork.read(
         Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE).toFile
       ) // Needed because R5 closes DB on write
-      createPhyssimNetwork()
     }
   }
 
-  def createPhyssimNetwork() = {
+  def createPhyssimNetwork(): Unit = {
     logger.info(s"Create the MATSim network from R5 network")
     val rmNetBuilder = new R5MnetBuilder(transportNetwork, beamConfig)
     rmNetBuilder.buildMNet()
