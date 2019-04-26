@@ -8,6 +8,7 @@ import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
+import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -33,10 +34,12 @@ import scala.collection.mutable
 
 class TravelTimeObserved @Inject()(
   val beamConfig: BeamConfig,
-  val beamServices: BeamServices,
-  val skimmer: BeamSkimmer
+  val beamServices: BeamServices
 ) extends LazyLogging {
   import TravelTimeObserved._
+
+  @volatile
+  private var skimmer: BeamSkimmer = new BeamSkimmer(beamConfig, beamServices)
 
   private val observedTravelTimesOpt: Option[Map[PathCache, Float]] = {
     val zoneBoundariesFilePath = beamConfig.beam.calibration.roadNetwork.travelTimes.zoneBoundariesFilePath
@@ -58,6 +61,42 @@ class TravelTimeObserved @Inject()(
   val uniqueTimeBins: Range.Inclusive = 0 to 23
 
   val dummyId: Id[BeamVehicleType] = Id.create("NA", classOf[BeamVehicleType])
+
+  def observeTrip(
+    trip: EmbodiedBeamTrip,
+    generalizedTimeInHours: Double,
+    generalizedCost: Double,
+    energyConsumption: Double
+  ): Unit = {
+    val legs = trip.legs.filter(x => x.beamLeg.mode == BeamMode.CAR || x.beamLeg.mode == BeamMode.CAV)
+    legs.foreach { carLeg =>
+      val dummyHead = EmbodiedBeamLeg.dummyLegAt(
+        carLeg.beamLeg.startTime,
+        Id.createVehicleId(""),
+        isLastLeg = false,
+        carLeg.beamLeg.travelPath.startPoint.loc
+      )
+      val dummyTail = EmbodiedBeamLeg.dummyLegAt(
+        carLeg.beamLeg.endTime,
+        Id.createVehicleId(""),
+        isLastLeg = true,
+        carLeg.beamLeg.travelPath.endPoint.loc
+      )
+      // In case of `CAV` we have to override its mode to `CAR`
+      val fixedCarLeg = if (carLeg.beamLeg.mode == BeamMode.CAV) {
+        carLeg.copy(beamLeg = carLeg.beamLeg.copy(mode = BeamMode.CAR))
+      } else {
+        carLeg
+      }
+      val carTrip = EmbodiedBeamTrip(Vector(dummyHead, fixedCarLeg, dummyTail))
+      skimmer.observeTrip(carTrip, generalizedTimeInHours, generalizedCost, energyConsumption, beamServices)
+    }
+  }
+
+  def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    writeTravelTimeObservedVsSimulated(event)
+    skimmer = new BeamSkimmer(beamConfig, beamServices)
+  }
 
   def writeTravelTimeObservedVsSimulated(event: IterationEndsEvent): Unit = {
     observedTravelTimesOpt.foreach { observedTravelTimes =>
