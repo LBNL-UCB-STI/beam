@@ -7,6 +7,7 @@ import beam.analysis.IterationStatsProvider;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedDistributionStats;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimCalcLinkStats;
+import beam.analysis.plots.GraphUtils;
 import beam.analysis.via.EventWriterXML_viaCompatible;
 import beam.calibration.impl.example.CountsObjectiveFunction;
 import beam.physsim.jdeqsim.cacc.CACCSettings;
@@ -14,13 +15,19 @@ import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.Hao2018CaccRoad
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.RoadCapacityAdjustmentFunction;
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation;
 import beam.router.BeamRouter;
-import beam.router.r5.R5RoutingWorker$;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
 import beam.utils.DebugLib;
 import beam.utils.TravelTimeCalculatorHelper;
 import com.conveyal.r5.transit.TransportNetwork;
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.chart.plot.XYPlot;
+import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
+import org.jfree.data.xy.XYSeries;
+import org.jfree.data.xy.XYSeriesCollection;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
@@ -43,10 +50,15 @@ import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.scenario.MutableScenario;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
+import org.matsim.core.utils.geometry.CoordUtils;
+import org.matsim.core.utils.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.geom.Ellipse2D;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -125,6 +137,18 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         TravelTimeCalculator travelTimeCalculator = new TravelTimeCalculator(agentSimScenario.getNetwork(), agentSimScenario.getConfig().travelTimeCalculator());
         jdeqsimEvents.addHandler(travelTimeCalculator);
         jdeqsimEvents.addHandler(new JDEQSimMemoryFootprint(beamConfig.beam().debug().debugEnabled()));
+
+        try {
+            writeComparisonEuclideanVsLengthAttributePlot(jdeqSimScenario, iterationNumber);
+        } catch (IOException e) {
+            log.error("Exception while creating plot {}", e.getMessage());
+        }
+
+        try {
+            writeComparisonEuclideanVsLengthAttributeCsv(jdeqSimScenario, iterationNumber);
+        } catch (IOException e) {
+            log.error("Exception while writing euclidean vs length csv {}", e.getMessage());
+        }
 
         if (beamConfig.beam().physsim().writeMATSimNetwork()) {
             createNetworkFile(jdeqSimScenario.getNetwork());
@@ -223,6 +247,77 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             }
         }
 
+    }
+
+    private void writeComparisonEuclideanVsLengthAttributeCsv(MutableScenario jdeqSimScenario, int iterationNumber) throws IOException {
+        String pathToCsv = beamServices.matsimServices().getControlerIO().getIterationFilename(
+                iterationNumber,
+                "EuclideanVsLengthAttribute.csv"
+        );
+
+        BufferedWriter writerObservedVsSimulated = IOUtils.getBufferedWriter(pathToCsv);
+
+        writerObservedVsSimulated.write("euclidean,length\n");
+
+        for (Link link : jdeqSimScenario.getNetwork().getLinks().values()) {
+            writerObservedVsSimulated.write(
+                    String.format("%f,%f\n",
+                            CoordUtils.calcEuclideanDistance(
+                                    link.getFromNode().getCoord(),
+                                    link.getToNode().getCoord()
+                            ), link.getLength())
+            );
+        }
+
+        writerObservedVsSimulated.close();
+    }
+
+    private void writeComparisonEuclideanVsLengthAttributePlot(MutableScenario jdeqSimScenario, int iterationNumber) throws IOException {
+        String pathToPlot = beamServices.matsimServices().getControlerIO().getIterationFilename(
+                iterationNumber,
+                "EuclideanVsLengthAttributePlot.png"
+        );
+
+        XYSeries series = new XYSeries("Euclidean vs Length attribute");
+
+        for (Link link : jdeqSimScenario.getNetwork().getLinks().values()) {
+            series.add(
+                    CoordUtils.calcEuclideanDistance(
+                            link.getFromNode().getCoord(),
+                            link.getToNode().getCoord()
+                    ), link.getLength());
+        }
+
+        XYSeriesCollection dataset = new XYSeriesCollection();
+        dataset.addSeries(series);
+
+        JFreeChart chart = ChartFactory.createScatterPlot(
+                "Euclidean vs Length attribute",
+                "Euclidean",
+                "Length",
+                dataset,
+                PlotOrientation.VERTICAL,
+                true,
+                true,
+                false
+        );
+
+        XYPlot xyplot = chart.getXYPlot();
+        xyplot.setDomainCrosshairVisible(false);
+        xyplot.setRangeCrosshairVisible(false);
+
+        XYLineAndShapeRenderer renderer = new XYLineAndShapeRenderer();
+        renderer.setSeriesShape(0, new Ellipse2D.Double(0, 0, 5, 5));
+        renderer.setSeriesLinesVisible(0, false);
+
+        xyplot.setRenderer(0, renderer);
+
+        GraphUtils.saveJFreeChartAsPNG(
+                chart,
+                pathToPlot,
+                1000,
+                1000
+        );
     }
 
     public org.matsim.core.mobsim.jdeqsim.JDEQSimulation getJDEQSimulation(MutableScenario jdeqSimScenario, BeamConfig beamConfig, EventsManager jdeqsimEvents, int iterationNumber, OutputDirectoryHierarchy controlerIO) {
