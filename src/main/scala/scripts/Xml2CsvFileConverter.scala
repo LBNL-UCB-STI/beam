@@ -1,9 +1,7 @@
 package scripts
 import java.io.File
 
-import scripts.HouseHoldsConverter.{contentIterator, header}
-
-trait XmlFileConverter {
+trait Xml2CsvFileConverter {
   protected def fields: Seq[String]
   protected lazy val header: Iterator[String] = Iterator(fields.mkString(FieldSeparator), LineSeparator)
 
