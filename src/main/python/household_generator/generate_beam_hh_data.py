@@ -78,19 +78,16 @@ def create_household_and_population_dfs():
 
     # filter household data and population data to AOI
     person_df_in_aoi = person_pums_df[person_pums_df['PUMA'].isin(puma_df_clean.values)]
-    person_df_in_aoi.loc[:, 'puma'] = person_df_in_aoi['PUMA']
-    household_df_in_aoi = household_pums_df[household_pums_df['PUMA'].isin(puma_df_clean.values)]
-    household_df_in_aoi.loc[:, 'puma'] = person_df_in_aoi['PUMA']
 
+    household_df_in_aoi = household_pums_df[household_pums_df['PUMA'].isin(puma_df_clean.values)]
     # Convert to lowercase due to doppelganger formatting
     person_df_in_aoi.columns = person_df_in_aoi.columns.str.lower()
     household_df_in_aoi.columns = household_df_in_aoi.columns.str.lower()
 
-    # Save for later use
+    # Cache for later use
     person_df_in_aoi.to_csv('output/{}/person_pums_data.csv'.format(AOI_NAME), index_label='index')
     household_df_in_aoi.to_csv('output/{}/household_pums_data.csv'.format(AOI_NAME),
                                index_label='index')
-    return household_df_in_aoi, person_df_in_aoi
 
 
 configuration = Configuration.from_file('./input/sample_data/config.json')
@@ -235,26 +232,25 @@ def combine_and_synthesize():
 
     tract_gdf = gpd.read_file("input/{}/tl_2016_{}_tract/tl_2016_{}_tract.shp".format(
         AOI_NAME, STATE, STATE))
-    tract_gdf.tract = tract_gdf['TRACTCE'].astype(int)
+    tract_gdf['TRACTCE']=tract_gdf['TRACTCE'].astype(np.int64)
 
     df = df.drop(['Unnamed: 0', 'serial_number_x', 'repeat_index_x', 'tract_x'], axis=1)
     df.drop_duplicates(inplace=True)
 
-    def compute_row(i):
-        row = df.iloc[i]
+    def compute_row(row):
         tract_no = row.tract_y
         pt = get_random_point_in_polygon(tract_gdf[(tract_no ==
-                                                    tract_gdf.tract)].geometry.values[0])
+                                                    tract_gdf['TRACTCE'])].geometry.values[0])
         ind_id = row.household_id + str(row['Unnamed: 0_x'])
         return np.array([str(ind_id), str(row.household_id), int(row.num_people),
                          int(row.num_vehicles),
                          int(row.household_income), int(row.individual_income), str(row.sex),
                          int(row.age), row.tract_y, float(pt.x), float(pt.y)])
 
-    res = []
-    for i in tnrange(df.shape[0], desc='1st loop'):
-        res.append(compute_row(i))
-    out_df = dd.from_array(np.array(res)).compute()
+    out_df = df.apply(lambda row: compute_row(row), axis=1, result_type='expand')
+    # for i in tnrange(df.shape[0], desc='1st loop'):
+    #     res.append(compute_row(i))
+    # out_df = dd.from_array(np.array(res)).compute()
     out_df.to_csv("output/ind_X_hh_out.csv.gz", header=False, index=False, compression='gzip')
 
 
@@ -264,15 +260,15 @@ if __name__ == '__main__':
 
     sys.path.append(osp.join(__file__, 'scripts'))
     sys.path.append(osp.dirname(osp.dirname(osp.abspath(__file__))))
-    from .download_allocate_generate import create_bayes_net, download_tract_data, \
+    from download_allocate_generate import create_bayes_net, download_tract_data, \
         generate_synthetic_people_and_households
 
     # Comment outWriter next line if you have already run this once
     # (i.e., <AOI_NAME>_<person|household>_pums_data.csv generated)
-    create_household_and_population_dfs()
+    # create_household_and_population_dfs()
 
-    people_generated = population_generator()
+    # population_generator()
 
-    write_out_combined_data()
+    # write_out_combined_data()
 
     combine_and_synthesize()
