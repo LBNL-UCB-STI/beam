@@ -267,7 +267,7 @@ if __name__ == '__main__':
     # (i.e., <AOI_NAME>_<person|household>_pums_data.csv generated)
     # create_household_and_population_dfs()
 
-    # population_generator()
+    population_generator()
 
     # write_out_combined_data()
 

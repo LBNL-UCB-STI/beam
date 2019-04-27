@@ -29,8 +29,9 @@ object AvailableModeUtils extends LazyLogging {
 
   /**
     * Gets the excluded modes set for the given person in the population
+    *
     * @param population population from the scenario
-    * @param personId the respective person's id
+    * @param personId   the respective person's id
     * @return List of excluded mode string
     */
   def getExcludedModesForPerson(population: Population, personId: String): Array[String] = {
@@ -49,6 +50,7 @@ object AvailableModeUtils extends LazyLogging {
 
   /**
     * Gets the excluded modes set for the given person
+    *
     * @param person the respective person
     * @return
     */
@@ -61,23 +63,35 @@ object AvailableModeUtils extends LazyLogging {
 
   /**
     * Sets the available modes for the given person in the population
-    * @param population population from the scenario
-    * @param person the respective person
+    *
+    * @param population       population from the scenario
+    * @param person           the respective person
     * @param permissibleModes List of permissible modes for the person
     */
   def setAvailableModesForPerson(person: Person, population: Population, permissibleModes: Seq[String]): Unit = {
-    val attributesOfIndividual = person.getCustomAttributes
+    val attributesOfIndividual = if (person.getCustomAttributes
       .get(PopulationAdjustment.BEAM_ATTRIBUTES)
-      .asInstanceOf[AttributesOfIndividual]
+      .asInstanceOf[AttributesOfIndividual] == null) {
+      val attribs = PopulationAdjustment.createAttributesOfIndividual(population, person, 18.0)
+      person.getCustomAttributes.put(PopulationAdjustment.BEAM_ATTRIBUTES, attribs)
+      attribs
+    }
+    else {
+      person.getCustomAttributes
+        .get(PopulationAdjustment.BEAM_ATTRIBUTES)
+        .asInstanceOf[AttributesOfIndividual]
+    }
+
     setModesForPerson(person, population, permissibleModes, attributesOfIndividual)
+
   }
 
   def setModesForPerson(
-    person: Person,
-    population: Population,
-    permissibleModes: Seq[String],
-    attributesOfIndividual: AttributesOfIndividual
-  ): Unit = {
+                         person: Person,
+                         population: Population,
+                         permissibleModes: Seq[String],
+                         attributesOfIndividual: AttributesOfIndividual
+                       ): Unit = {
     val excludedModes = getExcludedModesForPerson(population, person.getId.toString)
     val availableModes = if (excludedModes.nonEmpty) {
       permissibleModes.filterNot(am => excludedModes.exists(em => em.equalsIgnoreCase(am)))
@@ -97,11 +111,11 @@ object AvailableModeUtils extends LazyLogging {
   }
 
   def setAvailableModesForPerson_v2(
-    beamServices: BeamServices,
-    person: Person,
-    population: Population,
-    permissibleModes: Seq[String]
-  ): Unit = {
+                                     beamServices: BeamServices,
+                                     person: Person,
+                                     population: Population,
+                                     permissibleModes: Seq[String]
+                                   ): Unit = {
     val attributesOfIndividual = Option(
       person.getCustomAttributes
         .get(PopulationAdjustment.BEAM_ATTRIBUTES)
@@ -116,7 +130,8 @@ object AvailableModeUtils extends LazyLogging {
 
   /**
     * Replaces the available modes given with the existing available modes for the given person
-    * @param person the respective person
+    *
+    * @param person            the respective person
     * @param newAvailableModes List of new available modes to replace
     */
   def replaceAvailableModesForPerson(person: Person, newAvailableModes: Seq[String]): Unit = {
@@ -136,9 +151,9 @@ object AvailableModeUtils extends LazyLogging {
   }
 
   def isModeAvailableForPerson[T <: BeamMode](
-    person: Person,
-    mode: BeamMode
-  ): Boolean = {
+                                               person: Person,
+                                               mode: BeamMode
+                                             ): Boolean = {
     AvailableModeUtils.availableModesForPerson(person).contains(mode)
   }
 

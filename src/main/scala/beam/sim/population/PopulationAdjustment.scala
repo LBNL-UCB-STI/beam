@@ -16,6 +16,7 @@ import scala.collection.JavaConverters._
   * An interface that handles setting/updating attributes for the population.
   */
 trait PopulationAdjustment extends LazyLogging {
+
   import PopulationAdjustment._
 
   val beamServices: BeamServices
@@ -60,7 +61,7 @@ trait PopulationAdjustment extends LazyLogging {
     // initialize all excluded modes to empty array
     var allExcludedModes: Array[String] = Array.empty
 
-// check if excluded modes is defined for all individuals
+    // check if excluded modes is defined for all individuals
     val allAgentsHaveAttributes = population.getPersons.asScala.forall { entry =>
       val personExcludedModes = Option(
         population.getPersonAttributes.getAttribute(entry._1.toString, PopulationAdjustment.EXCLUDED_MODES)
@@ -87,8 +88,8 @@ trait PopulationAdjustment extends LazyLogging {
     * Adds the given mode to the list of available modes for the person
     *
     * @param population population from the scenario
-    * @param personId the person to whom the above mode needs to be added
-    * @param mode mode to be added
+    * @param personId   the person to whom the above mode needs to be added
+    * @param mode       mode to be added
     */
   protected def addMode(population: MPopulation, personId: String, mode: String): MPopulation = {
     val person = population.getPersons.get(Id.createPersonId(personId))
@@ -103,8 +104,8 @@ trait PopulationAdjustment extends LazyLogging {
   /**
     * Checks if the the given mode is available for the person
     *
-    * @param population population from the scenario
-    * @param personId the person to whom the above mode availability needs to be verified
+    * @param population  population from the scenario
+    * @param personId    the person to whom the above mode availability needs to be verified
     * @param modeToCheck mode to be checked
     */
   protected def existsMode(population: MPopulation, personId: String, modeToCheck: String): Boolean = {
@@ -119,8 +120,8 @@ trait PopulationAdjustment extends LazyLogging {
   /**
     * Removes the given mode from the list of available modes for the person
     *
-    * @param population population from the scenario
-    * @param personId the person to whom the above mode needs to be removed
+    * @param population   population from the scenario
+    * @param personId     the person to whom the above mode needs to be removed
     * @param modeToRemove mode to be removed
     */
   protected def removeMode(population: MPopulation, personId: String, modeToRemove: String*): Unit = {
@@ -133,7 +134,7 @@ trait PopulationAdjustment extends LazyLogging {
   /**
     * Remove the given mode from the list of available modes for all the individuals in the population
     *
-    * @param population population from the scenario
+    * @param population   population from the scenario
     * @param modeToRemove mode to be removed
     */
   protected def removeModeAll(population: MPopulation, modeToRemove: String*): Unit = {
@@ -185,7 +186,7 @@ object PopulationAdjustment extends LazyLogging {
     * Gets the beam attributes for the given person in the population
     *
     * @param population population from the scenario
-    * @param personId the respective person's id
+    * @param personId   the respective person's id
     * @return custom beam attributes as an instance of [[beam.sim.population.AttributesOfIndividual]]
     */
   def getBeamAttributes(population: MPopulation, personId: String): AttributesOfIndividual = {
@@ -196,11 +197,47 @@ object PopulationAdjustment extends LazyLogging {
       .asInstanceOf[AttributesOfIndividual]
   }
 
+  def createAttributesOfIndividual(population: MPopulation,
+                                   person: Person, defaultVOT: Double): AttributesOfIndividual = {
+    val personAttributes = population.getPersonAttributes
+    // Read excluded-modes set for the person and calculate the possible available modes for the person
+    val excludedModes = AvailableModeUtils.getExcludedModesForPerson(population, person.getId.toString)
+    val availableModes: Seq[BeamMode] = BeamMode.allModes.filterNot { mode =>
+      excludedModes.exists(em => em.equalsIgnoreCase(mode.value))
+    }
+    // Read person attribute "income" and default it to 0 if not set
+    val income = Option(personAttributes.getAttribute(person.getId.toString, "income"))
+      .map(_.asInstanceOf[Double])
+      .getOrElse(0D)
+    // Read person attribute "modalityStyle"
+    val modalityStyle =
+      Option(person.getSelectedPlan)
+        .map(_.getAttributes)
+        .flatMap(attrib => Option(attrib.getAttribute("modality-style")).map(_.toString))
+    val householdAttributes = HouseholdAttributes.EMPTY
+    val valueOfTime: Double =
+      Option(personAttributes.getAttribute(person.getId.toString, "valueOfTime"))
+        .map(_.asInstanceOf[Double])
+        .getOrElse(
+          IncomeToValueOfTime(householdAttributes.householdIncome)
+            .getOrElse(defaultVOT)
+        )
+    AttributesOfIndividual(
+      householdAttributes,
+      modalityStyle,
+      Option(PersonUtils.getSex(person)).getOrElse("M").equalsIgnoreCase("M"),
+      availableModes,
+      valueOfTime,
+      Option(PersonUtils.getAge(person)),
+      Some(income)
+    )
+  }
+
   def createAttributesOfIndividual(
-    beamServices: BeamServices,
-    population: MPopulation,
-    person: Person
-  ): AttributesOfIndividual = {
+                                    beamServices: BeamServices,
+                                    population: MPopulation,
+                                    person: Person
+                                  ): AttributesOfIndividual = {
     val personAttributes = population.getPersonAttributes
     // Read excluded-modes set for the person and calculate the possible available modes for the person
     val excludedModes = AvailableModeUtils.getExcludedModesForPerson(population, person.getId.toString)
@@ -243,6 +280,7 @@ object PopulationAdjustment extends LazyLogging {
       Some(income)
     )
   }
+
   private def IncomeToValueOfTime(income: Double): Option[Double] = {
     val workHoursPerYear = 51 * 40 // TODO: Make nonlinear--eg https://ac.els-cdn.com/S0965856411001613/1-s2.0-S0965856411001613-main.pdf
     val wageFactor = 0.5

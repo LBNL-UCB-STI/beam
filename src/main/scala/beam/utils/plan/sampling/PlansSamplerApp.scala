@@ -316,7 +316,7 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
 class SpatialSampler(sampleShape: String) {
   val shapeFileReader: ShapeFileReader = new ShapeFileReader
   shapeFileReader.readFileAndInitialize(sampleShape)
-  val rng = new MersenneTwister(7571452) // Random.org
+  val rng = new MersenneTwister(7571450) // Random.org
   val distribution: EnumeratedDistribution[SimpleFeature] = {
     val features = shapeFileReader.getFeatureCollection.features()
     val distributionList = mutable.Buffer[Pair[SimpleFeature, java.lang.Double]]()
@@ -534,6 +534,9 @@ object PlansSampler {
         counter.incCounter()
 
         spHH.setIncome(newHHFac.createIncome(sh.hhIncome, Income.IncomePeriod.year))
+        if(sh.vehicles==0){
+          println(s"no vehics in hh ${sh.householdId}")
+        }
         // Create and add car identifiers
         (0 to sh.vehicles).foreach(x => {
           val vehicleId = Id.createVehicleId(s"${counter.getCounter}-$x")
