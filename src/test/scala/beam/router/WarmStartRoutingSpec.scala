@@ -177,7 +177,7 @@ class WarmStartRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
@@ -199,7 +199,7 @@ class WarmStartRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
@@ -233,7 +233,7 @@ class WarmStartRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
@@ -254,7 +254,7 @@ class WarmStartRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
@@ -285,7 +285,7 @@ class WarmStartRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
@@ -305,7 +305,7 @@ class WarmStartRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
@@ -331,7 +331,7 @@ class WarmStartRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
@@ -363,7 +363,7 @@ class WarmStartRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),

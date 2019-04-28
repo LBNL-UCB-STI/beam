@@ -39,7 +39,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
         origin,
         destination,
         time,
-        Vector(WALK_TRANSIT),
+        withTransit = true,
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
@@ -75,7 +75,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
                 origin,
                 destination,
                 time,
-                Vector(TRANSIT),
+                withTransit = true,
                 Vector(
                   StreetVehicle(
                     Id.createVehicleId("116378-2"),
@@ -116,7 +116,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
         origin,
         destination,
         time,
-        Vector(TRANSIT),
+        withTransit = true,
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
@@ -142,7 +142,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
         origin,
         destination,
         time,
-        Vector(TRANSIT),
+        withTransit = true,
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),

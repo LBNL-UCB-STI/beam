@@ -104,7 +104,7 @@ object R5RoutingApp extends BeamHelper {
       originUTM = startUTM,
       destinationUTM = endUTM,
       departureTime = departureTime,
-      transitModes = Vector.empty,
+      withTransit = false,
       streetVehicles = Vector(bodyStreetVehicle)
     )
 

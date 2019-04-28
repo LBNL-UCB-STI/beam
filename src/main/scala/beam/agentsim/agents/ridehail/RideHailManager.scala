@@ -778,7 +778,7 @@ class RideHailManager(
         originUTM = agentLocation.currentLocationUTM.loc,
         destinationUTM = stall.locationUTM,
         departureTime = agentLocation.currentLocationUTM.time,
-        transitModes = Vector(),
+        withTransit = false,
         streetVehicles = Vector(agentLocation.toStreetVehicle)
       )
       val futureRideHail2ParkingRouteRequest = router ? routingRequest
@@ -946,7 +946,7 @@ class RideHailManager(
       rideHailLocation.currentLocationUTM.loc,
       request.pickUpLocationUTM,
       requestTime,
-      Vector(),
+      withTransit = false,
       Vector(rideHailVehicleAtOrigin)
     )
 // route from customer to destination
@@ -954,7 +954,7 @@ class RideHailManager(
       request.pickUpLocationUTM,
       request.destinationUTM,
       requestTime,
-      Vector(),
+      withTransit = false,
       Vector(rideHailVehicleAtPickup)
     )
 
@@ -1346,7 +1346,7 @@ class RideHailManager(
           originUTM = rideHailAgentLocation.currentLocationUTM.loc,
           destinationUTM = destinationLocation,
           departureTime = tick,
-          transitModes = Vector(),
+          withTransit = false,
           streetVehicles = Vector(rideHailVehicleAtOrigin)
         )
         val futureRideHailAgent2CustomerResponse = router ? routingRequest

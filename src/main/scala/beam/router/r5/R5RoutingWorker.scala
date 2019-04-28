@@ -396,7 +396,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       plan = planWithTime._1
 
       var nt = ""
-      if (request.transitModes.isEmpty) nt = "non"
+      if (!request.withTransit) nt = "non"
 
       record(s"noncache-${nt}transit-router-time", Metrics.VerboseLevel, planWithTime._2)
       record("noncache-router-time", Metrics.VerboseLevel, planWithTime._2)
@@ -424,6 +424,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     profileRequest.zoneId = transportNetwork.getTimeZone
     profileRequest.fromTime = request.time
     profileRequest.toTime = request.time + 61 // Important to allow 61 seconds for transit schedules to be considered!
+    profileRequest.monteCarloDraws = 1
     profileRequest.date = beamServices.dates.localBaseDate
     profileRequest.directModes = if (request.directMode == null) {
       util.EnumSet.noneOf(classOf[LegMode])
@@ -431,8 +432,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       util.EnumSet.of(request.directMode)
     }
     profileRequest.suboptimalMinutes = 0
-    if (request.transitModes.nonEmpty) {
-      profileRequest.transitModes = util.EnumSet.copyOf(request.transitModes.asJavaCollection)
+    if (request.withTransit) {
+      profileRequest.transitModes = util.EnumSet.allOf(classOf[TransitModes])
       profileRequest.accessModes = util.EnumSet.of(request.accessMode)
       profileRequest.egressModes = util.EnumSet.of(request.egressMode)
     }
@@ -498,7 +499,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           val directMode = LegMode.WALK
           val accessMode = LegMode.WALK
           val egressMode = LegMode.WALK
-          val transitModes = Nil
           val profileResponse =
             latency("walkToVehicleRoute-router-time", Metrics.RegularLevel) {
               cache.get(
@@ -508,7 +508,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   routingRequest.departureTime,
                   directMode,
                   accessMode,
-                  transitModes,
+                  withTransit = false,
                   egressMode,
                   routingRequest.timeValueOfMoney
                 )
@@ -559,7 +559,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           val directMode = vehicle.mode.r5Mode.get.left.get
           val accessMode = vehicle.mode.r5Mode.get.left.get
           val egressMode = LegMode.WALK
-          val transitModes = Nil
           val profileResponse =
             latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {
               cache.get(
@@ -569,7 +568,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   time,
                   directMode,
                   accessMode,
-                  transitModes,
+                  withTransit = false,
                   egressMode,
                   routingRequest.timeValueOfMoney
                 )
@@ -628,9 +627,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           val walkToVehicleDuration =
             maybeWalkToVehicle.map(leg => leg.duration).getOrElse(0)
           val time = routingRequest.departureTime + walkToVehicleDuration
-          val transitModes: IndexedSeq[TransitModes] =
-            routingRequest.transitModes.map(_.r5Mode.get.right.get)
-          val latencyTag = (if (transitModes.isEmpty)
+          val latencyTag = (if (routingRequest.withTransit)
                               "mainVehicleToDestinationRoute"
                             else "mainTransitRoute") + "-router-time"
           val profileResponse: ProfileResponse =
@@ -642,7 +639,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   time,
                   directMode,
                   accessMode,
-                  transitModes,
+                  routingRequest.withTransit,
                   egressMode,
                   routingRequest.timeValueOfMoney
                 )
@@ -1383,7 +1380,7 @@ object R5RoutingWorker {
     time: Int,
     directMode: LegMode,
     accessMode: LegMode,
-    transitModes: Seq[TransitModes],
+    withTransit: Boolean,
     egressMode: LegMode,
     timeValueOfMoney: Double
   )
