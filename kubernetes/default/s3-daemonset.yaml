@@ -46,6 +46,8 @@ spec:
           mountPath: /dev/fuse
         - name: mount-data
           mountPath: /s3data
+        - name: mount-out
+          mountPath: /data/output
         lifecycle:
           postStart:
             exec:
@@ -59,3 +61,6 @@ spec:
       - name: mount-data
         hostPath:
           path: /dev/data-s3fs
+      - name: mount-out
+        hostPath:
+          path: /dev/data-out
