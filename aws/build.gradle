@@ -187,6 +187,12 @@ task packageEksCheckFunction(type: Zip) {
     archiveFileName = 'function.zip'
 }
 
+task packageRunNodeFunction(type: Zip) {
+    from fileTree('src/main/python/runNodes')
+    include '**/'
+    archiveFileName = 'function.zip'
+}
+
 task eksCreationFunction(dependsOn: packageEksCreationFunction, type: AWSLambdaMigrateFunctionTask) {
     functionName = "eksCreation"
     role = "arn:aws:iam::340032650202:role/BeamEksDeployment"
@@ -198,7 +204,6 @@ task eksCreationFunction(dependsOn: packageEksCreationFunction, type: AWSLambdaM
     memorySize = 256
     environment = [
             REGION: "us-west-2",
-            SYSTEM_INSTANCE: "t3.nano"
     ]
 }
 
@@ -211,5 +216,20 @@ task eksDescribeFunction(dependsOn: packageEksCheckFunction, type: AWSLambdaMigr
     runtime = "Python27"
     environment = [
             REGION: "us-west-2"
+    ]
+}
+
+task runEKSNodesFunction(dependsOn: packageRunNodeFunction, type: AWSLambdaMigrateFunctionTask) {
+    functionName = "runNodes"
+    role = "arn:aws:iam::340032650202:role/BeamEksDeployment"
+    functionDescription = "Beam Cluster Worker Nodes"
+    zipFile = packageRunNodeFunction.archivePath
+    handler = "lambda_function.lambda_handler"
+    runtime = "Python27"
+    timeout = 300
+    memorySize = 256
+    environment = [
+            REGION: "us-west-2",
+            SYSTEM_INSTANCE: "t3.nano"
     ]
 }

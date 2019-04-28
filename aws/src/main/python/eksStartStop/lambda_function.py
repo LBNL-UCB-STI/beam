@@ -24,7 +24,6 @@ node_images = {'us-west-2': 'ami-0c28139856aaf9c3b',
 eks = None
 cf = None
 
-
 def init_eks(region):
     global eks
     eks = boto3.client('eks', region_name=region)
@@ -57,65 +56,6 @@ def create_eks_stack(time_token, tag):
         ]
     )
     return response['StackId']
-
-
-def create_workers_stack(time_token, ec2_instance, outputs, region, cluster_name, tag):
-    response = cf.create_stack(
-        StackName="beam-eks-workers-{dt}".format(dt=time_token),
-        TemplateURL='https://amazon-eks.s3-us-west-2.amazonaws.com/cloudformation/2019-02-11/amazon-eks-nodegroup.yaml',
-        Parameters=[
-            {
-                'ParameterKey': 'ClusterName',
-                'ParameterValue': cluster_name
-            },
-            {
-                'ParameterKey': 'ClusterControlPlaneSecurityGroup',
-                'ParameterValue': outputs['SecurityGroups']
-            },
-            {
-                'ParameterKey': 'NodeGroupName',
-                'ParameterValue': "beam-eks-nodegroup-{t}".format(t=time_token)
-            },
-            {
-                'ParameterKey': 'NodeInstanceType',
-                'ParameterValue': ec2_instance
-            },
-            {
-                'ParameterKey': 'NodeImageId',
-                'ParameterValue': node_images[region]
-            },
-            {
-                'ParameterKey': 'KeyName',
-                'ParameterValue': 'scraper-key'
-            },
-            {
-                'ParameterKey': 'VpcId',
-                'ParameterValue': outputs['VpcId']
-            },
-            {
-                'ParameterKey': 'Subnets',
-                'ParameterValue': outputs['SubnetIds']
-            }
-        ],
-        RollbackConfiguration={
-            'MonitoringTimeInMinutes': 0
-        },
-        RoleARN='arn:aws:iam::340032650202:role/BeamEksDeployment',
-        TimeoutInMinutes=10,
-        Capabilities=[
-            'CAPABILITY_IAM',
-        ],
-        OnFailure='ROLLBACK',
-        EnableTerminationProtection=False,
-        Tags=[
-            {
-                'Key': 'creation',
-                'Value': tag
-            },
-        ]
-    )
-    return response['StackId']
-
 
 def get_stack_outputs(stackName):
     status = None
@@ -162,7 +102,6 @@ def create_cluster(outputs, time_token):
 def instance_handler(event):
     time_str = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     region = event.get('region', os.environ['REGION'])
-    instance_id = event.get('instance_id', os.environ['SYSTEM_INSTANCE'])
     tag = event.get('creation_tag')
 
     init_eks(region)
@@ -172,10 +111,8 @@ def instance_handler(event):
     otp = get_stack_outputs(stack_id)
     cluster_details = create_cluster(otp, time_str)
     wait_cluster_outputs(cluster_details)
-    workers_stack_id = create_workers_stack(time_str, instance_id, otp, region, cluster_details, tag)
-    workers_outputs = get_stack_outputs(workers_stack_id)
 
-    return workers_outputs
+    return cluster_details
 
 
 def lambda_handler(event, context):

@@ -17,8 +17,10 @@ def init_cloudformation(region):
     cf = boto3.client('cloudformation', region_name=region)
 
 def check_cluster(time_tag):
+    clusters = eks.list_clusters(maxResults=100)
+    if ("beam-cluster-{t}".format(t=time_tag) not in clusters['clusters']): return False
     clusters_response = eks.describe_cluster(name="beam-cluster-{t}".format(t=time_tag))
-    return clusters_response.get('cluster') is not None
+    return (clusters_response.get('cluster') is not None) and (clusters_response['cluster']['status'] == 'ACTIVE')
 
 def describe_vpc(tag):
     vpc_response = cf.list_stacks(
@@ -29,8 +31,8 @@ def describe_vpc(tag):
         stack_description = cf.describe_stacks(StackName=vpc['StackName'])
         vpc_tags = stack_description['Stacks'][0]['Tags']
         for vpc_tag in vpc_tags:
-            if vpc_tag['Key'] == 'creation' and vpc_tag['Value'] == tag and ('workers' in vpc['StackName']):
-                vpcs['time_tag'] = vpc['StackName'].replace('beam-eks-workers-', '')
+            if vpc_tag['Key'] == 'creation' and vpc_tag['Value'] == tag and ('beam-eks' in vpc['StackName']):
+                vpcs['time_tag'] = vpc['StackName'].replace('beam-eks-', '')
                 outputs_list = stack_description['Stacks'][0]['Outputs']
                 for out in outputs_list:
                     vpcs[out['OutputKey']] = out['OutputValue']

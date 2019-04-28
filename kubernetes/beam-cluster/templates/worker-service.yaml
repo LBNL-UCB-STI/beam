@@ -57,18 +57,18 @@ spec:
           image: {{ .Values.job.image }}:{{ .Values.job.imageTag }}
           resources:
             limits:
-              cpu: "3"
-              memory: 6Gi
+              cpu: "14"
+              memory: 30Gi
             requests:
-              cpu: "3"
-              memory: 5Gi
-          args: ["--config",  {{ printf "%s/sf-light/sf-light-1k.conf" .Values.volume.data.path | quote }}, "--cluster-type", "worker", "--node-host", "$HOSTNAME_VALUE", "--node-port", {{ .Values.service.akkaPort.worker.port | quote }}, "--seed-address", {{ printf "%s:%s" (include "beam-simulation.master.service" . ) .Values.service.akkaPort.master.port | quote }}]
+              cpu: "12"
+              memory: 28Gi
+          args: ["--config",  {{ printf "%s/sf-light/sf-light-25k.conf" .Values.volume.data.path | quote }}, "--cluster-type", "worker", "--node-host", "$HOSTNAME_VALUE", "--node-port", {{ .Values.service.akkaPort.worker.port | quote }}, "--seed-address", {{ printf "%s:%s" (include "beam-simulation.master.service" . ) .Values.service.akkaPort.master.port | quote }}]
           imagePullPolicy: Always
           env:
             - name: BEAM_OUTPUT
               value: {{ .Values.volume.output.path | quote }}
             - name: JAVA_OPTS
-              value: '"-Xmx6G" "-Xms3G"'
+              value: '"-Xmx28G" "-Xms14G"'
             - name: HOSTNAME_COMMAND
               value: "ifconfig | grep \"inet addr:\" | awk  -F'[: ]+' '!/127/{print $$4}'"
           ports:
