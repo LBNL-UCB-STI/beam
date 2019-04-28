@@ -8,6 +8,7 @@ import org.opengis.feature.Feature
 import org.opengis.feature.simple.SimpleFeature
 
 object GeoJsonToGpxConvertor extends LazyLogging {
+
   def renderEnvelope(points: Array[GpxPoint], outputPath: String): Unit = {
     val envelope = new Envelope(new Coordinate(points.head.wgsCoord.getX, points.head.wgsCoord.getY))
     points.foreach { p =>

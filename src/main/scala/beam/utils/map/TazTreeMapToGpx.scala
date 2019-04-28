@@ -8,6 +8,7 @@ import com.google.common.io.Files
 import com.typesafe.scalalogging.LazyLogging
 
 object TazTreeMapToGpx extends LazyLogging {
+
   def main(args: Array[String]): Unit = {
     val (_, cfg) = prepareConfig(args, true)
     val beamConfig = BeamConfig(cfg)

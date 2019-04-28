@@ -7,7 +7,18 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  CAR,
+  CAV,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
