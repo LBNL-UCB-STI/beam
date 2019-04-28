@@ -326,10 +326,10 @@ object BeamVehicle {
 //          val arrivalTime = linkArrivalTimes(idx)
           val currentLink: Option[Link] = networkHelper.getLink(id)
           val averageSpeed = try {
-              if (travelTime > 0) currentLink.map(_.getLength).getOrElse(0.0) / travelTime else 0
-            } catch {
-              case _: Exception => 0.0
-            }
+            if (travelTime > 0) currentLink.map(_.getLength).getOrElse(0.0) / travelTime else 0
+          } catch {
+            case _: Exception => 0.0
+          }
           // get the next link , and calculate the direction to be taken based on the angle between the two links
 //          val nextLink = if (idx < nextLinkIds.length) {
 //            networkHelper.getLink(nextLinkIds(idx))
