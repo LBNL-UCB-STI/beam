@@ -21,33 +21,46 @@ import scala.compat.java8.StreamConverters._
 
 class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyLogging {
 
-  private lazy val srcPath = beamConfig.beam.warmStart.path
+  val srcPath = beamConfig.beam.warmStart.path
 
   /**
     * check whether warmStart mode is enabled.
     *
     * @return true if warm start enabled, otherwise false.
     */
-  private lazy val isWarmMode: Boolean = beamConfig.beam.warmStart.enabled
+  val isWarmMode: Boolean = beamConfig.beam.warmStart.enabled
 
   /**
     * initialize travel times.
     */
   def warmStartTravelTime(beamRouter: ActorRef, scenario: Scenario): Unit = {
     if (isWarmMode) {
+      read.foreach { travelTime =>
+        beamRouter ! UpdateTravelTimeLocal(travelTime)
+        BeamWarmStart.updateRemoteRouter(scenario, travelTime, maxHour, beamRouter)
+        logger.info("Travel times successfully warm started from")
+      }
+    }
+  }
+
+  def read: Option[TravelTime] = {
+    if (isWarmMode) {
       getWarmStartFilePath("linkstats.csv.gz", rootFirst = false) match {
         case Some(statsPath) =>
           if (Files.exists(Paths.get(statsPath))) {
             val travelTime = getTravelTime(statsPath)
-            beamRouter ! UpdateTravelTimeLocal(travelTime)
-            BeamWarmStart.updateRemoteRouter(scenario, travelTime, maxHour, beamRouter)
-            logger.info("Travel times successfully warm started from {}.", statsPath)
+            logger.info("Read travel times from {}.", statsPath)
+            Some(travelTime)
           } else {
             logger.warn("Travel times failed to warm start, stats not found at path ( {} )", statsPath)
+            None
           }
         case None =>
           logger.warn("Travel times failed to warm start, stats not found at path ( {} )", srcPath)
+          None
       }
+    } else {
+      None
     }
   }
 
@@ -201,5 +214,4 @@ object BeamWarmStart {
     )
     beamRouter ! UpdateTravelTimeRemote(map)
   }
-
 }
