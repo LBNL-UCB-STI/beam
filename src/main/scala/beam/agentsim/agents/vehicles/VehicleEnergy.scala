@@ -223,33 +223,35 @@ class VehicleEnergy(
     powerTrainPriority: PowerTrainPriority
   ): Double = {
     /*(Double, Option[Double]) = {*/
-    val BeamVehicle.FuelConsumptionData(
-      linkId,
-      vehicleType,
-      numberOfLanesOption,
-      _,
-      _,
-      _,
-      speedInMetersPerSecondOption,
-      _,
-      _,
-      _
-    ) = fuelConsumptionData
-    val numberOfLanes: Int = numberOfLanesOption.getOrElse(0)
-    val speedInMilesPerHour: Double = speedInMetersPerSecondOption
-      .map(convertFromMetersPerSecondToMilesPerHour)
-      .getOrElse(0)
-    val gradePercent: Double = linkIdToGradePercentMap.getOrElse(linkId, 0)
-    (powerTrainPriority match {
-      case Primary   => consumptionRateFilterStore.getPrimaryConsumptionRateFilterFor(vehicleType)
-      case Secondary => consumptionRateFilterStore.getSecondaryConsumptionRateFilterFor(vehicleType)
-    }).flatMap(
-        consumptionRateFilterFuture =>
-          getRateUsing(consumptionRateFilterFuture, numberOfLanes, speedInMilesPerHour, gradePercent)
-      )
-      .getOrElse(fallBack(fuelConsumptionData))
-    /*.map(x=>(x,Option(gradePercent)))
+    if (!vehicleEnergyMappingExistsFor(fuelConsumptionData.vehicleType)) { fallBack(fuelConsumptionData) } else {
+      val BeamVehicle.FuelConsumptionData(
+        linkId,
+        vehicleType,
+        numberOfLanesOption,
+        _,
+        _,
+        _,
+        speedInMetersPerSecondOption,
+        _,
+        _,
+        _
+      ) = fuelConsumptionData
+      val numberOfLanes: Int = numberOfLanesOption.getOrElse(0)
+      val speedInMilesPerHour: Double = speedInMetersPerSecondOption
+        .map(convertFromMetersPerSecondToMilesPerHour)
+        .getOrElse(0)
+      val gradePercent: Double = linkIdToGradePercentMap.getOrElse(linkId, 0)
+      (powerTrainPriority match {
+        case Primary   => consumptionRateFilterStore.getPrimaryConsumptionRateFilterFor(vehicleType)
+        case Secondary => consumptionRateFilterStore.getSecondaryConsumptionRateFilterFor(vehicleType)
+      }).flatMap(
+          consumptionRateFilterFuture =>
+            getRateUsing(consumptionRateFilterFuture, numberOfLanes, speedInMilesPerHour, gradePercent)
+        )
+        .getOrElse(fallBack(fuelConsumptionData))
+      /*.map(x=>(x,Option(gradePercent)))
       .getOrElse((fallBack(fuelConsumptionData), Option(gradePercent)))*/
+    }
   }
 
   private def getRateUsing(
