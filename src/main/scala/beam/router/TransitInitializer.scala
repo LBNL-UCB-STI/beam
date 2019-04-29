@@ -58,14 +58,18 @@ class TransitInitializer(
       val to = transportNetwork.transitLayer.streetVertexForStop.get(toStop)
       val toVertex = transportNetwork.streetLayer.vertexStore.getCursor(to)
 
-      val fromCoord = if (from != -1) new Coord(fromVertex.getLon, fromVertex.getLat) else {
-        limitedWarn(fromStop)
-        new Coord(38, -122)
-      }
-      val toCoord = if (to != -1) new Coord(toVertex.getLon, toVertex.getLat) else {
-        limitedWarn(toStop)
-        new Coord(38.001, -122.001)
-      }
+      val fromCoord =
+        if (from != -1) new Coord(fromVertex.getLon, fromVertex.getLat)
+        else {
+          limitedWarn(fromStop)
+          new Coord(38, -122)
+        }
+      val toCoord =
+        if (to != -1) new Coord(toVertex.getLon, toVertex.getLat)
+        else {
+          limitedWarn(toStop)
+          new Coord(38.001, -122.001)
+        }
 
       (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
         BeamPath(
