@@ -5,7 +5,6 @@ import org.matsim.api.core.v01.population._
 import org.matsim.core.config.groups.PlanCalcScoreConfigGroup
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.replanning.selectors.RandomPlanSelector
-import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 
