@@ -53,16 +53,16 @@ import scala.concurrent.Await
 
 trait BeamHelper extends LazyLogging {
 
-  val beamAsciiArt: String =
+  protected val beamAsciiArt: String =
     """
-      |  ________
-      |  ___  __ )__________ _______ ___
-      |  __  __  |  _ \  __ `/_  __ `__ \
-      |  _  /_/ //  __/ /_/ /_  / / / / /
-      |  /_____/ \___/\__,_/ /_/ /_/ /_/
-      |
-      | _____________________________________
-      |
+    |  ________
+    |  ___  __ )__________ _______ ___
+    |  __  __  |  _ \  __ `/_  __ `__ \
+    |  _  /_/ //  __/ /_/ /_  / / / / /
+    |  /_____/ \___/\__,_/ /_/ /_/ /_/
+    |
+    | _____________________________________
+    |
     """.stripMargin
 
   private val argsParser = new scopt.OptionParser[Arguments]("beam") {
@@ -112,9 +112,9 @@ trait BeamHelper extends LazyLogging {
       .action((value, args) => args.copy(useLocalWorker = Some(value)))
       .text(
         "Boolean determining whether to use a local worker. " +
-          "If cluster is NOT enabled this defaults to true and cannot be false. " +
-          "If cluster is specified then this defaults to false and must be explicitly set to true. " +
-          "NOTE: For cluster, this will ONLY be checked if cluster-type=master"
+        "If cluster is NOT enabled this defaults to true and cannot be false. " +
+        "If cluster is specified then this defaults to false and must be explicitly set to true. " +
+        "NOTE: For cluster, this will ONLY be checked if cluster-type=master"
       )
 
     checkConfig(
@@ -330,20 +330,19 @@ trait BeamHelper extends LazyLogging {
 
   def runClusterWorkerUsing(config: TypesafeConfig): Unit = {
     val clusterConfig = ConfigFactory
-      .parseString(
-        s"""
-           |akka.cluster.roles = [compute]
-           |akka.actor.deployment {
-           |      /statsService/singleton/workerRouter {
-           |        router = round-robin-pool
-           |        cluster {
-           |          enabled = on
-           |          max-nr-of-instances-per-node = 1
-           |          allow-local-routees = on
-           |          use-roles = ["compute"]
-           |        }
-           |      }
-           |    }
+      .parseString(s"""
+                      |akka.cluster.roles = [compute]
+                      |akka.actor.deployment {
+                      |      /statsService/singleton/workerRouter {
+                      |        router = round-robin-pool
+                      |        cluster {
+                      |          enabled = on
+                      |          max-nr-of-instances-per-node = 1
+                      |          allow-local-routees = on
+                      |          use-roles = ["compute"]
+                      |        }
+                      |      }
+                      |    }
           """.stripMargin)
       .withFallback(config)
 
@@ -500,8 +499,9 @@ trait BeamHelper extends LazyLogging {
 
     ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
 
-    logger.info(beamAsciiArt)
-    logger.info(ConfigConsistencyComparator.logStringBuilder.toString())
+//    matsimConfig.controler.setOutputDirectory(outputDirectory)
+//    matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
+
     logger.info("Starting beam on branch {} at commit {}.", BashUtils.getBranch, BashUtils.getCommitHash)
 
     prepareDirectories(config, beamConfig, outputDirectory)
@@ -584,11 +584,10 @@ trait BeamHelper extends LazyLogging {
         .keySet()
         .forEach(personId => notSelectedPersonIds.add(personId))
 
-      logger.info(
-        s"""Before sampling:
-           |Number of households: ${notSelectedHouseholdIds.size}
-           |Number of vehicles: ${getVehicleGroupingStringUsing(notSelectedVehicleIds.toIndexedSeq, beamServices)}
-           |Number of persons: ${notSelectedPersonIds.size}""".stripMargin)
+      logger.info(s"""Before sampling:
+          |Number of households: ${notSelectedHouseholdIds.size}
+          |Number of vehicles: ${getVehicleGroupingStringUsing(notSelectedVehicleIds.toIndexedSeq, beamServices)}
+          |Number of persons: ${notSelectedPersonIds.size}""".stripMargin)
 
       val iterHouseholds = RandomUtils.shuffle(scenario.getHouseholds.getHouseholds.values().asScala, rand).iterator
       var numberOfAgents = 0
@@ -625,15 +624,12 @@ trait BeamHelper extends LazyLogging {
       val vehicles = scenario.getHouseholds.getHouseholds.values.asScala.flatMap(hh => hh.getVehicleIds.asScala)
       val numOfPersons = scenario.getPopulation.getPersons.size()
 
-      logger.info(
-        s"""After sampling:
+      logger.info(s"""After sampling:
            |Number of households: $numOfHouseholds. Removed: ${notSelectedHouseholdIds.size}
-           |Number of vehicles: ${getVehicleGroupingStringUsing(vehicles.toIndexedSeq, beamServices)}. Removed: ${
-          getVehicleGroupingStringUsing(
-            notSelectedVehicleIds.toIndexedSeq,
-            beamServices
-          )
-        }
+           |Number of vehicles: ${getVehicleGroupingStringUsing(vehicles.toIndexedSeq, beamServices)}. Removed: ${getVehicleGroupingStringUsing(
+                       notSelectedVehicleIds.toIndexedSeq,
+                       beamServices
+                     )}
            |Number of persons: $numOfPersons. Removed: ${notSelectedPersonIds.size}""".stripMargin)
 
       beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
@@ -661,7 +657,7 @@ trait BeamHelper extends LazyLogging {
         vehicleId => beamServices.privateVehicles.get(vehicleId).map(_.beamVehicleType.id.toString).getOrElse("")
       )
       .map {
-        case (vehicleType, vehicleIds) => s"$vehicleType (${vehicleIds.size})"
+        case (vehicleType, ids) => s"$vehicleType (${ids.size})"
       }
       .mkString(" , ")
   }
@@ -692,7 +688,7 @@ trait BeamHelper extends LazyLogging {
         scenarioFolder = beamConfig.beam.exchange.scenario.folder,
         rdr = beam.utils.scenario.matsim.CsvScenarioReader
       )
-    } else throw new NotImplementedError(s"ScenarioSource '${src}' is not yet implemented")
+    } else throw new NotImplementedError(s"ScenarioSource '$src' is not yet implemented")
   }
 
 }
