@@ -617,7 +617,7 @@ trait BeamHelper extends LazyLogging {
         vehicleId => beamServices.privateVehicles.get(vehicleId).map(_.beamVehicleType.id.toString).getOrElse("")
       )
       .map {
-        case (vehicleType, vehicleIds) => s"$vehicleType (${vehicleIds.size})"
+        case (vehicleType, ids) => s"$vehicleType (${ids.size})"
       }
       .mkString(" , ")
   }
