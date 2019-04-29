@@ -53,15 +53,42 @@ class TransitInitializer(
     val transitTrips = transportNetwork.transitLayer.tripPatterns.asScala.toStream
 
     def pathWithoutStreetRoute(fromStop: Int, toStop: Int) = {
+      val from = transportNetwork.transitLayer.streetVertexForStop.get(fromStop)
+      val fromVertex = transportNetwork.streetLayer.vertexStore.getCursor(from)
+      val to = transportNetwork.transitLayer.streetVertexForStop.get(toStop)
+      val toVertex = transportNetwork.streetLayer.vertexStore.getCursor(to)
+
+      val fromCoord = if (from != -1) new Coord(fromVertex.getLon, fromVertex.getLat) else {
+        limitedWarn(fromStop)
+        new Coord(38, -122)
+      }
+      val toCoord = if (to != -1) new Coord(toVertex.getLon, toVertex.getLat) else {
+        limitedWarn(toStop)
+        new Coord(38.001, -122.001)
+      }
+
       (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
         BeamPath(
           Vector(),
           Vector(),
           Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
-          null,
-          null,
+          SpaceTime(fromCoord, departureTime),
+          SpaceTime(toCoord, departureTime + duration),
           0
         )
+    }
+
+    def limitedWarn(stopIdx: Int): Unit = {
+      if (numStopsNotFound < 5) {
+        logger.warn("Stop {} not linked to street network.", stopIdx)
+        numStopsNotFound = numStopsNotFound + 1
+      } else if (numStopsNotFound == 5) {
+        logger.warn(
+          "Stop {} not linked to street network. Further warnings messages will be suppressed",
+          stopIdx
+        )
+        numStopsNotFound = numStopsNotFound + 1
+      }
     }
 
     def pathWithStreetRoute(fromStop: Int, toStop: Int, streetSeg: StreetPath) = {
