@@ -51,7 +51,7 @@ import scala.concurrent.Await
 
 trait BeamHelper extends LazyLogging {
 
-  val beamAsciiArt: String =
+  protected val beamAsciiArt: String =
     """
     |  ________
     |  ___  __ )__________ _______ ___
@@ -482,9 +482,6 @@ trait BeamHelper extends LazyLogging {
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
 
     ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
-
-    logger.info(beamAsciiArt)
-    logger.info(ConfigConsistencyComparator.logStringBuilder.toString())
 
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
