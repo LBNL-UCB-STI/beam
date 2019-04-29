@@ -116,6 +116,23 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         jdeqsimPopulation = PopulationUtils.createPopulation(agentSimScenario.getConfig());
     }
 
+    private void validateForInvalidNodeChains() {
+        List<Link> errorLinks = new ArrayList<>();
+        Map<Id<Link>, ? extends Link> links = agentSimScenario.getNetwork().getLinks();
+        agentSimScenario.getPopulation().getPersons().values().
+                forEach(f -> f.getSelectedPlan().getPlanElements().forEach(pe -> {
+                    if(pe instanceof Leg) {
+                        Leg leg = (Leg) pe;
+                        Link start = links.get(leg.getRoute().getStartLinkId());
+                        Link end = links.get(leg.getRoute().getEndLinkId());
+                        if(start.getToNode() != end.getFromNode()){
+                            errorLinks.add(start);
+                        }
+                    }
+                }));
+        log.info("Invalid links chain in network route : " + errorLinks.size());
+    }
+
 
     private void setupActorsAndRunPhysSim(int iterationNumber) {
         MutableScenario jdeqSimScenario = (MutableScenario) ScenarioUtils.createScenario(agentSimScenario.getConfig());
@@ -392,6 +409,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         long start = System.currentTimeMillis();
         setupActorsAndRunPhysSim(iterationEndsEvent.getIteration());
+        validateForInvalidNodeChains();
         log.info("PhysSim for iteration {} took {} ms", iterationEndsEvent.getIteration(), System.currentTimeMillis() - start);
         preparePhysSimForNewIteration();
     }
