@@ -462,6 +462,13 @@ trait BeamHelper extends LazyLogging {
 
   def setupBeamWithConfig(config: TypesafeConfig): (MutableScenario, String, NetworkCoordinator) = {
     val beamConfig = BeamConfig(config)
+    val outputDirectory = FileUtils.getConfigOutputFile(
+      beamConfig.beam.outputs.baseOutputDirectory,
+      beamConfig.beam.agentsim.simulationName,
+      beamConfig.beam.outputs.addTimestampToOutputDirectory
+    )
+    LoggingUtil.initLogger(outputDirectory, beamConfig.beam.logger.keepConsoleAppenderOn)
+
     level = beamConfig.beam.metrics.level
     runName = beamConfig.beam.agentsim.simulationName
     if (isMetricsEnable) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
@@ -476,15 +483,8 @@ trait BeamHelper extends LazyLogging {
 
     ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
 
-    val outputDirectory = FileUtils.getConfigOutputFile(
-      beamConfig.beam.outputs.baseOutputDirectory,
-      beamConfig.beam.agentsim.simulationName,
-      beamConfig.beam.outputs.addTimestampToOutputDirectory
-    )
-
-    val log = LoggingUtil.createFileLogger(outputDirectory, beamConfig.beam.logger.keepConsoleAppenderOn)
-    LoggingUtil.logToFile(beamAsciiArt)
-    LoggingUtil.logToFile(ConfigConsistencyComparator.logStringBuilder.toString())
+    logger.info(beamAsciiArt)
+    logger.info(ConfigConsistencyComparator.logStringBuilder.toString())
 
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
