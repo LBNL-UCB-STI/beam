@@ -1,0 +1,113 @@
+package beam.router
+
+import java.util.concurrent.TimeUnit
+
+import akka.actor.{ActorRef, ActorSystem, Identify, Props}
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
+import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.{ExceptionHandler, Route}
+import akka.pattern._
+import akka.stream.ActorMaterializer
+import akka.util.Timeout
+import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.events.SpaceTime
+import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, UpdateTravelTimeLocal}
+import beam.router.Modes.BeamMode.CAR
+import beam.router.r5.R5RoutingWorker
+import beam.sim.config.BeamConfig
+import beam.sim.{BeamHelper, BeamWarmStart}
+import com.typesafe.scalalogging.LazyLogging
+import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
+import io.circe.syntax._
+import org.matsim.api.core.v01.Id
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
+
+import scala.concurrent.Await
+import scala.concurrent.duration._
+
+class RoutingHandler(val workerRouter: ActorRef) extends FailFastCirceSupport {
+  implicit val timeout: Timeout = new Timeout(10, TimeUnit.SECONDS)
+  import beam.utils.json.AllNeededFormats._
+
+  val route: Route = {
+    path("find-route") {
+      post {
+        entity(as[RoutingRequest]) { request =>
+          complete(workerRouter.ask(request).mapTo[RoutingResponse])
+        }
+      }
+    }
+  }
+}
+
+object CustomExceptionHandling extends LazyLogging {
+
+  def handler: ExceptionHandler = ExceptionHandler {
+    case t: Throwable =>
+      extractClientIP { remoteAddress =>
+        extractRequest { request =>
+          val msg = s"Exception during processing $request from $remoteAddress: ${t.getMessage}"
+          logger.error(msg, t)
+          complete(HttpResponse(StatusCodes.InternalServerError, entity = msg))
+        }
+      }
+  }
+}
+
+object R5RoutingApp extends BeamHelper {
+  import beam.utils.json.AllNeededFormats._
+
+  implicit val actorSystem: ActorSystem = ActorSystem()
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val timeout: Timeout = new Timeout(600, TimeUnit.SECONDS)
+
+  def main(args: Array[String]): Unit = {
+    val (arg, cfg) = prepareConfig(args, isConfigArgRequired = true)
+    val workerRouter: ActorRef = actorSystem.actorOf(Props(classOf[R5RoutingWorker], cfg), name = "workerRouter")
+    val f = Await.result(workerRouter ? Identify(0), Duration.Inf)
+    logger.info("R5RoutingWorker is initialized!")
+
+    val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
+    val warmStart = BeamWarmStart(BeamConfig(cfg), maxHour)
+    logger.info(s"warmStart isEnabled?: ${warmStart.isWarmMode}")
+
+    warmStart.read.foreach { travelTime =>
+      workerRouter ! UpdateTravelTimeLocal(travelTime)
+      logger.info("Send `UpdateTravelTimeLocal`")
+    }
+
+    val interface = "0.0.0.0"
+    val port = 9000
+    val routingHandler = new RoutingHandler(workerRouter)
+    val boostedRoute = handleExceptions(CustomExceptionHandling.handler)(routingHandler.route)
+    Http().bindAndHandle(boostedRoute, interface, port)
+    logger.info(s"Http server is ready and bound to $interface:$port")
+  }
+
+  def printRoutingRequestJsonExample(): Unit = {
+    val geoUtils = new beam.sim.common.GeoUtils {
+      override def localCRS: String = "epsg:26910"
+    }
+    val startUTM = geoUtils.wgs2Utm(new Location(-122.4750527, 38.504534))
+    val endUTM = geoUtils.wgs2Utm(new Location(-122.0371486, 37.37157))
+    val departureTime = 20131
+    val bodyStreetVehicle = StreetVehicle(
+      Id.createVehicleId("1"),
+      BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+      new SpaceTime(startUTM, time = departureTime),
+      CAR,
+      asDriver = true
+    )
+    val routingRequest = RoutingRequest(
+      originUTM = startUTM,
+      destinationUTM = endUTM,
+      departureTime = departureTime,
+      transitModes = Vector.empty,
+      streetVehicles = Vector(bodyStreetVehicle)
+    )
+
+    println(routingRequest.asJson.toString())
+  }
+}
