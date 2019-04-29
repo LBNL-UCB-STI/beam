@@ -16,7 +16,7 @@ import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.StreetRouter
-import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
+import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork, TripPattern}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
@@ -50,104 +50,128 @@ class TransitInitializer(
     val start = System.currentTimeMillis()
     val activeServicesToday = transportNetwork.transitLayer.getActiveServicesForDate(services.dates.localBaseDate)
     val stopToStopStreetSegmentCache = mutable.Map[(Int, Int), Option[StreetPath]]()
-    val transitTrips = transportNetwork.transitLayer.tripPatterns.asScala.toStream
-    val transitData = transitTrips.flatMap { tripPattern =>
-      val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
-      val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
-      val transitPaths = tripPattern.stops.indices
-        .sliding(2)
-        .map {
-          case IndexedSeq(fromStopIdx, toStopIdx) =>
-            val fromStop = tripPattern.stops(fromStopIdx)
-            val toStop = tripPattern.stops(toStopIdx)
-            if (services.beamConfig.beam.routing.transitOnStreetNetwork && isOnStreetTransit(mode)) {
-              stopToStopStreetSegmentCache.getOrElseUpdate(
-                (fromStop, toStop),
-                routeTransitPathThroughStreets(fromStop, toStop)
-              ) match {
-                case Some(streetSeg) =>
-                  val edges = streetSeg.getEdges.asScala
-                  val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
-                  val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
-                  (departureTime: Int, _: Int, vehicleId: Id[Vehicle]) =>
-                    val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
-                      edges.map(_.toInt).toIndexedSeq,
-                      departureTime,
-                      travelTimeByLinkCalculator,
-                      StreetMode.CAR,
-                      transportNetwork.streetLayer
-                    )
-                    val distance = linksTimesAndDistances.distances.tail.sum
-                    BeamPath(
-                      edges.map(_.intValue()).toVector,
-                      TravelTimeUtils.scaleTravelTime(
-                        streetSeg.getDuration,
-                        linksTimesAndDistances.travelTimes.sum,
-                        linksTimesAndDistances.travelTimes
-                      ),
-                      Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
-                      SpaceTime(
-                        startEdge.getGeometry.getStartPoint.getX,
-                        startEdge.getGeometry.getStartPoint.getY,
-                        departureTime
-                      ),
-                      SpaceTime(
-                        endEdge.getGeometry.getEndPoint.getX,
-                        endEdge.getGeometry.getEndPoint.getY,
-                        departureTime + streetSeg.getDuration
-                      ),
-                      distance
-                    )
-                case None =>
-                  (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
-                    val fromVertex = transportNetwork.streetLayer.vertexStore
-                      .getCursor(transportNetwork.transitLayer.streetVertexForStop.get(fromStopIdx))
-                    val toVertex = transportNetwork.streetLayer.vertexStore
-                      .getCursor(transportNetwork.transitLayer.streetVertexForStop.get(toStopIdx))
-                    BeamPath(
-                      Vector(),
-                      Vector(),
-                      Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
-                      null,
-                      null,
-                      0
-                    )
-              }
-            } else { (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
-              val fromVertex = transportNetwork.streetLayer.vertexStore
-                .getCursor(transportNetwork.transitLayer.streetVertexForStop.get(fromStopIdx))
-              val toVertex = transportNetwork.streetLayer.vertexStore
-                .getCursor(transportNetwork.transitLayer.streetVertexForStop.get(toStopIdx))
-              BeamPath(
-                Vector(),
-                Vector(),
-                Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
-                null,
-                null,
-                0
-              )
-            }
-        }
-        .toSeq
-      tripPattern.tripSchedules.asScala
-        .filter(tripSchedule => activeServicesToday.get(tripSchedule.serviceCode))
-        .map { tripSchedule =>
-          // First create a unique for this trip which will become the transit agent and vehicle ids
-          val tripVehId = Id.create(tripSchedule.tripId, classOf[BeamVehicle])
-          val legs: ArrayBuffer[BeamLeg] = new ArrayBuffer()
-          tripSchedule.departures.zipWithIndex.sliding(2).foreach {
-            case Array((departureTimeFrom, from), (_, to)) =>
-              val duration = tripSchedule.arrivals(to) - departureTimeFrom
-              legs += BeamLeg(
-                departureTimeFrom,
-                mode,
-                duration,
-                transitPaths(from)(departureTimeFrom, duration, tripVehId)
-              ).scaleToNewDuration(duration)
-          }
-          (tripVehId, (route, legs))
-        }
+    val tripPatterns = transportNetwork.transitLayer.tripPatterns.asScala.toStream
+
+    def allStopsAreLinked(pattern: TripPattern) = {
+      !pattern.stops.map(stop => transportNetwork.transitLayer.streetVertexForStop.get(stop)).contains(-1)
     }
+
+    def pathWithStreetSegment(fromStop: Int, toStop: Int, streetSeg: StreetPath) = {
+      val edges = streetSeg.getEdges.asScala
+      val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
+      val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
+      (departureTime: Int, _: Int, vehicleId: Id[Vehicle]) =>
+        val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
+          edges.map(_.toInt).toIndexedSeq,
+          departureTime,
+          travelTimeByLinkCalculator,
+          StreetMode.CAR,
+          transportNetwork.streetLayer
+        )
+        val distance = linksTimesAndDistances.distances.tail.sum
+        BeamPath(
+          edges.map(_.intValue()).toVector,
+          TravelTimeUtils.scaleTravelTime(
+            streetSeg.getDuration,
+            linksTimesAndDistances.travelTimes.sum,
+            linksTimesAndDistances.travelTimes
+          ),
+          Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
+          SpaceTime(
+            startEdge.getGeometry.getStartPoint.getX,
+            startEdge.getGeometry.getStartPoint.getY,
+            departureTime
+          ),
+          SpaceTime(
+            endEdge.getGeometry.getEndPoint.getX,
+            endEdge.getGeometry.getEndPoint.getY,
+            departureTime + streetSeg.getDuration
+          ),
+          distance
+        )
+    }
+
+    def pathWithoutStreetSegment(fromStop: Int, toStop: Int) = {
+      (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
+        val from = transportNetwork.transitLayer.streetVertexForStop.get(fromStop)
+        val to = transportNetwork.transitLayer.streetVertexForStop.get(toStop)
+        assert(from != -1, "Transit routes with unlinked stops are unsupported.")
+        assert(to != -1, "Transit routes with unlinked stops are unsupported.")
+        val fromVertex = transportNetwork.streetLayer.vertexStore.getCursor(from)
+        val toVertex = transportNetwork.streetLayer.vertexStore.getCursor(to)
+        BeamPath(
+          Vector(),
+          Vector(),
+          Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
+          SpaceTime(
+            fromVertex.getLon,
+            fromVertex.getLat,
+            departureTime
+          ),
+          SpaceTime(
+            toVertex.getLon,
+            toVertex.getLat,
+            departureTime + duration
+          ),
+          services.geo.distLatLon2Meters(
+            new Coord(
+              fromVertex.getLon,
+              fromVertex.getLat,
+            ),
+            new Coord(
+              toVertex.getLon,
+              toVertex.getLat,
+            )
+          )
+        )
+    }
+
+    val transitData = tripPatterns
+      .filter(tripPattern => allStopsAreLinked(tripPattern))
+      .flatMap { tripPattern =>
+        val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
+        val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
+        val transitPaths = tripPattern.stops.indices
+          .sliding(2)
+          .map {
+            case IndexedSeq(fromStopIdx, toStopIdx) =>
+              val fromStop = tripPattern.stops(fromStopIdx)
+              val toStop = tripPattern.stops(toStopIdx)
+              if (services.beamConfig.beam.routing.transitOnStreetNetwork && isOnStreetTransit(mode)) {
+                stopToStopStreetSegmentCache.getOrElseUpdate(
+                  (fromStop, toStop),
+                  routeTransitPathThroughStreets(fromStop, toStop)
+                ) match {
+                  case Some(streetSeg) =>
+                    pathWithStreetSegment(fromStop, toStop, streetSeg)
+                  case None =>
+                    pathWithoutStreetSegment(fromStop, toStop)
+                }
+              } else {
+                pathWithoutStreetSegment(fromStop, toStop)
+              }
+          }
+          .toSeq
+        tripPattern.tripSchedules.asScala
+          .filter(tripSchedule => activeServicesToday.get(tripSchedule.serviceCode))
+          .map { tripSchedule =>
+            // First create a unique for this trip which will become the transit agent and vehicle ids
+            val tripVehId = Id.create(tripSchedule.tripId, classOf[BeamVehicle])
+            val legs: ArrayBuffer[BeamLeg] = new ArrayBuffer()
+            tripSchedule.departures.zipWithIndex.sliding(2).foreach {
+              case Array((departureTimeFrom, from), (_, to)) =>
+                val duration = tripSchedule.arrivals(to) - departureTimeFrom
+                legs += BeamLeg(
+                  departureTimeFrom,
+                  mode,
+                  duration,
+                  transitPaths(from)(departureTimeFrom, duration, tripVehId)
+                ).scaleToNewDuration(duration)
+            }
+            (tripVehId, (route, legs))
+          }
+      }
+
     val transitScheduleToCreate = transitData.toMap
     transitScheduleToCreate.foreach {
       case (tripVehId, (route, legs)) =>
@@ -231,17 +255,16 @@ class TransitInitializer(
     }
   }
 
-  private def routeTransitPathThroughStreets(
-    fromStopIdx: Int,
-    toStopIdx: Int
-  ): Option[StreetPath] = {
+  private def routeTransitPathThroughStreets(fromStop: Int, toStop: Int): Option[StreetPath] = {
     val profileRequest = new ProfileRequest()
     //Set timezone to timezone of transport network
     profileRequest.zoneId = transportNetwork.getTimeZone
-    val fromVertex = transportNetwork.streetLayer.vertexStore
-      .getCursor(transportNetwork.transitLayer.streetVertexForStop.get(fromStopIdx))
-    val toVertex = transportNetwork.streetLayer.vertexStore
-      .getCursor(transportNetwork.transitLayer.streetVertexForStop.get(toStopIdx))
+    val from = transportNetwork.transitLayer.streetVertexForStop.get(fromStop)
+    val to = transportNetwork.transitLayer.streetVertexForStop.get(toStop)
+    assert(from != -1, "Transit routes with unlinked stops are unsupported.")
+    assert(to != -1, "Transit routes with unlinked stops are unsupported.")
+    val fromVertex = transportNetwork.streetLayer.vertexStore.getCursor(from)
+    val toVertex = transportNetwork.streetLayer.vertexStore.getCursor(to)
     profileRequest.fromLon = fromVertex.getLon
     profileRequest.fromLat = fromVertex.getLat
     profileRequest.toLon = toVertex.getLon
