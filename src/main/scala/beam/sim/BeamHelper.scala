@@ -647,7 +647,7 @@ trait BeamHelper extends LazyLogging {
         scenarioFolder = beamConfig.beam.exchange.scenario.folder,
         rdr = beam.utils.scenario.matsim.CsvScenarioReader
       )
-    } else throw new NotImplementedError(s"ScenarioSource '${src}' is not yet implemented")
+    } else throw new NotImplementedError(s"ScenarioSource '$src' is not yet implemented")
   }
 }
 
