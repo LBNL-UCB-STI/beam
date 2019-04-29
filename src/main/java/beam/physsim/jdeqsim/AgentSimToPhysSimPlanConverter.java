@@ -257,11 +257,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         BufferedWriter writerObservedVsSimulated = IOUtils.getBufferedWriter(pathToCsv);
 
-        writerObservedVsSimulated.write("euclidean,length\n");
+        writerObservedVsSimulated.write("linkid,euclidean,length\n");
 
         for (Link link : jdeqSimScenario.getNetwork().getLinks().values()) {
             writerObservedVsSimulated.write(
-                    String.format("%f,%f\n",
+                    String.format("%s,%f,%f\n",
+                            link.getId().toString(),
                             CoordUtils.calcEuclideanDistance(
                                     link.getFromNode().getCoord(),
                                     link.getToNode().getCoord()
