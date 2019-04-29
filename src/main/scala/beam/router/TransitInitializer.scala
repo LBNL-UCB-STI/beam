@@ -51,6 +51,54 @@ class TransitInitializer(
     val activeServicesToday = transportNetwork.transitLayer.getActiveServicesForDate(services.dates.localBaseDate)
     val stopToStopStreetSegmentCache = mutable.Map[(Int, Int), Option[StreetPath]]()
     val transitTrips = transportNetwork.transitLayer.tripPatterns.asScala.toStream
+
+    def pathWithoutStreetRoute(fromStop: Int, toStop: Int) = {
+      (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
+        BeamPath(
+          Vector(),
+          Vector(),
+          Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
+          null,
+          null,
+          0
+        )
+    }
+
+    def pathWithStreetRoute(fromStop: Int, toStop: Int, streetSeg: StreetPath) = {
+      val edges = streetSeg.getEdges.asScala
+      val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
+      val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
+      (departureTime: Int, _: Int, vehicleId: Id[Vehicle]) =>
+        val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
+          edges.map(_.toInt).toIndexedSeq,
+          departureTime,
+          travelTimeByLinkCalculator,
+          StreetMode.CAR,
+          transportNetwork.streetLayer
+        )
+        val distance = linksTimesAndDistances.distances.tail.sum
+        BeamPath(
+          edges.map(_.intValue()).toVector,
+          TravelTimeUtils.scaleTravelTime(
+            streetSeg.getDuration,
+            linksTimesAndDistances.travelTimes.sum,
+            linksTimesAndDistances.travelTimes
+          ),
+          Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
+          SpaceTime(
+            startEdge.getGeometry.getStartPoint.getX,
+            startEdge.getGeometry.getStartPoint.getY,
+            departureTime
+          ),
+          SpaceTime(
+            endEdge.getGeometry.getEndPoint.getX,
+            endEdge.getGeometry.getEndPoint.getY,
+            departureTime + streetSeg.getDuration
+          ),
+          distance
+        )
+    }
+
     val transitData = transitTrips.flatMap { tripPattern =>
       val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
@@ -66,66 +114,12 @@ class TransitInitializer(
                 routeTransitPathThroughStreets(fromStop, toStop)
               ) match {
                 case Some(streetSeg) =>
-                  val edges = streetSeg.getEdges.asScala
-                  val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
-                  val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
-                  (departureTime: Int, _: Int, vehicleId: Id[Vehicle]) =>
-                    val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
-                      edges.map(_.toInt).toIndexedSeq,
-                      departureTime,
-                      travelTimeByLinkCalculator,
-                      StreetMode.CAR,
-                      transportNetwork.streetLayer
-                    )
-                    val distance = linksTimesAndDistances.distances.tail.sum
-                    BeamPath(
-                      edges.map(_.intValue()).toVector,
-                      TravelTimeUtils.scaleTravelTime(
-                        streetSeg.getDuration,
-                        linksTimesAndDistances.travelTimes.sum,
-                        linksTimesAndDistances.travelTimes
-                      ),
-                      Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
-                      SpaceTime(
-                        startEdge.getGeometry.getStartPoint.getX,
-                        startEdge.getGeometry.getStartPoint.getY,
-                        departureTime
-                      ),
-                      SpaceTime(
-                        endEdge.getGeometry.getEndPoint.getX,
-                        endEdge.getGeometry.getEndPoint.getY,
-                        departureTime + streetSeg.getDuration
-                      ),
-                      distance
-                    )
+                  pathWithStreetRoute(fromStop, toStop, streetSeg)
                 case None =>
-                  (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
-                    val fromVertex = transportNetwork.streetLayer.vertexStore
-                      .getCursor(transportNetwork.transitLayer.streetVertexForStop.get(fromStopIdx))
-                    val toVertex = transportNetwork.streetLayer.vertexStore
-                      .getCursor(transportNetwork.transitLayer.streetVertexForStop.get(toStopIdx))
-                    BeamPath(
-                      Vector(),
-                      Vector(),
-                      Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
-                      null,
-                      null,
-                      0
-                    )
+                  pathWithoutStreetRoute(fromStop, toStop)
               }
-            } else { (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
-              val fromVertex = transportNetwork.streetLayer.vertexStore
-                .getCursor(transportNetwork.transitLayer.streetVertexForStop.get(fromStopIdx))
-              val toVertex = transportNetwork.streetLayer.vertexStore
-                .getCursor(transportNetwork.transitLayer.streetVertexForStop.get(toStopIdx))
-              BeamPath(
-                Vector(),
-                Vector(),
-                Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
-                null,
-                null,
-                0
-              )
+            } else {
+              pathWithoutStreetRoute(fromStop, toStop)
             }
         }
         .toSeq
