@@ -262,7 +262,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             })
         })
       // Sometimes car routes fail, but should be very rare
-      assert(numFailedCarRoutes < 5)
+      assert(numFailedCarRoutes < 7)
     }
   }
 

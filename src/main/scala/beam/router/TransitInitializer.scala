@@ -108,26 +108,9 @@ class TransitInitializer(
                       Vector(),
                       Vector(),
                       Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
-                      SpaceTime(
-                        fromVertex.getLon,
-                        fromVertex.getLat,
-                        departureTime
-                      ),
-                      SpaceTime(
-                        toVertex.getLon,
-                        toVertex.getLat,
-                        departureTime + duration
-                      ),
-                      services.geo.distLatLon2Meters(
-                        new Coord(
-                          fromVertex.getLon,
-                          fromVertex.getLat,
-                        ),
-                        new Coord(
-                          toVertex.getLon,
-                          toVertex.getLat,
-                        )
-                      )
+                      null,
+                      null,
+                      0
                     )
               }
             } else { (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
@@ -139,26 +122,9 @@ class TransitInitializer(
                 Vector(),
                 Vector(),
                 Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
-                SpaceTime(
-                  fromVertex.getLon,
-                  fromVertex.getLat,
-                  departureTime
-                ),
-                SpaceTime(
-                  toVertex.getLon,
-                  toVertex.getLat,
-                  departureTime + duration
-                ),
-                services.geo.distLatLon2Meters(
-                  new Coord(
-                    fromVertex.getLon,
-                    fromVertex.getLat,
-                  ),
-                  new Coord(
-                    toVertex.getLon,
-                    toVertex.getLat,
-                  )
-                )
+                null,
+                null,
+                0
               )
             }
         }
