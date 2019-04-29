@@ -38,6 +38,7 @@ import org.matsim.core.mobsim.jdeqsim.Message;
 import org.matsim.core.mobsim.jdeqsim.Road;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.population.PopulationUtils;
+import org.matsim.core.population.routes.NetworkRoute;
 import org.matsim.core.population.routes.RouteUtils;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.scenario.MutableScenario;
@@ -120,13 +121,23 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         List<Link> errorLinks = new ArrayList<>();
         Map<Id<Link>, ? extends Link> links = agentSimScenario.getNetwork().getLinks();
         agentSimScenario.getPopulation().getPersons().values().
+                // for each selected plan
                 forEach(f -> f.getSelectedPlan().getPlanElements().forEach(pe -> {
+                    //for each leg
                     if(pe instanceof Leg) {
                         Leg leg = (Leg) pe;
-                        Link start = links.get(leg.getRoute().getStartLinkId());
-                        Link end = links.get(leg.getRoute().getEndLinkId());
-                        if(start.getToNode() != end.getFromNode()){
-                            errorLinks.add(start);
+                        NetworkRoute networkRoute = (NetworkRoute) leg.getRoute();
+                        List<Id<Link>> inBetweenLinks = networkRoute.getLinkIds();
+                        ArrayList<Link> routeLinks = new ArrayList<>();
+                        //collect all the start + in between + end links that build the route
+                        routeLinks.add(links.get(leg.getRoute().getStartLinkId()));
+                        inBetweenLinks.forEach(id -> routeLinks.add(links.get(id)));
+                        routeLinks.add(links.get(leg.getRoute().getEndLinkId()));
+                        // check if there are any break in the links in the route
+                        for(int i = 0; i < routeLinks.size()-1;i++){
+                            if(routeLinks.get(i).getToNode() != routeLinks.get(i+1).getFromNode()){
+                                errorLinks.add(routeLinks.get(i));
+                            }
                         }
                     }
                 }));
