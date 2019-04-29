@@ -51,7 +51,7 @@ import scala.concurrent.Await
 
 trait BeamHelper extends LazyLogging {
 
-  val beamAsciiArt: String =
+  protected val beamAsciiArt: String =
     """
     |  ________
     |  ___  __ )__________ _______ ___
@@ -483,9 +483,6 @@ trait BeamHelper extends LazyLogging {
 
     ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
 
-    logger.info(beamAsciiArt)
-    logger.info(ConfigConsistencyComparator.logStringBuilder.toString())
-
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
 
@@ -620,7 +617,7 @@ trait BeamHelper extends LazyLogging {
         vehicleId => beamServices.privateVehicles.get(vehicleId).map(_.beamVehicleType.id.toString).getOrElse("")
       )
       .map {
-        case (vehicleType, vehicleIds) => s"$vehicleType (${vehicleIds.size})"
+        case (vehicleType, ids) => s"$vehicleType (${ids.size})"
       }
       .mkString(" , ")
   }
@@ -650,7 +647,7 @@ trait BeamHelper extends LazyLogging {
         scenarioFolder = beamConfig.beam.exchange.scenario.folder,
         rdr = beam.utils.scenario.matsim.CsvScenarioReader
       )
-    } else throw new NotImplementedError(s"ScenarioSource '${src}' is not yet implemented")
+    } else throw new NotImplementedError(s"ScenarioSource '$src' is not yet implemented")
   }
 }
 
