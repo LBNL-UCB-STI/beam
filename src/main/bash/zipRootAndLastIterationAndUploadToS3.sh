@@ -8,7 +8,7 @@ fi
 filename="$1"
 zipfile="$filename-it.$2"
 
-zip -r "$zipfile.zip" $filename -x "$filename/ITERS/**\*"
+zip -r "$zipfile.zip" $filename -x "$filename/ITERS/*"
 zip -ur "$zipfile.zip" $filename/ITERS/it.$2
 
 aws --region "us-east-2" s3 cp "$zipfile.zip" s3://beam-outputs/
