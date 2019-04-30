@@ -434,7 +434,7 @@ trait BeamHelper extends LazyLogging {
     val result = injector.getInstance(classOf[BeamServices])
     result.setTransitFleetSizes(networkCoordinator.tripFleetSizeMap)
 
-    fillScenarioFromExternalSources2(injector, matsimConfig, networkCoordinator, result)
+    fillScenarioFromExternalSources(injector, matsimConfig, networkCoordinator, result)
 
     result
   }
@@ -478,7 +478,7 @@ trait BeamHelper extends LazyLogging {
     run(beamServices)
   }
 
-  private def fillScenarioFromExternalSources2(
+  private def fillScenarioFromExternalSources(
     injector: inject.Injector,
     matsimConfig: Config,
     networkCoordinator: NetworkCoordinator,
@@ -516,9 +516,6 @@ trait BeamHelper extends LazyLogging {
     if (isMetricsEnable) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
 
     ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
-
-//    matsimConfig.controler.setOutputDirectory(outputDirectory)
-//    matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
 
     logger.info("Starting beam on branch {} at commit {}.", BashUtils.getBranch, BashUtils.getCommitHash)
 
