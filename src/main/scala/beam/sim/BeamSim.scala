@@ -128,6 +128,8 @@ class BeamSim @Inject()(
       iterationStatsProviders += agentSimToPhysSimPlanConverter
     }
 
+    agentSimToPhysSimPlanConverter.checkForLinksWithSameFromAndToNode()
+
     createGraphsFromEvents = new GraphsStatsAgentSimEventsListener(
       eventsManager,
       event.getServices.getControlerIO,

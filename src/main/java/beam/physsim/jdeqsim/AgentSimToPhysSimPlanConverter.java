@@ -118,9 +118,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     }
 
     /**
-     * Logs all the broken links (if any) observed with a path inside a network route.
+     *
+     * Reports routes, which are not following road network
      */
-    private void checkForBrokenLinksInsideNetwork(MutableScenario jdeqSimScenario) {
+    private void checkForBrokenNetworkRoutes(MutableScenario jdeqSimScenario) {
         List<String> brokenLinks = new ArrayList<>();
         Map<Id<Link>, ? extends Link> links = jdeqSimScenario.getNetwork().getLinks();
         jdeqSimScenario.getPopulation().getPersons().values().
@@ -145,16 +146,17 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                     }
                 }));
         if(!brokenLinks.isEmpty()) {
+            log.info("Number of broken routes observed in network route : " + brokenLinks.size());
             StringBuilder brokenPaths = new StringBuilder();
             brokenLinks.forEach(l -> brokenPaths.append(l).append(","));
-            log.info("Broken link paths observed in network route : " + brokenPaths.toString());
+            log.debug("Broken routes observed in network route : " + brokenPaths.toString());
         }
     }
 
     /**
-     * Logs all the erroneous links that have same from and to nodes.
+     * Reports all links that have same from and to nodes.
      */
-    private void checkForErroneousLinkNodes() {
+    public void checkForLinksWithSameFromAndToNode() {
         List<String> errorLinks = new ArrayList<>();
         Collection<? extends Link> links = agentSimScenario.getNetwork().getLinks().values();
         for (Link link : links) {
@@ -163,9 +165,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             }
         }
         if(!errorLinks.isEmpty()) {
+            log.info("Number of links that have same from and to nodes: " + errorLinks.toString());
             StringBuilder errorLinkIds = new StringBuilder();
             errorLinks.forEach(id -> errorLinkIds.append(id).append(","));
-            log.info("Links that have same from and to nodes: " + errorLinkIds.toString());
+            log.debug("Links that have same from and to nodes: " + errorLinkIds.toString());
         }
     }
 
@@ -196,8 +199,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         log.info("JDEQSim Start");
 
-        checkForBrokenLinksInsideNetwork(jdeqSimScenario);
-        checkForErroneousLinkNodes();
+        checkForBrokenNetworkRoutes(jdeqSimScenario);
 
         startSegment("jdeqsim-execution", "jdeqsim");
         if (beamConfig.beam().debug().debugEnabled()) {
