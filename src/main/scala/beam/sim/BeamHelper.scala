@@ -51,7 +51,7 @@ import scala.concurrent.Await
 
 trait BeamHelper extends LazyLogging {
 
-  val beamAsciiArt: String =
+  protected val beamAsciiArt: String =
     """
     |  ________
     |  ___  __ )__________ _______ ___
@@ -461,6 +461,13 @@ trait BeamHelper extends LazyLogging {
 
   def setupBeamWithConfig(config: TypesafeConfig): (MutableScenario, String, NetworkCoordinator) = {
     val beamConfig = BeamConfig(config)
+    val outputDirectory = FileUtils.getConfigOutputFile(
+      beamConfig.beam.outputs.baseOutputDirectory,
+      beamConfig.beam.agentsim.simulationName,
+      beamConfig.beam.outputs.addTimestampToOutputDirectory
+    )
+    LoggingUtil.initLogger(outputDirectory, beamConfig.beam.logger.keepConsoleAppenderOn)
+
     level = beamConfig.beam.metrics.level
     runName = beamConfig.beam.agentsim.simulationName
     if (isMetricsEnable) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
@@ -474,16 +481,6 @@ trait BeamHelper extends LazyLogging {
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
 
     ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
-
-    val outputDirectory = FileUtils.getConfigOutputFile(
-      beamConfig.beam.outputs.baseOutputDirectory,
-      beamConfig.beam.agentsim.simulationName,
-      beamConfig.beam.outputs.addTimestampToOutputDirectory
-    )
-
-    val log = LoggingUtil.createFileLogger(outputDirectory, beamConfig.beam.logger.keepConsoleAppenderOn)
-    LoggingUtil.logToFile(beamAsciiArt)
-    LoggingUtil.logToFile(ConfigConsistencyComparator.logStringBuilder.toString())
 
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
@@ -620,7 +617,7 @@ trait BeamHelper extends LazyLogging {
         vehicleId => beamServices.privateVehicles.get(vehicleId).map(_.beamVehicleType.id.toString).getOrElse("")
       )
       .map {
-        case (vehicleType, vehicleIds) => s"$vehicleType (${vehicleIds.size})"
+        case (vehicleType, ids) => s"$vehicleType (${ids.size})"
       }
       .mkString(" , ")
   }
@@ -650,7 +647,7 @@ trait BeamHelper extends LazyLogging {
         scenarioFolder = beamConfig.beam.exchange.scenario.folder,
         rdr = beam.utils.scenario.matsim.CsvScenarioReader
       )
-    } else throw new NotImplementedError(s"ScenarioSource '${src}' is not yet implemented")
+    } else throw new NotImplementedError(s"ScenarioSource '$src' is not yet implemented")
   }
 }
 

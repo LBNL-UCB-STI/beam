@@ -51,6 +51,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 import beam.utils.logging.ExponentialLazyLogging
+import org.matsim.api.core.v01.population.{Activity, Plan}
 
 class BeamSim @Inject()(
   private val actorSystem: ActorSystem,
@@ -238,6 +239,19 @@ class BeamSim @Inject()(
       event.getIteration,
       persons.map(_.getPlans.size()).sum.toFloat / persons.size
     )
+
+    val activityEndTimesNonNegativeCheck: Iterable[Plan] = persons.toList.flatMap(_.getPlans.asScala.toList) filter {
+      plan =>
+        val activities = plan.getPlanElements.asScala.filter(_.isInstanceOf[Activity])
+        activities.dropRight(1).exists(_.asInstanceOf[Activity].getEndTime < 0)
+    }
+
+    if (activityEndTimesNonNegativeCheck.isEmpty) {
+      logger.info("All person activities (except the last one) have non-negative end times.")
+    } else {
+      logger.warn(s"Non-negative end times found for person activities - ${activityEndTimesNonNegativeCheck.size}")
+    }
+
     //    Tracer.currentContext.finish()
     metricsPrinter ! Print(
       Seq(

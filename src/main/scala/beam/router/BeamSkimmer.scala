@@ -56,12 +56,14 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   private def initialPreviousSkims(): TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = {
     if (beamConfig.beam.warmStart.enabled) {
       try {
-        skimsFilePath
+        val previousSkims = skimsFilePath
           .map(BeamSkimmer.readCsvFile)
           .getOrElse(TrieMap.empty)
+        logger.info(s"Previous skims successfully loaded from path '${skimsFilePath.getOrElse("NO PATH FOUND")}'")
+        previousSkims
       } catch {
         case NonFatal(ex) =>
-          logger.error(s"Could not load previous skim from '${skimsFilePath}': ${ex.getMessage}", ex)
+          logger.error(s"Could not load previous skim from '$skimsFilePath': ${ex.getMessage}", ex)
           TrieMap.empty
       }
     } else {
