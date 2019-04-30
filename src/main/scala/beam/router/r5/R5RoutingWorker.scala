@@ -1263,14 +1263,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         val leg = legWithFare.leg
         val fare = legWithFare.fare
         val travelPath = leg.travelPath
-//        val TimeAndCost(timeOpt, costOpt) = travelTimeAndCost.overrideTravelTimeAndCostFor(
-//          travelPath.startPoint.loc,
-//          travelPath.endPoint.loc,
-//          leg.startTime,
-//          leg.mode
-//        )
-        val TimeAndCost(timeOpt, costOpt) = TimeAndCost(None, None)
-
+        val TimeAndCost(timeOpt, costOpt) = travelTimeAndCost.overrideTravelTimeAndCostFor(
+          travelPath.startPoint.loc,
+          travelPath.endPoint.loc,
+          leg.startTime,
+          leg.mode
+        )
         val updatedTravelPath = if (timeOpt.isDefined) {
           val newTravelTime = timeOpt.get
           val newLinkTravelTimes =
