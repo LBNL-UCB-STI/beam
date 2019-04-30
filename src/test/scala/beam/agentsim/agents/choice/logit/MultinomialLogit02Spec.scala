@@ -1,6 +1,5 @@
 package beam.agentsim.agents.choice.logit
 
-
 import scala.util.Random
 import org.scalatest.{Matchers, WordSpecLike}
 
@@ -40,7 +39,7 @@ class MultinomialLogit02Spec extends WordSpecLike with Matchers {
 
     val mnl = new MultinomialLogit(utilityFunctions, common)
 
-    val rand = new Random()
+    val rand = new Random(1) // todo
 
     val alts = Map(
       "car"  -> Map("cost" -> 30.0, "time" -> 50.0),
@@ -64,14 +63,25 @@ class MultinomialLogit02Spec extends WordSpecLike with Matchers {
       val util = mnl.getExpectedMaximumUtility(alts)
       Math.abs(util.get - 3.401413) < 0.00001 should be(true)
     }
-//    "should sample higher probability alternatives more often" in {
-//      // With these inputs, we expect "walk" ~81% of the time, which translates to an almost certainty that majority
-//      // will be walk with 100 trials (p-val 3.00491e-12)
+
+    "should sample higher probability alternatives more often" in {
+      // With these inputs, we expect "walk" ~81% of the time, which translates to an almost certainty that majority
+      // will be walk with 100 trials (p-val 3.00491e-12)
+
+      val samps = for (i <- 1 until 100) yield mnl.sampleAlternative(alts, rand).getOrElse(None)
+
+      println(samps) // todo go on here and check sampleAlternative method as there might still be an issue with it
+
 //
-//      val samps = for (i <- 1 until 100) yield mnl.sampleAlternative(alts, rand).get
+//      val samps = for {
+//        _    <- 1 until 100
+//        prob <- mnl.sampleAlternative(alts, rand)
+//      } yield prob
 //
-//      samps.count(_.alternativeId.equals("walk")) > 50 should be(true)
-//    }
+//      samps.size > 50 should be(true)
+
+//      samps.count(_.alternativeType.equals("walk")) > 50 should be(true)
+    }
 //  }
 //
 //  "An MNL Model with arbitrary data" must {
