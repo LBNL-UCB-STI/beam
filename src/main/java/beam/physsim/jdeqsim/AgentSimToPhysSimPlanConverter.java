@@ -117,14 +117,17 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         jdeqsimPopulation = PopulationUtils.createPopulation(agentSimScenario.getConfig());
     }
 
-    private void validateForInvalidNodeChains() {
-        List<Link> errorLinks = new ArrayList<>();
-        Map<Id<Link>, ? extends Link> links = agentSimScenario.getNetwork().getLinks();
-        agentSimScenario.getPopulation().getPersons().values().
+    /**
+     * Logs all the broken links (if any) observed with a path inside a network route.
+     */
+    private void checkForBrokenLinksInsideNetwork(MutableScenario jdeqSimScenario) {
+        List<String> brokenLinks = new ArrayList<>();
+        Map<Id<Link>, ? extends Link> links = jdeqSimScenario.getNetwork().getLinks();
+        jdeqSimScenario.getPopulation().getPersons().values().
                 // for each selected plan
                 forEach(f -> f.getSelectedPlan().getPlanElements().forEach(pe -> {
                     //for each leg
-                    if(pe instanceof Leg) {
+                    if(pe instanceof Leg && ((Leg) pe).getRoute() != null) {
                         Leg leg = (Leg) pe;
                         NetworkRoute networkRoute = (NetworkRoute) leg.getRoute();
                         List<Id<Link>> inBetweenLinks = networkRoute.getLinkIds();
@@ -136,12 +139,34 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                         // check if there are any break in the links in the route
                         for(int i = 0; i < routeLinks.size()-1;i++){
                             if(routeLinks.get(i).getToNode() != routeLinks.get(i+1).getFromNode()){
-                                errorLinks.add(routeLinks.get(i));
+                                brokenLinks.add(routeLinks.get(i).getId().toString() + "->" + routeLinks.get(i+1).getId().toString());
                             }
                         }
                     }
                 }));
-        log.info("Invalid links chain in network route : " + errorLinks.size());
+        if(!brokenLinks.isEmpty()) {
+            StringBuilder brokenPaths = new StringBuilder();
+            brokenLinks.forEach(l -> brokenPaths.append(l).append(","));
+            log.info("Broken link paths observed in network route : " + brokenPaths.toString());
+        }
+    }
+
+    /**
+     * Logs all the erroneous links that have same from and to nodes.
+     */
+    private void checkForErroneousLinkNodes() {
+        List<String> errorLinks = new ArrayList<>();
+        Collection<? extends Link> links = agentSimScenario.getNetwork().getLinks().values();
+        for (Link link : links) {
+            if(link.getFromNode() == link.getToNode()){
+                errorLinks.add(link.getId().toString());
+            }
+        }
+        if(!errorLinks.isEmpty()) {
+            StringBuilder errorLinkIds = new StringBuilder();
+            errorLinks.forEach(id -> errorLinkIds.append(id).append(","));
+            log.info("Links that have same from and to nodes: " + errorLinkIds.toString());
+        }
     }
 
 
@@ -170,6 +195,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         linkStatsGraph.notifyIterationStarts(jdeqsimEvents, agentSimScenario.getConfig().travelTimeCalculator());
 
         log.info("JDEQSim Start");
+
+        checkForBrokenLinksInsideNetwork(jdeqSimScenario);
+        checkForErroneousLinkNodes();
+
         startSegment("jdeqsim-execution", "jdeqsim");
         if (beamConfig.beam().debug().debugEnabled()) {
             log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use Before JDEQSim (after GC): "));
@@ -250,7 +279,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 log.error("Error while generating link stats.", e);
             }
         }
-
     }
 
     public org.matsim.core.mobsim.jdeqsim.JDEQSimulation getJDEQSimulation(MutableScenario jdeqSimScenario, BeamConfig beamConfig, EventsManager jdeqsimEvents, int iterationNumber, OutputDirectoryHierarchy controlerIO) {
@@ -420,7 +448,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         long start = System.currentTimeMillis();
         setupActorsAndRunPhysSim(iterationEndsEvent.getIteration());
-        validateForInvalidNodeChains();
         log.info("PhysSim for iteration {} took {} ms", iterationEndsEvent.getIteration(), System.currentTimeMillis() - start);
         preparePhysSimForNewIteration();
     }
