@@ -29,18 +29,16 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     .withValue("beam.routing.transitOnStreetNetwork", ConfigValueFactory.fromAnyRef("true"))
     .resolve()
 
-  private var matsimConfig: org.matsim.core.config.Config = _
   private var scenario: MutableScenario = _
-  private var networkCoordinator: NetworkCoordinator = _
   private var personHouseholds: Map[Id[Person], Household] = _
 
   override protected def beforeAll(): Unit = {
-    val stuff = setupBeamWithConfig(config)
-    matsimConfig = stuff._2
-    networkCoordinator = stuff._4
-    scenario = buildScenarioFromMatsimConfig(matsimConfig, networkCoordinator)
+    val beamExecConfig = setupBeamWithConfig(config)
+
+    val networkCoordinator = buildNetworkCoordinator(beamExecConfig.beamConfig)
+    scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, networkCoordinator)
     val injector = buildInjector(config, scenario, networkCoordinator)
-    val services = buildBeamServices(injector, scenario, matsimConfig, networkCoordinator)
+    val services = buildBeamServices(injector, scenario, beamExecConfig.matsimConfig, networkCoordinator)
     runBeam(services, scenario, networkCoordinator, scenario.getConfig.controler().getOutputDirectory)
     personHouseholds = scenario.getHouseholds.getHouseholds
       .values()
