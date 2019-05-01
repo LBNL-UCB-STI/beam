@@ -383,6 +383,11 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     profileRequest.fromLat = request.from.getY
     profileRequest.toLon = request.to.getX
     profileRequest.toLat = request.to.getY
+    // Warning: carSpeed is not used for link traversal (rather, the OSM travel time model is used),
+    // but for R5-internal bushwhacking from network to coordinate, AND ALSO for the A* remaining weight heuristic,
+    // which means that this value must be an over(!)estimation, otherwise we will miss optimal routes,
+    // particularly in the presence of tolls.
+    profileRequest.carSpeed = 36.11f // 130 km/h, WARNING, see ^^ before changing
     profileRequest.maxWalkTime = 3 * 60
     profileRequest.maxCarTime = 4 * 60
     profileRequest.maxBikeTime = 4 * 60
