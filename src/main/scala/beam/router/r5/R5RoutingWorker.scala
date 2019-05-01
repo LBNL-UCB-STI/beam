@@ -100,7 +100,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val transportNetwork = networkCoordinator.transportNetwork
 
       val netHelper: NetworkHelper = new NetworkHelperImpl(network)
-      val vehicleCsvReader: VehicleCsvReader = new VehicleCsvReader(beamConfig)
 
       val beamServices: BeamServices = new BeamServices {
         override lazy val injector: Injector = ???
@@ -333,17 +332,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         vehicleTypeId: Id[BeamVehicleType],
         embodyRequestId: Int
         ) =>
-      val travelTime = (time: Int, linkId: Int) =>
-        maybeTravelTime match {
-          case Some(matsimTravelTime) =>
-            getTravelTime(time, linkId, matsimTravelTime).toInt
-          case None =>
-            val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-            (edge.getLengthM / edge.calculateSpeed(
-              new ProfileRequest,
-              StreetMode.valueOf(leg.mode.r5Mode.get.left.get.toString)
-            )).toInt
-      }
       val updatedLeg = updateLegWithCurrentTravelTime(leg)
       sender ! RoutingResponse(
         Vector(
@@ -383,23 +371,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   def lengthOfLink(linkId: Int): Double = {
     val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
     edge.getLengthM
-  }
-
-  private def getPlanUsingCache(request: R5Request) = {
-    var plan = latencyIfNonNull("cache-router-time", Metrics.VerboseLevel) {
-      cache.getIfPresent(request)
-    }
-    if (plan == null) {
-      val planWithTime = measure(cache.get(request))
-      plan = planWithTime._1
-
-      var nt = ""
-      if (!request.withTransit) nt = "non"
-
-      record(s"noncache-${nt}transit-router-time", Metrics.VerboseLevel, planWithTime._2)
-      record("noncache-router-time", Metrics.VerboseLevel, planWithTime._2)
-    }
-    plan
   }
 
   def getPlanFromR5(request: R5Request): ProfileResponse = {
@@ -989,7 +960,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
   //Does point to point routing with data from request
   def getPlan(request: ProfileRequest, timeValueOfMoney: Double): ProfileResponse = {
-    val startRouting = System.currentTimeMillis
     request.zoneId = transportNetwork.getTimeZone
     //Do the query and return result
     val profileResponse = new ProfileResponse
