@@ -99,7 +99,7 @@ allprojects {
 dependencies {
 
     //beam-utilities
-    implementation 'com.github.LBNL-UCB-STI:beam-utilities:rajnikantsh~remove-duplicate-code-SNAPSHOT'
+    compile 'com.github.LBNL-UCB-STI:beam-utilities:rajnikantsh~remove-duplicate-code-SNAPSHOT'
     ////////////////////////////
     // Java dependencies
     ////////////////////////////
@@ -144,10 +144,10 @@ dependencies {
         exclude group: 'org.matsim', module: 'matsim'
     }
 
-    implementation ('com.github.wrashid:matsim:rajnikantsh~remove-redundant-code-SNAPSHOT'){
+    compile ('com.github.wrashid.matsim:matsim:rajnikantsh~remove-redundant-code-SNAPSHOT'){
         exclude group: 'log4j', module: 'log4j'
     }
-
+    
     compile "org.slf4j:slf4j-api:${slf4jVersion}"
     compile "ch.qos.logback:logback-classic:1.2.3"
     compile "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
