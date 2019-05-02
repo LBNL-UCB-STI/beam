@@ -81,6 +81,7 @@ allprojects {
         maven { url "http://repo.maven.apache.org/maven2" }
         maven { url "http://download.osgeo.org/webdav/geotools" }
         maven { url "http://dl.bintray.com/matsim/matsim" }
+        maven { url "http://oss.jfrog.org/oss-snapshot-local"}
         maven { url "http://maven.conveyal.com/" }
         maven { url "http://repo1.maven.org/maven2" }
         maven { url "http://download.java.net/maven/2/" }
@@ -140,6 +141,9 @@ dependencies {
     // GPLv3
     compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'
     compile group: 'org.matsim.contrib', name: 'bicycle', version: '0.10.0'
+    compile (group: 'org.matsim.contrib', name: 'emissions', version: '12.0-SNAPSHOT'){
+        exclude group: 'org.matsim', module: 'matsim'
+    } 
 
     compile(group: 'org.matsim.contrib', name: 'decongestion', version: '0.11.0-2018w44') {
         exclude group: 'org.matsim', module: 'matsim'

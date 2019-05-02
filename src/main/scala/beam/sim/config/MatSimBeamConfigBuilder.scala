@@ -28,10 +28,11 @@ import scala.util.Try
   *
   * @author dserdiuk
   */
-class MatSimBeamConfigBuilder(beamConf: Config) extends LazyLogging {
+class MatSimBeamConfigBuilder(beamConf: Config, matsimConfigModules: Set[ConfigGroup]=Set.empty) extends LazyLogging {
 
   def buildMatSimConf(): config.Config = {
     val matSimConfig = ConfigUtils.createConfig(beamConf.getString("beam.inputDirectory"))
+    matsimConfigModules.foreach{matSimConfig.addModule}
     val maybeParameterSets =
       MatSimBeamConfigBuilder.concreteClassesOfType[MatsimParameters].collect {
         case clazz if MatSimBeamConfigBuilder.isExtends(clazz, classOf[ConfigGroup]) =>

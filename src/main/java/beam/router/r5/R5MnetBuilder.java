@@ -1,5 +1,7 @@
 package beam.router.r5;
 
+import beam.agentsim.emissions.EmissionUtils;
+import beam.agentsim.emissions.OsmHbefaMapping;
 import beam.sim.config.BeamConfig;
 import beam.utils.osm.WayFixer$;
 import com.conveyal.osmlib.OSM;
@@ -21,6 +23,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import static beam.agentsim.emissions.OsmHbefaMapping.OSM_HIGHWAY_TAG;
 
 /**
  * Build the pruned R5 network and MATSim network. These two networks have 1-1 link parity.
@@ -101,10 +105,12 @@ public class R5MnetBuilder {
             if (way == null) {
                 // Made up numbers, this is a PT to road network connector or something
                 link = buildLink(edgeIndex, flagStrings, length, fromNode, toNode);
+                link.getAttributes().putAttribute(OSM_HIGHWAY_TAG,"primary");
                 mNetwork.addLink(link);
                 log.debug("Created special link: {}", link);
             } else {
                 link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, (HashSet<String>)flagStrings);
+                link.getAttributes().putAttribute(OSM_HIGHWAY_TAG,way.getTag("highway"));
                 mNetwork.addLink(link);
                 log.debug("Created regular link: {}", link);
             }
@@ -117,6 +123,7 @@ public class R5MnetBuilder {
                 numberOfFixes += 1;
             }
         }
+
         if (numberOfFixes > 0) {
             log.warn("Fixed {} links which were having the same `fromNode` and `toNode`", numberOfFixes);
         }
