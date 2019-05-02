@@ -36,7 +36,7 @@ class MultinomialLogit[A, T](
     if (alternatives.isEmpty) None
     else {
 
-      // one-pass evaluation and sorting
+      // one-pass evaluation and sorting in descending order by alternative utilities
       val altsWithUtilitySortedDesc: Iterable[(A, Double)] =
         alternatives.foldLeft(SortedSet.empty[(A, Double)](Ordering.by { -_._2 })) {
           case (set, (alt, attributes)) =>
@@ -58,7 +58,9 @@ class MultinomialLogit[A, T](
             // denominator used for transforming utility values into draw probabilities
             val sumOfExponentialUtilities: Double = altsWithUtilitySortedDesc.map { case (_, u) => u }.sum
 
-            // transform alternatives into a list in ascending order by successive draw thresholds
+            // build the cumulative distribution function (cdf) by transforming alternatives into a list
+            // in ascending order of thresholds (== descending order of alternative utilities)
+            // by successive draw thresholds
             val asProbabilitySpread: List[MultinomialLogit.MNLSample[A]] =
               altsWithUtilitySortedDesc
                 .foldLeft((0.0, List.empty[MultinomialLogit.MNLSample[A]])) {
@@ -79,10 +81,9 @@ class MultinomialLogit[A, T](
 
             val randomDraw: Double = random.nextDouble
 
-            // take the first alternative which exceeds the random draw
-            // we discard while the probability's draw threshold exceeds the random draw
-            // and will leave us with a list who's first element is the largest just below the draw value
-            asProbabilitySpread.dropWhile { _.drawThreshold < randomDraw }.headOption
+            // we discard while the probability's draw threshold is below or equal the random draw
+            // and will leave us with a list who's first element is the largest just below or equal the draw value
+            asProbabilitySpread.dropWhile { _.drawThreshold <= randomDraw }.headOption
           }
       }
     }
