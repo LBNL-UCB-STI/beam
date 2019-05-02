@@ -44,7 +44,11 @@ object NetworkXmlToCSV {
 
       linkWriter.write(linkHeader + "\n")
       (physimElement \ "links" \ "link").foreach { link =>
-        val row = linkAttribute.map(link \ _).map(_.text) ++ (link \ "attributes" \ "attribute").map(_.text)
+        val row = linkAttribute.map(link \ _).map { x =>
+          val text = x.text
+          if (text.contains(",")) "\"" + text + "\""
+          else text
+        } ++ (link \ "attributes" \ "attribute").map(_.text)
         linkWriter.write(row.mkString(delimiter) + "\n")
       }
       linkWriter.close()
