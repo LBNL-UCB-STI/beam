@@ -245,9 +245,11 @@ class BeamRouter(
       remoteNodes.foreach(workerAddress => workerFrom(workerAddress) ! IterationFinished(iteration))
       localNodes.foreach(_ ! IterationFinished(iteration))
     case MinSpeedUsage(iteration, count) =>
-      log.info(
-        s"Worker[${sender()}]. Iteration $iteration had $count cases when min speed ${services.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond} was used."
-      )
+      if (count > 0) {
+        log.error(
+          s"Worker[${sender()}]. Iteration $iteration had $count cases when min speed ${services.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond} was used."
+        )
+      }
 
     case work =>
       val originalSender = context.sender
