@@ -68,21 +68,17 @@ class MultinomialLogit02Spec extends WordSpecLike with Matchers {
       // With these inputs, we expect "walk" ~81% of the time, which translates to an almost certainty that majority
       // will be walk with 100 trials (p-val 3.00491e-12)
 
-      val samps = for (i <- 1 until 100) yield mnl.sampleAlternative(alts, rand).getOrElse(None)
+      val sampleSize = 100
 
-      println(samps) // todo go on here and check sampleAlternative method as there might still be an issue with it
+      val samples: Seq[String] = for {
+        _ <- 1 until sampleSize
+        result <- mnl.sampleAlternative(alts, rand)
+      } yield result.alternativeType
 
-//
-//      val samps = for {
-//        _    <- 1 until 100
-//        prob <- mnl.sampleAlternative(alts, rand)
-//      } yield prob
-//
-//      samps.size > 50 should be(true)
+      samples.count{_ == "walk"} > (sampleSize / 2) // 50% or more should be walk
 
-//      samps.count(_.alternativeType.equals("walk")) > 50 should be(true)
     }
-//  }
+
 //
 //  "An MNL Model with arbitrary data" must {
 //

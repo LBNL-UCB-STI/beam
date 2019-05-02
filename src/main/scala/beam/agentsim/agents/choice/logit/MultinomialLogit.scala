@@ -58,20 +58,21 @@ class MultinomialLogit[A, T](
             // denominator used for transforming utility values into draw probabilities
             val sumOfExponentialUtilities: Double = altsWithUtilitySortedDesc.map { case (_, u) => u }.sum
 
-            // transform alternatives into a list in descending order by successive draw thresholds (prefix-stacked probabilities)
+            // transform alternatives into a list in ascending order by successive draw thresholds
             val asProbabilitySpread: List[MultinomialLogit.MNLSample[A]] =
               altsWithUtilitySortedDesc
                 .foldLeft((0.0, List.empty[MultinomialLogit.MNLSample[A]])) {
                   case ((prefix, stackedProbabilitiesList), (alt, expUtility)) =>
                     val probability: Double = expUtility / sumOfExponentialUtilities
                     val nextDrawThreshold: Double = prefix + probability
-                    val nextStackedProbabilitiesList = MultinomialLogit.MNLSample(
+                    val mnlSample = MultinomialLogit.MNLSample(
                       alt,
                       expUtility,
                       nextDrawThreshold,
                       probability
-                    ) +: stackedProbabilitiesList
+                    )
 
+                    val nextStackedProbabilitiesList = stackedProbabilitiesList :+ mnlSample
                     (nextDrawThreshold, nextStackedProbabilitiesList)
                 }
                 ._2
@@ -81,7 +82,7 @@ class MultinomialLogit[A, T](
             // take the first alternative which exceeds the random draw
             // we discard while the probability's draw threshold exceeds the random draw
             // and will leave us with a list who's first element is the largest just below the draw value
-            asProbabilitySpread.dropWhile { _.drawThreshold > randomDraw }.headOption
+            asProbabilitySpread.dropWhile { _.drawThreshold < randomDraw }.headOption
           }
       }
     }
