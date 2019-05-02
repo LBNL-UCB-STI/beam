@@ -18,7 +18,8 @@ spec:
 
       volumes:
         - name: {{ .Values.volume.output.name }}
-          emptyDir: {}
+          hostPath:
+            path: {{ .Values.volume.output.host }}
         - name: {{ .Values.volume.data.name }}
           hostPath:
             path: {{ .Values.volume.data.host }}
@@ -37,7 +38,7 @@ spec:
             requests:
               cpu: "12"
               memory: 28Gi
-          args: ["--config", {{ printf "%s/sf-light/sf-light-25k.conf" .Values.volume.data.path | quote }}, "--cluster-type", "master", "--node-host", {{ (include "beam-simulation.service" . ) | quote }}, "--node-port", "2552", "--seed-address", {{ printf "%s:2552" (include "beam-simulation.service" . ) | quote }}, "--use-local-worker", "true"]
+          args: ["--config", {{ printf "%s/production/sfbay/smart/smart-baseline.conf" .Values.volume.data.path | quote }}, "--cluster-type", "master", "--node-host", {{ (include "beam-simulation.service" . ) | quote }}, "--node-port", "2552", "--seed-address", {{ printf "%s:2552" (include "beam-simulation.service" . ) | quote }}, "--use-local-worker", "true"]
           imagePullPolicy: Always
           env:
             - name: BEAM_OUTPUT

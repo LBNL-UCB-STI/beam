@@ -10,7 +10,7 @@ ENV S3_REGION ''
 ENV AWS_KEY ''
 ENV AWS_SECRET_KEY ''
 
-RUN apk --update --no-cache add fuse alpine-sdk automake autoconf libxml2-dev fuse-dev curl-dev git bash g++ wget make && \
+RUN apk --update --no-cache add fuse alpine-sdk automake autoconf rsync libxml2-dev fuse-dev curl-dev git bash g++ wget make && \
     git clone https://github.com/s3fs-fuse/s3fs-fuse.git /tmp/s3fs-fuse && \
     cd /tmp/s3fs-fuse && ./autogen.sh && ./configure && make && make install
 

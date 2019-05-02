@@ -21,7 +21,8 @@ volume:
     host: /dev/data-s3fs
   output:
     name: storage
-    path: /dev/data-out
+    path: /data-output
+    host: /dev/data-out
 
 job:
   hostname: beam-master

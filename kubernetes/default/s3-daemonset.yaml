@@ -18,13 +18,6 @@ spec:
         image: kmitin/s3fs:latest
         securityContext:
           privileged: true
-        resources:   
-          limits:
-            cpu: 300m
-            memory: 256Mi
-          requests:
-            cpu: 100m
-            memory: 128Mi
         # use ALL  entries in the config map as environment variables
         env:
         - name: S3_BUCKET
@@ -51,7 +44,7 @@ spec:
         lifecycle:
           postStart:
             exec:
-              command: ["/bin/bash", "-c", "sleep 5 && cp -rv /data/sf-light /data/beamville /data/dtd /data/common /s3data/"]
+              command: ["/bin/bash", "-c", "sleep 5 && rsync -avh /data/sf-light /data/beamville /data/dtd /data/common /data/production /s3data/"]
       imagePullSecrets:
       - name: dockerhub
       volumes:
