@@ -11,45 +11,17 @@ class MultinomialLogit02Spec extends WordSpecLike with Matchers {
       "walk" -> Map("intercept" -> UtilityFunctionOperation.Intercept(4.0))
     )
 
-//    val utilityFunctions = Vector(
-//      UtilityFunction[String, String](
-//        "car",
-//        Set(UtilityFunctionParam("intercept", UtilityFunctionParamType("intercept"), 3.0))
-//      ),
-//      UtilityFunction[String, String](
-//        "walk",
-//        Set(UtilityFunctionParam("intercept", UtilityFunctionParamType("intercept"), 4.0))
-//      )
-//    )
-
     val common = Map(
       "cost" -> UtilityFunctionOperation.Multiplier(-0.01),
       "time" -> UtilityFunctionOperation.Multiplier(-0.02)
     )
 
-//    val common = Some(
-//      UtilityFunction[String, String](
-//        "COMMON",
-//        Set(
-//          UtilityFunctionParam("cost", UtilityFunctionParamType("multiplier"), -0.01),
-//          UtilityFunctionParam("time", UtilityFunctionParamType("multiplier"), -0.02)
-//        )
-//      )
-//    )
-
     val mnl = new MultinomialLogit(utilityFunctions, common)
-
-    val rand = new Random(1) // todo
 
     val alts = Map(
       "car"  -> Map("cost" -> 30.0, "time" -> 50.0),
       "walk" -> Map("cost" -> 0.0, "time"  -> 40.0)
     )
-
-//    val alts = Vector(
-//      Alternative("car", Map("cost"  -> 30.0, "time" -> 50.0)),
-//      Alternative("walk", Map("cost" -> 0.0, "time"  -> 40.0))
-//    )
 
     "should evaluate utility functions as expected" in {
       mnl.getUtilityOfAlternative(alts.head._1, alts.head._2) match {
@@ -69,6 +41,7 @@ class MultinomialLogit02Spec extends WordSpecLike with Matchers {
       // will be walk with 100 trials (p-val 3.00491e-12)
 
       val sampleSize = 100
+      val rand = new Random()
 
       val samples: Seq[String] = for {
         _ <- 1 until sampleSize
