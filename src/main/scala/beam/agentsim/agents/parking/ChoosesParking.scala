@@ -18,6 +18,7 @@ import beam.agentsim.infrastructure.charging.ChargingInquiry
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
+import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.common.GeoUtils
@@ -83,7 +84,17 @@ trait ChoosesParking extends {
               .toList // todo try without list
               .foldLeft(0d) { (sum, pair) =>
                 sum + Math
-                  .ceil(GeoUtils.minkowskiDistFormula(pair.head.activity.getCoord, pair.last.activity.getCoord))
+                  .ceil(
+                    beamSkimmer
+                      .getTimeDistanceAndCost(
+                        pair.head.activity.getCoord,
+                        pair.last.activity.getCoord,
+                        0,
+                        CAR,
+                        beamVehicle.beamVehicleType.id
+                      )
+                      .distance
+                  )
               }
           case None =>
             0 // if we don't have any more trips we don't need a chargingInquiry as we are @home again => assumption: charging @home always takes place
