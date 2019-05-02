@@ -63,7 +63,8 @@ class BeamSim @Inject()(
   private val networkHelper: NetworkHelper,
   private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator,
   private val beamSkimmer: BeamSkimmer,
-  private val travelTimeObserved: TravelTimeObserved
+  private val travelTimeObserved: TravelTimeObserved,
+  private val beamConfigChangesObservable:BeamConfigChangesObservable
 ) extends StartupListener
     with IterationStartsListener
     with IterationEndsListener
@@ -123,7 +124,8 @@ class BeamSim @Inject()(
         transportNetwork,
         event.getServices.getControlerIO,
         scenario,
-        beamServices
+        beamServices,
+        beamConfigChangesObservable
       )
       iterationStatsProviders += agentSimToPhysSimPlanConverter
     }
@@ -170,6 +172,7 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    beamConfigChangesObservable.notifyChangeToSubscribers()
     travelTimeObserved.notifyIterationEnds(event)
 
     beamSkimmer.notifyIterationEnds(event)

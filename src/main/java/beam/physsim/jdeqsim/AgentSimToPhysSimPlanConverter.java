@@ -12,6 +12,7 @@ import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.Hao2018CaccRoad
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.RoadCapacityAdjustmentFunction;
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation;
 import beam.router.BeamRouter;
+import beam.sim.BeamConfigChangesObservable;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
@@ -54,7 +55,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * @author asif and rwaraich.
  */
-public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, MetricsSupport, IterationStatsProvider {
+public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, MetricsSupport, IterationStatsProvider, Observer {
 
     public static final String CAR = "car";
     public static final String BUS = "bus";
@@ -87,7 +88,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                                           TransportNetwork transportNetwork,
                                           OutputDirectoryHierarchy controlerIO,
                                           Scenario scenario,
-                                          BeamServices beamServices) {
+                                          BeamServices beamServices,
+                                          BeamConfigChangesObservable beamConfigChangesObservable) {
         eventsManager.addHandler(this);
         this.beamServices = beamServices;
         this.controlerIO = controlerIO;
@@ -105,7 +107,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         preparePhysSimForNewIteration();
 
         linkStatsGraph = new PhyssimCalcLinkStats(agentSimScenario.getNetwork(), controlerIO, beamServices.beamConfig(),
-                scenario.getConfig().travelTimeCalculator());
+                scenario.getConfig().travelTimeCalculator(),beamConfigChangesObservable);
         linkSpeedStatsGraph = new PhyssimCalcLinkSpeedStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         physsimNetworkLinkLengthDistribution = new PhyssimNetworkLinkLengthDistribution(agentSimScenario.getNetwork(),controlerIO,beamConfig);
@@ -430,5 +432,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             previousTravelTime = averageTravelTimes;
             return map;
         }
+    }
+
+    @Override
+    public void update(Observable observable, Object o) {
+
     }
 }
