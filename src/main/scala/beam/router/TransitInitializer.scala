@@ -62,13 +62,13 @@ class TransitInitializer(
         if (from != -1) new Coord(fromVertex.getLon, fromVertex.getLat)
         else {
           limitedWarn(fromStop)
-          new Coord(38, -122)
+          new Coord(-122, 38)
         }
       val toCoord =
         if (to != -1) new Coord(toVertex.getLon, toVertex.getLat)
         else {
           limitedWarn(toStop)
-          new Coord(38.001, -122.001)
+          new Coord(-122.001, 38.001)
         }
 
       (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
