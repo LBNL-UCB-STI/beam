@@ -1374,19 +1374,15 @@ object R5RoutingWorker {
   ): BeamLeg = {
     val beelineDistanceInMeters = beamServices.geo.distUTMInMeters(startUTM, endUTM)
     val bushwhackingTime = Math.round(beelineDistanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
-    createBushwackingBeamLeg(atTime, bushwhackingTime.toInt, startUTM, endUTM, beelineDistanceInMeters)
-  }
-
-  def createBushwackingBeamLeg(
-    atTime: Int,
-    duration: Int,
-    startUTM: Location,
-    endUTM: Location,
-    distance: Double
-  ): BeamLeg = {
-    val path =
-      BeamPath(Vector(), Vector(), None, SpaceTime(startUTM, atTime), SpaceTime(endUTM, atTime + duration), distance)
-    BeamLeg(atTime, WALK, duration, path)
+    val path = BeamPath(
+        Vector(),
+        Vector(),
+        None,
+        SpaceTime(beamServices.geo.utm2Wgs(startUTM), atTime),
+        SpaceTime(beamServices.geo.utm2Wgs(endUTM), atTime + bushwhackingTime.toInt),
+        beelineDistanceInMeters
+    )
+    BeamLeg(atTime, WALK, bushwhackingTime.toInt, path)
   }
 
   def createBushwackingTrip(

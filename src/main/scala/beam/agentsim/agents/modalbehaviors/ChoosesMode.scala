@@ -904,7 +904,9 @@ trait ChoosesMode {
                 _currentTick.get,
                 body.id,
                 false,
-                if (cavTripLegs.legs.isEmpty) { choosesModeData.currentLocation.loc } else {
+                if (cavTripLegs.legs.isEmpty) {
+                  beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc)
+                } else {
                   cavTripLegs.legs.head.beamLeg.travelPath.startPoint.loc
                 }
               )
