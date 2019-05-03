@@ -57,12 +57,8 @@ class ScenarioLoader(
     applyHousehold(householdsWithMembers, householdIdToPersons)
     // beamServices.privateVehicles is properly populated here, after `applyHousehold` call
 
-    // We have to override personHouseholds because we just loaded new households
-    beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
-      .values()
-      .asScala
-      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
-      .toMap
+    replacePersonHouseholdFromService()
+
     // beamServices.personHouseholds is used later on in PopulationAdjustment.createAttributesOfIndividual when we
     logger.info("Applying persons...")
     applyPersons(personsWithPlans)
@@ -71,6 +67,14 @@ class ScenarioLoader(
     applyPlans(plans)
 
     logger.info("The scenario loading is completed..")
+  }
+
+  private def replacePersonHouseholdFromService(): Unit = {
+    beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
+      .toMap
   }
 
   private def clear(): Unit = {
@@ -148,7 +152,7 @@ class ScenarioLoader(
             .find(_.vehicleCategory == VehicleCategory.Bike)
             .getOrElse(BeamVehicleType.defaultBikeBeamVehicleType)
         )
-        initialVehicleCounter += householdInfo.cars.toInt
+        initialVehicleCounter += householdInfo.cars
         totalCarCount += vehicleTypes.count(_.vehicleCategory.toString == "Car")
         val vehicleIds = new java.util.ArrayList[Id[Vehicle]]
         vehicleTypes.foreach { beamVehicleType =>
@@ -178,8 +182,8 @@ class ScenarioLoader(
     beamServices.beamConfig.beam.agentsim.agents.vehicles.downsamplingMethod match {
       case "SECONDARY_VEHICLES_FIRST" =>
         val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
-        val hh_car_count = collection.mutable.Map(households.groupBy(_.cars.toInt).toSeq: _*)
-        val totalCars = households.foldLeft(0)(_ + _.cars.toInt)
+        val hh_car_count = collection.mutable.Map(households.groupBy(_.cars).toSeq: _*)
+        val totalCars = households.foldLeft(0)(_ + _.cars)
         val goalCarTotal = math
           .round(beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet * totalCars)
           .toInt
@@ -213,7 +217,7 @@ class ScenarioLoader(
         households.foreach { household =>
           nVehiclesOut += drawFromBinomial(
             rand,
-            household.cars.toInt,
+            household.cars,
             beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
           )
         }
