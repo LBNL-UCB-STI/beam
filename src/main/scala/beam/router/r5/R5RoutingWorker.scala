@@ -1375,12 +1375,12 @@ object R5RoutingWorker {
     val beelineDistanceInMeters = beamServices.geo.distUTMInMeters(startUTM, endUTM)
     val bushwhackingTime = Math.round(beelineDistanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
     val path = BeamPath(
-        Vector(),
-        Vector(),
-        None,
-        SpaceTime(beamServices.geo.utm2Wgs(startUTM), atTime),
-        SpaceTime(beamServices.geo.utm2Wgs(endUTM), atTime + bushwhackingTime.toInt),
-        beelineDistanceInMeters
+      Vector(),
+      Vector(),
+      None,
+      SpaceTime(beamServices.geo.utm2Wgs(startUTM), atTime),
+      SpaceTime(beamServices.geo.utm2Wgs(endUTM), atTime + bushwhackingTime.toInt),
+      beelineDistanceInMeters
     )
     BeamLeg(atTime, WALK, bushwhackingTime.toInt, path)
   }
