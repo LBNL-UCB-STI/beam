@@ -1,13 +1,16 @@
 package beam.scoring
 
+import java.util.{Observable, Observer}
+
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.model.EmbodiedBeamTrip
+import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.population.PopulationAdjustment._
-import beam.sim.{BeamServices, MapStringDouble, OutputDataDescription}
+import beam.sim.{BeamConfigChangesObservable, BeamServices, MapStringDouble, OutputDataDescription}
 import beam.utils.{FileUtils, OutputDataDescriptor}
 import javax.inject.Inject
 import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent}
@@ -21,10 +24,13 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.language.postfixOps
 
-class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
+class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices,beamConfigChangesObservable: BeamConfigChangesObservable)
     extends ScoringFunctionFactory
-    with IterationEndsListener {
+    with IterationEndsListener with Observer {
 
+  beamConfigChangesObservable.addObserver(this)
+
+  private var linkStatsInterval = beamServices.beamConfig.beam.outputs.generalizedLinkStatsInterval
   private val log = LoggerFactory.getLogger(classOf[BeamScoringFunctionFactory])
 
   override def createNewScoringFunction(person: Person): ScoringFunction = {
@@ -217,7 +223,6 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
   }
 
   private def writeGeneralizedLinkStatsDataToFile(event: IterationEndsEvent): Unit = {
-    val linkStatsInterval = beamServices.beamConfig.beam.outputs.generalizedLinkStatsInterval
     if (linkStatsInterval > 0 && event.getIteration % linkStatsInterval == 0) {
       val fileHeader = "linkId,travelTime,cost,generalizedTravelTime,generalizedCost"
       // Output file relative path
@@ -241,6 +246,12 @@ class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
     }
   }
 
+  override def update(observable: Observable, o: Any): Unit = {
+    val t = o.asInstanceOf[(_, _)]
+    val beamConfig = t._2.asInstanceOf[BeamConfig]
+    this.linkStatsInterval = beamConfig.beam.outputs.generalizedLinkStatsInterval
+
+  }
 }
 
 /**

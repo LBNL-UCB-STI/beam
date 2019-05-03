@@ -72,6 +72,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private Population jdeqsimPopulation;
     private TravelTime previousTravelTime;
     private BeamServices beamServices;
+    private BeamConfigChangesObservable beamConfigChangesObservable;
 
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
@@ -96,6 +97,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         this.router = beamServices.beamRouter();
         this.beamConfig = beamServices.beamConfig();
         this.rand.setSeed(beamConfig.matsim().modules().global().randomSeed());
+        this.beamConfigChangesObservable = beamConfigChangesObservable;
         agentSimScenario = scenario;
         agentSimPhysSimInterfaceDebuggerEnabled = beamConfig.beam().physsim().jdeqsim().agentSimPhysSimInterfaceDebugger().enabled();
 
@@ -245,7 +247,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction = new Hao2018CaccRoadCapacityAdjustmentFunction(
                     beamConfig,
                     iterationNumber,
-                    controlerIO
+                    controlerIO,
+                    this.beamConfigChangesObservable
                     );
 
             int caccCategoryRoadCount = 0;

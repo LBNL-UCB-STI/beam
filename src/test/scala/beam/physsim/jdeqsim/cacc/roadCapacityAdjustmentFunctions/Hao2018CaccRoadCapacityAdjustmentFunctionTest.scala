@@ -1,8 +1,9 @@
 package beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions
 import java.util.concurrent.ThreadLocalRandom
 
-import scala.util.Random
+import beam.sim.BeamConfigChangesObservable
 
+import scala.util.Random
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
@@ -12,6 +13,7 @@ import org.matsim.core.config.ConfigUtils
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.scenario.ScenarioUtils
 import org.scalatest.FunSpec
+
 import scala.collection.JavaConverters._
 
 class Hao2018CaccRoadCapacityAdjustmentFunctionTest extends FunSpec {
@@ -45,6 +47,7 @@ class Hao2018CaccRoadCapacityAdjustmentFunctionTest extends FunSpec {
     beamConfig,
     iterationNumber,
     null,
+    new BeamConfigChangesObservable()
   )
 
   private val mNetwork: Network = {
