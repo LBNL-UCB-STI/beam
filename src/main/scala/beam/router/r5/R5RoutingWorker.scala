@@ -503,7 +503,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             )
           }
         } else {
-          Some(dummyLeg(routingRequest.departureTime, vehicle.locationUTM.loc))
+          Some(dummyLeg(routingRequest.departureTime, beamServices.geo.utm2Wgs(vehicle.locationUTM.loc)))
         }
       } else {
         None
