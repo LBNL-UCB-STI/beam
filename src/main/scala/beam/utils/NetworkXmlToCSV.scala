@@ -44,11 +44,9 @@ object NetworkXmlToCSV {
 
       linkWriter.write(linkHeader + "\n")
       (physimElement \ "links" \ "link").foreach { link =>
-        val row = linkAttribute.map(link \ _).map { x =>
-          val text = x.text
-          if (text.contains(",")) "\"" + text + "\""
-          else text
-        } ++ (link \ "attributes" \ "attribute").map(_.text)
+        val row = linkAttribute
+          .map(link \ _)
+          .map(x => escapeCommaIfNeeded(x.text)) ++ (link \ "attributes" \ "attribute").map(_.text)
         linkWriter.write(row.mkString(delimiter) + "\n")
       }
       linkWriter.close()
@@ -67,7 +65,9 @@ object NetworkXmlToCSV {
         val row = new StringBuffer()
 
         val attr = (link \ "attributes" \ "attribute").map(_.text)
-        val linkRow = linkAttribute.map(link \ _).map(_.text) ++ (if (attr.size == 0) Seq("", "") else attr)
+        val linkRow = linkAttribute.map(link \ _).map(x => escapeCommaIfNeeded(x.text)) ++ (if (attr.size == 0)
+                                                                                              Seq("", "")
+                                                                                            else attr)
 
         row
           .append(delimiter)
@@ -90,6 +90,11 @@ object NetworkXmlToCSV {
     } finally {
       reader.close()
     }
+  }
+
+  private def escapeCommaIfNeeded(text: String) = {
+    if (text.contains(",")) "\"" + text + "\""
+    else text
   }
 
   def main(args: Array[String]): Unit = {
