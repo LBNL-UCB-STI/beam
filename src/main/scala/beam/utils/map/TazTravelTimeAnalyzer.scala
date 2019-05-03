@@ -73,7 +73,7 @@ object TazTravelTimeAnalyzer extends LazyLogging {
 
     // This is lazy, it just creates an iterator
     val (events: Iterator[Event], closable: Closeable) =
-      EventReader.fromCsvFile("C:/temp/htt/0.events.csv", filter)
+      EventReader.fromCsvFile("C:/temp/travel_time_investigation/0.events.csv", filter)
 
     try {
       // Actual reading happens here because we force computation by `toArray`
@@ -118,7 +118,8 @@ object TazTravelTimeAnalyzer extends LazyLogging {
 
       logger.info(s"withObservedTravelTimes size: ${withObservedTravelTimes.size}")
 
-      val writer = IOUtils.getBufferedWriter("c:/temp/htt/tazODTravelTimeObservedVsSimulated_derived.csv")
+      val writer =
+        IOUtils.getBufferedWriter("c:/temp/travel_time_investigation/tazODTravelTimeObservedVsSimulated_derived.csv")
       writer.write(
         "fromTAZId,toTAZId,tazStartY,tazStartX,tazEndY,tazEndX,distance,linkIds,diffBetweenStart,diffBetweenEnd,pteStartY,pteStartX,pteEndY,pteEndX,departureTime,hour,timeSimulated,timeObserved,counts"
       )
