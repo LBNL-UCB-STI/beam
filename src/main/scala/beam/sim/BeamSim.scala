@@ -167,12 +167,12 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    beamConfigChangesObservable.notifyChangeToSubscribers()
     ExponentialLazyLogging.reset()
     beamServices.privateVehicles.values.foreach(_.initializeFuelLevels)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    beamConfigChangesObservable.notifyChangeToSubscribers()
     travelTimeObserved.notifyIterationEnds(event)
 
     beamSkimmer.notifyIterationEnds(event)
@@ -295,6 +295,8 @@ class BeamSim @Inject()(
       logger.debug(s"deleting output file: $fileName")
       Files.deleteIfExists(Paths.get(event.getServices.getControlerIO.getOutputFilename(fileName)))
     }
+    BeamConfigChangesObservable.clear()
+
   }
 
   private def writeSummaryStats(summaryStatsFile: File): Unit = {
