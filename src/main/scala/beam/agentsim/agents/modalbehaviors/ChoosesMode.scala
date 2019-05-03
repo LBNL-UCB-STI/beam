@@ -917,7 +917,7 @@ trait ChoosesMode {
                       _currentTick.get,
                       body.id,
                       false,
-                      choosesModeData.currentLocation.loc,
+                      beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc),
                       CAV,
                       cavTripLegs.cavOpt
                         .map(_.beamVehicleType.id)
@@ -933,7 +933,9 @@ trait ChoosesMode {
                   _currentTick.get + cavLegs.map(_.beamLeg.duration).sum,
                   body.id,
                   true,
-                  if (cavTripLegs.legs.isEmpty) { choosesModeData.currentLocation.loc } else {
+                  if (cavTripLegs.legs.isEmpty) {
+                    beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc)
+                  } else {
                     cavTripLegs.legs.last.beamLeg.travelPath.endPoint.loc
                   }
                 )
