@@ -97,7 +97,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
       case RIDE_HAIL_POOLED =>
         0.6 * (beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0)
       case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT => 0.25 * travelDistance / 1609
-      case _ => 0.0
+      case _                                                          => 0.0
     }
     Skim(
       travelTime,
@@ -170,11 +170,11 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
 
   private def distanceAndTime(mode: BeamMode, origin: Location, destination: Location) = {
     val speed = mode match {
-      case CAR | CAV | RIDE_HAIL => carSpeedMeterPerSec
-      case RIDE_HAIL_POOLED => carSpeedMeterPerSec * 1.1
+      case CAR | CAV | RIDE_HAIL                                      => carSpeedMeterPerSec
+      case RIDE_HAIL_POOLED                                           => carSpeedMeterPerSec * 1.1
       case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT => transitSpeedMeterPerSec
-      case BIKE => bicycleSpeedMeterPerSec
-      case _ => walkSpeedMeterPerSec
+      case BIKE                                                       => bicycleSpeedMeterPerSec
+      case _                                                          => walkSpeedMeterPerSec
     }
     val travelDistance: Int = Math.ceil(GeoUtils.minkowskiDistFormula(origin, destination)).toInt
     val travelTime: Int = Math
@@ -185,7 +185,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
 
   def getSkimValue(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Option[SkimInternal] = {
     skims.get((timeToBin(time), mode, orig, dest)) match {
-      case someSkim@Some(_) =>
+      case someSkim @ Some(_) =>
         someSkim
       case None =>
         previousSkims.get((timeToBin(time), mode, orig, dest))
@@ -477,8 +477,9 @@ object BeamSkimmer extends LazyLogging {
   type BeamSkimmerADT = TrieMap[BeamSkimmerKey, SkimInternal]
 
   val Eol = "\n"
+
   val CsvLineHeader: String =
-    "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations,energy" + Eol
+  "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations,energy" + Eol
 
   val observedSkimsFileBaseName = "skims"
   val fullSkimsFileBaseName = "skimsFull"
@@ -502,54 +503,54 @@ object BeamSkimmer extends LazyLogging {
   private val waitingTimeAtAnIntersection: Double = 17.25
 
   val speedMeterPerSec: Map[BeamMode, Double] = Map(
-    CAV -> carSpeedMeterPerSec,
-    CAR -> carSpeedMeterPerSec,
-    WALK -> walkSpeedMeterPerSec,
-    BIKE -> bicycleSpeedMeterPerSec,
-    WALK_TRANSIT -> transitSpeedMeterPerSec,
-    DRIVE_TRANSIT -> transitSpeedMeterPerSec,
-    RIDE_HAIL -> carSpeedMeterPerSec,
-    RIDE_HAIL_POOLED -> carSpeedMeterPerSec,
+    CAV               -> carSpeedMeterPerSec,
+    CAR               -> carSpeedMeterPerSec,
+    WALK              -> walkSpeedMeterPerSec,
+    BIKE              -> bicycleSpeedMeterPerSec,
+    WALK_TRANSIT      -> transitSpeedMeterPerSec,
+    DRIVE_TRANSIT     -> transitSpeedMeterPerSec,
+    RIDE_HAIL         -> carSpeedMeterPerSec,
+    RIDE_HAIL_POOLED  -> carSpeedMeterPerSec,
     RIDE_HAIL_TRANSIT -> transitSpeedMeterPerSec,
-    TRANSIT -> transitSpeedMeterPerSec
+    TRANSIT           -> transitSpeedMeterPerSec
   )
 
   case class SkimInternal(
-                           time: Double,
-                           generalizedTime: Double,
-                           generalizedCost: Double,
-                           distance: Double,
-                           cost: Double,
-                           count: Int,
-                           energy: Double
-                         ) {
+    time: Double,
+    generalizedTime: Double,
+    generalizedCost: Double,
+    distance: Double,
+    cost: Double,
+    count: Int,
+    energy: Double
+  ) {
     //NOTE: All times in seconds here
     def toSkimExternal: Skim = Skim(time.toInt, generalizedTime, generalizedCost, distance, cost, count, energy)
   }
 
   case class Skim(
-                   time: Int,
-                   generalizedTime: Double,
-                   generalizedCost: Double,
-                   distance: Double,
-                   cost: Double,
-                   count: Int,
-                   energy: Double
-                 )
+    time: Int,
+    generalizedTime: Double,
+    generalizedCost: Double,
+    distance: Double,
+    cost: Double,
+    count: Int,
+    energy: Double
+  )
 
   case class ExcerptData(
-                          timePeriodString: String,
-                          mode: BeamMode,
-                          originTazId: Id[TAZ],
-                          destinationTazId: Id[TAZ],
-                          weightedTime: Double,
-                          weightedGeneralizedTime: Double,
-                          weightedCost: Double,
-                          weightedGeneralizedCost: Double,
-                          weightedDistance: Double,
-                          sumWeights: Double,
-                          weightedEnergy: Double
-                        )
+    timePeriodString: String,
+    mode: BeamMode,
+    originTazId: Id[TAZ],
+    destinationTazId: Id[TAZ],
+    weightedTime: Double,
+    weightedGeneralizedTime: Double,
+    weightedCost: Double,
+    weightedGeneralizedCost: Double,
+    weightedDistance: Double,
+    sumWeights: Double,
+    weightedEnergy: Double
+  )
 
   private[router] def fromCsv(filePath: String): BeamSkimmerADT = {
     val mapReader = new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
@@ -599,20 +600,20 @@ object BeamSkimmer extends LazyLogging {
 
   private[router] def toCsv(content: BeamSkimmerADT): Iterator[String] = {
     val contentIterator = content.toIterator
-      .map {keyVal =>
-          Seq(
-            keyVal._1._1,
-            keyVal._1._2,
-            keyVal._1._3,
-            keyVal._1._4,
-            keyVal._2.time,
-            keyVal._2.generalizedTime,
-            keyVal._2.cost,
-            keyVal._2.generalizedCost,
-            keyVal._2.distance,
-            keyVal._2.count,
-            keyVal._2.energy
-          ).mkString("", ",", Eol)
+      .map { keyVal =>
+        Seq(
+          keyVal._1._1,
+          keyVal._1._2,
+          keyVal._1._3,
+          keyVal._1._4,
+          keyVal._2.time,
+          keyVal._2.generalizedTime,
+          keyVal._2.cost,
+          keyVal._2.generalizedCost,
+          keyVal._2.distance,
+          keyVal._2.count,
+          keyVal._2.energy
+        ).mkString("", ",", Eol)
       }
     Iterator.single(CsvLineHeader) ++ contentIterator
   }

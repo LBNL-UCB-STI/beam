@@ -31,7 +31,7 @@ class BeamSkimmerSpec extends FlatSpec with BeforeAndAfter {
       distance = 1166.869,
       count = 1,
       energy = 2908432.6946756938
-    ),
+    )
   )
 
   private val beamSkimmerAsCsv =
@@ -39,7 +39,6 @@ class BeamSkimmerSpec extends FlatSpec with BeforeAndAfter {
       |23,CAR,2,1,205.0,215.0,6.491215096413,6.968992874190778,4478.644999999999,1,1.4275908092571782E7
       |7,WALK_TRANSIT,1,1,90.0,108.99999999999999,0.0,1.232222222222222,1166.869,1,2908432.6946756938
       |""".stripMargin
-
 
   it should "serialize not empty map to CSV" in {
     val csvContent = BeamSkimmer.toCsv(beamSkimmerAsObject).mkString
