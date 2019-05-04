@@ -597,7 +597,6 @@ object BeamSkimmer extends LazyLogging {
     res
   }
 
-
   private[router] def toCsv(content: BeamSkimmerADT): Iterator[String] = {
     val contentIterator = content.toIterator
       .map {keyVal =>
