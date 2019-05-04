@@ -398,7 +398,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     profileRequest.zoneId = transportNetwork.getTimeZone
     profileRequest.fromTime = request.time
     profileRequest.toTime = request.time + 61 // Important to allow 61 seconds for transit schedules to be considered!
-    profileRequest.monteCarloDraws = 1
+    profileRequest.monteCarloDraws = beamServices.beamConfig.beam.routing.r5.numberOfSamples
     profileRequest.date = beamServices.dates.localBaseDate
     profileRequest.directModes = if (request.directMode == null) {
       util.EnumSet.noneOf(classOf[LegMode])
@@ -1020,7 +1020,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         (t: Int) => new SuboptimalDominatingList(request.suboptimalMinutes),
         null
       )
-//      router.NUMBER_OF_SEARCHES = beamServices.beamConfig.beam.routing.r5.numberOfSamples
       val usefullpathList = new util.ArrayList[PathWithTimes]
       // getPaths actually returns a set, which is important so that things are deduplicated. However we need a list
       // so we can sort it below.
@@ -1028,6 +1027,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         usefullpathList.addAll(router.getPaths) //latency of get paths
       }
       //This sort is necessary only for text debug output so it will be disabled when it is finished
+
+      // TODO: Actually, I think this sort is not necessary at all, but for tests which happen to rely on the sort order
+      // TODO: Remove.
       /**
         * Orders first no transfers then one transfers 2 etc
         * - then orders according to first trip:
