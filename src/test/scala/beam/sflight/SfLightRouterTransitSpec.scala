@@ -57,7 +57,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
       val transitOption = response.itineraries.find(_.tripClassifier == WALK_TRANSIT).get
       assertMakesSense(transitOption)
       assert(transitOption.costEstimate == 2.75)
-      assert(transitOption.legs.head.beamLeg.startTime == 25971)
+      assert(transitOption.legs.head.beamLeg.startTime == 25992)
     }
 
     "respond with a drive_transit and a walk_transit route for each trip in sflight" ignore {
