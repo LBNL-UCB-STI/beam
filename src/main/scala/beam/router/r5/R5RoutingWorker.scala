@@ -1104,12 +1104,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       streetRouter.timeLimitSeconds = request.getTimeLimit(mode)
       if (streetRouter.setOrigin(request.toLat, request.toLon)) {
         streetRouter.route()
-        val stops = streetRouter.getReachedStops
         egressRouter.put(mode, streetRouter)
-        log.debug("Added {} edgres stops for mode {}", stops.size, mode)
       } else
         log.debug(
-          "MODE:{}, Edge near the origin coordinate wasn't found. Routing didn't start!",
+          "MODE:{}, Edge near the destination coordinate wasn't found. Routing didn't start!",
           mode
         )
     }
