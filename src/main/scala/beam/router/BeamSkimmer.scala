@@ -398,63 +398,6 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     writer.close()
   }
 
-  //  def writeFullSkims(event: IterationEndsEvent): Unit = {
-  //    val filePath = event.getServices.getControlerIO.getIterationFilename(
-  //      event.getServices.getIterationNumber,
-  //      BeamSkimmer.fullSkimsFileBaseName + ".csv.gz"
-  //    )
-  //    val uniqueModes = skims.map(keyVal => keyVal._1._2).toList.distinct
-  //    val uniqueTimeBins = (0 to 23)
-  //
-  //    val dummyId = Id.create("NA", classOf[BeamVehicleType])
-  //
-  //    val writer = IOUtils.getBufferedWriter(filePath)
-  //    writer.write(FileHeader)
-  //    writer.write(Eol)
-  //
-  //    beamServices.tazTreeMap.getTAZs
-  //      .foreach { origin =>
-  //        beamServices.tazTreeMap.getTAZs.foreach { destination =>
-  //          uniqueModes.foreach { mode =>
-  //            uniqueTimeBins
-  //              .foreach { timeBin =>
-  //                val theSkim: Skim = getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
-  //                  .map(_.toSkimExternal)
-  //                  .getOrElse {
-  //                    if (origin.equals(destination)) {
-  //                      val newDestCoord = new Coord(
-  //                        origin.coord.getX,
-  //                        origin.coord.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
-  //                      )
-  //                      getSkimDefaultValue(
-  //                        mode,
-  //                        origin.coord,
-  //                        newDestCoord,
-  //                        timeBin * 3600,
-  //                        dummyId,
-  //                        beamServices
-  //                      )
-  //                    } else {
-  //                      getSkimDefaultValue(
-  //                        mode,
-  //                        origin.coord,
-  //                        destination.coord,
-  //                        timeBin * 3600,
-  //                        dummyId,
-  //                        beamServices
-  //                      )
-  //                    }
-  //                  }
-  //
-  //                writer.write(
-  //                  s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedTime},${theSkim.distance},${theSkim.count},${theSkim.energy}\n"
-  //                )
-  //              }
-  //          }
-  //        }
-  //      }
-  //    writer.close()
-  //  }
 
   def writeObservedSkims(event: IterationEndsEvent): Unit = {
     val filePath = event.getServices.getControlerIO.getIterationFilename(
