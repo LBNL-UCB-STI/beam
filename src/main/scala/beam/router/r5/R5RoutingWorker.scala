@@ -32,6 +32,7 @@ import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile}
 import beam.utils._
+import com.conveyal.r5.analyst.fare.SimpleInRoutingFareCalculator
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile._
@@ -1017,7 +1018,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         request,
         accessRouter.mapValues(_.getReachedStops).asJava,
         egressRouter.mapValues(_.getReachedStops).asJava,
-        (t: Int) => new SuboptimalDominatingList(request.suboptimalMinutes),
+        (t: Int) => new FareDominatingList(new SimpleInRoutingFareCalculator, Integer.MAX_VALUE, Integer.MAX_VALUE),
         null
       )
       val usefullpathList = new util.ArrayList[PathWithTimes]
