@@ -461,7 +461,6 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
       event.getServices.getIterationNumber,
       BeamSkimmer.observedSkimsFileBaseName + ".csv.gz"
     )
-    //    val writer = IOUtils.getBufferedWriter(filePath)
     val writer = IOUtils.getBufferedWriter(filePath)
     try {
       toCsv(skims).foreach(writer.write)
