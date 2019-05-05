@@ -72,7 +72,7 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
 
   private def toHouseholdInfo(rec: java.util.Map[String, String]): HouseholdInfo = {
     val householdId = getIfNotNull(rec, "household_id")
-    val cars = getIfNotNull(rec, "cars").toInt
+    val cars = getIfNotNull(rec, "cars").toDouble.toInt
     val unitId = getIfNotNull(rec, "unit_id")
     val buildingId = getIfNotNull(rec, "building_id")
     val income = getIfNotNull(rec, "income").toDouble
