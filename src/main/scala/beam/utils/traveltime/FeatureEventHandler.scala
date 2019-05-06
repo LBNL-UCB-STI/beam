@@ -69,9 +69,6 @@ class FeatureEventHandler(
         featureExtractor.enteredLink(event, link, vehicleId, linkVehicleCount)
         linkVehicleCount.put(linkId, linkVehicleCount.getOrElse(linkId, 0) + 1)
 
-      case "vehicle leaves traffic" =>
-        linkVehicleCount.put(linkId, linkVehicleCount.getOrElse(linkId, 0) - 1)
-
       case "left link" =>
         val vehicleId = attrib.get("vehicle")
         val enterTime = vehicleToEnterTime(vehicleId)
