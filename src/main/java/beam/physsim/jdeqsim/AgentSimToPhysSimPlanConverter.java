@@ -43,6 +43,7 @@ import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Tuple2;
 
 import java.io.File;
 import java.util.*;
@@ -76,7 +77,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
 
-    private final BeamConfig beamConfig;
+    private BeamConfig beamConfig;
     private final Random rand = MatsimRandom.getRandom();
 
     private final boolean agentSimPhysSimInterfaceDebuggerEnabled;
@@ -114,6 +115,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         linkSpeedDistributionStatsGraph = new PhyssimCalcLinkSpeedDistributionStats(agentSimScenario.getNetwork(), controlerIO, beamConfig);
         physsimNetworkLinkLengthDistribution = new PhyssimNetworkLinkLengthDistribution(agentSimScenario.getNetwork(),controlerIO,beamConfig);
         physsimNetworkEuclideanVsLengthAttribute = new PhyssimNetworkComparisonEuclideanVsLengthAttribute(agentSimScenario.getNetwork(),controlerIO,beamConfig);
+        beamConfigChangesObservable.addObserver(this);
     }
 
 
@@ -439,6 +441,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     @Override
     public void update(Observable observable, Object o) {
-
+        Tuple2 t = (Tuple2) o;
+        this.beamConfig = (BeamConfig) t._2;
     }
 }
