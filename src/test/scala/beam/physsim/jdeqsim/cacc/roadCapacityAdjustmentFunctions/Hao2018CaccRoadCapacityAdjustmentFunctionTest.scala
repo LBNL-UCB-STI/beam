@@ -47,7 +47,7 @@ class Hao2018CaccRoadCapacityAdjustmentFunctionTest extends FunSpec {
     beamConfig,
     iterationNumber,
     null,
-    new BeamConfigChangesObservable()
+    new BeamConfigChangesObservable(beamConfig)
   )
 
   private val mNetwork: Network = {

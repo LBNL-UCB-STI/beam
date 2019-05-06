@@ -2,15 +2,20 @@ package beam.sim
 
 import beam.sim.config.BeamConfig
 import beam.utils.BeamConfigUtils
-import javax.inject.Singleton
+import javax.inject.{Inject, Singleton}
 
 @Singleton
-class BeamConfigChangesObservable extends java.util.Observable {
+class BeamConfigChangesObservable @Inject()(beamConfig: BeamConfig) extends java.util.Observable {
 
   def getUpdatedBeamConfig: BeamConfig = {
     val configFileLocation = System.getProperty(BeamConfigChangesObservable.configFileLocationString)
-    val config = BeamConfigUtils.parseFileSubstitutingInputDirectory(configFileLocation)
-    BeamConfig.apply(config.resolve())
+    Option(configFileLocation) match {
+      case Some(location) =>
+        val config = BeamConfigUtils.parseFileSubstitutingInputDirectory(location)
+        BeamConfig.apply(config.resolve())
+      case None =>
+        beamConfig
+    }
   }
 
   def notifyChangeToSubscribers() {
