@@ -415,7 +415,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       profileRequest.accessModes = util.EnumSet.of(request.accessMode)
       profileRequest.egressModes = util.EnumSet.of(request.egressMode)
     }
-    //    log.debug(profileRequest.toString)
+    // Doesn't calculate any fares, is just a no-op placeholder
+    profileRequest.inRoutingFareCalculator = new SimpleInRoutingFareCalculator
+
     val result = try {
       getPlan(profileRequest, request.timeValueOfMoney)
     } catch {
@@ -1021,7 +1023,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         request,
         accessRouter.mapValues(_.getReachedStops).asJava,
         egressRouter.mapValues(_.getReachedStops).asJava,
-        (t: Int) => new FareDominatingList(new SimpleInRoutingFareCalculator, Integer.MAX_VALUE, Integer.MAX_VALUE),
+        (departureTime: Int) =>
+          new FareDominatingList(
+            request.inRoutingFareCalculator,
+            Integer.MAX_VALUE,
+            departureTime + request.maxTripDurationMinutes * 60
+        ),
         null
       )
       val usefullpathList = new util.ArrayList[PathWithTimes]
