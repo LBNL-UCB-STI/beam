@@ -5,7 +5,7 @@ import beam.utils.BeamConfigUtils
 import javax.inject.Singleton
 
 @Singleton
-class BeamConfigChangesObservable extends java.util.Observable{
+class BeamConfigChangesObservable extends java.util.Observable {
 
   def getUpdatedBeamConfig: BeamConfig = {
     val configFileLocation = System.getProperty(BeamConfigChangesObservable.configFileLocationString)

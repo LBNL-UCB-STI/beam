@@ -24,9 +24,12 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.language.postfixOps
 
-class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices,beamConfigChangesObservable: BeamConfigChangesObservable)
-    extends ScoringFunctionFactory
-    with IterationEndsListener with Observer {
+class BeamScoringFunctionFactory @Inject()(
+  beamServices: BeamServices,
+  beamConfigChangesObservable: BeamConfigChangesObservable
+) extends ScoringFunctionFactory
+    with IterationEndsListener
+    with Observer {
 
   beamConfigChangesObservable.addObserver(this)
 

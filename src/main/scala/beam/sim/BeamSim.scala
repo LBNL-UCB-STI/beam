@@ -64,7 +64,7 @@ class BeamSim @Inject()(
   private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator,
   private val beamSkimmer: BeamSkimmer,
   private val travelTimeObserved: TravelTimeObserved,
-  private val beamConfigChangesObservable:BeamConfigChangesObservable
+  private val beamConfigChangesObservable: BeamConfigChangesObservable
 ) extends StartupListener
     with IterationStartsListener
     with IterationEndsListener
