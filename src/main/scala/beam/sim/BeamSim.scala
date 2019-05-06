@@ -63,7 +63,8 @@ class BeamSim @Inject()(
   private val networkHelper: NetworkHelper,
   private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator,
   private val beamSkimmer: BeamSkimmer,
-  private val travelTimeObserved: TravelTimeObserved
+  private val travelTimeObserved: TravelTimeObserved,
+  private val beamConfigChangesObservable: BeamConfigChangesObservable
 ) extends StartupListener
     with IterationStartsListener
     with IterationEndsListener
@@ -123,7 +124,8 @@ class BeamSim @Inject()(
         transportNetwork,
         event.getServices.getControlerIO,
         scenario,
-        beamServices
+        beamServices,
+        beamConfigChangesObservable
       )
       iterationStatsProviders += agentSimToPhysSimPlanConverter
     }
@@ -165,25 +167,29 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    beamConfigChangesObservable.notifyChangeToSubscribers()
     ExponentialLazyLogging.reset()
     beamServices.privateVehicles.values.foreach(_.initializeFuelLevels)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+
+    val beamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
+
     travelTimeObserved.notifyIterationEnds(event)
 
     beamSkimmer.notifyIterationEnds(event)
 
-    if (beamServices.beamConfig.beam.debug.debugEnabled)
+    if (beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
     val outputGraphsFuture = Future {
-      if ("ModeChoiceLCCM".equals(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
+      if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
         modalityStyleStats.processData(scenario.getPopulation, event)
         modalityStyleStats.buildModalityStyleGraph()
       }
       createGraphsFromEvents.createGraphs(event)
-      val interval = beamServices.beamConfig.beam.outputs.writePlansInterval
+      val interval = beamConfig.beam.outputs.writePlansInterval
       if (interval > 0 && event.getIteration % interval == 0) {
         PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(
           event.getServices.getControlerIO
@@ -213,12 +219,12 @@ class BeamSim @Inject()(
       tncIterationsStatsCollector
         .tellHistoryToRideHailIterationHistoryActorAndReset()
 
-      if (beamServices.beamConfig.beam.replanning.Module_2.equalsIgnoreCase("ClearRoutes")) {
-        routeHistory.expireRoutes(beamServices.beamConfig.beam.replanning.ModuleProbability_2)
+      if (beamConfig.beam.replanning.Module_2.equalsIgnoreCase("ClearRoutes")) {
+        routeHistory.expireRoutes(beamConfig.beam.replanning.ModuleProbability_2)
       }
     }
 
-    if (beamServices.beamConfig.beam.physsim.skipPhysSim) {
+    if (beamConfig.beam.physsim.skipPhysSim) {
       Await.result(Future.sequence(List(outputGraphsFuture)), Duration.Inf)
     } else {
       val physsimFuture = Future {
@@ -229,7 +235,7 @@ class BeamSim @Inject()(
       Await.result(Future.sequence(List(outputGraphsFuture, physsimFuture)), Duration.Inf)
     }
 
-    if (beamServices.beamConfig.beam.debug.debugEnabled)
+    if (beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
     stopMeasuringIteration()
 
@@ -292,6 +298,8 @@ class BeamSim @Inject()(
       logger.debug(s"deleting output file: $fileName")
       Files.deleteIfExists(Paths.get(event.getServices.getControlerIO.getOutputFilename(fileName)))
     }
+    BeamConfigChangesObservable.clear()
+
   }
 
   private def writeSummaryStats(summaryStatsFile: File): Unit = {

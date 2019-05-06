@@ -208,6 +208,7 @@ trait BeamHelper extends LazyLogging {
           val beamConfig = BeamConfig(typesafeConfig)
 
           bind(classOf[BeamConfig]).toInstance(beamConfig)
+          bind(classOf[BeamConfigChangesObservable]).toInstance(new BeamConfigChangesObservable(beamConfig))
           bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
           bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
 
@@ -293,6 +294,7 @@ trait BeamHelper extends LazyLogging {
     }
 
     val location = ConfigFactory.parseString(s"config=${parsedArgs.configLocation.get}")
+    System.setProperty("configFileLocation", parsedArgs.configLocation.getOrElse(""))
     val config = embedSelectArgumentsIntoConfig(parsedArgs, {
       if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
       else parsedArgs.config.get
