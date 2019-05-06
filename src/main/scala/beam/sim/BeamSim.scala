@@ -173,20 +173,23 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+
+    val beamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
+
     travelTimeObserved.notifyIterationEnds(event)
 
     beamSkimmer.notifyIterationEnds(event)
 
-    if (beamServices.beamConfig.beam.debug.debugEnabled)
+    if (beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
     val outputGraphsFuture = Future {
-      if ("ModeChoiceLCCM".equals(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
+      if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
         modalityStyleStats.processData(scenario.getPopulation, event)
         modalityStyleStats.buildModalityStyleGraph()
       }
       createGraphsFromEvents.createGraphs(event)
-      val interval = beamServices.beamConfig.beam.outputs.writePlansInterval
+      val interval = beamConfig.beam.outputs.writePlansInterval
       if (interval > 0 && event.getIteration % interval == 0) {
         PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(
           event.getServices.getControlerIO
@@ -216,12 +219,12 @@ class BeamSim @Inject()(
       tncIterationsStatsCollector
         .tellHistoryToRideHailIterationHistoryActorAndReset()
 
-      if (beamServices.beamConfig.beam.replanning.Module_2.equalsIgnoreCase("ClearRoutes")) {
-        routeHistory.expireRoutes(beamServices.beamConfig.beam.replanning.ModuleProbability_2)
+      if (beamConfig.beam.replanning.Module_2.equalsIgnoreCase("ClearRoutes")) {
+        routeHistory.expireRoutes(beamConfig.beam.replanning.ModuleProbability_2)
       }
     }
 
-    if (beamServices.beamConfig.beam.physsim.skipPhysSim) {
+    if (beamConfig.beam.physsim.skipPhysSim) {
       Await.result(Future.sequence(List(outputGraphsFuture)), Duration.Inf)
     } else {
       val physsimFuture = Future {
@@ -232,7 +235,7 @@ class BeamSim @Inject()(
       Await.result(Future.sequence(List(outputGraphsFuture, physsimFuture)), Duration.Inf)
     }
 
-    if (beamServices.beamConfig.beam.debug.debugEnabled)
+    if (beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
     stopMeasuringIteration()
 

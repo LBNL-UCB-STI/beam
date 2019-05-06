@@ -7,11 +7,15 @@ import javax.inject.Singleton
 @Singleton
 class BeamConfigChangesObservable extends java.util.Observable{
 
-  def notifyChangeToSubscribers() {
-    setChanged()
+  def getUpdatedBeamConfig: BeamConfig = {
     val configFileLocation = System.getProperty(BeamConfigChangesObservable.configFileLocationString)
     val config = BeamConfigUtils.parseFileSubstitutingInputDirectory(configFileLocation)
-    val beamConfig = BeamConfig.apply(config.resolve())
+    BeamConfig.apply(config.resolve())
+  }
+
+  def notifyChangeToSubscribers() {
+    setChanged()
+    val beamConfig = getUpdatedBeamConfig
     notifyObservers(this, beamConfig)
   }
 }
