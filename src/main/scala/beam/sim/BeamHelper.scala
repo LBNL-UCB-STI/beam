@@ -512,6 +512,7 @@ trait BeamHelper extends LazyLogging {
       beamConfig.beam.outputs.addTimestampToOutputDirectory
     )
     LoggingUtil.initLogger(outputDirectory, beamConfig.beam.logger.keepConsoleAppenderOn)
+    logger.debug(s"Beam output directory is: ${outputDirectory}")
 
     level = beamConfig.beam.metrics.level
     runName = beamConfig.beam.agentsim.simulationName
