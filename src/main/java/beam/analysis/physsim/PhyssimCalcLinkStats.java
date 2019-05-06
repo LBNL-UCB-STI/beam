@@ -27,13 +27,6 @@ import java.io.IOException;
 import java.util.*;
 import java.util.List;
 
-class Test implements Observer {
-
-    @Override
-    public void update(Observable observable, Object o) {
-
-    }
-}
 public class PhyssimCalcLinkStats implements Observer {
 
     private Logger log = LoggerFactory.getLogger(PhyssimCalcLinkStats.class);
