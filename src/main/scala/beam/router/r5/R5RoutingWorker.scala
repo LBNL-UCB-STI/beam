@@ -376,7 +376,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
   def getPlanFromR5(request: R5Request): ProfileResponse = {
     countOccurrence("r5-plans-count")
-    val maxStreetTime = 2 * 60
     // If we already have observed travel times, probably from the pre
     // let R5 use those. Otherwise, let R5 use its own travel time estimates.
     val profileRequest = new ProfileRequest()
@@ -392,7 +391,11 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     profileRequest.maxWalkTime = 3 * 60
     profileRequest.maxCarTime = 4 * 60
     profileRequest.maxBikeTime = 4 * 60
-    profileRequest.streetTime = maxStreetTime
+    // Maximum number of transit segments. This was previously hardcoded as 4 in R5, now it is a parameter
+    // that defaults to 8 unless I reset it here. It is directly related to the amount of work the
+    // transit router has to do.
+    profileRequest.maxRides = 4
+    profileRequest.streetTime = 2 * 60
     profileRequest.maxTripDurationMinutes = 4 * 60
     profileRequest.wheelchair = false
     profileRequest.bikeTrafficStress = 4
