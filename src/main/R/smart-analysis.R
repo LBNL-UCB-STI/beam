@@ -10,7 +10,7 @@ library(colinmisc)
 setwd('/Users/critter/Dropbox/ucb/vto/beam-all/beam') # for development and debugging
 source('./src/main/R/beam-utilities.R')
 load.libraries(c('optparse'),quietly=T)
-load.libraries(c('maptools','sp','stringr','ggplot2'))
+load.libraries(c('maptools','sp','stringr','ggplot2','rgdal','viridis','h3js'))
 
 ##############################################################################################################################################
 # COMMAND LINE OPTIONS 
@@ -27,7 +27,7 @@ if(interactive()){
 ######################################################################################################
 
 # TODO make these come from conf file
-factor.to.scale.personal.back <- 20
+factor.to.scale.personal.back <- 1/0.08
 factor.to.scale.transit.back <- 1/.22 # inverse of param: beam.agentsim.tuning.transitCapacity
 plot.congestion <- F
 plot.pop <- T
@@ -38,13 +38,13 @@ exp.dir <- ifelse(strtail(args$args)=="/",args$args,pp(args$args,"/"))
 plots.dir <- pp(exp.dir,'plots/')
 make.dir(plots.dir)
 
-run.dirs <- grep('plot',list.dirs(exp.dir,recursive=F),value=T,invert=T)
+run.dirs <- grep('coupled',grep('plot',list.dirs(exp.dir,recursive=F),value=T,invert=T),value=T,invert=T)
 scens <- unlist(lapply(lapply(str_split(run.dirs,"sfbay-smart-"),function(ll){ str_split(ll[2],'__')}),function(lll){ lll[[1]][1]}))
 scen.names <- list('base'='Base','a-lt'='Sharing is Caring (Low Tech)','a-ht'='Sharing is Caring (High Tech)','b-lt'='Technology Takeover (Low Tech)','b-ht'='Technology Takeover (High Tech)','c-lt'='All About Me (Low Tech)','c-ht'='All About Me (High Tech)')
 scen.names.short <- list('base'='Base','a-lt'='A (LT)','a-ht'='A (HT)','b-lt'='B (LT)','b-ht'='B (HT)','c-lt'='C (LT)','c-ht'='C (HT)')
+scen.names.simp <- c('Base','Sharing is Caring','Technology Takeover','All About Me')
 
-events.in.use <- c('PathTraversal') #,'ModeChoice','PersonEntersVehicle','PersonLeavesVehicle')
-events.in.use <- c()
+events.in.use <- c('PathTraversal','ModeChoice')#,'PersonEntersVehicle','PersonLeavesVehicle')
 
 disag.evs <- list()
 evs <- list()
@@ -129,6 +129,10 @@ if(plot.congestion){
 
 ev <- clean.and.relabel(ev,factor.to.scale.personal.back,factor.to.scale.transit.back)
 
+to.simp <- function(x){ 
+  x.str <- ifelse(x=='Base','Base',ifelse(grepl('Sharing',x),'Sharing is Caring',ifelse(grepl('All ',x),'All About Me','Technology Takeover')))
+  factor(x.str,scen.names.simp)
+}
 scale_fill_manual(values = colours)
 fact <- 'scenario'
 
@@ -150,12 +154,30 @@ p <- ggplot(toplot,aes(x=scen.name,y=frac*100,fill=tripmode))+geom_bar(stat='ide
   scale_fill_manual(values=as.character(mode.colors$color.hex[match(sort(u(toplot$tripmode)),mode.colors$key)]))
 pdf.scale <- .6
 ggsave(pp(plots.dir,'mode-split-by-',fact,'.pdf'),p,width=10*pdf.scale,height=12*pdf.scale,units='in')
+toplot[,tech:=ifelse(grepl('High',scen.name),'High',ifelse(grepl('Low',scen.name),'Low','Base'))]
+toplot[,scen.simp:=to.simp(scen.name)]
+#p <- ggplot(toplot,aes(x=scen.simp,y=frac*100,fill=tripmode,group=tech))+geom_bar(stat='identity',position='dodge',colour='black')+
+  #labs(x="Scenario",y="% of Trips",fill="Trip Mode")+theme_bw()+theme(axis.text.x = element_text(angle = 40, hjust = 1))+
+  #scale_fill_manual(values=as.character(mode.colors$color.hex[match(sort(u(toplot$tripmode)),mode.colors$key)]))
+
 p <- ggplot(toplot,aes(x=scen.name,y=num,fill=tripmode))+geom_bar(stat='identity',position='stack')+
   labs(x="Scenario",y="Number of Trips",fill="Trip Mode")+theme_bw()+theme(axis.text.x = element_text(angle = 40, hjust = 1))+
   scale_fill_manual(values=as.character(mode.colors$color.hex[match(sort(u(toplot$tripmode)),mode.colors$key)]))
 pdf.scale <- .6
 ggsave(pp(plots.dir,'mode-split-abs-by-',fact,'.pdf'),p,width=10*pdf.scale,height=12*pdf.scale,units='in')
 write.csv(toplot,file=pp(plots.dir,'mode-split-by-',fact,'.csv'))
+
+# Trip distances by mode
+toplot <- mc[,.(dist=mean(length/1609)),by=c('tripmode','scen.name')]
+toplot[,tripmode:=pretty.modes(tripmode)]
+setkey(toplot,scen.name,tripmode)
+ggplot(toplot,aes(x=scen.name,y=dist,fill=tripmode))+geom_bar(stat='identity')+facet_wrap(~tripmode)+
+  labs(x="Scenario",y="Mean Trip Distance",fill="Trip Mode")+theme_bw()+theme(axis.text.x = element_text(angle = 40, hjust = 1))+
+  scale_fill_manual(values=as.character(mode.colors$color.hex[match(sort(u(toplot$tripmode)),mode.colors$key)]))
+
+# "Bad things happen" incidence
+
+bads <- mc[mode=='walk' & !currentTourMode%in%c('','walk')]
 
 
 # Modal splits by hour
@@ -179,9 +201,8 @@ rm('mc')
 pt <- ev[['PathTraversal']]
 # Energy by Mode
 
-pt[vehicleType%in%c('ConventionalGas_Low','ConventionalGas_High','ConventionalGas_CAV','RH_ConventionalGas_Low','RH_ConventionalGas_High','RH_ConventionalGas_CAV') & scen%in%c('b-lt','c-lt'),primaryFuel:=length/(55 * 8.3141841e-9 * 1609)]
-pt[vehicleType%in%c('ConventionalGas-48V_Low','ConventionalGas-48V_High','RH_ConventionalGas-48V_Low','RH_ConventionalGas-48V_High') & scen%in%c('a-lt'),primaryFuel:=length/(60 * 8.3141841e-9 * 1609)]
-pt[tripmode=='ride_hail' & numPassengers>1,tripmode:='ride_hail_pooled']
+#pt[vehicleType%in%c('ConventionalGas_Low','ConventionalGas_High','ConventionalGas_CAV','RH_ConventionalGas_Low','RH_ConventionalGas_High','RH_ConventionalGas_CAV') & scen%in%c('b-lt','c-lt'),primaryFuel:=length/(55 * 8.3141841e-9 * 1609)]
+#pt[vehicleType%in%c('ConventionalGas-48V_Low','ConventionalGas-48V_High','RH_ConventionalGas-48V_Low','RH_ConventionalGas-48V_High') & scen%in%c('a-lt'),primaryFuel:=length/(60 * 8.3141841e-9 * 1609)]
 n.peeps <- pop[,.(n.peeps=.N),by=c('id','scen')][,.(n.peeps=.N),by='scen']
 pt <- join.on(pt,n.peeps,'scen','scen')
 
@@ -217,6 +238,10 @@ per.pmt[,tripmode:=factor(tripmode,levels=the.first$tripmode[rev(order(the.first
 p <- ggplot(per.pmt[energy<Inf],aes(x=scen.name,y=energy,fill=tripmode))+geom_bar(stat='identity',position='dodge')+labs(x="Scenario",y="Energy Consumption (MJ/passenger mile)",fill="Trip Mode")+scale_fill_manual(values=as.character(mode.colors$color.hex[match(levels(per.pmt$tripmode),mode.colors$key)]))+theme_bw()+theme(axis.text.x = element_text(angle = 40, hjust = 1))
 ggsave(pp(plots.dir,'energy-per-pmt-by-vehicle-type-',fact,'.pdf'),p,width=10*pdf.scale,height=12*pdf.scale,units='in')
 
+toplot <- pt[,.(fuel1=sum(primaryFuel),fuel2=sum(secondaryFuel),numVehicles=as.double(length(fuel)),numberOfPassengers=as.double(sum(numPassengers)),pmt=sum(pmt),vmt=sum(length)/1609,n.peeps=n.peeps[1]),by=c('scen.name','primaryFuelType','secondaryFuelType')]
+p <- ggplot(toplot[!primaryFuelType%in%c('Food')][,.(energy=sum(fuel1)/sum(n.peeps)),by=c('scen.name','primaryFuelType')],aes(x=scen.name,y=energy/1e6,fill=primaryFuelType))+geom_bar(stat='identity',position='stack')+labs(x="Scenario",y="Per Capita Energy Consumption (MJ/person)",fill="Fuel Type")+scale_fill_manual(values=as.character(mode.colors$color.hex[c(1,4,3,2)]))+theme_bw()+theme(axis.text.x = element_text(angle = 40, hjust = 1))
+ggsave(pp(plots.dir,'energy-by-fuel-type.pdf'),p,width=10*pdf.scale,height=12*pdf.scale,units='in')
+
 # Deadheading 
 toplot <- pt[tripmode=='ride_hail',.(dead=numPassengers==0,miles=length/1609,hr,scen.name)]
 setkey(toplot,hr,dead)
@@ -249,9 +274,16 @@ p <- ggplot(wait[,.(wait=weighted.mean(avgWait, numberOfPickups)/60),by='scen.na
 ggsave(pp(plots.dir,'rh-wait-times.pdf'),p,width=6*pdf.scale,height=8*pdf.scale,units='in')
 
 # VMT
-sp <- pt[,.(vmt=sum(length/1609)),by=c('tripmode','scen.name')]
-p <- ggplot(sp,aes(x=scen.name,y=vmt,fill=tripmode))+geom_bar(stat='identity')+theme_bw()+theme(axis.text.x = element_text(angle = 40, hjust = 1))+scale_fill_manual(values=as.character(mode.colors$color.hex[match(pretty.modes(sort(u(sp$tripmode))),mode.colors$key)]))+labs(x='',y='Vehicle Miles Traveled',fill='Mode')
+pt[,tripmode2:=as.character(tripmode)]
+pt[tripmode%in%c('car','ride_hail','ride_hail_pooled','cav') & numPassengers==0,tripmode2:=pp(tripmode,'-empty')]
+pt[tripmode%in%c('car','ride_hail','ride_hail_pooled','cav') & numPassengers>1,tripmode2:=pp(tripmode,'-shared')]
+sp <- pt[!tripmode%in%c('walk','bike'),.(vmt=sum(length/1609),vmt.per.cap=sum(length)/1609/n.peeps[1]),by=c('tripmode','tripmode2','scen.name')]
+sp[,tripmode:=pretty.modes(tripmode)]
+setkey(sp,'tripmode','tripmode2','scen.name')
+p <- ggplot(sp,aes(x=scen.name,y=vmt,fill=tripmode))+geom_bar(stat='identity',colour='black')+theme_bw()+theme(axis.text.x = element_text(angle = 40, hjust = 1))+scale_fill_manual(values=as.character(mode.colors$color.hex[match(pretty.modes(sort(u(sp$tripmode))),mode.colors$key)]))+labs(x='',y='Vehicle Miles Traveled',fill='Mode')
 ggsave(pp(plots.dir,'vmt.pdf'),p,width=10*pdf.scale,height=12*pdf.scale,units='in')
+p <- ggplot(sp,aes(x=scen.name,y=vmt.per.cap,fill=tripmode))+geom_bar(stat='identity',colour='black')+theme_bw()+theme(axis.text.x = element_text(angle = 40, hjust = 1))+scale_fill_manual(values=as.character(mode.colors$color.hex[match(pretty.modes(sort(u(sp$tripmode))),mode.colors$key)]))+labs(x='',y='Vehicle Miles Traveled',fill='Mode')
+ggsave(pp(plots.dir,'vmt-per-cap.pdf'),p,width=10*pdf.scale,height=12*pdf.scale,units='in')
 
 sp <- pt[,.(vmt=sum(length/1609)),by=c('tripmode','numPassengers','scen.name')]
 sp[,tripmodePass:=pp(tripmode,'-',ifelse(tripmode=='transit','',numPassengers))]
@@ -268,13 +300,14 @@ comm <- pop[,.(dist.to.work=sqrt((x[1]-x[2])^2+(y[1]-y[2])^2)),by=c('id','scen')
 comm[,.(mean(dist.to.work)/22527.45,median(dist.to.work)/17232.54),by='scen']
 
 # VHT & PHT
-pt[tripmode=='walk',numPassengers:=1]
 vht <- pt[,.(vht=sum(time-departureTime,na.rm=T)/3600,vht.per.cap=sum(time-departureTime,na.rm=T)/3600/n.peeps[1]),by=c('scen.name','tripmode')]
 vht[,tripmode.pretty:=pretty.modes(tripmode)]
 pht <- pt[numPassengers>0,.(pht=sum((time-departureTime)/numPassengers,na.rm=T)/3600,pht.per.cap=sum((time-departureTime)/numPassengers,na.rm=T)/3600/n.peeps[1]),by=c('scen.name','tripmode')]
 pht[,tripmode.pretty:=pretty.modes(tripmode)]
 p <- ggplot(vht,aes(x=scen.name,y=vht,fill=tripmode.pretty))+geom_bar(stat='identity')+theme_bw()+theme(axis.text.x = element_text(angle = 40, hjust = 1))+scale_fill_manual(values=as.character(mode.colors$color.hex[match((sort(u(vht$tripmode.pretty))),mode.colors$key)]))+labs(x="",y="Vehicle Hours Traveled",fill="Trip Mode")
 ggsave(pp(plots.dir,'vht.pdf'),p,width=10*pdf.scale,height=12*pdf.scale,units='in')
+p <- ggplot(vht[tripmode%in%c('car','cav','ride_hail','ride_hail_pooled')],aes(x=scen.name,y=vht.per.cap,fill=tripmode.pretty))+geom_bar(stat='identity',colour='black')+theme_bw()+theme(axis.text.x = element_text(angle = 40, hjust = 1))+scale_fill_manual(values=as.character(mode.colors$color.hex[match((sort(u(vht[tripmode%in%c('car','cav','ride_hail','ride_hail_pooled')]$tripmode.pretty))),mode.colors$key)]))+labs(x="",y="Vehicle Hours Traveled",fill="Trip Mode")
+ggsave(pp(plots.dir,'vht-ldv-per-cap.pdf'),p,width=10*pdf.scale,height=12*pdf.scale,units='in')
 p <- ggplot(vht,aes(x=scen.name,y=vht.per.cap,fill=tripmode.pretty))+geom_bar(stat='identity')+theme_bw()+theme(axis.text.x = element_text(angle = 40, hjust = 1))+scale_fill_manual(values=as.character(mode.colors$color.hex[match((sort(u(vht$tripmode.pretty))),mode.colors$key)]))+labs(x="",y="Vehicle Hours Traveled per Capita",fill="Trip Mode")
 ggsave(pp(plots.dir,'vht-per-cap.pdf'),p,width=10*pdf.scale,height=12*pdf.scale,units='in')
 p <- ggplot(vht[tripmode%in%c('car','cav','ride_hail')],aes(x=scen.name,y=vht.per.cap,fill=tripmode.pretty))+geom_bar(stat='identity')+theme_bw()+theme(axis.text.x = element_text(angle = 40, hjust = 1))+scale_fill_manual(values=as.character(mode.colors$color.hex[match((sort(u(vht[tripmode%in%c('car','cav','ride_hail')]$tripmode.pretty))),mode.colors$key)]))+labs(x="",y="Vehicle Hours Traveled per Capita",fill="Trip Mode")
@@ -287,22 +320,83 @@ ggsave(pp(plots.dir,'pht-per-cap.pdf'),p,width=10*pdf.scale,height=12*pdf.scale,
 p <- ggplot(pht[tripmode%in%c('car','cav','ride_hail')],aes(x=scen.name,y=pht.per.cap,fill=tripmode.pretty))+geom_bar(stat='identity')+theme_bw()+theme(axis.text.x = element_text(angle = 40, hjust = 1))+scale_fill_manual(values=as.character(mode.colors$color.hex[match((sort(u(pht[tripmode%in%c('car','cav','ride_hail')]$tripmode.pretty))),mode.colors$key)]))+labs(x="",y="Person Hours Traveled per Capita",fill="Trip Mode")
 ggsave(pp(plots.dir,'pht-ldv-per-cap.pdf'),p,width=10*pdf.scale,height=12*pdf.scale,units='in')
 
+# VMT per person results for Max
+vmt.per.peep <- pt[,.(vmt=sum(length)/1609),by=c('tripmode','scen','driver')]
+write.csv(vmt.per.peep,file=pp(plots.dir,'vmt-per-person.csv'))
+
+# Num Vehicles
+if(F){
+  nveh <- pt[,.(nveh=length(u(vehicle))),by=c('scen.name','vehicleType')]
+  nveh[,type:=ifelse(grepl('BUS',vehicleType),'BUS',ifelse(grepl('Conventional-Car',vehicleType) | grepl('ConventionalGas',vehicleType),'Car',ifelse(grepl('Conventional-Truck',vehicleType),'Truck',ifelse(grepl('ConventionalDiesel',vehicleType),'Diesel',ifelse(grepl('BEV',vehicleType),'BEV',
+    ifelse(grepl('PHEV',vehicleType),'PHEV',ifelse(grepl('HEV',vehicleType),'HEV',ifelse(grepl('Bike',vehicleType),'Bike',ifelse(grepl('BODY',vehicleType),'BODY',ifelse(grepl('RAIL',vehicleType),'RAIL',''))))))))))]
+  nveh[,nveh.scaled:=nveh]
+  nveh[!type%in%c('','BUS','RAIL'),nveh.scaled:=nveh*factor.to.scale.personal.back]
+  nveh[type%in%c('','BUS','RAIL'),nveh.scaled:=nveh*factor.to.scale.transit.back]
+  nveh[,type:=factor(as.character(type),c("BEV",'PHEV','HEV','Diesel','Truck',"Car","Bike","BODY","BUS","","RAIL"))]
+  save(nveh,file=pp(plots.dir,'num-vehicles.Rdata'))
+  load(file=pp(plots.dir,'num-vehicles.Rdata'))
+  nveh[type%in%c('Car','Truck','Diesel'),type:='Gasoline']
+  nveh[,type:=factor(as.character(type),c("BEV",'PHEV','HEV','Diesel','Gasoline',"Bike","BODY","BUS","","RAIL"))]
+  p <- ggplot(nveh[!type%in%c('','BUS','Bike','BODY','RAIL')][,.(nveh.scaled=sum(nveh.scaled)),by=c('scen.name','type')],aes(x=scen.name,y=nveh.scaled/1e6,fill=type))+geom_bar(stat='identity')+theme_bw()+theme(axis.text.x = element_text(angle = 40, hjust = 1))+scale_fill_manual(values=as.character(mode.colors$color.hex[c(3,8,1,2)]))+labs(x="",y="Number of Vehicles (millions)",fill="Powertrain")
+  ggsave(pp(plots.dir,'num-vehicles.pdf'),p,width=10*pdf.scale,height=12*pdf.scale,units='in')
+}
+
 
 rm('pt')
 
 
 # Skim obs vs modeled
-sk<-data.table(read.csv('~/Documents/beam/beam-output/smart-2019-04-amr-final/sfbay-smart-base__2019-04-05_05-28-37/ITERS/it.30/30.tazODTravelTimeObservedVsSimulated.csv.gz'))
+sk<-data.table(read.csv('~/Documents/beam/beam-output/smart-2019-04-amr-final/plots/30.tazODTravelTimeObservedVsSimulated-green.csv.gz'))
 sks <- list()
 for(drop.i in 0:5){
   sks[[length(sks)+1]] <- sk[counts>drop.i]
   sks[[length(sks)]][,drop:=drop.i] 
 }
 sks <- rbindlist(sks)
+p <- ggplot(sks[drop==3],aes(x=timeObserved,y=timeSimulated*1.1,colour=factor(counts)))+geom_point(alpha=0.25)+geom_abline(slope=1,intercept=0)
+ggsave(pp(plots.dir,'skims-obs-v-pred-3-and-above.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
 p <- ggplot(sks,aes(x=timeObserved,y=timeSimulated,colour=factor(counts)))+geom_point(alpha=0.25)+facet_wrap(~drop)+geom_abline(slope=1,intercept=0)
 ggsave(pp(plots.dir,'skims-obs-v-pred-by-drop.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
-p<-ggplot(sk[,.(sim=weighted.mean(timeSimulated,counts),obs=mean(timeObserved),n=sum(counts)),by='bin'],aes(x=obs,y=sim,size=n))+geom_point()+geom_abline(slope=1,intercept=0)
+p<-ggplot(sk[,.(sim=weighted.mean(timeSimulated,counts),obs=mean(timeObserved),n=sum(counts)),by='hour'],aes(x=obs,y=sim,size=n))+geom_point()+geom_abline(slope=1,intercept=0)
 ggsave(pp(plots.dir,'skims-obs-v-pred-weighted-mean.pdf'),p,width=10*pdf.scale,height=8*pdf.scale,units='in')
+
+# Spatial Distribution of ride hail in SF
+sf.shapefile <- '/Users/critter/Dropbox/ucb/vto/beam-colin/sf-bay-area/tnc_od_typwkday_hourly/sf-bay-area-counties/s7hs4j'
+shape <- readOGR(pp(sf.shapefile,".shp"),tail(strsplit(sf.shapefile,"/")[[1]],1))
+sf.coords <- data.table(shape[which(shape@data$COUNTY=='San Francisco'),]@polygons[[1]]@Polygons[[1]]@coords)[,.(x=V1,y=V2)]
+
+rh <- pt[scen=='base' & tripmode=='ride_hail' & startX > -122.519416 & startY < 37.810030 & startX < -122.348440 & startY > 37.705133]
+rh[,startH3.7:=h3_geo_to_h3(startY,startX,7)]
+rh[,startH3.8:=h3_geo_to_h3(startY,startX,8)]
+rh[,startH3.9:=h3_geo_to_h3(startY,startX,9)]
+rh.density <- rh[,.(n=.N),by='startH3.8']
+hexes <- rbindlist(lapply(rh.density$startH3.8,function(ll){ x <- data.table(h3_to_geo_boundary(ll)); x[,':='(id=ll,x=V2,y=V1,V1=NULL,V2=NULL)]; x}))
+hexes <- join.on(hexes,rh.density,'id','startH3.8')
+p <- ggplot(hexes,aes(x=x,y=y,fill=n,group=id))+geom_polygon()+geom_polygon(data=sf.coords,aes(x=x,y=y),fill=NA,colour='black',group=1,size=2)
+ggsave(pp(plots.dir,'rh-validation-base.pdf'),p,width=10*pdf.scale,height=12*pdf.scale,units='in')
+
+load("/Users/critter/Dropbox/ucb/vto/beam-colin/sf-bay-area/tnc_od_typwkday_hourly/tnc_od_typwkday_hourly.Rdata")
+tnc.rh <- melt(df,id.vars=c('hour','start_taz','day_of_week'))
+tnc.rh[,':='(end_taz=substr(variable,2,nchar(as.character(variable))),variable=NULL)]
+tnc.start.density <- tnc.rh[,.(n=sum(value)),by='start_taz']
+load("/Users/critter/Dropbox/ucb/vto/beam-colin/sf-bay-area/tnc_od_typwkday_hourly/tnc2day.Rdata")
+tnc.start.density <- join.on(tnc.start.density,tnc,'start_taz','taz')
+tnc.start.density <- tnc.start.density[x > -122.519416 & y < 37.810030 & x < -122.348440 & y > 37.705133]
+tnc.start.density[,startH3.8:=h3_geo_to_h3(y,x,8)]
+tnc.start.density[,startH3.9:=h3_geo_to_h3(y,x,9)]
+rh.density.tnc <- tnc.start.density[,.(n=sum(n)),by='startH3.8']
+hexes.tnc <- rbindlist(lapply(rh.density.tnc$startH3.8,function(ll){ x <- data.table(h3_to_geo_boundary(ll)); x[,':='(id=ll,x=V2,y=V1,V1=NULL,V2=NULL)]; x}))
+hexes.tnc <- join.on(hexes.tnc,rh.density.tnc,'id','startH3.8')
+p <- ggplot(hexes.tnc,aes(x=x,y=y,fill=n,group=id))+geom_polygon()+geom_polygon(data=sf.coords,aes(x=x,y=y),fill=NA,colour='black',group=1,size=2)
+ggsave(pp(plots.dir,'rh-validation-obs.pdf'),p,width=10*pdf.scale,height=12*pdf.scale,units='in')
+
+hexes.tnc[,scen:='Observed']
+hexes[,scen:='Simulated']
+p <- ggplot(rbindlist(list(hexes[,.(x,y,id,scen,frac=(n/sum(n)))],hexes.tnc[,.(x,y,id,scen,frac=(n/sum(n)))])),aes(x=x,y=y,fill=frac,group=id))+geom_polygon()+geom_polygon(data=sf.coords,aes(x=x,y=y),fill=NA,colour='black',group=1,size=2)+facet_wrap(~scen)+scale_fill_viridis(discrete=F)
+ggsave(pp(plots.dir,'rh-validation-both.pdf'),p,width=10*pdf.scale,height=6*pdf.scale,units='in')
+
+
+
 
 # Process the vehicle energy inputs to double check them
 
