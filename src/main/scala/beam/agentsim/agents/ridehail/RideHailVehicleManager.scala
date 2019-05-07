@@ -8,6 +8,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode.CAR
+import beam.sim.Geofence
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
@@ -304,7 +305,8 @@ object RideHailVehicleManager {
     rideHailAgent: ActorRef,
     vehicleId: Id[Vehicle],
     vehicleTypeId: Id[BeamVehicleType],
-    currentLocationUTM: SpaceTime
+    currentLocationUTM: SpaceTime,
+    geofence: Option[Geofence]
   ) {
 
     def toStreetVehicle: StreetVehicle = {

@@ -967,7 +967,7 @@ class PersonAgent(
         BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _)
         ) =>
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
-    case Event(NotifyVehicleIdle(_, _, _, _, _), _) =>
+    case Event(NotifyVehicleIdle(_, _, _, _,_, _), _) =>
       stay()
     case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>
       stay() replying CompletionNotice(triggerId)

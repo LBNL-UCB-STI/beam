@@ -211,6 +211,7 @@ class RideHailAgent(
           vehicle.spaceTime,
           PassengerSchedule(),
           vehicle.getState,
+          geofence,
           Some(triggerId)
         )
         holdTickAndTriggerId(tick, triggerId)
@@ -233,6 +234,7 @@ class RideHailAgent(
         vehicle.spaceTime.copy(time = tick),
         PassengerSchedule(),
         vehicle.getState,
+        geofence,
         Some(triggerId)
       )
       holdTickAndTriggerId(tick, triggerId)
@@ -293,6 +295,7 @@ class RideHailAgent(
           SpaceTime(currentLocation, tick),
           data.passengerSchedule,
           vehicle.getState,
+          geofence,
           _currentTriggerId
         )
       )

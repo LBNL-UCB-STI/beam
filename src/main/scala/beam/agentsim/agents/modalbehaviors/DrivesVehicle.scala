@@ -166,6 +166,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
             beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint),
             data.passengerSchedule,
             currentBeamVehicle.getState,
+            None,
             Some(triggerId)
           )
         )
@@ -359,6 +360,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           beamServices.geo.wgs2Utm(updatedBeamLeg.travelPath.endPoint),
           data.passengerSchedule,
           currentBeamVehicle.getState,
+          None,
           _currentTriggerId
         )
       )

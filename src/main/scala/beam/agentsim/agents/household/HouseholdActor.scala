@@ -432,7 +432,7 @@ object HouseholdActor {
           personAndActivityToLegs = personAndActivityToLegs - persActAndCAV._1
         }
 
-      case NotifyVehicleIdle(vId, whenWhere, _, _, _) =>
+      case NotifyVehicleIdle(vId, whenWhere, _, _, _,_) =>
         val vehId = vId.asInstanceOf[Id[BeamVehicle]]
         vehicles(vehId).spaceTime = whenWhere
         log.debug("updated vehicle {} with location {}", vehId, whenWhere)

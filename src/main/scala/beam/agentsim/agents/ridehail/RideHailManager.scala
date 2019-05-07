@@ -506,6 +506,7 @@ class RideHailManager(
           whenWhere,
           passengerSchedule,
           beamVehicleState,
+          geofence,
           triggerId
         ) =>
       log.debug("RHM.NotifyVehicleResourceIdle: {}", ev)
