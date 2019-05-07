@@ -306,7 +306,7 @@ object RideHailVehicleManager {
     vehicleId: Id[Vehicle],
     vehicleTypeId: Id[BeamVehicleType],
     currentLocationUTM: SpaceTime,
-    geofence: Option[Geofence]
+    geofence: Option[Geofence] = None
   ) {
 
     def toStreetVehicle: StreetVehicle = {
