@@ -409,7 +409,7 @@ trait BeamHelper extends LazyLogging {
     val defaultScenario = buildScenarioFromMatsimConfig(beamExecutionConfig.matsimConfig, networkCoordinator)
     val injector: inject.Injector = buildInjector(config, defaultScenario, networkCoordinator)
     val services = buildBeamServices(injector, networkCoordinator)
-    fillScenarioWithExternalSources(defaultScenario, injector, defaultScenario.getConfig, networkCoordinator, services)
+    fillScenarioWithExternalSources(defaultScenario, injector, networkCoordinator, services)
 
     warmStart(beamExecutionConfig.beamConfig, beamExecutionConfig.matsimConfig)
 
@@ -477,7 +477,6 @@ trait BeamHelper extends LazyLogging {
   protected def fillScenarioWithExternalSources(
     scenario: MutableScenario,
     injector: inject.Injector,
-    matsimConfig: MatsimConfig,
     networkCoordinator: NetworkCoordinator,
     beamServices: BeamServices
   ): Scenario = {
