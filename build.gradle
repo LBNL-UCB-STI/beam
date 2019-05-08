@@ -99,7 +99,7 @@ allprojects {
 dependencies {
 
     //beam-utilities
-    compile group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.1'
+    compile group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.1'
     ////////////////////////////
     // Java dependencies
     ////////////////////////////

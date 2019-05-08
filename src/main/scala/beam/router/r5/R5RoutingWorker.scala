@@ -3,6 +3,7 @@ package beam.router.r5
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneId, ZoneOffset, ZonedDateTime}
 import java.util
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{ExecutorService, Executors}
 
 import akka.actor._
@@ -24,7 +25,7 @@ import beam.router.model.BeamLeg._
 import beam.router.model.RoutingModel.LinksTimesDistances
 import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
-import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
+import beam.router.r5.R5RoutingWorker.{MinSpeedUsage, R5Request, TripWithFares}
 import beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter
 import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
@@ -41,6 +42,7 @@ import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.google.common.util.concurrent.ThreadFactoryBuilder
+import com.google.inject.Injector
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Person
@@ -105,6 +107,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val vehicleCsvReader: VehicleCsvReader = new VehicleCsvReader(beamConfig)
 
       val beamServices: BeamServices = new BeamServices {
+        override lazy val injector: Injector = ???
         override lazy val controler: ControlerI = ???
         override val beamConfig: BeamConfig = BeamConfig(config)
         override lazy val geo: GeoUtils = new GeoUtilsImpl(beamConfig)
@@ -143,6 +146,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         override def setTransitFleetSizes(
           tripFleetSizeMap: mutable.HashMap[String, Integer]
         ): Unit = {}
+
       }
 
       val defaultTravelTimeByLink = (time: Int, linkId: Int, mode: StreetMode) => {
@@ -220,6 +224,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     numOfThreads
   )
 
+  // It has to be atomic because `getTravelTime` is called from different threads (we calculate routes in Future)
+  val minSpeedOverwrittenCnt: AtomicInteger = new AtomicInteger(0)
+
   def getNameAndHashCode: String = s"R5RoutingWorker_v2[${hashCode()}], Path: `${self.path}`"
 
   var workAssigner: ActorRef = context.parent
@@ -281,6 +288,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     case WorkAvailable =>
       workAssigner = sender
       askForMoreWork()
+    case IterationFinished(iteration) =>
+      sender() ! MinSpeedUsage(iteration, minSpeedOverwrittenCnt.get())
+      minSpeedOverwrittenCnt.set(0)
 
     case TransitInited(newTransitSchedule) =>
       transitSchedule = newTransitSchedule
@@ -963,6 +973,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     val tt = travelTime.getLinkTravelTime(link, time, null, null)
     val travelSpeed = link.getLength / tt
     if (travelSpeed < beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond) {
+      minSpeedOverwrittenCnt.incrementAndGet()
       link.getLength / beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond
     } else {
       tt
@@ -1363,6 +1374,8 @@ object R5RoutingWorker {
   )
 
   case class TripWithFares(trip: BeamTrip, legFares: Map[Int, Double])
+
+  case class MinSpeedUsage(iteration: Int, count: Int)
 
   case class R5Request(
     from: Coord,

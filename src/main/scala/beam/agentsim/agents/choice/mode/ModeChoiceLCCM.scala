@@ -271,7 +271,7 @@ class ModeChoiceLCCM(
     trips: ListBuffer[EmbodiedBeamTrip],
     person: Person,
     attributesOfIndividual: AttributesOfIndividual
-  ) = {
+  ): Double = {
     // Compute and log all-day score w.r.t. all modality styles
     // One of them has many suspicious-looking 0.0 values. Probably something which
     // should be minus infinity or exception instead.

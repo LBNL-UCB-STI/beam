@@ -73,10 +73,11 @@ class PersonWithPersonalVehiclePlanSpec
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
+    with beam.utils.InjectableMock
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
-  private lazy val beamConfig = BeamConfig(system.settings.config)
+  lazy val beamConfig = BeamConfig(system.settings.config)
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
@@ -85,7 +86,7 @@ class PersonWithPersonalVehiclePlanSpec
   private lazy val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
   private lazy val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
-  private lazy val beamSvc: BeamServices = {
+  lazy val beamSvc: BeamServices = {
     val matsimServices = mock[MatsimServices]
 
     val theServices = mock[BeamServices](withSettings().stubOnly())
@@ -123,6 +124,8 @@ class PersonWithPersonalVehiclePlanSpec
       person: Person,
       attributesOfIndividual: AttributesOfIndividual
     ): Double = 0.0
+
+    setupInjectableMock(beamConfig, beamSvc)
   }
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
