@@ -65,6 +65,15 @@ object XmlConverter extends App {
     )
   }
 
+  def generatePlansCsv(beamConfig: BeamConfig, allFiles: Seq[File]): File = {
+    val populationXml = new File(beamConfig.beam.agentsim.agents.plans.inputPlansFilePath)
+    convert(
+      populationXml,
+      PlansXml2CsvConverter.toCsv,
+      Some(new File(allFiles.head.getParentFile + "/plans"))
+    )
+  }
+
   def csvFileName(file: File): File = new File(file.getAbsolutePath.stripSuffix(".xml") + ".csv")
 
   def convert(file: File, f: File => Iterator[String], newName: Option[File] = None): File = {
