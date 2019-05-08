@@ -8,7 +8,7 @@ import scala.xml.parsing.ConstructingParser
 class HouseholdsXml2CsvConverter(householdAttributesXml: File) extends Xml2CsvFileConverter {
 
   override val fields: Seq[String] =
-    Seq("householdId", "incomePeriod", "incomeValue", "incomeCurrency", "locationX", "locationY")
+    Seq("householdId", "incomeValue", "incomeCurrency", "locationX", "locationY")
 
   private type HouseholdId = Int
   private type HouseHoldIdToAttributes = Map[HouseholdId, HouseHoldAttributes]
@@ -20,7 +20,7 @@ class HouseholdsXml2CsvConverter(householdAttributesXml: File) extends Xml2CsvFi
   }
 
   private case class Income(currency: String, period: String, value: String) {
-    override def toString: String = Seq(period, value, currency).mkString(FieldSeparator)
+    override def toString: String = Seq(value, currency).mkString(FieldSeparator)
   }
 
   private case class Vehicle(refId: Int) {

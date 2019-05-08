@@ -8,10 +8,18 @@ import scala.xml.{Node, NodeSeq}
 
 class PopulationXml2CsvConverter(householdsXml: File, populationAttributesXml: File) extends Xml2CsvFileConverter {
 
-  override val fields: Seq[String] = Seq("personId", "age", "isFemale", "householdId", "houseHoldRank")
+  override val fields: Seq[String] = Seq("personId", "age", "isFemale", "householdId", "houseHoldRank", "excludedModes")
 
-  private case class Person(personId: Int, age: Int, isFemale: Boolean, householdId: Int, householdRank: Int) {
-    override def toString: String = Seq(personId, isFemale, householdId, householdRank).mkString(",")
+  private case class Person(
+    personId: Int,
+    age: Int,
+    isFemale: Boolean,
+    householdId: Int,
+    householdRank: Int,
+    excludedModes: String
+  ) {
+    override def toString: String =
+      Seq(personId, age, isFemale, householdId, householdRank, excludedModes).mkString(FieldSeparator)
   }
 
   private case class HouseholdMembers(houseHoldId: Int, memberIds: Seq[Int])
@@ -30,13 +38,13 @@ class PopulationXml2CsvConverter(householdsXml: File, populationAttributesXml: F
   }
 
   type RankValue = Int
-  type MemberToRank = Map[MemberId, RankValue]
+  private type MemberToRank = Map[MemberId, PersonAttributes]
   private def readMember2Rank(): MemberToRank = {
     val parser = ConstructingParser.fromFile(populationAttributesXml, preserveWS = true)
     val doc = parser.document().docElem
     val people: NodeSeq = doc \\ "object"
     val allPeopleAttributes: Iterator[PersonAttributes] = people.toIterator.map(node => toPersonAttributes(node))
-    allPeopleAttributes.map(pa => (pa.objectId, pa.rank)).toMap
+    allPeopleAttributes.map(pa => (pa.objectId, pa)).toMap
   }
 
   private def toPersonAttributes(node: Node): PersonAttributes = {
@@ -70,7 +78,8 @@ class PopulationXml2CsvConverter(householdsXml: File, populationAttributesXml: F
       age = 30,
       isFemale = Random.nextInt() > 0,
       householdId = memberToHousehold(memberId),
-      householdRank = member2Rank(memberId)
+      householdRank = member2Rank(memberId).rank,
+      excludedModes = member2Rank(memberId).excludedModes
     )
   }
 

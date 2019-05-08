@@ -26,7 +26,6 @@ object VehiclesXml2CsvConverter extends Xml2CsvFileConverter {
     )
   }
 
-
 //  private def readHouseHoldIdToAttributes(): HouseHoldIdToAttributes = {
 //    def toHouseholdAttributes(node: Node): HouseHoldAttributes = {
 //      val attrs = node \\ "attribute"
@@ -50,7 +49,6 @@ object VehiclesXml2CsvConverter extends Xml2CsvFileConverter {
 //    r
 //  }
 
-
 //  private def toVehicle(node: Node): Vehicle = {
 //    val attrs = node \\ "attribute"
 //
@@ -62,7 +60,6 @@ object VehiclesXml2CsvConverter extends Xml2CsvFileConverter {
 //      rank = fromSeq("rank").toInt
 //    )
 //  }
-
 
   override def contentIterator(sourceFile: File): Iterator[String] = {
     val parser = ConstructingParser.fromFile(sourceFile, preserveWS = true)

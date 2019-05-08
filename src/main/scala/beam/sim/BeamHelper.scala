@@ -331,18 +331,18 @@ trait BeamHelper extends LazyLogging {
   def runClusterWorkerUsing(config: TypesafeConfig): Unit = {
     val clusterConfig = ConfigFactory
       .parseString(s"""
-                      |akka.cluster.roles = [compute]
-                      |akka.actor.deployment {
-                      |      /statsService/singleton/workerRouter {
-                      |        router = round-robin-pool
-                      |        cluster {
-                      |          enabled = on
-                      |          max-nr-of-instances-per-node = 1
-                      |          allow-local-routees = on
-                      |          use-roles = ["compute"]
-                      |        }
-                      |      }
-                      |    }
+           |akka.cluster.roles = [compute]
+           |akka.actor.deployment {
+           |      /statsService/singleton/workerRouter {
+           |        router = round-robin-pool
+           |        cluster {
+           |          enabled = on
+           |          max-nr-of-instances-per-node = 1
+           |          allow-local-routees = on
+           |          use-roles = ["compute"]
+           |        }
+           |      }
+           |    }
           """.stripMargin)
       .withFallback(config)
 
@@ -406,14 +406,14 @@ trait BeamHelper extends LazyLogging {
   def runBeamWithConfig(config: TypesafeConfig): (MatsimConfig, String) = {
     val beamExecutionConfig = setupBeamWithConfig(config)
     val networkCoordinator: NetworkCoordinator = buildNetworkCoordinator(beamExecutionConfig.beamConfig)
-    val scenario = buildScenarioFromMatsimConfig(beamExecutionConfig.matsimConfig, networkCoordinator)
-    val injector: inject.Injector = buildInjector(config, scenario, networkCoordinator)
-    val services = buildBeamServices(injector, scenario, beamExecutionConfig.matsimConfig, networkCoordinator)
+    val defaultScenario = buildScenarioFromMatsimConfig(beamExecutionConfig.matsimConfig, networkCoordinator)
+    val injector: inject.Injector = buildInjector(config, defaultScenario, networkCoordinator)
+    val services = buildBeamServices(injector, defaultScenario, beamExecutionConfig.matsimConfig, networkCoordinator)
 
     warmStart(beamExecutionConfig.beamConfig, beamExecutionConfig.matsimConfig)
 
-    runBeam(services, scenario, networkCoordinator, beamExecutionConfig.outputDirectory)
-    (scenario.getConfig, beamExecutionConfig.outputDirectory)
+    runBeam(services, defaultScenario, networkCoordinator, beamExecutionConfig.outputDirectory)
+    (defaultScenario.getConfig, beamExecutionConfig.outputDirectory)
   }
 
   protected def buildScenarioFromMatsimConfig(
@@ -427,14 +427,14 @@ trait BeamHelper extends LazyLogging {
 
   def buildBeamServices(
     injector: inject.Injector,
-    scenario: MutableScenario,
+    defaultScenario: MutableScenario,
     matsimConfig: MatsimConfig,
     networkCoordinator: NetworkCoordinator
   ): BeamServices = {
     val result = injector.getInstance(classOf[BeamServices])
     result.setTransitFleetSizes(networkCoordinator.tripFleetSizeMap)
 
-    fillScenarioFromExternalSources(injector, matsimConfig, networkCoordinator, result)
+    fillScenarioWithExternalSources(defaultScenario, injector, networkCoordinator, result)
 
     result
   }
@@ -478,25 +478,24 @@ trait BeamHelper extends LazyLogging {
     run(beamServices)
   }
 
-  private def fillScenarioFromExternalSources(
+  private def fillScenarioWithExternalSources(
+    scenario: MutableScenario,
     injector: inject.Injector,
-    matsimConfig: MatsimConfig,
     networkCoordinator: NetworkCoordinator,
     beamServices: BeamServices
   ): Scenario = {
     val beamConfig = beamServices.beamConfig
     val useExternalDataForScenario: Boolean =
       Option(beamConfig.beam.exchange.scenario.folder).exists(!_.isEmpty)
-    val matsimScenario = buildScenarioFromMatsimConfig(matsimConfig, networkCoordinator)
 
     if (useExternalDataForScenario) {
-      val scenarioSource: ScenarioSource = getScenarioSource2(injector, beamConfig)
+      val scenarioSource: ScenarioSource = buildScenarioSource(injector, beamConfig)
       ProfilingUtils.timed(s"Load scenario using ${scenarioSource.getClass}", x => logger.info(x)) {
-        new ScenarioLoader(matsimScenario, beamServices, scenarioSource).loadScenario()
-        matsimScenario
+        new ScenarioLoader(scenario, beamServices, scenarioSource).loadScenario()
+        scenario
       }
     } else {
-      matsimScenario
+      scenario
     }
   }
 
@@ -604,9 +603,9 @@ trait BeamHelper extends LazyLogging {
         .forEach(personId => notSelectedPersonIds.add(personId))
 
       logger.info(s"""Before sampling:
-          |Number of households: ${notSelectedHouseholdIds.size}
-          |Number of vehicles: ${getVehicleGroupingStringUsing(notSelectedVehicleIds.toIndexedSeq, beamServices)}
-          |Number of persons: ${notSelectedPersonIds.size}""".stripMargin)
+           |Number of households: ${notSelectedHouseholdIds.size}
+           |Number of vehicles: ${getVehicleGroupingStringUsing(notSelectedVehicleIds.toIndexedSeq, beamServices)}
+           |Number of persons: ${notSelectedPersonIds.size}""".stripMargin)
 
       val iterHouseholds = RandomUtils.shuffle(scenario.getHouseholds.getHouseholds.values().asScala, rand).iterator
       var numberOfAgents = 0
@@ -681,27 +680,10 @@ trait BeamHelper extends LazyLogging {
       .mkString(" , ")
   }
 
-  def getScenarioSource2(injector: inject.Injector, beamConfig: BeamConfig): ScenarioSource = {
+  def buildScenarioSource(injector: inject.Injector, beamConfig: BeamConfig): ScenarioSource = {
     val src = beamConfig.beam.exchange.scenario.source.toLowerCase
     if (src == "urbansim") {
-      val fileFormat: InputType = Option(beamConfig.beam.exchange.scenario.fileFormat)
-        .map(str => InputType(str.toLowerCase))
-        .getOrElse(
-          throw new IllegalStateException(
-            s"`beamConfig.beam.exchange.scenario.fileFormat` is null or empty!"
-          )
-        )
-      val scenarioReader = fileFormat match {
-        case InputType.CSV     => CsvScenarioReader
-        case InputType.Parquet => ParquetScenarioReader
-      }
-
-      new UrbanSimScenarioSource(
-        scenarioFolder = beamConfig.beam.exchange.scenario.folder,
-        rdr = scenarioReader,
-        geoUtils = injector.getInstance(classOf[GeoUtils]),
-        shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
-      )
+      buildUrbansimScenarioSource(injector, beamConfig)
     } else if (src == "matsim") {
       new MatsimScenarioSource(
         scenarioFolder = beamConfig.beam.exchange.scenario.folder,
@@ -710,6 +692,29 @@ trait BeamHelper extends LazyLogging {
     } else throw new NotImplementedError(s"ScenarioSource '$src' is not yet implemented")
   }
 
+  private def buildUrbansimScenarioSource(
+    injector: _root_.com.google.inject.Injector,
+    beamConfig: _root_.beam.sim.config.BeamConfig
+  ) = {
+    val fileFormat: InputType = Option(beamConfig.beam.exchange.scenario.fileFormat)
+      .map(str => InputType(str.toLowerCase))
+      .getOrElse(
+        throw new IllegalStateException(
+          s"`beamConfig.beam.exchange.scenario.fileFormat` is null or empty!"
+        )
+      )
+    val scenarioReader = fileFormat match {
+      case InputType.CSV     => CsvScenarioReader
+      case InputType.Parquet => ParquetScenarioReader
+    }
+
+    new UrbanSimScenarioSource(
+      scenarioFolder = beamConfig.beam.exchange.scenario.folder,
+      rdr = scenarioReader,
+      geoUtils = injector.getInstance(classOf[GeoUtils]),
+      shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
+    )
+  }
 }
 
 case class MapStringDouble(data: Map[String, Double])
