@@ -1,6 +1,5 @@
 package beam.agentsim.infrastructure
 import akka.actor.Actor
-import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import org.matsim.api.core.v01.{Coord, Id}
 
 // Abundant parking everywhere people require it. For testing.

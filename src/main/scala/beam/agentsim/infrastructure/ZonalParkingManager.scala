@@ -6,7 +6,6 @@ import scala.util.Random
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
-import beam.agentsim.infrastructure.ParkingManager._
 import beam.agentsim.infrastructure.charging.ChargingInquiryData
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
@@ -30,71 +29,7 @@ class ZonalParkingManager(
 
   override def receive: Receive = {
 
-    case ReleaseParkingStall(parkingZoneId) =>
-      if (parkingZoneId == ParkingZone.DefaultParkingZoneId) {
-        if (log.isDebugEnabled) {
-          // this is an infinitely available resource; no update required
-          log.debug("Releasing a parking stall for the default parking zone")
-        }
-      } else if (parkingZoneId < 0 || parkingZones.length <= parkingZoneId) {
-        if (log.isDebugEnabled) {
-          log.debug("Attempting to release stall in zone {} which is an illegal parking zone id", parkingZoneId)
-        }
-      } else {
 
-        val released: Boolean = ParkingZone.releaseStall(parkingZones(parkingZoneId)).value
-        if (released) {
-          totalStallsInUse -= 1
-          totalStallsAvailable += 1
-        }
-      }
-      if (log.isDebugEnabled) {
-        log.debug("ReleaseParkingStall with {} available stalls ", totalStallsAvailable)
-      }
-
-    case inquiry: DepotParkingInquiry =>
-      // we are receiving this because the Ride Hail Manager is seeking alternatives to its managed parking zones
-
-      val inquiryReserveStall
-        : Boolean = true // this comes on standard inquiries, and maybe Depot inquiries in the future
-
-      if (log.isDebugEnabled) {
-        log.debug("DepotParkingInquiry with {} available stalls ", totalStallsAvailable)
-      }
-
-      // looking for publicly-available parking options
-      val (parkingZone, parkingStall) = ZonalParkingManager.incrementalParkingZoneSearch(
-        500.0,
-        ZonalParkingManager.MaxSearchRadius,
-        inquiry.customerLocationUtm,
-        ZonalParkingManager.DepotParkingValueOfTime,
-        ZonalParkingManager.ParkingDurationForRideHailAgents,
-        Seq(ParkingType.Public),
-        None,
-        zoneSearchTree,
-        parkingZones,
-        beamServices.tazTreeMap.tazQuadTree,
-        beamServices.geo.distUTMInMeters,
-        rand
-      )
-
-      // reserveStall is false when agent is only seeking pricing information
-      if (inquiryReserveStall) {
-        // update the parking stall data
-        val claimed: Boolean = ParkingZone.claimStall(parkingZone).value
-        if (claimed) {
-          totalStallsInUse += 1
-          totalStallsAvailable -= 1
-        }
-
-        if (log.isDebugEnabled) {
-          log.debug("DepotParkingInquiry {} available stalls ", totalStallsAvailable)
-        }
-      }
-
-      // send found stall
-      val response = DepotParkingInquiryResponse(Some(parkingStall), inquiry.requestId)
-      sender() ! response
 
     case inquiry: ParkingInquiry =>
       log.debug("Received parking inquiry: {}", inquiry)
@@ -105,13 +40,13 @@ class ZonalParkingManager(
         case _                                   => Seq(ParkingType.Public)
       }
 
-      // performs a concentric ring search from the present location to find a parking stall, and creates it
+      // performs a concentric ring search from the destination to find a parking stall, and creates it
       val (parkingZone, parkingStall) = ZonalParkingManager.incrementalParkingZoneSearch(
         500.0,
         ZonalParkingManager.MaxSearchRadius,
-        inquiry.customerLocationUtm,
-        inquiry.attributesOfIndividual.valueOfTime,
-        inquiry.parkingDuration.toInt,
+        inquiry.destinationUtm,
+        inquiry.valueOfTime,
+        inquiry.parkingDuration,
         preferredParkingTypes,
         inquiry.chargingInquiryData,
         zoneSearchTree,
@@ -137,6 +72,30 @@ class ZonalParkingManager(
       }
 
       sender() ! ParkingInquiryResponse(parkingStall, inquiry.requestId)
+
+
+
+    case ReleaseParkingStall(parkingZoneId) =>
+      if (parkingZoneId == ParkingZone.DefaultParkingZoneId) {
+        if (log.isDebugEnabled) {
+          // this is an infinitely available resource; no update required
+          log.debug("Releasing a parking stall for the default parking zone")
+        }
+      } else if (parkingZoneId < 0 || parkingZones.length <= parkingZoneId) {
+        if (log.isDebugEnabled) {
+          log.debug("Attempting to release stall in zone {} which is an illegal parking zone id", parkingZoneId)
+        }
+      } else {
+
+        val released: Boolean = ParkingZone.releaseStall(parkingZones(parkingZoneId)).value
+        if (released) {
+          totalStallsInUse -= 1
+          totalStallsAvailable += 1
+        }
+      }
+      if (log.isDebugEnabled) {
+        log.debug("ReleaseParkingStall with {} available stalls ", totalStallsAvailable)
+      }
   }
 }
 
@@ -168,17 +127,24 @@ object ZonalParkingManager {
     new ZonalParkingManager(beamServices, stalls, searchTree, random)
   }
 
+  def apply(
+    parkingDescription: Iterator[String],
+    beamServices: BeamServices,
+    random: Random
+  ): ZonalParkingManager = {
+    val (stalls, searchTree) = ParkingZoneFileUtils.fromIterator(parkingDescription)
+    new ZonalParkingManager(beamServices, stalls, searchTree, random)
+  }
+
   /**
     * builds a ZonalParkingManager Actor
     * @param beamServices core services related to this simulation
     * @param beamRouter Actor responsible for routing decisions (deprecated/previously unused)
-    * @param parkingStockAttributes intended to set parking defaults (deprecated/previously unused)
     * @return
     */
   def props(
     beamServices: BeamServices,
     beamRouter: ActorRef,
-    parkingStockAttributes: ParkingStockAttributes,
     random: Random = new Random(System.currentTimeMillis)
   ): Props = {
     Props(ZonalParkingManager(beamServices, random))
@@ -203,7 +169,7 @@ object ZonalParkingManager {
     searchMaxRadius    : Double,
     destinationUTM     : Location,
     valueOfTime        : Double,
-    parkingDuration    : Int,
+    parkingDuration    : Double,
     parkingTypes       : Seq[ParkingType],
     chargingInquiryData: Option[ChargingInquiryData[String, String]],
     searchTree         : ParkingZoneSearch.ZoneSearch,
@@ -250,7 +216,7 @@ object ZonalParkingManager {
               ) =>
             val stallPrice: Double =
               bestParkingZone.pricingModel
-                .map { PricingModel.evaluateParkingTicket(_, parkingDuration) }
+                .map { PricingModel.evaluateParkingTicket(_, parkingDuration.toInt) }
                 .getOrElse(DefaultParkingPrice)
 
             // create a new stall instance. you win!

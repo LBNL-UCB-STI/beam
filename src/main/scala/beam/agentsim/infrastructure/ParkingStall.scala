@@ -19,7 +19,7 @@ case class ParkingStall(
 object ParkingStall {
   val emptyParkingStall: ParkingStall = DefaultStall(new Coord())
 
-  val CostOfEmergencyStall: Double = 1000.0 // used as an emergency when no stalls were found
+  val CostOfEmergencyStall: Double = 100000.0 // $1000.00 stall used as an emergency when no stalls were found
 
   /**
     * take a stall from the infinite parking zone

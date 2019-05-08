@@ -13,7 +13,7 @@ import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, _}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
-import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter._
@@ -722,11 +722,9 @@ trait ChoosesMode {
   ): Option[Int] = {
     val inquiry = ParkingInquiry(
       destinationInUTM,
-      destinationInUTM,
       activityType,
-      attributes,
+      attributes.valueOfTime,
       None,
-      arrivalTime,
       duration,
       reserveStall = false
     )
