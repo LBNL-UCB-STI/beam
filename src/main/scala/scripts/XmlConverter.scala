@@ -1,6 +1,7 @@
 package scripts
 
 import java.io.{File, FileInputStream, FileOutputStream}
+import java.nio.file.{CopyOption, Files}
 
 import beam.sim.config.BeamConfig
 import beam.utils.FileUtils
@@ -72,6 +73,16 @@ object XmlConverter extends App {
       PlansXml2CsvConverter.toCsv,
       Some(new File(allFiles.head.getParentFile + "/plans"))
     )
+  }
+
+  def generateVehiclesCsv(beamConfig: BeamConfig, allFiles: Seq[File]): File = {
+    val file = new File(beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath)
+    val stream = new FileInputStream(file)
+    val newFile = new File(allFiles.headOption.get.getParentFile + "/vehicles.csv")
+    println(s"Generating file $newFile")
+    Files.copy(stream, newFile.toPath)
+    stream.close()
+    newFile
   }
 
   def csvFileName(file: File): File = new File(file.getAbsolutePath.stripSuffix(".xml") + ".csv")

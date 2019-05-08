@@ -292,6 +292,7 @@ class BeamSim @Inject()(
     XmlConverter.generatePopulationCsv(beamServices.beamConfig, outputFiles)
     XmlConverter.generateHouseholdsCsv(beamServices.beamConfig, outputFiles)
     XmlConverter.generatePlansCsv(beamServices.beamConfig, outputFiles)
+    XmlConverter.generateVehiclesCsv(beamServices.beamConfig, outputFiles)
     outputFilesToDelete.foreach(deleteOutputFile)
 
     def deleteOutputFile(fileName: String) = {
