@@ -81,7 +81,7 @@ class LinkInOutFeature(
         linkIdToInLinkHops,
         delimiter
       )
-      val fileName = new File(outputPath).getParentFile + "/LinkInOut_mapping.csv"
+      val fileName = new File(outputPath).getParentFile + "/Metadata.csv"
       mappingWriter.write(fileName)
     }
   }
@@ -231,7 +231,7 @@ object LinkInOutFeature {
       (1 to level).foreach { lvl =>
         writeColumnValue(s"L${lvl}_InLinks")
       }
-      writeColumnValue("dummy_column")
+      wrt.append("dummy_column")
       wrt.append(System.lineSeparator())
       wrt.flush()
     }
