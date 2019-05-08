@@ -7,8 +7,8 @@ import scala.xml.parsing.ConstructingParser
 
 class HouseholdsXml2CsvConverter(householdAttributesXml: File) extends Xml2CsvFileConverter {
 
-  override val fields: Seq[String] = Seq("householdId", "incomePeriod", "incomeValue", "incomeCurrency", "locationX", "locationY")
-
+  override val fields: Seq[String] =
+    Seq("householdId", "incomePeriod", "incomeValue", "incomeCurrency", "locationX", "locationY")
 
   private type HouseholdId = Int
   private type HouseHoldIdToAttributes = Map[HouseholdId, HouseHoldAttributes]
@@ -31,7 +31,12 @@ class HouseholdsXml2CsvConverter(householdAttributesXml: File) extends Xml2CsvFi
     override def toString: String = refId.toString
   }
 
-  private case class HouseHoldAttributes(householdId: HouseholdId, homeCoordX: Int, homeCoordY: Int, housingType: String) {
+  private case class HouseHoldAttributes(
+    householdId: HouseholdId,
+    homeCoordX: Int,
+    homeCoordY: Int,
+    housingType: String
+  ) {
     override def toString: String = {
       val values = Seq(householdId, homeCoordX, homeCoordY, housingType)
       values.mkString(FieldSeparator)
@@ -55,10 +60,10 @@ class HouseholdsXml2CsvConverter(householdAttributesXml: File) extends Xml2CsvFi
     val parser = ConstructingParser.fromFile(householdAttributesXml, preserveWS = true)
     val doc = parser.document()
     val householdNodes: NodeSeq = doc.docElem \\ "objectattributes" \ "object"
-    val r = householdNodes.toIterator.map(node => toHouseholdAttributes(node))
+    householdNodes.toIterator
+      .map(node => toHouseholdAttributes(node))
       .map(hha => (hha.householdId, hha))
       .toMap
-    r
   }
 
   private def toHousehold(node: Node, houseHoldIdToAttributes: HouseHoldIdToAttributes): Household = {
@@ -73,9 +78,9 @@ class HouseholdsXml2CsvConverter(householdAttributesXml: File) extends Xml2CsvFi
 
   private def toIncome(node: Node): Income = {
     Income(
-      period = node.attributes("period").text,
-      value = node.text,
-      currency = node.attributes("currency").text
+      period = node.attributes("period").text.trim,
+      value = node.text.trim,
+      currency = node.attributes("currency").text.trim
     )
   }
 
