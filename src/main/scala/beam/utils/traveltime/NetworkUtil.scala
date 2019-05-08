@@ -48,15 +48,15 @@ object NetworkUtil {
     numberOfHops
   }
 
-  def getLinks(link: Link, level: Int, direction: Direction): Array[Link] = {
-    val links = getLinks0(link, level, direction, Array())
-    links.filter(x => x != link)
+  def getLinks(link: Link, level: Int, direction: Direction): Map[Int, Array[Link]]= {
+    val links = getLinks0(link, 1, level, direction, Map())
+    links
   }
 
-  def getLinks0(link: Link, level: Int, direction: Direction, arr: Array[Link]): Array[Link] = {
+  def getLinks0(link: Link, currentLevel: Int, level: Int, direction: Direction, levelToLinks: Map[Int, Array[Link]]): Map[Int, Array[Link]] = {
     level match {
       case 0 =>
-        arr.distinct
+        levelToLinks
       case _ =>
         val links = direction match {
           case Direction.Out =>
@@ -64,8 +64,12 @@ object NetworkUtil {
           case Direction.In =>
             link.getFromNode.getInLinks.values().asScala
         }
-        val out = arr ++ links
-        links.flatMap(getLinks0(_, level - 1, direction, out)).toArray.distinct
+        val out = levelToLinks.updated(currentLevel, links.toArray)
+        val maps = links.flatMap(getLinks0(_, currentLevel + 1, level - 1, direction, out))
+        maps.foldLeft(Map[Int, Array[Link]]()) { case (acc, (k, v)) =>
+          val r1 = acc.getOrElse(k, Array.empty)
+          acc.updated(k, (r1 ++ v).distinct)
+        }
     }
   }
 }

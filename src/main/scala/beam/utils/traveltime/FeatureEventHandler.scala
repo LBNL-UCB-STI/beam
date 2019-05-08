@@ -45,7 +45,6 @@ class FeatureEventHandler(
     writeColumnValue("enterTime")
     writeColumnValue("leaveTime")
     writeColumnValue("vehOnRoad")
-    writeColumnValue("length")
 
     featureExtractor.writeHeader(writer)
 
@@ -83,7 +82,6 @@ class FeatureEventHandler(
         linkVehicleCount.put(linkId, linkVehicleCount.getOrElse(linkId, 0) - 1)
         val numOfVehicleOnTheRoad = vehiclesInFrontOfMe(vehicleId)
         writeColumnValue(numOfVehicleOnTheRoad.toString)
-        writeColumnValue(link.getLength.toString)
 
         featureExtractor.leavedLink(writer, event, link, vehicleId, linkVehicleCount)
 

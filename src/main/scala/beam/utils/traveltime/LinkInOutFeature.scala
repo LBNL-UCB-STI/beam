@@ -6,6 +6,7 @@ import java.util
 import beam.utils.ProfilingUtils
 import beam.utils.traveltime.LinkInOutFeature.MappingWriter
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.network.Link
@@ -24,42 +25,47 @@ class LinkInOutFeature(
   val start = System.currentTimeMillis()
   val allLinks: Array[Link] = links.values().asScala.toArray
 
-  val vehicleOnUpstreamRoads: mutable.Map[String, Array[Int]] = mutable.Map[String, Array[Int]]()
-  val vehicleOnDownstreamRoads: mutable.Map[String, Array[Int]] = mutable.Map[String, Array[Int]]()
+  val vehicleOnUpstreamRoads: mutable.Map[String, Map[Int, Array[Int]]]= mutable.Map[String, Map[Int, Array[Int]]]()
+  val vehicleOnDownstreamRoads: mutable.Map[String, Map[Int, Array[Int]]] = mutable.Map[String, Map[Int, Array[Int]]]()
 
-  val linkIdToOutLinks: Map[Link, Array[Int]] = allLinks.par
+  val linkIdToLeveledOutLinks: Map[Link, Map[Int, Array[Int]]] = allLinks.par
     .map { link =>
-      link -> getLinks(link, level, Direction.Out).map(_.getId.toString.toInt)
+      link -> getLinks(link, level, Direction.Out)
+          .map { case (k, v) => k -> v.map(_.getId.toString.toInt)}
     }
     .toMap
     .seq
 
-  val linkIdToInLinks: Map[Link, Array[Int]] = allLinks.par
+  val linkIdToLeveledInLinks: Map[Link, Map[Int, Array[Int]]] = allLinks.par
     .map { link =>
-      link -> getLinks(link, level, Direction.In).map(_.getId.toString.toInt)
+      link -> getLinks(link, level, Direction.In)
+        .map { case (k, v) => k -> v.map(_.getId.toString.toInt)}
     }
     .toMap
     .seq
 
-  val linkIdToOutLinkHops: Map[Link, Array[Int]] = linkIdToOutLinks.par.map {
+  val linkIdToOutLinkHops: Map[Link, Array[Int]] = linkIdToLeveledOutLinks.par.map {
     case (src, destinations) =>
-      val hops = destinations.map { dstId =>
-        val dst = links.get(Id.create(dstId, classOf[Link]))
-        numOfHops(src, dst, Direction.Out)
-      }
+      val hops = destinations.values.flatMap { dstIds =>
+        dstIds.map { dstId =>
+          val dst = links.get(Id.create(dstId, classOf[Link]))
+          numOfHops(src, dst, Direction.Out)
+        }
+      }.toArray
       src -> hops
   }.seq
 
-  val linkIdToInLinkHops: Map[Link, Array[Int]] = linkIdToInLinks.par.map {
+  val linkIdToInLinkHops: Map[Link, Array[Int]] = linkIdToLeveledInLinks.par.map {
     case (src, destinations) =>
-      val hops = destinations.map { dstId =>
-        val dst = links.get(Id.create(dstId, classOf[Link]))
-        numOfHops(src, dst, Direction.In)
-      }
+      val hops = destinations.values.flatMap { dstIds =>
+        dstIds.map { dstId =>
+          val dst = links.get(Id.create(dstId, classOf[Link]))
+          numOfHops(src, dst, Direction.In)
+        }
+      }.toArray
       src -> hops
   }.seq
-  val maxOutColumns: Int = linkIdToOutLinks.values.maxBy(_.length).length
-  val maxInColumns: Int = linkIdToInLinks.values.maxBy(_.length).length
+
 
   val end = System.currentTimeMillis()
   logger.info(s"Prepared in ${end - start} ms")
@@ -67,13 +73,11 @@ class LinkInOutFeature(
   val shouldWriteMapping: Boolean = true
   if (shouldWriteMapping) {
     ProfilingUtils.timed("writeMappings", x => logger.info(x)) {
-      val mappingWriter = new MappingWriter(
+      val mappingWriter = new MappingWriter(level,
         allLinks,
-        maxOutColumns,
-        linkIdToOutLinks,
+        linkIdToLeveledOutLinks,
         linkIdToOutLinkHops,
-        maxInColumns,
-        linkIdToInLinks,
+        linkIdToLeveledInLinks,
         linkIdToInLinkHops,
         delimiter
       )
@@ -81,19 +85,25 @@ class LinkInOutFeature(
       mappingWriter.write(fileName)
     }
   }
-  logger.info(s"Build in and out links. maxOutColumns: $maxOutColumns, maxInColumns: $maxInColumns")
 
   def writeHeader(wrt: Writer): Unit = {
     implicit val writer: Writer = wrt
-    writeColumnValue("out_sum")
-    writeColumnValue("in_sum")
-
-    (1 to maxOutColumns).foreach { i =>
-      writeColumnValue(s"outLink${i}_vehOnRoad")
+    (1 to level).foreach { lvl =>
+      writeColumnValue(s"L${lvl}_TotalVeh_OutLinks")
+      writeColumnValue(s"L${lvl}_MinVeh_OutLinks")
+      writeColumnValue(s"L${lvl}_MaxVeh_OutLinks")
+      writeColumnValue(s"L${lvl}_MedianVeh_OutLinks")
+      writeColumnValue(s"L${lvl}_AvgVeh_OutLinks")
+      writeColumnValue(s"L${lvl}_StdVeh_OutLinks")
     }
 
-    (1 to maxInColumns).foreach { i =>
-      writeColumnValue(s"inLink${i}_vehOnRoad")
+    (1 to level).foreach { lvl =>
+      writeColumnValue(s"L${lvl}_TotalVeh_InLinks")
+      writeColumnValue(s"L${lvl}_MinVeh_InLinks")
+      writeColumnValue(s"L${lvl}_MaxVeh_InLinks")
+      writeColumnValue(s"L${lvl}_MedianVeh_InLinks")
+      writeColumnValue(s"L${lvl}_AvgVeh_InLinks")
+      writeColumnValue(s"L${lvl}_StdVeh_InLinks")
     }
   }
 
@@ -103,19 +113,17 @@ class LinkInOutFeature(
     vehicleId: String,
     linkVehicleCount: scala.collection.Map[Int, Int]
   ): Unit = {
-    linkIdToOutLinks.get(link).foreach { outLinks =>
-      val counts = outLinks.map { lid =>
-        linkVehicleCount.getOrElse(lid, 0)
-      }
-      vehicleOnUpstreamRoads.put(vehicleId, counts)
+    val outLinksLeveledVehCounts = linkIdToLeveledOutLinks(link).map { case (lvl, outLinks) =>
+      val counts = outLinks.map(linkVehicleCount.getOrElse(_, 0))
+      lvl -> counts
     }
+    vehicleOnUpstreamRoads.put(vehicleId, outLinksLeveledVehCounts)
 
-    linkIdToInLinks.get(link).foreach { inLinks =>
-      val counts = inLinks.map { lid =>
-        linkVehicleCount.getOrElse(lid, 0)
-      }
-      vehicleOnDownstreamRoads.put(vehicleId, counts)
+    val inLinksLeveledVehCounts = linkIdToLeveledInLinks(link).map { case (lvl, inLinks) =>
+      val counts = inLinks.map(linkVehicleCount.getOrElse(_, 0))
+      lvl -> counts
     }
+    vehicleOnDownstreamRoads.put(vehicleId, inLinksLeveledVehCounts)
   }
 
   def leavedLink(
@@ -126,29 +134,30 @@ class LinkInOutFeature(
     linkVehicleCount: scala.collection.Map[Int, Int]
   ): Unit = {
     implicit val writer: Writer = wrt
-    val outCounts = vehicleOnUpstreamRoads(vehicleId)
-    val inCounts = vehicleOnDownstreamRoads(vehicleId)
-    writeColumnValue(outCounts.sum.toString)
-    writeColumnValue(inCounts.sum.toString)
-
-    (1 to maxOutColumns).foreach { i =>
-      val idx = i - 1
-      outCounts.lift(idx) match {
-        case Some(cnt) =>
-          writeColumnValue(s"${cnt.toString}")
-        case None =>
-          writeColumnValue("0")
-      }
+    vehicleOnUpstreamRoads(vehicleId).foreach { case (lvl, counts) =>
+      val total = counts.sum
+      val avg = total.toDouble / counts.length
+      val sorted = counts.sorted
+      val std = new StandardDeviation().evaluate(counts.map(_.toDouble))
+      writeColumnValue(total.toString)
+      writeColumnValue(counts.min.toString)
+      writeColumnValue(counts.max.toString)
+      writeColumnValue(sorted(counts.length / 2).toString)
+      writeColumnValue(avg.toString)
+      writeColumnValue(std.toString)
     }
 
-    (1 to maxInColumns).foreach { i =>
-      val idx = i - 1
-      inCounts.lift(idx) match {
-        case Some(cnt) =>
-          writeColumnValue(s"${cnt.toString}")
-        case None =>
-          writeColumnValue("0")
-      }
+    vehicleOnDownstreamRoads(vehicleId).foreach { case (lvl, counts) =>
+      val total = counts.sum
+      val avg = total.toDouble / counts.length
+      val sorted = counts.sorted
+      val std = new StandardDeviation().evaluate(counts.map(_.toDouble))
+      writeColumnValue(total.toString)
+      writeColumnValue(counts.min.toString)
+      writeColumnValue(counts.max.toString)
+      writeColumnValue(sorted(counts.length / 2).toString)
+      writeColumnValue(avg.toString)
+      writeColumnValue(std.toString)
     }
   }
 
@@ -160,13 +169,11 @@ class LinkInOutFeature(
 
 object LinkInOutFeature {
 
-  class MappingWriter(
+  class MappingWriter(val level: Int,
     val allLinks: Array[Link],
-    val maxOutColumns: Int,
-    val linkIdToOutLinks: Map[Link, Array[Int]],
+    val linkIdToOutLinks: Map[Link, Map[Int, Array[Int]]],
     val linkIdToOutLinkHops: Map[Link, Array[Int]],
-    val maxInColumns: Int,
-    val linkIdToInLinks: Map[Link, Array[Int]],
+    val linkIdToInLinks: Map[Link, Map[Int, Array[Int]]],
     val linkIdToInLinkHops: Map[Link, Array[Int]],
     val delimiter: String
   ) {
@@ -177,12 +184,23 @@ object LinkInOutFeature {
         writeHeader()
         allLinks.foreach { link =>
           writeColumnValue(link.getId.toString)
+          writeColumnValue(link.getLength.toString)
           writeColumnValue(link.getCapacity.toString)
           writeColumnValue(link.getNumberOfLanes.toString)
+          writeColumnValue(link.getFromNode.getInLinks.size.toString)
+          writeColumnValue(link.getFromNode.getOutLinks.size.toString)
+          writeColumnValue(link.getToNode.getInLinks.size.toString)
+          writeColumnValue(link.getToNode.getOutLinks.size.toString)
 
-          writeLinksWithHop(maxOutColumns, linkIdToOutLinks(link), linkIdToOutLinkHops(link))
-          writeLinksWithHop(maxInColumns, linkIdToInLinks(link), linkIdToInLinkHops(link))
+          linkIdToOutLinks(link).foreach { case (_, outLinks) =>
+            val linksStr = "\"" + outLinks.mkString(" ") + "\""
+            writeColumnValue(linksStr)
+          }
 
+          linkIdToInLinks(link).foreach { case (_, inLinks) =>
+            val linksStr = "\"" + inLinks.mkString(" ") + "\""
+            writeColumnValue(linksStr)
+          }
           // Do not use `writeColumnValue`, it adds delimiter, but this is the last column
           writer.append("d")
           writer.append(System.lineSeparator())
@@ -200,38 +218,22 @@ object LinkInOutFeature {
 
     def writeHeader()(implicit wrt: Writer): Unit = {
       writeColumnValue("linkId")
+      writeColumnValue("length")
       writeColumnValue("capacity")
       writeColumnValue("lanes")
-
-      (1 to maxOutColumns).foreach { i =>
-        writeColumnValue(s"outLink${i}_linkId")
-        writeColumnValue(s"outLink${i}_numOfHops")
+      writeColumnValue("FromNode_InLinksSize")
+      writeColumnValue("FromNode_OutLinksSize")
+      writeColumnValue("ToNode_InLinksSize")
+      writeColumnValue("ToNode_OutLinksSize")
+      (1 to level).foreach { lvl =>
+        writeColumnValue(s"L${lvl}_OutLinks")
       }
-
-      (1 to maxInColumns).foreach { i =>
-        writeColumnValue(s"inLink${i}_linkId")
-        writeColumnValue(s"inLink${i}_numOfHops")
+      (1 to level).foreach { lvl =>
+        writeColumnValue(s"L${lvl}_InLinks")
       }
       writeColumnValue("dummy_column")
       wrt.append(System.lineSeparator())
       wrt.flush()
-    }
-
-    def writeLinksWithHop(maxColumns: Int, linkIds: Array[Int], hopsPerLink: Array[Int])(implicit wrt: Writer): Unit = {
-      var i: Int = 0
-      assert(linkIds.length == hopsPerLink.length)
-      while (i < maxColumns) {
-        if (i < linkIds.length) {
-          val linkId = linkIds(i)
-          val nHops = hopsPerLink(i)
-          writeColumnValue(linkId.toString)
-          writeColumnValue(nHops.toString)
-        } else {
-          writeColumnValue("0")
-          writeColumnValue("0")
-        }
-        i += 1
-      }
     }
   }
 }
