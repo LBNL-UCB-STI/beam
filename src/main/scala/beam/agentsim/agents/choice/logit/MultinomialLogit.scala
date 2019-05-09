@@ -150,9 +150,6 @@ class MultinomialLogit[A, T](
 
 object MultinomialLogit {
 
-//  utilityFunctions: Map[A, Map[T, UtilityFunctionOperation]],
-//  common: Option[Map[T, UtilityFunctionOperation]]
-
   case class MNLSample[AlternativeType](
     alternativeType: AlternativeType,
     utility: Double,
@@ -160,15 +157,6 @@ object MultinomialLogit {
     realProbability: Double
   )
 
-//  def apply[A, T](utilityFunctionParams: Map[A, Set[UtilityFunctionParam[T]]]): MultinomialLogit[A, T] = {
-//    new MultinomialLogit(utilityFunctionParams)
-//  }
-//
-//  def apply[A, T](utilityFunctionData: IndexedSeq[UtilityFunction[A, T]]): MultinomialLogit_old[A, T] = {
-//    new MultinomialLogit_old(reduceInputData(utilityFunctionData))
-//  }
-
-  //def apply[A,T]()
 
   def apply[A, T](utilityFunctions: Map[A, Map[T, UtilityFunctionOperation]]): MultinomialLogit[A, T] = {
     new MultinomialLogit(utilityFunctions, Map())
@@ -180,23 +168,4 @@ object MultinomialLogit {
   ): MultinomialLogit[A, T] = {
     new MultinomialLogit(utilityFunctions, commonUtilityFunction)
   }
-
-  //val ZeroValue: Double = -1E100
 }
-
-//sealed trait MNLOperation {
-//  def apply(value: Double): Double
-//}
-//
-//object MNLOperation {
-//  case class Intercept(coefficient: Double) extends MNLOperation {
-//    override def apply(value: Double): Double = coefficient
-//  }
-//  case class Multiplier(coefficient: Double) extends MNLOperation {
-//    override def apply(value: Double): Double = coefficient * value
-//  }
-//}
-// thoughts
-//   "should sample higher probability alternatives more often" spec is dangerous
-//   i'm not using ZeroValue, just Option.. is ok?
-//   breaks first test in spec

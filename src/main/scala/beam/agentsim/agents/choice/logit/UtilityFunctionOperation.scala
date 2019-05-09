@@ -4,7 +4,6 @@ sealed trait UtilityFunctionOperation {
   def apply(value: Double): Double
 }
 
-//todo
 /**
   * Operation one can execute on a utility function.
   */
