@@ -48,8 +48,6 @@ object ParkingStallSampling {
     new Coord(sampleX, sampleY)
   }
 
-
-
   /**
     * samples a random location near a TAZ's centroid in order to create a stall in that TAZ.
     * previous dev's note: make these distributions more custom to the TAZ and stall type

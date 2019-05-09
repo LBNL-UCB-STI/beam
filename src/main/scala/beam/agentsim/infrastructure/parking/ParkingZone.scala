@@ -17,13 +17,14 @@ import org.matsim.api.core.v01.Id
   * @param pricingModel if this stall has pricing, this is the type of pricing
   */
 class ParkingZone(
-                   val parkingZoneId: Int,
-                   val tazId: Id[TAZ],
-                   var stallsAvailable: Int,
-                   val maxStalls: Int,
-                   val chargingPointType: Option[ChargingPointType],
-                   val pricingModel: Option[PricingModel]
+  val parkingZoneId: Int,
+  val tazId: Id[TAZ],
+  var stallsAvailable: Int,
+  val maxStalls: Int,
+  val chargingPointType: Option[ChargingPointType],
+  val pricingModel: Option[PricingModel]
 ) {
+
   /**
     * the percentage of parking available in this ParkingZone
     * @return percentage [0.0, 1.0]
@@ -56,11 +57,11 @@ object ParkingZone {
     * @return a new StallValues object
     */
   def apply(
-             parkingZoneId: Int,
-             tazId: Id[TAZ],
-             numStalls: Int = 0,
-             chargingType: Option[ChargingPointType] = None,
-             pricingModel: Option[PricingModel] = None,
+    parkingZoneId: Int,
+    tazId: Id[TAZ],
+    numStalls: Int = 0,
+    chargingType: Option[ChargingPointType] = None,
+    pricingModel: Option[PricingModel] = None,
   ): ParkingZone = new ParkingZone(parkingZoneId, tazId, numStalls, numStalls, chargingType, pricingModel)
 
   /**
@@ -73,7 +74,7 @@ object ParkingZone {
       if (parkingZone.parkingZoneId == DefaultParkingZoneId) {
         // this zone does not exist in memory but it has infinitely many stalls to release
         true
-      } else if (parkingZone.stallsAvailable + 1 == parkingZone.maxStalls) {
+      } else if (parkingZone.stallsAvailable + 1 > parkingZone.maxStalls) {
 //        log.debug(s"Attempting to release a parking stall when ParkingZone is already full.")
         false
       } else {

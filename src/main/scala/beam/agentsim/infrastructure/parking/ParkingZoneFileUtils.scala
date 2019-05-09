@@ -41,7 +41,6 @@ object ParkingZoneFileUtils extends LazyLogging {
     writeDestinationPath: String
   ): Unit = {
 
-
     val destinationFile = new File(writeDestinationPath)
 
     Try {
@@ -160,8 +159,6 @@ object ParkingZoneFileUtils extends LazyLogging {
     }
   }
 
-
-
   /**
     * parses a row of parking configuration into the data structures used to represent it
     * @param csvRow the comma-separated parking attributes
@@ -232,8 +229,10 @@ object ParkingZoneFileUtils extends LazyLogging {
     // update the tree with the id of this ParkingZone
     val updatedTree =
       tree.updated(
-        tazId, parkingTypes.updated(
-          parkingType, parkingZoneIds :+ parkingZone.parkingZoneId
+        tazId,
+        parkingTypes.updated(
+          parkingType,
+          parkingZoneIds :+ parkingZone.parkingZoneId
         )
       )
 

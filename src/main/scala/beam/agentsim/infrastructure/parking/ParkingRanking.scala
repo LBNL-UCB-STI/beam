@@ -26,7 +26,7 @@ object ParkingRanking {
     valueOfTime: Double
   ): Double = {
     val price: Double = parkingZone.pricingModel match {
-      case None => 0.0
+      case None               => 0.0
       case Some(pricingModel) =>
         // convert to dollars; calculate duration if block-based pricing
         PricingModel.evaluateParkingTicket(pricingModel, parkingDuration.toInt)
@@ -42,9 +42,8 @@ object ParkingRanking {
 
     // TODO: include cost of charge here
 
-    - price - valueOfTimeSpentWalking - PlaceholderForChargingCosts
+    -price - valueOfTimeSpentWalking - PlaceholderForChargingCosts
   }
-
 
   /**
     * accumulator used to carry the best-ranked parking attributes along with aggregate search data

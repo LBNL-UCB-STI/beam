@@ -15,7 +15,7 @@ object PricingModel {
     * A flat parking fee, such as an all-day rate at a parking garage
     * @param cost the all-day rate, in cents
     */
-  case class FlatFee(cost: Int, intervalSeconds: Int) extends PricingModel {
+  case class FlatFee(cost: Int, intervalSeconds: Int = DefaultPricingInterval) extends PricingModel {
     override def toString: String = "FlatFee"
   }
 
@@ -66,8 +66,9 @@ object PricingModel {
     */
   def evaluateParkingTicket(pricingModel: PricingModel, parkingDurationInSeconds: Int): Double = {
     pricingModel match {
-      case FlatFee(cost, _)             => cost.toDouble
-      case Block(cost, intervalSeconds) => (parkingDurationInSeconds.toDouble / intervalSeconds.toDouble) * cost.toDouble
+      case FlatFee(cost, _) => cost.toDouble
+      case Block(cost, intervalSeconds) =>
+        (parkingDurationInSeconds.toDouble / intervalSeconds.toDouble) * cost.toDouble
     }
   }
 

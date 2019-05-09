@@ -29,8 +29,6 @@ class ZonalParkingManager(
 
   override def receive: Receive = {
 
-
-
     case inquiry: ParkingInquiry =>
       log.debug("Received parking inquiry: {}", inquiry)
 
@@ -73,15 +71,13 @@ class ZonalParkingManager(
 
       sender() ! ParkingInquiryResponse(parkingStall, inquiry.requestId)
 
-
-
     case ReleaseParkingStall(parkingZoneId) =>
       if (parkingZoneId == ParkingZone.DefaultParkingZoneId) {
         if (log.isDebugEnabled) {
           // this is an infinitely available resource; no update required
-          log.debug("Releasing a parking stall for the default parking zone")
+          log.debug("Releasing a stall in the default/emergency zone")
         }
-      } else if (parkingZoneId < 0 || parkingZones.length <= parkingZoneId) {
+      } else if (parkingZoneId < ParkingZone.DefaultParkingZoneId || parkingZones.length <= parkingZoneId) {
         if (log.isDebugEnabled) {
           log.debug("Attempting to release stall in zone {} which is an illegal parking zone id", parkingZoneId)
         }
@@ -165,18 +161,18 @@ object ZonalParkingManager {
     * @return a stall from the found ParkingZone, or a ParkingStall.DefaultStall
     */
   def incrementalParkingZoneSearch(
-    searchStartRadius  : Double,
-    searchMaxRadius    : Double,
-    destinationUTM     : Location,
-    valueOfTime        : Double,
-    parkingDuration    : Double,
-    parkingTypes       : Seq[ParkingType],
+    searchStartRadius: Double,
+    searchMaxRadius: Double,
+    destinationUTM: Location,
+    valueOfTime: Double,
+    parkingDuration: Double,
+    parkingTypes: Seq[ParkingType],
     chargingInquiryData: Option[ChargingInquiryData[String, String]],
-    searchTree         : ParkingZoneSearch.ZoneSearch,
-    stalls             : Array[ParkingZone],
-    tazQuadTree        : QuadTree[TAZ],
-    distanceFunction   : (Coord, Coord) => Double,
-    random             : Random
+    searchTree: ParkingZoneSearch.ZoneSearch,
+    stalls: Array[ParkingZone],
+    tazQuadTree: QuadTree[TAZ],
+    distanceFunction: (Coord, Coord) => Double,
+    random: Random
   ): (ParkingZone, ParkingStall) = {
 
     @tailrec
@@ -241,7 +237,7 @@ object ZonalParkingManager {
       case Some(result) =>
         result
       case None =>
-        val newStall = ParkingStall.DefaultStall(destinationUTM)
+        val newStall = ParkingStall.emergencyStall(random)
         (ParkingZone.DefaultParkingZone, newStall)
     }
   }

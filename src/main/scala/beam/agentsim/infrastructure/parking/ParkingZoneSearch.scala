@@ -81,7 +81,8 @@ object ParkingZoneSearch {
       } match {
         case Success(parkingZone) =>
           val parkingAvailability: Double = parkingZone.availability
-          val stallLocation: Coord = ParkingStallSampling.availabilityAwareSampling(random, destinationUTM, taz, parkingAvailability)
+          val stallLocation: Coord =
+            ParkingStallSampling.availabilityAwareSampling(random, destinationUTM, taz, parkingAvailability)
           (taz, parkingType, parkingZones(parkingZoneId), stallLocation)
         case Failure(e) =>
           throw new IndexOutOfBoundsException(s"Attempting to access ParkingZone with index $parkingZoneId failed.\n$e")
@@ -107,7 +108,6 @@ object ParkingZoneSearch {
     distanceFunction: (Coord, Coord) => Double
   ): Option[RankingAccumulator] = {
     found.foldLeft(Option.empty[RankingAccumulator]) { (accOption, parkingZoneTuple) =>
-
       val (thisTAZ: TAZ, thisParkingType: ParkingType, thisParkingZone: ParkingZone, stallLocation: Coord) =
         parkingZoneTuple
 

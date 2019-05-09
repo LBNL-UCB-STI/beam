@@ -50,10 +50,9 @@ object LeavingParkingEvent {
 
   def optionalToString[T](opt: Option[T]): String =
     opt match {
-      case None => ""
+      case None        => ""
       case Some(value) => value.toString
     }
-
 
   val EVENT_TYPE: String = "LeavingParkingEvent"
   //    String ATTRIBUTE_PARKING_ID = "parkingId";
@@ -92,7 +91,8 @@ object LeavingParkingEvent {
     val tazId: Id[TAZ] = Id.create(attr(ATTRIBUTE_PARKING_TAZ), classOf[TAZ])
     val score: Double = attr(ATTRIBUTE_SCORE).toDouble
     val parkingType: ParkingType = ParkingType(attr(ATTRIBUTE_PARKING_TYPE))
-    val pricingModel: Option[PricingModel] = PricingModel(attr(ATTRIBUTE_PRICING_MODEL), "0")  // TODO: cost (fee) should be an attribute of this event, but adding it will break a lot of tests
+    val pricingModel
+      : Option[PricingModel] = PricingModel(attr(ATTRIBUTE_PRICING_MODEL), "0") // TODO: cost (fee) should be an attribute of this event, but adding it will break a lot of tests
     val chargingType: Option[ChargingPointType] = ChargingPointType(attr(ATTRIBUTE_CHARGING_TYPE))
     LeavingParkingEvent(time, personId, vehicleId, tazId, score, parkingType, pricingModel, chargingType)
   }
