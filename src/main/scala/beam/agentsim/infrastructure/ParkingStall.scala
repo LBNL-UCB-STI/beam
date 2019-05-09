@@ -57,8 +57,8 @@ object ParkingStall {
     cost: Double = CostOfEmergencyStall
   ): ParkingStall = {
 
-    val x = (random.nextDouble() * maxCoord.getX) - minCoord.getX
-    val y = (random.nextDouble() * maxCoord.getY) - minCoord.getY
+    val x = (random.nextDouble() * (maxCoord.getX - minCoord.getX)) + minCoord.getX
+    val y = (random.nextDouble() * (maxCoord.getY - minCoord.getY)) + minCoord.getY
 
     ParkingStall(
       tazId = TAZ.EmergencyTAZId,

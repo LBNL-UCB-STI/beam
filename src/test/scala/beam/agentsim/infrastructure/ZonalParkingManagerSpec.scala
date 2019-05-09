@@ -21,7 +21,7 @@ import org.matsim.core.controler.MatsimServices
 import org.matsim.core.utils.collections.QuadTree
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
+import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
 
 class ZonalParkingManagerSpec
     extends TestKit(
@@ -37,7 +37,8 @@ class ZonalParkingManagerSpec
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
-    with ImplicitSender {
+    with ImplicitSender
+    with Matchers {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
 
@@ -63,7 +64,7 @@ class ZonalParkingManagerSpec
     it("should return a response with an emergency stall") {
 
       for {
-        tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(List((coordCenterOfUTM, 10000)), startAtId = 1) // one TAZ at agent coordinate
+        tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(List((coordCenterOfUTM, 10000)), startAtId = 1, 167000, 0, 833000, 10000000) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
         services = beamServices(config, tazTreeMap)
         emptyParkingDescription: Iterator[String] = Iterator.empty
@@ -88,7 +89,7 @@ class ZonalParkingManagerSpec
     it("should first return that only stall, and afterward respond with the default stall") {
 
       for {
-        tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(List((coordCenterOfUTM, 10000)), startAtId = 1) // one TAZ at agent coordinate
+        tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(List((coordCenterOfUTM, 10000)), startAtId = 1, 167000, 0, 833000, 10000000) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
         services = beamServices(config, tazTreeMap)
         oneParkingOption: Iterator[String] =
@@ -129,7 +130,7 @@ class ZonalParkingManagerSpec
     it("should allow us to book and then release that stall") {
 
       for {
-        tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(List((coordCenterOfUTM, 10000)), startAtId = 1) // one TAZ at agent coordinate
+        tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(List((coordCenterOfUTM, 10000)), startAtId = 1, 167000, 0, 833000, 10000000) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
         services = beamServices(config, tazTreeMap)
         oneParkingOption: Iterator[String] =
@@ -170,6 +171,57 @@ class ZonalParkingManagerSpec
     }
   }
 
+  describe("ZonalParkingManager with a known set of parking alternatives") {
+    it("should allow us to book all of those options and then provide us emergency stalls after that point") {
+
+      val random = new Random(1)
+
+      // run this many trials of this test
+      val trials = 1
+      // the maximum number of parking stalls across all TAZs in each trial
+      val maxParkingStalls = 10000
+      // make inquiries (demand) over-saturate parking availability (supply)
+      val maxInquiries = (maxParkingStalls.toDouble * 1.25).toInt
+
+      // four square TAZs in a grid
+      val tazList: List[(Coord, Double)] = List(
+        (new Coord(25,25), 2500),
+        (new Coord(75,25), 2500),
+        (new Coord(25,75), 2500),
+        (new Coord(75,75), 2500)
+      )
+      val middleOfWorld = new Coord(50,50)
+
+      for {
+        trial <- 1 to trials
+        numStalls = math.max(4, random.nextInt(maxParkingStalls))
+        tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 100, 100)
+        config = BeamConfig(system.settings.config)
+        services = beamServices(config, tazTreeMap)
+        split = ZonalParkingManagerSpec.randomSplitOfMaxStalls(numStalls, 4, random)
+        parkingConfiguration: Iterator[String] = ZonalParkingManagerSpec.makeParkingConfiguration(split)
+        zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(services, parkingConfiguration, new Random(randomSeed))
+      } {
+
+        val wasProvidedNonEmergencyParking: Iterable[Int] = for {
+          _   <- 1 to maxInquiries
+          req = ParkingInquiry(middleOfWorld, "work", 0.0, None, 0.0)
+          _   = zonalParkingManager ! req
+          counted = expectMsgPF[Int]() { case res @ ParkingInquiryResponse(_, _) =>
+            if (res.stall.tazId != TAZ.EmergencyTAZId) 1 else 0
+          }
+        } yield {
+          counted
+        }
+
+        // if we counted how many inquiries were handled with non-emergency stalls, we can confirm this should match the numStalls
+        // since we intentionally over-saturated parking demand
+        val numWithNonEmergencyParking = if (wasProvidedNonEmergencyParking.nonEmpty) wasProvidedNonEmergencyParking.sum else 0
+        numWithNonEmergencyParking should be (numStalls)
+      }
+    }
+  }
+
   override def afterAll: Unit = {
     shutdown()
   }
@@ -199,11 +251,11 @@ object ZonalParkingManagerSpec {
     * @param startAtId name each TAZ by integer id ascending, starting from this number
     * @return a mock TAZTreeMap, or nothing
     */
-  def mockTazTreeMap(coords: List[(Coord, Double)], startAtId: Int): Option[TAZTreeMap] = {
+  def mockTazTreeMap(coords: List[(Coord, Double)], startAtId: Int, xMin: Double, yMin: Double, xMax: Double, yMax: Double): Option[TAZTreeMap] = {
     if (coords.isEmpty) None
     else {
       val quadTree = coords.
-        foldLeft(new QuadTree[TAZ](167000, 0, 833000, 10000000)){ (tree, tazData) =>
+        foldLeft(new QuadTree[TAZ](xMin, yMin, xMax, yMax)){ (tree, tazData) =>
           val (coord, area) = tazData
           val tazId = Id.create(startAtId + tree.size, classOf[TAZ])
           val taz = new TAZ(tazId, coord, area)
@@ -212,5 +264,39 @@ object ZonalParkingManagerSpec {
         }
       Some { new TAZTreeMap(quadTree) }
     }
+  }
+
+  // comes up with a random n-way split of numStalls
+  def randomSplitOfMaxStalls(numStalls: Int, numSplits: Int, random: Random): List[Int] = {
+    def _sample(remaining: Int, split: List[Int] = List.empty): List[Int] = {
+      if (split.length == numSplits - 1) (numStalls - split.sum) +: split
+      else {
+        val nextSample =
+          if (remaining > split.size) random.nextInt(remaining - split.size)
+          else if (remaining == numSplits - split.size) 1
+          else 0
+        val nextRemaining = remaining - nextSample
+        _sample(nextRemaining, nextSample +: split)
+      }
+    }
+    if (numStalls <= 0 || numSplits < 1) List.empty
+    else {
+      val result = _sample(numStalls)
+      result
+    }
+  }
+
+  // using a split of numStalls, create a parking input for all-work, $0-cost parking alternatives with varying stall counts
+  def makeParkingConfiguration(split: List[Int]): Iterator[String] = {
+    val header = "taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor"
+    val result = split.
+      zipWithIndex.
+      map{ case (stalls, i) =>
+        s"${i+1},Workplace,FlatFee,TeslaSuperCharger,$stalls,0,unused"
+      }.
+      mkString(s"$header\n", "\n", "").
+      split("\n").
+      toIterator
+    result
   }
 }
