@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+    <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <layout class="ch.qos.logback.classic.PatternLayout">
@@ -14,30 +15,17 @@
         </layout>
     </appender>
 
-    <root level="error">
+    <root level="ERROR">
         <appender-ref ref="STDOUT" />
     </root>
 
-    <logger name="com.conveyal.r5" level="error"
-            additivity="false">
-        <appender-ref ref="STDOUT"/>
-    </logger>
+    <logger name="com.conveyal.r5" level="ERROR"/>
 
-    <logger name="org.matsim" level="error"
-            additivity="false">
-        <appender-ref ref="STDOUT"/>
-    </logger>
+    <logger name="org.matsim" level="ERROR"/>
 
-    <logger name="beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter" level="ERROR" additivity="false">
-        <appender-ref ref="STDOUT"/>
-    </logger>
+    <logger name="beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter" level="ERROR" />
 
-    <Logger name="org.reflections" level="ERROR" additivity="false">
-        <appender-ref ref="STDOUT"/>
-    </Logger>
-
-    <Logger name="org.matsim.core.controler.corelisteners.DumpDataAtEndImpl" level="OFF" additivity="false">
-        <appender-ref ref="STDOUT"/>
-    </Logger>
+    <Logger name="org.reflections" level="ERROR" />
+    <Logger name="org.matsim.core.controler.corelisteners.DumpDataAtEndImpl" level="OFF" />
 
 </configuration>
