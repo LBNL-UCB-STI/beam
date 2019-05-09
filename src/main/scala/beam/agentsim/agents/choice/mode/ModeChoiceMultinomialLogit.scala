@@ -262,32 +262,32 @@ object ModeChoiceMultinomialLogit {
 
     val commonUtility = Map { ("COMMON", UtilityFunctionOperation("multiplier", -1)) }
 
-    val mnlUtilityFunctions: Map[String, Map[String, UtilityFunctionOperation]] = Map {
+    val mnlUtilityFunctions: Map[String, Map[String, UtilityFunctionOperation]] = Map(
       "car" -> Map(
         "intercept" ->
         UtilityFunctionOperation("intercept", mnlConfig.params.car_intercept)
-      )
-      "cav"       -> Map("intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.cav_intercept))
-      "walk"      -> Map("intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.walk_intercept))
-      "ride_hail" -> Map("intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.ride_hail_intercept))
-      "walk"      -> Map("intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.walk_intercept))
+      ),
+      "cav"       -> Map("intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.cav_intercept)),
+      "walk"      -> Map("intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.walk_intercept)),
+      "ride_hail" -> Map("intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.ride_hail_intercept)),
+      "walk"      -> Map("intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.walk_intercept)),
       "ride_hail_pooled" -> Map(
         "intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.ride_hail_pooled_intercept)
-      )
+      ),
       "ride_hail_transit" -> Map(
         "intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.ride_hail_transit_intercept),
         "transfer"  -> UtilityFunctionOperation("multiplier", mnlConfig.params.transfer)
-      )
-      "bike" -> Map("intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.bike_intercept))
+      ),
+      "bike" -> Map("intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.bike_intercept)),
       "walk_transit" -> Map(
         "intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.walk_transit_intercept),
         "transfer"  -> UtilityFunctionOperation("multiplier", mnlConfig.params.transfer)
-      )
+      ),
       "drive_transit" -> Map(
         "intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.drive_transit_intercept),
         "transfer"  -> UtilityFunctionOperation("multiplier", mnlConfig.params.transfer)
       )
-    }
+    )
 
     logit.MultinomialLogit(
       mnlUtilityFunctions,
