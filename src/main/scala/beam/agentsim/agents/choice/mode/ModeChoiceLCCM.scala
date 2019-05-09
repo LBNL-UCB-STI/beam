@@ -3,9 +3,8 @@ package beam.agentsim.agents.choice.mode
 import java.util.Random
 
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, TourType}
-import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.logit.MultinomialLogit.MNLSample
-import beam.agentsim.agents.choice.logit.{Alternative, LatentClassChoiceModel}
+import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.mode.ModeChoiceLCCM.ModeChoiceData
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
@@ -76,7 +75,7 @@ class ModeChoiceLCCM(
         (alt.mode.value, theParams)
       }.toMap
 
-      val attribIndivData: Alternative[String, String] = {
+      val attribIndivData: Map[String, Map[String, Double]] = {
         val theParams: Map[String, Double] = Map(
           "income"        -> attributesOfIndividual.householdAttributes.householdIncome,
           "householdSize" -> attributesOfIndividual.householdAttributes.householdSize,
@@ -88,7 +87,7 @@ class ModeChoiceLCCM(
           "numCars"  -> attributesOfIndividual.householdAttributes.numCars,
           "numBikes" -> attributesOfIndividual.householdAttributes.numBikes
         )
-        Alternative("dummy", theParams)
+        Map("dummy" -> theParams)
       }
 
       val classMembershipInputData =
@@ -98,7 +97,7 @@ class ModeChoiceLCCM(
             .getExpectedMaximumUtility(modeChoiceInputData.toMap)
           val surplusAttrib: Map[String, Double] =
             Map("surplus" -> modeChoiceExpectedMaxUtility.getOrElse(0))
-          (theClassName, attribIndivData.attributes ++ surplusAttrib)
+          (theClassName, attribIndivData.head._2 ++ surplusAttrib)
         }.toMap
 
       /*
