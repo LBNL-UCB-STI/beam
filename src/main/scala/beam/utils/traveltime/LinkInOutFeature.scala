@@ -4,7 +4,6 @@ import java.io.{File, PrintWriter, Writer}
 import java.util
 
 import beam.utils.ProfilingUtils
-import beam.utils.traveltime.LinkInOutFeature.MappingWriter
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation
 import org.matsim.api.core.v01.Id
@@ -17,10 +16,10 @@ import scala.collection.mutable
 class LinkInOutFeature(
   val links: util.Map[Id[Link], _ <: Link],
   val level: Int,
-  val outputPath: String,
-  val delimiter: String
+  val outputPath: String
 ) extends LazyLogging
     with FeatureExtractor {
+  import LinkInOutFeature._
   import NetworkUtil._
   val start = System.currentTimeMillis()
   val allLinks: Array[Link] = links.values().asScala.toArray
@@ -31,7 +30,7 @@ class LinkInOutFeature(
   val linkIdToLeveledOutLinks: Map[Link, Map[Int, Array[Int]]] = allLinks.par
     .map { link =>
       link -> getLinks(link, level, Direction.Out)
-          .map { case (k, v) => k -> v.map(_.getId.toString.toInt)}
+          .map { case (k, v) => k -> v.map(_.getId.toString.toInt)}.toMap
     }
     .toMap
     .seq
@@ -39,12 +38,12 @@ class LinkInOutFeature(
   val linkIdToLeveledInLinks: Map[Link, Map[Int, Array[Int]]] = allLinks.par
     .map { link =>
       link -> getLinks(link, level, Direction.In)
-        .map { case (k, v) => k -> v.map(_.getId.toString.toInt)}
+        .map { case (k, v) => k -> v.map(_.getId.toString.toInt)}.toMap
     }
     .toMap
     .seq
 
-  val linkIdToOutLinkHops: Map[Link, Array[Int]] = linkIdToLeveledOutLinks.par.map {
+  val linkIdToOutLinkHops: Map[Link, Array[Int]] = Map.empty  /*linkIdToLeveledOutLinks.par.map {
     case (src, destinations) =>
       val hops = destinations.values.flatMap { dstIds =>
         dstIds.map { dstId =>
@@ -53,9 +52,9 @@ class LinkInOutFeature(
         }
       }.toArray
       src -> hops
-  }.seq
+  }.seq */
 
-  val linkIdToInLinkHops: Map[Link, Array[Int]] = linkIdToLeveledInLinks.par.map {
+  val linkIdToInLinkHops: Map[Link, Array[Int]] = Map.empty /* linkIdToLeveledInLinks.par.map {
     case (src, destinations) =>
       val hops = destinations.values.flatMap { dstIds =>
         dstIds.map { dstId =>
@@ -64,8 +63,7 @@ class LinkInOutFeature(
         }
       }.toArray
       src -> hops
-  }.seq
-
+  }.seq */
 
   val end = System.currentTimeMillis()
   logger.info(s"Prepared in ${end - start} ms")
@@ -74,12 +72,13 @@ class LinkInOutFeature(
   if (shouldWriteMapping) {
     ProfilingUtils.timed("writeMappings", x => logger.info(x)) {
       val mappingWriter = new MappingWriter(level,
+        links,
         allLinks,
         linkIdToLeveledOutLinks,
         linkIdToOutLinkHops,
         linkIdToLeveledInLinks,
         linkIdToInLinkHops,
-        delimiter
+        Delimiter
       )
       val fileName = new File(outputPath).getParentFile + "/Metadata.csv"
       mappingWriter.write(fileName)
@@ -135,41 +134,44 @@ class LinkInOutFeature(
   ): Unit = {
     implicit val writer: Writer = wrt
     vehicleOnUpstreamRoads(vehicleId).foreach { case (lvl, counts) =>
-      val total = counts.sum
-      val avg = total.toDouble / counts.length
-      val sorted = counts.sorted
-      val std = new StandardDeviation().evaluate(counts.map(_.toDouble))
-      writeColumnValue(total.toString)
-      writeColumnValue(counts.min.toString)
-      writeColumnValue(counts.max.toString)
-      writeColumnValue(sorted(counts.length / 2).toString)
-      writeColumnValue(avg.toString)
-      writeColumnValue(std.toString)
+      writeStats(counts)
     }
 
     vehicleOnDownstreamRoads(vehicleId).foreach { case (lvl, counts) =>
-      val total = counts.sum
-      val avg = total.toDouble / counts.length
-      val sorted = counts.sorted
-      val std = new StandardDeviation().evaluate(counts.map(_.toDouble))
-      writeColumnValue(total.toString)
-      writeColumnValue(counts.min.toString)
-      writeColumnValue(counts.max.toString)
-      writeColumnValue(sorted(counts.length / 2).toString)
-      writeColumnValue(avg.toString)
-      writeColumnValue(std.toString)
+      writeStats(counts)
     }
-  }
-
-  private def writeColumnValue(value: String)(implicit wrt: Writer): Unit = {
-    wrt.append(value)
-    wrt.append(delimiter)
   }
 }
 
 object LinkInOutFeature {
+  val Delimiter: String = ","
+  def writeColumnValue(value: String)(implicit wrt: Writer): Unit = {
+    wrt.append(value)
+    wrt.append(Delimiter)
+  }
+
+  def writeStats[T](counts: Array[T])(implicit wrt: Writer, num: Numeric[T]): Unit = {
+    val stats = Stats(counts)
+    writeColumnValue(stats.total.toString)
+    writeColumnValue(stats.min.toString)
+    writeColumnValue(stats.max.toString)
+    writeColumnValue(stats.median.toString)
+    writeColumnValue(stats.avg.toString)
+    writeColumnValue(stats.std.toString)
+  }
+
+  case class Stats[T](counts: Array[T])(implicit num: Numeric[T]) {
+    val total: T = counts.sum
+    val min: T = counts.min
+    val max: T = counts.max
+    val sorted: Array[T] = counts.sorted
+    val median: T = sorted(counts.length / 2)
+    val avg: Double = num.toDouble(total) / counts.length
+    val std: Double = new StandardDeviation().evaluate(counts.map(num.toDouble))
+  }
 
   class MappingWriter(val level: Int,
+    val linkIdToLink: util.Map[Id[Link], _ <: Link],
     val allLinks: Array[Link],
     val linkIdToOutLinks: Map[Link, Map[Int, Array[Int]]],
     val linkIdToOutLinkHops: Map[Link, Array[Int]],
@@ -177,6 +179,31 @@ object LinkInOutFeature {
     val linkIdToInLinkHops: Map[Link, Array[Int]],
     val delimiter: String
   ) {
+
+    val zeroArr: Array[Int] = Array(0)
+
+    def writeAllStats(levelToLinks: Map[Int, Array[Int]])(implicit wrt: Writer): Unit = {
+      (1 to level).foreach { lvl =>
+        levelToLinks.get(lvl).map { lids => lids.map(lid => linkIdToLink.get(Id.create(lid, classOf[Link]))) } match {
+          case Some(links) =>
+            val lens = links.map(_.getLength)
+            writeStats(lens)
+
+            val capacities = links.map(_.getCapacity)
+            writeStats(capacities)
+
+            val lanes = links.map(_.getNumberOfLanes)
+            writeStats(lanes)
+
+            val freSpeeds = links.map(_.getFreespeed)
+            writeStats(freSpeeds)
+          case None =>
+            writeStats(zeroArr)
+            writeStats(zeroArr)
+            writeStats(zeroArr)
+        }
+      }
+    }
 
     def write(path: String): Unit = {
       implicit val writer: Writer = new PrintWriter(path)
@@ -187,20 +214,18 @@ object LinkInOutFeature {
           writeColumnValue(link.getLength.toString)
           writeColumnValue(link.getCapacity.toString)
           writeColumnValue(link.getNumberOfLanes.toString)
+          writeColumnValue(link.getFreespeed.toString)
           writeColumnValue(link.getFromNode.getInLinks.size.toString)
           writeColumnValue(link.getFromNode.getOutLinks.size.toString)
           writeColumnValue(link.getToNode.getInLinks.size.toString)
           writeColumnValue(link.getToNode.getOutLinks.size.toString)
 
-          linkIdToOutLinks(link).foreach { case (_, outLinks) =>
-            val linksStr = "\"" + outLinks.mkString(" ") + "\""
-            writeColumnValue(linksStr)
-          }
+          writeAllStats(linkIdToOutLinks(link))
+          writeAllStats(linkIdToInLinks(link))
 
-          linkIdToInLinks(link).foreach { case (_, inLinks) =>
-            val linksStr = "\"" + inLinks.mkString(" ") + "\""
-            writeColumnValue(linksStr)
-          }
+          writeLinksPerLevel(linkIdToOutLinks(link))
+          writeLinksPerLevel(linkIdToInLinks(link))
+
           // Do not use `writeColumnValue`, it adds delimiter, but this is the last column
           writer.append("d")
           writer.append(System.lineSeparator())
@@ -211,9 +236,32 @@ object LinkInOutFeature {
       }
     }
 
+    private def writeLinksPerLevel(levelToLinks: Map[Int, Array[Int]])(implicit wrt: Writer): Unit = {
+      (1 to level).foreach { lvl =>
+        levelToLinks.get(lvl) match {
+          case Some(links) =>
+            val linksStr = "\"" + links.mkString(" ") + "\""
+            writeColumnValue(linksStr)
+          case None =>
+            writeColumnValue("")
+        }
+      }
+    }
+
     def writeColumnValue(value: String)(implicit wrt: Writer): Unit = {
       wrt.append(value)
       wrt.append(delimiter)
+    }
+
+    def writeStatistics(prefix: String, name: String)(implicit wrt: Writer): Unit = {
+      (1 to level).foreach { lvl =>
+        writeColumnValue(s"L${lvl}_${prefix}_Total${name}")
+        writeColumnValue(s"L${lvl}_${prefix}_Min${name}")
+        writeColumnValue(s"L${lvl}_${prefix}_Max${name}")
+        writeColumnValue(s"L${lvl}_${prefix}_Median${name}")
+        writeColumnValue(s"L${lvl}_${prefix}_Avg${name}")
+        writeColumnValue(s"L${lvl}_${prefix}_Std${name}")
+      }
     }
 
     def writeHeader()(implicit wrt: Writer): Unit = {
@@ -221,10 +269,22 @@ object LinkInOutFeature {
       writeColumnValue("length")
       writeColumnValue("capacity")
       writeColumnValue("lanes")
+      writeColumnValue("freeSpeed")
       writeColumnValue("FromNode_InLinksSize")
       writeColumnValue("FromNode_OutLinksSize")
       writeColumnValue("ToNode_InLinksSize")
       writeColumnValue("ToNode_OutLinksSize")
+
+      writeStatistics("OutLinks", "Length")
+      writeStatistics("OutLinks", "Capacity")
+      writeStatistics("OutLinks", "Lanes")
+      writeStatistics("OutLinks", "FreeSpeed")
+
+      writeStatistics("InLinks", "Length")
+      writeStatistics("InLinks", "Capacity")
+      writeStatistics("InLinks", "Lanes")
+      writeStatistics("InLinks", "FreeSpeed")
+
       (1 to level).foreach { lvl =>
         writeColumnValue(s"L${lvl}_OutLinks")
       }

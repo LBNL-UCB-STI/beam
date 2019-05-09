@@ -9,17 +9,17 @@ import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.NetworkReaderMatsimV2
 
 object NetworkFeaturesExtractor {
+  val delimiter: String = ","
 
   def main(args: Array[String]): Unit = {
     val pathToEventXml = args(0)
     val pathToNetworkXml = args(1)
     val level = args(2).toInt
     val outputFile = args(3)
-    val delimiter = args(4)
 
     val networkLinks = initializeNetworkLinks(pathToNetworkXml)
     val eventsManager = EventsUtils.createEventsManager()
-    val featureExtractor = new LinkInOutFeature(networkLinks, level, outputFile, delimiter)
+    val featureExtractor = new LinkInOutFeature(networkLinks, level, outputFile)
     val eventHander = new FeatureEventHandler(networkLinks, delimiter, outputFile, featureExtractor)
     eventsManager.addHandler(eventHander)
     new MatsimEventsReader(eventsManager).readFile(pathToEventXml)
