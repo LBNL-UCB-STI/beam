@@ -6,6 +6,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.{Activity, Person, PlanElement}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.vehicles.Vehicle
+import scala.collection.JavaConverters._
 
 class RandomRepositioning(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
@@ -35,12 +36,12 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
     var selectedActivities:List[Activity]=List[Activity]()
 
-    rideHailManager.beamServices.matsimServices.getScenario.getPopulation.getPersons.values().stream().map( _.getSelectedPlan.getPlanElements).forEach{
-      planElement: PlanElement =>
+    rideHailManager.beamServices.matsimServices.getScenario.getPopulation.getPersons.values().asScala.toList.flatMap( person => person.getSelectedPlan.getPlanElements.asScala).foreach{
+      planElement =>
 
       if (planElement.isInstanceOf[Activity]){
         val act=planElement.asInstanceOf[Activity]
-        if (act.getEndTime>currentTime +20*60 && act.getEndTime<currentTime +3600){
+        if (act.getEndTime>currentTime +20*60){ // add && act.getEndTime<currentTime +3600
           minX = Math.min(minX, act.getCoord.getX)
           minY = Math.min(minY, act.getCoord.getY)
           maxX = Math.max(maxX, act.getCoord.getX)
@@ -77,7 +78,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
 
 
-    val algorithm=1
+    val algorithm=2
 
     algorithm match {
       case 1 =>
@@ -107,17 +108,20 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
           val vehiclesToReposition=scala.util.Random.shuffle(allVehicles).splitAt(numVehiclesToReposition)._1
 
-          vehiclesToReposition.map{ vehIdAndLoc =>
+          val result=vehiclesToReposition.map{ vehIdAndLoc =>
             val (vehicleId,location) = vehIdAndLoc
 
-            val dest=scala.util.Random.shuffle(quadTree.getDisk(location.currentLocationUTM.loc.getX,location.currentLocationUTM.loc.getY,5000).toArray.toSeq).headOption
+            val dest=scala.util.Random.shuffle(quadTree.getDisk(location.currentLocationUTM.loc.getX,location.currentLocationUTM.loc.getY,5000).asScala.toList).headOption
 
             dest match {
-              case Some(act:Activity) => (vehicleId,act.getCoord)
-              case None => (vehicleId,new Coord(Double.MaxValue,Double.MaxValue))
+              case Some(act) => (vehicleId,act.getCoord)
+              case _ => (vehicleId,new Coord(Double.MaxValue,Double.MaxValue))
             }
 
           }.toVector.filterNot(_._2.getX==Double.MaxValue)
+
+
+          result
         } else {
           Vector()
         }
