@@ -260,7 +260,9 @@ object ModeChoiceMultinomialLogit {
 
   def buildModelFromConfig(mnlConfig: Agents.ModalBehaviors.MulitnomialLogit): MultinomialLogit[String, String] = {
 
-    val commonUtility = Map { ("COMMON", UtilityFunctionOperation("multiplier", -1)) }
+    val commonUtility: Map[String, UtilityFunctionOperation] = Map(
+      "cost" -> UtilityFunctionOperation("multiplier", -1)
+    )
 
     val mnlUtilityFunctions: Map[String, Map[String, UtilityFunctionOperation]] = Map(
       "car" -> Map(
