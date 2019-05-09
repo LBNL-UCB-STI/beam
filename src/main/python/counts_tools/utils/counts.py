@@ -1,6 +1,6 @@
 from copy import deepcopy
 from collections import defaultdict
-import csv
+# import csv
 import datetime
 import gc
 import os
@@ -15,7 +15,7 @@ import pandas as pd
 import pyproj as pp
 import rtree
 from shapely.geometry import Polygon, Point, LineString
-import shapefile  # (Andrew 14/09/16)
+#import shapefile  # (Andrew 14/09/16)
 
 
 __author__ = 'Andrew A Campbell'

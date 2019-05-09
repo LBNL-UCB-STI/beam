@@ -18,7 +18,7 @@ if __name__ == '__main__':
     conf = ConfigParser.ConfigParser()
     conf.read(config_path)
     shape_path = conf.get('Paths', 'shape_path')
-    data_path = conf.get('Paths', 'data_path')
+    data_path = conf.get('Paths', 'meta_path')
     output_path = conf.get('Paths', 'output_path')
     x_col = conf.get('Params', 'x_col')
     y_col = conf.get('Params', 'y_col')

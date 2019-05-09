@@ -2,12 +2,8 @@ package beam.utils.plan.sampling
 
 import java.util
 
-import beam.router.Modes.BeamMode.CAR
-import beam.sim.population.PopulationAdjustment
-import beam.sim.population.PopulationAdjustment.BEAM_ATTRIBUTES
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT}
-import beam.utils.BeamVehicleUtils
+import beam.router.Modes.BeamMode.CAR
 import beam.utils.matsim_conversion.MatsimConversionTool
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PopulationAttrib.Rank
@@ -43,19 +39,19 @@ import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 
 import scala.collection.JavaConverters._
-import scala.collection.{immutable, mutable, JavaConverters}
-import scala.util.{Random, Try}
+import scala.collection.{JavaConverters, immutable, mutable}
 import scala.util.control.Breaks._
+import scala.util.{Random, Try}
 
 case class SynthHousehold(
-  householdId: Id[Household],
-  numPersons: Int,
-  vehicles: Int,
-  hhIncome: Double,
-  tract: Int,
-  coord: Coord,
-  var individuals: Array[SynthIndividual]
-) {
+                           householdId: Id[Household],
+                           numPersons: Int,
+                           vehicles: Int,
+                           hhIncome: Double,
+                           tract: Int,
+                           coord: Coord,
+                           var individuals: Array[SynthIndividual]
+                         ) {
 
   def addIndividual(individual: SynthIndividual): Unit = {
     individuals ++= Array(individual)
@@ -85,7 +81,7 @@ class SynthHouseholdParser(geoConverter: GeoConverter) {
         val hhIdStr = row(hhIdIdx)
         resHHMap.get(hhIdStr) match {
           case Some(hh: SynthHousehold) => hh.addIndividual(parseIndividual(row))
-          case None                     => resHHMap += (hhIdStr -> parseHousehold(row, hhIdStr))
+          case None => resHHMap += (hhIdStr -> parseHousehold(row, hhIdStr))
         }
       })
 
@@ -227,8 +223,8 @@ case class QuadTreeExtent(minx: Double, miny: Double, maxx: Double, maxy: Double
 class QuadTreeBuilder(wgsConverter: WGSConverter) {
 
   private def quadTreeExtentFromShapeFile(
-    features: util.Collection[SimpleFeature]
-  ): QuadTreeExtent = {
+                                           features: util.Collection[SimpleFeature]
+                                         ): QuadTreeExtent = {
     var minX: Double = Double.MaxValue
     var maxX: Double = Double.MinValue
     var minY: Double = Double.MaxValue
@@ -251,9 +247,9 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
 
   // Returns a single geometry that is the union of all the polgyons in a shapefile
   def geometryUnionFromShapefile(
-    features: util.Collection[SimpleFeature],
-    sourceCRS: CoordinateReferenceSystem
-  ): Geometry = {
+                                  features: util.Collection[SimpleFeature],
+                                  sourceCRS: CoordinateReferenceSystem
+                                ): Geometry = {
 
     import scala.collection.JavaConverters._
     val targetCRS = CRS.decode(wgsConverter.targetCRS)
@@ -263,7 +259,6 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
     for (f <- features.asScala) {
       f.getDefaultGeometry match {
         case g: Geometry =>
-          //          val ca = wgs2Utm(g.getEnvelope.getEnvelopeInternal)
           val gt = JTS.transform(g, transform) // transformed geometry
           outGeoms.add(gt)
       }
@@ -276,10 +271,10 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
 
   // This version parses all activity locations and only keeps agents who have all activities w/ in the bounds
   def buildQuadTree[T: HasXY](
-    aoiShapeFileLoc: util.Collection[SimpleFeature],
-    sourceCRS: CoordinateReferenceSystem,
-    pop: Vector[Person]
-  ): QuadTree[T] = {
+                               aoiShapeFileLoc: util.Collection[SimpleFeature],
+                               sourceCRS: CoordinateReferenceSystem,
+                               pop: Vector[Person]
+                             ): QuadTree[T] = {
     val ev = implicitly[HasXY[T]]
 
     val qte = quadTreeExtentFromShapeFile(aoiShapeFileLoc)
@@ -316,13 +311,13 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
 class SpatialSampler(sampleShape: String) {
   val shapeFileReader: ShapeFileReader = new ShapeFileReader
   shapeFileReader.readFileAndInitialize(sampleShape)
-  val rng = new MersenneTwister(7571450) // Random.org
+  val rng = new MersenneTwister(75710052) // Random.org
   val distribution: EnumeratedDistribution[SimpleFeature] = {
     val features = shapeFileReader.getFeatureCollection.features()
     val distributionList = mutable.Buffer[Pair[SimpleFeature, java.lang.Double]]()
     while (features.hasNext) {
       val feature = features.next()
-      val popPct = feature.getAttribute("pop_pct").asInstanceOf[Double]
+      val popPct = feature.getAttribute("pop_pct_2").asInstanceOf[Double]
       distributionList += new Pair[SimpleFeature, java.lang.Double](feature, popPct)
     }
     //    if(distributionList.map(_.getValue).sum > 0) {}
@@ -435,10 +430,10 @@ object PlansSampler {
   }
 
   private def filterSynthHouseholds(
-    synthHouseholds: Vector[SynthHousehold],
-    aoiFeatures: util.Collection[SimpleFeature],
-    sourceCRS: CoordinateReferenceSystem
-  ): Vector[SynthHousehold] = {
+                                     synthHouseholds: Vector[SynthHousehold],
+                                     aoiFeatures: util.Collection[SimpleFeature],
+                                     sourceCRS: CoordinateReferenceSystem
+                                   ): Vector[SynthHousehold] = {
 
     if (spatialSampler == null) {
       val aoi: Geometry = new QuadTreeBuilder(wgsConverter.get)
@@ -449,21 +444,22 @@ object PlansSampler {
     } else {
       val tract2HH = synthHouseholds.groupBy(f => f.tract)
       val synthHHs = mutable.Buffer[SynthHousehold]()
-      (0 to sampleNumber).foreach { _ =>
-        {
-          val sampleFeature = spatialSampler.getSample
-          val sampleTract = sampleFeature.getAttribute("TRACTCE").asInstanceOf[String].toInt
-          var hh = Random.shuffle(tract2HH(sampleTract)).take(1).head
+      val tractSamples = (0 to sampleNumber).map { _ => spatialSampler.getSample.getAttribute("TRACTCE").asInstanceOf[String].toInt }
 
-          while (synthHHs.exists(_.householdId.equals(hh.householdId))) {
-            hh = Random.shuffle(tract2HH(sampleTract)).take(1).head
-          }
-          if (hh.individuals.length != 0) {
-            synthHHs += hh
-          } else {
-            println(s"empty household! ${hh.householdId}")
-          }
+
+      tractSamples.foreach { sampleTract => {
+
+        var hh = Random.shuffle(tract2HH(sampleTract)).head
+
+        //          while (synthHHs.exists(_.householdId.equals(hh.householdId))) {
+        //            hh = Random.shuffle(tract2HH(sampleTract)).head
+        //          }
+        if (hh.individuals.length != 0) {
+          synthHHs += hh
+        } else {
+          println(s"empty household! ${hh.householdId}")
         }
+      }
       }
 
       synthHHs.toVector
@@ -485,7 +481,7 @@ object PlansSampler {
       person.getPlans.clear()
       val newPlan = factory.createPlan()
       person.addPlan(newPlan)
-      for { pe <- origPlan.getPlanElements.asScala if pe.isInstanceOf[Activity] } yield {
+      for {pe <- origPlan.getPlanElements.asScala if pe.isInstanceOf[Activity]} yield {
         val oldActivity = pe.asInstanceOf[Activity]
         if (oldActivity.getType.contains("Pt")) {
           //
@@ -502,7 +498,7 @@ object PlansSampler {
   }
 
   def run(): Unit = {
-
+    var duplicatePersons = 0
     val carVehicleType =
       MatsimConversionTool.beamVehicleTypeToMatsimVehicleType(BeamVehicleType.defaultCarBeamVehicleType)
 
@@ -534,7 +530,7 @@ object PlansSampler {
         counter.incCounter()
 
         spHH.setIncome(newHHFac.createIncome(sh.hhIncome, Income.IncomePeriod.year))
-        if(sh.vehicles==0){
+        if (sh.vehicles == 0) {
           println(s"no vehics in hh ${sh.householdId}")
         }
         // Create and add car identifiers
@@ -553,8 +549,12 @@ object PlansSampler {
 
         for ((plan, idx) <- selectedPlans.zipWithIndex) {
           val synthPerson = sh.individuals.toVector(idx)
-          val newPersonId = synthPerson.indId
-
+          var newPersonId = synthPerson.indId
+          if (newPop.getPersons.containsKey(newPersonId)) {
+            newPersonId = Id.createPersonId(s"$newPersonId-${counter.getCounter}-$idx")
+            println(s"Created duplicate person: $newPersonId")
+            duplicatePersons += 1
+          }
           val newPerson = newPop.getFactory.createPerson(newPersonId)
           newPop.addPerson(newPerson)
           spHH.getMemberIds.add(newPersonId)
@@ -570,7 +570,7 @@ object PlansSampler {
           } else {
             Random.shuffle(plansWithoutWork).headOption match {
               case Some(p) => p
-              case None    => plan
+              case None => plan
             }
           }
           PopulationUtils.copyFromTo(srcPlan, newPlan)
@@ -626,13 +626,15 @@ object PlansSampler {
       .writeFile(s"$outDir/householdAttributes.xml.gz")
     new ObjectAttributesXmlWriter(newPopAttributes)
       .writeFile(s"$outDir/populationAttributes.xml.gz")
-
+    println(s"Done with $duplicatePersons duplicates!")
   }
 
-  private def hasNoWorkAct(plan: Plan) = {
+  private def hasNoWorkAct(plan: Plan)
+
+  = {
     !plan.getPlanElements.asScala.exists {
       case activity: Activity => activity.getType.equalsIgnoreCase("Work")
-      case _                  => false
+      case _ => false
     }
   }
 }
