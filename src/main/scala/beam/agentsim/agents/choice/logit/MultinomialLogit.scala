@@ -136,7 +136,7 @@ class MultinomialLogit[A, T](
       utilFnsForAlt <- utilityFunctions.get(alternative).toList
       attribute     <- utilFnsForAlt.keys.toSet.union(attributes.keys.toSet).toList
       mnlOperation  <- utilFnsForAlt.get(attribute)
-      functionParam = attributes.getOrElse(attribute,0.0)
+      functionParam = attributes.getOrElse(attribute, 0.0)
     } yield {
       mnlOperation(functionParam)
     }
@@ -156,7 +156,6 @@ object MultinomialLogit {
     drawThreshold: Double,
     realProbability: Double
   )
-
 
   def apply[A, T](utilityFunctions: Map[A, Map[T, UtilityFunctionOperation]]): MultinomialLogit[A, T] = {
     new MultinomialLogit(utilityFunctions, Map())

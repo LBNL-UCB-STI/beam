@@ -57,7 +57,7 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
         data          <- theData
         alternativeId <- data.alternative
       } yield {
-        (alternativeId.toString, Map  (data.variable -> UtilityFunctionOperation(data.variable, data.value)))
+        (alternativeId.toString, Map(data.variable -> UtilityFunctionOperation(data.variable, data.value)))
       }
       theTourType -> MultinomialLogit(utilityFunctions.toMap)
     }.toMap
@@ -80,13 +80,12 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
         val utilityFunctions: Iterable[(String, Map[String, UtilityFunctionOperation])] = for {
           data          <- theData
           alternativeId <- data.alternative
-        if(data.variable.equalsIgnoreCase("asc"))
         } yield {
-          (alternativeId.toString, Map (data.variable -> UtilityFunctionOperation(data.variable, data.value)) )
+          (alternativeId.toString, Map(data.variable -> UtilityFunctionOperation(data.variable, data.value)))
         }
 
         theLatentClass -> MultinomialLogit(
-        utilityFunctions.toMap
+          utilityFunctions.toMap
         )
       }.toMap
     }.toMap

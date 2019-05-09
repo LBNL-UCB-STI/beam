@@ -21,7 +21,7 @@ object UtilityFunctionOperation {
       case ("intercept", _)  => Intercept(value)
       case ("asc", _)        => Intercept(value)
       case ("multiplier", _) => Multiplier(value)
-      case _                             => throw new RuntimeException(s"Unknown Utility Parameter Type $s")
+      case _                 => throw new RuntimeException(s"Unknown Utility Parameter Type $s")
     }
   }
 }
