@@ -923,7 +923,16 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               // MATSim network.
               (edge.getLengthM / edge.calculateSpeed(req, streetMode)).toFloat
             } else {
-              getTravelTime(startTime + durationSeconds, edge.getEdgeIndex, travelTime).toFloat
+              val link = beamServices.networkHelper.getLinkUnsafe(edge.getEdgeIndex)
+              assert(link != null)
+              val tt = travelTime.getLinkTravelTime(link, startTime + durationSeconds, null, null)
+              val travelSpeed = link.getLength / tt
+              if (travelSpeed < beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond) {
+                minSpeedOverwrittenCnt.incrementAndGet()
+                (link.getLength / beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond).toFloat
+              } else {
+                tt.toFloat
+              }
             }
           }
       case None => new EdgeStore.DefaultTravelTimeCalculator
@@ -935,19 +944,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     (time: Int, linkId: Int, streetMode: StreetMode) => {
       val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
       ttc.getTravelTimeSeconds(edge, time - startTime, streetMode, req).round
-    }
-  }
-
-  private def getTravelTime(time: Int, linkId: Int, travelTime: TravelTime): Double = {
-    val link = beamServices.networkHelper.getLinkUnsafe(linkId)
-    assert(link != null)
-    val tt = travelTime.getLinkTravelTime(link, time, null, null)
-    val travelSpeed = link.getLength / tt
-    if (travelSpeed < beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond) {
-      minSpeedOverwrittenCnt.incrementAndGet()
-      link.getLength / beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond
-    } else {
-      tt
     }
   }
 
