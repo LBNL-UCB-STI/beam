@@ -1,16 +1,23 @@
 package beam.agentsim.agents.ridehail.allocation
 
+import java.io.FileWriter
+import java.io.File
+
 import beam.agentsim.agents.ridehail.RideHailManager
+import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.Location
+import beam.utils.FileUtils
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.{Activity, Person, PlanElement}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.vehicles.Vehicle
+import org.supercsv.io.CsvMapWriter
+import org.supercsv.prefs.CsvPreference
+
 import scala.collection.JavaConverters._
 
 class RandomRepositioning(val rideHailManager: RideHailManager)
-    extends RideHailResourceAllocationManager(rideHailManager) {
-
+    extends RideHailResourceAllocationManager(rideHailManager){
 
   val intervalForUpdatingQuadTree=1800
 
@@ -49,9 +56,10 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           minY = Math.min(minY, act.getCoord.getY)
           maxX = Math.max(maxX, act.getCoord.getX)
           maxY = Math.max(maxY, act.getCoord.getY)
-        }
 
-        selectedActivities=selectedActivities :+ act
+          selectedActivities=selectedActivities :+ act
+
+        }
 
       }
 
@@ -60,24 +68,44 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
     quadTree=new QuadTree[Activity](minX,minY,maxX,maxY)
 
     selectedActivities.foreach{ act =>  quadTree.put(act.getCoord.getX,act.getCoord.getY,act)}
-
+    }
   }
 
-
-
-  }
 
 
   def writeRepositioningToCSV(repositioningVehicles:  Vector[(Id[Vehicle], Coord)],tick: Double) = {
     // TODO: write in the output folder graph
 
-
     // draw all content in quadTree with color blue
 
+    val quad = quadTree.values().asScala.map{activity =>
+      val coord = activity.getCoord
+      Map("time" -> tick.toString, "x"-> coord.getX.toString, "y" -> coord.getY.toString, "activity" -> activity.getType)
+
+    }
 
     // draw all repositioningVehicles._1 at rideHailManager.vehicleManager.getIdleVehicles in green
 
     // draw all repositioningVehicles._2 in blue (make arrow from green to blue)
+
+
+    val coord = repositioningVehicles.map{ vehicleIdCoord =>
+        val rideHailVehicleLocation = rideHailManager.vehicleManager.getIdleVehicles.get(vehicleIdCoord._1)
+        val (x,y) = rideHailVehicleLocation match {
+          case Some(rideHailLocation) => (rideHailLocation.currentLocationUTM.loc.getX,rideHailLocation.currentLocationUTM.loc.getY)
+          case None => (0,0)
+        }
+        Map("time" -> tick.toString, "x1"-> x.toString, "y1" -> y.toString,"x2"-> vehicleIdCoord._2.getX.toString, "y2" -> vehicleIdCoord._2.getY.toString)
+    }
+
+    val iterationNumber = rideHailManager.beamServices.iterationNumber
+    val quadFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "quad_output.csv")
+    val coordFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "coord_output.csv")
+
+    writeCSV(quadFileName, Seq("time","x","y","activity"), quad)
+    writeCSV(coordFileName, Seq("time","x1","y1","x2","y2"), coord)
+
+
   }
 
 
@@ -140,22 +168,12 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
           writeRepositioningToCSV(result,tick)
 
-
           result
         } else {
           Vector()
         }
 
-
-
-
-
-
     }
-
-
-
-
 
 
     // TODO: just based on upcomming next activities
@@ -164,5 +182,23 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
     // choice of which vehicles to move: assess low demand areas based on activity end times as well!
 
+  }
+
+
+  private def writeCSV(path: String, headers: Seq[String], rows: Iterable[Map[String, String]]): Unit = {
+    val file = new File(path)
+    val exist = file.exists()
+    val fileWriter = new FileWriter(file, true)
+
+    FileUtils.using(new CsvMapWriter(fileWriter, CsvPreference.STANDARD_PREFERENCE)) { writer =>
+      if(!exist){
+        writer.writeHeader(headers: _*)
+      }
+      val headersArray = headers.toArray
+
+      rows.foreach { row =>
+        writer.write(row.asJava, headersArray: _*)
+      }
+    }
   }
 }
