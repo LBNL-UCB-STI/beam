@@ -227,7 +227,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
   var workAssigner: ActorRef = context.parent
 
-  private var maybeTravelTime: Option[TravelTime] = None
+  private var travelTime: TravelTime = new FreeFlowTravelTime
 
   private var transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])] = transitMap
 
@@ -309,16 +309,15 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       eventualResponse pipeTo sender
       askForMoreWork()
 
-    case UpdateTravelTimeLocal(travelTime) =>
-      maybeTravelTime = Some(travelTime)
+    case UpdateTravelTimeLocal(newTravelTime) =>
+      travelTime = newTravelTime
       log.info(s"{} UpdateTravelTimeLocal. Set new travel time", getNameAndHashCode)
       cache.invalidateAll()
       askForMoreWork()
 
     case UpdateTravelTimeRemote(map) =>
-      val travelTimeCalc =
+      travelTime =
         TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamServices.beamConfig.beam.agentsim.timeBinSize, map)
-      maybeTravelTime = Some(travelTimeCalc)
       log.info(
         s"{} UpdateTravelTimeRemote. Set new travel time from map with size {}",
         getNameAndHashCode,
@@ -914,37 +913,33 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   def getTimezone: ZoneId = this.transportNetwork.getTimeZone
 
   private def travelTimeCalculator(startTime: Int): TravelTimeCalculator =
-    maybeTravelTime match {
-      case Some(travelTime) =>
-        (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest) =>
-          {
-            if (streetMode != StreetMode.CAR || edge.getOSMID < 0) {
-              // An R5 internal edge, probably connecting transit to the street network. We don't have those in the
-              // MATSim network.
-              (edge.getLengthM / edge.calculateSpeed(req, streetMode)).toFloat
-            } else {
-              val link = beamServices.networkHelper.getLinkUnsafe(edge.getEdgeIndex)
-              assert(link != null)
-              val tt = travelTime.getLinkTravelTime(link, startTime + durationSeconds, null, null)
-              val travelSpeed = link.getLength / tt
-              if (travelSpeed < beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond) {
-                minSpeedOverwrittenCnt.incrementAndGet()
-                (link.getLength / beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond).toFloat
-              } else {
-                tt.toFloat
-              }
-            }
-          }
-      case None => new EdgeStore.DefaultTravelTimeCalculator
+    (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest) => {
+      if (streetMode != StreetMode.CAR || edge.getOSMID < 0) {
+        // An R5 internal edge, probably connecting transit to the street network. We don't have those in the
+        // MATSim network.
+        (edge.getLengthM / edge.calculateSpeed(req, streetMode)).toFloat
+      } else {
+        val link = beamServices.networkHelper.getLinkUnsafe(edge.getEdgeIndex)
+        assert(link != null)
+        val tt = travelTime.getLinkTravelTime(link, startTime + durationSeconds, null, null)
+        val travelSpeed = link.getLength / tt
+        if (travelSpeed < beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond) {
+          minSpeedOverwrittenCnt.incrementAndGet()
+          (link.getLength / beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond).toFloat
+        } else {
+          tt.toFloat
+        }
+      }
     }
 
   private def travelTimeByLinkCalculator(startTime: Int): (Int, Int, StreetMode) => Int = {
     val ttc = travelTimeCalculator(startTime)
     val req = new ProfileRequest
-    (time: Int, linkId: Int, streetMode: StreetMode) => {
-      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-      ttc.getTravelTimeSeconds(edge, time - startTime, streetMode, req).round
-    }
+    (time: Int, linkId: Int, streetMode: StreetMode) =>
+      {
+        val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+        ttc.getTravelTimeSeconds(edge, time - startTime, streetMode, req).round
+      }
   }
 
   private val turnCostCalculator: TurnCostCalculator =
