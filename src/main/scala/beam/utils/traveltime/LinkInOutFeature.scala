@@ -201,6 +201,7 @@ object LinkInOutFeature {
             writeStats(zeroArr)
             writeStats(zeroArr)
             writeStats(zeroArr)
+            writeStats(zeroArr)
         }
       }
     }
