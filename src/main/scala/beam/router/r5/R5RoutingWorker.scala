@@ -361,7 +361,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
       leg.travelPath.linkIds,
       leg.startTime,
-      travelTimeByLinkCalculator,
+      travelTimeByLinkCalculator(leg.startTime),
       toR5StreetMode(leg.mode),
       transportNetwork.streetLayer
     )
@@ -781,7 +781,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     val linksTimesDistances = RoutingModel.linksToTimeAndDistance(
       activeLinkIds,
       tripStartTime,
-      travelTimeByLinkCalculator,
+      travelTimeByLinkCalculator(tripStartTime),
       mode,
       transportNetwork.streetLayer
     )
@@ -929,16 +929,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       case None => new EdgeStore.DefaultTravelTimeCalculator
     }
 
-  private def travelTimeByLinkCalculator(time: Int, linkId: Int, mode: StreetMode): Int = {
-    maybeTravelTime match {
-      case Some(matsimTravelTime) if mode == StreetMode.CAR =>
-        getTravelTime(time, linkId, matsimTravelTime).round.toInt
-
-      case _ =>
-        val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-        //        (new EdgeStore.DefaultTravelTimeCalculator).getTravelTimeMilliseconds(edge,)
-        val tt = (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, mode)).round
-        tt.toInt
+  private def travelTimeByLinkCalculator(startTime: Int): (Int, Int, StreetMode) => Int = {
+    val ttc = travelTimeCalculator(startTime)
+    val req = new ProfileRequest
+    (time: Int, linkId: Int, streetMode: StreetMode) => {
+      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+      ttc.getTravelTimeSeconds(edge, time - startTime, streetMode, req).round
     }
   }
 
