@@ -12,20 +12,23 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
 
 
+  val intervalForUpdatingQuadTree=1800
 
+  var lastTimeQuadTreeUpdated=Double.NegativeInfinity
 
-  def getPersonLocationQuadTree(): QuadTree[Activity] = {
-    rideHailManager.beamServices.matsimServices.getScenario.getPopulation.getPersons.values().stream().forEach{ person =>
-      person.getSelectedPlan
+  var quadTree:QuadTree[Activity]=_
 
-    }
+  def updatePersonActivityQuadTree(tick: Double) = {
+   // rideHailManager.beamServices.matsimServices.getScenario.getPopulation.getPersons.values().stream().forEach{ person =>
+  //    person.getSelectedPlan
+//
+  //  }
 
-
+  if (lastTimeQuadTreeUpdated+intervalForUpdatingQuadTree<tick){
 
     // TODO: give preference to non repositioning vehicles -> filter them out!
 
-    // TODO: ridehail manager: keep track of current time or give as argument here
-    val currentTime=0
+    val currentTime=tick
 
     var minX: Double = Double.MaxValue
     var maxX: Double = Double.MinValue
@@ -41,7 +44,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
       if (planElement.isInstanceOf[Activity]){
         val act=planElement.asInstanceOf[Activity]
-        if (act.getEndTime>currentTime +20*60){ // add && act.getEndTime<currentTime +3600
+        if (act.getEndTime>currentTime +20*60 && act.getEndTime<currentTime +3600){
           minX = Math.min(minX, act.getCoord.getX)
           minY = Math.min(minY, act.getCoord.getY)
           maxX = Math.max(maxX, act.getCoord.getX)
@@ -54,15 +57,29 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
     }
 
-    val quadTree=new QuadTree[Activity](minX,minY,maxX,maxY)
+    quadTree=new QuadTree[Activity](minX,minY,maxX,maxY)
 
     selectedActivities.foreach{ act =>  quadTree.put(act.getCoord.getX,act.getCoord.getY,act)}
 
-
-
-
-    quadTree
   }
+
+
+
+  }
+
+
+  def writeRepositioningToCSV(repositioningVehicles:  Vector[(Id[Vehicle], Coord)],tick: Double) = {
+    // TODO: write in the output folder graph
+
+
+    // draw all content in quadTree with color blue
+
+
+    // draw all repositioningVehicles._1 at rideHailManager.vehicleManager.getIdleVehicles in green
+
+    // draw all repositioningVehicles._2 in blue (make arrow from green to blue)
+  }
+
 
 
   // Only override proposeVehicleAllocation if you wish to do something different from closest euclidean vehicle
@@ -72,7 +89,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
     // Do tests: 1.) no repos 2.) with just upcomming next activities 3.) clustering, etc.
 
-    val quadTree:QuadTree[Activity]=getPersonLocationQuadTree()
+    updatePersonActivityQuadTree(tick)
 
 
 
@@ -119,6 +136,9 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
             }
 
           }.toVector.filterNot(_._2.getX==Double.MaxValue)
+
+
+          writeRepositioningToCSV(result,tick)
 
 
           result
