@@ -478,7 +478,7 @@ trait BeamHelper extends LazyLogging {
     run(beamServices)
   }
 
-  private def fillScenarioWithExternalSources(
+  protected def fillScenarioWithExternalSources(
     scenario: MutableScenario,
     injector: inject.Injector,
     networkCoordinator: NetworkCoordinator,
