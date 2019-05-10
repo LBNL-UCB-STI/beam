@@ -60,8 +60,6 @@ object ConfigConsistencyComparator extends LazyLogging {
 
     logStringBuilder.append(bottom)
 
-    logger.info(logStringBuilder.toString)
-
     if (notFoundFiles.nonEmpty) {
       throw new IllegalArgumentException("There are not found files.")
     }
