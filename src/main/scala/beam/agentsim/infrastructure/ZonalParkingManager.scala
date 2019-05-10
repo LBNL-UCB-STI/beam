@@ -104,8 +104,10 @@ object ZonalParkingManager {
   val ParkingAvailabilityThreshold: Double = 0.25
   val DepotParkingValueOfTime: Double = 0.0 // ride hail drivers do not have a value of time
 
+
+
   /**
-    * constructs a ZonalParkingManager
+    * constructs a ZonalParkingManager from file
     * @param beamServices central repository for simulation data
     * @param random random number generator used to sample parking stall locations
     * @return an instance of the ZonalParkingManager class
@@ -123,14 +125,27 @@ object ZonalParkingManager {
     new ZonalParkingManager(beamServices, stalls, searchTree, random)
   }
 
+
+
+  /**
+    * constructs a ZonalParkingManager from a string iterator
+    * @param parkingDescription line-by-line string representation of parking including header
+    * @param beamServices central repository for simulation data
+    * @param random random generator used for sampling parking locations
+    * @param includesHeader true if the parkingDescription includes a csv-style header
+    * @return
+    */
   def apply(
     parkingDescription: Iterator[String],
     beamServices: BeamServices,
-    random: Random
+    random: Random,
+    includesHeader: Boolean = true
   ): ZonalParkingManager = {
-    val (stalls, searchTree) = ParkingZoneFileUtils.fromIterator(parkingDescription)
+    val (stalls, searchTree) = ParkingZoneFileUtils.fromIterator(parkingDescription, includesHeader)
     new ZonalParkingManager(beamServices, stalls, searchTree, random)
   }
+
+
 
   /**
     * builds a ZonalParkingManager Actor
