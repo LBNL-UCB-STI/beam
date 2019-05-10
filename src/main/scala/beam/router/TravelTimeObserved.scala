@@ -19,9 +19,9 @@ import com.vividsolutions.jts.geom.Geometry
 import org.jfree.chart.ChartFactory
 import org.jfree.chart.annotations.{XYLineAnnotation, XYTextAnnotation}
 import org.jfree.chart.plot.{PlotOrientation, XYPlot}
+import org.jfree.data.statistics.{HistogramDataset, HistogramType}
 import org.jfree.data.xy.{XYSeries, XYSeriesCollection}
 import org.jfree.ui.RectangleInsets
-import org.jfree.util.ShapeUtilities
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.utils.io.IOUtils
@@ -119,6 +119,8 @@ class TravelTimeObserved @Inject()(
     writerObservedVsSimulated.write("\n")
 
     var series = new mutable.ListBuffer[(Int, Double, Double)]()
+    val categoryDataset = new HistogramDataset()
+    var deltasOfObservedSimulatedTimes = new mutable.ListBuffer[Double]
 
     beamServices.tazTreeMap.getTAZs
       .foreach { origin =>
@@ -133,6 +135,8 @@ class TravelTimeObserved @Inject()(
                     .map(_.toSkimExternal)
                     .foreach { theSkim =>
                       series += ((theSkim.count, theSkim.time, timeObserved))
+                      for (count <- 1 to theSkim.count)
+                        deltasOfObservedSimulatedTimes += theSkim.time - timeObserved
                       writerObservedVsSimulated.write(
                         s"${origin.tazId},${destination.tazId},${timeBin},${theSkim.time},${timeObserved},${theSkim.count}\n"
                       )
@@ -143,16 +147,24 @@ class TravelTimeObserved @Inject()(
         }
       }
 
+    categoryDataset.addSeries("Simulated-Observed", deltasOfObservedSimulatedTimes.toArray, histogramBinSize)
+
     writerObservedVsSimulated.close()
 
     val chartPath =
       event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, chartName)
     generateChart(series, chartPath)
+
+    val histogramPath =
+      event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, histogramName)
+    generateHistogram(categoryDataset, histogramPath)
   }
 }
 
 object TravelTimeObserved extends LazyLogging {
   val chartName: String = "scatterplot_simulation_vs_reference.png"
+  val histogramName: String = "simulation_vs_reference_histogram.png"
+  val histogramBinSize: Int = 200
 
   case class PathCache(from: Id[TAZ], to: Id[TAZ], hod: Int)
 
@@ -211,6 +223,26 @@ object TravelTimeObserved extends LazyLogging {
     }
     logger.info(s"observedTravelTimesOpt size is ${observedTravelTimes.keys.size}")
     observedTravelTimes.toMap
+  }
+
+  def generateHistogram(dataset: HistogramDataset, path: String): Unit = {
+    dataset.setType(HistogramType.FREQUENCY)
+    val chart = ChartFactory.createHistogram(
+      "Simulated-Observed Frequency",
+      "Simulated-Observed",
+      "Frequency",
+      dataset,
+      PlotOrientation.VERTICAL,
+      true,
+      false,
+      false
+    )
+    GraphUtils.saveJFreeChartAsPNG(
+      chart,
+      path,
+      GraphsStatsAgentSimEventsListener.GRAPH_WIDTH,
+      GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT
+    )
   }
 
   def generateChart(series: mutable.ListBuffer[(Int, Double, Double)], path: String): Unit = {

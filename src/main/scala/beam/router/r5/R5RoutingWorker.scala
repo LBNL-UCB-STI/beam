@@ -94,7 +94,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
       ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
-      LoggingUtil.createFileLogger(outputDirectory, beamConfig.beam.logger.keepConsoleAppenderOn)
+      LoggingUtil.initLogger(outputDirectory, beamConfig.beam.logger.keepConsoleAppenderOn)
       matsimConfig.controler.setOutputDirectory(outputDirectory)
       matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
