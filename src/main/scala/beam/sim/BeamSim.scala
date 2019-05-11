@@ -19,7 +19,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
-import beam.utils.scripts.{FailFast, HouseholdsWriterCSV, NetworkNodeCsvWriter, PlansWriterCSV, PopulationWriterCSV, VehiclesWriterCSV}
+import beam.utils.scripts.{FailFast, HouseholdsWriterCSV, NetworkLinkCsvWriter, NetworkNodeCsvWriter, PlansWriterCSV, PopulationWriterCSV, VehiclesWriterCSV}
 import beam.utils.{DebugLib, NetworkHelper}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
@@ -306,6 +306,7 @@ class BeamSim @Inject()(
     HouseholdsWriterCSV(scenario).write(controlerIO.getOutputFilename("households.csv"))
     PlansWriterCSV(scenario).write(controlerIO.getOutputFilename("plansXX.csv"))
     NetworkNodeCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("networkNode.csv"))
+    NetworkLinkCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("networkLink.csv"))
   }
 
   private def writeSummaryStats(summaryStatsFile: File): Unit = {
