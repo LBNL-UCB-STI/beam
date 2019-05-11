@@ -14,12 +14,14 @@ import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
-import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
+import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
-import beam.utils.scripts.{FailFast, HouseholdsWriterCSV, NetworkLinkCsvWriter, NetworkNodeCsvWriter, PlansWriterCSV, PopulationWriterCSV, VehiclesWriterCSV}
+import beam.utils.csv.writers.{HouseholdsCsvWriter, NetworkLinkCsvWriter, NetworkNodeCsvWriter, PlansCsvWriter, VehiclesCsvWriter}
+import beam.utils.logging.ExponentialLazyLogging
+import beam.utils.scripts.{FailFast, PopulationWriterCSV}
 import beam.utils.{DebugLib, NetworkHelper}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
@@ -29,8 +31,10 @@ import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.text.WordUtils
 import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.Scenario
+import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.controler.events.{ControlerEvent, IterationEndsEvent, IterationStartsEvent, ShutdownEvent, StartupEvent}
+import org.matsim.core.controler.OutputDirectoryHierarchy
+import org.matsim.core.controler.events._
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
 
 import scala.collection.JavaConverters._
@@ -39,9 +43,6 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
-import beam.utils.logging.ExponentialLazyLogging
-import org.matsim.api.core.v01.population.{Activity, Plan}
-import org.matsim.core.controler.OutputDirectoryHierarchy
 
 class BeamSim @Inject()(
   private val actorSystem: ActorSystem,
@@ -301,9 +302,9 @@ class BeamSim @Inject()(
 
   private def writeScenario(scenario: Scenario, controlerIO: OutputDirectoryHierarchy) = {
     PopulationWriterCSV(scenario.getPopulation).write(controlerIO.getOutputFilename("population.csv"))
-    VehiclesWriterCSV(scenario).write(controlerIO.getOutputFilename("vehicles.csv"))
-    HouseholdsWriterCSV(scenario).write(controlerIO.getOutputFilename("households.csv"))
-    PlansWriterCSV(scenario).write(controlerIO.getOutputFilename("plansXX.csv"))
+    VehiclesCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("vehicles.csv"))
+    HouseholdsCsvWriter.toCsv(scenario, "households.csv")
+    PlansCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("plans.csv"))
     NetworkNodeCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("networkNode.csv"))
     NetworkLinkCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("networkLink.csv"))
   }

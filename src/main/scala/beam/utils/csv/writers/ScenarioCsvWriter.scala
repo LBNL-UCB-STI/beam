@@ -1,4 +1,4 @@
-package beam.utils.csv
+package beam.utils.csv.writers
 
 import java.io.File
 

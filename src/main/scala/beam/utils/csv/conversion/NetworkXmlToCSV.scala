@@ -1,4 +1,4 @@
-package beam.utils.csv
+package beam.utils.csv.conversion
 
 import java.io.{BufferedReader, File, PrintWriter}
 
