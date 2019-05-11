@@ -1,7 +1,7 @@
 package scripts
 import java.io.File
 
-trait Xml2CsvFileConverter {
+trait CsvFileWriter {
   protected def fields: Seq[String]
   protected lazy val header: Iterator[String] = Iterator(fields.mkString(FieldSeparator), LineSeparator)
 
