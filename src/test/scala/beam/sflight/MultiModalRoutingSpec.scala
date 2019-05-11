@@ -36,7 +36,7 @@ class MultiModalRoutingSpec extends AbstractSfLightSpec("MultiModalRoutingSpec")
       )
       val response = expectMsgType[RoutingResponse]
       val routedStartTime = response.itineraries.head.beamLegs().head.startTime
-      assert(routedStartTime >= 100 && routedStartTime <= 200)
+      assert(routedStartTime == time)
     }
   }
 }
