@@ -18,6 +18,7 @@ object NetworkFeaturesExtractor {
     val outputFile = args(3)
     val enteredLinkMultiThreaded = if (args.length > 4) args(4) == "true" else false
     val leavedLinkMultiThreaded = if (args.length > 5) args(5) == "true" else false
+    val shouldWriteMapping = if (args.length > 6) args(6) == "true" else false
 
     val networkLinks = initializeNetworkLinks(pathToNetworkXml)
     val eventsManager = EventsUtils.createEventsManager()
@@ -28,7 +29,8 @@ object NetworkFeaturesExtractor {
       level = level,
       pathToMetadataFolder = new File(outputFile).getParentFile.toString,
       enteredLinkMultiThreaded = enteredLinkMultiThreaded,
-      leavedLinkMultiThreaded = leavedLinkMultiThreaded
+      leavedLinkMultiThreaded = leavedLinkMultiThreaded,
+      shouldWriteMapping = shouldWriteMapping
     )
     val eventHandler = new FeatureEventHandler(networkLinks, Set(writerType), outputFile, featureExtractor)
 
