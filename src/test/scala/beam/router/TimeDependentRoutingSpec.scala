@@ -125,7 +125,7 @@ class TimeDependentRoutingSpec
       )
       router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), BeamVehicleType.defaultCarBeamVehicleType.id)
       val response = expectMsgType[RoutingResponse]
-      assert(response.itineraries.head.beamLegs().head.duration == 145)
+      assert(response.itineraries.head.beamLegs().head.duration == 82)
       // R5 travel time, but less than what's in R5's routing response (see vv),
       // presumably because the first/last edge are not travelled (in R5, trip starts on a "split")
     }
@@ -170,7 +170,7 @@ class TimeDependentRoutingSpec
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption.totalTravelTimeInSecs == 145)
+      assert(carOption.totalTravelTimeInSecs == 82)
 
       router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) => 0) // Nice, we can teleport!
       router ! RoutingRequest(

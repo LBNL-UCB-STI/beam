@@ -1,7 +1,7 @@
 package beam.router.r5
 
 import java.time.temporal.ChronoUnit
-import java.time.{ZoneId, ZoneOffset, ZonedDateTime}
+import java.time.{ZoneOffset, ZonedDateTime}
 import java.util
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{ExecutorService, Executors}
@@ -185,7 +185,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     })
   }
 
-  val WorkerParameters(
+  private val WorkerParameters(
     beamServices,
     transportNetwork,
     network,
@@ -200,19 +200,19 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   private val distanceThresholdToIgnoreWalking =
     beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters // meters
 
-  val numOfThreads: Int =
+  private val numOfThreads: Int =
     if (Runtime.getRuntime.availableProcessors() <= 2) 1
     else Runtime.getRuntime.availableProcessors() - 2
   private val execSvc: ExecutorService = Executors.newFixedThreadPool(
     numOfThreads,
     new ThreadFactoryBuilder().setDaemon(true).setNameFormat("r5-routing-worker-%d").build()
   )
-  implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(execSvc)
+  private implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(execSvc)
 
-  val tickTask: Cancellable =
+  private val tickTask: Cancellable =
     context.system.scheduler.schedule(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
-  var msgs: Long = 0
-  var firstMsgTime: Option[ZonedDateTime] = None
+  private var msgs: Long = 0
+  private var firstMsgTime: Option[ZonedDateTime] = None
   log.info("R5RoutingWorker_v2[{}] `{}` is ready", hashCode(), self.path)
   log.info(
     "Num of available processors: {}. Will use: {}",
@@ -221,11 +221,11 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   )
 
   // It has to be atomic because `getTravelTime` is called from different threads (we calculate routes in Future)
-  val minSpeedOverwrittenCnt: AtomicInteger = new AtomicInteger(0)
+  private val minSpeedOverwrittenCnt: AtomicInteger = new AtomicInteger(0)
 
-  def getNameAndHashCode: String = s"R5RoutingWorker_v2[${hashCode()}], Path: `${self.path}`"
+  private def getNameAndHashCode: String = s"R5RoutingWorker_v2[${hashCode()}], Path: `${self.path}`"
 
-  var workAssigner: ActorRef = context.parent
+  private var workAssigner: ActorRef = context.parent
 
   private var travelTime: TravelTime = new FreeFlowTravelTime
 
@@ -356,7 +356,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   private def askForMoreWork(): Unit =
     if (workAssigner != null) workAssigner ! GimmeWork //Master will retry if it hasn't heard
 
-  def updateLegWithCurrentTravelTime(leg: BeamLeg): BeamLeg = {
+  private def updateLegWithCurrentTravelTime(leg: BeamLeg): BeamLeg = {
     val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
       leg.travelPath.linkIds,
       leg.startTime,
@@ -368,12 +368,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     leg.copy(travelPath = updatedTravelPath, duration = updatedTravelPath.duration)
   }
 
-  def lengthOfLink(linkId: Int): Double = {
-    val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-    edge.getLengthM
-  }
-
-  def getPlanFromR5(request: R5Request): ProfileResponse = {
+  private def getPlanFromR5(request: R5Request): ProfileResponse = {
     countOccurrence("r5-plans-count")
     // If we already have observed travel times, probably from the pre
     // let R5 use those. Otherwise, let R5 use its own travel time estimates.
@@ -429,7 +424,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     result
   }
 
-  def calcRoute(routingRequest: RoutingRequest): RoutingResponse = {
+  private def calcRoute(routingRequest: RoutingRequest): RoutingResponse = {
     //    log.debug(routingRequest.toString)
 
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
@@ -742,7 +737,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     }
   }
 
-  def buildStreetBasedLegs(r5Leg: StreetSegment, tripStartTime: Int): Vector[LegWithFare] = {
+  private def buildStreetBasedLegs(r5Leg: StreetSegment, tripStartTime: Int): Vector[LegWithFare] = {
     val theTravelPath = buildStreetPath(r5Leg, tripStartTime, toR5StreetMode(r5Leg.mode))
     val toll = if (r5Leg.mode == LegMode.CAR) {
       val osm = r5Leg.streetEdges.asScala
@@ -910,8 +905,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
   private def getStopId(stop: Stop) = stop.stopId.split(":")(1)
 
-  def getTimezone: ZoneId = this.transportNetwork.getTimeZone
-
   private def travelTimeCalculator(startTime: Int): TravelTimeCalculator =
     (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest) => {
       if (streetMode != StreetMode.CAR || edge.getOSMID < 0) {
@@ -957,7 +950,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     }
 
   //Does point to point routing with data from request
-  def getPlan(request: ProfileRequest, timeValueOfMoney: Double): ProfileResponse = {
+  private def getPlan(request: ProfileRequest, timeValueOfMoney: Double): ProfileResponse = {
     request.zoneId = transportNetwork.getTimeZone
     //Do the query and return result
     val profileResponse = new ProfileResponse
@@ -1111,7 +1104,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     egressRouter
   }
 
-  def toBeamTrip(
+  private def toBeamTrip(
     isRouteForPerson: Boolean,
     maybeWalkToVehicle: Option[BeamLeg],
     maybeUseVehicleOnEgress: Seq[LegWithFare],
@@ -1355,14 +1348,6 @@ object R5RoutingWorker {
     egressMode: LegMode,
     timeValueOfMoney: Double
   )
-
-  def linkIdToCoord(id: Int, transportNetwork: TransportNetwork): Coord = {
-    val edge = transportNetwork.streetLayer.edgeStore.getCursor(id)
-    new Coord(
-      (edge.getGeometry.getEndPoint.getX + edge.getGeometry.getStartPoint.getX) / 2.0,
-      (edge.getGeometry.getEndPoint.getY + edge.getGeometry.getStartPoint.getY) / 2.0
-    )
-  }
 
   def createBushwackingBeamLeg(
     atTime: Int,
