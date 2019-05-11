@@ -29,6 +29,8 @@ trait RepositionAlgorithm {
     endTime: Int,
     repositionManager: RepositionManager
   ): List[(BeamVehicle, SpaceTime, Id[TAZ])]
+
+  def collectData(time: Int, repositionManager: RepositionManager)
 }
 
 trait RepositionManager extends Actor with ActorLogging {
@@ -47,6 +49,10 @@ trait RepositionManager extends Actor with ActorLogging {
 
   override def receive: Receive = {
     case TriggerWithId(REPVehicleRepositionTrigger(tick), triggerId) =>
+      // collecting
+      getRepositionAlgorithm.collectData(tick, this)
+
+      // repositioning
       val nextTick = tick + getTimeStep
       getRepositionAlgorithm.getVehiclesForReposition(tick, nextTick, this) foreach {
         case (vehicle, whereWhen, idTAZ) =>

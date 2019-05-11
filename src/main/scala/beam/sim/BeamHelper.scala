@@ -29,6 +29,7 @@ import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import com.google.inject.name.Names
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
@@ -219,7 +220,9 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[BeamOutputDataDescriptionGenerator])
           addControlerListenerBinding().to(classOf[RideHailRevenueAnalysis])
 
-          addControlerListenerBinding().to(classOf[RepositionManagerListener])
+          val repositionManagerListener = new RepositionManagerListener
+          addControlerListenerBinding().toInstance(repositionManagerListener)
+          bind(classOf[RepositionManagerListener]).toInstance(repositionManagerListener)
 
           bindMobsim().to(classOf[BeamMobsim])
           bind(classOf[EventsHandling]).to(classOf[BeamEventsHandling])

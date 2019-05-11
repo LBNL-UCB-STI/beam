@@ -151,7 +151,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
     new AvailabilityBasedRepositioning(beamSkimmer, beamServices)
   override def getTimeStep: Int = 15 * 60
   override def getBeamSkimmer: BeamSkimmer = beamSkimmer
-  val listener = getBeamServices.injector.getBinding(classOf[RepositionManagerListener]).getProvider.get()
-  override def getRepositionManagerListenerInstance: RepositionManagerListener = listener
+  override def getRepositionManagerListenerInstance: RepositionManagerListener =
+    getBeamServices.injector.getInstance(classOf[RepositionManagerListener])
 
 }

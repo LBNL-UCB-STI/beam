@@ -59,14 +59,6 @@ private[vehiclesharing] class AvailabilityBasedRepositioning(
 //          s"reposition tick ======> $startTime | minAvailability: $availability | avgDemand: $demand"
 //        )
       }
-      // collect skim
-      beamSkimmer.observeVehicleAvailabilityByTAZ(
-        startTime,
-        taz,
-        repositionManager.getId,
-        LABEL,
-        repositionManager.getAvailableVehicles
-      )
     }
 
     val vehiclesForReposition = new mutable.ListBuffer[(BeamVehicle, SpaceTime, Id[TAZ])]()
@@ -113,6 +105,12 @@ private[vehiclesharing] class AvailabilityBasedRepositioning(
       }
     }
     vehiclesForReposition.toList
+  }
+
+  override def collectData(time: Int, repositionManager: RepositionManager) = {
+    beamSkimmer.observeVehicleAvailabilityByTAZ(
+      time, repositionManager.getId, LABEL, repositionManager.getAvailableVehicles.queryAll().asScala.toList
+    )
   }
 
 }

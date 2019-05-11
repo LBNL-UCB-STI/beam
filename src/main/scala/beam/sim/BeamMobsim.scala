@@ -20,7 +20,7 @@ import beam.router.{BeamRouter, BeamSkimmer, FreeFlowTravelTime, RouteHistory}
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
-import beam.sim.vehiclesharing.{Fleets, RepositionManagerListener}
+import beam.sim.vehiclesharing.Fleets
 import beam.utils._
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject

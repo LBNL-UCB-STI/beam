@@ -262,7 +262,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   }
 
   def timeToBin(departTime: Int, timeWindow: Double = 3600.0): Int = {
-    Math.floorMod(Math.floor(departTime.toDouble / timeWindow).toInt, (24 * 3600 / timeWindow).toInt)
+    Math.floorMod(Math.floor(departTime.toDouble / timeWindow).toInt, (30 * 3600 / timeWindow).toInt)
   }
 
   def mergeAverage(existingAverage: Double, existingCount: Int, newValue: Double): Double = {
@@ -541,22 +541,18 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
 
   def observeVehicleAvailabilityByTAZ(
     time: Int,
-    taz: TAZ,
     vehicleManager: Id[VehicleManager],
     label: Label,
-    vehicles: Quadtree
+    vehicles: List[Any]
   ): Unit = {
     val timeBin = timeToBin(time, timeWindow)
-    val key = (timeBin, taz.tazId, vehicleManager, label)
-    val vehiclesInTAZ = vehicles
-      .queryAll()
-      .asScala
-      .count(
-        v =>
-          taz == beamServices.tazTreeMap
-            .getTAZ(v.asInstanceOf[BeamVehicle].spaceTime.loc.getX, v.asInstanceOf[BeamVehicle].spaceTime.loc.getY)
-      )
-    skimsPlus.put(key, skimsPlus.getOrElse(key, 0.0) + vehiclesInTAZ.toDouble)
+    beamServices.tazTreeMap.getTAZs.foreach { taz =>
+      val key = (timeBin, taz.tazId, vehicleManager, label)
+      val count = vehicles.count(v => taz == beamServices.tazTreeMap.getTAZ(
+        v.asInstanceOf[BeamVehicle].spaceTime.loc.getX,
+        v.asInstanceOf[BeamVehicle].spaceTime.loc.getY))
+      skimsPlus.put(key, skimsPlus.getOrElse(key, 0.0) + count.toDouble)
+    }
   }
 
   def writeObservedSkimsPlus(event: IterationEndsEvent): Unit = {
