@@ -1,4 +1,5 @@
-package scripts
+package beam.utils.csv
+
 import java.io.File
 
 trait Xml2CsvFileConverter {

@@ -1,8 +1,8 @@
 package beam.utils.scripts
 
+import beam.utils.csv.ScenarioCsvWriter
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Scenario
-import scripts.ScenarioCsvWriter
 
 import scala.collection.JavaConverters._
 

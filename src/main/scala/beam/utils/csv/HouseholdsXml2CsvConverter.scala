@@ -1,9 +1,9 @@
-package scripts
+package beam.utils.csv
 
 import java.io.File
 
-import scala.xml.{Node, NodeSeq}
 import scala.xml.parsing.ConstructingParser
+import scala.xml.{Node, NodeSeq}
 
 class HouseholdsXml2CsvConverter(householdAttributesXml: File) extends Xml2CsvFileConverter {
 

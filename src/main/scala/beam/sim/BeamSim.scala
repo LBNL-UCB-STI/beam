@@ -42,7 +42,6 @@ import scala.concurrent.{Await, Future}
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.controler.OutputDirectoryHierarchy
-import scripts.XmlConverter
 
 class BeamSim @Inject()(
   private val actorSystem: ActorSystem,

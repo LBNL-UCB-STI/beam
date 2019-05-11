@@ -1,9 +1,9 @@
-package scripts
+package beam.utils.csv
 
 import java.io.File
 
-import scala.xml.{Node, NodeSeq}
 import scala.xml.parsing.ConstructingParser
+import scala.xml.{Node, NodeSeq}
 
 object VehiclesXml2CsvConverter extends Xml2CsvFileConverter {
   override protected def fields: Seq[String] = Seq("vehicleId", "vehicleType", "householdId")
@@ -73,19 +73,3 @@ object VehiclesXml2CsvConverter extends Xml2CsvFileConverter {
     Iterator()
   }
 }
-
-/*
-<household id="1">
-<members>
-<personId refId="1" />
-<personId refId="2" />
-<personId refId="3" />
-</members>
-<vehicles>
-<vehicleDefinitionId refId="1" />
-<vehicleDefinitionId refId="2" />
-</vehicles>
-<income currency="usd" period="year">50000</income>
-</household>
-
- */

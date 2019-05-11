@@ -1,9 +1,9 @@
-package scripts
+package beam.utils.csv
 
 import java.io.File
 
 import scala.xml.parsing.ConstructingParser
-import scala.xml.{Elem, Node, NodeSeq}
+import scala.xml.{Node, NodeSeq}
 
 object PlansXml2CsvConverter extends Xml2CsvFileConverter {
 
@@ -97,25 +97,3 @@ object PlansXml2CsvConverter extends Xml2CsvFileConverter {
     peopleNodes.toIterator.flatMap(toPlans).map(_.toString + LineSeparator)
   }
 }
-/*
-<population>
-	<person id="1">
-		<plan score="-494.58068848294334" selected="yes">
-			<activity type="Home" x="166321.9" y="1568.87" end_time="13:45:00" />
-			<activity type="Shopping" x="167138.4" y="1117" end_time="15:49:00" />
-			<leg mode="">
-			</leg>
-			<activity type="Home" x="166321.9" y="1568.87" end_time="18:30:21" />
-			<activity type="Shopping" x="166045.2" y="2705.4" end_time="19:43:26" />
-			<activity type="Home" x="166321.9" y="1568.87" />
-		</plan>
-	</person>
-
-*** plans.csv.gz
-personId,planId,planElementIndex,planElementType,activityType,x,y,endTime,mode
-
-planElementType: ACT or LEG
-mode: car, bike, walk
-activityType: home, shopping
-
- */

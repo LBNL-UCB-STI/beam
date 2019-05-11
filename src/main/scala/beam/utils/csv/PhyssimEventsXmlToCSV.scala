@@ -1,4 +1,5 @@
-package beam.utils
+package beam.utils.csv
+
 import java.io.{File, PrintWriter}
 
 object PhyssimEventsXmlToCSV {

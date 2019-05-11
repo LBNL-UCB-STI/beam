@@ -1,4 +1,4 @@
-package scripts
+package beam.utils.csv
 
 import java.io.File
 
@@ -10,6 +10,9 @@ trait ScenarioCsvWriter {
 
   protected val LineSeparator: String = "\n"
   protected val FieldSeparator: String = ","
+  protected val ArrayStartString: String = "\""
+  protected val ArrayEndString: String = "\""
+  protected val ArrayItemSeparator: String = ";"
 
   private def header: Iterator[String] = Iterator(fields.mkString(FieldSeparator), LineSeparator)
 

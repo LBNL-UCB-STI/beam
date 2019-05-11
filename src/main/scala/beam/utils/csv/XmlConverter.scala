@@ -1,13 +1,11 @@
-package scripts
+package beam.utils.csv
 
 import java.io.{File, FileInputStream, FileOutputStream}
-import java.nio.file.{CopyOption, Files}
+import java.nio.file.Files
+import java.util.zip.GZIPInputStream
 
 import beam.sim.config.BeamConfig
 import beam.utils.FileUtils
-import java.util.zip.GZIPInputStream
-
-//import scripts.XmlConverter.{houseHoldAttributesXml, householdsXml, populationAttributesXml, populationXml}
 
 object XmlConverter extends App {
   val path = "test/input/beamville"
