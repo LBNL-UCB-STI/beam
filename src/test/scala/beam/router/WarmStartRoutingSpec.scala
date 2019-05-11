@@ -346,8 +346,8 @@ class WarmStartRoutingSpec
       var response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      val links = carOption.beamLegs().head.travelPath.linkIds
-      val travelTime1 = carOption.beamLegs().head.travelPath.linkTravelTime.sum
+      val links = carOption.beamLegs.head.travelPath.linkIds
+      val travelTime1 = carOption.beamLegs.head.travelPath.linkTravelTime.sum
 
       BeamWarmStart(
         BeamConfig(
@@ -378,8 +378,8 @@ class WarmStartRoutingSpec
 
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption2 = response.itineraries.find(_.tripClassifier == CAR).get
-      val newLinks = carOption2.beamLegs().head.travelPath.linkIds
-      val travelTime2 = carOption2.beamLegs().head.travelPath.linkTravelTime.sum
+      val newLinks = carOption2.beamLegs.head.travelPath.linkIds
+      val travelTime2 = carOption2.beamLegs.head.travelPath.linkTravelTime.sum
       assert(travelTime2 <= travelTime1)
       assert(!links.equals(newLinks))
     }

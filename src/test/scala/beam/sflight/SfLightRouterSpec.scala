@@ -36,7 +36,9 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
         )
       )
       val response = expectMsgType[RoutingResponse]
-      assert(response.itineraries.exists(_.tripClassifier == WALK))
+      val walkTrip = response.itineraries.find(_.tripClassifier == WALK).getOrElse(fail)
+      val routedStartTime = walkTrip.beamLegs.head.startTime
+      assert(routedStartTime == time)
     }
 
     "respond with a fallback walk route to a RoutingRequest where walking would take approx. 8 hours" in {

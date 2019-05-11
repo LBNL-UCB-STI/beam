@@ -424,7 +424,7 @@ trait ChoosesMode {
         choosesModeData: ChoosesModeData
         ) if choosesModeData.rideHail2TransitRoutingRequestId.contains(requestId) =>
       theRouterResult.itineraries.view.foreach { resp =>
-        resp.beamLegs().filter(_.mode == CAR).foreach { leg =>
+        resp.beamLegs.filter(_.mode == CAR).foreach { leg =>
           routeHistory.rememberRoute(leg.travelPath.linkIds, leg.startTime)
         }
       }
@@ -494,7 +494,7 @@ trait ChoosesMode {
       stay() using newPersonData
     case Event(response: RoutingResponse, choosesModeData: ChoosesModeData) =>
       response.itineraries.view.foreach { resp =>
-        resp.beamLegs().filter(_.mode == CAR).foreach { leg =>
+        resp.beamLegs.filter(_.mode == CAR).foreach { leg =>
           routeHistory.rememberRoute(leg.travelPath.linkIds, leg.startTime)
         }
       }

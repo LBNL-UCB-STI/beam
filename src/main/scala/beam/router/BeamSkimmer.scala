@@ -207,7 +207,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
         val legs = trip.legs.drop(1).dropRight(1)
         EmbodiedBeamTrip(legs)
     }
-    val beamLegs = correctedTrip.beamLegs()
+    val beamLegs = correctedTrip.beamLegs
     val origLeg = beamLegs.head
     val origCoord = beamServices.geo.wgs2Utm(origLeg.travelPath.startPoint.loc)
     val origTaz = beamServices.tazTreeMap

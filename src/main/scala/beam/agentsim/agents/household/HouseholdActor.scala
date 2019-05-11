@@ -336,7 +336,7 @@ object HouseholdActor {
                   if (routeResp.itineraries.isEmpty) {
                     Seq()
                   } else {
-                    routeResp.itineraries.head.beamLegs()
+                    routeResp.itineraries.head.beamLegs
                   }
                 }
                 .getOrElse(Seq())

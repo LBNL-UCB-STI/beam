@@ -125,7 +125,7 @@ class TimeDependentRoutingSpec
       )
       router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), BeamVehicleType.defaultCarBeamVehicleType.id)
       val response = expectMsgType[RoutingResponse]
-      assert(response.itineraries.head.beamLegs().head.duration == 82)
+      assert(response.itineraries.head.beamLegs.head.duration == 82)
       // R5 travel time, but less than what's in R5's routing response (see vv),
       // presumably because the first/last edge are not travelled (in R5, trip starts on a "split")
     }
@@ -146,7 +146,7 @@ class TimeDependentRoutingSpec
       )
       router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), Id.create("Bicycle", classOf[BeamVehicleType]))
       val response = expectMsgType[RoutingResponse]
-      assert(response.itineraries.head.beamLegs().head.duration == 565)
+      assert(response.itineraries.head.beamLegs.head.duration == 565)
       // R5 travel time, but less than what's in R5's routing response (see vv),
       // presumably because the first/last edge are not travelled (in R5, trip starts on a "split")
     }
@@ -297,7 +297,7 @@ class TimeDependentRoutingSpec
       )
       router ! EmbodyWithCurrentTravelTime(leg, Id.createVehicleId(1), BeamVehicleType.defaultCarBeamVehicleType.id)
       val response = expectMsgType[RoutingResponse]
-      assert(response.itineraries.head.beamLegs().head.duration == 3000) // Convention is to traverse from end of first link to end of last, so 3 full links
+      assert(response.itineraries.head.beamLegs.head.duration == 3000) // Convention is to traverse from end of first link to end of last, so 3 full links
     }
 
   }

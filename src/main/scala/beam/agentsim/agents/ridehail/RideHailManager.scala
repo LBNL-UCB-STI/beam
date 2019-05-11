@@ -437,7 +437,7 @@ class RideHailManager(
   def storeRoutes(responses: List[RoutingResponse]) = {
     responses.foreach {
       _.itineraries.view.foreach { resp =>
-        resp.beamLegs().filter(_.mode == CAR).foreach { leg =>
+        resp.beamLegs.filter(_.mode == CAR).foreach { leg =>
           routeHistory.rememberRoute(leg.travelPath.linkIds, leg.startTime)
         }
       }
