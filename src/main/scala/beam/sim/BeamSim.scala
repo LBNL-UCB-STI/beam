@@ -19,7 +19,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
-import beam.utils.scripts.{FailFast, HouseholdsWriterCSV, PlansWriterCSV, PopulationWriterCSV, VehiclesWriterCSV}
+import beam.utils.scripts.{FailFast, HouseholdsWriterCSV, NetworkNodeCsvWriter, PlansWriterCSV, PopulationWriterCSV, VehiclesWriterCSV}
 import beam.utils.{DebugLib, NetworkHelper}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
@@ -30,19 +30,8 @@ import org.apache.commons.lang3.text.WordUtils
 import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.controler.events.{
-  ControlerEvent,
-  IterationEndsEvent,
-  IterationStartsEvent,
-  ShutdownEvent,
-  StartupEvent
-}
-import org.matsim.core.controler.listener.{
-  IterationEndsListener,
-  IterationStartsListener,
-  ShutdownListener,
-  StartupListener
-}
+import org.matsim.core.controler.events.{ControlerEvent, IterationEndsEvent, IterationStartsEvent, ShutdownEvent, StartupEvent}
+import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -316,6 +305,7 @@ class BeamSim @Inject()(
     VehiclesWriterCSV(scenario).write(controlerIO.getOutputFilename("vehicles.csv"))
     HouseholdsWriterCSV(scenario).write(controlerIO.getOutputFilename("households.csv"))
     PlansWriterCSV(scenario).write(controlerIO.getOutputFilename("plansXX.csv"))
+    NetworkNodeCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("networkNode.csv"))
   }
 
   private def writeSummaryStats(summaryStatsFile: File): Unit = {
