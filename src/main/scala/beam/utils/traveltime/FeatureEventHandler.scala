@@ -162,7 +162,7 @@ class FeatureEventHandler(
         }
 
         if (nLeftLinkEvent != 0 && nLeftLinkEvent % nLeftEventsToLog == 0) {
-          val duration = timestampToString(TimeUnit.SECONDS.toNanos(event.getTime.toLong))
+          val duration = timestampToString(TimeUnit.SECONDS.toMillis(event.getTime.toLong))
           val simulatedSeconds = event.getTime - lastSimulatedTime
           logger.info(
             s"Wrote $nLeftEventsToLog stats in ${(Deadline.now - startTime).toMillis} ms. Total: ${nLeftLinkEvent}. Simulated seconds: $simulatedSeconds, current simulation time: $duration [${event.getTime}]"
