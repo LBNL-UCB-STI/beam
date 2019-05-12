@@ -5,7 +5,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.{CAR, RIDE_HAIL, WALK}
+import beam.router.Modes.BeamMode.{BIKE, CAR, RIDE_HAIL, WALK}
 import beam.router.model.{BeamLeg, BeamPath, BeamTrip}
 import beam.router.{BeamRouter, Modes}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -17,8 +17,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
   "A router" must {
     "respond with a route to a first reasonable RoutingRequest" in {
       val origin = new BeamRouter.Location(583152.4334365112, 4139386.503815964)
-      val destination =
-        new BeamRouter.Location(572710.8214231567, 4142569.0802786923)
+      val destination = new BeamRouter.Location(572710.8214231567, 4142569.0802786923)
       val time = 25740
       router ! RoutingRequest(
         origin,
@@ -39,6 +38,34 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       val walkTrip = response.itineraries.find(_.tripClassifier == WALK).getOrElse(fail)
       val routedStartTime = walkTrip.beamLegs.head.startTime
       assert(routedStartTime == time)
+    }
+
+    "respond with a bike route to a first reasonable RoutingRequest" in {
+      val origin = geoUtil.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
+      val destination = geoUtil.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
+      val time = 25740
+      router ! RoutingRequest(
+        origin,
+        destination,
+        time,
+        withTransit = false,
+        Vector(
+          StreetVehicle(
+            Id.createVehicleId("0"),
+            Id.create("BIKE-DEFAULT", classOf[BeamVehicleType]),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time),
+            Modes.BeamMode.BIKE,
+            asDriver = true
+          )
+        )
+      )
+      val response = expectMsgType[RoutingResponse]
+      val bikeTrip = response.itineraries.find(_.tripClassifier == BIKE).getOrElse(fail)
+      val routedStartTime = bikeTrip.beamLegs.head.startTime
+      assert(routedStartTime == time)
+      println(bikeTrip.totalTravelTimeInSecs)
+      println(bikeTrip.beamLegs.head.travelPath.distanceInM)
+      println(bikeTrip.beamLegs.head.travelPath.distanceInM / bikeTrip.totalTravelTimeInSecs)
     }
 
     "respond with a fallback walk route to a RoutingRequest where walking would take approx. 8 hours" in {
