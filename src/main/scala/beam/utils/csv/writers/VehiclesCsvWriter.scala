@@ -1,6 +1,5 @@
 package beam.utils.csv.writers
 
-import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.sim.BeamServices
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.{Id, Scenario}

@@ -19,9 +19,9 @@ import beam.router.osm.TollCalculator
 import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
-import beam.utils.csv.writers.{HouseholdsCsvWriter, NetworkLinkCsvWriter, NetworkNodeCsvWriter, PlansCsvWriter, VehiclesCsvWriter}
+import beam.utils.csv.writers._
 import beam.utils.logging.ExponentialLazyLogging
-import beam.utils.scripts.{FailFast, PopulationWriterCSV}
+import beam.utils.scripts.FailFast
 import beam.utils.{DebugLib, NetworkHelper}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
@@ -301,7 +301,7 @@ class BeamSim @Inject()(
   }
 
   private def writeScenario(scenario: Scenario, controlerIO: OutputDirectoryHierarchy) = {
-    PopulationWriterCSV(scenario.getPopulation).write(controlerIO.getOutputFilename("population.csv"))
+    PopulationCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("population.csv"))
     VehiclesCsvWriter(beamServices).toCsv(scenario, controlerIO.getOutputFilename("vehicles.csv"))
     HouseholdsCsvWriter.toCsv(scenario, "households.csv")
     PlansCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("plans.csv"))
