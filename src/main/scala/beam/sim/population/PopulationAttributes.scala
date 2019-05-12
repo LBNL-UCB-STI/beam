@@ -203,7 +203,7 @@ object AttributesOfIndividual {
 }
 
 case class HouseholdAttributes(
-                                householdId: Int,
+  householdId: Int,
   householdIncome: Double,
   householdSize: Int,
   numCars: Int,

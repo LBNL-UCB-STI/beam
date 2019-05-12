@@ -15,7 +15,9 @@ object NetworkNodeCsvWriter extends ScenarioCsvWriter with StrictLogging {
   override protected val fields: Seq[String] = Seq("nodeId", "locationX", "locationY")
 
   override def contentIterator(scenario: Scenario): Iterator[String] = {
-    scenario.getNetwork.getNodes.values().asScala
+    scenario.getNetwork.getNodes
+      .values()
+      .asScala
       .toIterator
       .map(n => NodeEntry(n.getId.toString, n.getCoord.getX.toString, n.getCoord.getY.toString).toString)
   }

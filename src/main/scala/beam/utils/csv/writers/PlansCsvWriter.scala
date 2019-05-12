@@ -8,26 +8,34 @@ import scala.collection.JavaConverters._
 
 object PlansCsvWriter extends ScenarioCsvWriter {
 
-  override protected val fields: Seq[String] = Seq("personId", "planId", "planElementType", "activityIndex",
-    "activityType", "locationX", "locationY", "endTime", "mode")
+  override protected val fields: Seq[String] = Seq(
+    "personId",
+    "planId",
+    "planElementType",
+    "activityIndex",
+    "activityType",
+    "locationX",
+    "locationY",
+    "endTime",
+    "mode"
+  )
 
   private case class PlanEntry(
-                                personId: String,
-                                planId: Int,
-                                planElementType: String,
-                                activityIndex: Int,
-                                activityType: String,
-                                locationX: String,
-                                locationY: String,
-                                endTime: String,
-                                mode: String
-                              ) {
+    personId: String,
+    planId: Int,
+    planElementType: String,
+    activityIndex: Int,
+    activityType: String,
+    locationX: String,
+    locationY: String,
+    endTime: String,
+    mode: String
+  ) {
     override def toString: String = {
       Seq(personId, planId, planElementType, activityIndex, activityType, locationX, locationY, endTime, mode)
         .mkString("", FieldSeparator, LineSeparator)
     }
   }
-
 
   private def getPlanInfo(scenario: Scenario): Iterable[PlanElement] = {
     scenario.getPopulation.getPersons.asScala.flatMap {
@@ -75,7 +83,6 @@ object PlansCsvWriter extends ScenarioCsvWriter {
     }
   }
 
-
   override def contentIterator(scenario: Scenario): Iterator[String] = {
     val plans = getPlanInfo(scenario)
     plans.toIterator.map { planInfo =>
@@ -92,6 +99,5 @@ object PlansCsvWriter extends ScenarioCsvWriter {
       ).toString
     }
   }
-
 
 }

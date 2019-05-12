@@ -8,13 +8,15 @@ import scala.collection.JavaConverters._
 
 object PopulationCsvWriter extends ScenarioCsvWriter {
 
-  override protected val fields: Seq[String] = Seq("personId","age","isFemale","householdId","houseHoldRank","excludedModes")
+  override protected val fields: Seq[String] =
+    Seq("personId", "age", "isFemale", "householdId", "houseHoldRank", "excludedModes")
 
   override def contentIterator(scenario: Scenario): Iterator[String] = {
     val personAttrib: ObjectAttributes = scenario.getPopulation.getPersonAttributes
 
     scenario.getPopulation.getPersons.values().asScala.toIterator.map { person =>
-      val customAttributes: AttributesOfIndividual = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
+      val customAttributes: AttributesOfIndividual =
+        person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
       val values = Seq(
         person.getId.toString,
         customAttributes.age.getOrElse(""),
@@ -28,4 +30,3 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
   }
 
 }
-

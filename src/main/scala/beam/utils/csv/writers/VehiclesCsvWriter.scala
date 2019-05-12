@@ -25,7 +25,8 @@ class VehiclesCsvWriter(beamServices: BeamServices) extends ScenarioCsvWriter wi
       .get(vehicleId)
       .map(
         v => v.beamVehicleType.id.toString.trim
-      ).getOrElse("")
+      )
+      .getOrElse("")
   }
 
   override def contentIterator(scenario: Scenario): Iterator[String] = {

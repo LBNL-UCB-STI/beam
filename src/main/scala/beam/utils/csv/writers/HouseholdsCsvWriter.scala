@@ -9,9 +9,16 @@ import scala.collection.JavaConverters._
 
 object HouseholdsCsvWriter extends ScenarioCsvWriter with StrictLogging {
 
-  override protected val fields: Seq[String] = Seq("householdId", "incomeValue", "incomeCurrency", "locationX", "locationY")
+  override protected val fields: Seq[String] =
+    Seq("householdId", "incomeValue", "incomeCurrency", "locationX", "locationY")
 
-  private case class HouseholdEntry(householdId: Int, incomeValue: Double, incomeCurrency: String, locationX: String, locationY: String) {
+  private case class HouseholdEntry(
+    householdId: Int,
+    incomeValue: Double,
+    incomeCurrency: String,
+    locationX: String,
+    locationY: String
+  ) {
     override def toString: String = {
       Seq(householdId, incomeValue, incomeCurrency, locationX, locationY)
         .mkString("", FieldSeparator, LineSeparator)
@@ -22,7 +29,7 @@ object HouseholdsCsvWriter extends ScenarioCsvWriter with StrictLogging {
     val attributes: ObjectAttributes = scenario.getHouseholds.getHouseholdAttributes
 
     val households = scenario.getHouseholds.getHouseholds.asScala.values
-    households.toIterator.map{h: Household =>
+    households.toIterator.map { h: Household =>
       val id = h.getId.toString
       HouseholdEntry(
         householdId = id.toInt,
@@ -35,4 +42,3 @@ object HouseholdsCsvWriter extends ScenarioCsvWriter with StrictLogging {
   }
 
 }
-

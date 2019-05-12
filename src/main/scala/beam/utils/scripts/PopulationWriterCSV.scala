@@ -14,12 +14,12 @@ import org.matsim.core.utils.io.{AbstractMatsimWriter, UncheckedIOException}
   * BEAM
   */
 class PopulationWriterCSV(
-                           val coordinateTransformation: CoordinateTransformation,
-                           val population: Population,
-                           val network: Network,
-                           val write_person_fraction: Double
-                         ) extends AbstractMatsimWriter
-  with MatsimWriter {
+  val coordinateTransformation: CoordinateTransformation,
+  val population: Population,
+  val network: Network,
+  val write_person_fraction: Double
+) extends AbstractMatsimWriter
+    with MatsimWriter {
 
   /**
     * Creates a new PlansWriter to write out the specified plans to the specified file and with

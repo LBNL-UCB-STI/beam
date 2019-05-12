@@ -7,27 +7,52 @@ import collection.JavaConverters._
 object NetworkLinkCsvWriter extends ScenarioCsvWriter with StrictLogging {
 
   private case class LinkEntry(
-                                linkId: String, linkFrom: String, linkTo: String,
-                                linkLength: String, linkFreeSpeed: String, linkCapacity: Double,
-                                numberOfLanes: String, linkModes: String,
-                                attributeOrigId: String, attributeOrigType: String
-                              ) {
+    linkId: String,
+    linkFrom: String,
+    linkTo: String,
+    linkLength: String,
+    linkFreeSpeed: String,
+    linkCapacity: Double,
+    numberOfLanes: String,
+    linkModes: String,
+    attributeOrigId: String,
+    attributeOrigType: String
+  ) {
     override def toString: String = {
-      Seq(linkId, linkFrom, linkTo,
-        linkLength, linkFreeSpeed, linkCapacity,
-        numberOfLanes, linkModes,
-        attributeOrigId, attributeOrigType
+      Seq(
+        linkId,
+        linkFrom,
+        linkTo,
+        linkLength,
+        linkFreeSpeed,
+        linkCapacity,
+        numberOfLanes,
+        linkModes,
+        attributeOrigId,
+        attributeOrigType
       ).mkString("", FieldSeparator, LineSeparator)
     }
   }
 
   override protected val fields: Seq[String] = {
-    Seq("linkId", "linkFrom", "linkTo", "linkLength", "linkFreeSpeed", "linkCapacity",
-      "numberOfLanes", "linkModes", "attributeOrigId", "attributeOrigType")
+    Seq(
+      "linkId",
+      "linkFrom",
+      "linkTo",
+      "linkLength",
+      "linkFreeSpeed",
+      "linkCapacity",
+      "numberOfLanes",
+      "linkModes",
+      "attributeOrigId",
+      "attributeOrigType"
+    )
   }
 
   override def contentIterator(scenario: Scenario): Iterator[String] = {
-    scenario.getNetwork.getLinks.values().asScala
+    scenario.getNetwork.getLinks
+      .values()
+      .asScala
       .toIterator
       .map { link =>
         val linkModeAsString =

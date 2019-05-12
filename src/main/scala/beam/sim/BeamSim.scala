@@ -35,7 +35,12 @@ import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events._
-import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
+import org.matsim.core.controler.listener.{
+  IterationEndsListener,
+  IterationStartsListener,
+  ShutdownListener,
+  StartupListener
+}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
