@@ -8,14 +8,14 @@ object NetworkLinkCsvWriter extends ScenarioCsvWriter with StrictLogging {
 
   private case class LinkEntry(
                                 linkId: String, linkFrom: String, linkTo: String,
-                                linkLength: String, linkFreespeed: String, linkCapacity: Double,
-                                linkPermLanes: String, linkOneWay: String, linkModes: String,
+                                linkLength: String, linkFreeSpeed: String, linkCapacity: Double,
+                                numberOfLanes: String, linkModes: String,
                                 attributeOrigId: String, attributeOrigType: String
                               ) {
     override def toString: String = {
       Seq(linkId, linkFrom, linkTo,
-        linkLength, linkFreespeed, linkCapacity,
-        linkPermLanes, linkOneWay, linkModes,
+        linkLength, linkFreeSpeed, linkCapacity,
+        numberOfLanes, linkModes,
         attributeOrigId, attributeOrigType
       ).mkString("", FieldSeparator, LineSeparator)
     }
@@ -23,32 +23,27 @@ object NetworkLinkCsvWriter extends ScenarioCsvWriter with StrictLogging {
 
   override protected val fields: Seq[String] = {
     Seq("linkId", "linkFrom", "linkTo", "linkLength", "linkFreeSpeed", "linkCapacity",
-      "linkPermLanes", "linkOneWay", "linkModes", "attributeOrigId", "attributeOrigType")
+      "numberOfLanes", "linkModes", "attributeOrigId", "attributeOrigType")
   }
 
   override def contentIterator(scenario: Scenario): Iterator[String] = {
-    // TODO: Fix the fields below:
-    //    A: is permLanes the same as numberOfLanes?
-    //    B, C, D: where this information can be found?
     scenario.getNetwork.getLinks.values().asScala
       .toIterator
-      .map { n =>
+      .map { link =>
         val linkModeAsString =
-          n.getAllowedModes.asScala
-            .filterNot(_ == "null") // TODO: why null is added to the set?
+          link.getAllowedModes.asScala
             .mkString(ArrayStartString, ArrayItemSeparator, ArrayEndString)
         LinkEntry(
-          linkId = n.getId.toString,
-          linkFrom = n.getFromNode.getId.toString,
-          linkTo = n.getToNode.getId.toString,
-          linkLength = n.getLength.toString,
-          linkFreespeed = n.getFreespeed.toString,
-          linkCapacity = n.getCapacity(),
-          linkPermLanes = n.getNumberOfLanes.toString, // A
-          linkOneWay = "", // B
+          linkId = link.getId.toString,
+          linkFrom = link.getFromNode.getId.toString,
+          linkTo = link.getToNode.getId.toString,
+          linkLength = link.getLength.toString,
+          linkFreeSpeed = link.getFreespeed.toString,
+          linkCapacity = link.getCapacity(),
+          numberOfLanes = link.getNumberOfLanes.toString, // A
           linkModes = linkModeAsString,
-          attributeOrigId = "", // C
-          attributeOrigType = "" // D
+          attributeOrigId = String.valueOf(link.getAttributes.getAttribute("origid")),
+          attributeOrigType = String.valueOf(link.getAttributes.getAttribute("type")),
         ).toString
       }
   }
