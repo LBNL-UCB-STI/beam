@@ -494,7 +494,6 @@ trait BeamHelper extends LazyLogging {
       val scenarioSource: ScenarioSource = buildScenarioSource(injector, beamConfig)
       ProfilingUtils.timed(s"Load scenario using ${scenarioSource.getClass}", x => logger.info(x)) {
         new ScenarioLoader(scenario, beamServices, scenarioSource).loadScenario()
-        scenario
       }
     } else {
       scenario
