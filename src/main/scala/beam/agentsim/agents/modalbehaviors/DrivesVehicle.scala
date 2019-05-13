@@ -84,6 +84,7 @@ object DrivesVehicle {
       val linkTravelTime = path.linkTravelTime
       var i: Int = 0
       var curTime = leg.startTime
+      // `links.length - 1` because we don't need the travel time for the last link
       while (i < links.length - 1) {
         val from = links(i)
         val to = links(i + 1)
