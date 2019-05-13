@@ -84,7 +84,7 @@ public class PhyssimNetworkComparisonEuclideanVsLengthAttribute {
                 "EuclideanVsLengthAttributePlot.png"
         );
 
-        XYSeries series = new XYSeries("Euclidean vs Length attribute");
+        XYSeries series = new XYSeries("Euclidean vs Length attribute", false);
 
         for (Link link : network.getLinks().values()) {
             series.add(
