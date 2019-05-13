@@ -40,6 +40,7 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
         customAttributes.age.getOrElse(""),
         !customAttributes.isMale,
         personIdToHouseHoldId(person.getId),
+        String.valueOf(personAttributes.getAttribute(person.getId.toString, "rank")),
         excludedModes
       )
       values.mkString("", FieldSeparator, LineSeparator)
