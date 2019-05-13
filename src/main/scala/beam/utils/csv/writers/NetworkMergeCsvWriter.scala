@@ -8,8 +8,6 @@ object NetworkMergeCsvWriter extends ScenarioCsvWriter {
 
   private case class LinkMergeEntry(
     linkId: String,
-    linkFrom: String,
-    linkTo: String,
     linkLength: String,
     linkFreeSpeed: String,
     linkCapacity: Double,
@@ -27,8 +25,6 @@ object NetworkMergeCsvWriter extends ScenarioCsvWriter {
     override def toString: String = {
       Seq(
         linkId,
-        linkFrom,
-        linkTo,
         linkLength,
         linkFreeSpeed,
         linkCapacity,
@@ -48,8 +44,6 @@ object NetworkMergeCsvWriter extends ScenarioCsvWriter {
 
   override protected def fields: Seq[String] = Seq(
     "linkId",
-    "linkFrom",
-    "linkTo",
     "linkLength",
     "linkFreeSpeed",
     "linkCapacity",
@@ -76,8 +70,6 @@ object NetworkMergeCsvWriter extends ScenarioCsvWriter {
             .mkString(ArrayStartString, ArrayItemSeparator, ArrayEndString)
         LinkMergeEntry(
           linkId = link.getId.toString,
-          linkFrom = link.getFromNode.getId.toString,
-          linkTo = link.getToNode.getId.toString,
           linkLength = link.getLength.toString,
           linkFreeSpeed = link.getFreespeed.toString,
           linkCapacity = link.getCapacity(),
