@@ -39,7 +39,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, networkCoordinator)
     val injector = buildInjector(config, scenario, networkCoordinator)
     val services = buildBeamServices(injector, scenario, beamExecConfig.matsimConfig, networkCoordinator)
-    fillScenarioWithExternalSources(scenario, injector, networkCoordinator, services)
+    fillScenarioWithExternalSources(injector, scenario, beamExecConfig.matsimConfig, networkCoordinator, services)
     runBeam(services, scenario, networkCoordinator, scenario.getConfig.controler().getOutputDirectory)
     personHouseholds = scenario.getHouseholds.getHouseholds
       .values()
