@@ -428,11 +428,11 @@ trait BeamHelper extends LazyLogging {
   }
 
   def buildBeamServices(
-                         injector: inject.Injector,
-                         scenario: MutableScenario,
-                         matsimConfig: MatsimConfig,
-                         networkCoordinator: NetworkCoordinator
-                       ): BeamServices = {
+    injector: inject.Injector,
+    scenario: MutableScenario,
+    matsimConfig: MatsimConfig,
+    networkCoordinator: NetworkCoordinator
+  ): BeamServices = {
     val result = injector.getInstance(classOf[BeamServices])
     result.setTransitFleetSizes(networkCoordinator.tripFleetSizeMap)
 
@@ -481,12 +481,12 @@ trait BeamHelper extends LazyLogging {
   }
 
   private def fillScenarioFromExternalSources(
-                                               injector: inject.Injector,
-                                               matsimScenario: MutableScenario,
-                                               matsimConfig: MatsimConfig,
-                                               networkCoordinator: NetworkCoordinator,
-                                               beamServices: BeamServices
-                                             ): Unit = {
+    injector: inject.Injector,
+    matsimScenario: MutableScenario,
+    matsimConfig: MatsimConfig,
+    networkCoordinator: NetworkCoordinator,
+    beamServices: BeamServices
+  ): Unit = {
     val beamConfig = beamServices.beamConfig
     val useExternalDataForScenario: Boolean =
       Option(beamConfig.beam.exchange.scenario.folder).exists(!_.isEmpty)
