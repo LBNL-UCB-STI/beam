@@ -22,7 +22,7 @@ import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
-import beam.utils.{DateUtils, NetworkHelperImpl}
+import beam.utils.{BeamVehicleUtils, DateUtils, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.testConfig
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
@@ -72,7 +72,7 @@ class TimeDependentRoutingSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
-    when(services.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
+    when(services.vehicleTypes).thenReturn(BeamVehicleUtils.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath))
     when(services.fuelTypePrices).thenReturn(Map[FuelType, Double]().withDefaultValue(0.0))
     networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()

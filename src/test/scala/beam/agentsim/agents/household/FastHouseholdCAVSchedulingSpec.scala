@@ -81,10 +81,7 @@ class FastHouseholdCAVSchedulingSpec
       BeamVehicleUtils.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
 
     val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] =
-      BeamVehicleUtils.readBeamVehicleTypeFile(
-        beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath,
-        fuelTypePrices
-      )
+      BeamVehicleUtils.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
 
     override val geo: GeoUtils = new GeoUtilsImpl(beamConfig)
     override lazy val controler: ControlerI = ???

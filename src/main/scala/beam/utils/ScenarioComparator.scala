@@ -118,7 +118,7 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
         readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
 
       val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] =
-        readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath, fuelTypePrices)
+        readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
 
       private val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
       private val vehicleCsvReader = new VehicleCsvReader(beamConfig)

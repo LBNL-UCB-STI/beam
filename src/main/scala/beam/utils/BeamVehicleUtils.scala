@@ -50,10 +50,7 @@ object BeamVehicleUtils {
     }
   }
 
-  def readBeamVehicleTypeFile(
-    filePath: String,
-    fuelTypePrices: scala.collection.Map[FuelType, Double]
-  ): Map[Id[BeamVehicleType], BeamVehicleType] = {
+  def readBeamVehicleTypeFile(filePath: String): Map[Id[BeamVehicleType], BeamVehicleType] = {
     readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicleType], BeamVehicleType]()) {
       case (line: util.Map[String, String], z) =>
         val vIdString = line.get("vehicleTypeId")

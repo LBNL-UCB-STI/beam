@@ -77,7 +77,6 @@ object BeamVehicleType {
       vehicleCategory = MediumDutyPassenger
     )
 
-  @deprecated("Use a regular vehicle type from the input data instead", "May 2019")
   val defaultCarBeamVehicleType: BeamVehicleType = BeamVehicleType(
     Id.create("Car", classOf[BeamVehicleType]),
     4,

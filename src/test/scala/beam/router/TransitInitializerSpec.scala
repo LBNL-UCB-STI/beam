@@ -63,10 +63,7 @@ class TransitInitializerSpec extends WordSpecLike with Matchers with MockitoSuga
             .fromAnyRef("test/test-resources/beam/router/transitVehicleTypesByRoute.csv")
         )
     )
-    val vehicleTypes = {
-      val fuelTypes = readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath)
-      readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath, fuelTypes)
-    }
+    val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.vehicleTypes).thenReturn(vehicleTypes)
     val transitInitializer = new TransitInitializer(services, null, null, BeamRouter.oneSecondTravelTime)

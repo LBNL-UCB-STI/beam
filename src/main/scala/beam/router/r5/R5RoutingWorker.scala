@@ -121,7 +121,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
 
         override val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] =
-          readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath, fuelTypePrices)
+          readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
 
         // These are not used in R5RoutingWorker, so it's fine to set to `???`
         override lazy val vehicleEnergy: VehicleEnergy = ???
@@ -367,45 +367,25 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
   private def getPlanFromR5(request: R5Request): ProfileResponse = {
     countOccurrence("r5-plans-count")
-    val profileRequest = new ProfileRequest()
+
+    val profileRequest = createProfileRequest
     profileRequest.fromLon = request.from.getX
     profileRequest.fromLat = request.from.getY
     profileRequest.toLon = request.to.getX
     profileRequest.toLat = request.to.getY
-    // Warning: carSpeed is not used for link traversal (rather, the OSM travel time model is used),
-    // but for R5-internal bushwhacking from network to coordinate, AND ALSO for the A* remaining weight heuristic,
-    // which means that this value must be an over(!)estimation, otherwise we will miss optimal routes,
-    // particularly in the presence of tolls.
-    profileRequest.carSpeed = 36.11f // 130 km/h, WARNING, see ^^ before changing
-    profileRequest.maxWalkTime = 3 * 60
-    profileRequest.maxCarTime = 4 * 60
-    profileRequest.maxBikeTime = 4 * 60
-    // Maximum number of transit segments. This was previously hardcoded as 4 in R5, now it is a parameter
-    // that defaults to 8 unless I reset it here. It is directly related to the amount of work the
-    // transit router has to do.
-    profileRequest.maxRides = 4
-    profileRequest.streetTime = 2 * 60
-    profileRequest.maxTripDurationMinutes = 4 * 60
-    profileRequest.wheelchair = false
-    profileRequest.bikeTrafficStress = 4
-    profileRequest.zoneId = transportNetwork.getTimeZone
     profileRequest.fromTime = request.time
     profileRequest.toTime = request.time + 61 // Important to allow 61 seconds for transit schedules to be considered!
-    profileRequest.monteCarloDraws = beamServices.beamConfig.beam.routing.r5.numberOfSamples
-    profileRequest.date = beamServices.dates.localBaseDate
     profileRequest.directModes = if (request.directMode == null) {
       util.EnumSet.noneOf(classOf[LegMode])
     } else {
       util.EnumSet.of(request.directMode)
     }
-    profileRequest.suboptimalMinutes = 0
     if (request.withTransit) {
       profileRequest.transitModes = util.EnumSet.allOf(classOf[TransitModes])
       profileRequest.accessModes = util.EnumSet.of(request.accessMode)
       profileRequest.egressModes = util.EnumSet.of(request.egressMode)
     }
     // Doesn't calculate any fares, is just a no-op placeholder
-    profileRequest.inRoutingFareCalculator = new SimpleInRoutingFareCalculator
 
     try {
       val profileResponse = new ProfileResponse
@@ -520,6 +500,32 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       case _: ArrayIndexOutOfBoundsException =>
         new ProfileResponse
     }
+  }
+
+  private def createProfileRequest = {
+    val profileRequest = new ProfileRequest()
+    // Warning: carSpeed is not used for link traversal (rather, the OSM travel time model is used),
+    // but for R5-internal bushwhacking from network to coordinate, AND ALSO for the A* remaining weight heuristic,
+    // which means that this value must be an over(!)estimation, otherwise we will miss optimal routes,
+    // particularly in the presence of tolls.
+    profileRequest.carSpeed = 36.11f // 130 km/h, WARNING, see ^^ before changing
+    profileRequest.maxWalkTime = 3 * 60
+    profileRequest.maxCarTime = 4 * 60
+    profileRequest.maxBikeTime = 4 * 60
+    // Maximum number of transit segments. This was previously hardcoded as 4 in R5, now it is a parameter
+    // that defaults to 8 unless I reset it here. It is directly related to the amount of work the
+    // transit router has to do.
+    profileRequest.maxRides = 4
+    profileRequest.streetTime = 2 * 60
+    profileRequest.maxTripDurationMinutes = 4 * 60
+    profileRequest.wheelchair = false
+    profileRequest.bikeTrafficStress = 4
+    profileRequest.zoneId = transportNetwork.getTimeZone
+    profileRequest.monteCarloDraws = beamServices.beamConfig.beam.routing.r5.numberOfSamples
+    profileRequest.date = beamServices.dates.localBaseDate
+    profileRequest.inRoutingFareCalculator = new SimpleInRoutingFareCalculator
+    profileRequest.suboptimalMinutes = 0
+    profileRequest
   }
 
   private def calcRoute(request: RoutingRequest): RoutingResponse = {
@@ -1019,13 +1025,16 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   }
 
   private def travelTimeByLinkCalculator(vehicleType: BeamVehicleType): (Int, Int, StreetMode) => Int = {
+    val profileRequest = createProfileRequest
     (time: Int, linkId: Int, streetMode: StreetMode) =>
       {
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
         if (streetMode != StreetMode.CAR || edge.getOSMID < 0) {
-          // An R5 internal edge, probably connecting transit to the street network. We don't have those in the
+          // edge.getOSMID < 0 means
+          // an R5 internal edge, probably connecting transit to the street network. We don't have those in the
           // MATSim network.
-          (edge.getLengthM / vehicleType.maxVelocity.get).round.toInt
+          val travelSpeed = vehicleType.maxVelocity.getOrElse(edge.calculateSpeed(profileRequest, streetMode).toDouble)
+          (edge.getLengthM / travelSpeed).round.toInt
         } else {
           val link = beamServices.networkHelper.getLinkUnsafe(linkId)
           assert(link != null)
