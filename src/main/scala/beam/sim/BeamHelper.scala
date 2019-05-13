@@ -428,15 +428,15 @@ trait BeamHelper extends LazyLogging {
   }
 
   def buildBeamServices(
-    injector: inject.Injector,
-    defaultScenario: MutableScenario,
-    matsimConfig: MatsimConfig,
-    networkCoordinator: NetworkCoordinator
-  ): BeamServices = {
+                         injector: inject.Injector,
+                         scenario: MutableScenario,
+                         matsimConfig: MatsimConfig,
+                         networkCoordinator: NetworkCoordinator
+                       ): BeamServices = {
     val result = injector.getInstance(classOf[BeamServices])
     result.setTransitFleetSizes(networkCoordinator.tripFleetSizeMap)
 
-    fillScenarioWithExternalSources(defaultScenario, injector, networkCoordinator, result)
+    fillScenarioFromExternalSources(injector, scenario, matsimConfig, networkCoordinator, result)
 
     result
   }
@@ -480,14 +480,13 @@ trait BeamHelper extends LazyLogging {
     run(beamServices)
   }
 
-  protected def fillScenarioWithExternalSources(
-    scenario: MutableScenario,
-    injector: inject.Injector,
-    matsimScenario: MutableScenario,
-    matsimConfig: MatsimConfig,
-    networkCoordinator: NetworkCoordinator,
-    beamServices: BeamServices
-  ): Unit = {
+  private def fillScenarioFromExternalSources(
+                                               injector: inject.Injector,
+                                               matsimScenario: MutableScenario,
+                                               matsimConfig: MatsimConfig,
+                                               networkCoordinator: NetworkCoordinator,
+                                               beamServices: BeamServices
+                                             ): Unit = {
     val beamConfig = beamServices.beamConfig
     val useExternalDataForScenario: Boolean =
       Option(beamConfig.beam.exchange.scenario.folder).exists(!_.isEmpty)
@@ -512,7 +511,7 @@ trait BeamHelper extends LazyLogging {
       beamConfig.beam.outputs.addTimestampToOutputDirectory
     )
     LoggingUtil.initLogger(outputDirectory, beamConfig.beam.logger.keepConsoleAppenderOn)
-    logger.debug(s"Beam output directory is: ${outputDirectory}")
+    logger.debug(s"Beam output directory is: $outputDirectory")
 
     level = beamConfig.beam.metrics.level
     runName = beamConfig.beam.agentsim.simulationName
