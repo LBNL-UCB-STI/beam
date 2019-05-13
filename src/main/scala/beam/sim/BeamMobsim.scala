@@ -246,7 +246,6 @@ class BeamMobsim @Inject()(
       "BeamMobsim.iteration"
     )
     Await.result(iteration ? "Run!", timeout.duration)
-    beamServices.beamRouter ! BeamRouter.IterationFinished(beamServices.iterationNumber)
 
     logger.info("Agentsim finished.")
     eventsManager.finishProcessing()

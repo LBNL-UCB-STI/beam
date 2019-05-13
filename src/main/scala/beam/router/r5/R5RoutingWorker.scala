@@ -3,7 +3,6 @@ package beam.router.r5
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.util
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{ExecutorService, Executors}
 
 import akka.actor._
@@ -24,7 +23,7 @@ import beam.router.model.BeamLeg._
 import beam.router.model.RoutingModel.LinksTimesDistances
 import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
-import beam.router.r5.R5RoutingWorker.{MinSpeedUsage, R5Request, TripWithFares}
+import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
 import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -220,9 +219,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     numOfThreads
   )
 
-  // It has to be atomic because `getTravelTime` is called from different threads (we calculate routes in Future)
-  private val minSpeedOverwrittenCnt: AtomicInteger = new AtomicInteger(0)
-
   private def getNameAndHashCode: String = s"R5RoutingWorker_v2[${hashCode()}], Path: `${self.path}`"
 
   private var workAssigner: ActorRef = context.parent
@@ -284,9 +280,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     case WorkAvailable =>
       workAssigner = sender
       askForMoreWork()
-    case IterationFinished(iteration) =>
-      sender() ! MinSpeedUsage(iteration, minSpeedOverwrittenCnt.get())
-      minSpeedOverwrittenCnt.set(0)
 
     case TransitInited(newTransitSchedule) =>
       transitSchedule = newTransitSchedule
@@ -1041,7 +1034,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           val tt = travelTime.getLinkTravelTime(link, time, null, null)
           val travelSpeed = link.getLength / tt
           if (travelSpeed < beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond) {
-            minSpeedOverwrittenCnt.incrementAndGet()
             (link.getLength / beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond).round.toInt
           } else {
             tt.round.toInt
@@ -1259,8 +1251,6 @@ object R5RoutingWorker {
   )
 
   case class TripWithFares(trip: BeamTrip, legFares: Map[Int, Double])
-
-  case class MinSpeedUsage(iteration: Int, count: Int)
 
   case class R5Request(
     from: Coord,

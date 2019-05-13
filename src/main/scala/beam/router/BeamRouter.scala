@@ -32,7 +32,6 @@ import beam.router.gtfs.FareCalculator
 import beam.router.model._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
-import beam.router.r5.R5RoutingWorker.MinSpeedUsage
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.IdGeneratorImpl
@@ -241,13 +240,6 @@ class BeamRouter(
     case ClearRoutedWorkerTracker(workIdToClear) =>
       //TODO: Maybe do this for all tracker removals?
       removeOutstandingWorkBy(workIdToClear)
-    case IterationFinished(iteration) =>
-      remoteNodes.foreach(workerAddress => workerFrom(workerAddress) ! IterationFinished(iteration))
-      localNodes.foreach(_ ! IterationFinished(iteration))
-    case MinSpeedUsage(iteration, count) =>
-      log.info(
-        s"Worker[${sender()}]. Iteration $iteration had $count cases when min speed ${services.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond} was used."
-      )
 
     case work =>
       val originalSender = context.sender
@@ -463,7 +455,6 @@ object BeamRouter {
 
   case class TryToSerialize(obj: Object)
   case class UpdateTravelTimeRemote(linkIdToTravelTimePerHour: java.util.Map[String, Array[Double]])
-  case class IterationFinished(iteration: Int)
 
   /**
     * It is use to represent a request object
