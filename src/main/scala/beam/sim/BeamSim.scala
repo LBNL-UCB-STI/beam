@@ -308,7 +308,7 @@ class BeamSim @Inject()(
   private def writeScenario(scenario: Scenario, controlerIO: OutputDirectoryHierarchy) = {
     PopulationCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("population.csv"))
     VehiclesCsvWriter(beamServices).toCsv(scenario, controlerIO.getOutputFilename("vehicles.csv"))
-    HouseholdsCsvWriter.toCsv(scenario, "households.csv")
+    HouseholdsCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("households.csv"))
     PlansCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("plans.csv"))
     NetworkNodeCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("networkNode.csv"))
     NetworkLinkCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("networkLink.csv"))
