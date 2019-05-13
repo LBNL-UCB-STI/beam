@@ -435,7 +435,7 @@ trait BeamHelper extends LazyLogging {
     val result = injector.getInstance(classOf[BeamServices])
     result.setTransitFleetSizes(networkCoordinator.tripFleetSizeMap)
 
-    fillScenarioFromExternalSources(injector, matsimConfig, networkCoordinator, result)
+    fillScenarioFromExternalSources(injector, scenario, matsimConfig, networkCoordinator, result)
 
     result
   }
@@ -481,23 +481,20 @@ trait BeamHelper extends LazyLogging {
 
   private def fillScenarioFromExternalSources(
     injector: inject.Injector,
+    matsimScenario: MutableScenario,
     matsimConfig: MatsimConfig,
     networkCoordinator: NetworkCoordinator,
     beamServices: BeamServices
-  ): Scenario = {
+  ): Unit = {
     val beamConfig = beamServices.beamConfig
     val useExternalDataForScenario: Boolean =
       Option(beamConfig.beam.exchange.scenario.folder).exists(!_.isEmpty)
-    val matsimScenario = buildScenarioFromMatsimConfig(matsimConfig, networkCoordinator)
 
     if (useExternalDataForScenario) {
       val scenarioSource: ScenarioSource = getScenarioSource2(injector, beamConfig)
       ProfilingUtils.timed(s"Load scenario using ${scenarioSource.getClass}", x => logger.info(x)) {
         new ScenarioLoader(matsimScenario, beamServices, scenarioSource).loadScenario()
-        matsimScenario
       }
-    } else {
-      matsimScenario
     }
   }
 
