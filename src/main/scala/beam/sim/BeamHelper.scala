@@ -483,9 +483,11 @@ trait BeamHelper extends LazyLogging {
   protected def fillScenarioWithExternalSources(
     scenario: MutableScenario,
     injector: inject.Injector,
+    matsimScenario: MutableScenario,
+    matsimConfig: MatsimConfig,
     networkCoordinator: NetworkCoordinator,
     beamServices: BeamServices
-  ): Scenario = {
+  ): Unit = {
     val beamConfig = beamServices.beamConfig
     val useExternalDataForScenario: Boolean =
       Option(beamConfig.beam.exchange.scenario.folder).exists(!_.isEmpty)
@@ -493,10 +495,8 @@ trait BeamHelper extends LazyLogging {
     if (useExternalDataForScenario) {
       val scenarioSource: ScenarioSource = buildScenarioSource(injector, beamConfig)
       ProfilingUtils.timed(s"Load scenario using ${scenarioSource.getClass}", x => logger.info(x)) {
-        new ScenarioLoader(scenario, beamServices, scenarioSource).loadScenario()
+        new ScenarioLoader(matsimScenario, beamServices, scenarioSource).loadScenario()
       }
-    } else {
-      scenario
     }
   }
 
