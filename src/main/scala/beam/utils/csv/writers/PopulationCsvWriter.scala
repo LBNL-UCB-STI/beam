@@ -14,10 +14,13 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
     Seq("personId", "age", "isFemale", "householdId", "houseHoldRank", "excludedModes")
 
   override def contentIterator(scenario: Scenario): Iterator[String] = {
-    val personIdToHouseHoldId: Map[Id[Person], Id[Household]] = scenario.getHouseholds.getHouseholds.values().asScala
-      .flatMap{h =>
+    val personIdToHouseHoldId: Map[Id[Person], Id[Household]] = scenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap { h =>
         h.getMemberIds.asScala.map(idPerson => idPerson -> h.getId)
-      }.toMap
+      }
+      .toMap
 
     val personAttributes: ObjectAttributes = scenario.getPopulation.getPersonAttributes
 
@@ -25,7 +28,9 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
       val customAttributes: AttributesOfIndividual =
         person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
 
-      val excludedModes = personAttributes.getAttribute(person.getId.toString, "excluded-modes").toString
+      val excludedModes = personAttributes
+        .getAttribute(person.getId.toString, "excluded-modes")
+        .toString
         .replaceAll(",", ArrayItemSeparator)
         .split(ArrayItemSeparator)
         .mkString(ArrayStartString, ArrayItemSeparator, ArrayEndString)

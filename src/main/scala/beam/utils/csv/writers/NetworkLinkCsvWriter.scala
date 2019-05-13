@@ -1,10 +1,10 @@
 package beam.utils.csv.writers
 
-import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Scenario
-import collection.JavaConverters._
 
-object NetworkLinkCsvWriter extends ScenarioCsvWriter with StrictLogging {
+import scala.collection.JavaConverters._
+
+object NetworkLinkCsvWriter extends ScenarioCsvWriter {
 
   private case class LinkEntry(
     linkId: String,

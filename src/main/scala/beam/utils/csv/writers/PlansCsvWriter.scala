@@ -32,8 +32,17 @@ object PlansCsvWriter extends ScenarioCsvWriter {
     legMode: String
   ) {
     override def toString: String = {
-      Seq(personId, planIndex, planElementType, planElementIndex, activityType, activityLocationX, activityLocationY, activityEndTime, legMode)
-        .mkString("", FieldSeparator, LineSeparator)
+      Seq(
+        personId,
+        planIndex,
+        planElementType,
+        planElementIndex,
+        activityType,
+        activityLocationX,
+        activityLocationY,
+        activityEndTime,
+        legMode
+      ).mkString("", FieldSeparator, LineSeparator)
     }
   }
 
