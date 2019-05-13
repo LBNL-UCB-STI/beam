@@ -119,7 +119,7 @@ class DelayMetricAnalysis @Inject()(
     util.Arrays.fill(cumulativeDelay, 0.0)
     util.Arrays.fill(cumulativeLength, 0.0)
     util.Arrays.fill(linkTravelsCount, 0)
-    linkAverageDelay = Array.ofDim[DelayInLength](networkHelper.maxLinkId)
+    linkAverageDelay = Array.ofDim[DelayInLength](networkHelper.maxLinkId + 1)
     capacitiesDelay.clear
     linkUtilization.clear()
     totalTravelTime = 0

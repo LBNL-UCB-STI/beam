@@ -299,7 +299,10 @@ class RideHailManager(
     .asScala
     .flatMap { hh =>
       hh.getVehicleIds.asScala.map { vehId =>
-        beamServices.privateVehicles.get(vehId).get.beamVehicleType
+        beamServices.privateVehicles
+          .get(vehId)
+          .map(_.beamVehicleType)
+          .getOrElse(throw new IllegalStateException(s"$vehId is not found in `beamServices.privateVehicles`"))
       }
     }
     .filter(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car)
