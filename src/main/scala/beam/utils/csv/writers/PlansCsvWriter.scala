@@ -10,29 +10,29 @@ object PlansCsvWriter extends ScenarioCsvWriter {
 
   override protected val fields: Seq[String] = Seq(
     "personId",
-    "planId",
+    "planIndex",
     "planElementType",
-    "activityIndex",
+    "planElementIndex",
     "activityType",
-    "locationX",
-    "locationY",
-    "endTime",
-    "mode"
+    "activityLocationX",
+    "activityLocationY",
+    "activityEndTime",
+    "legMode"
   )
 
   private case class PlanEntry(
     personId: String,
-    planId: Int,
+    planIndex: Int,
     planElementType: String,
-    activityIndex: Int,
+    planElementIndex: Int,
     activityType: String,
-    locationX: String,
-    locationY: String,
-    endTime: String,
-    mode: String
+    activityLocationX: String,
+    activityLocationY: String,
+    activityEndTime: String,
+    legMode: String
   ) {
     override def toString: String = {
-      Seq(personId, planId, planElementType, activityIndex, activityType, locationX, locationY, endTime, mode)
+      Seq(personId, planIndex, planElementType, planElementIndex, activityType, activityLocationX, activityLocationY, activityEndTime, legMode)
         .mkString("", FieldSeparator, LineSeparator)
     }
   }
@@ -53,7 +53,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
   private def toPlanInfo(personId: String, planElement: MatsimPlanElement, index: Int): PlanElement = {
     planElement match {
       case leg: Leg =>
-        // Set mode to None, if it's empty string
+        // Set legMode to None, if it's empty string
         val mode = Option(leg.getMode).flatMap { mode =>
           if (mode == "") None
           else Some(mode)
@@ -87,15 +87,15 @@ object PlansCsvWriter extends ScenarioCsvWriter {
     val plans = getPlanInfo(scenario)
     plans.toIterator.map { planInfo =>
       PlanEntry(
-        planId = planInfo.planElementIndex,
-        activityIndex = planInfo.planElementIndex, //TODO: what is the right value?
+        planIndex = planInfo.planElementIndex,
+        planElementIndex = planInfo.planElementIndex,
         personId = planInfo.personId.id,
         planElementType = planInfo.planElement,
         activityType = planInfo.activityType.getOrElse(""),
-        locationX = planInfo.x.map(_.toString).getOrElse(""),
-        locationY = planInfo.y.map(_.toString).getOrElse(""),
-        endTime = planInfo.endTime.map(_.toString).getOrElse(""),
-        mode = planInfo.mode.getOrElse("")
+        activityLocationX = planInfo.x.map(_.toString).getOrElse(""),
+        activityLocationY = planInfo.y.map(_.toString).getOrElse(""),
+        activityEndTime = planInfo.endTime.map(_.toString).getOrElse(""),
+        legMode = planInfo.mode.getOrElse("")
       ).toString
     }
   }
