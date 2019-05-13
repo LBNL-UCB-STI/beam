@@ -445,21 +445,25 @@ object PlansSampler {
       val tract2HH = synthHouseholds.groupBy(f => f.tract)
       val synthHHs = mutable.Buffer[SynthHousehold]()
       val tractSamples = (0 to sampleNumber).map { _ => spatialSampler.getSample.getAttribute("TRACTCE").asInstanceOf[String].toInt }
+      var individuals = 0
+      breakable {
+        tractSamples.foreach { sampleTract => {
+          if (individuals > sampleNumber) {
+            break()
+          }
+          var hh = Random.shuffle(tract2HH(sampleTract)).head
 
-
-      tractSamples.foreach { sampleTract => {
-
-        var hh = Random.shuffle(tract2HH(sampleTract)).head
-
-        //          while (synthHHs.exists(_.householdId.equals(hh.householdId))) {
-        //            hh = Random.shuffle(tract2HH(sampleTract)).head
-        //          }
-        if (hh.individuals.length != 0) {
-          synthHHs += hh
-        } else {
-          println(s"empty household! ${hh.householdId}")
+          while (synthHHs.exists(_.householdId.equals(hh.householdId))) {
+            hh = Random.shuffle(tract2HH(sampleTract)).head
+          }
+          if (hh.individuals.length != 0) {
+            synthHHs += hh
+            individuals += hh.individuals.length
+          } else {
+            println(s"empty household! ${hh.householdId}")
+          }
         }
-      }
+        }
       }
 
       synthHHs.toVector
@@ -549,12 +553,7 @@ object PlansSampler {
 
         for ((plan, idx) <- selectedPlans.zipWithIndex) {
           val synthPerson = sh.individuals.toVector(idx)
-          var newPersonId = synthPerson.indId
-          if (newPop.getPersons.containsKey(newPersonId)) {
-            newPersonId = Id.createPersonId(s"$newPersonId-${counter.getCounter}-$idx")
-            println(s"Created duplicate person: $newPersonId")
-            duplicatePersons += 1
-          }
+          val newPersonId = synthPerson.indId
           val newPerson = newPop.getFactory.createPerson(newPersonId)
           newPop.addPerson(newPerson)
           spHH.getMemberIds.add(newPersonId)
