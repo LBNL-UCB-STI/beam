@@ -1,6 +1,7 @@
 package beam.analysis.plots
 
 import beam.analysis.summary.VehicleTravelTimeAnalysis
+import beam.utils.MatsimServicesMock
 import org.scalatest.Matchers
 
 class VehicleTravelTimeAnalysisSpec extends GenericAnalysisSpec with Matchers {
@@ -8,6 +9,7 @@ class VehicleTravelTimeAnalysisSpec extends GenericAnalysisSpec with Matchers {
   override def beforeAll(): Unit = {
     super.beforeAll()
 
+    beamServices.matsimServices = new MatsimServicesMock(null, scenario)
     val vehicleTypes = beamServices.vehicleTypes.keySet
     runAnalysis(new VehicleTravelTimeAnalysis(scenario, beamServices.networkHelper, vehicleTypes))
   }
