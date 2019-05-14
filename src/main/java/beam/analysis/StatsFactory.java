@@ -94,7 +94,7 @@ public class StatsFactory {
             case NumberOfVehicles:
                 return new NumberOfVehiclesAnalysis(beamServices);
             case PersonCost:
-                return new PersonCostAnalysis();
+                return new PersonCostAnalysis(beamServices);
             case AboveCapacityPtUsageDuration:
                 return new AboveCapacityPtUsageDurationAnalysis();
             case TollRevenue:
