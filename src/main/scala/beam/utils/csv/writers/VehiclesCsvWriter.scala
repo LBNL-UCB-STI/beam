@@ -13,13 +13,12 @@ class VehiclesCsvWriter(beamServices: BeamServices) extends ScenarioCsvWriter wi
 
   override protected val fields: Seq[String] = Seq("vehicleId", "vehicleTypeId", "householdId")
 
-  private case class VehicleEntry(vehicleId: String, vehicleTypeId: String, householdId: Int) {
+  private case class VehicleEntry(vehicleId: String, vehicleTypeId: String, householdId: String) {
     override def toString: String = {
       Seq(vehicleId, vehicleTypeId, householdId).mkString("", FieldSeparator, LineSeparator)
     }
   }
 
-  // TODO: for some reason the Vehicle object does not contain the vehicleType and beamservices is needed
   private def vehicleType(vehicleId: Id[Vehicle]): String = {
     beamServices.privateVehicles
       .get(vehicleId)
@@ -34,7 +33,7 @@ class VehiclesCsvWriter(beamServices: BeamServices) extends ScenarioCsvWriter wi
 
     val allVehicles = households.values.flatMap { hh =>
       hh.getVehicleIds.asScala.map { id: Id[Vehicle] =>
-        VehicleEntry(id.toString, vehicleType(id), hh.getId.toString.toInt).toString
+        VehicleEntry(id.toString, vehicleType(id), hh.getId.toString).toString
       }
     }
     allVehicles.toIterator

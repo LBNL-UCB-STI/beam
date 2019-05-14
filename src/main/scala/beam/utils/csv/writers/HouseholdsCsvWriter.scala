@@ -13,7 +13,7 @@ object HouseholdsCsvWriter extends ScenarioCsvWriter with StrictLogging {
     Seq("householdId", "incomeValue", "locationX", "locationY")
 
   private case class HouseholdEntry(
-    householdId: Int,
+    householdId: String,
     incomeValue: Double,
     locationX: String,
     locationY: String
@@ -31,7 +31,7 @@ object HouseholdsCsvWriter extends ScenarioCsvWriter with StrictLogging {
     households.toIterator.map { h: Household =>
       val id = h.getId.toString
       HouseholdEntry(
-        householdId = id.toInt,
+        householdId = id,
         incomeValue = h.getIncome.getIncome,
         locationX = attributes.getAttribute(id, "homecoordx").toString,
         locationY = attributes.getAttribute(id, "homecoordy").toString
