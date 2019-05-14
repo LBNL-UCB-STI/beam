@@ -97,9 +97,7 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
         String statType = String.format("averageTripExpenditure_%s", actType);
         double cost = personIdCost.get(personId);
         double travelTimeInHours=(ase.getTime()-personDepartureTime.get(personId))/3600;
-
         double personGeneralizedCostByAct=(cost+travelTimeInHours*averageVot)/householdIncome;
-
         personCostByActivityType.merge(statType, personGeneralizedCostByAct, (d1, d2) -> d1 + d2);
         activityTypeCount.merge(statType, 1, Integer::sum);
         personIdCost.remove(personId);
