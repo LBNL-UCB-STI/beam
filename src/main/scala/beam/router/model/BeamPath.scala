@@ -16,6 +16,19 @@ case class BeamPath(
   endPoint: SpaceTime,
   distanceInM: Double
 ) {
+
+  checkCoordinates(startPoint)
+  checkCoordinates(endPoint)
+
+  private def checkCoordinates(point: SpaceTime) {
+    if (point != null) {
+      assert(
+        point.loc == null || point.loc.getX > -180 && point.loc.getX < 180 && point.loc.getY > -90 && point.loc.getY < 90,
+        s"Bad coordinate ${point.loc}"
+      )
+    }
+  }
+
   def duration: Int = endPoint.time - startPoint.time
 
   def toShortString: String =

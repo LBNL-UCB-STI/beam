@@ -189,8 +189,8 @@ class OtherPersonAgentSpec
             Vector(),
             Vector(),
             Some(TransitStopsInfo(1, Id.createVehicleId("my_bus"), 2)),
-            SpaceTime(new Coord(166321.9, 1568.87), 28800),
-            SpaceTime(new Coord(167138.4, 1117), 29400),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
             1.0
           )
         ),
@@ -209,8 +209,8 @@ class OtherPersonAgentSpec
             Vector(),
             Vector(),
             Some(TransitStopsInfo(2, Id.createVehicleId("my_bus"), 3)),
-            SpaceTime(new Coord(167138.4, 1117), 29400),
-            SpaceTime(new Coord(180000.4, 1200), 30000),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             1.0
           )
         ),
@@ -229,8 +229,8 @@ class OtherPersonAgentSpec
             Vector(),
             Vector(),
             Some(TransitStopsInfo(3, Id.createVehicleId("my_tram"), 4)),
-            SpaceTime(new Coord(180000.4, 1200), 30000),
-            SpaceTime(new Coord(190000.4, 1300), 30600),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
             1.0
           )
         ),
@@ -249,8 +249,8 @@ class OtherPersonAgentSpec
             Vector(),
             Vector(),
             Some(TransitStopsInfo(3, Id.createVehicleId("my_tram"), 4)),
-            SpaceTime(new Coord(180000.4, 1200), 35000),
-            SpaceTime(new Coord(190000.4, 1300), 35600),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(180000.4, 1200)), 35000),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(190000.4, 1300)), 35600),
             1.0
           )
         ),
@@ -356,8 +356,8 @@ class OtherPersonAgentSpec
                     Vector(),
                     Vector(),
                     None,
-                    SpaceTime(new Coord(166321.9, 1568.87), 28800),
-                    SpaceTime(new Coord(167138.4, 1117), 28800),
+                    SpaceTime(beamSvc.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
+                    SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 28800),
                     1.0
                   )
                 ),
@@ -379,8 +379,8 @@ class OtherPersonAgentSpec
                     Vector(),
                     Vector(),
                     None,
-                    SpaceTime(new Coord(167138.4, 1117), 30600),
-                    SpaceTime(new Coord(167138.4, 1117), 30600),
+                    SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
+                    SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
                     1.0
                   )
                 ),
@@ -441,8 +441,8 @@ class OtherPersonAgentSpec
                     Vector(),
                     Vector(),
                     None,
-                    SpaceTime(new Coord(167138.4, 1117), 35600),
-                    SpaceTime(new Coord(167138.4, 1117), 35600),
+                    SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 35600),
+                    SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 35600),
                     1.0
                   )
                 ),

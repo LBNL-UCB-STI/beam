@@ -20,12 +20,10 @@ import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationAdjustment
-import beam.utils.reflection.ReflectionUtils
 import beam.utils.scenario.matsim.MatsimScenarioSource
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
 import beam.utils.scenario.{InputType, ScenarioLoader, ScenarioSource}
 import beam.utils.{NetworkHelper, _}
-import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
@@ -516,8 +514,6 @@ trait BeamHelper extends LazyLogging {
     level = beamConfig.beam.metrics.level
     runName = beamConfig.beam.agentsim.simulationName
     if (isMetricsEnable) Kamon.start(config.withFallback(ConfigFactory.defaultReference()))
-
-    ReflectionUtils.setFinalField(classOf[StreetLayer], "LINK_RADIUS_METERS", 2000.0)
 
     logger.info("Starting beam on branch {} at commit {}.", BashUtils.getBranch, BashUtils.getCommitHash)
 
