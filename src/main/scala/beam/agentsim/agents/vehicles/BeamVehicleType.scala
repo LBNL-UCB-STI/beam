@@ -99,20 +99,6 @@ object BeamVehicleType {
     defaultHumanBodyBeamVehicleType.primaryFuelCapacityInJoule, // same capacity as human body
     vehicleCategory = Bike
   )
-
-  def isHumanVehicle(beamVehicleId: Id[Vehicle]): Boolean =
-    beamVehicleId.toString.startsWith("body")
-
-  def isRidehailVehicle(beamVehicleId: Id[Vehicle]): Boolean =
-    beamVehicleId.toString.startsWith("rideHailVehicle")
-
-  def isBicycleVehicle(beamVehicleId: Id[Vehicle]): Boolean =
-    beamVehicleId.toString.startsWith("bike")
-
-  def isTransitVehicle(beamVehicleId: Id[Vehicle]): Boolean =
-    List("bus", "train", "subway", "tram", "rail", "cable_car", "ferry")
-      .exists(beamVehicleId.toString.toLowerCase.startsWith)
-
 }
 
 object FuelType {
