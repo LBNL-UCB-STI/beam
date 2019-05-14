@@ -534,7 +534,7 @@ object BeamRouter {
     originUTM: Coord,
     destinationUTM: Coord,
     requestIdOpt: Option[Int] = None
-  ) = {
+  ): EmbodyWithCurrentTravelTime = {
     val leg = BeamLeg(
       departTime,
       mode,
@@ -545,9 +545,7 @@ object BeamRouter {
         None,
         beamServices.geo.utm2Wgs(SpaceTime(originUTM, departTime)),
         beamServices.geo.utm2Wgs(SpaceTime(destinationUTM, departTime + 1)),
-        linkIds.map { linkId =>
-          beamServices.networkHelper.getLink(linkId).map(_.getLength).getOrElse(0.0)
-        }.sum
+        linkIds.map(beamServices.networkHelper.getLinkUnsafe(_).getLength).sum
       )
     )
     requestIdOpt match {

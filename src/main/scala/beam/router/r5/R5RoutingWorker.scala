@@ -870,10 +870,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   ): BeamPath = {
     var activeLinkIds = ArrayBuffer[Int]()
     for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
-      val maybeLink = beamServices.networkHelper.getLink(edge.edgeId)
-      if (maybeLink.isEmpty) {
-        throw new RuntimeException("Link not found: " + edge.edgeId)
-      }
       activeLinkIds += edge.edgeId.intValue()
     }
     val linksTimesDistances = RoutingModel.linksToTimeAndDistance(
