@@ -310,9 +310,7 @@ class BeamSim @Inject()(
     VehiclesCsvWriter(beamServices).toCsv(scenario, controlerIO.getOutputFilename("vehicles.csv"))
     HouseholdsCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("households.csv"))
     PlansCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("plans.csv"))
-    NetworkNodeCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("networkNode.csv"))
-    NetworkLinkCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("networkLink.csv"))
-    NetworkMergeCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("networkMerge.csv"))
+    NetworkCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("network.csv"))
   }
 
   private def writeSummaryStats(summaryStatsFile: File): Unit = {

@@ -4,7 +4,7 @@ import org.matsim.api.core.v01.Scenario
 
 import scala.collection.JavaConverters._
 
-object NetworkMergeCsvWriter extends ScenarioCsvWriter {
+object NetworkCsvWriter extends ScenarioCsvWriter {
 
   private case class LinkMergeEntry(
     linkId: String,
