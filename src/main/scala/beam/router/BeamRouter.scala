@@ -479,7 +479,7 @@ object BeamRouter {
     originUTM: Location,
     destinationUTM: Location,
     departureTime: Int,
-    transitModes: IndexedSeq[BeamMode],
+    withTransit: Boolean,
     streetVehicles: IndexedSeq[StreetVehicle],
     attributesOfIndividual: Option[AttributesOfIndividual] = None,
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,

@@ -23,7 +23,7 @@ class MultiModalRoutingSpec extends AbstractSfLightSpec("MultiModalRoutingSpec")
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
