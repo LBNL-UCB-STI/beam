@@ -188,10 +188,6 @@ class BeamSim @Inject()(
       val interval = beamConfig.beam.outputs.writePlansInterval
       if (interval > 0 && event.getIteration % interval == 0) {
         writeScenario(scenario, event.getServices.getControlerIO)
-//        PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(
-//          event.getServices.getControlerIO
-//            .getIterationFilename(event.getIteration, "population.csv.gz")
-//        )
       }
 
       iterationSummaryStats += iterationStatsProviders
