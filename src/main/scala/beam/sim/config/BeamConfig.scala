@@ -964,6 +964,9 @@ object BeamConfig {
 
         object Vehicles {
           case class SharedFleets$Elm(
+            fixed_non_reserving_fleet_from_file: scala.Option[
+              BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingFleetFromFile
+            ],
             fixed_non_reserving_random_dist: scala.Option[
               BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingRandomlyDistributed
             ],
@@ -978,6 +981,19 @@ object BeamConfig {
           )
 
           object SharedFleets$Elm {
+            case class FixedNonReservingFleetFromFile(vehicleTypeId: java.lang.String, filePathCSV: java.lang.String)
+
+            object FixedNonReservingFleetFromFile {
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingFleetFromFile = {
+                BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingFleetFromFile(
+                  vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedCar",
+                  filePathCSV = if (c.hasPathOrNull("filename")) c.getString("filename") else ""
+                )
+              }
+            }
+
             case class FixedNonReservingRandomlyDistributed(
               vehicleTypeId: java.lang.String,
               fleetSize: Int
@@ -1027,6 +1043,13 @@ object BeamConfig {
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm = {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm(
+                fixed_non_reserving_fleet_from_file =
+                  if (c.hasPathOrNull("fixed_non_reserving_fleet_from_file"))
+                    scala.Some(
+                      BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm
+                        .FixedNonReservingFleetFromFile(c.getConfig("fixed_non_reserving_fleet_from_file"))
+                    )
+                  else None,
                 fixed_non_reserving_random_dist =
                   if (c.hasPathOrNull("fixed_non_reserving_random_dist"))
                     scala.Some(

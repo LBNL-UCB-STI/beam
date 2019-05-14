@@ -2,6 +2,7 @@ package beam.sim.vehiclesharing
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleAndReply
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -14,7 +15,6 @@ import com.vividsolutions.jts.index.quadtree.Quadtree
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 
-case class REPVehicleReposition(vehicle: BeamVehicle, whereWhen: SpaceTime, idTAZ: Id[TAZ])
 case class REPVehicleInquiry(personId: Id[Person], whereWhen: SpaceTime)
 case class REPVehicleRepositionTrigger(tick: Int) extends Trigger
 case class REPVehicleTeleportTrigger(tick: Int, whereWhen: SpaceTime, vehicle: BeamVehicle, idTAZ: Id[TAZ])
@@ -28,19 +28,22 @@ trait RepositionAlgorithm {
     startTime: Int,
     endTime: Int,
     repositionManager: RepositionManager
-  ): List[(BeamVehicle, SpaceTime, Id[TAZ])]
+  ): List[(BeamVehicle, SpaceTime, Id[TAZ], SpaceTime, Id[TAZ])]
 
   def collectData(time: Int, repositionManager: RepositionManager)
 }
 
 trait RepositionManager extends Actor with ActorLogging {
   def getId: Id[VehicleManager]
-  def getAvailableVehicles: Quadtree
+  def getAvailableVehiclesIndex: Quadtree
+  def makeUnavailable(vehId: Id[BeamVehicle], streetVehicle: StreetVehicle): Option[BeamVehicle]
+  def makeAvailable(vehId: Id[BeamVehicle]): Boolean
+  def makeTeleport(vehId: Id[BeamVehicle], whenWhere: SpaceTime): Unit
   def getActorRef: ActorRef
   def getScheduler: ActorRef
   def getBeamServices: BeamServices
   def getBeamSkimmer: BeamSkimmer
-  def getRepositionAlgorithm: RepositionAlgorithm
+  def getAlgorithm: RepositionAlgorithm
   def getTimeStep: Int
   def getDemandLabel: String = "demand"
   def getRepositionManagerListenerInstance: RepositionManagerListener
@@ -48,15 +51,24 @@ trait RepositionManager extends Actor with ActorLogging {
   getScheduler ! ScheduleTrigger(REPVehicleRepositionTrigger(0), getActorRef)
 
   override def receive: Receive = {
-    case TriggerWithId(REPVehicleRepositionTrigger(tick), triggerId) =>
-      // collecting
-      getRepositionAlgorithm.collectData(tick, this)
 
-      // repositioning
+    case TriggerWithId(REPVehicleRepositionTrigger(tick), triggerId) =>
       val nextTick = tick + getTimeStep
-      getRepositionAlgorithm.getVehiclesForReposition(tick, nextTick, this) foreach {
-        case (vehicle, whereWhen, idTAZ) =>
-          vehicle.manager.get ! REPVehicleReposition(vehicle, whereWhen, idTAZ)
+      if(tick > 0) {
+        getAlgorithm.collectData(tick, this) // collecting
+        println(s"availability ===> ${getAvailableVehiclesIndex.size()}")
+        getAlgorithm.getVehiclesForReposition(tick, nextTick, this).foreach {
+          case (vehicle, orgWhereWhen, orgTAZ, dstWhereWhen, dstTAZ) =>
+            // reposition
+            getRepositionManagerListenerInstance.pickupEvent(orgWhereWhen.time, orgTAZ, getId, vehicle.id, "default")
+            getScheduler.tell(
+              CompletionNotice(
+                triggerId,
+                Vector(ScheduleTrigger(REPVehicleTeleportTrigger(dstWhereWhen.time, dstWhereWhen, vehicle, dstTAZ), getActorRef))
+              ),
+              getActorRef
+            )
+        }
       }
       // reschedule
       getScheduler.tell(
@@ -66,21 +78,12 @@ trait RepositionManager extends Actor with ActorLogging {
         ),
         getActorRef
       )
+
     case TriggerWithId(REPVehicleTeleportTrigger(tick, whereWhen, vehicle, idTAZ), _) =>
-      vehicle.spaceTime = SpaceTime(whereWhen.loc, tick)
+      makeTeleport(vehicle.id, whereWhen)
       vehicle.manager.get ! ReleaseVehicleAndReply(vehicle, Some(tick))
       getRepositionManagerListenerInstance.dropoffEvent(whereWhen.time, idTAZ, getId, vehicle.id, "default")
-    case REPVehicleReposition(vehicle, whereWhen, idTAZ) =>
-      val removed = getAvailableVehicles.remove(
-        new Envelope(new Coordinate(vehicle.spaceTime.loc.getX, vehicle.spaceTime.loc.getY)),
-        vehicle
-      )
-      if (!removed) {
-        log.error("Didn't find a vehicle in my spatial index, at the location I thought it would be.")
-      } else {
-        getRepositionManagerListenerInstance.pickupEvent(whereWhen.time, idTAZ, getId, vehicle.id, "default")
-      }
-      getScheduler ! ScheduleTrigger(REPVehicleTeleportTrigger(whereWhen.time, whereWhen, vehicle, idTAZ), getActorRef)
+
     case REPVehicleInquiry(personId, whenWhere) =>
       getBeamSkimmer.observeVehicleDemandByTAZ(whenWhere.time, whenWhere.loc, getId, getDemandLabel, Some(personId))
 

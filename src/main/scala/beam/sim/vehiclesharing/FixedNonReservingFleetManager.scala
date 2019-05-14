@@ -8,14 +8,10 @@ import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import beam.agentsim.Resource.{Boarded, NotAvailable, NotifyVehicleIdle, TryToBoardVehicle}
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.household.HouseholdActor.{
-  MobilityStatusInquiry,
-  MobilityStatusResponse,
-  ReleaseVehicle,
-  ReleaseVehicleAndReply
-}
+import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle, ReleaseVehicleAndReply}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.Token
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
@@ -93,42 +89,22 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       self ! REPVehicleInquiry(personId, whenWhere)
 
     case TryToBoardVehicle(token, who) =>
-      availableVehicles.get(token.id) match {
-        case Some(vehicle) if token.streetVehicle.locationUTM == vehicle.spaceTime =>
-          availableVehicles.remove(token.id)
-          val removed = availableVehiclesIndex.remove(
-            new Envelope(new Coordinate(vehicle.spaceTime.loc.getX, vehicle.spaceTime.loc.getY)),
-            vehicle
-          )
-          if (!removed) {
-            log.error("Didn't find a vehicle in my spatial index, at the location I thought it would be.")
-          }
-          who ! Boarded(vehicle)
-          log.debug("Checked out " + token.id)
-        case _ =>
-          who ! NotAvailable
+      println(s"to board ===> ${token.id}")
+      makeUnavailable(token.id, token.streetVehicle) match {
+        case Some(vehicle) => who ! Boarded(vehicle)
+          println(s"available ===> ${token.id} | size: ${availableVehiclesIndex.size()}")
+        case _ => who ! NotAvailable
+          println(s"not available ===> ${token.id}")
       }
 
     case NotifyVehicleIdle(vId, whenWhere, _, _, _) =>
-      val vehId = vId.asInstanceOf[Id[BeamVehicle]]
-      vehicles(vehId).spaceTime = whenWhere
-      log.debug("updated vehicle {} with location {}", vehId, whenWhere)
+      makeTeleport(vId.asInstanceOf[Id[BeamVehicle]], whenWhere)
 
     case ReleaseVehicle(vehicle) =>
-      availableVehicles += vehicle.id -> vehicle
-      availableVehiclesIndex.insert(
-        new Envelope(new Coordinate(vehicle.spaceTime.loc.getX, vehicle.spaceTime.loc.getY)),
-        vehicle
-      )
-      log.debug("Checked in " + vehicle.id)
+      makeAvailable(vehicle.id)
 
     case ReleaseVehicleAndReply(vehicle, _) =>
-      availableVehicles += vehicle.id -> vehicle
-      availableVehiclesIndex.insert(
-        new Envelope(new Coordinate(vehicle.spaceTime.loc.getX, vehicle.spaceTime.loc.getY)),
-        vehicle
-      )
-      log.debug("Checked in " + vehicle.id)
+      makeAvailable(vehicle.id)
       sender() ! Success
   }
 
@@ -143,15 +119,49 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   )
 
   override def getId: Id[VehicleManager] = Id.create("FixedNonReservingFleetManager", classOf[VehicleManager])
-  override def getAvailableVehicles: Quadtree = availableVehiclesIndex
+  override def getAvailableVehiclesIndex: Quadtree = availableVehiclesIndex
   override def getActorRef: ActorRef = self
   override def getScheduler: ActorRef = mainScheduler
   override def getBeamServices: BeamServices = beamServices
-  override def getRepositionAlgorithm: RepositionAlgorithm =
-    new AvailabilityBasedRepositioning(beamSkimmer, beamServices)
+  override def getAlgorithm: RepositionAlgorithm = algorithm
   override def getTimeStep: Int = 15 * 60
   override def getBeamSkimmer: BeamSkimmer = beamSkimmer
   override def getRepositionManagerListenerInstance: RepositionManagerListener =
     getBeamServices.injector.getInstance(classOf[RepositionManagerListener])
+
+  val algorithm = new AvailabilityBasedRepositioning(beamSkimmer, beamServices)
+
+  override def makeAvailable(vehId: Id[BeamVehicle]): Boolean = {
+    val vehicle = vehicles(vehId)
+    availableVehicles += vehId -> vehicle
+    availableVehiclesIndex.insert(
+      new Envelope(new Coordinate(vehicle.spaceTime.loc.getX, vehicle.spaceTime.loc.getY)),
+      vehicle
+    )
+    log.debug("Checked in " + vehId)
+    true
+  }
+
+  override def makeUnavailable(vehId: Id[BeamVehicle], streetVehicle: StreetVehicle): Option[BeamVehicle] = {
+    availableVehicles.get(vehId) match {
+      case Some(vehicle) if streetVehicle.locationUTM == vehicle.spaceTime =>
+        availableVehicles.remove(vehId)
+        val removed = availableVehiclesIndex.remove(
+          new Envelope(new Coordinate(vehicle.spaceTime.loc.getX, vehicle.spaceTime.loc.getY)),
+          vehicle
+        )
+        if (!removed) {
+          log.error("Didn't find a vehicle in my spatial index, at the location I thought it would be.")
+        }
+        log.debug("Checked out " + vehId)
+        Some(vehicle)
+      case _ => None
+    }
+  }
+
+  override def makeTeleport(vehId: Id[BeamVehicle], whenWhere: SpaceTime): Unit = {
+    vehicles(vehId).spaceTime = whenWhere
+    log.debug("updated vehicle {} with location {}", vehId, whenWhere)
+  }
 
 }

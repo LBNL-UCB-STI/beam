@@ -12,7 +12,6 @@ import scala.collection.mutable
 class RepositionManagerListener extends ControlerListener with IterationEndsListener {
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    println("works")
     if (eventsList.nonEmpty)
       RepositionManagerListener.writeRepositionEvents(event, eventsList)
   }
