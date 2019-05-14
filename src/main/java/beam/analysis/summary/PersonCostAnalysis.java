@@ -14,6 +14,7 @@ import org.matsim.api.core.v01.population.Population;
 import org.matsim.households.Household;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -88,19 +89,20 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
     }
     if (event instanceof ActivityStartEvent || event.getEventType().equalsIgnoreCase(ActivityStartEvent.EVENT_TYPE)) {
       ActivityStartEvent ase = (ActivityStartEvent) event;
-
-      Household household=(Household)beamServices.personHouseholds().get(ase.getPersonId()).get();
-      String personId = ase.getPersonId().toString();
-      double householdIncome=household.getIncome().getIncome();
-      if(personIdCost.containsKey(personId)){
-        String actType = ase.getActType();
-        String statType = String.format("averageTripExpenditure_%s", actType);
-        double cost = personIdCost.get(personId);
-        double travelTimeInHours=(ase.getTime()-personDepartureTime.get(personId))/3600;
-        double personGeneralizedCostByAct=(cost+travelTimeInHours*averageVot)/householdIncome;
-        personCostByActivityType.merge(statType, personGeneralizedCostByAct, (d1, d2) -> d1 + d2);
-        activityTypeCount.merge(statType, 1, Integer::sum);
-        personIdCost.remove(personId);
+      Option<Household> householdOption = beamServices.personHouseholds().get(ase.getPersonId());
+      if (householdOption.nonEmpty()) {
+        String personId = ase.getPersonId().toString();
+        double householdIncome=householdOption.get().getIncome().getIncome();
+        if(personIdCost.containsKey(personId)){
+          String actType = ase.getActType();
+          String statType = String.format("averageTripExpenditure_%s", actType);
+          double cost = personIdCost.get(personId);
+          double travelTimeInHours=(ase.getTime()-personDepartureTime.get(personId))/3600;
+          double personGeneralizedCostByAct=(cost+travelTimeInHours*averageVot)/householdIncome;
+          personCostByActivityType.merge(statType, personGeneralizedCostByAct, (d1, d2) -> d1 + d2);
+          activityTypeCount.merge(statType, 1, Integer::sum);
+          personIdCost.remove(personId);
+        }
       }
     }
   }
