@@ -22,7 +22,7 @@ import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
-import beam.utils.{DateUtils, NetworkHelperImpl}
+import beam.utils.{BeamVehicleUtils, DateUtils, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -71,7 +71,7 @@ class TollRoutingSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
-    when(services.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
+    when(services.vehicleTypes).thenReturn(BeamVehicleUtils.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath))
     when(services.fuelTypePrices).thenReturn(Map[FuelType, Double]().withDefaultValue(0.0))
     networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
@@ -133,7 +133,7 @@ class TollRoutingSpec
       val response = expectMsgType[RoutingResponse]
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.costEstimate == 3.0, "contains three toll links: two specified in OSM, and one in CSV file")
-      assert(carOption.totalTravelTimeInSecs == 142)
+      assert(carOption.totalTravelTimeInSecs == 82)
 
       val earlierRequest = request.copy(departureTime = 2000)
       router ! earlierRequest
@@ -196,7 +196,7 @@ class TollRoutingSpec
       val tollSensitiveResponse = expectMsgType[RoutingResponse]
       val tollSensitiveCarOption = tollSensitiveResponse.itineraries.find(_.tripClassifier == CAR).get
       assert(tollSensitiveCarOption.costEstimate <= 2.0, "if I'm toll sensitive, I don't go over the tolled link")
-      assert(tollSensitiveCarOption.totalTravelTimeInSecs == 284)
+      assert(tollSensitiveCarOption.totalTravelTimeInSecs == 164)
     }
 
     "not report a toll when walking" in {

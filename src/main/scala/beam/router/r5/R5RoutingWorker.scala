@@ -378,7 +378,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       profileRequest.accessModes = util.EnumSet.of(request.accessMode)
       profileRequest.egressModes = util.EnumSet.of(request.egressMode)
     }
-    // Doesn't calculate any fares, is just a no-op placeholder
 
     try {
       val profileResponse = new ProfileResponse
@@ -516,6 +515,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     profileRequest.zoneId = transportNetwork.getTimeZone
     profileRequest.monteCarloDraws = beamServices.beamConfig.beam.routing.r5.numberOfSamples
     profileRequest.date = beamServices.dates.localBaseDate
+    // Doesn't calculate any fares, is just a no-op placeholder
     profileRequest.inRoutingFareCalculator = new SimpleInRoutingFareCalculator
     profileRequest.suboptimalMinutes = 0
     profileRequest
@@ -1022,22 +1022,20 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     (time: Int, linkId: Int, streetMode: StreetMode) =>
       {
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+        val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))
+        val minTravelTime = (edge.getLengthM / maxSpeed).toFloat.round
+        val minSpeed = beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond
+        val maxTravelTime = (edge.getLengthM / minSpeed).toFloat.round
         if (streetMode != StreetMode.CAR || edge.getOSMID < 0) {
           // edge.getOSMID < 0 means
           // an R5 internal edge, probably connecting transit to the street network. We don't have those in the
           // MATSim network.
-          val travelSpeed = vehicleType.maxVelocity.getOrElse(edge.calculateSpeed(profileRequest, streetMode).toDouble)
-          (edge.getLengthM / travelSpeed).round.toInt
+          minTravelTime
         } else {
           val link = beamServices.networkHelper.getLinkUnsafe(linkId)
           assert(link != null)
-          val tt = travelTime.getLinkTravelTime(link, time, null, null)
-          val travelSpeed = link.getLength / tt
-          if (travelSpeed < beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond) {
-            (link.getLength / beamServices.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond).round.toInt
-          } else {
-            tt.round.toInt
-          }
+          val physSimTravelTime = travelTime.getLinkTravelTime(link, time, null, null).toFloat.round
+          Math.min(Math.max(physSimTravelTime, minTravelTime), maxTravelTime)
         }
       }
   }
