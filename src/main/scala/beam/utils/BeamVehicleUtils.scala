@@ -3,7 +3,7 @@ package beam.utils
 import java.util
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.FuelType.{FuelType}
+import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles._
 import org.matsim.api.core.v01.Id
 import org.matsim.households.Household

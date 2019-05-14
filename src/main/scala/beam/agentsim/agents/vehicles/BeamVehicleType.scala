@@ -129,7 +129,6 @@ object FuelType {
       .find(_.toString.equalsIgnoreCase(value))
       .getOrElse(Undefined)
   }
-  case class FuelTypeAndPrice(fuelTypeId: FuelType, priceInDollarsPerMJoule: Double)
 }
 
 object VehicleCategory {

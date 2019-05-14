@@ -34,7 +34,7 @@ import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.IdGeneratorImpl
+import beam.utils.{DateUtils, IdGeneratorImpl}
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.romix.akka.serialization.kryo.KryoSerializer
@@ -180,7 +180,14 @@ class BeamRouter(
     case InitTransit(scheduler, parkingManager, _) =>
       val localInit: Future[Set[Status]] = Future {
         val initializer =
-          new TransitInitializer(services, transportNetwork, transitVehicles, BeamRouter.oneSecondTravelTime)
+          new TransitInitializer(
+            services.beamConfig,
+            services.dates,
+            services.vehicleTypes,
+            transportNetwork,
+            transitVehicles,
+            BeamRouter.oneSecondTravelTime
+          )
         val transits = initializer.initMap
         initDriverAgents(initializer, scheduler, parkingManager, transits)
         localNodes.map { localWorker =>
@@ -509,7 +516,7 @@ object BeamRouter {
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator
   ) = {
-    checkForConsistentTimeZoneOffsets(beamServices, transportNetwork)
+    checkForConsistentTimeZoneOffsets(beamServices.dates, transportNetwork)
 
     Props(
       new BeamRouter(
@@ -600,14 +607,14 @@ object BeamRouter {
     )
   }
 
-  def checkForConsistentTimeZoneOffsets(beamServices: BeamServices, transportNetwork: TransportNetwork) = {
-    if (beamServices.dates.zonedBaseDateTime.getOffset != transportNetwork.getTimeZone.getRules.getOffset(
-          beamServices.dates.localBaseDateTime
+  def checkForConsistentTimeZoneOffsets(dates: DateUtils, transportNetwork: TransportNetwork) = {
+    if (dates.zonedBaseDateTime.getOffset != transportNetwork.getTimeZone.getRules.getOffset(
+          dates.localBaseDateTime
         )) {
       throw new RuntimeException(
         s"Time Zone Mismatch\n\n" +
-        s"\tZone offset inferred by R5: ${transportNetwork.getTimeZone.getRules.getOffset(beamServices.dates.localBaseDateTime)}\n" +
-        s"\tZone offset specified in Beam config file: ${beamServices.dates.zonedBaseDateTime.getOffset}\n\n" +
+        s"\tZone offset inferred by R5: ${transportNetwork.getTimeZone.getRules.getOffset(dates.localBaseDateTime)}\n" +
+        s"\tZone offset specified in Beam config file: ${dates.zonedBaseDateTime.getOffset}\n\n" +
         "Detailed Explanation:\n\n" +
         "There is a subtle requirement in BEAM related to timezones that is easy to miss and cause problems.\n\n" +
         "BEAM uses the R5 router, which was designed as a stand-alone service either for doing accessibility analysis or as a point to point trip planner. R5 was designed with public transit at the top of the developers’ minds, so they infer the time zone of the region being modeled from the 'timezone' field in the 'agency.txt' file in the first GTFS data archive that is parsed during the network building process.\n\n" +

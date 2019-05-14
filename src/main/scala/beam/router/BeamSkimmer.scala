@@ -89,8 +89,8 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
             travelTime,
             new BeamPath(null, null, None, null, null, travelDistance)
           ),
-          vehicleTypeId,
-          beamServices
+          beamServices.vehicleTypes(vehicleTypeId),
+          beamServices.fuelTypePrices
         )
       case RIDE_HAIL =>
         beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0

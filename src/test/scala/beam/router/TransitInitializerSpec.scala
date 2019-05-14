@@ -2,16 +2,12 @@ package beam.router
 
 import beam.integration.IntegrationSpecCommon
 import beam.router.Modes.BeamMode
-import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
-import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
+import beam.utils.BeamVehicleUtils.readBeamVehicleTypeFile
 import com.conveyal.r5.transit.RouteInfo
 import com.typesafe.config.ConfigValueFactory
-import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{Matchers, WordSpecLike}
-
-import scala.collection.concurrent.TrieMap
 
 class TransitInitializerSpec extends WordSpecLike with Matchers with MockitoSugar with IntegrationSpecCommon {
   "getVehicleType" should {
@@ -54,7 +50,6 @@ class TransitInitializerSpec extends WordSpecLike with Matchers with MockitoSuga
   }
 
   private def init = {
-    val services = mock[BeamServices](withSettings().stubOnly())
     val beamConfig = BeamConfig(
       baseConfig
         .withValue(
@@ -64,9 +59,8 @@ class TransitInitializerSpec extends WordSpecLike with Matchers with MockitoSuga
         )
     )
     val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
-    when(services.beamConfig).thenReturn(beamConfig)
-    when(services.vehicleTypes).thenReturn(vehicleTypes)
-    val transitInitializer = new TransitInitializer(services, null, null, BeamRouter.oneSecondTravelTime)
+    val transitInitializer =
+      new TransitInitializer(beamConfig, null, vehicleTypes, null, null, BeamRouter.oneSecondTravelTime)
     transitInitializer
   }
 }

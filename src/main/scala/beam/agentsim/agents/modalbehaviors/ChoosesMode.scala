@@ -954,7 +954,7 @@ trait ChoosesMode {
                         beamServices.geo.utm2Wgs(nextAct.getCoord),
                         _currentTick.get,
                         body.toStreetVehicle,
-                        beamServices
+                        beamServices.geo
                       )
                       .legs
                       .head
