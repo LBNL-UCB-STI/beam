@@ -8,7 +8,7 @@ class PersonCostAnalysisSpec extends GenericAnalysisSpec with Matchers {
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    runAnalysis(new PersonCostAnalysis())
+    runAnalysis(new PersonCostAnalysis(beamServices))
   }
 
   "Person cost analyser " must {
