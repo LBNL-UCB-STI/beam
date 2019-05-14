@@ -17,7 +17,7 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
   protected var beamServices: BeamServices = _
   protected var eventManager: EventsManager = _
   protected var networkCoordinator: DefaultNetworkCoordinator = _
-  protected var scenario: Scenario = _
+  protected var scenario: MutableScenario = _
 
   override def beforeAll(): Unit = {
 
@@ -31,8 +31,7 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 
-    val scenario =
-      ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+    scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     scenario.setNetwork(networkCoordinator.network)
 
     val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
