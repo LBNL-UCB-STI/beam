@@ -7,7 +7,7 @@
       <sourceFolder url="file://$MODULE_DIR$/events_analysis" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/household_generator" isTestSource="false" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.6 (py37)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.7 (py37)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="R User Library" level="project" />
     <orderEntry type="library" name="R Skeletons" level="application" />
