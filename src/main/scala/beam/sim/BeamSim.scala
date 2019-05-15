@@ -33,7 +33,6 @@ import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events._
 import org.matsim.core.controler.listener.{
   IterationEndsListener,
@@ -41,13 +40,14 @@ import org.matsim.core.controler.listener.{
   ShutdownListener,
   StartupListener
 }
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
+
+import beam.sim.config.BeamConfig
 
 class BeamSim @Inject()(
   private val actorSystem: ActorSystem,
@@ -156,8 +156,11 @@ class BeamSim @Inject()(
       networkHelper
     )
 
-    // report inconsistencies in output:
-    //new RideHailDebugEventHandler(eventsManager)
+    val controllerIO = event.getServices.getControlerIO
+    PopulationCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("population.csv"))
+    VehiclesCsvWriter(beamServices).toCsv(scenario, controllerIO.getOutputFilename("vehicles.csv"))
+    HouseholdsCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("households.csv"))
+    NetworkCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("network.csv"))
 
     FailFast.run(beamServices)
   }
@@ -170,7 +173,7 @@ class BeamSim @Inject()(
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
 
-    val beamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
+    val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
 
     travelTimeObserved.notifyIterationEnds(event)
 
@@ -185,9 +188,12 @@ class BeamSim @Inject()(
         modalityStyleStats.buildModalityStyleGraph()
       }
       createGraphsFromEvents.createGraphs(event)
+
       val interval = beamConfig.beam.outputs.writePlansInterval
-      if (interval > 0 && event.getIteration % interval == 0) {
-        writeScenario(scenario, event.getServices.getControlerIO)
+      val eventIteration = event.getIteration
+      val controllerIO = event.getServices.getControlerIO
+      if (interval > 0 && eventIteration % interval == 0) {
+        PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv"))
       }
 
       iterationSummaryStats += iterationStatsProviders
@@ -289,8 +295,6 @@ class BeamSim @Inject()(
     val scenario = event.getServices.getScenario
     val controllerIO = event.getServices.getControlerIO
 
-    writeScenario(scenario, controllerIO)
-
     outputFilesToDelete.foreach(deleteOutputFile)
 
     def deleteOutputFile(fileName: String) = {
@@ -299,14 +303,6 @@ class BeamSim @Inject()(
     }
     BeamConfigChangesObservable.clear()
 
-  }
-
-  private def writeScenario(scenario: Scenario, controlerIO: OutputDirectoryHierarchy) = {
-    PopulationCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("population.csv"))
-    VehiclesCsvWriter(beamServices).toCsv(scenario, controlerIO.getOutputFilename("vehicles.csv"))
-    HouseholdsCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("households.csv"))
-    PlansCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("plans.csv"))
-    NetworkCsvWriter.toCsv(scenario, controlerIO.getOutputFilename("network.csv"))
   }
 
   private def writeSummaryStats(summaryStatsFile: File): Unit = {
