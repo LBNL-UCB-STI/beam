@@ -97,17 +97,17 @@ object XmlConverter extends App {
 
   def extractFile(gzipFile: File): File = {
     val result = File.createTempFile("somePrefix", ".xml")
-    val outputStream = new FileOutputStream(result)
-    val in = new GZIPInputStream(new FileInputStream(gzipFile))
-    val buf = new Array[Byte](1024)
-    var len = 0
-    while ({
-      len = in.read(buf)
-      len > 0
-    }) {
-      outputStream.write(buf, 0, len)
+    FileUtils.using(new FileOutputStream(result)) { outputStream =>
+      val in = new GZIPInputStream(new FileInputStream(gzipFile))
+      val buf = new Array[Byte](1024)
+      var len = 0
+      while ({
+        len = in.read(buf)
+        len > 0
+      }) {
+        outputStream.write(buf, 0, len)
+      }
     }
-    outputStream.close()
     result
   }
 
