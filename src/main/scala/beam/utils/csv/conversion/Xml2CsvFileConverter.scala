@@ -4,7 +4,7 @@ import java.io.File
 
 trait Xml2CsvFileConverter {
   protected def fields: Seq[String]
-  protected lazy val header: Iterator[String] = Iterator(fields.mkString(FieldSeparator), LineSeparator)
+  protected def header: Iterator[String] = Iterator(fields.mkString(FieldSeparator), LineSeparator)
 
   protected val LineSeparator: String = "\n"
   protected val FieldSeparator: String = ","
