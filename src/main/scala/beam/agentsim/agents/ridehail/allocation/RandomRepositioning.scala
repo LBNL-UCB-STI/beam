@@ -16,71 +16,84 @@ import org.supercsv.prefs.CsvPreference
 
 import scala.collection.JavaConverters._
 
+object RandomRepositioning {
+  val QUAD_OUTPUT_FILE = "quad_output.csv"
+  val COORD_OUTPUT_FILE = "coord_output.csv"
+}
+
 class RandomRepositioning(val rideHailManager: RideHailManager)
-    extends RideHailResourceAllocationManager(rideHailManager){
+    extends RideHailResourceAllocationManager(rideHailManager) {
 
-  val intervalForUpdatingQuadTree=1800
+  val intervalForUpdatingQuadTree = 1800
 
-  var lastTimeQuadTreeUpdated=Double.NegativeInfinity
+  var lastTimeQuadTreeUpdated = Double.NegativeInfinity
 
-  var quadTree:QuadTree[Activity]=_
+  var quadTree: QuadTree[Activity] = _
 
   def updatePersonActivityQuadTree(tick: Double) = {
-   // rideHailManager.beamServices.matsimServices.getScenario.getPopulation.getPersons.values().stream().forEach{ person =>
-  //    person.getSelectedPlan
+    // rideHailManager.beamServices.matsimServices.getScenario.getPopulation.getPersons.values().stream().forEach{ person =>
+    //    person.getSelectedPlan
 //
-  //  }
+    //  }
 
-  if (lastTimeQuadTreeUpdated+intervalForUpdatingQuadTree<tick){
+    if (lastTimeQuadTreeUpdated + intervalForUpdatingQuadTree < tick) {
 
-    // TODO: give preference to non repositioning vehicles -> filter them out!
+      // TODO: give preference to non repositioning vehicles -> filter them out!
 
-    val currentTime=tick
+      val currentTime = tick
 
-    var minX: Double = Double.MaxValue
-    var maxX: Double = Double.MinValue
-    var minY: Double = Double.MaxValue
-    var maxY: Double = Double.MinValue
+      var minX: Double = Double.MaxValue
+      var maxX: Double = Double.MinValue
+      var minY: Double = Double.MaxValue
+      var maxY: Double = Double.MinValue
 
-    // TODO: optimize performance by not creating each time again!!! e.g. renew quadtree hourly
+      // TODO: optimize performance by not creating each time again!!! e.g. renew quadtree hourly
 
-    var selectedActivities:List[Activity]=List[Activity]()
+      var selectedActivities: List[Activity] = List[Activity]()
 
-    rideHailManager.beamServices.matsimServices.getScenario.getPopulation.getPersons.values().asScala.toList.flatMap( person => person.getSelectedPlan.getPlanElements.asScala).foreach{
-      planElement =>
+      rideHailManager.beamServices.matsimServices.getScenario.getPopulation.getPersons
+        .values()
+        .asScala
+        .toList
+        .flatMap(person => person.getSelectedPlan.getPlanElements.asScala)
+        .foreach { planElement =>
+          if (planElement.isInstanceOf[Activity]) {
+            val act = planElement.asInstanceOf[Activity]
+            if (act.getEndTime > currentTime + 20 * 60 && act.getEndTime < currentTime + 3600) {
+              minX = Math.min(minX, act.getCoord.getX)
+              minY = Math.min(minY, act.getCoord.getY)
+              maxX = Math.max(maxX, act.getCoord.getX)
+              maxY = Math.max(maxY, act.getCoord.getY)
 
-      if (planElement.isInstanceOf[Activity]){
-        val act=planElement.asInstanceOf[Activity]
-        if (act.getEndTime>currentTime +20*60 && act.getEndTime<currentTime +3600){
-          minX = Math.min(minX, act.getCoord.getX)
-          minY = Math.min(minY, act.getCoord.getY)
-          maxX = Math.max(maxX, act.getCoord.getX)
-          maxY = Math.max(maxY, act.getCoord.getY)
+              selectedActivities = selectedActivities :+ act
 
-          selectedActivities=selectedActivities :+ act
+            }
+
+          }
 
         }
 
+      quadTree = new QuadTree[Activity](minX, minY, maxX, maxY)
+
+      selectedActivities.foreach { act =>
+        quadTree.put(act.getCoord.getX, act.getCoord.getY, act)
       }
-
-    }
-
-    quadTree=new QuadTree[Activity](minX,minY,maxX,maxY)
-
-    selectedActivities.foreach{ act =>  quadTree.put(act.getCoord.getX,act.getCoord.getY,act)}
     }
   }
 
-
-
-  def writeRepositioningToCSV(repositioningVehicles:  Vector[(Id[Vehicle], Coord)],tick: Double) = {
+  def writeRepositioningToCSV(repositioningVehicles: Vector[(Id[Vehicle], Coord)], tick: Double) = {
     // TODO: write in the output folder graph
 
     // draw all content in quadTree with color blue
 
-    val quad = quadTree.values().asScala.map{activity =>
+    val quad = quadTree.values().asScala.map { activity =>
       val coord = activity.getCoord
-      Map("time" -> tick.toString, "x"-> coord.getX.toString, "y" -> coord.getY.toString, "activity" -> activity.getType)
+      Map(
+        "time"     -> tick.toString,
+        "x"        -> coord.getX.toString,
+        "y"        -> coord.getY.toString,
+        "activity" -> activity.getType
+      )
 
     }
 
@@ -88,27 +101,32 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
     // draw all repositioningVehicles._2 in blue (make arrow from green to blue)
 
-
-    val coord = repositioningVehicles.map{ vehicleIdCoord =>
-        val rideHailVehicleLocation = rideHailManager.vehicleManager.getIdleVehicles.get(vehicleIdCoord._1)
-        val (x,y) = rideHailVehicleLocation match {
-          case Some(rideHailLocation) => (rideHailLocation.currentLocationUTM.loc.getX,rideHailLocation.currentLocationUTM.loc.getY)
-          case None => (0,0)
-        }
-        Map("time" -> tick.toString, "x1"-> x.toString, "y1" -> y.toString,"x2"-> vehicleIdCoord._2.getX.toString, "y2" -> vehicleIdCoord._2.getY.toString)
+    val coord = repositioningVehicles.map { vehicleIdCoord =>
+      val rideHailVehicleLocation = rideHailManager.vehicleManager.getIdleVehicles.get(vehicleIdCoord._1)
+      val (x, y) = rideHailVehicleLocation match {
+        case Some(rideHailLocation) =>
+          (rideHailLocation.currentLocationUTM.loc.getX, rideHailLocation.currentLocationUTM.loc.getY)
+        case None => (0, 0)
+      }
+      Map(
+        "time" -> tick.toString,
+        "x1"   -> x.toString,
+        "y1"   -> y.toString,
+        "x2"   -> vehicleIdCoord._2.getX.toString,
+        "y2"   -> vehicleIdCoord._2.getY.toString
+      )
     }
 
     val iterationNumber = rideHailManager.beamServices.iterationNumber
-    val quadFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "quad_output.csv")
-    val coordFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iterationNumber, "coord_output.csv")
+    val quadFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
+      .getIterationFilename(iterationNumber, RandomRepositioning.QUAD_OUTPUT_FILE)
+    val coordFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
+      .getIterationFilename(iterationNumber, RandomRepositioning.COORD_OUTPUT_FILE)
 
-    writeCSV(quadFileName, Seq("time","x","y","activity"), quad)
-    writeCSV(coordFileName, Seq("time","x1","y1","x2","y2"), coord)
-
+    writeCSV(quadFileName, Seq("time", "x", "y", "activity"), quad)
+    writeCSV(coordFileName, Seq("time", "x1", "y1", "x2", "y2"), coord)
 
   }
-
-
 
   // Only override proposeVehicleAllocation if you wish to do something different from closest euclidean vehicle
   //  override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): VehicleAllocationResponse
@@ -119,11 +137,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
     updatePersonActivityQuadTree(tick)
 
-
-
-
-
-    val algorithm=2
+    val algorithm = 2
 
     algorithm match {
       case 1 =>
@@ -149,24 +163,33 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         val numVehiclesToReposition = (repositioningShare * fleetSize).toInt
         if (rideHailManager.vehicleManager.getIdleVehicles.size >= 2) {
 
-          val allVehicles=rideHailManager.vehicleManager.getIdleVehicles.toList
+          val allVehicles = rideHailManager.vehicleManager.getIdleVehicles.toList
 
-          val vehiclesToReposition=scala.util.Random.shuffle(allVehicles).splitAt(numVehiclesToReposition)._1
+          val vehiclesToReposition = scala.util.Random.shuffle(allVehicles).splitAt(numVehiclesToReposition)._1
 
-          val result=vehiclesToReposition.map{ vehIdAndLoc =>
-            val (vehicleId,location) = vehIdAndLoc
+          val result = vehiclesToReposition
+            .map { vehIdAndLoc =>
+              val (vehicleId, location) = vehIdAndLoc
 
-            val dest=scala.util.Random.shuffle(quadTree.getDisk(location.currentLocationUTM.loc.getX,location.currentLocationUTM.loc.getY,5000).asScala.toList).headOption
+              val dest = scala.util.Random
+                .shuffle(
+                  quadTree
+                    .getDisk(location.currentLocationUTM.loc.getX, location.currentLocationUTM.loc.getY, 5000)
+                    .asScala
+                    .toList
+                )
+                .headOption
 
-            dest match {
-              case Some(act) => (vehicleId,act.getCoord)
-              case _ => (vehicleId,new Coord(Double.MaxValue,Double.MaxValue))
+              dest match {
+                case Some(act) => (vehicleId, act.getCoord)
+                case _         => (vehicleId, new Coord(Double.MaxValue, Double.MaxValue))
+              }
+
             }
+            .toVector
+            .filterNot(_._2.getX == Double.MaxValue)
 
-          }.toVector.filterNot(_._2.getX==Double.MaxValue)
-
-
-          writeRepositioningToCSV(result,tick)
+          writeRepositioningToCSV(result, tick)
 
           result
         } else {
@@ -174,8 +197,6 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         }
 
     }
-
-
     // TODO: just based on upcomming next activities
 
     // add radius for repositioning and radius increase if no activities?
@@ -184,14 +205,13 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
   }
 
-
   private def writeCSV(path: String, headers: Seq[String], rows: Iterable[Map[String, String]]): Unit = {
     val file = new File(path)
     val exist = file.exists()
     val fileWriter = new FileWriter(file, true)
 
     FileUtils.using(new CsvMapWriter(fileWriter, CsvPreference.STANDARD_PREFERENCE)) { writer =>
-      if(!exist){
+      if (!exist) {
         writer.writeHeader(headers: _*)
       }
       val headersArray = headers.toArray
