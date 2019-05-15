@@ -53,7 +53,7 @@ object PlansXml2CsvConverter extends Xml2CsvFileConverter {
       activityIndex = index,
       activityType = Option(node.attributes("type")).map(_.toString.trim).getOrElse(""),
       locationX = Option(node.attributes("x")).map(_.text.toDouble).getOrElse(0),
-      locationY = Option(node.attributes("x")).map(_.text.toDouble).getOrElse(0),
+      locationY = Option(node.attributes("y")).map(_.text.toDouble).getOrElse(0),
       endTime = Option(node.attributes("end_time")).map(_.toString),
       mode = Option(node.attributes("mode")).map(_.toString).getOrElse(""),
       node.label

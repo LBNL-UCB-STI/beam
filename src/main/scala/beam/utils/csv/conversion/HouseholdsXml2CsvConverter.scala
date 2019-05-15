@@ -7,16 +7,13 @@ import scala.xml.{Node, NodeSeq}
 
 class HouseholdsXml2CsvConverter(householdAttributesXml: File) extends Xml2CsvFileConverter {
 
-  override val fields: Seq[String] =
-    Seq("householdId", "incomeValue", "incomeCurrency", "locationX", "locationY")
+  override val fields: Seq[String] = Seq("householdId", "incomeValue", "locationX", "locationY")
 
   private type HouseholdId = Int
   private type HouseHoldIdToAttributes = Map[HouseholdId, HouseHoldAttributes]
 
   private case class Household(householdId: HouseholdId, income: Income, locationX: Double, locationY: Double) {
-    override def toString: String = {
-      Seq(householdId, income, locationX, locationY).mkString(FieldSeparator)
-    }
+    override def toString: String = Seq(householdId, income.value, locationX, locationY).mkString(FieldSeparator)
   }
 
   private case class Income(currency: String, period: String, value: String) {
