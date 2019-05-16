@@ -1,8 +1,11 @@
 package beam.utils.map
 
+import java.io.File
+
 import beam.utils.GeoJsonReader
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.{Coordinate, Envelope, Geometry}
+import org.apache.commons.io.FilenameUtils
 import org.matsim.api.core.v01.Coord
 import org.opengis.feature.Feature
 import org.opengis.feature.simple.SimpleFeature
@@ -28,16 +31,15 @@ object GeoJsonToGpxConvertor extends LazyLogging {
   }
 
   def main(args: Array[String]): Unit = {
-    {
-      val censusTractsPoints = readGeoJson("""C:\temp\movement_data\san_francisco_censustracts.json""")
-      GpxWriter.write("san_francisco_censustracts.gpx", censusTractsPoints)
-      renderEnvelope(censusTractsPoints, "san_francisco_censustracts_envelope.gpx")
-    }
+    // Path to census tracts in GeoJSON (https://geojson.org/)
+    // An example of file: https://github.com/LBNL-UCB-STI/beam/blob/production-sfbay/production/sfbay/calibration/san_francisco_censustracts.json
+    val pathToGeoJson = args(0)
 
-    {
-      val tazPoints = readGeoJson("""C:\temp\movement_data\san_francisco_taz.json""")
-      GpxWriter.write("san_francisco_taz.gpx", tazPoints)
-      renderEnvelope(tazPoints, "san_francisco_taz_envelope.gpx")
-    }
+    val fileNameNoExt = FilenameUtils.removeExtension(new File(pathToGeoJson).getName)
+    val outputFilePath = new File(pathToGeoJson).getParentFile.getPath
+
+    val censusTractsPoints = readGeoJson(pathToGeoJson)
+    GpxWriter.write(outputFilePath + "/" + fileNameNoExt + ".gpx", censusTractsPoints)
+    renderEnvelope(censusTractsPoints, outputFilePath + "/" + fileNameNoExt + "_envelope.gpx")
   }
 }
