@@ -20,7 +20,7 @@ import beam.router.model.RoutingModel
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamServices
-import beam.sim.common.GeoUtilsImpl
+import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
 import beam.utils.{DateUtils, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.testConfig
@@ -53,6 +53,7 @@ class TimeDependentRoutingSpec
 
   var router: ActorRef = _
   var networkCoordinator: DefaultNetworkCoordinator = _
+  var geo: GeoUtils = _
 
   override def beforeAll: Unit = {
     val beamConfig = BeamConfig(system.settings.config)
@@ -61,7 +62,8 @@ class TimeDependentRoutingSpec
     val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     when(services.beamConfig).thenReturn(beamConfig)
-    when(services.geo).thenReturn(new GeoUtilsImpl(beamConfig))
+    geo = new GeoUtilsImpl(beamConfig)
+    when(services.geo).thenReturn(geo)
     when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
     when(services.ptFares).thenReturn(PtFares(List[FareRule]()))
     when(services.dates).thenReturn(
@@ -116,8 +118,8 @@ class TimeDependentRoutingSpec
           Vector(143, 60, 58, 62, 80, 74, 68, 154),
           Vector(),
           None,
-          SpaceTime(166321.9, 1568.87, 3000),
-          SpaceTime(167138.4, 1117, 3000),
+          SpaceTime(geo.utm2Wgs(origin), 3000),
+          SpaceTime(geo.utm2Wgs(destination), 3000),
           0.0
         )
       )
@@ -137,8 +139,8 @@ class TimeDependentRoutingSpec
           Vector(143, 60, 58, 62, 80, 74, 68, 154),
           Vector(),
           None,
-          SpaceTime(166321.9, 1568.87, 3000),
-          SpaceTime(167138.4, 1117, 3000),
+          SpaceTime(geo.utm2Wgs(origin), 3000),
+          SpaceTime(geo.utm2Wgs(destination), 3000),
           0.0
         )
       )
@@ -154,7 +156,7 @@ class TimeDependentRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
@@ -175,7 +177,7 @@ class TimeDependentRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
@@ -196,7 +198,7 @@ class TimeDependentRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
@@ -226,7 +228,7 @@ class TimeDependentRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             vehicleId,
@@ -261,7 +263,7 @@ class TimeDependentRoutingSpec
           origin,
           destination,
           time,
-          Vector(),
+          withTransit = false,
           Vector(
             StreetVehicle(
               Id.createVehicleId("car"),

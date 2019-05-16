@@ -113,6 +113,7 @@ dependencies {
 
     //beam-utilities
     compile 'com.github.LBNL-UCB-STI:beam-utilities:rajnikantsh~remove-duplicate-code-SNAPSHOT'
+    
     ////////////////////////////
     // Java dependencies
     ////////////////////////////
@@ -166,7 +167,7 @@ dependencies {
     compile "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
     compile "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
 
-    compile(group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'mz-tolls-SNAPSHOT', changing: true) {
+    compile(group: 'com.github.michaz', name: 'r5', version: '3ab4fa04') {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
@@ -265,6 +266,8 @@ dependencies {
     compile group: 'org.apache.parquet', name: 'parquet-avro', version: parquet
     compile (group: 'org.apache.hadoop', name: 'hadoop-client', version: '2.7.3') {
         exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+        // Exclude `ASM` because it is binary incompatible with the one which is gotten from `com.conveyal:kryo-tools`: `org.ow2.asm:asm:5.0.4`
+        exclude group: 'asm', module: 'asm'
     }
 }
 

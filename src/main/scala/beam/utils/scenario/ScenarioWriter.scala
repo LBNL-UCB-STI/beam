@@ -4,7 +4,7 @@ import java.io.FileWriter
 
 import beam.utils.FileUtils
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person, PlanElement => MatsimPlanElement}
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households.Household
@@ -95,7 +95,7 @@ object CsvScenarioWriter extends ScenarioWriter with LazyLogging {
     }.toMap
   }
 
-  private def getPlanInfo(scenario: MutableScenario): Iterable[PlanElement] = {
+  def getPlanInfo(scenario: Scenario): Iterable[PlanElement] = {
     scenario.getPopulation.getPersons.asScala.flatMap {
       case (id, person) =>
         // We get only selected plan!
