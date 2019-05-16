@@ -17,7 +17,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, RIDE_HAIL, TRANSIT, WALK}
+import beam.router.Modes.BeamMode.{TRANSIT, WALK}
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.sim.HasServices
@@ -30,6 +30,7 @@ import org.matsim.api.core.v01.events.{
   VehicleLeavesTrafficEvent
 }
 import org.matsim.api.core.v01.population.Person
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable
@@ -76,6 +77,25 @@ object DrivesVehicle {
 
   case class StopDrivingIfNoPassengerOnBoardReply(success: Boolean, requestId: Int, tick: Int)
 
+  def processLinkEvents(eventsManager: EventsManager, vehicleId: Id[Vehicle], leg: BeamLeg): Unit = {
+    val path = leg.travelPath
+    if (path.linkTravelTime.nonEmpty & path.linkIds.size > 1) {
+      val links = path.linkIds
+      val linkTravelTime = path.linkTravelTime
+      var i: Int = 0
+      var curTime = leg.startTime
+      // `links.length - 1` because we don't need the travel time for the last link
+      while (i < links.length - 1) {
+        val from = links(i)
+        val to = links(i + 1)
+        val timeAtNode = linkTravelTime(i)
+        curTime = curTime + timeAtNode
+        eventsManager.processEvent(new LinkLeaveEvent(curTime, vehicleId, Id.createLinkId(from)))
+        eventsManager.processEvent(new LinkEnterEvent(curTime, vehicleId, Id.createLinkId(to)))
+        i += 1
+      }
+    }
+  }
 }
 
 trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with Stash {
@@ -197,7 +217,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       // We help ourselves by not emitting link events for walking, but a better criterion
       // would be to only emit link events for the "main" leg.
       if (currentLeg.mode != WALK) {
-        processLinkEvents(data.currentVehicle.head, currentLeg)
+        processLinkEvents(eventsManager, data.currentVehicle.head, currentLeg)
       }
 
       logDebug("PathTraversal")
@@ -697,25 +717,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     val fullCap = vehicle.beamVehicleType.seatingCapacity + vehicle.beamVehicleType.standingRoomCapacity
     passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).forall { entry =>
       entry._2.riders.size < fullCap
-    }
-  }
-
-  def processLinkEvents(vehicleId: Id[Vehicle], leg: BeamLeg): Unit = {
-    val path = leg.travelPath
-    if (path.linkTravelTime.nonEmpty & path.linkIds.size > 1) {
-      // FIXME once done with debugging, make this code faster
-      // We don't need the travel time for the last link, so we drop it (dropRight(1))
-      val avgTravelTimeWithoutLast = path.linkTravelTime.dropRight(1)
-      val links = path.linkIds
-      val linksWithTime = links.sliding(2).zip(avgTravelTimeWithoutLast.iterator)
-
-      var curTime = leg.startTime
-      linksWithTime.foreach {
-        case (Seq(from, to), timeAtNode) =>
-          curTime = curTime + timeAtNode
-          eventsManager.processEvent(new LinkLeaveEvent(curTime, vehicleId, Id.createLinkId(from)))
-          eventsManager.processEvent(new LinkEnterEvent(curTime, vehicleId, Id.createLinkId(to)))
-      }
     }
   }
 
