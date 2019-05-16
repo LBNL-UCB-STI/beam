@@ -80,48 +80,40 @@ object WayFixer extends LazyLogging {
   }
 
   private[osm] def getFixedLanes(osmId: Long, way: Way): Option[Int] = {
-    Option(way.getTag(LANES_TAG)) match {
-      case Some(rawLanes) =>
-        if (rawLanes.startsWith("[")) {
-          val lanesAsStr = split(rawLanes)
-          if (lanesAsStr.isEmpty) {
-            logger.warn(s"Could not split lane from '$rawLanes'. OSM[$osmId]")
-            None
-          } else {
-            val lanes = lanesAsStr.flatMap { x =>
-              Try(x.toInt).toOption
-            }
-            val avgLanes = if (lanes.isEmpty) 1 else lanes.sum.toDouble / lanes.length
-            Some(avgLanes.toInt)
-          }
-        } else {
+    Option(way.getTag(LANES_TAG)).flatMap { rawLanes =>
+      if (rawLanes.startsWith("[")) {
+        val lanesAsStr = split(rawLanes)
+        if (lanesAsStr.isEmpty) {
+          logger.warn(s"Could not split lane from '$rawLanes'. OSM[$osmId]")
           None
+        } else {
+          val lanes = lanesAsStr.flatMap { x =>
+            Try(x.toInt).toOption
+          }
+          val avgLanes = if (lanes.isEmpty) 1 else lanes.sum.toDouble / lanes.length
+          Some(avgLanes.toInt)
         }
-      case None =>
-        logger.warn(s"Could not find tag[$LANES_TAG] from OSM[$osmId] and Way[$way]")
+      } else {
         None
+      }
     }
   }
 
   private[osm] def getFixedHighwayType(osmId: Long, way: Way): Option[String] = {
-    Option(way.getTag(HIGHWAY_TAG)) match {
-      case Some(rawHighwayType) =>
-        if (rawHighwayType.startsWith("[")) {
-          val highwayTypes = split(rawHighwayType)
-          if (highwayTypes.isEmpty) {
-            logger.warn(s"Could not split highway from '$rawHighwayType'. OSM[$osmId] and Way[$way]")
-            None
-          } else {
-            val firstNonLink = highwayTypes.find(ht => !ht.contains("_link"))
-            val fixedHighwayType = firstNonLink.getOrElse(highwayTypes.head)
-            Some(fixedHighwayType)
-          }
-        } else {
+    Option(way.getTag(HIGHWAY_TAG)).flatMap { rawHighwayType =>
+      if (rawHighwayType.startsWith("[")) {
+        val highwayTypes = split(rawHighwayType)
+        if (highwayTypes.isEmpty) {
+          logger.warn(s"Could not split highway from '$rawHighwayType'. OSM[$osmId] and Way[$way]")
           None
+        } else {
+          val firstNonLink = highwayTypes.find(ht => !ht.contains("_link"))
+          val fixedHighwayType = firstNonLink.getOrElse(highwayTypes.head)
+          Some(fixedHighwayType)
         }
-      case None =>
-        logger.warn(s"Could not find tag[$HIGHWAY_TAG] from OSM[$osmId] and Way[$way]")
+      } else {
         None
+      }
     }
   }
 

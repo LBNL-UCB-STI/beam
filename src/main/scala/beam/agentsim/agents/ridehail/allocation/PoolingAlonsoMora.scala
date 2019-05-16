@@ -204,7 +204,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                   orig.activity.getCoord,
                   dest.activity.getCoord,
                   origin.time,
-                  IndexedSeq(),
+                  withTransit = false,
                   IndexedSeq(
                     StreetVehicle(
                       Id.create(vehicleAndSchedule.vehicle.id.toString, classOf[Vehicle]),
