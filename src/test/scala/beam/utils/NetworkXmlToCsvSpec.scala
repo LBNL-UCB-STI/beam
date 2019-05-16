@@ -1,5 +1,6 @@
 package beam.utils
 
+import beam.utils.csv.conversion.NetworkXmlToCSV
 import org.scalatest.WordSpecLike
 
 class NetworkXmlToCsvSpec extends WordSpecLike {
