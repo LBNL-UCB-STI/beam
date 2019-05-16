@@ -694,9 +694,9 @@ trait BeamHelper extends LazyLogging {
   }
 
   private def buildUrbansimScenarioSource(
-    injector: _root_.com.google.inject.Injector,
-    beamConfig: _root_.beam.sim.config.BeamConfig
-  ) = {
+    injector: inject.Injector,
+    beamConfig: BeamConfig
+  ): UrbanSimScenarioSource = {
     val fileFormat: InputType = Option(beamConfig.beam.exchange.scenario.fileFormat)
       .map(str => InputType(str.toLowerCase))
       .getOrElse(
