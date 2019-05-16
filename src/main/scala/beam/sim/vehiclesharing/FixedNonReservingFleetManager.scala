@@ -8,7 +8,12 @@ import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import beam.agentsim.Resource.{Boarded, NotAvailable, NotifyVehicleIdle, TryToBoardVehicle}
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle, ReleaseVehicleAndReply}
+import beam.agentsim.agents.household.HouseholdActor.{
+  MobilityStatusInquiry,
+  MobilityStatusResponse,
+  ReleaseVehicle,
+  ReleaseVehicleAndReply
+}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.Token
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -76,7 +81,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
 
-    case MobilityStatusInquiry(personId, whenWhere, _) =>
+    case MobilityStatusInquiry(_, whenWhere, _) =>
       // Search box: 1000 meters around query location
       val boundingBox = new Envelope(new Coordinate(whenWhere.loc.getX, whenWhere.loc.getY))
       boundingBox.expandBy(5000.0)
@@ -86,15 +91,14 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       sender ! MobilityStatusResponse(nearbyVehicles.take(5).map { vehicle =>
         Token(vehicle.id, self, vehicle.toStreetVehicle)
       })
-      self ! REPVehicleInquiry(personId, whenWhere)
+      getBeamSkimmer.countEventsByTAZ(whenWhere.time, whenWhere.loc, getId, "MobilityStatusInquiry")
 
     case TryToBoardVehicle(token, who) =>
-      println(s"to board ===> ${token.id}")
       makeUnavailable(token.id, token.streetVehicle) match {
-        case Some(vehicle) => who ! Boarded(vehicle)
-          println(s"available ===> ${token.id} | size: ${availableVehiclesIndex.size()}")
+        case Some(vehicle) =>
+          who ! Boarded(vehicle)
+          getBeamSkimmer.countEventsByTAZ(vehicle.spaceTime.time, vehicle.spaceTime.loc, getId, "Boarded")
         case _ => who ! NotAvailable
-          println(s"not available ===> ${token.id}")
       }
 
     case NotifyVehicleIdle(vId, whenWhere, _, _, _) =>
@@ -102,10 +106,12 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
 
     case ReleaseVehicle(vehicle) =>
       makeAvailable(vehicle.id)
+      getBeamSkimmer.countEventsByTAZ(vehicle.spaceTime.time, vehicle.spaceTime.loc, getId, "ReleaseVehicle")
 
     case ReleaseVehicleAndReply(vehicle, _) =>
       makeAvailable(vehicle.id)
       sender() ! Success
+      getBeamSkimmer.countEventsByTAZ(vehicle.spaceTime.time, vehicle.spaceTime.loc, getId, "ReleaseVehicleAndReply")
   }
 
   def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(
@@ -123,13 +129,11 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   override def getActorRef: ActorRef = self
   override def getScheduler: ActorRef = mainScheduler
   override def getBeamServices: BeamServices = beamServices
-  override def getAlgorithm: RepositionAlgorithm = algorithm
-  override def getTimeStep: Int = 15 * 60
+  override def getREPAlgorithm: RepositionAlgorithm = algorithm
+  override def getREPTimeStep: Int = 15 * 60
   override def getBeamSkimmer: BeamSkimmer = beamSkimmer
-  override def getRepositionManagerListenerInstance: RepositionManagerListener =
-    getBeamServices.injector.getInstance(classOf[RepositionManagerListener])
 
-  val algorithm = new AvailabilityBasedRepositioning(beamSkimmer, beamServices)
+  val algorithm = new AvailabilityBasedRepositioning(beamSkimmer, beamServices, this)
 
   override def makeAvailable(vehId: Id[BeamVehicle]): Boolean = {
     val vehicle = vehicles(vehId)

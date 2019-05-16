@@ -198,7 +198,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
 
   def getPreviousSkimValueOrDefault(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Skim = {
     previousSkims.get((timeToBin(time), mode, orig, dest)) match {
-      case someSkim @ Some(_) => someSkim.get.toSkimExternal
+      case Some(someSkim) => someSkim.toSkimExternal
       case None =>
         val origTaz = beamServices.tazTreeMap.getTAZ(orig).get.coord
         val destTaz = beamServices.tazTreeMap.getTAZ(dest).get.coord
@@ -522,21 +522,16 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
       .flatten
   }
 
-  def observeVehicleDemandByTAZ(
+  def countEventsByTAZ(
     time: Int,
     location: Coord,
     vehicleManager: Id[VehicleManager],
-    label: Label,
-    who: Option[Id[Person]]
+    label: Label
   ): Unit = {
-    who match {
-      case Some(_) =>
-        val timeBin = timeToBin(time, timeWindow)
-        val taz = beamServices.tazTreeMap.getTAZ(location.getX, location.getY)
-        val key = (timeBin, taz.tazId, vehicleManager, label)
-        skimsPlus.put(key, skimsPlus.getOrElse(key, 1.0) + 1.0)
-      case _ =>
-    }
+    val timeBin = timeToBin(time, timeWindow)
+    val taz = beamServices.tazTreeMap.getTAZ(location.getX, location.getY)
+    val key = (timeBin, taz.tazId, vehicleManager, label)
+    skimsPlus.put(key, skimsPlus.getOrElse(key, 0.0) + 1.0)
   }
 
   def observeVehicleAvailabilityByTAZ(
@@ -548,9 +543,11 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     val timeBin = timeToBin(time, timeWindow)
     beamServices.tazTreeMap.getTAZs.foreach { taz =>
       val key = (timeBin, taz.tazId, vehicleManager, label)
-      val count = vehicles.count(v => taz == beamServices.tazTreeMap.getTAZ(
-        v.asInstanceOf[BeamVehicle].spaceTime.loc.getX,
-        v.asInstanceOf[BeamVehicle].spaceTime.loc.getY))
+      val count = vehicles.count(
+        v =>
+          taz == beamServices.tazTreeMap
+            .getTAZ(v.asInstanceOf[BeamVehicle].spaceTime.loc.getX, v.asInstanceOf[BeamVehicle].spaceTime.loc.getY)
+      )
       skimsPlus.put(key, skimsPlus.getOrElse(key, 0.0) + count.toDouble)
     }
   }
