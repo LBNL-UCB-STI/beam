@@ -1,9 +1,9 @@
 package beam.agentsim.agents.ridehail
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager._
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.Location
@@ -14,11 +14,18 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.Vehicle
-import beam.agentsim.agents.ridehail.RideHailVehicleManager._
-import beam.agentsim.agents.vehicles.BeamVehicleType
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
-import collection.JavaConverters._
+
+object RideHailAgentETAComparatorMinTimeToCustomer extends Ordering[RideHailAgentETA] {
+  override def compare(
+    o1: RideHailAgentETA,
+    o2: RideHailAgentETA
+  ): Int = {
+    java.lang.Double.compare(o1.timeToCustomer, o2.timeToCustomer)
+  }
+}
 
 /**
   * BEAM
@@ -95,12 +102,14 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     customerRequestTime: Long,
     excludeRideHailVehicles: Set[Id[Vehicle]] = Set(),
     secondsPerEuclideanMeterFactor: Double = 0.1 // (~13.4m/s)^-1 * 1.4
-  ): Vector[RideHailAgentETA] = {
+  ): Option[RideHailAgentETA] = {
     var start = System.currentTimeMillis()
     val nearbyAvailableRideHailAgents = availableRideHailAgentSpatialIndex
       .getDisk(pickupLocation.getX, pickupLocation.getY, radius)
       .asScala
+      .view
       .filter(x => availableRideHailVehicles.contains(x.vehicleId) && !excludeRideHailVehicles.contains(x.vehicleId))
+
     var end = System.currentTimeMillis()
     val diff1 = end - start
 
@@ -115,8 +124,6 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
         val timeToCustomer = distance * secondsPerEuclideanMeterFactor + extra
         RideHailAgentETA(rideHailAgentLocation, distance, timeToCustomer)
       }
-      .toVector
-      .sortBy(_.timeToCustomer)
     end = System.currentTimeMillis()
     val diff2 = end - start
 
@@ -124,8 +131,10 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
       logger.debug(
         s"getClosestIdleVehiclesWithinRadiusByETA for $pickupLocation with $radius nearbyAvailableRideHailAgents: $diff1, diff2: $diff2. Total: ${diff1 + diff2} ms"
       )
-
-    times2RideHailAgents
+    if (times2RideHailAgents.isEmpty) None
+    else {
+      Some(times2RideHailAgents.min(RideHailAgentETAComparatorMinTimeToCustomer))
+    }
   }
 
   def getClosestIdleVehiclesWithinRadius(
