@@ -1,6 +1,5 @@
 package beam.sim.vehiclesharing
 import akka.actor.{Actor, ActorLogging, ActorRef}
-import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleAndReply
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -11,9 +10,10 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamSkimmer
 import beam.sim.BeamServices
 import com.vividsolutions.jts.index.quadtree.Quadtree
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 
 case class REPVehicleRepositionTrigger(tick: Int) extends Trigger
+case class REPDataCollectionTrigger(tick: Int) extends Trigger
 case class REPVehicleTeleportTrigger(tick: Int, whereWhen: SpaceTime, vehicle: BeamVehicle, idTAZ: Id[TAZ])
     extends Trigger
 
@@ -21,6 +21,7 @@ trait VehicleManager
 
 trait RepositionAlgorithm {
   def getVehiclesForReposition(time: Int): List[(BeamVehicle, SpaceTime, Id[TAZ], SpaceTime, Id[TAZ])]
+  def collectData(time: Int, coord: Coord, label: String)
   def collectData(time: Int)
 }
 
@@ -36,18 +37,32 @@ trait RepositionManager extends Actor with ActorLogging {
   def getBeamSkimmer: BeamSkimmer
   def getREPAlgorithm: RepositionAlgorithm
   def getREPTimeStep: Int
+  def getDataCollectTimeStep: Int = 5 * 60
 
-  getScheduler ! ScheduleTrigger(REPVehicleRepositionTrigger(0), getActorRef)
+  var trackTimeSteps = 0
+
+  getScheduler ! ScheduleTrigger(REPVehicleRepositionTrigger(getREPTimeStep), getActorRef)
+  getScheduler ! ScheduleTrigger(REPDataCollectionTrigger(getDataCollectTimeStep), getActorRef)
 
   override def receive: Receive = {
 
+    case TriggerWithId(REPDataCollectionTrigger(tick), triggerId) =>
+      val nextTick = tick + getDataCollectTimeStep
+      getREPAlgorithm.collectData(tick)
+      getScheduler.tell(
+        CompletionNotice(
+          triggerId,
+          Vector(ScheduleTrigger(REPDataCollectionTrigger(nextTick), getActorRef))
+        ),
+        getActorRef
+      )
+
     case TriggerWithId(REPVehicleRepositionTrigger(tick), triggerId) =>
       val nextTick = tick + getREPTimeStep
-      if (tick > 0) getREPAlgorithm.collectData(tick) // collecting
       if (getBeamServices.iterationNumber > 0 || getBeamServices.beamConfig.beam.warmStart.enabled) {
         val vehForReposition = getREPAlgorithm.getVehiclesForReposition(tick)
         vehForReposition.filter(rep => makeUnavailable(rep._1.id, rep._1.toStreetVehicle).isDefined).foreach {
-          case (vehicle, orgWhereWhen, _, dstWhereWhen, dstTAZ) =>
+          case (vehicle, _, _, dstWhereWhen, dstTAZ) =>
             getScheduler.tell(
               CompletionNotice(
                 triggerId,
@@ -60,7 +75,7 @@ trait RepositionManager extends Actor with ActorLogging {
               ),
               getActorRef
             )
-            getBeamSkimmer.countEventsByTAZ(orgWhereWhen.time, orgWhereWhen.loc, getId, RepositionManager.pickup)
+            getREPAlgorithm.collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.pickup)
         }
       }
       if (nextTick < 108000) {
@@ -77,12 +92,15 @@ trait RepositionManager extends Actor with ActorLogging {
     case TriggerWithId(REPVehicleTeleportTrigger(_, whereWhen, vehicle, _), _) =>
       makeTeleport(vehicle.id, whereWhen)
       makeAvailable(vehicle.id)
-      getBeamSkimmer.countEventsByTAZ(whereWhen.time, whereWhen.loc, getId, RepositionManager.dropoff)
+      getREPAlgorithm.collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.dropoff)
   }
 
 }
 
 object RepositionManager {
-  val pickup = "pickup"
-  val dropoff = "dropoff"
+  val pickup = "REPPickup"
+  val dropoff = "REPDropoff"
+  val inquiry = "VEHInquiry"
+  val boarded = "VEHBoarded"
+  val release = "VEHRelease"
 }

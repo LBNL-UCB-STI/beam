@@ -5,7 +5,7 @@ import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -17,29 +17,40 @@ private[vehiclesharing] class AvailabilityBasedRepositioning(
 ) extends RepositionAlgorithm {
 
   case class RepositioningRequest(taz: TAZ, availableVehicles: Int, shortage: Int)
-  val LABEL: String = "availability"
   val minAvailabilityMap = mutable.HashMap.empty[(Int, Id[TAZ]), Int]
-  val timeBin = repositionManager.getREPTimeStep
+  val unboardedVehicleInquiry = mutable.HashMap.empty[(Int, Id[TAZ]), Int]
   val orderingAvailVeh = Ordering.by[RepositioningRequest, Int](_.availableVehicles)
   val orderingShortage = Ordering.by[RepositioningRequest, Int](_.shortage)
-
+  val availability = "VEHAvailability"
 
   beamServices.tazTreeMap.getTAZs.foreach { taz =>
-    (0 until 108000 by timeBin).foreach { i =>
-      val availVal = beamSkimmer.getPreviousSkimPlusValues(i, i + timeBin, taz.tazId, repositionManager.getId, LABEL)
-      val availValMin =
-        availVal.drop(1).foldLeft(availVal.headOption.getOrElse(0.0).toInt)((minV, cur) => Math.min(minV, cur.toInt))
+    (0 to 108000/repositionManager.getREPTimeStep).foreach { i =>
+      val time = i*repositionManager.getREPTimeStep
+      val availVal = getSkim(time, taz.tazId, availability)
+      val availValMin = availVal.drop(1).foldLeft(availVal.headOption.getOrElse(0.0).toInt) {
+        (minV, cur) => Math.min(minV, cur.toInt)
+      }
       minAvailabilityMap.put((i, taz.tazId), availValMin)
+      val inquiryVal = getSkim(time, taz.tazId, RepositionManager.inquiry).sum.toInt
+      val boardingVal = getSkim(time, taz.tazId, RepositionManager.boarded).sum.toInt
+      unboardedVehicleInquiry.put((i, taz.tazId), inquiryVal - boardingVal)
     }
   }
-
   override def collectData(time: Int) = {
+    val curBin = time/repositionManager.getDataCollectTimeStep
     val vehicles = repositionManager.getAvailableVehiclesIndex.queryAll().asScala.toList
-    beamSkimmer.observeVehicleAvailabilityByTAZ(time, repositionManager.getId, LABEL, vehicles)
+    beamSkimmer.observeVehicleAvailabilityByTAZ(curBin, repositionManager.getId, availability, vehicles)
+  }
+
+  override def collectData(time: Int, coord: Coord, label: String) = {
+    val curBin = time/repositionManager.getDataCollectTimeStep
+    beamSkimmer.countEventsByTAZ(curBin, coord, repositionManager.getId, label)
   }
 
   private def getSkim(time: Int, idTAZ: Id[TAZ], label: String) = {
-    beamSkimmer.getPreviousSkimPlusValues(time, time + timeBin, idTAZ, repositionManager.getId, label)
+    val fromBin = time/repositionManager.getDataCollectTimeStep
+    val untilBin = (time+repositionManager.getREPTimeStep)/repositionManager.getDataCollectTimeStep
+    beamSkimmer.getPreviousSkimPlusValues(fromBin, untilBin, idTAZ, repositionManager.getId, label)
   }
 
   override def getVehiclesForReposition(now: Int): List[(BeamVehicle, SpaceTime, Id[TAZ], SpaceTime, Id[TAZ])] = {
@@ -47,12 +58,11 @@ private[vehiclesharing] class AvailabilityBasedRepositioning(
     val oversuppliedTAZ = mutable.TreeSet.empty[RepositioningRequest](orderingAvailVeh)
     val undersuppliedTAZ = mutable.TreeSet.empty[RepositioningRequest](orderingShortage)
 
-    val futureNow = now + timeBin
+    val nowRepBin = now/repositionManager.getREPTimeStep
+    val futureRepBin = nowRepBin + 1
     beamServices.tazTreeMap.getTAZs.foreach { taz =>
-      val inquiryVal = getSkim(futureNow, taz.tazId, "MobilityStatusInquiry").sum.toInt
-      val boardingVal = getSkim(futureNow, taz.tazId, "Boarded").sum.toInt
-      val availValMin = minAvailabilityMap((now, taz.tazId))
-      val InquiryUnboarded = inquiryVal - boardingVal
+      val availValMin = minAvailabilityMap((nowRepBin, taz.tazId))
+      val InquiryUnboarded = unboardedVehicleInquiry((futureRepBin, taz.tazId))
       if (availValMin > 0) {
         oversuppliedTAZ.add(RepositioningRequest(taz, availValMin, 0))
       } else if (InquiryUnboarded > 0) {
@@ -60,8 +70,10 @@ private[vehiclesharing] class AvailabilityBasedRepositioning(
       }
     }
 
-    val ODs = new mutable.ListBuffer[(RepositioningRequest, RepositioningRequest, Int)]
-    oversuppliedTAZ.foreach { org =>
+    val ODs = new mutable.ListBuffer[(RepositioningRequest, RepositioningRequest, Int, Int)]
+
+    while (oversuppliedTAZ.nonEmpty && undersuppliedTAZ.nonEmpty) {
+      val org = oversuppliedTAZ.head
       var destTimeOpt: Option[(RepositioningRequest, Int)] = None
       undersuppliedTAZ.foreach { dst =>
         val skim = beamSkimmer.getPreviousSkimValueOrDefault(now, BeamMode.CAR, org.taz.tazId, dst.taz.tazId)
@@ -69,16 +81,29 @@ private[vehiclesharing] class AvailabilityBasedRepositioning(
           destTimeOpt = Some((dst, skim.time))
         }
       }
-      destTimeOpt foreach { case (dst, tt) => ODs.append((org, dst, tt)) }
+      destTimeOpt foreach {
+        case (dst, tt) =>
+          val fleetSize = Math.min(org.availableVehicles, dst.shortage)
+          oversuppliedTAZ.remove(org)
+          if (org.availableVehicles > fleetSize) {
+            oversuppliedTAZ.add(org.copy(availableVehicles = org.availableVehicles - fleetSize))
+          }
+          undersuppliedTAZ.remove(dst)
+          if (dst.shortage > fleetSize) {
+            undersuppliedTAZ.add(dst.copy(shortage = dst.shortage - fleetSize))
+          }
+          ODs.append((org, dst, tt, fleetSize))
+      }
     }
 
     val vehiclesForReposition = new mutable.ListBuffer[(BeamVehicle, SpaceTime, Id[TAZ], SpaceTime, Id[TAZ])]()
     ODs.foreach {
-      case (org, dst, tt) =>
+      case (org, dst, tt, fs) =>
         val arrivalTime = now + tt
         val vehicles = repositionManager.getAvailableVehiclesIndex
           .queryAll()
           .asScala
+          .take(fs)
           .filter(
             v =>
               org.taz == beamServices.tazTreeMap.getTAZ(
@@ -97,10 +122,10 @@ private[vehiclesharing] class AvailabilityBasedRepositioning(
             )
           )
         vehiclesForReposition.appendAll(vehicles)
-        val orgKey = (now, org.taz.tazId)
-        val dstKey = (futureNow, dst.taz.tazId)
+        val orgKey = (nowRepBin, org.taz.tazId)
+        val dstKey = (futureRepBin, dst.taz.tazId)
         minAvailabilityMap.update(orgKey, minAvailabilityMap(orgKey) - vehicles.size)
-        minAvailabilityMap.update(dstKey, minAvailabilityMap(dstKey) + vehicles.size)
+        //minAvailabilityMap.update(dstKey, minAvailabilityMap(dstKey) + vehicles.size)
     }
 
     vehiclesForReposition.toList

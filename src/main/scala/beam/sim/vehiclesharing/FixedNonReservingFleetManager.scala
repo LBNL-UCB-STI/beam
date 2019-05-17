@@ -91,13 +91,13 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       sender ! MobilityStatusResponse(nearbyVehicles.take(5).map { vehicle =>
         Token(vehicle.id, self, vehicle.toStreetVehicle)
       })
-      getBeamSkimmer.countEventsByTAZ(whenWhere.time, whenWhere.loc, getId, "MobilityStatusInquiry")
+      getREPAlgorithm.collectData(whenWhere.time, whenWhere.loc, RepositionManager.inquiry)
 
     case TryToBoardVehicle(token, who) =>
       makeUnavailable(token.id, token.streetVehicle) match {
         case Some(vehicle) =>
           who ! Boarded(vehicle)
-          getBeamSkimmer.countEventsByTAZ(vehicle.spaceTime.time, vehicle.spaceTime.loc, getId, "Boarded")
+          getREPAlgorithm.collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.boarded)
         case _ => who ! NotAvailable
       }
 
@@ -106,12 +106,12 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
 
     case ReleaseVehicle(vehicle) =>
       makeAvailable(vehicle.id)
-      getBeamSkimmer.countEventsByTAZ(vehicle.spaceTime.time, vehicle.spaceTime.loc, getId, "ReleaseVehicle")
+      getREPAlgorithm.collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
 
     case ReleaseVehicleAndReply(vehicle, _) =>
       makeAvailable(vehicle.id)
       sender() ! Success
-      getBeamSkimmer.countEventsByTAZ(vehicle.spaceTime.time, vehicle.spaceTime.loc, getId, "ReleaseVehicleAndReply")
+      getREPAlgorithm.collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
   }
 
   def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(
@@ -130,7 +130,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   override def getScheduler: ActorRef = mainScheduler
   override def getBeamServices: BeamServices = beamServices
   override def getREPAlgorithm: RepositionAlgorithm = algorithm
-  override def getREPTimeStep: Int = 15 * 60
+  override def getREPTimeStep: Int = 60 * 60
   override def getBeamSkimmer: BeamSkimmer = beamSkimmer
 
   val algorithm = new AvailabilityBasedRepositioning(beamSkimmer, beamServices, this)

@@ -261,9 +261,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     }
   }
 
-  def timeToBin(departTime: Int, timeWindow: Double = 3600.0): Int = {
-    Math.floorMod(Math.floor(departTime.toDouble / timeWindow).toInt, (30 * 3600 / timeWindow).toInt)
-  }
+  def timeToBin(departTime: Int, timeWindow: Int = 3600): Int = departTime / timeWindow
 
   def mergeAverage(existingAverage: Double, existingCount: Int, newValue: Double): Double = {
     (existingAverage * existingCount + newValue) / (existingCount + 1)
@@ -498,57 +496,54 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
 
   // **********
   // Skim Plus
+  private var trackSkimsPlusTS = -1
   private var previousSkimsPlus: TrieMap[(TimeBin, Id[TAZ], Id[VehicleManager], Label), Double] =
     initialPreviousSkimsPlus()
   private var skimsPlus: TrieMap[(TimeBin, Id[TAZ], Id[VehicleManager], Label), Double] = TrieMap()
-  private val timeWindow: Int = 5 * 60
   private def skimsPlusFilePath: Option[String] = {
     val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
     BeamWarmStart(beamConfig, maxHour).getWarmStartFilePath(observedSkimsPlusFileBaseName + ".csv.gz")
   }
 
   def getPreviousSkimPlusValues(
-    startTime: Int,
-    endTime: Int,
+    fromBin: Int,
+    untilBin: Int,
     taz: Id[TAZ],
     vehicleManager: Id[VehicleManager],
     label: Label
   ): Vector[Double] = {
-    (timeToBin(startTime, timeWindow) to timeToBin(endTime, timeWindow))
-      .map { i =>
-        previousSkimsPlus.get((i, taz, vehicleManager, label))
-      }
-      .toVector
-      .flatten
+    (fromBin until untilBin).map { i => previousSkimsPlus.get((i, taz, vehicleManager, label))}.toVector.flatten
   }
 
   def countEventsByTAZ(
-    time: Int,
+    curBin: Int,
     location: Coord,
     vehicleManager: Id[VehicleManager],
-    label: Label
+    label: Label,
+    count: Int = 1
   ): Unit = {
-    val timeBin = timeToBin(time, timeWindow)
+    if (curBin > trackSkimsPlusTS) trackSkimsPlusTS = curBin
     val taz = beamServices.tazTreeMap.getTAZ(location.getX, location.getY)
-    val key = (timeBin, taz.tazId, vehicleManager, label)
-    skimsPlus.put(key, skimsPlus.getOrElse(key, 0.0) + 1.0)
+    val key = (trackSkimsPlusTS, taz.tazId, vehicleManager, label)
+    skimsPlus.put(key, skimsPlus.getOrElse(key, 0.0) + count.toDouble)
   }
 
   def observeVehicleAvailabilityByTAZ(
-    time: Int,
+    curBin: Int,
     vehicleManager: Id[VehicleManager],
     label: Label,
     vehicles: List[Any]
   ): Unit = {
-    val timeBin = timeToBin(time, timeWindow)
+    var filteredVehicles = vehicles
     beamServices.tazTreeMap.getTAZs.foreach { taz =>
-      val key = (timeBin, taz.tazId, vehicleManager, label)
-      val count = vehicles.count(
+      val filteredVehiclesTemp = filteredVehicles.filter(
         v =>
-          taz == beamServices.tazTreeMap
+          taz != beamServices.tazTreeMap
             .getTAZ(v.asInstanceOf[BeamVehicle].spaceTime.loc.getX, v.asInstanceOf[BeamVehicle].spaceTime.loc.getY)
       )
-      skimsPlus.put(key, skimsPlus.getOrElse(key, 0.0) + count.toDouble)
+      val count = filteredVehicles.size - filteredVehiclesTemp.size
+      countEventsByTAZ(curBin, taz.coord, vehicleManager, label, count)
+      filteredVehicles = filteredVehiclesTemp
     }
   }
 
