@@ -1636,7 +1636,8 @@ object BeamConfig {
       writeEventsInterval: scala.Int,
       writeGraphs: scala.Boolean,
       writeLinkTraversalInterval: scala.Int,
-      writePlansInterval: scala.Int
+      writePlansInterval: scala.Int,
+      writeSkimsInterval: scala.Int
     )
 
     object Outputs {
@@ -1715,7 +1716,8 @@ object BeamConfig {
           writeGraphs = !c.hasPathOrNull("writeGraphs") || c.getBoolean("writeGraphs"),
           writeLinkTraversalInterval =
             if (c.hasPathOrNull("writeLinkTraversalInterval")) c.getInt("writeLinkTraversalInterval") else 0,
-          writePlansInterval = if (c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0
+          writePlansInterval = if (c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0,
+          writeSkimsInterval = if (c.hasPathOrNull("writeSkimsInterval")) c.getInt("writeSkimsInterval") else 1
         )
       }
     }

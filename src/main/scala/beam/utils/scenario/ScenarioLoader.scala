@@ -12,7 +12,7 @@ import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.Population
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households._
@@ -31,7 +31,7 @@ class ScenarioLoader(
 
   val availableModes: String = BeamMode.allModes.map(_.value).mkString(",")
 
-  def loadScenario(): Unit = {
+  def loadScenario(): Scenario = {
     clear()
 
     val plans = scenarioSource.getPlans
@@ -67,6 +67,7 @@ class ScenarioLoader(
     applyPlans(plans)
 
     logger.info("The scenario loading is completed..")
+    scenario
   }
 
   private def replacePersonHouseholdFromService(): Unit = {
