@@ -868,7 +868,7 @@ class PersonAgent(
         log.debug("Person {} stashing BoardOrAlight {} b/c on CAV trip", id, triggerId)
         stash
         stay
-      case Some(trip) if beamServices.vehicleTypes.get(beamVehicleTypeId).map(_.automationLevel > 3).getOrElse(false) =>
+      case Some(trip) if beamServices.vehicleTypes.get(beamVehicleTypeId).exists(_.automationLevel > 3) =>
         log.warning(
           "Person {} in state {} is abandoning CAV trips for rest of day because received Board/Alight trigger while on {} trip",
           id,

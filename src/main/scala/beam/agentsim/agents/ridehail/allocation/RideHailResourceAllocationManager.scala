@@ -126,8 +126,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
             request.pickUpLocationUTM,
             rideHailManager.radiusInMeters,
             tick
-          )
-          .headOption match {
+          ) match {
           case Some(agentETA) =>
             val routeRequired = RoutingRequiredToAllocateVehicle(
               request,
@@ -151,8 +150,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
             rideHailManager.radiusInMeters,
             tick,
             excludeRideHailVehicles = alreadyAllocated
-          )
-          .headOption match {
+          ) match {
           case Some(agentETA) =>
             alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId
             val pickDropIdAndLegs = List(

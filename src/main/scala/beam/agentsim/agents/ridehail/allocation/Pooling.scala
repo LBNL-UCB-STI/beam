@@ -22,8 +22,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         inquiry.pickUpLocationUTM,
         rideHailManager.radiusInMeters,
         inquiry.departAt
-      )
-      .headOption match {
+      ) match {
       case Some(agentETA) =>
         SingleOccupantQuoteAndPoolingInfo(agentETA.agentLocation, Some(PoolingInfo(1.1, 0.6)))
       case None =>
@@ -97,8 +96,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
               rideHailManager.radiusInMeters,
               tick,
               excludeRideHailVehicles = alreadyAllocated
-            )
-            .headOption match {
+            ) match {
             case Some(agentETA) =>
               alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId
               allocResponses = allocResponses :+ RoutingRequiredToAllocateVehicle(
@@ -205,8 +203,7 @@ object Pooling {
         rideHailManager.radiusInMeters,
         pickUpTime,
         excludeRideHailVehicles = alreadyAllocated
-      )
-      .headOption match {
+      ) match {
       case Some(agentETA) =>
         RoutingRequiredToAllocateVehicle(
           request,
