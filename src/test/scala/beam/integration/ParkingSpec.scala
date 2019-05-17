@@ -3,8 +3,8 @@ package beam.integration
 import java.io.File
 
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ParkEvent, PathTraversalEvent}
-import beam.integration.EventReader._
 import beam.sim.BeamHelper
+import beam.utils.EventReader._
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.apache.commons.io.FileUtils
 import org.matsim.api.core.v01.events.Event
