@@ -249,7 +249,7 @@ class RideHailModifyPassengerScheduleManager(
 
   def startWaveOfRepositioningOrBatchedReservationRequests(tick: Int, triggerId: Long): Unit = {
     assert(
-      vehicleIdToModifyPassengerScheduleStatus.toVector.unzip._2.count(x => x.nonEmpty)
+      vehicleIdToModifyPassengerScheduleStatus.toVector.map(_._2).count(x => x.nonEmpty)
         == resourcesNotCheckedIn_onlyForDebugging.count(x => getModifyStatusListForId(x).nonEmpty)
     )
 //    assert(numberPendingModifyPassengerScheduleAcks <= 0)
