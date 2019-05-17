@@ -69,7 +69,9 @@ class IndexerForZonalParkingManager(resources: Map[StallAttributes, StallValues]
     }
 
     tazWithDistance.view
-      .map { case (taz, _) => find(key(taz.tazId, reservedFor)) }.find(_.isDefined).flatten
+      .map { case (taz, _) => find(key(taz.tazId, reservedFor)) }
+      .find(_.isDefined)
+      .flatten
   }
 
 }

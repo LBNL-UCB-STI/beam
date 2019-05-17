@@ -223,7 +223,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           tempScheduleStore.put(newRideHailRequest.get.requestId, scheduleToCache :+ theTrip.schedule.last)
       }
       // Anyone unsatisfied must be assigned NoVehicleAllocated
-      val wereAllocated = allocResponses.flatMap(resp => resp.request.groupedWithOtherRequests.map(_.requestId).toSet + resp.request.requestId)
+      val wereAllocated = allocResponses
+        .flatMap(resp => resp.request.groupedWithOtherRequests.map(_.requestId).toSet + resp.request.requestId)
         .toSet
       pooledAllocationReqs.filterNot(req => wereAllocated.contains(req.requestId)).foreach { unsatisfiedReq =>
         allocResponses = allocResponses :+ NoVehicleAllocated(unsatisfiedReq)
