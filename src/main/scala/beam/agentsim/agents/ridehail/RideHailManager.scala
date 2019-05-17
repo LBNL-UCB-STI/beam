@@ -272,10 +272,15 @@ class RideHailManager(
       self,
       this
     )
+  private val DefaultBaseCost = beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultBaseCost
   private val DefaultCostPerMile = beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile
   private val DefaultCostPerMinute = beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute
+  private val PooledBaseCost = beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledBaseCost
+  private val PooledCostPerMile = beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMile
+  private val PooledCostPerMinute = beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMinute
   tncIterationStats.foreach(_.logMap())
   private val DefaultCostPerSecond = DefaultCostPerMinute / 60.0d
+  private val PooledCostPerSecond = PooledCostPerMinute / 60.0d
 
   beamServices.beamRouter ! GetTravelTime
   beamServices.beamRouter ! GetMatSimNetwork
@@ -851,14 +856,26 @@ class RideHailManager(
     request: RideHailRequest,
     rideHailVehicleTypeId: Id[BeamVehicleType],
     trip: PassengerSchedule,
-    baseFare: Double
+    additionalCost: Double
   ): Map[Id[Person], Double] = {
-    val timeFare = DefaultCostPerSecond * surgePricingManager
+    var CostPerSecond = 0.0
+    var CostPerMile = 0.0
+    var BaseCost = 0.0
+    if (request.asPooled) {
+      CostPerSecond = PooledCostPerSecond
+      CostPerMile = PooledCostPerMile
+      BaseCost = PooledBaseCost
+    } else {
+      CostPerSecond = DefaultCostPerSecond
+      CostPerMile = DefaultCostPerMile
+      BaseCost = DefaultBaseCost
+    }
+    val timeFare = CostPerSecond * surgePricingManager
       .getSurgeLevel(
         request.pickUpLocationUTM,
         request.departAt
       ) * trip.legsWithPassenger(request.customer).map(_.duration).sum.toDouble
-    val distanceFare = DefaultCostPerMile * trip.schedule.keys.map(_.travelPath.distanceInM / 1609).sum
+    val distanceFare = CostPerMile * trip.schedule.keys.map(_.travelPath.distanceInM / 1609).sum
 
     val timeFareAdjusted = beamServices.vehicleTypes.get(rideHailVehicleTypeId) match {
       case Some(vehicleType) if vehicleType.automationLevel > 3 =>
@@ -866,8 +883,7 @@ class RideHailManager(
       case _ =>
         timeFare
     }
-    val fare = distanceFare + timeFareAdjusted + baseFare
-
+    val fare = distanceFare + timeFareAdjusted + additionalCost + BaseCost
     Map(request.customer.personId -> fare)
   }
 
