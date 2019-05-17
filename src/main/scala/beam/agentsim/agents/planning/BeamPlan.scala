@@ -53,24 +53,22 @@ object BeamPlan {
     destinationActivity: Activity
   ): Plan = {
     val newPlanElements = plan.getPlanElements.asScala
-      .sliding(2)
-      .map { elems =>
-        var outputElems = List(elems.head)
-        if (elems.size == 2) {
-          if (elems.head.isInstanceOf[Activity] && elems.head.asInstanceOf[Activity].equals(originActivity)) {
-            if (elems.last.isInstanceOf[Activity] && elems.last.asInstanceOf[Activity].equals(destinationActivity)) {
-              outputElems = outputElems :+ leg.asInstanceOf[PlanElement]
-            } else if (elems.last.isInstanceOf[Leg]) {
-              outputElems = outputElems :+ leg.asInstanceOf[PlanElement]
-            }
-          } else if (elems.head.isInstanceOf[Leg] && elems.last
-                       .isInstanceOf[Activity] && elems.last.asInstanceOf[Activity].equals(destinationActivity)) {
-            outputElems = List()
+      .sliding(2).flatMap { elems =>
+      var outputElems = List(elems.head)
+      if (elems.size == 2) {
+        if (elems.head.isInstanceOf[Activity] && elems.head.asInstanceOf[Activity].equals(originActivity)) {
+          if (elems.last.isInstanceOf[Activity] && elems.last.asInstanceOf[Activity].equals(destinationActivity)) {
+            outputElems = outputElems :+ leg.asInstanceOf[PlanElement]
+          } else if (elems.last.isInstanceOf[Leg]) {
+            outputElems = outputElems :+ leg.asInstanceOf[PlanElement]
           }
+        } else if (elems.head.isInstanceOf[Leg] && elems.last
+          .isInstanceOf[Activity] && elems.last.asInstanceOf[Activity].equals(destinationActivity)) {
+          outputElems = List()
         }
-        outputElems
       }
-      .flatten
+      outputElems
+    }
       .toList :+ plan.getPlanElements.asScala.last
     val newPlan = PopulationUtils.createPlan()
     newPlanElements.foreach(

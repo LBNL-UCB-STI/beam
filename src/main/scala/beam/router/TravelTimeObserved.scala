@@ -310,7 +310,7 @@ object TravelTimeObserved extends LazyLogging {
       new Color(255, 0, 60) // dark red
     )
 
-    (0 to seriesPerCount.size - 1).map { counter =>
+    (0 until seriesPerCount.size).map { counter =>
       val renderer = xyplot
         .getRendererForDataset(xyplot.getDataset(0))
 
