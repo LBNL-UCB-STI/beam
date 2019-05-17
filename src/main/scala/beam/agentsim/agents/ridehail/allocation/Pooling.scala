@@ -49,7 +49,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
       val routeResponses = vehicleAllocationRequest.requests(request)
 
       // First check for broken route responses (failed routing attempt)
-      if (routeResponses.find(_.itineraries.size == 0).isDefined) {
+      if (routeResponses.find(_.itineraries.isEmpty).isDefined) {
         allocResponses = allocResponses :+ NoVehicleAllocated(request)
       } else {
         // Make sure vehicle still available

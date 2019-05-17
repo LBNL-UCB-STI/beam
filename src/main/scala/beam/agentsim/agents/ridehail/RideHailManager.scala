@@ -114,7 +114,7 @@ object RideHailManager {
             false,
             estimatedPrice(passenger.personId),
             false,
-            passengerSchedule.schedule.values.find(_.riders.size > 1).size > 0
+            passengerSchedule.schedule.values.find(_.riders.size > 1).isDefined
           )
         }
         .toVector
@@ -1198,7 +1198,7 @@ class RideHailManager(
               )
               allRoutesRequired = allRoutesRequired ++ routesRequired
             case alloc @ VehicleMatchedToCustomers(request, rideHailAgentLocation, pickDropIdWithRoutes)
-                if !pickDropIdWithRoutes.isEmpty =>
+                if pickDropIdWithRoutes.nonEmpty =>
               handleReservation(request, tick, createTravelProposal(alloc))
               rideHailResourceAllocationManager.removeRequestFromBuffer(request)
             case VehicleMatchedToCustomers(request, _, _) =>
@@ -1209,7 +1209,7 @@ class RideHailManager(
         }
       case _ =>
     }
-    if (!allRoutesRequired.isEmpty) {
+    if (allRoutesRequired.nonEmpty) {
       log.debug("requesting {} routes at {}", allRoutesRequired.size, tick)
       numPendingRoutingRequestsForReservations = numPendingRoutingRequestsForReservations + allRoutesRequired.size
       requestRoutes(tick, allRoutesRequired)

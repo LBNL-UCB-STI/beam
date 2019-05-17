@@ -141,7 +141,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
             NoVehicleAllocated(request)
         }
       // The following if condition ensures we actually got routes back in all cases
-      case (request, routingResponses) if routingResponses.find(_.itineraries.size == 0).isDefined =>
+      case (request, routingResponses) if routingResponses.find(_.itineraries.isEmpty).isDefined =>
         NoVehicleAllocated(request)
       case (request, routingResponses) =>
         rideHailManager.vehicleManager

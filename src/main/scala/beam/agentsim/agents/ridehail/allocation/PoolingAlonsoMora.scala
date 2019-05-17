@@ -77,7 +77,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val indexedResponses = routeResponses.map(resp => (resp.requestId -> resp)).toMap
 
       // First check for broken route responses (failed routing attempt)
-      if (routeResponses.find(_.itineraries.size == 0).isDefined) {
+      if (routeResponses.find(_.itineraries.isEmpty).isDefined) {
         allocResponses = allocResponses :+ NoVehicleAllocated(request)
         if (tempScheduleStore.contains(request.requestId)) tempScheduleStore.remove(request.requestId)
       } else {
@@ -127,7 +127,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         }
       }
     }
-    if (toAllocate.size > 0) {
+    if (toAllocate.nonEmpty) {
       implicit val skimmer: BeamSkimmer = rideHailManager.beamSkimmer
       val pooledAllocationReqs = toAllocate.filter(_.asPooled)
       val poolCustomerReqs = pooledAllocationReqs.map(

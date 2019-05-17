@@ -65,7 +65,7 @@ object NetworkXmlToCSV {
         val row = new StringBuffer()
 
         val attr = (link \ "attributes" \ "attribute").map(_.text)
-        val linkRow = linkAttribute.map(link \ _).map(x => escapeCommaIfNeeded(x.text)) ++ (if (attr.size == 0)
+        val linkRow = linkAttribute.map(link \ _).map(x => escapeCommaIfNeeded(x.text)) ++ (if (attr.isEmpty)
                                                                                               Seq("", "")
                                                                                             else attr)
 
