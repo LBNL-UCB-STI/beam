@@ -112,8 +112,8 @@ allprojects {
 dependencies {
 
     //beam-utilities
-    compile 'com.github.LBNL-UCB-STI:beam-utilities:rajnikantsh~remove-duplicate-code-SNAPSHOT'
-    
+    compile 'com.github.LBNL-UCB-STI:beam-utilities:23922d9793'
+
     ////////////////////////////
     // Java dependencies
     ////////////////////////////
