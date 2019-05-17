@@ -1,13 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<module type="PYTHON_MODULE" version="4">
+<module version="4">
   <component name="NewModuleRootManager" inherit-compiler-output="true">
     <exclude-output />
-    <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$/counts_tools" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/events_analysis" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/household_generator" isTestSource="false" />
-    </content>
-    <orderEntry type="jdk" jdkName="Python 3.7 (py37)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="R User Library" level="project" />
     <orderEntry type="library" name="R Skeletons" level="application" />
