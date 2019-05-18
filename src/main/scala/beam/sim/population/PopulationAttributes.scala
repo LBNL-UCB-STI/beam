@@ -203,7 +203,7 @@ object AttributesOfIndividual {
 }
 
 case class HouseholdAttributes(
-  householdId: Int,
+  householdId: String,
   householdIncome: Double,
   householdSize: Int,
   numCars: Int,
@@ -212,11 +212,11 @@ case class HouseholdAttributes(
 
 object HouseholdAttributes {
 
-  val EMPTY = HouseholdAttributes(0, 0.0, 0, 0, 0)
+  val EMPTY = HouseholdAttributes("0", 0.0, 0, 0, 0)
 
   def apply(household: Household, vehicles: Map[Id[BeamVehicle], BeamVehicle]): HouseholdAttributes = {
     new HouseholdAttributes(
-      householdId = household.getId.toString.toInt,
+      householdId = household.getId.toString,
       householdIncome = Option(household.getIncome)
         .getOrElse(new IncomeImpl(0, IncomePeriod.year))
         .getIncome,
