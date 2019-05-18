@@ -1,5 +1,6 @@
 package beam.agentsim.agents.ridehail.allocation
 
+import akka.actor.ActorRef
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, PoolingInfo}
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
@@ -17,6 +18,7 @@ import scala.collection.mutable
 abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager) extends LazyLogging {
 
   private var bufferedRideHailRequests = Map[RideHailRequest, List[RoutingResponse]]()
+  private var secondaryBufferedRideHailRequests = Map[RideHailRequest, List[RoutingResponse]]()
   private var awaitingRoutes = Set[RideHailRequest]()
 
   /*
@@ -54,6 +56,17 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   def addRequestToBuffer(request: RideHailRequest) = {
     bufferedRideHailRequests = bufferedRideHailRequests + (request -> List())
   }
+
+  def addRequestToSecondaryBuffer(request: RideHailRequest) = {
+    secondaryBufferedRideHailRequests = secondaryBufferedRideHailRequests + (request -> List())
+  }
+
+  def clearPrimaryBufferAndFillFromSecondary = {
+    bufferedRideHailRequests = secondaryBufferedRideHailRequests
+    secondaryBufferedRideHailRequests = Map()
+  }
+
+  def getBufferSize = bufferedRideHailRequests.size
 
   def addRouteForRequestToBuffer(request: RideHailRequest, routingResponse: RoutingResponse) = {
     if (awaitingRoutes.contains(request)) awaitingRoutes -= request
@@ -174,6 +187,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    * Reason: If you cancel it during the reservation, the reservation will overwrite the cancellation.
    */
   def reservationCompletionNotice(personId: Id[Person], vehicleId: Id[Vehicle]): Unit = {}
+
+  def getUnprocessedCustomers: Set[RideHailRequest] = awaitingRoutes
 
   /*
    * This is deprecated.

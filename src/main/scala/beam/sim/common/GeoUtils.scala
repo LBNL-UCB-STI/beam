@@ -2,14 +2,19 @@ package beam.sim.common
 
 import beam.agentsim.events.SpaceTime
 import beam.sim.config.BeamConfig
+import beam.utils.ProfilingUtils
 import beam.utils.logging.ExponentialLazyLogging
+import beam.utils.map.GpxPoint
 import com.conveyal.r5.profile.StreetMode
-import com.conveyal.r5.streets.{Split, StreetLayer}
+import com.conveyal.r5.streets.{EdgeStore, Split, StreetLayer}
 import com.google.inject.{ImplementedBy, Inject}
-import com.vividsolutions.jts.geom.Envelope
+import com.vividsolutions.jts.geom.{Coordinate, Envelope}
+import org.matsim.api.core.v01
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.network.Link
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
+
+case class EdgeWithCoord(edgeIndex: Int, wgsCoord: Coordinate)
 
 /**
   * Created by sfeygin on 4/2/17.
@@ -57,10 +62,28 @@ trait GeoUtils extends ExponentialLazyLogging {
   def distLatLon2Meters(x1: Double, y1: Double, x2: Double, y2: Double): Double =
     GeoUtils.distLatLon2Meters(x1, y1, x2, y2)
 
-  def getNearestR5Edge(streetLayer: StreetLayer, coord: Coord, maxRadius: Double = 1E5): Int = {
-    val theSplit = getR5Split(streetLayer, coord, maxRadius, StreetMode.WALK)
+  def getNearestR5EdgeToUTMCoord(streetLayer: StreetLayer, coordUTM: Coord, maxRadius: Double = 1E5): Int = {
+    getNearestR5Edge(streetLayer, utm2Wgs(coordUTM), maxRadius)
+  }
+
+  def getNearestR5Edge(streetLayer: StreetLayer, coordWGS: Coord, maxRadius: Double = 1E5): Int = {
+    val theSplit = getR5Split(streetLayer, coordWGS, maxRadius, StreetMode.WALK)
     if (theSplit == null) {
-      Int.MinValue
+      val closestEdgesToTheCorners = ProfilingUtils
+        .timed("getEdgesCloseToBoundingBox", x => logger.info(x)) {
+          getEdgesCloseToBoundingBox(streetLayer)
+        }
+        .map { case (edgeWithCoord, gpxPoint) => edgeWithCoord }
+      val closest = closestEdgesToTheCorners.minBy { edge =>
+        val matsimUtmCoord = wgs2Utm(new v01.Coord(edge.wgsCoord.x, edge.wgsCoord.y))
+        distUTMInMeters(matsimUtmCoord, wgs2Utm(coordWGS))
+      }
+      val distUTM = distUTMInMeters(wgs2Utm(coordWGS), wgs2Utm(new v01.Coord(closest.wgsCoord.x, closest.wgsCoord.y)))
+      logger.warn(
+        s"""The split is `null` for StreetLayer.BoundingBox: ${streetLayer.getEnvelope}, coordWGS: $coordWGS, maxRadius: $maxRadius.
+           | Will return closest to the corner: $closest which is $distUTM meters far away""".stripMargin
+      )
+      closest.edgeIndex
     } else {
       theSplit.edge
     }
@@ -101,6 +124,69 @@ trait GeoUtils extends ExponentialLazyLogging {
       theSplit = streetLayer.findSplit(coord.getY, coord.getX, maxRadius, streetMode)
     }
     theSplit
+  }
+
+  def getEdgesCloseToBoundingBox(streetLayer: StreetLayer): Array[(EdgeWithCoord, GpxPoint)] = {
+    val cursor = streetLayer.edgeStore.getCursor()
+    val iter = new Iterator[EdgeStore#Edge] {
+      override def hasNext: Boolean = cursor.advance()
+
+      override def next(): EdgeStore#Edge = cursor
+    }
+
+    val boundingBox = streetLayer.envelope
+
+    val insideBoundingBox = iter
+      .flatMap { edge =>
+        Option(edge.getGeometry.getBoundary.getCoordinate).map { coord =>
+          EdgeWithCoord(edge.getEdgeIndex, coord)
+        }
+      }
+      .withFilter(x => boundingBox.contains(x.wgsCoord))
+      .toArray
+
+    /*
+    min => x0,y0
+    max => x1,y1
+x0,y1 (TOP LEFT)    ._____._____. x1,y1 (TOP RIGHT)
+                    |           |
+                    |           |
+                    .           .
+                    |           |
+                    |           |
+x0,y0 (BOTTOM LEFT) ._____._____. x1, y0 (BOTTOM RIGHT)
+     */
+
+    val bottomLeft = new Coord(boundingBox.getMinX, boundingBox.getMinY)
+    val topLeft = new Coord(boundingBox.getMinX, boundingBox.getMaxY)
+    val topRight = new Coord(boundingBox.getMaxX, boundingBox.getMaxY)
+    val bottomRight = new Coord(boundingBox.getMaxX, boundingBox.getMinY)
+    val midLeft = new Coord((bottomLeft.getX + topLeft.getX) / 2, (bottomLeft.getY + topLeft.getY) / 2)
+    val midTop = new Coord((topLeft.getX + topRight.getX) / 2, (topLeft.getY + topRight.getY) / 2)
+    val midRight = new Coord((topRight.getX + bottomRight.getX) / 2, (topRight.getY + bottomRight.getY) / 2)
+    val midBottom = new Coord((bottomLeft.getX + bottomRight.getX) / 2, (bottomLeft.getY + bottomRight.getY) / 2)
+
+    val corners = Array(
+      GpxPoint("BottomLeft", bottomLeft),
+      GpxPoint("TopLeft", topLeft),
+      GpxPoint("TopRight", topRight),
+      GpxPoint("BottomRight", bottomRight),
+      GpxPoint("MidLeft", midLeft),
+      GpxPoint("MidTop", midTop),
+      GpxPoint("MidRight", midRight),
+      GpxPoint("MidBottom", midBottom)
+    )
+
+    val closestEdges = corners.map { gpxPoint =>
+      val utmCornerCoord = wgs2Utm(gpxPoint.wgsCoord)
+      val closestEdge: EdgeWithCoord = insideBoundingBox.minBy {
+        case x =>
+          val utmCoord = wgs2Utm(new Coord(x.wgsCoord.x, x.wgsCoord.y))
+          distUTMInMeters(utmCornerCoord, utmCoord)
+      }
+      (closestEdge, gpxPoint)
+    }
+    closestEdges
   }
 }
 
@@ -213,6 +299,7 @@ object GeoUtils {
       rad
     }
   }
+
 }
 
 class GeoUtilsImpl @Inject()(val beamConfig: BeamConfig) extends GeoUtils {

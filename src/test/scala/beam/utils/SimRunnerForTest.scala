@@ -1,6 +1,7 @@
 package beam.utils
 import java.io.File
 
+import beam.router.{BeamSkimmer, TravelTimeObserved}
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
@@ -21,7 +22,7 @@ import org.matsim.core.router.util.{LeastCostPathCalculatorFactory, TravelDisuti
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.core.scoring.ScoringFunctionFactory
 
-private class MatsimServicesMock(
+class MatsimServicesMock(
   override val getControlerIO: OutputDirectoryHierarchy,
   override val getScenario: Scenario
 ) extends MatsimServices {
@@ -51,7 +52,7 @@ abstract class SimRunnerForTest {
 
   // Next things are pretty cheap in initialization, so let it be non-lazy
   val beamCfg = BeamConfig(config)
-  val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+  val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
   val fareCalculator = new FareCalculator(beamCfg.beam.routing.r5.directory)
   val tollCalculator = new TollCalculator(beamCfg)
   val geoUtil = new GeoUtilsImpl(beamCfg)
@@ -77,6 +78,8 @@ abstract class SimRunnerForTest {
       bind(classOf[BeamConfig]).toInstance(beamCfg)
       bind(classOf[beam.sim.common.GeoUtils]).toInstance(geoUtil)
       bind(classOf[NetworkHelper]).toInstance(networkHelper)
+      bind(classOf[BeamSkimmer]).asEagerSingleton()
+      bind(classOf[TravelTimeObserved]).asEagerSingleton()
       bind(classOf[ControlerI]).toProvider(Providers.of(null))
     }
   })

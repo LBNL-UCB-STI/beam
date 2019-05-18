@@ -32,6 +32,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.model._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
+import beam.router.r5.R5RoutingWorker.MinSpeedUsage
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.IdGeneratorImpl
@@ -39,19 +40,18 @@ import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
-import org.matsim.api.core.v01.population.Leg
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{immutable, mutable}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.util.Try
-import scala.collection.JavaConverters._
 
 class BeamRouter(
   services: BeamServices,
@@ -125,7 +125,7 @@ class BeamRouter(
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   // TODO FIX ME
-  val travelTimeAndCost = new TravelTimeAndCost {
+  val travelTimeAndCost: TravelTimeAndCost = new TravelTimeAndCost {
     override def overrideTravelTimeAndCostFor(
       origin: Location,
       destination: Location,
@@ -209,8 +209,12 @@ class BeamRouter(
       notifyNewWorkerIfWorkAvailable(m.address, receivePath = "MemberUp[compute]")
     case other: MemberEvent =>
       log.info("MemberEvent: {}", other)
-      remoteNodes -= other.member.address
-      removeUnavailableMemberFromAvailableWorkers(other.member)
+      other match {
+        case MemberExited(_) | MemberRemoved(_, _) =>
+          remoteNodes -= other.member.address
+          removeUnavailableMemberFromAvailableWorkers(other.member)
+        case _ =>
+      }
     //Why is this a removal?
     case UnreachableMember(m) =>
       log.info("UnreachableMember: {}", m)
@@ -237,6 +241,14 @@ class BeamRouter(
     case ClearRoutedWorkerTracker(workIdToClear) =>
       //TODO: Maybe do this for all tracker removals?
       removeOutstandingWorkBy(workIdToClear)
+    case IterationFinished(iteration) =>
+      remoteNodes.foreach(workerAddress => workerFrom(workerAddress) ! IterationFinished(iteration))
+      localNodes.foreach(_ ! IterationFinished(iteration))
+    case MinSpeedUsage(iteration, count) =>
+      log.info(
+        s"Worker[${sender()}]. Iteration $iteration had $count cases when min speed ${services.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond} was used."
+      )
+
     case work =>
       val originalSender = context.sender
       if (!isWorkAvailable) { //No existing work
@@ -296,10 +308,15 @@ class BeamRouter(
 
   private def removeUnavailableMemberFromAvailableWorkers(
     member: Member
-  ) = {
-    val worker = Await.result(workerFrom(member.address).resolveOne, 60.seconds)
-    if (availableWorkers.contains(worker)) { availableWorkers.remove(worker) }
-    //TODO: If there is work outstanding then it needs handled
+  ): Unit = {
+    try {
+      val worker = Await.result(workerFrom(member.address).resolveOne, 60.seconds)
+      if (availableWorkers.contains(worker)) { availableWorkers.remove(worker) }
+      //TODO: If there is work outstanding then it needs handled
+    } catch {
+      case ex: Throwable =>
+        log.error(ex, s"removeUnavailableMemberFromAvailableWorkers failed with: ${ex.getMessage}")
+    }
   }
 
   private def notifyNewWorkerIfWorkAvailable(
@@ -446,6 +463,7 @@ object BeamRouter {
 
   case class TryToSerialize(obj: Object)
   case class UpdateTravelTimeRemote(linkIdToTravelTimePerHour: java.util.Map[String, Array[Double]])
+  case class IterationFinished(iteration: Int)
 
   /**
     * It is use to represent a request object
@@ -461,7 +479,7 @@ object BeamRouter {
     originUTM: Location,
     destinationUTM: Location,
     departureTime: Int,
-    transitModes: IndexedSeq[BeamMode],
+    withTransit: Boolean,
     streetVehicles: IndexedSeq[StreetVehicle],
     attributesOfIndividual: Option[AttributesOfIndividual] = None,
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
@@ -522,8 +540,9 @@ object BeamRouter {
     departTime: Int,
     mode: BeamMode,
     beamServices: BeamServices,
-    origin: Coord,
-    destination: Coord
+    originUTM: Coord,
+    destinationUTM: Coord,
+    requestIdOpt: Option[Int] = None
   ) = {
     val leg = BeamLeg(
       departTime,
@@ -533,18 +552,28 @@ object BeamRouter {
         linkIds,
         Vector.empty,
         None,
-        beamServices.geo.utm2Wgs(SpaceTime(origin, departTime)),
-        beamServices.geo.utm2Wgs(SpaceTime(destination, departTime + 1)),
+        beamServices.geo.utm2Wgs(SpaceTime(originUTM, departTime)),
+        beamServices.geo.utm2Wgs(SpaceTime(destinationUTM, departTime + 1)),
         linkIds.map { linkId =>
           beamServices.networkHelper.getLink(linkId).map(_.getLength).getOrElse(0.0)
         }.sum
       )
     )
-    EmbodyWithCurrentTravelTime(
-      leg,
-      vehicle.id,
-      vehicle.vehicleTypeId
-    )
+    requestIdOpt match {
+      case Some(reqId) =>
+        EmbodyWithCurrentTravelTime(
+          leg,
+          vehicle.id,
+          vehicle.vehicleTypeId,
+          reqId
+        )
+      case None =>
+        EmbodyWithCurrentTravelTime(
+          leg,
+          vehicle.id,
+          vehicle.vehicleTypeId
+        )
+    }
   }
 
   def matsimLegToEmbodyRequest(

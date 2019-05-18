@@ -16,6 +16,19 @@ case class BeamPath(
   endPoint: SpaceTime,
   distanceInM: Double
 ) {
+
+  checkCoordinates(startPoint)
+  checkCoordinates(endPoint)
+
+  private def checkCoordinates(point: SpaceTime) {
+    if (point != null) {
+      assert(
+        point.loc == null || point.loc.getX > -180 && point.loc.getX < 180 && point.loc.getY > -90 && point.loc.getY < 90,
+        s"Bad coordinate ${point.loc}"
+      )
+    }
+  }
+
   def duration: Int = endPoint.time - startPoint.time
 
   def toShortString: String =
@@ -32,12 +45,12 @@ case class BeamPath(
     )
 
   def scaleTravelTimes(scaleBy: Double): BeamPath = {
+    val newLinkTimes = this.linkTravelTime.map(travelTime => Math.round(travelTime.toDouble * scaleBy).toInt)
     this.copy(
-      linkTravelTime = this.linkTravelTime.map(travelTime => Math.round(travelTime.toDouble * scaleBy).toInt),
-      endPoint = this.endPoint.copy(time = this.startPoint.time + (this.duration.toDouble * scaleBy).toInt)
+      linkTravelTime = newLinkTimes,
+      endPoint = this.endPoint.copy(time = this.startPoint.time + newLinkTimes.tail.sum)
     )
   }
-
 }
 
 //case object EmptyBeamPath extends BeamPath(Vector[String](), None, departure = SpaceTime(Double.PositiveInfinity, Double.PositiveInfinity, Long.MaxValue), arrival = SpaceTime(Double.NegativeInfinity, Double.NegativeInfinity, Long.MinValue))

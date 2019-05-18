@@ -39,7 +39,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
         origin,
         destination,
         time,
-        Vector(WALK_TRANSIT),
+        withTransit = true,
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
@@ -57,7 +57,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
       val transitOption = response.itineraries.find(_.tripClassifier == WALK_TRANSIT).get
       assertMakesSense(transitOption)
       assert(transitOption.costEstimate == 2.75)
-      assert(transitOption.legs.head.beamLeg.startTime == 25990)
+      assert(transitOption.legs.head.beamLeg.startTime == 25992)
     }
 
     "respond with a drive_transit and a walk_transit route for each trip in sflight" ignore {
@@ -75,7 +75,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
                 origin,
                 destination,
                 time,
-                Vector(TRANSIT),
+                withTransit = true,
                 Vector(
                   StreetVehicle(
                     Id.createVehicleId("116378-2"),
@@ -116,7 +116,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
         origin,
         destination,
         time,
-        Vector(TRANSIT),
+        withTransit = true,
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
@@ -142,7 +142,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
         origin,
         destination,
         time,
-        Vector(TRANSIT),
+        withTransit = true,
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
@@ -199,7 +199,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
     time: Int,
     response: RoutingResponse
   ): Unit = {
-    val writer = new BufferedWriter(new FileWriter(new File("d:/test-outWriter.txt"), true))
+    val writer = new BufferedWriter(new FileWriter(new File("d:/test-out.txt"), true))
     response.itineraries.foreach(
       it =>
         writer.append(

@@ -116,7 +116,6 @@ object Modes {
 
     val allModes: Seq[BeamMode] =
       Seq(
-        RIDE_HAIL,
         CAR,
         CAV,
         WALK,
@@ -208,12 +207,7 @@ object Modes {
     case TransitModes.FERRY     => BeamMode.FERRY
     case TransitModes.RAIL      => BeamMode.RAIL
     case TransitModes.TRAM      => BeamMode.TRAM
+    case _                      => throw new IllegalArgumentException
   }
-
-  def filterForTransit(modes: Vector[BeamMode]): Vector[BeamMode] =
-    modes.filter(mode => isR5TransitMode(mode))
-
-  def filterForStreet(modes: Vector[BeamMode]): Vector[BeamMode] =
-    modes.filter(mode => isR5LegMode(mode))
 
 }

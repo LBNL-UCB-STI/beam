@@ -7,7 +7,6 @@ import akka.pattern.{ask, pipe}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.Resource.{Boarded, NotAvailable, NotifyVehicleIdle, TryToBoardVehicle}
-import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeIncentive
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
@@ -30,16 +29,16 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerPr
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
-import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
+import beam.router.{BeamSkimmer, RouteHistory}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.{NetworkHelperImpl, StuckFinder}
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.{NetworkHelperImpl, StuckFinder}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population.{Activity, Person}
@@ -82,11 +81,12 @@ class PersonWithVehicleSharingSpec
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
+    with beam.utils.InjectableMock
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = system.dispatcher
-  private lazy val beamConfig = BeamConfig(system.settings.config)
+  lazy val beamConfig = BeamConfig(system.settings.config)
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
@@ -95,7 +95,7 @@ class PersonWithVehicleSharingSpec
   private lazy val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
   private lazy val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
-  private lazy val beamSvc: BeamServices = {
+  lazy val beamSvc: BeamServices = {
     val matsimServices = mock[MatsimServices]
 
     val theServices = mock[BeamServices](withSettings().stubOnly())
@@ -105,6 +105,7 @@ class PersonWithVehicleSharingSpec
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(theServices.networkHelper).thenReturn(networkHelper)
+    when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
 
     theServices
   }
@@ -112,13 +113,18 @@ class PersonWithVehicleSharingSpec
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(
       alternatives: IndexedSeq[EmbodiedBeamTrip],
-      attributesOfIndividual: AttributesOfIndividual
+      attributesOfIndividual: AttributesOfIndividual,
+      destinationActivity: Option[Activity]
     ): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
 
     override val beamServices: BeamServices = beamSvc
 
-    override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
+    override def utilityOf(
+      alternative: EmbodiedBeamTrip,
+      attributesOfIndividual: AttributesOfIndividual,
+      destinationActivity: Option[Activity]
+    ): Double = 0.0
 
     override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0D
 
@@ -127,10 +133,12 @@ class PersonWithVehicleSharingSpec
       person: Person,
       attributesOfIndividual: AttributesOfIndividual
     ): Double = 0.0
+
+    setupInjectableMock(beamConfig, beamSvc)
   }
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-  private val matsimConfig = configBuilder.buildMatSamConf()
+  private val matsimConfig = configBuilder.buildMatSimConf()
 
   describe("A PersonAgent") {
 
@@ -190,7 +198,8 @@ class PersonWithVehicleSharingSpec
             Map(),
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
-            new RouteHistory()
+            new RouteHistory(beamConfig),
+            new BeamSkimmer(beamConfig, beamSvc)
           )
         )
       )
@@ -331,7 +340,8 @@ class PersonWithVehicleSharingSpec
             Map(),
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
-            new RouteHistory()
+            new RouteHistory(beamConfig),
+            new BeamSkimmer(beamConfig, beamSvc)
           )
         )
       )
@@ -571,7 +581,8 @@ class PersonWithVehicleSharingSpec
           Map(),
           new Coord(0.0, 0.0),
           Vector(mockSharedVehicleFleet.ref),
-          new RouteHistory()
+          new RouteHistory(beamConfig),
+          new BeamSkimmer(beamConfig, beamSvc)
         )
       )
 

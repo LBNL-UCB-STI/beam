@@ -23,16 +23,15 @@ class ThreeIterationsSpec extends FlatSpec with BeamHelper with MockitoSugar {
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .resolve()
     val configBuilder = new MatSimBeamConfigBuilder(config)
-    val matsimConfig = configBuilder.buildMatSamConf()
+    val matsimConfig = configBuilder.buildMatSimConf()
     matsimConfig.controler().setLastIteration(2)
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     val beamConfig = BeamConfig(config)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
-    val scenario =
-      ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
+    val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     scenario.setNetwork(networkCoordinator.network)
     val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
 

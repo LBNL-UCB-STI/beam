@@ -20,7 +20,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.WALK_TRANSIT
-import beam.router.RouteHistory
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
@@ -31,10 +31,11 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.{NetworkHelperImpl, StuckFinder}
 import beam.utils.TestConfigUtils.testConfig
+import com.google.inject.{AbstractModule, Guice, Injector}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.{Link, Network}
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.api.internal.HasPersonId
@@ -84,10 +85,17 @@ class PersonAndTransitDriverSpec
   private lazy val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
   private lazy val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
+  lazy val guiceInjector: Injector = Guice.createInjector(new AbstractModule() {
+    protected def configure(): Unit = {
+      bind(classOf[TravelTimeObserved]).toInstance(mock[TravelTimeObserved])
+    }
+  })
+
   private lazy val beamSvc: BeamServices = {
     val matsimServices = mock[MatsimServices]
 
     val theServices = mock[BeamServices](withSettings().stubOnly())
+    when(theServices.injector).thenReturn(guiceInjector)
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
     when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
@@ -95,6 +103,7 @@ class PersonAndTransitDriverSpec
     when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
+    when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
 
     var map = TrieMap[Id[Vehicle], (String, String)]()
     map += (Id.createVehicleId("my_bus")  -> ("", ""))
@@ -108,13 +117,18 @@ class PersonAndTransitDriverSpec
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(
       alternatives: IndexedSeq[EmbodiedBeamTrip],
-      attributesOfIndividual: AttributesOfIndividual
+      attributesOfIndividual: AttributesOfIndividual,
+      destinationActivity: Option[Activity]
     ): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
 
     override val beamServices: BeamServices = beamSvc
 
-    override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
+    override def utilityOf(
+      alternative: EmbodiedBeamTrip,
+      attributesOfIndividual: AttributesOfIndividual,
+      destinationActivity: Option[Activity]
+    ): Double = 0.0
 
     override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0D
 
@@ -132,7 +146,7 @@ class PersonAndTransitDriverSpec
   )
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-  private val matsimConfig = configBuilder.buildMatSamConf()
+  private val matsimConfig = configBuilder.buildMatSimConf()
 
   describe("A PersonAgent") {
 
@@ -195,8 +209,8 @@ class PersonAndTransitDriverSpec
             Vector(),
             Vector(),
             Some(TransitStopsInfo(1, busId, 2)),
-            SpaceTime(new Coord(166321.9, 1568.87), 28800),
-            SpaceTime(new Coord(167138.4, 1117), 29400),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
             1.0
           )
         ),
@@ -215,8 +229,8 @@ class PersonAndTransitDriverSpec
             Vector(),
             Vector(),
             Some(TransitStopsInfo(2, busId, 3)),
-            SpaceTime(new Coord(167138.4, 1117), 29400),
-            SpaceTime(new Coord(180000.4, 1200), 30000),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             1.0
           )
         ),
@@ -235,8 +249,8 @@ class PersonAndTransitDriverSpec
             linkIds = Vector(),
             linkTravelTime = Vector(),
             transitStops = Some(TransitStopsInfo(3, tramId, 4)),
-            startPoint = SpaceTime(new Coord(180000.4, 1200), 30000),
-            endPoint = SpaceTime(new Coord(190000.4, 1300), 30600),
+            startPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
+            endPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
             distanceInM = 1.0
           )
         ),
@@ -341,7 +355,8 @@ class PersonAndTransitDriverSpec
           vehicles = Map(),
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
-          new RouteHistory()
+          new RouteHistory(beamConfig),
+          new BeamSkimmer(beamConfig, beamSvc)
         )
       )
 
@@ -361,8 +376,8 @@ class PersonAndTransitDriverSpec
                     linkIds = Vector(),
                     linkTravelTime = Vector(),
                     transitStops = None,
-                    startPoint = SpaceTime(new Coord(166321.9, 1568.87), 28800),
-                    endPoint = SpaceTime(new Coord(167138.4, 1117), 28800),
+                    startPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
+                    endPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 28800),
                     distanceInM = 1D
                   )
                 ),
@@ -384,8 +399,8 @@ class PersonAndTransitDriverSpec
                     linkIds = Vector(),
                     linkTravelTime = Vector(),
                     transitStops = None,
-                    startPoint = SpaceTime(new Coord(167138.4, 1117), 30600),
-                    endPoint = SpaceTime(new Coord(167138.4, 1117), 30600),
+                    startPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
+                    endPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
                     distanceInM = 1D
                   )
                 ),

@@ -109,7 +109,7 @@ class RouterPerformanceSpec
     val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
     val tollCalculator = mock[TollCalculator]
     when(tollCalculator.calcTollByOsmIds(any())).thenReturn(0.0)
-    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
     network = scenario.getNetwork
     router = system.actorOf(
@@ -158,7 +158,7 @@ class RouterPerformanceSpec
             origin,
             destination,
             time,
-            Vector(),
+            withTransit = false,
             Vector(
               StreetVehicle(
                 Id.createVehicleId("116378-2"),
@@ -189,8 +189,6 @@ class RouterPerformanceSpec
     "respond with a route for each beam mode" taggedAs Performance in {
       val modeSet: Seq[BeamMode] =
         Seq(CAR, BIKE, WALK, RIDE_HAIL, BUS, WALK_TRANSIT, TRANSIT)
-
-      var transitModes: Vector[BeamMode] = Vector()
       var streetVehicles: Vector[StreetVehicle] = Vector()
 
       val r5Set = getRandomNodePairDataset(runSet.max)
@@ -203,10 +201,9 @@ class RouterPerformanceSpec
             val origin = pair.head.getCoord
             val destination = pair(1).getCoord
             val time = 8 * 3600 /*pair(0).getEndTime.toInt*/
-
+            var withTransit = false
             mode.r5Mode match {
               case Some(Left(_)) =>
-                transitModes = Vector()
                 streetVehicles = Vector(
                   StreetVehicle(
                     Id.createVehicleId("116378-2"),
@@ -217,7 +214,7 @@ class RouterPerformanceSpec
                   )
                 )
               case Some(Right(_)) =>
-                transitModes = Vector(mode)
+                withTransit = true
                 streetVehicles = Vector(
                   StreetVehicle(
                     Id.createVehicleId("body-116378-2"),
@@ -231,7 +228,7 @@ class RouterPerformanceSpec
               case None =>
             }
             val response = within(60 second) {
-              router ! RoutingRequest(origin, destination, time, transitModes, streetVehicles)
+              router ! RoutingRequest(origin, destination, time, withTransit, streetVehicles)
               expectMsgType[RoutingResponse]
             }
           })
@@ -317,7 +314,7 @@ class RouterPerformanceSpec
   }
 
   def getMultiNodeDijkstra: LeastCostPathCalculator = {
-    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
     val travelTime = new FreeSpeedTravelTime
     val travelDisutility = new RandomizingTimeDistanceTravelDisutilityFactory(
       TransportMode.car,
@@ -329,7 +326,7 @@ class RouterPerformanceSpec
   }
 
   def getFastMultiNodeDijkstra: LeastCostPathCalculator = {
-    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSamConf()
+    val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
     val travelTime = new FreeSpeedTravelTime
     val travelDisutility = new RandomizingTimeDistanceTravelDisutilityFactory(
       TransportMode.car,

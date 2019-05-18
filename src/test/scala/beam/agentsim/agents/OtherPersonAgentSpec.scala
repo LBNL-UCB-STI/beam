@@ -22,21 +22,22 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{TRANSIT, WALK_TRANSIT}
-import beam.router.RouteHistory
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
+import com.google.inject.{AbstractModule, Guice, Injector}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.{Link, Network}
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.TeleportationArrivalEvent
 import org.matsim.core.config.ConfigUtils
@@ -72,10 +73,11 @@ class OtherPersonAgentSpec
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
+    with beam.utils.InjectableMock
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
-  lazy val config = BeamConfig(system.settings.config)
+  lazy val beamConfig = BeamConfig(system.settings.config)
   lazy val eventsManager = new EventsManagerImpl()
 
   lazy val dummyAgentId: Id[Person] = Id.createPersonId("dummyAgent")
@@ -85,14 +87,23 @@ class OtherPersonAgentSpec
 
   lazy val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
+  lazy val guiceInjector: Injector = Guice.createInjector(new AbstractModule() {
+    protected def configure(): Unit = {
+      bind(classOf[TravelTimeObserved]).toInstance(mock[TravelTimeObserved])
+    }
+  })
+
   lazy val beamSvc: BeamServices = {
-    val theServices = mock[BeamServices](withSettings().stubOnly())
+    lazy val injector = guiceInjector
+    lazy val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(mock[MatsimServices])
     when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
     when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
-    when(theServices.beamConfig).thenReturn(config)
+    when(theServices.beamConfig).thenReturn(beamConfig)
+    when(theServices.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
-    val geo = new GeoUtilsImpl(config)
+    when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
+    lazy val geo = new GeoUtilsImpl(beamConfig)
     when(theServices.geo).thenReturn(geo)
     // TODO Is it right to return defaultTazTreeMap?
     when(theServices.tazTreeMap).thenReturn(BeamServices.defaultTazTreeMap)
@@ -102,13 +113,18 @@ class OtherPersonAgentSpec
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(
       alternatives: IndexedSeq[EmbodiedBeamTrip],
-      attributesOfIndividual: AttributesOfIndividual
+      attributesOfIndividual: AttributesOfIndividual,
+      destinationActivity: Option[Activity]
     ): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
 
     override val beamServices: BeamServices = beamSvc
 
-    override def utilityOf(alternative: EmbodiedBeamTrip, attributesOfIndividual: AttributesOfIndividual): Double = 0.0
+    override def utilityOf(
+      alternative: EmbodiedBeamTrip,
+      attributesOfIndividual: AttributesOfIndividual,
+      destinationActivity: Option[Activity]
+    ): Double = 0.0
 
     override def utilityOf(
       mode: BeamMode,
@@ -122,6 +138,8 @@ class OtherPersonAgentSpec
       person: Person,
       attributesOfIndividual: AttributesOfIndividual
     ): Double = 0.0
+
+    setupInjectableMock(beamConfig, beamSvc)
   }
 
   private lazy val parkingManager = system.actorOf(
@@ -130,7 +148,7 @@ class OtherPersonAgentSpec
     "ParkingManager"
   )
 
-  private lazy val networkCoordinator = new DefaultNetworkCoordinator(config)
+  private lazy val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
 
   describe("A PersonAgent FSM") {
     it("should also work when the first bus is late") {
@@ -171,8 +189,8 @@ class OtherPersonAgentSpec
             Vector(),
             Vector(),
             Some(TransitStopsInfo(1, Id.createVehicleId("my_bus"), 2)),
-            SpaceTime(new Coord(166321.9, 1568.87), 28800),
-            SpaceTime(new Coord(167138.4, 1117), 29400),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
             1.0
           )
         ),
@@ -191,8 +209,8 @@ class OtherPersonAgentSpec
             Vector(),
             Vector(),
             Some(TransitStopsInfo(2, Id.createVehicleId("my_bus"), 3)),
-            SpaceTime(new Coord(167138.4, 1117), 29400),
-            SpaceTime(new Coord(180000.4, 1200), 30000),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             1.0
           )
         ),
@@ -211,8 +229,8 @@ class OtherPersonAgentSpec
             Vector(),
             Vector(),
             Some(TransitStopsInfo(3, Id.createVehicleId("my_tram"), 4)),
-            SpaceTime(new Coord(180000.4, 1200), 30000),
-            SpaceTime(new Coord(190000.4, 1300), 30600),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
             1.0
           )
         ),
@@ -231,8 +249,8 @@ class OtherPersonAgentSpec
             Vector(),
             Vector(),
             Some(TransitStopsInfo(3, Id.createVehicleId("my_tram"), 4)),
-            SpaceTime(new Coord(180000.4, 1200), 35000),
-            SpaceTime(new Coord(190000.4, 1300), 35600),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(180000.4, 1200)), 35000),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(190000.4, 1300)), 35600),
             1.0
           )
         ),
@@ -267,10 +285,10 @@ class OtherPersonAgentSpec
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
-          config,
+          beamConfig,
           stopTick = 1000000,
           maxWindow = 10,
-          new StuckFinder(config.beam.debug.stuckAgentDetection)
+          new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
 
@@ -307,7 +325,8 @@ class OtherPersonAgentSpec
           Map(),
           new Coord(0.0, 0.0),
           Vector(),
-          new RouteHistory()
+          new RouteHistory(beamConfig),
+          new BeamSkimmer(beamConfig, beamSvc)
         )
       )
       scheduler ! StartSchedule(0)
@@ -316,11 +335,11 @@ class OtherPersonAgentSpec
       val personActor = lastSender
 
       scheduler ! ScheduleTrigger(
-        BoardVehicleTrigger(28800, busLeg.beamVehicleId),
+        BoardVehicleTrigger(28800, busLeg.beamVehicleId, Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)),
         personActor
       )
       scheduler ! ScheduleTrigger(
-        AlightVehicleTrigger(34400, busLeg.beamVehicleId),
+        AlightVehicleTrigger(34400, busLeg.beamVehicleId, Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)),
         personActor
       )
 
@@ -337,8 +356,8 @@ class OtherPersonAgentSpec
                     Vector(),
                     Vector(),
                     None,
-                    SpaceTime(new Coord(166321.9, 1568.87), 28800),
-                    SpaceTime(new Coord(167138.4, 1117), 28800),
+                    SpaceTime(beamSvc.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
+                    SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 28800),
                     1.0
                   )
                 ),
@@ -360,8 +379,8 @@ class OtherPersonAgentSpec
                     Vector(),
                     Vector(),
                     None,
-                    SpaceTime(new Coord(167138.4, 1117), 30600),
-                    SpaceTime(new Coord(167138.4, 1117), 30600),
+                    SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
+                    SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
                     1.0
                   )
                 ),
@@ -422,8 +441,8 @@ class OtherPersonAgentSpec
                     Vector(),
                     Vector(),
                     None,
-                    SpaceTime(new Coord(167138.4, 1117), 35600),
-                    SpaceTime(new Coord(167138.4, 1117), 35600),
+                    SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 35600),
+                    SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 35600),
                     1.0
                   )
                 ),
@@ -455,11 +474,19 @@ class OtherPersonAgentSpec
             reservationRequestBus.passengerVehiclePersonId,
             Vector(
               ScheduleTrigger(
-                BoardVehicleTrigger(35000, replannedTramLeg.beamVehicleId),
+                BoardVehicleTrigger(
+                  35000,
+                  replannedTramLeg.beamVehicleId,
+                  Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)
+                ),
                 personActor
               ),
               ScheduleTrigger(
-                AlightVehicleTrigger(40000, replannedTramLeg.beamVehicleId),
+                AlightVehicleTrigger(
+                  40000,
+                  replannedTramLeg.beamVehicleId,
+                  Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)
+                ),
                 personActor
               ) // My tram is late!
             )

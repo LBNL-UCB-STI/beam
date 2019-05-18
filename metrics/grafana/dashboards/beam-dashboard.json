@@ -42,7 +42,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "hideControls": false,
-  "id": null,
+  "id": 6,
   "links": [],
   "rows": [
     {
@@ -74,18 +74,19 @@
           "aliasColors": {
             "request-router-count": "#6ED0E0"
           },
-          "bars": true,
+          "bars": false,
           "dashLength": 10,
           "dashes": false,
           "datasource": "${DS_LOCAL_GRAPHITE}",
           "fill": 2,
           "id": 17,
           "legend": {
+            "alignAsTable": true,
             "avg": true,
-            "current": false,
-            "max": false,
-            "min": false,
-            "rightSide": false,
+            "current": true,
+            "max": true,
+            "min": true,
+            "rightSide": true,
             "show": true,
             "sideWidth": null,
             "total": false,
@@ -112,21 +113,7 @@
           "targets": [
             {
               "refId": "A",
-              "target": "aliasByNode(stats.timers.$Application.$Host.histogram.request-router-time.mean_50, 5)"
-            },
-            {
-              "refId": "B",
-              "target": "aliasByNode(sumSeries(stats.timers.$Application.$Host.histogram.*-agentsim-time.mean_50), 5)",
-              "textEditor": false
-            },
-            {
-              "refId": "D",
-              "target": ""
-            },
-            {
-              "hide": true,
-              "refId": "C",
-              "target": "aliasByNode(stats.counters.$Application.$Host.counter.request-router-count.count, 5)"
+              "target": "aliasByNode(stats.timers.$Application.$Host.histogram.request-router-time.mean_99, 5)"
             }
           ],
           "thresholds": [],
@@ -148,9 +135,9 @@
           },
           "yaxes": [
             {
-              "format": "µs",
+              "format": "ns",
               "label": null,
-              "logBase": 1,
+              "logBase": 2,
               "max": null,
               "min": null,
               "show": true
@@ -161,7 +148,7 @@
               "logBase": 1,
               "max": null,
               "min": null,
-              "show": true
+              "show": false
             }
           ]
         }
@@ -175,8 +162,283 @@
     },
     {
       "collapse": false,
-      "height": "300",
+      "height": 311,
       "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "${DS_LOCAL_GRAPHITE}",
+          "fill": 2,
+          "id": 22,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": false,
+            "max": true,
+            "min": true,
+            "rightSide": true,
+            "show": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 2,
+          "links": [],
+          "nullPointMode": "null",
+          "percentage": true,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [
+            {
+              "alias": "NotifyLegEndTrigger-time",
+              "yaxis": 1
+            },
+            {
+              "alias": "NotifyLegStartTrigger-time",
+              "yaxis": 2
+            },
+            {
+              "alias": "mainTransitRoute-router-time",
+              "yaxis": 1
+            }
+          ],
+          "spaceLength": 10,
+          "span": 12,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "refId": "A",
+              "target": "aliasByNode(stats.timers.$Application.$Host.histogram.*-transit-time.mean_99, 5)",
+              "textEditor": false
+            },
+            {
+              "refId": "B",
+              "target": "aliasByNode(stats.timers.$Application.$Host.histogram.mainTransitRoute-router-time.mean_99, 5)"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Router Time by Modes",
+          "tooltip": {
+            "shared": true,
+            "sort": 2,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": [
+              "total"
+            ]
+          },
+          "yaxes": [
+            {
+              "format": "ns",
+              "label": "",
+              "logBase": 2,
+              "max": null,
+              "min": "2000",
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ]
+        }
+      ],
+      "repeat": null,
+      "repeatIteration": null,
+      "repeatRowId": null,
+      "showTitle": false,
+      "title": "Dashboard Row",
+      "titleSize": "h6"
+    },
+    {
+      "collapse": false,
+      "height": 265,
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "${DS_LOCAL_GRAPHITE}",
+          "fill": 2,
+          "id": 20,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": false,
+            "max": true,
+            "min": true,
+            "rightSide": true,
+            "show": true,
+            "sideWidth": null,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 2,
+          "links": [],
+          "nullPointMode": "null",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [
+            {
+              "alias": "NotifyLegEndTrigger-time",
+              "yaxis": 1
+            },
+            {
+              "alias": "NotifyLegStartTrigger-time",
+              "yaxis": 2
+            }
+          ],
+          "spaceLength": 10,
+          "span": 12,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "refId": "A",
+              "target": "aliasByNode(stats.timers.$Application.$Host.histogram.*-router-time.mean_99, 5)",
+              "textEditor": false
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Router Time by Modes",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "ns",
+              "label": null,
+              "logBase": 2,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ]
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "${DS_LOCAL_GRAPHITE}",
+          "fill": 1,
+          "id": 21,
+          "legend": {
+            "alignAsTable": true,
+            "avg": true,
+            "current": false,
+            "max": true,
+            "min": true,
+            "rightSide": true,
+            "show": true,
+            "total": false,
+            "values": true
+          },
+          "lines": true,
+          "linewidth": 1,
+          "links": [],
+          "nullPointMode": "null",
+          "percentage": false,
+          "pointradius": 5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [
+            {
+              "alias": "NotifyLegEndTrigger-time",
+              "yaxis": 1
+            },
+            {
+              "alias": "NotifyLegStartTrigger-time",
+              "yaxis": 2
+            }
+          ],
+          "spaceLength": 10,
+          "span": 12,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "refId": "A",
+              "target": "aliasByNode(stats.timers.$Application.$Host.histogram.*-router-time.count, 5)",
+              "textEditor": false
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "Router counts",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 10,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ]
+        },
         {
           "aliasColors": {},
           "bars": false,
@@ -251,262 +513,6 @@
           "yaxes": [
             {
               "format": "µs",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": false
-            }
-          ]
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "${DS_LOCAL_GRAPHITE}",
-          "fill": 2,
-          "id": 20,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 2,
-          "links": [],
-          "nullPointMode": "null",
-          "percentage": false,
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [
-            {
-              "alias": "NotifyLegEndTrigger-time",
-              "yaxis": 1
-            },
-            {
-              "alias": "NotifyLegStartTrigger-time",
-              "yaxis": 2
-            }
-          ],
-          "spaceLength": 10,
-          "span": 6,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "refId": "A",
-              "target": "aliasByNode(stats.timers.$Application.$Host.histogram.*-router-time.mean_50, 5)",
-              "textEditor": false
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeShift": null,
-          "title": "Router Time by Modes",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "µs",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": false
-            }
-          ]
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "${DS_LOCAL_GRAPHITE}",
-          "fill": 2,
-          "id": 22,
-          "legend": {
-            "avg": true,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": true
-          },
-          "lines": true,
-          "linewidth": 2,
-          "links": [],
-          "nullPointMode": "null",
-          "percentage": true,
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [
-            {
-              "alias": "NotifyLegEndTrigger-time",
-              "yaxis": 1
-            },
-            {
-              "alias": "NotifyLegStartTrigger-time",
-              "yaxis": 2
-            },
-            {
-              "alias": "mainTransitRoute-router-time",
-              "yaxis": 1
-            }
-          ],
-          "spaceLength": 10,
-          "span": 6,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "refId": "A",
-              "target": "aliasByNode(stats.timers.$Application.$Host.histogram.*-transit-time.mean_50, 5)",
-              "textEditor": false
-            },
-            {
-              "refId": "B",
-              "target": "aliasByNode(stats.timers.$Application.$Host.histogram.mainTransitRoute-router-time.mean_50, 5)"
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeShift": null,
-          "title": "Router Time by Modes",
-          "tooltip": {
-            "shared": true,
-            "sort": 2,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": [
-              "total"
-            ]
-          },
-          "yaxes": [
-            {
-              "format": "µs",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": false
-            }
-          ]
-        },
-        {
-          "aliasColors": {},
-          "bars": true,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "${DS_LOCAL_GRAPHITE}",
-          "fill": 1,
-          "id": 21,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": false,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "null",
-          "percentage": false,
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [
-            {
-              "alias": "NotifyLegEndTrigger-time",
-              "yaxis": 1
-            },
-            {
-              "alias": "NotifyLegStartTrigger-time",
-              "yaxis": 2
-            }
-          ],
-          "spaceLength": 10,
-          "span": 12,
-          "stack": true,
-          "steppedLine": false,
-          "targets": [
-            {
-              "refId": "A",
-              "target": "aliasByNode(stats.timers.$Application.$Host.histogram.*-router-time.count, 5)",
-              "textEditor": false
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeShift": null,
-          "title": "Router counts",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
               "label": null,
               "logBase": 1,
               "max": null,

@@ -6,7 +6,7 @@ import beam.agentsim.agents.PersonTestUtil
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.events.PathTraversalEvent
-import beam.router.{BeamRouter, RouteHistory}
+import beam.router.{BeamRouter, BeamSkimmer, RouteHistory}
 import beam.router.Modes.BeamMode
 import beam.sim.{BeamMobsim, BeamServices, BeamServicesImpl}
 import beam.utils.SimRunnerForTest
@@ -111,7 +111,8 @@ class SingleModeSpec
         system,
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
-        new RouteHistory()
+        new RouteHistory(services.beamConfig),
+        new BeamSkimmer(services.beamConfig, services)
       )
       mobsim.run()
       events.foreach {
@@ -153,7 +154,8 @@ class SingleModeSpec
         system,
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
-        new RouteHistory()
+        new RouteHistory(services.beamConfig),
+        new BeamSkimmer(services.beamConfig, services)
       )
       mobsim.run()
       events.foreach {
@@ -214,7 +216,8 @@ class SingleModeSpec
         system,
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
-        new RouteHistory
+        new RouteHistory(services.beamConfig),
+        new BeamSkimmer(services.beamConfig, services)
       )
       mobsim.run()
       events.collect {
@@ -280,7 +283,8 @@ class SingleModeSpec
         system,
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
-        new RouteHistory()
+        new RouteHistory(services.beamConfig),
+        new BeamSkimmer(services.beamConfig, services)
       )
       mobsim.run()
       events.collect {

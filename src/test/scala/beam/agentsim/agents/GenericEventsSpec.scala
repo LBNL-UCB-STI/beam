@@ -5,7 +5,7 @@ import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices}
-import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
+import beam.utils.{FileUtils, MatsimServicesMock, NetworkHelper, NetworkHelperImpl}
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
@@ -23,7 +23,7 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
 
     val beamConfig = BeamConfig(baseConfig)
     val configBuilder = new MatSimBeamConfigBuilder(baseConfig)
-    val matsimConfig = configBuilder.buildMatSamConf()
+    val matsimConfig = configBuilder.buildMatSimConf()
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
@@ -31,18 +31,19 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 
-    val scenario =
-      ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+    val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     scenario.setNetwork(networkCoordinator.network)
 
     val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
     val injector = org.matsim.core.controler.Injector.createInjector(
-      scenario.getConfig,
+      matsimConfig,
       module(baseConfig, scenario, networkCoordinator, networkHelper)
     )
 
     beamServices = injector.getInstance(classOf[BeamServices])
+    beamServices.matsimServices = new MatsimServicesMock(null, scenario)
+
     val popAdjustment = DefaultPopulationAdjustment(beamServices)
     popAdjustment.update(scenario)
 

@@ -5,14 +5,17 @@ import akka.actor.{ActorRef, FSM, Props, Stash}
 import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.household.HouseholdActor.{CAVPickupConfirmed, ReadyForCAVPickup, ReleaseVehicle}
+import beam.agentsim.agents.household.HouseholdActor.{CancelCAVTrip, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
+import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
+import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail._
+import beam.agentsim.agents.vehicles.BeamVehicle.FuelConsumed
 import beam.agentsim.agents.vehicles.VehicleCategory.Bike
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
@@ -22,9 +25,10 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTrig
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL_POOLED, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{CAR, CAV, WALK, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import com.conveyal.r5.transit.TransportNetwork
@@ -32,8 +36,6 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
-import org.matsim.core.api.experimental.events.TeleportationArrivalEvent
-import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
 import scala.concurrent.duration._
@@ -57,7 +59,9 @@ object PersonAgent {
     personId: Id[PersonAgent],
     householdRef: ActorRef,
     plan: Plan,
-    sharedVehicleFleets: Seq[ActorRef]
+    sharedVehicleFleets: Seq[ActorRef],
+    beamSkimmer: BeamSkimmer,
+    routeHistory: RouteHistory
   ): Props = {
     Props(
       new PersonAgent(
@@ -73,7 +77,9 @@ object PersonAgent {
         parkingManager,
         tollCalculator,
         householdRef,
-        sharedVehicleFleets
+        sharedVehicleFleets,
+        beamSkimmer,
+        routeHistory
       )
     )
   }
@@ -176,6 +182,18 @@ object PersonAgent {
   case object DrivingInterrupted extends Traveling
 
   def bodyVehicleIdFromPersonID(id: Id[Person]) = BeamVehicle.createId(id, Some("body"))
+
+  def correctTripEndTime(trip: EmbodiedBeamTrip, endTime: Int, bodyVehicleId: Id[BeamVehicle]) = {
+    if (trip.tripClassifier != WALK && trip.tripClassifier != WALK_TRANSIT) {
+      trip.copy(
+        legs = trip.legs
+          .dropRight(1) :+ EmbodiedBeamLeg
+          .dummyLegAt(endTime, bodyVehicleId, true, trip.legs.dropRight(1).last.beamLeg.travelPath.endPoint.loc)
+      )
+    } else {
+      trip
+    }
+  }
 }
 
 class PersonAgent(
@@ -191,11 +209,15 @@ class PersonAgent(
   val parkingManager: ActorRef,
   val tollCalculator: TollCalculator,
   val householdRef: ActorRef,
-  val vehicleFleets: Seq[ActorRef] = Vector()
+  val vehicleFleets: Seq[ActorRef] = Vector(),
+  val beamSkimmer: BeamSkimmer,
+  val routeHistory: RouteHistory
 ) extends DrivesVehicle[PersonData]
     with ChoosesMode
     with ChoosesParking
     with Stash {
+
+  val travelTimeObserved: TravelTimeObserved = beamServices.injector.getInstance(classOf[TravelTimeObserved])
 
   val body = new BeamVehicle(
     bodyVehicleIdFromPersonID(id),
@@ -212,43 +234,30 @@ class PersonAgent(
 
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
-  val myUnhandled: StateFunction = {
-    case Event(TriggerWithId(BoardVehicleTrigger(_, _), _), _) =>
-      log.debug("Person {} stashing BoardVehicleTrigger in state {}", id, stateName)
-      stash()
-      stay
-    case Event(TriggerWithId(AlightVehicleTrigger(_, _), _), _) =>
-      stash()
-      stay
-    case Event(NotifyVehicleIdle(_, _, _, _, _), _) =>
-      stay()
-    case Event(RideHailResponse(request, travelProposal, error, triggersToSchedule), _) =>
-      stop(Failure("Unexpected RideHailResponse"))
-    case Event(ParkingInquiryResponse(_, _), _) =>
-      stop(Failure("Unexpected ParkingInquiryResponse"))
-    case Event(IllegalTriggerGoToError(reason), _) =>
-      stop(Failure(reason))
-    case Event(StateTimeout, _) =>
-      log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
-      stop(
-        Failure(
-          "Timeout - this probably means this agent was not getting a reply it was expecting."
-        )
-      )
-    case Event(Finish, _) =>
-      if (stateName == Moving) {
-        log.warning("Still travelling at end of simulation.")
-        log.warning(s"Events leading up to this point:\n\t${getLog.mkString("\n\t")}")
-      }
-      stop
+  var totFuelConsumed = FuelConsumed(0.0, 0.0)
+  var curFuelConsumed = FuelConsumed(0.0, 0.0)
+
+  def updateFuelConsumed(fuelOption: Option[FuelConsumed]) = {
+    val newFuelConsumed = fuelOption.getOrElse(FuelConsumed(0.0, 0.0))
+    curFuelConsumed = FuelConsumed(
+      curFuelConsumed.primaryFuel + newFuelConsumed.primaryFuel,
+      curFuelConsumed.secondaryFuel + newFuelConsumed.secondaryFuel
+    )
+    totFuelConsumed = FuelConsumed(
+      totFuelConsumed.primaryFuel + curFuelConsumed.primaryFuel,
+      totFuelConsumed.secondaryFuel + curFuelConsumed.secondaryFuel
+    )
   }
+
+  def resetFuelConsumed() = curFuelConsumed = FuelConsumed(0.0, 0.0)
 
   override def logDepth: Int = 30
 
   startWith(Uninitialized, BasePersonData())
 
-  def scaleTimeByValueOfTime(time: Double, beamMode: Option[BeamMode] = None): Double =
-    modeChoiceCalculator.scaleTimeByVot(time, beamMode)
+  def scaleTimeByValueOfTime(timeInSeconds: Double, beamMode: Option[BeamMode] = None): Double = {
+    attributes.unitConversionVOTT(timeInSeconds) // TODO: ZN, right now not mode specific. modal factors reside in ModeChoiceMultinomialLogit. Move somewhere else?
+  }
 
   def currentTour(data: BasePersonData): Tour = {
     stateName match {
@@ -370,12 +379,13 @@ class PersonAgent(
     data: BasePersonData
   ): State = {
     logDebug(s"replanning because ${error.errorCode}")
-    actorEventsManager ! new ReplanningEvent(_currentTick.get, Id.createPersonId(id))
+    val tick = _currentTick.getOrElse(response.request.departAt)
+    actorEventsManager ! new ReplanningEvent(tick, Id.createPersonId(id)))
     goto(ChoosingMode) using ChoosesModeData(
       data.copy(currentTourMode = None, numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
       currentLocation = SpaceTime(
         beamServices.geo.wgs2Utm(data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc,
-        _currentTick.get
+        tick
       ),
       isWithinTripReplanning = true
     )
@@ -415,27 +425,27 @@ class PersonAgent(
       handleFailedRideHailReservation(error, response, data)
     // RIDE HAIL SUCCESS
     // no trigger needed here since we're going to Waiting anyway without any other actions needed
-    case Event(RideHailResponse(_, _, None, triggersToSchedule), data: BasePersonData) =>
-      handleSuccessfulReservation(triggersToSchedule, data)
+    case Event(RideHailResponse(req, travelProposal, None, triggersToSchedule), data: BasePersonData) =>
+      handleSuccessfulReservation(triggersToSchedule, data, travelProposal)
     // RIDE HAIL FAILURE
     case Event(
         response @ RideHailResponse(_, _, Some(error), _),
         data @ BasePersonData(_, _, _, _, _, _, _, _, _, _, _)
         ) =>
       handleFailedRideHailReservation(error, response, data)
-    // CAV Pickup SUCCESS
-    case Event(CAVPickupConfirmed(triggersToSchedule), data: BasePersonData) =>
-      handleSuccessfulReservation(triggersToSchedule, data)
   }
 
   when(Waiting) {
     /*
      * Learn as passenger that it is time to board the vehicle
      */
-    case Event(
-        TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter), triggerId),
-        data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _)
+    case ev @ Event(
+          TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter, theMode), triggerId),
+          data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _)
         ) =>
+      if (theMode == CAV || data.currentTrip.get.tripClassifier == CAV) {
+        val i = 0
+      }
       logDebug(s"PersonEntersVehicle: $vehicleToEnter")
       actorEventsManager ! new PersonEntersVehicleEvent(tick, id, vehicleToEnter)
 
@@ -469,9 +479,10 @@ class PersonAgent(
      * Learn as passenger that it is time to alight the vehicle
      */
     case Event(
-        TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit), triggerId),
+        TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit, _, energyConsumedOption), triggerId),
         data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _)
-        ) =>
+        ) if vehicleToExit.equals(currentVehicle.head) =>
+      updateFuelConsumed(energyConsumedOption)
       logDebug(s"PersonLeavesVehicle: $vehicleToExit")
       actorEventsManager ! new PersonLeavesVehicleEvent(tick, id, vehicleToExit)
       holdTickAndTriggerId(tick, triggerId)
@@ -481,9 +492,10 @@ class PersonAgent(
       )
   }
 
-  // Callback from DrivesVehicle. Analogous to AlightVehicleTrigger, but when driving ourselves.
+  // Callback from DrivesVehicle. Analogous to AlightVehicleTrigger, but when driving ourselve s.
   when(PassengerScheduleEmpty) {
-    case Event(PassengerScheduleEmptyMessage(_, toll), data: BasePersonData) =>
+    case Event(PassengerScheduleEmptyMessage(_, toll, energyConsumedOption), data: BasePersonData) =>
+      updateFuelConsumed(energyConsumedOption)
       val netTripCosts = data.currentTripCosts // This includes tolls because it comes from leg.cost
       if (toll > 0.0 || netTripCosts > 0.0)
         actorEventsManager ! new PersonCostEvent(
@@ -542,6 +554,7 @@ class PersonAgent(
       beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
       goto(ProcessingNextLegOrStartActivity)
     case Event(NotAvailable, basePersonData: BasePersonData) =>
+      log.debug("{} replanning because vehicle not available when trying to board")
       actorEventsManager ! (new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
       goto(ChoosingMode) using ChoosesModeData(
         basePersonData.copy(
@@ -625,7 +638,7 @@ class PersonAgent(
 
     // TRANSIT but too late
     case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _))
-        if nextLeg.beamLeg.startTime < _currentTick.get =>
+        if nextLeg.beamLeg.mode.isTransit && nextLeg.beamLeg.startTime < _currentTick.get =>
       // We've missed the bus. This occurs when something takes longer than planned (based on the
       // initial inquiry). So we replan but change tour mode to WALK_TRANSIT since we've already done our non-transit
       // portion.
@@ -730,10 +743,30 @@ class PersonAgent(
               tick,
               id,
               currentTrip.tripClassifier.value,
-              incentive,
+              math.min(incentive, currentTrip.costEstimate),
               0.0,
               0.0 // the cost as paid by person has already been accounted for, this event is just about the incentive
             )
+          val correctedTrip = correctTripEndTime(data.currentTrip.get, tick, bodyVehiclePersonId.vehicleId)
+          val generalizedTime =
+            modeChoiceCalculator.getGeneralizedTimeOfTrip(correctedTrip, Some(attributes), nextActivity(data))
+          val generalizedCost = modeChoiceCalculator.getNonTimeCost(correctedTrip) + attributes
+            .getVOT(generalizedTime)
+          // Correct the trip to deal with ride hail / disruptions and then register to skimmer
+          beamSkimmer.observeTrip(
+            correctedTrip,
+            generalizedTime,
+            generalizedCost,
+            curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel,
+            beamServices
+          )
+          travelTimeObserved.observeTrip(
+            correctedTrip,
+            generalizedTime,
+            generalizedCost,
+            curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel
+          )
+          resetFuelConsumed()
 
           actorEventsManager ! new ActivityStartEvent(
             tick,
@@ -776,18 +809,154 @@ class PersonAgent(
 
   def handleSuccessfulReservation(
     triggersToSchedule: Vector[ScheduleTrigger],
-    data: BasePersonData
+    data: BasePersonData,
+    travelProposal: Option[TravelProposal] = None
   ): FSM.State[BeamAgentState, PersonData] = {
     if (_currentTriggerId.isDefined) {
-      val (_, triggerId) = releaseTickAndTriggerId()
-      log.debug("scheduling triggers from reservation responses: {}", triggersToSchedule)
+      val (tick, triggerId) = releaseTickAndTriggerId()
+      log.debug("releasing tick {} and scheduling triggers from reservation responses: {}", tick, triggersToSchedule)
       scheduler ! CompletionNotice(triggerId, triggersToSchedule)
     } else {
       // if _currentTriggerId is empty, this means we have received the reservation response from a batch
       // vehicle allocation process. It's ok, the trigger is with the ride hail manager.
     }
-    goto(Waiting) using data
+    val newData = travelProposal match {
+      case Some(newTrip) =>
+        data.copy(
+          restOfCurrentTrip = data.restOfCurrentTrip
+            .takeWhile(_.isRideHail)
+            .map(_.copy(beamVehicleId = newTrip.rideHailAgentLocation.vehicleId)) ++ data.restOfCurrentTrip.dropWhile(
+            _.isRideHail
+          )
+        )
+      case None =>
+        data
+    }
+    goto(Waiting) using newData
 
+  }
+
+  def handleBoardOrAlightOutOfPlace(
+    triggerId: Long,
+    currentTrip: Option[EmbodiedBeamTrip],
+    beamVehicleTypeId: Id[BeamVehicleType]
+  ) = {
+    currentTrip match {
+      case None =>
+        log.debug("Person {} stashing BoardOrAlight {} b/c no trip yet", id, triggerId)
+        stash
+        stay
+      case Some(trip) if trip.tripClassifier == CAV =>
+        log.debug("Person {} stashing BoardOrAlight {} b/c on CAV trip", id, triggerId)
+        stash
+        stay
+      case Some(trip) if beamServices.vehicleTypes.get(beamVehicleTypeId).map(_.automationLevel > 3).getOrElse(false) =>
+        log.warning(
+          "Person {} in state {} is abandoning CAV trips for rest of day because received Board/Alight trigger while on {} trip",
+          id,
+          stateName,
+          trip.tripClassifier
+        )
+        householdRef ! CancelCAVTrip(bodyVehiclePersonId)
+        _experiencedBeamPlan.tours.foreach(tour => _experiencedBeamPlan.putStrategy(tour, ModeChoiceStrategy(None)))
+        stay() replying CompletionNotice(triggerId, Vector())
+      case Some(trip) =>
+        log.debug("Person {} in state {} stashing BoardOrAlight {} b/c expecting this", id, stateName, triggerId)
+        stash
+        stay
+    }
+  }
+
+  val myUnhandled: StateFunction = {
+    case Event(IllegalTriggerGoToError(reason), _) =>
+      stop(Failure(reason))
+    case Event(StateTimeout, _) =>
+      log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
+      stop(
+        Failure(
+          "Timeout - this probably means this agent was not getting a reply it was expecting."
+        )
+      )
+    case Event(Finish, _) =>
+      if (stateName == Moving) {
+        log.warning("Still travelling at end of simulation.")
+        log.warning(s"Events leading up to this point:\n\t${getLog.mkString("\n\t")}")
+      }
+      stop
+    case Event(
+        TriggerWithId(BoardVehicleTrigger(_, _, Some(vehicleTypeId)), triggerId),
+        ChoosesModeData(
+          BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _),
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _
+        )
+        ) =>
+      handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
+    case Event(
+        TriggerWithId(AlightVehicleTrigger(_, _, Some(vehicleTypeId), _), triggerId),
+        ChoosesModeData(
+          BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _),
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _
+        )
+        ) =>
+      handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
+    case Event(
+        TriggerWithId(BoardVehicleTrigger(_, vehicleId, Some(vehicleTypeId)), triggerId),
+        BasePersonData(_, currentTrip, _, currentVehicle, _, _, _, _, _, _, _)
+        ) if !currentVehicle.isEmpty && currentVehicle.head.equals(vehicleId) =>
+      log.debug("Person {} in state {} received Board for vehicle that he is already on, ignoring...", id, stateName)
+      stay() replying CompletionNotice(triggerId, Vector())
+    case Event(
+        TriggerWithId(BoardVehicleTrigger(_, _, Some(vehicleTypeId)), triggerId),
+        BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _)
+        ) =>
+      handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
+    case Event(
+        TriggerWithId(AlightVehicleTrigger(_, _, Some(vehicleTypeId), _), triggerId),
+        BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _)
+        ) =>
+      handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
+    case Event(NotifyVehicleIdle(_, _, _, _, _), _) =>
+      stay()
+    case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>
+      stay() replying CompletionNotice(triggerId)
+    case Event(RideHailResponse(request, travelProposal, error, triggersToSchedule), _) =>
+      stop(Failure("Unexpected RideHailResponse"))
+    case Event(ParkingInquiryResponse(_, _), _) =>
+      stop(Failure("Unexpected ParkingInquiryResponse"))
   }
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))

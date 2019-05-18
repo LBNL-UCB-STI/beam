@@ -9,11 +9,11 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.router.RouteHistory
+import beam.router.{BeamSkimmer, RouteHistory}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.population.{Activity, Person}
+import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.households.Household
 
@@ -32,7 +32,8 @@ class Population(
   val parkingManager: ActorRef,
   val sharedVehicleFleets: Seq[ActorRef],
   actorEventsManager: ActorRef,
-  val routeHistory: RouteHistory
+  val routeHistory: RouteHistory,
+  val beamSkimmer: BeamSkimmer
 ) extends Actor
     with ActorLogging {
 
@@ -76,6 +77,7 @@ class Population(
 
   private def initHouseholds(iterId: Option[String] = None): Unit = {
     import scala.concurrent.ExecutionContext.Implicits.global
+
     try {
       // Have to wait for households to create people so they can send their first trigger to the scheduler
       val houseHoldsInitialized =
@@ -125,7 +127,8 @@ class Population(
               householdVehicles,
               homeCoord,
               sharedVehicleFleets,
-              routeHistory
+              routeHistory,
+              beamSkimmer
             ),
             household.getId.toString
           )
@@ -174,7 +177,8 @@ object Population {
     parkingManager: ActorRef,
     sharedVehicleFleets: Seq[ActorRef],
     actorEventsManager: ActorRef,
-    routeHistory: RouteHistory
+    routeHistory: RouteHistory,
+    beamSkimmer: BeamSkimmer
   ): Props = {
     Props(
       new Population(
@@ -188,7 +192,8 @@ object Population {
         parkingManager,
         sharedVehicleFleets,
         actorEventsManager,
-        routeHistory
+        routeHistory,
+        beamSkimmer
       )
     )
   }

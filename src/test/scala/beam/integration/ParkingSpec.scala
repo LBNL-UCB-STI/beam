@@ -3,8 +3,8 @@ package beam.integration
 import java.io.File
 
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ParkEvent, PathTraversalEvent}
-import beam.integration.EventReader._
 import beam.sim.BeamHelper
+import beam.utils.EventReader
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.apache.commons.io.FileUtils
 import org.matsim.api.core.v01.events.Event
@@ -69,7 +69,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
       .withValue("matsim.modules.strategy.ModuleProbability_1", ConfigValueFactory.fromAnyRef(0.3))
       .withValue("matsim.modules.strategy.ModuleProbability_2", ConfigValueFactory.fromAnyRef(0.7))
       .withValue(
-        "beam.agentsim.taz.parking",
+        "beam.agentsim.taz.parkingFilePath",
         ConfigValueFactory.fromAnyRef(s"test/input/beamville/parking/taz-parking-$parkingScenario.csv")
       )
       .withValue(
@@ -89,8 +89,8 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
 
     val queueEvents = ArrayBuffer[Seq[Event]]()
     for (i <- 0 until iterations) {
-      val filePath = getEventsFilePath(matsimConfig, "xml", i).getAbsolutePath
-      queueEvents.append(EventReader.fromFile(filePath).toSeq)
+      val filePath = EventReader.getEventsFilePath(matsimConfig, "xml", i).getAbsolutePath
+      queueEvents.append(EventReader.fromXmlFile(filePath).toSeq)
     }
 
     val outputDirectoryFile = new File(outputDirectory)

@@ -18,7 +18,7 @@ class GraphRunHelper(childModule: AbstractModule, baseConfig: Config) extends Be
 
   private val beamConfig = BeamConfig(baseConfig)
   private val configBuilder = new MatSimBeamConfigBuilder(baseConfig)
-  private val matsimConfig = configBuilder.buildMatSamConf()
+  private val matsimConfig = configBuilder.buildMatSimConf()
 
   matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
   FileUtils.setConfigOutputFile(beamConfig, matsimConfig)

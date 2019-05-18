@@ -129,10 +129,12 @@ class WarmStartRoutingSpec
 
     iterationConfig = config.withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef(path))
     val configBuilder = new MatSimBeamConfigBuilder(iterationConfig)
-    val matsimConfig = configBuilder.buildMatSamConf()
+    val matsimConfig = configBuilder.buildMatSimConf()
     matsimConfig.controler().setLastIteration(2)
     matsimConfig.controler.setOutputDirectory(path)
-    networkCoordinator = new DefaultNetworkCoordinator(BeamConfig(iterationConfig))
+    val updatedBeamConfig = BeamConfig(iterationConfig)
+    FileUtils.setConfigOutputFile(updatedBeamConfig, matsimConfig)
+    networkCoordinator = new DefaultNetworkCoordinator(updatedBeamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 
@@ -176,7 +178,7 @@ class WarmStartRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
@@ -190,7 +192,7 @@ class WarmStartRoutingSpec
       var response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption.totalTravelTimeInSecs == 76)
+      assert(carOption.totalTravelTimeInSecs == 145)
 
       BeamWarmStart(services.beamConfig, maxHour).warmStartTravelTime(router, scenario)
 
@@ -198,7 +200,7 @@ class WarmStartRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
@@ -213,7 +215,7 @@ class WarmStartRoutingSpec
 
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption2 = response.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption2.totalTravelTimeInSecs == 55)
+      assert(carOption2.totalTravelTimeInSecs == 105)
     }
 
     "show a decrease in travel time after three iterations if warm start times are doubled" in {
@@ -232,7 +234,7 @@ class WarmStartRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
@@ -246,14 +248,14 @@ class WarmStartRoutingSpec
       var response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption.totalTravelTimeInSecs == 110)
+      assert(carOption.totalTravelTimeInSecs == 203)
 
       BeamWarmStart(BeamConfig(iterationConfig), maxHour).warmStartTravelTime(router, scenario)
       router1 ! RoutingRequest(
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
@@ -284,7 +286,7 @@ class WarmStartRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
@@ -304,7 +306,7 @@ class WarmStartRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
@@ -330,7 +332,7 @@ class WarmStartRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
@@ -362,7 +364,7 @@ class WarmStartRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
