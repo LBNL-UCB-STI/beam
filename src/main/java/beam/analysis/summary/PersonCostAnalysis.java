@@ -15,8 +15,10 @@ import org.matsim.households.Household;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
+import scala.collection.Iterable;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 public class PersonCostAnalysis implements IterationSummaryAnalysis {
@@ -32,6 +34,7 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
   private BeamServices beamServices;
   double averageVot=0;
   String votKeyString="valueOfTime";
+  double defaultDummyHouseholdIncome=0.01;
 
 
   private Logger logger = LoggerFactory.getLogger(PersonCostAnalysis.class);
@@ -39,6 +42,10 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
   public PersonCostAnalysis(BeamServices beamServices){
     this.beamServices = beamServices;
     averageVot=getAverageVOT();
+
+    if(beamServices.personHouseholds().values().filter((Household hh) -> hh.getIncome().getIncome()!=0).size()!=beamServices.personHouseholds().size()){
+      logger.error("Some households have income not set - default dummy income values will be used: "+ defaultDummyHouseholdIncome);
+    }
   }
 
   private double getAverageVOT(){
@@ -93,6 +100,10 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
       if (householdOption.nonEmpty()) {
         String personId = ase.getPersonId().toString();
         double householdIncome=householdOption.get().getIncome().getIncome();
+        if (householdIncome==0){
+          householdIncome=defaultDummyHouseholdIncome;
+        }
+
         if(personIdCost.containsKey(personId)){
           String actType = ase.getActType();
           String statType = String.format("averageTripExpenditure_%s", actType);
