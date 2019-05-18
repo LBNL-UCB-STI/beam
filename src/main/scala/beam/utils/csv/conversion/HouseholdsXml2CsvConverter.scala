@@ -9,7 +9,7 @@ class HouseholdsXml2CsvConverter(householdAttributesXml: File) extends Xml2CsvFi
 
   override val fields: Seq[String] = Seq("householdId", "incomeValue", "locationX", "locationY")
 
-  private type HouseholdId = Int
+  private type HouseholdId = String
   private type HouseHoldIdToAttributes = Map[HouseholdId, HouseHoldAttributes]
 
   private case class Household(householdId: HouseholdId, income: Income, locationX: Double, locationY: Double) {
@@ -30,8 +30,8 @@ class HouseholdsXml2CsvConverter(householdAttributesXml: File) extends Xml2CsvFi
 
   private case class HouseHoldAttributes(
     householdId: HouseholdId,
-    homeCoordX: Int,
-    homeCoordY: Int,
+    homeCoordX: Double,
+    homeCoordY: Double,
     housingType: String
   ) {
     override def toString: String = {
@@ -47,9 +47,9 @@ class HouseholdsXml2CsvConverter(householdAttributesXml: File) extends Xml2CsvFi
       def fromSeq(name: String): String = attrs.find(_.attributes("name").text == name).get.text
 
       HouseHoldAttributes(
-        householdId = node.attributes("id").toString.toInt,
-        homeCoordX = fromSeq("homecoordx").toInt,
-        homeCoordY = fromSeq("homecoordy").toInt,
+        householdId = node.attributes("id").toString,
+        homeCoordX = fromSeq("homecoordx").toDouble,
+        homeCoordY = fromSeq("homecoordy").toDouble,
         housingType = fromSeq("housingtype")
       )
     }
@@ -64,7 +64,7 @@ class HouseholdsXml2CsvConverter(householdAttributesXml: File) extends Xml2CsvFi
   }
 
   private def toHousehold(node: Node, houseHoldIdToAttributes: HouseHoldIdToAttributes): Household = {
-    val id = node.attributes("id").toString.toInt
+    val id = node.attributes("id").toString
     Household(
       householdId = id,
       income = toIncome((node \ "income").head),
