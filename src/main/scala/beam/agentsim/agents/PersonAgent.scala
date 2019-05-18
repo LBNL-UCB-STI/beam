@@ -35,7 +35,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
-import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
+import org.matsim.core.api.experimental.events.TeleportationArrivalEvent
 import org.matsim.vehicles.Vehicle
 
 import scala.concurrent.duration._
@@ -380,7 +380,7 @@ class PersonAgent(
   ): State = {
     logDebug(s"replanning because ${error.errorCode}")
     val tick = _currentTick.getOrElse(response.request.departAt)
-    actorEventsManager ! new ReplanningEvent(tick, Id.createPersonId(id)))
+    actorEventsManager ! new ReplanningEvent(tick, Id.createPersonId(id))
     goto(ChoosingMode) using ChoosesModeData(
       data.copy(currentTourMode = None, numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
       currentLocation = SpaceTime(
