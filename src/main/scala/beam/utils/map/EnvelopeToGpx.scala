@@ -10,7 +10,7 @@ class EnvelopeToGpx extends LazyLogging {
     override def localCRS: String = "epsg:26910"
   }
 
-  def render(envelope: Envelope, wgsCoord: Coord, outputPath: String): Unit = {
+  def render(envelope: Envelope, wgsCoordOpt: Option[Coord], outputPath: String): Unit = {
     val start = System.currentTimeMillis()
 
     // We have min(x0, y0) and max(x1,y1). Need to add two extra points to draw rectangle
@@ -35,14 +35,16 @@ x0,y0 .___________. x1, y0
     val gpxWriter = new GpxWriter(outputPath, geoUtils)
     try {
 
-      val middle = GpxPoint(
-        "Middle",
-        new Coord((envelope.getMinX + envelope.getMaxX) / 2, (envelope.getMinY + envelope.getMaxY) / 2)
-      )
-      gpxWriter.drawMarker(middle)
-      val searchPoint = GpxPoint("Search", wgsCoord)
-      gpxWriter.drawMarker(searchPoint)
-      gpxWriter.drawSourceToDest(middle, searchPoint)
+      wgsCoordOpt.foreach { wgsCoord =>
+        val middle = GpxPoint(
+          "Middle",
+          new Coord((envelope.getMinX + envelope.getMaxX) / 2, (envelope.getMinY + envelope.getMaxY) / 2)
+        )
+        gpxWriter.drawMarker(middle)
+        val searchPoint = GpxPoint("Search", wgsCoord)
+        gpxWriter.drawMarker(searchPoint)
+        gpxWriter.drawSourceToDest(middle, searchPoint)
+      }
 
       envelopePoints.foreach(point => gpxWriter.drawMarker(point))
 
@@ -64,6 +66,6 @@ object EnvelopeToGpx {
   def main(args: Array[String]): Unit = {
     val en1 = new Envelope(-122.5447336, -122.3592068, 37.6989794, 37.843628)
     val envelopeToGpx = new EnvelopeToGpx
-    envelopeToGpx.render(en1, new Coord(-123.180062255, 38.7728279981), "ex1.gpx")
+    envelopeToGpx.render(en1, Some(new Coord(-123.180062255, 38.7728279981)), "ex1.gpx")
   }
 }
