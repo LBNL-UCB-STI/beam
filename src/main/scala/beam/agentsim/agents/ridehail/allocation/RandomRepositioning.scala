@@ -1,14 +1,13 @@
 package beam.agentsim.agents.ridehail.allocation
 
-import java.io.FileWriter
-import java.io.File
+import java.io.{File, FileWriter}
 
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.Location
-import beam.utils.FileUtils
+import beam.utils.{FileUtils, RandomUtils}
+import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.api.core.v01.population.{Activity, Person, PlanElement}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.vehicles.Vehicle
 import org.supercsv.io.CsvMapWriter
@@ -145,17 +144,34 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.repositioningShare
         val fleetSize = rideHailManager.fleetSize
         val numVehiclesToReposition = (repositioningShare * fleetSize).toInt
-        if (rideHailManager.vehicleManager.getIdleVehicles.size >= 2) {
-          // TODO: shuffle origin as well -> otherwise same vehicles maybe shuffled!!!!!!!!!! -> see next case
-          val origin = rideHailManager.vehicleManager.getIdleVehicles.values.toVector
-          val destination = scala.util.Random.shuffle(origin)
-          (for ((o, d) <- origin zip destination)
-            yield (o.vehicleId, d.currentLocationUTM.loc))
-            .splitAt(numVehiclesToReposition)
-            ._1
-        } else {
-          Vector()
+
+        // Get idle vehicles
+        val idleVehicles = rideHailManager.vehicleManager.getIdleVehicles.values
+        // Shuffle only once and split it by `numVehiclesToReposition`
+        val (src, dst) = RandomUtils.shuffle(idleVehicles, new java.util.Random()).splitAt(numVehiclesToReposition)
+        // Get the source vehicles by taking `numVehiclesToReposition` vehicles
+        val srcLocations = src.take(numVehiclesToReposition)
+
+        // Get the destination
+        // Make sure we exclude `srcLocations`
+        val dstLocations = dst.take(numVehiclesToReposition)
+
+        val result = srcLocations.zip(dstLocations).map { case (s, d) =>
+          (s.vehicleId, d.currentLocationUTM.loc)
         }
+        result.toVector
+
+//        if (rideHailManager.vehicleManager.getIdleVehicles.size >= 2) {
+//          // TODO: shuffle origin as well -> otherwise same vehicles maybe shuffled!!!!!!!!!! -> see next case
+//          val origin = rideHailManager.vehicleManager.getIdleVehicles.values.toVector
+//          val destination = scala.util.Random.shuffle(origin)
+//          (for ((o, d) <- origin zip destination)
+//            yield (o.vehicleId, d.currentLocationUTM.loc))
+//            .splitAt(numVehiclesToReposition)
+//            ._1
+//        } else {
+//          Vector()
+//        }
       case 2 =>
         val repositioningShare =
           rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.repositioningShare
