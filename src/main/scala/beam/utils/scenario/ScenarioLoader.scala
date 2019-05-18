@@ -78,14 +78,6 @@ class ScenarioLoader(
       .toMap
   }
 
-  private def replacePersonHouseholdFromService(): Unit = {
-    beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
-      .values()
-      .asScala
-      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
-      .toMap
-  }
-
   private def clear(): Unit = {
     scenario.getPopulation.getPersons.clear()
     scenario.getPopulation.getPersonAttributes.clear()
