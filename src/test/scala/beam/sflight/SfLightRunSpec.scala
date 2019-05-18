@@ -83,7 +83,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
       assert(nCarTrips > 1)
     }
 
-    "run 5k(default) scenario for one iteration" taggedAs (Periodic, ExcludeRegular) in {
+    "run 5k(default) scenario for one iteration" taggedAs (Periodic, ExcludeRegular) ignore {
       val confPath = configMap.getWithDefault("config", "test/input/sf-light/sf-light-5k.conf")
       val totalIterations = configMap.getWithDefault("iterations", "1").toInt
       logger.info(s"Starting test with config [$confPath] and iterations [$totalIterations]")

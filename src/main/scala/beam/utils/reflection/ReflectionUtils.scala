@@ -4,12 +4,9 @@ import java.lang.reflect.Modifier.{isAbstract, isInterface}
 import java.lang.reflect.{Field, Modifier}
 
 import akka.event.LoggingAdapter
-import beam.utils.DebugLib
-import org.hsqldb.lib.Collection
 import org.reflections.Reflections
 import org.reflections.util.{ClasspathHelper, ConfigurationBuilder}
 
-import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
