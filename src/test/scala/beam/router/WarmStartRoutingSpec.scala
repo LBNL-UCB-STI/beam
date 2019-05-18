@@ -133,9 +133,7 @@ class WarmStartRoutingSpec
     val matsimConfig = configBuilder.buildMatSimConf()
     matsimConfig.controler().setLastIteration(2)
     matsimConfig.controler.setOutputDirectory(path)
-    val updatedBeamConfig = BeamConfig(iterationConfig)
-    FileUtils.setConfigOutputFile(updatedBeamConfig, matsimConfig)
-    networkCoordinator = new DefaultNetworkCoordinator(updatedBeamConfig)
+    networkCoordinator = new DefaultNetworkCoordinator(BeamConfig(iterationConfig))
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 

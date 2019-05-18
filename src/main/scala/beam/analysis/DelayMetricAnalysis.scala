@@ -69,7 +69,7 @@ class DelayMetricAnalysis @Inject()(
         val mode = pathTraversalEvent.mode
         if (mode.value.equalsIgnoreCase(CAR.value)) {
           val linkIds = pathTraversalEvent.linkIds
-          val linkTravelTimes = pathTraversalEvent.linkTravelTime
+          val linkTravelTimes = pathTraversalEvent.linkTravelTimes
           assert(linkIds.length == linkTravelTimes.length)
 
           if (linkIds.nonEmpty) {

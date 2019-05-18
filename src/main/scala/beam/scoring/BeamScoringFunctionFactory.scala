@@ -1,16 +1,13 @@
 package beam.scoring
 
-import java.util.{Observable, Observer}
-
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.model.EmbodiedBeamTrip
-import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.population.PopulationAdjustment._
-import beam.sim.{BeamConfigChangesObservable, BeamServices, MapStringDouble, OutputDataDescription}
+import beam.sim.{BeamServices, MapStringDouble, OutputDataDescription}
 import beam.utils.{FileUtils, OutputDataDescriptor}
 import javax.inject.Inject
 import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent}
@@ -24,16 +21,10 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.language.postfixOps
 
-class BeamScoringFunctionFactory @Inject()(
-  beamServices: BeamServices,
-  beamConfigChangesObservable: BeamConfigChangesObservable
-) extends ScoringFunctionFactory
-    with IterationEndsListener
-    with Observer {
+class BeamScoringFunctionFactory @Inject()(beamServices: BeamServices)
+    extends ScoringFunctionFactory
+    with IterationEndsListener {
 
-  beamConfigChangesObservable.addObserver(this)
-
-  private var beamConfig = beamServices.beamConfig
   private val log = LoggerFactory.getLogger(classOf[BeamScoringFunctionFactory])
 
   override def createNewScoringFunction(person: Person): ScoringFunction = {
@@ -138,8 +129,8 @@ class BeamScoringFunctionFactory @Inject()(
         modeChoiceMultinomialLogit: ModeChoiceMultinomialLogit
       ): Unit = {
         // Consider only trips that start between the given time range (specified in the scenario config)
-        val startTime = beamConfig.beam.outputs.generalizedLinkStats.startTime
-        val endTime = beamConfig.beam.outputs.generalizedLinkStats.endTime
+        val startTime = beamServices.beamConfig.beam.outputs.generalizedLinkStats.startTime
+        val endTime = beamServices.beamConfig.beam.outputs.generalizedLinkStats.endTime
         val filteredTrips = trips filter { t =>
           t.legs.headOption.exists(bleg => bleg.beamLeg.startTime >= startTime && bleg.beamLeg.startTime <= endTime)
         }
@@ -210,7 +201,7 @@ class BeamScoringFunctionFactory @Inject()(
   }
 
   private def writePersonScoreDataToFile(event: IterationEndsEvent): Unit = {
-    val interval = beamConfig.beam.debug.agentTripScoresInterval
+    val interval = beamServices.beamConfig.beam.debug.agentTripScoresInterval
     if (interval > 0 && event.getIteration % interval == 0) {
       val fileHeader = "personId,tripIdx,departureTime,totalTravelTimeInSecs,mode,cost,score"
       // Output file relative path
@@ -226,7 +217,7 @@ class BeamScoringFunctionFactory @Inject()(
   }
 
   private def writeGeneralizedLinkStatsDataToFile(event: IterationEndsEvent): Unit = {
-    val linkStatsInterval = beamConfig.beam.outputs.generalizedLinkStatsInterval
+    val linkStatsInterval = beamServices.beamConfig.beam.outputs.generalizedLinkStatsInterval
     if (linkStatsInterval > 0 && event.getIteration % linkStatsInterval == 0) {
       val fileHeader = "linkId,travelTime,cost,generalizedTravelTime,generalizedCost"
       // Output file relative path
@@ -250,12 +241,6 @@ class BeamScoringFunctionFactory @Inject()(
     }
   }
 
-  override def update(observable: Observable, o: Any): Unit = {
-    val t = o.asInstanceOf[(_, _)]
-    val beamConfig = t._2.asInstanceOf[BeamConfig]
-    this.beamConfig = beamConfig
-
-  }
 }
 
 /**

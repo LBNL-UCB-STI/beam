@@ -43,6 +43,7 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.households
 import org.matsim.households.Household
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -180,8 +181,8 @@ object HouseholdActor {
             fleetManager
         }
         // If any of my vehicles are CAVs then go through scheduling process
-        var cavs = vehicles.values.filter(_.beamVehicleType.automationLevel > 3).toList
-        if (cavs.nonEmpty) {
+        var cavs = vehicles.filter(_._2.beamVehicleType.automationLevel > 3).map(_._2).toList
+        if (cavs.size > 0) {
 //          log.debug("Household {} has {} CAVs and will do some planning", household.getId, cavs.size)
           cavs.foreach { cav =>
             val cavDriverRef: ActorRef = context.actorOf(
@@ -309,7 +310,7 @@ object HouseholdActor {
       case RoutingResponses(tick, routingResponses) =>
         // Check if there are any broken routes, for now we cancel the whole cav plan if this happens and give a warning
         // a more robust implementation would re-plan but without the person who's mobility led to the bad route
-        if (routingResponses.exists(_.itineraries.isEmpty)) {
+        if (routingResponses.find(_.itineraries.isEmpty).size > 0) {
           log.warning(
             "Failed CAV routing responses for household {} aborting use of CAVs for this house.",
             household.getId
@@ -321,7 +322,7 @@ object HouseholdActor {
           completeInitialization(triggerId, Vector())
         } else {
           // Index the responses by Id
-          val indexedResponses = routingResponses.map(resp => resp.requestId -> resp).toMap
+          val indexedResponses = routingResponses.map(resp => (resp.requestId -> resp)).toMap
           routingResponses.foreach { resp =>
             resp.itineraries.headOption.map { itin =>
               val theLeg = itin.legs.head.beamLeg
@@ -364,11 +365,11 @@ object HouseholdActor {
                   passengersToAdd = passengersToAdd + person
                 }
               }
-              if (serviceRequest.routingRequestId.isDefined && indexedResponses(serviceRequest.routingRequestId.get).itineraries.nonEmpty) {
+              if (serviceRequest.routingRequestId.isDefined && indexedResponses(serviceRequest.routingRequestId.get).itineraries.size > 0) {
                 if (updatedLegsIterator.hasNext) {
                   val leg = updatedLegsIterator.next
                   passengersToAdd.foreach { pass =>
-                    val legsForPerson = pickDropsForGrouping.getOrElse(pass, List()) :+ leg
+                    val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg
                     pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
                   }
                 } else {
@@ -383,7 +384,7 @@ object HouseholdActor {
           Future
             .sequence(
               cavPassengerSchedules
-                .filter(_._2.schedule.nonEmpty)
+                .filter(_._2.schedule.size > 0)
                 .map { cavAndSchedule =>
                   akka.pattern
                     .ask(
@@ -405,19 +406,19 @@ object HouseholdActor {
       case CavTripLegsRequest(person, originActivity) =>
         personAndActivityToLegs.get((person.personId, originActivity)) match {
           case Some(legs) =>
-            val cav = personAndActivityToCav((person.personId, originActivity))
+            val cav = personAndActivityToCav.get((person.personId, originActivity)).get
             sender() ! CavTripLegsResponse(
               Some(cav),
               legs.map(
                 bLeg =>
                   EmbodiedBeamLeg(
-                    beamLeg = bLeg.copy(mode = CAV),
-                    beamVehicleId = cav.id,
-                    beamVehicleTypeId = cav.beamVehicleType.id,
-                    asDriver = false,
-                    cost = 0D,
-                    unbecomeDriverOnCompletion = false,
-                    isPooledTrip = false
+                    bLeg.copy(mode = CAV),
+                    cav.id,
+                    cav.beamVehicleType.id,
+                    false,
+                    0.0,
+                    false,
+                    false
                 )
               )
             )
@@ -464,7 +465,7 @@ object HouseholdActor {
       // Do nothing
     }
 
-    def handleReleaseVehicle(vehicle: BeamVehicle, tickOpt: Option[Int]): Unit = {
+    def handleReleaseVehicle(vehicle: BeamVehicle, tickOpt: Option[Int]) = {
       if (vehicle.beamVehicleType.automationLevel <= 3) {
         vehicle.unsetDriver()
         if (!availableVehicles.contains(vehicle)) {

@@ -1,7 +1,12 @@
 package beam.agentsim.events.handling
 
+import java.io.IOException
+
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.events.Event
+import org.matsim.core.utils.io.UncheckedIOException
+
+import scala.collection.JavaConverters._
 
 /**
   * @author Bhavya Latha Bandaru.
@@ -18,64 +23,75 @@ class BeamEventsWriterXML(
   eventTypeToLog: Class[_]
 ) extends BeamEventsWriterBase(outFileName, beamEventLogger, beamServices, eventTypeToLog) {
 
-  val specialCharToEscape: Map[Char, String] = Map('<' -> "&lt;", '>' -> "&gt;", '"' -> "&quot;", '&' -> "&amp;")
-  val specialChars: Array[Char] = specialCharToEscape.keys.toArray
-
-  val header: String =
-    """<?xml version="1.0" encoding="utf-8"?>
-<events version="1.0">""".stripMargin
+  val specialChars: Array[Char] = Array('<', '>', '\"', '&')
 
   writeHeaders()
 
   /**
     * Writes the events to the xml file.
-    *
     * @param event event to written
     */
   override protected def writeEvent(event: Event): Unit = {
     //get all the event attributes
-    outWriter.append("\t<event ")
-    event.getAttributes.forEach((name, value) => {
-      outWriter.append(name)
-      outWriter.append("=\"")
-      outWriter.append(encodeAttributeValue(value))
-      outWriter.append("\" ")
-    })
-    outWriter.append("/>")
-    outWriter.newLine()
+    try {
+      val keyValues = event.getAttributes.asScala map { keyValue =>
+        //for each attribute, encode the values for special characters (if any) and append them to the event xml tag.
+        val encodedString = encodeAttributeValue(keyValue._2)
+        keyValue._1 + "=\"" + encodedString + "\" "
+      }
+      //write the event tag to the xml file
+      val eventElem = s"\t<event ${keyValues.mkString(" ")}/>\n"
+      this.outWriter.append(eventElem)
+    } catch {
+      case e: Exception =>
+        throw e
+    }
   }
 
   /**
     * Adds the xml header to the file.
     */
   override protected def writeHeaders(): Unit = {
-    outWriter.write(header)
-    outWriter.newLine()
+    val header =
+      """<?xml version="1.0" encoding="utf-8"?>
+<events version="1.0">""".stripMargin
+    try {
+      this.outWriter.write(header)
+      this.outWriter.write("\n")
+    } catch {
+      case e: IOException =>
+        throw new UncheckedIOException(e)
+    }
   }
 
   /**
     * Appends the footer and closes the file stream.
     */
   override def closeFile(): Unit = {
-    outWriter.write("</events>")
-    outWriter.close()
+    try {
+      this.outWriter.write("</events>")
+      this.outWriter.close()
+    } catch {
+      case e: IOException =>
+        throw new UncheckedIOException(e)
+    }
   }
 
   /**
     * Encodes any special character encountered in the xml attribute value.
-    *
     * @param attributeValue xml attribute value
     * @return encoded attribute value
     */
   private def encodeAttributeValue(attributeValue: String): String = {
-    var i: Int = 0
-    var result = attributeValue
-    while (i < specialChars.length) {
-      val char = specialChars(i)
-      if (result.indexOf(char) >= 0)
-        result = result.replace(char.toString, specialCharToEscape(char))
-      i += 1
+    // Replace special characters(if any) with encoded strings
+    attributeValue.find(specialChars.contains(_)) match {
+      case Some(_) =>
+        attributeValue
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll("\"", "&quot;")
+          .replaceAll("&", "&amp;")
+      case None => attributeValue
     }
-    result
   }
 }

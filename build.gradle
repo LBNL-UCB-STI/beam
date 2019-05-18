@@ -62,24 +62,11 @@ sourceSets.main.java.srcDirs = []
 sourceSets.test.java.srcDirs = []
 sourceSets.test.scala.srcDirs = ["src/test/scala", "src/test/java"]
 
-sourceSets {
-    main {
-        resources {
-            srcDir "src/main/resources"
-        }
-    }
-    test {
-        resources {
-            srcDir "src/test/resources"
-        }
-    }
-}
-
 if (project.hasProperty('env')) {
     sourceSets {
         main {
             resources {
-                srcDirs "test/input/" + project.getProperty('env')
+                srcDirs "src/main/resources", "test/input/" + project.getProperty('env')
             }
         }
     }
@@ -245,9 +232,6 @@ dependencies {
     compile group: 'com.typesafe.akka', name: "akka-contrib_${scalaBinaryVersion}", version: akkaBinaryVersion
 //    compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.9'
 
-    compile group: 'com.typesafe.akka', name: "akka-http_${scalaBinaryVersion}", version: "10.1.8"
-    compile group: 'de.heikoseeberger', name: "akka-http-circe_${scalaBinaryVersion}", version: "1.25.2"
-
     // TEST Akka //
     testCompile group: 'com.typesafe.akka', name: "akka-testkit_${scalaBinaryVersion}", version: akkaBinaryVersion
 
@@ -308,12 +292,14 @@ build.dependsOn spec
 
 task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
+
     args = ['-R', 'build/classes/scala/test', '-o', '-n'] << (project.findProperty('tags') ?: 'org.scalatest.Ignore')
     classpath = sourceSets.test.runtimeClasspath
 }
 
 task specificTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
+
     args = ['-R', 'build/classes/scala/test', '-o', '-s'] << (project.findProperty('suite') ?: 'org.scalatest.Ignore')
     classpath = sourceSets.test.runtimeClasspath
 }
@@ -331,6 +317,7 @@ task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
                     '-Diterations=' + project.findProperty('iterations') : '')
     jvmArgs = ['-javaagent:build/aspectjweaver-1.8.10.jar']
     classpath = sourceSets.test.runtimeClasspath
+
     doFirst() {
         if (!project.file('build/aspectjweaver-1.8.10.jar').exists()) {
             download {
@@ -562,8 +549,7 @@ def jfrWithMem = ["-XX:+UnlockCommercialFeatures", "-XX:+UnlockDiagnosticVMOptio
 
 // UseParallelGC
 applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${myAvailableRam/2}g",
-                             "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
-                             "-Dlogback.configurationFile=logback_prod.xml"] + logGC
+                             "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M"] + logGC
 
 println(applicationDefaultJvmArgs)
 

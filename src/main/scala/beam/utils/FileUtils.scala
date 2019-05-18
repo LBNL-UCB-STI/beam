@@ -53,6 +53,7 @@ object FileUtils extends LazyLogging {
     val outputDir = Paths
       .get(outputDirectoryBasePath + File.separator + simulationName + "_" + optionalSuffix)
       .toFile
+    logger.debug(s"Beam output directory is: ${outputDir.getAbsolutePath}")
     outputDir.mkdir()
     outputDir.getAbsolutePath
   }

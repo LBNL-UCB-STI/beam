@@ -17,4 +17,4 @@ case class PlanElement(
   mode: Option[String]
 )
 
-case class HouseholdInfo(householdId: HouseholdId, cars: Int, income: Double, x: Double, y: Double)
+case class HouseholdInfo(householdId: HouseholdId, cars: Double, income: Double, x: Double, y: Double)
