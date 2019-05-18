@@ -28,15 +28,16 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
       val customAttributes: AttributesOfIndividual =
         person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
 
+      // `personAttributes.getAttribute(...)` can return `null`
       val excludedModes = Option(
         personAttributes
           .getAttribute(person.getId.toString, "excluded-modes")
-      ).map(
-          _.toString
+      ).map { attrib =>
+          attrib.toString
             .replaceAll(",", ArrayItemSeparator)
             .split(ArrayItemSeparator)
             .mkString(ArrayStartString, ArrayItemSeparator, ArrayEndString)
-        )
+        }
         .getOrElse("")
 
       val values = Seq(
