@@ -9,16 +9,16 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.router.{BeamSkimmer, RouteHistory}
 import beam.router.osm.TollCalculator
+import beam.router.{BeamSkimmer, RouteHistory}
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.population.{Activity, Leg, Person}
+import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.households.Household
 
 import scala.collection.JavaConverters._
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.{Await, Future}
 
 class Population(

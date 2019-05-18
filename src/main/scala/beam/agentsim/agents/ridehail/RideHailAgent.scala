@@ -393,7 +393,7 @@ class RideHailAgent(
   def handleEndRefuel(energyInJoules: Double, tick: Int, sessionStart: Int) = {
     log.debug("Ending refuel session for {}", vehicle.id)
     vehicle.addFuel(energyInJoules)
-    actorEventsManager !(
+    actorEventsManager ! (
       new RefuelEvent(
         tick,
         vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
