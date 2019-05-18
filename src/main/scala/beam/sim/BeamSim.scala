@@ -51,7 +51,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
 import beam.utils.logging.ExponentialLazyLogging
-import org.matsim.api.core.v01.population.{Activity, Plan}
 
 class BeamSim @Inject()(
   private val actorSystem: ActorSystem,
@@ -63,8 +62,7 @@ class BeamSim @Inject()(
   private val networkHelper: NetworkHelper,
   private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator,
   private val beamSkimmer: BeamSkimmer,
-  private val travelTimeObserved: TravelTimeObserved,
-  private val beamConfigChangesObservable: BeamConfigChangesObservable
+  private val travelTimeObserved: TravelTimeObserved
 ) extends StartupListener
     with IterationStartsListener
     with IterationEndsListener
@@ -124,8 +122,7 @@ class BeamSim @Inject()(
         transportNetwork,
         event.getServices.getControlerIO,
         scenario,
-        beamServices,
-        beamConfigChangesObservable
+        beamServices
       )
       iterationStatsProviders += agentSimToPhysSimPlanConverter
     }
@@ -167,29 +164,25 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
-    beamConfigChangesObservable.notifyChangeToSubscribers()
     ExponentialLazyLogging.reset()
     beamServices.privateVehicles.values.foreach(_.initializeFuelLevels)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-
-    val beamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
-
     travelTimeObserved.notifyIterationEnds(event)
 
     beamSkimmer.notifyIterationEnds(event)
 
-    if (beamConfig.beam.debug.debugEnabled)
+    if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
     val outputGraphsFuture = Future {
-      if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
+      if ("ModeChoiceLCCM".equals(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
         modalityStyleStats.processData(scenario.getPopulation, event)
         modalityStyleStats.buildModalityStyleGraph()
       }
       createGraphsFromEvents.createGraphs(event)
-      val interval = beamConfig.beam.outputs.writePlansInterval
+      val interval = beamServices.beamConfig.beam.outputs.writePlansInterval
       if (interval > 0 && event.getIteration % interval == 0) {
         PopulationWriterCSV(event.getServices.getScenario.getPopulation).write(
           event.getServices.getControlerIO
@@ -219,12 +212,12 @@ class BeamSim @Inject()(
       tncIterationsStatsCollector
         .tellHistoryToRideHailIterationHistoryActorAndReset()
 
-      if (beamConfig.beam.replanning.Module_2.equalsIgnoreCase("ClearRoutes")) {
-        routeHistory.expireRoutes(beamConfig.beam.replanning.ModuleProbability_2)
+      if (beamServices.beamConfig.beam.replanning.Module_2.equalsIgnoreCase("ClearRoutes")) {
+        routeHistory.expireRoutes(beamServices.beamConfig.beam.replanning.ModuleProbability_2)
       }
     }
 
-    if (beamConfig.beam.physsim.skipPhysSim) {
+    if (beamServices.beamConfig.beam.physsim.skipPhysSim) {
       Await.result(Future.sequence(List(outputGraphsFuture)), Duration.Inf)
     } else {
       val physsimFuture = Future {
@@ -235,7 +228,7 @@ class BeamSim @Inject()(
       Await.result(Future.sequence(List(outputGraphsFuture, physsimFuture)), Duration.Inf)
     }
 
-    if (beamConfig.beam.debug.debugEnabled)
+    if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.end (after GC): "))
     stopMeasuringIteration()
 
@@ -245,19 +238,6 @@ class BeamSim @Inject()(
       event.getIteration,
       persons.map(_.getPlans.size()).sum.toFloat / persons.size
     )
-
-    val activityEndTimesNonNegativeCheck: Iterable[Plan] = persons.toList.flatMap(_.getPlans.asScala.toList) filter {
-      plan =>
-        val activities = plan.getPlanElements.asScala.filter(_.isInstanceOf[Activity])
-        activities.dropRight(1).exists(_.asInstanceOf[Activity].getEndTime < 0)
-    }
-
-    if (activityEndTimesNonNegativeCheck.isEmpty) {
-      logger.info("All person activities (except the last one) have non-negative end times.")
-    } else {
-      logger.warn(s"Non-negative end times found for person activities - ${activityEndTimesNonNegativeCheck.size}")
-    }
-
     //    Tracer.currentContext.finish()
     metricsPrinter ! Print(
       Seq(
@@ -298,8 +278,6 @@ class BeamSim @Inject()(
       logger.debug(s"deleting output file: $fileName")
       Files.deleteIfExists(Paths.get(event.getServices.getControlerIO.getOutputFilename(fileName)))
     }
-    BeamConfigChangesObservable.clear()
-
   }
 
   private def writeSummaryStats(summaryStatsFile: File): Unit = {

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
+
     <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
@@ -10,33 +11,41 @@
         </layout>
     </appender>
 
-    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <File>${log-path}/beamLog.out</File>
-        <layout class="ch.qos.logback.classic.PatternLayout">
-            <Pattern>
-                %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
-            </Pattern>
-        </layout>
-    </appender>
-
     <root level="info">
         <appender-ref ref="STDOUT"/>
-        <appender-ref ref="FILE"/>
     </root>
 
-    <logger name="com.conveyal" level="error" />
+    <logger name="com.conveyal" level="error" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
 
     <!--    MATSIM -->
-    <logger name="org.matsim" level="ERROR" />
-    <Logger name="org.matsim.core.controler.corelisteners.DumpDataAtEndImpl" level="OFF" />
+    <logger name="org.matsim" level="ERROR">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+    <Logger name="org.matsim.core.controler.corelisteners.DumpDataAtEndImpl" level="OFF">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+    <Logger name="org.matsim.core.events" level="WARN">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
 
-    <logger name="beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter" level="ERROR" />
-    <Logger name="beam.agentsim.agents.ridehail.RideHailModifyPassengerScheduleManager" level="ERROR" />
-    <Logger name="beam.utils.DebugActorWithTimer" level="ERROR" />
-    <Logger name="beam.calibration" level="INFO" />
-    <Logger name="beam.router.BeamRouter" level="INFO" />
-    <Logger name="beam.agentsim.agents.TransitDriverAgent" level="ERROR" />
-    <Logger name="beam.router.r5.R5RoutingWorker" level="INFO" />
+
+    <logger name="beam.router.r5.profile.BeamMcRaptorSuboptimalPathProfileRouter" level="ERROR" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+
+    <Logger name="org.reflections" level="ERROR" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+
+    <Logger name="beam.agentsim.agents.TransitDriverAgent" level="ERROR" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+
+    <Logger name="beam.router.r5.R5RoutingWorker" level="INFO" additivity="true">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
     <!--<Logger name="beam.agentsim.agents.vehicles.BeamVehicle" level="error" additivity="false">-->
         <!--<appender-ref ref="STDOUT"/>-->
 
@@ -64,9 +73,27 @@
         <!--<appender-ref ref="STDOUT"/>-->
     <!--</Logger>-->
 
+    <Logger name="beam.agentsim.agents.ridehail.RideHailModifyPassengerScheduleManager" level="error" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+
+    <Logger name="beam.utils.DebugActorWithTimer" level="error" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
 
 
-    <Logger name="org.apache.parquet" level="WARN" />
-    <Logger name="org.reflections" level="ERROR" />
+    <Logger name="beam.calibration" level="Info" additivity="false">
+        <appender-ref ref="STDOUT"/>
+
+    </Logger>
+
+    <Logger name="beam.router.BeamRouter" level="INFO" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+
+    <Logger name="org.apache.parquet" level="WARN" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </Logger>
+
 
 </configuration>

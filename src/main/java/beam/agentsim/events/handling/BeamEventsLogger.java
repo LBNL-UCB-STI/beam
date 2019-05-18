@@ -87,7 +87,7 @@ class BeamEventsLogger {
     }
 
     Set<String> getKeysToWrite(Event event, Map<String, String> eventAttributes) {
-        return eventAttributes.keySet();
+        return new HashSet<>(eventAttributes.keySet());
     }
 
     /**

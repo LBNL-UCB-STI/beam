@@ -1,6 +1,5 @@
 package beam.analysis.physsim;
 
-import beam.sim.BeamConfigChangesObservable;
 import beam.sim.config.BeamConfig;
 import beam.utils.BeamCalcLinkStats;
 import beam.utils.VolumesAnalyzerFixed;
@@ -20,14 +19,14 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.matsim.core.utils.misc.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Tuple2;
+
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.List;
 
-public class PhyssimCalcLinkStats implements Observer {
+public class PhyssimCalcLinkStats {
 
     private Logger log = LoggerFactory.getLogger(PhyssimCalcLinkStats.class);
 
@@ -60,7 +59,7 @@ public class PhyssimCalcLinkStats implements Observer {
     private VolumesAnalyzer volumes;
 
     public PhyssimCalcLinkStats(Network network, OutputDirectoryHierarchy controlerIO, BeamConfig beamConfig,
-                                TravelTimeCalculatorConfigGroup ttcConfigGroup, BeamConfigChangesObservable beamConfigChangesObservable) {
+                                TravelTimeCalculatorConfigGroup ttcConfigGroup) {
         this.network = network;
         this.controllerIO = controlerIO;
         this.beamConfig = beamConfig;
@@ -74,7 +73,6 @@ public class PhyssimCalcLinkStats implements Observer {
             _noOfTimeBins = Math.floor(_noOfTimeBins);
             noOfBins = _noOfTimeBins.intValue() + 1;
         }
-        beamConfigChangesObservable.addObserver(this);
 
         linkStats = new BeamCalcLinkStats(network, ttcConfigGroup);
     }
@@ -101,8 +99,7 @@ public class PhyssimCalcLinkStats implements Observer {
 
 
     private boolean writeLinkStats(int iterationNumber) {
-        int interval = beamConfig.beam().physsim().linkStatsWriteInterval();
-        return writeInIteration(iterationNumber, interval);
+        return writeInIteration(iterationNumber, beamConfig.beam().physsim().linkStatsWriteInterval());
     }
 
     private boolean writeInIteration(int iterationNumber, int interval) {
@@ -279,11 +276,5 @@ public class PhyssimCalcLinkStats implements Observer {
 
     public void clean(){
         this.linkStats.reset();
-    }
-
-    @Override
-    public void update(Observable observable, Object o) {
-        Tuple2 t = (Tuple2) o;
-        this.beamConfig = (BeamConfig) t._2;
     }
 }

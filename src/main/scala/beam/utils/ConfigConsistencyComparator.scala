@@ -20,7 +20,7 @@ object ConfigConsistencyComparator extends LazyLogging {
   private val bottom = sessionSeparator + eol
   private val consistentFileMessage = buildTopicTile("All good, your config file is fully consistent!")
 
-  private val logStringBuilder = new StringBuilder(top)
+  val logStringBuilder = new StringBuilder(top)
 
   private val ignorePaths: Set[String] = Set("beam.physsim.inputNetworkFilePath")
 
@@ -60,6 +60,8 @@ object ConfigConsistencyComparator extends LazyLogging {
 
     logStringBuilder.append(bottom)
 
+    logger.info(logStringBuilder.toString)
+
     if (notFoundFiles.nonEmpty) {
       throw new IllegalArgumentException("There are not found files.")
     }
@@ -95,7 +97,7 @@ object ConfigConsistencyComparator extends LazyLogging {
     buildTopicTile(title) + buildStringFromKeys(keys)
   }
 
-  private def buildTopicTile(title: String): String = {
+  def buildTopicTile(title: String): String = {
     s"""$borderLeft
        |$topicBorderLeft$title
        |""".stripMargin

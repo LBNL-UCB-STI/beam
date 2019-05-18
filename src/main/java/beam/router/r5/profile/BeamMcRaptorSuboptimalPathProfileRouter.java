@@ -686,13 +686,13 @@ public class BeamMcRaptorSuboptimalPathProfileRouter {
         }
 
         public int hashCode() {
-            return 31 * state.patternHash + state.accessMode.hashCode();
+            return state.patternHash;
         }
 
         public boolean equals(Object o) {
             if (o instanceof BeamStatePatternKey) {
-                McRaptorState otherState = ((BeamStatePatternKey) o).state;
-                return state.accessMode == otherState.accessMode && Arrays.equals(state.patterns, otherState.patterns);
+                return Arrays.equals(state.patterns, ((BeamStatePatternKey) o).state.patterns) &&
+                        state.accessMode == ((BeamStatePatternKey) o).state.accessMode;
             }
 
             return false;

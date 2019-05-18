@@ -1,7 +1,6 @@
 package beam.agentsim.events
 
 import java.util
-import java.util.concurrent.atomic.AtomicReference
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
@@ -27,7 +26,7 @@ case class PathTraversalEvent(
   mode: BeamMode,
   legLength: Double,
   linkIds: IndexedSeq[Int],
-  linkTravelTime: IndexedSeq[Int],
+  linkTravelTimes: IndexedSeq[Int],
   startX: Double,
   startY: Double,
   endX: Double,
@@ -55,39 +54,33 @@ case class PathTraversalEvent(
 
   override def getEventType: String = "PathTraversal"
 
-  private val filledAttrs: AtomicReference[util.Map[String, String]] =
-    new AtomicReference[util.Map[String, String]](null)
-
   override def getAttributes: util.Map[String, String] = {
-    if (filledAttrs.get() != null) filledAttrs.get()
-    else {
-      val attr = super.getAttributes()
-      attr.put(ATTRIBUTE_VEHICLE_ID, vehicleId.toString)
-      attr.put(ATTRIBUTE_DRIVER_ID, driverId)
-      attr.put(ATTRIBUTE_VEHICLE_TYPE, vehicleType)
-      attr.put(ATTRIBUTE_LENGTH, legLength.toString)
-      attr.put(ATTRIBUTE_NUM_PASS, numberOfPassengers.toString)
+    val attr = super.getAttributes()
+    attr.put(ATTRIBUTE_VEHICLE_ID, vehicleId.toString)
+    attr.put(ATTRIBUTE_DRIVER_ID, driverId)
+    attr.put(ATTRIBUTE_VEHICLE_TYPE, vehicleType)
+    attr.put(ATTRIBUTE_LENGTH, legLength.toString)
+    attr.put(ATTRIBUTE_NUM_PASS, numberOfPassengers.toString)
 
-      attr.put(ATTRIBUTE_DEPARTURE_TIME, departureTime.toString)
-      attr.put(ATTRIBUTE_ARRIVAL_TIME, arrivalTime.toString)
-      attr.put(ATTRIBUTE_MODE, mode.value)
-      attr.put(ATTRIBUTE_LINK_IDS, linkIds.mkString(","))
-      attr.put(ATTRIBUTE_LINK_TRAVEL_TIME, linkTravelTime.mkString(","))
-      attr.put(ATTRIBUTE_PRIMARY_FUEL_TYPE, primaryFuelType)
-      attr.put(ATTRIBUTE_SECONDARY_FUEL_TYPE, secondaryFuelType)
-      attr.put(ATTRIBUTE_PRIMARY_FUEL, primaryFuelConsumed.toString)
-      attr.put(ATTRIBUTE_SECONDARY_FUEL, secondaryFuelConsumed.toString)
-      attr.put(ATTRIBUTE_VEHICLE_CAPACITY, capacity.toString)
+    attr.put(ATTRIBUTE_DEPARTURE_TIME, departureTime.toString)
+    attr.put(ATTRIBUTE_ARRIVAL_TIME, arrivalTime.toString)
+    attr.put(ATTRIBUTE_MODE, mode.value)
+    attr.put(ATTRIBUTE_LINK_IDS, linkIds.mkString(","))
+    attr.put(ATTRIBUTE_PRIMARY_FUEL_TYPE, primaryFuelType)
+    attr.put(ATTRIBUTE_SECONDARY_FUEL_TYPE, secondaryFuelType)
+    attr.put(ATTRIBUTE_PRIMARY_FUEL, primaryFuelConsumed.toString)
+    attr.put(ATTRIBUTE_SECONDARY_FUEL, secondaryFuelConsumed.toString)
+    attr.put(ATTRIBUTE_VEHICLE_CAPACITY, capacity.toString)
 
-      attr.put(ATTRIBUTE_START_COORDINATE_X, startX.toString)
-      attr.put(ATTRIBUTE_START_COORDINATE_Y, startY.toString)
-      attr.put(ATTRIBUTE_END_COORDINATE_X, endX.toString)
-      attr.put(ATTRIBUTE_END_COORDINATE_Y, endY.toString)
-      attr.put(ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL, endLegPrimaryFuelLevel.toString)
-      attr.put(ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL, endLegSecondaryFuelLevel.toString)
-      attr.put(ATTRIBUTE_SEATING_CAPACITY, seatingCapacity.toString)
-      attr.put(ATTRIBUTE_TOLL_PAID, amountPaid.toString)
-      /*
+    attr.put(ATTRIBUTE_START_COORDINATE_X, startX.toString)
+    attr.put(ATTRIBUTE_START_COORDINATE_Y, startY.toString)
+    attr.put(ATTRIBUTE_END_COORDINATE_X, endX.toString)
+    attr.put(ATTRIBUTE_END_COORDINATE_Y, endY.toString)
+    attr.put(ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL, endLegPrimaryFuelLevel.toString)
+    attr.put(ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL, endLegSecondaryFuelLevel.toString)
+    attr.put(ATTRIBUTE_SEATING_CAPACITY, seatingCapacity.toString)
+    attr.put(ATTRIBUTE_TOLL_PAID, amountPaid.toString)
+    /*
     attr.put(ATTRIBUTE_LINKID_WITH_LANE_MAP, linkIdsToLaneOptions.map{case ((linkId, laneOption)) => s"$linkId:${laneOption.getOrElse(0)}"}.mkString(","))
     attr.put(ATTRIBUTE_LINKID_WITH_SPEED_MAP, linkIdsToSpeedOptions.map{case ((linkId, speedOption)) => s"$linkId:${speedOption.getOrElse(0)}"}.mkString(","))
     attr.put(ATTRIBUTE_LINKID_WITH_SELECTED_GRADIENT_MAP, linkIdsToGradientOptions.map{case ((linkId, gradientOption)) => s"$linkId:${gradientOption.getOrElse(0)}"}.mkString(","))
@@ -96,10 +89,9 @@ case class PathTraversalEvent(
     attr.put(ATTRIBUTE_LINKID_WITH_FINAL_CONSUMPTION_MAP, linkIdsToConsumptionOptions.map{case ((linkId, consumptionOption)) => s"$linkId:${consumptionOption.getOrElse(0)}"}.mkString(","))
     attr.put(ATTRIBUTE_SECONDARY_LINKID_WITH_SELECTED_RATE_MAP, secondaryLinkIdsToSelectedRateOptions.map{case ((linkId, rateOption)) => s"$linkId:${rateOption.getOrElse(0)}"}.mkString(","))
     attr.put(ATTRIBUTE_SECONDARY_LINKID_WITH_FINAL_CONSUMPTION_MAP, secondaryLinkIdsToConsumptionOptions.map{case ((linkId, consumptionOption)) => s"$linkId:${consumptionOption.getOrElse(0)}"}.mkString(","))
-       */
-      filledAttrs.set(attr)
-      attr
-    }
+     */
+
+    attr
   }
 }
 
@@ -114,7 +106,6 @@ object PathTraversalEvent {
   val ATTRIBUTE_NUM_PASS: String = "numPassengers"
 
   val ATTRIBUTE_LINK_IDS: String = "links"
-  val ATTRIBUTE_LINK_TRAVEL_TIME: String = "linkTravelTime"
   val ATTRIBUTE_MODE: String = "mode"
   val ATTRIBUTE_DEPARTURE_TIME: String = "departureTime"
   val ATTRIBUTE_ARRIVAL_TIME: String = "arrivalTime"
@@ -177,7 +168,7 @@ object PathTraversalEvent {
       mode = beamLeg.mode,
       legLength = beamLeg.travelPath.distanceInM,
       linkIds = beamLeg.travelPath.linkIds,
-      linkTravelTime = beamLeg.travelPath.linkTravelTime,
+      linkTravelTimes = beamLeg.travelPath.linkTravelTime,
       startX = beamLeg.travelPath.startPoint.loc.getX,
       startY = beamLeg.travelPath.startPoint.loc.getY,
       endX = beamLeg.travelPath.endPoint.loc.getX,
@@ -217,9 +208,8 @@ object PathTraversalEvent {
     val legLength: Double = attr(ATTRIBUTE_LENGTH).toDouble
     val linkIdsAsStr = attr(ATTRIBUTE_LINK_IDS)
     val linkIds: IndexedSeq[Int] = if (linkIdsAsStr == "") IndexedSeq.empty else linkIdsAsStr.split(",").map(_.toInt)
-    val linkTravelTimeStr = attr.getOrElse(ATTRIBUTE_LINK_TRAVEL_TIME, "")
-    val linkTravelTime: IndexedSeq[Int] =
-      if (linkTravelTimeStr == "") IndexedSeq.empty else linkTravelTimeStr.split(",").map(_.toInt)
+    // TODO. We don't dump link travel time, shall we ?
+    val linkTravelTimes: IndexedSeq[Int] = IndexedSeq.empty
     val startX: Double = attr(ATTRIBUTE_START_COORDINATE_X).toDouble
     val startY: Double = attr(ATTRIBUTE_START_COORDINATE_Y).toDouble
     val endX: Double = attr(ATTRIBUTE_END_COORDINATE_X).toDouble
@@ -278,7 +268,7 @@ object PathTraversalEvent {
       mode,
       legLength,
       linkIds,
-      linkTravelTime,
+      linkTravelTimes,
       startX,
       startY,
       endX,
