@@ -22,7 +22,7 @@ class PopulationXml2CsvConverter(householdsXml: File, populationAttributesXml: F
       Seq(personId, age, isFemale, householdId, householdRank, excludedModes).mkString(FieldSeparator)
   }
 
-  private case class HouseholdMembers(houseHoldId: Int, memberIds: Seq[Int])
+  private case class HouseholdMembers(houseHoldId: String, memberIds: Seq[Int])
 
   type MemberId = Int
   type HouseholdId = Int
@@ -53,18 +53,18 @@ class PopulationXml2CsvConverter(householdsXml: File, populationAttributesXml: F
     def fromSeq(name: String): String = attrs.find(_.attributes("name").text == name).get.text
 
     PersonAttributes(
-      objectId = node.attributes("id").toString.toInt,
+      objectId = node.attributes("id").toString,
       excludedModes = fromSeq("excluded-modes"),
       rank = fromSeq("rank").toInt
     )
   }
 
-  private case class PersonAttributes(objectId: Int, excludedModes: String, rank: Int) {
+  private case class PersonAttributes(objectId: String, excludedModes: String, rank: Int) {
     override def toString: String = Seq(objectId, excludedModes, rank).mkString(FieldSeparator)
   }
 
   private def toHouseholdMembers(node: Node): HouseholdMembers = {
-    val householdId = node.attributes("id").text.toInt
+    val householdId = node.attributes("id").text
     val memberIds = (node \ "members" \ "personId").map { node =>
       node.attributes("refId").text.toInt
     }
