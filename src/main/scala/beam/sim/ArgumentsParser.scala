@@ -6,7 +6,7 @@ import scopt.OptionParser
 
 object ArgumentsParser {
 
-  def buildParser: OptionParser[Arguments] = {
+  private def buildParser: OptionParser[Arguments] = {
     new scopt.OptionParser[Arguments]("beam") {
       opt[String]("config")
         .action(
@@ -73,7 +73,7 @@ object ArgumentsParser {
     }
   }
 
-  def parseArguments(parser: OptionParser[Arguments], args: Array[String]): Option[Arguments] = {
+  private def parseArguments(parser: OptionParser[Arguments], args: Array[String]): Option[Arguments] = {
     parser.parse(args, init = Arguments())
   }
 
