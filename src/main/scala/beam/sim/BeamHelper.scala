@@ -416,11 +416,32 @@ trait BeamHelper extends LazyLogging {
     (defaultScenario.getConfig, beamExecutionConfig.outputDirectory)
   }
 
+  def fixDanglingPersons(result: MutableScenario): Unit = {
+    val peopleViaHousehold = result.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap { x =>
+        x.getMemberIds.asScala
+      }
+      .toSet
+    val danglingPeople = result.getPopulation.getPersons
+      .values()
+      .asScala
+      .filter(person => !peopleViaHousehold.contains(person.getId))
+    if (danglingPeople.nonEmpty) {
+      logger.error(s"There are ${danglingPeople.size} persons not connected to household, removing them")
+      danglingPeople.foreach { p =>
+        result.getPopulation.removePerson(p.getId)
+      }
+    }
+  }
+
   protected def buildScenarioFromMatsimConfig(
     matsimConfig: MatsimConfig,
     networkCoordinator: NetworkCoordinator
   ): MutableScenario = {
     val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+    fixDanglingPersons(result)
     result.setNetwork(networkCoordinator.network)
     result
   }
