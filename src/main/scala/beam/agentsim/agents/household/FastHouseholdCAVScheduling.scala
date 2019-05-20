@@ -435,7 +435,7 @@ object HouseholdTripsHelper {
         curTrip.activity.getCoord,
         0,
         defaultMode,
-        org.matsim.api.core.v01.Id.create[BeamVehicleType]("", classOf[BeamVehicleType])
+        org.matsim.api.core.v01.Id.create[BeamVehicleType]("Car", classOf[BeamVehicleType])
       )
       .time
 
