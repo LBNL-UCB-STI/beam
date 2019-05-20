@@ -868,7 +868,7 @@ class PersonAgent(
         log.debug("Person {} stashing BoardOrAlight {} b/c on CAV trip", id, triggerId)
         stash
         stay
-      case Some(trip) if beamServices.vehicleTypes.get(beamVehicleTypeId).map(_.automationLevel > 3).getOrElse(false) =>
+      case Some(trip) if beamServices.vehicleTypes.get(beamVehicleTypeId).exists(_.automationLevel > 3) =>
         log.warning(
           "Person {} in state {} is abandoning CAV trips for rest of day because received Board/Alight trigger while on {} trip",
           id,
@@ -954,7 +954,7 @@ class PersonAgent(
     case Event(
         TriggerWithId(BoardVehicleTrigger(_, vehicleId, Some(vehicleTypeId)), triggerId),
         BasePersonData(_, currentTrip, _, currentVehicle, _, _, _, _, _, _, _)
-        ) if !currentVehicle.isEmpty && currentVehicle.head.equals(vehicleId) =>
+        ) if currentVehicle.nonEmpty && currentVehicle.head.equals(vehicleId) =>
       log.debug("Person {} in state {} received Board for vehicle that he is already on, ignoring...", id, stateName)
       stay() replying CompletionNotice(triggerId, Vector())
     case Event(
