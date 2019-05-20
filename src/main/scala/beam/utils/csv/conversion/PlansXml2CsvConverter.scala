@@ -21,7 +21,7 @@ object PlansXml2CsvConverter extends Xml2CsvFileConverter {
     )
 
   private case class PlanFlat(
-    personId: Int,
+    personId: String,
     planId: Int,
     planElementType: String,
     activityIndex: Int,
@@ -61,7 +61,7 @@ object PlansXml2CsvConverter extends Xml2CsvFileConverter {
   }
 
   private def toPlans(personNode: Node): Seq[PlanFlat] = {
-    val personId = personNode.attributes("id").text.toInt
+    val personId = personNode.attributes("id").text
     val planId = 1 // currently only one plan is supported
 
     val seq = personNode \ "plan"

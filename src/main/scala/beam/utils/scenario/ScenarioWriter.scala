@@ -37,12 +37,12 @@ object CsvScenarioWriter extends ScenarioWriter with LazyLogging {
       plans.map { planInfo =>
         Map(
           "personId"     -> planInfo.personId.id,
-          "planElement"  -> planInfo.planElement,
+          "planElement"  -> planInfo.planElementType,
           "activityType" -> planInfo.activityType.getOrElse(""),
-          "x"            -> planInfo.x.map(_.toString).getOrElse(""),
-          "y"            -> planInfo.y.map(_.toString).getOrElse(""),
-          "endTime"      -> planInfo.endTime.map(_.toString).getOrElse(""),
-          "mode"         -> planInfo.mode.getOrElse(""),
+          "x"            -> planInfo.activityLocationX.map(_.toString).getOrElse(""),
+          "y"            -> planInfo.activityLocationY.map(_.toString).getOrElse(""),
+          "endTime"      -> planInfo.activityEndTime.map(_.toString).getOrElse(""),
+          "mode"         -> planInfo.legMode.getOrElse(""),
         )
       }
     }
@@ -119,24 +119,24 @@ object CsvScenarioWriter extends ScenarioWriter with LazyLogging {
 
         PlanElement(
           personId = PersonId(personId),
-          planElement = "leg",
+          planElementType = "leg",
           planElementIndex = index,
           activityType = None,
-          x = None,
-          y = None,
-          endTime = None,
-          mode = mode
+          activityLocationX = None,
+          activityLocationY = None,
+          activityEndTime = None,
+          legMode = mode
         )
       case act: Activity =>
         PlanElement(
           personId = PersonId(personId),
-          planElement = "activity",
+          planElementType = "activity",
           planElementIndex = index,
           activityType = Option(act.getType),
-          x = Option(act.getCoord.getX),
-          y = Option(act.getCoord.getY),
-          endTime = Option(act.getEndTime),
-          mode = None
+          activityLocationX = Option(act.getCoord.getX),
+          activityLocationY = Option(act.getCoord.getY),
+          activityEndTime = Option(act.getEndTime),
+          legMode = None
         )
     }
   }

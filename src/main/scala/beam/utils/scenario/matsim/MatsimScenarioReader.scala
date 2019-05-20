@@ -61,13 +61,13 @@ object CsvScenarioReader extends MatsimScenarioReader with LazyLogging {
     val mode = Option(rec.get("mode")).map(_.toString)
     PlanElement(
       personId = PersonId(personId),
-      planElement = planElement,
+      planElementType = planElement,
       planElementIndex = planElementIndex,
       activityType = activityType,
-      x = x,
-      y = y,
-      endTime = endTime,
-      mode = mode
+      activityLocationX = x,
+      activityLocationY = y,
+      activityEndTime = endTime,
+      legMode = mode
     )
   }
 
