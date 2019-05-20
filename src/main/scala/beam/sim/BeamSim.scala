@@ -54,6 +54,8 @@ import scala.concurrent.{Await, Future}
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.population.{Activity, Plan}
 
+import scala.util.{Failure, Success}
+
 class BeamSim @Inject()(
   private val actorSystem: ActorSystem,
   private val transportNetwork: TransportNetwork,
@@ -407,7 +409,7 @@ class BeamSim @Inject()(
     event match {
       case _ if event.isInstanceOf[IterationEndsEvent] =>
         val iterationEvent = event.asInstanceOf[IterationEndsEvent]
-        try {
+        Future {
           val iteration = iterationEvent.getIteration
           val iterationOutputPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationPath(iteration)
           val quadOutputFileName = s"$iteration.${RandomRepositioning.QUAD_OUTPUT_FILE}"
@@ -418,9 +420,11 @@ class BeamSim @Inject()(
             quadOutputFileName,
             coordOutputFileName
           )
-        } catch {
-          case ex: Exception =>
-            logger.error(s"Error in executing python script ", ex)
+        } onComplete {
+          case Success(value) =>
+            logger.info("Repositioning Graph Generated Successfully!!!")
+          case Failure(exception) =>
+            logger.error(s"Error in executing python script ${exception.getMessage}")
         }
     }
   }
