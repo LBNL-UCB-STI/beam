@@ -7,12 +7,14 @@ import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
 import scala.reflect.ClassTag
+import java.util.{Map => JavaMap}
 
 trait MatsimScenarioReader {
   def inputType: InputType
   def readPersonsFile(path: String): Array[PersonInfo]
   def readPlansFile(path: String): Array[PlanElement]
-  def readHouseholdsFile(path: String): Array[HouseholdInfo]
+  def readHouseholdsFile(householdsPath: String, vehicles: Iterable[VehicleInfo]): Array[HouseholdInfo]
+  def readVehiclesFile(vehiclesFilePath: String): Iterable[VehicleInfo]
 }
 
 object CsvScenarioReader extends MatsimScenarioReader with LazyLogging {
@@ -25,11 +27,14 @@ object CsvScenarioReader extends MatsimScenarioReader with LazyLogging {
     readAs[PlanElement](path, "readPlansFile", toPlanInfo)
 
   }
-  override def readHouseholdsFile(path: String): Array[HouseholdInfo] = {
-    readAs[HouseholdInfo](path, "readHouseholdsFile", toHouseholdInfo)
+  override def readHouseholdsFile(householdsPath: String, vehicles: Iterable[VehicleInfo]): Array[HouseholdInfo] = {
+    val householdToNumberOfCars = vehicles.groupBy(_.householdId).map{
+      case (householdId, listOfCars) => (householdId, listOfCars.size)
+    }
+    readAs[HouseholdInfo](householdsPath, "readHouseholdsFile", toHouseholdInfo(householdToNumberOfCars))
   }
 
-  private[matsim] def readAs[T](path: String, what: String, mapper: java.util.Map[String, String] => T)(
+  private[matsim] def readAs[T](path: String, what: String, mapper: JavaMap[String, String] => T)(
     implicit ct: ClassTag[T]
   ): Array[T] = {
     ProfilingUtils.timed(what, x => logger.info(x)) {
@@ -40,13 +45,21 @@ object CsvScenarioReader extends MatsimScenarioReader with LazyLogging {
     }
   }
 
-  private[matsim] def toHouseholdInfo(rec: java.util.Map[String, String]): HouseholdInfo = {
+  private[matsim] def toHouseholdInfo(householdIdToVehiclesSize: Map[String, Int])(rec: JavaMap[String, String]): HouseholdInfo = {
     val householdId = getIfNotNull(rec, "householdId")
-    val cars = getIfNotNull(rec, "cars", "0").toInt
-    val income = getIfNotNull(rec, "incomeValue").toDouble
-    val x = getIfNotNull(rec, "locationX").toDouble
-    val y = getIfNotNull(rec, "locationY").toDouble
-    HouseholdInfo(householdId = HouseholdId(householdId), cars = cars, income = income, x = x, y = y)
+    val cars = householdIdToVehiclesSize.get(householdId) match {
+      case Some(total) => total
+      case None =>
+        logger.warn(s"HouseholdId [$householdId] has no cars associated")
+        0
+    }
+    HouseholdInfo(
+      householdId = HouseholdId(householdId),
+      cars = cars,
+      income = getIfNotNull(rec, "incomeValue").toDouble,
+      x = getIfNotNull(rec, "locationX").toDouble,
+      y = getIfNotNull(rec, "locationY").toDouble
+    )
   }
 
   private[matsim] def toPlanInfo(rec: java.util.Map[String, String]): PlanElement = {
@@ -67,17 +80,29 @@ object CsvScenarioReader extends MatsimScenarioReader with LazyLogging {
     )
   }
 
-  private def toPersonInfo(rec: java.util.Map[String, String]): PersonInfo = {
+  private def toPersonInfo(rec: JavaMap[String, String]): PersonInfo = {
     val personId = getIfNotNull(rec, "personId")
     val householdId = getIfNotNull(rec, "householdId")
     val age = getIfNotNull(rec, "age").toInt
-    val rank: Int = 0
+    val rank = getIfNotNull(rec, "householdRank", "0").toInt
     PersonInfo(personId = PersonId(personId), householdId = HouseholdId(householdId), rank = rank, age = age)
   }
 
-  private def getIfNotNull(rec: java.util.Map[String, String], column: String, default: String = null): String = {
+  private def toVehicle(rec: JavaMap[String, String]): VehicleInfo = {
+    VehicleInfo(
+      vehicleId = getIfNotNull(rec, "vehicleId"),
+      vehicleTypeId = getIfNotNull(rec, "vehicleTypeId"),
+      householdId = getIfNotNull(rec, "householdId")
+    )
+  }
+
+  private def getIfNotNull(rec: JavaMap[String, String], column: String, default: String = null): String = {
     val v = rec.getOrDefault(column, default)
     assert(v != null, s"Value in column '$column' is null")
     v
+  }
+
+  override def readVehiclesFile(vehiclesFilePath: String): Iterable[VehicleInfo] = {
+    readAs[VehicleInfo](vehiclesFilePath, "vehiclesFile", toVehicle)
   }
 }

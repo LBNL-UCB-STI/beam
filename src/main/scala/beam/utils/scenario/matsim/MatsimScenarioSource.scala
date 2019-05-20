@@ -1,21 +1,24 @@
 package beam.utils.scenario.matsim
-import beam.utils.scenario.{HouseholdInfo, PersonInfo, PlanElement, ScenarioSource}
+import beam.utils.scenario.{HouseholdInfo, PersonInfo, PlanElement, ScenarioSource, VehicleInfo}
 
 class MatsimScenarioSource(val scenarioFolder: String, val rdr: MatsimScenarioReader) extends ScenarioSource {
 
-  val fileExt: String = rdr.inputType.toFileExt
+  private val fileSuffix: String = rdr.inputType.toFileExt
 
-  val personFilePath: String = s"$scenarioFolder/population.$fileExt"
-  val householdFilePath: String = s"$scenarioFolder/households.$fileExt"
-  val planFilePath: String = s"$scenarioFolder/plans.$fileExt"
+  private def filePath(fileName:String) = s"$scenarioFolder/$fileName.$fileSuffix"
 
   override def getPersons: Iterable[PersonInfo] = {
-    rdr.readPersonsFile(personFilePath)
+    rdr.readPersonsFile(filePath("population"))
   }
   override def getPlans: Iterable[PlanElement] = {
-    rdr.readPlansFile(planFilePath)
+    rdr.readPlansFile(filePath("plans"))
   }
   override def getHousehold: Iterable[HouseholdInfo] = {
-    rdr.readHouseholdsFile(householdFilePath)
+    rdr.readHouseholdsFile(filePath("households"), getVehicles)
   }
+
+  override lazy val getVehicles: Iterable[VehicleInfo] = {
+    rdr.readVehiclesFile(filePath("vehicles"))
+  }
+
 }
