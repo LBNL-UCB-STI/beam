@@ -112,7 +112,8 @@ allprojects {
 dependencies {
 
     //beam-utilities
-    compile 'com.github.LBNL-UCB-STI:beam-utilities:23922d9793'
+    compile 'com.github.LBNL-UCB-STI:beam-utilities:cb4e974d98'
+
 
     ////////////////////////////
     // Java dependencies
