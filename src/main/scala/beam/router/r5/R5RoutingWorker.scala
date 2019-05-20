@@ -62,7 +62,7 @@ case class WorkerParameters(
   ptFares: PtFares,
   geo: GeoUtils,
   dates: DateUtils,
-  scenario: Scenario,
+  networkHelper: NetworkHelper,
   fareCalculator: FareCalculator,
   tollCalculator: TollCalculator,
   travelTimeAndCost: TravelTimeAndCost,
@@ -135,7 +135,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         ptFares,
         geo,
         dates,
-        scenario,
+        new NetworkHelperImpl(networkCoordinator.network),
         fareCalculator,
         tollCalculator,
         travelTimeAndCost,
@@ -153,7 +153,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     ptFares,
     geo,
     dates,
-    scenario,
+    networkHelper,
     fareCalculator,
     tollCalculator,
     travelTimeAndCost,
@@ -987,7 +987,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           // MATSim network.
           minTravelTime
         } else {
-          val link = scenario.getNetwork.getLinks.get(Id.createLinkId(linkId))
+          val link = networkHelper.getLinkUnsafe(linkId)
           assert(link != null)
           val physSimTravelTime = travelTime.getLinkTravelTime(link, time, null, null).toFloat.round
           Math.min(Math.max(physSimTravelTime, minTravelTime), maxTravelTime)
@@ -1198,7 +1198,7 @@ object R5RoutingWorker {
         beamServices.ptFares,
         beamServices.geo,
         beamServices.dates,
-        scenario,
+        beamServices.networkHelper,
         fareCalculator,
         tollCalculator,
         travelTimeAndCost,
