@@ -1,5 +1,6 @@
 package beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions;
 
+import beam.sim.BeamConfigChangesObservable;
 import beam.sim.config.BeamConfig;
 import beam.utils.FileUtils;
 import org.apache.commons.collections4.MultiValuedMap;
@@ -16,12 +17,11 @@ import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
+import scala.Tuple2;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 
 /*
@@ -33,7 +33,7 @@ in multi-lane freeway facilities." Transportation Research Part C: Emerging Tech
 
  */
 
-public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAdjustmentFunction {
+public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAdjustmentFunction, Observer {
 
     private final static Logger log = Logger.getLogger(Hao2018CaccRoadCapacityAdjustmentFunction.class);
 
@@ -59,7 +59,7 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
     private Map<String,Double> caccLinkCapacityIncrease = new HashMap<>();
     private Map<String,Double> allLinksCapacityIncrease = new HashMap<>();
 
-    public Hao2018CaccRoadCapacityAdjustmentFunction(BeamConfig beamConfig,int iterationNumber,OutputDirectoryHierarchy controllerIO){
+    public Hao2018CaccRoadCapacityAdjustmentFunction(BeamConfig beamConfig,int iterationNumber,OutputDirectoryHierarchy controllerIO, BeamConfigChangesObservable beamConfigChangesObservable){
         double caccMinRoadCapacity = beamConfig.beam().physsim().jdeqsim().cacc().minRoadCapacity();
         double caccMinSpeedMetersPerSec = beamConfig.beam().physsim().jdeqsim().cacc().minSpeedMetersPerSec();
         log.info("caccMinRoadCapacity: " + caccMinRoadCapacity + ", caccMinSpeedMetersPerSec: " + caccMinSpeedMetersPerSec );
@@ -71,6 +71,7 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
         this.writeInterval = beamConfig.beam().physsim().jdeqsim().cacc().capacityPlansWriteInterval();
         this.binSize = beamConfig.beam().outputs().stats().binSize();
         this.writeGraphs = beamConfig.beam().outputs().writeGraphs();
+        beamConfigChangesObservable.addObserver(this);
     }
 
     public boolean isCACCCategoryRoad(Link link){
@@ -161,6 +162,12 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
         caccCapacityIncrease.clear();
     }
 
+    @Override
+    public void update(Observable observable, Object o) {
+        Tuple2 t = (Tuple2) o;
+        BeamConfig beamConfig = (BeamConfig) t._2;
+        this.writeInterval = beamConfig.beam().physsim().jdeqsim().cacc().capacityPlansWriteInterval();
+    }
 }
 
 class CaccRoadCapacityGraphs {
@@ -178,7 +185,7 @@ class CaccRoadCapacityGraphs {
         int height = 600;
 
         XYSeriesCollection dataset = new XYSeriesCollection();
-        XYSeries series = new XYSeries("cacc");
+        XYSeries series = new XYSeries("cacc", false);
         caccCapacityIncrease.entries().forEach(e -> series.add(e.getKey(),e.getValue()));
         dataset.addSeries(series);
 

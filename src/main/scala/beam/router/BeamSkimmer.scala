@@ -44,8 +44,8 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   private val SKIMS_FILE_NAME = "skims.csv.gz"
 
   // The OD/Mode/Time Matrix
-  private var previousSkims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = initialPreviousSkims()
-  private var skims: TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = TrieMap()
+  private var previousSkims: BeamSkimmerADT = initialPreviousSkims()
+  private var skims: BeamSkimmerADT = TrieMap()
   private val modalAverage: TrieMap[BeamMode, SkimInternal] = TrieMap()
 
   private def skimsFilePath: Option[String] = {
@@ -57,7 +57,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     if (beamConfig.beam.warmStart.enabled) {
       try {
         val previousSkims = skimsFilePath
-          .map(BeamSkimmer.readCsvFile)
+          .map(BeamSkimmer.fromCsv)
           .getOrElse(TrieMap.empty)
         logger.info(s"Previous skims successfully loaded from path '${skimsFilePath.getOrElse("NO PATH FOUND")}'")
         previousSkims
@@ -155,13 +155,13 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
             skim
           case None =>
             SkimInternal(
-              1.1,
-              1.1,
+              time = 1.1,
+              generalizedTime = 1.1,
               beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledToRegularRideCostRatio * 1.1,
-              0,
+              distance = 0,
               beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledToRegularRideCostRatio,
-              0,
-              1.1
+              count = 0,
+              energy = 1.1
             )
         }
     }
@@ -233,13 +233,13 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     skims.get(key) match {
       case Some(existingSkim) =>
         val newPayload = SkimInternal(
-          mergeAverage(existingSkim.time, existingSkim.count, payload.time),
-          mergeAverage(existingSkim.generalizedTime, existingSkim.count, payload.generalizedTime),
-          mergeAverage(existingSkim.generalizedCost, existingSkim.count, payload.generalizedCost),
-          mergeAverage(existingSkim.distance, existingSkim.count, payload.distance),
-          mergeAverage(existingSkim.cost, existingSkim.count, payload.cost),
-          existingSkim.count + 1,
-          mergeAverage(existingSkim.energy, existingSkim.count, payload.energy)
+          time = mergeAverage(existingSkim.time, existingSkim.count, payload.time),
+          generalizedTime = mergeAverage(existingSkim.generalizedTime, existingSkim.count, payload.generalizedTime),
+          generalizedCost = mergeAverage(existingSkim.generalizedCost, existingSkim.count, payload.generalizedCost),
+          distance = mergeAverage(existingSkim.distance, existingSkim.count, payload.distance),
+          cost = mergeAverage(existingSkim.cost, existingSkim.count, payload.cost),
+          count = existingSkim.count + 1,
+          energy = mergeAverage(existingSkim.energy, existingSkim.count, payload.energy)
         )
         skims.put(key, newPayload)
       case None =>
@@ -256,15 +256,18 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   }
 
   def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    ProfilingUtils.timed(s"writeObservedSkims on iteration ${event.getIteration}", x => logger.info(x)) {
-      writeObservedSkims(event)
+    if (beamServices.beamConfig.beam.outputs.writeSkimsInterval > 0 && event.getIteration % beamServices.beamConfig.beam.outputs.writeSkimsInterval == 0) {
+      ProfilingUtils.timed(s"writeObservedSkims on iteration ${event.getIteration}", x => logger.info(x)) {
+        writeObservedSkims(event)
+      }
+      ProfilingUtils.timed(
+        s"writeAllModeSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}",
+        x => logger.info(x)
+      ) {
+        writeAllModeSkimsForPeakNonPeakPeriods(event)
+      }
     }
-    ProfilingUtils.timed(
-      s"writeAllModeSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}",
-      x => logger.info(x)
-    ) {
-      writeAllModeSkimsForPeakNonPeakPeriods(event)
-    }
+
     // Writing full skims are very large, but code is preserved here in case we want to enable it.
     // TODO make this a configurable output "writeFullSkimsInterval" with default of 0
     // if(beamServicesOpt.isDefined) writeFullSkims(event)
@@ -350,7 +353,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     val dummyId = Id.create("NA", classOf[BeamVehicleType])
     val writer = IOUtils.getBufferedWriter(filePath)
     writer.write(fileHeader)
-    writer.write("\n")
+    writer.write(Eol)
 
     val weightedSkims = ProfilingUtils.timed("Get weightedSkims for modes", x => logger.info(x)) {
       modes.toParArray.flatMap { mode =>
@@ -390,7 +393,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     }
     logger.info(s"weightedSkims size: ${weightedSkims.size}")
 
-    weightedSkims.foreach { ws =>
+    weightedSkims.seq.foreach { ws: ExcerptData =>
       writer.write(
         s"${ws.timePeriodString},${ws.mode},${ws.originTazId},${ws.destinationTazId},${ws.weightedTime},${ws.weightedGeneralizedTime},${ws.weightedCost},${ws.weightedGeneralizedCost},${ws.weightedDistance},${ws.sumWeights},${ws.weightedEnergy}\n"
       )
@@ -399,20 +402,17 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   }
 
   def writeFullSkims(event: IterationEndsEvent): Unit = {
-    val fileHeader =
-      "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations,energy"
     val filePath = event.getServices.getControlerIO.getIterationFilename(
       event.getServices.getIterationNumber,
       BeamSkimmer.fullSkimsFileBaseName + ".csv.gz"
     )
     val uniqueModes = skims.map(keyVal => keyVal._1._2).toList.distinct
-    val uniqueTimeBins = (0 to 23)
+    val uniqueTimeBins = 0 to 23
 
     val dummyId = Id.create("NA", classOf[BeamVehicleType])
 
     val writer = IOUtils.getBufferedWriter(filePath)
-    writer.write(fileHeader)
-    writer.write("\n")
+    writer.write(CsvLineHeader)
 
     beamServices.tazTreeMap.getTAZs
       .foreach { origin =>
@@ -420,7 +420,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
           uniqueModes.foreach { mode =>
             uniqueTimeBins
               .foreach { timeBin =>
-                val theSkim = getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
+                val theSkim: Skim = getSkimValue(timeBin * 3600, mode, origin.tazId, destination.tazId)
                   .map(_.toSkimExternal)
                   .getOrElse {
                     if (origin.equals(destination)) {
@@ -449,7 +449,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
                   }
 
                 writer.write(
-                  s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedTime},${theSkim.distance},${theSkim.count},${theSkim.energy}\n"
+                  s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedTime},${theSkim.distance},${theSkim.count},${theSkim.energy}$Eol"
                 )
               }
           }
@@ -459,26 +459,29 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   }
 
   def writeObservedSkims(event: IterationEndsEvent): Unit = {
-    val fileHeader =
-      "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations,energy"
     val filePath = event.getServices.getControlerIO.getIterationFilename(
       event.getServices.getIterationNumber,
       BeamSkimmer.observedSkimsFileBaseName + ".csv.gz"
     )
     val writer = IOUtils.getBufferedWriter(filePath)
-    writer.write(fileHeader)
-    writer.write("\n")
-
-    skims.foreach { keyVal =>
-      writer.write(
-        s"${keyVal._1._1},${keyVal._1._2},${keyVal._1._3},${keyVal._1._4},${keyVal._2.time},${keyVal._2.generalizedTime},${keyVal._2.cost},${keyVal._2.generalizedCost},${keyVal._2.distance},${keyVal._2.count},${keyVal._2.energy}\n"
-      )
+    try {
+      toCsv(skims).foreach(writer.write)
+    } finally {
+      writer.close()
     }
-    writer.close()
   }
+
 }
 
 object BeamSkimmer extends LazyLogging {
+  type BeamSkimmerKey = (Int, BeamMode, Id[TAZ], Id[TAZ])
+  type BeamSkimmerADT = TrieMap[BeamSkimmerKey, SkimInternal]
+
+  val Eol = "\n"
+
+  val CsvLineHeader: String =
+  "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,numObservations,energy" + Eol
+
   val observedSkimsFileBaseName = "skims"
   val fullSkimsFileBaseName = "skimsFull"
   val excerptSkimsFileBaseName = "skimsExcerpt"
@@ -550,7 +553,7 @@ object BeamSkimmer extends LazyLogging {
     weightedEnergy: Double
   )
 
-  private def readCsvFile(filePath: String): TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal] = {
+  private[router] def fromCsv(filePath: String): BeamSkimmerADT = {
     val mapReader = new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
     val res = TrieMap[(Int, BeamMode, Id[TAZ], Id[TAZ]), SkimInternal]()
     try {
@@ -595,4 +598,25 @@ object BeamSkimmer extends LazyLogging {
     }
     res
   }
+
+  private[router] def toCsv(content: BeamSkimmerADT): Iterator[String] = {
+    val contentIterator = content.toIterator
+      .map { keyVal =>
+        Seq(
+          keyVal._1._1,
+          keyVal._1._2,
+          keyVal._1._3,
+          keyVal._1._4,
+          keyVal._2.time,
+          keyVal._2.generalizedTime,
+          keyVal._2.cost,
+          keyVal._2.generalizedCost,
+          keyVal._2.distance,
+          keyVal._2.count,
+          keyVal._2.energy
+        ).mkString("", ",", Eol)
+      }
+    Iterator.single(CsvLineHeader) ++ contentIterator
+  }
+
 }

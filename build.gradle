@@ -62,11 +62,24 @@ sourceSets.main.java.srcDirs = []
 sourceSets.test.java.srcDirs = []
 sourceSets.test.scala.srcDirs = ["src/test/scala", "src/test/java"]
 
+sourceSets {
+    main {
+        resources {
+            srcDir "src/main/resources"
+        }
+    }
+    test {
+        resources {
+            srcDir "src/test/resources"
+        }
+    }
+}
+
 if (project.hasProperty('env')) {
     sourceSets {
         main {
             resources {
-                srcDirs "src/main/resources", "test/input/" + project.getProperty('env')
+                srcDirs "test/input/" + project.getProperty('env')
             }
         }
     }
@@ -300,14 +313,12 @@ build.dependsOn spec
 
 task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-
     args = ['-R', 'build/classes/scala/test', '-o', '-n'] << (project.findProperty('tags') ?: 'org.scalatest.Ignore')
     classpath = sourceSets.test.runtimeClasspath
 }
 
 task specificTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-
     args = ['-R', 'build/classes/scala/test', '-o', '-s'] << (project.findProperty('suite') ?: 'org.scalatest.Ignore')
     classpath = sourceSets.test.runtimeClasspath
 }
@@ -325,7 +336,6 @@ task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
                     '-Diterations=' + project.findProperty('iterations') : '')
     jvmArgs = ['-javaagent:build/aspectjweaver-1.8.10.jar']
     classpath = sourceSets.test.runtimeClasspath
-
     doFirst() {
         if (!project.file('build/aspectjweaver-1.8.10.jar').exists()) {
             download {
@@ -557,7 +567,8 @@ def jfrWithMem = ["-XX:+UnlockCommercialFeatures", "-XX:+UnlockDiagnosticVMOptio
 
 // UseParallelGC
 applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${myAvailableRam/2}g",
-                             "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true"] + logGC
+                             "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
+                             "-Dlogback.configurationFile=logback_prod.xml"] + logGC
 
 println(applicationDefaultJvmArgs)
 

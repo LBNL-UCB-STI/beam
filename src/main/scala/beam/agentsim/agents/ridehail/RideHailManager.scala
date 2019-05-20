@@ -114,7 +114,7 @@ object RideHailManager {
             false,
             estimatedPrice(passenger.personId),
             false,
-            passengerSchedule.schedule.values.find(_.riders.size > 1).size > 0
+            passengerSchedule.schedule.values.find(_.riders.size > 1).isDefined
           )
         }
         .toVector
@@ -299,7 +299,10 @@ class RideHailManager(
     .asScala
     .flatMap { hh =>
       hh.getVehicleIds.asScala.map { vehId =>
-        beamServices.privateVehicles.get(vehId).get.beamVehicleType
+        beamServices.privateVehicles
+          .get(vehId)
+          .map(_.beamVehicleType)
+          .getOrElse(throw new IllegalStateException(s"$vehId is not found in `beamServices.privateVehicles`"))
       }
     }
     .filter(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car)
@@ -1195,7 +1198,7 @@ class RideHailManager(
               )
               allRoutesRequired = allRoutesRequired ++ routesRequired
             case alloc @ VehicleMatchedToCustomers(request, rideHailAgentLocation, pickDropIdWithRoutes)
-                if !pickDropIdWithRoutes.isEmpty =>
+                if pickDropIdWithRoutes.nonEmpty =>
               handleReservation(request, tick, createTravelProposal(alloc))
               rideHailResourceAllocationManager.removeRequestFromBuffer(request)
             case VehicleMatchedToCustomers(request, _, _) =>
@@ -1206,7 +1209,7 @@ class RideHailManager(
         }
       case _ =>
     }
-    if (!allRoutesRequired.isEmpty) {
+    if (allRoutesRequired.nonEmpty) {
       log.debug("requesting {} routes at {}", allRoutesRequired.size, tick)
       numPendingRoutingRequestsForReservations = numPendingRoutingRequestsForReservations + allRoutesRequired.size
       requestRoutes(tick, allRoutesRequired)
@@ -1223,7 +1226,7 @@ class RideHailManager(
   //TODO this doesn't distinguish fare by customer, lumps them all together
   def createTravelProposal(alloc: VehicleMatchedToCustomers): TravelProposal = {
     val passSched = pickDropsToPassengerSchedule(alloc.pickDropIdWithRoutes)
-    val baseFare = alloc.pickDropIdWithRoutes.map(_.leg.map(_.cost)).flatten.sum
+    val baseFare = alloc.pickDropIdWithRoutes.flatMap(_.leg.map(_.cost)).sum
     TravelProposal(
       alloc.rideHailAgentLocation,
       passSched,
@@ -1235,7 +1238,7 @@ class RideHailManager(
   def pickDropsToPassengerSchedule(pickDrops: List[PickDropIdAndLeg]): PassengerSchedule = {
     val consistentPickDrops =
       pickDrops.map(_.personId).zip(BeamLeg.makeLegsConsistent(pickDrops.map(_.leg.map(_.beamLeg))))
-    val allLegs = consistentPickDrops.map(_._2).flatten
+    val allLegs = consistentPickDrops.flatMap(_._2)
     var passSched = PassengerSchedule().addLegs(allLegs)
     var pickDropsForGrouping: Map[VehiclePersonId, List[BeamLeg]] = Map()
     var passengersToAdd = Set[VehiclePersonId]()

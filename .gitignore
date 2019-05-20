@@ -53,3 +53,4 @@ network.dat
 physsim-network.xml
 src/main/scala/beam/sandbox
 test/scala/beam/sandbox
+log-path_IS_UNDEFINED/
