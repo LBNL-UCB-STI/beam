@@ -41,46 +41,42 @@ object CsvScenarioReader extends MatsimScenarioReader with LazyLogging {
   }
 
   private[matsim] def toHouseholdInfo(rec: java.util.Map[String, String]): HouseholdInfo = {
-    val householdId = getIfNotNull(rec, "household_id")
-    val cars = getIfNotNull(rec, "cars").toInt
-    val income = getIfNotNull(rec, "income").toDouble
-    val x = getIfNotNull(rec, "x").toDouble
-    val y = getIfNotNull(rec, "y").toDouble
+    val householdId = getIfNotNull(rec, "householdId")
+    val cars = getIfNotNull(rec, "cars", "0").toInt
+    val income = getIfNotNull(rec, "incomeValue").toDouble
+    val x = getIfNotNull(rec, "locationX").toDouble
+    val y = getIfNotNull(rec, "locationY").toDouble
     HouseholdInfo(householdId = HouseholdId(householdId), cars = cars, income = income, x = x, y = y)
   }
 
   private[matsim] def toPlanInfo(rec: java.util.Map[String, String]): PlanElement = {
     // Somehow Plan file has columns in camelCase, not snake_case
     val personId = getIfNotNull(rec, "personId")
-    val planElement = getIfNotNull(rec, "planElement")
+    val planElementType = getIfNotNull(rec, "planElementType")
     val planElementIndex = getIfNotNull(rec, "planElementIndex").toInt
     val activityType = Option(rec.get("activityType"))
-    val x = Option(rec.get("x")).map(_.toDouble)
-    val y = Option(rec.get("y")).map(_.toDouble)
-    val endTime = Option(rec.get("endTime")).map(_.toDouble)
-    val mode = Option(rec.get("mode")).map(_.toString)
     PlanElement(
       personId = PersonId(personId),
-      planElementType = planElement,
+      planElementType = planElementType,
       planElementIndex = planElementIndex,
       activityType = activityType,
-      activityLocationX = x,
-      activityLocationY = y,
-      activityEndTime = endTime,
-      legMode = mode
+      activityLocationX = Option(rec.get("activityLocationX")).map(_.toDouble),
+      activityLocationY = Option(rec.get("activityLocationY")).map(_.toDouble),
+      activityEndTime = Option(rec.get("activityEndTime")).map(_.toDouble),
+      legMode = Option(rec.get("legMode")).map(_.toString)
     )
   }
 
   private def toPersonInfo(rec: java.util.Map[String, String]): PersonInfo = {
-    val personId = getIfNotNull(rec, "person_id")
-    val householdId = getIfNotNull(rec, "household_id")
+    val personId = getIfNotNull(rec, "personId")
+    val householdId = getIfNotNull(rec, "householdId")
     val age = getIfNotNull(rec, "age").toInt
     val rank: Int = 0
     PersonInfo(personId = PersonId(personId), householdId = HouseholdId(householdId), rank = rank, age = age)
   }
 
-  private def getIfNotNull(rec: java.util.Map[String, String], column: String): String = {
-    val v = rec.get(column)
+  private def getIfNotNull(rec: java.util.Map[String, String], column: String, default: String = null): String = {
+    val v = rec.getOrDefault(column, default)
     assert(v != null, s"Value in column '$column' is null")
     v
   }

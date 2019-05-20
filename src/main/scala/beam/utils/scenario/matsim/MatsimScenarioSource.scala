@@ -5,7 +5,7 @@ class MatsimScenarioSource(val scenarioFolder: String, val rdr: MatsimScenarioRe
 
   val fileExt: String = rdr.inputType.toFileExt
 
-  val personFilePath: String = s"$scenarioFolder/persons.$fileExt"
+  val personFilePath: String = s"$scenarioFolder/population.$fileExt"
   val householdFilePath: String = s"$scenarioFolder/households.$fileExt"
   val planFilePath: String = s"$scenarioFolder/plans.$fileExt"
 
