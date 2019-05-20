@@ -46,7 +46,6 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   // The OD/Mode/Time Matrix
   private var previousSkims: BeamSkimmerADT = initialPreviousSkims()
   private var skims: BeamSkimmerADT = TrieMap()
-  private val modalAverage: TrieMap[BeamMode, SkimInternal] = TrieMap() //TODO: Doesn't appear to be used
 
   private def skimsFilePath: Option[String] = {
     val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
@@ -130,9 +129,9 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   private def getRideHailCost(mode: BeamMode, distanceInMeters: Double, timeInSeconds: Double): Double = {
     mode match {
       case RIDE_HAIL =>
-        beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * distanceInMeters / 1609.34 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * timeInSeconds / 60 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultBaseCost.toDouble
+        beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * distanceInMeters / 1609.34 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * timeInSeconds / 60 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultBaseCost
       case RIDE_HAIL_POOLED =>
-        beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMile * distanceInMeters / 1609.34 + beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMinute * timeInSeconds / 60 + beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledBaseCost.toDouble
+        beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMile * distanceInMeters / 1609.34 + beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMinute * timeInSeconds / 60 + beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledBaseCost
       case _ =>
         0.0
     }
@@ -151,33 +150,30 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
       case Some(skimValue) if skimValue.count > 5 =>
         skimValue
       case _ =>
-        modalAverage.get(RIDE_HAIL) match {
-          case Some(skim) =>
-            skim
-          case None =>
-            val (travelDistance, travelTime) = distanceAndTime(RIDE_HAIL, origin, destination)
-            SkimInternal(
-              time = travelTime.toDouble,
-              generalizedTime = 0,
-              generalizedCost = 0,
-              distance = travelDistance.toDouble,
-              cost = getRideHailCost(RIDE_HAIL, travelDistance, travelTime),
-              count = 0,
-              energy = 0.0
-            )
-        }
+        val (travelDistance, travelTime) = distanceAndTime(RIDE_HAIL, origin, destination)
+        SkimInternal(
+          time = travelTime.toDouble,
+          generalizedTime = 0,
+          generalizedCost = 0,
+          distance = travelDistance.toDouble,
+          cost = getRideHailCost(RIDE_HAIL, travelDistance, travelTime),
+          count = 0,
+          energy = 0.0
+        )
     }
     val pooled = getSkimValue(departureTime, RIDE_HAIL_POOLED, origTaz, destTaz) match {
       case Some(skimValue) if skimValue.count > 5 =>
         skimValue
       case _ =>
-        modalAverage.get(RIDE_HAIL_POOLED) match {
-          case Some(skim) =>
-            skim
-          case None =>
-            val cost = getRideHailCost(RIDE_HAIL_POOLED, solo.distance, solo.time)
-            return (1.1, cost / solo.cost)
-        }
+        SkimInternal(
+          time = solo.time * 1.1,
+          generalizedTime = 0,
+          generalizedCost = 0,
+          distance = solo.distance,
+          cost = getRideHailCost(RIDE_HAIL_POOLED, solo.distance, solo.time),
+          count = 0,
+          energy = 0.0
+        )
     }
     (pooled.time / solo.time, pooled.cost / solo.cost)
   }
