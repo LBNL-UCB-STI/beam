@@ -1,6 +1,6 @@
 package beam.integration.ridehail
 
-import beam.integration.EventReader._
+import beam.utils.EventReader._
 import beam.sim.BeamHelper
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
@@ -47,7 +47,7 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
 
     val matsimConfig = runBeamWithConfig(config)._1
     val filePath = getEventsFilePath(matsimConfig, "xml").getAbsolutePath
-    val events = fromFile(filePath).toSeq
+    val events = fromXmlFile(filePath).toSeq
 
     val groupedByPersonStartEndEvents = getActivitiesGroupedByPerson(events)
 
@@ -77,7 +77,7 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
 
     val matsimConfig = runBeamWithConfig(config)._1
     val filePath = getEventsFilePath(matsimConfig, "xml").getAbsolutePath
-    val events = fromFile(filePath).toSeq
+    val events = fromXmlFile(filePath).toSeq
 
     val groupedByPersonStartEndEvents = getActivitiesGroupedByPerson(events)
 

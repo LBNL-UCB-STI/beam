@@ -7,7 +7,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
 import beam.router.model.BeamLeg
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{Event, GenericEvent}
+import org.matsim.api.core.v01.events.Event
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
@@ -198,7 +198,7 @@ object PathTraversalEvent {
     )
   }
 
-  def apply(genericEvent: GenericEvent): PathTraversalEvent = {
+  def apply(genericEvent: Event): PathTraversalEvent = {
     assert(genericEvent.getEventType == EVENT_TYPE)
     val attr = genericEvent.getAttributes.asScala
     val time: Double = genericEvent.getTime
@@ -215,7 +215,7 @@ object PathTraversalEvent {
     val arrivalTime: Int = attr(ATTRIBUTE_ARRIVAL_TIME).toInt
     val mode: BeamMode = BeamMode.fromString(attr(ATTRIBUTE_MODE)).get
     val legLength: Double = attr(ATTRIBUTE_LENGTH).toDouble
-    val linkIdsAsStr = attr(ATTRIBUTE_LINK_IDS)
+    val linkIdsAsStr = Option(attr(ATTRIBUTE_LINK_IDS)).getOrElse("")
     val linkIds: IndexedSeq[Int] = if (linkIdsAsStr == "") IndexedSeq.empty else linkIdsAsStr.split(",").map(_.toInt)
     val linkTravelTimeStr = attr.getOrElse(ATTRIBUTE_LINK_TRAVEL_TIME, "")
     val linkTravelTime: IndexedSeq[Int] =
