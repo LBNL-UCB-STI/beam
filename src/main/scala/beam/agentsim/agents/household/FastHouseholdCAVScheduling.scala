@@ -292,7 +292,7 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
                 orig.activity.getCoord,
                 dest.activity.getCoord,
                 origin.time,
-                IndexedSeq(),
+                withTransit = false,
                 IndexedSeq(
                   StreetVehicle(
                     Id.create(cav.id.toString, classOf[Vehicle]),

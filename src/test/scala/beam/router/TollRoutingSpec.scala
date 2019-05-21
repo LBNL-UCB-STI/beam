@@ -107,7 +107,7 @@ class TollRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
@@ -133,7 +133,7 @@ class TollRoutingSpec
       val response = expectMsgType[RoutingResponse]
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.costEstimate == 3.0, "contains three toll links: two specified in OSM, and one in CSV file")
-      assert(carOption.totalTravelTimeInSecs == 143)
+      assert(carOption.totalTravelTimeInSecs == 142)
 
       val earlierRequest = request.copy(departureTime = 2000)
       router ! earlierRequest
@@ -168,7 +168,7 @@ class TollRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
@@ -195,8 +195,8 @@ class TollRoutingSpec
       router ! tollSensitiveRequest
       val tollSensitiveResponse = expectMsgType[RoutingResponse]
       val tollSensitiveCarOption = tollSensitiveResponse.itineraries.find(_.tripClassifier == CAR).get
-      assert(tollSensitiveCarOption.costEstimate == 2.0, "if I'm toll sensitive, I don't go over the tolled link")
-      assert(tollSensitiveCarOption.totalTravelTimeInSecs == 285)
+      assert(tollSensitiveCarOption.costEstimate <= 2.0, "if I'm toll sensitive, I don't go over the tolled link")
+      assert(tollSensitiveCarOption.totalTravelTimeInSecs == 284)
     }
 
     "not report a toll when walking" in {
@@ -204,7 +204,7 @@ class TollRoutingSpec
         origin,
         destination,
         time,
-        Vector(),
+        withTransit = false,
         Vector(
           StreetVehicle(
             Id.createVehicleId("body"),
