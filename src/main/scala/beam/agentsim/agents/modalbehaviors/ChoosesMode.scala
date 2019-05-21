@@ -156,7 +156,7 @@ trait ChoosesMode {
       // Make sure the current mode is allowable
       val correctedCurrentTourMode = choosesModeData.personData.currentTourMode match {
         case Some(mode) if availableModes.contains(mode) && choosesModeData.personData.numberOfReplanningAttempts < 3 =>
-          if (mode == CAV && !newlyAvailableBeamVehicles.exists(_.streetVehicle.mode == CAV)) {
+          if (mode == CAV && newlyAvailableBeamVehicles.find(_.streetVehicle.mode == CAV).isEmpty) {
             None
           } else {
             Some(mode)
@@ -362,7 +362,7 @@ trait ChoosesMode {
                 filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), CAR) :+ bodyStreetVehicle,
                 withParking = false
               )
-              responsePlaceholders = makeResponsePlaceholders(withRouting = true)
+              responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = false)
             case (LastTripIndex, Some(currentTourPersonalVehicle)) =>
               // At the end of the tour, only drive home a vehicle that we have also taken away from there.
               parkingRequestId = makeRequestWith(
@@ -696,17 +696,12 @@ trait ChoosesMode {
             EmbodiedBeamLeg.dummyLegAt(
               fullTrip.head.beamLeg.startTime,
               body.id,
-              isLastLeg = false,
+              false,
               fullTrip.head.beamLeg.travelPath.startPoint.loc
             ) +:
             fullTrip :+
             EmbodiedBeamLeg
-              .dummyLegAt(
-                fullTrip.last.beamLeg.endTime,
-                body.id,
-                isLastLeg = true,
-                fullTrip.last.beamLeg.travelPath.endPoint.loc
-              )
+              .dummyLegAt(fullTrip.last.beamLeg.endTime, body.id, true, fullTrip.last.beamLeg.travelPath.endPoint.loc)
           )
         )
       }
@@ -832,19 +827,19 @@ trait ChoosesMode {
               Vector(origLegs)
           }).map { partialItin =>
             EmbodiedBeamTrip(
-              EmbodiedBeamLeg.dummyLegAt(
+              (EmbodiedBeamLeg.dummyLegAt(
                 partialItin.head.beamLeg.startTime,
                 body.id,
-                isLastLeg = false,
+                false,
                 partialItin.head.beamLeg.travelPath.startPoint.loc
               ) +:
               partialItin :+
               EmbodiedBeamLeg.dummyLegAt(
                 partialItin.last.beamLeg.endTime,
                 body.id,
-                isLastLeg = true,
+                true,
                 partialItin.last.beamLeg.travelPath.endPoint.loc
-              )
+              ))
             )
           }
         case None =>
@@ -925,7 +920,7 @@ trait ChoosesMode {
                       cavTripLegs.cavOpt
                         .map(_.beamVehicleType.id)
                         .getOrElse(BeamVehicleType.defaultCarBeamVehicleType.id),
-                      asDriver = false
+                      false
                     )
                   )
                 case _ =>

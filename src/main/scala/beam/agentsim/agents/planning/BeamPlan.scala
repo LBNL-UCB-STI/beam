@@ -54,7 +54,7 @@ object BeamPlan {
   ): Plan = {
     val newPlanElements = plan.getPlanElements.asScala
       .sliding(2)
-      .map { elems =>
+      .flatMap { elems =>
         var outputElems = List(elems.head)
         if (elems.size == 2) {
           if (elems.head.isInstanceOf[Activity] && elems.head.asInstanceOf[Activity].equals(originActivity)) {
@@ -70,7 +70,6 @@ object BeamPlan {
         }
         outputElems
       }
-      .flatten
       .toList :+ plan.getPlanElements.asScala.last
     val newPlan = PopulationUtils.createPlan()
     newPlanElements.foreach(

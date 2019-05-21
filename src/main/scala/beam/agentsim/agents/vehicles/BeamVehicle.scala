@@ -349,7 +349,7 @@ object BeamVehicle {
           FuelConsumptionData(
             linkId = id,
             vehicleType = theVehicleType,
-            linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt).headOption,
+            linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
             linkCapacity = None, //currentLink.map(_.getCapacity),
             linkLength = currentLink.map(_.getLength),
             averageSpeed = Some(averageSpeed),

@@ -69,24 +69,24 @@ object PlansCsvWriter extends ScenarioCsvWriter {
 
         PlanElement(
           personId = PersonId(personId),
-          planElement = "leg",
+          planElementType = "leg",
           planElementIndex = planIndex,
           activityType = None,
-          x = None,
-          y = None,
-          endTime = None,
-          mode = mode
+          activityLocationX = None,
+          activityLocationY = None,
+          activityEndTime = None,
+          legMode = mode
         )
       case act: Activity =>
         PlanElement(
           personId = PersonId(personId),
-          planElement = "activity",
+          planElementType = "activity",
           planElementIndex = planIndex,
           activityType = Option(act.getType),
-          x = Option(act.getCoord.getX),
-          y = Option(act.getCoord.getY),
-          endTime = Option(act.getEndTime),
-          mode = None
+          activityLocationX = Option(act.getCoord.getX),
+          activityLocationY = Option(act.getCoord.getY),
+          activityEndTime = Option(act.getEndTime),
+          legMode = None
         )
     }
   }
@@ -98,12 +98,12 @@ object PlansCsvWriter extends ScenarioCsvWriter {
         planIndex = planInfo.planElementIndex,
         planElementIndex = planInfo.planElementIndex,
         personId = planInfo.personId.id,
-        planElementType = planInfo.planElement,
+        planElementType = planInfo.planElementType,
         activityType = planInfo.activityType.getOrElse(""),
-        activityLocationX = planInfo.x.map(_.toString).getOrElse(""),
-        activityLocationY = planInfo.y.map(_.toString).getOrElse(""),
-        activityEndTime = planInfo.endTime.map(_.toString).getOrElse(""),
-        legMode = planInfo.mode.getOrElse("")
+        activityLocationX = planInfo.activityLocationX.map(_.toString).getOrElse(""),
+        activityLocationY = planInfo.activityLocationY.map(_.toString).getOrElse(""),
+        activityEndTime = planInfo.activityEndTime.map(_.toString).getOrElse(""),
+        legMode = planInfo.legMode.getOrElse("")
       ).toString
     }
   }
