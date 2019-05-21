@@ -117,7 +117,7 @@ private[vehiclesharing] class AvailabilityBasedRepositioning(
                 v.asInstanceOf[BeamVehicle],
                 SpaceTime(org.taz.coord, now),
                 org.taz.tazId,
-                SpaceTime(dst.taz.coord, arrivalTime),
+                SpaceTime(getRandomLocationWithinRadius(dst.taz.coord, 1000), arrivalTime),
                 dst.taz.tazId
             )
           )
@@ -129,6 +129,15 @@ private[vehiclesharing] class AvailabilityBasedRepositioning(
     }
 
     vehiclesForReposition.toList
+  }
+
+  def getRandomLocationWithinRadius(center: Coord, radius: Int) : Coord = {
+    val rand = new scala.util.Random(System.currentTimeMillis())
+    val a = 2 * Math.PI * rand.nextDouble()
+    val r = radius * Math.sqrt(rand.nextDouble())
+    val x = r * Math.cos(a)
+    val y = r * Math.sin(a)
+    new Coord(center.getX + x, center.getY + y)
   }
 
 }

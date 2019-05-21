@@ -4,17 +4,14 @@ import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamSkimmer
-import beam.router.BeamSkimmer.SkimInternal
-import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm
 import beam.utils.FileUtils
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
 import scala.collection.JavaConverters._
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
 trait FleetType {
@@ -35,15 +32,30 @@ case class FixedNonReservingFleetFromFile(config: SharedFleets$Elm.FixedNonReser
     parkingManager: ActorRef
   ): Props = {
     val initialLocation = mutable.ListBuffer[Coord]()
-    val vehicles = readCsvFile(config.filePathCSV)
-    vehicles.foreach { x =>
-      (0 until x._3).foreach { _ =>
-        beamServices.tazTreeMap.getTAZ(x._1) match {
-          case Some(taz) => initialLocation.prepend(taz.coord)
-          case _         => initialLocation.prepend(x._2)
-        }
+    readCsvFile(config.filePathCSV).foreach { case (idTaz, coord, fleetSize) =>
+      val loc = beamServices.tazTreeMap.getTAZ(Id.create(idTaz, classOf[TAZ])) match {
+        case Some(taz) => taz.coord
+        case _ => coord
       }
+      (0 until fleetSize).foreach(_ => initialLocation.append(loc))
     }
+
+//    val vehicles = mutable.Map.empty[Id[TAZ], (Id[TAZ], Coord, Int)]
+//    readCsvFile(config.filePathCSV).foldLeft(()) { (_, x) =>
+//      vehicles.put(x._1, x)
+//    }
+//    val peopleLocation = beamServices.matsimServices.getScenario.getPopulation.getPersons
+//      .values()
+//      .asScala
+//      .map(Population.personInitialLocation)
+//    peopleLocation.foreach { loc =>
+//      val taz = beamServices.tazTreeMap.getTAZ(loc.getX, loc.getY)
+//      if (vehicles.contains(taz.tazId) && vehicles(taz.tazId)._3 > 0) {
+//        initialLocation.append(loc)
+//        vehicles.update(taz.tazId, vehicles(taz.tazId).copy(_3 = vehicles(taz.tazId)._3 - 1))
+//      }
+//    }
+
     val vehicleType = beamServices.vehicleTypes.getOrElse(
       Id.create(config.vehicleTypeId, classOf[BeamVehicleType]),
       throw new RuntimeException("Vehicle type id not found: " + config.vehicleTypeId)

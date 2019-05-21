@@ -65,8 +65,11 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   private val availableVehicles = mutable.Map[Id[BeamVehicle], BeamVehicle]()
   private val availableVehiclesIndex = new Quadtree
 
+  private val unavailableVehicles = mutable.Map[Id[BeamVehicle], BeamVehicle]()
+  private val unavailableVehiclesTime = mutable.Map[Id[BeamVehicle], Int]()
+
   override def receive: Receive = super[RepositionManager].receive orElse { // Reposition
-    case TriggerWithId(InitializeTrigger(tick), triggerId) =>
+    case TriggerWithId(InitializeTrigger(_), triggerId) =>
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.
       Future
@@ -82,20 +85,30 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         .pipeTo(sender())
 
     case MobilityStatusInquiry(_, whenWhere, _) =>
+      unavailableVehiclesTime.filter(p => whenWhere.time - p._2 > 5).foreach {
+        // make available after 5 seconds
+        case (vehId, _) => makeAvailable(vehId)
+      }
       // Search box: 1000 meters around query location
       val boundingBox = new Envelope(new Coordinate(whenWhere.loc.getX, whenWhere.loc.getY))
       boundingBox.expandBy(5000.0)
 
       val nearbyVehicles = availableVehiclesIndex.query(boundingBox).asScala.toVector.asInstanceOf[Vector[BeamVehicle]]
       nearbyVehicles.sortBy(veh => CoordUtils.calcEuclideanDistance(veh.spaceTime.loc, whenWhere.loc))
-      sender ! MobilityStatusResponse(nearbyVehicles.take(5).map { vehicle =>
-        Token(vehicle.id, self, vehicle.toStreetVehicle)
+      sender ! MobilityStatusResponse(nearbyVehicles.take(1).flatten { vehicle =>
+        makeUnavailable(vehicle.id, vehicle.toStreetVehicle, whenWhere.time) match {
+          case Some(_) => Some(Token(vehicle.id, self, vehicle.toStreetVehicle))
+          case _ => None
+        }
       })
       getREPAlgorithm.collectData(whenWhere.time, whenWhere.loc, RepositionManager.inquiry)
 
     case TryToBoardVehicle(token, who) =>
-      makeUnavailable(token.id, token.streetVehicle) match {
-        case Some(vehicle) =>
+      unavailableVehicles.get(token.id) match {
+        case Some(vehicle) if token.streetVehicle.locationUTM == vehicle.spaceTime =>
+          unavailableVehicles.remove(token.id)
+          unavailableVehiclesTime.remove(token.id)
+          log.debug("Checked out " + token.id)
           who ! Boarded(vehicle)
           getREPAlgorithm.collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.boarded)
         case _ => who ! NotAvailable
@@ -130,12 +143,22 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   override def getScheduler: ActorRef = mainScheduler
   override def getBeamServices: BeamServices = beamServices
   override def getREPAlgorithm: RepositionAlgorithm = algorithm
-  override def getREPTimeStep: Int = 60 * 60
+  override def getREPTimeStep: Int = 30 * 60
   override def getBeamSkimmer: BeamSkimmer = beamSkimmer
 
   val algorithm = new AvailabilityBasedRepositioning(beamSkimmer, beamServices, this)
 
+  def deleteFromUnavailable(vehId: Id[BeamVehicle]) = {
+    unavailableVehicles.get(vehId) match {
+      case Some(_) =>
+        unavailableVehicles.remove(vehId)
+        unavailableVehiclesTime.remove(vehId)
+      case _ =>
+    }
+  }
+
   override def makeAvailable(vehId: Id[BeamVehicle]): Boolean = {
+    deleteFromUnavailable(vehId)
     val vehicle = vehicles(vehId)
     availableVehicles += vehId -> vehicle
     availableVehiclesIndex.insert(
@@ -146,7 +169,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
     true
   }
 
-  override def makeUnavailable(vehId: Id[BeamVehicle], streetVehicle: StreetVehicle): Option[BeamVehicle] = {
+  override def makeUnavailable(vehId: Id[BeamVehicle], streetVehicle: StreetVehicle, time: Int): Option[BeamVehicle] = {
     availableVehicles.get(vehId) match {
       case Some(vehicle) if streetVehicle.locationUTM == vehicle.spaceTime =>
         availableVehicles.remove(vehId)
@@ -157,7 +180,9 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         if (!removed) {
           log.error("Didn't find a vehicle in my spatial index, at the location I thought it would be.")
         }
-        log.debug("Checked out " + vehId)
+        log.debug("Booked " + vehId)
+        unavailableVehicles.put(vehicle.id, vehicle)
+        unavailableVehiclesTime.put(vehicle.id, time)
         Some(vehicle)
       case _ => None
     }
