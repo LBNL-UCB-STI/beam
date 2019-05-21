@@ -22,7 +22,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
-import beam.router.{BeamSkimmer, RouteHistory}
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
@@ -53,7 +53,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.Await
 
 class PersonAgentSpec
@@ -74,7 +74,6 @@ class PersonAgentSpec
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
-    with beam.utils.InjectableMock
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
@@ -134,8 +133,6 @@ class PersonAgentSpec
       person: Person,
       attributesOfIndividual: AttributesOfIndividual
     ): Double = 0.0
-
-    setupInjectableMock(beamConfig, beamSvc)
   }
 
   // Mock a transit driver (who has to be a child of a mock router)
@@ -204,8 +201,9 @@ class PersonAgentSpec
           parkingManager,
           tollCalculator,
           self,
-          beamSkimmer = new BeamSkimmer(beamConfig, beamSvc),
-          routeHistory = new RouteHistory(beamConfig)
+          beamSkimmer = new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
+          routeHistory = new RouteHistory(beamConfig),
+          travelTimeObserved = new TravelTimeObserved(beamConfig, beamSvc)
         )
       )
 
@@ -267,7 +265,8 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc)
+          new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
+          new TravelTimeObserved(beamConfig, beamSvc)
         )
       )
 
@@ -492,7 +491,8 @@ class PersonAgentSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc)
+          new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
+          new TravelTimeObserved(beamConfig, beamSvc)
         )
       )
       scheduler ! StartSchedule(0)

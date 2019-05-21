@@ -10,12 +10,7 @@ import beam.agentsim.Resource.{Boarded, NotAvailable, NotifyVehicleIdle, TryToBo
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeIncentive
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
-import beam.agentsim.agents.household.HouseholdActor.{
-  HouseholdActor,
-  MobilityStatusInquiry,
-  MobilityStatusResponse,
-  ReleaseVehicle
-}
+import beam.agentsim.agents.household.HouseholdActor.{HouseholdActor, MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -32,7 +27,7 @@ import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
-import beam.router.{BeamSkimmer, RouteHistory}
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -59,7 +54,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.mutable.ListBuffer
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.ExecutionContext
 
 class PersonWithVehicleSharingSpec
@@ -81,7 +76,6 @@ class PersonWithVehicleSharingSpec
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
-    with beam.utils.InjectableMock
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
@@ -133,8 +127,6 @@ class PersonWithVehicleSharingSpec
       person: Person,
       attributesOfIndividual: AttributesOfIndividual
     ): Double = 0.0
-
-    setupInjectableMock(beamConfig, beamSvc)
   }
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
@@ -199,7 +191,8 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamConfig, beamSvc)
+            new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
+            new TravelTimeObserved(beamConfig, beamSvc)
           )
         )
       )
@@ -341,7 +334,8 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamConfig, beamSvc)
+            new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
+            new TravelTimeObserved(beamConfig, beamSvc)
           )
         )
       )
@@ -582,7 +576,8 @@ class PersonWithVehicleSharingSpec
           new Coord(0.0, 0.0),
           Vector(mockSharedVehicleFleet.ref),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc)
+          new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
+          new TravelTimeObserved(beamSvc.beamConfig, beamSvc)
         )
       )
 

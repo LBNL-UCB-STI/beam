@@ -13,11 +13,7 @@ import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavT
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, VehicleOrToken}
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.agents.ridehail.RideHailAgent.{
-  ModifyPassengerSchedule,
-  ModifyPassengerScheduleAck,
-  ModifyPassengerScheduleAcks
-}
+import beam.agentsim.agents.ridehail.RideHailAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck, ModifyPassengerScheduleAcks}
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
@@ -30,7 +26,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode.CAV
-import beam.router.{BeamSkimmer, RouteHistory}
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
@@ -70,7 +66,8 @@ object HouseholdActor {
     homeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     routeHistory: RouteHistory,
-    beamSkimmer: BeamSkimmer
+    beamSkimmer: BeamSkimmer,
+    travelTimeObserved: TravelTimeObserved
   ): Props = {
     Props(
       new HouseholdActor(
@@ -89,7 +86,8 @@ object HouseholdActor {
         homeCoord,
         sharedVehicleFleets,
         routeHistory,
-        beamSkimmer
+        beamSkimmer,
+        travelTimeObserved
       )
     )
   }
@@ -129,7 +127,8 @@ object HouseholdActor {
     homeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     routeHistory: RouteHistory,
-    beamSkimmer: BeamSkimmer
+    beamSkimmer: BeamSkimmer,
+    travelTimeObserved: TravelTimeObserved
   ) extends Actor
       with HasTickAndTrigger
       with ActorLogging {
@@ -290,7 +289,8 @@ object HouseholdActor {
               person.getSelectedPlan,
               fleetManagers ++: sharedVehicleFleets :+ self,
               beamSkimmer,
-              routeHistory
+              routeHistory,
+              travelTimeObserved
             ),
             person.getId.toString
           )

@@ -99,7 +99,7 @@ class FastHouseholdCAVSchedulingSpec
     override def setTransitFleetSizes(tripFleetSizeMap: mutable.HashMap[String, Integer]): Unit = ???
   }
 
-  private lazy val skimmer: BeamSkimmer = new BeamSkimmer(beamCfg, beamSvc)
+  private lazy val skimmer: BeamSkimmer = new BeamSkimmer(beamCfg, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo)
 
   describe("A Household CAV Scheduler") {
     it("generates two schedules") {

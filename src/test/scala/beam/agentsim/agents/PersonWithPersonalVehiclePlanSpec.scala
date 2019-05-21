@@ -22,7 +22,7 @@ import beam.router.Modes.BeamMode.{BIKE, CAR, WALK}
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
-import beam.router.{BeamSkimmer, RouteHistory}
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -51,7 +51,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 
 class PersonWithPersonalVehiclePlanSpec
     extends TestKit(
@@ -72,7 +72,6 @@ class PersonWithPersonalVehiclePlanSpec
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
-    with beam.utils.InjectableMock
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
@@ -123,8 +122,6 @@ class PersonWithPersonalVehiclePlanSpec
       person: Person,
       attributesOfIndividual: AttributesOfIndividual
     ): Double = 0.0
-
-    setupInjectableMock(beamConfig, beamSvc)
   }
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
@@ -197,7 +194,8 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamConfig, beamSvc)
+            new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
+            new TravelTimeObserved(beamConfig, beamSvc)
           )
         )
       )
@@ -422,7 +420,8 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamConfig, beamSvc)
+            new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
+            new TravelTimeObserved(beamConfig, beamSvc)
           )
         )
       )
@@ -564,7 +563,8 @@ class PersonWithPersonalVehiclePlanSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc)
+          new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
+          new TravelTimeObserved(beamConfig, beamSvc)
         )
       )
       val personActor = householdActor.getSingleChild(person.getId.toString)
@@ -658,7 +658,8 @@ class PersonWithPersonalVehiclePlanSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc)
+          new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
+          new TravelTimeObserved(beamConfig, beamSvc)
         )
       )
       scheduler ! StartSchedule(0)

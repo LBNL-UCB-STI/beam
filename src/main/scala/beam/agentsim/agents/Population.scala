@@ -9,7 +9,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.router.{BeamSkimmer, RouteHistory}
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import com.conveyal.r5.transit.TransportNetwork
@@ -19,7 +19,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
 
 import scala.collection.JavaConverters._
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.{Await, Future}
 
 class Population(
@@ -34,7 +34,8 @@ class Population(
   val sharedVehicleFleets: Seq[ActorRef],
   val eventsManager: EventsManager,
   val routeHistory: RouteHistory,
-  val beamSkimmer: BeamSkimmer
+  val beamSkimmer: BeamSkimmer,
+  val travelTimeObserved: TravelTimeObserved
 ) extends Actor
     with ActorLogging {
 
@@ -129,7 +130,8 @@ class Population(
               homeCoord,
               sharedVehicleFleets,
               routeHistory,
-              beamSkimmer
+              beamSkimmer,
+              travelTimeObserved
             ),
             household.getId.toString
           )
@@ -179,7 +181,8 @@ object Population {
     sharedVehicleFleets: Seq[ActorRef],
     eventsManager: EventsManager,
     routeHistory: RouteHistory,
-    beamSkimmer: BeamSkimmer
+    beamSkimmer: BeamSkimmer,
+    travelTimeObserved: TravelTimeObserved
   ): Props = {
     Props(
       new Population(
@@ -194,7 +197,8 @@ object Population {
         sharedVehicleFleets,
         eventsManager,
         routeHistory,
-        beamSkimmer
+        beamSkimmer,
+        travelTimeObserved
       )
     )
   }

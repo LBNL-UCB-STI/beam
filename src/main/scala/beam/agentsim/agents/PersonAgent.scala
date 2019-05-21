@@ -61,7 +61,8 @@ object PersonAgent {
     plan: Plan,
     sharedVehicleFleets: Seq[ActorRef],
     beamSkimmer: BeamSkimmer,
-    routeHistory: RouteHistory
+    routeHistory: RouteHistory,
+    travelTimeObserved: TravelTimeObserved
   ): Props = {
     Props(
       new PersonAgent(
@@ -79,7 +80,8 @@ object PersonAgent {
         householdRef,
         sharedVehicleFleets,
         beamSkimmer,
-        routeHistory
+        routeHistory,
+        travelTimeObserved
       )
     )
   }
@@ -211,13 +213,12 @@ class PersonAgent(
   val householdRef: ActorRef,
   val vehicleFleets: Seq[ActorRef] = Vector(),
   val beamSkimmer: BeamSkimmer,
-  val routeHistory: RouteHistory
+  val routeHistory: RouteHistory,
+  val travelTimeObserved: TravelTimeObserved
 ) extends DrivesVehicle[PersonData]
     with ChoosesMode
     with ChoosesParking
     with Stash {
-
-  val travelTimeObserved: TravelTimeObserved = beamServices.injector.getInstance(classOf[TravelTimeObserved])
 
   val body = new BeamVehicle(
     bodyVehicleIdFromPersonID(id),

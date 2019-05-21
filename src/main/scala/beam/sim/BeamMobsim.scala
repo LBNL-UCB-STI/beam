@@ -16,7 +16,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
 import beam.router.osm.TollCalculator
-import beam.router.{BeamRouter, BeamSkimmer, FreeFlowTravelTime, RouteHistory}
+import beam.router.{BeamRouter, BeamSkimmer, FreeFlowTravelTime, RouteHistory, TravelTimeObserved}
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
@@ -48,7 +48,8 @@ class BeamMobsim @Inject()(
   val rideHailSurgePricingManager: RideHailSurgePricingManager,
   val rideHailIterationHistory: RideHailIterationHistory,
   val routeHistory: RouteHistory,
-  val beamSkimmer: BeamSkimmer
+  val beamSkimmer: BeamSkimmer,
+  val travelTimeObserved: TravelTimeObserved
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
@@ -156,7 +157,8 @@ class BeamMobsim @Inject()(
             sharedVehicleFleets,
             eventsManager,
             routeHistory,
-            beamSkimmer
+            beamSkimmer,
+            travelTimeObserved
           ),
           "population"
         )

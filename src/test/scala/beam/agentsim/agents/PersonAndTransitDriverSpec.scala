@@ -356,7 +356,8 @@ class PersonAndTransitDriverSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc)
+          new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
+          new TravelTimeObserved(beamConfig, beamSvc)
         )
       )
 

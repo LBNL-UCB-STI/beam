@@ -73,7 +73,6 @@ class OtherPersonAgentSpec
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
-    with beam.utils.InjectableMock
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
@@ -138,8 +137,6 @@ class OtherPersonAgentSpec
       person: Person,
       attributesOfIndividual: AttributesOfIndividual
     ): Double = 0.0
-
-    setupInjectableMock(beamConfig, beamSvc)
   }
 
   private lazy val parkingManager = system.actorOf(
@@ -326,7 +323,8 @@ class OtherPersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc)
+          new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
+          new TravelTimeObserved(beamConfig, beamSvc)
         )
       )
       scheduler ! StartSchedule(0)

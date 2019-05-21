@@ -39,7 +39,7 @@ class TravelTimeObserved @Inject()(
   import TravelTimeObserved._
 
   @volatile
-  private var skimmer: BeamSkimmer = new BeamSkimmer(beamConfig, beamServices)
+  private var skimmer: BeamSkimmer = new BeamSkimmer(beamConfig, beamServices.tazTreeMap, beamServices.vehicleTypes, beamServices.fuelTypePrices, beamServices.geo)
 
   private val observedTravelTimesOpt: Option[Map[PathCache, Float]] = {
     val zoneBoundariesFilePath = beamConfig.beam.calibration.roadNetwork.travelTimes.zoneBoundariesFilePath
@@ -95,7 +95,7 @@ class TravelTimeObserved @Inject()(
 
   def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     writeTravelTimeObservedVsSimulated(event)
-    skimmer = new BeamSkimmer(beamConfig, beamServices)
+    skimmer = new BeamSkimmer(beamConfig, beamServices.tazTreeMap, beamServices.vehicleTypes, beamServices.fuelTypePrices, beamServices.geo)
   }
 
   def writeTravelTimeObservedVsSimulated(event: IterationEndsEvent): Unit = {

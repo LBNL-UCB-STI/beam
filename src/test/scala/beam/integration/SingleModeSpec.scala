@@ -5,7 +5,7 @@ import beam.agentsim.agents.PersonTestUtil
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.events.PathTraversalEvent
-import beam.router.{BeamRouter, BeamSkimmer, RouteHistory}
+import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.router.Modes.BeamMode
 import beam.sim.{BeamMobsim, BeamServices, BeamServicesImpl}
 import beam.utils.SimRunnerForTest
@@ -111,7 +111,8 @@ class SingleModeSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        new BeamSkimmer(services.beamConfig, services)
+        new BeamSkimmer(services.beamConfig, services.tazTreeMap, services.vehicleTypes, services.fuelTypePrices, services.geo),
+        new TravelTimeObserved(services.beamConfig, services)
       )
       mobsim.run()
       events.foreach {
@@ -154,7 +155,8 @@ class SingleModeSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        new BeamSkimmer(services.beamConfig, services)
+        new BeamSkimmer(services.beamConfig, services.tazTreeMap, services.vehicleTypes, services.fuelTypePrices, services.geo),
+        new TravelTimeObserved(services.beamConfig, services)
       )
       mobsim.run()
       events.foreach {
@@ -216,7 +218,8 @@ class SingleModeSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        new BeamSkimmer(services.beamConfig, services)
+        new BeamSkimmer(services.beamConfig, services.tazTreeMap, services.vehicleTypes, services.fuelTypePrices, services.geo),
+        new TravelTimeObserved(services.beamConfig, services)
       )
       mobsim.run()
       events.collect {
@@ -283,7 +286,8 @@ class SingleModeSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        new BeamSkimmer(services.beamConfig, services)
+        new BeamSkimmer(services.beamConfig, services.tazTreeMap, services.vehicleTypes, services.fuelTypePrices, services.geo),
+        new TravelTimeObserved(services.beamConfig, services)
       )
       mobsim.run()
       events.collect {
