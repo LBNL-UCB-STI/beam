@@ -384,7 +384,8 @@ class PersonAgent(
   ): State = {
     logDebug(s"replanning because ${error.errorCode}")
     val tick = _currentTick.getOrElse(response.request.departAt)
-    eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id), error.errorCode.entryName))
+    val replanningReason = replanningReasonBuilder(data, error.errorCode.entryName)
+    eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id), replanningReason))
     goto(ChoosingMode) using ChoosesModeData(
       data.copy(currentTourMode = None, numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
       currentLocation = SpaceTime(
@@ -405,8 +406,10 @@ class PersonAgent(
         data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _)
         ) =>
       logDebug(s"replanning because ${firstErrorResponse.errorCode}")
+
+      val replanningReason = replanningReasonBuilder(data, firstErrorResponse.errorCode.entryName)
       eventsManager.processEvent(
-        new ReplanningEvent(_currentTick.get, Id.createPersonId(id), firstErrorResponse.errorCode.entryName)
+        new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason)
       )
       goto(ChoosingMode) using ChoosesModeData(
         data.copy(numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
@@ -563,8 +566,9 @@ class PersonAgent(
       goto(ProcessingNextLegOrStartActivity)
     case Event(NotAvailable, basePersonData: BasePersonData) =>
       log.debug("{} replanning because vehicle not available when trying to board")
+      val replanningReason = replanningReasonBuilder(basePersonData, ReservationErrorCode.ResourceUnavailable.entryName)
       eventsManager.processEvent(
-        new ReplanningEvent(_currentTick.get, Id.createPersonId(id), ReservationErrorCode.ResourceUnavailable.entryName)
+        new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason)
       )
       goto(ChoosingMode) using ChoosesModeData(
         basePersonData.copy(
@@ -656,8 +660,9 @@ class PersonAgent(
       // portion.
       log.debug("Missed transit pickup, late by {} sec", _currentTick.get - nextLeg.beamLeg.startTime)
 
+      val replanningReason = replanningReasonBuilder(data, ReservationErrorCode.MissedTransitPickup.entryName)
       eventsManager.processEvent(
-        new ReplanningEvent(_currentTick.get, Id.createPersonId(id), ReservationErrorCode.MissedTransitPickup.entryName)
+        new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason)
       )
       goto(ChoosingMode) using ChoosesModeData(
         personData = data
@@ -829,6 +834,17 @@ class PersonAgent(
           scheduler ! CompletionNotice(triggerId)
           stop
       }
+  }
+
+  def replanningReasonBuilder(data: BasePersonData, prefix: String): String = {
+    val reasonBuilder = new StringBuilder(prefix)
+    data.currentTourMode match {
+      case Some(mode) =>
+        if (mode.isRideHail) reasonBuilder.append(" RideHail")
+        if (mode.isMassTransit || mode.isTransit) reasonBuilder.append(" PT")
+      case None =>
+    }
+    reasonBuilder.toString()
   }
 
   def handleSuccessfulReservation(
