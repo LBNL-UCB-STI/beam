@@ -978,18 +978,15 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       {
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
         val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))
-        val minTravelTime = (edge.getLengthM / maxSpeed).toFloat.round
+        val minTravelTime = (edge.getLengthM / maxSpeed).ceil.toInt
         val minSpeed = beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond
-        val maxTravelTime = (edge.getLengthM / minSpeed).toFloat.round
-        if (streetMode != StreetMode.CAR || edge.getOSMID < 0) {
-          // edge.getOSMID < 0 means
-          // an R5 internal edge, probably connecting transit to the street network. We don't have those in the
-          // MATSim network.
+        val maxTravelTime = (edge.getLengthM / minSpeed).ceil.toInt
+        if (streetMode != StreetMode.CAR) {
           minTravelTime
         } else {
           val link = networkHelper.getLinkUnsafe(linkId)
           assert(link != null)
-          val physSimTravelTime = travelTime.getLinkTravelTime(link, time, null, null).toFloat.round
+          val physSimTravelTime = travelTime.getLinkTravelTime(link, time, null, null).ceil.toInt
           Math.min(Math.max(physSimTravelTime, minTravelTime), maxTravelTime)
         }
       }
