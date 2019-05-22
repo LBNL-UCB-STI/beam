@@ -103,6 +103,7 @@ private[vehiclesharing] class AvailabilityBasedRepositioning(
     }
 
     val vehiclesForReposition = new mutable.ListBuffer[(BeamVehicle, SpaceTime, Id[TAZ], SpaceTime, Id[TAZ])]()
+    val rand = new scala.util.Random(System.currentTimeMillis())
     ODs.foreach {
       case (org, dst, tt, fs) =>
         val arrivalTime = now + tt
@@ -123,7 +124,7 @@ private[vehiclesharing] class AvailabilityBasedRepositioning(
                 v.asInstanceOf[BeamVehicle],
                 SpaceTime(org.taz.coord, now),
                 org.taz.tazId,
-                SpaceTime(getRandomLocationWithinRadius(dst.taz), arrivalTime),
+                SpaceTime(getRandomLocationWithinRadius(dst.taz, rand), arrivalTime),
                 dst.taz.tazId
             )
           )
@@ -137,8 +138,7 @@ private[vehiclesharing] class AvailabilityBasedRepositioning(
     vehiclesForReposition.toList
   }
 
-  def getRandomLocationWithinRadius(taz: TAZ): Coord = {
-    val rand = new scala.util.Random(System.currentTimeMillis())
+  def getRandomLocationWithinRadius(taz: TAZ, rand: scala.util.Random): Coord = {
     val radius = Math.sqrt(taz.areaInSquareMeters / Math.PI)
     val a = 2 * Math.PI * rand.nextDouble()
     val r = radius * Math.sqrt(rand.nextDouble())
