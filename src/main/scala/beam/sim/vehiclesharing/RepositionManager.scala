@@ -28,7 +28,7 @@ trait RepositionAlgorithm {
 trait RepositionManager extends Actor with ActorLogging {
   def getId: Id[VehicleManager]
   def getAvailableVehiclesIndex: Quadtree
-  def makeUnavailable(vehId: Id[BeamVehicle], streetVehicle: StreetVehicle, time: Int): Option[BeamVehicle]
+  def makeUnavailable(vehId: Id[BeamVehicle], streetVehicle: StreetVehicle): Option[BeamVehicle]
   def makeAvailable(vehId: Id[BeamVehicle]): Boolean
   def makeTeleport(vehId: Id[BeamVehicle], whenWhere: SpaceTime): Unit
   def getActorRef: ActorRef
@@ -39,7 +39,7 @@ trait RepositionManager extends Actor with ActorLogging {
   def getREPTimeStep: Int
   def getDataCollectTimeStep: Int = 5 * 60
 
-  var trackTimeSteps = 0
+  var currentTick = 0
 
   getScheduler ! ScheduleTrigger(REPVehicleRepositionTrigger(getREPTimeStep), getActorRef)
   getScheduler ! ScheduleTrigger(REPDataCollectionTrigger(getDataCollectTimeStep), getActorRef)
@@ -47,6 +47,7 @@ trait RepositionManager extends Actor with ActorLogging {
   override def receive: Receive = {
 
     case TriggerWithId(REPDataCollectionTrigger(tick), triggerId) =>
+      currentTick = tick
       val nextTick = tick + getDataCollectTimeStep
       if(nextTick < 108000) {
         getREPAlgorithm.collectData(tick)
@@ -63,7 +64,7 @@ trait RepositionManager extends Actor with ActorLogging {
       val nextTick = tick + getREPTimeStep
       if (getBeamServices.iterationNumber > 0 || getBeamServices.beamConfig.beam.warmStart.enabled) {
         val vehForReposition = getREPAlgorithm.getVehiclesForReposition(tick)
-        vehForReposition.filter(rep => makeUnavailable(rep._1.id, rep._1.toStreetVehicle, tick).isDefined).foreach {
+        vehForReposition.filter(rep => makeUnavailable(rep._1.id, rep._1.toStreetVehicle).isDefined).foreach {
           case (vehicle, _, _, dstWhereWhen, dstTAZ) =>
             getScheduler.tell(
               CompletionNotice(

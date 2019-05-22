@@ -32,9 +32,16 @@ case class FixedNonReservingFleetFromFile(config: SharedFleets$Elm.FixedNonReser
     parkingManager: ActorRef
   ): Props = {
     val initialLocation = mutable.ListBuffer[Coord]()
+    val rand = new scala.util.Random(System.currentTimeMillis())
     readCsvFile(config.filePathCSV).foreach { case (idTaz, coord, fleetSize) =>
       val loc = beamServices.tazTreeMap.getTAZ(Id.create(idTaz, classOf[TAZ])) match {
-        case Some(taz) => taz.coord
+        case Some(taz) =>
+          val radius = Math.sqrt(taz.areaInSquareMeters/Math.PI)
+          val a = 2 * Math.PI * rand.nextDouble()
+          val r = radius * Math.sqrt(rand.nextDouble())
+          val x = r * Math.cos(a)
+          val y = r * Math.sin(a)
+          new Coord(taz.coord.getX + x, taz.coord.getY + y)
         case _ => coord
       }
       (0 until fleetSize).foreach(_ => initialLocation.append(loc))
