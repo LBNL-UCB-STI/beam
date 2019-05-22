@@ -524,17 +524,14 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     public void writeReplanningReasonCountCSV(Integer iteration) {
         String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration,"replanningEventReason.csv");
         String header = "ReplanningReason,Count";
-        try{
-            FileWriter writer = new FileWriter(new File(fileName));
-            BufferedWriter out = new BufferedWriter(writer);
+        try(FileWriter writer = new FileWriter(new File(fileName));
+            BufferedWriter out = new BufferedWriter(writer)){
             out.write(header);
             out.newLine();
             for (Map.Entry<String,Integer> entry : replanningReasonCount.entrySet()){
                 out.write(entry.getKey()+","+entry.getValue());
                 out.newLine();
             }
-            out.close();
-            writer.close();
         } catch (IOException ex) {
             log.error("error in generating csv ", ex);
 
