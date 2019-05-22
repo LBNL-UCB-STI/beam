@@ -901,7 +901,7 @@ trait ChoosesMode {
               val walk1 = EmbodiedBeamLeg.dummyLegAt(
                 _currentTick.get,
                 body.id,
-                false,
+                isLastLeg = false,
                 if (cavTripLegs.legs.isEmpty) {
                   beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc)
                 } else {
@@ -914,7 +914,7 @@ trait ChoosesMode {
                     EmbodiedBeamLeg.dummyLegAt(
                       _currentTick.get,
                       body.id,
-                      false,
+                      isLastLeg = false,
                       beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc),
                       CAV,
                       cavTripLegs.cavOpt
@@ -930,7 +930,7 @@ trait ChoosesMode {
                 EmbodiedBeamLeg.dummyLegAt(
                   _currentTick.get + cavLegs.map(_.beamLeg.duration).sum,
                   body.id,
-                  true,
+                  isLastLeg = true,
                   if (cavTripLegs.legs.isEmpty) {
                     beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc)
                   } else {
