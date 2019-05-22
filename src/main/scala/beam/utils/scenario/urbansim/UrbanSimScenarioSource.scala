@@ -69,13 +69,13 @@ class UrbanSimScenarioSource(
       }
       PlanElement(
         personId = PersonId(plan.personId),
-        planElement = plan.planElement,
+        planElementType = plan.planElement,
         planElementIndex = plan.planElementIndex,
         activityType = plan.activityType,
-        x = coord.map(_.getX),
-        y = coord.map(_.getY),
-        endTime = plan.endTime,
-        mode = plan.mode
+        activityLocationX = coord.map(_.getX),
+        activityLocationY = coord.map(_.getY),
+        activityEndTime = plan.endTime,
+        legMode = plan.mode
       )
     }
   }

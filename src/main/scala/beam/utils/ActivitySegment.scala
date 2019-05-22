@@ -10,12 +10,15 @@ import scala.collection.JavaConverters._
 
 class ActivitySegment(val scenario: Scenario, val binSize: Int) extends LazyLogging {
   import ActivitySegment._
-  private val activities = scenario.getPopulation.getPersons.values.asScala.flatMap { person =>
-    person.getSelectedPlan.getPlanElements.asScala.collect {
-      case act: Activity if act.getEndTime != Double.NegativeInfinity=>
-        act
+  private val activities = scenario.getPopulation.getPersons.values.asScala
+    .flatMap { person =>
+      person.getSelectedPlan.getPlanElements.asScala.collect {
+        case act: Activity if act.getEndTime != Double.NegativeInfinity =>
+          act
+      }
     }
-  }.toArray.sortBy(x => x.getEndTime)
+    .toArray
+    .sortBy(x => x.getEndTime)
 
   private val emptyArr: Array[Coord] = Array.empty
 
@@ -30,14 +33,15 @@ class ActivitySegment(val scenario: Scenario, val binSize: Int) extends LazyLogg
     if (idx > maxIdx) {
       logger.warn(s"Cant find bucket at time: $time, idx: $idx, maxIdx: $maxIdx")
       emptyArr
-    }
-    else {
+    } else {
       val r: Array[Location] = Option(arr(idx)).getOrElse(emptyArr)
       r
     }
   }
 }
+
 object ActivitySegment {
+
   def build(sorted: Array[Activity], binSize: Int): Array[Array[Coord]] = {
     val minTime = sorted.head.getEndTime
     val maxTime = sorted.last.getEndTime
@@ -56,8 +60,7 @@ object ActivitySegment {
         buf.clear()
         j += 1
         s = time
-      }
-      else {
+      } else {
         buf += act.getCoord
       }
       i += 1

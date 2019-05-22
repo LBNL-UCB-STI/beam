@@ -46,7 +46,6 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   // The OD/Mode/Time Matrix
   private var previousSkims: BeamSkimmerADT = initialPreviousSkims()
   private var skims: BeamSkimmerADT = TrieMap()
-  private val modalAverage: TrieMap[BeamMode, SkimInternal] = TrieMap()
 
   private def skimsFilePath: Option[String] = {
     val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
@@ -93,9 +92,9 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
           beamServices
         )
       case RIDE_HAIL =>
-        beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0
+        beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultBaseCost + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0
       case RIDE_HAIL_POOLED =>
-        0.6 * (beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0)
+        beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledBaseCost + beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMile * travelDistance / 1609.0 + beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMinute * travelTime / 60.0
       case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT => 0.25 * travelDistance / 1609
       case _                                                          => 0.0
     }
@@ -127,6 +126,18 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     }
   }
 
+  private def getRideHailCost(mode: BeamMode, distanceInMeters: Double, timeInSeconds: Double): Double = {
+    mode match {
+      case RIDE_HAIL =>
+        beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * distanceInMeters / 1609.34 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * timeInSeconds / 60 + beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultBaseCost
+      case RIDE_HAIL_POOLED =>
+        beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMile * distanceInMeters / 1609.34 + beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMinute * timeInSeconds / 60 + beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledBaseCost
+      case _ =>
+        0.0
+    }
+
+  }
+
   def getRideHailPoolingTimeAndCostRatios(
     origin: Location,
     destination: Location,
@@ -139,31 +150,30 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
       case Some(skimValue) if skimValue.count > 5 =>
         skimValue
       case _ =>
-        modalAverage.get(RIDE_HAIL) match {
-          case Some(skim) =>
-            skim
-          case None =>
-            SkimInternal(1.0, 1.0, 1.0, 0, 1.0, 0, 1.0)
-        }
+        val (travelDistance, travelTime) = distanceAndTime(RIDE_HAIL, origin, destination)
+        SkimInternal(
+          time = travelTime.toDouble,
+          generalizedTime = 0,
+          generalizedCost = 0,
+          distance = travelDistance.toDouble,
+          cost = getRideHailCost(RIDE_HAIL, travelDistance, travelTime),
+          count = 0,
+          energy = 0.0
+        )
     }
     val pooled = getSkimValue(departureTime, RIDE_HAIL_POOLED, origTaz, destTaz) match {
       case Some(skimValue) if skimValue.count > 5 =>
         skimValue
       case _ =>
-        modalAverage.get(RIDE_HAIL_POOLED) match {
-          case Some(skim) =>
-            skim
-          case None =>
-            SkimInternal(
-              time = 1.1,
-              generalizedTime = 1.1,
-              beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledToRegularRideCostRatio * 1.1,
-              distance = 0,
-              beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledToRegularRideCostRatio,
-              count = 0,
-              energy = 1.1
-            )
-        }
+        SkimInternal(
+          time = solo.time * 1.1,
+          generalizedTime = 0,
+          generalizedCost = 0,
+          distance = solo.distance,
+          cost = getRideHailCost(RIDE_HAIL_POOLED, solo.distance, solo.time),
+          count = 0,
+          energy = 0.0
+        )
     }
     (pooled.time / solo.time, pooled.cost / solo.cost)
   }
@@ -171,7 +181,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   private def distanceAndTime(mode: BeamMode, origin: Location, destination: Location) = {
     val speed = mode match {
       case CAR | CAV | RIDE_HAIL                                      => carSpeedMeterPerSec
-      case RIDE_HAIL_POOLED                                           => carSpeedMeterPerSec * 1.1
+      case RIDE_HAIL_POOLED                                           => carSpeedMeterPerSec / 1.1
       case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT => transitSpeedMeterPerSec
       case BIKE                                                       => bicycleSpeedMeterPerSec
       case _                                                          => walkSpeedMeterPerSec
@@ -256,15 +266,18 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
   }
 
   def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    ProfilingUtils.timed(s"writeObservedSkims on iteration ${event.getIteration}", x => logger.info(x)) {
-      writeObservedSkims(event)
+    if (beamServices.beamConfig.beam.outputs.writeSkimsInterval > 0 && event.getIteration % beamServices.beamConfig.beam.outputs.writeSkimsInterval == 0) {
+      ProfilingUtils.timed(s"writeObservedSkims on iteration ${event.getIteration}", x => logger.info(x)) {
+        writeObservedSkims(event)
+      }
+      ProfilingUtils.timed(
+        s"writeAllModeSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}",
+        x => logger.info(x)
+      ) {
+        writeAllModeSkimsForPeakNonPeakPeriods(event)
+      }
     }
-    ProfilingUtils.timed(
-      s"writeAllModeSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}",
-      x => logger.info(x)
-    ) {
-      writeAllModeSkimsForPeakNonPeakPeriods(event)
-    }
+
     // Writing full skims are very large, but code is preserved here in case we want to enable it.
     // TODO make this a configurable output "writeFullSkimsInterval" with default of 0
     // if(beamServicesOpt.isDefined) writeFullSkims(event)
@@ -390,7 +403,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     }
     logger.info(s"weightedSkims size: ${weightedSkims.size}")
 
-    weightedSkims.foreach { ws: ExcerptData =>
+    weightedSkims.seq.foreach { ws: ExcerptData =>
       writer.write(
         s"${ws.timePeriodString},${ws.mode},${ws.originTazId},${ws.destinationTazId},${ws.weightedTime},${ws.weightedGeneralizedTime},${ws.weightedCost},${ws.weightedGeneralizedCost},${ws.weightedDistance},${ws.sumWeights},${ws.weightedEnergy}\n"
       )

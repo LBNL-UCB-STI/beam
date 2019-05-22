@@ -378,8 +378,8 @@ class PersonAgentSpec
             Vector(),
             Vector(),
             Some(TransitStopsInfo(1, busId, 2)),
-            SpaceTime(new Coord(166321.9, 1568.87), 28800),
-            SpaceTime(new Coord(167138.4, 1117), 29400),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
             1.0
           )
         ),
@@ -398,8 +398,8 @@ class PersonAgentSpec
             Vector(),
             Vector(),
             Some(TransitStopsInfo(2, busId, 3)),
-            SpaceTime(new Coord(167138.4, 1117), 29400),
-            SpaceTime(new Coord(180000.4, 1200), 30000),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             1.0
           )
         ),
@@ -418,8 +418,8 @@ class PersonAgentSpec
             linkIds = Vector(),
             linkTravelTime = Vector(),
             transitStops = Some(TransitStopsInfo(3, tramId, 4)),
-            startPoint = SpaceTime(new Coord(180000.4, 1200), 30000),
-            endPoint = SpaceTime(new Coord(190000.4, 1300), 30600),
+            startPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
+            endPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
             distanceInM = 1.0
           )
         ),
@@ -512,8 +512,8 @@ class PersonAgentSpec
                     linkIds = Vector(),
                     linkTravelTime = Vector(),
                     transitStops = None,
-                    startPoint = SpaceTime(new Coord(166321.9, 1568.87), 28800),
-                    endPoint = SpaceTime(new Coord(167138.4, 1117), 28800),
+                    startPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
+                    endPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 28800),
                     distanceInM = 1D
                   )
                 ),
@@ -535,8 +535,8 @@ class PersonAgentSpec
                     linkIds = Vector(),
                     linkTravelTime = Vector(),
                     transitStops = None,
-                    startPoint = SpaceTime(new Coord(167138.4, 1117), 30600),
-                    endPoint = SpaceTime(new Coord(167138.4, 1117), 30600),
+                    startPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
+                    endPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
                     distanceInM = 1D
                   )
                 ),

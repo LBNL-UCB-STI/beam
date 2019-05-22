@@ -5,7 +5,7 @@ import java.io.{File, FileWriter}
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.Location
-import beam.utils.{FileUtils, RandomUtils}
+import beam.utils.{ActivitySegment, FileUtils, RandomUtils}
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -23,6 +23,14 @@ object RandomRepositioning {
 
 class RandomRepositioning(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
+  val intervalSize: Int = 300
+  try {
+    val as = new ActivitySegment(rideHailManager.beamServices.matsimServices.getScenario, intervalSize)
+
+  } catch {
+    case ex: Exception =>
+      print(ex)
+  }
 
   val intervalForUpdatingQuadTree = 1800
 
@@ -139,10 +147,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
     algorithm match {
 
-        // TODO: destinations of idle vehicles selected for repositioning should be uniformally distributed in activity space
-
-
-
+      // TODO: destinations of idle vehicles selected for repositioning should be uniformally distributed in activity space
 
       case 1 =>
         val repositioningShare =
@@ -156,13 +161,11 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
         // max reposition diameter: 5000m
 
-
         //corxXIdleVehicle + diameter * (rand.nextDouble() - 0.5)
         // check if dest within boudning box of map ->
 
-
-       val numRepos= if (numVehiclesToReposition*2 >=idleVehicles.size){
-          idleVehicles.size/2
+        val numRepos = if (numVehiclesToReposition * 2 >= idleVehicles.size) {
+          idleVehicles.size / 2
         } else {
           numVehiclesToReposition
         }
@@ -171,9 +174,6 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
         // e.g. do: RideHailManager.INITIAL_RIDE_HAIL_LOCATION_UNIFORM_RANDOM
 
-
-
-
         // Get the source vehicles by taking `numVehiclesToReposition` vehicles
         val srcLocations = src.take(numRepos)
 
@@ -181,8 +181,9 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         // Make sure we exclude `srcLocations`
         val dstLocations = dst.take(numVehiclesToReposition)
 
-        val result = srcLocations.zip(dstLocations).map { case (s, d) =>
-          (s.vehicleId, d.currentLocationUTM.loc)
+        val result = srcLocations.zip(dstLocations).map {
+          case (s, d) =>
+            (s.vehicleId, d.currentLocationUTM.loc)
         }
         result.toVector
 
@@ -198,12 +199,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 //          Vector()
 //        }
 
-
-
       case 2 =>
-
-
-
         // max distance travel is 20min
         // TODO: use skims to derive radius from it or other way around.
 
@@ -247,32 +243,21 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         }
 
     }
-
-
-
-
     // other algorithms: compute on TAZ level need for new Vehicle: AvailableIdleRidehailVehicles/endingActsInOneHour_orDifferentInterval
     //
 
     // also potential for improvement: don't select idle vehicles randomly, but select those which have no near future demand around them (e.g. within 3000m)
-           // -> but there should be some demand
-
-
+    // -> but there should be some demand
     //
     // places with no idle vehicle next to an ending activity is more attractive than if no already idle vehicles there
     // find out if oversupply at a location
-
-
     // TODO: just based on upcomming next activities
 
     // add radius for repositioning and radius increase if no activities?
 
     // choice of which vehicles to move: assess low demand areas based on activity end times as well!
-
-
     // TODO: add initial rh location algorithm which is based on activity clusters over the day
-        // don't consider last activity as no leg after that
-
+    // don't consider last activity as no leg after that
 
   }
 
