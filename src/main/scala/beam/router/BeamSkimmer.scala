@@ -3,25 +3,15 @@ package beam.router
 import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.choice.mode.DrivingCost
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  BIKE,
-  CAR,
-  CAV,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
+import beam.sim.vehiclesharing.VehicleManager
 import beam.sim.{BeamServices, BeamWarmStart}
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.google.inject.Inject
@@ -261,6 +251,8 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     Math.floorMod(Math.floor(departTime.toDouble / 3600.0).toInt, 24)
   }
 
+  def timeToBin(departTime: Int, timeWindow: Int): Int = departTime / timeWindow
+
   def mergeAverage(existingAverage: Double, existingCount: Int, newValue: Double): Double = {
     (existingAverage * existingCount + newValue) / (existingCount + 1)
   }
@@ -276,6 +268,9 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
       ) {
         writeAllModeSkimsForPeakNonPeakPeriods(event)
       }
+      ProfilingUtils.timed(s"writeObservedSkimsPlus on iteration ${event.getIteration}", x => logger.info(x)) {
+        writeObservedSkimsPlus(event)
+      }
     }
 
     // Writing full skims are very large, but code is preserved here in case we want to enable it.
@@ -284,6 +279,8 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
 
     previousSkims = skims
     skims = new TrieMap()
+    previousSkimsPlus = skimsPlus
+    skimsPlus = new TrieMap()
   }
 
   def getExcerptData(
@@ -481,6 +478,97 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
     }
   }
 
+  // **********
+  // Skim Plus
+  private var trackSkimsPlusTS = -1
+  private var previousSkimsPlus: TrieMap[BeamSkimmerPlusKey, Double] =
+    initialPreviousSkimsPlus()
+  private var skimsPlus: TrieMap[BeamSkimmerPlusKey, Double] = TrieMap()
+  private def skimsPlusFilePath: Option[String] = {
+    val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
+    BeamWarmStart(beamConfig, maxHour).getWarmStartFilePath(observedSkimsPlusFileBaseName + ".csv.gz")
+  }
+
+  def getPreviousSkimPlusValues(
+    fromBin: Int,
+    untilBin: Int,
+    taz: Id[TAZ],
+    vehicleManager: Id[VehicleManager],
+    label: Label
+  ): Vector[Double] = {
+    (fromBin until untilBin)
+      .map { i =>
+        previousSkimsPlus.get((i, taz, vehicleManager, label))
+      }
+      .toVector
+      .flatten
+  }
+
+  def countEventsByTAZ(
+    curBin: Int,
+    location: Coord,
+    vehicleManager: Id[VehicleManager],
+    label: Label,
+    count: Int = 1
+  ): Unit = {
+    if (curBin > trackSkimsPlusTS) trackSkimsPlusTS = curBin
+    val taz = beamServices.tazTreeMap.getTAZ(location.getX, location.getY)
+    val key = (trackSkimsPlusTS, taz.tazId, vehicleManager, label)
+    skimsPlus.put(key, skimsPlus.getOrElse(key, 0.0) + count.toDouble)
+  }
+
+  def observeVehicleAvailabilityByTAZ(
+    curBin: Int,
+    vehicleManager: Id[VehicleManager],
+    label: Label,
+    vehicles: List[Any]
+  ): Unit = {
+    var filteredVehicles = vehicles
+    beamServices.tazTreeMap.getTAZs.foreach { taz =>
+      val filteredVehiclesTemp = filteredVehicles.filter(
+        v =>
+          taz != beamServices.tazTreeMap
+            .getTAZ(v.asInstanceOf[BeamVehicle].spaceTime.loc.getX, v.asInstanceOf[BeamVehicle].spaceTime.loc.getY)
+      )
+      val count = filteredVehicles.size - filteredVehiclesTemp.size
+      countEventsByTAZ(curBin, taz.coord, vehicleManager, label, count)
+      filteredVehicles = filteredVehiclesTemp
+    }
+  }
+
+  def writeObservedSkimsPlus(event: IterationEndsEvent): Unit = {
+    val filePath = event.getServices.getControlerIO.getIterationFilename(
+      event.getServices.getIterationNumber,
+      BeamSkimmer.observedSkimsPlusFileBaseName + ".csv.gz"
+    )
+    val writer = IOUtils.getBufferedWriter(filePath)
+    writer.write(observedSkimsPlusHeader.mkString(","))
+    writer.write("\n")
+
+    skimsPlus.foreach {
+      case (k, v) =>
+        val (bin, taz, vehicleManager, label) = k
+        writer.write(s"$bin,$taz,$vehicleManager,$label,$v\n")
+    }
+    writer.close()
+  }
+
+  private def initialPreviousSkimsPlus(): TrieMap[BeamSkimmerPlusKey, Double] = {
+    if (beamConfig.beam.warmStart.enabled) {
+      try {
+        skimsPlusFilePath
+          .map(BeamSkimmer.readSkimPlusFile)
+          .getOrElse(TrieMap.empty)
+      } catch {
+        case NonFatal(ex) =>
+          logger.error(s"Could not load previous skim from '${skimsFilePath}': ${ex.getMessage}", ex)
+          TrieMap.empty
+      }
+    } else {
+      TrieMap.empty
+    }
+  }
+  // *********
 }
 
 object BeamSkimmer extends LazyLogging {
@@ -629,4 +717,38 @@ object BeamSkimmer extends LazyLogging {
     Iterator.single(CsvLineHeader) ++ contentIterator
   }
 
+  // *******
+  // Skim Plus
+  type BeamSkimmerPlusKey = (TimeBin, Id[TAZ], Id[VehicleManager], Label)
+  type TimeBin = Int
+  type Label = String
+
+  private val observedSkimsPlusFileBaseName = "skimsPlus"
+  private val observedSkimsPlusHeader = "time,taz,manager,label,value".split(",")
+
+  private def readSkimPlusFile(filePath: String): TrieMap[(TimeBin, Id[TAZ], Id[VehicleManager], Label), Double] = {
+    val mapReader = new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
+    val res = TrieMap[(TimeBin, Id[TAZ], Id[VehicleManager], Label), Double]()
+    try {
+      val header = mapReader.getHeader(true)
+      var line: java.util.Map[String, String] = mapReader.read(header: _*)
+      while (null != line) {
+        val time = line.get("time")
+        val tazId = line.get("taz")
+        val manager = line.get("manager")
+        val label = line.get("label")
+        val value = line.get("value").toDouble
+        res.put(
+          (time.toInt, Id.create(tazId, classOf[TAZ]), Id.create(manager, classOf[VehicleManager]), label),
+          value
+        )
+        line = mapReader.read(header: _*)
+      }
+    } finally {
+      if (null != mapReader)
+        mapReader.close()
+    }
+    res
+  }
+  // ********
 }

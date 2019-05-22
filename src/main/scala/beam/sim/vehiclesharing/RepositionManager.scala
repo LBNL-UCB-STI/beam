@@ -62,26 +62,26 @@ trait RepositionManager extends Actor with ActorLogging {
 
     case TriggerWithId(REPVehicleRepositionTrigger(tick), triggerId) =>
       val nextTick = tick + getREPTimeStep
-      if (getBeamServices.iterationNumber > 0 || getBeamServices.beamConfig.beam.warmStart.enabled) {
-        val vehForReposition = getREPAlgorithm.getVehiclesForReposition(tick)
-        vehForReposition.filter(rep => makeUnavailable(rep._1.id, rep._1.toStreetVehicle).isDefined).foreach {
-          case (vehicle, _, _, dstWhereWhen, dstTAZ) =>
-            getScheduler.tell(
-              CompletionNotice(
-                triggerId,
-                Vector(
-                  ScheduleTrigger(
-                    REPVehicleTeleportTrigger(dstWhereWhen.time, dstWhereWhen, vehicle, dstTAZ),
-                    getActorRef
-                  )
-                )
-              ),
-              getActorRef
-            )
-            getREPAlgorithm.collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.pickup)
-        }
-      }
       if (nextTick < 108000) {
+        if (getBeamServices.iterationNumber > 0 || getBeamServices.beamConfig.beam.warmStart.enabled) {
+          val vehForReposition = getREPAlgorithm.getVehiclesForReposition(tick)
+          vehForReposition.filter(rep => makeUnavailable(rep._1.id, rep._1.toStreetVehicle).isDefined).foreach {
+            case (vehicle, _, _, dstWhereWhen, dstTAZ) =>
+              getScheduler.tell(
+                CompletionNotice(
+                  triggerId,
+                  Vector(
+                    ScheduleTrigger(
+                      REPVehicleTeleportTrigger(dstWhereWhen.time, dstWhereWhen, vehicle, dstTAZ),
+                      getActorRef
+                    )
+                  )
+                ),
+                getActorRef
+              )
+              getREPAlgorithm.collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.pickup)
+          }
+        }
         // reschedule
         getScheduler.tell(
           CompletionNotice(
