@@ -9,30 +9,31 @@ import org.matsim.vehicles.Vehicle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class TravelTimeCalculatorHelper {
     public static class TravelTimePerHour implements TravelTime {
         private Logger log = LoggerFactory.getLogger(TravelTimePerHour.class);
 
-        private final Map<Id<Link>, double[]> _linkIdToTravelTimeArray;
+        private final double[][] _linkIdToTravelTimeArray;
         private final int _timeBinSizeInSeconds;
         private int numWarnings = 0;
 
-        public TravelTimePerHour(int timeBinSizeInSeconds, Map<String, double[]> linkIdToTravelTimeData) {
+        public TravelTimePerHour(int timeBinSizeInSeconds, final Map<String, double[]> linkIdToTravelTimeData) {
             _timeBinSizeInSeconds = timeBinSizeInSeconds;
-            _linkIdToTravelTimeArray = new HashMap<>();
-            linkIdToTravelTimeData.forEach((key, value) -> {
-                Id<Link> linkId = Id.createLinkId(key);
-                _linkIdToTravelTimeArray.put(linkId, value);
-            });
+            _linkIdToTravelTimeArray = initTravelTime(linkIdToTravelTimeData);
         }
         @Override
         public double getLinkTravelTime(Link link, double time, Person person, Vehicle vehicle) {
-            Id<Link> linkId = link.getId();
-            double[] timePerHour = _linkIdToTravelTimeArray.get(linkId);
+            final int linkId = Integer.parseInt(link.getId().toString());
+            if (linkId >= _linkIdToTravelTimeArray.length) {
+                if(ExponentialLoggerWrapperImpl.isNumberPowerOfTwo(++numWarnings)){
+                    log.warn("Got linkId {} which is out of `_linkIdToTravelTimeArray` array with length {}", linkId, _linkIdToTravelTimeArray.length);
+                }
+                return link.getFreespeed();
+            }
+
+            double[] timePerHour = _linkIdToTravelTimeArray[linkId];
             if (null == timePerHour){
                 if(ExponentialLoggerWrapperImpl.isNumberPowerOfTwo(++numWarnings)){
                     log.warn("Can't find travel times for link '{}'", linkId);
@@ -51,6 +52,23 @@ public class TravelTimeCalculatorHelper {
         }
         private int getOffset(double time){
             return (int)Math.round(Math.floor(time / _timeBinSizeInSeconds));
+        }
+
+        public static double[][] initTravelTime(final Map<String, double[]> linkIdToTravelTimeData) {
+            if (linkIdToTravelTimeData == null) throw new NullPointerException("linkIdToTravelTimeData == null");
+            if (linkIdToTravelTimeData.isEmpty()) throw new IllegalStateException("linkIdToTravelTimeData is empty");
+
+            int maxLinkId = linkIdToTravelTimeData.keySet().stream()
+                    .map(Integer::parseInt)
+                    .max(Comparator.naturalOrder())
+                    .get();
+            final int travelTimeArraySize = linkIdToTravelTimeData.values().stream().findFirst().get().length;
+            final double[][] linkIdToTravelTimeArray = new double[maxLinkId + 1][travelTimeArraySize];
+            linkIdToTravelTimeData.forEach((key, value) -> {
+                final int idx = Integer.parseInt(key);
+                linkIdToTravelTimeArray[idx] = value.clone();
+            });
+            return linkIdToTravelTimeArray;
         }
     }
     private static Logger log = LoggerFactory.getLogger(TravelTimeCalculatorHelper.class);

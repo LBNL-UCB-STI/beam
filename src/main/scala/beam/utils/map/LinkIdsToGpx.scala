@@ -19,23 +19,57 @@ object LinkIdsToGpx {
     val network = NetworkUtils.createNetwork()
     new MatsimNetworkReader(network)
       .readFile(pathToNetwork)
-    val links = network.getLinks
+    val linkMap = network.getLinks
 
     val geoUtils = new beam.sim.common.GeoUtils {
       override def localCRS: String = "epsg:26910"
     }
 
-    val linkId2WgsCoord = scala.io.Source.fromFile(pathToLinkIds).getLines().flatMap { linkIds =>
-      linkIds.split(",").map { linkIdStr =>
-        val link = links.get(Id.createLinkId(linkIdStr))
+    val source = scala.io.Source.fromFile(pathToLinkIds)
+    try {
+      val links = source
+        .getLines()
+        .flatMap { linkIds =>
+          linkIds.split(",").map { linkIdStr =>
+            linkMap.get(Id.createLinkId(linkIdStr))
+          }
+        }
+        .toArray
+
+      val linkId2WgsCoord = links.map { link =>
         val loc = link.asInstanceOf[BasicLocation[Link]]
         val utmCoord = loc.getCoord
         val wgsCoord = geoUtils.utm2Wgs.transform(utmCoord)
-        linkIdStr -> wgsCoord
+        link.getId.toString -> wgsCoord
       }
+
+      val gpxPoints = linkId2WgsCoord.map { case (linkId, wgsCoord) => GpxPoint(linkId, wgsCoord) }.toIterable
+      GpxWriter.write(pathToGpx, gpxPoints)
+      println(s"$pathToGpx is written.")
+      val totalLength = links.map { link =>
+        link.getLength
+      }.sum
+      println(s"Total length of links: $totalLength")
+      val osmIds = links
+        .map { link =>
+          val osmId = Option(link.getAttributes)
+            .flatMap(x => Option(x.getAttribute("origid")).map(_.toString))
+          osmId -> (link.getId.toString, link.getLength)
+        }
+        .groupBy { case (k, v) => k }
+        .map {
+          case (k, v) =>
+            k -> v.map(_._2).toList
+        }
+
+      osmIds.foreach {
+        case (k, v) =>
+          val length = v.map(_._2).sum
+          println(s"$k => ${v.map(_._1).mkString(" ")}. Length: $length}")
+      }
+      println(s"OsmIds: $osmIds}")
+    } finally {
+      source.close()
     }
-    val gpxPoints = linkId2WgsCoord.map { case (linkId, wgsCoord) => GpxPoint(linkId, wgsCoord) }.toIterable
-    GpxWriter.write(pathToGpx, gpxPoints)
-    println(s"$pathToGpx is written.")
   }
 }

@@ -69,7 +69,7 @@ class DelayMetricAnalysis @Inject()(
         val mode = pathTraversalEvent.mode
         if (mode.value.equalsIgnoreCase(CAR.value)) {
           val linkIds = pathTraversalEvent.linkIds
-          val linkTravelTimes = pathTraversalEvent.linkTravelTimes
+          val linkTravelTimes = pathTraversalEvent.linkTravelTime
           assert(linkIds.length == linkTravelTimes.length)
 
           if (linkIds.nonEmpty) {
@@ -119,7 +119,7 @@ class DelayMetricAnalysis @Inject()(
     util.Arrays.fill(cumulativeDelay, 0.0)
     util.Arrays.fill(cumulativeLength, 0.0)
     util.Arrays.fill(linkTravelsCount, 0)
-    linkAverageDelay = Array.ofDim[DelayInLength](networkHelper.maxLinkId)
+    linkAverageDelay = Array.ofDim[DelayInLength](networkHelper.maxLinkId + 1)
     capacitiesDelay.clear
     linkUtilization.clear()
     totalTravelTime = 0
