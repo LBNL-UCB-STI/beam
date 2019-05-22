@@ -5,7 +5,8 @@ import java.io.{File, FileWriter}
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.Location
-import beam.utils.{ActivitySegment, FileUtils, RandomUtils}
+import beam.utils.{FileUtils, RandomUtils}
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -22,15 +23,29 @@ object RandomRepositioning {
 }
 
 class RandomRepositioning(val rideHailManager: RideHailManager)
-    extends RideHailResourceAllocationManager(rideHailManager) {
-  val intervalSize: Int = 300
-  try {
-    val as = new ActivitySegment(rideHailManager.beamServices.matsimServices.getScenario, intervalSize)
-
-  } catch {
-    case ex: Exception =>
-      print(ex)
+    extends RideHailResourceAllocationManager(rideHailManager) with LazyLogging {
+  if (rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds == 0) {
+    logger.warn("RandomRepositioning need to have set `beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds` > 0!")
   }
+//  val intervalSize: Int = 300
+//
+//  val activities = rideHailManager.beamServices.matsimServices.getScenario.getPopulation.getPersons.values.asScala
+//    .flatMap { person =>
+//      person.getSelectedPlan.getPlanElements.asScala.collect {
+//        case act: Activity if act.getEndTime != Double.NegativeInfinity =>
+//          act
+//      }
+//    }
+//    .toArray
+//    .sortBy(x => x.getEndTime)
+//
+//  try {
+//    val as = ActivitySegment(rideHailManager.beamServices.matsimServices.getScenario, intervalSize)
+//
+//  } catch {
+//    case ex: Exception =>
+//      print(ex)
+//  }
 
   val intervalForUpdatingQuadTree = 1800
 
@@ -235,7 +250,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
             .toVector
             .filterNot(_._2.getX == Double.MaxValue)
 
-          writeRepositioningToCSV(result, tick)
+         // writeRepositioningToCSV(result, tick)
 
           result
         } else {
