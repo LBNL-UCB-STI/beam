@@ -70,9 +70,7 @@ class IndexerForZonalParkingManager(resources: Map[StallAttributes, StallValues]
 
     tazWithDistance.view
       .map { case (taz, _) => find(key(taz.tazId, reservedFor)) }
-      .filter(_.isDefined)
-      .headOption
-      .getOrElse(None)
+      .collectFirst { case Some(mapStallAttributesAndValues) => mapStallAttributesAndValues }
   }
 
 }

@@ -897,11 +897,11 @@ trait ChoosesMode {
             case Some(CAV) =>
               // Special case, if you are using household CAV, no choice was necessary you just use this mode
               // Construct the embodied trip to allow for processing by FinishingModeChoice and scoring
-              assert(choosesModeData.availablePersonalStreetVehicles.size > 0)
+              assert(choosesModeData.availablePersonalStreetVehicles.nonEmpty)
               val walk1 = EmbodiedBeamLeg.dummyLegAt(
                 _currentTick.get,
                 body.id,
-                false,
+                isLastLeg = false,
                 if (cavTripLegs.legs.isEmpty) {
                   beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc)
                 } else {
@@ -914,7 +914,7 @@ trait ChoosesMode {
                     EmbodiedBeamLeg.dummyLegAt(
                       _currentTick.get,
                       body.id,
-                      false,
+                      isLastLeg = false,
                       beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc),
                       CAV,
                       cavTripLegs.cavOpt
@@ -930,7 +930,7 @@ trait ChoosesMode {
                 EmbodiedBeamLeg.dummyLegAt(
                   _currentTick.get + cavLegs.map(_.beamLeg.duration).sum,
                   body.id,
-                  true,
+                  isLastLeg = true,
                   if (cavTripLegs.legs.isEmpty) {
                     beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc)
                   } else {
