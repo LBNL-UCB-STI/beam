@@ -8,20 +8,10 @@ import org.matsim.api.core.v01.population.Activity
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConverters._
 
-class ActivitySegment(val scenario: Scenario, val binSize: Int) extends LazyLogging {
+class ActivitySegment(val activities: Array[Activity], val binSize: Int) extends LazyLogging {
   import ActivitySegment._
-  private val activities = scenario.getPopulation.getPersons.values.asScala
-    .flatMap { person =>
-      person.getSelectedPlan.getPlanElements.asScala.collect {
-        case act: Activity if act.getEndTime != Double.NegativeInfinity =>
-          act
-      }
-    }
-    .toArray
-    .sortBy(x => x.getEndTime)
 
   private val emptyArr: Array[Coord] = Array.empty
-
   private val maxIdx: Int = activities.last.getEndTime.toInt / binSize
   private val arr: Array[Array[Coord]] = build(activities, binSize)
 
@@ -38,9 +28,32 @@ class ActivitySegment(val scenario: Scenario, val binSize: Int) extends LazyLogg
       r
     }
   }
+
+  def getCoords(startTime: Double, endTime: Double): IndexedSeq[Coord] = {
+    require(startTime <= endTime)
+    val res = new ArrayBuffer[Coord]()
+    var t: Double = startTime
+    while (t <= endTime) {
+      getCoords(t).foreach(res += _)
+      t += binSize
+    }
+    res
+  }
 }
 
 object ActivitySegment {
+  def apply(scenario: Scenario, binSize: Int): ActivitySegment = {
+    val activities = scenario.getPopulation.getPersons.values.asScala
+      .flatMap { person =>
+        person.getSelectedPlan.getPlanElements.asScala.collect {
+          case act: Activity if act.getEndTime != Double.NegativeInfinity =>
+            act
+        }
+      }
+      .toArray
+      .sortBy(x => x.getEndTime)
+    new ActivitySegment(activities, binSize)
+  }
 
   def build(sorted: Array[Activity], binSize: Int): Array[Array[Coord]] = {
     val minTime = sorted.head.getEndTime
