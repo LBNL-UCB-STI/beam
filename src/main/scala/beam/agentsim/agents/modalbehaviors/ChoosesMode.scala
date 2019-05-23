@@ -155,7 +155,9 @@ trait ChoosesMode {
       )
       // Make sure the current mode is allowable
       val correctedCurrentTourMode = choosesModeData.personData.currentTourMode match {
-        case Some(mode) if availableModes.contains(mode) && choosesModeData.personData.numberOfReplanningAttempts < 3 =>
+        case Some(mode)
+            if availableModes
+              .contains(mode) && choosesModeData.personData.numberOfReplanningAttempts < beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts =>
           if (mode == CAV && newlyAvailableBeamVehicles.find(_.streetVehicle.mode == CAV).isEmpty) {
             None
           } else {
@@ -163,7 +165,8 @@ trait ChoosesMode {
           }
         case Some(mode) if availableModes.contains(mode) =>
           Some(WALK)
-        case None if choosesModeData.personData.numberOfReplanningAttempts >= 3 =>
+        case None
+            if choosesModeData.personData.numberOfReplanningAttempts >= beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts =>
           Some(WALK)
         case _ =>
           None

@@ -42,7 +42,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
     runCarSharingTest(config)
   }
 
-  "Running a car-sharing-only scenario with one car per person at home" must "result in everybody driving" ignore {
+  "Running a car-sharing-only scenario with one car per person at home" must "result in everybody driving" in {
     val config = ConfigFactory
       .parseString("""
         |beam.outputs.events.fileOutputFormats = xml
@@ -57,6 +57,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
         |    }
         | }
         |]
+        |beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts = 99999
         """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
