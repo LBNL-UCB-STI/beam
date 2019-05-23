@@ -62,11 +62,14 @@ trait RepositionManager extends Actor with ActorLogging {
       val nextTick = tick + getREPTimeStep
       if (nextTick < eos) {
         val vehForReposition = getREPAlgorithm.getVehiclesForReposition(tick)
-        val triggers = vehForReposition.filter(rep => makeUnavailable(rep._1.id, rep._1.toStreetVehicle).isDefined).map {
-          case (vehicle, _, _, dstWhereWhen, dstTAZ) =>
-            getREPAlgorithm.collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.pickup)
-            ScheduleTrigger(REPVehicleTeleportTrigger(dstWhereWhen.time, dstWhereWhen, vehicle, dstTAZ), self)
-        }.toVector
+        val triggers = vehForReposition
+          .filter(rep => makeUnavailable(rep._1.id, rep._1.toStreetVehicle).isDefined)
+          .map {
+            case (vehicle, _, _, dstWhereWhen, dstTAZ) =>
+              getREPAlgorithm.collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.pickup)
+              ScheduleTrigger(REPVehicleTeleportTrigger(dstWhereWhen.time, dstWhereWhen, vehicle, dstTAZ), self)
+          }
+          .toVector
         sender ! CompletionNotice(triggerId, triggers :+ ScheduleTrigger(REPVehicleRepositionTrigger(nextTick), self))
       } else {
         sender ! CompletionNotice(triggerId)

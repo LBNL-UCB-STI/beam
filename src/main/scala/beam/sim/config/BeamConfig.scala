@@ -992,6 +992,7 @@ object BeamConfig {
             case class FixedNonReservingFleetFromFile(vehicleTypeId: java.lang.String, filePathCSV: java.lang.String)
 
             object FixedNonReservingFleetFromFile {
+
               def apply(
                 c: com.typesafe.config.Config
               ): BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingFleetFromFile = {
