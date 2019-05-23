@@ -4,7 +4,6 @@ import beam.agentsim.events.ModeChoiceEvent;
 import beam.agentsim.events.ReplanningEvent;
 import beam.sim.config.BeamConfig;
 import com.google.common.collect.Lists;
-import org.apache.commons.collections.map.HashedMap;
 import org.apache.commons.collections4.ListUtils;
 import org.jfree.chart.JFreeChart;
 import org.jfree.data.category.CategoryDataset;
@@ -22,6 +21,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static beam.sim.metrics.Metrics.ShortLevel;
+
 
 public class RealizedModeAnalysis extends BaseModeAnalysis {
 
@@ -44,7 +44,8 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     private Map<String, Map<Integer, Map<String, Integer>>> personHourModeCount = new HashMap<>();
     private Map<String, Double> benchMarkData;
     private Set<String> cumulativeReferenceMode = new TreeSet<>();
-    private Map<String,List<String>> personReplanningChain = new HashedMap();
+    private Map<String,List<String>> personReplanningChain = new HashMap<>();
+    private Map<String, Integer> replanningReasonCount = new HashMap<>();
 
     //This map will always hold value as 0 or 1
     private Map<String, Integer> personIdList = new HashMap<>();
@@ -145,6 +146,8 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         rootAffectedModeCount.put(event.getIteration(), affectedModeCount.values().stream().reduce(Integer::sum).orElse(0));
         fileName = outputDirectoryHierarchy.getOutputFilename("replanningCountModeChoice.png");
         writeToRootReplanningCountModeChoice(fileName);
+
+        writeReplanningReasonCountCSV(event.getIteration());
     }
 
     @Override
@@ -156,6 +159,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         personHourModeCount.clear();
         affectedModeCount.clear();
         personReplanningChain.clear();
+        replanningReasonCount.clear();
     }
 
     private void writeToRootReplanningCountModeChoice(String fileName) throws IOException {
@@ -206,10 +210,11 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         if (event instanceof ReplanningEvent) {
             ReplanningEvent re = (ReplanningEvent) event;
             String person = re.getPersonId().toString();
+
             personReplanningChain.merge(person , Lists.newArrayList(re.getEventType()), ListUtils::union);
             Stack<ModeHour> modeHours = hourPerson.get(person);
             affectedModeCount.merge(hour, 1, Integer::sum);
-
+            replanningReasonCount.merge(re.getReason(), 1, Integer::sum);
 
             if (personIdList.containsKey(person) && personIdList.get(person) == 0) {
                 personIdList.put(person, 1);
@@ -247,7 +252,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
                     int hour = optionalHour.get();
                     Map<String, Double> oldHourData = hourModeFrequency.get(hour);
                     if (oldHourData == null) {
-                        oldHourData = new HashedMap();
+                        oldHourData = new HashMap<>();
                     }
                     Optional<String> optionalMode = modes.stream().findFirst();
                     if (optionalMode.isPresent()) {
@@ -271,7 +276,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
                     if (hour != null) {
                         Map<String, Double> oldHourData = hourModeFrequency.get(hour);
                         if (oldHourData == null) {
-                            oldHourData = new HashedMap();
+                            oldHourData = new HashMap<>();
                         }
                         oldHourData.merge(mode, 1.0 / sum, Double::sum);
                         hourModeFrequency.put(hour, oldHourData);
@@ -510,6 +515,23 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
                 out.newLine();
             }
 
+        } catch (IOException ex) {
+            log.error("error in generating csv ", ex);
+
+        }
+    }
+
+    public void writeReplanningReasonCountCSV(Integer iteration) {
+        String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationFilename(iteration,"replanningEventReason.csv");
+        String header = "ReplanningReason,Count";
+        try(FileWriter writer = new FileWriter(new File(fileName));
+            BufferedWriter out = new BufferedWriter(writer)){
+            out.write(header);
+            out.newLine();
+            for (Map.Entry<String,Integer> entry : replanningReasonCount.entrySet()){
+                out.write(entry.getKey()+","+entry.getValue());
+                out.newLine();
+            }
         } catch (IOException ex) {
             log.error("error in generating csv ", ex);
 

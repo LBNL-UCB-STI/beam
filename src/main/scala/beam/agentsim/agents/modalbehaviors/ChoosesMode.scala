@@ -21,13 +21,13 @@ import beam.router.BeamRouter._
 import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
-import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.R5RoutingWorker
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.plan.sampling.AvailableModeUtils._
 import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
+import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.vehicles.Vehicle
 
 import scala.concurrent.duration._
@@ -51,7 +51,7 @@ trait ChoosesMode {
 
   def bodyVehiclePersonId = VehiclePersonId(body.id, id, self)
 
-  def currentTourBeamVehicle =
+  def currentTourBeamVehicle: BeamVehicle =
     beamVehicles(stateData.asInstanceOf[ChoosesModeData].personData.currentTourPersonalVehicle.get)
       .asInstanceOf[ActualVehicle]
       .vehicle
@@ -897,11 +897,11 @@ trait ChoosesMode {
             case Some(CAV) =>
               // Special case, if you are using household CAV, no choice was necessary you just use this mode
               // Construct the embodied trip to allow for processing by FinishingModeChoice and scoring
-              assert(choosesModeData.availablePersonalStreetVehicles.size > 0)
+              assert(choosesModeData.availablePersonalStreetVehicles.nonEmpty)
               val walk1 = EmbodiedBeamLeg.dummyLegAt(
                 _currentTick.get,
                 body.id,
-                false,
+                isLastLeg = false,
                 if (cavTripLegs.legs.isEmpty) {
                   beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc)
                 } else {
@@ -914,7 +914,7 @@ trait ChoosesMode {
                     EmbodiedBeamLeg.dummyLegAt(
                       _currentTick.get,
                       body.id,
-                      false,
+                      isLastLeg = false,
                       beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc),
                       CAV,
                       cavTripLegs.cavOpt
@@ -930,7 +930,7 @@ trait ChoosesMode {
                 EmbodiedBeamLeg.dummyLegAt(
                   _currentTick.get + cavLegs.map(_.beamLeg.duration).sum,
                   body.id,
-                  true,
+                  isLastLeg = true,
                   if (cavTripLegs.legs.isEmpty) {
                     beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc)
                   } else {
