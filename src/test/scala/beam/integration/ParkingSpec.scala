@@ -90,7 +90,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
     val queueEvents = ArrayBuffer[Seq[Event]]()
     for (i <- 0 until iterations) {
       val filePath = EventReader.getEventsFilePath(matsimConfig, "xml", i).getAbsolutePath
-      queueEvents.append(EventReader.fromXmlFile(filePath).toSeq)
+      queueEvents.append(EventReader.fromXmlFile(filePath))
     }
 
     val outputDirectoryFile = new File(outputDirectory)
