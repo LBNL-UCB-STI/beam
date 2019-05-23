@@ -147,14 +147,7 @@ class BeamScenarioLoader(
               PopulationUtils.createAndAddLeg(plan, "")
           }
         } else if (planElement.equalsIgnoreCase("activity")) {
-          assert(
-            planInfo.activityLocationX.isDefined,
-            s"planElement is `activity`, but `x` is None! planInfo: $planInfo"
-          )
-          assert(
-            planInfo.activityLocationY.isDefined,
-            s"planElement is `activity`, but `y` is None! planInfo: $planInfo"
-          )
+          assertActivityHasLocation(planInfo)
           val coord = if (beamServices.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
             beamServices.geo.wgs2Utm(new Coord(planInfo.activityLocationX.get, planInfo.activityLocationY.get))
           } else {
@@ -172,10 +165,19 @@ class BeamScenarioLoader(
         }
       }
     }
-
     population
   }
 
+  private def assertActivityHasLocation(planInfo: PlanElement): Unit = {
+    assert(
+      planInfo.activityLocationX.isDefined,
+      s"planElement is `activity`, but `x` is None! planInfo: $planInfo"
+    )
+    assert(
+      planInfo.activityLocationY.isDefined,
+      s"planElement is `activity`, but `y` is None! planInfo: $planInfo"
+    )
+  }
 }
 
 object BeamScenarioLoader extends LazyLogging {
