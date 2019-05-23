@@ -5,7 +5,7 @@ import java.io.{File, FileWriter}
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.Location
-import beam.utils.{FileUtils, RandomUtils}
+import beam.utils.{DebugLib, FileUtils, RandomUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
@@ -159,7 +159,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
     updatePersonActivityQuadTree(tick)
 
-    val algorithm = 2
+    val algorithm = 3
 
     algorithm match {
 
@@ -259,8 +259,11 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         }
 
       case 3 =>
-        // max distance travel is 20min
-        // TODO: use skims to derive radius from it or other way around.
+
+
+        // check, if these are human drivers or CAVs
+
+
 
         val repositioningShare =
           rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.repositioningShare
@@ -275,6 +278,11 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
             val loc=vehLocation._2.currentLocationUTM.loc
 
             val act=quadTree.getClosest(loc.getX,loc.getY)
+
+            if (act==null){
+              DebugLib.emptyFunctionForSettingBreakPoint()
+            }
+
             val distance = rideHailManager.beamServices.geo.distUTMInMeters(act.getCoord,loc)
             (vehLocation,distance)
           }.sortBy{ case  (vehLocation,distance) => -distance  }.map( _._1).splitAt(2* numVehiclesToReposition)._1).splitAt(numVehiclesToReposition)._1
