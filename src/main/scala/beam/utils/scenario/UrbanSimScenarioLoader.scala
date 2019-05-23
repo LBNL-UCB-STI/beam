@@ -3,7 +3,7 @@ package beam.utils.scenario
 import java.util.Random
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory}
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.sim.vehicles.VehiclesAdjustment
@@ -148,13 +148,16 @@ class UrbanSimScenarioLoader(
           )
           .toBuffer
 
-        vehicleTypes.append(
-          beamServices.vehicleTypes.values
-            .find(_.vehicleCategory == VehicleCategory.Bike)
-            .getOrElse(BeamVehicleType.defaultBikeBeamVehicleType)
-        )
+        beamServices.vehicleTypes.values
+          .find(_.vehicleCategory == VehicleCategory.Bike) match {
+          case Some(vehType) =>
+            vehicleTypes.append(vehType)
+          case None =>
+            throw new RuntimeException("Bike not found in vehicle types.")
+        }
         initialVehicleCounter += householdInfo.cars
         totalCarCount += vehicleTypes.count(_.vehicleCategory.toString == "Car")
+
         val vehicleIds = new java.util.ArrayList[Id[Vehicle]]
         vehicleTypes.foreach { beamVehicleType =>
           val vt = VehicleUtils.getFactory.createVehicleType(Id.create(beamVehicleType.id, classOf[VehicleType]))
