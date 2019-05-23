@@ -149,7 +149,6 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
 
   override def getId: Id[VehicleManager] = Id.create("FixedNonReservingFleetManager", classOf[VehicleManager])
   override def getAvailableVehiclesIndex: Quadtree = availableVehiclesIndex
-  override def getActorRef: ActorRef = self
   override def getScheduler: ActorRef = mainScheduler
   override def getBeamServices: BeamServices = beamServices
   override def getREPAlgorithm: RepositionAlgorithm = algorithm

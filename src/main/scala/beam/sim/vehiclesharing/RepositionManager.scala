@@ -31,7 +31,6 @@ trait RepositionManager extends Actor with ActorLogging {
   def makeUnavailable(vehId: Id[BeamVehicle], streetVehicle: StreetVehicle): Option[BeamVehicle]
   def makeAvailable(vehId: Id[BeamVehicle]): Boolean
   def makeTeleport(vehId: Id[BeamVehicle], whenWhere: SpaceTime): Unit
-  def getActorRef: ActorRef
   def getScheduler: ActorRef
   def getBeamServices: BeamServices
   def getBeamSkimmer: BeamSkimmer
@@ -40,62 +39,44 @@ trait RepositionManager extends Actor with ActorLogging {
   def getDataCollectTimeStep: Int = 5 * 60
 
   var currentTick = 0
+  val eos = 108000
 
-  getScheduler ! ScheduleTrigger(REPVehicleRepositionTrigger(getREPTimeStep), getActorRef)
-  getScheduler ! ScheduleTrigger(REPDataCollectionTrigger(getDataCollectTimeStep), getActorRef)
+  if (getBeamServices.iterationNumber > 0 || getBeamServices.beamConfig.beam.warmStart.enabled)
+    getScheduler ! ScheduleTrigger(REPVehicleRepositionTrigger(getREPTimeStep), self)
+
+  getScheduler ! ScheduleTrigger(REPDataCollectionTrigger(getDataCollectTimeStep), self)
 
   override def receive: Receive = {
 
     case TriggerWithId(REPDataCollectionTrigger(tick), triggerId) =>
       currentTick = tick
       val nextTick = tick + getDataCollectTimeStep
-      if(nextTick < 108000) {
+      if (nextTick < eos) {
         getREPAlgorithm.collectData(tick)
-        getScheduler.tell(
-          CompletionNotice(
-            triggerId,
-            Vector(ScheduleTrigger(REPDataCollectionTrigger(nextTick), getActorRef))
-          ),
-          getActorRef
-        )
+        sender ! CompletionNotice(triggerId, Vector(ScheduleTrigger(REPDataCollectionTrigger(nextTick), self)))
+      } else {
+        sender ! CompletionNotice(triggerId)
       }
 
     case TriggerWithId(REPVehicleRepositionTrigger(tick), triggerId) =>
       val nextTick = tick + getREPTimeStep
-      if (nextTick < 108000) {
-        if (getBeamServices.iterationNumber > 0 || getBeamServices.beamConfig.beam.warmStart.enabled) {
-          val vehForReposition = getREPAlgorithm.getVehiclesForReposition(tick)
-          vehForReposition.filter(rep => makeUnavailable(rep._1.id, rep._1.toStreetVehicle).isDefined).foreach {
-            case (vehicle, _, _, dstWhereWhen, dstTAZ) =>
-              getScheduler.tell(
-                CompletionNotice(
-                  triggerId,
-                  Vector(
-                    ScheduleTrigger(
-                      REPVehicleTeleportTrigger(dstWhereWhen.time, dstWhereWhen, vehicle, dstTAZ),
-                      getActorRef
-                    )
-                  )
-                ),
-                getActorRef
-              )
-              getREPAlgorithm.collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.pickup)
-          }
-        }
-        // reschedule
-        getScheduler.tell(
-          CompletionNotice(
-            triggerId,
-            Vector(ScheduleTrigger(REPVehicleRepositionTrigger(nextTick), getActorRef))
-          ),
-          getActorRef
-        )
+      if (nextTick < eos) {
+        val vehForReposition = getREPAlgorithm.getVehiclesForReposition(tick)
+        val triggers = vehForReposition.filter(rep => makeUnavailable(rep._1.id, rep._1.toStreetVehicle).isDefined).map {
+          case (vehicle, _, _, dstWhereWhen, dstTAZ) =>
+            getREPAlgorithm.collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.pickup)
+            ScheduleTrigger(REPVehicleTeleportTrigger(dstWhereWhen.time, dstWhereWhen, vehicle, dstTAZ), self)
+        }.toVector
+        sender ! CompletionNotice(triggerId, triggers :+ ScheduleTrigger(REPVehicleRepositionTrigger(nextTick), self))
+      } else {
+        sender ! CompletionNotice(triggerId)
       }
 
-    case TriggerWithId(REPVehicleTeleportTrigger(_, whereWhen, vehicle, _), _) =>
+    case TriggerWithId(REPVehicleTeleportTrigger(_, whereWhen, vehicle, _), triggerId) =>
       makeTeleport(vehicle.id, whereWhen)
       makeAvailable(vehicle.id)
       getREPAlgorithm.collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.dropoff)
+      sender ! CompletionNotice(triggerId)
   }
 
 }
