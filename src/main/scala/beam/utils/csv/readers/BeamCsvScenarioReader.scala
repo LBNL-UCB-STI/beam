@@ -1,23 +1,17 @@
-package beam.utils.scenario.matsim
+package beam.utils.csv.readers
 
-import beam.utils.{FileUtils, ProfilingUtils}
 import beam.utils.scenario._
+import _root_.beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
-
-import scala.reflect.ClassTag
 import java.util.{Map => JavaMap}
 
-trait MatsimScenarioReader {
-  def inputType: InputType
-  def readPersonsFile(path: String): Array[PersonInfo]
-  def readPlansFile(path: String): Array[PlanElement]
-  def readHouseholdsFile(householdsPath: String, vehicles: Iterable[VehicleInfo]): Array[HouseholdInfo]
-  def readVehiclesFile(vehiclesFilePath: String): Iterable[VehicleInfo]
-}
+import _root_.beam.utils.scenario.matsim.BeamScenarioReader
 
-object CsvScenarioReader extends MatsimScenarioReader with LazyLogging {
+import scala.reflect.ClassTag
+
+object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
   override def inputType: InputType = InputType.CSV
 
   override def readPersonsFile(path: String): Array[PersonInfo] = {
@@ -34,7 +28,7 @@ object CsvScenarioReader extends MatsimScenarioReader with LazyLogging {
     readAs[HouseholdInfo](householdsPath, "readHouseholdsFile", toHouseholdInfo(householdToNumberOfCars))
   }
 
-  private[matsim] def readAs[T](path: String, what: String, mapper: JavaMap[String, String] => T)(
+  private[readers] def readAs[T](path: String, what: String, mapper: JavaMap[String, String] => T)(
     implicit ct: ClassTag[T]
   ): Array[T] = {
     ProfilingUtils.timed(what, x => logger.info(x)) {
@@ -45,7 +39,7 @@ object CsvScenarioReader extends MatsimScenarioReader with LazyLogging {
     }
   }
 
-  private[matsim] def toHouseholdInfo(
+  private[readers] def toHouseholdInfo(
     householdIdToVehiclesSize: Map[String, Int]
   )(rec: JavaMap[String, String]): HouseholdInfo = {
     val householdId = getIfNotNull(rec, "householdId")
@@ -64,7 +58,7 @@ object CsvScenarioReader extends MatsimScenarioReader with LazyLogging {
     )
   }
 
-  private[matsim] def toPlanInfo(rec: java.util.Map[String, String]): PlanElement = {
+  private[readers] def toPlanInfo(rec: java.util.Map[String, String]): PlanElement = {
     // Somehow Plan file has columns in camelCase, not snake_case
     val personId = getIfNotNull(rec, "personId")
     val planElementType = getIfNotNull(rec, "planElementType")

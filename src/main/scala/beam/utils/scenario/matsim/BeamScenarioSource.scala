@@ -1,7 +1,8 @@
 package beam.utils.scenario.matsim
-import beam.utils.scenario.{HouseholdInfo, PersonInfo, PlanElement, ScenarioSource, VehicleInfo}
 
-class MatsimScenarioSource(val scenarioFolder: String, val rdr: MatsimScenarioReader) extends ScenarioSource {
+import beam.utils.scenario._
+
+class BeamScenarioSource(val scenarioFolder: String, val rdr: BeamScenarioReader) extends ScenarioSource {
 
   private val fileSuffix: String = rdr.inputType.toFileExt
 
