@@ -42,6 +42,12 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
     runCarSharingTest(config)
   }
 
+  // What happens in this test case is unusual due to Beamville being unusual: A lot of people run towards
+  // the same car because they all do exactly the same thing. Only one of them gets it. Repeat.
+  // Car sharing was developed against this test case, so it is more or less resilient against this.
+  // This test will fail once you add things like maximum number of replanning attempts,
+  // or otherwise bailing out of this unusual situation.
+  // So please consider making them configurable if you do, if only for the sake of test cases like this one.
   "Running a car-sharing-only scenario with one car per person at home" must "result in everybody driving" in {
     val config = ConfigFactory
       .parseString("""
