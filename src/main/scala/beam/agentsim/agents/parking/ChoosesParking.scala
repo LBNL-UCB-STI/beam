@@ -63,7 +63,6 @@ trait ChoosesParking extends {
 
     val mnl = MultinomialLogit(mnlUtilityFunction)
 
-
     (beamVehicle.beamVehicleType.primaryFuelType, beamVehicle.beamVehicleType.secondaryFuelType) match {
       case (Electricity, None) => { //BEV
         //calculate the remaining driving distance in meters, reduced by 10% of the installed battery capacity as safety margin

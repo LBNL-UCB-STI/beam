@@ -15,12 +15,13 @@ import beam.agentsim.infrastructure.charging.ChargingPointType
   * @param pricingModel if this stall has pricing, this is the type of pricing
   */
 class ParkingZone(
-                   val parkingZoneId: Int,
-                   var stallsAvailable: Int,
-                   val maxStalls: Int,
-                   val chargingPointType: Option[ChargingPointType],
-                   val pricingModel: Option[PricingModel]
+  val parkingZoneId: Int,
+  var stallsAvailable: Int,
+  val maxStalls: Int,
+  val chargingPointType: Option[ChargingPointType],
+  val pricingModel: Option[PricingModel]
 ) {
+
   /**
     * the percentage of parking available in this ParkingZone
     * @return percentage [0.0, 1.0]
@@ -53,10 +54,10 @@ object ParkingZone {
     * @return a new StallValues object
     */
   def apply(
-             parkingZoneId: Int,
-             numStalls: Int = 0,
-             chargingType: Option[ChargingPointType] = None,
-             pricingModel: Option[PricingModel] = None,
+    parkingZoneId: Int,
+    numStalls: Int = 0,
+    chargingType: Option[ChargingPointType] = None,
+    pricingModel: Option[PricingModel] = None,
   ): ParkingZone = new ParkingZone(parkingZoneId, numStalls, numStalls, chargingType, pricingModel)
 
   /**

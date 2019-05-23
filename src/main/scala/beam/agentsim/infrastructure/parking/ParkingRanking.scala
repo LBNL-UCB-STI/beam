@@ -58,7 +58,11 @@ object ParkingRanking {
             // - beta2 * (wd/1.4 / 3600.0 * VoT) => -$
             // - beta3 * installedCapacity
             val alternative = Map(
-              "ParkingSpot"  -> Map[String, Double]("energyPriceFactor" -> 30.0, "distanceFactor" -> 50.0,  "installedCapacity" -> 100) // todo replace dummy value
+              "ParkingSpot" -> Map[String, Double](
+                "energyPriceFactor" -> 30.0,
+                "distanceFactor"    -> 50.0,
+                "installedCapacity" -> 100
+              ) // todo replace dummy value
             )
             utilityFunction.getUtilityOfAlternative(alternative.head._1, alternative.head._2).getOrElse(0)
           }
@@ -68,7 +72,6 @@ object ParkingRanking {
 
     price + chargingSpotCosts
   }
-
 
   /**
     * accumulator used to carry the best-ranked parking attributes along with aggregate search data

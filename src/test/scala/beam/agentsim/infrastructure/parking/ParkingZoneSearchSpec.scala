@@ -45,9 +45,8 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         )
 
         result match {
-          case None => fail()
+          case None                                                                                             => fail()
           case Some(ParkingRanking.RankingAccumulator(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
-
             // since everything is equal, centroid distance should win for TAZ selection
             taz should equal(tazA)
 
@@ -56,9 +55,9 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
             parkingZone.parkingZoneId should equal(0)
 
             // since availability is 18/18 = 1.0, sample location should equal destination coordinate
-            stallCoord should equal (destinationNearTazA)
+            stallCoord should equal(destinationNearTazA)
 
-            // rankingFunction is not fully implemented yet as of writing - rjf 20190327
+          // rankingFunction is not fully implemented yet as of writing - rjf 20190327
         }
       }
     }
@@ -70,7 +69,6 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         parkingZones(0).stallsAvailable = 10 // in 100
         // make TAZ B's parking stalls have high availability
         parkingZones(1).stallsAvailable = 90 // in 100
-
 
         val result: Option[ParkingRanking.RankingAccumulator] = ParkingZoneSearch.find(
           destinationInMiddle,
@@ -85,9 +83,8 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         )
 
         result match {
-          case None => fail()
+          case None                                                                                             => fail()
           case Some(ParkingRanking.RankingAccumulator(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
-
             // TAZ B should have been selected because everything is equal except for availability is lower for A
             taz should equal(tazB)
 
@@ -101,7 +98,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
             math.abs(stallCoord.getX - destinationInMiddle.getX) should be < deviationBounds
             math.abs(stallCoord.getY - destinationInMiddle.getY) should be < deviationBounds
 
-            // rankingFunction is not fully implemented yet as of writing - rjf 20190327
+          // rankingFunction is not fully implemented yet as of writing - rjf 20190327
         }
       }
     }
@@ -126,11 +123,11 @@ object ParkingZoneSearchSpec {
         |
       """.stripMargin.split("\n").toIterator
     val (parkingZones, parkingSearchTree) = ParkingZoneFileUtils.fromIterator(sourceData)
-    val destinationNearTazA = new Coord(1,1) // near taz 1
-    val destinationNearTazB = new Coord(9,9) // near taz 2
-    val destinationInMiddle = new Coord(5,5) // middle of TAZs
-    val tazA = new TAZ(Id.create("A", classOf[TAZ]), new Coord(0,0), 0)
-    val tazB = new TAZ(Id.create("B", classOf[TAZ]), new Coord(10,10), 0)
+    val destinationNearTazA = new Coord(1, 1) // near taz 1
+    val destinationNearTazB = new Coord(9, 9) // near taz 2
+    val destinationInMiddle = new Coord(5, 5) // middle of TAZs
+    val tazA = new TAZ(Id.create("A", classOf[TAZ]), new Coord(0, 0), 0)
+    val tazB = new TAZ(Id.create("B", classOf[TAZ]), new Coord(10, 10), 0)
     val tazsInProblem: Seq[TAZ] = Seq(tazA, tazB)
   }
 

@@ -7,13 +7,13 @@ import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.{Coord, Id}
 
 case class ParkingStall(
-                         tazId: Id[TAZ],
-                         parkingZoneId: Int,
-                         locationUTM: Location,
-                         cost: Double,
-                         chargingPointType: Option[ChargingPointType],
-                         pricingModel: Option[PricingModel],
-                         parkingType: ParkingType
+  tazId: Id[TAZ],
+  parkingZoneId: Int,
+  locationUTM: Location,
+  cost: Double,
+  chargingPointType: Option[ChargingPointType],
+  pricingModel: Option[PricingModel],
+  parkingType: ParkingType
 )
 
 object ParkingStall {

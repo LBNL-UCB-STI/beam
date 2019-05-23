@@ -220,8 +220,10 @@ object ParkingZoneFileUtils extends LazyLogging {
     // update the tree with the id of this ParkingZone
     val updatedTree =
       tree.updated(
-        tazId, parkingTypes.updated(
-          parkingType, parkingZoneIds :+ parkingZone.parkingZoneId
+        tazId,
+        parkingTypes.updated(
+          parkingType,
+          parkingZoneIds :+ parkingZone.parkingZoneId
         )
       )
 

@@ -83,35 +83,35 @@ object ChargingPointType {
   // matches either the standard ones or a custom one
   def getChargingPointInstalledPowerInKw(chargingPointType: ChargingPointType): Double = {
     chargingPointType match {
-      case HouseholdSocket              => 2.3
-      case BlueHouseholdSocket          => 3.6
-      case Cee16ASocket                 => 11
-      case Cee32ASocket                 => 22
-      case Cee63ASocket                 => 43
-      case ChargingStationType1         => 7.2
-      case ChargingStationType2         => 43
-      case ChargingStationCcsComboType1 => 11
-      case ChargingStationCcsComboType2 => 50
-      case TeslaSuperCharger            => 135
+      case HouseholdSocket                  => 2.3
+      case BlueHouseholdSocket              => 3.6
+      case Cee16ASocket                     => 11
+      case Cee32ASocket                     => 22
+      case Cee63ASocket                     => 43
+      case ChargingStationType1             => 7.2
+      case ChargingStationType2             => 43
+      case ChargingStationCcsComboType1     => 11
+      case ChargingStationCcsComboType2     => 50
+      case TeslaSuperCharger                => 135
       case CustomChargingPointType(_, v, _) => v
-      case _                            => throw new IllegalArgumentException("invalid argument")
+      case _                                => throw new IllegalArgumentException("invalid argument")
     }
   }
 
   def getChargingPointCurrent(chargingPointType: ChargingPointType): ElectricCurrentType = {
     chargingPointType match {
-      case HouseholdSocket              => AC
-      case BlueHouseholdSocket          => AC
-      case Cee16ASocket                 => AC
-      case Cee32ASocket                 => AC
-      case Cee63ASocket                 => AC
-      case ChargingStationType1         => AC
-      case ChargingStationType2         => AC
-      case ChargingStationCcsComboType1 => DC
-      case ChargingStationCcsComboType2 => DC
-      case TeslaSuperCharger            => DC
+      case HouseholdSocket                  => AC
+      case BlueHouseholdSocket              => AC
+      case Cee16ASocket                     => AC
+      case Cee32ASocket                     => AC
+      case Cee63ASocket                     => AC
+      case ChargingStationType1             => AC
+      case ChargingStationType2             => AC
+      case ChargingStationCcsComboType1     => DC
+      case ChargingStationCcsComboType2     => DC
+      case TeslaSuperCharger                => DC
       case CustomChargingPointType(_, _, c) => c
-      case _                            => throw new IllegalArgumentException("invalid argument")
+      case _                                => throw new IllegalArgumentException("invalid argument")
     }
   }
 

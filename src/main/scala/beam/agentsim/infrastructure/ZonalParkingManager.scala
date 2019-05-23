@@ -196,17 +196,17 @@ object ZonalParkingManager {
     * @return a stall from the found ParkingZone, or a ParkingStall.DefaultStall
     */
   def incrementalParkingZoneSearch(
-    searchStartRadius  : Double,
-    searchMaxRadius    : Double,
-    destinationUTM     : Location,
-    parkingDuration    : Int,
-    parkingTypes       : Seq[ParkingType],
+    searchStartRadius: Double,
+    searchMaxRadius: Double,
+    destinationUTM: Location,
+    parkingDuration: Int,
+    parkingTypes: Seq[ParkingType],
     chargingInquiryData: Option[ChargingInquiry],
-    searchTree         : ParkingZoneSearch.ZoneSearch,
-    stalls             : Array[ParkingZone],
-    tazQuadTree        : QuadTree[TAZ],
-    distanceFunction   : (Coord, Coord) => Double,
-    random             : Random
+    searchTree: ParkingZoneSearch.ZoneSearch,
+    stalls: Array[ParkingZone],
+    tazQuadTree: QuadTree[TAZ],
+    distanceFunction: (Coord, Coord) => Double,
+    random: Random
   ): (ParkingZone, ParkingStall) = {
 
     @tailrec
