@@ -1,13 +1,13 @@
 package beam.utils.csv.readers
 
+import java.util.{Map => JavaMap}
+
 import beam.utils.scenario._
-import _root_.beam.utils.{FileUtils, ProfilingUtils}
+import beam.utils.scenario.matsim.BeamScenarioReader
+import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
-import java.util.{Map => JavaMap}
-
-import _root_.beam.utils.scenario.matsim.BeamScenarioReader
 
 import scala.reflect.ClassTag
 
