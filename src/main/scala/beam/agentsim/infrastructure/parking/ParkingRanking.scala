@@ -1,6 +1,5 @@
 package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.agents.choice.logit.Alternative
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.taz.TAZ
 
@@ -58,15 +57,10 @@ object ParkingRanking {
             // - beta1 * price * installedCapacity * 1h => -$
             // - beta2 * (wd/1.4 / 3600.0 * VoT) => -$
             // - beta3 * installedCapacity
-            val alternative = Alternative[String, String](
-              parkingZone.toString,
-              Map(
-                "energyPriceFactor" -> (price * installedCapacity),
-                "distanceFactor"    -> (distanceToStall / 1.4 / 3600.0) * VoT,
-                "installedCapacity" -> installedCapacity
-              )
+            val alternative = Map(
+              "ParkingSpot"  -> Map[String, Double]("energyPriceFactor" -> 30.0, "distanceFactor" -> 50.0,  "installedCapacity" -> 100) // todo replace dummy value
             )
-            utilityFunction.getUtilityOfAlternative(alternative)
+            utilityFunction.getUtilityOfAlternative(alternative.head._1, alternative.head._2).getOrElse(0)
           }
         }
       }

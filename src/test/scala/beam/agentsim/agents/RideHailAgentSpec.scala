@@ -367,7 +367,7 @@ class RideHailAgentSpec
       val notifyVehicleIdle = expectMsgType[NotifyVehicleIdle]
       rideHailAgent ! NotifyVehicleResourceIdleReply(notifyVehicleIdle.triggerId, Vector())
       trigger = expectMsgPF() {
-        case t @ TriggerWithId(AlightVehicleTrigger(48800, _, _), _) =>
+        case t @ TriggerWithId(AlightVehicleTrigger(48800, _, _, _), _) =>
           t
       }
       scheduler ! CompletionNotice(trigger.triggerId)

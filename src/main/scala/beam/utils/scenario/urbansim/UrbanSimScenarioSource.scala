@@ -40,8 +40,16 @@ class UrbanSimScenarioSource(
       )
     }
   }
-  override def getPlans: Iterable[PlanInfo] = {
-    rdr.readPlansFile(planFilePath).map { plan =>
+  override def getPlans: Iterable[PlanElement] = {
+    val rawPlanElements: Array[DataExchange.PlanElement] = rdr.readPlansFile(planFilePath)
+    val planElements: Array[DataExchange.PlanElement] = dropCorruptedPlanElements(rawPlanElements)
+    if (rawPlanElements.length != planElements.length) {
+      logger.error(
+        s"$planFilePath contains ${rawPlanElements.length} planElement, after removing corrupted data: ${planElements.length}"
+      )
+    }
+
+    planElements.map { plan =>
       val coord = (plan.x, plan.y) match {
         case (Some(x), Some(y)) =>
           val c =
@@ -59,14 +67,15 @@ class UrbanSimScenarioSource(
         case _ =>
           None
       }
-      PlanInfo(
+      PlanElement(
         personId = PersonId(plan.personId),
-        planElement = plan.planElement,
+        planElementType = plan.planElement,
+        planElementIndex = plan.planElementIndex,
         activityType = plan.activityType,
-        x = coord.map(_.getX),
-        y = coord.map(_.getY),
-        endTime = plan.endTime,
-        mode = plan.mode
+        activityLocationX = coord.map(_.getX),
+        activityLocationY = coord.map(_.getY),
+        activityEndTime = plan.endTime,
+        legMode = plan.mode
       )
     }
   }
@@ -139,5 +148,18 @@ class UrbanSimScenarioSource(
         }
         unitId -> coord
     }.seq
+  }
+
+  private def dropCorruptedPlanElements(rawPlans: Array[DataExchange.PlanElement]): Array[DataExchange.PlanElement] = {
+    val correctPlanElements = rawPlans
+      .groupBy(x => x.personId)
+      .filter {
+        case (k, v) =>
+          val isCorrupted = v.exists(x => x.planElementIndex == 1 && x.endTime.isEmpty)
+          !isCorrupted
+      }
+      .flatMap { case (k, v) => v.sortBy(x => x.planElementIndex) }
+      .toArray
+    correctPlanElements
   }
 }

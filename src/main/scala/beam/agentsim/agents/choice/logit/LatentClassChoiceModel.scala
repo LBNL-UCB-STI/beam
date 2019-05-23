@@ -1,6 +1,6 @@
 package beam.agentsim.agents.choice.logit
 
-import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{LccmData, Mandatory, Nonmandatory, TourType}
+import LatentClassChoiceModel.{LccmData, Mandatory, Nonmandatory, TourType}
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.core.utils.io.IOUtils
 import org.supercsv.cellprocessor.constraint.NotNull
@@ -53,23 +53,13 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
     val classMemData = lccmData.filter(_.model == "classMembership")
     Vector[TourType](Mandatory, Nonmandatory).map { theTourType =>
       val theData = classMemData.filter(_.tourType.equalsIgnoreCase(theTourType.toString))
-      val utilityFunctions = theData.map { theDat =>
-        new UtilityFunction[String, String](
-          theDat.alternative,
-          Set(
-            UtilityFunctionParam(
-              theDat.variable,
-              UtilityFunctionParamType(if (theDat.variable.equalsIgnoreCase("asc")) {
-                "intercept"
-              } else {
-                "multiplier"
-              }),
-              theDat.value
-            )
-          )
-        )
+      val utilityFunctions: Iterable[(String, Map[String, UtilityFunctionOperation])] = for {
+        data          <- theData
+        alternativeId <- data.alternative
+      } yield {
+        (alternativeId.toString, Map(data.variable -> UtilityFunctionOperation(data.variable, data.value)))
       }
-      theTourType -> MultinomialLogit(utilityFunctions)
+      theTourType -> MultinomialLogit(utilityFunctions.toMap)
     }.toMap
   }
 
@@ -86,26 +76,16 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
       val theTourTypeData = modeChoiceData.filter(_.tourType.equalsIgnoreCase(theTourType.toString))
       theTourType -> uniqueClasses.map { theLatentClass =>
         val theData = theTourTypeData.filter(_.latentClass.equalsIgnoreCase(theLatentClass))
-        val mnlData = theData.map { theDat =>
-          new UtilityFunction[String, String](
-            theDat.alternative,
-            Set(
-              UtilityFunctionParam(
-                theDat.variable,
-                UtilityFunctionParamType(if (theDat.variable.equalsIgnoreCase("asc")) {
-                  "intercept"
-                } else {
-                  "multiplier"
-                }),
-                theDat.value
-              )
-            )
-          )
+
+        val utilityFunctions: Iterable[(String, Map[String, UtilityFunctionOperation])] = for {
+          data          <- theData
+          alternativeId <- data.alternative
+        } yield {
+          (alternativeId.toString, Map(data.variable -> UtilityFunctionOperation(data.variable, data.value)))
         }
-        val altsToInclude =
-          mnlData.map(_.params.filter(_.paramId.equalsIgnoreCase("asc")))
+
         theLatentClass -> MultinomialLogit(
-          mnlData.filter(mnlRow => altsToInclude.contains(mnlRow.alternativeTypeId))
+          utilityFunctions.toMap
         )
       }.toMap
     }.toMap

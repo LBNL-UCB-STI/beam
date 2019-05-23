@@ -126,8 +126,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
             request.pickUpLocationUTM,
             rideHailManager.radiusInMeters,
             tick
-          )
-          .headOption match {
+          ) match {
           case Some(agentETA) =>
             val routeRequired = RoutingRequiredToAllocateVehicle(
               request,
@@ -142,7 +141,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
             NoVehicleAllocated(request)
         }
       // The following if condition ensures we actually got routes back in all cases
-      case (request, routingResponses) if routingResponses.find(_.itineraries.size == 0).isDefined =>
+      case (request, routingResponses) if routingResponses.find(_.itineraries.isEmpty).isDefined =>
         NoVehicleAllocated(request)
       case (request, routingResponses) =>
         rideHailManager.vehicleManager
@@ -151,8 +150,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
             rideHailManager.radiusInMeters,
             tick,
             excludeRideHailVehicles = alreadyAllocated
-          )
-          .headOption match {
+          ) match {
           case Some(agentETA) =>
             alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId
             val pickDropIdAndLegs = List(

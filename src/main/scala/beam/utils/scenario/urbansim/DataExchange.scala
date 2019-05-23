@@ -9,9 +9,10 @@ private[urbansim] object DataExchange {
 
   case class PersonInfo(personId: String, householdId: String, rank: Int, age: Int)
 
-  case class PlanInfo(
+  case class PlanElement(
     personId: String,
     planElement: String,
+    planElementIndex: Int,
     activityType: Option[String],
     x: Option[Double],
     y: Option[Double],
@@ -19,5 +20,5 @@ private[urbansim] object DataExchange {
     mode: Option[String]
   )
 
-  case class HouseholdInfo(householdId: String, cars: Double, income: Double, unitId: String, buildingId: String)
+  case class HouseholdInfo(householdId: String, cars: Int, income: Double, unitId: String, buildingId: String)
 }

@@ -9,7 +9,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailUtils
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
-import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
+import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{ParkEvent, PathTraversalEvent, SpaceTime}
@@ -30,6 +30,7 @@ import org.matsim.api.core.v01.events.{
   VehicleLeavesTrafficEvent
 }
 import org.matsim.api.core.v01.population.Person
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable
@@ -54,8 +55,12 @@ object DrivesVehicle {
 
   case class EndLegTrigger(tick: Int) extends Trigger
 
-  case class AlightVehicleTrigger(tick: Int, vehicleId: Id[Vehicle], vehicleTypeId: Option[Id[BeamVehicleType]] = None)
-      extends Trigger
+  case class AlightVehicleTrigger(
+    tick: Int,
+    vehicleId: Id[Vehicle],
+    vehicleTypeId: Option[Id[BeamVehicleType]] = None,
+    fuelConsumed: Option[FuelConsumed] = None
+  ) extends Trigger
 
   case class BoardVehicleTrigger(tick: Int, vehicleId: Id[Vehicle], vehicleTypeId: Option[Id[BeamVehicleType]] = None)
       extends Trigger
@@ -72,6 +77,25 @@ object DrivesVehicle {
 
   case class StopDrivingIfNoPassengerOnBoardReply(success: Boolean, requestId: Int, tick: Int)
 
+  def processLinkEvents(eventsManager: EventsManager, vehicleId: Id[Vehicle], leg: BeamLeg): Unit = {
+    val path = leg.travelPath
+    if (path.linkTravelTime.nonEmpty & path.linkIds.size > 1) {
+      val links = path.linkIds
+      val linkTravelTime = path.linkTravelTime
+      var i: Int = 0
+      var curTime = leg.startTime
+      // `links.length - 1` because we don't need the travel time for the last link
+      while (i < links.length - 1) {
+        val from = links(i)
+        val to = links(i + 1)
+        val timeAtNode = linkTravelTime(i)
+        curTime = curTime + timeAtNode
+        eventsManager.processEvent(new LinkLeaveEvent(curTime, vehicleId, Id.createLinkId(from)))
+        eventsManager.processEvent(new LinkEnterEvent(curTime, vehicleId, Id.createLinkId(to)))
+        i += 1
+      }
+    }
+  }
 }
 
 trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with Stash {
@@ -82,8 +106,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
   private var tollsAccumulated = 0.0
   protected val beamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
   protected def currentBeamVehicle = beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
+  protected val fuelConsumedByTrip: mutable.Map[Id[Person], FuelConsumed] = mutable.Map()
 
-  case class PassengerScheduleEmptyMessage(lastVisited: SpaceTime, toll: Double)
+  case class PassengerScheduleEmptyMessage(
+    lastVisited: SpaceTime,
+    toll: Double,
+    fuelConsumed: Option[FuelConsumed] = None
+  )
 
   private def handleStopDrivingIfNoPassengerOnBoard(
     tick: Int,
@@ -113,6 +142,14 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
   var nextNotifyVehicleResourceIdle: Option[NotifyVehicleIdle] = None
 
+  def updateFuelConsumedByTrip(idp: Id[Person], fuelConsumed: FuelConsumed, factor: Int = 1): Unit = {
+    val existingFuel = fuelConsumedByTrip.getOrElse(idp, FuelConsumed(0, 0))
+    fuelConsumedByTrip(idp) = FuelConsumed(
+      existingFuel.primaryFuel + fuelConsumed.primaryFuel / factor,
+      existingFuel.secondaryFuel + fuelConsumed.secondaryFuel / factor
+    )
+  }
+
   when(Driving) {
     case ev @ Event(
           TriggerWithId(EndLegTrigger(tick), triggerId),
@@ -128,6 +165,19 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         .getOrElse(throw new RuntimeException("Current Vehicle is not available."))
       val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
       val fuelConsumed = currentBeamVehicle.useFuel(currentLeg, beamServices)
+
+      var nbPassengers = data.passengerSchedule.schedule(currentLeg).riders.size
+      if (nbPassengers > 0) {
+        if (currentLeg.mode.isTransit) {
+          nbPassengers =
+            (nbPassengers / beamServices.beamConfig.beam.agentsim.tuning.transitCapacity.getOrElse(1.0)).toInt
+        }
+        data.passengerSchedule.schedule(currentLeg).riders foreach { rider =>
+          updateFuelConsumedByTrip(rider.personId, fuelConsumed, nbPassengers)
+        }
+      } else {
+        updateFuelConsumedByTrip(id.asInstanceOf[Id[Person]], fuelConsumed)
+      }
 
       if (isLastLeg) {
         nextNotifyVehicleResourceIdle = Some(
@@ -150,9 +200,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       data.passengerSchedule.schedule(currentLeg).alighters.foreach { pv =>
         logDebug(s"Scheduling AlightVehicleTrigger for Person $pv.personRef @ $tick")
         scheduler ! ScheduleTrigger(
-          AlightVehicleTrigger(tick, data.currentVehicle.head, Some(currentBeamVehicle.beamVehicleType.id)),
+          AlightVehicleTrigger(
+            tick,
+            data.currentVehicle.head,
+            Some(currentBeamVehicle.beamVehicleType.id),
+            Some(fuelConsumedByTrip(pv.personId))
+          ),
           pv.personRef
         )
+        fuelConsumedByTrip.remove(pv.personId)
       }
 
       // EventsToLegs fails for our way of reporting e.g. walk/car/walk trips,
@@ -161,7 +217,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       // We help ourselves by not emitting link events for walking, but a better criterion
       // would be to only emit link events for the "main" leg.
       if (currentLeg.mode != WALK) {
-        processLinkEvents(data.currentVehicle.head, currentLeg)
+        processLinkEvents(eventsManager, data.currentVehicle.head, currentLeg)
       }
 
       logDebug("PathTraversal")
@@ -238,8 +294,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               .travelPath
               .endPoint
           ),
-          tollsAccumulated
+          tollsAccumulated,
+          Some(fuelConsumedByTrip.getOrElse(id.asInstanceOf[Id[Person]], FuelConsumed(0, 0)))
         )
+        fuelConsumedByTrip.remove(id.asInstanceOf[Id[Person]])
         tollsAccumulated = 0.0
         goto(PassengerScheduleEmpty) using data
           .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
@@ -635,7 +693,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         Vector(ScheduleTrigger(BoardVehicleTrigger(Math.max(currentLeg.endTime, tick), vehicleId, vehicleTypeId), self))
       )
     case Event(
-        TriggerWithId(AlightVehicleTrigger(tick, vehicleId, vehicleTypeId), triggerId),
+        TriggerWithId(AlightVehicleTrigger(tick, vehicleId, vehicleTypeId, _), triggerId),
         data @ LiterallyDrivingData(_, _)
         ) =>
       val currentLeg = data.passengerSchedule.schedule.keys.view
@@ -659,25 +717,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     val fullCap = vehicle.beamVehicleType.seatingCapacity + vehicle.beamVehicleType.standingRoomCapacity
     passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).forall { entry =>
       entry._2.riders.size < fullCap
-    }
-  }
-
-  def processLinkEvents(vehicleId: Id[Vehicle], leg: BeamLeg): Unit = {
-    val path = leg.travelPath
-    if (path.linkTravelTime.nonEmpty & path.linkIds.size > 1) {
-      // FIXME once done with debugging, make this code faster
-      // We don't need the travel time for the last link, so we drop it (dropRight(1))
-      val avgTravelTimeWithoutLast = path.linkTravelTime.dropRight(1)
-      val links = path.linkIds
-      val linksWithTime = links.sliding(2).zip(avgTravelTimeWithoutLast.iterator)
-
-      var curTime = leg.startTime
-      linksWithTime.foreach {
-        case (Seq(from, to), timeAtNode) =>
-          curTime = curTime + timeAtNode
-          eventsManager.processEvent(new LinkLeaveEvent(curTime, vehicleId, Id.createLinkId(from)))
-          eventsManager.processEvent(new LinkEnterEvent(curTime, vehicleId, Id.createLinkId(to)))
-      }
     }
   }
 

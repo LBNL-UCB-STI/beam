@@ -1,5 +1,6 @@
 package beam.analysis.physsim;
 
+import beam.sim.BeamConfigChangesObservable;
 import beam.sim.config.BeamConfig;
 import beam.utils.BeamCalcLinkStats;
 import beam.utils.VolumesAnalyzerFixed;
@@ -19,14 +20,14 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.matsim.core.utils.misc.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import scala.Tuple2;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.List;
 
-public class PhyssimCalcLinkStats {
+public class PhyssimCalcLinkStats implements Observer {
 
     private Logger log = LoggerFactory.getLogger(PhyssimCalcLinkStats.class);
 
@@ -59,7 +60,7 @@ public class PhyssimCalcLinkStats {
     private VolumesAnalyzer volumes;
 
     public PhyssimCalcLinkStats(Network network, OutputDirectoryHierarchy controlerIO, BeamConfig beamConfig,
-                                TravelTimeCalculatorConfigGroup ttcConfigGroup) {
+                                TravelTimeCalculatorConfigGroup ttcConfigGroup, BeamConfigChangesObservable beamConfigChangesObservable) {
         this.network = network;
         this.controllerIO = controlerIO;
         this.beamConfig = beamConfig;
@@ -73,6 +74,7 @@ public class PhyssimCalcLinkStats {
             _noOfTimeBins = Math.floor(_noOfTimeBins);
             noOfBins = _noOfTimeBins.intValue() + 1;
         }
+        beamConfigChangesObservable.addObserver(this);
 
         linkStats = new BeamCalcLinkStats(network, ttcConfigGroup);
     }
@@ -99,7 +101,8 @@ public class PhyssimCalcLinkStats {
 
 
     private boolean writeLinkStats(int iterationNumber) {
-        return writeInIteration(iterationNumber, beamConfig.beam().physsim().linkStatsWriteInterval());
+        int interval = beamConfig.beam().physsim().linkStatsWriteInterval();
+        return writeInIteration(iterationNumber, interval);
     }
 
     private boolean writeInIteration(int iterationNumber, int interval) {
@@ -276,5 +279,11 @@ public class PhyssimCalcLinkStats {
 
     public void clean(){
         this.linkStats.reset();
+    }
+
+    @Override
+    public void update(Observable observable, Object o) {
+        Tuple2 t = (Tuple2) o;
+        this.beamConfig = (BeamConfig) t._2;
     }
 }

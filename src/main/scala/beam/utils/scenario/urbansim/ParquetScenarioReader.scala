@@ -15,8 +15,8 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     //    readParcelAttrFile("C:\\repos\\apache_arrow\\py_arrow\\data\\parcel_attr.parquet").take(3).foreach(println)
     //    readBuildingsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\buildings.parquet").take(3).foreach(println)
     //    readPersonsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\persons.parquet").take(3).foreach(println)
-    readPlansFile("C:\\repos\\apache_arrow\\py_arrow\\data\\plans.parquet").take(3).foreach(println)
-    readHouseholdsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\households.parquet").take(3).foreach(println)
+    readPlansFile("""C:\temp\2010\plans.parquet""").take(3).foreach(println)
+    // readHouseholdsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\households.parquet").take(3).foreach(println)
   }
 
   def inputType: InputType = InputType.Parquet
@@ -37,8 +37,8 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     readAs[PersonInfo](path, "readPersonsFile", toPersonInfo)
   }
 
-  def readPlansFile(path: String): Array[PlanInfo] = {
-    readAs[PlanInfo](path, "readPlansFile", toPlanInfo)
+  def readPlansFile(path: String): Array[PlanElement] = {
+    readAs[PlanElement](path, "readPlansFile", toPlanInfo)
   }
 
   def readHouseholdsFile(path: String): Array[HouseholdInfo] = {
@@ -60,26 +60,28 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
 
   private[scenario] def toHouseholdInfo(rec: GenericRecord): HouseholdInfo = {
     val householdId = getIfNotNull(rec, "household_id").toString
-    val cars = getIfNotNull(rec, "cars").asInstanceOf[Double]
+    val cars = getIfNotNull(rec, "cars").asInstanceOf[Double].toInt
     val unitId = getIfNotNull(rec, "unit_id").toString
     val buildingId = getIfNotNull(rec, "building_id").toString
     val income = getIfNotNull(rec, "income").asInstanceOf[Double]
     HouseholdInfo(householdId = householdId, cars = cars, income = income, unitId = unitId, buildingId = buildingId)
   }
 
-  private[scenario] def toPlanInfo(rec: GenericRecord): PlanInfo = {
+  private[scenario] def toPlanInfo(rec: GenericRecord): PlanElement = {
     // Somehow Plan file has columns in camelCase, not snake_case
     val personId = getIfNotNull(rec, "personId").toString
     val planElement = getIfNotNull(rec, "planElement").toString
+    val planElementIndex = getIfNotNull(rec, "planElementIndex").asInstanceOf[Long].toInt
     val activityType = Option(rec.get("activityType")).map(_.toString)
     val x = Option(rec.get("x")).map(_.asInstanceOf[Double])
     val y = Option(rec.get("y")).map(_.asInstanceOf[Double])
     val endTime = Option(rec.get("endTime")).map(_.asInstanceOf[Double])
     val mode = Option(rec.get("mode")).map(_.toString)
 
-    PlanInfo(
+    PlanElement(
       personId = personId,
       planElement = planElement,
+      planElementIndex = planElementIndex,
       activityType = activityType,
       x = x,
       y = y,

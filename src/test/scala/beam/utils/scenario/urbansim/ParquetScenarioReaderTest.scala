@@ -67,18 +67,20 @@ class ParquetScenarioReaderTest extends WordSpec with Matchers with MockitoSugar
     "be able to create PlanInfo from GenericRecord" in {
       val gr = new GenericRecordMock(
         Map(
-          "personId"    -> "1".asInstanceOf[AnyRef],
-          "planElement" -> "leg".asInstanceOf[AnyRef],
-          "x"           -> 2.0.asInstanceOf[AnyRef],
-          "y"           -> 3.0.asInstanceOf[AnyRef],
-          "endTime"     -> 4.0.asInstanceOf[AnyRef],
-          "mode"        -> "mode".asInstanceOf[AnyRef],
+          "personId"         -> "1".asInstanceOf[AnyRef],
+          "planElement"      -> "leg".asInstanceOf[AnyRef],
+          "planElementIndex" -> 1L.asInstanceOf[AnyRef],
+          "x"                -> 2.0.asInstanceOf[AnyRef],
+          "y"                -> 3.0.asInstanceOf[AnyRef],
+          "endTime"          -> 4.0.asInstanceOf[AnyRef],
+          "mode"             -> "mode".asInstanceOf[AnyRef],
         ).asJava
       )
       ParquetScenarioReader.toPlanInfo(gr) should be(
-        PlanInfo(
+        PlanElement(
           personId = "1",
           planElement = "leg",
+          planElementIndex = 1,
           activityType = None,
           x = Some(2.0),
           y = Some(3.0),
@@ -99,7 +101,7 @@ class ParquetScenarioReaderTest extends WordSpec with Matchers with MockitoSugar
         ).asJava
       )
       ParquetScenarioReader.toHouseholdInfo(gr) should be(
-        HouseholdInfo(householdId = "1", cars = 1.0, income = 4.0, unitId = "2", buildingId = "3")
+        HouseholdInfo(householdId = "1", cars = 1, income = 4.0, unitId = "2", buildingId = "3")
       )
     }
   }

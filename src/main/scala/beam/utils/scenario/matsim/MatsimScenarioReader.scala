@@ -11,7 +11,7 @@ import scala.reflect.ClassTag
 trait MatsimScenarioReader {
   def inputType: InputType
   def readPersonsFile(path: String): Array[PersonInfo]
-  def readPlansFile(path: String): Array[PlanInfo]
+  def readPlansFile(path: String): Array[PlanElement]
   def readHouseholdsFile(path: String): Array[HouseholdInfo]
 }
 
@@ -21,8 +21,8 @@ object CsvScenarioReader extends MatsimScenarioReader with LazyLogging {
   override def readPersonsFile(path: String): Array[PersonInfo] = {
     readAs[PersonInfo](path, "readPersonsFile", toPersonInfo)
   }
-  override def readPlansFile(path: String): Array[PlanInfo] = {
-    readAs[PlanInfo](path, "readPlansFile", toPlanInfo)
+  override def readPlansFile(path: String): Array[PlanElement] = {
+    readAs[PlanElement](path, "readPlansFile", toPlanInfo)
 
   }
   override def readHouseholdsFile(path: String): Array[HouseholdInfo] = {
@@ -42,30 +42,32 @@ object CsvScenarioReader extends MatsimScenarioReader with LazyLogging {
 
   private[matsim] def toHouseholdInfo(rec: java.util.Map[String, String]): HouseholdInfo = {
     val householdId = getIfNotNull(rec, "household_id")
-    val cars = getIfNotNull(rec, "cars").toDouble
+    val cars = getIfNotNull(rec, "cars").toInt
     val income = getIfNotNull(rec, "income").toDouble
     val x = getIfNotNull(rec, "x").toDouble
     val y = getIfNotNull(rec, "y").toDouble
     HouseholdInfo(householdId = HouseholdId(householdId), cars = cars, income = income, x = x, y = y)
   }
 
-  private[matsim] def toPlanInfo(rec: java.util.Map[String, String]): PlanInfo = {
+  private[matsim] def toPlanInfo(rec: java.util.Map[String, String]): PlanElement = {
     // Somehow Plan file has columns in camelCase, not snake_case
     val personId = getIfNotNull(rec, "personId")
     val planElement = getIfNotNull(rec, "planElement")
+    val planElementIndex = getIfNotNull(rec, "planElementIndex").toInt
     val activityType = Option(rec.get("activityType"))
     val x = Option(rec.get("x")).map(_.toDouble)
     val y = Option(rec.get("y")).map(_.toDouble)
     val endTime = Option(rec.get("endTime")).map(_.toDouble)
     val mode = Option(rec.get("mode")).map(_.toString)
-    PlanInfo(
+    PlanElement(
       personId = PersonId(personId),
-      planElement = planElement,
+      planElementType = planElement,
+      planElementIndex = planElementIndex,
       activityType = activityType,
-      x = x,
-      y = y,
-      endTime = endTime,
-      mode = mode
+      activityLocationX = x,
+      activityLocationY = y,
+      activityEndTime = endTime,
+      legMode = mode
     )
   }
 

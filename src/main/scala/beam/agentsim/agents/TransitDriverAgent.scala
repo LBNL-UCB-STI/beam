@@ -137,7 +137,7 @@ class TransitDriverAgent(
     // Instead, we ask the scheduler to be notified after the
     // concurrency time window has passed, and then stop.
     // This is because other agents may still want to interact with us until then.
-    case Event(PassengerScheduleEmptyMessage(_, _), _) =>
+    case Event(PassengerScheduleEmptyMessage(_, _, _), _) =>
       val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! ScheduleKillTrigger(self)
       scheduler ! CompletionNotice(triggerId)

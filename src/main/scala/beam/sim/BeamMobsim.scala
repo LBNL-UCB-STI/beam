@@ -16,7 +16,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
 import beam.router.osm.TollCalculator
-import beam.router.{BeamSkimmer, FreeFlowTravelTime, RouteHistory}
+import beam.router.{BeamRouter, BeamSkimmer, FreeFlowTravelTime, RouteHistory}
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
@@ -53,6 +53,8 @@ class BeamMobsim @Inject()(
     with LazyLogging
     with MetricsSupport {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+
+  val RideHailManagerInitTimeout: FiniteDuration = 100.seconds
 
   var memoryLoggingTimerActorRef: ActorRef = _
   var memoryLoggingTimerCancellable: Cancellable = _
@@ -123,8 +125,9 @@ class BeamMobsim @Inject()(
           "RideHailManager"
         )
         context.watch(rideHailManager)
-        Await.result(rideHailManager ? Identify(0), timeout.duration)
-
+        ProfilingUtils.timed("rideHailManager identified", x => log.info(x)) {
+          Await.result(rideHailManager ? Identify(0), RideHailManagerInitTimeout)
+        }
         if (beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
           debugActorWithTimerActorRef = context.actorOf(Props(classOf[DebugActorWithTimer], rideHailManager, scheduler))
           debugActorWithTimerCancellable = prepareMemoryLoggingTimerActor(
@@ -246,6 +249,7 @@ class BeamMobsim @Inject()(
       "BeamMobsim.iteration"
     )
     Await.result(iteration ? "Run!", timeout.duration)
+    beamServices.beamRouter ! BeamRouter.IterationFinished(beamServices.iterationNumber)
 
     logger.info("Agentsim finished.")
     eventsManager.finishProcessing()

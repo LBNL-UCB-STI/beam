@@ -1,6 +1,5 @@
 package beam.router.model
 
-import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{
   BIKE,
@@ -32,6 +31,9 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
   lazy val requiresReservationConfirmation: Boolean = tripClassifier != WALK && legs.exists(
     !_.asDriver
   )
+
+  @transient
+  lazy val replanningPenalty: Double = legs.map(_.replanningPenalty).sum
 
   val totalTravelTimeInSecs: Int = legs.lastOption.map(_.beamLeg.endTime - legs.head.beamLeg.startTime).getOrElse(0)
 

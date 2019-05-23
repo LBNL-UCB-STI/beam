@@ -75,10 +75,11 @@ class PersonAgentSpec
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
+    with beam.utils.InjectableMock
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
-  private lazy val beamConfig = BeamConfig(system.settings.config)
+  lazy val beamConfig = BeamConfig(system.settings.config)
 
   private val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
@@ -88,7 +89,7 @@ class PersonAgentSpec
   private lazy val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
   private lazy val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
-  private lazy val beamSvc: BeamServices = {
+  lazy val beamSvc: BeamServices = {
     val matsimServices = mock[MatsimServices]
 
     val theServices = mock[BeamServices](withSettings().stubOnly())
@@ -134,6 +135,8 @@ class PersonAgentSpec
       person: Person,
       attributesOfIndividual: AttributesOfIndividual
     ): Double = 0.0
+
+    setupInjectableMock(beamConfig, beamSvc)
   }
 
   // Mock a transit driver (who has to be a child of a mock router)
@@ -376,8 +379,8 @@ class PersonAgentSpec
             Vector(),
             Vector(),
             Some(TransitStopsInfo(1, busId, 2)),
-            SpaceTime(new Coord(166321.9, 1568.87), 28800),
-            SpaceTime(new Coord(167138.4, 1117), 29400),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
             1.0
           )
         ),
@@ -396,8 +399,8 @@ class PersonAgentSpec
             Vector(),
             Vector(),
             Some(TransitStopsInfo(2, busId, 3)),
-            SpaceTime(new Coord(167138.4, 1117), 29400),
-            SpaceTime(new Coord(180000.4, 1200), 30000),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
+            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             1.0
           )
         ),
@@ -416,8 +419,8 @@ class PersonAgentSpec
             linkIds = Vector(),
             linkTravelTime = Vector(),
             transitStops = Some(TransitStopsInfo(3, tramId, 4)),
-            startPoint = SpaceTime(new Coord(180000.4, 1200), 30000),
-            endPoint = SpaceTime(new Coord(190000.4, 1300), 30600),
+            startPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
+            endPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
             distanceInM = 1.0
           )
         ),
@@ -510,8 +513,8 @@ class PersonAgentSpec
                     linkIds = Vector(),
                     linkTravelTime = Vector(),
                     transitStops = None,
-                    startPoint = SpaceTime(new Coord(166321.9, 1568.87), 28800),
-                    endPoint = SpaceTime(new Coord(167138.4, 1117), 28800),
+                    startPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
+                    endPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 28800),
                     distanceInM = 1D
                   )
                 ),
@@ -533,8 +536,8 @@ class PersonAgentSpec
                     linkIds = Vector(),
                     linkTravelTime = Vector(),
                     transitStops = None,
-                    startPoint = SpaceTime(new Coord(167138.4, 1117), 30600),
-                    endPoint = SpaceTime(new Coord(167138.4, 1117), 30600),
+                    startPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
+                    endPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
                     distanceInM = 1D
                   )
                 ),

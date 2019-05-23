@@ -32,6 +32,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.model._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
+import beam.router.r5.R5RoutingWorker.MinSpeedUsage
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.IdGeneratorImpl
@@ -240,6 +241,14 @@ class BeamRouter(
     case ClearRoutedWorkerTracker(workIdToClear) =>
       //TODO: Maybe do this for all tracker removals?
       removeOutstandingWorkBy(workIdToClear)
+    case IterationFinished(iteration) =>
+      remoteNodes.foreach(workerAddress => workerFrom(workerAddress) ! IterationFinished(iteration))
+      localNodes.foreach(_ ! IterationFinished(iteration))
+    case MinSpeedUsage(iteration, count) =>
+      log.info(
+        s"Worker[${sender()}]. Iteration $iteration had $count cases when min speed ${services.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond} was used."
+      )
+
     case work =>
       val originalSender = context.sender
       if (!isWorkAvailable) { //No existing work
@@ -454,6 +463,7 @@ object BeamRouter {
 
   case class TryToSerialize(obj: Object)
   case class UpdateTravelTimeRemote(linkIdToTravelTimePerHour: java.util.Map[String, Array[Double]])
+  case class IterationFinished(iteration: Int)
 
   /**
     * It is use to represent a request object
@@ -461,7 +471,6 @@ object BeamRouter {
     * @param originUTM                 start/from location of the route
     * @param destinationUTM            end/to location of the route
     * @param departureTime          time in seconds from base midnight
-    * @param transitModes           what transit modes should be considered
     * @param streetVehicles         what vehicles should be considered in route calc
     * @param streetVehiclesUseIntermodalUse boolean (default true), if false, the vehicles considered for use on egress
     */
@@ -469,7 +478,7 @@ object BeamRouter {
     originUTM: Location,
     destinationUTM: Location,
     departureTime: Int,
-    transitModes: IndexedSeq[BeamMode],
+    withTransit: Boolean,
     streetVehicles: IndexedSeq[StreetVehicle],
     attributesOfIndividual: Option[AttributesOfIndividual] = None,
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,

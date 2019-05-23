@@ -5,8 +5,7 @@ import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
-import beam.agentsim.agents.choice.logit.UtilityFunctionParamType.Multiplier
-import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunction, UtilityFunctionParam}
+import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
@@ -54,18 +53,16 @@ trait ChoosesParking extends {
 
     // todo for all charginginquiries: extract plugs from vehicles and pass it over to ZM
 
-    val mnl = MultinomialLogit[String, String](
-      Vector(
-        UtilityFunction(
-          "ParkingSpot",
-          Set(
-            UtilityFunctionParam[String]("energyPriceFactor", Multiplier, -beta1),
-            UtilityFunctionParam[String]("distanceFactor", Multiplier, -beta2),
-            UtilityFunctionParam[String]("installedCapacity", Multiplier, beta3)
-          )
-        )
+    val mnlUtilityFunction: Map[String, Map[String, UtilityFunctionOperation]] = Map(
+      "ParkingSpot" -> Map(
+        "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
+        "distanceFactor"    -> UtilityFunctionOperation("multiplier", -beta2),
+        "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
       )
     )
+
+    val mnl = MultinomialLogit(mnlUtilityFunction)
+
 
     (beamVehicle.beamVehicleType.primaryFuelType, beamVehicle.beamVehicleType.secondaryFuelType) match {
       case (Electricity, None) => { //BEV
@@ -211,7 +208,7 @@ trait ChoosesParking extends {
           currentLocUTM,
           stall.locationUTM,
           currentPoint.time,
-          Vector(),
+          withTransit = false,
           Vector(carStreetVeh, bodyStreetVeh),
           Some(attributes)
         )
@@ -222,7 +219,7 @@ trait ChoosesParking extends {
           stall.locationUTM,
           beamServices.geo.wgs2Utm(finalPoint.loc),
           currentPoint.time,
-          Vector(),
+          withTransit = false,
           Vector(
             StreetVehicle(
               body.id,

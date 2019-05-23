@@ -1,23 +1,25 @@
 package beam.agentsim.agents.choice.logit
 
-import com.typesafe.scalalogging.LazyLogging
-
+import scala.collection.immutable.SortedSet
 import scala.util.Random
 
+import com.typesafe.scalalogging.LazyLogging
+
 /**
-  * General implementation of a MultinomialLogit model
+  * a generic Multinomial Logit Function for modeling utility functions over discrete alternatives
   *
-  * @param utilityFunctionParams mapping of types of alternatives to its set of utility function parameters
-  * @param commonParams a set of parameter that should be applied to all alternatives, no mater of their specific alternative type
-  * @tparam T
+  * @param utilityFunctions mappings from alternatives to the attributes which can be evaluated against them
+  * @param common common attributes of all alternatives
+  * @tparam A the type of alternatives we are choosing between
+  * @tparam T the attributes of this multinomial logit function
   */
-class MultinomialLogit[T](
-  val utilityFunctionParams: Map[AlternativeType, Set[UtilityFunctionParam[T]]],
-  val commonParams: Set[UtilityFunctionParam[T]] = Set.empty[UtilityFunctionParam[T]]
+class MultinomialLogit[A, T](
+  val utilityFunctions: Map[A, Map[T, UtilityFunctionOperation]],
+  common: Map[T, UtilityFunctionOperation]
 ) extends LazyLogging {
 
   /**
-    * Sample over a set of [[Alternative]]s by calculating the probabilities of each alternative
+    * Sample over a set of types A by calculating the probabilities of each alternative
     * and then draw one randomly.
     *
     * For details see page 103, formula 5.8 in
@@ -28,41 +30,84 @@ class MultinomialLogit[T](
     * @return
     */
   def sampleAlternative(
-    alternatives: Vector[Alternative[T]],
+    alternatives: Map[A, Map[T, Double]],
     random: Random
-  ): Option[Alternative[T]] = {
-    if (alternatives.isEmpty)
-      return None
+  ): Option[MultinomialLogit.MNLSample[A]] = {
+    if (alternatives.isEmpty) None
+    else {
 
-    val expV = alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt)))
-    // If any is +Inf then choose that as the certain alternative
-    val indsOfPosInf = for (theExpV <- expV.zipWithIndex if theExpV._1 == Double.PositiveInfinity)
-      yield theExpV._2
-    if (indsOfPosInf.nonEmpty) {
-      // Take the first
-      Some(alternatives(indsOfPosInf.head))
-    } else {
-      val sumExpV = expV.sum
-      val cumProb = expV.map(_ / sumExpV).scanLeft(0.0)(_ + _).zipWithIndex
-      val randDraw = random.nextDouble()
-      val idxAboveDraw = for (prob <- cumProb if prob._1 > randDraw) yield prob._2
-      if (idxAboveDraw.isEmpty) {
-        None
-      } else {
-        val chosenIdx = idxAboveDraw.head - 1
-        Some(alternatives(chosenIdx))
+      // one-pass evaluation and sorting in descending order by alternative utilities
+      val altsWithUtilitySortedDesc: Iterable[(A, Double)] =
+        alternatives.foldLeft(SortedSet.empty[(A, Double)](Ordering.by { -_._2 })) {
+          case (set, (alt, attributes)) =>
+            getUtilityOfAlternative(alt, attributes) match {
+              case None => set
+              case Some(thisUtility) =>
+                set + ((alt, math.exp(thisUtility)))
+            }
+          case _ => throw new RuntimeException("Error during alternatives evaluation.")
+        }
+
+      altsWithUtilitySortedDesc.headOption.flatMap {
+        case (possiblyInfiniteAlt, possiblyInfinite) =>
+          if (possiblyInfinite == Double.PositiveInfinity) {
+            // take the first infinitely-valued alternative
+            Some { MultinomialLogit.MNLSample(possiblyInfiniteAlt, possiblyInfinite, 1.0, 1.0) }
+          } else {
+
+            // denominator used for transforming utility values into draw probabilities
+            val sumOfExponentialUtilities: Double = altsWithUtilitySortedDesc.map { case (_, u) => u }.sum
+
+            // build the cumulative distribution function (cdf) by transforming alternatives into a list
+            // in ascending order of thresholds (== descending order of alternative utilities)
+            // by successive draw thresholds
+            val asProbabilitySpread: List[MultinomialLogit.MNLSample[A]] =
+              altsWithUtilitySortedDesc
+                .foldLeft((0.0, List.empty[MultinomialLogit.MNLSample[A]])) {
+                  case ((prefix, stackedProbabilitiesList), (alt, expUtility)) =>
+                    val probability: Double = expUtility / sumOfExponentialUtilities
+                    val nextDrawThreshold: Double = prefix + probability
+                    val mnlSample = MultinomialLogit.MNLSample(
+                      alt,
+                      expUtility,
+                      nextDrawThreshold,
+                      probability
+                    )
+
+                    val nextStackedProbabilitiesList = stackedProbabilitiesList :+ mnlSample
+                    (nextDrawThreshold, nextStackedProbabilitiesList)
+                }
+                ._2
+
+            val randomDraw: Double = random.nextDouble
+
+            // we discard while the probability's draw threshold is below or equal the random draw
+            // and will leave us with a list who's first element is the largest just below or equal the draw value
+            asProbabilitySpread.dropWhile { _.drawThreshold <= randomDraw }.headOption
+          }
       }
     }
   }
 
   /**
-    * Get the expected maximum utility over a set of [[Alternative]]s
+    * Get the expected maximum utility over a set of types A
     *
     * @param alternatives the alternatives that should be evaluated
     * @return
     */
-  def getExpectedMaximumUtility(alternatives: Vector[Alternative[T]]): Double = {
-    Math.log(alternatives.map(alt => Math.exp(getUtilityOfAlternative(alt))).sum)
+  def getExpectedMaximumUtility(
+    alternatives: Map[A, Map[T, Double]]
+  ): Option[Double] = {
+    val utilityOfAlternatives: Iterable[Double] =
+      for {
+        (alt, attributes) <- alternatives
+        utility           <- getUtilityOfAlternative(alt, attributes)
+      } yield {
+        Math.exp(utility)
+      }
+
+    if (utilityOfAlternatives.isEmpty) None
+    else Some { Math.log(utilityOfAlternatives.sum) }
   }
 
   /**
@@ -71,55 +116,55 @@ class MultinomialLogit[T](
     * (e.g. there is no function for the provided alternative) the provided utility is -1E100
     *
     * @param alternative the alternative to evaluate
-    * @return
+    * @param attributes a set of utility function attributes and their corresponding values for this alternative
+    * @return some utility value, or, None if the MNL does not know this alternative or there are no matching attributes
     */
-  def getUtilityOfAlternative(alternative: Alternative[T]): Double = {
+  def getUtilityOfAlternative(
+    alternative: A,
+    attributes: Map[T, Double]
+  ): Option[Double] = {
 
-    val evaluated: Iterable[Double] = for {
-      theseParams                                         <- utilityFunctionParams.get(alternative.alternativeTypeId).toList
-      UtilityFunctionParam(param, paramType, coefficient) <- theseParams ++ commonParams
+    // get common utility values even if they aren't present in the alternative
+    val commonUtility: Iterable[Double] = for {
+      (attrs, mnlOperation) <- common
+      functionParam = attributes.getOrElse(attrs, 0.0)
     } yield {
-      val thisParam: Double = alternative.attributes.get(param).getOrElse(0)
-      paramType.op(coefficient, thisParam)
+      mnlOperation(functionParam)
     }
-    if (evaluated.isEmpty) -1E100 else evaluated.sum
+
+    val alternativeUtility: Iterable[Double] = for {
+      utilFnsForAlt <- utilityFunctions.get(alternative).toList
+      attribute     <- utilFnsForAlt.keys.toSet.union(attributes.keys.toSet).toList
+      mnlOperation  <- utilFnsForAlt.get(attribute)
+      functionParam = attributes.getOrElse(attribute, 0.0)
+    } yield {
+      mnlOperation(functionParam)
+    }
+
+    commonUtility ++ alternativeUtility match {
+      case Nil                            => None
+      case totalUtility: Iterable[Double] => Some { totalUtility.sum }
+    }
   }
 }
 
 object MultinomialLogit {
 
-  def apply[T](
-    utilityFunctionParams: Map[AlternativeType, Set[UtilityFunctionParam[T]]]
-  ): MultinomialLogit[T] = {
-    new MultinomialLogit(utilityFunctionParams)
+  case class MNLSample[AlternativeType](
+    alternativeType: AlternativeType,
+    utility: Double,
+    drawThreshold: Double,
+    realProbability: Double
+  )
+
+  def apply[A, T](utilityFunctions: Map[A, Map[T, UtilityFunctionOperation]]): MultinomialLogit[A, T] = {
+    new MultinomialLogit(utilityFunctions, Map())
   }
 
-  def apply[T](utilityFunctionData: IndexedSeq[UtilityFunction[T]]): MultinomialLogit[T] = {
-    new MultinomialLogit(reduceInputData(utilityFunctionData))
-  }
-
-  def apply[T](
-    utilityFunctionData: IndexedSeq[UtilityFunction[T]],
-    commonUtility: Set[UtilityFunctionParam[T]]
-  ): MultinomialLogit[T] = {
-    new MultinomialLogit(reduceInputData(utilityFunctionData), commonUtility)
-  }
-
-  /**
-    * Reduce the provided input data to ensure that we have unique [[UtilityFunctionParam]]s for each utility function
-    *
-    * @param utilityFunctionData the provided utility functions that should be reduced
-    * @tparam A
-    * @tparam T
-    * @return
-    */
-  private def reduceInputData[A, T](
-    utilityFunctionData: IndexedSeq[UtilityFunction[T]]
-  ): Map[AlternativeType, Set[UtilityFunctionParam[T]]] = {
-    utilityFunctionData.groupBy(_.alternativeTypeId).map { data =>
-      data._1 -> data._2.flatMap { utilityFunction =>
-        utilityFunction.params
-      }.toSet
-    }
+  def apply[A, T](
+    utilityFunctions: Map[A, Map[T, UtilityFunctionOperation]],
+    commonUtilityFunction: Map[T, UtilityFunctionOperation]
+  ): MultinomialLogit[A, T] = {
+    new MultinomialLogit(utilityFunctions, commonUtilityFunction)
   }
 }

@@ -20,6 +20,7 @@ import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{BeamVehicleUtils, DateUtils, MatsimServicesMock, NetworkHelper}
+import com.google.inject.Injector
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.population.{Activity, Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -68,6 +69,7 @@ class FastHouseholdCAVSchedulingSpec
   private val matsimConfig = configBuilder.buildMatSimConf()
 
   private lazy val beamSvc: BeamServices = new BeamServices {
+    override lazy val injector: Injector = ???
     val tazTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
     val beamConfig = beamCfg
 
