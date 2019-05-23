@@ -28,7 +28,7 @@ import beam.sim.ArgumentsParser.{Arguments, Worker}
 import beam.utils.csv.readers
 import beam.utils.scenario.matsim.BeamScenarioSource
 import beam.utils.{NetworkHelper, _}
-import beam.utils.scenario.{InputType, ScenarioLoader, ScenarioSource}
+import beam.utils.scenario.{InputType, ScenarioLoader, ScenarioLoader2}
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -450,9 +450,20 @@ trait BeamHelper extends LazyLogging {
       Option(beamConfig.beam.exchange.scenario.folder).exists(!_.isEmpty)
 
     if (useExternalDataForScenario) {
-      val scenarioSource: ScenarioSource = buildScenarioSource(injector, beamConfig)
-      ProfilingUtils.timed(s"Load scenario using ${scenarioSource.getClass}", x => logger.info(x)) {
-        new ScenarioLoader(matsimScenario, beamServices, scenarioSource).loadScenario()
+      val src = beamConfig.beam.exchange.scenario.source.toLowerCase
+      ProfilingUtils.timed(s"Load scenario using $src", x => logger.info(x)) {
+        if (src == "urbansim") {
+          val source = buildUrbansimScenarioSource(injector, beamConfig)
+          new ScenarioLoader(matsimScenario, beamServices, source).loadScenario()
+        } else if (src == "beamcsv") {
+          val source = new BeamScenarioSource(
+            scenarioFolder = beamConfig.beam.exchange.scenario.folder,
+            rdr = readers.BeamCsvScenarioReader
+          )
+          new ScenarioLoader2(matsimScenario, beamServices, source).loadScenario()
+        } else {
+          throw new NotImplementedError(s"ScenarioSource '$src' is not yet implemented")
+        }
       }
     }
   }
@@ -635,18 +646,6 @@ trait BeamHelper extends LazyLogging {
         case (vehicleType, ids) => s"$vehicleType (${ids.size})"
       }
       .mkString(" , ")
-  }
-
-  def buildScenarioSource(injector: inject.Injector, beamConfig: BeamConfig): ScenarioSource = {
-    val src = beamConfig.beam.exchange.scenario.source.toLowerCase
-    if (src == "urbansim") {
-      buildUrbansimScenarioSource(injector, beamConfig)
-    } else if (src == "beamcsv") {
-      new BeamScenarioSource(
-        scenarioFolder = beamConfig.beam.exchange.scenario.folder,
-        rdr = readers.BeamCsvScenarioReader
-      )
-    } else throw new NotImplementedError(s"ScenarioSource '$src' is not yet implemented")
   }
 
   private def buildUrbansimScenarioSource(
