@@ -21,7 +21,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
-class ScenarioLoader(
+class UrbanSimScenarioLoader(
   var scenario: MutableScenario,
   var beamServices: BeamServices,
   val scenarioSource: ScenarioSource

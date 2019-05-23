@@ -17,13 +17,13 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.JavaConverters._
 
-class ScenarioLoader2(
+class BeamScenarioLoader(
   var scenario: MutableScenario,
   var beamServices: BeamServices,
   val scenarioSource: ScenarioSource
 ) extends LazyLogging {
 
-  import ScenarioLoader2._
+  import BeamScenarioLoader._
 
   private val availableModes: Seq[String] = BeamMode.allModes.map(_.value)
 
@@ -178,7 +178,7 @@ class ScenarioLoader2(
 
 }
 
-object ScenarioLoader2 extends LazyLogging {
+object BeamScenarioLoader extends LazyLogging {
 
   private[utils] def buildMatsimHouseholds(
     households: Iterable[HouseholdInfo],

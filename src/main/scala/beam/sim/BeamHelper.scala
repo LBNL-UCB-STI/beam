@@ -28,7 +28,7 @@ import beam.sim.ArgumentsParser.{Arguments, Worker}
 import beam.utils.csv.readers
 import beam.utils.scenario.matsim.BeamScenarioSource
 import beam.utils.{NetworkHelper, _}
-import beam.utils.scenario.{InputType, ScenarioLoader, ScenarioLoader2}
+import beam.utils.scenario.{InputType, UrbanSimScenarioLoader, BeamScenarioLoader}
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -454,13 +454,13 @@ trait BeamHelper extends LazyLogging {
       ProfilingUtils.timed(s"Load scenario using $src", x => logger.info(x)) {
         if (src == "urbansim") {
           val source = buildUrbansimScenarioSource(injector, beamConfig)
-          new ScenarioLoader(matsimScenario, beamServices, source).loadScenario()
+          new UrbanSimScenarioLoader(matsimScenario, beamServices, source).loadScenario()
         } else if (src == "beamcsv") {
           val source = new BeamScenarioSource(
             scenarioFolder = beamConfig.beam.exchange.scenario.folder,
             rdr = readers.BeamCsvScenarioReader
           )
-          new ScenarioLoader2(matsimScenario, beamServices, source).loadScenario()
+          new BeamScenarioLoader(matsimScenario, beamServices, source).loadScenario()
         } else {
           throw new NotImplementedError(s"ScenarioSource '$src' is not yet implemented")
         }
