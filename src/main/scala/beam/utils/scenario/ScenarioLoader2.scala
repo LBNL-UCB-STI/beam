@@ -2,6 +2,8 @@ package beam.utils.scenario
 
 import java.util
 
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.utils.plan.sampling.AvailableModeUtils
@@ -11,7 +13,7 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households.{Household, _}
-import org.matsim.vehicles.Vehicle
+import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.JavaConverters._
 
@@ -42,15 +44,20 @@ class ScenarioLoader2(
   def loadScenario(): Scenario = {
     logger.info("The scenario loading started...")
 
-
     val scenarioPopulation = replacePersonsAndPersonsAttributesFromPopulation(scenario.getPopulation, personsWithPlans)
     replacePlansFromPopulation(scenarioPopulation, plans)
 
-    val newHouseholds: Iterable[Household] = buildMatsimHouseholds(scenarioSource.getHousehold, personsWithPlans, scenarioSource.getVehicles)
+    val vehicles = scenarioSource.getVehicles
+    val newHouseholds: Iterable[Household] =
+      buildMatsimHouseholds(scenarioSource.getHousehold, personsWithPlans, vehicles)
     val households = replaceHouseholds(scenario.getHouseholds, newHouseholds)
 
+    // beamServices.personHouseholds
     beamServices.personHouseholds = buildServicesPersonHouseholds(households)
 
+    // beamServices.privateVehicles
+    beamServices.privateVehicles.clear()
+    vehicles.map(buildBeamVehicle).foreach(v => beamServices.privateVehicles.put(v.id, v))
 
     logger.info("The scenario loading is completed.")
     scenario
@@ -59,9 +66,12 @@ class ScenarioLoader2(
   private def replaceHouseholds(households: Households, newHouseholds: Iterable[Household]): Households = {
     logger.info("Applying households...")
 
-    val matsimHouseholds = newHouseholds.map {
-      hh => (hh.getId, hh)
-    }.toMap.asJava
+    val matsimHouseholds = newHouseholds
+      .map { hh =>
+        (hh.getId, hh)
+      }
+      .toMap
+      .asJava
 
     households.getHouseholds.clear()
     households.getHouseholds.putAll(matsimHouseholds)
@@ -88,7 +98,10 @@ class ScenarioLoader2(
     }
   }
 
-  private[utils] def replacePersonsAndPersonsAttributesFromPopulation(population: Population, persons: Iterable[PersonInfo]): Population = {
+  private[utils] def replacePersonsAndPersonsAttributesFromPopulation(
+    population: Population,
+    persons: Iterable[PersonInfo]
+  ): Population = {
     logger.info("Applying persons...")
     population.getPersons.clear()
     population.getPersonAttributes.clear()
@@ -231,5 +244,21 @@ object ScenarioLoader2 extends LazyLogging {
       .toMap
   }
 
+  def buildBeamVehicle(info: VehicleInfo): BeamVehicle = {
+    val matsimVehicleType: VehicleType = VehicleUtils.getFactory.createVehicleType(Id.create(info.vehicleTypeId, classOf[VehicleType]))
+    val matsimVehicle: Vehicle = VehicleUtils.getFactory.createVehicle(Id.createVehicleId(info.vehicleId), matsimVehicleType)
+
+    val beamVehicleId = Id.create(matsimVehicle.getId, classOf[BeamVehicle])
+    val beamVehicleType = info.vehicleTypeId.toLowerCase match {
+      case "bicycle" => BeamVehicleType.defaultBikeBeamVehicleType
+      case "car" => BeamVehicleType.defaultCarBeamVehicleType
+      case value =>
+        // TODO: what is supposed to be here? other values: [phev, cav]
+        logger.warn(s"Could not found beamVehicleType [$value]")
+        BeamVehicleType.defaultTransitBeamVehicleType
+    }
+    val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
+    new BeamVehicle(beamVehicleId, powerTrain, beamVehicleType)
+  }
 
 }
