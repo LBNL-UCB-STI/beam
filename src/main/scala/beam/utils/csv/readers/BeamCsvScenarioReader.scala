@@ -59,7 +59,6 @@ object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
   }
 
   private[readers] def toPlanInfo(rec: java.util.Map[String, String]): PlanElement = {
-    // Somehow Plan file has columns in camelCase, not snake_case
     val personId = getIfNotNull(rec, "personId")
     val planElementType = getIfNotNull(rec, "planElementType")
     val planElementIndex = getIfNotNull(rec, "planElementIndex").toInt
