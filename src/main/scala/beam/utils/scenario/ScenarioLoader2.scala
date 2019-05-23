@@ -33,16 +33,16 @@ class ScenarioLoader2(
     r
   }
 
-  private def personsWithPlans: Iterable[PersonInfo] = {
-    val persons: Iterable[PersonInfo] = scenarioSource.getPersons
-    val personIdsWithPlan = plans.map(_.personId).toSet
-    val result = persons.filter(person => personIdsWithPlan.contains(person.personId))
-    logger.info(s"There are ${persons.size} people. ${result.size} have plans")
-    result
-  }
-
   def loadScenario(): Scenario = {
     logger.info("The scenario loading started...")
+
+    val personsWithPlans = {
+      val persons: Iterable[PersonInfo] = scenarioSource.getPersons
+      val personIdsWithPlanTmp = plans.map(_.personId).toSet
+      val result = persons.filter(person => personIdsWithPlanTmp.contains(person.personId))
+      logger.info(s"There are ${persons.size} people. ${result.size} have plans")
+      result
+    }
 
     val scenarioPopulation = replacePersonsAndPersonsAttributesFromPopulation(scenario.getPopulation, personsWithPlans)
     replacePlansFromPopulation(scenarioPopulation, plans)
@@ -57,7 +57,9 @@ class ScenarioLoader2(
 
     // beamServices.privateVehicles
     beamServices.privateVehicles.clear()
-    vehicles.map(buildBeamVehicle).foreach(v => beamServices.privateVehicles.put(v.id, v))
+    vehicles
+      .map(c => buildBeamVehicle(beamServices.vehicleTypes, c))
+      .foreach(v => beamServices.privateVehicles.put(v.id, v))
 
     logger.info("The scenario loading is completed.")
     scenario
@@ -165,7 +167,7 @@ class ScenarioLoader2(
           )
           val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)
           planInfo.activityEndTime.foreach { endTime =>
-            act.setEndTime(endTime * 60 * 60)
+            act.setEndTime(endTime)
           }
         }
       }
@@ -196,7 +198,9 @@ object ScenarioLoader2 extends LazyLogging {
 
       householdResult.setIncome(buildIncome(householdInfo))
       householdResult.setMemberIds(buildMemberIdsAsJavaList(householdIdToPersons, householdInfo))
-      householdResult.setVehicleIds(buildVehicleIdsAsJavaList(householdIdToVehicles, householdInfo))
+      val list = buildVehicleIdsAsJavaList(householdIdToVehicles, householdInfo)
+      println(s"@@@@@@@ vehiclesList:${list.size()}")
+      householdResult.setVehicleIds(list)
 
       householdResult
     }
@@ -244,19 +248,22 @@ object ScenarioLoader2 extends LazyLogging {
       .toMap
   }
 
-  def buildBeamVehicle(info: VehicleInfo): BeamVehicle = {
-    val matsimVehicleType: VehicleType = VehicleUtils.getFactory.createVehicleType(Id.create(info.vehicleTypeId, classOf[VehicleType]))
-    val matsimVehicle: Vehicle = VehicleUtils.getFactory.createVehicle(Id.createVehicleId(info.vehicleId), matsimVehicleType)
+  def buildBeamVehicle(map: Map[Id[BeamVehicleType], BeamVehicleType], info: VehicleInfo): BeamVehicle = {
+    val matsimVehicleType: VehicleType =
+      VehicleUtils.getFactory.createVehicleType(Id.create(info.vehicleTypeId, classOf[VehicleType]))
+    val matsimVehicle: Vehicle =
+      VehicleUtils.getFactory.createVehicle(Id.createVehicleId(info.vehicleId), matsimVehicleType)
 
     val beamVehicleId = Id.create(matsimVehicle.getId, classOf[BeamVehicle])
-    val beamVehicleType = info.vehicleTypeId.toLowerCase match {
-      case "bicycle" => BeamVehicleType.defaultBikeBeamVehicleType
-      case "car" => BeamVehicleType.defaultCarBeamVehicleType
-      case value =>
-        // TODO: what is supposed to be here? other values: [phev, cav]
-        logger.warn(s"Could not found beamVehicleType [$value]")
-        BeamVehicleType.defaultTransitBeamVehicleType
-    }
+    val beamVehicleTypeId = Id.create(info.vehicleTypeId, classOf[BeamVehicleType])
+
+    val beamVehicleType = map.getOrElse(
+      beamVehicleTypeId, {
+        logger.warn(s"Not able to find vehicleType for id:[${info.vehicleTypeId}]")
+        BeamVehicleType.defaultCarBeamVehicleType
+      }
+    )
+
     val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
     new BeamVehicle(beamVehicleId, powerTrain, beamVehicleType)
   }
