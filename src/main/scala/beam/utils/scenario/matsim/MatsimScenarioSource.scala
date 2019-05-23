@@ -5,7 +5,7 @@ class MatsimScenarioSource(val scenarioFolder: String, val rdr: MatsimScenarioRe
 
   private val fileSuffix: String = rdr.inputType.toFileExt
 
-  private def filePath(fileName:String) = s"$scenarioFolder/$fileName.$fileSuffix"
+  private def filePath(fileName: String) = s"$scenarioFolder/$fileName.$fileSuffix"
 
   override def getPersons: Iterable[PersonInfo] = {
     rdr.readPersonsFile(filePath("population"))

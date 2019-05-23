@@ -28,7 +28,7 @@ object CsvScenarioReader extends MatsimScenarioReader with LazyLogging {
 
   }
   override def readHouseholdsFile(householdsPath: String, vehicles: Iterable[VehicleInfo]): Array[HouseholdInfo] = {
-    val householdToNumberOfCars = vehicles.groupBy(_.householdId).map{
+    val householdToNumberOfCars = vehicles.groupBy(_.householdId).map {
       case (householdId, listOfCars) => (householdId, listOfCars.size)
     }
     readAs[HouseholdInfo](householdsPath, "readHouseholdsFile", toHouseholdInfo(householdToNumberOfCars))
@@ -45,7 +45,9 @@ object CsvScenarioReader extends MatsimScenarioReader with LazyLogging {
     }
   }
 
-  private[matsim] def toHouseholdInfo(householdIdToVehiclesSize: Map[String, Int])(rec: JavaMap[String, String]): HouseholdInfo = {
+  private[matsim] def toHouseholdInfo(
+    householdIdToVehiclesSize: Map[String, Int]
+  )(rec: JavaMap[String, String]): HouseholdInfo = {
     val householdId = getIfNotNull(rec, "householdId")
     val cars = householdIdToVehiclesSize.get(householdId) match {
       case Some(total) => total
