@@ -641,7 +641,7 @@ trait BeamHelper extends LazyLogging {
     val src = beamConfig.beam.exchange.scenario.source.toLowerCase
     if (src == "urbansim") {
       buildUrbansimScenarioSource(injector, beamConfig)
-    } else if (src == "BeamCsv") {
+    } else if (src == "beamcsv") {
       new BeamScenarioSource(
         scenarioFolder = beamConfig.beam.exchange.scenario.folder,
         rdr = readers.BeamCsvScenarioReader
