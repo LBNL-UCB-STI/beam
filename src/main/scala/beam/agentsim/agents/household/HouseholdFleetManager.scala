@@ -62,7 +62,7 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
 
-    case NotifyVehicleIdle(vId, whenWhere, _, _, _,_) =>
+    case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
       val vehId = vId.asInstanceOf[Id[BeamVehicle]]
       vehicles(vehId).spaceTime = whenWhere
       logger.debug("updated vehicle {} with location {}", vehId, whenWhere)

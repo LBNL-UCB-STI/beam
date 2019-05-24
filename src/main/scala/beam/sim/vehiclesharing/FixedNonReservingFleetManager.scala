@@ -101,7 +101,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
           who ! NotAvailable
       }
 
-    case NotifyVehicleIdle(vId, whenWhere, _, _, _,_) =>
+    case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
       val vehId = vId.asInstanceOf[Id[BeamVehicle]]
       vehicles(vehId).spaceTime = whenWhere
       log.debug("updated vehicle {} with location {}", vehId, whenWhere)

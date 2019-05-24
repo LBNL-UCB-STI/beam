@@ -136,7 +136,15 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       )
       val customerIdToReqs = toAllocate.map(rhr => rhr.customer.personId -> rhr).toMap
       val availVehicles = rideHailManager.vehicleManager.availableRideHailVehicles.values
-        .map(veh => createVehicleAndSchedule(veh.vehicleId.toString, veh.currentLocationUTM.loc, tick))
+        .map(
+          veh =>
+            createVehicleAndSchedule(
+              veh.vehicleId.toString,
+              veh.currentLocationUTM.loc,
+              tick,
+              rideHailManager.vehicleManager.getRideHailAgentLocation(veh.vehicleId).geofence
+          )
+        )
 
       spatialPoolCustomerReqs.clear()
       poolCustomerReqs.foreach { d =>
