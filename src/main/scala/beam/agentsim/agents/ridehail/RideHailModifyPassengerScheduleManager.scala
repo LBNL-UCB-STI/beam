@@ -3,7 +3,7 @@ package beam.agentsim.agents.ridehail
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import beam.agentsim.agents.HasTickAndTrigger
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{StartLegTrigger, StopDriving}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDriving
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
@@ -40,97 +40,113 @@ class RideHailModifyPassengerScheduleManager(
    * This is the core of all the handling happening in this manager
    */
   def handleInterruptReply(reply: InterruptReply): Unit = {
-    interruptIdToModifyPassengerScheduleStatus.get(reply.interruptId) match {
-      case None =>
-        log.error(
-          "RideHailModifyPassengerScheduleManager- interruptId not found: interruptId {},interruptedPassengerSchedule {}, vehicle {}, tick {}",
-          reply.interruptId,
-          reply.asInstanceOf[InterruptedWhileDriving].passengerSchedule,
-          reply.vehicleId,
-          reply.tick
-        )
-        cancelRepositionAttempt()
-      case Some(modifyStatus) =>
-        assert(reply.vehicleId == modifyStatus.vehicleId)
-        assert(reply.tick == modifyStatus.tick)
-
-        val allModifyStatusesForVehicle = getModifyStatusListForId(reply.vehicleId)
-        if (allModifyStatusesForVehicle.isEmpty && log.isErrorEnabled) {
+    if (reply.isInstanceOf[InterruptedWhileOffline]) {
+      log.debug("Cancelling repositioning for {}, interruptId {}, numberPendingModifyPassengerScheduleAcks {}", reply.vehicleId, reply.interruptId, numberPendingModifyPassengerScheduleAcks)
+      if (numberPendingModifyPassengerScheduleAcks > 1) {
+        numberPendingModifyPassengerScheduleAcks -= 1
+      }
+      else if (numberPendingModifyPassengerScheduleAcks <= 1) {
+        log.warning(s"`handleInterruptReply`. vehicleId: {}, tick: {}. _currentTick: {}, _currentTriggerId: {}",
+          reply.vehicleId, reply.tick, _currentTick, _currentTriggerId)
+        numberPendingModifyPassengerScheduleAcks = 0
+        sendCompletionAndScheduleNewTimeout(Reposition, reply.tick)
+        rideHailManager.cleanUp
+      }
+      clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
+    }
+    else {
+      interruptIdToModifyPassengerScheduleStatus.get(reply.interruptId) match {
+        case None =>
           log.error(
-            "allModifyStatusesForVehicle.isEmpty, modifyStatus: {}",
-            modifyStatus
+            "RideHailModifyPasseng  erScheduleManager- interruptId not found: interruptId {},interruptedPassengerSchedule {}, vehicle {}, tick {}",
+            reply.interruptId,
+            reply.asInstanceOf[InterruptedWhileDriving].passengerSchedule,
+            reply.vehicleId,
+            reply.tick
           )
-        } else {
-          val reservationModifyStatuses = allModifyStatusesForVehicle.filter(_.interruptOrigin == SingleReservation)
+          cancelRepositionAttempt()
+        case Some(modifyStatus) =>
+          assert(reply.vehicleId == modifyStatus.vehicleId)
+          assert(reply.tick == modifyStatus.tick)
 
-          if (reservationModifyStatuses.isEmpty) {
-            // Success! Continue with reposition process
-            sendModifyPassengerScheduleMessage(
-              allModifyStatusesForVehicle.last,
-              reply.isInstanceOf[InterruptedWhileDriving]
+          val allModifyStatusesForVehicle = getModifyStatusListForId(reply.vehicleId)
+          if (allModifyStatusesForVehicle.isEmpty && log.isErrorEnabled) {
+            log.error(
+              "allModifyStatusesForVehicle.isEmpty, modifyStatus: {}",
+              modifyStatus
             )
-          } else if (reservationModifyStatuses.size == 1) {
-            modifyStatus.interruptOrigin match {
-              case Reposition =>
-                // detected race condition with reservation interrupt: if message coming back is reposition message interrupt, then the interrupt confirmation for reservation message is on
-                // its way - wait on that and count this reposition as completed.
-                cancelRepositionAttempt()
-                clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
+          } else {
+            val reservationModifyStatuses = allModifyStatusesForVehicle.filter(_.interruptOrigin == SingleReservation)
 
-                /* We are overwriting a reposition with a reservation, if the driver was interrupted while driving,
+            if (reservationModifyStatuses.isEmpty) {
+              // Success! Continue with reposition process
+              sendModifyPassengerScheduleMessage(
+                allModifyStatusesForVehicle.last,
+                reply.isInstanceOf[InterruptedWhileDriving]
+              )
+            } else if (reservationModifyStatuses.size == 1) {
+              modifyStatus.interruptOrigin match {
+                case Reposition =>
+                  // detected race condition with reservation interrupt: if message coming back is reposition message interrupt, then the interrupt confirmation for reservation message is on
+                  // its way - wait on that and count this reposition as completed.
+                  cancelRepositionAttempt()
+                  clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
+
+                  /* We are overwriting a reposition with a reservation, if the driver was interrupted while driving,
                 we send a resume message to the agent. This puts the driver back to state driving, so that the reservation
                 interrupt is received when the agent is in state driving. */
-                if (reply.isInstanceOf[InterruptedWhileDriving]) {
-                  modifyStatus.rideHailAgent.tell(Resume(), rideHailManagerRef)
-                }
-              case SingleReservation =>
-                // process reservation interrupt confirmation
-                val reservationStatus = reservationModifyStatuses.head
-                assert(
-                  reservationStatus.status != InterruptMessageStatus.UNDEFINED,
-                  "reservation message should not be undefined but at least should have sent out interrupt"
-                )
-                if (reply.isInstanceOf[InterruptedWhileOffline]) {
-                  // Oops, tried to reserve this vehicle before knowing it was unavailable
-                  log.debug(
-                    s"Abandoning attempt to modify passenger schedule of vehilce ${reply.vehicleId} @ ${reply.tick}"
-                  )
-                  val requestId = interruptIdToModifyPassengerScheduleStatus
-                    .remove(reply.interruptId)
-                    .get
-                    .modifyPassengerSchedule
-                    .reservationRequestId
-                    .get
-                  if (rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId)) {
-                    log.debug(
-                      "sendCompletionAndScheduleNewTimeout from line 100 @ {} with trigger {}",
-                      _currentTick,
-                      _currentTriggerId
-                    )
-                    if (rideHailManager.processBufferedRequestsOnTimeout) {
-                      sendCompletionAndScheduleNewTimeout(BatchedReservation, _currentTick.get)
-                      rideHailManager.cleanUp
-                    }
+                  if (reply.isInstanceOf[InterruptedWhileDriving]) {
+                    modifyStatus.rideHailAgent.tell(Resume(), rideHailManagerRef)
                   }
-                } else if (reservationStatus.status == InterruptMessageStatus.INTERRUPT_SENT) {
-                  // Success! Continue with reservation process
-                  sendModifyPassengerScheduleMessage(
-                    reservationStatus,
-                    reply.isInstanceOf[InterruptedWhileDriving]
+                case SingleReservation =>
+                  // process reservation interrupt confirmation
+                  val reservationStatus = reservationModifyStatuses.head
+                  assert(
+                    reservationStatus.status != InterruptMessageStatus.UNDEFINED,
+                    "reservation message should not be undefined but at least should have sent out interrupt"
                   )
-                } else
-                  log.error("RideHailModifyPassengerScheduleManager - unexpected interrupt message")
+                  if (reply.isInstanceOf[InterruptedWhileOffline]) {
+                    // Oops, tried to reserve this vehicle before knowing it was unavailable
+                    log.debug(
+                      s"Abandoning attempt to modify passenger schedule of vehilce ${reply.vehicleId} @ ${reply.tick}"
+                    )
+                    val requestId = interruptIdToModifyPassengerScheduleStatus
+                      .remove(reply.interruptId)
+                      .get
+                      .modifyPassengerSchedule
+                      .reservationRequestId
+                      .get
+                    if (rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId)) {
+                      log.debug(
+                        "sendCompletionAndScheduleNewTimeout from line 100 @ {} with trigger {}",
+                        _currentTick,
+                        _currentTriggerId
+                      )
+                      if (rideHailManager.processBufferedRequestsOnTimeout) {
+                        sendCompletionAndScheduleNewTimeout(BatchedReservation, _currentTick.get)
+                        rideHailManager.cleanUp
+                      }
+                    }
+                  } else if (reservationStatus.status == InterruptMessageStatus.INTERRUPT_SENT) {
+                    // Success! Continue with reservation process
+                    sendModifyPassengerScheduleMessage(
+                      reservationStatus,
+                      reply.isInstanceOf[InterruptedWhileDriving]
+                    )
+                  } else
+                    log.error("RideHailModifyPassengerScheduleManager - unexpected interrupt message")
+              }
+            } else if (reservationModifyStatuses.size > 1 && log.isErrorEnabled) {
+              val str =
+                reservationModifyStatuses.map(a => "reservation requests:" + a.toString).mkString(System.lineSeparator())
+              log.error(
+                "RideHailModifyPassengerScheduleManager - reservationModifyStatuses contains more than one rideHail reservation request for same vehicle({}) {}",
+                reply.vehicleId,
+                str
+              )
             }
-          } else if (reservationModifyStatuses.size > 1 && log.isErrorEnabled) {
-            val str =
-              reservationModifyStatuses.map(a => "reservation requests:" + a.toString).mkString(System.lineSeparator())
-            log.error(
-              "RideHailModifyPassengerScheduleManager - reservationModifyStatuses contains more than one rideHail reservation request for same vehicle({}) {}",
-              reply.vehicleId,
-              str
-            )
           }
-        }
+      }
     }
   }
 

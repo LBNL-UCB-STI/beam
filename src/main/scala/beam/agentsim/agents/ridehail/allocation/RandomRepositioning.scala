@@ -225,14 +225,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.repositioningShare
         val fleetSize = rideHailManager.fleetSize
         val numVehiclesToReposition = (repositioningShare * fleetSize).toInt
-        val idleVehicles = rideHailManager.vehicleManager.getIdleVehicles
-          .filter { case (id, _) => !rideHailManager.vehicleManager.outOfServiceRideHailVehicles.contains(id) }
-          .values
-        if (idleVehicles.size != rideHailManager.vehicleManager.getIdleVehicles.size) {
-          logger.info(s"idleVehicles.size: ${idleVehicles.size}, getIdleVehicles: ${rideHailManager.vehicleManager.getIdleVehicles.size}")
-        }
+        val idleVehicles = rideHailManager.vehicleManager.getIdleVehicles.values
         if (idleVehicles.size >= 2) {
-
           val vehiclesToReposition =
             RandomUtils.shuffle(idleVehicles, new java.util.Random()).splitAt(numVehiclesToReposition)._1
 
@@ -259,7 +253,10 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
             .toVector
             .filterNot(_._2.getX == Double.MaxValue)
 
-          // writeRepositioningToCSV(result, tick)
+          result.foreach { case (id, coord) =>
+            logger.debug(s"$tick: Going to reposition $id to $coord")
+          }
+          writeRepositioningToCSV(result, tick)
 
           result
         } else {
