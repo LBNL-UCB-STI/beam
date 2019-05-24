@@ -28,7 +28,7 @@ import beam.sim.ArgumentsParser.{Arguments, Worker}
 import beam.utils.csv.readers
 import beam.utils.scenario.matsim.BeamScenarioSource
 import beam.utils.{NetworkHelper, _}
-import beam.utils.scenario.{InputType, UrbanSimScenarioLoader, BeamScenarioLoader}
+import beam.utils.scenario.{BeamScenarioLoader, InputType, UrbanSimScenarioLoader}
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
