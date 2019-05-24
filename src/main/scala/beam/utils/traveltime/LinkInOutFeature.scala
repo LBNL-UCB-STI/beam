@@ -4,7 +4,6 @@ import java.io.Writer
 import java.util
 
 import beam.utils.ProfilingUtils
-import beam.utils.traveltime.LinkInOutFeature.Stats
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.avro.Schema
 import org.apache.avro.Schema.Type
@@ -16,7 +15,6 @@ import org.matsim.api.core.v01.network.Link
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
@@ -105,29 +103,13 @@ class LinkInOutFeature(
   }
 
   def fields: Seq[Schema.Field] = {
-    val outLinksColumns = (1 to level).flatMap { lvl =>
+    val columns = (1 to level).flatMap { lvl =>
       Array(
         s"L${lvl}_TotalVeh_OutLinks",
-        s"L${lvl}_MinVeh_OutLinks",
-        s"L${lvl}_MaxVeh_OutLinks",
-        s"L${lvl}_MedianVeh_OutLinks",
-        s"L${lvl}_AvgVeh_OutLinks",
-        s"L${lvl}_StdVeh_OutLinks"
-      )
-    }
-
-    val inLinksColumns = (1 to level).flatMap { lvl =>
-      Array(
         s"L${lvl}_TotalVeh_InLinks",
-        s"L${lvl}_MinVeh_InLinks",
-        s"L${lvl}_MaxVeh_InLinks",
-        s"L${lvl}_MedianVeh_InLinks",
-        s"L${lvl}_AvgVeh_InLinks",
-        s"L${lvl}_StdVeh_InLinks"
       )
     }
-    val allFields = outLinksColumns ++ inLinksColumns
-    allFields.map { x =>
+    columns.map { x =>
       val schema = Schema.create(Type.DOUBLE)
       new Schema.Field(x, schema, x, null.asInstanceOf[Any])
     }
@@ -205,23 +187,23 @@ class LinkInOutFeature(
     val outF = Future {
       outLinks.map {
         case (lvl, counts) =>
-          lvl -> Stats(counts)
+          lvl -> counts.sum
       }
     }
     val inF = Future {
       inLinks.map {
         case (lvl, counts) =>
-          lvl -> Stats(counts)
+          lvl -> counts.sum
       }
     }
     val result = Await.result(Future.sequence(Seq(outF, inF)), 100.seconds).toArray
     result(0).foreach {
-      case (lvl, stats) =>
-        writeStats(record, lvl, "OutLinks", stats)
+      case (lvl, totalVehicleAtLevel) =>
+        writeStats(record, lvl, "OutLinks", totalVehicleAtLevel)
     }
     result(1).foreach {
-      case (lvl, stats) =>
-        writeStats(record, lvl, "InLinks", stats)
+      case (lvl, totalVehicleAtLevel) =>
+        writeStats(record, lvl, "InLinks", totalVehicleAtLevel)
     }
   }
 
@@ -229,22 +211,17 @@ class LinkInOutFeature(
     val outLinks = vehicleOnUpstreamRoads(vehicleId)
     outLinks.foreach {
       case (lvl, counts) =>
-        writeStats(record, lvl, "OutLinks", Stats(counts))
+        writeStats(record, lvl, "OutLinks", counts.sum)
     }
     val inLinks = vehicleOnDownstreamRoads(vehicleId)
     inLinks.foreach {
       case (lvl, counts) =>
-        writeStats(record, lvl, "InLinks", Stats(counts))
+        writeStats(record, lvl, "InLinks", counts.sum)
     }
   }
 
-  private def writeStats[T](record: GenericData.Record, lvl: Int, linkType: String, stats: Stats[T]): Unit = {
-    record.put(s"L${lvl}_TotalVeh_$linkType", stats.total)
-    record.put(s"L${lvl}_MinVeh_$linkType", stats.min)
-    record.put(s"L${lvl}_MaxVeh_$linkType", stats.max)
-    record.put(s"L${lvl}_MedianVeh_$linkType", stats.median)
-    record.put(s"L${lvl}_AvgVeh_$linkType", stats.avg)
-    record.put(s"L${lvl}_StdVeh_$linkType", stats.std)
+  private def writeStats(record: GenericData.Record, lvl: Int, linkType: String, totalVehicles: Int): Unit = {
+    record.put(s"L${lvl}_TotalVeh_$linkType", totalVehicles)
   }
 }
 
