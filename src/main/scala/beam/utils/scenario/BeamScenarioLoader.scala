@@ -201,7 +201,6 @@ object BeamScenarioLoader extends LazyLogging {
       householdResult.setIncome(buildIncome(householdInfo))
       householdResult.setMemberIds(buildMemberIdsAsJavaList(householdIdToPersons, householdInfo))
       val list = buildVehicleIdsAsJavaList(householdIdToVehicles, householdInfo)
-      println(s"@@@@@@@ vehiclesList:${list.size()}")
       householdResult.setVehicleIds(list)
 
       householdResult
