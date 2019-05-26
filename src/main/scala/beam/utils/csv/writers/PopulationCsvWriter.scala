@@ -11,7 +11,7 @@ import scala.collection.JavaConverters._
 object PopulationCsvWriter extends ScenarioCsvWriter {
 
   override protected val fields: Seq[String] =
-    Seq("personId", "age", "isFemale", "householdId", "houseHoldRank", "excludedModes")
+    Seq("personId", "age", "isFemale", "householdId", "householdRank", "excludedModes")
 
   override def contentIterator(scenario: Scenario): Iterator[String] = {
     val personIdToHouseHoldId: Map[Id[Person], Id[Household]] = scenario.getHouseholds.getHouseholds
