@@ -52,10 +52,8 @@ class BeamScenarioLoader(
       buildMatsimHouseholds(scenarioSource.getHousehold, personsWithPlans, vehicles)
     val households = replaceHouseholds(scenario.getHouseholds, newHouseholds)
 
-    // beamServices.personHouseholds
+    // beamServices
     beamServices.personHouseholds = buildServicesPersonHouseholds(households)
-
-    // beamServices.privateVehicles
     beamServices.privateVehicles.clear()
     vehicles
       .map(c => buildBeamVehicle(beamServices.vehicleTypes, c))
