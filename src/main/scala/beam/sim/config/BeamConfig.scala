@@ -993,7 +993,12 @@ object BeamConfig {
           )
 
           object SharedFleets$Elm {
-            case class FixedNonReservingFleetFromFile(vehicleTypeId: java.lang.String, filePathCSV: java.lang.String)
+            case class FixedNonReservingFleetFromFile(
+              vehicleTypeId: java.lang.String,
+              filePathCSV: java.lang.String,
+              maxWalkingDistance: Int,
+              repositioningClass: Class[_ <: beam.sim.vehiclesharing.RepositionAlgorithm]
+            )
 
             object FixedNonReservingFleetFromFile {
 
@@ -1002,14 +1007,21 @@ object BeamConfig {
               ): BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingFleetFromFile = {
                 BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingFleetFromFile(
                   vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedCar",
-                  filePathCSV = if (c.hasPathOrNull("filename")) c.getString("filename") else ""
+                  filePathCSV = if (c.hasPathOrNull("filename")) c.getString("filename") else "",
+                  maxWalkingDistance = if (c.hasPathOrNull("maxWalkingDistance")) c.getInt("maxWalkingDistance") else 0,
+                  repositioningClass =
+                    if (c.hasPathOrNull("repositioningClass"))
+                      Class.forName(c.getString("repositioningClass")).asInstanceOf
+                    else classOf[beam.sim.vehiclesharing.AvailabilityBasedRepositioning]
                 )
               }
             }
 
             case class FixedNonReservingRandomlyDistributed(
               vehicleTypeId: java.lang.String,
-              fleetSize: Int
+              fleetSize: Int,
+              maxWalkingDistance: Int,
+              repositioningClass: Class[_ <: beam.sim.vehiclesharing.RepositionAlgorithm]
             )
 
             object FixedNonReservingRandomlyDistributed {
@@ -1019,7 +1031,12 @@ object BeamConfig {
               ): BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingRandomlyDistributed = {
                 BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingRandomlyDistributed(
                   vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedCar",
-                  fleetSize = if (c.hasPathOrNull("fleetSize")) c.getInt("fleetSize") else 0
+                  fleetSize = if (c.hasPathOrNull("fleetSize")) c.getInt("fleetSize") else 0,
+                  maxWalkingDistance = if (c.hasPathOrNull("maxWalkingDistance")) c.getInt("maxWalkingDistance") else 0,
+                  repositioningClass =
+                    if (c.hasPathOrNull("repositioningClass"))
+                      Class.forName(c.getString("repositioningClass")).asInstanceOf
+                    else classOf[beam.sim.vehiclesharing.AvailabilityBasedRepositioning]
                 )
               }
             }

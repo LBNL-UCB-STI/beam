@@ -70,6 +70,31 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
     runCarSharingTest(config)
   }
 
+  "Running a car-sharing-only scenario with random distribution of cars by TAZs" must "result in everybody driving" in {
+    val config = ConfigFactory
+      .parseString("""
+       |beam.outputs.events.fileOutputFormats = xml
+       |beam.physsim.skipPhysSim = true
+       |beam.agentsim.lastIteration = 0
+       |beam.agentsim.agents.vehicles.sharedFleets = [
+       |  {
+       |    name = "fixed_non_reserving_random_dist"
+       |    managerType = "fixed_non_reserving_random_dist"
+       |    fixed_non_reserving_random_dist {
+       |      vehicleTypeId = "sharedCar",
+       |      fleetSize = 5000,
+       |      maxWalkingDistance = 5000,
+       |      repositioningAlgorithm = beam.sim.vehiclesharing.AvailabilityBasedRepositioning
+       |    }
+       |  }
+       |]
+       |beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts = 9999
+       """.stripMargin)
+      .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf"))
+      .resolve()
+    runCarSharingTest(config)
+  }
+
   private def runCarSharingTest(config: Config): Unit = {
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSimConf()
