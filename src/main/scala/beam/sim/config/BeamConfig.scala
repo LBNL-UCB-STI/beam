@@ -976,11 +976,8 @@ object BeamConfig {
 
         object Vehicles {
           case class SharedFleets$Elm(
-            fixed_non_reserving_fleet_from_file: scala.Option[
-              BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingFleetFromFile
-            ],
-            fixed_non_reserving_random_dist: scala.Option[
-              BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingRandomlyDistributed
+            fixed_non_reserving_fleet_by_taz: scala.Option[
+              BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingFleetByTAZ
             ],
             fixed_non_reserving: scala.Option[
               BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReserving
@@ -993,46 +990,24 @@ object BeamConfig {
           )
 
           object SharedFleets$Elm {
-            case class FixedNonReservingFleetFromFile(
+            case class FixedNonReservingFleetByTAZ(
               vehicleTypeId: java.lang.String,
               filePathCSV: java.lang.String,
               maxWalkingDistance: Int,
+              fleetSize: Int,
               repositioningClass: Class[_ <: beam.sim.vehiclesharing.RepositionAlgorithm]
             )
 
-            object FixedNonReservingFleetFromFile {
+            object FixedNonReservingFleetByTAZ {
 
               def apply(
                 c: com.typesafe.config.Config
-              ): BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingFleetFromFile = {
-                BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingFleetFromFile(
+              ): BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingFleetByTAZ = {
+                BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingFleetByTAZ(
                   vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedCar",
                   filePathCSV = if (c.hasPathOrNull("filename")) c.getString("filename") else "",
                   maxWalkingDistance = if (c.hasPathOrNull("maxWalkingDistance")) c.getInt("maxWalkingDistance") else 0,
-                  repositioningClass =
-                    if (c.hasPathOrNull("repositioningClass"))
-                      Class.forName(c.getString("repositioningClass")).asInstanceOf
-                    else classOf[beam.sim.vehiclesharing.AvailabilityBasedRepositioning]
-                )
-              }
-            }
-
-            case class FixedNonReservingRandomlyDistributed(
-              vehicleTypeId: java.lang.String,
-              fleetSize: Int,
-              maxWalkingDistance: Int,
-              repositioningClass: Class[_ <: beam.sim.vehiclesharing.RepositionAlgorithm]
-            )
-
-            object FixedNonReservingRandomlyDistributed {
-
-              def apply(
-                c: com.typesafe.config.Config
-              ): BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingRandomlyDistributed = {
-                BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingRandomlyDistributed(
-                  vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedCar",
                   fleetSize = if (c.hasPathOrNull("fleetSize")) c.getInt("fleetSize") else 0,
-                  maxWalkingDistance = if (c.hasPathOrNull("maxWalkingDistance")) c.getInt("maxWalkingDistance") else 0,
                   repositioningClass =
                     if (c.hasPathOrNull("repositioningClass"))
                       Class.forName(c.getString("repositioningClass")).asInstanceOf
@@ -1042,7 +1017,8 @@ object BeamConfig {
             }
 
             case class FixedNonReserving(
-              vehicleTypeId: java.lang.String
+              vehicleTypeId: java.lang.String,
+              maxWalkingDistance: Int
             )
 
             object FixedNonReserving {
@@ -1051,7 +1027,8 @@ object BeamConfig {
                 c: com.typesafe.config.Config
               ): BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReserving = {
                 BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReserving(
-                  vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedCar"
+                  vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedCar",
+                  maxWalkingDistance = if (c.hasPathOrNull("maxWalkingDistance")) c.getInt("maxWalkingDistance") else 0
                 )
               }
             }
@@ -1073,18 +1050,11 @@ object BeamConfig {
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm = {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm(
-                fixed_non_reserving_fleet_from_file =
-                  if (c.hasPathOrNull("fixed_non_reserving_fleet_from_file"))
+                fixed_non_reserving_fleet_by_taz =
+                  if (c.hasPathOrNull("fixed_non_reserving_fleet_by_taz"))
                     scala.Some(
                       BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm
-                        .FixedNonReservingFleetFromFile(c.getConfig("fixed_non_reserving_fleet_from_file"))
-                    )
-                  else None,
-                fixed_non_reserving_random_dist =
-                  if (c.hasPathOrNull("fixed_non_reserving_random_dist"))
-                    scala.Some(
-                      BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm
-                        .FixedNonReservingRandomlyDistributed(c.getConfig("fixed_non_reserving_random_dist"))
+                        .FixedNonReservingFleetByTAZ(c.getConfig("fixed_non_reserving_fleet_by_taz"))
                     )
                   else None,
                 fixed_non_reserving =

@@ -59,38 +59,14 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
         |    name = "fixed-non-reserving"
         |    managerType = "fixed-non-reserving"
         |    fixed-non-reserving {
-        |      vehicleTypeId = "sharedCar"
+        |      vehicleTypeId = "sharedCar",
+        |      maxWalkingDistance = 5000
         |    }
         | }
         |]
         |beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts = 99999
         """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
-      .resolve()
-    runCarSharingTest(config)
-  }
-
-  "Running a car-sharing-only scenario with random distribution of cars by TAZs" must "result in everybody driving" in {
-    val config = ConfigFactory
-      .parseString("""
-       |beam.outputs.events.fileOutputFormats = xml
-       |beam.physsim.skipPhysSim = true
-       |beam.agentsim.lastIteration = 0
-       |beam.agentsim.agents.vehicles.sharedFleets = [
-       |  {
-       |    name = "fixed_non_reserving_random_dist"
-       |    managerType = "fixed_non_reserving_random_dist"
-       |    fixed_non_reserving_random_dist {
-       |      vehicleTypeId = "sharedCar",
-       |      fleetSize = 5000,
-       |      maxWalkingDistance = 5000,
-       |      repositioningAlgorithm = beam.sim.vehiclesharing.AvailabilityBasedRepositioning
-       |    }
-       |  }
-       |]
-       |beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts = 9999
-       """.stripMargin)
-      .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf"))
       .resolve()
     runCarSharingTest(config)
   }

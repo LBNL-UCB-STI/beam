@@ -36,7 +36,7 @@ private object RandomPointInTAZ {
   }
 }
 
-case class FixedNonReservingFleetFromFile(config: SharedFleets$Elm.FixedNonReservingFleetFromFile) extends FleetType {
+case class FixedNonReservingFleetByTAZ(config: SharedFleets$Elm.FixedNonReservingFleetByTAZ) extends FleetType {
   override def props(
     beamServices: BeamServices,
     beamSkimmer: BeamSkimmer,
@@ -45,14 +45,24 @@ case class FixedNonReservingFleetFromFile(config: SharedFleets$Elm.FixedNonReser
   ): Props = {
     val initialLocation = mutable.ListBuffer[Coord]()
     val rand = new scala.util.Random(System.currentTimeMillis())
-    readCsvFile(config.filePathCSV).foreach {
-      case (idTaz, coord, fleetSize) =>
-        val loc = beamServices.tazTreeMap.getTAZ(Id.create(idTaz, classOf[TAZ])) match {
-          case Some(taz) => RandomPointInTAZ.get(taz, rand)
-          case _         => coord
-        }
-        (0 until fleetSize).foreach(_ => initialLocation.append(loc))
+    val res = readCsvFile(config.filePathCSV)
+    if(res.nonEmpty) {
+      res.foreach {
+        case (idTaz, coord, percentage) =>
+          val loc = beamServices.tazTreeMap.getTAZ(Id.create(idTaz, classOf[TAZ])) match {
+            case Some(taz) => RandomPointInTAZ.get(taz, rand)
+            case _         => coord
+          }
+          (0 until percentage*config.fleetSize).foreach(_ => initialLocation.append(loc))
+      }
+    } else {
+      val tazArray = beamServices.tazTreeMap.getTAZs.toArray
+      (1 to config.fleetSize).foreach { _ =>
+        val taz = tazArray(rand.nextInt(tazArray.length))
+        initialLocation.prepend(RandomPointInTAZ.get(taz, rand))
+      }
     }
+
 
     val vehicleType = beamServices.vehicleTypes.getOrElse(
       Id.create(config.vehicleTypeId, classOf[BeamVehicleType]),
@@ -95,40 +105,6 @@ case class FixedNonReservingFleetFromFile(config: SharedFleets$Elm.FixedNonReser
   }
 }
 
-case class FixedNonReservingRandomlyDistributedFleet(config: SharedFleets$Elm.FixedNonReservingRandomlyDistributed)
-    extends FleetType {
-  override def props(
-    beamServices: BeamServices,
-    beamSkimmer: BeamSkimmer,
-    beamScheduler: ActorRef,
-    parkingManager: ActorRef
-  ): Props = {
-    val tazArray = beamServices.tazTreeMap.getTAZs.toArray
-    val initialLocation = mutable.ListBuffer[Coord]()
-    val rand = new scala.util.Random(System.currentTimeMillis())
-    (1 to config.fleetSize).foreach { _ =>
-      val taz = tazArray(rand.nextInt(tazArray.length))
-      initialLocation.prepend(RandomPointInTAZ.get(taz, rand))
-    }
-    val vehicleType = beamServices.vehicleTypes.getOrElse(
-      Id.create(config.vehicleTypeId, classOf[BeamVehicleType]),
-      throw new RuntimeException("Vehicle type id not found: " + config.vehicleTypeId)
-    )
-    Props(
-      new FixedNonReservingFleetManager(
-        parkingManager,
-        initialLocation,
-        vehicleType,
-        beamScheduler,
-        beamServices,
-        beamSkimmer,
-        config.maxWalkingDistance,
-        config.repositioningClass
-      )
-    )
-  }
-}
-
 case class FixedNonReservingFleet(config: SharedFleets$Elm.FixedNonReserving) extends FleetType {
   override def props(
     beamServices: BeamServices,
@@ -153,7 +129,7 @@ case class FixedNonReservingFleet(config: SharedFleets$Elm.FixedNonReserving) ex
         beamScheduler,
         beamServices,
         skimmer,
-        1000,
+        config.maxWalkingDistance,
         classOf[beam.sim.vehiclesharing.AvailabilityBasedRepositioning]
       )
     )
