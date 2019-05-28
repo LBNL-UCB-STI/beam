@@ -837,11 +837,10 @@ class PersonAgent(
   }
 
   def getReplanningReasonFrom(data: BasePersonData, prefix: String): String = {
-    (data.currentTourMode
+    data.currentTourMode
       .collect {
-        case mode if mode.isRideHail                      => s"$prefix RideHail"
-        case mode if mode.isMassTransit || mode.isTransit => s"$prefix PT"
-      })
+        case mode => s"$prefix $mode"
+      }
       .getOrElse(prefix)
   }
 
