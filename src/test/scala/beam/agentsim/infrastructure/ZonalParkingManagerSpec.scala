@@ -48,7 +48,6 @@ class ZonalParkingManagerSpec
     val matsimServices = mock[MatsimServices]
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(config)
-    when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     val geo = new GeoUtilsImpl(config)
     when(theServices.geo).thenReturn(geo)
     theServices
@@ -136,7 +135,7 @@ object ZonalParkingManagerSpec {
         ParkingStockAttributes(1)
     }
     val zonalParkingManagerProps = Props(
-      new ZonalParkingManager(beamServices, beamRouterProbe, parkingStockAttributes) {
+      new ZonalParkingManager(beamServices, beamRouterProbe, parkingStockAttributes, BeamServices.defaultTazTreeMap) {
         override def fillInDefaultPooledResources() {} //Ignoring default initialization, just use input data
       }
     )

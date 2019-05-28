@@ -9,6 +9,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
+import beam.agentsim.infrastructure.TAZTreeMap
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
@@ -17,6 +18,7 @@ import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
+import beam.sim.BeamServices.FuelTypePrices
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
@@ -34,19 +36,14 @@ import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events._
-import org.matsim.core.controler.listener.{
-  IterationEndsListener,
-  IterationStartsListener,
-  ShutdownListener,
-  StartupListener
-}
+import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
-
 import beam.sim.config.BeamConfig
 
 class BeamSim @Inject()(
@@ -60,7 +57,9 @@ class BeamSim @Inject()(
   private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator,
   private val beamSkimmer: BeamSkimmer,
   private val travelTimeObserved: TravelTimeObserved,
-  private val beamConfigChangesObservable: BeamConfigChangesObservable
+  private val beamConfigChangesObservable: BeamConfigChangesObservable,
+  private val tazTreeMap: TAZTreeMap,
+  private val beamScenario: BeamScenario
 ) extends StartupListener
     with IterationStartsListener
     with IterationEndsListener
@@ -103,7 +102,8 @@ class BeamSim @Inject()(
         eventsManager,
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator
+        tollCalculator,
+        beamScenario.fuelTypePrices
       ),
       "router"
     )
@@ -130,7 +130,8 @@ class BeamSim @Inject()(
       eventsManager,
       event.getServices.getControlerIO,
       beamServices,
-      beamServices.beamConfig
+      beamServices.beamConfig,
+      tazTreeMap
     )
     iterationStatsProviders += createGraphsFromEvents
     modalityStyleStats = new ModalityStyleStats()
@@ -147,7 +148,8 @@ class BeamSim @Inject()(
       eventsManager,
       beamServices,
       event.getServices.getInjector.getInstance(classOf[RideHailIterationHistory]),
-      transportNetwork
+      transportNetwork,
+      tazTreeMap
     )
 
     delayMetricAnalysis = new DelayMetricAnalysis(

@@ -9,7 +9,8 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BUS, CAR, DRIVE_TRANSIT, FERRY, RAIL, RIDE_HAIL, SUBWAY, WALK, WALK_TRANSIT}
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
+import beam.sim.BeamServices.FuelTypePrices
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes, PopulationAdjustment}
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.MersenneTwister
@@ -22,12 +23,13 @@ import org.matsim.core.router.TripStructureUtils.Subtour
 import org.matsim.core.router.{CompositeStageActivityTypes, TripRouter, TripStructureUtils}
 
 import scala.collection.JavaConverters._
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.util.Random
 
 class ChangeModeForTour(
   beamServices: BeamServices,
-  chainBasedTourVehicleAllocator: ChainBasedTourVehicleAllocator
+  chainBasedTourVehicleAllocator: ChainBasedTourVehicleAllocator,
+  beamScenario: BeamScenario
 ) extends PlanAlgorithm {
 
   val rng = new MersenneTwister(3004568) // Random.org
@@ -105,7 +107,7 @@ class ChangeModeForTour(
   def distanceScaling(beamMode: BeamMode, distance: Double): Double = {
     beamMode match {
       case BeamMode.CAR =>
-        beamServices.fuelTypePrices(BeamVehicleType.defaultCarBeamVehicleType.primaryFuelType) * distance
+        beamScenario.fuelTypePrices(BeamVehicleType.defaultCarBeamVehicleType.primaryFuelType) * distance
       case WALK => distance * 6 // MATSim Default
       case RIDE_HAIL =>
         distance * DefaultRideHailCostPerMile.toDouble * (1 / 1609.34) // 1 mile = 1609.34

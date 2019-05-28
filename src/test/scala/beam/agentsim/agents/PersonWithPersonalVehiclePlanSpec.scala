@@ -90,7 +90,6 @@ class PersonWithPersonalVehiclePlanSpec
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(theServices.networkHelper).thenReturn(networkHelper)
@@ -194,8 +193,8 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
-            new TravelTimeObserved(beamConfig, beamSvc)
+            mock[BeamSkimmer],
+            mock[TravelTimeObserved]
           )
         )
       )
@@ -420,8 +419,8 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
-            new TravelTimeObserved(beamConfig, beamSvc)
+            mock[BeamSkimmer],
+            mock[TravelTimeObserved]
           )
         )
       )
@@ -563,8 +562,8 @@ class PersonWithPersonalVehiclePlanSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
-          new TravelTimeObserved(beamConfig, beamSvc)
+          mock[BeamSkimmer],
+          mock[TravelTimeObserved]
         )
       )
       val personActor = householdActor.getSingleChild(person.getId.toString)
@@ -658,8 +657,8 @@ class PersonWithPersonalVehiclePlanSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
-          new TravelTimeObserved(beamConfig, beamSvc)
+          mock[BeamSkimmer],
+          mock[TravelTimeObserved]
         )
       )
       scheduler ! StartSchedule(0)

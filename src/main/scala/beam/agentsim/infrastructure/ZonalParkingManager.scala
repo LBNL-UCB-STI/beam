@@ -11,10 +11,10 @@ import beam.agentsim.infrastructure.ParkingStall._
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.agentsim.infrastructure.ZonalParkingManager.ParkingAlternative
 import beam.router.BeamRouter.Location
+import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
-import beam.sim.{BeamServices, HasServices}
 import beam.utils.FileUtils
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.Id
 import org.supercsv.cellprocessor.constraint.NotNull
 import org.supercsv.cellprocessor.ift.CellProcessor
 import org.supercsv.io.{CsvMapReader, CsvMapWriter, ICsvMapWriter}
@@ -25,11 +25,11 @@ import scala.collection.mutable
 import scala.util.Random
 
 class ZonalParkingManager(
-  override val beamServices: BeamServices,
+  val beamServices: BeamServices,
   val beamRouter: ActorRef,
-  parkingStockAttributes: ParkingStockAttributes
+  parkingStockAttributes: ParkingStockAttributes,
+  val tazTreeMap: TAZTreeMap
 ) extends ParkingManager(parkingStockAttributes)
-    with HasServices
     with ActorLogging {
   val stalls: mutable.Map[Id[ParkingStall], ParkingStall] = mutable.Map()
   val pooledResources: mutable.Map[StallAttributes, StallValues] = mutable.Map()
@@ -62,7 +62,7 @@ class ZonalParkingManager(
   def fillInDefaultPooledResources(): Unit = {
     // First do general parking and charging for personal vehicles
     for {
-      taz          <- beamServices.tazTreeMap.tazQuadTree.values().asScala
+      taz          <- tazTreeMap.tazQuadTree.values().asScala
       parkingType  <- List(Residential, Workplace, Public)
       pricingModel <- List(FlatFee, Block)
       chargingType <- List(NoCharger, Level1, Level2, DCFast, UltraFast)
@@ -73,7 +73,7 @@ class ZonalParkingManager(
     }
     // Now do parking/charging for ride hail fleet
     for {
-      taz          <- beamServices.tazTreeMap.tazQuadTree.values().asScala
+      taz          <- tazTreeMap.tazQuadTree.values().asScala
       parkingType  <- List(Workplace)
       pricingModel <- List(FlatFee)
       chargingType <- List(Level2, DCFast, UltraFast)
@@ -140,8 +140,8 @@ class ZonalParkingManager(
       val maybeParkingStall = maybeParkingAttributes.flatMap { attrib =>
         // Location is either TAZ center or random withing 5km of driver location
         val newLocation = depotStallLocationType match {
-          case AtTAZCenter if beamServices.tazTreeMap.getTAZ(attrib.tazId).isDefined =>
-            beamServices.tazTreeMap.getTAZ(attrib.tazId).get.coord
+          case AtTAZCenter if tazTreeMap.getTAZ(attrib.tazId).isDefined =>
+            tazTreeMap.getTAZ(attrib.tazId).get.coord
           case _ =>
             inquiry.customerLocationUtm
         }
@@ -332,7 +332,7 @@ class ZonalParkingManager(
     var nearbyTAZs: Vector[TAZ] = Vector()
     var searchRadius = startRadius
     while (nearbyTAZs.isEmpty && searchRadius <= maxRadius) {
-      nearbyTAZs = beamServices.tazTreeMap.tazQuadTree
+      nearbyTAZs = tazTreeMap.tazQuadTree
         .getDisk(searchCenter.getX, searchCenter.getY, searchRadius)
         .asScala
         .toVector
@@ -459,9 +459,10 @@ object ZonalParkingManager {
   def props(
     beamServices: BeamServices,
     beamRouter: ActorRef,
-    parkingStockAttributes: ParkingStockAttributes
+    parkingStockAttributes: ParkingStockAttributes,
+    tazTreeMap: TAZTreeMap
   ): Props = {
-    Props(new ZonalParkingManager(beamServices, beamRouter, parkingStockAttributes))
+    Props(new ZonalParkingManager(beamServices, beamRouter, parkingStockAttributes, tazTreeMap))
   }
 
   val maxSearchRadius = 10e3

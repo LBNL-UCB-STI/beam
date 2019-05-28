@@ -100,7 +100,6 @@ class PersonAndTransitDriverSpec
     when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
     when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
@@ -141,7 +140,7 @@ class PersonAndTransitDriverSpec
 
   private lazy val parkingManager = system.actorOf(
     ZonalParkingManager
-      .props(beamSvc, beamSvc.beamRouter, ParkingStockAttributes(100)),
+      .props(beamSvc, beamSvc.beamRouter, ParkingStockAttributes(100), tAZTreeMap),
     "ParkingManager"
   )
 
@@ -356,8 +355,8 @@ class PersonAndTransitDriverSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
-          new TravelTimeObserved(beamConfig, beamSvc)
+          mock[BeamSkimmer],
+          mock[TravelTimeObserved]
         )
       )
 

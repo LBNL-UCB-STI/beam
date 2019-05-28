@@ -28,6 +28,7 @@ import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.BeamServices
+import beam.sim.BeamServices.getTazTreeMap
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
@@ -53,7 +54,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.Await
 
 /**
@@ -77,6 +78,7 @@ class OtherPersonAgentSpec
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   lazy val beamConfig = BeamConfig(system.settings.config)
+  private lazy val tazTreeMap = getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
   lazy val eventsManager = new EventsManagerImpl()
 
   lazy val dummyAgentId: Id[Person] = Id.createPersonId("dummyAgent")
@@ -104,8 +106,6 @@ class OtherPersonAgentSpec
     when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
     lazy val geo = new GeoUtilsImpl(beamConfig)
     when(theServices.geo).thenReturn(geo)
-    // TODO Is it right to return defaultTazTreeMap?
-    when(theServices.tazTreeMap).thenReturn(BeamServices.defaultTazTreeMap)
     theServices
   }
 
@@ -141,7 +141,7 @@ class OtherPersonAgentSpec
 
   private lazy val parkingManager = system.actorOf(
     ZonalParkingManager
-      .props(beamSvc, beamSvc.beamRouter, ParkingStockAttributes(100)),
+      .props(beamSvc, beamSvc.beamRouter, ParkingStockAttributes(100), tazTreeMap),
     "ParkingManager"
   )
 
@@ -323,8 +323,8 @@ class OtherPersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
-          new TravelTimeObserved(beamConfig, beamSvc)
+          new BeamSkimmer(beamConfig, tazTreeMap, beamSvc.vehicleTypes, null, beamSvc.geo),
+          new TravelTimeObserved(beamConfig, beamSvc, tazTreeMap, null)
         )
       )
       scheduler ! StartSchedule(0)

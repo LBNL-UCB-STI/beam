@@ -38,7 +38,7 @@ class GraphTestUtil {
     }
 
     synchronized static void createDummySimWithXML() {
-        graphsFromAgentSimEvents = new GraphsStatsAgentSimEventsListener(services);
+        graphsFromAgentSimEvents = new GraphsStatsAgentSimEventsListener(services, BeamServices.defaultTazTreeMap());
         createDummySimWithXML(graphsFromAgentSimEvents);
     }
 

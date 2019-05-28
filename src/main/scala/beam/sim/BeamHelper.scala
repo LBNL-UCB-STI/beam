@@ -9,9 +9,11 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
-
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, ConsumptionRateFilterStoreImpl, VehicleCsvReader, VehicleEnergy}
+import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.events.handling.BeamEventsHandling
+import beam.agentsim.infrastructure.TAZTreeMap
 import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
@@ -26,6 +28,8 @@ import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationAdjustment
 import beam.sim.ArgumentsParser.{Arguments, Worker}
+import beam.sim.BeamServices.{FuelTypePrices, getTazTreeMap}
+import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
 import beam.utils.{NetworkHelper, _}
 import beam.utils.scenario.{InputType, ScenarioLoader, ScenarioSource}
 import beam.utils.scenario.matsim.MatsimScenarioSource
@@ -49,6 +53,8 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.households.Household
 import org.matsim.utils.objectattributes.AttributeConverter
 import org.matsim.vehicles.Vehicle
+
+import scala.collection.concurrent.TrieMap
 
 trait BeamHelper extends LazyLogging {
 
@@ -188,6 +194,14 @@ trait BeamHelper extends LazyLogging {
           )
 
           bind(classOf[NetworkHelper]).toInstance(networkHelper)
+          bind(classOf[TAZTreeMap]).toInstance(getTazTreeMap(beamConfig.beam.agentsim.taz.filePath))
+          val vehicleTypes = maybeScaleTransit(beamConfig,
+            readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
+          )
+          bind(classOf[BeamScenario]).toInstance(BeamScenario(readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
+            vehicleTypes,
+            privateVehicles(beamConfig, vehicleTypes)))
+
 
           bind(classOf[RideHailIterationHistory]).asEagerSingleton()
           bind(classOf[RouteHistory]).asEagerSingleton()
@@ -199,6 +213,55 @@ trait BeamHelper extends LazyLogging {
         }
       }
     )
+
+  def vehicleEnergy(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]) = {
+    val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
+    val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+    val consumptionRateFilterStore =
+    new ConsumptionRateFilterStoreImpl(
+      vehicleCsvReader.getVehicleEnergyRecordsUsing,
+      Option(baseFilePath.toString),
+      primaryConsumptionRateFilePathsByVehicleType =
+        vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
+      secondaryConsumptionRateFilePathsByVehicleType =
+        vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
+    )
+    // TODO Fix me once `TrieMap` is removed
+    new VehicleEnergy(
+      consumptionRateFilterStore,
+      vehicleCsvReader.getLinkToGradeRecordsUsing
+    )
+  }
+
+  def privateVehicles(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]): TrieMap[Id[BeamVehicle], BeamVehicle] =
+    beamConfig.beam.agentsim.agents.population.useVehicleSampling match {
+      case true =>
+        TrieMap[Id[BeamVehicle], BeamVehicle]()
+      case false =>
+        TrieMap(readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath, vehicleTypes).toSeq: _*)
+    }
+
+
+
+
+  // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
+  // say, a yacht or personal bus, but I think this will be fine for now.
+  private def maybeScaleTransit(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]) = {
+    beamConfig.beam.agentsim.tuning.transitCapacity match {
+      case Some(scalingFactor) =>
+        vehicleTypes.map {
+          case (id, bvt) =>
+            id -> (if (bvt.standingRoomCapacity > 0)
+              bvt.copy(
+                seatingCapacity = Math.ceil(bvt.seatingCapacity.toDouble * scalingFactor).toInt,
+                standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity.toDouble * scalingFactor).toInt
+              )
+            else
+              bvt)
+        }
+      case None => vehicleTypes
+    }
+  }
 
   def runBeamUsing(args: Array[String], isConfigArgRequired: Boolean = true): Unit = {
     val (parsedArgs, config) = prepareConfig(args, isConfigArgRequired)
@@ -323,7 +386,7 @@ trait BeamHelper extends LazyLogging {
     }), scala.concurrent.duration.Duration.Inf)
   }
 
-  def writeScenarioPrivateVehicles(scenario: MutableScenario, beamServices: BeamServices, outputDir: String): Unit = {
+  def writeScenarioPrivateVehicles(scenario: MutableScenario, beamServices: BeamScenario, outputDir: String): Unit = {
     val csvWriter: FileWriter = new FileWriter(outputDir + "/householdVehicles.csv", true)
     try {
       csvWriter.write("vehicleId,vehicleType,householdId\n")
@@ -414,6 +477,7 @@ trait BeamHelper extends LazyLogging {
   def runBeam(
     beamServices: BeamServices,
     scenario: MutableScenario,
+    beamScenario: BeamScenario,
     networkCoordinator: NetworkCoordinator,
     outputDir: String
   ): Unit = {
@@ -427,7 +491,7 @@ trait BeamHelper extends LazyLogging {
       .flatMap(_.getVehicleIds.asScala)
 
     val vehiclesGroupedByType = houseHoldVehiclesInScenario.groupBy(
-      v => beamServices.privateVehicles.get(v).map(_.beamVehicleType.id.toString).getOrElse("")
+      v => beamScenario.privateVehicles.get(v).map(_.beamVehicleType.id.toString).getOrElse("")
     )
     val vehicleInfo = vehiclesGroupedByType.map {
       case (vehicleType, groupedValues) =>
@@ -534,6 +598,7 @@ trait BeamHelper extends LazyLogging {
   // sample population (beamConfig.beam.agentsim.numAgents - round to nearest full household)
   def samplePopulation(
     scenario: MutableScenario,
+    beamScenario: BeamScenario,
     beamConfig: BeamConfig,
     matsimConfig: MatsimConfig,
     beamServices: BeamServices,
@@ -579,7 +644,7 @@ trait BeamHelper extends LazyLogging {
       // Remove not selected vehicles
       notSelectedVehicleIds.foreach { vehicleId =>
         scenario.getVehicles.removeVehicle(vehicleId)
-        beamServices.privateVehicles.remove(vehicleId)
+        beamScenario.privateVehicles.remove(vehicleId)
       }
 
       // Remove not selected households
@@ -593,7 +658,7 @@ trait BeamHelper extends LazyLogging {
         scenario.getPopulation.removePerson(personId)
       }
 
-      writeScenarioPrivateVehicles(scenario, beamServices, outputDir)
+      writeScenarioPrivateVehicles(scenario, beamScenario, outputDir)
 
       val numOfHouseholds = scenario.getHouseholds.getHouseholds.values().size
       val vehicles = scenario.getHouseholds.getHouseholds.values.asScala.flatMap(hh => hh.getVehicleIds.asScala)
@@ -626,10 +691,10 @@ trait BeamHelper extends LazyLogging {
     }
   }
 
-  private def getVehicleGroupingStringUsing(vehicleIds: IndexedSeq[Id[Vehicle]], beamServices: BeamServices): String = {
+  private def getVehicleGroupingStringUsing(vehicleIds: IndexedSeq[Id[Vehicle]], beamScenario: BeamScenario): String = {
     vehicleIds
       .groupBy(
-        vehicleId => beamServices.privateVehicles.get(vehicleId).map(_.beamVehicleType.id.toString).getOrElse("")
+        vehicleId => beamScenario.privateVehicles.get(vehicleId).map(_.beamVehicleType.id.toString).getOrElse("")
       )
       .map {
         case (vehicleType, ids) => s"$vehicleType (${ids.size})"
@@ -675,3 +740,4 @@ trait BeamHelper extends LazyLogging {
 }
 
 case class MapStringDouble(data: Map[String, Double])
+case class BeamScenario(fuelTypePrices: FuelTypePrices, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType], privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle])

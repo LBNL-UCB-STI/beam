@@ -74,7 +74,6 @@ class TimeDependentRoutingSpec
     when(services.vehicleTypes).thenReturn(
       BeamVehicleUtils.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
     )
-    when(services.fuelTypePrices).thenReturn(Map[FuelType, Double]().withDefaultValue(0.0))
     networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
@@ -95,7 +94,8 @@ class TimeDependentRoutingSpec
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator
+        tollCalculator,
+        Map[FuelType, Double]().withDefaultValue(0.0)
       )
     )
 

@@ -39,7 +39,6 @@ trait BeamServices {
   val injector: Injector
   val controler: ControlerI
   val beamConfig: BeamConfig
-  val vehicleEnergy: VehicleEnergy
 
   val geo: GeoUtils
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory
@@ -50,12 +49,7 @@ trait BeamServices {
   val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)]
   var personHouseholds: Map[Id[Person], Household]
 
-  val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle]
-  val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
-  val fuelTypePrices: Map[FuelType, Double]
-
   var matsimServices: MatsimServices
-  val tazTreeMap: TAZTreeMap
   val modeIncentives: ModeIncentive
   val ptFares: PtFares
   var iterationNumber: Int = -1
@@ -113,42 +107,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   ] = TrieMap()
   var personHouseholds: Map[Id[Person], Household] = Map()
 
-  val fuelTypePrices: Map[FuelType, Double] =
-    readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
-
-  val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = maybeScaleTransit(
-    readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
-  )
-
-  private val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
-  private val vehicleCsvReader = new VehicleCsvReader(beamConfig)
-  private val consumptionRateFilterStore =
-    new ConsumptionRateFilterStoreImpl(
-      vehicleCsvReader.getVehicleEnergyRecordsUsing,
-      Option(baseFilePath.toString),
-      primaryConsumptionRateFilePathsByVehicleType =
-        vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
-      secondaryConsumptionRateFilePathsByVehicleType =
-        vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
-    )
-
-  val vehicleEnergy = new VehicleEnergy(
-    consumptionRateFilterStore,
-    vehicleCsvReader.getLinkToGradeRecordsUsing
-  )
-
-  // TODO Fix me once `TrieMap` is removed
-  val privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
-    beamConfig.beam.agentsim.agents.population.useVehicleSampling match {
-      case true =>
-        TrieMap[Id[BeamVehicle], BeamVehicle]()
-      case false =>
-        TrieMap(readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath, vehicleTypes).toSeq: _*)
-    }
-
   var matsimServices: MatsimServices = _
-
-  val tazTreeMap: TAZTreeMap = getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
 
   val modeIncentives = ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath)
   val ptFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath)
@@ -156,25 +115,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   def startNewIteration(): Unit = {
     iterationNumber += 1
     Metrics.iterationNumber = iterationNumber
-  }
-
-  // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
-  // say, a yacht or personal bus, but I think this will be fine for now.
-  private def maybeScaleTransit(vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]) = {
-    beamConfig.beam.agentsim.tuning.transitCapacity match {
-      case Some(scalingFactor) =>
-        vehicleTypes.map {
-          case (id, bvt) =>
-            id -> (if (bvt.standingRoomCapacity > 0)
-                     bvt.copy(
-                       seatingCapacity = Math.ceil(bvt.seatingCapacity.toDouble * scalingFactor).toInt,
-                       standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity.toDouble * scalingFactor).toInt
-                     )
-                   else
-                     bvt)
-        }
-      case None => vehicleTypes
-    }
   }
 
   override def setTransitFleetSizes(tripFleetSizeMap: mutable.HashMap[String, Integer]): Unit = {
@@ -187,6 +127,9 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 }
 
 object BeamServices {
+
+  type FuelTypePrices = Map[FuelType, Double]
+
   private val logger = LoggerFactory.getLogger(this.getClass)
   implicit val askTimeout: Timeout = Timeout(FiniteDuration(5L, TimeUnit.SECONDS))
 

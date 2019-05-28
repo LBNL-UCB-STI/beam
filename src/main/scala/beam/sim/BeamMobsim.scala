@@ -11,12 +11,12 @@ import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTr
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
-import beam.agentsim.infrastructure.ZonalParkingManager
+import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router.BeamRouter.InitTransit
 import beam.router.osm.TollCalculator
-import beam.router.{BeamRouter, BeamSkimmer, FreeFlowTravelTime, RouteHistory, TravelTimeObserved}
+import beam.router.{BeamSkimmer, FreeFlowTravelTime, RouteHistory, TravelTimeObserved}
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
@@ -49,7 +49,8 @@ class BeamMobsim @Inject()(
   val rideHailIterationHistory: RideHailIterationHistory,
   val routeHistory: RouteHistory,
   val beamSkimmer: BeamSkimmer,
-  val travelTimeObserved: TravelTimeObserved
+  val travelTimeObserved: TravelTimeObserved,
+  val tazTreeMap: TAZTreeMap
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
@@ -99,7 +100,7 @@ class BeamMobsim @Inject()(
 
         private val parkingManager = context.actorOf(
           ZonalParkingManager
-            .props(beamServices, beamServices.beamRouter, ParkingStockAttributes(100)),
+            .props(beamServices, beamServices.beamRouter, ParkingStockAttributes(100), tazTreeMap),
           "ParkingManager"
         )
         context.watch(parkingManager)

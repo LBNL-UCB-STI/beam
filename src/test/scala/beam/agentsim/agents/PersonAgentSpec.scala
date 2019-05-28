@@ -96,7 +96,6 @@ class PersonAgentSpec
     when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(theServices.beamConfig).thenReturn(beamConfig)
     when(theServices.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
-    when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
@@ -201,9 +200,9 @@ class PersonAgentSpec
           parkingManager,
           tollCalculator,
           self,
-          beamSkimmer = new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
+          beamSkimmer = new BeamSkimmer(beamConfig, tAZTreeMap, beamSvc.vehicleTypes, null, beamSvc.geo),
           routeHistory = new RouteHistory(beamConfig),
-          travelTimeObserved = new TravelTimeObserved(beamConfig, beamSvc)
+          travelTimeObserved = new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null)
         )
       )
 
@@ -265,8 +264,8 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
-          new TravelTimeObserved(beamConfig, beamSvc)
+          new BeamSkimmer(beamConfig, tAZTreeMap, beamSvc.vehicleTypes, null, beamSvc.geo),
+          new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null)
         )
       )
 
@@ -491,8 +490,8 @@ class PersonAgentSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
-          new TravelTimeObserved(beamConfig, beamSvc)
+          new BeamSkimmer(beamConfig, tAZTreeMap, beamSvc.vehicleTypes, null, beamSvc.geo),
+          new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null)
         )
       )
       scheduler ! StartSchedule(0)

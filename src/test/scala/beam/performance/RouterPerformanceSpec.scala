@@ -8,6 +8,7 @@ import akka.actor.Status.Success
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ZonalParkingManagerSpec
@@ -23,7 +24,7 @@ import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.MetricsSupport
 import beam.tags.Performance
-import beam.utils.DateUtils
+import beam.utils.{BeamVehicleUtils, DateUtils}
 import beam.utils.TestConfigUtils.testConfig
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.ProfileRequest
@@ -37,10 +38,7 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario, TransportMode}
 import org.matsim.core.config.groups.{GlobalConfigGroup, PlanCalcScoreConfigGroup}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.router._
-import org.matsim.core.router.costcalculators.{
-  FreespeedTravelTimeAndDisutility,
-  RandomizingTimeDistanceTravelDisutilityFactory
-}
+import org.matsim.core.router.costcalculators.{FreespeedTravelTimeAndDisutility, RandomizingTimeDistanceTravelDisutilityFactory}
 import org.matsim.core.router.util.{LeastCostPathCalculator, PreProcessLandmarks}
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.core.trafficmonitoring.FreeSpeedTravelTime
@@ -112,6 +110,9 @@ class RouterPerformanceSpec
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
     network = scenario.getNetwork
+    val fuelTypePrices: Map[FuelType, Double] =
+      BeamVehicleUtils.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
+
     router = system.actorOf(
       BeamRouter.props(
         services,
@@ -121,7 +122,8 @@ class RouterPerformanceSpec
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator
+        tollCalculator,
+        fuelTypePrices
       ),
       "router"
     )

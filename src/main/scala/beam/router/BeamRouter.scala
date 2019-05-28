@@ -5,18 +5,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.{Status, Success}
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  Address,
-  Cancellable,
-  ExtendedActorSystem,
-  Props,
-  RelativeActorPath,
-  RootActorPath,
-  Stash
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, Address, Cancellable, ExtendedActorSystem, Props, RelativeActorPath, RootActorPath, Stash}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
@@ -33,6 +22,7 @@ import beam.router.model._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
 import beam.sim.BeamServices
+import beam.sim.BeamServices.FuelTypePrices
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.{DateUtils, IdGeneratorImpl}
 import com.conveyal.r5.profile.StreetMode
@@ -60,7 +50,8 @@ class BeamRouter(
   eventsManager: EventsManager,
   transitVehicles: Vehicles,
   fareCalculator: FareCalculator,
-  tollCalculator: TollCalculator
+  tollCalculator: TollCalculator,
+  fuelTypePrices: FuelTypePrices
 ) extends Actor
     with Stash
     with ActorLogging {
@@ -143,7 +134,8 @@ class BeamRouter(
         fareCalculator,
         tollCalculator,
         transitVehicles,
-        travelTimeAndCost
+        travelTimeAndCost,
+        fuelTypePrices
       ),
       "router-worker"
     )
@@ -514,7 +506,8 @@ object BeamRouter {
     eventsManager: EventsManager,
     transitVehicles: Vehicles,
     fareCalculator: FareCalculator,
-    tollCalculator: TollCalculator
+    tollCalculator: TollCalculator,
+    fuelTypePrices: FuelTypePrices
   ) = {
     checkForConsistentTimeZoneOffsets(beamServices.dates, transportNetwork)
 
@@ -527,7 +520,8 @@ object BeamRouter {
         eventsManager,
         transitVehicles,
         fareCalculator,
-        tollCalculator
+        tollCalculator,
+        fuelTypePrices
       )
     )
   }

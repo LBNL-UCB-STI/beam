@@ -9,9 +9,9 @@ import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
+import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.{FileUtils, GeoJsonReader, ProfilingUtils}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -34,12 +34,14 @@ import scala.collection.mutable
 
 class TravelTimeObserved @Inject()(
   val beamConfig: BeamConfig,
-  val beamServices: BeamServices
+  val beamServices: BeamServices,
+  val tazTreeMap: TAZTreeMap,
+  val beamScenario: BeamScenario
 ) extends LazyLogging {
   import TravelTimeObserved._
 
   @volatile
-  private var skimmer: BeamSkimmer = new BeamSkimmer(beamConfig, beamServices.tazTreeMap, beamServices.vehicleTypes, beamServices.fuelTypePrices, beamServices.geo)
+  private var skimmer: BeamSkimmer = new BeamSkimmer(beamConfig, tazTreeMap, beamServices.vehicleTypes, beamScenario, beamServices.geo)
 
   private val observedTravelTimesOpt: Option[Map[PathCache, Float]] = {
     val zoneBoundariesFilePath = beamConfig.beam.calibration.roadNetwork.travelTimes.zoneBoundariesFilePath
@@ -49,7 +51,7 @@ class TravelTimeObserved @Inject()(
       val tazToMovId: Map[TAZ, Int] = buildTAZ2MovementId(
         zoneBoundariesFilePath,
         beamServices.geo,
-        beamServices.tazTreeMap
+        tazTreeMap
       )
       val movId2Taz: Map[Int, TAZ] = tazToMovId.map { case (k, v) => v -> k }
       Some(buildPathCache2TravelTime(zoneODTravelTimesFilePath, movId2Taz))
@@ -95,7 +97,7 @@ class TravelTimeObserved @Inject()(
 
   def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     writeTravelTimeObservedVsSimulated(event)
-    skimmer = new BeamSkimmer(beamConfig, beamServices.tazTreeMap, beamServices.vehicleTypes, beamServices.fuelTypePrices, beamServices.geo)
+    skimmer = new BeamSkimmer(beamConfig, tazTreeMap, beamServices.vehicleTypes, beamScenario, beamServices.geo)
   }
 
   def writeTravelTimeObservedVsSimulated(event: IterationEndsEvent): Unit = {
@@ -122,9 +124,9 @@ class TravelTimeObserved @Inject()(
     val categoryDataset = new HistogramDataset()
     var deltasOfObservedSimulatedTimes = new mutable.ListBuffer[Double]
 
-    beamServices.tazTreeMap.getTAZs
+    tazTreeMap.getTAZs
       .foreach { origin =>
-        beamServices.tazTreeMap.getTAZs.foreach { destination =>
+        tazTreeMap.getTAZs.foreach { destination =>
           uniqueModes.foreach { mode =>
             uniqueTimeBins
               .foreach { timeBin =>

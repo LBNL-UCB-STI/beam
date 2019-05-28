@@ -8,16 +8,16 @@ import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.FuelType.{FuelType, Gasoline}
+import beam.agentsim.agents.vehicles.FuelType.Gasoline
 import beam.agentsim.agents.vehicles.VehicleCategory.Car
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleEnergy}
 import beam.agentsim.agents.{Dropoff, Pickup}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
-import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{BeamVehicleUtils, DateUtils, MatsimServicesMock, NetworkHelper}
 import com.google.inject.Injector
@@ -36,7 +36,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.List
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.ExecutionContext
 
 class FastHouseholdCAVSchedulingSpec
@@ -67,18 +67,19 @@ class FastHouseholdCAVSchedulingSpec
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
   private val matsimConfig = configBuilder.buildMatSimConf()
+  val tazTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
+
+  val beamScenario = BeamScenario(
+    BeamVehicleUtils.readFuelTypeFile(beamCfg.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
+  )
 
   private lazy val beamSvc: BeamServices = new BeamServices {
     override lazy val injector: Injector = ???
-    val tazTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
     val beamConfig = beamCfg
 
     override var matsimServices: MatsimServices = new MatsimServicesMock(null, mock[Scenario])
 
     override val modeIncentives = ModeIncentive(Map[BeamMode, List[Incentive]]())
-
-    val fuelTypePrices: Map[FuelType, Double] =
-      BeamVehicleUtils.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
 
     val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] =
       BeamVehicleUtils.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
@@ -99,7 +100,7 @@ class FastHouseholdCAVSchedulingSpec
     override def setTransitFleetSizes(tripFleetSizeMap: mutable.HashMap[String, Integer]): Unit = ???
   }
 
-  private lazy val skimmer: BeamSkimmer = new BeamSkimmer(beamCfg, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo)
+  private lazy val skimmer: BeamSkimmer = new BeamSkimmer(beamCfg, tazTreeMap, beamSvc.vehicleTypes, beamScenario, beamSvc.geo)
 
   describe("A Household CAV Scheduler") {
     it("generates two schedules") {

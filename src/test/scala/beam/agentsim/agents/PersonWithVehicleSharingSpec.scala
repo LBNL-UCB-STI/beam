@@ -95,7 +95,6 @@ class PersonWithVehicleSharingSpec
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(theServices.networkHelper).thenReturn(networkHelper)
@@ -191,8 +190,8 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
-            new TravelTimeObserved(beamConfig, beamSvc)
+            mock[BeamSkimmer],
+            mock[TravelTimeObserved]
           )
         )
       )
@@ -334,8 +333,8 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
-            new TravelTimeObserved(beamConfig, beamSvc)
+            mock[BeamSkimmer],
+            mock[TravelTimeObserved]
           )
         )
       )
@@ -576,8 +575,8 @@ class PersonWithVehicleSharingSpec
           new Coord(0.0, 0.0),
           Vector(mockSharedVehicleFleet.ref),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo),
-          new TravelTimeObserved(beamSvc.beamConfig, beamSvc)
+          mock[BeamSkimmer],
+          mock[TravelTimeObserved]
         )
       )
 

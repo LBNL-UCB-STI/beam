@@ -74,7 +74,6 @@ class TollRoutingSpec
     when(services.vehicleTypes).thenReturn(
       BeamVehicleUtils.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
     )
-    when(services.fuelTypePrices).thenReturn(Map[FuelType, Double]().withDefaultValue(0.0))
     networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
@@ -94,7 +93,8 @@ class TollRoutingSpec
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator
+        tollCalculator,
+        Map[FuelType, Double]().withDefaultValue(0.0)
       )
     )
   }
@@ -157,7 +157,8 @@ class TollRoutingSpec
           new EventsManagerImpl(),
           scenario.getTransitVehicles,
           fareCalculator,
-          moreExpensiveTollCalculator
+          moreExpensiveTollCalculator,
+          Map[FuelType, Double]().withDefaultValue(0.0)
         )
       )
       moreExpensiveRouter ! request

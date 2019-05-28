@@ -1,5 +1,6 @@
 package beam.analysis.plots;
 
+import beam.agentsim.infrastructure.TAZTreeMap;
 import beam.analysis.*;
 import beam.analysis.StatsFactory.StatsType;
 import beam.calibration.impl.example.ErrorComparisonType;
@@ -43,16 +44,16 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
     private final Logger log = LoggerFactory.getLogger(GraphsStatsAgentSimEventsListener.class);
 
     // No Arg Constructor
-    public GraphsStatsAgentSimEventsListener(BeamServices services) {
+    public GraphsStatsAgentSimEventsListener(BeamServices services, TAZTreeMap tazTreeMap) {
         this.beamConfig = services.beamConfig();
-        statsFactory = new StatsFactory(services);
+        statsFactory = new StatsFactory(services, tazTreeMap);
     }
 
     // Constructor
     public GraphsStatsAgentSimEventsListener(EventsManager eventsManager,
                                              OutputDirectoryHierarchy controlerIO,
-                                             BeamServices services, BeamConfig beamConfig) {
-        this(services);
+                                             BeamServices services, BeamConfig beamConfig, TAZTreeMap tazTreeMap) {
+        this(services, tazTreeMap);
         try{
             statsFactory.createStats();
         }catch (Exception e){

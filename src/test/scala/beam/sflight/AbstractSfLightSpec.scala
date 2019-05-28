@@ -2,6 +2,7 @@ package beam.sflight
 
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKitBase}
+import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.router.BeamRouter
 import beam.sim.{BeamServices, BeamServicesImpl}
 import beam.utils.SimRunnerForTest
@@ -43,7 +44,8 @@ class AbstractSfLightSpec(val name: String)
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator
+        tollCalculator,
+        Map[FuelType, Double]().withDefaultValue(0.0)
       )
     )
 

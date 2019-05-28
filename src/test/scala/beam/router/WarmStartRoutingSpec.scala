@@ -95,7 +95,6 @@ class WarmStartRoutingSpec
       )
     )
     when(services.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
-    when(services.fuelTypePrices).thenReturn(Map[FuelType, Double]().withDefaultValue(0.0))
     var networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
@@ -116,7 +115,8 @@ class WarmStartRoutingSpec
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator
+        tollCalculator,
+        Map[FuelType, Double]().withDefaultValue(0.0)
       )
     )
 
@@ -160,7 +160,8 @@ class WarmStartRoutingSpec
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator
+        tollCalculator,
+        Map[FuelType, Double]().withDefaultValue(0.0)
       )
     )
     within(60 seconds) { // Router can take a while to initialize

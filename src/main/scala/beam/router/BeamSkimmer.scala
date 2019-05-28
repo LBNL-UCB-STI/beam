@@ -13,9 +13,10 @@ import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RID
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
-import beam.sim.{BeamServices, BeamWarmStart}
+import beam.sim.{BeamScenario, BeamServices, BeamWarmStart}
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
+import javax.inject.Inject
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -28,7 +29,7 @@ import scala.language.implicitConversions
 import scala.util.control.NonFatal
 
 //TODO to be validated against google api
-class BeamSkimmer(val beamConfig: BeamConfig, val tazTreeMap: TAZTreeMap, val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType], val fuelTypePrices: Map[FuelType, Double], val geo: GeoUtils) extends LazyLogging {
+class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val tazTreeMap: TAZTreeMap, val beamScenario: BeamScenario, val geo: GeoUtils) extends LazyLogging {
   import BeamSkimmer._
 
   private val SKIMS_FILE_NAME = "skims.csv.gz"
@@ -78,8 +79,8 @@ class BeamSkimmer(val beamConfig: BeamConfig, val tazTreeMap: TAZTreeMap, val ve
             travelTime,
             new BeamPath(null, null, None, null, null, travelDistance)
           ),
-          vehicleTypes(vehicleTypeId),
-          fuelTypePrices
+          beamScenario.vehicleTypes(vehicleTypeId),
+          beamScenario.fuelTypePrices
         )
       case RIDE_HAIL =>
         beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0

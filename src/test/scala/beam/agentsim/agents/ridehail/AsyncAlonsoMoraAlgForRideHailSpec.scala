@@ -15,9 +15,10 @@ import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.utils.BeamVehicleUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -61,27 +62,28 @@ class AsyncAlonsoMoraAlgForRideHailSpec
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
   private val matsimConfig = configBuilder.buildMatSimConf()
+  val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
+  val beamScenario = BeamScenario(
+    BeamVehicleUtils.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
+  )
 
   private lazy val beamSvc: BeamServices = {
     val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
     ScenarioUtils.loadScenario(ScenarioUtils.createMutableScenario(matsimConfig))
-    val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(mock[MatsimServices])
     when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario], scenario)
     when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
-    when(theServices.fuelTypePrices).thenReturn(mock[Map[FuelType, Double]])
     when(theServices.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
     theServices
   }
 
   describe("AsyncAlonsoMoraAlgForRideHailSpec") {
     it("Creates a consistent plan") {
-      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo)
+      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig, tAZTreeMap, beamSvc.vehicleTypes, beamScenario, beamSvc.geo)
       val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenario1
       val alg: AsyncAlonsoMoraAlgForRideHail =
         new AsyncAlonsoMoraAlgForRideHail(
@@ -107,7 +109,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
       import org.matsim.core.scenario.ScenarioUtils
       val sc = ScenarioUtils.createScenario(ConfigUtils.createConfig())
       new PopulationReader(sc).readFile("test/input/sf-light/sample/25k/population.xml.gz")
-      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig, beamSvc.tazTreeMap, beamSvc.vehicleTypes, beamSvc.fuelTypePrices, beamSvc.geo)
+      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig, tAZTreeMap, beamSvc.vehicleTypes, beamScenario, beamSvc.geo)
 
       val requests = mutable.ListBuffer.empty[CustomerRequest]
       sc.getPopulation.getPersons.values.asScala.map(p => BeamPlan(p.getSelectedPlan)).foreach { plan =>

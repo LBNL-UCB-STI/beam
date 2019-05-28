@@ -1,10 +1,12 @@
 package beam.analysis;
 
+import beam.agentsim.infrastructure.TAZTreeMap;
 import beam.analysis.plots.*;
 import beam.analysis.summary.*;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 
+import javax.inject.Inject;
 import java.beans.Beans;
 import java.util.Arrays;
 import java.util.Collection;
@@ -35,10 +37,13 @@ public class StatsFactory {
     private final BeamConfig beamConfig;
     private final BeamServices beamServices;
     private Map<StatsType, BeamAnalysis> beamStatsMap = new HashMap<>();
+    private final TAZTreeMap tazTreeMap;
 
-    public StatsFactory(BeamServices services) {
+    @Inject
+    public StatsFactory(BeamServices services, TAZTreeMap tazTreeMap) {
         this.beamServices = services;
         this.beamConfig = services.beamConfig();
+        this.tazTreeMap = tazTreeMap;
     }
 
     public BeamAnalysis getAnalysis(StatsType statsType) {
@@ -73,7 +78,7 @@ public class StatsFactory {
             case RideHailWaiting:
                 return new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation(), beamConfig);
             case RideHailWaitingTaz:
-                return new RideHailWaitingTazAnalysis(beamServices);
+                return new RideHailWaitingTazAnalysis(beamServices, tazTreeMap);
             case ModeChosen:
                 return new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation(), beamConfig);
             case PersonVehicleTransition:

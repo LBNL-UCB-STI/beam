@@ -24,6 +24,7 @@ import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
 import beam.sim.BeamServices
+import beam.sim.BeamServices.FuelTypePrices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.{Metrics, MetricsSupport}
@@ -1183,14 +1184,15 @@ object R5RoutingWorker {
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator,
     transitVehicles: Vehicles,
-    travelTimeAndCost: TravelTimeAndCost
+    travelTimeAndCost: TravelTimeAndCost,
+    fuelTypePrices: FuelTypePrices
   ) = Props(
     new R5RoutingWorker(
       WorkerParameters(
         beamServices.beamConfig,
         transportNetwork,
         beamServices.vehicleTypes,
-        beamServices.fuelTypePrices,
+        fuelTypePrices,
         beamServices.agencyAndRouteByVehicleIds,
         beamServices.ptFares,
         beamServices.geo,
