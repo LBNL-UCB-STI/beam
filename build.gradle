@@ -291,7 +291,13 @@ configurations.all {
     }
     exclude group: 'javax.media', module: 'jai_codec'
     exclude group: 'javax.media', module: 'jai_imageio'
-
+    componentSelection {
+        all { ComponentSelection selection ->
+            if (selection.candidate.group == 'org.mockito' && selection.candidate.version == '2.27.5') {
+                selection.reject("version 2.27.5 is broken for 'org.mockito'")
+            }
+        }
+    }
 }
 
 //compileScala.dependsOn(scalafmtAll)
