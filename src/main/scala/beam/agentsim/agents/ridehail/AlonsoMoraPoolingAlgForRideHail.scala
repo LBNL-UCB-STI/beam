@@ -219,8 +219,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     sortedRequests.drop(1).foldLeft(()) {
       case (_, curReq) =>
         val prevReq = newPoolingList.last
-        val serviceTime = prevReq.serviceTime +
-        getTimeDistanceAndCost(prevReq, curReq, beamServices).time.toInt
+        val serviceTime = prevReq.serviceTime + getTimeDistanceAndCost(prevReq, curReq, beamServices).time
         if (serviceTime <= curReq.time + timeWindow(curReq.tag)) {
           newPoolingList.append(curReq.copy(serviceTime = serviceTime))
         } else {
