@@ -412,9 +412,6 @@ class RideHailManager(
 
     case "FILE" =>
       new RideHailFleetInitializer().init(beamServices) foreach { fleetData =>
-        if(fleetData.toGeofence.isEmpty){
-          val i = 0
-        }
         createRideHailVehicleAndAgent(
           fleetData.id.split("-").toList.tail.mkString("-"),
           BeamVehicleType.defaultCarBeamVehicleType,

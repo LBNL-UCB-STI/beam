@@ -71,7 +71,8 @@ object RideHailAgent {
     currentVehicle: VehicleStack = Vector(),
     passengerSchedule: PassengerSchedule = PassengerSchedule(),
     currentLegPassengerScheduleIndex: Int = 0,
-    remainingShifts: List[Range] = List()
+    remainingShifts: List[Range] = List(),
+    geofence: Option[Geofence] = None
   ) extends DrivingData {
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
       copy(passengerSchedule = newPassengerSchedule)
@@ -81,6 +82,7 @@ object RideHailAgent {
     ): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
 
     override def hasParkingBehaviors: Boolean = false
+
   }
 
   // triggerId is included to facilitate debugging
@@ -264,7 +266,7 @@ class RideHailAgent(
   when(Idle) {
     case Event(
         TriggerWithId(EndShiftTrigger(tick), triggerId),
-        data @ RideHailAgentData(_, _, _, _, _)
+        data @ RideHailAgentData(_, _, _, _, _,_)
         ) =>
       val newShiftToSchedule = if (data.remainingShifts.size < 1) {
         Vector()
@@ -320,13 +322,13 @@ class RideHailAgent(
           self
         )
       )
-      goto(WaitingToDriveInterrupted) using data
+      goto(WaitingToDriveInterrupted) using data.copy(geofence = geofence)
         .withPassengerSchedule(updatedPassengerSchedule)
         .asInstanceOf[RideHailAgentData] replying ModifyPassengerScheduleAck(
         requestId,
         triggerToSchedule,
         vehicle.id,
-        tick
+        tick,
       )
     case ev @ Event(Resume(), _) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)

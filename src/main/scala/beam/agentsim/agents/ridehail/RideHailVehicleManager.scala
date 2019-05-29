@@ -9,6 +9,7 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode.CAR
 import beam.sim.Geofence
+import beam.sim.common.GeoUtils
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
@@ -99,6 +100,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
 
   def getClosestIdleVehiclesWithinRadiusByETA(
     pickupLocation: Coord,
+    dropoffLocation: Coord,
     radius: Double,
     customerRequestTime: Long,
     excludeRideHailVehicles: Set[Id[Vehicle]] = Set(),
@@ -109,7 +111,11 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
       .getDisk(pickupLocation.getX, pickupLocation.getY, radius)
       .asScala
       .view
-      .filter(x => availableRideHailVehicles.contains(x.vehicleId) && !excludeRideHailVehicles.contains(x.vehicleId))
+      .filter{
+        x =>
+          availableRideHailVehicles.contains(x.vehicleId) && !excludeRideHailVehicles.contains(x.vehicleId) &&
+          (x.geofence.isEmpty || (GeoUtils.distFormula(pickupLocation, new Coord(x.geofence.get.geofenceX,x.geofence.get.geofenceY)) <= x.geofence.get.geofenceRadius && GeoUtils.distFormula(dropoffLocation, new Coord(x.geofence.get.geofenceX,x.geofence.get.geofenceY)) <= x.geofence.get.geofenceRadius))
+      }
 
     var end = System.currentTimeMillis()
     val diff1 = end - start
@@ -145,18 +151,6 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     val idleVehicles = getIdleVehiclesWithinRadius(pickupLocation, radius).toArray
     java.util.Arrays.sort(idleVehicles, RideHailAgentLocationWithRadiusOrdering)
     idleVehicles.map { case (location, _) => location }
-  }
-
-  def getClosestIdleRideHailAgent(
-    pickupLocation: Coord,
-    radius: Double
-  ): Option[RideHailAgentLocation] = {
-    val idleVehicles = getIdleVehiclesWithinRadius(pickupLocation, radius)
-    if (idleVehicles.isEmpty) None
-    else {
-      val min = idleVehicles.min(RideHailAgentLocationWithRadiusOrdering)
-      Some(min._1)
-    }
   }
 
   def getIdleVehicles: mutable.HashMap[Id[Vehicle], RideHailAgentLocation] = {

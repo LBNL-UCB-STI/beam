@@ -38,6 +38,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     rideHailManager.vehicleManager
       .getClosestIdleVehiclesWithinRadiusByETA(
         inquiry.pickUpLocationUTM,
+        inquiry.destinationUTM,
         rideHailManager.radiusInMeters,
         inquiry.departAt
       ) match {
@@ -144,11 +145,6 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
               veh.geofence
           )
         )
-      rideHailManager.vehicleManager.availableRideHailVehicles.values.foreach{ veh =>
-        if(veh.geofence.isEmpty){
-          val i = 0
-        }
-      }
 
       spatialPoolCustomerReqs.clear()
       poolCustomerReqs.foreach { d =>
