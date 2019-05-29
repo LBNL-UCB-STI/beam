@@ -38,6 +38,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     rideHailManager.vehicleManager
       .getClosestIdleVehiclesWithinRadiusByETA(
         inquiry.pickUpLocationUTM,
+        inquiry.destinationUTM,
         rideHailManager.radiusInMeters,
         inquiry.departAt
       ) match {
@@ -135,7 +136,15 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       )
       val customerIdToReqs = toAllocate.map(rhr => rhr.customer.personId -> rhr).toMap
       val availVehicles = rideHailManager.vehicleManager.availableRideHailVehicles.values
-        .map(veh => createVehicleAndSchedule(veh.vehicleId.toString, veh.currentLocationUTM.loc, tick))
+        .map(
+          veh =>
+            createVehicleAndSchedule(
+              veh.vehicleId.toString,
+              veh.currentLocationUTM.loc,
+              tick,
+              veh.geofence
+          )
+        )
 
       spatialPoolCustomerReqs.clear()
       poolCustomerReqs.foreach { d =>
