@@ -6,6 +6,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
+import beam.sim.Geofence
 import org.matsim.api.core.v01.Id
 
 object Resource {
@@ -17,6 +18,7 @@ object Resource {
     whenWhere: SpaceTime,
     passengerSchedule: PassengerSchedule,
     beamVehicleState: BeamVehicleState,
+    geofence: Option[Geofence],
     triggerId: Option[Long] // triggerId is included to facilitate debugging
   )
 
