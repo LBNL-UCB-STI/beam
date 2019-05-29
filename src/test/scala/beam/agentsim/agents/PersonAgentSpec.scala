@@ -308,7 +308,7 @@ class PersonAgentSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+                Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -564,11 +564,11 @@ class PersonAgentSpec
 
       val reservationRequestBus = expectMsgType[ReservationRequest]
       scheduler ! ScheduleTrigger(
-        BoardVehicleTrigger(28800, busLeg.beamVehicleId, Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)),
+        BoardVehicleTrigger(28800, busLeg.beamVehicleId),
         personActor
       )
       scheduler ! ScheduleTrigger(
-        AlightVehicleTrigger(30000, busLeg.beamVehicleId, Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)),
+        AlightVehicleTrigger(30000, busLeg.beamVehicleId),
         personActor
       )
       lastSender ! ReservationResponse(
@@ -604,16 +604,14 @@ class PersonAgentSpec
               ScheduleTrigger(
                 BoardVehicleTrigger(
                   30000,
-                  tramLeg.beamVehicleId,
-                  Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)
+                  tramLeg.beamVehicleId
                 ),
                 personActor
               ),
               ScheduleTrigger(
                 AlightVehicleTrigger(
                   32000,
-                  tramLeg.beamVehicleId,
-                  Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)
+                  tramLeg.beamVehicleId
                 ),
                 personActor
               ) // My tram is late!

@@ -5,13 +5,12 @@ import akka.actor.{ActorRef, FSM, Props, Stash}
 import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
-import beam.agentsim.agents.household.HouseholdActor.{CancelCAVTrip, ReleaseVehicle}
+import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicle
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
-import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail._
@@ -30,8 +29,8 @@ import beam.router.Modes.BeamMode.{CAR, CAV, WALK, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
-import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.population.AttributesOfIndividual
+import beam.sim.{BeamScenario, BeamServices}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
@@ -450,12 +449,9 @@ class PersonAgent(
      * Learn as passenger that it is time to board the vehicle
      */
     case ev @ Event(
-          TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter, theMode), triggerId),
+          TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter), triggerId),
           data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _)
         ) =>
-      if (theMode == CAV || data.currentTrip.get.tripClassifier == CAV) {
-        val i = 0
-      }
       logDebug(s"PersonEntersVehicle: $vehicleToEnter")
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
@@ -491,7 +487,7 @@ class PersonAgent(
      * Learn as passenger that it is time to alight the vehicle
      */
     case Event(
-        TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit, _, energyConsumedOption), triggerId),
+        TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit, energyConsumedOption), triggerId),
         data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _)
         ) if vehicleToExit.equals(currentVehicle.head) =>
       updateFuelConsumed(energyConsumedOption)
@@ -590,7 +586,7 @@ class PersonAgent(
           nextLeg :: restOfCurrentTrip,
           currentVehicle,
           _,
-          currentTourPersonalVehicle,
+          _,
           _,
           _,
           _,
@@ -860,11 +856,7 @@ class PersonAgent(
 
   }
 
-  def handleBoardOrAlightOutOfPlace(
-    triggerId: Long,
-    currentTrip: Option[EmbodiedBeamTrip],
-    beamVehicleTypeId: Id[BeamVehicleType]
-  ) = {
+  def handleBoardOrAlightOutOfPlace(triggerId: Long, currentTrip: Option[EmbodiedBeamTrip]): State = {
     currentTrip match {
       case None =>
         log.debug("Person {} stashing BoardOrAlight {} b/c no trip yet", id, triggerId)
@@ -874,16 +866,17 @@ class PersonAgent(
         log.debug("Person {} stashing BoardOrAlight {} b/c on CAV trip", id, triggerId)
         stash
         stay
-      case Some(trip) if beamScenario.vehicleTypes.get(beamVehicleTypeId).exists(_.automationLevel > 3) =>
-        log.warning(
-          "Person {} in state {} is abandoning CAV trips for rest of day because received Board/Alight trigger while on {} trip",
-          id,
-          stateName,
-          trip.tripClassifier
-        )
-        householdRef ! CancelCAVTrip(bodyVehiclePersonId)
-        _experiencedBeamPlan.tours.foreach(tour => _experiencedBeamPlan.putStrategy(tour, ModeChoiceStrategy(None)))
-        stay() replying CompletionNotice(triggerId, Vector())
+// FIXME: Find a way of expressing this case without looking at the vehicle type of a not locally known vehicle
+//      case Some(trip) if beamScenario.vehicleTypes.get(beamVehicleTypeId).exists(_.automationLevel > 3) =>
+//        log.warning(
+//          "Person {} in state {} is abandoning CAV trips for rest of day because received Board/Alight trigger while on {} trip",
+//          id,
+//          stateName,
+//          trip.tripClassifier
+//        )
+//        householdRef ! CancelCAVTrip(bodyVehiclePersonId)
+//        _experiencedBeamPlan.tours.foreach(tour => _experiencedBeamPlan.putStrategy(tour, ModeChoiceStrategy(None)))
+//        stay() replying CompletionNotice(triggerId, Vector())
       case Some(trip) =>
         log.debug("Person {} in state {} stashing BoardOrAlight {} b/c expecting this", id, stateName, triggerId)
         stash
@@ -908,7 +901,7 @@ class PersonAgent(
       }
       stop
     case Event(
-        TriggerWithId(BoardVehicleTrigger(_, _, Some(vehicleTypeId)), triggerId),
+        TriggerWithId(BoardVehicleTrigger(_, _), triggerId),
         ChoosesModeData(
           BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _),
           _,
@@ -931,9 +924,9 @@ class PersonAgent(
           _
         )
         ) =>
-      handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
+      handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
     case Event(
-        TriggerWithId(AlightVehicleTrigger(_, _, Some(vehicleTypeId), _), triggerId),
+        TriggerWithId(AlightVehicleTrigger(_, _, _), triggerId),
         ChoosesModeData(
           BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _),
           _,
@@ -956,28 +949,28 @@ class PersonAgent(
           _
         )
         ) =>
-      handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
+      handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
     case Event(
-        TriggerWithId(BoardVehicleTrigger(_, vehicleId, Some(vehicleTypeId)), triggerId),
-        BasePersonData(_, currentTrip, _, currentVehicle, _, _, _, _, _, _, _)
+        TriggerWithId(BoardVehicleTrigger(_, vehicleId), triggerId),
+        BasePersonData(_, _, _, currentVehicle, _, _, _, _, _, _, _)
         ) if currentVehicle.nonEmpty && currentVehicle.head.equals(vehicleId) =>
       log.debug("Person {} in state {} received Board for vehicle that he is already on, ignoring...", id, stateName)
       stay() replying CompletionNotice(triggerId, Vector())
     case Event(
-        TriggerWithId(BoardVehicleTrigger(_, _, Some(vehicleTypeId)), triggerId),
+        TriggerWithId(BoardVehicleTrigger(_, _), triggerId),
         BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _)
         ) =>
-      handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
+      handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
     case Event(
-        TriggerWithId(AlightVehicleTrigger(_, _, Some(vehicleTypeId), _), triggerId),
+        TriggerWithId(AlightVehicleTrigger(_, _, _), triggerId),
         BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _)
         ) =>
-      handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
+      handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
     case Event(NotifyVehicleIdle(_, _, _, _, _), _) =>
       stay()
     case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>
       stay() replying CompletionNotice(triggerId)
-    case Event(RideHailResponse(request, travelProposal, error, triggersToSchedule), _) =>
+    case Event(RideHailResponse(_, _, _, _), _) =>
       stop(Failure("Unexpected RideHailResponse"))
     case Event(ParkingInquiryResponse(_, _), _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))

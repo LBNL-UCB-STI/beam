@@ -333,11 +333,11 @@ class OtherPersonAgentSpec
       val personActor = lastSender
 
       scheduler ! ScheduleTrigger(
-        BoardVehicleTrigger(28800, busLeg.beamVehicleId, Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)),
+        BoardVehicleTrigger(28800, busLeg.beamVehicleId),
         personActor
       )
       scheduler ! ScheduleTrigger(
-        AlightVehicleTrigger(34400, busLeg.beamVehicleId, Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)),
+        AlightVehicleTrigger(34400, busLeg.beamVehicleId),
         personActor
       )
 
@@ -360,7 +360,7 @@ class OtherPersonAgentSpec
                   )
                 ),
                 Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+                Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
                 asDriver = true,
                 0,
                 unbecomeDriverOnCompletion = false
@@ -383,7 +383,7 @@ class OtherPersonAgentSpec
                   )
                 ),
                 Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+                Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
                 asDriver = true,
                 0,
                 unbecomeDriverOnCompletion = false
@@ -445,7 +445,7 @@ class OtherPersonAgentSpec
                   )
                 ),
                 Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+                Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
                 asDriver = true,
                 0,
                 unbecomeDriverOnCompletion = false
@@ -474,16 +474,14 @@ class OtherPersonAgentSpec
               ScheduleTrigger(
                 BoardVehicleTrigger(
                   35000,
-                  replannedTramLeg.beamVehicleId,
-                  Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)
+                  replannedTramLeg.beamVehicleId
                 ),
                 personActor
               ),
               ScheduleTrigger(
                 AlightVehicleTrigger(
                   40000,
-                  replannedTramLeg.beamVehicleId,
-                  Some(BeamVehicleType.defaultHumanBodyBeamVehicleType.id)
+                  replannedTramLeg.beamVehicleId
                 ),
                 personActor
               ) // My tram is late!

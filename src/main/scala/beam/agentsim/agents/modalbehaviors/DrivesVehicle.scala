@@ -53,12 +53,10 @@ object DrivesVehicle {
   case class AlightVehicleTrigger(
     tick: Int,
     vehicleId: Id[Vehicle],
-    vehicleTypeId: Option[Id[BeamVehicleType]] = None,
     fuelConsumed: Option[FuelConsumed] = None
   ) extends Trigger
 
-  case class BoardVehicleTrigger(tick: Int, vehicleId: Id[Vehicle], vehicleTypeId: Option[Id[BeamVehicleType]] = None)
-      extends Trigger
+  case class BoardVehicleTrigger(tick: Int, vehicleId: Id[Vehicle]) extends Trigger
 
   case class StopDriving(tick: Int)
 
@@ -199,7 +197,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           AlightVehicleTrigger(
             tick,
             data.currentVehicle.head,
-            Some(currentBeamVehicle.beamVehicleType.id),
             Some(fuelConsumedByTrip(pv.personId))
           ),
           pv.personRef
@@ -478,7 +475,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               s"Scheduling BoardVehicleTrigger at $tick for Person ${personVehicle.personId} into vehicle ${data.currentVehicle.head}"
             )
             ScheduleTrigger(
-              BoardVehicleTrigger(tick, data.currentVehicle.head, Some(currentBeamVehicle.beamVehicleType.id)),
+              BoardVehicleTrigger(tick, data.currentVehicle.head),
               personVehicle.personRef
             )
           }
@@ -584,8 +581,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           ScheduleTrigger(
             BoardVehicleTrigger(
               legsInThePast.head.startTime,
-              data.currentVehicle.head,
-              Some(currentBeamVehicle.beamVehicleType.id)
+              data.currentVehicle.head
             ),
             sender()
           )
@@ -599,7 +595,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
             AlightVehicleTrigger(
               legsInThePast.last.endTime,
               data.currentVehicle.head,
-              Some(currentBeamVehicle.beamVehicleType.id)
             ),
             sender()
           )
@@ -617,8 +612,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               ScheduleTrigger(
                 BoardVehicleTrigger(
                   currentLeg.startTime,
-                  data.currentVehicle.head,
-                  Some(currentBeamVehicle.beamVehicleType.id)
+                  data.currentVehicle.head
                 ),
                 sender()
               )
@@ -677,7 +671,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     // The following 2 (Board and Alight) can happen idiosyncratically if a person ended up taking a much longer than expected
     // trip and meanwhile a CAV was scheduled to pick them up (and then drop them off) for the next trip, but they're still driving baby
     case Event(
-        TriggerWithId(BoardVehicleTrigger(tick, vehicleId, vehicleTypeId), triggerId),
+        TriggerWithId(BoardVehicleTrigger(tick, vehicleId), triggerId),
         data @ LiterallyDrivingData(_, _)
         ) =>
       val currentLeg = data.passengerSchedule.schedule.keys.view
@@ -686,10 +680,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         .getOrElse(throw new RuntimeException("Current Leg is not available."))
       stay() replying CompletionNotice(
         triggerId,
-        Vector(ScheduleTrigger(BoardVehicleTrigger(Math.max(currentLeg.endTime, tick), vehicleId, vehicleTypeId), self))
+        Vector(ScheduleTrigger(BoardVehicleTrigger(Math.max(currentLeg.endTime, tick), vehicleId), self))
       )
     case Event(
-        TriggerWithId(AlightVehicleTrigger(tick, vehicleId, vehicleTypeId, _), triggerId),
+        TriggerWithId(AlightVehicleTrigger(tick, vehicleId, _), triggerId),
         data @ LiterallyDrivingData(_, _)
         ) =>
       val currentLeg = data.passengerSchedule.schedule.keys.view
@@ -699,7 +693,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       stay() replying CompletionNotice(
         triggerId,
         Vector(
-          ScheduleTrigger(AlightVehicleTrigger(Math.max(currentLeg.endTime + 1, tick), vehicleId, vehicleTypeId), self)
+          ScheduleTrigger(AlightVehicleTrigger(Math.max(currentLeg.endTime + 1, tick), vehicleId), self)
         )
       )
   }

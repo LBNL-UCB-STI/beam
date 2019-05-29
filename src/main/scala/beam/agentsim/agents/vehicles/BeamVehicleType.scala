@@ -1,17 +1,9 @@
 package beam.agentsim.agents.vehicles
 
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType._
-import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car, MediumDutyPassenger, VehicleCategory}
+import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import org.matsim.api.core.v01.Id
-import org.matsim.vehicles.Vehicle
 
-/**
-  * Enumerates the names of recognized [[BeamVehicle]]s.
-  * Useful for storing canonical naming conventions.
-  *
-  * @author saf
-  */
 case class BeamVehicleType(
   id: Id[BeamVehicleType],
   seatingCapacity: Int,
@@ -39,19 +31,6 @@ case class BeamVehicleType(
   def isCaccEnabled: Boolean = {
     automationLevel >= 3
   }
-}
-
-object BeamVehicleType {
-
-  // Consumption rate: https://www.brianmac.co.uk/energyexp.htm
-  // 400 calories/hour == 400k J/hr @ 7km/hr or 2m/s == 55 J/m
-  // Alternative: https://www.verywellfit.com/walking-calories-burned-by-miles-3887154
-  // 85 calories / mile == 85k J/mi or 53 J/m
-  // Assume walking a marathon is max per day
-  object defaultHumanBodyBeamVehicleType {
-    val id = Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType])
-  }
-
 }
 
 object FuelType {

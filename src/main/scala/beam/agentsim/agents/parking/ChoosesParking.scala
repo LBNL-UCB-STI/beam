@@ -178,7 +178,7 @@ trait ChoosesParking extends {
           EmbodiedBeamLeg(
             nextLeg,
             data.currentVehicle.head,
-            BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+            bodyType.id,
             true,
             0.0,
             true
