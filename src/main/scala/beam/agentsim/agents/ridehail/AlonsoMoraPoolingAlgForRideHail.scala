@@ -272,7 +272,8 @@ object AlonsoMoraPoolingAlgForRideHail {
     vid: String,
     dst: Location,
     dstTime: Int,
-    geofence: Option[Geofence] = None
+    geofence: Option[Geofence] = None,
+    seatsAvailable: Int
   ): VehicleAndSchedule = {
     val v1 = new BeamVehicle(
       Id.create(vid, classOf[BeamVehicle]),
@@ -294,7 +295,8 @@ object AlonsoMoraPoolingAlgForRideHail {
           dstTime
         )
       ),
-      geofence
+      geofence,
+      seatsAvailable
     )
 
   }
@@ -311,12 +313,11 @@ object AlonsoMoraPoolingAlgForRideHail {
     override def getId: String = person.personId.toString
   }
   // Ride Hail vehicles, capacity and their predefined schedule
-  case class VehicleAndSchedule(vehicle: BeamVehicle, schedule: List[MobilityRequest], geofence: Option[Geofence])
+  case class VehicleAndSchedule(vehicle: BeamVehicle, schedule: List[MobilityRequest], geofence: Option[Geofence], seatsAvailable: Int)
       extends RVGraphNode {
     private val nbOfPassengers: Int = schedule.count(_.tag == Dropoff)
     override def getId: String = vehicle.id.toString
-    private val maxOccupancy: Int = vehicle.beamVehicleType.seatingCapacity
-    def getFreeSeats: Int = maxOccupancy - nbOfPassengers
+    def getFreeSeats: Int = seatsAvailable - nbOfPassengers
     def getLastDropoff: MobilityRequest = schedule.head
   }
   // Trip that can be satisfied by one or more ride hail vehicle

@@ -524,7 +524,7 @@ class RideHailManager(
 
       val beamVehicle = resources(agentsim.vehicleId2BeamVehicleId(vehicleId))
       val rideHailAgentLocation =
-        RideHailAgentLocation(beamVehicle.driver.get, vehicleId, beamVehicle.beamVehicleType.id, whenWhere, geofence)
+        RideHailAgentLocation(beamVehicle.driver.get, vehicleId, beamVehicle.beamVehicleType.id, whenWhere, geofence, beamVehicle.beamVehicleType.seatingCapacity)
       vehicleManager.vehicleState.put(vehicleId, beamVehicleState)
 
       if (modifyPassengerScheduleManager
@@ -1025,8 +1025,10 @@ class RideHailManager(
       request.pickUpLocationUTM
     )
 
-    // This makes the vehicle unavailable for others to reserve
-    vehicleManager.putIntoService(travelProposal.rideHailAgentLocation)
+    // Track remaining seats available
+    val numSeatsAvailable = if(request.asPooled){travelProposal.rideHailAgentLocation.seatsAvailable - 1}else{0}
+    assert(numSeatsAvailable>=0)
+    vehicleManager.putIntoService(travelProposal.rideHailAgentLocation.copy(seatsAvailable = numSeatsAvailable))
 
     // Create confirmation info but stash until we receive ModifyPassengerScheduleAck
     pendingModifyPassengerScheduleAcks.put(
@@ -1172,7 +1174,8 @@ class RideHailManager(
       rideHailBeamVehicle.id,
       ridehailBeamVehicleTypeId,
       SpaceTime(rideInitialLocation, 0),
-      geofence
+      geofence,
+      rideHailBeamVehicle.beamVehicleType.seatingCapacity
     )
     // Put the agent out of service and let the agent tell us when it's Idle (aka ready for service)
     vehicleManager.putOutOfService(agentLocation)

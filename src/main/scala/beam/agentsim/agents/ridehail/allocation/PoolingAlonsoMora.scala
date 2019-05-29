@@ -135,14 +135,15 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         rhr => createPersonRequest(rhr.customer, rhr.pickUpLocationUTM, tick, rhr.destinationUTM)
       )
       val customerIdToReqs = toAllocate.map(rhr => rhr.customer.personId -> rhr).toMap
-      val availVehicles = rideHailManager.vehicleManager.availableRideHailVehicles.values
+      val availVehicles = rideHailManager.vehicleManager.getIdleAndInServiceVehicles.values
         .map(
           veh =>
             createVehicleAndSchedule(
               veh.vehicleId.toString,
               veh.currentLocationUTM.loc,
               tick,
-              veh.geofence
+              veh.geofence,
+              veh.seatsAvailable
           )
         )
 
