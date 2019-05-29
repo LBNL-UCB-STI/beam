@@ -48,21 +48,9 @@ object BeamVehicleType {
   // Alternative: https://www.verywellfit.com/walking-calories-burned-by-miles-3887154
   // 85 calories / mile == 85k J/mi or 53 J/m
   // Assume walking a marathon is max per day
-  val defaultHumanBodyBeamVehicleType: BeamVehicleType =
-    BeamVehicleType(
-      Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
-      0,
-      0,
-      0.5,
-      Food,
-      53,
-      2.21e6,
-      vehicleCategory = Body
-    )
-
-  val powerTrainForHumanBody: Powertrain = new Powertrain(
-    BeamVehicleType.defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter
-  )
+  object defaultHumanBodyBeamVehicleType {
+    val id = Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType])
+  }
 
   // Transit default based on Diesel Bus
   val defaultTransitBeamVehicleType: BeamVehicleType =

@@ -23,11 +23,10 @@ import beam.router.model.RoutingModel.LinksTimesDistances
 import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
-import beam.sim.{BeamScenario, BeamServices}
-import beam.sim.BeamServices.FuelTypePrices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.{Metrics, MetricsSupport}
+import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile}
 import beam.utils._
 import com.conveyal.r5.analyst.fare.SimpleInRoutingFareCalculator
@@ -188,6 +187,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   private var travelTime: TravelTime = new FreeFlowTravelTime
 
   private var transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])] = transitMap
+
+  val bodyType = vehicleTypes(Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]))
 
   private val cache = CacheBuilder
     .newBuilder()
@@ -528,7 +529,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           val directMode = LegMode.WALK
           val accessMode = LegMode.WALK
           val egressMode = LegMode.WALK
-          val vehicleType = BeamVehicleType.defaultHumanBodyBeamVehicleType
           val profileResponse =
             latency("walkToVehicleRoute-router-time", Metrics.RegularLevel) {
               cache.get(
@@ -541,7 +541,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   withTransit = false,
                   egressMode,
                   request.timeValueOfMoney,
-                  vehicleType.id
+                  bodyType.id
                 )
               )
             }
@@ -549,7 +549,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             Some(R5RoutingWorker.createBushwackingBeamLeg(request.departureTime, from, to, geo))
           } else {
             val streetSegment = profileResponse.options.get(0).access.get(0)
-            val theTravelPath = buildStreetPath(streetSegment, request.departureTime, StreetMode.WALK, vehicleType)
+            val theTravelPath = buildStreetPath(streetSegment, request.departureTime, StreetMode.WALK, bodyType)
             Some(
               BeamLeg(
                 request.departureTime,
@@ -1091,7 +1091,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   transitSegment.middle,
                   arrivalTime,
                   toR5StreetMode(transitSegment.middle.mode),
-                  BeamVehicleType.defaultHumanBodyBeamVehicleType
+                  bodyType
                 )
               ),
               0.0
