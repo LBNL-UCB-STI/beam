@@ -14,7 +14,7 @@ import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, WALK}
 import beam.router.model.BeamLeg
-import beam.sim.BeamServices
+import beam.sim.{BeamServices, Geofence}
 import beam.sim.common.GeoUtils
 import beam.sim.common.GeoUtils.{Straight, TurningDirection}
 import beam.utils.NetworkHelper

@@ -35,12 +35,14 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    * rational choices about mode that reflect the true travel time cost of pooling.
    */
   def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
-    rideHailManager.vehicleManager.getClosestIdleRideHailAgent(
+    rideHailManager.vehicleManager.getClosestIdleVehiclesWithinRadiusByETA(
       inquiry.pickUpLocationUTM,
-      rideHailManager.radiusInMeters
+      inquiry.destinationUTM,
+      rideHailManager.radiusInMeters,
+      inquiry.departAt
     ) match {
-      case Some(agentLocation) =>
-        SingleOccupantQuoteAndPoolingInfo(agentLocation, None)
+      case Some(agentETA) =>
+        SingleOccupantQuoteAndPoolingInfo(agentETA.agentLocation, None)
       case None =>
         NoVehiclesAvailable
     }
@@ -124,6 +126,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
         rideHailManager.vehicleManager
           .getClosestIdleVehiclesWithinRadiusByETA(
             request.pickUpLocationUTM,
+            request.destinationUTM,
             rideHailManager.radiusInMeters,
             tick
           ) match {
@@ -147,6 +150,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
         rideHailManager.vehicleManager
           .getClosestIdleVehiclesWithinRadiusByETA(
             request.pickUpLocationUTM,
+            request.destinationUTM,
             rideHailManager.radiusInMeters,
             tick,
             excludeRideHailVehicles = alreadyAllocated
