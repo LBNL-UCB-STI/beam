@@ -221,7 +221,7 @@ class PersonAgent(
     with ChoosesParking
     with Stash {
 
-  val bodyType = beamScenario.vehicleTypes(Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]))
+  val bodyType = beamScenario.vehicleTypes(Id.create(beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType]))
   val body = new BeamVehicle(
     BeamVehicle.createId(id, Some("body")),
     new Powertrain(bodyType.primaryFuelConsumptionInJoulePerMeter),
