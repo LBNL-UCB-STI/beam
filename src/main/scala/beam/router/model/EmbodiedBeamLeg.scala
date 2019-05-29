@@ -27,8 +27,8 @@ object EmbodiedBeamLeg {
     vehicleId: Id[Vehicle],
     isLastLeg: Boolean,
     location: Location,
-    mode: BeamMode = WALK,
-    vehicleTypeId: Id[BeamVehicleType] = BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+    mode: BeamMode,
+    vehicleTypeId: Id[BeamVehicleType],
     asDriver: Boolean = true
   ): EmbodiedBeamLeg = {
     EmbodiedBeamLeg(

@@ -7,7 +7,7 @@ import beam.agentsim.infrastructure.TAZTreeMap
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.CAR
+import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -76,13 +76,16 @@ class TravelTimeObserved @Inject()(
         carLeg.beamLeg.startTime,
         Id.createVehicleId(""),
         isLastLeg = false,
-        carLeg.beamLeg.travelPath.startPoint.loc
+        carLeg.beamLeg.travelPath.startPoint.loc,
+        WALK, dummyId
       )
+
       val dummyTail = EmbodiedBeamLeg.dummyLegAt(
         carLeg.beamLeg.endTime,
         Id.createVehicleId(""),
         isLastLeg = true,
-        carLeg.beamLeg.travelPath.endPoint.loc
+        carLeg.beamLeg.travelPath.endPoint.loc,
+        WALK, dummyId
       )
       // In case of `CAV` we have to override its mode to `CAR`
       val fixedCarLeg = if (carLeg.beamLeg.mode == BeamMode.CAV) {

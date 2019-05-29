@@ -188,12 +188,12 @@ object PersonAgent {
 
   def bodyVehicleIdFromPersonID(id: Id[Person]) = BeamVehicle.createId(id, Some("body"))
 
-  def correctTripEndTime(trip: EmbodiedBeamTrip, endTime: Int, bodyVehicleId: Id[BeamVehicle]) = {
+  def correctTripEndTime(trip: EmbodiedBeamTrip, endTime: Int, bodyVehicleId: Id[BeamVehicle], bodyVehicleTypeId: Id[BeamVehicleType]) = {
     if (trip.tripClassifier != WALK && trip.tripClassifier != WALK_TRANSIT) {
       trip.copy(
         legs = trip.legs
           .dropRight(1) :+ EmbodiedBeamLeg
-          .dummyLegAt(endTime, bodyVehicleId, true, trip.legs.dropRight(1).last.beamLeg.travelPath.endPoint.loc)
+          .dummyLegAt(endTime, bodyVehicleId, true, trip.legs.dropRight(1).last.beamLeg.travelPath.endPoint.loc, WALK, bodyVehicleTypeId)
       )
     } else {
       trip
@@ -769,7 +769,7 @@ class PersonAgent(
                 0.0 // the cost as paid by person has already been accounted for, this event is just about the incentive
               )
             )
-          val correctedTrip = correctTripEndTime(data.currentTrip.get, tick, bodyVehiclePersonId.vehicleId)
+          val correctedTrip = correctTripEndTime(data.currentTrip.get, tick, body.id, bodyType.id)
           val generalizedTime =
             modeChoiceCalculator.getGeneralizedTimeOfTrip(correctedTrip, Some(attributes), nextActivity(data))
           val generalizedCost = modeChoiceCalculator.getNonTimeCost(correctedTrip) + attributes

@@ -20,7 +20,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter._
 import beam.router.Modes
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode._
+import beam.router.Modes.BeamMode.{WALK, _}
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.R5RoutingWorker
 import beam.sim.population.AttributesOfIndividual
@@ -683,7 +683,7 @@ trait ChoosesMode {
             leg.copy(
               leg.beamLeg
                 .updateStartTime(startTimeAdjustment - startTimeBufferForWaiting.intValue())
-          )
+            )
         ) ++ driveTransitTrip.legs.tail
         val fullTrip = if (rideHail2TransitEgressResult.error.isEmpty) {
           accessAndTransit.dropRight(2) ++ rideHail2TransitEgressResult.travelProposal.get
@@ -693,15 +693,9 @@ trait ChoosesMode {
         }
         Some(
           EmbodiedBeamTrip(
-            EmbodiedBeamLeg.dummyLegAt(
-              fullTrip.head.beamLeg.startTime,
-              body.id,
-              false,
-              fullTrip.head.beamLeg.travelPath.startPoint.loc
-            ) +:
-            fullTrip :+
-            EmbodiedBeamLeg
-              .dummyLegAt(fullTrip.last.beamLeg.endTime, body.id, true, fullTrip.last.beamLeg.travelPath.endPoint.loc)
+            EmbodiedBeamLeg.dummyLegAt(fullTrip.head.beamLeg.startTime, body.id, false, fullTrip.head.beamLeg.travelPath.startPoint.loc, WALK, bodyType.id) +:
+              fullTrip :+
+              EmbodiedBeamLeg.dummyLegAt(fullTrip.last.beamLeg.endTime, body.id, true, fullTrip.last.beamLeg.travelPath.endPoint.loc, WALK, bodyType.id)
           )
         )
       }
@@ -831,14 +825,18 @@ trait ChoosesMode {
                 partialItin.head.beamLeg.startTime,
                 body.id,
                 false,
-                partialItin.head.beamLeg.travelPath.startPoint.loc
+                partialItin.head.beamLeg.travelPath.startPoint.loc,
+                WALK,
+                bodyType.id
               ) +:
               partialItin :+
               EmbodiedBeamLeg.dummyLegAt(
                 partialItin.last.beamLeg.endTime,
                 body.id,
                 true,
-                partialItin.last.beamLeg.travelPath.endPoint.loc
+                partialItin.last.beamLeg.travelPath.endPoint.loc,
+                WALK,
+                bodyType.id
               ))
             )
           }
@@ -906,7 +904,9 @@ trait ChoosesMode {
                   beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc)
                 } else {
                   cavTripLegs.legs.head.beamLeg.travelPath.startPoint.loc
-                }
+                },
+                WALK,
+                bodyType.id
               )
               val cavLegs = cavTripLegs.legs.size match {
                 case 0 =>
@@ -935,7 +935,8 @@ trait ChoosesMode {
                     beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc)
                   } else {
                     cavTripLegs.legs.last.beamLeg.travelPath.endPoint.loc
-                  }
+                  }, WALK,
+                  bodyType.id
                 )
               val cavTrip = EmbodiedBeamTrip(walk1 +: cavLegs.toVector :+ walk2)
               goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(cavTrip))
