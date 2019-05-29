@@ -153,7 +153,7 @@ class FastHouseholdCAVScheduling(
           curReq.activity.getCoord,
           prevReq.time,
           BeamMode.CAR,
-          BeamVehicleType.defaultCarBeamVehicleType.id
+          cav.beamVehicleType.id
         )
         var serviceTime = prevReq.serviceTime + metric.time
         val ubTime = curReq.time + timeWindow(curReq.tag)

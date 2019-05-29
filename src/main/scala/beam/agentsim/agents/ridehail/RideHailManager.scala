@@ -410,7 +410,7 @@ class RideHailManager(
       new RideHailFleetInitializer().init(beamServices) foreach { fleetData =>
         createRideHailVehicleAndAgent(
           fleetData.id.split("-").toList.tail.mkString("-"),
-          BeamVehicleType.defaultCarBeamVehicleType,
+          beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType])),
           new Coord(fleetData.initialLocationX, fleetData.initialLocationY),
           fleetData.shifts,
           fleetData.toGeofence

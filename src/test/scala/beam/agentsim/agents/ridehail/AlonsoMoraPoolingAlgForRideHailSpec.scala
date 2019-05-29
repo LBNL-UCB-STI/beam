@@ -6,13 +6,13 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail.{CustomerRequest, RVGraph, VehicleAndSchedule, _}
-import beam.agentsim.agents.vehicles.VehiclePersonId
+import beam.agentsim.agents.vehicles.{BeamVehicleType, VehiclePersonId}
 import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamSkimmer
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
-import beam.sim.{BeamHelper, BeamServices}
+import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import com.vividsolutions.jts.geom.Envelope
@@ -52,7 +52,7 @@ class AlonsoMoraPoolingAlgForRideHailSpec
   private implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val mockActorRef: ActorRef = probe.ref
   private lazy val beamConfig = BeamConfig(system.settings.config)
-  private lazy val beamScenario = loadScenario(beamConfig)
+  private implicit lazy val beamScenario: BeamScenario = loadScenario(beamConfig)
   val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
 
   describe("AlonsoMoraPoolingAlgForRideHail") {
@@ -168,11 +168,13 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
 
   def scenario1(
     implicit skimmer: BeamSkimmer,
+    beamScenario: BeamScenario,
     mockActorRef: ActorRef
   ): (List[VehicleAndSchedule], List[CustomerRequest]) = {
     import scala.concurrent.duration._
-    val v1: VehicleAndSchedule = createVehicleAndSchedule("v1", new Coord(5000, 5000), 8.hours.toSeconds.toInt)
-    val v2: VehicleAndSchedule = createVehicleAndSchedule("v2", new Coord(2000, 2000), 8.hours.toSeconds.toInt)
+    val vehicleType = beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
+    val v1: VehicleAndSchedule = createVehicleAndSchedule("v1", vehicleType, new Coord(5000, 5000), 8.hours.toSeconds.toInt)
+    val v2: VehicleAndSchedule = createVehicleAndSchedule("v2", vehicleType, new Coord(2000, 2000), 8.hours.toSeconds.toInt)
     val p1Req: CustomerRequest =
       createPersonRequest(
         makeVehPersonId("p1"),

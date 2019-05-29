@@ -7,15 +7,16 @@ import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail.{CustomerRequest, RVGraph, VehicleAndSchedule, _}
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamSkimmer
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.{BeamHelper, BeamServices}
+import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households.HouseholdsFactoryImpl
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
@@ -54,7 +55,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
   private val matsimConfig = configBuilder.buildMatSimConf()
   val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
-  val beamScenario = loadScenario(beamConfig)
+  implicit val beamScenario: BeamScenario = loadScenario(beamConfig)
   val geo = new GeoUtilsImpl(beamConfig)
 
   describe("AsyncAlonsoMoraAlgForRideHailSpec") {
@@ -120,6 +121,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
           fleet.append(
             createVehicleAndSchedule(
               "v" + j,
+              beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType])),
               new Coord(minx + rnd.nextDouble() * (maxx - minx), miny + rnd.nextDouble() * (maxy - miny)),
               i
             )

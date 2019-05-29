@@ -38,7 +38,7 @@ case class AttributesOfIndividual(
     modeChoiceModel: ModeChoiceMultinomialLogit,
     beamServices: BeamServices,
     beamScenario: BeamScenario,
-    beamVehicleTypeId: Option[Id[BeamVehicleType]] = None,
+    beamVehicleTypeId: Id[BeamVehicleType],
     destinationActivity: Option[Activity] = None,
     isRideHail: Boolean = false,
     isPooledTrip: Boolean = false
@@ -96,7 +96,7 @@ case class AttributesOfIndividual(
             modeChoiceModel,
             beamServices,
             beamScenario,
-            Option(embodiedBeamLeg.beamVehicleTypeId),
+            embodiedBeamLeg.beamVehicleTypeId,
             destinationActivity,
             embodiedBeamLeg.isRideHail,
             embodiedBeamLeg.isPooledTrip
@@ -113,23 +113,13 @@ case class AttributesOfIndividual(
   }
 
   private def getAutomationLevel(
-    beamVehicleTypeId: Option[Id[BeamVehicleType]],
+    beamVehicleTypeId: Id[BeamVehicleType],
     beamServices: BeamServices,
     beamScenario: BeamScenario,
   ): automationLevel = {
-    val automationInt = beamVehicleTypeId match {
-      case Some(beamVehicleTypeId) =>
-        // Use default if it exists, otherwise look up from vehicle ID
-        beamServices
+    val automationInt = beamServices
           .getDefaultAutomationLevel()
-          .getOrElse(
-            beamScenario.vehicleTypes
-              .getOrElse(beamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
-              .automationLevel
-          )
-      case None =>
-        1
-    }
+          .getOrElse(beamScenario.vehicleTypes(beamVehicleTypeId).automationLevel)
     automationInt match {
       case 1 => levelLE2
       case 2 => levelLE2

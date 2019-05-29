@@ -6,12 +6,11 @@ import java.util.Collections
 import beam.agentsim.agents.Population
 import beam.agentsim.agents.choice.mode.TransitFareDefaults
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.FuelType.Gasoline
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BUS, CAR, DRIVE_TRANSIT, FERRY, RAIL, RIDE_HAIL, SUBWAY, WALK, WALK_TRANSIT}
-import beam.sim.{BeamScenario, BeamServices}
-import beam.sim.BeamServices.FuelTypePrices
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes, PopulationAdjustment}
+import beam.sim.{BeamScenario, BeamServices}
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.MersenneTwister
 import org.apache.commons.math3.util.Pair
@@ -107,7 +106,8 @@ class ChangeModeForTour(
   def distanceScaling(beamMode: BeamMode, distance: Double): Double = {
     beamMode match {
       case BeamMode.CAR =>
-        beamScenario.fuelTypePrices(BeamVehicleType.defaultCarBeamVehicleType.primaryFuelType) * distance
+        //FIXME: Use fuel type of vehicle
+        beamScenario.fuelTypePrices(Gasoline) * distance
       case WALK => distance * 6 // MATSim Default
       case RIDE_HAIL =>
         distance * DefaultRideHailCostPerMile.toDouble * (1 / 1609.34) // 1 mile = 1609.34

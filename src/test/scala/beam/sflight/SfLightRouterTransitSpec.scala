@@ -43,7 +43,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            Id.create("Car", classOf[BeamVehicleType]),
             new SpaceTime(origin, time),
             WALK,
             asDriver = true
@@ -79,14 +79,14 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
                 Vector(
                   StreetVehicle(
                     Id.createVehicleId("116378-2"),
-                    BeamVehicleType.defaultCarBeamVehicleType.id,
+                    Id.create("Car", classOf[BeamVehicleType]),
                     new SpaceTime(origin, 0),
                     CAR,
                     asDriver = true
                   ),
                   StreetVehicle(
                     Id.createVehicleId("body-116378-2"),
-                    BeamVehicleType.defaultCarBeamVehicleType.id,
+                    Id.create("Car", classOf[BeamVehicleType]),
                     new SpaceTime(new Coord(origin.getX, origin.getY), time),
                     WALK,
                     asDriver = true
@@ -120,7 +120,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            Id.create("Car", classOf[BeamVehicleType]),
             new SpaceTime(origin, time),
             WALK,
             asDriver = true
@@ -146,7 +146,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            Id.create("Car", classOf[BeamVehicleType]),
             new SpaceTime(origin, time),
             WALK,
             asDriver = true

@@ -170,7 +170,7 @@ class BeamScoringFunctionFactory @Inject()(
                     modeChoiceMultinomialLogit,
                     beamServices,
                     beamScenario,
-                    Option(leg.beamVehicleTypeId),
+                    leg.beamVehicleTypeId,
                     destinationActivity,
                     leg.isRideHail,
                     leg.isPooledTrip

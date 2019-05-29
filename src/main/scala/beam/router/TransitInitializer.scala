@@ -223,7 +223,7 @@ class TransitInitializer(
       //There has to be a default one defined
       vehicleTypes.getOrElse(
         Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[BeamVehicleType]),
-        BeamVehicleType.defaultTransitBeamVehicleType
+        vehicleTypes(BeamVehicleType.defaultTransitBeamVehicleType.id)
       )
     }
   }

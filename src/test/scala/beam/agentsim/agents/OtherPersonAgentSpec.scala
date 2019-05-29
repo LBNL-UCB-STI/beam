@@ -85,8 +85,7 @@ class OtherPersonAgentSpec
 
   lazy val dummyAgentId: Id[Person] = Id.createPersonId("dummyAgent")
 
-  val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] =
-    TrieMap[Id[BeamVehicle], BeamVehicle]()
+  val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap[Id[BeamVehicle], BeamVehicle]()
 
   lazy val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
@@ -166,12 +165,12 @@ class OtherPersonAgentSpec
       val bus = new BeamVehicle(
         beamVehicleId,
         new Powertrain(0.0),
-        BeamVehicleType.defaultCarBeamVehicleType
+        beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
       )
       val tram = new BeamVehicle(
         Id.createVehicleId("my_tram"),
         new Powertrain(0.0),
-        BeamVehicleType.defaultCarBeamVehicleType
+        beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
       )
 
       vehicles.put(bus.id, bus)
@@ -192,7 +191,7 @@ class OtherPersonAgentSpec
           )
         ),
         Id.createVehicleId("my_bus"),
-        BeamVehicleType.defaultCarBeamVehicleType.id,
+        Id.create("Car", classOf[BeamVehicleType]),
         asDriver = false,
         0,
         unbecomeDriverOnCompletion = false
@@ -212,7 +211,7 @@ class OtherPersonAgentSpec
           )
         ),
         Id.createVehicleId("my_bus"),
-        BeamVehicleType.defaultCarBeamVehicleType.id,
+        Id.create("Car", classOf[BeamVehicleType]),
         asDriver = false,
         0,
         unbecomeDriverOnCompletion = false
@@ -232,7 +231,7 @@ class OtherPersonAgentSpec
           )
         ),
         Id.createVehicleId("my_tram"),
-        BeamVehicleType.defaultCarBeamVehicleType.id,
+        Id.create("Car", classOf[BeamVehicleType]),
         asDriver = false,
         0,
         unbecomeDriverOnCompletion = false
@@ -252,7 +251,7 @@ class OtherPersonAgentSpec
           )
         ),
         Id.createVehicleId("my_tram"),
-        BeamVehicleType.defaultCarBeamVehicleType.id,
+        Id.create("Car", classOf[BeamVehicleType]),
         asDriver = false,
         0,
         unbecomeDriverOnCompletion = false

@@ -53,29 +53,9 @@ object BeamVehicleType {
   }
 
   // Transit default based on Diesel Bus
-  val defaultTransitBeamVehicleType: BeamVehicleType =
-    BeamVehicleType(
-      Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
-      50,
-      50,
-      10,
-      Diesel,
-      25829.7,
-      30000000000.0,
-      vehicleCategory = MediumDutyPassenger
-    )
-
-  val defaultCarBeamVehicleType: BeamVehicleType = BeamVehicleType(
-    Id.create("Car", classOf[BeamVehicleType]),
-    4,
-    0,
-    4.5,
-    Gasoline,
-    3656.0,
-    3655980000.0,
-    vehicleCategory = Car,
-    automationLevel = 1
-  )
+  object defaultTransitBeamVehicleType {
+    val id = Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType])
+  }
 }
 
 object FuelType {

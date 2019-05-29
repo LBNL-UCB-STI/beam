@@ -3,11 +3,6 @@ package beam.utils.plan.sampling
 import java.util
 
 import beam.router.Modes.BeamMode.CAR
-import beam.sim.population.PopulationAdjustment
-import beam.sim.population.PopulationAdjustment.BEAM_ATTRIBUTES
-import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.router.Modes.BeamMode.{CAR, DRIVE_TRANSIT}
-import beam.utils.BeamVehicleUtils
 import beam.utils.matsim_conversion.MatsimConversionTool
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PopulationAttrib.Rank
@@ -43,9 +38,9 @@ import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 
 import scala.collection.JavaConverters._
-import scala.collection.{immutable, mutable, JavaConverters}
-import scala.util.{Random, Try}
+import scala.collection.{JavaConverters, immutable, mutable}
 import scala.util.control.Breaks._
+import scala.util.{Random, Try}
 
 case class SynthHousehold(
   householdId: Id[Household],
@@ -503,8 +498,7 @@ object PlansSampler {
 
   def run(): Unit = {
 
-    val carVehicleType =
-      MatsimConversionTool.beamVehicleTypeToMatsimVehicleType(BeamVehicleType.defaultCarBeamVehicleType)
+    val carVehicleType = MatsimConversionTool.beamVehicleTypeToMatsimVehicleType(null)
 
     newVehicles.addVehicleType(carVehicleType)
 

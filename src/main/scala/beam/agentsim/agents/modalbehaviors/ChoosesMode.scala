@@ -43,7 +43,7 @@ trait ChoosesMode {
   val dummyRHVehicle =
     StreetVehicle(
       Id.create("dummyRH", classOf[Vehicle]),
-      BeamVehicleType.defaultCarBeamVehicleType.id,
+      Id.create("Car", classOf[BeamVehicleType]),
       SpaceTime(0.0, 0.0, 0),
       CAR,
       asDriver = false
@@ -919,7 +919,7 @@ trait ChoosesMode {
                       CAV,
                       cavTripLegs.cavOpt
                         .map(_.beamVehicleType.id)
-                        .getOrElse(BeamVehicleType.defaultCarBeamVehicleType.id),
+                        .getOrElse(Id.create("Car", classOf[BeamVehicleType])),
                       false
                     )
                   )

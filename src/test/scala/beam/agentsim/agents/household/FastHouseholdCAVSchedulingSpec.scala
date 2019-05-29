@@ -88,7 +88,7 @@ class FastHouseholdCAVSchedulingSpec
         new BeamVehicle(
           Id.createVehicleId("id2"),
           new Powertrain(0.0),
-          BeamVehicleType.defaultCarBeamVehicleType
+          beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
         )
       )
       val (pop: Population, household) = FastHouseholdCAVSchedulingSpec.scenario2(cavs)
