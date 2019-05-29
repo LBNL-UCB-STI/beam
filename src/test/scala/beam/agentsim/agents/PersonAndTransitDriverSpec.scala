@@ -25,7 +25,7 @@ import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
-import beam.sim.BeamServices
+import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
@@ -53,7 +53,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 
 class PersonAndTransitDriverSpec
     extends TestKit(
@@ -73,10 +73,12 @@ class PersonAndTransitDriverSpec
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
+    with BeamHelper
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   private lazy val beamConfig = BeamConfig(system.settings.config)
+  private lazy val beamScenario = loadScenario(beamConfig)
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
@@ -102,7 +104,6 @@ class PersonAndTransitDriverSpec
     when(theServices.beamConfig).thenReturn(beamConfig)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
-    when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
 
     var map = TrieMap[Id[Vehicle], (String, String)]()
     map += (Id.createVehicleId("my_bus")  -> ("", ""))
@@ -273,6 +274,7 @@ class PersonAndTransitDriverSpec
         new TransitDriverAgent(
           scheduler = scheduler,
           beamServices = beamSvc,
+          beamScenario,
           transportNetwork = networkCoordinator.transportNetwork,
           tollCalculator = tollCalculator,
           eventsManager = eventsManager,
@@ -286,6 +288,7 @@ class PersonAndTransitDriverSpec
         new TransitDriverAgent(
           scheduler = scheduler,
           beamServices = beamSvc,
+          beamScenario,
           transportNetwork = networkCoordinator.transportNetwork,
           tollCalculator = tollCalculator,
           eventsManager = eventsManager,
@@ -341,6 +344,7 @@ class PersonAndTransitDriverSpec
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
           beamServices = beamSvc,
+          beamScenario,
           modeChoiceCalculatorFactory = _ => modeChoiceCalculator,
           schedulerRef = scheduler,
           transportNetwork = networkCoordinator.transportNetwork,

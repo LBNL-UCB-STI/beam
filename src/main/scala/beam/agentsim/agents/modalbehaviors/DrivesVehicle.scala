@@ -20,15 +20,10 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{TRANSIT, WALK}
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
-import beam.sim.HasServices
+import beam.sim.{BeamScenario, HasServices}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{
-  LinkEnterEvent,
-  LinkLeaveEvent,
-  VehicleEntersTrafficEvent,
-  VehicleLeavesTrafficEvent
-}
+import org.matsim.api.core.v01.events.{LinkEnterEvent, LinkLeaveEvent, VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
@@ -103,6 +98,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
   protected val transportNetwork: TransportNetwork
   protected val parkingManager: ActorRef
   protected val tollCalculator: TollCalculator
+  protected val beamScenario: BeamScenario
   private var tollsAccumulated = 0.0
   protected val beamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
   protected def currentBeamVehicle = beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
@@ -164,7 +160,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       val currentVehicleUnderControl = data.currentVehicle.headOption
         .getOrElse(throw new RuntimeException("Current Vehicle is not available."))
       val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
-      val fuelConsumed = currentBeamVehicle.useFuel(currentLeg, beamServices)
+      val fuelConsumed = currentBeamVehicle.useFuel(currentLeg, beamScenario, beamServices.networkHelper)
 
       var nbPassengers = data.passengerSchedule.schedule(currentLeg).riders.size
       if (nbPassengers > 0) {
@@ -371,7 +367,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           transportNetwork
         )
 
-      val fuelConsumed = currentBeamVehicle.useFuel(updatedBeamLeg, beamServices)
+      val fuelConsumed = currentBeamVehicle.useFuel(updatedBeamLeg, beamScenario, beamServices.networkHelper)
 
       nextNotifyVehicleResourceIdle = Some(
         NotifyVehicleIdle(

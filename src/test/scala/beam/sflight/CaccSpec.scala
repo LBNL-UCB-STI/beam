@@ -1,10 +1,9 @@
 package beam.sflight
 
 import scala.io.Source
-
 import beam.analysis.plots.PersonTravelTimeAnalysis
 import beam.router.r5.DefaultNetworkCoordinator
-import beam.sim.{BeamHelper, BeamServices}
+import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
@@ -53,7 +52,8 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
       }
     )
     val services = injector.getInstance(classOf[BeamServices])
-    DefaultPopulationAdjustment(services).update(scenario)
+    val beamScenario = injector.getInstance(classOf[BeamScenario])
+    DefaultPopulationAdjustment(services, beamScenario).update(scenario)
 
     val controller = services.controler
     controller.run()

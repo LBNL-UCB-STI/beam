@@ -1,17 +1,17 @@
 package beam.sim.population
 
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
-import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
-import org.matsim.api.core.v01.Id
-import org.matsim.households.{Household, IncomeImpl}
-import org.matsim.households.Income.IncomePeriod
-import org.matsim.api.core.v01.population._
-import beam.sim.BeamServices
-import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
 import beam.router.RouteHistory.LinkId
+import beam.router.model.EmbodiedBeamLeg
+import beam.sim.{BeamScenario, BeamServices}
+import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population._
+import org.matsim.households.Income.IncomePeriod
+import org.matsim.households.{Household, IncomeImpl}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -37,6 +37,7 @@ case class AttributesOfIndividual(
     beamMode: BeamMode,
     modeChoiceModel: ModeChoiceMultinomialLogit,
     beamServices: BeamServices,
+    beamScenario: BeamScenario,
     beamVehicleTypeId: Option[Id[BeamVehicleType]] = None,
     destinationActivity: Option[Activity] = None,
     isRideHail: Boolean = false,
@@ -52,7 +53,7 @@ case class AttributesOfIndividual(
 
     val multiplier = beamMode match {
       case CAR =>
-        val vehicleAutomationLevel = getAutomationLevel(beamVehicleTypeId, beamServices)
+        val vehicleAutomationLevel = getAutomationLevel(beamVehicleTypeId, beamServices, beamScenario)
         if (isRideHail) {
           if (isPooledTrip) {
             getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeChoiceModel.modeMultipliers) *
@@ -80,6 +81,7 @@ case class AttributesOfIndividual(
     embodiedBeamLeg: EmbodiedBeamLeg,
     modeChoiceModel: ModeChoiceMultinomialLogit,
     beamServices: BeamServices,
+    beamScenario: BeamScenario,
     destinationActivity: Option[Activity]
   ): Double = {
     //NOTE: This gives answers in hours
@@ -93,6 +95,7 @@ case class AttributesOfIndividual(
             embodiedBeamLeg.beamLeg.mode,
             modeChoiceModel,
             beamServices,
+            beamScenario,
             Option(embodiedBeamLeg.beamVehicleTypeId),
             destinationActivity,
             embodiedBeamLeg.isRideHail,
@@ -111,7 +114,8 @@ case class AttributesOfIndividual(
 
   private def getAutomationLevel(
     beamVehicleTypeId: Option[Id[BeamVehicleType]],
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    beamScenario: BeamScenario,
   ): automationLevel = {
     val automationInt = beamVehicleTypeId match {
       case Some(beamVehicleTypeId) =>
@@ -119,7 +123,7 @@ case class AttributesOfIndividual(
         beamServices
           .getDefaultAutomationLevel()
           .getOrElse(
-            beamServices.vehicleTypes
+            beamScenario.vehicleTypes
               .getOrElse(beamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
               .automationLevel
           )

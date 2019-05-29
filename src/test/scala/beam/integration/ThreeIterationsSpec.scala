@@ -28,6 +28,7 @@ class ThreeIterationsSpec extends FlatSpec with BeamHelper with MockitoSugar {
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     val beamConfig = BeamConfig(config)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+    val beamScenario = loadScenario(beamConfig)
     val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
@@ -49,7 +50,7 @@ class ThreeIterationsSpec extends FlatSpec with BeamHelper with MockitoSugar {
 
     val beamServices = injector.getInstance(classOf[BeamServices])
     val controller = beamServices.controler
-    popAdjustment(beamServices).update(scenario)
+    popAdjustment(beamServices, beamScenario).update(scenario)
 
     controller.run()
 

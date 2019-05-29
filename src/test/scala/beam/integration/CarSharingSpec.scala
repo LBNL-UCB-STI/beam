@@ -67,6 +67,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSimConf()
     val beamConfig = BeamConfig(config)
+    val beamScenario = loadScenario(beamConfig)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
@@ -118,13 +119,13 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
     households.getHouseholds.values.forEach { household =>
       household.getVehicleIds.clear()
     }
-    services.privateVehicles.clear()
+    beamScenario.privateVehicles.clear()
 
-    DefaultPopulationAdjustment(services).update(scenario)
+    DefaultPopulationAdjustment(services, beamScenario).update(scenario)
     val controler = services.controler
     controler.run()
 
-    val sharedCarType = services.vehicleTypes(sharedCarTypeId)
+    val sharedCarType = beamScenario.vehicleTypes(sharedCarTypeId)
     assume(sharedCarType.monetaryCostPerSecond > 0, "I defined a per-time price for my car type.")
     assume(trips != 0, "Something's wildly broken, I am not seeing any trips.")
 

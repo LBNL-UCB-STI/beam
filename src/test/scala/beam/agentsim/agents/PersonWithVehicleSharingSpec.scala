@@ -28,7 +28,7 @@ import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
-import beam.sim.BeamServices
+import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
@@ -74,6 +74,7 @@ class PersonWithVehicleSharingSpec
       )
     )
     with FunSpecLike
+    with BeamHelper
     with BeforeAndAfterAll
     with MockitoSugar
     with ImplicitSender {
@@ -81,6 +82,7 @@ class PersonWithVehicleSharingSpec
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = system.dispatcher
   lazy val beamConfig = BeamConfig(system.settings.config)
+  lazy val beamScenario = loadScenario(beamConfig)
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
@@ -98,7 +100,6 @@ class PersonWithVehicleSharingSpec
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(theServices.networkHelper).thenReturn(networkHelper)
-    when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
 
     theServices
   }
@@ -176,6 +177,7 @@ class PersonWithVehicleSharingSpec
         Props(
           new HouseholdActor(
             beamSvc,
+            beamScenario,
             _ => modeChoiceCalculator,
             scheduler,
             networkCoordinator.transportNetwork,
@@ -319,6 +321,7 @@ class PersonWithVehicleSharingSpec
         Props(
           new HouseholdActor(
             beamSvc,
+            beamScenario,
             _ => modeChoiceCalculator,
             scheduler,
             networkCoordinator.transportNetwork,
@@ -561,6 +564,7 @@ class PersonWithVehicleSharingSpec
       val householdAgent = TestActorRef[HouseholdActor](
         new HouseholdActor(
           beamSvc,
+          beamScenario,
           _ => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,

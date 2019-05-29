@@ -4,7 +4,7 @@ import beam.integration.IntegrationSpecCommon
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
-import beam.sim.{BeamHelper, BeamServices}
+import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import beam.utils.{FileUtils, MatsimServicesMock, NetworkHelper, NetworkHelperImpl}
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
@@ -15,6 +15,7 @@ import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
 trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with BeamHelper with BeforeAndAfterAll {
 
   protected var beamServices: BeamServices = _
+  protected var beamScenario: BeamScenario = _
   protected var eventManager: EventsManager = _
   protected var networkCoordinator: DefaultNetworkCoordinator = _
   protected var scenario: Scenario = _
@@ -22,6 +23,7 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
   override def beforeAll(): Unit = {
 
     val beamConfig = BeamConfig(baseConfig)
+    beamScenario = loadScenario(beamConfig)
     val configBuilder = new MatSimBeamConfigBuilder(baseConfig)
     val matsimConfig = configBuilder.buildMatSimConf()
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
@@ -44,7 +46,7 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
     beamServices = injector.getInstance(classOf[BeamServices])
     beamServices.matsimServices = new MatsimServicesMock(null, scenario)
 
-    val popAdjustment = DefaultPopulationAdjustment(beamServices)
+    val popAdjustment = DefaultPopulationAdjustment(beamServices, injector.getInstance(classOf[BeamScenario]))
     popAdjustment.update(scenario)
 
     eventManager = injector.getInstance(classOf[EventsManager])

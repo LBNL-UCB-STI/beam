@@ -5,7 +5,7 @@ import java.util.Random
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.router.Modes.BeamMode
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.RandomUtils
 import beam.utils.plan.sampling.AvailableModeUtils
@@ -23,6 +23,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class ScenarioLoader(
   var scenario: MutableScenario,
+  val beamScenario: BeamScenario,
   var beamServices: BeamServices,
   val scenarioSource: ScenarioSource
 ) extends LazyLogging {
@@ -84,7 +85,7 @@ class ScenarioLoader(
     scenario.getHouseholds.getHouseholds.clear()
     scenario.getHouseholds.getHouseholdAttributes.clear()
 
-    beamServices.privateVehicles.clear()
+    beamScenario.privateVehicles.clear()
   }
 
   private[utils] def getPersonsWithPlan(
@@ -112,7 +113,7 @@ class ScenarioLoader(
 
     val scaleFactor = beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
 
-    val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamServices)
+    val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamServices, beamScenario)
     val realDistribution: UniformRealDistribution = new UniformRealDistribution()
     realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
@@ -148,7 +149,7 @@ class ScenarioLoader(
           )
           .toBuffer
 
-        beamServices.vehicleTypes.values
+        beamScenario.vehicleTypes.values
           .find(_.vehicleCategory == VehicleCategory.Bike) match {
           case Some(vehType) =>
             vehicleTypes.append(vehType)
@@ -166,7 +167,7 @@ class ScenarioLoader(
           val bvId = Id.create(vehicle.getId, classOf[BeamVehicle])
           val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
           val beamVehicle = new BeamVehicle(bvId, powerTrain, beamVehicleType)
-          beamServices.privateVehicles.put(beamVehicle.id, beamVehicle)
+          beamScenario.privateVehicles.put(beamVehicle.id, beamVehicle)
           vehicleCounter = vehicleCounter + 1
         }
         household.setVehicleIds(vehicleIds)
@@ -239,7 +240,7 @@ class ScenarioLoader(
       // FIXME Search for "householdId" in the code does not show any place where it used
       personAttrib.putAttribute(personId, "rank", personInfo.rank)
       personAttrib.putAttribute(personId, "age", personInfo.age)
-      AvailableModeUtils.setAvailableModesForPerson_v2(beamServices, person, population, availableModes.split(","))
+      AvailableModeUtils.setAvailableModesForPerson_v2(beamServices, beamScenario, person, population, availableModes.split(","))
       population.addPerson(person)
     }
   }

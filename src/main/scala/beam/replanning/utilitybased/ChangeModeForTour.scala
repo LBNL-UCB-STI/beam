@@ -225,7 +225,7 @@ class ChangeModeForTour(
       chainBasedTourVehicleAllocator.householdMemberships(person.getId)
 
     val householdVehicles =
-      Population.getVehiclesFromHousehold(household, beamServices)
+      Population.getVehiclesFromHousehold(household, beamScenario)
 
     val modalityStyle =
       Option(person.getSelectedPlan.getAttributes.getAttribute("modality-style"))

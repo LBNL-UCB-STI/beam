@@ -30,6 +30,7 @@ class LCCMSpec extends FlatSpec with BeamHelper with MockitoSugar {
     matsimConfig.controler().setLastIteration(2)
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     val beamConfig = BeamConfig(config)
+    val beamScenario = loadScenario(beamConfig)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
     val scenario =
       ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
@@ -53,7 +54,7 @@ class LCCMSpec extends FlatSpec with BeamHelper with MockitoSugar {
 
     val beamServices = injector.getInstance(classOf[BeamServices])
     val controller = beamServices.controler
-    popAdjustment(beamServices).update(scenario)
+    popAdjustment(beamServices, beamScenario).update(scenario)
 
     controller.run()
   }

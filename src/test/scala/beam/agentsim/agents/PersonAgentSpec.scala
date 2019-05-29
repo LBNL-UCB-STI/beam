@@ -27,7 +27,7 @@ import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
-import beam.sim.BeamServices
+import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
@@ -71,6 +71,7 @@ class PersonAgentSpec
           .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
+    with BeamHelper
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
@@ -78,7 +79,7 @@ class PersonAgentSpec
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   lazy val beamConfig = BeamConfig(system.settings.config)
-
+  lazy val beamScenario = loadScenario(beamConfig)
   private val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
@@ -95,10 +96,8 @@ class PersonAgentSpec
     when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
     when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
-    when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
 
     var map = TrieMap[Id[Vehicle], (String, String)]()
     map += (Id.createVehicleId("my_bus")  -> ("", ""))
@@ -190,6 +189,7 @@ class PersonAgentSpec
         new PersonAgent(
           scheduler,
           beamSvc,
+          beamScenario,
           modeChoiceCalculator,
           networkCoordinator.transportNetwork,
           self,
@@ -200,7 +200,7 @@ class PersonAgentSpec
           parkingManager,
           tollCalculator,
           self,
-          beamSkimmer = new BeamSkimmer(beamConfig, tAZTreeMap, beamSvc.vehicleTypes, null, beamSvc.geo),
+          beamSkimmer = new BeamSkimmer(beamConfig, tAZTreeMap, beamScenario, beamSvc.geo),
           routeHistory = new RouteHistory(beamConfig),
           travelTimeObserved = new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null)
         )
@@ -250,6 +250,7 @@ class PersonAgentSpec
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
           beamSvc,
+          beamScenario,
           _ => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
@@ -264,7 +265,7 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, tAZTreeMap, beamSvc.vehicleTypes, null, beamSvc.geo),
+          new BeamSkimmer(beamConfig, tAZTreeMap, beamScenario, beamSvc.geo),
           new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null)
         )
       )
@@ -476,6 +477,7 @@ class PersonAgentSpec
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
           beamServices = beamSvc,
+          beamScenario,
           modeChoiceCalculatorFactory = _ => modeChoiceCalculator,
           schedulerRef = scheduler,
           transportNetwork = networkCoordinator.transportNetwork,
@@ -490,7 +492,7 @@ class PersonAgentSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, tAZTreeMap, beamSvc.vehicleTypes, null, beamSvc.geo),
+          new BeamSkimmer(beamConfig, tAZTreeMap, beamScenario, beamSvc.geo),
           new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null)
         )
       )

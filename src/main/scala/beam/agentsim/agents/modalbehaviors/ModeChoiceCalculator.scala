@@ -7,7 +7,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.population.AttributesOfIndividual
-import beam.sim.{BeamServices, HasServices}
+import beam.sim.{BeamScenario, BeamServices, HasServices}
 import org.matsim.api.core.v01.population.{Activity, Person}
 
 import scala.collection.mutable.ListBuffer
@@ -107,7 +107,7 @@ object ModeChoiceCalculator {
 
   type ModeChoiceCalculatorFactory = AttributesOfIndividual => ModeChoiceCalculator
 
-  def apply(classname: String, beamServices: BeamServices): ModeChoiceCalculatorFactory = {
+  def apply(classname: String, beamServices: BeamServices, beamScenario: BeamScenario): ModeChoiceCalculatorFactory = {
     classname match {
       case "ModeChoiceLCCM" =>
         val lccm = new LatentClassChoiceModel(beamServices)
@@ -116,6 +116,7 @@ object ModeChoiceCalculator {
             case AttributesOfIndividual(_, Some(modalityStyle), _, _, _, _, _) =>
               new ModeChoiceMultinomialLogit(
                 beamServices,
+                beamScenario,
                 lccm.modeChoiceModels(Mandatory)(modalityStyle)
               )
             case _ =>
@@ -138,7 +139,7 @@ object ModeChoiceCalculator {
           beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit
         )
         _ =>
-          new ModeChoiceMultinomialLogit(beamServices, logit)
+          new ModeChoiceMultinomialLogit(beamServices, beamScenario, logit)
     }
   }
   sealed trait ModeVotMultiplier

@@ -10,7 +10,7 @@ import beam.router.model.EmbodiedBeamTrip
 import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.population.PopulationAdjustment._
-import beam.sim.{BeamConfigChangesObservable, BeamServices, MapStringDouble, OutputDataDescription}
+import beam.sim.{BeamConfigChangesObservable, BeamScenario, BeamServices, MapStringDouble, OutputDataDescription}
 import beam.utils.{FileUtils, OutputDataDescriptor}
 import javax.inject.Inject
 import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent}
@@ -26,6 +26,7 @@ import scala.language.postfixOps
 
 class BeamScoringFunctionFactory @Inject()(
   beamServices: BeamServices,
+  beamScenario: BeamScenario,
   beamConfigChangesObservable: BeamConfigChangesObservable
 ) extends ScoringFunctionFactory
     with IterationEndsListener
@@ -33,7 +34,7 @@ class BeamScoringFunctionFactory @Inject()(
 
   beamConfigChangesObservable.addObserver(this)
 
-  private var beamConfig = beamServices.beamConfig
+  private var beamConfig = beamScenario.beamConfig
   private val log = LoggerFactory.getLogger(classOf[BeamScoringFunctionFactory])
 
   override def createNewScoringFunction(person: Person): ScoringFunction = {
@@ -168,6 +169,7 @@ class BeamScoringFunctionFactory @Inject()(
                     leg.beamLeg.mode,
                     modeChoiceMultinomialLogit,
                     beamServices,
+                    beamScenario,
                     Option(leg.beamVehicleTypeId),
                     destinationActivity,
                     leg.isRideHail,

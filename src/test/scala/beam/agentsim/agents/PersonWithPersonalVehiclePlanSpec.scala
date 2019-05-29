@@ -23,7 +23,7 @@ import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
-import beam.sim.BeamServices
+import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
@@ -70,13 +70,14 @@ class PersonWithPersonalVehiclePlanSpec
       )
     )
     with FunSpecLike
+    with BeamHelper
     with BeforeAndAfterAll
     with MockitoSugar
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   lazy val beamConfig = BeamConfig(system.settings.config)
-
+  lazy val beamScenario = loadScenario(beamConfig)
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
   private val tollCalculator = new TollCalculator(beamConfig)
@@ -93,7 +94,6 @@ class PersonWithPersonalVehiclePlanSpec
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
     when(theServices.networkHelper).thenReturn(networkHelper)
-    when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
 
     theServices
   }
@@ -179,6 +179,7 @@ class PersonWithPersonalVehiclePlanSpec
         Props(
           new HouseholdActor(
             beamSvc,
+            beamScenario,
             _ => modeChoiceCalculator,
             scheduler,
             networkCoordinator.transportNetwork,
@@ -356,7 +357,6 @@ class PersonWithPersonalVehiclePlanSpec
 
     it("should know how to take a bicycle trip when it's already in its plan") {
       val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
-      when(beamSvc.vehicleTypes).thenReturn(vehicleTypes)
 
       val eventsManager = new EventsManagerImpl()
       eventsManager.addHandler(
@@ -370,7 +370,7 @@ class PersonWithPersonalVehiclePlanSpec
       val beamVehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        beamSvc.vehicleTypes(Id.create("Bicycle", classOf[BeamVehicleType]))
+        beamScenario.vehicleTypes(Id.create("Bicycle", classOf[BeamVehicleType]))
       )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -405,6 +405,7 @@ class PersonWithPersonalVehiclePlanSpec
         Props(
           new HouseholdActor(
             beamSvc,
+            beamScenario,
             _ => modeChoiceCalculator,
             scheduler,
             networkCoordinator.transportNetwork,
@@ -548,6 +549,7 @@ class PersonWithPersonalVehiclePlanSpec
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
           beamSvc,
+          beamScenario,
           _ => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
@@ -643,6 +645,7 @@ class PersonWithPersonalVehiclePlanSpec
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
           beamSvc,
+          beamScenario,
           _ => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,

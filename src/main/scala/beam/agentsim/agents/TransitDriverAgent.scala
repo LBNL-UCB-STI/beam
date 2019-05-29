@@ -12,7 +12,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
@@ -27,6 +27,7 @@ object TransitDriverAgent {
   def props(
     scheduler: ActorRef,
     services: BeamServices,
+    beamScenario: BeamScenario,
     transportNetwork: TransportNetwork,
     tollCalculator: TollCalculator,
     eventsManager: EventsManager,
@@ -39,6 +40,7 @@ object TransitDriverAgent {
       new TransitDriverAgent(
         scheduler,
         services,
+        beamScenario,
         transportNetwork,
         tollCalculator,
         eventsManager,
@@ -83,6 +85,7 @@ object TransitDriverAgent {
 class TransitDriverAgent(
   val scheduler: ActorRef,
   val beamServices: BeamServices,
+  val beamScenario: BeamScenario,
   val transportNetwork: TransportNetwork,
   val tollCalculator: TollCalculator,
   val eventsManager: EventsManager,

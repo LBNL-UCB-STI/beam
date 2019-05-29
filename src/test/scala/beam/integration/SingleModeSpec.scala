@@ -8,7 +8,7 @@ import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.events.PathTraversalEvent
 import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.router.Modes.BeamMode
-import beam.sim.{BeamMobsim, BeamServices, BeamServicesImpl}
+import beam.sim.{BeamHelper, BeamMobsim, BeamServices, BeamServicesImpl}
 import beam.utils.{BeamVehicleUtils, SimRunnerForTest}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
@@ -26,6 +26,7 @@ import scala.language.postfixOps
 class SingleModeSpec
     extends SimRunnerForTest
     with WordSpecLike
+    with BeamHelper
     with Matchers
     with MockitoSugar
     with BeforeAndAfterEach {
@@ -40,9 +41,7 @@ class SingleModeSpec
   var services: BeamServices = _
   var nextId: Int = 0
   var system: ActorSystem = _
-  lazy val fuelTypePrices: Map[FuelType, Double] =
-    BeamVehicleUtils.readFuelTypeFile(beamCfg.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
-
+  lazy val beamScenario = loadScenario(beamCfg)
 
   override def beforeEach: Unit = {
     // Create brand new Actor system every time (just to make sure that the same actor names can be reused)
@@ -52,7 +51,8 @@ class SingleModeSpec
     services.matsimServices = matsimSvc
     services.modeChoiceCalculatorFactory = ModeChoiceCalculator(
       services.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
-      services
+      services,
+      beamScenario
     )
 
     scenario.getPopulation.getPersons.values.asScala
@@ -61,14 +61,14 @@ class SingleModeSpec
     router = system.actorOf(
       BeamRouter.props(
         services,
+        beamScenario,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
         scenario,
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator,
-        fuelTypePrices
+        tollCalculator
       ),
       "router"
     )
@@ -108,6 +108,7 @@ class SingleModeSpec
       )
       val mobsim = new BeamMobsim(
         services,
+        beamScenario,
         networkCoordinator.transportNetwork,
         tollCalculator,
         scenario,
@@ -153,6 +154,7 @@ class SingleModeSpec
       )
       val mobsim = new BeamMobsim(
         services,
+        beamScenario,
         networkCoordinator.transportNetwork,
         tollCalculator,
         scenario,
@@ -217,6 +219,7 @@ class SingleModeSpec
       )
       val mobsim = new BeamMobsim(
         services,
+        beamScenario,
         networkCoordinator.transportNetwork,
         tollCalculator,
         scenario,
@@ -286,6 +289,7 @@ class SingleModeSpec
 
       val mobsim = new BeamMobsim(
         services,
+        beamScenario,
         networkCoordinator.transportNetwork,
         tollCalculator,
         scenario,

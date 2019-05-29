@@ -40,6 +40,7 @@ import scala.concurrent.duration._
   */
 class BeamMobsim @Inject()(
   val beamServices: BeamServices,
+  val beamScenario: BeamScenario,
   val transportNetwork: TransportNetwork,
   val tollCalculator: TollCalculator,
   val scenario: Scenario,
@@ -110,6 +111,7 @@ class BeamMobsim @Inject()(
             new RideHailManager(
               Id.create("GlobalRHM", classOf[RideHailManager]),
               beamServices,
+              beamScenario,
               transportNetwork,
               tollCalculator,
               scenario,
@@ -140,7 +142,7 @@ class BeamMobsim @Inject()(
         }
 
         private val sharedVehicleFleets = config.agents.vehicles.sharedFleets.map { fleetConfig =>
-          context.actorOf(Fleets.lookup(fleetConfig).props(beamServices, parkingManager), fleetConfig.name)
+          context.actorOf(Fleets.lookup(fleetConfig).props(beamServices, beamScenario, parkingManager), fleetConfig.name)
         }
         sharedVehicleFleets.foreach(context.watch)
         sharedVehicleFleets.foreach(scheduler ! ScheduleTrigger(InitializeTrigger(0), _))
@@ -148,6 +150,7 @@ class BeamMobsim @Inject()(
         private val population = context.actorOf(
           Population.props(
             scenario,
+            beamScenario,
             beamServices,
             scheduler,
             transportNetwork,

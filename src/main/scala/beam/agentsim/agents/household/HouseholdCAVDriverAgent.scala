@@ -16,7 +16,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
@@ -27,6 +27,7 @@ class HouseholdCAVDriverAgent(
   val driverId: Id[HouseholdCAVDriverAgent],
   val scheduler: ActorRef,
   val beamServices: BeamServices,
+  val beamScenario: BeamScenario,
   val eventsManager: EventsManager,
   val parkingManager: ActorRef,
   val vehicle: BeamVehicle,
@@ -123,6 +124,7 @@ object HouseholdCAVDriverAgent {
     driverId: Id[HouseholdCAVDriverAgent],
     scheduler: ActorRef,
     services: BeamServices,
+    beamScenario: BeamScenario,
     eventsManager: EventsManager,
     parkingManager: ActorRef,
     vehicle: BeamVehicle,
@@ -135,6 +137,7 @@ object HouseholdCAVDriverAgent {
         driverId,
         scheduler,
         services,
+        beamScenario,
         eventsManager,
         parkingManager,
         vehicle,

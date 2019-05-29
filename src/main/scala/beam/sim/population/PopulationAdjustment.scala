@@ -3,7 +3,7 @@ package beam.sim.population
 import beam.agentsim
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.Modes.BeamMode
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Person, Population => MPopulation}
@@ -19,6 +19,7 @@ trait PopulationAdjustment extends LazyLogging {
   import PopulationAdjustment._
 
   val beamServices: BeamServices
+  val beamScenario: BeamScenario
 
   /**
     * Collects the individual person attributes as [[beam.sim.population.AttributesOfIndividual]] and stores them as a custom attribute "beam-attributes" under the person.
@@ -30,7 +31,7 @@ trait PopulationAdjustment extends LazyLogging {
     //Iterate over each person in the population
     population.getPersons.asScala.foreach {
       case (_, person) =>
-        val attributes = createAttributesOfIndividual(beamServices, population, person)
+        val attributes = createAttributesOfIndividual(beamServices, beamScenario, population, person)
         person.getCustomAttributes.put(PopulationAdjustment.BEAM_ATTRIBUTES, attributes)
     }
     population
@@ -159,14 +160,14 @@ object PopulationAdjustment extends LazyLogging {
     * @param beamServices beam services
     * @return An instance of [[beam.sim.population.PopulationAdjustment]]
     */
-  def getPopulationAdjustment(beamServices: BeamServices): PopulationAdjustment = {
+  def getPopulationAdjustment(beamServices: BeamServices, beamScenario: BeamScenario): PopulationAdjustment = {
     beamServices.beamConfig.beam.agentsim.populationAdjustment match {
       case DEFAULT_ADJUSTMENT =>
-        DefaultPopulationAdjustment(beamServices)
+        DefaultPopulationAdjustment(beamServices, beamScenario)
       case PERCENTAGE_ADJUSTMENT =>
-        PercentagePopulationAdjustment(beamServices)
+        PercentagePopulationAdjustment(beamServices, beamScenario)
       case DIFFUSION_POTENTIAL_ADJUSTMENT =>
-        new DiffusionPotentialPopulationAdjustment(beamServices)
+        new DiffusionPotentialPopulationAdjustment(beamServices, beamScenario)
       case adjClass =>
         try {
           Class
@@ -198,6 +199,7 @@ object PopulationAdjustment extends LazyLogging {
 
   def createAttributesOfIndividual(
     beamServices: BeamServices,
+    beamScenario: BeamScenario,
     population: MPopulation,
     person: Person
   ): AttributesOfIndividual = {
@@ -221,7 +223,7 @@ object PopulationAdjustment extends LazyLogging {
     val householdAttributes = beamServices.personHouseholds.get(person.getId).fold(HouseholdAttributes.EMPTY) {
       household =>
         val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] =
-          agentsim.agents.Population.getVehiclesFromHousehold(household, beamServices)
+          agentsim.agents.Population.getVehiclesFromHousehold(household, beamScenario)
         HouseholdAttributes(household, houseHoldVehicles)
     }
     // Read person attribute "valueOfTime", use function of HH income if not, and default it to the respective config value if neither is found

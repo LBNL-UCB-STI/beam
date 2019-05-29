@@ -7,7 +7,7 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
 import beam.sim.population.AttributesOfIndividual
@@ -25,7 +25,7 @@ import scala.util.Random
 /**
   * BEAM
   */
-class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: MultinomialLogit)
+class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val beamScenario: BeamScenario, val model: MultinomialLogit)
     extends ModeChoiceCalculator
     with ExponentialLazyLogging {
 
@@ -102,6 +102,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
           embodiedBeamLeg,
           this,
           beamServices,
+          beamScenario,
           destinationActivity
         )
       case None =>

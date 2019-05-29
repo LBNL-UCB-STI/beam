@@ -19,7 +19,7 @@ import beam.router.Modes.BeamMode.{BIKE, BUS, CAR, RIDE_HAIL, TRANSIT, WALK, WAL
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
-import beam.sim.BeamServices
+import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.MetricsSupport
@@ -66,6 +66,7 @@ class RouterPerformanceSpec
     with LoneElement
     with ImplicitSender
     with MockitoSugar
+    with BeamHelper
     with BeforeAndAfterAllConfigMap
     with MetricsSupport
     with LazyLogging {
@@ -74,6 +75,7 @@ class RouterPerformanceSpec
   var network: Network = _
   var router: ActorRef = _
   var scenario: Scenario = _
+  var beamScenario: BeamScenario = _
 
   private val runSet = List(
     1000,
@@ -89,6 +91,7 @@ class RouterPerformanceSpec
       configMap.getWithDefault("config", "test/input/sf-light/sf-light.conf")
     config = testConfig(confPath).resolve()
     val beamConfig = BeamConfig(config)
+    beamScenario = loadScenario(beamConfig)
 
     val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
     when(services.beamConfig).thenReturn(beamConfig)
@@ -116,14 +119,14 @@ class RouterPerformanceSpec
     router = system.actorOf(
       BeamRouter.props(
         services,
+        beamScenario,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
         scenario,
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator,
-        fuelTypePrices
+        tollCalculator
       ),
       "router"
     )

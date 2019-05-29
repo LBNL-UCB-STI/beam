@@ -8,7 +8,6 @@ import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.choice.mode.PtFares
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.integration.IntegrationSpecCommon
@@ -21,7 +20,7 @@ import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
-import beam.sim.{BeamHelper, BeamServices, BeamWarmStart}
+import beam.sim.{BeamHelper, BeamScenario, BeamServices, BeamWarmStart}
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{DateUtils, FileUtils, NetworkHelperImpl}
 import com.typesafe.config.{Config, ConfigValueFactory}
@@ -69,6 +68,7 @@ class WarmStartRoutingSpec
   var router1: ActorRef = _
   var services: BeamServices = _
   var config: Config = _
+  var beamScenario: BeamScenario = _
   var iterationConfig: Config = _
   var scenario: Scenario = _
 
@@ -94,7 +94,6 @@ class WarmStartRoutingSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
-    when(services.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
     var networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
@@ -109,14 +108,14 @@ class WarmStartRoutingSpec
     router = system.actorOf(
       BeamRouter.props(
         services,
+        beamScenario,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
         scenario,
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator,
-        Map[FuelType, Double]().withDefaultValue(0.0)
+        tollCalculator
       )
     )
 
@@ -135,6 +134,7 @@ class WarmStartRoutingSpec
     matsimConfig.controler.setOutputDirectory(path)
     val updatedBeamConfig = BeamConfig(iterationConfig)
     FileUtils.setConfigOutputFile(updatedBeamConfig, matsimConfig)
+    beamScenario = loadScenario(updatedBeamConfig)
     networkCoordinator = new DefaultNetworkCoordinator(updatedBeamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
@@ -149,19 +149,19 @@ class WarmStartRoutingSpec
       }
     )
     val bs = injector.getInstance(classOf[BeamServices])
-    DefaultPopulationAdjustment(bs).update(scenario)
+    DefaultPopulationAdjustment(bs, beamScenario).update(scenario)
     bs.controler.run()
     router1 = system.actorOf(
       BeamRouter.props(
         services,
+        beamScenario,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
         scenario,
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator,
-        Map[FuelType, Double]().withDefaultValue(0.0)
+        tollCalculator
       )
     )
     within(60 seconds) { // Router can take a while to initialize

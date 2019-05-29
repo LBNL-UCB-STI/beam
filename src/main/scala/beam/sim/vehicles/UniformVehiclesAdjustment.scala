@@ -3,14 +3,14 @@ package beam.sim.vehicles
 import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import org.apache.commons.math3.distribution.UniformRealDistribution
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.Coord
 
-case class UniformVehiclesAdjustment(beamServices: BeamServices) extends VehiclesAdjustment {
+case class UniformVehiclesAdjustment(beamServices: BeamServices, beamScenario: BeamScenario) extends VehiclesAdjustment {
 
   private val vehicleTypesAndProbabilitiesByCategory: Map[(VehicleCategory, String), Array[(BeamVehicleType, Double)]] =
-    beamServices.vehicleTypes.values.groupBy(x => (x.vehicleCategory, matchCarUse(x.id.toString))).map {
+    beamScenario.vehicleTypes.values.groupBy(x => (x.vehicleCategory, matchCarUse(x.id.toString))).map {
       case (cat, vehTypes) =>
         val probSum = vehTypes.map(_.sampleProbabilityWithinCategory).sum
         val cumulativeProbabilities = vehTypes

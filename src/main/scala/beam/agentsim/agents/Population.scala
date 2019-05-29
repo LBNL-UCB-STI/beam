@@ -11,7 +11,7 @@ import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.router.osm.TollCalculator
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -24,6 +24,7 @@ import scala.concurrent.{Await, Future}
 
 class Population(
   val scenario: Scenario,
+  val beamScenario: BeamScenario,
   val beamServices: BeamServices,
   val scheduler: ActorRef,
   val transportNetwork: TransportNetwork,
@@ -110,12 +111,13 @@ class Population(
             .collectionAsScalaIterable(household.getVehicleIds)
             .map { vid =>
               val bvid = BeamVehicle.createId(vid)
-              bvid -> beamServices.privateVehicles(bvid)
+              bvid -> beamScenario.privateVehicles(bvid)
             }
             .toMap
           val householdActor = context.actorOf(
             HouseholdActor.props(
               beamServices,
+              beamScenario,
               beamServices.modeChoiceCalculatorFactory,
               scheduler,
               transportNetwork,
@@ -156,10 +158,10 @@ object Population {
 
   def getVehiclesFromHousehold(
     household: Household,
-    beamServices: BeamServices
+    beamScenario: BeamScenario
   ): Map[Id[BeamVehicle], BeamVehicle] = {
     val houseHoldVehicles = JavaConverters.collectionAsScalaIterable(household.getVehicleIds)
-    houseHoldVehicles.map(i => Id.create(i, classOf[BeamVehicle]) -> beamServices.privateVehicles(i)).toMap
+    houseHoldVehicles.map(i => Id.create(i, classOf[BeamVehicle]) -> beamScenario.privateVehicles(i)).toMap
   }
 
   def personInitialLocation(person: Person): Coord =
@@ -171,6 +173,7 @@ object Population {
 
   def props(
     scenario: Scenario,
+    beamScenario: BeamScenario,
     services: BeamServices,
     scheduler: ActorRef,
     transportNetwork: TransportNetwork,
@@ -187,6 +190,7 @@ object Population {
     Props(
       new Population(
         scenario,
+        beamScenario,
         services,
         scheduler,
         transportNetwork,

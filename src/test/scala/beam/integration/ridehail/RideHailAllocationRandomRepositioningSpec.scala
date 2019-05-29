@@ -22,8 +22,8 @@ class RideHailAllocationRandomRepositioningSpec extends FlatSpec with BeamHelper
     val matsimConfig = RideHailTestHelper.buildMatsimConfig(config)
 
     val beamConfig = BeamConfig(config)
-
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+    val beamScenario = loadScenario(beamConfig)
 
     val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
@@ -47,7 +47,7 @@ class RideHailAllocationRandomRepositioningSpec extends FlatSpec with BeamHelper
 
     val beamServices = injector.getInstance(classOf[BeamServices])
     val controller = beamServices.controler
-    popAdjustment(beamServices).update(scenario)
+    popAdjustment(beamServices, beamScenario).update(scenario)
 
     controller.run()
 

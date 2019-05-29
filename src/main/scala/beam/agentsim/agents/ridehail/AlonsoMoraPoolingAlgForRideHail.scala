@@ -8,8 +8,9 @@ import beam.agentsim.agents.{MobilityRequest, _}
 import beam.router.BeamRouter.Location
 import beam.router.BeamSkimmer.Skim
 import beam.router.Modes.BeamMode
-import beam.router.{BeamSkimmer}
+import beam.router.BeamSkimmer
 import beam.sim.BeamServices
+import beam.utils.NetworkHelper
 import com.vividsolutions.jts.geom.Envelope
 import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedWeightedGraph}
 import org.matsim.api.core.v01.Id

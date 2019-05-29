@@ -3,6 +3,7 @@ package beam.analysis;
 import beam.agentsim.infrastructure.TAZTreeMap;
 import beam.analysis.plots.*;
 import beam.analysis.summary.*;
+import beam.sim.BeamScenario;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 
@@ -38,12 +39,14 @@ public class StatsFactory {
     private final BeamServices beamServices;
     private Map<StatsType, BeamAnalysis> beamStatsMap = new HashMap<>();
     private final TAZTreeMap tazTreeMap;
+    private final BeamScenario beamScenario;
 
     @Inject
-    public StatsFactory(BeamServices services, TAZTreeMap tazTreeMap) {
+    public StatsFactory(BeamServices services, BeamScenario beamScenario, TAZTreeMap tazTreeMap) {
         this.beamServices = services;
         this.beamConfig = services.beamConfig();
         this.tazTreeMap = tazTreeMap;
+        this.beamScenario = beamScenario;
     }
 
     public BeamAnalysis getAnalysis(StatsType statsType) {
@@ -93,9 +96,9 @@ public class StatsFactory {
                 return new DeadHeadingAnalysis(writeGraphs);
             case VehicleHoursTraveled:
                 return new VehicleTravelTimeAnalysis(beamServices.matsimServices().getScenario(),
-                        beamServices.networkHelper(), beamServices.vehicleTypes().keySet());
+                        beamServices.networkHelper(), beamScenario.vehicleTypes().keySet());
             case VehicleMilesTraveled:
-                return new VehicleMilesTraveledAnalysis(beamServices.vehicleTypes().keySet());
+                return new VehicleMilesTraveledAnalysis(beamScenario.vehicleTypes().keySet());
             case NumberOfVehicles:
                 return new NumberOfVehiclesAnalysis(beamServices);
             case PersonCost:

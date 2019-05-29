@@ -23,7 +23,7 @@ import beam.router.model.RoutingModel.LinksTimesDistances
 import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.BeamServices.FuelTypePrices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -1178,21 +1178,21 @@ object R5RoutingWorker {
 
   def props(
     beamServices: BeamServices,
+    beamScenario: BeamScenario,
     transportNetwork: TransportNetwork,
     network: Network,
     scenario: Scenario,
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator,
     transitVehicles: Vehicles,
-    travelTimeAndCost: TravelTimeAndCost,
-    fuelTypePrices: FuelTypePrices
+    travelTimeAndCost: TravelTimeAndCost
   ) = Props(
     new R5RoutingWorker(
       WorkerParameters(
         beamServices.beamConfig,
         transportNetwork,
-        beamServices.vehicleTypes,
-        fuelTypePrices,
+        beamScenario.vehicleTypes,
+        beamScenario.fuelTypePrices,
         beamServices.agencyAndRouteByVehicleIds,
         beamServices.ptFares,
         beamServices.geo,

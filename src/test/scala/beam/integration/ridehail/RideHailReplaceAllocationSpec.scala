@@ -25,6 +25,7 @@ class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with Mockit
 
     val beamConfig = BeamConfig(config)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+    val beamScenario = loadScenario(beamConfig)
 
     val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
@@ -46,7 +47,7 @@ class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with Mockit
     )
 
     val services = injector.getInstance(classOf[BeamServices])
-    DefaultPopulationAdjustment(services).update(scenario)
+    DefaultPopulationAdjustment(services, beamScenario).update(scenario)
     val controller = services.controler
     controller.run()
 

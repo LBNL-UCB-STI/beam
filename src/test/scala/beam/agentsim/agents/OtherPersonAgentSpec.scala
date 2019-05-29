@@ -27,7 +27,7 @@ import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
-import beam.sim.BeamServices
+import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.BeamServices.getTazTreeMap
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
@@ -71,6 +71,7 @@ class OtherPersonAgentSpec
   """).withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
+    with BeamHelper
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
@@ -78,6 +79,7 @@ class OtherPersonAgentSpec
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   lazy val beamConfig = BeamConfig(system.settings.config)
+  lazy val beamScenario = loadScenario(beamConfig)
   private lazy val tazTreeMap = getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
   lazy val eventsManager = new EventsManagerImpl()
 
@@ -101,9 +103,7 @@ class OtherPersonAgentSpec
     when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
     when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
     when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
-    when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
     lazy val geo = new GeoUtilsImpl(beamConfig)
     when(theServices.geo).thenReturn(geo)
     theServices
@@ -309,6 +309,7 @@ class OtherPersonAgentSpec
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
           beamSvc,
+          beamScenario,
           _ => modeChoiceCalculator,
           scheduler,
           networkCoordinator.transportNetwork,
@@ -323,7 +324,7 @@ class OtherPersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, tazTreeMap, beamSvc.vehicleTypes, null, beamSvc.geo),
+          new BeamSkimmer(beamConfig, tazTreeMap, beamScenario, beamSvc.geo),
           new TravelTimeObserved(beamConfig, beamSvc, tazTreeMap, null)
         )
       )

@@ -5,28 +5,18 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
-import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
-import beam.agentsim.agents.choice.mode.ModeIncentive
-import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail.{CustomerRequest, RVGraph, VehicleAndSchedule, _}
-import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.agents.vehicles.FuelType.FuelType
+import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamSkimmer
-import beam.router.Modes.BeamMode
-import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.utils.BeamVehicleUtils
+import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
-import org.matsim.api.core.v01.network.Network
-import org.matsim.core.controler.MatsimServices
-import org.matsim.core.scenario.ScenarioUtils
+import org.matsim.api.core.v01.Coord
 import org.matsim.households.HouseholdsFactoryImpl
-import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
 
@@ -52,6 +42,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
+    with BeamHelper
     with ImplicitSender {
 
   val probe: TestProbe = TestProbe.apply()
@@ -63,27 +54,12 @@ class AsyncAlonsoMoraAlgForRideHailSpec
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
   private val matsimConfig = configBuilder.buildMatSimConf()
   val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
-  val beamScenario = BeamScenario(
-    BeamVehicleUtils.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
-  )
-
-  private lazy val beamSvc: BeamServices = {
-    val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
-    ScenarioUtils.loadScenario(ScenarioUtils.createMutableScenario(matsimConfig))
-    val theServices = mock[BeamServices](withSettings().stubOnly())
-    when(theServices.matsimServices).thenReturn(mock[MatsimServices])
-    when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario], scenario)
-    when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
-    when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
-    when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
-    when(theServices.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
-    theServices
-  }
+  val beamScenario = loadScenario(beamConfig)
+  val geo = new GeoUtilsImpl(beamConfig)
 
   describe("AsyncAlonsoMoraAlgForRideHailSpec") {
     it("Creates a consistent plan") {
-      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig, tAZTreeMap, beamSvc.vehicleTypes, beamScenario, beamSvc.geo)
+      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig, tAZTreeMap, beamScenario, geo)
       val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenario1
       val alg: AsyncAlonsoMoraAlgForRideHail =
         new AsyncAlonsoMoraAlgForRideHail(
@@ -91,7 +67,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
           sc._1,
           Map[MobilityRequestTrait, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
           maxRequestsPerVehicle = 1000,
-          beamSvc
+          null
         )
 
       import scala.concurrent.duration._
@@ -109,7 +85,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
       import org.matsim.core.scenario.ScenarioUtils
       val sc = ScenarioUtils.createScenario(ConfigUtils.createConfig())
       new PopulationReader(sc).readFile("test/input/sf-light/sample/25k/population.xml.gz")
-      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig, tAZTreeMap, beamSvc.vehicleTypes, beamScenario, beamSvc.geo)
+      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig, tAZTreeMap, beamScenario, geo)
 
       val requests = mutable.ListBuffer.empty[CustomerRequest]
       sc.getPopulation.getPersons.values.asScala.map(p => BeamPlan(p.getSelectedPlan)).foreach { plan =>
@@ -160,7 +136,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
                   fleet.toList,
                   Map[MobilityRequestTrait, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
                   maxRequestsPerVehicle = 100,
-                  beamSvc
+                  null
                 )
               import scala.concurrent.duration._
               assignment = Await.result(alg.greedyAssignment(), atMost = 10.minutes)
@@ -171,10 +147,10 @@ class AsyncAlonsoMoraAlgForRideHailSpec
                   fleet.toList,
                   Map[MobilityRequestTrait, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
                   maxRequestsPerVehicle = 100,
-                  beamSvc
+                  null
                 )
               val rvGraph: RVGraph = alg.pairwiseRVGraph
-              val rtvGraph = alg.rTVGraph(rvGraph, beamSvc)
+              val rtvGraph = alg.rTVGraph(rvGraph, null)
               assignment = alg.greedyAssignment(rtvGraph)
             case _ =>
           }

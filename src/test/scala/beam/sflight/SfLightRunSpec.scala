@@ -6,7 +6,7 @@ import beam.agentsim.events.ModeChoiceEvent
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
-import beam.sim.{BeamHelper, BeamServices}
+import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import beam.tags.{ExcludeRegular, Periodic}
 import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.testConfig
@@ -77,7 +77,8 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
         }
       )
       val services = injector.getInstance(classOf[BeamServices])
-      DefaultPopulationAdjustment(services).update(scenario)
+      val beamScenario = injector.getInstance(classOf[BeamScenario])
+      DefaultPopulationAdjustment(services, beamScenario).update(scenario)
       val controler = services.controler
       controler.run()
       assert(nCarTrips > 1)

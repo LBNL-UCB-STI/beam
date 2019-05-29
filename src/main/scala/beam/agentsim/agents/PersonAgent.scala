@@ -29,7 +29,7 @@ import beam.router.Modes.BeamMode.{CAR, CAV, WALK, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.population.AttributesOfIndividual
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
@@ -49,6 +49,7 @@ object PersonAgent {
   def props(
     scheduler: ActorRef,
     services: BeamServices,
+    beamScenario: BeamScenario,
     modeChoiceCalculator: ModeChoiceCalculator,
     transportNetwork: TransportNetwork,
     tollCalculator: TollCalculator,
@@ -68,6 +69,7 @@ object PersonAgent {
       new PersonAgent(
         scheduler,
         services,
+        beamScenario,
         modeChoiceCalculator,
         transportNetwork,
         router,
@@ -201,6 +203,7 @@ object PersonAgent {
 class PersonAgent(
   val scheduler: ActorRef,
   val beamServices: BeamServices,
+  val beamScenario: BeamScenario,
   val modeChoiceCalculator: ModeChoiceCalculator,
   val transportNetwork: TransportNetwork,
   val router: ActorRef,
@@ -869,7 +872,7 @@ class PersonAgent(
         log.debug("Person {} stashing BoardOrAlight {} b/c on CAV trip", id, triggerId)
         stash
         stay
-      case Some(trip) if beamServices.vehicleTypes.get(beamVehicleTypeId).exists(_.automationLevel > 3) =>
+      case Some(trip) if beamScenario.vehicleTypes.get(beamVehicleTypeId).exists(_.automationLevel > 3) =>
         log.warning(
           "Person {} in state {} is abandoning CAV trips for rest of day because received Board/Alight trigger while on {} trip",
           id,

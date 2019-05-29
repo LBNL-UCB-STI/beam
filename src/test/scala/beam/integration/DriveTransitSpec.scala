@@ -46,7 +46,7 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
       val matsimConfig = configBuilder.buildMatSimConf()
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
       val beamConfig = BeamConfig(config)
-
+      val beamScenario = loadScenario(beamConfig)
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
       val scenario =
         ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
@@ -79,7 +79,7 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
       )
 
       val services = injector.getInstance(classOf[BeamServices])
-      DefaultPopulationAdjustment(services).update(scenario)
+      DefaultPopulationAdjustment(services, beamScenario).update(scenario)
       val controler = services.controler
       controler.run()
       assert(nDepartures == nArrivals)

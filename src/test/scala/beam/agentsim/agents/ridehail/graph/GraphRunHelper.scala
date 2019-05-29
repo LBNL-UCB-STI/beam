@@ -17,6 +17,7 @@ object GraphRunHelper {
 class GraphRunHelper(childModule: AbstractModule, baseConfig: Config) extends BeamHelper {
 
   private val beamConfig = BeamConfig(baseConfig)
+  private val beamScenario = loadScenario(beamConfig)
   private val configBuilder = new MatSimBeamConfigBuilder(baseConfig)
   private val matsimConfig = configBuilder.buildMatSimConf()
 
@@ -43,7 +44,7 @@ class GraphRunHelper(childModule: AbstractModule, baseConfig: Config) extends Be
 
   def run(): Unit = {
     val popAdjustment = DefaultPopulationAdjustment
-    popAdjustment(beamServices).update(scenario)
+    popAdjustment(beamServices, beamScenario).update(scenario)
     beamServices.controler.run()
   }
 

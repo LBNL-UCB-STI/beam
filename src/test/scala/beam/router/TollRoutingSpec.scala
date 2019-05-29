@@ -8,7 +8,6 @@ import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
@@ -18,12 +17,12 @@ import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
-import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
-import beam.utils.{BeamVehicleUtils, DateUtils, NetworkHelperImpl}
+import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.{DateUtils, NetworkHelperImpl}
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.config.ConfigUtils
@@ -44,6 +43,7 @@ class TollRoutingSpec
     )
     with WordSpecLike
     with Matchers
+    with BeamHelper
     with ImplicitSender
     with MockitoSugar
     with BeforeAndAfterAll {
@@ -53,10 +53,13 @@ class TollRoutingSpec
 
   val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
   var scenario: Scenario = _
+  var beamScenario: BeamScenario = _
   var fareCalculator: FareCalculator = _
 
   override def beforeAll: Unit = {
     val beamConfig = BeamConfig(system.settings.config)
+    beamScenario = loadScenario(beamConfig)
+      .copy(fuelTypePrices = Map().withDefaultValue(0.0)) // Reset fuel prices to 0 so we get pure monetary costs
 
     // Have to mock a lot of things to get the router going
     scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
@@ -71,9 +74,6 @@ class TollRoutingSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
-    when(services.vehicleTypes).thenReturn(
-      BeamVehicleUtils.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
-    )
     networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
@@ -87,14 +87,14 @@ class TollRoutingSpec
     router = system.actorOf(
       BeamRouter.props(
         services,
+        beamScenario,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
         scenario,
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator,
-        Map[FuelType, Double]().withDefaultValue(0.0)
+        tollCalculator
       )
     )
   }
@@ -151,14 +151,14 @@ class TollRoutingSpec
       val moreExpensiveRouter = system.actorOf(
         BeamRouter.props(
           services,
+          beamScenario,
           networkCoordinator.transportNetwork,
           networkCoordinator.network,
           scenario,
           new EventsManagerImpl(),
           scenario.getTransitVehicles,
           fareCalculator,
-          moreExpensiveTollCalculator,
-          Map[FuelType, Double]().withDefaultValue(0.0)
+          moreExpensiveTollCalculator
         )
       )
       moreExpensiveRouter ! request

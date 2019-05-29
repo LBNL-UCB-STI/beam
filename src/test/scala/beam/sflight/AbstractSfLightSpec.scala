@@ -2,9 +2,8 @@ package beam.sflight
 
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKitBase}
-import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.router.BeamRouter
-import beam.sim.{BeamServices, BeamServicesImpl}
+import beam.sim.{BeamScenario, BeamServices, BeamServicesImpl}
 import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory}
@@ -38,14 +37,14 @@ class AbstractSfLightSpec(val name: String)
     router = system.actorOf(
       BeamRouter.props(
         services,
+        injector.getInstance(classOf[BeamScenario]),
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
         scenario,
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator,
-        Map[FuelType, Double]().withDefaultValue(0.0)
+        tollCalculator
       )
     )
 

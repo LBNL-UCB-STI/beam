@@ -22,6 +22,7 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
 
     def initialSetup(eventHandler: BasicEventHandler): Unit = {
       val beamConfig = BeamConfig(baseConfig)
+      val beamScenario = loadScenario(beamConfig)
       val configBuilder = new MatSimBeamConfigBuilder(baseConfig)
       val matsimConfig = configBuilder.buildMatSimConf()
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
@@ -49,7 +50,7 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
         injector.getInstance(classOf[EventsManager])
       eventManager.addHandler(eventHandler)
       val popAdjustment = DefaultPopulationAdjustment
-      popAdjustment(beamServices).update(scenario)
+      popAdjustment(beamServices, beamScenario).update(scenario)
       beamServices.controler.run()
     }
 

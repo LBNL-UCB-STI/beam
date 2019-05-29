@@ -5,6 +5,7 @@ import beam.analysis.*;
 import beam.analysis.StatsFactory.StatsType;
 import beam.calibration.impl.example.ErrorComparisonType;
 import beam.calibration.impl.example.ModeChoiceObjectiveFunction;
+import beam.sim.BeamScenario;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import org.matsim.api.core.v01.events.Event;
@@ -43,17 +44,15 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
 
     private final Logger log = LoggerFactory.getLogger(GraphsStatsAgentSimEventsListener.class);
 
-    // No Arg Constructor
-    public GraphsStatsAgentSimEventsListener(BeamServices services, TAZTreeMap tazTreeMap) {
+    public GraphsStatsAgentSimEventsListener(BeamServices services, BeamScenario beamScenario, TAZTreeMap tazTreeMap) {
         this.beamConfig = services.beamConfig();
-        statsFactory = new StatsFactory(services, tazTreeMap);
+        statsFactory = new StatsFactory(services, beamScenario, tazTreeMap);
     }
 
-    // Constructor
     public GraphsStatsAgentSimEventsListener(EventsManager eventsManager,
                                              OutputDirectoryHierarchy controlerIO,
-                                             BeamServices services, BeamConfig beamConfig, TAZTreeMap tazTreeMap) {
-        this(services, tazTreeMap);
+                                             BeamServices services, BeamScenario beamScenario, TAZTreeMap tazTreeMap) {
+        this(services, beamScenario, tazTreeMap);
         try{
             statsFactory.createStats();
         }catch (Exception e){
@@ -62,7 +61,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
 
         eventsManager.addHandler(this);
         CONTROLLER_IO = controlerIO;
-        PathTraversalSpatialTemporalTableGenerator.setVehicles(JavaConverters.mapAsJavaMap(services.vehicleTypes()));
+        PathTraversalSpatialTemporalTableGenerator.setVehicles(JavaConverters.mapAsJavaMap(beamScenario.vehicleTypes()));
     }
 
     // helper methods

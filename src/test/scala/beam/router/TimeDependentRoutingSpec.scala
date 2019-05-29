@@ -7,7 +7,6 @@ import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.choice.mode.PtFares
 import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
@@ -18,11 +17,11 @@ import beam.router.gtfs.FareCalculator.BeamFareSegment
 import beam.router.model.{BeamLeg, BeamPath, RoutingModel}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
-import beam.sim.BeamServices
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
+import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import beam.utils.TestConfigUtils.testConfig
-import beam.utils.{BeamVehicleUtils, DateUtils, NetworkHelperImpl}
+import beam.utils.{DateUtils, NetworkHelperImpl}
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
@@ -48,14 +47,17 @@ class TimeDependentRoutingSpec
     with Matchers
     with ImplicitSender
     with MockitoSugar
+    with BeamHelper
     with BeforeAndAfterAll {
 
   var router: ActorRef = _
   var networkCoordinator: DefaultNetworkCoordinator = _
   var geo: GeoUtils = _
+  var beamScenario: BeamScenario = _
 
   override def beforeAll: Unit = {
     val beamConfig = BeamConfig(system.settings.config)
+    beamScenario = loadScenario(beamConfig)
 
     // Have to mock a lot of things to get the router going
     val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
@@ -71,9 +73,6 @@ class TimeDependentRoutingSpec
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       )
     )
-    when(services.vehicleTypes).thenReturn(
-      BeamVehicleUtils.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
-    )
     networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
@@ -88,14 +87,14 @@ class TimeDependentRoutingSpec
     router = system.actorOf(
       BeamRouter.props(
         services,
+        beamScenario,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
         scenario,
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator,
-        Map[FuelType, Double]().withDefaultValue(0.0)
+        tollCalculator
       )
     )
 

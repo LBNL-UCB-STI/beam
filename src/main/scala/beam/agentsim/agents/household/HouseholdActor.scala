@@ -29,7 +29,7 @@ import beam.router.Modes.BeamMode.CAV
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
 import beam.router.osm.TollCalculator
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.population.AttributesOfIndividual
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
@@ -52,6 +52,7 @@ object HouseholdActor {
 
   def props(
     beamServices: BeamServices,
+    beamScenario: BeamScenario,
     modeChoiceCalculator: AttributesOfIndividual => ModeChoiceCalculator,
     schedulerRef: ActorRef,
     transportNetwork: TransportNetwork,
@@ -72,6 +73,7 @@ object HouseholdActor {
     Props(
       new HouseholdActor(
         beamServices,
+        beamScenario,
         modeChoiceCalculator,
         schedulerRef,
         transportNetwork,
@@ -113,6 +115,7 @@ object HouseholdActor {
     */
   class HouseholdActor(
     beamServices: BeamServices,
+    beamScenario: BeamScenario,
     modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator,
     schedulerRef: ActorRef,
     transportNetwork: TransportNetwork,
@@ -188,6 +191,7 @@ object HouseholdActor {
                 HouseholdCAVDriverAgent.idFromVehicleId(cav.id),
                 schedulerRef,
                 beamServices,
+                beamScenario,
                 eventsManager,
                 parkingManager,
                 cav,
@@ -277,6 +281,7 @@ object HouseholdActor {
             PersonAgent.props(
               schedulerRef,
               beamServices,
+              beamScenario,
               modeChoiceCalculator,
               transportNetwork,
               tollCalculator,

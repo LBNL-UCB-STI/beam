@@ -86,7 +86,8 @@ class BeamSim @Inject()(
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
       beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
-      beamServices
+      beamServices,
+      beamScenario
     )
 
     metricsPrinter ! Subscribe("counter", "**")
@@ -96,14 +97,14 @@ class BeamSim @Inject()(
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
         beamServices,
+        beamScenario,
         transportNetwork,
         scenario.getNetwork,
         scenario,
         eventsManager,
         scenario.getTransitVehicles,
         fareCalculator,
-        tollCalculator,
-        beamScenario.fuelTypePrices
+        tollCalculator
       ),
       "router"
     )
@@ -121,6 +122,7 @@ class BeamSim @Inject()(
         event.getServices.getControlerIO,
         scenario,
         beamServices,
+        beamScenario,
         beamConfigChangesObservable
       )
       iterationStatsProviders += agentSimToPhysSimPlanConverter
@@ -130,7 +132,7 @@ class BeamSim @Inject()(
       eventsManager,
       event.getServices.getControlerIO,
       beamServices,
-      beamServices.beamConfig,
+      beamScenario,
       tazTreeMap
     )
     iterationStatsProviders += createGraphsFromEvents
@@ -160,7 +162,7 @@ class BeamSim @Inject()(
 
     val controllerIO = event.getServices.getControlerIO
     PopulationCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("population.csv"))
-    VehiclesCsvWriter(beamServices).toCsv(scenario, controllerIO.getOutputFilename("vehicles.csv"))
+    new VehiclesCsvWriter(beamServices, beamScenario).toCsv(scenario, controllerIO.getOutputFilename("vehicles.csv"))
     HouseholdsCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("households.csv"))
     NetworkCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("network.csv"))
 
@@ -170,7 +172,7 @@ class BeamSim @Inject()(
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     beamConfigChangesObservable.notifyChangeToSubscribers()
     ExponentialLazyLogging.reset()
-    beamServices.privateVehicles.values.foreach(_.initializeFuelLevels)
+    beamScenario.privateVehicles.values.foreach(_.initializeFuelLevels)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {

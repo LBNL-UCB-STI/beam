@@ -202,6 +202,7 @@ object RideHailManager {
 class RideHailManager(
   val id: Id[RideHailManager],
   val beamServices: BeamServices,
+  val beamScenario: BeamScenario,
   val transportNetwork: TransportNetwork,
   val tollCalculator: TollCalculator,
   val scenario: Scenario,
@@ -299,7 +300,7 @@ class RideHailManager(
     .asScala
     .flatMap { hh =>
       hh.getVehicleIds.asScala.map { vehId =>
-        beamServices.privateVehicles
+        beamScenario.privateVehicles
           .get(vehId)
           .map(_.beamVehicleType)
           .getOrElse(throw new IllegalStateException(s"$vehId is not found in `beamServices.privateVehicles`"))
@@ -352,7 +353,7 @@ class RideHailManager(
           try {
             val person = persons(idx)
             val vehicleType = VehiclesAdjustment
-              .getVehicleAdjustment(beamServices)
+              .getVehicleAdjustment(beamServices, beamScenario)
               .sampleRideHailVehicleTypes(
                 numVehicles = 1,
                 vehicleCategory = VehicleCategory.Car,
@@ -860,7 +861,7 @@ class RideHailManager(
       ) * trip.legsWithPassenger(request.customer).map(_.duration).sum.toDouble
     val distanceFare = DefaultCostPerMile * trip.schedule.keys.map(_.travelPath.distanceInM / 1609).sum
 
-    val timeFareAdjusted = beamServices.vehicleTypes.get(rideHailVehicleTypeId) match {
+    val timeFareAdjusted = beamScenario.vehicleTypes.get(rideHailVehicleTypeId) match {
       case Some(vehicleType) if vehicleType.automationLevel > 3 =>
         0.0
       case _ =>
@@ -1132,6 +1133,7 @@ class RideHailManager(
 
     val rideHailAgentProps: Props = RideHailAgent.props(
       beamServices,
+      beamScenario,
       scheduler,
       transportNetwork,
       tollCalculator,

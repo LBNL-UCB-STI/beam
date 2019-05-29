@@ -22,7 +22,7 @@ import beam.router.Modes.BeamMode
 import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
-import beam.sim.BeamServices
+import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.StuckFinder
@@ -54,10 +54,12 @@ class RideHailAgentSpec
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
+    with BeamHelper
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   lazy val config = BeamConfig(system.settings.config)
+  lazy val beamScenario = loadScenario(config)
   lazy val eventsManager = new EventsManagerImpl()
 
   private val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
@@ -75,7 +77,6 @@ class RideHailAgentSpec
     val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
     ScenarioUtils.loadScenario(scenario)
     when(matsimServices.getScenario).thenReturn(scenario)
-    when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
     theServices
   }
   private lazy val zonalParkingManager: ActorRef = ZonalParkingManagerSpec.mockZonalParkingManager(services)
@@ -186,6 +187,7 @@ class RideHailAgentSpec
           eventsManager,
           zonalParkingManager,
           services,
+          beamScenario,
           networkCoordinator.transportNetwork,
           tollCalculator = new TollCalculator(config)
         )
@@ -262,6 +264,7 @@ class RideHailAgentSpec
           eventsManager,
           zonalParkingManager,
           services,
+          beamScenario,
           networkCoordinator.transportNetwork,
           tollCalculator = new TollCalculator(config)
         )
@@ -330,6 +333,7 @@ class RideHailAgentSpec
           eventsManager,
           zonalParkingManager,
           services,
+          beamScenario,
           networkCoordinator.transportNetwork,
           tollCalculator = new TollCalculator(config)
         )

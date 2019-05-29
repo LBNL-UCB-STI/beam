@@ -21,7 +21,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.model._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.BeamServices.FuelTypePrices
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.{DateUtils, IdGeneratorImpl}
@@ -44,14 +44,14 @@ import scala.util.Try
 
 class BeamRouter(
   services: BeamServices,
+  beamScenario: BeamScenario,
   transportNetwork: TransportNetwork,
   network: Network,
   scenario: Scenario,
   eventsManager: EventsManager,
   transitVehicles: Vehicles,
   fareCalculator: FareCalculator,
-  tollCalculator: TollCalculator,
-  fuelTypePrices: FuelTypePrices
+  tollCalculator: TollCalculator
 ) extends Actor
     with Stash
     with ActorLogging {
@@ -128,14 +128,14 @@ class BeamRouter(
     val localWorker = context.actorOf(
       R5RoutingWorker.props(
         services,
+        beamScenario,
         transportNetwork,
         network,
         scenario,
         fareCalculator,
         tollCalculator,
         transitVehicles,
-        travelTimeAndCost,
-        fuelTypePrices
+        travelTimeAndCost
       ),
       "router-worker"
     )
@@ -175,7 +175,7 @@ class BeamRouter(
           new TransitInitializer(
             services.beamConfig,
             services.dates,
-            services.vehicleTypes,
+            beamScenario.vehicleTypes,
             transportNetwork,
             transitVehicles,
             BeamRouter.oneSecondTravelTime
@@ -419,6 +419,7 @@ class BeamRouter(
           val transitDriverAgentProps = TransitDriverAgent.props(
             scheduler,
             services,
+            beamScenario,
             transportNetwork,
             tollCalculator,
             eventsManager,
@@ -500,28 +501,28 @@ object BeamRouter {
 
   def props(
     beamServices: BeamServices,
+    beamScenario: BeamScenario,
     transportNetwork: TransportNetwork,
     network: Network,
     scenario: Scenario,
     eventsManager: EventsManager,
     transitVehicles: Vehicles,
     fareCalculator: FareCalculator,
-    tollCalculator: TollCalculator,
-    fuelTypePrices: FuelTypePrices
+    tollCalculator: TollCalculator
   ) = {
     checkForConsistentTimeZoneOffsets(beamServices.dates, transportNetwork)
 
     Props(
       new BeamRouter(
         beamServices,
+        beamScenario,
         transportNetwork,
         network,
         scenario,
         eventsManager,
         transitVehicles,
         fareCalculator,
-        tollCalculator,
-        fuelTypePrices
+        tollCalculator
       )
     )
   }

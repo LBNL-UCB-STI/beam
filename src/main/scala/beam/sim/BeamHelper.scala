@@ -2,38 +2,33 @@ package beam.sim
 
 import java.io.{FileOutputStream, FileWriter}
 import java.nio.file.{Files, Paths, StandardCopyOption}
-import java.util.{Properties, Random}
 import java.util.concurrent.TimeUnit
+import java.util.{Properties, Random}
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
-import scala.concurrent.Await
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, ConsumptionRateFilterStoreImpl, VehicleCsvReader, VehicleEnergy}
-import beam.agentsim.agents.vehicles.FuelType.FuelType
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
-import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.scoring.BeamScoringFunctionFactory
+import beam.sim.ArgumentsParser.{Arguments, Worker}
+import beam.sim.BeamServices.{FuelTypePrices, getTazTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationAdjustment
-import beam.sim.ArgumentsParser.{Arguments, Worker}
-import beam.sim.BeamServices.{FuelTypePrices, getTazTreeMap}
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
-import beam.utils.{NetworkHelper, _}
-import beam.utils.scenario.{InputType, ScenarioLoader, ScenarioSource}
 import beam.utils.scenario.matsim.MatsimScenarioSource
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
+import beam.utils.scenario.{InputType, ScenarioLoader, ScenarioSource}
+import beam.utils.{NetworkHelper, _}
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
@@ -41,11 +36,11 @@ import com.google.inject
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
-import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
+import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
 import org.matsim.core.scenario.{MutableScenario, ScenarioByInstanceModule, ScenarioUtils}
@@ -54,7 +49,11 @@ import org.matsim.households.Household
 import org.matsim.utils.objectattributes.AttributeConverter
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
+import scala.concurrent.Await
 
 trait BeamHelper extends LazyLogging {
 
@@ -195,13 +194,8 @@ trait BeamHelper extends LazyLogging {
 
           bind(classOf[NetworkHelper]).toInstance(networkHelper)
           bind(classOf[TAZTreeMap]).toInstance(getTazTreeMap(beamConfig.beam.agentsim.taz.filePath))
-          val vehicleTypes = maybeScaleTransit(beamConfig,
-            readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
-          )
-          bind(classOf[BeamScenario]).toInstance(BeamScenario(readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
-            vehicleTypes,
-            privateVehicles(beamConfig, vehicleTypes)))
 
+          bind(classOf[BeamScenario]).toInstance(loadScenario(beamConfig))
 
           bind(classOf[RideHailIterationHistory]).asEagerSingleton()
           bind(classOf[RouteHistory]).asEagerSingleton()
@@ -214,18 +208,47 @@ trait BeamHelper extends LazyLogging {
       }
     )
 
+  def loadScenario(beamConfig: BeamConfig) = {
+    val vehicleTypes = maybeScaleTransit(
+      beamConfig,
+      readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
+    )
+    val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+    val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
+
+    val consumptionRateFilterStore =
+      new ConsumptionRateFilterStoreImpl(
+        vehicleCsvReader.getVehicleEnergyRecordsUsing,
+        Option(baseFilePath.toString),
+        primaryConsumptionRateFilePathsByVehicleType =
+          vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
+        secondaryConsumptionRateFilePathsByVehicleType =
+          vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
+      )
+    BeamScenario(
+      readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
+      vehicleTypes,
+      privateVehicles(beamConfig, vehicleTypes),
+      new VehicleEnergy(
+        consumptionRateFilterStore,
+        vehicleCsvReader.getLinkToGradeRecordsUsing
+      ),
+      beamConfig
+    )
+  }
+
   def vehicleEnergy(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]) = {
     val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
     val vehicleCsvReader = new VehicleCsvReader(beamConfig)
     val consumptionRateFilterStore =
-    new ConsumptionRateFilterStoreImpl(
-      vehicleCsvReader.getVehicleEnergyRecordsUsing,
-      Option(baseFilePath.toString),
-      primaryConsumptionRateFilePathsByVehicleType =
-        vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
-      secondaryConsumptionRateFilePathsByVehicleType =
-        vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
-    )
+      new ConsumptionRateFilterStoreImpl(
+        vehicleCsvReader.getVehicleEnergyRecordsUsing,
+        Option(baseFilePath.toString),
+        primaryConsumptionRateFilePathsByVehicleType =
+          vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
+        secondaryConsumptionRateFilePathsByVehicleType =
+          vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
+      )
     // TODO Fix me once `TrieMap` is removed
     new VehicleEnergy(
       consumptionRateFilterStore,
@@ -233,16 +256,16 @@ trait BeamHelper extends LazyLogging {
     )
   }
 
-  def privateVehicles(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]): TrieMap[Id[BeamVehicle], BeamVehicle] =
+  def privateVehicles(
+    beamConfig: BeamConfig,
+    vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
+  ): TrieMap[Id[BeamVehicle], BeamVehicle] =
     beamConfig.beam.agentsim.agents.population.useVehicleSampling match {
       case true =>
         TrieMap[Id[BeamVehicle], BeamVehicle]()
       case false =>
         TrieMap(readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath, vehicleTypes).toSeq: _*)
     }
-
-
-
 
   // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
   // say, a yacht or personal bus, but I think this will be fine for now.
@@ -252,12 +275,12 @@ trait BeamHelper extends LazyLogging {
         vehicleTypes.map {
           case (id, bvt) =>
             id -> (if (bvt.standingRoomCapacity > 0)
-              bvt.copy(
-                seatingCapacity = Math.ceil(bvt.seatingCapacity.toDouble * scalingFactor).toInt,
-                standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity.toDouble * scalingFactor).toInt
-              )
-            else
-              bvt)
+                     bvt.copy(
+                       seatingCapacity = Math.ceil(bvt.seatingCapacity.toDouble * scalingFactor).toInt,
+                       standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity.toDouble * scalingFactor).toInt
+                     )
+                   else
+                     bvt)
         }
       case None => vehicleTypes
     }
@@ -351,12 +374,7 @@ trait BeamHelper extends LazyLogging {
     if (isMetricsEnable) Kamon.start(clusterConfig.withFallback(ConfigFactory.defaultReference()))
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
-    import akka.cluster.singleton.{
-      ClusterSingletonManager,
-      ClusterSingletonManagerSettings,
-      ClusterSingletonProxy,
-      ClusterSingletonProxySettings
-    }
+    import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
@@ -414,7 +432,13 @@ trait BeamHelper extends LazyLogging {
 
     warmStart(beamExecutionConfig.beamConfig, beamExecutionConfig.matsimConfig)
 
-    runBeam(services, defaultScenario, networkCoordinator, beamExecutionConfig.outputDirectory)
+    runBeam(
+      services,
+      defaultScenario,
+      injector.getInstance(classOf[BeamScenario]),
+      networkCoordinator,
+      beamExecutionConfig.outputDirectory
+    )
     (defaultScenario.getConfig, beamExecutionConfig.outputDirectory)
   }
 
@@ -483,7 +507,7 @@ trait BeamHelper extends LazyLogging {
   ): Unit = {
     networkCoordinator.convertFrequenciesToTrips()
 
-    samplePopulation(scenario, beamServices.beamConfig, scenario.getConfig, beamServices, outputDir)
+    samplePopulation(scenario, beamScenario, beamServices.beamConfig, scenario.getConfig, beamServices, outputDir)
 
     val houseHoldVehiclesInScenario: Iterable[Id[Vehicle]] = scenario.getHouseholds.getHouseholds
       .values()
@@ -516,7 +540,7 @@ trait BeamHelper extends LazyLogging {
     if (useExternalDataForScenario) {
       val scenarioSource: ScenarioSource = buildScenarioSource(injector, beamConfig)
       ProfilingUtils.timed(s"Load scenario using ${scenarioSource.getClass}", x => logger.info(x)) {
-        new ScenarioLoader(matsimScenario, beamServices, scenarioSource).loadScenario()
+        new ScenarioLoader(matsimScenario, injector.getInstance(classOf[BeamScenario]), beamServices, scenarioSource).loadScenario()
       }
     }
   }
@@ -626,7 +650,7 @@ trait BeamHelper extends LazyLogging {
 
       logger.info(s"""Before sampling:
            |Number of households: ${notSelectedHouseholdIds.size}
-           |Number of vehicles: ${getVehicleGroupingStringUsing(notSelectedVehicleIds.toIndexedSeq, beamServices)}
+           |Number of vehicles: ${getVehicleGroupingStringUsing(notSelectedVehicleIds.toIndexedSeq, beamScenario)}
            |Number of persons: ${notSelectedPersonIds.size}""".stripMargin)
 
       val iterHouseholds = RandomUtils.shuffle(scenario.getHouseholds.getHouseholds.values().asScala, rand).iterator
@@ -666,9 +690,9 @@ trait BeamHelper extends LazyLogging {
 
       logger.info(s"""After sampling:
            |Number of households: $numOfHouseholds. Removed: ${notSelectedHouseholdIds.size}
-           |Number of vehicles: ${getVehicleGroupingStringUsing(vehicles.toIndexedSeq, beamServices)}. Removed: ${getVehicleGroupingStringUsing(
+           |Number of vehicles: ${getVehicleGroupingStringUsing(vehicles.toIndexedSeq, beamScenario)}. Removed: ${getVehicleGroupingStringUsing(
                        notSelectedVehicleIds.toIndexedSeq,
-                       beamServices
+                       beamScenario
                      )}
            |Number of persons: $numOfPersons. Removed: ${notSelectedPersonIds.size}""".stripMargin)
 
@@ -678,10 +702,10 @@ trait BeamHelper extends LazyLogging {
         .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
         .toMap
 
-      val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
+      val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices, beamScenario)
       populationAdjustment.update(scenario)
     } else {
-      val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
+      val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices, beamScenario)
       populationAdjustment.update(scenario)
       beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
         .values()
@@ -740,4 +764,10 @@ trait BeamHelper extends LazyLogging {
 }
 
 case class MapStringDouble(data: Map[String, Double])
-case class BeamScenario(fuelTypePrices: FuelTypePrices, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType], privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle])
+case class BeamScenario(
+  fuelTypePrices: FuelTypePrices,
+  vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
+  privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle],
+  vehicleEnergy: VehicleEnergy,
+  beamConfig: BeamConfig
+)
