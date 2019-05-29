@@ -12,7 +12,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
-import beam.sim.BeamServices
+import beam.sim.{BeamServices, Geofence}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
@@ -77,6 +77,8 @@ object TransitDriverAgent {
     ): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
 
     override def hasParkingBehaviors: Boolean = false
+
+    override def geofence: Option[Geofence] = None
   }
 }
 

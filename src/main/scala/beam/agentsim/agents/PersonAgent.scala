@@ -29,7 +29,7 @@ import beam.router.Modes.BeamMode.{CAR, CAV, WALK, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
-import beam.sim.BeamServices
+import beam.sim.{BeamServices, Geofence}
 import beam.sim.population.AttributesOfIndividual
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
@@ -100,6 +100,8 @@ object PersonAgent {
     def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData
 
     def hasParkingBehaviors: Boolean
+
+    def geofence: Option[Geofence]
   }
 
   case class LiterallyDrivingData(delegate: DrivingData, legEndsAt: Double) extends DrivingData { // sorry
@@ -120,6 +122,8 @@ object PersonAgent {
       )
 
     override def hasParkingBehaviors: Boolean = false
+
+    override def geofence: Option[Geofence] = delegate.geofence
   }
 
   case class BasePersonData(
@@ -143,6 +147,8 @@ object PersonAgent {
     ): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
 
     override def hasParkingBehaviors: Boolean = true
+
+    override def geofence: Option[Geofence] = None
   }
 
   case class ActivityStartTrigger(tick: Int) extends Trigger
@@ -452,9 +458,6 @@ class PersonAgent(
           TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter, theMode), triggerId),
           data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _)
         ) =>
-      if (theMode == CAV || data.currentTrip.get.tripClassifier == CAV) {
-        val i = 0
-      }
       logDebug(s"PersonEntersVehicle: $vehicleToEnter")
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
@@ -986,7 +989,7 @@ class PersonAgent(
         BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _)
         ) =>
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
-    case Event(NotifyVehicleIdle(_, _, _, _, _), _) =>
+    case Event(NotifyVehicleIdle(_, _, _, _, _, _), _) =>
       stay()
     case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>
       stay() replying CompletionNotice(triggerId)

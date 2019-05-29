@@ -23,6 +23,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.R5RoutingWorker
+import beam.sim.Geofence
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.plan.sampling.AvailableModeUtils._
 import org.matsim.api.core.v01.population.{Activity, Leg}
@@ -1118,6 +1119,8 @@ object ChoosesMode {
       )
 
     override def hasParkingBehaviors: Boolean = true
+
+    override def geofence: Option[Geofence] = None
   }
 
   case class ChoosesModeResponsePlaceholders(
