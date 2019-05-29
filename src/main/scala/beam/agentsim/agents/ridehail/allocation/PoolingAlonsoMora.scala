@@ -141,9 +141,14 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
               veh.vehicleId.toString,
               veh.currentLocationUTM.loc,
               tick,
-              rideHailManager.vehicleManager.getRideHailAgentLocation(veh.vehicleId).geofence
+              veh.geofence
           )
         )
+      rideHailManager.vehicleManager.availableRideHailVehicles.values.foreach{ veh =>
+        if(veh.geofence.isEmpty){
+          val i = 0
+        }
+      }
 
       spatialPoolCustomerReqs.clear()
       poolCustomerReqs.foreach { d =>

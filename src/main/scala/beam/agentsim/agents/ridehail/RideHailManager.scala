@@ -412,6 +412,9 @@ class RideHailManager(
 
     case "FILE" =>
       new RideHailFleetInitializer().init(beamServices) foreach { fleetData =>
+        if(fleetData.toGeofence.isEmpty){
+          val i = 0
+        }
         createRideHailVehicleAndAgent(
           fleetData.id.split("-").toList.tail.mkString("-"),
           BeamVehicleType.defaultCarBeamVehicleType,
@@ -1171,7 +1174,8 @@ class RideHailManager(
       rideHailAgentRef,
       rideHailBeamVehicle.id,
       ridehailBeamVehicleTypeId,
-      SpaceTime(rideInitialLocation, 0)
+      SpaceTime(rideInitialLocation, 0),
+      geofence
     )
     // Put the agent out of service and let the agent tell us when it's Idle (aka ready for service)
     vehicleManager.putOutOfService(agentLocation)
