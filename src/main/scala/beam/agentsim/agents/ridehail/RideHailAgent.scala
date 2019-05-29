@@ -266,7 +266,7 @@ class RideHailAgent(
   when(Idle) {
     case Event(
         TriggerWithId(EndShiftTrigger(tick), triggerId),
-        data @ RideHailAgentData(_, _, _, _, _,_)
+        data @ RideHailAgentData(_, _, _, _, _, _)
         ) =>
       val newShiftToSchedule = if (data.remainingShifts.size < 1) {
         Vector()
@@ -322,7 +322,8 @@ class RideHailAgent(
           self
         )
       )
-      goto(WaitingToDriveInterrupted) using data.copy(geofence = geofence)
+      goto(WaitingToDriveInterrupted) using data
+        .copy(geofence = geofence)
         .withPassengerSchedule(updatedPassengerSchedule)
         .asInstanceOf[RideHailAgentData] replying ModifyPassengerScheduleAck(
         requestId,

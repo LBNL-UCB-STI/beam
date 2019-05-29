@@ -230,11 +230,16 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
   }
 
-  def scenarioGeoFence(implicit skimmer: BeamSkimmer, mockActorRef: ActorRef) : (List[VehicleAndSchedule], List[CustomerRequest])= {
+  def scenarioGeoFence(
+    implicit skimmer: BeamSkimmer,
+    mockActorRef: ActorRef
+  ): (List[VehicleAndSchedule], List[CustomerRequest]) = {
     import scala.concurrent.duration._
     val gf = Geofence(10000, 10000, 13400)
-    val v1: VehicleAndSchedule = createVehicleAndSchedule("v1", new Coord(5000, 5000), 8.hours.toSeconds.toInt, Some(gf))
-    val v2: VehicleAndSchedule = createVehicleAndSchedule("v2", new Coord(2000, 2000), 8.hours.toSeconds.toInt, Some(gf))
+    val v1: VehicleAndSchedule =
+      createVehicleAndSchedule("v1", new Coord(5000, 5000), 8.hours.toSeconds.toInt, Some(gf))
+    val v2: VehicleAndSchedule =
+      createVehicleAndSchedule("v2", new Coord(2000, 2000), 8.hours.toSeconds.toInt, Some(gf))
     val p1Req: CustomerRequest =
       createPersonRequest(
         makeVehPersonId("p1"),
