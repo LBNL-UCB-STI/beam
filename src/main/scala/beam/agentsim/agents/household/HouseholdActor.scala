@@ -16,7 +16,7 @@ import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.ridehail.RideHailAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck, ModifyPassengerScheduleAcks}
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
-import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePersonId}
+import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, PersonIdWithActorRef}
 import beam.agentsim.agents.{HasTickAndTrigger, InitializeTrigger, PersonAgent}
 import beam.agentsim.agents.{Dropoff, Pickup}
 import beam.agentsim.events.SpaceTime
@@ -98,7 +98,7 @@ object HouseholdActor {
   case class ReleaseVehicle(vehicle: BeamVehicle)
   case class ReleaseVehicleAndReply(vehicle: BeamVehicle, tick: Option[Int] = None)
   case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken])
-  case class CancelCAVTrip(person: VehiclePersonId)
+  case class CancelCAVTrip(person: PersonIdWithActorRef)
 
   /**
     * Implementation of intra-household interaction in BEAM using actors.
@@ -160,7 +160,7 @@ object HouseholdActor {
     implicit val pop: org.matsim.api.core.v01.population.Population = population
 
     private var availableVehicles: List[BeamVehicle] = Nil
-    private var memberVehiclePersonIds: Map[Id[Person], VehiclePersonId] = Map()
+    private var members: Map[Id[Person], PersonIdWithActorRef] = Map()
 
     // Data need to execute CAV dispatch
     private val cavPlans: mutable.ListBuffer[CAVSchedule] = mutable.ListBuffer()
@@ -300,13 +300,7 @@ object HouseholdActor {
             person.getId.toString
           )
           context.watch(personRef)
-
-          memberVehiclePersonIds = memberVehiclePersonIds + (person.getId -> VehiclePersonId(
-            PersonAgent.bodyVehicleIdFromPersonID(person.getId),
-            person.getId,
-            personRef
-          ))
-
+          members = members + (person.getId -> PersonIdWithActorRef(person.getId, personRef))
           schedulerRef ! ScheduleTrigger(InitializeTrigger(0), personRef)
         }
         if (cavs.isEmpty) completeInitialization(triggerId, Vector())
@@ -349,11 +343,11 @@ object HouseholdActor {
             var passengerSchedule =
               PassengerSchedule().addLegs(BeamLeg.makeVectorLegsConsistentAsOrderdStandAloneLegs(theLegs.toVector))
             val updatedLegsIterator = passengerSchedule.schedule.keys.toIterator
-            var pickDropsForGrouping: Map[VehiclePersonId, List[BeamLeg]] = Map()
-            var passengersToAdd = Set[VehiclePersonId]()
+            var pickDropsForGrouping: Map[PersonIdWithActorRef, List[BeamLeg]] = Map()
+            var passengersToAdd = Set[PersonIdWithActorRef]()
             cavSchedule.schedule.foreach { serviceRequest =>
               if (serviceRequest.person.isDefined) {
-                val person = memberVehiclePersonIds(serviceRequest.person.get.personId)
+                val person = members(serviceRequest.person.get.personId)
                 if (passengersToAdd.contains(person)) {
                   passengersToAdd = passengersToAdd - person
                   if (pickDropsForGrouping.contains(person)) {

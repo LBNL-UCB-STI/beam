@@ -3,7 +3,7 @@ package beam.agentsim.agents.ridehail
 import beam.agentsim.agents.planning.Trip
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehiclePersonId}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PersonIdWithActorRef}
 import beam.agentsim.agents.{MobilityRequest, _}
 import beam.router.BeamRouter.Location
 import beam.router.BeamSkimmer.Skim
@@ -230,7 +230,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     Some(newPoolingList.toList)
   }
 
-  def createPersonRequest(vehiclePersonId: VehiclePersonId, src: Location, srcTime: Int, dst: Location)(
+  def createPersonRequest(vehiclePersonId: PersonIdWithActorRef, src: Location, srcTime: Int, dst: Location)(
     implicit skimmer: BeamSkimmer
   ): CustomerRequest = {
     val p1Act1: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act1", src)
@@ -301,7 +301,7 @@ object AlonsoMoraPoolingAlgForRideHail {
   }
   sealed trait RVGraphNode extends RTVGraphNode
   // customer requests
-  case class CustomerRequest(person: VehiclePersonId, pickup: MobilityRequest, dropoff: MobilityRequest)
+  case class CustomerRequest(person: PersonIdWithActorRef, pickup: MobilityRequest, dropoff: MobilityRequest)
       extends RVGraphNode {
     override def getId: String = person.personId.toString
   }

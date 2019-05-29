@@ -6,7 +6,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail.{CustomerRequest, RVGraph, VehicleAndSchedule, _}
-import beam.agentsim.agents.vehicles.{BeamVehicleType, VehiclePersonId}
+import beam.agentsim.agents.vehicles.{BeamVehicleType, PersonIdWithActorRef}
 import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamSkimmer
@@ -206,10 +206,10 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
   }
 
-  def makeVehPersonId(perId: Id[Person])(implicit mockActorRef: ActorRef): VehiclePersonId =
-    VehiclePersonId(Id.create(perId, classOf[Vehicle]), perId, mockActorRef)
+  def makeVehPersonId(perId: Id[Person])(implicit mockActorRef: ActorRef): PersonIdWithActorRef =
+    PersonIdWithActorRef(perId, mockActorRef)
 
-  def makeVehPersonId(perId: String)(implicit mockActorRef: ActorRef): VehiclePersonId =
+  def makeVehPersonId(perId: String)(implicit mockActorRef: ActorRef): PersonIdWithActorRef =
     makeVehPersonId(Id.create(perId, classOf[Person]))
 
   def demandSpatialIndex(demand: List[CustomerRequest]): QuadTree[CustomerRequest] = {

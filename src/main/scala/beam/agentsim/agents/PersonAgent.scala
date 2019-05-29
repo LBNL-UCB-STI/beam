@@ -185,8 +185,6 @@ object PersonAgent {
 
   case object DrivingInterrupted extends Traveling
 
-  def bodyVehicleIdFromPersonID(id: Id[Person]) = BeamVehicle.createId(id, Some("body"))
-
   def correctTripEndTime(trip: EmbodiedBeamTrip, endTime: Int, bodyVehicleId: Id[BeamVehicle], bodyVehicleTypeId: Id[BeamVehicleType]) = {
     if (trip.tripClassifier != WALK && trip.tripClassifier != WALK_TRANSIT) {
       trip.copy(
@@ -225,7 +223,7 @@ class PersonAgent(
 
   val bodyType = beamScenario.vehicleTypes(Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]))
   val body = new BeamVehicle(
-    bodyVehicleIdFromPersonID(id),
+    BeamVehicle.createId(id, Some("body")),
     new Powertrain(bodyType.primaryFuelConsumptionInJoulePerMeter),
     bodyType
   )
@@ -671,7 +669,7 @@ class PersonAgent(
       val resRequest = ReservationRequest(
         legSegment.head.beamLeg,
         legSegment.last.beamLeg,
-        VehiclePersonId(legSegment.head.beamVehicleId, id, self)
+        PersonIdWithActorRef(id, self)
       )
       TransitDriverAgent.selectByVehicleId(legSegment.head.beamVehicleId) ! resRequest
       goto(WaitingForReservationConfirmation)
@@ -685,7 +683,7 @@ class PersonAgent(
 
       rideHailManager ! RideHailRequest(
         ReserveRide,
-        VehiclePersonId(body.id, id, self),
+        PersonIdWithActorRef(id, self),
         beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint.loc),
         departAt,
         beamServices.geo.wgs2Utm(legSegment.last.beamLeg.travelPath.endPoint.loc),
