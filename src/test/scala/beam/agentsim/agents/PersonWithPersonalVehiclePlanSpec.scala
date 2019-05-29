@@ -217,7 +217,7 @@ class PersonWithPersonalVehiclePlanSpec
                     .copy(linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50))
                 ),
                 beamVehicleId = vehicleId,
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -277,7 +277,7 @@ class PersonWithPersonalVehiclePlanSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("car-1"),
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -443,7 +443,7 @@ class PersonWithPersonalVehiclePlanSpec
                     .copy(linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50))
                 ),
                 beamVehicleId = vehicleId,
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -581,7 +581,7 @@ class PersonWithPersonalVehiclePlanSpec
                 travelPath = leg.travelPath.copy(linkTravelTime = Array(0, 100, 100, 100, 100, 100, 0))
               ),
               beamVehicleId = vehicleId,
-              BeamVehicleType.defaultTransitBeamVehicleType.id,
+              Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
               asDriver = true,
               cost = 0.0,
               unbecomeDriverOnCompletion = true
@@ -686,7 +686,7 @@ class PersonWithPersonalVehiclePlanSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
@@ -706,7 +706,7 @@ class PersonWithPersonalVehiclePlanSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("car-1"),
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true

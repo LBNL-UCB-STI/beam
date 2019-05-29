@@ -383,7 +383,7 @@ class PersonWithVehicleSharingSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
@@ -403,7 +403,7 @@ class PersonWithVehicleSharingSpec
                   )
                 ),
                 beamVehicleId = vehicle.id,
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true

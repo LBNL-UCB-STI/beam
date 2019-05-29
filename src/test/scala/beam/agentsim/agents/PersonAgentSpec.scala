@@ -383,7 +383,7 @@ class PersonAgentSpec
           )
         ),
         beamVehicleId = busId,
-        BeamVehicleType.defaultTransitBeamVehicleType.id,
+        Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
         asDriver = false,
         cost = 2.75,
         unbecomeDriverOnCompletion = false
@@ -403,7 +403,7 @@ class PersonAgentSpec
           )
         ),
         beamVehicleId = busId,
-        BeamVehicleType.defaultTransitBeamVehicleType.id,
+        Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
         asDriver = false,
         cost = 0.0,
         unbecomeDriverOnCompletion = false
@@ -423,7 +423,7 @@ class PersonAgentSpec
           )
         ),
         beamVehicleId = tramId,
-        BeamVehicleType.defaultTransitBeamVehicleType.id,
+        Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
         asDriver = false,
         cost = 1.0, // $1 fare
         unbecomeDriverOnCompletion = false
@@ -519,7 +519,7 @@ class PersonAgentSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
@@ -542,7 +542,7 @@ class PersonAgentSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
