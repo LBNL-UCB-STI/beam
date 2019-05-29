@@ -3,7 +3,7 @@ package beam.agentsim.agents.ridehail
 import akka.actor.ActorRef
 import beam.agentsim.agents.ridehail.RideHailVehicleManager._
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.{BeamVehicleType, PassengerSchedule}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.Location
@@ -307,14 +307,14 @@ object RideHailVehicleManager {
   case class RideHailAgentLocation(
     rideHailAgent: ActorRef,
     vehicleId: Id[Vehicle],
-    vehicleTypeId: Id[BeamVehicleType],
+    vehicleType: BeamVehicleType,
     currentLocationUTM: SpaceTime,
     geofence: Option[Geofence] = None,
-    seatsAvailable: Int
+    currentPassengerSchedule: Option[PassengerSchedule] = None,
+    servingPooledTrip: Boolean = false
   ) {
-
     def toStreetVehicle: StreetVehicle = {
-      StreetVehicle(vehicleId, vehicleTypeId, currentLocationUTM, CAR, asDriver = true)
+      StreetVehicle(vehicleId, vehicleType.id, currentLocationUTM, CAR, asDriver = true)
     }
   }
 

@@ -197,8 +197,8 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
     mockActorRef: ActorRef
   ): (List[VehicleAndSchedule], List[CustomerRequest]) = {
     import scala.concurrent.duration._
-    val v1: VehicleAndSchedule = createVehicleAndSchedule("v1", new Coord(5000, 5000), 8.hours.toSeconds.toInt)
-    val v2: VehicleAndSchedule = createVehicleAndSchedule("v2", new Coord(2000, 2000), 8.hours.toSeconds.toInt)
+    val v1: VehicleAndSchedule = createVehicleAndSchedule("v1", new Coord(5000, 5000), 8.hours.toSeconds.toInt, None, 4)
+    val v2: VehicleAndSchedule = createVehicleAndSchedule("v2", new Coord(2000, 2000), 8.hours.toSeconds.toInt, None, 4)
     val p1Req: CustomerRequest =
       createPersonRequest(
         makeVehPersonId("p1"),
@@ -237,9 +237,9 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
     import scala.concurrent.duration._
     val gf = Geofence(10000, 10000, 13400)
     val v1: VehicleAndSchedule =
-      createVehicleAndSchedule("v1", new Coord(5000, 5000), 8.hours.toSeconds.toInt, Some(gf))
+      createVehicleAndSchedule("v1", new Coord(5000, 5000), 8.hours.toSeconds.toInt, Some(gf), 4)
     val v2: VehicleAndSchedule =
-      createVehicleAndSchedule("v2", new Coord(2000, 2000), 8.hours.toSeconds.toInt, Some(gf))
+      createVehicleAndSchedule("v2", new Coord(2000, 2000), 8.hours.toSeconds.toInt, Some(gf), 4)
     val p1Req: CustomerRequest =
       createPersonRequest(
         makeVehPersonId("p1"),

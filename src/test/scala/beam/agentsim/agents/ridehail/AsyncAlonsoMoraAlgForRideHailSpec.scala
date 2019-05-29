@@ -153,7 +153,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
       (28800 to 32400 by timeWindow).foreach { i =>
         println("")
         println(i / 3600.0)
-        val demand = requests.filter(x => x.pickup.time >= i && x.pickup.time < i + timeWindow)
+        val demand = requests.filter(x => x.pickup.baselineNonPooledTime >= i && x.pickup.baselineNonPooledTime < i + timeWindow)
         val fleet = mutable.ListBuffer.empty[VehicleAndSchedule]
         (0 to fleetSize).foreach { j =>
           print(s"$j,")
@@ -161,7 +161,9 @@ class AsyncAlonsoMoraAlgForRideHailSpec
             createVehicleAndSchedule(
               "v" + j,
               new Coord(minx + rnd.nextDouble() * (maxx - minx), miny + rnd.nextDouble() * (maxy - miny)),
-              i
+              i,
+              None,
+              4
             )
           )
         }

@@ -126,7 +126,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
     var startTime = tick
     var rideHailVehicleAtOrigin = StreetVehicle(
       rideHailLocation.vehicleId,
-      rideHailLocation.vehicleTypeId,
+      rideHailLocation.vehicleType.id,
       SpaceTime((rideHailLocation.currentLocationUTM.loc, startTime)),
       CAR,
       asDriver = false
@@ -146,7 +146,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
 
       rideHailVehicleAtOrigin = StreetVehicle(
         rideHailLocation.vehicleId,
-        rideHailLocation.vehicleTypeId,
+        rideHailLocation.vehicleType.id,
         SpaceTime((req.pickUpLocationUTM, startTime)),
         CAR,
         asDriver = false
@@ -167,7 +167,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
 
       rideHailVehicleAtOrigin = StreetVehicle(
         rideHailLocation.vehicleId,
-        rideHailLocation.vehicleTypeId,
+        rideHailLocation.vehicleType.id,
         SpaceTime((req.destinationUTM, startTime)),
         CAR,
         asDriver = false

@@ -10,7 +10,8 @@ import beam.agentsim.agents.vehicles.PassengerSchedule.Manifest
 import scala.collection.immutable.TreeMap
 
 /**
-  * Holds information about the numbers and identities of agents in the model
+  * Holds information about the numbers and identities of agents in on board a vehicle
+  * and the BeamLegs they are taking through the network
   */
 case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
 
@@ -52,6 +53,8 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
     }
     new PassengerSchedule(newSchedule)
   }
+
+  def numUniquePassengers: Int = schedule.values.flatMap(_.riders).toSet.size
 
   override def toString: String = {
     schedule.map(keyVal => s"${keyVal._1.toString} -> ${keyVal._2.toString}").mkString("--")

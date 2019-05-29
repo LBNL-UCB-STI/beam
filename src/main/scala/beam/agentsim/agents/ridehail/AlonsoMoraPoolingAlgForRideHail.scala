@@ -200,7 +200,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     skimmer.getTimeDistanceAndCost(
       src.activity.getCoord,
       dst.activity.getCoord,
-      src.time,
+      src.baselineNonPooledTime,
       BeamMode.CAR,
       BeamVehicleType.defaultCarBeamVehicleType.id
     )
@@ -213,14 +213,14 @@ object AlonsoMoraPoolingAlgForRideHail {
   )(
     implicit skimmer: BeamSkimmer
   ): Option[List[MobilityRequest]] = {
-    val sortedRequests = requests.sortWith(_.time < _.time)
+    val sortedRequests = requests.sortWith(_.baselineNonPooledTime < _.baselineNonPooledTime)
     import scala.collection.mutable.{ListBuffer => MListBuffer}
     val newPoolingList = MListBuffer(sortedRequests.head.copy())
     sortedRequests.drop(1).foldLeft(()) {
       case (_, curReq) =>
         val prevReq = newPoolingList.last
         val serviceTime = prevReq.serviceTime + getTimeDistanceAndCost(prevReq, curReq, beamServices).time
-        if (serviceTime <= curReq.time + timeWindow(curReq.tag)) {
+        if (serviceTime <= curReq.baselineNonPooledTime + timeWindow(curReq.tag)) {
           newPoolingList.append(curReq.copy(serviceTime = serviceTime))
         } else {
           return None
@@ -229,11 +229,11 @@ object AlonsoMoraPoolingAlgForRideHail {
     Some(newPoolingList.toList)
   }
 
-  def createPersonRequest(vehiclePersonId: VehiclePersonId, src: Location, srcTime: Int, dst: Location)(
+  def createPersonRequest(vehiclePersonId: VehiclePersonId, src: Location, departureTime: Int, dst: Location)(
     implicit skimmer: BeamSkimmer
   ): CustomerRequest = {
     val p1Act1: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act1", src)
-    p1Act1.setEndTime(srcTime)
+    p1Act1.setEndTime(departureTime)
     val p1Act2: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act2", dst)
     val p1_tt: Int = skimmer
       .getTimeDistanceAndCost(
@@ -250,22 +250,100 @@ object AlonsoMoraPoolingAlgForRideHail {
       MobilityRequest(
         Some(vehiclePersonId),
         p1Act1,
-        srcTime,
+        departureTime,
         Trip(p1Act1, None, null),
         BeamMode.RIDE_HAIL,
         Pickup,
-        srcTime
+        departureTime
       ),
       MobilityRequest(
         Some(vehiclePersonId),
         p1Act2,
-        srcTime + p1_tt,
+        departureTime + p1_tt,
         Trip(p1Act2, None, null),
         BeamMode.RIDE_HAIL,
         Dropoff,
-        srcTime + p1_tt
+        departureTime + p1_tt
       ),
     )
+  }
+  def createVehicleAndScheduleFromRideHailAgentLocation(veh: RideHailAgentLocation, tick: Int): VehicleAndSchedule = {
+    val v1 = new BeamVehicle(
+      Id.create(veh.vehicleId, classOf[BeamVehicle]),
+      new Powertrain(0.0),
+      BeamVehicleType.defaultCarBeamVehicleType
+    )
+    val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${veh.vehicleId}Act0", veh.currentLocationUTM.loc)
+    v1Act0.setEndTime(tick)
+    val alonsoSchedule = veh.currentPassengerSchedule.map(_.schedule.flatMap { case (leg, manifest) =>
+      var theReqs: List[MobilityRequest] = List()
+      if (manifest.riders.isEmpty) {
+        val theActivity = PopulationUtils.createActivityFromCoord(s"${veh.vehicleId}Act0", leg.travelPath.startPoint.loc)
+        theReqs = List(
+          MobilityRequest(
+            None,
+            theActivity,
+            leg.startTime,
+            Trip(theActivity, None, null),
+            BeamMode.RIDE_HAIL,
+            Relocation,
+            leg.startTime
+          )
+        )
+      } else {
+        val thePickups = manifest.boarders.map { boarder =>
+            val theActivity = PopulationUtils.createActivityFromCoord(s"${veh.vehicleId}Act0", leg.travelPath.startPoint.loc)
+          theActivity.setEndTime(leg.startTime)
+            MobilityRequest(
+              Some(boarder),
+              theActivity,
+              leg.startTime,
+              Trip(theActivity, None, null),
+              BeamMode.RIDE_HAIL,
+              Pickup,
+              leg.startTime
+            )
+          }
+        val theDropoffs = manifest.alighters.map { alighter =>
+          val theActivity = PopulationUtils.createActivityFromCoord(s"${veh.vehicleId}Act0", leg.travelPath.endPoint.loc)
+          theActivity.setEndTime(leg.endTime)
+          MobilityRequest(
+            Some(alighter),
+            theActivity,
+            leg.endTime,
+            Trip(theActivity, None, null),
+            BeamMode.RIDE_HAIL,
+            Dropoff,
+            leg.endTime
+          )
+        }
+        theReqs = thePickups.toList ++ theDropoffs.toList
+      }
+      theReqs
+    }).getOrElse(
+      List(
+        MobilityRequest(
+          None,
+          v1Act0,
+          tick,
+          Trip(v1Act0, None, null),
+          BeamMode.RIDE_HAIL,
+          Dropoff,
+          tick
+        )
+      )
+    )
+    val res = VehicleAndSchedule(
+      v1,
+      alonsoSchedule.toList,
+      veh.geofence,
+      veh.vehicleType.seatingCapacity - veh.currentPassengerSchedule.map(_.numUniquePassengers).getOrElse(0)
+    )
+
+    if(res.seatsAvailable<4){
+      val i = 0
+    }
+    res
   }
 
   def createVehicleAndSchedule(
@@ -315,9 +393,9 @@ object AlonsoMoraPoolingAlgForRideHail {
   // Ride Hail vehicles, capacity and their predefined schedule
   case class VehicleAndSchedule(vehicle: BeamVehicle, schedule: List[MobilityRequest], geofence: Option[Geofence], seatsAvailable: Int)
       extends RVGraphNode {
-    private val nbOfPassengers: Int = schedule.count(_.tag == Dropoff)
+    private val numberOfPassengers: Int = schedule.count(_.tag == Dropoff)
     override def getId: String = vehicle.id.toString
-    def getFreeSeats: Int = seatsAvailable - nbOfPassengers
+    def getFreeSeats: Int = seatsAvailable - numberOfPassengers
     def getLastDropoff: MobilityRequest = schedule.head
   }
   // Trip that can be satisfied by one or more ride hail vehicle
@@ -325,7 +403,7 @@ object AlonsoMoraPoolingAlgForRideHail {
       extends DefaultEdge
       with RTVGraphNode {
     override def getId: String = requests.foldLeft(s"trip:") { case (c, x) => c + s"$x -> " }
-    val cost: Int = schedule.foldLeft(0) { case (c, r)                     => c + (r.serviceTime - r.time) }
+    val cost: Int = schedule.foldLeft(0) { case (c, r)                     => c + (r.serviceTime - r.baselineNonPooledTime) }
   }
   case class RVGraph(clazz: Class[RideHailTrip])
       extends DefaultUndirectedWeightedGraph[RVGraphNode, RideHailTrip](clazz)

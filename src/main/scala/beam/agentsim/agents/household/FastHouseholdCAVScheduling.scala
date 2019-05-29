@@ -140,7 +140,7 @@ class FastHouseholdCAVScheduling(
       if (cavSchedule.occupancy >= cav.beamVehicleType.seatingCapacity)
         return None
 
-      val sortedRequests = (cavSchedule.schedule ++ requests).filter(_.tag != Relocation).sortBy(_.time)
+      val sortedRequests = (cavSchedule.schedule ++ requests).filter(_.tag != Relocation).sortBy(_.baselineNonPooledTime)
       val startRequest = sortedRequests.head
       val newHouseholdSchedule = MListBuffer(startRequest.copy())
       var newHouseholdScheduleCost = householdScheduleCost.copy()
@@ -151,28 +151,28 @@ class FastHouseholdCAVScheduling(
         val metric = skimmer.getTimeDistanceAndCost(
           prevReq.activity.getCoord,
           curReq.activity.getCoord,
-          prevReq.time,
+          prevReq.baselineNonPooledTime,
           BeamMode.CAR,
           BeamVehicleType.defaultCarBeamVehicleType.id
         )
         var serviceTime = prevReq.serviceTime + metric.time
-        val ubTime = curReq.time + timeWindow(curReq.tag)
-        val lbTime = curReq.time - timeWindow(curReq.tag)
+        val ubTime = curReq.baselineNonPooledTime + timeWindow(curReq.tag)
+        val lbTime = curReq.baselineNonPooledTime - timeWindow(curReq.tag)
         if (curReq.isPickup) {
           if (serviceTime > ubTime || (newOccupancy != 0 && serviceTime < lbTime))
             return None
           else if (serviceTime >= lbTime && serviceTime <= ubTime) {
-            serviceTime = if (serviceTime < curReq.time) curReq.time else serviceTime
+            serviceTime = if (serviceTime < curReq.baselineNonPooledTime) curReq.baselineNonPooledTime else serviceTime
           } else if (serviceTime < lbTime) {
             val relocationRequest = curReq.copy(
               person = None,
-              time = prevReq.serviceTime,
+              baselineNonPooledTime = prevReq.serviceTime,
               defaultMode = BeamMode.CAV,
               tag = Relocation,
               serviceTime = prevReq.serviceTime
             )
             newHouseholdSchedule.append(relocationRequest)
-            serviceTime = curReq.time
+            serviceTime = curReq.baselineNonPooledTime
           }
           newOccupancy += 1
           newHouseholdSchedule.append(curReq.copy(serviceTime = serviceTime, vehicleOccupancy = Some(newOccupancy)))
@@ -193,7 +193,7 @@ class FastHouseholdCAVScheduling(
           newHouseholdScheduleCost.tripTravelTime(curReq.trip) + cavTripTravelTime
           if (newTotalTravelTime > newHouseholdScheduleCost.baseTotalTravelTime)
             return None
-          val sumOfDelays = (pickupReq.serviceTime - pickupReq.time) + (serviceTime - curReq.time)
+          val sumOfDelays = (pickupReq.serviceTime - pickupReq.baselineNonPooledTime) + (serviceTime - curReq.baselineNonPooledTime)
           newHouseholdScheduleCost = newHouseholdScheduleCost.copy(
             tripTravelTime = newHouseholdScheduleCost.tripTravelTime + (curReq.trip -> cavTripTravelTime),
             totalTravelTime = newTotalTravelTime,
@@ -212,7 +212,7 @@ class FastHouseholdCAVScheduling(
     }
 
     private def computeSharedTravelTime(requestsSeq: MListBuffer[MobilityRequest]): Int = {
-      val waitTime = requestsSeq.head.serviceTime - requestsSeq.head.time
+      val waitTime = requestsSeq.head.serviceTime - requestsSeq.head.baselineNonPooledTime
       requestsSeq.filter(x => x.isPickup || x.isDropoff).sliding(2).foldLeft(waitTime) {
         case (acc, Seq(prevReq, nextReq)) =>
           acc + ((nextReq.serviceTime - prevReq.serviceTime) / prevReq.vehicleOccupancy.getOrElse(1))
@@ -252,7 +252,7 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
       .map { wayPoints =>
         val orig = wayPoints(0)
         val dest = wayPoints(1)
-        val origin = SpaceTime(orig.activity.getCoord, Math.round(orig.time))
+        val origin = SpaceTime(orig.activity.getCoord, Math.round(orig.baselineNonPooledTime))
         if (beamServices.geo.distUTMInMeters(orig.activity.getCoord, dest.activity.getCoord) < beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters) {
           newMobilityRequests = newMobilityRequests :+ orig
           None
@@ -274,7 +274,7 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
             beamServices.geo.utm2Wgs(dest.activity.getCoord),
             10E3
           )
-          routeHistory.getRoute(origLink, destLink, orig.time) match {
+          routeHistory.getRoute(origLink, destLink, orig.baselineNonPooledTime) match {
             case Some(rememberedRoute) =>
               val embodyReq = BeamRouter.linkIdsToEmbodyRequest(
                 rememberedRoute,
@@ -400,7 +400,7 @@ object HouseholdTripsHelper {
           val usedCarOut = plan.trips.sliding(2).foldLeft(false) {
             case (usedCar, Seq(prevTrip, curTrip)) =>
               val (pickup, dropoff, travelTime) = getPickupAndDropoff(plan, curTrip, prevTrip, counter, skim)
-              if (firstPickupOfTheDay.isEmpty || firstPickupOfTheDay.get.time > pickup.time)
+              if (firstPickupOfTheDay.isEmpty || firstPickupOfTheDay.get.baselineNonPooledTime > pickup.baselineNonPooledTime)
                 firstPickupOfTheDay = Some(pickup)
               tours.append(pickup)
               tours.append(dropoff)

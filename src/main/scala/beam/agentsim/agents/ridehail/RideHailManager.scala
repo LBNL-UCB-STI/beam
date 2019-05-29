@@ -110,7 +110,7 @@ object RideHailManager {
           EmbodiedBeamLeg(
             beamLeg,
             rideHailAgentLocation.vehicleId,
-            rideHailAgentLocation.vehicleTypeId,
+            rideHailAgentLocation.vehicleType.id,
             false,
             estimatedPrice(passenger.personId),
             false,
@@ -524,7 +524,7 @@ class RideHailManager(
 
       val beamVehicle = resources(agentsim.vehicleId2BeamVehicleId(vehicleId))
       val rideHailAgentLocation =
-        RideHailAgentLocation(beamVehicle.driver.get, vehicleId, beamVehicle.beamVehicleType.id, whenWhere, geofence, beamVehicle.beamVehicleType.seatingCapacity)
+        RideHailAgentLocation(beamVehicle.driver.get, vehicleId, beamVehicle.beamVehicleType, whenWhere, geofence, None, false)
       vehicleManager.vehicleState.put(vehicleId, beamVehicleState)
 
       if (modifyPassengerScheduleManager
@@ -638,7 +638,7 @@ class RideHailManager(
           driverPassengerSchedule,
           calcFare(
             request,
-            singleOccupantQuoteAndPoolingInfo.rideHailAgentLocation.vehicleTypeId,
+            singleOccupantQuoteAndPoolingInfo.rideHailAgentLocation.vehicleType.id,
             driverPassengerSchedule,
             baseFare
           ),
@@ -953,13 +953,13 @@ class RideHailManager(
 //      StreetVehicle(request.customer.vehicleId, pickupSpaceTime, WALK, asDriver = true)
     val rideHailVehicleAtOrigin = StreetVehicle(
       rideHailLocation.vehicleId,
-      rideHailLocation.vehicleTypeId,
+      rideHailLocation.vehicleType.id,
       SpaceTime((rideHailLocation.currentLocationUTM.loc, requestTime)),
       CAR,
       asDriver = false
     )
     val rideHailVehicleAtPickup =
-      StreetVehicle(rideHailLocation.vehicleId, rideHailLocation.vehicleTypeId, pickupSpaceTime, CAR, asDriver = false)
+      StreetVehicle(rideHailLocation.vehicleId, rideHailLocation.vehicleType.id, pickupSpaceTime, CAR, asDriver = false)
 
 // route from ride hailing vehicle to customer
     val rideHailAgent2Customer = RoutingRequest(
@@ -1026,9 +1026,7 @@ class RideHailManager(
     )
 
     // Track remaining seats available
-    val numSeatsAvailable = if(request.asPooled){travelProposal.rideHailAgentLocation.seatsAvailable - 1}else{0}
-    assert(numSeatsAvailable>=0)
-    vehicleManager.putIntoService(travelProposal.rideHailAgentLocation.copy(seatsAvailable = numSeatsAvailable))
+    vehicleManager.putIntoService(travelProposal.rideHailAgentLocation.copy(currentPassengerSchedule = Some(travelProposal.passengerSchedule), servingPooledTrip = request.asPooled))
 
     // Create confirmation info but stash until we receive ModifyPassengerScheduleAck
     pendingModifyPassengerScheduleAcks.put(
@@ -1172,10 +1170,11 @@ class RideHailManager(
     val agentLocation = RideHailAgentLocation(
       rideHailAgentRef,
       rideHailBeamVehicle.id,
-      ridehailBeamVehicleTypeId,
+      rideHailBeamVehicle.beamVehicleType,
       SpaceTime(rideInitialLocation, 0),
       geofence,
-      rideHailBeamVehicle.beamVehicleType.seatingCapacity
+      None,
+      false
     )
     // Put the agent out of service and let the agent tell us when it's Idle (aka ready for service)
     vehicleManager.putOutOfService(agentLocation)
@@ -1251,7 +1250,7 @@ class RideHailManager(
     TravelProposal(
       alloc.rideHailAgentLocation,
       passSched,
-      calcFare(alloc.request, alloc.rideHailAgentLocation.vehicleTypeId, passSched, baseFare),
+      calcFare(alloc.request, alloc.rideHailAgentLocation.vehicleType.id, passSched, baseFare),
       None
     )
   }
@@ -1361,7 +1360,7 @@ class RideHailManager(
 
         val rideHailVehicleAtOrigin = StreetVehicle(
           rideHailAgentLocation.vehicleId,
-          rideHailAgentLocation.vehicleTypeId,
+          rideHailAgentLocation.vehicleType.id,
           SpaceTime((rideHailAgentLocation.currentLocationUTM.loc, tick)),
           CAR,
           asDriver = false

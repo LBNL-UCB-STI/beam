@@ -138,12 +138,9 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val availVehicles = rideHailManager.vehicleManager.getIdleAndInServiceVehicles.values
         .map(
           veh =>
-            createVehicleAndSchedule(
-              veh.vehicleId.toString,
-              veh.currentLocationUTM.loc,
-              tick,
-              veh.geofence,
-              veh.seatsAvailable
+            createVehicleAndScheduleFromRideHailAgentLocation(
+              veh,
+              tick
           )
         )
 
