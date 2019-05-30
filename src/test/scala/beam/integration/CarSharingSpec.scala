@@ -7,8 +7,8 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.population.PopulationAdjustment.EXCLUDED_MODES
 import beam.sim.{BeamHelper, BeamServices}
-import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
@@ -16,9 +16,6 @@ import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.events.IterationStartsEvent
 import org.matsim.core.controler.listener.IterationStartsListener
 import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.core.mobsim.framework.Mobsim
-import org.matsim.core.mobsim.framework.events.MobsimBeforeSimStepEvent
-import org.matsim.core.mobsim.framework.listeners.MobsimBeforeSimStepListener
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -239,9 +236,8 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
     DefaultPopulationAdjustment(services).update(scenario)
     services.controler.run()
 
-    println(carsharingTripsIt0)
-    println(carsharingTripsIt1)
-    assume(carsharingTripsIt1 > carsharingTripsIt0, "Something's wildly broken, reposition is not working")
+    assume(carsharingTripsIt0 == 0, "no one is supposed to be driving in iteration 1")
+    assume(carsharingTripsIt1 >= 40, "more than 50 agents should be driving in iteration 2")
   }
 
 }

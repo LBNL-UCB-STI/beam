@@ -6,11 +6,10 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehiclePersonId}
 import beam.agentsim.agents.{MobilityRequest, _}
 import beam.router.BeamRouter.Location
+import beam.router.BeamSkimmer
 import beam.router.BeamSkimmer.Skim
 import beam.router.Modes.BeamMode
-import beam.router.{BeamSkimmer}
 import beam.sim.BeamServices
-import com.vividsolutions.jts.geom.Envelope
 import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedWeightedGraph}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Activity

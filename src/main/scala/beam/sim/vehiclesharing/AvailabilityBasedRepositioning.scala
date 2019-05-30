@@ -2,9 +2,7 @@ package beam.sim.vehiclesharing
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
-import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
-import beam.sim.BeamServices
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
@@ -75,7 +73,6 @@ class AvailabilityBasedRepositioning(repositionManager: RepositionManager) exten
     val topOversuppliedTAZ = oversuppliedTAZ.take(LIMIT)
     val topUndersuppliedTAZ = undersuppliedTAZ.take(LIMIT)
     val ODs = new mutable.ListBuffer[(RepositioningRequest, RepositioningRequest, Int, Int)]
-
     while (topOversuppliedTAZ.nonEmpty && topUndersuppliedTAZ.nonEmpty) {
       val org = topOversuppliedTAZ.head
       var destTimeOpt: Option[(RepositioningRequest, Int)] = None
@@ -111,10 +108,9 @@ class AvailabilityBasedRepositioning(repositionManager: RepositionManager) exten
     ODs.foreach {
       case (org, dst, tt, fs) =>
         val arrivalTime = now + tt
-        val vehicles = repositionManager.getAvailableVehiclesIndex
+        val vehiclesToBeRelocated = repositionManager.getAvailableVehiclesIndex
           .queryAll()
           .asScala
-          .take(fs)
           .filter(
             v =>
               org.taz == repositionManager.getBeamServices.tazTreeMap.getTAZ(
@@ -122,6 +118,7 @@ class AvailabilityBasedRepositioning(repositionManager: RepositionManager) exten
                 v.asInstanceOf[BeamVehicle].spaceTime.loc.getY
             )
           )
+          .take(fs)
           .map(
             v =>
               (
@@ -132,10 +129,13 @@ class AvailabilityBasedRepositioning(repositionManager: RepositionManager) exten
                 dst.taz.tazId
             )
           )
-        vehiclesForReposition.appendAll(vehicles)
+          .foldLeft(0) { (acc, v) =>
+            vehiclesForReposition.append(v)
+            acc + 1
+          }
         val orgKey = (nowRepBin, org.taz.tazId)
-        val dstKey = (futureRepBin, dst.taz.tazId)
-        minAvailabilityMap.update(orgKey, minAvailabilityMap(orgKey) - vehicles.size)
+        minAvailabilityMap.update(orgKey, minAvailabilityMap(orgKey) - vehiclesToBeRelocated)
+      //val dstKey = (futureRepBin, dst.taz.tazId)
       //minAvailabilityMap.update(dstKey, minAvailabilityMap(dstKey) + vehicles.size)
     }
 
