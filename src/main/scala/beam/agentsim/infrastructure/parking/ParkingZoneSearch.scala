@@ -21,29 +21,30 @@ object ParkingZoneSearch {
   /**
     * find the best parking alternative for the data in this request
     * @param destinationUTM coordinates of this request
+    * @param valueOfTime agent's value of time in seconds
     * @param chargingInquiry ChargingPreference per type of ChargingPoint
     * @param tazList the TAZ we are looking in
     * @param parkingTypes the parking types we are interested in
     * @param tree search tree of parking infrastructure
     * @param parkingZones stored ParkingZone data
-    * @param rankingFunction ranking function for comparing options
     * @param distanceFunction a function that computes the distance between two coordinates
     * @param random random generator
     * @return the TAZ with the best ParkingZone, it's ParkingType, and the ranking value of that ParkingZone
     */
   def find(
     destinationUTM: Coord,
+    valueOfTime: Double,
+    parkingDuration: Double,
     chargingInquiry: Option[ChargingInquiry],
     tazList: Seq[TAZ],
     parkingTypes: Seq[ParkingType],
     tree: ZoneSearch,
     parkingZones: Array[ParkingZone],
-    rankingFunction: ParkingRanking.RankingFunction,
     distanceFunction: (Coord, Coord) => Double,
     random: Random
   ): Option[RankingAccumulator] = {
     val found = findParkingZones(destinationUTM, tazList, parkingTypes, tree, parkingZones, random)
-    takeBestByRanking(destinationUTM, found, chargingInquiry, rankingFunction, distanceFunction)
+    takeBestByRanking(destinationUTM, found, chargingInquiry, distanceFunction)
   }
 
   /**
@@ -168,6 +169,8 @@ object ParkingZoneSearch {
     */
   def takeBestByRanking(
     destinationUTM: Coord,
+    valueOfTime: Double,
+    parkingDuration: Double,
     found: Iterable[(TAZ, ParkingType, ParkingZone, Coord)],
     chargingInquiry: Option[ChargingInquiry],
     rankingFunction: ParkingRanking.RankingFunction,
@@ -181,7 +184,7 @@ object ParkingZoneSearch {
       val walkingDistance: Double = distanceFunction(destinationUTM, stallLocation)
 
       // rank this parking zone
-      val thisRank = rankingFunction(thisParkingZone, walkingDistance, chargingInquiry)
+      val thisRank = ParkingRanking(thisParkingZone, parkingDuration, walkingDistance, valueOfTime)
 
       // update fold accumulator with best-ranked parking zone along with relevant attributes
       accOption match {
@@ -204,6 +207,7 @@ object ParkingZoneSearch {
                 bestTAZ = thisTAZ,
                 bestParkingType = thisParkingType,
                 bestParkingZone = thisParkingZone,
+                bestCoord = stallLocation,
                 bestRankingValue = thisRank
               )
             }

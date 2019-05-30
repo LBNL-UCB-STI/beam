@@ -15,7 +15,7 @@ object PricingModel {
     * A flat parking fee, such as an all-day rate at a parking garage
     * @param cost the all-day rate, in cents
     */
-  case class FlatFee(cost: Int, intervalSeconds: Int) extends PricingModel {
+  case class FlatFee(cost: Int, intervalSeconds: Int = DefaultPricingInterval) extends PricingModel {
     override def toString: String = "FlatFee"
   }
 
@@ -62,12 +62,13 @@ object PricingModel {
     * computes the cost of this pricing model for some duration. only considers the PricingModel, and does not include any fueling costs
     * @param pricingModel the pricing model
     * @param parkingDurationInSeconds duration of parking in seconds
-    * @return monetary cost of parking
+    * @return monetary cost of parking, in cents
     */
   def evaluateParkingTicket(pricingModel: PricingModel, parkingDurationInSeconds: Int): Double = {
     pricingModel match {
-      case FlatFee(cost, _)             => cost
-      case Block(cost, intervalSeconds) => (parkingDurationInSeconds / intervalSeconds) * cost
+      case FlatFee(cost, _) => cost.toDouble
+      case Block(cost, intervalSeconds) =>
+        (parkingDurationInSeconds.toDouble / intervalSeconds.toDouble) * cost.toDouble
     }
   }
 
@@ -83,9 +84,14 @@ object PricingModel {
     } match {
       case Failure(_) =>
         throw new IllegalArgumentException(
-          s"could not parse $model parking attribute $valueString to an Integer."
+          s"could not parse $model parking attribute $valueString to an Integer"
         )
-      case Success(valueInt) => valueInt
+      case Success(valueInt) =>
+        if (valueInt < 0)
+          throw new IllegalArgumentException(
+            s"negative pricing model fee of $valueInt not allowed for PricingModel"
+          )
+        else valueInt
     }
   }
 }
