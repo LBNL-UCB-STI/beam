@@ -35,12 +35,14 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    * rational choices about mode that reflect the true travel time cost of pooling.
    */
   def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
-    rideHailManager.vehicleManager.getClosestIdleRideHailAgent(
+    rideHailManager.vehicleManager.getClosestIdleVehiclesWithinRadiusByETA(
       inquiry.pickUpLocationUTM,
-      rideHailManager.radiusInMeters
+      inquiry.destinationUTM,
+      rideHailManager.radiusInMeters,
+      inquiry.departAt
     ) match {
-      case Some(agentLocation) =>
-        SingleOccupantQuoteAndPoolingInfo(agentLocation, None)
+      case Some(agentETA) =>
+        SingleOccupantQuoteAndPoolingInfo(agentETA.agentLocation, None)
       case None =>
         NoVehiclesAvailable
     }
@@ -124,10 +126,10 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
         rideHailManager.vehicleManager
           .getClosestIdleVehiclesWithinRadiusByETA(
             request.pickUpLocationUTM,
+            request.destinationUTM,
             rideHailManager.radiusInMeters,
             tick
-          )
-          .headOption match {
+          ) match {
           case Some(agentETA) =>
             val routeRequired = RoutingRequiredToAllocateVehicle(
               request,
@@ -142,17 +144,17 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
             NoVehicleAllocated(request)
         }
       // The following if condition ensures we actually got routes back in all cases
-      case (request, routingResponses) if routingResponses.find(_.itineraries.size == 0).isDefined =>
+      case (request, routingResponses) if routingResponses.find(_.itineraries.isEmpty).isDefined =>
         NoVehicleAllocated(request)
       case (request, routingResponses) =>
         rideHailManager.vehicleManager
           .getClosestIdleVehiclesWithinRadiusByETA(
             request.pickUpLocationUTM,
+            request.destinationUTM,
             rideHailManager.radiusInMeters,
             tick,
             excludeRideHailVehicles = alreadyAllocated
-          )
-          .headOption match {
+          ) match {
           case Some(agentETA) =>
             alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId
             val pickDropIdAndLegs = List(

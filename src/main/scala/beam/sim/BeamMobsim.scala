@@ -53,6 +53,8 @@ class BeamMobsim @Inject()(
     with MetricsSupport {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
+  val RideHailManagerInitTimeout: FiniteDuration = 100.seconds
+
   var memoryLoggingTimerActorRef: ActorRef = _
   var memoryLoggingTimerCancellable: Cancellable = _
 
@@ -122,8 +124,9 @@ class BeamMobsim @Inject()(
           "RideHailManager"
         )
         context.watch(rideHailManager)
-        Await.result(rideHailManager ? Identify(0), timeout.duration)
-
+        ProfilingUtils.timed("rideHailManager identified", x => log.info(x)) {
+          Await.result(rideHailManager ? Identify(0), RideHailManagerInitTimeout)
+        }
         if (beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
           debugActorWithTimerActorRef = context.actorOf(Props(classOf[DebugActorWithTimer], rideHailManager, scheduler))
           debugActorWithTimerCancellable = prepareMemoryLoggingTimerActor(
@@ -134,7 +137,10 @@ class BeamMobsim @Inject()(
         }
 
         private val sharedVehicleFleets = config.agents.vehicles.sharedFleets.map { fleetConfig =>
-          context.actorOf(Fleets.lookup(fleetConfig).props(beamServices, parkingManager), fleetConfig.name)
+          context.actorOf(
+            Fleets.lookup(fleetConfig).props(beamServices, beamSkimmer, scheduler, parkingManager),
+            fleetConfig.name
+          )
         }
         sharedVehicleFleets.foreach(context.watch)
         sharedVehicleFleets.foreach(scheduler ! ScheduleTrigger(InitializeTrigger(0), _))

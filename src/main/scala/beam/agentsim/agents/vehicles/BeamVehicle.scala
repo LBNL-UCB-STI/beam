@@ -14,7 +14,7 @@ import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, WALK}
 import beam.router.model.BeamLeg
-import beam.sim.BeamServices
+import beam.sim.{BeamServices, Geofence}
 import beam.sim.common.GeoUtils
 import beam.sim.common.GeoUtils.{Straight, TurningDirection}
 import beam.utils.NetworkHelper
@@ -126,22 +126,20 @@ class BeamVehicle(
     */
   def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): FuelConsumed = {
     val fuelConsumptionData =
-      if (beamServices.beamConfig.beam.agentsim.agents.vehicles.enableNewVehicleEnergyConsumptionLogic) {
-        BeamVehicle.collectFuelConsumptionData(beamLeg, beamVehicleType, beamServices.networkHelper)
-      } else {
-        IndexedSeq()
-      }
+      BeamVehicle.collectFuelConsumptionData(
+        beamLeg,
+        beamVehicleType,
+        beamServices.networkHelper,
+        beamServices.vehicleEnergy.vehicleEnergyMappingExistsFor(beamVehicleType)
+      )
 
     val primaryEnergyForFullLeg =
       /*val (primaryEnergyForFullLeg, primaryLoggingData) =*/
-      if (beamServices.beamConfig.beam.agentsim.agents.vehicles.enableNewVehicleEnergyConsumptionLogic)
-        beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
-          fuelConsumptionData,
-          fallBack = powerTrain.getRateInJoulesPerMeter,
-          Primary
-        )
-      else powerTrain.estimateConsumptionInJoules(fuelConsumptionData)
-    /*else (powerTrain.estimateConsumptionInJoules(fuelConsumptionData), IndexedSeq.empty[LoggingData])*/
+      beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
+        fuelConsumptionData,
+        fallBack = powerTrain.getRateInJoulesPerMeter,
+        Primary
+      )
     var primaryEnergyConsumed = primaryEnergyForFullLeg
     var secondaryEnergyConsumed = 0.0
     /*var secondaryLoggingData = IndexedSeq.empty[LoggingData]*/
@@ -150,14 +148,11 @@ class BeamVehicle(
         // Use secondary fuel if possible
         val secondaryEnergyForFullLeg =
           /*val (secondaryEnergyForFullLeg, secondaryLoggingData) =*/
-          if (beamServices.beamConfig.beam.agentsim.agents.vehicles.enableNewVehicleEnergyConsumptionLogic)
-            beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
-              fuelConsumptionData,
-              fallBack = powerTrain.getRateInJoulesPerMeter,
-              Secondary
-            )
-          else powerTrain.estimateConsumptionInJoules(fuelConsumptionData)
-        /*else (powerTrain.estimateConsumptionInJoules(fuelConsumptionData), IndexedSeq.empty[LoggingData])*/
+          beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
+            fuelConsumptionData,
+            fallBack = powerTrain.getRateInJoulesPerMeter,
+            Secondary
+          )
         secondaryEnergyConsumed = secondaryEnergyForFullLeg * (primaryEnergyForFullLeg - primaryFuelLevelInJoules) / primaryEnergyConsumed
         if (secondaryFuelLevelInJoules < secondaryEnergyConsumed) {
           logger.warn(
@@ -300,10 +295,30 @@ object BeamVehicle {
   def collectFuelConsumptionData(
     beamLeg: BeamLeg,
     theVehicleType: BeamVehicleType,
-    networkHelper: NetworkHelper
+    networkHelper: NetworkHelper,
+    onlyLength_Id_And_Type: Boolean = false
   ): IndexedSeq[FuelConsumptionData] = {
+    //TODO: This method is becoming a little clunky. If it has to grow again then maybe refactor/break it out
     if (beamLeg.mode.isTransit & !Modes.isOnStreetTransit(beamLeg.mode)) {
       Vector.empty
+    } else if (onlyLength_Id_And_Type) {
+      beamLeg.travelPath.linkIds
+        .drop(1)
+        .map(
+          id =>
+            FuelConsumptionData(
+              linkId = id,
+              vehicleType = theVehicleType,
+              linkNumberOfLanes = None,
+              linkCapacity = None,
+              linkLength = networkHelper.getLink(id).map(_.getLength),
+              averageSpeed = None,
+              freeFlowSpeed = None,
+              linkArrivalTime = None,
+              turnAtLinkEnd = None,
+              numberOfStops = None
+          )
+        )
     } else {
       val linkIds = beamLeg.travelPath.linkIds.drop(1)
       val linkTravelTimes: IndexedSeq[Int] = beamLeg.travelPath.linkTravelTime.drop(1)
@@ -339,7 +354,7 @@ object BeamVehicle {
           FuelConsumptionData(
             linkId = id,
             vehicleType = theVehicleType,
-            linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt).headOption,
+            linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
             linkCapacity = None, //currentLink.map(_.getCapacity),
             linkLength = currentLink.map(_.getLength),
             averageSpeed = Some(averageSpeed),

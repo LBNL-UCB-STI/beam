@@ -185,7 +185,7 @@ class CaccRoadCapacityGraphs {
         int height = 600;
 
         XYSeriesCollection dataset = new XYSeriesCollection();
-        XYSeries series = new XYSeries("cacc");
+        XYSeries series = new XYSeries("cacc", false);
         caccCapacityIncrease.entries().forEach(e -> series.add(e.getKey(),e.getValue()));
         dataset.addSeries(series);
 

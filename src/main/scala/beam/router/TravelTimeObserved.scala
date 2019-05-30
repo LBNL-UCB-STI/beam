@@ -166,6 +166,8 @@ object TravelTimeObserved extends LazyLogging {
   val histogramName: String = "simulation_vs_reference_histogram.png"
   val histogramBinSize: Int = 200
 
+  val MaxDistanceFromBeamTaz: Double = 500.0 // 500 meters
+
   case class PathCache(from: Id[TAZ], to: Id[TAZ], hod: Int)
 
   def buildTAZ2MovementId(filePath: String, geo: GeoUtils, tazTreeMap: TAZTreeMap): Map[TAZ, Int] = {
@@ -180,17 +182,17 @@ object TravelTimeObserved extends LazyLogging {
         (taz, movId, distance)
       }
       val xs: Array[(TAZ, Int, Double)] = GeoJsonReader.read(filePath, mapper)
-      val tazId2MovIdByMinDistance = xs
+      val filterByMaxDistance = xs.filter { case (taz, movId, distance) => distance <= MaxDistanceFromBeamTaz }
+      val tazId2MovIdByMinDistance = filterByMaxDistance
         .groupBy { case (taz, _, _) => taz }
         .map {
           case (taz, arr) =>
             val (_, movId, _) = arr.minBy { case (_, _, distance) => distance }
             (taz, movId)
         }
-      val end = System.currentTimeMillis()
-      val numOfUniqueMovId = xs.map(_._2).distinct.size
+      val numOfUniqueMovId = tazId2MovIdByMinDistance.values.toSet.size
       logger.info(
-        s"xs size is ${xs.size}. tazId2MovIdByMinDistance size is ${tazId2MovIdByMinDistance.keys.size}. numOfUniqueMovId: $numOfUniqueMovId"
+        s"xs size is ${xs.length}. tazId2MovIdByMinDistance size is ${tazId2MovIdByMinDistance.keys.size}. numOfUniqueMovId: $numOfUniqueMovId"
       )
       tazId2MovIdByMinDistance
     }
@@ -310,7 +312,7 @@ object TravelTimeObserved extends LazyLogging {
       new Color(255, 0, 60) // dark red
     )
 
-    (0 to seriesPerCount.size - 1).map { counter =>
+    (0 until seriesPerCount.size).map { counter =>
       val renderer = xyplot
         .getRendererForDataset(xyplot.getDataset(0))
 
