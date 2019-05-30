@@ -22,8 +22,6 @@ object ParkingStall {
 
   val CostOfEmergencyStall: Double = 100000.0 // $1000.00 stall used as an emergency when no stalls were found
 
-
-
   /**
     * for testing purposes and trivial parking functionality, produces a stall directly at the provided location which has no cost and is available
     * @param coord the location for the stall
@@ -38,8 +36,6 @@ object ParkingStall {
     pricingModel = None,
     parkingType = ParkingType.Public
   )
-
-
 
   /**
     * take a stall from the infinite parking zone, with a random location by default from planet-wide UTM values

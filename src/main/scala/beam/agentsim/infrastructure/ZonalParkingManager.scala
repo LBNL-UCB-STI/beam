@@ -104,8 +104,6 @@ object ZonalParkingManager {
   val ParkingAvailabilityThreshold: Double = 0.25
   val DepotParkingValueOfTime: Double = 0.0 // ride hail drivers do not have a value of time
 
-
-
   /**
     * constructs a ZonalParkingManager from file
     * @param beamServices central repository for simulation data
@@ -125,8 +123,6 @@ object ZonalParkingManager {
     new ZonalParkingManager(beamServices, stalls, searchTree, random)
   }
 
-
-
   /**
     * constructs a ZonalParkingManager from a string iterator
     * @param parkingDescription line-by-line string representation of parking including header
@@ -144,8 +140,6 @@ object ZonalParkingManager {
     val parking = ParkingZoneFileUtils.fromIterator(parkingDescription, includesHeader)
     new ZonalParkingManager(beamServices, parking.zones, parking.tree, random)
   }
-
-
 
   /**
     * builds a ZonalParkingManager Actor

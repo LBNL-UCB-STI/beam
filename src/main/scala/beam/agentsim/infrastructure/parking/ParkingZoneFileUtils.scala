@@ -41,6 +41,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     totalRows: Int = 0,
     failedRows: Int = 0
   ) {
+
     def countFailedRow: ParkingLoadingAccumulator =
       this.copy(
         totalRows = totalRows + 1,
