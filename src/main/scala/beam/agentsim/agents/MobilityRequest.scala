@@ -11,16 +11,16 @@ case object Relocation extends MobilityRequestTrait { override def toString: Str
 case object Init extends MobilityRequestTrait { override def toString: String = "init" }
 
 case class MobilityRequest(
-                            person: Option[PersonIdWithActorRef],
-                            activity: Activity,
-                            time: Int,
-                            trip: Trip,
-                            defaultMode: BeamMode,
-                            tag: MobilityRequestTrait,
-                            serviceTime: Int,
-                            pickupRequest: Option[MobilityRequest] = None,
-                            routingRequestId: Option[Int] = None,
-                            vehicleOccupancy: Option[Int] = None
+  person: Option[PersonIdWithActorRef],
+  activity: Activity,
+  time: Int,
+  trip: Trip,
+  defaultMode: BeamMode,
+  tag: MobilityRequestTrait,
+  serviceTime: Int,
+  pickupRequest: Option[MobilityRequest] = None,
+  routingRequestId: Option[Int] = None,
+  vehicleOccupancy: Option[Int] = None
 ) {
   val nextActivity = Some(trip.activity)
 

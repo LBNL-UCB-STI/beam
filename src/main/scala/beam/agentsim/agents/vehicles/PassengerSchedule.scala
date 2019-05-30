@@ -83,9 +83,9 @@ object PassengerSchedule {
     new PassengerSchedule(TreeMap[BeamLeg, Manifest]()(BeamLegOrdering))
 
   case class Manifest(
-                       riders: Set[PersonIdWithActorRef] = Set.empty,
-                       boarders: Set[PersonIdWithActorRef] = Set.empty,
-                       alighters: Set[PersonIdWithActorRef] = Set.empty
+    riders: Set[PersonIdWithActorRef] = Set.empty,
+    boarders: Set[PersonIdWithActorRef] = Set.empty,
+    alighters: Set[PersonIdWithActorRef] = Set.empty
   ) {
     override def toString: String = {
       s"[${riders.size}riders;${boarders.size}boarders;${alighters.size}alighters]"

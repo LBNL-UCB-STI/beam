@@ -188,12 +188,24 @@ object PersonAgent {
 
   case object DrivingInterrupted extends Traveling
 
-  def correctTripEndTime(trip: EmbodiedBeamTrip, endTime: Int, bodyVehicleId: Id[BeamVehicle], bodyVehicleTypeId: Id[BeamVehicleType]) = {
+  def correctTripEndTime(
+    trip: EmbodiedBeamTrip,
+    endTime: Int,
+    bodyVehicleId: Id[BeamVehicle],
+    bodyVehicleTypeId: Id[BeamVehicleType]
+  ) = {
     if (trip.tripClassifier != WALK && trip.tripClassifier != WALK_TRANSIT) {
       trip.copy(
         legs = trip.legs
           .dropRight(1) :+ EmbodiedBeamLeg
-          .dummyLegAt(endTime, bodyVehicleId, true, trip.legs.dropRight(1).last.beamLeg.travelPath.endPoint.loc, WALK, bodyVehicleTypeId)
+          .dummyLegAt(
+            endTime,
+            bodyVehicleId,
+            true,
+            trip.legs.dropRight(1).last.beamLeg.travelPath.endPoint.loc,
+            WALK,
+            bodyVehicleTypeId
+          )
       )
     } else {
       trip
@@ -226,7 +238,11 @@ class PersonAgent(
     with Stash {
   val networkHelper = beamServices.networkHelper
   val geo = beamServices.geo
-  val bodyType = beamScenario.vehicleTypes(Id.create(beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType]))
+
+  val bodyType = beamScenario.vehicleTypes(
+    Id.create(beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
+  )
+
   val body = new BeamVehicle(
     BeamVehicle.createId(id, Some("body")),
     new Powertrain(bodyType.primaryFuelConsumptionInJoulePerMeter),
@@ -452,8 +468,8 @@ class PersonAgent(
      * Learn as passenger that it is time to board the vehicle
      */
     case Event(
-          TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter), triggerId),
-          data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _)
+        TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter), triggerId),
+        data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _)
         ) =>
       logDebug(s"PersonEntersVehicle: $vehicleToEnter")
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))

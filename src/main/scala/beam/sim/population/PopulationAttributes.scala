@@ -118,8 +118,8 @@ case class AttributesOfIndividual(
     beamScenario: BeamScenario,
   ): automationLevel = {
     val automationInt = beamServices
-          .getDefaultAutomationLevel()
-          .getOrElse(beamScenario.vehicleTypes(beamVehicleTypeId).automationLevel)
+      .getDefaultAutomationLevel()
+      .getOrElse(beamScenario.vehicleTypes(beamVehicleTypeId).automationLevel)
     automationInt match {
       case 1 => levelLE2
       case 2 => levelLE2

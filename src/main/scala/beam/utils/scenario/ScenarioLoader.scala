@@ -240,7 +240,13 @@ class ScenarioLoader(
       // FIXME Search for "householdId" in the code does not show any place where it used
       personAttrib.putAttribute(personId, "rank", personInfo.rank)
       personAttrib.putAttribute(personId, "age", personInfo.age)
-      AvailableModeUtils.setAvailableModesForPerson_v2(beamServices, beamScenario, person, population, availableModes.split(","))
+      AvailableModeUtils.setAvailableModesForPerson_v2(
+        beamServices,
+        beamScenario,
+        person,
+        population,
+        availableModes.split(",")
+      )
       population.addPerson(person)
     }
   }

@@ -57,7 +57,8 @@ class AlonsoMoraPoolingAlgForRideHailSpec
 
   describe("AlonsoMoraPoolingAlgForRideHail") {
     it("Creates a consistent plan") {
-      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig, tAZTreeMap, beamScenario, new GeoUtilsImpl(beamConfig))
+      implicit val skimmer: BeamSkimmer =
+        new BeamSkimmer(beamConfig, tAZTreeMap, beamScenario, new GeoUtilsImpl(beamConfig))
       val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenario1
       val alg: AlonsoMoraPoolingAlgForRideHail =
         new AlonsoMoraPoolingAlgForRideHail(
@@ -173,8 +174,10 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
   ): (List[VehicleAndSchedule], List[CustomerRequest]) = {
     import scala.concurrent.duration._
     val vehicleType = beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
-    val v1: VehicleAndSchedule = createVehicleAndSchedule("v1", vehicleType, new Coord(5000, 5000), 8.hours.toSeconds.toInt)
-    val v2: VehicleAndSchedule = createVehicleAndSchedule("v2", vehicleType, new Coord(2000, 2000), 8.hours.toSeconds.toInt)
+    val v1: VehicleAndSchedule =
+      createVehicleAndSchedule("v1", vehicleType, new Coord(5000, 5000), 8.hours.toSeconds.toInt)
+    val v2: VehicleAndSchedule =
+      createVehicleAndSchedule("v2", vehicleType, new Coord(2000, 2000), 8.hours.toSeconds.toInt)
     val p1Req: CustomerRequest =
       createPersonRequest(
         makeVehPersonId("p1"),

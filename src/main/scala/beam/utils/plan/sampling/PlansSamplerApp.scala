@@ -38,7 +38,7 @@ import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 
 import scala.collection.JavaConverters._
-import scala.collection.{JavaConverters, immutable, mutable}
+import scala.collection.{immutable, mutable, JavaConverters}
 import scala.util.control.Breaks._
 import scala.util.{Random, Try}
 

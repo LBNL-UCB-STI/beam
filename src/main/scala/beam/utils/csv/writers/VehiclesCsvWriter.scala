@@ -9,7 +9,9 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class VehiclesCsvWriter(beamServices: BeamServices, beamScenario: BeamScenario) extends ScenarioCsvWriter with StrictLogging {
+class VehiclesCsvWriter(beamServices: BeamServices, beamScenario: BeamScenario)
+    extends ScenarioCsvWriter
+    with StrictLogging {
 
   override protected val fields: Seq[String] = Seq("vehicleId", "vehicleTypeId", "householdId")
 

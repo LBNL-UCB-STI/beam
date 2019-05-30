@@ -3,7 +3,18 @@ package beam.sim
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Success
-import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, Props, Terminated}
+import akka.actor.{
+  Actor,
+  ActorContext,
+  ActorLogging,
+  ActorRef,
+  ActorSystem,
+  Cancellable,
+  DeadLetter,
+  Identify,
+  Props,
+  Terminated
+}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
@@ -152,7 +163,8 @@ class BeamMobsim @Inject()(
         }
 
         private val sharedVehicleFleets = config.agents.vehicles.sharedFleets.map { fleetConfig =>
-          context.actorOf(Fleets.lookup(fleetConfig).props(beamServices, beamScenario, parkingManager), fleetConfig.name)
+          context
+            .actorOf(Fleets.lookup(fleetConfig).props(beamServices, beamScenario, parkingManager), fleetConfig.name)
         }
         sharedVehicleFleets.foreach(context.watch)
         sharedVehicleFleets.foreach(scheduler ! ScheduleTrigger(InitializeTrigger(0), _))
@@ -286,12 +298,13 @@ class BeamMobsim @Inject()(
     logger.info("Processing Agentsim Events (End)")
   }
 
-  private def initDriverAgents( context: ActorContext,
-                                initializer: TransitInitializer,
-                                scheduler: ActorRef,
-                                parkingManager: ActorRef,
-                                transits: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])]
-                              ): Unit = {
+  private def initDriverAgents(
+    context: ActorContext,
+    initializer: TransitInitializer,
+    scheduler: ActorRef,
+    parkingManager: ActorRef,
+    transits: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])]
+  ): Unit = {
     transits.foreach {
       case (tripVehId, (route, legs)) =>
         initializer.createTransitVehicle(tripVehId, route, legs).foreach { vehicle =>
@@ -316,6 +329,5 @@ class BeamMobsim @Inject()(
         }
     }
   }
-
 
 }

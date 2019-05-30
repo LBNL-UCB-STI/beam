@@ -269,7 +269,12 @@ object AlonsoMoraPoolingAlgForRideHail {
     )
   }
 
-  def createVehicleAndSchedule(vid: String, vehicleType: BeamVehicleType, dst: Location, dstTime: Int): VehicleAndSchedule = {
+  def createVehicleAndSchedule(
+    vid: String,
+    vehicleType: BeamVehicleType,
+    dst: Location,
+    dstTime: Int
+  ): VehicleAndSchedule = {
     val v1 = new BeamVehicle(
       Id.create(vid, classOf[BeamVehicle]),
       new Powertrain(0.0),

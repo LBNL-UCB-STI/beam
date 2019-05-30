@@ -162,7 +162,11 @@ class RideHailAgentSpec
     it("should drive around when I tell him to") {
       val vehicleId = Id.createVehicleId(1)
       val beamVehicle =
-        new BeamVehicle(vehicleId, new Powertrain(0.0), beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType])))
+        new BeamVehicle(
+          vehicleId,
+          new Powertrain(0.0),
+          beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
+        )
       beamVehicle.manager = Some(self)
       vehicles.put(vehicleId, beamVehicle)
 

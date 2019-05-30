@@ -77,7 +77,8 @@ class TravelTimeObserved @Inject()(
         Id.createVehicleId(""),
         isLastLeg = false,
         carLeg.beamLeg.travelPath.startPoint.loc,
-        WALK, dummyId
+        WALK,
+        dummyId
       )
 
       val dummyTail = EmbodiedBeamLeg.dummyLegAt(
@@ -85,7 +86,8 @@ class TravelTimeObserved @Inject()(
         Id.createVehicleId(""),
         isLastLeg = true,
         carLeg.beamLeg.travelPath.endPoint.loc,
-        WALK, dummyId
+        WALK,
+        dummyId
       )
       // In case of `CAV` we have to override its mode to `CAR`
       val fixedCarLeg = if (carLeg.beamLeg.mode == BeamMode.CAV) {

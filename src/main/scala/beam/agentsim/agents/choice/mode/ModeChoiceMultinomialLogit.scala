@@ -25,8 +25,11 @@ import scala.util.Random
 /**
   * BEAM
   */
-class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val beamScenario: BeamScenario, val model: MultinomialLogit)
-    extends ModeChoiceCalculator
+class ModeChoiceMultinomialLogit(
+  val beamServices: BeamServices,
+  val beamScenario: BeamScenario,
+  val model: MultinomialLogit
+) extends ModeChoiceCalculator
     with ExponentialLazyLogging {
 
   var expectedMaximumUtility: Double = 0.0

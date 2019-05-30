@@ -8,14 +8,14 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 
 case class RideHailRequest(
-                            requestType: RideHailRequestType,
-                            customer: PersonIdWithActorRef,
-                            pickUpLocationUTM: Location,
-                            departAt: Int,
-                            destinationUTM: Location,
-                            asPooled: Boolean = false,
-                            groupedWithOtherRequests: List[RideHailRequest] = List(),
-                            requestId: Int = RideHailRequestIdGenerator.nextId
+  requestType: RideHailRequestType,
+  customer: PersonIdWithActorRef,
+  pickUpLocationUTM: Location,
+  departAt: Int,
+  destinationUTM: Location,
+  asPooled: Boolean = false,
+  groupedWithOtherRequests: List[RideHailRequest] = List(),
+  requestId: Int = RideHailRequestIdGenerator.nextId
 ) {
 
   def addSubRequest(subRequest: RideHailRequest): RideHailRequest =

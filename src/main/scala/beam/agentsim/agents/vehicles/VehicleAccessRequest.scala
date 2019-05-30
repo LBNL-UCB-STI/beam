@@ -43,10 +43,10 @@ case class ReservationResponse(
 )
 
 case class ReserveConfirmInfo(
-                               departFrom: BeamLeg,
-                               arriveAt: BeamLeg,
-                               passengerVehiclePersonId: PersonIdWithActorRef,
-                               triggersToSchedule: Vector[ScheduleTrigger] = Vector()
+  departFrom: BeamLeg,
+  arriveAt: BeamLeg,
+  passengerVehiclePersonId: PersonIdWithActorRef,
+  triggersToSchedule: Vector[ScheduleTrigger] = Vector()
 )
 
 case object AccessErrorCodes {

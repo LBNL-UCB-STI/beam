@@ -464,7 +464,9 @@ object ZonalParkingManager {
     parkingStockAttributes: ParkingStockAttributes,
     tazTreeMap: TAZTreeMap
   ): Props = {
-    Props(new ZonalParkingManager(beamServices.beamConfig, beamServices.geo, beamRouter, parkingStockAttributes, tazTreeMap))
+    Props(
+      new ZonalParkingManager(beamServices.beamConfig, beamServices.geo, beamRouter, parkingStockAttributes, tazTreeMap)
+    )
   }
 
   val maxSearchRadius = 10e3

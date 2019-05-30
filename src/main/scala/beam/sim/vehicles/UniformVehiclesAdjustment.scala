@@ -7,7 +7,8 @@ import beam.sim.{BeamScenario, BeamServices}
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.Coord
 
-case class UniformVehiclesAdjustment(beamServices: BeamServices, beamScenario: BeamScenario) extends VehiclesAdjustment {
+case class UniformVehiclesAdjustment(beamServices: BeamServices, beamScenario: BeamScenario)
+    extends VehiclesAdjustment {
 
   private val vehicleTypesAndProbabilitiesByCategory: Map[(VehicleCategory, String), Array[(BeamVehicleType, Double)]] =
     beamScenario.vehicleTypes.values.groupBy(x => (x.vehicleCategory, matchCarUse(x.id.toString))).map {
