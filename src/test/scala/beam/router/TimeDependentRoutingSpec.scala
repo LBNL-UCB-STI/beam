@@ -1,11 +1,7 @@
 package beam.router
 
-import java.time.ZonedDateTime
-
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
-import beam.agentsim.agents.choice.mode.PtFares
-import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -19,9 +15,9 @@ import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
-import beam.sim.{BeamHelper, BeamScenario, BeamServices}
+import beam.sim.{BeamHelper, BeamScenario}
+import beam.utils.NetworkHelperImpl
 import beam.utils.TestConfigUtils.testConfig
-import beam.utils.{DateUtils, NetworkHelperImpl}
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
@@ -35,7 +31,6 @@ import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
-import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -59,37 +54,24 @@ class TimeDependentRoutingSpec
     val beamConfig = BeamConfig(system.settings.config)
     beamScenario = loadScenario(beamConfig)
 
-    // Have to mock a lot of things to get the router going
-    val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
-    when(services.beamConfig).thenReturn(beamConfig)
     geo = new GeoUtilsImpl(beamConfig)
-    when(services.geo).thenReturn(geo)
-    when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
-    when(services.ptFares).thenReturn(PtFares(List[FareRule]()))
-    when(services.dates).thenReturn(
-      DateUtils(
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
-      )
-    )
     networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 
     val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
-    when(services.networkHelper).thenReturn(networkHelper)
-
     val fareCalculator = mock[FareCalculator]
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
     val tollCalculator = mock[TollCalculator]
     when(tollCalculator.calcTollByOsmIds(any())).thenReturn(0.0)
     router = system.actorOf(
       BeamRouter.props(
-        services,
         beamScenario,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
+        networkHelper,
+        geo,
         scenario,
         new EventsManagerImpl(),
         scenario.getTransitVehicles,

@@ -102,7 +102,6 @@ class PersonAgentSpec
     var map = TrieMap[Id[Vehicle], (String, String)]()
     map += (Id.createVehicleId("my_bus")  -> ("", ""))
     map += (Id.createVehicleId("my_tram") -> ("", ""))
-    when(theServices.agencyAndRouteByVehicleIds).thenReturn(map)
     when(theServices.networkHelper).thenReturn(networkHelper)
 
     theServices
@@ -202,7 +201,8 @@ class PersonAgentSpec
           self,
           beamSkimmer = new BeamSkimmer(beamConfig, tAZTreeMap, beamScenario, beamSvc.geo),
           routeHistory = new RouteHistory(beamConfig),
-          travelTimeObserved = new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null)
+          travelTimeObserved = new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null),
+          agencyAndRouteByVehicleIds = Map()
         )
       )
 
@@ -266,7 +266,8 @@ class PersonAgentSpec
           Vector(),
           new RouteHistory(beamConfig),
           new BeamSkimmer(beamConfig, tAZTreeMap, beamScenario, beamSvc.geo),
-          new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null)
+          new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null),
+          Map()
         )
       )
 
@@ -493,7 +494,8 @@ class PersonAgentSpec
           Vector(),
           new RouteHistory(beamConfig),
           new BeamSkimmer(beamConfig, tAZTreeMap, beamScenario, beamSvc.geo),
-          new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null)
+          new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null),
+          Map()
         )
       )
       scheduler ! StartSchedule(0)

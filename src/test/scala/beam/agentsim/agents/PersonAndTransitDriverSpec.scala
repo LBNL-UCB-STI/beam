@@ -108,7 +108,6 @@ class PersonAndTransitDriverSpec
     var map = TrieMap[Id[Vehicle], (String, String)]()
     map += (Id.createVehicleId("my_bus")  -> ("", ""))
     map += (Id.createVehicleId("my_tram") -> ("", ""))
-    when(theServices.agencyAndRouteByVehicleIds).thenReturn(map)
     when(theServices.networkHelper).thenReturn(networkHelper)
 
     theServices
@@ -273,7 +272,6 @@ class PersonAndTransitDriverSpec
       val busDriverProps = Props(
         new TransitDriverAgent(
           scheduler = scheduler,
-          beamServices = beamSvc,
           beamScenario,
           transportNetwork = networkCoordinator.transportNetwork,
           tollCalculator = tollCalculator,
@@ -281,13 +279,14 @@ class PersonAndTransitDriverSpec
           parkingManager = parkingManager,
           transitDriverId = Id.create("my_bus", classOf[TransitDriverAgent]),
           vehicle = bus,
-          Array(busLeg.beamLeg, busLeg2.beamLeg)
+          Array(busLeg.beamLeg, busLeg2.beamLeg),
+          new GeoUtilsImpl(beamConfig),
+          networkHelper
         )
       )
       val tramDriverProps = Props(
         new TransitDriverAgent(
           scheduler = scheduler,
-          beamServices = beamSvc,
           beamScenario,
           transportNetwork = networkCoordinator.transportNetwork,
           tollCalculator = tollCalculator,
@@ -295,7 +294,9 @@ class PersonAndTransitDriverSpec
           parkingManager = parkingManager,
           transitDriverId = Id.create("my_tram", classOf[TransitDriverAgent]),
           vehicle = tram,
-          Array(tramLeg.beamLeg)
+          Array(tramLeg.beamLeg),
+          new GeoUtilsImpl(beamConfig),
+          networkHelper
         )
       )
 
@@ -360,7 +361,8 @@ class PersonAndTransitDriverSpec
           Vector(),
           new RouteHistory(beamConfig),
           mock[BeamSkimmer],
-          mock[TravelTimeObserved]
+          mock[TravelTimeObserved],
+          Map()
         )
       )
 

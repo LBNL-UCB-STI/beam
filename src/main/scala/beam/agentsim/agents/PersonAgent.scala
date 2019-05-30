@@ -38,6 +38,7 @@ import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 
 /**
@@ -63,7 +64,8 @@ object PersonAgent {
     sharedVehicleFleets: Seq[ActorRef],
     beamSkimmer: BeamSkimmer,
     routeHistory: RouteHistory,
-    travelTimeObserved: TravelTimeObserved
+    travelTimeObserved: TravelTimeObserved,
+    agencyAndRouteByVehicleIds: Map[Id[Vehicle], (String, String)]
   ): Props = {
     Props(
       new PersonAgent(
@@ -83,7 +85,8 @@ object PersonAgent {
         sharedVehicleFleets,
         beamSkimmer,
         routeHistory,
-        travelTimeObserved
+        travelTimeObserved,
+        agencyAndRouteByVehicleIds
       )
     )
   }
@@ -215,12 +218,14 @@ class PersonAgent(
   val vehicleFleets: Seq[ActorRef] = Vector(),
   val beamSkimmer: BeamSkimmer,
   val routeHistory: RouteHistory,
-  val travelTimeObserved: TravelTimeObserved
+  val travelTimeObserved: TravelTimeObserved,
+  val agencyAndRouteByVehicleIds: Map[Id[Vehicle], (String, String)]
 ) extends DrivesVehicle[PersonData]
     with ChoosesMode
     with ChoosesParking
     with Stash {
-
+  val networkHelper = beamServices.networkHelper
+  val geo = beamServices.geo
   val bodyType = beamScenario.vehicleTypes(Id.create(beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType]))
   val body = new BeamVehicle(
     BeamVehicle.createId(id, Some("body")),
@@ -446,7 +451,7 @@ class PersonAgent(
     /*
      * Learn as passenger that it is time to board the vehicle
      */
-    case ev @ Event(
+    case Event(
           TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter), triggerId),
           data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _)
         ) =>
@@ -456,10 +461,8 @@ class PersonAgent(
       val mode = data.currentTrip.get.tripClassifier
 
       if (currentLeg.cost > 0.0) {
-        if (beamServices.agencyAndRouteByVehicleIds.contains(
-              vehicleToEnter
-            )) {
-          val agencyId = beamServices.agencyAndRouteByVehicleIds(vehicleToEnter)._1
+        if (agencyAndRouteByVehicleIds.contains(vehicleToEnter)) {
+          val agencyId = agencyAndRouteByVehicleIds(vehicleToEnter)._1
           eventsManager.processEvent(new AgencyRevenueEvent(tick, agencyId, currentLeg.cost))
         }
 

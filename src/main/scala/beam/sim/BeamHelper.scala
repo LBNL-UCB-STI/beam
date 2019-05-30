@@ -2,9 +2,11 @@ package beam.sim
 
 import java.io.{FileOutputStream, FileWriter}
 import java.nio.file.{Files, Paths, StandardCopyOption}
+import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 import java.util.{Properties, Random}
 
+import beam.agentsim.agents.choice.mode.PtFares
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.handling.BeamEventsHandling
@@ -233,7 +235,12 @@ trait BeamHelper extends LazyLogging {
         consumptionRateFilterStore,
         vehicleCsvReader.getLinkToGradeRecordsUsing
       ),
-      beamConfig
+      beamConfig,
+      DateUtils(
+        ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
+        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
+      ),
+      PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath)
     )
   }
 
@@ -769,5 +776,7 @@ case class BeamScenario(
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
   privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle],
   vehicleEnergy: VehicleEnergy,
-  beamConfig: BeamConfig
+  beamConfig: BeamConfig,
+  dates: DateUtils,
+  ptFares: PtFares
 )

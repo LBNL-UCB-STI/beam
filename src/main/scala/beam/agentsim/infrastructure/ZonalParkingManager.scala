@@ -13,6 +13,7 @@ import beam.agentsim.infrastructure.ZonalParkingManager.ParkingAlternative
 import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig
 import beam.utils.FileUtils
 import org.matsim.api.core.v01.Id
 import org.supercsv.cellprocessor.constraint.NotNull
@@ -25,7 +26,8 @@ import scala.collection.mutable
 import scala.util.Random
 
 class ZonalParkingManager(
-  val beamServices: BeamServices,
+  val beamConfig: BeamConfig,
+  val geo: GeoUtils,
   val beamRouter: ActorRef,
   parkingStockAttributes: ParkingStockAttributes,
   val tazTreeMap: TAZTreeMap
@@ -37,7 +39,7 @@ class ZonalParkingManager(
   var stallNum = 0
   val rand = new Random()
 
-  val pathResourceCSV: String = beamServices.beamConfig.beam.agentsim.taz.parkingFilePath
+  val pathResourceCSV: String = beamConfig.beam.agentsim.taz.parkingFilePath
 
   val defaultStallAttributes = StallAttributes(
     Id.create("NA", classOf[TAZ]),
@@ -50,7 +52,7 @@ class ZonalParkingManager(
   def defaultRideHailStallValues: StallValues = StallValues(0, 0)
 
   val depotStallLocationType: DepotStallLocationType =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelLocationType match {
+    beamConfig.beam.agentsim.agents.rideHail.refuelLocationType match {
       case "AtRequestLocation" =>
         AtRequestLocation
       case "AtTAZCenter" =>
@@ -89,7 +91,7 @@ class ZonalParkingManager(
   }
 
   def updatePooledResources(): Unit = {
-    if (Files.exists(Paths.get(beamServices.beamConfig.beam.agentsim.taz.parkingFilePath))) {
+    if (Files.exists(Paths.get(beamConfig.beam.agentsim.taz.parkingFilePath))) {
       readCsvFile(pathResourceCSV).foreach(f => {
         pooledResources.update(f._1, f._2)
       })
@@ -286,7 +288,7 @@ class ZonalParkingManager(
           val attrib =
             StallAttributes(indexForFind.tazId, indexForFind.parkingType, indexForFind.pricingModel, NoCharger, Any)
           val stallLoc = sampleLocationForStall(taz._1, attrib)
-          val walkingDistance = beamServices.geo.distUTMInMeters(stallLoc, inquiry.destinationUtm)
+          val walkingDistance = geo.distUTMInMeters(stallLoc, inquiry.destinationUtm)
           val valueOfTimeSpentWalking = walkingDistance / 1.4 / 3600.0 * inquiry.attributesOfIndividual.valueOfTime // 1.4 m/s avg. walk
           val cost = calculateCost(
             attrib,
@@ -462,7 +464,7 @@ object ZonalParkingManager {
     parkingStockAttributes: ParkingStockAttributes,
     tazTreeMap: TAZTreeMap
   ): Props = {
-    Props(new ZonalParkingManager(beamServices, beamRouter, parkingStockAttributes, tazTreeMap))
+    Props(new ZonalParkingManager(beamServices.beamConfig, beamServices.geo, beamRouter, parkingStockAttributes, tazTreeMap))
   }
 
   val maxSearchRadius = 10e3

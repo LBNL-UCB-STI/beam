@@ -12,7 +12,9 @@ import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
-import beam.sim.{BeamScenario, BeamServices}
+import beam.sim.BeamScenario
+import beam.sim.common.GeoUtils
+import beam.utils.NetworkHelper
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
@@ -26,7 +28,6 @@ object TransitDriverAgent {
 
   def props(
     scheduler: ActorRef,
-    services: BeamServices,
     beamScenario: BeamScenario,
     transportNetwork: TransportNetwork,
     tollCalculator: TollCalculator,
@@ -34,12 +35,13 @@ object TransitDriverAgent {
     parkingManager: ActorRef,
     transitDriverId: Id[TransitDriverAgent],
     vehicle: BeamVehicle,
-    legs: Seq[BeamLeg]
+    legs: Seq[BeamLeg],
+    geo: GeoUtils,
+    networkHelper: NetworkHelper
   ): Props = {
     Props(
       new TransitDriverAgent(
         scheduler,
-        services,
         beamScenario,
         transportNetwork,
         tollCalculator,
@@ -47,7 +49,9 @@ object TransitDriverAgent {
         parkingManager,
         transitDriverId,
         vehicle,
-        legs
+        legs,
+        geo,
+        networkHelper
       )
     )
   }
@@ -84,7 +88,6 @@ object TransitDriverAgent {
 
 class TransitDriverAgent(
   val scheduler: ActorRef,
-  val beamServices: BeamServices,
   val beamScenario: BeamScenario,
   val transportNetwork: TransportNetwork,
   val tollCalculator: TollCalculator,
@@ -92,7 +95,9 @@ class TransitDriverAgent(
   val parkingManager: ActorRef,
   val transitDriverId: Id[TransitDriverAgent],
   val vehicle: BeamVehicle,
-  val legs: Seq[BeamLeg]
+  val legs: Seq[BeamLeg],
+  val geo: GeoUtils,
+  val networkHelper: NetworkHelper
 ) extends DrivesVehicle[TransitDriverData] {
 
   override val id: Id[TransitDriverAgent] = transitDriverId
@@ -106,7 +111,7 @@ class TransitDriverAgent(
       stop
   }
 
-  override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
+  override def logDepth: Int = beamScenario.beamConfig.beam.debug.actor.logDepth
 
   startWith(Uninitialized, TransitDriverData(null))
 

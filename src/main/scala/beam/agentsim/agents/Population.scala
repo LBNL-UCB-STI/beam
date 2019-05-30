@@ -9,14 +9,15 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.router.osm.TollCalculator
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.{BeamScenario, BeamServices}
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.population.{Activity, Leg, Person}
+import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
+import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.{JavaConverters, mutable}
@@ -36,7 +37,8 @@ class Population(
   val eventsManager: EventsManager,
   val routeHistory: RouteHistory,
   val beamSkimmer: BeamSkimmer,
-  val travelTimeObserved: TravelTimeObserved
+  val travelTimeObserved: TravelTimeObserved,
+  val agencyAndRouteByVehicleIds: Map[Id[Vehicle], (String, String)]
 ) extends Actor
     with ActorLogging {
 
@@ -133,7 +135,8 @@ class Population(
               sharedVehicleFleets,
               routeHistory,
               beamSkimmer,
-              travelTimeObserved
+              travelTimeObserved,
+              agencyAndRouteByVehicleIds
             ),
             household.getId.toString
           )
@@ -185,7 +188,8 @@ object Population {
     eventsManager: EventsManager,
     routeHistory: RouteHistory,
     beamSkimmer: BeamSkimmer,
-    travelTimeObserved: TravelTimeObserved
+    travelTimeObserved: TravelTimeObserved,
+    agencyAndRouteByVehicleIds: Map[Id[Vehicle], (String, String)]
   ): Props = {
     Props(
       new Population(
@@ -202,7 +206,8 @@ object Population {
         eventsManager,
         routeHistory,
         beamSkimmer,
-        travelTimeObserved
+        travelTimeObserved,
+        agencyAndRouteByVehicleIds
       )
     )
   }

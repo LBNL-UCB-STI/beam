@@ -19,6 +19,7 @@ import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.BeamServices.FuelTypePrices
+import beam.sim.common.GeoUtils
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
@@ -59,7 +60,8 @@ class BeamSim @Inject()(
   private val travelTimeObserved: TravelTimeObserved,
   private val beamConfigChangesObservable: BeamConfigChangesObservable,
   private val tazTreeMap: TAZTreeMap,
-  private val beamScenario: BeamScenario
+  private val beamScenario: BeamScenario,
+  private val geo: GeoUtils
 ) extends StartupListener
     with IterationStartsListener
     with IterationEndsListener
@@ -96,10 +98,11 @@ class BeamSim @Inject()(
     val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
-        beamServices,
         beamScenario,
         transportNetwork,
         scenario.getNetwork,
+        networkHelper,
+        geo,
         scenario,
         eventsManager,
         scenario.getTransitVehicles,

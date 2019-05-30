@@ -5,20 +5,14 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
-import beam.agentsim.infrastructure.ParkingManager.{
-  DepotParkingInquiry,
-  DepotParkingInquiryResponse,
-  ParkingStockAttributes
-}
+import beam.agentsim.infrastructure.ParkingManager.{DepotParkingInquiry, DepotParkingInquiryResponse, ParkingStockAttributes}
 import beam.sim.BeamServices
-import beam.sim.common.GeoUtilsImpl
+import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.controler.MatsimServices
 import org.matsim.vehicles.Vehicle
-import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
@@ -40,19 +34,6 @@ class ZonalParkingManagerSpec
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
 
-  lazy val tAZTreeMap: TAZTreeMap =
-    BeamServices.getTazTreeMap("test/test-resources/beam/agentsim/infrastructure/taz-centers.csv")
-
-  def beamServices(config: BeamConfig): BeamServices = {
-    val theServices = mock[BeamServices](withSettings().stubOnly())
-    val matsimServices = mock[MatsimServices]
-    when(theServices.matsimServices).thenReturn(matsimServices)
-    when(theServices.beamConfig).thenReturn(config)
-    val geo = new GeoUtilsImpl(config)
-    when(theServices.geo).thenReturn(geo)
-    theServices
-  }
-
   describe(
     "Depot parking in ZonalParkingManager should return parking stalls according to reservedFor field"
   ) {
@@ -67,9 +48,7 @@ class ZonalParkingManagerSpec
         )
       )
 
-      val services = beamServices(config)
-
-      val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(services)
+      val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(config, new GeoUtilsImpl(config))
 
       val location = new Coord(170572.95810126758, 2108.0402919341077)
       val inquiry = DepotParkingInquiry(Id.create("NA", classOf[Vehicle]), location, ParkingStall.Any)
@@ -95,7 +74,7 @@ class ZonalParkingManagerSpec
         )
       )
 
-      val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(beamServices(config))
+      val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(config, new GeoUtilsImpl(config))
       val location = new Coord(170572.95810126758, 2108.0402919341077)
       val inquiry = DepotParkingInquiry(Id.create("NA", classOf[Vehicle]), location, ParkingStall.Any)
 
@@ -118,7 +97,8 @@ class ZonalParkingManagerSpec
 object ZonalParkingManagerSpec {
 
   def mockZonalParkingManager(
-    beamServices: BeamServices,
+    beamConfig: BeamConfig,
+    geo: GeoUtils,
     routerOpt: Option[ActorRef] = None,
     stockAttributesOpt: Option[ParkingStockAttributes] = None
   )(implicit system: ActorSystem): ActorRef = {
@@ -135,7 +115,7 @@ object ZonalParkingManagerSpec {
         ParkingStockAttributes(1)
     }
     val zonalParkingManagerProps = Props(
-      new ZonalParkingManager(beamServices, beamRouterProbe, parkingStockAttributes, BeamServices.defaultTazTreeMap) {
+      new ZonalParkingManager(beamConfig, geo, beamRouterProbe, parkingStockAttributes, BeamServices.defaultTazTreeMap) {
         override def fillInDefaultPooledResources() {} //Ignoring default initialization, just use input data
       }
     )

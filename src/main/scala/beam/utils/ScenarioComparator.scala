@@ -1,11 +1,10 @@
 package beam.utils
 
 import java.nio.file.Paths
-import java.time.ZonedDateTime
 import java.util.{Collections, Comparator}
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
+import beam.agentsim.agents.choice.mode.ModeIncentive
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles._
@@ -106,10 +105,6 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
       override lazy val geo: beam.sim.common.GeoUtils = new GeoUtilsImpl(beamConfig)
       val transportNetwork = DefaultNetworkCoordinator(beamConfig).transportNetwork
       override var modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator = _
-      override val dates: DateUtils = DateUtils(
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
-      )
       override var beamRouter: ActorRef = _
       override var personHouseholds: Map[Id[Person], Household] = Map()
 
@@ -151,8 +146,6 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
       override def matsimServices: org.matsim.core.controler.MatsimServices = ???
 
       override lazy val rideHailTransitModes: Seq[Modes.BeamMode] = ???
-      override lazy val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = ???
-      override lazy val ptFares: PtFares = ???
       override def networkHelper: NetworkHelper = ???
       override def setTransitFleetSizes(
         tripFleetSizeMap: mutable.HashMap[String, Integer]

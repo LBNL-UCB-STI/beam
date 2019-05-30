@@ -4,12 +4,12 @@ import akka.actor._
 import beam.agentsim.agents.PersonTestUtil
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.events.PathTraversalEvent
-import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.router.Modes.BeamMode
+import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
+import beam.sim.common.GeoUtilsImpl
 import beam.sim.{BeamHelper, BeamMobsim, BeamServices, BeamServicesImpl}
-import beam.utils.{BeamVehicleUtils, SimRunnerForTest}
+import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
@@ -60,10 +60,11 @@ class SingleModeSpec
 
     router = system.actorOf(
       BeamRouter.props(
-        services,
         beamScenario,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
+        networkHelper,
+        new GeoUtilsImpl(beamCfg),
         scenario,
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
@@ -119,7 +120,9 @@ class SingleModeSpec
         new RouteHistory(services.beamConfig),
         mock[BeamSkimmer],
         mock[TravelTimeObserved],
-        BeamServices.defaultTazTreeMap
+        BeamServices.defaultTazTreeMap,
+        new GeoUtilsImpl(services.beamConfig),
+        networkHelper
       )
       mobsim.run()
       events.foreach {
@@ -165,7 +168,9 @@ class SingleModeSpec
         new RouteHistory(services.beamConfig),
         mock[BeamSkimmer],
         mock[TravelTimeObserved],
-        BeamServices.defaultTazTreeMap
+        BeamServices.defaultTazTreeMap,
+        new GeoUtilsImpl(services.beamConfig),
+        networkHelper
       )
       mobsim.run()
       events.foreach {
@@ -230,7 +235,9 @@ class SingleModeSpec
         new RouteHistory(services.beamConfig),
         mock[BeamSkimmer],
         mock[TravelTimeObserved],
-        BeamServices.defaultTazTreeMap
+        BeamServices.defaultTazTreeMap,
+        new GeoUtilsImpl(services.beamConfig),
+        networkHelper
       )
       mobsim.run()
       events.collect {
@@ -300,7 +307,9 @@ class SingleModeSpec
         new RouteHistory(services.beamConfig),
         mock[BeamSkimmer],
         mock[TravelTimeObserved],
-        BeamServices.defaultTazTreeMap
+        BeamServices.defaultTazTreeMap,
+        new GeoUtilsImpl(services.beamConfig),
+        networkHelper
       )
       mobsim.run()
       events.collect {

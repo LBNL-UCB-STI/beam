@@ -1,6 +1,5 @@
 package beam.performance
 
-import java.time.ZonedDateTime
 import java.util
 import java.util.concurrent.ThreadLocalRandom
 
@@ -8,7 +7,6 @@ import akka.actor.Status.Success
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ZonalParkingManagerSpec
@@ -19,12 +17,12 @@ import beam.router.Modes.BeamMode.{BIKE, BUS, CAR, RIDE_HAIL, TRANSIT, WALK, WAL
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
-import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.MetricsSupport
+import beam.sim.{BeamHelper, BeamScenario}
 import beam.tags.Performance
-import beam.utils.{BeamVehicleUtils, DateUtils}
+import beam.utils.NetworkHelperImpl
 import beam.utils.TestConfigUtils.testConfig
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.ProfileRequest
@@ -93,17 +91,8 @@ class RouterPerformanceSpec
     val beamConfig = BeamConfig(config)
     beamScenario = loadScenario(beamConfig)
 
-    val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
-    when(services.beamConfig).thenReturn(beamConfig)
     val geo = new GeoUtilsImpl(beamConfig)
-    when(services.geo).thenReturn(geo)
-    when(services.dates).thenReturn(
-      DateUtils(
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
-      )
-    )
-    val networkCoordinator: DefaultNetworkCoordinator = new DefaultNetworkCoordinator(beamConfig)
+    val networkCoordinator: DefaultNetworkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 
@@ -113,15 +102,14 @@ class RouterPerformanceSpec
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
     scenario = ScenarioUtils.loadScenario(matsimConfig)
     network = scenario.getNetwork
-    val fuelTypePrices: Map[FuelType, Double] =
-      BeamVehicleUtils.readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
 
     router = system.actorOf(
       BeamRouter.props(
-        services,
         beamScenario,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
+        new NetworkHelperImpl(networkCoordinator.network),
+        geo,
         scenario,
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
@@ -130,7 +118,7 @@ class RouterPerformanceSpec
       ),
       "router"
     )
-    val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(services, Some(router), None)
+    val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(beamConfig, geo, Some(router), None)
 
     within(60 seconds) { // Router can take a while to initialize
       router ! Identify(0)

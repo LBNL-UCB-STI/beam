@@ -3,33 +3,39 @@ package beam.sim
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Success
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, Props, Terminated}
+import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, Props, Terminated}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
-import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
+import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitDriverAgent}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
-import beam.router.BeamRouter.InitTransit
+import beam.router.BeamRouter.TransitInited
+import beam.router._
+import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
-import beam.router.{BeamSkimmer, FreeFlowTravelTime, RouteHistory, TravelTimeObserved}
+import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
 import beam.sim.vehiclesharing.Fleets
 import beam.utils._
-import com.conveyal.r5.transit.TransportNetwork
+import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.utils.misc.Time
+import org.matsim.vehicles.Vehicle
 
+import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -51,7 +57,9 @@ class BeamMobsim @Inject()(
   val routeHistory: RouteHistory,
   val beamSkimmer: BeamSkimmer,
   val travelTimeObserved: TravelTimeObserved,
-  val tazTreeMap: TAZTreeMap
+  val tazTreeMap: TAZTreeMap,
+  val geo: GeoUtils,
+  val networkHelper: NetworkHelper
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
@@ -65,6 +73,8 @@ class BeamMobsim @Inject()(
   var debugActorWithTimerActorRef: ActorRef = _
   var debugActorWithTimerCancellable: Cancellable = _
   private val config: Beam.Agentsim = beamServices.beamConfig.beam.agentsim
+
+  val agencyAndRouteByVehicleIds: mutable.Map[Id[Vehicle], (String, String)] = TrieMap()
 
   override def run(): Unit = {
     logger.info("Starting Iteration")
@@ -162,13 +172,25 @@ class BeamMobsim @Inject()(
             eventsManager,
             routeHistory,
             beamSkimmer,
-            travelTimeObserved
+            travelTimeObserved,
+            agencyAndRouteByVehicleIds.toMap
           ),
           "population"
         )
         context.watch(population)
         Await.result(population ? Identify(0), timeout.duration)
-        Await.result(beamServices.beamRouter ? InitTransit(scheduler, parkingManager), timeout.duration)
+        val initializer =
+          new TransitInitializer(
+            beamScenario.beamConfig,
+            beamScenario.dates,
+            beamScenario.vehicleTypes,
+            transportNetwork,
+            scenario.getTransitVehicles,
+            BeamRouter.oneSecondTravelTime
+          )
+        val transits = initializer.initMap
+        initDriverAgents(context, initializer, scheduler, parkingManager, transits)
+        Await.result(beamServices.beamRouter ? TransitInited(transits), timeout.duration)
 
         log.info("Transit schedule has been initialized")
 
@@ -263,5 +285,37 @@ class BeamMobsim @Inject()(
 
     logger.info("Processing Agentsim Events (End)")
   }
+
+  private def initDriverAgents( context: ActorContext,
+                                initializer: TransitInitializer,
+                                scheduler: ActorRef,
+                                parkingManager: ActorRef,
+                                transits: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])]
+                              ): Unit = {
+    transits.foreach {
+      case (tripVehId, (route, legs)) =>
+        initializer.createTransitVehicle(tripVehId, route, legs).foreach { vehicle =>
+          agencyAndRouteByVehicleIds += (Id
+            .createVehicleId(tripVehId.toString) -> (route.agency_id, route.route_id))
+          val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
+          val transitDriverAgentProps = TransitDriverAgent.props(
+            scheduler,
+            beamScenario,
+            transportNetwork,
+            tollCalculator,
+            eventsManager,
+            parkingManager,
+            transitDriverId,
+            vehicle,
+            legs,
+            geo,
+            networkHelper
+          )
+          val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
+          scheduler ! ScheduleTrigger(InitializeTrigger(0), transitDriver)
+        }
+    }
+  }
+
 
 }

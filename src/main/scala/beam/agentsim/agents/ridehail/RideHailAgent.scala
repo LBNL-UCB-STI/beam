@@ -156,6 +156,9 @@ class RideHailAgent(
     with DrivesVehicle[RideHailAgentData]
     with Stash {
 
+  val networkHelper = beamServices.networkHelper
+  val geo = beamServices.geo
+
   val myUnhandled: StateFunction = {
     case Event(TriggerWithId(StartShiftTrigger(tick), triggerId), _) =>
       // Wait five minutes

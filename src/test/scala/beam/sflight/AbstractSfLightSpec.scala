@@ -3,9 +3,10 @@ package beam.sflight
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKitBase}
 import beam.router.BeamRouter
+import beam.sim.common.GeoUtilsImpl
 import beam.sim.{BeamScenario, BeamServices, BeamServicesImpl}
-import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.{NetworkHelperImpl, SimRunnerForTest}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.events.EventsManagerImpl
@@ -34,12 +35,14 @@ class AbstractSfLightSpec(val name: String)
   var router: ActorRef = _
 
   override def beforeAll: Unit = {
+    val beamScenario = injector.getInstance(classOf[BeamScenario])
     router = system.actorOf(
       BeamRouter.props(
-        services,
-        injector.getInstance(classOf[BeamScenario]),
+        beamScenario,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
+        new NetworkHelperImpl(networkCoordinator.network),
+        new GeoUtilsImpl(beamScenario.beamConfig),
         scenario,
         new EventsManagerImpl(),
         scenario.getTransitVehicles,

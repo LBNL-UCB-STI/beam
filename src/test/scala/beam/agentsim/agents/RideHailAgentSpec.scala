@@ -66,12 +66,12 @@ class RideHailAgentSpec
 
   private lazy val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
   private lazy val matsimConfig = configBuilder.buildMatSimConf()
+  val geo = new GeoUtilsImpl(config)
 
   lazy val services: BeamServices = {
     val matsimServices = mock[MatsimServices]
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.beamConfig).thenReturn(config)
-    val geo = new GeoUtilsImpl(config)
     when(theServices.geo).thenReturn(geo)
     when(theServices.matsimServices).thenReturn(matsimServices)
     val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
@@ -79,7 +79,7 @@ class RideHailAgentSpec
     when(matsimServices.getScenario).thenReturn(scenario)
     theServices
   }
-  private lazy val zonalParkingManager: ActorRef = ZonalParkingManagerSpec.mockZonalParkingManager(services)
+  private lazy val zonalParkingManager: ActorRef = ZonalParkingManagerSpec.mockZonalParkingManager(config, geo)
 
   case class TestTrigger(tick: Int) extends Trigger
 

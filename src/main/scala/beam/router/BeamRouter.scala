@@ -12,19 +12,17 @@ import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
-import beam.agentsim.agents.{InitializeTrigger, TransitDriverAgent}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
 import beam.router.model._
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker
-import beam.sim.{BeamScenario, BeamServices}
-import beam.sim.BeamServices.FuelTypePrices
+import beam.sim.common.GeoUtils
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.{DateUtils, IdGeneratorImpl}
+import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.{DateUtils, IdGeneratorImpl, NetworkHelper}
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.romix.akka.serialization.kryo.KryoSerializer
@@ -43,10 +41,11 @@ import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.util.Try
 
 class BeamRouter(
-  services: BeamServices,
   beamScenario: BeamScenario,
   transportNetwork: TransportNetwork,
   network: Network,
+  networkHelper: NetworkHelper,
+  geo: GeoUtils,
   scenario: Scenario,
   eventsManager: EventsManager,
   transitVehicles: Vehicles,
@@ -61,10 +60,10 @@ class BeamRouter(
   type WorkId = Int
   type TimeSent = ZonedDateTime
 
-  val clearRoutedOutstandingWorkEnabled: Boolean = services.beamConfig.beam.debug.clearRoutedOutstandingWorkEnabled
+  val clearRoutedOutstandingWorkEnabled: Boolean = beamScenario.beamConfig.beam.debug.clearRoutedOutstandingWorkEnabled
 
   val secondsToWaitToClearRoutedOutstandingWork: Int =
-    services.beamConfig.beam.debug.secondsToWaitToClearRoutedOutstandingWork
+    beamScenario.beamConfig.beam.debug.secondsToWaitToClearRoutedOutstandingWork
 
   val availableWorkWithOriginalSender: mutable.Queue[WorkWithOriginalSender] =
     mutable.Queue.empty[WorkWithOriginalSender]
@@ -83,7 +82,7 @@ class BeamRouter(
   val servicePath = "/user/statsServiceProxy"
 
   val clusterOption: Option[Cluster] =
-    if (services.beamConfig.beam.cluster.enabled) Some(Cluster(context.system)) else None
+    if (beamScenario.beamConfig.beam.cluster.enabled) Some(Cluster(context.system)) else None
 
   val servicePathElements: immutable.Seq[String] = servicePath match {
     case RelativeActorPath(elements) => elements
@@ -124,13 +123,13 @@ class BeamRouter(
     ): TimeAndCost = TimeAndCost(None, None)
   }
 
-  if (services.beamConfig.beam.useLocalWorker) {
+  if (beamScenario.beamConfig.beam.useLocalWorker) {
     val localWorker = context.actorOf(
       R5RoutingWorker.props(
-        services,
         beamScenario,
         transportNetwork,
         network,
+        networkHelper,
         scenario,
         fareCalculator,
         tollCalculator,
@@ -169,19 +168,8 @@ class BeamRouter(
           serviceActor.ask(UpdateTravelTimeRemote(map))(updateTravelTimeTimeout)
         }
       }
-    case InitTransit(scheduler, parkingManager, _) =>
+    case TransitInited(transits) =>
       val localInit: Future[Set[Status]] = Future {
-        val initializer =
-          new TransitInitializer(
-            services.beamConfig,
-            services.dates,
-            beamScenario.vehicleTypes,
-            transportNetwork,
-            transitVehicles,
-            BeamRouter.oneSecondTravelTime
-          )
-        val transits = initializer.initMap
-        initDriverAgents(initializer, scheduler, parkingManager, transits)
         localNodes.map { localWorker =>
           localWorker ! TransitInited(transits)
           Success(s"local worker '$localWorker' inited")
@@ -404,35 +392,6 @@ class BeamRouter(
       }
   }
 
-  private def initDriverAgents(
-    initializer: TransitInitializer,
-    scheduler: ActorRef,
-    parkingManager: ActorRef,
-    transits: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])]
-  ): Unit = {
-    transits.foreach {
-      case (tripVehId, (route, legs)) =>
-        initializer.createTransitVehicle(tripVehId, route, legs).foreach { vehicle =>
-          services.agencyAndRouteByVehicleIds += (Id
-            .createVehicleId(tripVehId.toString) -> (route.agency_id, route.route_id))
-          val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
-          val transitDriverAgentProps = TransitDriverAgent.props(
-            scheduler,
-            services,
-            beamScenario,
-            transportNetwork,
-            tollCalculator,
-            eventsManager,
-            parkingManager,
-            transitDriverId,
-            vehicle,
-            legs
-          )
-          val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
-          scheduler ! ScheduleTrigger(InitializeTrigger(0), transitDriver)
-        }
-    }
-  }
 }
 
 object BeamRouter {
@@ -462,7 +421,6 @@ object BeamRouter {
     * @param originUTM                 start/from location of the route
     * @param destinationUTM            end/to location of the route
     * @param departureTime          time in seconds from base midnight
-    * @param transitModes           what transit modes should be considered
     * @param streetVehicles         what vehicles should be considered in route calc
     * @param streetVehiclesUseIntermodalUse boolean (default true), if false, the vehicles considered for use on egress
     */
@@ -500,24 +458,26 @@ object BeamRouter {
   }
 
   def props(
-    beamServices: BeamServices,
     beamScenario: BeamScenario,
     transportNetwork: TransportNetwork,
     network: Network,
+    networkHelper: NetworkHelper,
+    geo: GeoUtils,
     scenario: Scenario,
     eventsManager: EventsManager,
     transitVehicles: Vehicles,
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator
   ) = {
-    checkForConsistentTimeZoneOffsets(beamServices.dates, transportNetwork)
+    checkForConsistentTimeZoneOffsets(beamScenario.dates, transportNetwork)
 
     Props(
       new BeamRouter(
-        beamServices,
         beamScenario,
         transportNetwork,
         network,
+        networkHelper,
+        geo,
         scenario,
         eventsManager,
         transitVehicles,

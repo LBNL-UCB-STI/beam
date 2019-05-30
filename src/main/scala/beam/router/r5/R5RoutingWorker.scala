@@ -23,10 +23,10 @@ import beam.router.model.RoutingModel.LinksTimesDistances
 import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
+import beam.sim.BeamScenario
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.metrics.{Metrics, MetricsSupport}
-import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile}
 import beam.utils._
 import com.conveyal.r5.analyst.fare.SimpleInRoutingFareCalculator
@@ -58,7 +58,6 @@ case class WorkerParameters(
   transportNetwork: TransportNetwork,
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
   fuelTypePrices: Map[FuelType, Double],
-  agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)],
   ptFares: PtFares,
   geo: GeoUtils,
   dates: DateUtils,
@@ -131,7 +130,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         networkCoordinator.transportNetwork,
         vehicleTypes,
         fuelTypePrices,
-        TrieMap(),
         ptFares,
         geo,
         dates,
@@ -149,7 +147,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     transportNetwork,
     vehicleTypes,
     fuelTypePrices,
-    agencyAndRouteByVehicleIds,
     ptFares,
     geo,
     dates,
@@ -189,6 +186,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   private var transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])] = transitMap
 
   val bodyType = vehicleTypes(Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]))
+
+  //FIXME
+  val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = TrieMap()
 
   private val cache = CacheBuilder
     .newBuilder()
@@ -1177,10 +1177,10 @@ object R5RoutingWorker {
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 0.447 // 1 mile per hour
 
   def props(
-    beamServices: BeamServices,
     beamScenario: BeamScenario,
     transportNetwork: TransportNetwork,
     network: Network,
+    networkHelper: NetworkHelper,
     scenario: Scenario,
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator,
@@ -1189,15 +1189,14 @@ object R5RoutingWorker {
   ) = Props(
     new R5RoutingWorker(
       WorkerParameters(
-        beamServices.beamConfig,
+        beamScenario.beamConfig,
         transportNetwork,
         beamScenario.vehicleTypes,
         beamScenario.fuelTypePrices,
-        beamServices.agencyAndRouteByVehicleIds,
-        beamServices.ptFares,
-        beamServices.geo,
-        beamServices.dates,
-        beamServices.networkHelper,
+        beamScenario.ptFares,
+        new GeoUtilsImpl(beamScenario.beamConfig),
+        beamScenario.dates,
+        networkHelper,
         fareCalculator,
         tollCalculator,
         travelTimeAndCost,

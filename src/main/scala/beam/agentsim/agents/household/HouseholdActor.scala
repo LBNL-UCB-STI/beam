@@ -38,6 +38,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.PopulationUtils
 import org.matsim.households
 import org.matsim.households.Household
+import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
@@ -68,7 +69,8 @@ object HouseholdActor {
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     routeHistory: RouteHistory,
     beamSkimmer: BeamSkimmer,
-    travelTimeObserved: TravelTimeObserved
+    travelTimeObserved: TravelTimeObserved,
+    agencyAndRouteByVehicleIds: Map[Id[Vehicle], (String, String)]
   ): Props = {
     Props(
       new HouseholdActor(
@@ -89,7 +91,8 @@ object HouseholdActor {
         sharedVehicleFleets,
         routeHistory,
         beamSkimmer,
-        travelTimeObserved
+        travelTimeObserved,
+        agencyAndRouteByVehicleIds
       )
     )
   }
@@ -131,7 +134,8 @@ object HouseholdActor {
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     routeHistory: RouteHistory,
     beamSkimmer: BeamSkimmer,
-    travelTimeObserved: TravelTimeObserved
+    travelTimeObserved: TravelTimeObserved,
+    agencyAndRouteByVehicleIds: Map[Id[Vehicle], (String, String)]
   ) extends Actor
       with HasTickAndTrigger
       with ActorLogging {
@@ -295,7 +299,8 @@ object HouseholdActor {
               fleetManagers ++: sharedVehicleFleets :+ self,
               beamSkimmer,
               routeHistory,
-              travelTimeObserved
+              travelTimeObserved,
+              agencyAndRouteByVehicleIds
             ),
             person.getId.toString
           )

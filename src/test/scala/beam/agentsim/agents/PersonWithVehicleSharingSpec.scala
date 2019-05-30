@@ -193,7 +193,8 @@ class PersonWithVehicleSharingSpec
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
             mock[BeamSkimmer],
-            mock[TravelTimeObserved]
+            mock[TravelTimeObserved],
+            Map()
           )
         )
       )
@@ -337,7 +338,8 @@ class PersonWithVehicleSharingSpec
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
             mock[BeamSkimmer],
-            mock[TravelTimeObserved]
+            mock[TravelTimeObserved],
+            Map()
           )
         )
       )
@@ -580,7 +582,8 @@ class PersonWithVehicleSharingSpec
           Vector(mockSharedVehicleFleet.ref),
           new RouteHistory(beamConfig),
           mock[BeamSkimmer],
-          mock[TravelTimeObserved]
+          mock[TravelTimeObserved],
+          Map()
         )
       )
 

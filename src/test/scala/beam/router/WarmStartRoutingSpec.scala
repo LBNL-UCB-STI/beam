@@ -1,12 +1,9 @@
 package beam.router
 
-import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
 import akka.testkit.{ImplicitSender, TestKit}
-import beam.agentsim.agents.choice.mode.PtFares
-import beam.agentsim.agents.choice.mode.PtFares.FareRule
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -22,23 +19,19 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamScenario, BeamServices, BeamWarmStart}
 import beam.utils.TestConfigUtils.testConfig
-import beam.utils.{DateUtils, FileUtils, NetworkHelperImpl}
+import beam.utils.{FileUtils, NetworkHelperImpl}
 import com.typesafe.config.{Config, ConfigValueFactory}
-import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.matsim.households.Household
-import org.matsim.vehicles.Vehicle
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
-import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -79,27 +72,12 @@ class WarmStartRoutingSpec
       .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
       .withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data"))
     val beamConfig = BeamConfig(config)
-
-    // Have to mock a lot of things to get the router going
-    services = mock[BeamServices](withSettings().stubOnly())
     scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
-    when(services.beamConfig).thenReturn(beamConfig)
-    when(services.geo).thenReturn(new GeoUtilsImpl(beamConfig))
-    when(services.personHouseholds).thenReturn(Map[Id[Person], Household]())
-    when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
-    when(services.ptFares).thenReturn(PtFares(List[FareRule]()))
-    when(services.dates).thenReturn(
-      DateUtils(
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
-      )
-    )
     var networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 
     val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
-    when(services.networkHelper).thenReturn(networkHelper)
 
     val fareCalculator = mock[FareCalculator]
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
@@ -107,10 +85,11 @@ class WarmStartRoutingSpec
     when(tollCalculator.calcTollByOsmIds(any())).thenReturn(0.0)
     router = system.actorOf(
       BeamRouter.props(
-        services,
         beamScenario,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
+        new NetworkHelperImpl(networkCoordinator.network),
+        new GeoUtilsImpl(beamConfig),
         scenario,
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
@@ -153,10 +132,11 @@ class WarmStartRoutingSpec
     bs.controler.run()
     router1 = system.actorOf(
       BeamRouter.props(
-        services,
         beamScenario,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
+        new NetworkHelperImpl(networkCoordinator.network),
+        new GeoUtilsImpl(beamConfig),
         scenario,
         new EventsManagerImpl(),
         scenario.getTransitVehicles,
