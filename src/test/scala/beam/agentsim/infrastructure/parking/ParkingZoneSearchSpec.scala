@@ -37,7 +37,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           destinationNearTazA,
           valueOfTime = 1.0,
           parkingDuration = 0.0, // ignore pricing ranking
-          Option.empty[ChargingInquiryData[String,String]],
+          Option.empty[ChargingInquiryData[String, String]],
           tazsInProblem,
           Seq(ParkingType.Public),
           parkingSearchTree,
@@ -47,18 +47,17 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         )
 
         result match {
-          case None => fail()
+          case None                                                                                             => fail()
           case Some(ParkingRanking.RankingAccumulator(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
-
             // since everything is equal, either TAZ should work out, but
             // whichever one was selected, it should have had a ranking value of zero
-            rankingValue should equal (0.0)
+            rankingValue should equal(0.0)
 
             // these should be consistent with the configuration of this scenario
             parkingType should equal(ParkingType.Public)
 
             // since availability is 18/18 = 1.0, sample location should equal destination coordinate
-            stallCoord should equal (destinationNearTazA)
+            stallCoord should equal(destinationNearTazA)
         }
       }
     }
@@ -70,12 +69,11 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         // make TAZ B's parking stalls have medium availability
         parkingZones(1).stallsAvailable = 14
 
-
         val result: Option[ParkingRanking.RankingAccumulator] = ParkingZoneSearch.find(
           destinationInMiddle,
           valueOfTime = 1.0,
           parkingDuration = 0.0, // ignore pricing ranking
-          Option.empty[ChargingInquiryData[String,String]],
+          Option.empty[ChargingInquiryData[String, String]],
           tazsInProblem,
           Seq(ParkingType.Public),
           parkingSearchTree,
@@ -85,9 +83,8 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         )
 
         result match {
-          case None => fail()
+          case None                                                                                             => fail()
           case Some(ParkingRanking.RankingAccumulator(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
-
             // TAZ B should have been selected because everything is equal except for availability is lower for A
             taz should equal(tazB)
 
@@ -118,7 +115,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           destinationNearTazA,
           valueOfTime = 1.0,
           parkingDuration = 0.0,
-          Option.empty[ChargingInquiryData[String,String]],
+          Option.empty[ChargingInquiryData[String, String]],
           tazsInProblem,
           Seq(ParkingType.Public),
           parkingSearchTree,
@@ -128,9 +125,8 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         )
 
         result match {
-          case None => fail()
+          case None                                                                                             => fail()
           case Some(ParkingRanking.RankingAccumulator(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
-
             // TAZ B should have been selected because everything is equal except for availability is lower for A
             taz should equal(tazB)
 
@@ -139,7 +135,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
             parkingZone.parkingZoneId should equal(1)
 
             // the stall should be exactly located at the destination
-            stallCoord should equal (destinationNearTazA)
+            stallCoord should equal(destinationNearTazA)
         }
       }
     }
@@ -155,7 +151,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           destinationInMiddle,
           valueOfTime = valueOfTime,
           parkingDuration = parkingDuration,
-          Option.empty[ChargingInquiryData[String,String]],
+          Option.empty[ChargingInquiryData[String, String]],
           tazsInProblem,
           Seq(ParkingType.Public),
           parkingSearchTree,
@@ -165,9 +161,8 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         )
 
         result match {
-          case None => fail()
+          case None                                                                                             => fail()
           case Some(ParkingRanking.RankingAccumulator(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
-
             // TAZ B should have been selected because everything is equal except for availability is lower for A
             taz should equal(tazB)
 
@@ -176,7 +171,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
             parkingZone.parkingZoneId should equal(1)
 
             // the stall should be exactly located at the destination
-            stallCoord should equal (destinationInMiddle)
+            stallCoord should equal(destinationInMiddle)
         }
       }
     }
@@ -192,7 +187,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           destinationInMiddle,
           valueOfTime = valueOfTime,
           parkingDuration = parkingDuration,
-          Option.empty[ChargingInquiryData[String,String]],
+          Option.empty[ChargingInquiryData[String, String]],
           tazsInProblem,
           Seq(ParkingType.Public),
           parkingSearchTree,
@@ -202,9 +197,8 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         )
 
         result match {
-          case None => fail()
+          case None                                                                                             => fail()
           case Some(ParkingRanking.RankingAccumulator(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
-
             // TAZ B should have been selected because everything is equal except for availability is lower for A
             taz should equal(tazA)
 
@@ -213,7 +207,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
             parkingZone.parkingZoneId should equal(0)
 
             // the stall should be exactly located at the destination
-            stallCoord should equal (destinationInMiddle)
+            stallCoord should equal(destinationInMiddle)
         }
       }
     }
@@ -224,7 +218,6 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
 object ParkingZoneSearchSpec {
 
   val random: Random = new Random(0L)
-
 
   // this test scenario covers some basic functionality of ParkingZoneSearches
   // including ranking by availability and pricing model
@@ -240,12 +233,14 @@ object ParkingZoneSearchSpec {
         |B,Public,Block,UltraFast,18,100,unused
         |
       """.stripMargin.split("\n").toIterator
-    val ParkingZoneFileUtils.ParkingLoadingAccumulator(parkingZones, parkingSearchTree, _, _) = ParkingZoneFileUtils.fromIterator(sourceData)
-    val destinationNearTazA = new Coord(1,1) // near taz 1
-    val destinationNearTazB = new Coord(9,9) // near taz 2
-    val destinationInMiddle = new Coord(5,5) // middle of TAZs
-    val tazA = new TAZ(Id.create("A", classOf[TAZ]), new Coord(0,0), 0)
-    val tazB = new TAZ(Id.create("B", classOf[TAZ]), new Coord(10,10), 0)
+
+    val ParkingZoneFileUtils.ParkingLoadingAccumulator(parkingZones, parkingSearchTree, _, _) =
+      ParkingZoneFileUtils.fromIterator(sourceData)
+    val destinationNearTazA = new Coord(1, 1) // near taz 1
+    val destinationNearTazB = new Coord(9, 9) // near taz 2
+    val destinationInMiddle = new Coord(5, 5) // middle of TAZs
+    val tazA = new TAZ(Id.create("A", classOf[TAZ]), new Coord(0, 0), 0)
+    val tazB = new TAZ(Id.create("B", classOf[TAZ]), new Coord(10, 10), 0)
     val tazsInProblem: Seq[TAZ] = Seq(tazA, tazB)
   }
 
