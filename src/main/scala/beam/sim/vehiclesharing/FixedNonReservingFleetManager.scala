@@ -41,9 +41,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   val vehicleType: BeamVehicleType,
   val mainScheduler: ActorRef,
   val beamServices: BeamServices,
-  val beamSkimmer: BeamSkimmer,
-  val maxWalkingDistance: Int,
-  val repositioningAlgorithm: Class[_ <: beam.sim.vehiclesharing.RepositionAlgorithm]
+  val beamSkimmer: BeamSkimmer
 ) extends Actor
     with ActorLogging
     with Stash
@@ -86,7 +84,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
     case MobilityStatusInquiry(_, whenWhere, _) =>
       // Search box: 1000 meters around query location
       val boundingBox = new Envelope(new Coordinate(whenWhere.loc.getX, whenWhere.loc.getY))
-      boundingBox.expandBy(maxWalkingDistance)
+      boundingBox.expandBy(1000.0)
 
       val nearbyVehicles = availableVehiclesIndex.query(boundingBox).asScala.toVector.asInstanceOf[Vector[BeamVehicle]]
       nearbyVehicles.sortBy(veh => CoordUtils.calcEuclideanDistance(veh.spaceTime.loc, whenWhere.loc))
@@ -133,10 +131,10 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   override def getScheduler: ActorRef = mainScheduler
   override def getBeamServices: BeamServices = beamServices
   override def getREPAlgorithm: RepositionAlgorithm = algorithm
-  override def getREPTimeStep: Int = 30 * 60
+  override def getREPTimeStep: Int = 60 * 60
   override def getBeamSkimmer: BeamSkimmer = beamSkimmer
 
-  val algorithm = repositioningAlgorithm.getConstructor(classOf[RepositionManager]).newInstance(this)
+  val algorithm = new AvailabilityBasedRepositioning(beamSkimmer, beamServices, this)
 
   override def makeAvailable(vehId: Id[BeamVehicle]): Boolean = {
     val vehicle = vehicles(vehId)
