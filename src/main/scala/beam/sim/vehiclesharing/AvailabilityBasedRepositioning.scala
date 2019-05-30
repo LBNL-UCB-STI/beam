@@ -36,7 +36,12 @@ class AvailabilityBasedRepositioning(repositionManager: RepositionManager) exten
   override def collectData(time: Int) = {
     val curBin = time / repositionManager.getDataCollectTimeStep
     val vehicles = repositionManager.getAvailableVehiclesIndex.queryAll().asScala.toList
-    repositionManager.getBeamSkimmer.observeVehicleAvailabilityByTAZ(curBin, repositionManager.getId, availability, vehicles)
+    repositionManager.getBeamSkimmer.observeVehicleAvailabilityByTAZ(
+      curBin,
+      repositionManager.getId,
+      availability,
+      vehicles
+    )
   }
 
   override def collectData(time: Int, coord: Coord, label: String) = {

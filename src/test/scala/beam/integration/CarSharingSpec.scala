@@ -200,7 +200,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
               event match {
                 case e: ModeChoiceEvent =>
                   if (e.getAttributes.get("mode") == "car") {
-                    if(iteration == 0) {
+                    if (iteration == 0) {
                       carsharingTripsIt0 += 1
                     } else {
                       carsharingTripsIt1 += 1
