@@ -14,7 +14,7 @@ import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.population.routes.NetworkRoute
-import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
+import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioUtils}
 import org.matsim.households.Household
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 
@@ -35,7 +35,8 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     val beamExecConfig: BeamExecutionConfig = setupBeamWithConfig(config)
 
     val networkCoordinator = buildNetworkCoordinator(beamExecConfig.beamConfig)
-    scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, networkCoordinator)
+//    scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, networkCoordinator)
+    scenario = ScenarioBuilder.builder.withNetwork(networkCoordinator.network).build
     val injector = buildInjector(config, scenario, networkCoordinator)
     val services = buildBeamServices(injector, scenario, beamExecConfig.matsimConfig, networkCoordinator)
     fillScenarioWithExternalSources(injector, scenario, beamExecConfig.matsimConfig, networkCoordinator, services)

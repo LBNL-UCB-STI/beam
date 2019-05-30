@@ -1,6 +1,6 @@
 package beam.sim
 
-import java.io.{FileOutputStream, FileWriter}
+import java.io.{File, FileOutputStream, FileWriter}
 import java.nio.file.{Files, Paths, StandardCopyOption}
 import java.util.{Properties, Random}
 import java.util.concurrent.TimeUnit
@@ -44,7 +44,7 @@ import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
-import org.matsim.core.scenario.{MutableScenario, ScenarioByInstanceModule, ScenarioUtils}
+import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.households.Household
 import org.matsim.utils.objectattributes.AttributeConverter
@@ -345,7 +345,8 @@ trait BeamHelper extends LazyLogging {
   def runBeamWithConfig(config: TypesafeConfig): (MatsimConfig, String) = {
     val beamExecutionConfig = setupBeamWithConfig(config)
     val networkCoordinator: NetworkCoordinator = buildNetworkCoordinator(beamExecutionConfig.beamConfig)
-    val defaultScenario = buildScenarioFromMatsimConfig(beamExecutionConfig.matsimConfig, networkCoordinator)
+//    val defaultScenario = buildScenarioFromMatsimConfig(beamExecutionConfig.matsimConfig, networkCoordinator)
+    val defaultScenario = ScenarioBuilder.builder.withNetwork(networkCoordinator.network).build
     val injector: inject.Injector = buildInjector(config, defaultScenario, networkCoordinator)
     val services = buildBeamServices(injector, defaultScenario, beamExecutionConfig.matsimConfig, networkCoordinator)
 
@@ -375,15 +376,15 @@ trait BeamHelper extends LazyLogging {
     }
   }
 
-  protected def buildScenarioFromMatsimConfig(
-    matsimConfig: MatsimConfig,
-    networkCoordinator: NetworkCoordinator
-  ): MutableScenario = {
-    val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-    fixDanglingPersons(result)
-    result.setNetwork(networkCoordinator.network)
-    result
-  }
+//  protected def buildScenarioFromMatsimConfig(
+//    matsimConfig: MatsimConfig,
+//    networkCoordinator: NetworkCoordinator
+//  ): MutableScenario = {
+//    val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+//    fixDanglingPersons(result)
+//    result.setNetwork(networkCoordinator.network)
+//    result
+//  }
 
   def buildBeamServices(
     injector: inject.Injector,
@@ -405,6 +406,8 @@ trait BeamHelper extends LazyLogging {
     networkCoordinator: NetworkCoordinator
   ): inject.Injector = {
     val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
+    println("@@@@@@@@@@@@@@@@@@#1:" + scenario.getConfig)
+
     org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
       module(config, scenario, networkCoordinator, networkHelper)
@@ -444,26 +447,38 @@ trait BeamHelper extends LazyLogging {
     matsimConfig: MatsimConfig,
     networkCoordinator: NetworkCoordinator,
     beamServices: BeamServices
-  ): Unit = {
+  ): Scenario = {
     val beamConfig = beamServices.beamConfig
-    val useExternalDataForScenario: Boolean =
-      Option(beamConfig.beam.exchange.scenario.folder).exists(!_.isEmpty)
+    val scenarioConfig = beamConfig.beam.exchange.scenario
 
-    if (useExternalDataForScenario) {
-      val src = beamConfig.beam.exchange.scenario.source.toLowerCase
-      ProfilingUtils.timed(s"Load scenario using $src", x => logger.info(x)) {
-        if (src == "urbansim") {
+    val src = scenarioConfig.source.toLowerCase
+    val fileFormat = scenarioConfig.fileFormat
+    ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
+      if (src == "urbansim") {
+        val externalFolderExists: Boolean = Option(scenarioConfig.folder).exists(new File(_).isDirectory)
+        if (externalFolderExists) {
           val source = buildUrbansimScenarioSource(injector, beamConfig)
           new UrbanSimScenarioLoader(matsimScenario, beamServices, source).loadScenario()
-        } else if (src == "beamcsv") {
-          val source = new BeamScenarioSource(
-            scenarioFolder = beamConfig.beam.exchange.scenario.folder,
-            rdr = readers.BeamCsvScenarioReader
-          )
-          new BeamScenarioLoader(matsimScenario, beamServices, source).loadScenario()
         } else {
-          throw new NotImplementedError(s"ScenarioSource '$src' is not yet implemented")
+          throw new IllegalArgumentException(s"Urbansim needs a valid folder:[${scenarioConfig.folder}]")
         }
+      } else if (src == "beam") {
+        fileFormat match {
+          case "csv" =>
+            val source = new BeamScenarioSource(
+              scenarioFolder = scenarioConfig.folder,
+              rdr = readers.BeamCsvScenarioReader
+            )
+            new BeamScenarioLoader(matsimScenario, beamServices, source).loadScenario()
+          case "xml" =>
+            val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+            fixDanglingPersons(result)
+            result
+          case unknown =>
+            throw new IllegalArgumentException(s"Beam does not support [$unknown] file type")
+        }
+      } else {
+        throw new NotImplementedError(s"ScenarioSource '$src' is not yet implemented")
       }
     }
   }

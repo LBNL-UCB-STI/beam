@@ -27,6 +27,8 @@ class UrbanSimScenarioLoader(
   val scenarioSource: ScenarioSource
 ) extends LazyLogging {
 
+  println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ Loader")
+
   val population: Population = scenario.getPopulation
 
   val availableModes: String = BeamMode.allModes.map(_.value).mkString(",")
