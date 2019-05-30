@@ -165,8 +165,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
   private var travelTime: TravelTime = new FreeFlowTravelTime
 
-  val bodyType = vehicleTypes(Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]))
-
   // Are initialized by message!
   private var transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])] = Map()
   private var agencyAndRouteByVehicleIds: Map[Id[Vehicle], (String, String)] = Map()
@@ -498,6 +496,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
       val maybeWalkToVehicle: Option[BeamLeg] = if (mainRouteFromVehicle) {
         if (geo.distUTMInMeters(vehicle.locationUTM.loc, request.originUTM) > beamConfig.beam.agentsim.thresholdForWalkingInMeters) {
+          val body = request.streetVehicles.find(_.mode == WALK).get
           val from = geo.snapToR5Edge(
             transportNetwork.streetLayer,
             geo.utm2Wgs(request.originUTM),
@@ -523,7 +522,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   withTransit = false,
                   egressMode,
                   request.timeValueOfMoney,
-                  bodyType.id
+                  body.vehicleTypeId
                 )
               )
             }
@@ -531,7 +530,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             Some(R5RoutingWorker.createBushwackingBeamLeg(request.departureTime, from, to, geo))
           } else {
             val streetSegment = profileResponse.options.get(0).access.get(0)
-            val theTravelPath = buildStreetPath(streetSegment, request.departureTime, StreetMode.WALK, bodyType)
+            val theTravelPath = buildStreetPath(streetSegment, request.departureTime, StreetMode.WALK, vehicleTypes(body.vehicleTypeId))
             Some(
               BeamLeg(
                 request.departureTime,
@@ -1064,6 +1063,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             )
             .toInt
           if (transitSegment.middle != null) {
+            val body = routingRequest.streetVehicles.find(_.mode == WALK).get
             legsWithFares += LegWithFare(
               BeamLeg(
                 arrivalTime,
@@ -1072,8 +1072,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                 travelPath = buildStreetPath(
                   transitSegment.middle,
                   arrivalTime,
-                  toR5StreetMode(transitSegment.middle.mode),
-                  bodyType
+                  StreetMode.WALK,
+                  vehicleTypes(body.vehicleTypeId)
                 )
               ),
               0.0
