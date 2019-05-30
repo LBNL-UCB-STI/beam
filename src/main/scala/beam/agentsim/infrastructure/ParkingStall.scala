@@ -50,7 +50,7 @@ object ParkingStall {
     *
     * @return a stall that costs a lot but at least it exists. it's coordinate can be anywhere on the planet. for routing, the nearest link should be found using Beam Geotools.
     */
-  def emergencyStall(
+  def lastResortStall(
     random: Random = Random,
     minCoord: Coord = new Coord(167000, 0),
     maxCoord: Coord = new Coord(833000, 10000000),

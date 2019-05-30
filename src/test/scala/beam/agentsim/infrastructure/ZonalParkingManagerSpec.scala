@@ -72,7 +72,7 @@ class ZonalParkingManagerSpec
       } {
 
         val inquiry = ParkingInquiry(coordCenterOfUTM, "work", 0.0, None, 0.0)
-        val expectedStall: ParkingStall = ParkingStall.emergencyStall(new Random(randomSeed))
+        val expectedStall: ParkingStall = ParkingStall.lastResortStall(new Random(randomSeed))
 
         zonalParkingManager ! inquiry
 

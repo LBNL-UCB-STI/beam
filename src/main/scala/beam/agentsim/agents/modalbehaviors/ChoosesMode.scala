@@ -1146,9 +1146,9 @@ object ChoosesMode {
       parkingResponse = if (withParking) {
         None
       } else {
-        Some(ParkingInquiryResponse(ParkingStall.emergencyStall(), 0))
+        Some(ParkingInquiryResponse(ParkingStall.lastResortStall(), 0))
       },
-      driveTransitParkingResponse = Some(ParkingInquiryResponse(ParkingStall.emergencyStall(), 0)),
+      driveTransitParkingResponse = Some(ParkingInquiryResponse(ParkingStall.lastResortStall(), 0)),
       rideHailResult = if (withRideHail) {
         None
       } else {

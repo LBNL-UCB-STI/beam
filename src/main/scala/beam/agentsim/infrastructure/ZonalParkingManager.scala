@@ -252,7 +252,7 @@ object ZonalParkingManager {
       case Some(result) =>
         result
       case None =>
-        val newStall = ParkingStall.emergencyStall(random)
+        val newStall = ParkingStall.lastResortStall(random)
         (ParkingZone.DefaultParkingZone, newStall)
     }
   }
