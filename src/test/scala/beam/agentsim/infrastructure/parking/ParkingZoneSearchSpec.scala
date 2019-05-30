@@ -240,7 +240,7 @@ object ParkingZoneSearchSpec {
         |B,Public,Block,UltraFast,18,100,unused
         |
       """.stripMargin.split("\n").toIterator
-    val (parkingZones, parkingSearchTree) = ParkingZoneFileUtils.fromIterator(sourceData)
+    val ParkingZoneFileUtils.ParkingLoadingAccumulator(parkingZones, parkingSearchTree, _, _) = ParkingZoneFileUtils.fromIterator(sourceData)
     val destinationNearTazA = new Coord(1,1) // near taz 1
     val destinationNearTazB = new Coord(9,9) // near taz 2
     val destinationInMiddle = new Coord(5,5) // middle of TAZs

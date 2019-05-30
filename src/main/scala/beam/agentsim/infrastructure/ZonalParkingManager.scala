@@ -141,8 +141,8 @@ object ZonalParkingManager {
     random: Random,
     includesHeader: Boolean = true
   ): ZonalParkingManager = {
-    val (stalls, searchTree) = ParkingZoneFileUtils.fromIterator(parkingDescription, includesHeader)
-    new ZonalParkingManager(beamServices, stalls, searchTree, random)
+    val parking = ParkingZoneFileUtils.fromIterator(parkingDescription, includesHeader)
+    new ZonalParkingManager(beamServices, parking.zones, parking.tree, random)
   }
 
 

@@ -11,7 +11,9 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
       "positive tests" when {
         "a row contains all valid entries" should {
           "construct a ParkingZone collection and random lookup tree" in new ParkingZoneFileUtilsSpec.PositiveTestData {
-            val (collection, lookupTree) = ParkingZoneFileUtils.fromIterator(validRow)
+            val ParkingZoneFileUtils.ParkingLoadingAccumulator(collection, lookupTree, totalRows, failedRows) = ParkingZoneFileUtils.fromIterator(validRow)
+            totalRows should equal (1)
+            failedRows should equal (0)
             lookupTree.get(Id.create("1", classOf[TAZ])) match {
               case None => fail("should contain TAZ with id = 1 in the lookup tree")
               case Some(lookupSubtree) =>
@@ -47,7 +49,7 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
             }
           }
         }
-        "a row contains all valid entries, using some empty columns where optional" should {
+        "a row contains all valid entries, using some empty columns where optional" ignore {
           "construct a ParkingZone collection and random lookup tree" in new ParkingZoneFileUtilsSpec.PositiveTestData {
 
           }
@@ -55,34 +57,58 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
       }
       "negative tests" when {
         "parking type doesn't exist" should {
-          "throw an error" in new ParkingZoneFileUtilsSpec.NegativeTestData {
-            an [java.io.IOException] should be thrownBy ParkingZoneFileUtils.fromIterator(badParkingType)
+          "have one failed row" in new ParkingZoneFileUtilsSpec.NegativeTestData {
+            val result = ParkingZoneFileUtils.fromIterator(badParkingType)
+            result.failedRows should equal (1)
           }
+//          "throw an error" in new ParkingZoneFileUtilsSpec.NegativeTestData {
+//            an [java.io.IOException] should be thrownBy ParkingZoneFileUtils.fromIterator(badParkingType)
+//          }
         }
         "pricing model doesn't exist" should {
-          "throw an error" in new ParkingZoneFileUtilsSpec.NegativeTestData {
-            an [java.io.IOException] should be thrownBy ParkingZoneFileUtils.fromIterator(badPricingModel)
+          "have one failed row" in new ParkingZoneFileUtilsSpec.NegativeTestData {
+            val result = ParkingZoneFileUtils.fromIterator(badPricingModel)
+            result.failedRows should equal (1)
           }
+//          "throw an error" in new ParkingZoneFileUtilsSpec.NegativeTestData {
+//            an [java.io.IOException] should be thrownBy ParkingZoneFileUtils.fromIterator(badPricingModel)
+//          }
         }
         "charging type doesn't exist" ignore {
-          "throw an error" in new ParkingZoneFileUtilsSpec.NegativeTestData {
-            an [java.io.IOException] should be thrownBy ParkingZoneFileUtils.fromIterator(badChargingType)
+          "have one failed row" in new ParkingZoneFileUtilsSpec.NegativeTestData {
+            val result = ParkingZoneFileUtils.fromIterator(badChargingType)
+            result.failedRows should equal (1)
           }
+//          "throw an error" in new ParkingZoneFileUtilsSpec.NegativeTestData {
+//            an [java.io.IOException] should be thrownBy ParkingZoneFileUtils.fromIterator(badChargingType)
+//          }
         }
         "non-numeric number of stalls" should {
-          "throw an error" in new ParkingZoneFileUtilsSpec.NegativeTestData {
-            an [java.io.IOException] should be thrownBy ParkingZoneFileUtils.fromIterator(badNumStalls)
+          "have one failed row" in new ParkingZoneFileUtilsSpec.NegativeTestData {
+            val result = ParkingZoneFileUtils.fromIterator(badNumStalls)
+            result.failedRows should equal (1)
           }
+//          "throw an error" in new ParkingZoneFileUtilsSpec.NegativeTestData {
+//            an [java.io.IOException] should be thrownBy ParkingZoneFileUtils.fromIterator(badNumStalls)
+//          }
         }
         "invalid (negative) number of stalls" should {
-          "throw an error" in new ParkingZoneFileUtilsSpec.NegativeTestData {
-            an [java.io.IOException] should be thrownBy ParkingZoneFileUtils.fromIterator(invalidNumStalls)
+          "have one failed row" in new ParkingZoneFileUtilsSpec.NegativeTestData {
+            val result = ParkingZoneFileUtils.fromIterator(invalidNumStalls)
+            result.failedRows should equal (1)
           }
+//          "throw an error" in new ParkingZoneFileUtilsSpec.NegativeTestData {
+//            an [java.io.IOException] should be thrownBy ParkingZoneFileUtils.fromIterator(invalidNumStalls)
+//          }
         }
         "non-numeric fee in cents" should {
-          "throw an error" in new ParkingZoneFileUtilsSpec.NegativeTestData {
-            an [java.io.IOException] should be thrownBy ParkingZoneFileUtils.fromIterator(badFeeInCents)
+          "have one failed row" in new ParkingZoneFileUtilsSpec.NegativeTestData {
+            val result = ParkingZoneFileUtils.fromIterator(badFeeInCents)
+            result.failedRows should equal (1)
           }
+//          "throw an error" in new ParkingZoneFileUtilsSpec.NegativeTestData {
+//            an [java.io.IOException] should be thrownBy ParkingZoneFileUtils.fromIterator(badFeeInCents)
+//          }
         }
       }
     }
