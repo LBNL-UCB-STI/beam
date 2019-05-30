@@ -46,7 +46,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     private Set<String> cumulativeReferenceMode = new TreeSet<>();
     private Map<String,List<String>> personReplanningChain = new HashMap<>();
     private Map<String, Integer> replanningReasonCount = new HashMap<>();
-
+    private Map<Integer, Map<String, Integer>> replanningReasonCountPerIter = new HashMap<>();
     //This map will always hold value as 0 or 1
     private Map<String, Integer> personIdList = new HashMap<>();
 
@@ -148,6 +148,9 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         writeToRootReplanningCountModeChoice(fileName);
 
         writeReplanningReasonCountCSV(event.getIteration());
+
+        replanningReasonCountPerIter.put(event.getIteration(),replanningReasonCount.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+        writeReplanningReasonCountRootCSV();
     }
 
     @Override
@@ -535,6 +538,26 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         } catch (IOException ex) {
             log.error("error in generating csv ", ex);
 
+        }
+    }
+
+    public void writeReplanningReasonCountRootCSV() {
+        String fileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("replanningEventReason.csv");
+        Set<String> headerItem = replanningReasonCountPerIter.values().stream().flatMap(header -> header.keySet().stream()).collect(Collectors.toSet());
+        String csvHeader = "Mode,"+String.join(",", headerItem);
+
+        try(FileWriter writer = new FileWriter(new File(fileName));
+            BufferedWriter out = new BufferedWriter(writer)){
+            out.write(csvHeader);
+            out.newLine();
+            for (Map.Entry<Integer, Map<String,Integer>> entry : replanningReasonCountPerIter.entrySet()){
+                Map<String, Integer> replanningReasonCount = entry.getValue();
+                String row = entry.getKey()+","+headerItem.stream().map(item -> replanningReasonCount.getOrDefault(item, 0).toString()).collect(Collectors.joining(","));
+                out.write(row);
+                out.newLine();
+            }
+        } catch (IOException ex) {
+            log.error("error in generating csv ", ex);
         }
     }
 

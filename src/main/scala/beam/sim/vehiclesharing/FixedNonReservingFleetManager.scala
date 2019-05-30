@@ -82,9 +82,9 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         .pipeTo(sender())
 
     case MobilityStatusInquiry(_, whenWhere, _) =>
-      // Search box: 1000 meters around query location
+      // Search box: 5000 meters around query location
       val boundingBox = new Envelope(new Coordinate(whenWhere.loc.getX, whenWhere.loc.getY))
-      boundingBox.expandBy(1000.0)
+      boundingBox.expandBy(5000.0)
 
       val nearbyVehicles = availableVehiclesIndex.query(boundingBox).asScala.toVector.asInstanceOf[Vector[BeamVehicle]]
       nearbyVehicles.sortBy(veh => CoordUtils.calcEuclideanDistance(veh.spaceTime.loc, whenWhere.loc))
@@ -103,7 +103,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
           who ! NotAvailable
       }
 
-    case NotifyVehicleIdle(vId, whenWhere, _, _, _) =>
+    case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
       makeTeleport(vId.asInstanceOf[Id[BeamVehicle]], whenWhere)
 
     case ReleaseVehicle(vehicle) =>

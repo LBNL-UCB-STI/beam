@@ -87,18 +87,36 @@ class AsyncAlonsoMoraAlgForRideHailSpec
         new AsyncAlonsoMoraAlgForRideHail(
           AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(sc._2),
           sc._1,
-          Map[MobilityRequestTrait, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+          Map[MobilityRequestTrait, Int]((Pickup, 7 * 60), (Dropoff, 10 * 60)),
           maxRequestsPerVehicle = 1000,
           beamSvc
         )
 
       import scala.concurrent.duration._
-      val assignment = Await.result(alg.greedyAssignment(), atMost = 10.minutes)
-      for (row <- assignment) {
-        assert(row._1.getId == "trip:[p1] -> [p4] -> " || row._1.getId == "trip:[p3] -> ")
-        assert(row._2.getId == "v2" || row._2.getId == "v1")
-      }
+      val assignment = Await.result(alg.greedyAssignment(), atMost = 10.minutes).toArray
+      assert(assignment(0)._2.getId == "v2")
+      assignment(0)._1.requests.foreach(p => assert(p.getId == "p1" || p.getId == "p4"))
+      assert(assignment(1)._2.getId == "v1")
+      assert(assignment(1)._1.requests.head.getId == "p3")
+    }
 
+    it("Creates a consistent plan considering a geofence ") {
+      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig, beamSvc)
+      val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenarioGeoFence
+      val alg: AsyncAlonsoMoraAlgForRideHail =
+        new AsyncAlonsoMoraAlgForRideHail(
+          AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(sc._2),
+          sc._1,
+          Map[MobilityRequestTrait, Int]((Pickup, 7 * 60), (Dropoff, 10 * 60)),
+          maxRequestsPerVehicle = 1000,
+          beamSvc
+        )
+      import scala.concurrent.duration._
+      val assignment = Await.result(alg.greedyAssignment(), atMost = 10.minutes).toArray
+      assert(assignment(0)._2.getId == "v2")
+      assignment(0)._1.requests.foreach(p => assert(p.getId == "p1" || p.getId == "p4"))
+      assert(assignment(1)._2.getId == "v1")
+      assert(assignment(1)._1.requests.head.getId == "p2")
     }
 
     ignore("scales") {

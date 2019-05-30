@@ -20,6 +20,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
     rideHailManager.vehicleManager
       .getClosestIdleVehiclesWithinRadiusByETA(
         inquiry.pickUpLocationUTM,
+        inquiry.destinationUTM,
         rideHailManager.radiusInMeters,
         inquiry.departAt
       ) match {
@@ -93,6 +94,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
           rideHailManager.vehicleManager
             .getClosestIdleVehiclesWithinRadiusByETA(
               request1.pickUpLocationUTM,
+              request1.destinationUTM,
               rideHailManager.radiusInMeters,
               tick,
               excludeRideHailVehicles = alreadyAllocated
@@ -200,6 +202,7 @@ object Pooling {
     rideHailManager.vehicleManager
       .getClosestIdleVehiclesWithinRadiusByETA(
         request.pickUpLocationUTM,
+        request.destinationUTM,
         rideHailManager.radiusInMeters,
         pickUpTime,
         excludeRideHailVehicles = alreadyAllocated
