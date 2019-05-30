@@ -36,7 +36,7 @@ private object RandomPointInTAZ {
   }
 }
 
-case class FixedNonReservingFleetByTAZ(config: SharedFleets$Elm.FixedNonReservingFleetByTAZ) extends FleetType {
+case class FixedNonReservingFleetByTAZ(config: SharedFleets$Elm.FixedNonReservingFleetByTaz) extends FleetType {
   override def props(
     beamServices: BeamServices,
     beamSkimmer: BeamSkimmer,
@@ -45,24 +45,41 @@ case class FixedNonReservingFleetByTAZ(config: SharedFleets$Elm.FixedNonReservin
   ): Props = {
     val initialLocation = mutable.ListBuffer[Coord]()
     val rand = new scala.util.Random(System.currentTimeMillis())
-    val res = readCsvFile(config.filePathCSV)
-    if(res.nonEmpty) {
+    val res = readCsvFile(config.vehiclesSharePerTAZ)
+    if (res.nonEmpty) {
       res.foreach {
         case (idTaz, coord, percentage) =>
-          val loc = beamServices.tazTreeMap.getTAZ(Id.create(idTaz, classOf[TAZ])) match {
-            case Some(taz) => RandomPointInTAZ.get(taz, rand)
-            case _         => coord
-          }
-          (0 until percentage*config.fleetSize).foreach(_ => initialLocation.append(loc))
+          (0 until percentage * config.fleetSize).foreach(
+            _ =>
+              initialLocation.append(beamServices.tazTreeMap.getTAZ(Id.create(idTaz, classOf[TAZ])) match {
+                case Some(taz) => RandomPointInTAZ.get(taz, rand)
+                case _         => coord
+              })
+          )
       }
     } else {
-      val tazArray = beamServices.tazTreeMap.getTAZs.toArray
-      (1 to config.fleetSize).foreach { _ =>
-        val taz = tazArray(rand.nextInt(tazArray.length))
-        initialLocation.prepend(RandomPointInTAZ.get(taz, rand))
+      val ok = config.vehiclesSharePerTAZ.split(",").foldLeft(true) { (res, x) =>
+        val y = x.split(":")
+        val out = beamServices.tazTreeMap.getTAZ(y(0)) match {
+          case Some(taz) =>
+            val percentage = y(1).toDouble
+            (0 until (percentage * config.fleetSize).toInt)
+              .foreach(_ => initialLocation.append(RandomPointInTAZ.get(taz, rand)))
+            true
+          case _ => false
+        }
+        res && out
+      }
+      if (!ok) {
+        // fall back here
+        initialLocation.clear()
+        val tazArray = beamServices.tazTreeMap.getTAZs.toArray
+        (1 to config.fleetSize).foreach { _ =>
+          val taz = tazArray(rand.nextInt(tazArray.length))
+          initialLocation.prepend(RandomPointInTAZ.get(taz, rand))
+        }
       }
     }
-
 
     val vehicleType = beamServices.vehicleTypes.getOrElse(
       Id.create(config.vehicleTypeId, classOf[BeamVehicleType]),
@@ -77,15 +94,16 @@ case class FixedNonReservingFleetByTAZ(config: SharedFleets$Elm.FixedNonReservin
         beamServices,
         beamSkimmer,
         config.maxWalkingDistance,
-        config.repositioningClass
+        Class.forName(config.repositioningClass).asSubclass(classOf[RepositionAlgorithm])
       )
     )
   }
 
   private def readCsvFile(filePath: String): Vector[(Id[TAZ], Coord, Int)] = {
-    val mapReader = new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
-    var res = Vector[(Id[TAZ], Coord, Int)]()
+    var res = Vector.empty[(Id[TAZ], Coord, Int)]
+    var mapReader: CsvMapReader = null
     try {
+      mapReader = new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
       val header = mapReader.getHeader(true)
       var line: java.util.Map[String, String] = mapReader.read(header: _*)
       while (null != line) {
@@ -96,7 +114,8 @@ case class FixedNonReservingFleetByTAZ(config: SharedFleets$Elm.FixedNonReservin
         res = res :+ (Id.create(idz, classOf[TAZ]), new Coord(x, y), vehicles)
         line = mapReader.read(header: _*)
       }
-
+    } catch {
+      case e: Exception =>
     } finally {
       if (null != mapReader)
         mapReader.close()

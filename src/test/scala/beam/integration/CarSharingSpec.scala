@@ -13,7 +13,12 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.AbstractModule
+import org.matsim.core.controler.events.IterationStartsEvent
+import org.matsim.core.controler.listener.IterationStartsListener
 import org.matsim.core.events.handler.BasicEventHandler
+import org.matsim.core.mobsim.framework.Mobsim
+import org.matsim.core.mobsim.framework.events.MobsimBeforeSimStepEvent
+import org.matsim.core.mobsim.framework.listeners.MobsimBeforeSimStepListener
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -142,6 +147,101 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
       "People are paying less than my price."
     )
     assert(nonCarTrips == 0, "Someone wasn't driving even though everybody wants to and cars abound.")
+  }
+
+  // REPOSITION
+  "Running a car-sharing-only reposition scenario " must "result in everybody driving in the second iteration" in {
+    val config = ConfigFactory
+      .parseString("""
+         |beam.outputs.events.fileOutputFormats = xml
+         |beam.physsim.skipPhysSim = true
+         |beam.agentsim.lastIteration = 1
+         |beam.agentsim.agents.vehicles.sharedFleets = [
+         | {
+         |    name = "fixed-non-reserving-fleet-by-taz"
+         |    managerType = "fixed-non-reserving-fleet-by-taz"
+         |    fixed-non-reserving-fleet-by-taz {
+         |      vehicleTypeId = "sharedCar",
+         |      maxWalkingDistance = 500,
+         |      repositioningClass = beam.sim.vehiclesharing.AvailabilityBasedRepositioning,
+         |      fleetSize = 40,
+         |      vehiclesSharePerTAZ = "1:0.0,2:1.0,3:0.0,4:0.0"
+         |    }
+         | }
+         |]
+         |beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts = 99999
+                   """.stripMargin)
+      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .resolve()
+    runRepositionTest(config)
+  }
+
+  private def runRepositionTest(config: Config): Unit = {
+    val configBuilder = new MatSimBeamConfigBuilder(config)
+    val matsimConfig = configBuilder.buildMatSimConf()
+    val beamConfig = BeamConfig(config)
+    FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+    val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+    val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
+    networkCoordinator.loadNetwork()
+    networkCoordinator.convertFrequenciesToTrips()
+    val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
+    scenario.setNetwork(networkCoordinator.network)
+    var iteration = -1
+    var carsharingTripsIt0 = 0
+    var carsharingTripsIt1 = 0
+    val injector = org.matsim.core.controler.Injector.createInjector(
+      scenario.getConfig,
+      new AbstractModule() {
+        override def install(): Unit = {
+          install(module(config, scenario, networkCoordinator, networkHelper))
+          addEventHandlerBinding().toInstance(new BasicEventHandler {
+            override def handleEvent(event: Event): Unit = {
+              event match {
+                case e: ModeChoiceEvent =>
+                  if (e.getAttributes.get("mode") == "car") {
+                    if(iteration == 0) {
+                      carsharingTripsIt0 += 1
+                    } else {
+                      carsharingTripsIt1 += 1
+                    }
+                  }
+                case _ =>
+              }
+            }
+          })
+          addControlerListenerBinding().toInstance(new IterationStartsListener {
+            override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+              iteration = event.getIteration
+            }
+          })
+        }
+      }
+    )
+    val services = injector.getInstance(classOf[BeamServices])
+
+    // Only driving allowed
+    val population = scenario.getPopulation
+    val nonCarModes = BeamMode.allModes flatMap { mode =>
+      if (mode == BeamMode.CAR) None else Some(mode.value.toLowerCase)
+    } mkString ","
+    population.getPersons.keySet.forEach { personId =>
+      population.getPersonAttributes.putAttribute(personId.toString, EXCLUDED_MODES, nonCarModes)
+    }
+
+    // No private vehicles (but we have a car sharing operator)
+    val households = scenario.getHouseholds
+    households.getHouseholds.values.forEach { household =>
+      household.getVehicleIds.clear()
+    }
+    services.privateVehicles.clear()
+
+    DefaultPopulationAdjustment(services).update(scenario)
+    services.controler.run()
+
+    println(carsharingTripsIt0)
+    println(carsharingTripsIt1)
+    assume(carsharingTripsIt1 > carsharingTripsIt0, "Something's wildly broken, reposition is not working")
   }
 
 }

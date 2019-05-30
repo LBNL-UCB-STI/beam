@@ -18,7 +18,7 @@ class AvailabilityBasedRepositioning(repositionManager: RepositionManager) exten
   val orderingAvailVeh = Ordering.by[RepositioningRequest, Int](_.availableVehicles)
   val orderingShortage = Ordering.by[RepositioningRequest, Int](_.shortage)
   val availability = "VEHAvailability"
-  val LIMIT = 3
+  val LIMIT = 9999
 
   repositionManager.getBeamServices.tazTreeMap.getTAZs.foreach { taz =>
     (0 to 108000 / repositionManager.getREPTimeStep).foreach { i =>

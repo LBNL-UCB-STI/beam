@@ -133,7 +133,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   override def getScheduler: ActorRef = mainScheduler
   override def getBeamServices: BeamServices = beamServices
   override def getREPAlgorithm: RepositionAlgorithm = algorithm
-  override def getREPTimeStep: Int = 60 * 60
+  override def getREPTimeStep: Int = 30 * 60
   override def getBeamSkimmer: BeamSkimmer = beamSkimmer
 
   val algorithm = repositioningAlgorithm.getConstructor(classOf[RepositionManager]).newInstance(this)
