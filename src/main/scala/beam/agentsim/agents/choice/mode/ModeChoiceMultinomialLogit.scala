@@ -272,7 +272,6 @@ object ModeChoiceMultinomialLogit {
       "cav"       -> Map("intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.cav_intercept)),
       "walk"      -> Map("intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.walk_intercept)),
       "ride_hail" -> Map("intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.ride_hail_intercept)),
-      "walk"      -> Map("intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.walk_intercept)),
       "ride_hail_pooled" -> Map(
         "intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.ride_hail_pooled_intercept)
       ),

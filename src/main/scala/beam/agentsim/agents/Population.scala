@@ -145,8 +145,6 @@ class Population(
         throw e
     }
 
-    println("Stop")
-
   }
 
 }
