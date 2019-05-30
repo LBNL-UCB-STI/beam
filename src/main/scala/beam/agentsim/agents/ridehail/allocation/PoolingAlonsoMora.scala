@@ -1,6 +1,6 @@
 package beam.agentsim.agents.ridehail.allocation
 
-import beam.agentsim.agents.{Dropoff, MobilityRequest, MobilityRequestTrait, Pickup}
+import beam.agentsim.agents._
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail._
@@ -9,7 +9,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.BeamSkimmer
-import beam.router.Modes.BeamMode.{CAR}
+import beam.router.Modes.BeamMode.CAR
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.vehicles.Vehicle
@@ -135,14 +135,27 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         rhr => createPersonRequest(rhr.customer, rhr.pickUpLocationUTM, tick, rhr.destinationUTM)
       )
       val customerIdToReqs = toAllocate.map(rhr => rhr.customer.personId -> rhr).toMap
-      val availVehicles = rideHailManager.vehicleManager.getIdleAndInServiceVehicles.values
-        .map(
-          veh =>
-            createVehicleAndScheduleFromRideHailAgentLocation(
-              veh,
-              tick
+      val availVehicles = if(rideHailManager.vehicleManager.inServiceRideHailVehicles.isEmpty){
+        rideHailManager.vehicleManager.getIdleAndInServiceVehicles.values
+          .map(
+            veh =>
+              createVehicleAndScheduleFromRideHailAgentLocation(
+                veh,
+                tick,
+                rideHailManager.beamServices
+              )
           )
-        )
+      }else{
+        rideHailManager.vehicleManager.inServiceRideHailVehicles.values
+          .map(
+            veh =>
+              createVehicleAndScheduleFromRideHailAgentLocation(
+                veh,
+                tick,
+                rideHailManager.beamServices
+              )
+          )
+      }
 
       spatialPoolCustomerReqs.clear()
       poolCustomerReqs.foreach { d =>
@@ -158,8 +171,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       //      rideHailManager.log.info("Num custs: {} num vehs: {}", spatialPoolCustomerReqs.size(), availVehicles.size)
       val algo = new AsyncAlonsoMoraAlgForRideHail(
         spatialPoolCustomerReqs,
-        availVehicles.toList,
-        Map[MobilityRequestTrait, Int]((Pickup, pickupWindow), (Dropoff, dropoffWindow)),
+        if(availVehicles.find(_.getFreeSeats <4).isDefined){ availVehicles.filter(_.getFreeSeats <4).toList}else{availVehicles.toList},
+        Map[MobilityRequestTrait, Int]((Pickup, pickupWindow), (Dropoff, dropoffWindow),(EnRoute,Int.MaxValue)),
         maxRequestsPerVehicle = maxRequests,
         rideHailManager.beamServices
       )
@@ -184,6 +197,9 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
 
       assignment.foreach {
         case (theTrip, vehicleAndSchedule, cost) =>
+          if(!rideHailManager.vehicleManager.inServiceRideHailVehicles.isEmpty){
+            val i = 0
+          }
           alreadyAllocated = alreadyAllocated + vehicleAndSchedule.vehicle.id
           var newRideHailRequest: Option[RideHailRequest] = None
           var scheduleToCache: List[MobilityRequest] = List()

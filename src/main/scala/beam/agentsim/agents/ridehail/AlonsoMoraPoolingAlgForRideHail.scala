@@ -20,6 +20,7 @@ import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
+import scala.collection.mutable.ListBuffer
 
 class AlonsoMoraPoolingAlgForRideHail(
   spatialDemand: QuadTree[CustomerRequest],
@@ -56,8 +57,8 @@ class AlonsoMoraPoolingAlgForRideHail(
       v: VehicleAndSchedule <- supply.withFilter(_.getFreeSeats >= 1)
       r: CustomerRequest <- spatialDemand
         .getDisk(
-          v.getLastDropoff.activity.getCoord.getX,
-          v.getLastDropoff.activity.getCoord.getY,
+          v.getRequestWithCurrentVehiclePosition.activity.getCoord.getX,
+          v.getRequestWithCurrentVehiclePosition.activity.getCoord.getY,
           timeWindow(Pickup) * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
         )
         .asScala
@@ -217,7 +218,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     import scala.collection.mutable.{ListBuffer => MListBuffer}
     val newPoolingList = MListBuffer(sortedRequests.head.copy())
     sortedRequests.drop(1).foldLeft(()) {
-      case (_, curReq) =>
+      case (_, curReq) if curReq.tag != EnRoute =>
         val prevReq = newPoolingList.last
         val serviceTime = prevReq.serviceTime + getTimeDistanceAndCost(prevReq, curReq, beamServices).time
         if (serviceTime <= curReq.baselineNonPooledTime + timeWindow(curReq.tag)) {
@@ -267,33 +268,35 @@ object AlonsoMoraPoolingAlgForRideHail {
       ),
     )
   }
-  def createVehicleAndScheduleFromRideHailAgentLocation(veh: RideHailAgentLocation, tick: Int): VehicleAndSchedule = {
+  def createVehicleAndScheduleFromRideHailAgentLocation(veh: RideHailAgentLocation, tick: Int, beamServices: BeamServices): VehicleAndSchedule = {
     val v1 = new BeamVehicle(
       Id.create(veh.vehicleId, classOf[BeamVehicle]),
       new Powertrain(0.0),
       BeamVehicleType.defaultCarBeamVehicleType
     )
+    val vehCurrentLocation = veh.currentPassengerSchedule.map(_.locationAtTime(tick,beamServices)).getOrElse(veh.currentLocationUTM.loc)
     val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${veh.vehicleId}Act0", veh.currentLocationUTM.loc)
     v1Act0.setEndTime(tick)
-    val alonsoSchedule = veh.currentPassengerSchedule.map(_.schedule.flatMap { case (leg, manifest) =>
-      var theReqs: List[MobilityRequest] = List()
-      if (manifest.riders.isEmpty) {
-        val theActivity = PopulationUtils.createActivityFromCoord(s"${veh.vehicleId}Act0", leg.travelPath.startPoint.loc)
-        theReqs = List(
-          MobilityRequest(
-            None,
-            theActivity,
-            leg.startTime,
-            Trip(theActivity, None, null),
-            BeamMode.RIDE_HAIL,
-            Relocation,
-            leg.startTime
+    var alonsoSchedule: ListBuffer[MobilityRequest] = ListBuffer()
+    veh.currentPassengerSchedule.foreach {
+      _.schedule.foreach { case (leg, manifest) =>
+        if (manifest.riders.isEmpty) {
+          val theActivity = PopulationUtils.createActivityFromCoord(s"${veh.vehicleId}Act0", beamServices.geo.wgs2Utm(leg.travelPath.startPoint.loc))
+          alonsoSchedule = ListBuffer(
+            MobilityRequest(
+              None,
+              theActivity,
+              leg.startTime,
+              Trip(theActivity, None, null),
+              BeamMode.RIDE_HAIL,
+              Relocation,
+              leg.startTime
+            )
           )
-        )
-      } else {
-        val thePickups = manifest.boarders.map { boarder =>
-            val theActivity = PopulationUtils.createActivityFromCoord(s"${veh.vehicleId}Act0", leg.travelPath.startPoint.loc)
-          theActivity.setEndTime(leg.startTime)
+        } else {
+          val thePickups = manifest.boarders.map { boarder =>
+            val theActivity = PopulationUtils.createActivityFromCoord(s"${veh.vehicleId}Act0", beamServices.geo.wgs2Utm(leg.travelPath.startPoint.loc))
+            theActivity.setEndTime(leg.startTime)
             MobilityRequest(
               Some(boarder),
               theActivity,
@@ -304,43 +307,52 @@ object AlonsoMoraPoolingAlgForRideHail {
               leg.startTime
             )
           }
-        val theDropoffs = manifest.alighters.map { alighter =>
-          val theActivity = PopulationUtils.createActivityFromCoord(s"${veh.vehicleId}Act0", leg.travelPath.endPoint.loc)
-          theActivity.setEndTime(leg.endTime)
-          MobilityRequest(
-            Some(alighter),
-            theActivity,
-            leg.endTime,
-            Trip(theActivity, None, null),
-            BeamMode.RIDE_HAIL,
-            Dropoff,
-            leg.endTime
-          )
+          val theDropoffs = manifest.alighters.map { alighter =>
+            val theActivity = PopulationUtils.createActivityFromCoord(s"${veh.vehicleId}Act0", beamServices.geo.wgs2Utm(leg.travelPath.endPoint.loc))
+            theActivity.setEndTime(leg.endTime)
+            MobilityRequest(
+              Some(alighter),
+              theActivity,
+              leg.endTime,
+              Trip(theActivity, None, null),
+              BeamMode.RIDE_HAIL,
+              Dropoff,
+              leg.endTime
+            )
+          }
+          alonsoSchedule ++= thePickups ++ theDropoffs
         }
-        theReqs = thePickups.toList ++ theDropoffs.toList
       }
-      theReqs
-    }).getOrElse(
-      List(
-        MobilityRequest(
+    }
+    if(alonsoSchedule.isEmpty) {
+      alonsoSchedule += MobilityRequest(
+        None,
+        v1Act0,
+        tick,
+        Trip(v1Act0, None, null),
+        BeamMode.RIDE_HAIL,
+        Dropoff,
+        tick
+      )
+    }else{
+      alonsoSchedule += MobilityRequest(
           None,
           v1Act0,
           tick,
           Trip(v1Act0, None, null),
           BeamMode.RIDE_HAIL,
-          Dropoff,
+          EnRoute,
           tick
         )
-      )
-    )
+    }
     val res = VehicleAndSchedule(
       v1,
-      alonsoSchedule.toList,
+      alonsoSchedule.sortBy(_.baselineNonPooledTime).reverse.toList,
       veh.geofence,
-      veh.vehicleType.seatingCapacity - veh.currentPassengerSchedule.map(_.numUniquePassengers).getOrElse(0)
+      veh.vehicleType.seatingCapacity
     )
 
-    if(res.seatsAvailable<4){
+    if(res.getFreeSeats <4){
       val i = 0
     }
     res
@@ -393,10 +405,10 @@ object AlonsoMoraPoolingAlgForRideHail {
   // Ride Hail vehicles, capacity and their predefined schedule
   case class VehicleAndSchedule(vehicle: BeamVehicle, schedule: List[MobilityRequest], geofence: Option[Geofence], seatsAvailable: Int)
       extends RVGraphNode {
-    private val numberOfPassengers: Int = schedule.count(_.tag == Dropoff)
+    private val numberOfPassengers: Int = schedule.takeWhile(_.tag != EnRoute).count(_.tag == Dropoff)
     override def getId: String = vehicle.id.toString
     def getFreeSeats: Int = seatsAvailable - numberOfPassengers
-    def getLastDropoff: MobilityRequest = schedule.head
+    def getRequestWithCurrentVehiclePosition: MobilityRequest = schedule.find(_.tag==EnRoute).getOrElse(schedule.head)
   }
   // Trip that can be satisfied by one or more ride hail vehicle
   case class RideHailTrip(requests: List[CustomerRequest], schedule: List[MobilityRequest])

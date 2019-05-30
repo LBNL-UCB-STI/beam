@@ -6,6 +6,8 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 import beam.agentsim.agents.vehicles.PassengerSchedule.Manifest
+import beam.router.BeamRouter.Location
+import beam.sim.BeamServices
 
 import scala.collection.immutable.TreeMap
 
@@ -14,6 +16,7 @@ import scala.collection.immutable.TreeMap
   * and the BeamLegs they are taking through the network
   */
 case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
+
 
   def addLegs(legs: Seq[BeamLeg]): PassengerSchedule = {
     PassengerSchedule(schedule ++ legs.map(leg => (leg, Manifest())))
@@ -55,6 +58,13 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
   }
 
   def numUniquePassengers: Int = schedule.values.flatMap(_.riders).toSet.size
+
+  def linkAtTime(tick: Int): Int = {
+    schedule.keys.find(_.startTime <= tick).map(_.travelPath.linkAtTime(tick)).getOrElse(-1)
+  }
+  def locationAtTime(tick: Int, beamServices: BeamServices): Location = {
+    beamServices.networkHelper.getLink(linkAtTime(tick)).get.getCoord
+  }
 
   override def toString: String = {
     schedule.map(keyVal => s"${keyVal._1.toString} -> ${keyVal._2.toString}").mkString("--")

@@ -17,6 +17,7 @@ case class BeamPath(
   distanceInM: Double
 ) {
 
+
   checkCoordinates(startPoint)
   checkCoordinates(endPoint)
 
@@ -50,6 +51,16 @@ case class BeamPath(
       linkTravelTime = newLinkTimes,
       endPoint = this.endPoint.copy(time = this.startPoint.time + newLinkTimes.tail.sum)
     )
+  }
+  def linkAtTime(tick: Int): Int = {
+    tick - startPoint.time match {
+      case secondsAlongPath if secondsAlongPath < 0 =>
+        linkIds.head
+      case secondsAlongPath if secondsAlongPath > linkTravelTime.sum =>
+        linkIds.last
+      case secondsAlongPath =>
+        linkIds(linkTravelTime.scanLeft(0)((a, b) => a + b).indexWhere(_ >= secondsAlongPath) - 1)
+    }
   }
 }
 

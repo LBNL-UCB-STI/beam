@@ -8,6 +8,7 @@ sealed trait MobilityRequestTrait
 case object Pickup extends MobilityRequestTrait { override def toString: String = "pickup" }
 case object Dropoff extends MobilityRequestTrait { override def toString: String = "dropoff" }
 case object Relocation extends MobilityRequestTrait { override def toString: String = "relocation" }
+case object EnRoute extends MobilityRequestTrait { override def toString: String = "enroute" }
 case object Init extends MobilityRequestTrait { override def toString: String = "init" }
 
 case class MobilityRequest(
@@ -35,6 +36,7 @@ case class MobilityRequest(
       case Some(p) => p.personId.toString
       case None    => "None"
     }
-    s"${formatTime(baselineNonPooledTime)}|$tag|${personid}|${activity.getType}| => ${formatTime(serviceTime)}"
+//    s"${formatTime(baselineNonPooledTime)}|$tag|${personid}|${activity.getType}| => ${formatTime(serviceTime)}"
+    s"${baselineNonPooledTime}|$tag|${personid}|${activity.getType}| => ${serviceTime}"
   }
 }

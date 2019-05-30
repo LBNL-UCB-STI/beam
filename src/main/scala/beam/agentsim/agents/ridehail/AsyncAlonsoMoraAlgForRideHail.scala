@@ -25,10 +25,13 @@ class AsyncAlonsoMoraAlgForRideHail(
 
   private def vehicle2Requests(v: VehicleAndSchedule): (List[RTVGraphNode], List[(RTVGraphNode, RTVGraphNode)]) = {
     import scala.collection.mutable.{ListBuffer => MListBuffer}
+    if(v.getFreeSeats <4){
+      val i = 0
+    }
     val vertices = MListBuffer.empty[RTVGraphNode]
     val edges = MListBuffer.empty[(RTVGraphNode, RTVGraphNode)]
     val finalRequestsList = MListBuffer.empty[RideHailTrip]
-    val center = v.getLastDropoff.activity.getCoord
+    val center = v.getRequestWithCurrentVehiclePosition.activity.getCoord
     val searchRadius = timeWindow(Pickup) * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
     val requests = v.geofence match {
       case Some(gf) =>
