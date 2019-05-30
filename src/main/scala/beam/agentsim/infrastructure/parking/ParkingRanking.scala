@@ -27,14 +27,7 @@ object ParkingRanking {
   ): Double = {
     val price: Double = parkingZone.pricingModel match {
       case None               => 0.0
-      case Some(pricingModel) =>
-        // convert to dollars; calculate duration if block-based pricing
-        PricingModel.evaluateParkingTicket(pricingModel, parkingDuration.toInt)
-
-//        pricingModel match {
-//          case PricingModel.FlatFee(cost, _)      => cost.toDouble / 100.0
-//          case PricingModel.Block(cost, interval) => parkingDuration.toDouble / interval.toDouble * (cost.toDouble / 100.0)
-//        }
+      case Some(pricingModel) => PricingModel.evaluateParkingTicket(pricingModel, parkingDuration.toInt)
     }
 
     // assumes 1.4 m/s walking speed, distance in meters, value of time in seconds
