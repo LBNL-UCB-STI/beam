@@ -85,8 +85,6 @@ class BeamMobsim @Inject()(
   var debugActorWithTimerCancellable: Cancellable = _
   private val config: Beam.Agentsim = beamServices.beamConfig.beam.agentsim
 
-  val agencyAndRouteByVehicleIds: mutable.Map[Id[Vehicle], (String, String)] = TrieMap()
-
   override def run(): Unit = {
     logger.info("Starting Iteration")
     startMeasuringIteration(beamServices.iterationNumber)
@@ -169,6 +167,20 @@ class BeamMobsim @Inject()(
         sharedVehicleFleets.foreach(context.watch)
         sharedVehicleFleets.foreach(scheduler ! ScheduleTrigger(InitializeTrigger(0), _))
 
+        val initializer =
+          new TransitInitializer(
+            beamScenario.beamConfig,
+            beamScenario.dates,
+            beamScenario.vehicleTypes,
+            transportNetwork,
+            scenario.getTransitVehicles,
+            BeamRouter.oneSecondTravelTime
+          )
+        val transits = initializer.initMap
+        val agencyAndRouteByVehicleIds = initDriverAgents(context, initializer, scheduler, parkingManager, transits)
+        beamServices.beamRouter ! TransitInited(transits, agencyAndRouteByVehicleIds)
+        log.info("Transit schedule has been initialized")
+
         private val population = context.actorOf(
           Population.props(
             scenario,
@@ -185,26 +197,12 @@ class BeamMobsim @Inject()(
             routeHistory,
             beamSkimmer,
             travelTimeObserved,
-            agencyAndRouteByVehicleIds.toMap
+            agencyAndRouteByVehicleIds
           ),
           "population"
         )
         context.watch(population)
         Await.result(population ? Identify(0), timeout.duration)
-        val initializer =
-          new TransitInitializer(
-            beamScenario.beamConfig,
-            beamScenario.dates,
-            beamScenario.vehicleTypes,
-            transportNetwork,
-            scenario.getTransitVehicles,
-            BeamRouter.oneSecondTravelTime
-          )
-        val transits = initializer.initMap
-        initDriverAgents(context, initializer, scheduler, parkingManager, transits)
-        beamServices.beamRouter ! TransitInited(transits)
-
-        log.info("Transit schedule has been initialized")
 
         if (beamServices.iterationNumber == 0) {
           val maxHour = TimeUnit.SECONDS.toHours(scenario.getConfig.travelTimeCalculator().getMaxTime).toInt
@@ -304,7 +302,8 @@ class BeamMobsim @Inject()(
     scheduler: ActorRef,
     parkingManager: ActorRef,
     transits: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])]
-  ): Unit = {
+  ) = {
+    val agencyAndRouteByVehicleIds: mutable.Map[Id[Vehicle], (String, String)] = TrieMap()
     transits.foreach {
       case (tripVehId, (route, legs)) =>
         initializer.createTransitVehicle(tripVehId, route, legs).foreach { vehicle =>
@@ -328,6 +327,7 @@ class BeamMobsim @Inject()(
           scheduler ! ScheduleTrigger(InitializeTrigger(0), transitDriver)
         }
     }
+    agencyAndRouteByVehicleIds.toMap
   }
 
 }

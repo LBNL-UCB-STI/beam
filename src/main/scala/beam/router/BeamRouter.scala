@@ -4,7 +4,6 @@ import java.time.{ZoneOffset, ZonedDateTime}
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
-import akka.actor.Status.{Status, Success}
 import akka.actor.{
   Actor,
   ActorLogging,
@@ -179,8 +178,8 @@ class BeamRouter(
           serviceActor.ask(UpdateTravelTimeRemote(map))(updateTravelTimeTimeout)
         }
       }
-    case TransitInited(transits) =>
-      localNodes.foreach(localWorker => localWorker ! TransitInited(transits))
+    case TransitInited(transits, agencyMap) =>
+      localNodes.foreach(localWorker => localWorker ! TransitInited(transits, agencyMap))
     case GetMatSimNetwork =>
       sender ! MATSimNetwork(network)
     case GetTravelTime =>
@@ -404,7 +403,10 @@ object BeamRouter {
 
   case class ClearRoutedWorkerTracker(workIdToClear: Int)
   case class InitTransit(scheduler: ActorRef, parkingManager: ActorRef, id: UUID = UUID.randomUUID())
-  case class TransitInited(transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])])
+  case class TransitInited(
+    transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])],
+    agencyAndRouteByVehicleIds: Map[Id[Vehicle], (String, String)]
+  )
   case class EmbodyWithCurrentTravelTime(
     leg: BeamLeg,
     vehicleId: Id[Vehicle],

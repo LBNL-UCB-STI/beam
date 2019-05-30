@@ -45,7 +45,6 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
 import scala.collection.JavaConverters._
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
@@ -64,8 +63,7 @@ case class WorkerParameters(
   networkHelper: NetworkHelper,
   fareCalculator: FareCalculator,
   tollCalculator: TollCalculator,
-  travelTimeAndCost: TravelTimeAndCost,
-  transitMap: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])]
+  travelTimeAndCost: TravelTimeAndCost
 )
 
 case class LegWithFare(leg: BeamLeg, fare: Double)
@@ -99,20 +97,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
       val fuelTypePrices = readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
       val ptFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath)
-      val defaultTravelTimeByLink = (time: Int, linkId: Int, mode: StreetMode) => {
-        val edge = networkCoordinator.transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-        val tt = (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, mode)).round
-        tt.toInt
-      }
-      val initializer =
-        new TransitInitializer(
-          beamConfig,
-          dates,
-          vehicleTypes,
-          networkCoordinator.transportNetwork,
-          scenario.getTransitVehicles,
-          defaultTravelTimeByLink
-        )
       val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
       val tollCalculator = new TollCalculator(beamConfig)
       // TODO FIX ME
@@ -136,8 +120,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         new NetworkHelperImpl(networkCoordinator.network),
         fareCalculator,
         tollCalculator,
-        travelTimeAndCost,
-        initializer.initMap
+        travelTimeAndCost
       )
     })
   }
@@ -153,8 +136,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     networkHelper,
     fareCalculator,
     tollCalculator,
-    travelTimeAndCost,
-    transitMap
+    travelTimeAndCost
   ) = workerParams
 
   private val numOfThreads: Int =
@@ -183,12 +165,11 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
   private var travelTime: TravelTime = new FreeFlowTravelTime
 
-  private var transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])] = transitMap
-
   val bodyType = vehicleTypes(Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]))
 
-  //FIXME
-  val agencyAndRouteByVehicleIds: TrieMap[Id[Vehicle], (String, String)] = TrieMap()
+  // Are initialized by message!
+  private var transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])] = Map()
+  private var agencyAndRouteByVehicleIds: Map[Id[Vehicle], (String, String)] = Map()
 
   private val cache = CacheBuilder
     .newBuilder()
@@ -244,8 +225,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       workAssigner = sender
       askForMoreWork()
 
-    case TransitInited(newTransitSchedule) =>
+    case TransitInited(newTransitSchedule, newAgencyAndRouteByVehicleIds) =>
       transitSchedule = newTransitSchedule
+      agencyAndRouteByVehicleIds = newAgencyAndRouteByVehicleIds
       askForMoreWork()
 
     case request: RoutingRequest =>
@@ -1199,8 +1181,7 @@ object R5RoutingWorker {
         networkHelper,
         fareCalculator,
         tollCalculator,
-        travelTimeAndCost,
-        Map.empty
+        travelTimeAndCost
       )
     )
   )
