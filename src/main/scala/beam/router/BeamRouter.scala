@@ -169,13 +169,7 @@ class BeamRouter(
         }
       }
     case TransitInited(transits) =>
-      val localInit: Future[Set[Status]] = Future {
-        localNodes.map { localWorker =>
-          localWorker ! TransitInited(transits)
-          Success(s"local worker '$localWorker' inited")
-        }
-      }
-      localInit.pipeTo(sender)
+      localNodes.foreach(localWorker => localWorker ! TransitInited(transits))
     case GetMatSimNetwork =>
       sender ! MATSimNetwork(network)
     case GetTravelTime =>

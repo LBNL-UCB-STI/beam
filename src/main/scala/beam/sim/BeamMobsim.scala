@@ -190,7 +190,7 @@ class BeamMobsim @Inject()(
           )
         val transits = initializer.initMap
         initDriverAgents(context, initializer, scheduler, parkingManager, transits)
-        Await.result(beamServices.beamRouter ? TransitInited(transits), timeout.duration)
+        beamServices.beamRouter ! TransitInited(transits)
 
         log.info("Transit schedule has been initialized")
 
