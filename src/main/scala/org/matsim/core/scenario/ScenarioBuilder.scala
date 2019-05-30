@@ -16,30 +16,31 @@ class ScenarioBuilder(private val scenario: MutableScenario) {
   def build: MutableScenario = scenario
 }
 
-object ScenarioBuilder extends App {
+object ScenarioBuilder {
 
   private val matsimConfigClazz = classOf[MatsimConfig]
 
-  private val modules: util.TreeMap[String, ConfigGroup] = new util.TreeMap[String, ConfigGroup]
+  private val modules: util.TreeMap[String, ConfigGroup] = new util.TreeMap[String, ConfigGroup]()
 
   private def setEmptyPlans(matsimConfig: MatsimConfig): Unit = {
+    val plans = new PlansConfigGroup
+
     val f1 = matsimConfig.getClass.getDeclaredField("plans")
     f1.setAccessible(true)
-    f1.set(matsimConfig, new PlansConfigGroup)
+    f1.set(matsimConfig, plans)
+
+    applyToModules(matsimConfig, PlansConfigGroup.GROUP_NAME, plans)
   }
 
   def setEmptyNetwork(matsimConfig: MatsimConfig): Unit = {
     val netConfig = new NetworkConfigGroup
     netConfig.setTimeVariantNetwork(false)
+
     val f1 = matsimConfig.getClass.getDeclaredField("network")
     f1.setAccessible(true)
     f1.set(matsimConfig, netConfig)
-  }
 
-  def applytoModules(matsimConfig: MatsimConfig, GROUP_NAME: String, strategy: StrategyConfigGroup): Unit = {
-    val modules = matsimConfig.getClass.getDeclaredField("modules")
-    modules.setAccessible(true)
-
+    applyToModules(matsimConfig, NetworkConfigGroup.GROUP_NAME, netConfig)
   }
 
   def setStrategy(matsimConfig: MatsimConfig): Unit = {
@@ -49,15 +50,25 @@ object ScenarioBuilder extends App {
     field.setAccessible(true)
     field.set(matsimConfig, strategy)
 
-    applytoModules(StrategyConfigGroup.GROUP_NAME, strategy)
-//    this.modules.put(StrategyConfigGroup.GROUP_NAME, this.strategy)
+    applyToModules(matsimConfig, StrategyConfigGroup.GROUP_NAME, strategy)
+  }
 
+  def setEmptyModules(matsimConfig: MatsimConfig): Unit = {
+    val field = matsimConfig.getClass.getDeclaredField("modules")
+    field.setAccessible(true)
+    field.set(matsimConfig, modules)
+  }
+
+  def applyToModules(matsimConfig: MatsimConfig, groupName: String, config: ConfigGroup): Unit = {
+    modules.put(groupName, config)
   }
 
   private def buildMatsimConfig: MatsimConfig = {
     val result = new MatsimConfig()
+    setEmptyModules(result)
     setEmptyNetwork(result)
     setEmptyPlans(result)
+    setStrategy(result)
     result
   }
 
