@@ -3,9 +3,8 @@ package beam.performance
 import java.util
 import java.util.concurrent.ThreadLocalRandom
 
-import akka.actor.Status.Success
 import akka.actor._
-import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -36,10 +35,7 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario, TransportMode}
 import org.matsim.core.config.groups.{GlobalConfigGroup, PlanCalcScoreConfigGroup}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.router._
-import org.matsim.core.router.costcalculators.{
-  FreespeedTravelTimeAndDisutility,
-  RandomizingTimeDistanceTravelDisutilityFactory
-}
+import org.matsim.core.router.costcalculators.{FreespeedTravelTimeAndDisutility, RandomizingTimeDistanceTravelDisutilityFactory}
 import org.matsim.core.router.util.{LeastCostPathCalculator, PreProcessLandmarks}
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.core.trafficmonitoring.FreeSpeedTravelTime
@@ -126,8 +122,6 @@ class RouterPerformanceSpec
     within(60 seconds) { // Router can take a while to initialize
       router ! Identify(0)
       expectMsgType[ActorIdentity]
-      router ! InitTransit(new TestProbe(system).ref, zonalParkingManager)
-      expectMsgType[Success]
     }
     dataSet = getRandomNodePairDataset(runSet.max)
   }

@@ -361,8 +361,7 @@ class PersonAndTransitDriverSpec
           Vector(),
           new RouteHistory(beamConfig),
           mock[BeamSkimmer],
-          mock[TravelTimeObserved],
-          Map()
+          mock[TravelTimeObserved]
         )
       )
 

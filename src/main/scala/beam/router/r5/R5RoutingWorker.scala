@@ -223,11 +223,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       workAssigner = sender
       askForMoreWork()
 
-    case TransitInited(newTransitSchedule, newAgencyAndRouteByVehicleIds) =>
-      transitSchedule = newTransitSchedule
-      agencyAndRouteByVehicleIds = newAgencyAndRouteByVehicleIds
-      askForMoreWork()
-
     case request: RoutingRequest =>
       msgs += 1
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
@@ -259,7 +254,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         map.keySet().size()
       )
       cache.invalidateAll()
-      askForMoreWork
+      askForMoreWork()
 
     case EmbodyWithCurrentTravelTime(
         leg: BeamLeg,
@@ -599,7 +594,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       }
 
       maybeUseVehicleOnEgressTry match {
-        case Success(maybeUseVehicleOnEgress) => {
+        case Success(maybeUseVehicleOnEgress) =>
           val theOrigin = if (mainRouteToVehicle || mainRouteRideHailTransit) {
             request.originUTM
           } else {
@@ -741,7 +736,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               }
             EmbodiedBeamTrip(embodiedLegs)
           })
-        }
         case Failure(e) if e == DestinationUnreachableException => Nil
         case Failure(e)                                         => throw e
       }
@@ -1043,9 +1037,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         case (transitSegment, transitJourneyID) =>
           val segmentPattern =
             transitSegment.segmentPatterns.get(transitJourneyID.pattern)
-          //              val tripPattern = transportNetwork.transitLayer.tripPatterns.get(segmentPattern.patternIdx)
           val tripId = segmentPattern.tripIds.get(transitJourneyID.time)
-          //              val trip = tripPattern.tripSchedules.asScala.find(_.tripId == tripId).get
           val fs =
             fares.view
               .filter(_.patternIndex == segmentPattern.patternIdx)

@@ -324,8 +324,7 @@ class OtherPersonAgentSpec
           Vector(),
           new RouteHistory(beamConfig),
           new BeamSkimmer(beamConfig, tazTreeMap, beamScenario, beamSvc.geo),
-          new TravelTimeObserved(beamConfig, beamSvc, tazTreeMap, null),
-          Map()
+          new TravelTimeObserved(beamConfig, beamSvc, tazTreeMap, null)
         )
       )
       scheduler ! StartSchedule(0)

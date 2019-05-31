@@ -3,7 +3,6 @@ package beam.sflight
 import java.io.{BufferedWriter, File, FileWriter}
 
 import akka.actor._
-import akka.testkit.TestProbe
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -26,8 +25,6 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
     val zonalParkingManager =
       ZonalParkingManagerSpec.mockZonalParkingManager(services.beamConfig, services.geo, Some(router))
     within(5 minutes) { // Router can take a while to initialize
-      router ! InitTransit(new TestProbe(system).ref, zonalParkingManager)
-      expectMsgType[Any] // success
     }
   }
 

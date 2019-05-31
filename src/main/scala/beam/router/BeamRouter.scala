@@ -1,27 +1,15 @@
 package beam.router
 
 import java.time.{ZoneOffset, ZonedDateTime}
-import java.util.UUID
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  Address,
-  Cancellable,
-  ExtendedActorSystem,
-  Props,
-  RelativeActorPath,
-  RootActorPath,
-  Stash
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, Address, Cancellable, ExtendedActorSystem, Props, RelativeActorPath, RootActorPath, Stash}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
 import akka.util.Timeout
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
@@ -34,7 +22,7 @@ import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.{DateUtils, IdGeneratorImpl, NetworkHelper}
 import com.conveyal.r5.profile.StreetMode
-import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
+import com.conveyal.r5.transit.TransportNetwork
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -178,8 +166,6 @@ class BeamRouter(
           serviceActor.ask(UpdateTravelTimeRemote(map))(updateTravelTimeTimeout)
         }
       }
-    case TransitInited(transits, agencyMap) =>
-      localNodes.foreach(localWorker => localWorker ! TransitInited(transits, agencyMap))
     case GetMatSimNetwork =>
       sender ! MATSimNetwork(network)
     case GetTravelTime =>
@@ -402,11 +388,6 @@ object BeamRouter {
   type Location = Coord
 
   case class ClearRoutedWorkerTracker(workIdToClear: Int)
-  case class InitTransit(scheduler: ActorRef, parkingManager: ActorRef, id: UUID = UUID.randomUUID())
-  case class TransitInited(
-    transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])],
-    agencyAndRouteByVehicleIds: Map[Id[Vehicle], (String, String)]
-  )
   case class EmbodyWithCurrentTravelTime(
     leg: BeamLeg,
     vehicleId: Id[Vehicle],

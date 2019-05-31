@@ -73,8 +73,7 @@ object HouseholdActor {
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     routeHistory: RouteHistory,
     beamSkimmer: BeamSkimmer,
-    travelTimeObserved: TravelTimeObserved,
-    agencyAndRouteByVehicleIds: Map[Id[Vehicle], (String, String)]
+    travelTimeObserved: TravelTimeObserved
   ): Props = {
     Props(
       new HouseholdActor(
@@ -95,8 +94,7 @@ object HouseholdActor {
         sharedVehicleFleets,
         routeHistory,
         beamSkimmer,
-        travelTimeObserved,
-        agencyAndRouteByVehicleIds
+        travelTimeObserved
       )
     )
   }
@@ -138,8 +136,7 @@ object HouseholdActor {
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     routeHistory: RouteHistory,
     beamSkimmer: BeamSkimmer,
-    travelTimeObserved: TravelTimeObserved,
-    agencyAndRouteByVehicleIds: Map[Id[Vehicle], (String, String)]
+    travelTimeObserved: TravelTimeObserved
   ) extends Actor
       with HasTickAndTrigger
       with ActorLogging {
@@ -303,8 +300,7 @@ object HouseholdActor {
               fleetManagers ++: sharedVehicleFleets :+ self,
               beamSkimmer,
               routeHistory,
-              travelTimeObserved,
-              agencyAndRouteByVehicleIds
+              travelTimeObserved
             ),
             person.getId.toString
           )

@@ -17,10 +17,9 @@ import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
-import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.{Await, Future}
 
 class Population(
@@ -37,8 +36,7 @@ class Population(
   val eventsManager: EventsManager,
   val routeHistory: RouteHistory,
   val beamSkimmer: BeamSkimmer,
-  val travelTimeObserved: TravelTimeObserved,
-  val agencyAndRouteByVehicleIds: Map[Id[Vehicle], (String, String)]
+  val travelTimeObserved: TravelTimeObserved
 ) extends Actor
     with ActorLogging {
 
@@ -135,8 +133,7 @@ class Population(
               sharedVehicleFleets,
               routeHistory,
               beamSkimmer,
-              travelTimeObserved,
-              agencyAndRouteByVehicleIds
+              travelTimeObserved
             ),
             household.getId.toString
           )
@@ -188,8 +185,7 @@ object Population {
     eventsManager: EventsManager,
     routeHistory: RouteHistory,
     beamSkimmer: BeamSkimmer,
-    travelTimeObserved: TravelTimeObserved,
-    agencyAndRouteByVehicleIds: Map[Id[Vehicle], (String, String)]
+    travelTimeObserved: TravelTimeObserved
   ): Props = {
     Props(
       new Population(
@@ -206,8 +202,7 @@ object Population {
         eventsManager,
         routeHistory,
         beamSkimmer,
-        travelTimeObserved,
-        agencyAndRouteByVehicleIds
+        travelTimeObserved
       )
     )
   }

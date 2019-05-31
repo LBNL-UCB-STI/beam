@@ -38,7 +38,6 @@ import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 
 /**
@@ -64,8 +63,7 @@ object PersonAgent {
     sharedVehicleFleets: Seq[ActorRef],
     beamSkimmer: BeamSkimmer,
     routeHistory: RouteHistory,
-    travelTimeObserved: TravelTimeObserved,
-    agencyAndRouteByVehicleIds: Map[Id[Vehicle], (String, String)]
+    travelTimeObserved: TravelTimeObserved
   ): Props = {
     Props(
       new PersonAgent(
@@ -85,8 +83,7 @@ object PersonAgent {
         sharedVehicleFleets,
         beamSkimmer,
         routeHistory,
-        travelTimeObserved,
-        agencyAndRouteByVehicleIds
+        travelTimeObserved
       )
     )
   }
@@ -230,8 +227,7 @@ class PersonAgent(
   val vehicleFleets: Seq[ActorRef] = Vector(),
   val beamSkimmer: BeamSkimmer,
   val routeHistory: RouteHistory,
-  val travelTimeObserved: TravelTimeObserved,
-  val agencyAndRouteByVehicleIds: Map[Id[Vehicle], (String, String)]
+  val travelTimeObserved: TravelTimeObserved
 ) extends DrivesVehicle[PersonData]
     with ChoosesMode
     with ChoosesParking
@@ -477,10 +473,11 @@ class PersonAgent(
       val mode = data.currentTrip.get.tripClassifier
 
       if (currentLeg.cost > 0.0) {
-        if (agencyAndRouteByVehicleIds.contains(vehicleToEnter)) {
-          val agencyId = agencyAndRouteByVehicleIds(vehicleToEnter)._1
-          eventsManager.processEvent(new AgencyRevenueEvent(tick, agencyId, currentLeg.cost))
-        }
+        // FIXME:
+//        if (agencyAndRouteByVehicleIds.contains(vehicleToEnter)) {
+//          val agencyId = agencyAndRouteByVehicleIds(vehicleToEnter)._1
+//          eventsManager.processEvent(new AgencyRevenueEvent(tick, agencyId, currentLeg.cost))
+//        }
 
         eventsManager.processEvent(
           new PersonCostEvent(

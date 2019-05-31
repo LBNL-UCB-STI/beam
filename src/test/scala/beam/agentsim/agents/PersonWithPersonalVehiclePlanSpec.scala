@@ -195,8 +195,7 @@ class PersonWithPersonalVehiclePlanSpec
             Vector(),
             new RouteHistory(beamConfig),
             mock[BeamSkimmer],
-            mock[TravelTimeObserved],
-            Map()
+            mock[TravelTimeObserved]
           )
         )
       )
@@ -422,8 +421,7 @@ class PersonWithPersonalVehiclePlanSpec
             Vector(),
             new RouteHistory(beamConfig),
             mock[BeamSkimmer],
-            mock[TravelTimeObserved],
-            Map()
+            mock[TravelTimeObserved]
           )
         )
       )
@@ -567,8 +565,7 @@ class PersonWithPersonalVehiclePlanSpec
           Vector(),
           new RouteHistory(beamConfig),
           mock[BeamSkimmer],
-          mock[TravelTimeObserved],
-          Map()
+          mock[TravelTimeObserved]
         )
       )
       val personActor = householdActor.getSingleChild(person.getId.toString)
@@ -664,8 +661,7 @@ class PersonWithPersonalVehiclePlanSpec
           Vector(),
           new RouteHistory(beamConfig),
           mock[BeamSkimmer],
-          mock[TravelTimeObserved],
-          Map()
+          mock[TravelTimeObserved]
         )
       )
       scheduler ! StartSchedule(0)

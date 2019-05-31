@@ -201,8 +201,7 @@ class PersonAgentSpec
           self,
           beamSkimmer = new BeamSkimmer(beamConfig, tAZTreeMap, beamScenario, beamSvc.geo),
           routeHistory = new RouteHistory(beamConfig),
-          travelTimeObserved = new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null),
-          agencyAndRouteByVehicleIds = Map()
+          travelTimeObserved = new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null)
         )
       )
 
@@ -266,8 +265,7 @@ class PersonAgentSpec
           Vector(),
           new RouteHistory(beamConfig),
           new BeamSkimmer(beamConfig, tAZTreeMap, beamScenario, beamSvc.geo),
-          new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null),
-          Map()
+          new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null)
         )
       )
 
@@ -494,8 +492,7 @@ class PersonAgentSpec
           Vector(),
           new RouteHistory(beamConfig),
           new BeamSkimmer(beamConfig, tAZTreeMap, beamScenario, beamSvc.geo),
-          new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null),
-          Map()
+          new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null)
         )
       )
       scheduler ! StartSchedule(0)
