@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
-import scala.util.Random
+import scala.util.{Failure, Random, Success, Try}
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
@@ -12,13 +12,14 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
 import beam.sim.{BeamServices, HasServices}
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.collections.QuadTree
 
 class ZonalParkingManager(
   val beamServices: BeamServices,
   parkingZones: Array[ParkingZone],
-  zoneSearchTree: ParkingZoneSearch.ZoneSearch,
+  zoneSearchTree: ParkingZoneSearch.ZoneSearch[TAZ],
   rand: Random
 ) extends Actor
     with HasServices
@@ -95,7 +96,7 @@ class ZonalParkingManager(
   }
 }
 
-object ZonalParkingManager {
+object ZonalParkingManager extends LazyLogging {
 
   val ParkingDurationForRideHailAgents: Int = 30 * 60 // 30 minutes?
   val SearchFactor: Double = 2.0 // increases search radius by this factor at each iteration
@@ -114,11 +115,22 @@ object ZonalParkingManager {
     beamServices: BeamServices,
     random: Random
   ): ZonalParkingManager = {
-    val pathResourceCSV: String = beamServices.beamConfig.beam.agentsim.taz.parkingFilePath
-    val (stalls, searchTree) = ParkingZoneFileUtils.fromFile(pathResourceCSV)
 
-    // add something like this to write to the current instance directory?
-    //  val _ = ParkingZoneFileUtils.toFile(searchTree, stalls, someDestinationForThisConfiguration)
+    // generate or load parking
+    val parkingFilePath: String = beamServices.beamConfig.beam.agentsim.taz.parkingFilePath
+
+    val (stalls, searchTree) = if (parkingFilePath.isEmpty) {
+      ParkingZoneFileUtils.generateDefaultParkingFromTazfile(beamServices.beamConfig.beam.agentsim.taz.filePath)
+    } else {
+      Try {
+        ParkingZoneFileUtils.fromFile(parkingFilePath)
+      } match {
+        case Success((s, t)) => (s, t)
+        case Failure(e) =>
+          logger.warn(s"unable to read contents of provided parking file $parkingFilePath, got ${e.getMessage}.")
+          ParkingZoneFileUtils.generateDefaultParkingFromTazfile(beamServices.beamConfig.beam.agentsim.taz.filePath)
+      }
+    }
 
     new ZonalParkingManager(beamServices, stalls, searchTree, random)
   }
@@ -177,7 +189,7 @@ object ZonalParkingManager {
     parkingDuration: Double,
     parkingTypes: Seq[ParkingType],
     chargingInquiryData: Option[ChargingInquiryData[String, String]],
-    searchTree: ParkingZoneSearch.ZoneSearch,
+    searchTree: ParkingZoneSearch.ZoneSearch[TAZ],
     stalls: Array[ParkingZone],
     tazQuadTree: QuadTree[TAZ],
     distanceFunction: (Coord, Coord) => Double,

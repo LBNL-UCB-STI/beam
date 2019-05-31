@@ -1,6 +1,7 @@
 package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.parking.ParkingZoneFileUtilsSpec.PositiveTestData
 import beam.agentsim.infrastructure.taz.TAZ
 import org.matsim.api.core.v01.Id
 import org.scalatest.{Matchers, WordSpec}
@@ -61,55 +62,50 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
             val result = ParkingZoneFileUtils.fromIterator(badParkingType)
             result.failedRows should equal(1)
           }
-//          "throw an error" in new ParkingZoneFileUtilsSpec.NegativeTestData {
-//            an [java.io.IOException] should be thrownBy ParkingZoneFileUtils.fromIterator(badParkingType)
-//          }
         }
         "pricing model doesn't exist" should {
           "have one failed row" in new ParkingZoneFileUtilsSpec.NegativeTestData {
             val result = ParkingZoneFileUtils.fromIterator(badPricingModel)
             result.failedRows should equal(1)
           }
-//          "throw an error" in new ParkingZoneFileUtilsSpec.NegativeTestData {
-//            an [java.io.IOException] should be thrownBy ParkingZoneFileUtils.fromIterator(badPricingModel)
-//          }
         }
         "charging type doesn't exist" ignore {
           "have one failed row" in new ParkingZoneFileUtilsSpec.NegativeTestData {
             val result = ParkingZoneFileUtils.fromIterator(badChargingType)
             result.failedRows should equal(1)
           }
-//          "throw an error" in new ParkingZoneFileUtilsSpec.NegativeTestData {
-//            an [java.io.IOException] should be thrownBy ParkingZoneFileUtils.fromIterator(badChargingType)
-//          }
         }
         "non-numeric number of stalls" should {
           "have one failed row" in new ParkingZoneFileUtilsSpec.NegativeTestData {
             val result = ParkingZoneFileUtils.fromIterator(badNumStalls)
             result.failedRows should equal(1)
           }
-//          "throw an error" in new ParkingZoneFileUtilsSpec.NegativeTestData {
-//            an [java.io.IOException] should be thrownBy ParkingZoneFileUtils.fromIterator(badNumStalls)
-//          }
         }
         "invalid (negative) number of stalls" should {
           "have one failed row" in new ParkingZoneFileUtilsSpec.NegativeTestData {
             val result = ParkingZoneFileUtils.fromIterator(invalidNumStalls)
             result.failedRows should equal(1)
           }
-//          "throw an error" in new ParkingZoneFileUtilsSpec.NegativeTestData {
-//            an [java.io.IOException] should be thrownBy ParkingZoneFileUtils.fromIterator(invalidNumStalls)
-//          }
         }
         "non-numeric fee in cents" should {
           "have one failed row" in new ParkingZoneFileUtilsSpec.NegativeTestData {
             val result = ParkingZoneFileUtils.fromIterator(badFeeInCents)
             result.failedRows should equal(1)
           }
-//          "throw an error" in new ParkingZoneFileUtilsSpec.NegativeTestData {
-//            an [java.io.IOException] should be thrownBy ParkingZoneFileUtils.fromIterator(badFeeInCents)
-//          }
         }
+      }
+    }
+  }
+  "generateDefaultParking" when {
+    "provided a list of TAZs" should {
+      "produce ubiquitous parking for them" in new PositiveTestData {
+
+        // 3 types of ParkingTypes, 4 rows in validTazFile
+        val expectedNumberOfZones: Int = 3 * 4
+        val (zones, search) = ParkingZoneFileUtils.generateDefaultParking(validTazFile, header = true)
+
+        zones.length should equal (expectedNumberOfZones)
+        zones.foreach{ _.maxStalls should equal (Int.MaxValue) }
       }
     }
   }
@@ -132,6 +128,14 @@ object ParkingZoneFileUtilsSpec {
       s"""taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
          |1,Residential,,,$testNumStalls,$testFeeInCents,unused
       """.stripMargin.split("\n").toIterator
+
+    val validTazFile: Iterator[String] =
+      s"""taz,coord-x,coord-y,area
+         |1,167141.3,1112.351,4840000
+         |2,167141.3,3326.017,4840000
+         |3,169369.8,1112.351,4840000
+         |4,169369.8,3326.017,4840000
+       """.stripMargin.split("\n").toIterator
   }
 
   trait NegativeTestData {
