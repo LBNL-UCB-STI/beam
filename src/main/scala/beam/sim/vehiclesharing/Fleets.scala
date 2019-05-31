@@ -10,7 +10,8 @@ object Fleets {
         val value: SharedFleets$Elm.FixedNonReservingFleetFromFile = config.fixed_non_reserving_fleet_from_file.get
         FixedNonReservingFleetFromFile(value)
       case "fixed_non_reserving_random_dist" =>
-        val value: SharedFleets$Elm.FixedNonReservingRandomlyDistributed = config.fixed_non_reserving_random_dist.get
+        val value: SharedFleets$Elm.FixedNonReservingRandomlyDistributed =
+          config.fixed_non_reserving_randomly_distributed.get
         FixedNonReservingRandomlyDistributedFleet(value)
       case "inexhaustible-reserving" =>
         val value: SharedFleets$Elm.InexhaustibleReserving = config.inexhaustible_reserving.get
