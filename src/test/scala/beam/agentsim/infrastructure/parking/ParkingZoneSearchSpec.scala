@@ -12,7 +12,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
   "A ParkingZoneSearch" when {
     "searched for something when there are no alternatives" should {
       "result in None" in new ParkingZoneSearchSpec.SimpleParkingAlternatives {
-        val tree: ParkingZoneSearch.ZoneSearch = Map()
+        val tree: ParkingZoneSearch.ZoneSearch[TAZ] = Map()
         val zones: Array[ParkingZone] = Array()
 
         val result = ParkingZoneSearch.find(
