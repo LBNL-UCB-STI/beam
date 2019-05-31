@@ -19,7 +19,7 @@ class ChargingPlugInEvent(
 
   override def getEventType: String = EVENT_TYPE
 
-  override def getPersonId: Id[Person] = ???
+  override def getPersonId: Id[Person] = ??? //todo
 }
 
 object ChargingPlugInEvent {
