@@ -229,8 +229,8 @@ object ParkingZoneSearchSpec {
 
     val sourceData: Iterator[String] =
       """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
-        |A,Public,FlatFee,UltraFast,7,1000,unused
-        |B,Public,Block,UltraFast,18,100,unused
+        |A,Public,FlatFee,UltraFast(250,DC),7,1000,unused
+        |B,Public,Block,UltraFast(250,DC),18,100,unused
         |
       """.stripMargin.split("\n").toIterator
 
