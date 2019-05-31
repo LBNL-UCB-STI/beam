@@ -214,11 +214,11 @@ object AlonsoMoraPoolingAlgForRideHail {
   )(
     implicit skimmer: BeamSkimmer
   ): Option[List[MobilityRequest]] = {
-    val sortedRequests = requests.sortWith(_.baselineNonPooledTime < _.baselineNonPooledTime)
+    val sortedRequests = requests.filter(_.tag != EnRoute).sortWith(_.baselineNonPooledTime < _.baselineNonPooledTime)
     import scala.collection.mutable.{ListBuffer => MListBuffer}
     val newPoolingList = MListBuffer(sortedRequests.head.copy())
     sortedRequests.drop(1).foldLeft(()) {
-      case (_, curReq) if curReq.tag != EnRoute =>
+      case (_, curReq) =>
         val prevReq = newPoolingList.last
         val serviceTime = prevReq.serviceTime + getTimeDistanceAndCost(prevReq, curReq, beamServices).time
         if (serviceTime <= curReq.baselineNonPooledTime + timeWindow(curReq.tag)) {
