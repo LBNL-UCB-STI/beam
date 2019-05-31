@@ -11,7 +11,7 @@ import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, Releasi
 import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule}
-import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
+import beam.agentsim.events.{LeavingParkingEvent, RefuelEvent, SpaceTime}
 import beam.agentsim.infrastructure.charging.ChargingInquiry
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -147,6 +147,11 @@ trait ChoosesParking extends {
         val theVehicle = currentBeamVehicle
         throw new RuntimeException(log.format("My vehicle {} is not parked.", currentBeamVehicle.id))
       }
+
+      // todo JH throw plugOut event + refuel event here if charging takes place
+
+      handleEndCharging(10000, tick, 0, currentBeamVehicle) // todo JH remove dummy values
+
       parkingManager ! ReleaseParkingStall(stall.parkingZoneId)
       val nextLeg = data.passengerSchedule.schedule.head._1
       val distance = beamServices.geo.distUTMInMeters(stall.locationUTM, nextLeg.travelPath.endPoint.loc)
@@ -179,6 +184,8 @@ trait ChoosesParking extends {
       //parking Id
       //cost
       //location
+
+      println("stop")
 
       val distance =
         beamServices.geo.distUTMInMeters(stall.locationUTM, beamServices.geo.wgs2Utm(nextLeg.travelPath.endPoint.loc))
@@ -330,4 +337,22 @@ trait ChoosesParking extends {
     energyCharge: Double,
     valueOfTime: Double
   ): Double = -cost - energyCharge
+
+  def handleEndCharging(energyInJoules: Double, tick: Int, sessionStart: Int, vehicle: BeamVehicle) = {
+
+    // todo plug out event
+
+    log.debug("Ending refuel session for {}", vehicle.id)
+    vehicle.addFuel(energyInJoules)
+    eventsManager.processEvent(
+      new RefuelEvent(
+        tick,
+        vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
+        energyInJoules,
+        tick - sessionStart,
+        vehicle.id
+      )
+    )
+  }
+
 }
