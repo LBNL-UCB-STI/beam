@@ -80,7 +80,10 @@ public class R5MnetBuilder {
 
             final Set<String> flagStrings = new HashSet<>();
             for (EdgeStore.EdgeFlag eF : cursor.getFlags()) {
-                flagStrings.add(flagToString(eF));
+                String flagString = flagToString(eF);
+                if(!flagString.isEmpty()){
+                    flagStrings.add(flagToString(eF));
+                }
             }
 
             //TODO - length needs to be transformed to output CRS. It is important that we calculate the length here
@@ -171,13 +174,36 @@ public class R5MnetBuilder {
         String out = null;
         switch (flag) {
             case ALLOWS_PEDESTRIAN:
+            case ALLOWS_WHEELCHAIR:
+            case LIMITED_WHEELCHAIR:
+            case STAIRS:
+            case CROSSING:
+            case PLATFORM:
+            case SIDEWALK:
+            case ELEVATOR:
                 out = "walk";
                 break;
             case ALLOWS_BIKE:
+            case BIKE_LTS_1:
+            case BIKE_LTS_2:
+            case BIKE_LTS_3:
+            case BIKE_LTS_4:
+            case BIKE_PATH:
                 out = "bike";
                 break;
             case ALLOWS_CAR:
+            case ROUNDABOUT:
                 out = "car";
+                break;
+            case LINK:
+            case LINKABLE:
+            case BOGUS_NAME:
+            case SLOPE_OVERRIDE:
+            case NO_THRU_TRAFFIC:
+            case NO_THRU_TRAFFIC_CAR:
+            case NO_THRU_TRAFFIC_BIKE:
+            case NO_THRU_TRAFFIC_PEDESTRIAN:
+                out = "";
                 break;
         }
         return out;
