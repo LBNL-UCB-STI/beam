@@ -20,7 +20,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     * used to parse a row of the parking file
     * last row (ReservedFor) is ignored
     */
-  val ParkingFileRowRegex: Regex = """(\w+),(\w+),(\w+),(\w+),(\d+),(\d+).*""".r.unanchored
+  val ParkingFileRowRegex: Regex = """(\w+),(\w+),(\w+),(\w.+),(\d+),(\d+).*""".r.unanchored
 
   /**
     * header for parking files (used for writing new parking files)

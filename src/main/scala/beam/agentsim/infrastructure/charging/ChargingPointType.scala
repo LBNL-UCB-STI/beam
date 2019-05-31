@@ -48,32 +48,28 @@ object ChargingPointType {
     }
   }
 
-  private[ChargingPointType] val CustomChargingPointRegex: Regex = "(\\w+)\\((\\d+),(\\w+)\\)".r
+  private[ChargingPointType] val CustomChargingPointRegex: Regex = "(\\w+\\d*)\\((\\d+\\.?\\d+\\s*),(\\s*\\w{2})\\)".r
 
   // matches either the standard ones or a custom one
   // FIXME JH these were breaking some tests with a ChargingPoint parsing error caused by Event handlers
   def apply(s: String): Option[ChargingPointType] = {
     s.trim.toLowerCase match {
-//      case "householdsocket"              => Some(HouseholdSocket)
-//      case "bluehouseholdsocket"          => Some(BlueHouseholdSocket)
-//      case "cee16asocket"                 => Some(Cee16ASocket)
-//      case "cee32asocket"                 => Some(Cee32ASocket)
-//      case "cee63asocket"                 => Some(Cee63ASocket)
-//      case "chargingstationtype1"         => Some(ChargingStationType1)
-//      case "chargingstationtype2"         => Some(ChargingStationType2)
-//      case "chargingstationccscombotype1" => Some(ChargingStationCcsComboType1)
-//      case "chargingstationccscombotype2" => Some(ChargingStationCcsComboType2)
-//      case "teslasupercharger"            => Some(TeslaSuperCharger)
-      case "level1"    => Some(HouseholdSocket)
-      case "level2"    => Some(ChargingStationType1)
-      case "dcfast"    => Some(ChargingStationCcsComboType2)
-      case "ultrafast" => Some(CustomChargingPoint(s.trim, "250", "dc"))
-//      case "nocharger"                    => None
-//      case ""                             => None
-//      case CustomChargingPointRegex(id, installedCapacity, currentType) =>
-//        Some(CustomChargingPoint(id, installedCapacity, currentType))
-      case _ => None
-//        throw new IllegalArgumentException("invalid argument for ChargingPointType: " + s.trim)
+      case "householdsocket"              => Some(HouseholdSocket)
+      case "bluehouseholdsocket"          => Some(BlueHouseholdSocket)
+      case "cee16asocket"                 => Some(Cee16ASocket)
+      case "cee32asocket"                 => Some(Cee32ASocket)
+      case "cee63asocket"                 => Some(Cee63ASocket)
+      case "chargingstationtype1"         => Some(ChargingStationType1)
+      case "chargingstationtype2"         => Some(ChargingStationType2)
+      case "chargingstationccscombotype1" => Some(ChargingStationCcsComboType1)
+      case "chargingstationccscombotype2" => Some(ChargingStationCcsComboType2)
+      case "teslasupercharger"            => Some(TeslaSuperCharger)
+      case "nocharger" | "" => None
+      case CustomChargingPointRegex(id, installedCapacity, currentType) =>
+        Some(CustomChargingPoint(id, installedCapacity, currentType))
+      case _ =>
+        None
+        throw new IllegalArgumentException("invalid argument for ChargingPointType: " + s.trim)
     }
   }
 
