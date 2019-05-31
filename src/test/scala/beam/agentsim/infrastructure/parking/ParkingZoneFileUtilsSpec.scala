@@ -104,8 +104,8 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
         val expectedNumberOfZones: Int = 3 * 4
         val (zones, search) = ParkingZoneFileUtils.generateDefaultParking(validTazFile, header = true)
 
-        zones.length should equal (expectedNumberOfZones)
-        zones.foreach{ _.maxStalls should equal (Int.MaxValue) }
+        zones.length should equal(expectedNumberOfZones)
+        zones.foreach { _.maxStalls should equal(Int.MaxValue) }
       }
     }
   }

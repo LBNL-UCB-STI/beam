@@ -76,7 +76,7 @@ object ChargingPointType {
       case "level2"    => Some(Level2)
       case "dcfast"    => Some(DCFast)
       case "ultrafast" => Some(UltraFast)
-      case "nocharger"                    => Some(NoCharger)
+      case "nocharger" => Some(NoCharger)
 //      case ""                             => None
 //      case CustomChargingPointRegex(id, installedCapacity, currentType) =>
 //        Some(CustomChargingPoint(id, installedCapacity, currentType))

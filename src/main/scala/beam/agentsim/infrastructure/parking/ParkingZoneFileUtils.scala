@@ -18,22 +18,16 @@ import org.matsim.core.utils.io.IOUtils
 // utilities to read/write parking zone information from/to a file
 object ParkingZoneFileUtils extends LazyLogging {
 
-
-
   /**
     * used to parse a row of the parking file
     * last row (ReservedFor) is ignored
     */
   val ParkingFileRowRegex: Regex = """(\w+),(\w+),(\w+),(\w+),(\d+),(\d+).*""".r.unanchored
 
-
-
   /**
     * header for parking files (used for writing new parking files)
     */
   val ParkingFileHeader: String = "taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor"
-
-
 
   /**
     * when a parking file is not provided, we generate one that covers all TAZs with free and ubiquitous parking
@@ -43,9 +37,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     * @return a row describing infinite free parking at this TAZ
     */
   def defaultParkingRow(tazId: String, parkingType: ParkingType): String =
-    s"$tazId,$parkingType,${PricingModel.FlatFee(0,0)},None,${Int.MaxValue},0,unused"
-
-
+    s"$tazId,$parkingType,${PricingModel.FlatFee(0, 0)},None,${Int.MaxValue},0,unused"
 
   /**
     * used to build up parking alternatives from a file
@@ -60,6 +52,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     totalRows: Int = 0,
     failedRows: Int = 0
   ) {
+
     def countFailedRow: ParkingLoadingAccumulator =
       this.copy(
         totalRows = totalRows + 1,
@@ -69,8 +62,6 @@ object ParkingZoneFileUtils extends LazyLogging {
     def someRowsFailed: Boolean = failedRows > 0
   }
 
-
-
   /**
     * parking data associated with a row of the parking file
     * @param tazId a TAZ id
@@ -78,8 +69,6 @@ object ParkingZoneFileUtils extends LazyLogging {
     * @param parkingZone the parking zone produced by this row
     */
   case class ParkingLoadingDataRow(tazId: Id[TAZ], parkingType: ParkingType, parkingZone: ParkingZone)
-
-
 
   /**
     * write the loaded set of parking and charging options to an instance parking file
@@ -133,8 +122,6 @@ object ParkingZoneFileUtils extends LazyLogging {
     }
   }
 
-
-
   /**
     * loads taz parking data from file, creating an array of parking zones along with a search tree to find zones.
     *
@@ -160,8 +147,6 @@ object ParkingZoneFileUtils extends LazyLogging {
       case Failure(e) =>
         throw new java.io.IOException(s"Unable to load parking configuration file with path $filePath.\n$e")
     }
-
-
 
   /**
     * loads taz parking data from file, creating a lookup table of stalls along with a search tree to find stalls
@@ -190,8 +175,6 @@ object ParkingZoneFileUtils extends LazyLogging {
 
     _read()
   }
-
-
 
   /**
     * loads taz parking data from file, creating a lookup table of stalls along with a search tree to find stalls
@@ -223,8 +206,6 @@ object ParkingZoneFileUtils extends LazyLogging {
       }
     }
   }
-
-
 
   /**
     * parses a row of parking configuration into the data structures used to represent it
@@ -267,8 +248,6 @@ object ParkingZoneFileUtils extends LazyLogging {
     }
   }
 
-
-
   /**
     * a kind of lens-based update for the search tree
     *
@@ -301,8 +280,6 @@ object ParkingZoneFileUtils extends LazyLogging {
     ParkingLoadingAccumulator(updatedStalls, updatedTree, accumulator.totalRows + 1, accumulator.failedRows)
   }
 
-
-
   /**
     * generates ubiquitous parking from a taz centers file, such as test/input/beamville/taz-centers.csv
     * @param tazFilePath path to the taz-centers file
@@ -319,13 +296,10 @@ object ParkingZoneFileUtils extends LazyLogging {
     }
   }
 
-
   /**
     * the first column of the taz-centers file is an Id[Taz], which we extract. it can be alphanumeric.
     */
   val TazFileRegex = """^(\w+),""".r.unanchored
-
-
 
   /**
     * generates ubiquitous parking from the contents of a TAZ centers file
@@ -333,12 +307,15 @@ object ParkingZoneFileUtils extends LazyLogging {
     * @param header if the header row exists
     * @return parking zones and parking search tree
     */
-  def generateDefaultParking(tazFileContents: Iterator[String], header: Boolean): (Array[ParkingZone], ZoneSearch[TAZ]) = {
+  def generateDefaultParking(
+    tazFileContents: Iterator[String],
+    header: Boolean
+  ): (Array[ParkingZone], ZoneSearch[TAZ]) = {
     val tazRows = if (header) tazFileContents.drop(1) else tazFileContents
 
     val rows: Iterator[String] = for {
       TazFileRegex(tazId) <- tazRows
-      parkingType <- Seq(ParkingType.Public, ParkingType.Residential, ParkingType.Workplace)
+      parkingType         <- Seq(ParkingType.Public, ParkingType.Residential, ParkingType.Workplace)
     } yield {
       defaultParkingRow(tazId, parkingType)
     }
