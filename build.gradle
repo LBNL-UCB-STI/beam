@@ -615,12 +615,15 @@ task execute(type: JavaExec) {
     }
 }
 
+
 task matsimConversion(type: JavaExec) {
     main = 'beam.utils.matsim_conversion.MatsimConversionTool'
     classpath = sourceSets.main.runtimeClasspath
     environment "PWD", "na"
     if (project.hasProperty("confPath")) {
         args Eval.me(confPath)
+        // if this triggers an error, try
+        // args "${confPath}"
     }
 }
 
