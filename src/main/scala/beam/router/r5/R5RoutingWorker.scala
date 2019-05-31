@@ -34,7 +34,7 @@ import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile._
 import com.conveyal.r5.streets._
-import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
+import com.conveyal.r5.transit.TransportNetwork
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.config.Config
@@ -165,9 +165,26 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
   private var travelTime: TravelTime = new FreeFlowTravelTime
 
-  // Are initialized by message!
-  private var transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])] = Map()
   private var agencyAndRouteByVehicleIds: Map[Id[Vehicle], (String, String)] = Map()
+
+  val initializer =
+    new TransitInitializer(
+      beamConfig,
+      dates,
+      vehicleTypes,
+      transportNetwork,
+      BeamRouter.oneSecondTravelTime
+    )
+  val transitSchedule = initializer.initMap
+
+
+  transitSchedule.foreach {
+    case (tripVehId, (route, legs)) =>
+      initializer.createTransitVehicle(tripVehId, route, legs).foreach { vehicle =>
+        agencyAndRouteByVehicleIds += (Id
+          .createVehicleId(tripVehId.toString) -> (route.agency_id, route.route_id))
+      }
+  }
 
   private val cache = CacheBuilder
     .newBuilder()

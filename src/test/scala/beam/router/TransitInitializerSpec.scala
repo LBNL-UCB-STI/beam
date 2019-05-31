@@ -60,7 +60,7 @@ class TransitInitializerSpec extends WordSpecLike with Matchers with MockitoSuga
     )
     val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
     val transitInitializer =
-      new TransitInitializer(beamConfig, null, vehicleTypes, null, null, BeamRouter.oneSecondTravelTime)
+      new TransitInitializer(beamConfig, null, vehicleTypes, null, BeamRouter.oneSecondTravelTime)
     transitInitializer
   }
 }

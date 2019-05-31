@@ -3,21 +3,18 @@ package beam.sim
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Success
-import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, Props, Terminated}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitDriverAgent, TransitSystem}
+import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.{TAZTreeMap, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
-import beam.router.BeamRouter.TransitInited
 import beam.router._
-import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
@@ -25,17 +22,14 @@ import beam.sim.metrics.MetricsSupport
 import beam.sim.monitoring.ErrorListener
 import beam.sim.vehiclesharing.Fleets
 import beam.utils._
-import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
+import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.utils.misc.Time
-import org.matsim.vehicles.Vehicle
 
-import scala.collection.concurrent.TrieMap
-import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -157,7 +151,8 @@ class BeamMobsim @Inject()(
         sharedVehicleFleets.foreach(scheduler ! ScheduleTrigger(InitializeTrigger(0), _))
 
         val transitSystem = context.actorOf(Props(new TransitSystem(beamScenario, scenario, transportNetwork, scheduler, parkingManager, tollCalculator, geo, networkHelper, eventsManager, beamServices.beamRouter)), "transit-system")
-
+        context.watch(transitSystem)
+        scheduler ! ScheduleTrigger(InitializeTrigger(0), transitSystem)
 
         private val population = context.actorOf(
           Population.props(
@@ -179,7 +174,7 @@ class BeamMobsim @Inject()(
           "population"
         )
         context.watch(population)
-        Await.result(population ? Identify(0), timeout.duration)
+        scheduler ! ScheduleTrigger(InitializeTrigger(0), population)
 
         if (beamServices.iterationNumber == 0) {
           val maxHour = TimeUnit.SECONDS.toHours(scenario.getConfig.travelTimeCalculator().getMaxTime).toInt
@@ -224,6 +219,7 @@ class BeamMobsim @Inject()(
             context.stop(scheduler)
             context.stop(errorListener)
             context.stop(parkingManager)
+            context.stop(transitSystem)
             sharedVehicleFleets.foreach(context.stop)
             if (beamServices.beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
               debugActorWithTimerCancellable.cancel()

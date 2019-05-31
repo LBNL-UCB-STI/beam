@@ -18,7 +18,7 @@ import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.StreetRouter
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.vehicles.{Vehicle, Vehicles}
+import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -31,7 +31,6 @@ class TransitInitializer(
   dates: DateUtils,
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
   transportNetwork: TransportNetwork,
-  transitVehicles: Vehicles,
   travelTimeByLinkCalculator: (Int, Int, StreetMode) => Int
 ) extends ExponentialLazyLogging {
   private var numStopsNotFound = 0

@@ -6,7 +6,8 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, OneForOneStrategy}
 import akka.util.Timeout
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
+import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.router.{BeamRouter, TransitInitializer}
@@ -16,10 +17,6 @@ import beam.utils.NetworkHelper
 import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.vehicles.Vehicle
-
-import scala.collection.concurrent.TrieMap
-import scala.collection.mutable
 
 class TransitSystem(val beamScenario: BeamScenario, val scenario: Scenario, val transportNetwork: TransportNetwork, val scheduler: ActorRef, val parkingManager: ActorRef, val tollCalculator: TollCalculator, val geo: GeoUtils, val networkHelper: NetworkHelper, val eventsManager: EventsManager, val beamRouter: ActorRef) extends Actor with ActorLogging {
 
@@ -36,15 +33,14 @@ class TransitSystem(val beamScenario: BeamScenario, val scenario: Scenario, val 
       beamScenario.dates,
       beamScenario.vehicleTypes,
       transportNetwork,
-      scenario.getTransitVehicles,
       BeamRouter.oneSecondTravelTime
     )
-  val transits = initializer.initMap
-  val agencyAndRouteByVehicleIds = initDriverAgents(context, initializer, scheduler, parkingManager, transits)
+  initDriverAgents(context, initializer, scheduler, parkingManager, initializer.initMap)
   log.info("Transit schedule has been initialized")
 
   override def receive: Receive = {
-    case "Wurst" =>
+    case TriggerWithId(InitializeTrigger(_), triggerId) =>
+      sender ! CompletionNotice(triggerId, Vector())
   }
 
   private def initDriverAgents(
@@ -54,12 +50,9 @@ class TransitSystem(val beamScenario: BeamScenario, val scenario: Scenario, val 
                                 parkingManager: ActorRef,
                                 transits: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])]
                               ) = {
-    val agencyAndRouteByVehicleIds: mutable.Map[Id[Vehicle], (String, String)] = TrieMap()
     transits.foreach {
       case (tripVehId, (route, legs)) =>
         initializer.createTransitVehicle(tripVehId, route, legs).foreach { vehicle =>
-          agencyAndRouteByVehicleIds += (Id
-            .createVehicleId(tripVehId.toString) -> (route.agency_id, route.route_id))
           val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
           val transitDriverAgentProps = TransitDriverAgent.props(
             scheduler,
@@ -78,7 +71,6 @@ class TransitSystem(val beamScenario: BeamScenario, val scenario: Scenario, val 
           scheduler ! ScheduleTrigger(InitializeTrigger(0), transitDriver)
         }
     }
-    agencyAndRouteByVehicleIds.toMap
   }
 
 }

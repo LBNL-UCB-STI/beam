@@ -9,6 +9,8 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
+import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.osm.TollCalculator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.{BeamScenario, BeamServices}
@@ -59,6 +61,8 @@ class Population(
   initHouseholds()
 
   override def receive: PartialFunction[Any, Unit] = {
+    case TriggerWithId(InitializeTrigger(_), triggerId) =>
+      sender ! CompletionNotice(triggerId, Vector())
     case Terminated(_) =>
     // Do nothing
     case Finish =>

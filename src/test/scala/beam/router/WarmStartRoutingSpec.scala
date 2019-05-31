@@ -72,6 +72,7 @@ class WarmStartRoutingSpec
       .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
       .withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef("test/input/beamville/test-data"))
     val beamConfig = BeamConfig(config)
+    beamScenario = loadScenario(beamConfig)
     scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     var networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
