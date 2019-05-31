@@ -24,7 +24,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehiclePer
 import beam.agentsim.agents.{HasTickAndTrigger, InitializeTrigger, PersonAgent}
 import beam.agentsim.agents.{Dropoff, Pickup}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.RoutingResponse
@@ -431,7 +431,7 @@ object HouseholdActor {
           personAndActivityToLegs = personAndActivityToLegs - persActAndCAV._1
         }
 
-      case NotifyVehicleIdle(vId, whenWhere, _, _, _) =>
+      case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
         val vehId = vId.asInstanceOf[Id[BeamVehicle]]
         vehicles(vehId).spaceTime = whenWhere
         log.debug("updated vehicle {} with location {}", vehId, whenWhere)
@@ -481,19 +481,12 @@ object HouseholdActor {
         .sequence(vehicles.filter(_._2.beamVehicleType.automationLevel > 3).values.map { veh =>
           veh.manager = Some(self)
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
-          parkingManager ? ParkingInquiry(
-            homeCoord,
-            homeCoord,
-            "home",
-            AttributesOfIndividual.EMPTY,
-            None,
-            0,
-            0
-          ) flatMap {
-            case ParkingInquiryResponse(stall, _) =>
-              veh.useParkingStall(stall)
-              self ? ReleaseVehicleAndReply(veh)
+          for {
+            ParkingInquiryResponse(stall, _) <- parkingManager ? ParkingInquiry(homeCoord, "home", 0.0, None, 0)
+          } {
+            veh.useParkingStall(stall)
           }
+          self ? ReleaseVehicleAndReply(veh)
         })
         .map(_ => CompletionNotice(triggerId, triggersToSchedule))
         .pipeTo(schedulerRef)

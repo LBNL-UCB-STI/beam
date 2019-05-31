@@ -10,7 +10,6 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population}
-import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
@@ -98,7 +97,7 @@ class BeamMobsim @Inject()(
 
         private val parkingManager = context.actorOf(
           ZonalParkingManager
-            .props(beamServices, beamServices.beamRouter, ParkingStockAttributes(100)),
+            .props(beamServices, beamServices.beamRouter),
           "ParkingManager"
         )
         context.watch(parkingManager)
@@ -138,7 +137,10 @@ class BeamMobsim @Inject()(
         }
 
         private val sharedVehicleFleets = config.agents.vehicles.sharedFleets.map { fleetConfig =>
-          context.actorOf(Fleets.lookup(fleetConfig).props(beamServices, parkingManager), fleetConfig.name)
+          context.actorOf(
+            Fleets.lookup(fleetConfig).props(beamServices, beamSkimmer, scheduler, parkingManager),
+            fleetConfig.name
+          )
         }
         sharedVehicleFleets.foreach(context.watch)
         sharedVehicleFleets.foreach(scheduler ! ScheduleTrigger(InitializeTrigger(0), _))

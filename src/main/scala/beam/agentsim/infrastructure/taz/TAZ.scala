@@ -19,7 +19,8 @@ class TAZ(val tazId: Id[TAZ], val coord: Coord, val areaInSquareMeters: Double) 
 
 object TAZ {
 
-  val DefaultTAZId: Id[TAZ] = Id.create("NA", classOf[TAZ])
+  val DefaultTAZId: Id[TAZ] = Id.create("default", classOf[TAZ])
+  val EmergencyTAZId: Id[TAZ] = Id.create("emergency", classOf[TAZ])
 
   val DefaultTAZ: TAZ = new TAZ(DefaultTAZId, new Coord(), 0)
 

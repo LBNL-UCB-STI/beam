@@ -125,7 +125,7 @@ class RouterPerformanceSpec
       ),
       "router"
     )
-    val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(services, Some(router), None)
+    val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(services)
 
     within(60 seconds) { // Router can take a while to initialize
       router ! Identify(0)

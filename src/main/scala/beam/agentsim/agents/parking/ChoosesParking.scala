@@ -12,7 +12,6 @@ import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule}
 import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
-import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.charging.ChargingInquiry
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -24,6 +23,8 @@ import beam.sim.common.GeoUtils
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 
 import scala.concurrent.duration.Duration
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
+import beam.utils.ParkingManagerIdGenerator
 
 /**
   * BEAM
@@ -120,14 +121,20 @@ trait ChoosesParking extends {
       val lastLeg =
         personData.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId).last
 
+      val parkingDuration: Double = {
+        for {
+          act <- nextActivity(personData)
+          lastLegEndTime = lastLeg.beamLeg.endTime.toDouble
+        } yield act.getEndTime - lastLegEndTime
+      }.getOrElse(0.0)
+      val destinationUtm = beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc)
+
       parkingManager ! ParkingInquiry(
-        beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.startPoint.loc),
-        beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc),
+        destinationUtm,
         nextActivity(personData).get.getType,
-        attributes,
+        attributes.valueOfTime,
         getChargingInquiryData(personData, currentBeamVehicle),
-        lastLeg.beamLeg.endTime,
-        nextActivity(personData).get.getEndTime - lastLeg.beamLeg.endTime.toDouble
+        parkingDuration
       )
   }
   when(ReleasingParkingSpot, stateTimeout = Duration.Zero) {
