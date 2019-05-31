@@ -32,7 +32,9 @@ object ChargingPointType {
 
   // provide custom charging points
   case class CustomChargingPoint(id: String, installedCapacity: Double, electricCurrentType: ElectricCurrentType)
-      extends ChargingPointType
+      extends ChargingPointType {
+    override def toString: String = s"$id($installedCapacity,$electricCurrentType)"
+  }
 
   case object CustomChargingPoint {
 
@@ -64,12 +66,12 @@ object ChargingPointType {
       case "chargingstationccscombotype1" => Some(ChargingStationCcsComboType1)
       case "chargingstationccscombotype2" => Some(ChargingStationCcsComboType2)
       case "teslasupercharger"            => Some(TeslaSuperCharger)
-      case "nocharger" | "" => None
+      case "nocharger" | "none" | ""      => None
       case CustomChargingPointRegex(id, installedCapacity, currentType) =>
         Some(CustomChargingPoint(id, installedCapacity, currentType))
       case _ =>
         None
-        throw new IllegalArgumentException("invalid argument for ChargingPointType: " + s.trim)
+        throw new IllegalArgumentException("invalid argument for ChargingPointType: " + s.trim.toLowerCase)
     }
   }
 
