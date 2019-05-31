@@ -23,7 +23,7 @@ buildscript {
 plugins {
     id "net.ltgt.apt" version "0.5"
     id "de.undercouch.download" version "3.2.0"
-    id "org.scoverage" version "2.1.0"
+    id "org.scoverage" version "2.5.0"
     id 'maven-publish'
 }
 
