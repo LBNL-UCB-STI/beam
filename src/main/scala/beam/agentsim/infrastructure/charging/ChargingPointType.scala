@@ -65,10 +65,10 @@ object ChargingPointType {
 //      case "chargingstationccscombotype1" => Some(ChargingStationCcsComboType1)
 //      case "chargingstationccscombotype2" => Some(ChargingStationCcsComboType2)
 //      case "teslasupercharger"            => Some(TeslaSuperCharger)
-      case "level1"    => Some(HouseholdSocket)
-      case "level2"    => Some(ChargingStationType1)
-      case "dcfast"    => Some(ChargingStationCcsComboType2)
-      case "ultrafast" => Some(CustomChargingPoint(s.trim, "250", "dc"))
+//      case "level1"    => Some(HouseholdSocket)
+//      case "level2"    => Some(ChargingStationType1)
+//      case "dcfast"    => Some(ChargingStationCcsComboType2)
+//      case "ultrafast" => Some(CustomChargingPoint(s.trim, "250", "dc"))
 //      case "nocharger"                    => None
 //      case ""                             => None
 //      case CustomChargingPointRegex(id, installedCapacity, currentType) =>
