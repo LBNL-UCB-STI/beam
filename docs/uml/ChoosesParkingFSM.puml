@@ -1,0 +1,20 @@
+@startuml
+
+scale 1000 width
+skinparam stateBorderColor #black
+skinparam stateFontStyle bold
+skinparam arrowColor #black
+
+' BeamAgent: States '
+state ReleasingParkingSpot #eb1921
+
+state ChoosingParkingSpot #eb1921
+
+'Transition State'
+ReleasingParkingSpot --> ReleasingParkingSpot: StartLegTrigger
+ReleasingParkingSpot --> WaitingToDrive: StateTimeout
+ChoosingParkingSpot --> ChoosingParkingSpot : ParkingInquiryResponse
+ChoosingParkingSpot --> WaitingToDrive : RoutingResponse
+
+
+@enduml
