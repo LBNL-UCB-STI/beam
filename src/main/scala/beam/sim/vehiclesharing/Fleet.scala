@@ -24,10 +24,9 @@ trait FleetType {
   ): Props
 }
 
-private object RandomPointInTAZ {
-
+object RandomPointInTAZ {
   def get(taz: TAZ, rand: scala.util.Random): Coord = {
-    val radius = Math.sqrt(taz.areaInSquareMeters / Math.PI)
+    val radius = Math.sqrt(taz.areaInSquareMeters / Math.PI)/2
     val a = 2 * Math.PI * rand.nextDouble()
     val r = radius * Math.sqrt(rand.nextDouble())
     val x = r * Math.cos(a)
