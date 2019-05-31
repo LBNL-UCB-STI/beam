@@ -30,6 +30,13 @@ object ChargingPointType {
 
   case object TeslaSuperCharger extends ChargingPointType
 
+  // added back in because of integration tests which work with old files
+  case object Level1 extends ChargingPointType
+  case object Level2 extends ChargingPointType
+  case object DCFast extends ChargingPointType
+  case object UltraFast extends ChargingPointType
+  case object NoCharger extends ChargingPointType
+
   // provide custom charging points
   case class CustomChargingPoint(id: String, installedCapacity: Double, electricCurrentType: ElectricCurrentType)
       extends ChargingPointType
@@ -65,11 +72,11 @@ object ChargingPointType {
 //      case "chargingstationccscombotype1" => Some(ChargingStationCcsComboType1)
 //      case "chargingstationccscombotype2" => Some(ChargingStationCcsComboType2)
 //      case "teslasupercharger"            => Some(TeslaSuperCharger)
-//      case "level1"    => Some(HouseholdSocket)
-//      case "level2"    => Some(ChargingStationType1)
-//      case "dcfast"    => Some(ChargingStationCcsComboType2)
-//      case "ultrafast" => Some(CustomChargingPoint(s.trim, "250", "dc"))
-//      case "nocharger"                    => None
+      case "level1"    => Some(Level1)
+      case "level2"    => Some(Level2)
+      case "dcfast"    => Some(DCFast)
+      case "ultrafast" => Some(UltraFast)
+      case "nocharger"                    => Some(NoCharger)
 //      case ""                             => None
 //      case CustomChargingPointRegex(id, installedCapacity, currentType) =>
 //        Some(CustomChargingPoint(id, installedCapacity, currentType))
