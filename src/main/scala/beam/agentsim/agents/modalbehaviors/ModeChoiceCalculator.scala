@@ -1,7 +1,7 @@
 package beam.agentsim.agents.modalbehaviors
 
-import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
+import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.mode._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
