@@ -214,7 +214,7 @@ object AlonsoMoraPoolingAlgForRideHail {
   )(
     implicit skimmer: BeamSkimmer
   ): Option[List[MobilityRequest]] = {
-    val sortedRequests = requests.filter(_.tag != EnRoute).sortWith(_.baselineNonPooledTime < _.baselineNonPooledTime)
+    val sortedRequests = requests.sortWith(_.baselineNonPooledTime < _.baselineNonPooledTime)
     import scala.collection.mutable.{ListBuffer => MListBuffer}
     val newPoolingList = MListBuffer(sortedRequests.head.copy())
     sortedRequests.drop(1).foldLeft(()) {
@@ -347,7 +347,8 @@ object AlonsoMoraPoolingAlgForRideHail {
     }
     val res = VehicleAndSchedule(
       v1,
-      alonsoSchedule.sortBy(_.baselineNonPooledTime).reverse.toList,
+//      alonsoSchedule.sortBy(_.baselineNonPooledTime).reverse.takeWhile(_.tag != EnRoute).toList ++ alonsoSchedule.find(_.tag==EnRoute).toList ,
+      alonsoSchedule.sortBy(_.baselineNonPooledTime).reverse.toList ,
       veh.geofence,
       veh.vehicleType.seatingCapacity
     )
