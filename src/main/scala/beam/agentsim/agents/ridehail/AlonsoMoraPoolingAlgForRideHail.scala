@@ -23,11 +23,11 @@ import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
 
 class AlonsoMoraPoolingAlgForRideHail(
-  spatialDemand: QuadTree[CustomerRequest],
-  supply: List[VehicleAndSchedule],
-  timeWindow: Map[MobilityRequestTrait, Int],
-  maxRequestsPerVehicle: Int,
-  beamServices: BeamServices
+                                       spatialDemand: QuadTree[CustomerRequest],
+                                       supply: List[VehicleAndSchedule],
+                                       timeWindow: Map[MobilityRequestType, Int],
+                                       maxRequestsPerVehicle: Int,
+                                       beamServices: BeamServices
 )(implicit val skimmer: BeamSkimmer) {
 
   // Request Vehicle Graph
@@ -208,9 +208,9 @@ object AlonsoMoraPoolingAlgForRideHail {
   }
 
   def getRidehailSchedule(
-    timeWindow: Map[MobilityRequestTrait, Int],
-    requests: List[MobilityRequest],
-    beamServices: BeamServices
+                           timeWindow: Map[MobilityRequestType, Int],
+                           requests: List[MobilityRequest],
+                           beamServices: BeamServices
   )(
     implicit skimmer: BeamSkimmer
   ): Option[List[MobilityRequest]] = {

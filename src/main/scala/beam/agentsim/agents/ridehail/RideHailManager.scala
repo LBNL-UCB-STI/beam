@@ -13,18 +13,14 @@ import akka.util.Timeout
 import beam.agentsim
 import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.InitializeTrigger
+import beam.agentsim.agents.{Dropoff, InitializeTrigger, MobilityRequest, Pickup}
 import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -1245,8 +1241,8 @@ class RideHailManager(
 
   //TODO this doesn't distinguish fare by customer, lumps them all together
   def createTravelProposal(alloc: VehicleMatchedToCustomers): TravelProposal = {
-    val passSched = pickDropsToPassengerSchedule(alloc.pickDropIdWithRoutes)
-    val baseFare = alloc.pickDropIdWithRoutes.flatMap(_.leg.map(_.cost)).sum
+    val passSched = modilityRequestToPassengerSchedule(alloc.schedule)
+    val baseFare = alloc.schedule.flatMap(_.beamLegAfterTag.map(_.cost)).sum
     TravelProposal(
       alloc.rideHailAgentLocation,
       passSched,
@@ -1255,27 +1251,30 @@ class RideHailManager(
     )
   }
 
-  def pickDropsToPassengerSchedule(pickDrops: List[PickDropIdAndLeg]): PassengerSchedule = {
-    val consistentPickDrops =
-      pickDrops.map(_.personId).zip(BeamLeg.makeLegsConsistent(pickDrops.map(_.leg.map(_.beamLeg))))
-    val allLegs = consistentPickDrops.flatMap(_._2)
+  def modilityRequestToPassengerSchedule(pickDrops: List[MobilityRequest]): PassengerSchedule = {
+    val consistentSchedule = pickDrops.zip(BeamLeg.makeLegsConsistent(pickDrops.map(_.beamLegAfterTag.map(_.beamLeg))))
+    val allLegs = consistentSchedule.flatMap(_._2)
     var passSched = PassengerSchedule().addLegs(allLegs)
-    var pickDropsForGrouping: Map[VehiclePersonId, List[BeamLeg]] = Map()
     var passengersToAdd = Set[VehiclePersonId]()
-    consistentPickDrops.foreach {
-      case (Some(person), legOpt) =>
+    var pickDropsForGrouping: Map[VehiclePersonId, List[BeamLeg]] = Map()
+    consistentSchedule.foreach{
+      case (mobReq, legOpt) =>
+        mobReq.person.foreach { thePerson =>
+          mobReq.tag match {
+            case Pickup =>
+              passengersToAdd = passengersToAdd + thePerson
+            case Dropoff =>
+              passengersToAdd = passengersToAdd - thePerson
+            case _ =>
+          }
+        }
         legOpt.foreach { leg =>
           passengersToAdd.foreach { pass =>
             val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg
             pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
           }
         }
-        if (passengersToAdd.contains(person)) {
-          passengersToAdd = passengersToAdd - person
-        } else {
-          passengersToAdd = passengersToAdd + person
-        }
-      case (_, _) =>
+      case _ =>
     }
     pickDropsForGrouping.foreach { passAndLegs =>
       passSched = passSched.addPassenger(passAndLegs._1, passAndLegs._2)

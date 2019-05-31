@@ -10,7 +10,7 @@ import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail.{CustomerRequest, RVGraph, VehicleAndSchedule, _}
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehiclePersonId}
-import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
+import beam.agentsim.agents.{Dropoff, MobilityRequestType, Pickup}
 import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
@@ -89,7 +89,7 @@ class AlonsoMoraPoolingAlgForRideHailSpec
         new AlonsoMoraPoolingAlgForRideHail(
           AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(sc._2),
           sc._1,
-          Map[MobilityRequestTrait, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+          Map[MobilityRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
           maxRequestsPerVehicle = 1000,
           beamSvc
         )

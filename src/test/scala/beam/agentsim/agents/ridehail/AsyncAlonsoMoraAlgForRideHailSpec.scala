@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
-import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
+import beam.agentsim.agents.{Dropoff, MobilityRequestType, Pickup}
 import beam.agentsim.agents.choice.mode.ModeIncentive
 import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.planning.BeamPlan
@@ -87,7 +87,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
         new AsyncAlonsoMoraAlgForRideHail(
           AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(sc._2),
           sc._1,
-          Map[MobilityRequestTrait, Int]((Pickup, 7 * 60), (Dropoff, 10 * 60)),
+          Map[MobilityRequestType, Int]((Pickup, 7 * 60), (Dropoff, 10 * 60)),
           maxRequestsPerVehicle = 1000,
           beamSvc
         )
@@ -107,7 +107,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
         new AsyncAlonsoMoraAlgForRideHail(
           AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(sc._2),
           sc._1,
-          Map[MobilityRequestTrait, Int]((Pickup, 7 * 60), (Dropoff, 10 * 60)),
+          Map[MobilityRequestType, Int]((Pickup, 7 * 60), (Dropoff, 10 * 60)),
           maxRequestsPerVehicle = 1000,
           beamSvc
         )
@@ -176,7 +176,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
                 new AsyncAlonsoMoraAlgForRideHail(
                   AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(demand.toList),
                   fleet.toList,
-                  Map[MobilityRequestTrait, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+                  Map[MobilityRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
                   maxRequestsPerVehicle = 100,
                   beamSvc
                 )
@@ -187,7 +187,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
                 new AlonsoMoraPoolingAlgForRideHail(
                   AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(demand.toList),
                   fleet.toList,
-                  Map[MobilityRequestTrait, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+                  Map[MobilityRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
                   maxRequestsPerVehicle = 100,
                   beamSvc
                 )

@@ -1,6 +1,7 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import akka.actor.ActorRef
+import beam.agentsim.agents.MobilityRequest
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, PoolingInfo}
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
@@ -158,8 +159,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
           case Some(agentETA) =>
             alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId
             val pickDropIdAndLegs = List(
-              PickDropIdAndLeg(Some(request.customer), routingResponses.head.itineraries.head.legs.headOption),
-              PickDropIdAndLeg(Some(request.customer), routingResponses.last.itineraries.head.legs.headOption)
+//              PickDropIdAndLeg(Some(request.customer), routingResponses.head.itineraries.head.legs.headOption),
+//              PickDropIdAndLeg(Some(request.customer), routingResponses.last.itineraries.head.legs.headOption)
             )
             VehicleMatchedToCustomers(request, agentETA.agentLocation, pickDropIdAndLegs)
           case None =>
@@ -273,11 +274,10 @@ case class NoVehicleAllocated(request: RideHailRequest) extends VehicleAllocatio
 case class RoutingRequiredToAllocateVehicle(request: RideHailRequest, routesRequired: List[RoutingRequest])
     extends VehicleAllocation
 case class VehicleMatchedToCustomers(
-  request: RideHailRequest,
-  rideHailAgentLocation: RideHailAgentLocation,
-  pickDropIdWithRoutes: List[PickDropIdAndLeg]
+                                      request: RideHailRequest,
+                                      rideHailAgentLocation: RideHailAgentLocation,
+                                      schedule: List[MobilityRequest]
 ) extends VehicleAllocation
-case class PickDropIdAndLeg(personId: Option[VehiclePersonId], leg: Option[EmbodiedBeamLeg])
 
 case class AllocationRequests(requests: Map[RideHailRequest, List[RoutingResponse]])
 

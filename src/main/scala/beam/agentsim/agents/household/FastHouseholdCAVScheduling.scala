@@ -24,13 +24,13 @@ import scala.collection.mutable
 import scala.util.control.Breaks._
 
 class FastHouseholdCAVScheduling(
-  val household: Household,
-  val householdVehicles: List[BeamVehicle],
-  val timeWindow: Map[MobilityRequestTrait, Int],
-  val stopSearchAfterXSolutions: Int = 100,
-  val limitCavToXPersons: Int = 3,
-  val skimmer: BeamSkimmer,
-  val beamServices: Option[BeamServices] = None
+                                  val household: Household,
+                                  val householdVehicles: List[BeamVehicle],
+                                  val timeWindow: Map[MobilityRequestType, Int],
+                                  val stopSearchAfterXSolutions: Int = 100,
+                                  val limitCavToXPersons: Int = 3,
+                                  val skimmer: BeamSkimmer,
+                                  val beamServices: Option[BeamServices] = None
 )(implicit val population: org.matsim.api.core.v01.population.Population) {
 
   import scala.collection.mutable.{ListBuffer => MListBuffer}
@@ -135,7 +135,7 @@ class FastHouseholdCAVScheduling(
       cav: BeamVehicle,
       cavSchedule: CAVSchedule,
       requests: List[MobilityRequest],
-      timeWindow: Map[MobilityRequestTrait, Int]
+      timeWindow: Map[MobilityRequestType, Int]
     ): Option[HouseholdSchedule] = {
       if (cavSchedule.occupancy >= cav.beamVehicleType.seatingCapacity)
         return None
@@ -336,12 +336,12 @@ case class HouseholdTrips(
 object HouseholdTrips {
 
   def get(
-    household: Household,
-    householdVehicles: List[BeamVehicle],
-    limitCavToXPersons: Int,
-    householdNbOfVehicles: Int,
-    timeWindow: Map[MobilityRequestTrait, Int],
-    skim: BeamSkimmer
+           household: Household,
+           householdVehicles: List[BeamVehicle],
+           limitCavToXPersons: Int,
+           householdNbOfVehicles: Int,
+           timeWindow: Map[MobilityRequestType, Int],
+           skim: BeamSkimmer
   )(implicit population: org.matsim.api.core.v01.population.Population): Option[HouseholdTrips] = {
     import beam.agentsim.agents.memberships.Memberships.RankedGroup._
     val householdPlans = household.members

@@ -84,40 +84,32 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       } else {
         // Make sure vehicle still available
         val vehicleId = routeResponses.head.itineraries.head.legs.head.beamVehicleId
-        if (rideHailManager.vehicleManager.getIdleVehicles.contains(vehicleId) && !alreadyAllocated.contains(vehicleId)) {
+        if (rideHailManager.vehicleManager.getIdleAndInServiceVehicles.contains(vehicleId) && !alreadyAllocated.contains(vehicleId)) {
           alreadyAllocated = alreadyAllocated + vehicleId
           // NOTE: PickDrops use convention of storing an optional person Id and leg. The leg is intended to be the leg
           // **to** the pickup or dropoff, not from the pickup or dropoff. This is the reverse of the convention used
           // in MobilityServiceRequest
-          val pickDropIdAndLegs = if (tempScheduleStore.contains(request.requestId)) {
+          val requestsWithLegs = if (tempScheduleStore.contains(request.requestId)) {
             // Pooled response
-            val mobilityServiceRequests = tempScheduleStore.remove(request.requestId).get
-
-            mobilityServiceRequests
-              .sliding(2)
-              .map { reqs =>
-                reqs.head.routingRequestId match {
-                  case Some(routingRequestId) =>
-                    PickDropIdAndLeg(
-                      reqs.last.person,
-                      indexedResponses(routingRequestId).itineraries.head.legs.headOption
-                    )
-                  case None =>
-                    PickDropIdAndLeg(reqs.last.person, None)
-                }
+            tempScheduleStore.remove(request.requestId).get.map{ req =>
+              req.routingRequestId match {
+                case Some(routingRequestId) =>
+                  req.copy(beamLegAfterTag = indexedResponses(routingRequestId).itineraries.head.legs.headOption)
+                case None =>
+                  req
               }
-              .toList
+            }
           } else {
             // Solo response
             List(
-              PickDropIdAndLeg(Some(request.customer), routeResponses.head.itineraries.head.legs.headOption),
-              PickDropIdAndLeg(Some(request.customer), routeResponses.last.itineraries.head.legs.headOption)
+//              PickDropIdAndLeg(Some(request.customer), routeResponses.head.itineraries.head.legs.headOption),
+//              PickDropIdAndLeg(Some(request.customer), routeResponses.last.itineraries.head.legs.headOption)
             )
           }
           allocResponses = allocResponses :+ VehicleMatchedToCustomers(
             request,
-            rideHailManager.vehicleManager.getIdleVehicles(vehicleId),
-            pickDropIdAndLegs
+            rideHailManager.vehicleManager.getIdleAndInServiceVehicles(vehicleId),
+            requestsWithLegs
           )
         } else {
           if (tempScheduleStore.contains(request.requestId)) tempScheduleStore.remove(request.requestId)
@@ -172,7 +164,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val algo = new AsyncAlonsoMoraAlgForRideHail(
         spatialPoolCustomerReqs,
         if(availVehicles.find(_.getFreeSeats <4).isDefined){ availVehicles.filter(_.getFreeSeats <4).toList}else{availVehicles.toList},
-        Map[MobilityRequestTrait, Int]((Pickup, pickupWindow), (Dropoff, dropoffWindow),(EnRoute,Int.MaxValue-30000000)),
+        Map[MobilityRequestType, Int]((Pickup, pickupWindow), (Dropoff, dropoffWindow),(EnRoute,Int.MaxValue-30000000)),
         maxRequestsPerVehicle = maxRequests,
         rideHailManager.beamServices
       )
