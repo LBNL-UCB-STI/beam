@@ -111,11 +111,13 @@ class AvailabilityBasedRepositioning(repositionManager: RepositionManager) exten
       ODs.foreach {
         case (org, dst, tt, fleetSizeToReposition) =>
           val arrivalTime = now + tt
-          val vehiclesForRepositionTemp = mutable.ListBuffer.empty[(BeamVehicle, SpaceTime, Id[TAZ], SpaceTime, Id[TAZ])]
+          val vehiclesForRepositionTemp =
+            mutable.ListBuffer.empty[(BeamVehicle, SpaceTime, Id[TAZ], SpaceTime, Id[TAZ])]
           availableVehicles
             .filter(
               v =>
-                org.taz == repositionManager.getBeamServices.tazTreeMap.getTAZ(v.spaceTime.loc.getX, v.spaceTime.loc.getY)
+                org.taz == repositionManager.getBeamServices.tazTreeMap
+                  .getTAZ(v.spaceTime.loc.getX, v.spaceTime.loc.getY)
             )
             .take(fleetSizeToReposition)
             .map(
