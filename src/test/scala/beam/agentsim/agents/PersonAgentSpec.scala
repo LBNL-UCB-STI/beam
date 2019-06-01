@@ -2,7 +2,7 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{Actor, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
 import akka.util.Timeout
@@ -53,7 +53,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.Await
 
 class PersonAgentSpec
@@ -135,18 +135,21 @@ class PersonAgentSpec
   // Mock a transit driver (who has to be a child of a mock router)
   private lazy val transitDriverProps = Props(new ForwardActor(self))
 
-  private val router = system.actorOf(
-    Props(
-      new Actor() {
-        context.actorOf(transitDriverProps, "TransitDriverAgent-my_bus")
-        context.actorOf(transitDriverProps, "TransitDriverAgent-my_tram")
+  val iteration: ActorRef = system.actorOf(
+    Props(new Actor() {
+      context.actorOf(
+        Props(new Actor() {
+          context.actorOf(transitDriverProps, "TransitDriverAgent-my_bus")
+          context.actorOf(transitDriverProps, "TransitDriverAgent-my_tram")
 
-        override def receive: Receive = {
-          case _ =>
-        }
-      }
-    ),
-    "router"
+          override def receive: Receive = Actor.emptyBehavior
+        }),
+        "transit-system"
+      )
+
+      override def receive: Receive = Actor.emptyBehavior
+    }),
+    "BeamMobsim.iteration"
   )
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
@@ -462,13 +465,13 @@ class PersonAgentSpec
 
       bus.becomeDriver(
         Await.result(
-          system.actorSelection("/user/router/TransitDriverAgent-my_bus").resolveOne(),
+          system.actorSelection("/user/BeamMobsim.iteration/transit-system/TransitDriverAgent-my_bus").resolveOne(),
           timeout.duration
         )
       )
       tram.becomeDriver(
         Await.result(
-          system.actorSelection("/user/router/TransitDriverAgent-my_tram").resolveOne(),
+          system.actorSelection("/user/BeamMobsim.iteration/transit-system/TransitDriverAgent-my_tram").resolveOne(),
           timeout.duration
         )
       )
