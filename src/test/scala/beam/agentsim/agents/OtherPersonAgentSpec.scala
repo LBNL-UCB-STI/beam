@@ -149,16 +149,19 @@ class OtherPersonAgentSpec
   describe("A PersonAgent FSM") {
     it("should also work when the first bus is late") {
       val mockDriverProps = Props(new ForwardActor(self))
-      val router: ActorRef = system.actorOf(
-        Props(new Actor() {
-          context.actorOf(mockDriverProps, "TransitDriverAgent-my_bus")
-          context.actorOf(mockDriverProps, "TransitDriverAgent-my_tram")
-          override def receive: Receive = {
-            case _ =>
-          }
-        }),
-        "router"
-      )
+      val iteration: ActorRef = system.actorOf(Props(new Actor() {
+        context.actorOf(
+          Props(new Actor() {
+            context.actorOf(mockDriverProps, "TransitDriverAgent-my_bus")
+            context.actorOf(mockDriverProps, "TransitDriverAgent-my_tram")
+
+            override def receive: Receive = Actor.emptyBehavior
+          }),
+          "transit-system"
+        )
+
+        override def receive: Receive = Actor.emptyBehavior
+      }), "BeamMobsim.iteration")
 
       val beamVehicleId = Id.createVehicleId("my_bus")
 
@@ -291,7 +294,7 @@ class OtherPersonAgentSpec
       bus.becomeDriver(
         Await.result(
           system
-            .actorSelection("/user/router/TransitDriverAgent-my_bus")
+            .actorSelection("/user/BeamMobsim.iteration/transit-system/TransitDriverAgent-my_bus")
             .resolveOne(),
           timeout.duration
         )
@@ -299,7 +302,7 @@ class OtherPersonAgentSpec
       tram.becomeDriver(
         Await.result(
           system
-            .actorSelection("/user/router/TransitDriverAgent-my_tram")
+            .actorSelection("/user/BeamMobsim.iteration/transit-system/TransitDriverAgent-my_tram")
             .resolveOne(),
           timeout.duration
         )
