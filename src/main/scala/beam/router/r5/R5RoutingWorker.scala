@@ -63,7 +63,8 @@ case class WorkerParameters(
   networkHelper: NetworkHelper,
   fareCalculator: FareCalculator,
   tollCalculator: TollCalculator,
-  travelTimeAndCost: TravelTimeAndCost
+  travelTimeAndCost: TravelTimeAndCost,
+  transitSchedule: Map[Id[BeamVehicle], (RouteInfo, ArrayBuffer[BeamLeg])]
 )
 
 case class LegWithFare(leg: BeamLeg, fare: Double)
@@ -108,6 +109,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           mode: BeamMode
         ): TimeAndCost = TimeAndCost(None, None)
       }
+      val transitSchedule = new TransitInitializer(beamConfig, dates, vehicleTypes, networkCoordinator.transportNetwork, BeamRouter.oneSecondTravelTime).initMap
       BeamRouter.checkForConsistentTimeZoneOffsets(dates, networkCoordinator.transportNetwork)
       WorkerParameters(
         beamConfig,
@@ -120,7 +122,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         new NetworkHelperImpl(networkCoordinator.network),
         fareCalculator,
         tollCalculator,
-        travelTimeAndCost
+        travelTimeAndCost,
+        transitSchedule
       )
     })
   }
@@ -136,7 +139,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     networkHelper,
     fareCalculator,
     tollCalculator,
-    travelTimeAndCost
+    travelTimeAndCost,
+    transitSchedule
   ) = workerParams
 
   private val numOfThreads: Int =
@@ -164,14 +168,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   private var workAssigner: ActorRef = context.parent
 
   private var travelTime: TravelTime = new FreeFlowTravelTime
-
-  private val transitSchedule: Map[Id[BeamVehicle], (RouteInfo, ArrayBuffer[BeamLeg])] = new TransitInitializer(
-    beamConfig,
-    dates,
-    vehicleTypes,
-    transportNetwork,
-    BeamRouter.oneSecondTravelTime
-  ).initMap
 
   private def agencyAndRoute(vehicleId: Id[Vehicle]):  (String, String) = {
     val route = transitSchedule(Id.createVehicleId(vehicleId.toString))._1
@@ -706,9 +702,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               for ((beamLeg, index) <- tripWithFares.trip.legs.zipWithIndex) yield {
                 var cost = tripWithFares.legFares.getOrElse(index, 0.0)
                 val age = request.attributesOfIndividual.flatMap(_.age)
-                val (agencyId, routeId) = agencyAndRoute(beamLeg.travelPath.transitStops.get.vehicleId)
-                cost = ptFares.getPtFare(Some(agencyId), Some(routeId), age).getOrElse(cost)
-
+                if (Modes.isR5TransitMode(beamLeg.mode)) {
+                  val (agencyId, routeId) = agencyAndRoute(beamLeg.travelPath.transitStops.get.vehicleId)
+                  cost = ptFares.getPtFare(Some(agencyId), Some(routeId), age).getOrElse(cost)
+                }
                 if (Modes.isR5TransitMode(beamLeg.mode)) {
                   EmbodiedBeamLeg(
                     beamLeg,
@@ -1181,7 +1178,8 @@ object R5RoutingWorker {
         networkHelper,
         fareCalculator,
         tollCalculator,
-        travelTimeAndCost
+        travelTimeAndCost,
+        beamScenario.transitSchedule
       )
     )
   )

@@ -6,10 +6,10 @@ import beam.agentsim.events.ModeChoiceEvent
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
-import beam.sim.{BeamHelper, BeamScenario, BeamServices}
+import beam.sim.{BeamHelper, BeamServices}
 import beam.tags.{ExcludeRegular, Periodic}
-import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.AbstractModule
@@ -49,6 +49,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
       val beamConfig = BeamConfig(config)
 
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+      val beamScenario = loadScenario(beamConfig)
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
       val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
       networkCoordinator.loadNetwork()
@@ -61,7 +62,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
         scenario.getConfig,
         new AbstractModule() {
           override def install(): Unit = {
-            install(module(config, scenario, networkCoordinator, networkHelper))
+            install(module(config, scenario, beamScenario))
             addEventHandlerBinding().toInstance(new BasicEventHandler {
               override def handleEvent(event: Event): Unit = {
                 event match {
@@ -77,7 +78,6 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
         }
       )
       val services = injector.getInstance(classOf[BeamServices])
-      val beamScenario = injector.getInstance(classOf[BeamScenario])
       DefaultPopulationAdjustment(services, beamScenario).update(scenario)
       val controler = services.controler
       controler.run()

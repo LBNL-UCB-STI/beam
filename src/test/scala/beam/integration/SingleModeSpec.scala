@@ -41,7 +41,6 @@ class SingleModeSpec
   var services: BeamServices = _
   var nextId: Int = 0
   var system: ActorSystem = _
-  lazy val beamScenario = loadScenario(beamCfg)
 
   override def beforeEach: Unit = {
     // Create brand new Actor system every time (just to make sure that the same actor names can be reused)
@@ -61,8 +60,8 @@ class SingleModeSpec
     router = system.actorOf(
       BeamRouter.props(
         beamScenario,
-        networkCoordinator.transportNetwork,
-        networkCoordinator.network,
+        beamScenario.transportNetwork,
+        beamScenario.network,
         networkHelper,
         new GeoUtilsImpl(beamCfg),
         scenario,
@@ -109,7 +108,7 @@ class SingleModeSpec
       val mobsim = new BeamMobsim(
         services,
         beamScenario,
-        networkCoordinator.transportNetwork,
+        beamScenario.transportNetwork,
         tollCalculator,
         scenario,
         eventsManager,
@@ -157,7 +156,7 @@ class SingleModeSpec
       val mobsim = new BeamMobsim(
         services,
         beamScenario,
-        networkCoordinator.transportNetwork,
+        beamScenario.transportNetwork,
         tollCalculator,
         scenario,
         eventsManager,
@@ -224,7 +223,7 @@ class SingleModeSpec
       val mobsim = new BeamMobsim(
         services,
         beamScenario,
-        networkCoordinator.transportNetwork,
+        beamScenario.transportNetwork,
         tollCalculator,
         scenario,
         eventsManager,
@@ -296,7 +295,7 @@ class SingleModeSpec
       val mobsim = new BeamMobsim(
         services,
         beamScenario,
-        networkCoordinator.transportNetwork,
+        beamScenario.transportNetwork,
         tollCalculator,
         scenario,
         eventsManager,

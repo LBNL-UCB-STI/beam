@@ -100,7 +100,7 @@ public class StatsFactory {
             case VehicleMilesTraveled:
                 return new VehicleMilesTraveledAnalysis(beamScenario.vehicleTypes().keySet());
             case NumberOfVehicles:
-                return new NumberOfVehiclesAnalysis(beamServices);
+                return new NumberOfVehiclesAnalysis(beamScenario);
             case PersonCost:
                 return new PersonCostAnalysis(beamServices);
             case AboveCapacityPtUsageDuration:

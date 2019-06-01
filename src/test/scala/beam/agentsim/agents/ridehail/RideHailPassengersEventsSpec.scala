@@ -28,19 +28,12 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
-      val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
-      networkCoordinator.loadNetwork()
-      networkCoordinator.convertFrequenciesToTrips()
-
-      val scenario =
-        ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-      scenario.setNetwork(networkCoordinator.network)
-
-      val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
+      val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+      scenario.setNetwork(beamScenario.network)
 
       val injector = org.matsim.core.controler.Injector.createInjector(
         scenario.getConfig,
-        module(baseConfig, scenario, networkCoordinator, networkHelper)
+        module(baseConfig, scenario, beamScenario)
       )
 
       val beamServices: BeamServices =

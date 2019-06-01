@@ -38,9 +38,9 @@ class AbstractSfLightSpec(val name: String)
     router = system.actorOf(
       BeamRouter.props(
         beamScenario,
-        networkCoordinator.transportNetwork,
-        networkCoordinator.network,
-        new NetworkHelperImpl(networkCoordinator.network),
+        beamScenario.transportNetwork,
+        beamScenario.network,
+        new NetworkHelperImpl(beamScenario.network),
         new GeoUtilsImpl(beamScenario.beamConfig),
         scenario,
         scenario.getTransitVehicles,

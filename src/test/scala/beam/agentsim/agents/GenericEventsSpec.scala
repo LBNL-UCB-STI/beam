@@ -17,7 +17,6 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
   protected var beamServices: BeamServices = _
   protected var beamScenario: BeamScenario = _
   protected var eventManager: EventsManager = _
-  protected var networkCoordinator: DefaultNetworkCoordinator = _
   protected var scenario: Scenario = _
 
   override def beforeAll(): Unit = {
@@ -29,18 +28,12 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
-    networkCoordinator = DefaultNetworkCoordinator(beamConfig)
-    networkCoordinator.loadNetwork()
-    networkCoordinator.convertFrequenciesToTrips()
-
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-    scenario.setNetwork(networkCoordinator.network)
-
-    val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
+    scenario.setNetwork(beamScenario.network)
 
     val injector = org.matsim.core.controler.Injector.createInjector(
       matsimConfig,
-      module(baseConfig, scenario, networkCoordinator, networkHelper)
+      module(baseConfig, scenario, beamScenario)
     )
 
     beamServices = injector.getInstance(classOf[BeamServices])

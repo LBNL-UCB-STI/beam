@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorRef
 import akka.util.Timeout
-import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
+import beam.agentsim.agents.choice.mode.ModeIncentive
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.infrastructure.TAZTreeMap
@@ -24,7 +24,6 @@ import org.matsim.core.utils.collections.QuadTree
 import org.matsim.households.Household
 import org.slf4j.LoggerFactory
 
-import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
 
 @ImplementedBy(classOf[BeamServicesImpl])
@@ -47,8 +46,6 @@ trait BeamServices {
   def startNewIteration()
 
   def networkHelper: NetworkHelper
-  var transitFleetSizes: mutable.HashMap[String, Integer] = mutable.HashMap.empty
-  def setTransitFleetSizes(tripFleetSizeMap: mutable.HashMap[String, Integer])
 
   def getModalBehaviors(): ModalBehaviors = {
     beamConfig.beam.agentsim.agents.modalBehaviors
@@ -95,10 +92,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   def startNewIteration(): Unit = {
     iterationNumber += 1
     Metrics.iterationNumber = iterationNumber
-  }
-
-  override def setTransitFleetSizes(tripFleetSizeMap: mutable.HashMap[String, Integer]): Unit = {
-    this.transitFleetSizes = tripFleetSizeMap
   }
 
   private val _networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])

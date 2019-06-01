@@ -66,16 +66,10 @@ abstract class SimRunnerForTest extends BeamHelper {
     odh.createIterationDirectory(0)
     odh
   }
-
+  lazy val beamScenario = loadScenario(beamCfg)
   lazy val matsimSvc: MatsimServices = new MatsimServicesMock(outputDirectoryHierarchy, scenario)
   lazy val scenario = ScenarioUtils.loadScenario(matsimConfig)
-  lazy val networkCoordinator = {
-    val nc = DefaultNetworkCoordinator(beamCfg)
-    nc.loadNetwork()
-    nc.convertFrequenciesToTrips()
-    nc
-  }
-  lazy val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
+  lazy val networkHelper = new NetworkHelperImpl(beamScenario.network)
   lazy val injector = Guice.createInjector(new AbstractModule() {
     protected def configure(): Unit = {
       bind(classOf[BeamConfig]).toInstance(beamCfg)

@@ -18,7 +18,7 @@ import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
-import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TransitInitializer, TravelTimeObserved}
+import beam.router._
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
 import beam.sim.BeamServices.{FuelTypePrices, getTazTreeMap}
@@ -39,6 +39,7 @@ import com.google.inject
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
+import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -125,8 +126,7 @@ trait BeamHelper extends LazyLogging {
   def module(
     typesafeConfig: TypesafeConfig,
     scenario: Scenario,
-    networkCoordinator: NetworkCoordinator,
-    networkHelper: NetworkHelper
+    beamScenario: BeamScenario
   ): com.google.inject.Module =
     AbstractModule.`override`(
       ListBuffer(new AbstractModule() {
@@ -187,19 +187,17 @@ trait BeamHelper extends LazyLogging {
               override def convert(value: String): MapStringDouble =
                 MapStringDouble(mapper.readValue(value, classOf[Map[String, Double]]))
             })
-          bind(classOf[TransportNetwork]).toInstance(networkCoordinator.transportNetwork)
+          bind(classOf[BeamScenario]).toInstance(beamScenario)
+          bind(classOf[TransportNetwork]).toInstance(beamScenario.transportNetwork)
           bind(classOf[TravelTimeCalculator]).toInstance(
             new FakeTravelTimeCalculator(
-              networkCoordinator.network,
+              beamScenario.network,
               new TravelTimeCalculatorConfigGroup()
             )
           )
 
-          bind(classOf[NetworkHelper]).toInstance(networkHelper)
+          bind(classOf[NetworkHelper]).toInstance(new NetworkHelperImpl(beamScenario.network))
           bind(classOf[TAZTreeMap]).toInstance(getTazTreeMap(beamConfig.beam.agentsim.taz.filePath))
-
-          bind(classOf[BeamScenario]).toInstance(loadScenario(beamConfig))
-
           bind(classOf[RideHailIterationHistory]).asEagerSingleton()
           bind(classOf[RouteHistory]).asEagerSingleton()
           bind(classOf[BeamSkimmer]).asEagerSingleton()
@@ -234,11 +232,12 @@ trait BeamHelper extends LazyLogging {
       ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
     )
 
+    val networkCoordinator = buildNetworkCoordinator(beamConfig)
     val transitSchedule = new TransitInitializer(
       beamConfig,
       dates,
       vehicleTypes,
-      transportNetwork,
+      networkCoordinator.transportNetwork,
       BeamRouter.oneSecondTravelTime
     ).initMap
 
@@ -253,7 +252,9 @@ trait BeamHelper extends LazyLogging {
       beamConfig,
       dates,
       PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath),
-      transitSchedule
+      networkCoordinator.transportNetwork,
+      transitSchedule,
+      networkCoordinator.network
     )
   }
 
@@ -394,12 +395,7 @@ trait BeamHelper extends LazyLogging {
     if (isMetricsEnable) Kamon.start(clusterConfig.withFallback(ConfigFactory.defaultReference()))
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
-    import akka.cluster.singleton.{
-      ClusterSingletonManager,
-      ClusterSingletonManagerSettings,
-      ClusterSingletonProxy,
-      ClusterSingletonProxySettings
-    }
+    import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
@@ -450,10 +446,10 @@ trait BeamHelper extends LazyLogging {
 
   def runBeamWithConfig(config: TypesafeConfig): (MatsimConfig, String) = {
     val beamExecutionConfig = setupBeamWithConfig(config)
-    val networkCoordinator: NetworkCoordinator = buildNetworkCoordinator(beamExecutionConfig.beamConfig)
-    val defaultScenario = buildScenarioFromMatsimConfig(beamExecutionConfig.matsimConfig, networkCoordinator)
-    val injector: inject.Injector = buildInjector(config, defaultScenario, networkCoordinator)
-    val services = buildBeamServices(injector, defaultScenario, beamExecutionConfig.matsimConfig, networkCoordinator)
+    val beamScenario: BeamScenario = loadScenario(beamExecutionConfig.beamConfig)
+    val defaultScenario = buildScenarioFromMatsimConfig(beamExecutionConfig.matsimConfig, beamScenario)
+    val injector: inject.Injector = buildInjector(config, defaultScenario, beamScenario)
+    val services = buildBeamServices(injector, defaultScenario)
 
     warmStart(beamExecutionConfig.beamConfig, beamExecutionConfig.matsimConfig)
 
@@ -461,7 +457,6 @@ trait BeamHelper extends LazyLogging {
       services,
       defaultScenario,
       injector.getInstance(classOf[BeamScenario]),
-      networkCoordinator,
       beamExecutionConfig.outputDirectory
     )
     (defaultScenario.getConfig, beamExecutionConfig.outputDirectory)
@@ -489,37 +484,31 @@ trait BeamHelper extends LazyLogging {
 
   protected def buildScenarioFromMatsimConfig(
     matsimConfig: MatsimConfig,
-    networkCoordinator: NetworkCoordinator
+    beamScenario: BeamScenario
   ): MutableScenario = {
     val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     fixDanglingPersons(result)
-    result.setNetwork(networkCoordinator.network)
+    result.setNetwork(beamScenario.network)
     result
   }
 
   def buildBeamServices(
     injector: inject.Injector,
     scenario: MutableScenario,
-    matsimConfig: MatsimConfig,
-    networkCoordinator: NetworkCoordinator
   ): BeamServices = {
     val result = injector.getInstance(classOf[BeamServices])
-    result.setTransitFleetSizes(networkCoordinator.tripFleetSizeMap)
-
-    fillScenarioWithExternalSources(injector, scenario, matsimConfig, networkCoordinator, result)
-
+    fillScenarioWithExternalSources(injector, scenario, result)
     result
   }
 
   protected def buildInjector(
     config: TypesafeConfig,
     scenario: MutableScenario,
-    networkCoordinator: NetworkCoordinator
+    beamScenario: BeamScenario
   ): inject.Injector = {
-    val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
     org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
-      module(config, scenario, networkCoordinator, networkHelper)
+      module(config, scenario, beamScenario)
     )
   }
 
@@ -527,11 +516,8 @@ trait BeamHelper extends LazyLogging {
     beamServices: BeamServices,
     scenario: MutableScenario,
     beamScenario: BeamScenario,
-    networkCoordinator: NetworkCoordinator,
     outputDir: String
   ): Unit = {
-    networkCoordinator.convertFrequenciesToTrips()
-
     samplePopulation(scenario, beamScenario, beamServices.beamConfig, scenario.getConfig, beamServices, outputDir)
 
     val houseHoldVehiclesInScenario: Iterable[Id[Vehicle]] = scenario.getHouseholds.getHouseholds
@@ -554,8 +540,6 @@ trait BeamHelper extends LazyLogging {
   protected def fillScenarioWithExternalSources(
     injector: inject.Injector,
     matsimScenario: MutableScenario,
-    matsimConfig: MatsimConfig,
-    networkCoordinator: NetworkCoordinator,
     beamServices: BeamServices
   ): Unit = {
     val beamConfig = beamServices.beamConfig
@@ -798,5 +782,7 @@ case class BeamScenario(
   beamConfig: BeamConfig,
   dates: DateUtils,
   ptFares: PtFares,
-  transitSchedule: Map[Id[BeamVehicle], (RouteInfo, ArrayBuffer[BeamLeg])]
+  transportNetwork: TransportNetwork,
+  transitSchedule: Map[Id[BeamVehicle], (RouteInfo, ArrayBuffer[BeamLeg])],
+  network: Network
 )

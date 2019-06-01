@@ -2,12 +2,11 @@ package beam.integration
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, PersonCostEvent}
 import beam.router.Modes.BeamMode
-import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.population.PopulationAdjustment.EXCLUDED_MODES
 import beam.sim.{BeamHelper, BeamServices}
-import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
+import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.Id
@@ -70,11 +69,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
     val beamScenario = loadScenario(beamConfig)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-    val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
-    networkCoordinator.loadNetwork()
-    networkCoordinator.convertFrequenciesToTrips()
-    val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
-    scenario.setNetwork(networkCoordinator.network)
+    scenario.setNetwork(beamScenario.network)
     var nonCarTrips = 0
     var trips = 0
     var sharedCarTravelTime = 0
@@ -83,7 +78,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
       scenario.getConfig,
       new AbstractModule() {
         override def install(): Unit = {
-          install(module(config, scenario, networkCoordinator, networkHelper))
+          install(module(config, scenario, beamScenario))
           addEventHandlerBinding().toInstance(new BasicEventHandler {
             override def handleEvent(event: Event): Unit = {
               event match {
