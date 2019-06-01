@@ -192,12 +192,6 @@ class BeamMobsim @Inject()(
         context.watch(population)
         scheduler ! ScheduleTrigger(InitializeTrigger(0), population)
 
-        if (beamServices.iterationNumber == 0) {
-          val maxHour = TimeUnit.SECONDS.toHours(scenario.getConfig.travelTimeCalculator().getMaxTime).toInt
-          val warmStart = BeamWarmStart(beamServices.beamConfig, maxHour)
-          warmStart.warmStartTravelTime(beamServices.beamRouter, scenario)
-        }
-
         scheduleRideHailManagerTimerMessages()
 
         def prepareMemoryLoggingTimerActor(

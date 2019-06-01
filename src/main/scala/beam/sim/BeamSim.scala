@@ -116,6 +116,9 @@ class BeamSim @Inject()(
       ),
       "router"
     )
+    val maxHour = TimeUnit.SECONDS.toHours(scenario.getConfig.travelTimeCalculator().getMaxTime).toInt
+    val warmStart = BeamWarmStart(beamServices.beamConfig, maxHour)
+    warmStart.warmStartTravelTime(beamServices.beamRouter, scenario)
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
     beamServices.matsimServices = event.getServices
