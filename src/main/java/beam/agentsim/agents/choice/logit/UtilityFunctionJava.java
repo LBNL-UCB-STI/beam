@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
-public class UtilityFunction {
+public class UtilityFunctionJava {
 
     private Map<String, Double> coefficients = new HashMap<>();
     private Map<String, LogitCoefficientType> coefficientTypes = new HashMap<>();

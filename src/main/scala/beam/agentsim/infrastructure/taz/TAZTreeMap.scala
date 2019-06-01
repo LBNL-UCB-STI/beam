@@ -1,10 +1,9 @@
-package beam.agentsim.infrastructure
+package beam.agentsim.infrastructure.taz
 
 import java.io._
 import java.util
 import java.util.zip.GZIPInputStream
 
-import beam.agentsim.infrastructure.TAZTreeMap.TAZ
 import beam.utils.matsim_conversion.ShapeUtils.{CsvTaz, QuadTreeBounds}
 import com.vividsolutions.jts.geom.Geometry
 import org.matsim.api.core.v01.{Coord, Id}
@@ -182,11 +181,4 @@ object TAZTreeMap {
     }
     res
   }
-
-  class TAZ(val tazId: Id[TAZ], val coord: Coord, val areaInSquareMeters: Double) {
-    def this(tazIdString: String, coord: Coord, area: Double) {
-      this(Id.create(tazIdString, classOf[TAZ]), coord, area)
-    }
-  }
-
 }
