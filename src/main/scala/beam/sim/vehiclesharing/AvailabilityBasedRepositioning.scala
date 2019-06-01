@@ -2,13 +2,19 @@ package beam.sim.vehiclesharing
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
+import beam.sim.BeamServices
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class AvailabilityBasedRepositioning(repositionManager: RepositionManager) extends RepositionAlgorithm {
+private[vehiclesharing] class AvailabilityBasedRepositioning(
+  beamSkimmer: BeamSkimmer,
+  beamServices: BeamServices,
+  repositionManager: RepositionManager
+) extends RepositionAlgorithm {
 
   case class RepositioningRequest(taz: TAZ, availableVehicles: Int, shortage: Int)
   val minAvailabilityMap = mutable.HashMap.empty[(Int, Id[TAZ]), Int]
@@ -16,9 +22,8 @@ class AvailabilityBasedRepositioning(repositionManager: RepositionManager) exten
   val orderingAvailVeh = Ordering.by[RepositioningRequest, Int](_.availableVehicles)
   val orderingShortage = Ordering.by[RepositioningRequest, Int](_.shortage)
   val availability = "VEHAvailability"
-  val LIMIT = 9999
 
-  repositionManager.getBeamServices.tazTreeMap.getTAZs.foreach { taz =>
+  beamServices.tazTreeMap.getTAZs.foreach { taz =>
     (0 to 108000 / repositionManager.getREPTimeStep).foreach { i =>
       val time = i * repositionManager.getREPTimeStep
       val availVal = getSkim(time, taz.tazId, availability)
@@ -34,23 +39,18 @@ class AvailabilityBasedRepositioning(repositionManager: RepositionManager) exten
   override def collectData(time: Int) = {
     val curBin = time / repositionManager.getDataCollectTimeStep
     val vehicles = repositionManager.getAvailableVehiclesIndex.queryAll().asScala.toList
-    repositionManager.getBeamSkimmer.observeVehicleAvailabilityByTAZ(
-      curBin,
-      repositionManager.getId,
-      availability,
-      vehicles
-    )
+    beamSkimmer.observeVehicleAvailabilityByTAZ(curBin, repositionManager.getId, availability, vehicles)
   }
 
   override def collectData(time: Int, coord: Coord, label: String) = {
     val curBin = time / repositionManager.getDataCollectTimeStep
-    repositionManager.getBeamSkimmer.countEventsByTAZ(curBin, coord, repositionManager.getId, label)
+    beamSkimmer.countEventsByTAZ(curBin, coord, repositionManager.getId, label)
   }
 
   private def getSkim(time: Int, idTAZ: Id[TAZ], label: String) = {
     val fromBin = time / repositionManager.getDataCollectTimeStep
     val untilBin = (time + repositionManager.getREPTimeStep) / repositionManager.getDataCollectTimeStep
-    repositionManager.getBeamSkimmer.getPreviousSkimPlusValues(fromBin, untilBin, idTAZ, repositionManager.getId, label)
+    beamSkimmer.getPreviousSkimPlusValues(fromBin, untilBin, idTAZ, repositionManager.getId, label)
   }
 
   override def getVehiclesForReposition(now: Int): List[(BeamVehicle, SpaceTime, Id[TAZ], SpaceTime, Id[TAZ])] = {
@@ -60,7 +60,7 @@ class AvailabilityBasedRepositioning(repositionManager: RepositionManager) exten
 
     val nowRepBin = now / repositionManager.getREPTimeStep
     val futureRepBin = nowRepBin + 1
-    repositionManager.getBeamServices.tazTreeMap.getTAZs.foreach { taz =>
+    beamServices.tazTreeMap.getTAZs.foreach { taz =>
       val availValMin = minAvailabilityMap((nowRepBin, taz.tazId))
       val InquiryUnboarded = unboardedVehicleInquiry((futureRepBin, taz.tazId))
       if (availValMin > 0) {
@@ -70,14 +70,13 @@ class AvailabilityBasedRepositioning(repositionManager: RepositionManager) exten
       }
     }
 
-    val topOversuppliedTAZ = oversuppliedTAZ.take(LIMIT)
-    val topUndersuppliedTAZ = undersuppliedTAZ.take(LIMIT)
     val ODs = new mutable.ListBuffer[(RepositioningRequest, RepositioningRequest, Int, Int)]
-    while (topOversuppliedTAZ.nonEmpty && topUndersuppliedTAZ.nonEmpty) {
-      val org = topOversuppliedTAZ.head
+
+    while (oversuppliedTAZ.nonEmpty && undersuppliedTAZ.nonEmpty) {
+      val org = oversuppliedTAZ.head
       var destTimeOpt: Option[(RepositioningRequest, Int)] = None
-      topUndersuppliedTAZ.foreach { dst =>
-        val skim = repositionManager.getBeamSkimmer.getTimeDistanceAndCost(
+      undersuppliedTAZ.foreach { dst =>
+        val skim = beamSkimmer.getTimeDistanceAndCost(
           org.taz.coord,
           dst.taz.coord,
           now,
@@ -91,55 +90,61 @@ class AvailabilityBasedRepositioning(repositionManager: RepositionManager) exten
       destTimeOpt foreach {
         case (dst, tt) =>
           val fleetSize = Math.min(org.availableVehicles, dst.shortage)
-          topOversuppliedTAZ.remove(org)
+          oversuppliedTAZ.remove(org)
           if (org.availableVehicles > fleetSize) {
-            topOversuppliedTAZ.add(org.copy(availableVehicles = org.availableVehicles - fleetSize))
+            oversuppliedTAZ.add(org.copy(availableVehicles = org.availableVehicles - fleetSize))
           }
-          topUndersuppliedTAZ.remove(dst)
+          undersuppliedTAZ.remove(dst)
           if (dst.shortage > fleetSize) {
-            topUndersuppliedTAZ.add(dst.copy(shortage = dst.shortage - fleetSize))
+            undersuppliedTAZ.add(dst.copy(shortage = dst.shortage - fleetSize))
           }
           ODs.append((org, dst, tt, fleetSize))
       }
     }
 
-    val vehiclesForReposition = mutable.ListBuffer.empty[(BeamVehicle, SpaceTime, Id[TAZ], SpaceTime, Id[TAZ])]
+    val vehiclesForReposition = new mutable.ListBuffer[(BeamVehicle, SpaceTime, Id[TAZ], SpaceTime, Id[TAZ])]()
     val rand = new scala.util.Random(System.currentTimeMillis())
-    var availableVehicles =
-      repositionManager.getAvailableVehiclesIndex.queryAll().asScala.map(_.asInstanceOf[BeamVehicle])
-    try {
-      ODs.foreach {
-        case (org, dst, tt, fleetSizeToReposition) =>
-          val arrivalTime = now + tt
-          val vehiclesForRepositionTemp =
-            mutable.ListBuffer.empty[(BeamVehicle, SpaceTime, Id[TAZ], SpaceTime, Id[TAZ])]
-          availableVehicles
-            .filter(
-              v =>
-                org.taz == repositionManager.getBeamServices.tazTreeMap
-                  .getTAZ(v.spaceTime.loc.getX, v.spaceTime.loc.getY)
+    ODs.foreach {
+      case (org, dst, tt, fs) =>
+        val arrivalTime = now + tt
+        val vehicles = repositionManager.getAvailableVehiclesIndex
+          .queryAll()
+          .asScala
+          .take(fs)
+          .filter(
+            v =>
+              org.taz == beamServices.tazTreeMap.getTAZ(
+                v.asInstanceOf[BeamVehicle].spaceTime.loc.getX,
+                v.asInstanceOf[BeamVehicle].spaceTime.loc.getY
             )
-            .take(fleetSizeToReposition)
-            .map(
+          )
+          .map(
+            v =>
               (
-                _,
+                v.asInstanceOf[BeamVehicle],
                 SpaceTime(org.taz.coord, now),
                 org.taz.tazId,
-                SpaceTime(RandomPointInTAZ.get(dst.taz, rand), arrivalTime),
+                SpaceTime(getRandomLocationWithinRadius(dst.taz, rand), arrivalTime),
                 dst.taz.tazId
-              )
             )
-            .foreach(vehiclesForRepositionTemp.append(_))
-          val orgKey = (nowRepBin, org.taz.tazId)
-          minAvailabilityMap.update(orgKey, minAvailabilityMap(orgKey) - vehiclesForRepositionTemp.size)
-          availableVehicles = availableVehicles.filter(x => !vehiclesForRepositionTemp.exists(_._1 == x))
-          vehiclesForReposition.appendAll(vehiclesForRepositionTemp)
-        //val dstKey = (futureRepBin, dst.taz.tazId)
-        //minAvailabilityMap.update(dstKey, minAvailabilityMap(dstKey) + vehicles.size)
-      }
-    } catch {
-      case e: Exception => println(e)
+          )
+        vehiclesForReposition.appendAll(vehicles)
+        val orgKey = (nowRepBin, org.taz.tazId)
+        val dstKey = (futureRepBin, dst.taz.tazId)
+        minAvailabilityMap.update(orgKey, minAvailabilityMap(orgKey) - vehicles.size)
+      //minAvailabilityMap.update(dstKey, minAvailabilityMap(dstKey) + vehicles.size)
     }
+
     vehiclesForReposition.toList
   }
+
+  def getRandomLocationWithinRadius(taz: TAZ, rand: scala.util.Random): Coord = {
+    val radius = Math.sqrt(taz.areaInSquareMeters / Math.PI)
+    val a = 2 * Math.PI * rand.nextDouble()
+    val r = radius * Math.sqrt(rand.nextDouble())
+    val x = r * Math.cos(a)
+    val y = r * Math.sin(a)
+    new Coord(taz.coord.getX + x, taz.coord.getY + y)
+  }
+
 }
