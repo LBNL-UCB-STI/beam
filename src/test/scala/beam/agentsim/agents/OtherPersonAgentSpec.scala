@@ -149,19 +149,22 @@ class OtherPersonAgentSpec
   describe("A PersonAgent FSM") {
     it("should also work when the first bus is late") {
       val mockDriverProps = Props(new ForwardActor(self))
-      val iteration: ActorRef = system.actorOf(Props(new Actor() {
-        context.actorOf(
-          Props(new Actor() {
-            context.actorOf(mockDriverProps, "TransitDriverAgent-my_bus")
-            context.actorOf(mockDriverProps, "TransitDriverAgent-my_tram")
+      val iteration: ActorRef = system.actorOf(
+        Props(new Actor() {
+          context.actorOf(
+            Props(new Actor() {
+              context.actorOf(mockDriverProps, "TransitDriverAgent-my_bus")
+              context.actorOf(mockDriverProps, "TransitDriverAgent-my_tram")
 
-            override def receive: Receive = Actor.emptyBehavior
-          }),
-          "transit-system"
-        )
+              override def receive: Receive = Actor.emptyBehavior
+            }),
+            "transit-system"
+          )
 
-        override def receive: Receive = Actor.emptyBehavior
-      }), "BeamMobsim.iteration")
+          override def receive: Receive = Actor.emptyBehavior
+        }),
+        "BeamMobsim.iteration"
+      )
 
       val beamVehicleId = Id.createVehicleId("my_bus")
 
