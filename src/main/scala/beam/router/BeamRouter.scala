@@ -3,18 +3,7 @@ package beam.router
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  Address,
-  Cancellable,
-  ExtendedActorSystem,
-  Props,
-  RelativeActorPath,
-  RootActorPath,
-  Stash
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, Address, Cancellable, ExtendedActorSystem, Props, RelativeActorPath, RootActorPath, Stash}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
@@ -37,7 +26,6 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
-import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.{Vehicle, Vehicles}
@@ -56,7 +44,6 @@ class BeamRouter(
   networkHelper: NetworkHelper,
   geo: GeoUtils,
   scenario: Scenario,
-  eventsManager: EventsManager,
   transitVehicles: Vehicles,
   fareCalculator: FareCalculator,
   tollCalculator: TollCalculator
@@ -463,7 +450,6 @@ object BeamRouter {
     networkHelper: NetworkHelper,
     geo: GeoUtils,
     scenario: Scenario,
-    eventsManager: EventsManager,
     transitVehicles: Vehicles,
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator
@@ -478,7 +464,6 @@ object BeamRouter {
         networkHelper,
         geo,
         scenario,
-        eventsManager,
         transitVehicles,
         fareCalculator,
         tollCalculator

@@ -21,7 +21,6 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.config.ConfigUtils
-import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
@@ -71,7 +70,6 @@ class TollRoutingSpec
         networkHelper,
         new GeoUtilsImpl(beamConfig),
         scenario,
-        new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator
@@ -136,7 +134,6 @@ class TollRoutingSpec
           new NetworkHelperImpl(networkCoordinator.network),
           new GeoUtilsImpl(beamScenario.beamConfig),
           scenario,
-          new EventsManagerImpl(),
           scenario.getTransitVehicles,
           fareCalculator,
           moreExpensiveTollCalculator

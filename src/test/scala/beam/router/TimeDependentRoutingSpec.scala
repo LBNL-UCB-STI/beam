@@ -22,7 +22,7 @@ import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.ConfigUtils
-import org.matsim.core.events.{EventsManagerImpl, EventsUtils}
+import org.matsim.core.events.EventsUtils
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.vehicles.Vehicle
@@ -73,7 +73,6 @@ class TimeDependentRoutingSpec
         networkHelper,
         geo,
         scenario,
-        new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator

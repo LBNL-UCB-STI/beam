@@ -14,8 +14,8 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg}
+import org.matsim.core.events.EventsUtils
 import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.core.events.{EventsManagerImpl, EventsUtils}
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
 
@@ -66,7 +66,6 @@ class SingleModeSpec
         networkHelper,
         new GeoUtilsImpl(beamCfg),
         scenario,
-        new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator
@@ -128,7 +127,7 @@ class SingleModeSpec
       events.foreach {
         case event: PersonDepartureEvent =>
           assert(
-            event.getLegMode == "walk" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "cav"
+            event.getLegMode == "walk" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
           )
       }
     }
@@ -176,7 +175,7 @@ class SingleModeSpec
       events.foreach {
         case event: PersonDepartureEvent =>
           assert(
-            event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "cav"
+            event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
           )
       }
     }
@@ -244,7 +243,7 @@ class SingleModeSpec
         case event: PersonDepartureEvent =>
           // drive_transit can fail -- maybe I don't have a car
           assert(
-            event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "drive_transit" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "cav"
+            event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "drive_transit" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
           )
       }
       val eventsByPerson = events.groupBy(_.getAttributes.get("person"))
@@ -318,7 +317,7 @@ class SingleModeSpec
           // TODO: Find root cause, fix, and remove "walk" here.
           // See SfLightRouterSpec.
           assert(
-            event.getLegMode == "walk" || event.getLegMode == "car" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "cav"
+            event.getLegMode == "walk" || event.getLegMode == "car" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
           )
       }
     }

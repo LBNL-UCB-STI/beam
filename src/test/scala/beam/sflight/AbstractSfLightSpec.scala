@@ -9,7 +9,6 @@ import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{NetworkHelperImpl, SimRunnerForTest}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.population.{Activity, Plan}
-import org.matsim.core.events.EventsManagerImpl
 import org.scalatest._
 import org.scalatest.mockito.MockitoSugar
 
@@ -44,7 +43,6 @@ class AbstractSfLightSpec(val name: String)
         new NetworkHelperImpl(networkCoordinator.network),
         new GeoUtilsImpl(beamScenario.beamConfig),
         scenario,
-        new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator

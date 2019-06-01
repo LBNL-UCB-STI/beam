@@ -1,10 +1,13 @@
 package beam.utils
 import java.io.File
 
+import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.{BeamSkimmer, TravelTimeObserved}
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
+import beam.sim.{BeamHelper, BeamScenario}
+import beam.sim.BeamServices.getTazTreeMap
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import com.google.inject.util.Providers
@@ -44,7 +47,7 @@ class MatsimServicesMock(
   override def getIterationNumber: Integer = null
 }
 
-abstract class SimRunnerForTest {
+abstract class SimRunnerForTest extends BeamHelper {
   def config: com.typesafe.config.Config
   def basePath: String = new File("").getAbsolutePath
   def testOutputDir: String = TestConfigUtils.testOutputDir
@@ -81,6 +84,8 @@ abstract class SimRunnerForTest {
       bind(classOf[BeamSkimmer]).asEagerSingleton()
       bind(classOf[TravelTimeObserved]).asEagerSingleton()
       bind(classOf[ControlerI]).toProvider(Providers.of(null))
+      bind(classOf[TAZTreeMap]).toInstance(getTazTreeMap(beamCfg.beam.agentsim.taz.filePath))
+      bind(classOf[BeamScenario]).toInstance(loadScenario(beamCfg))
     }
   })
 }
