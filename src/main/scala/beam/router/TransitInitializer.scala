@@ -51,8 +51,6 @@ class TransitInitializer(
     val start = System.currentTimeMillis()
     val activeServicesToday = transportNetwork.transitLayer.getActiveServicesForDate(dates.localBaseDate)
     val stopToStopStreetSegmentCache = mutable.Map[(Int, Int), Option[StreetPath]]()
-    val transitTrips = transportNetwork.transitLayer.tripPatterns.asScala.toStream
-
     def pathWithoutStreetRoute(fromStop: Int, toStop: Int) = {
       val from = transportNetwork.transitLayer.streetVertexForStop.get(fromStop)
       val fromVertex = transportNetwork.streetLayer.vertexStore.getCursor(from)
@@ -131,7 +129,7 @@ class TransitInitializer(
         )
     }
 
-    val transitData = transitTrips.flatMap { tripPattern =>
+    val transitData = transportNetwork.transitLayer.tripPatterns.asScala.toStream.flatMap { tripPattern =>
       val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
       val transitPaths = tripPattern.stops.indices
@@ -158,7 +156,7 @@ class TransitInitializer(
       tripPattern.tripSchedules.asScala
         .filter(tripSchedule => activeServicesToday.get(tripSchedule.serviceCode))
         .map { tripSchedule =>
-          // First create a unique for this trip which will become the transit agent and vehicle ids
+          // First create a unique id for this trip which will become the transit agent and vehicle id
           val tripVehId = Id.create(tripSchedule.tripId, classOf[BeamVehicle])
           val legs: ArrayBuffer[BeamLeg] = new ArrayBuffer()
           tripSchedule.departures.zipWithIndex.sliding(2).foreach {

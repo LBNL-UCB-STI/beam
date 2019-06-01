@@ -34,7 +34,7 @@ import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile._
 import com.conveyal.r5.streets._
-import com.conveyal.r5.transit.TransportNetwork
+import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.config.Config
@@ -165,7 +165,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
   private var travelTime: TravelTime = new FreeFlowTravelTime
 
-  private val transitSchedule = new TransitInitializer(
+  private val transitSchedule: Map[Id[BeamVehicle], (RouteInfo, ArrayBuffer[BeamLeg])] = new TransitInitializer(
     beamConfig,
     dates,
     vehicleTypes,
@@ -173,9 +173,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     BeamRouter.oneSecondTravelTime
   ).initMap
 
-  private val agencyAndRouteByVehicleIds: Map[Id[Vehicle], (String, String)] = transitSchedule.collect {
-    case (tripVehId, (route, _)) =>
-      Id.createVehicleId(tripVehId.toString) -> (route.agency_id, route.route_id)
+  private def agencyAndRoute(vehicleId: Id[Vehicle]):  (String, String) = {
+    val route = transitSchedule(Id.createVehicleId(vehicleId.toString))._1
+    (route.agency_id, route.route_id)
   }
 
   private val cache = CacheBuilder
@@ -706,10 +706,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               for ((beamLeg, index) <- tripWithFares.trip.legs.zipWithIndex) yield {
                 var cost = tripWithFares.legFares.getOrElse(index, 0.0)
                 val age = request.attributesOfIndividual.flatMap(_.age)
-                val ids = agencyAndRouteByVehicleIds.get(
-                  beamLeg.travelPath.transitStops.fold(vehicle.id)(_.vehicleId)
-                )
-                cost = ids.fold(cost)(id => ptFares.getPtFare(Some(id._1), Some(id._2), age).getOrElse(cost))
+                val (agencyId, routeId) = agencyAndRoute(beamLeg.travelPath.transitStops.get.vehicleId)
+                cost = ptFares.getPtFare(Some(agencyId), Some(routeId), age).getOrElse(cost)
 
                 if (Modes.isR5TransitMode(beamLeg.mode)) {
                   EmbodiedBeamLeg(

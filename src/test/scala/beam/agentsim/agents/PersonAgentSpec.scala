@@ -22,17 +22,17 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
-import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
-import beam.sim.{BeamHelper, BeamServices}
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
-import beam.utils.{NetworkHelperImpl, StuckFinder}
+import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.{NetworkHelperImpl, StuckFinder}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.{Link, Network}
@@ -46,7 +46,6 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
-import org.matsim.vehicles._
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
@@ -80,7 +79,6 @@ class PersonAgentSpec
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   lazy val beamConfig = BeamConfig(system.settings.config)
   lazy val beamScenario = loadScenario(beamConfig)
-  private val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
   private val tollCalculator = new TollCalculator(beamConfig)
@@ -90,7 +88,6 @@ class PersonAgentSpec
 
   lazy val beamSvc: BeamServices = {
     val matsimServices = mock[MatsimServices]
-
     val theServices = mock[BeamServices](withSettings().stubOnly())
     when(theServices.matsimServices).thenReturn(matsimServices)
     when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
@@ -98,12 +95,7 @@ class PersonAgentSpec
     when(theServices.beamConfig).thenReturn(beamConfig)
     when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
     when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
-
-    var map = TrieMap[Id[Vehicle], (String, String)]()
-    map += (Id.createVehicleId("my_bus")  -> ("", ""))
-    map += (Id.createVehicleId("my_tram") -> ("", ""))
     when(theServices.networkHelper).thenReturn(networkHelper)
-
     theServices
   }
 
@@ -134,23 +126,6 @@ class PersonAgentSpec
 
   // Mock a transit driver (who has to be a child of a mock router)
   private lazy val transitDriverProps = Props(new ForwardActor(self))
-
-  val iteration: ActorRef = system.actorOf(
-    Props(new Actor() {
-      context.actorOf(
-        Props(new Actor() {
-          context.actorOf(transitDriverProps, "TransitDriverAgent-my_bus")
-          context.actorOf(transitDriverProps, "TransitDriverAgent-my_tram")
-
-          override def receive: Receive = Actor.emptyBehavior
-        }),
-        "transit-system"
-      )
-
-      override def receive: Receive = Actor.emptyBehavior
-    }),
-    "BeamMobsim.iteration"
-  )
 
   private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
   private val matsimConfig = configBuilder.buildMatSimConf()
@@ -340,6 +315,25 @@ class PersonAgentSpec
     }
 
     it("should know how to take a walk_transit trip when it's already in its plan") {
+      val busId = Id.createVehicleId("bus:B3-WEST-1-175")
+      val tramId = Id.createVehicleId("train:R2-SOUTH-1-93")
+
+      val iteration: ActorRef = system.actorOf(
+        Props(new Actor() {
+          context.actorOf(
+            Props(new Actor() {
+              context.actorOf(transitDriverProps, "TransitDriverAgent-"+busId.toString)
+              context.actorOf(transitDriverProps, "TransitDriverAgent-"+tramId.toString)
+
+              override def receive: Receive = Actor.emptyBehavior
+            }),
+            "transit-system"
+          )
+
+          override def receive: Receive = Actor.emptyBehavior
+        }),
+        "BeamMobsim.iteration"
+      )
 
       // In this tests, it's not easy to chronologically sort Events vs. Triggers/Messages
       // that we are expecting. And also not necessary in real life.
@@ -353,22 +347,6 @@ class PersonAgentSpec
           }
         }
       )
-
-      val busId = Id.createVehicleId("my_bus")
-      val bus = new BeamVehicle(
-        id = busId,
-        powerTrain = new Powertrain(0.0),
-        beamVehicleType = beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
-      )
-      val tramId = Id.createVehicleId("my_tram")
-      val tram = new BeamVehicle(
-        id = tramId,
-        powerTrain = new Powertrain(0.0),
-        beamVehicleType = beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
-      )
-
-      vehicles.put(bus.id, bus)
-      vehicles.put(tram.id, tram)
 
       val busLeg = EmbodiedBeamLeg(
         BeamLeg(
@@ -462,20 +440,6 @@ class PersonAgentSpec
         )
       )
       val parkingManager = system.actorOf(Props(new TrivialParkingManager))
-
-      bus.becomeDriver(
-        Await.result(
-          system.actorSelection("/user/BeamMobsim.iteration/transit-system/TransitDriverAgent-my_bus").resolveOne(),
-          timeout.duration
-        )
-      )
-      tram.becomeDriver(
-        Await.result(
-          system.actorSelection("/user/BeamMobsim.iteration/transit-system/TransitDriverAgent-my_tram").resolveOne(),
-          timeout.duration
-        )
-      )
-
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
           beamServices = beamSvc,

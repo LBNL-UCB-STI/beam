@@ -12,8 +12,7 @@ import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse, ReserveConfirmInfo, _}
+import beam.agentsim.agents.vehicles.{ReservationRequest, ReservationResponse, ReserveConfirmInfo, _}
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, ReplanningEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingManager.ParkingStockAttributes
 import beam.agentsim.infrastructure.ZonalParkingManager
@@ -27,11 +26,11 @@ import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
-import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.BeamServices.getTazTreeMap
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
+import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import com.google.inject.{AbstractModule, Guice, Injector}
@@ -52,10 +51,8 @@ import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
-import scala.collection.{mutable, JavaConverters}
-import scala.concurrent.Await
+import scala.collection.{JavaConverters, mutable}
 
 /**
   * Created by sfeygin on 2/7/17.
@@ -84,8 +81,6 @@ class OtherPersonAgentSpec
   lazy val eventsManager = new EventsManagerImpl()
 
   lazy val dummyAgentId: Id[Person] = Id.createPersonId("dummyAgent")
-
-  val vehicles: TrieMap[Id[BeamVehicle], BeamVehicle] = TrieMap[Id[BeamVehicle], BeamVehicle]()
 
   lazy val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
@@ -148,13 +143,16 @@ class OtherPersonAgentSpec
 
   describe("A PersonAgent FSM") {
     it("should also work when the first bus is late") {
-      val mockDriverProps = Props(new ForwardActor(self))
+      val transitDriverProps = Props(new ForwardActor(self))
+      val busId = Id.createVehicleId("bus:B3-WEST-1-175")
+      val tramId = Id.createVehicleId("train:R2-SOUTH-1-93")
+
       val iteration: ActorRef = system.actorOf(
         Props(new Actor() {
           context.actorOf(
             Props(new Actor() {
-              context.actorOf(mockDriverProps, "TransitDriverAgent-my_bus")
-              context.actorOf(mockDriverProps, "TransitDriverAgent-my_tram")
+              context.actorOf(transitDriverProps, "TransitDriverAgent-"+busId.toString)
+              context.actorOf(transitDriverProps, "TransitDriverAgent-"+tramId.toString)
 
               override def receive: Receive = Actor.emptyBehavior
             }),
@@ -166,22 +164,6 @@ class OtherPersonAgentSpec
         "BeamMobsim.iteration"
       )
 
-      val beamVehicleId = Id.createVehicleId("my_bus")
-
-      val bus = new BeamVehicle(
-        beamVehicleId,
-        new Powertrain(0.0),
-        beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
-      )
-      val tram = new BeamVehicle(
-        Id.createVehicleId("my_tram"),
-        new Powertrain(0.0),
-        beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
-      )
-
-      vehicles.put(bus.id, bus)
-      vehicles.put(tram.id, tram)
-
       val busLeg = EmbodiedBeamLeg(
         BeamLeg(
           28800,
@@ -190,13 +172,13 @@ class OtherPersonAgentSpec
           BeamPath(
             Vector(),
             Vector(),
-            Some(TransitStopsInfo(1, Id.createVehicleId("my_bus"), 2)),
+            Some(TransitStopsInfo(1, busId, 2)),
             SpaceTime(beamSvc.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
             SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
             1.0
           )
         ),
-        Id.createVehicleId("my_bus"),
+        busId,
         Id.create("Car", classOf[BeamVehicleType]),
         asDriver = false,
         0,
@@ -210,13 +192,13 @@ class OtherPersonAgentSpec
           BeamPath(
             Vector(),
             Vector(),
-            Some(TransitStopsInfo(2, Id.createVehicleId("my_bus"), 3)),
+            Some(TransitStopsInfo(2, busId, 3)),
             SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
             SpaceTime(beamSvc.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             1.0
           )
         ),
-        Id.createVehicleId("my_bus"),
+        busId,
         Id.create("Car", classOf[BeamVehicleType]),
         asDriver = false,
         0,
@@ -230,13 +212,13 @@ class OtherPersonAgentSpec
           BeamPath(
             Vector(),
             Vector(),
-            Some(TransitStopsInfo(3, Id.createVehicleId("my_tram"), 4)),
+            Some(TransitStopsInfo(3, tramId, 4)),
             SpaceTime(beamSvc.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             SpaceTime(beamSvc.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
             1.0
           )
         ),
-        Id.createVehicleId("my_tram"),
+        tramId,
         Id.create("Car", classOf[BeamVehicleType]),
         asDriver = false,
         0,
@@ -250,13 +232,13 @@ class OtherPersonAgentSpec
           BeamPath(
             Vector(),
             Vector(),
-            Some(TransitStopsInfo(3, Id.createVehicleId("my_tram"), 4)),
+            Some(TransitStopsInfo(3, tramId, 4)),
             SpaceTime(beamSvc.geo.utm2Wgs(new Coord(180000.4, 1200)), 35000),
             SpaceTime(beamSvc.geo.utm2Wgs(new Coord(190000.4, 1300)), 35600),
             1.0
           )
         ),
-        Id.createVehicleId("my_tram"),
+        tramId,
         Id.create("Car", classOf[BeamVehicleType]),
         asDriver = false,
         0,
@@ -291,23 +273,6 @@ class OtherPersonAgentSpec
           stopTick = 1000000,
           maxWindow = 10,
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
-        )
-      )
-
-      bus.becomeDriver(
-        Await.result(
-          system
-            .actorSelection("/user/BeamMobsim.iteration/transit-system/TransitDriverAgent-my_bus")
-            .resolveOne(),
-          timeout.duration
-        )
-      )
-      tram.becomeDriver(
-        Await.result(
-          system
-            .actorSelection("/user/BeamMobsim.iteration/transit-system/TransitDriverAgent-my_tram")
-            .resolveOne(),
-          timeout.duration
         )
       )
 

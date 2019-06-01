@@ -31,7 +31,7 @@ import beam.router.osm.TollCalculator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
-import com.conveyal.r5.transit.TransportNetwork
+import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
@@ -459,6 +459,18 @@ class PersonAgent(
       handleFailedRideHailReservation(error, response, data)
   }
 
+  def routeInfoByTripId(tripId: String): RouteInfo = {
+    transportNetwork.transitLayer.tripPatterns.forEach { pattern =>
+      pattern.tripSchedules.forEach { schedule =>
+      println(schedule.tripId)
+        if (schedule.tripId == tripId) {
+          return transportNetwork.transitLayer.routes.get(pattern.routeIndex)
+        }
+      }
+    }
+    throw new RuntimeException("trip not found: " + tripId)
+  }
+
   when(Waiting) {
     /*
      * Learn as passenger that it is time to board the vehicle
@@ -473,11 +485,8 @@ class PersonAgent(
       val mode = data.currentTrip.get.tripClassifier
 
       if (currentLeg.cost > 0.0) {
-        // FIXME:
-//        if (agencyAndRouteByVehicleIds.contains(vehicleToEnter)) {
-//          val agencyId = agencyAndRouteByVehicleIds(vehicleToEnter)._1
-//          eventsManager.processEvent(new AgencyRevenueEvent(tick, agencyId, currentLeg.cost))
-//        }
+        val agencyId = routeInfoByTripId(vehicleToEnter.toString).agency_id
+        eventsManager.processEvent(new AgencyRevenueEvent(tick, agencyId, currentLeg.cost))
 
         eventsManager.processEvent(
           new PersonCostEvent(
