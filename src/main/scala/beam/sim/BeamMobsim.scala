@@ -150,7 +150,23 @@ class BeamMobsim @Inject()(
         sharedVehicleFleets.foreach(context.watch)
         sharedVehicleFleets.foreach(scheduler ! ScheduleTrigger(InitializeTrigger(0), _))
 
-        val transitSystem = context.actorOf(Props(new TransitSystem(beamScenario, scenario, transportNetwork, scheduler, parkingManager, tollCalculator, geo, networkHelper, eventsManager, beamServices.beamRouter)), "transit-system")
+        val transitSystem = context.actorOf(
+          Props(
+            new TransitSystem(
+              beamScenario,
+              scenario,
+              transportNetwork,
+              scheduler,
+              parkingManager,
+              tollCalculator,
+              geo,
+              networkHelper,
+              eventsManager,
+              beamServices.beamRouter
+            )
+          ),
+          "transit-system"
+        )
         context.watch(transitSystem)
         scheduler ! ScheduleTrigger(InitializeTrigger(0), transitSystem)
 

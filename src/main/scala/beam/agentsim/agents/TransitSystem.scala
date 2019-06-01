@@ -18,7 +18,19 @@ import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 
-class TransitSystem(val beamScenario: BeamScenario, val scenario: Scenario, val transportNetwork: TransportNetwork, val scheduler: ActorRef, val parkingManager: ActorRef, val tollCalculator: TollCalculator, val geo: GeoUtils, val networkHelper: NetworkHelper, val eventsManager: EventsManager, val beamRouter: ActorRef) extends Actor with ActorLogging {
+class TransitSystem(
+  val beamScenario: BeamScenario,
+  val scenario: Scenario,
+  val transportNetwork: TransportNetwork,
+  val scheduler: ActorRef,
+  val parkingManager: ActorRef,
+  val tollCalculator: TollCalculator,
+  val geo: GeoUtils,
+  val networkHelper: NetworkHelper,
+  val eventsManager: EventsManager,
+  val beamRouter: ActorRef
+) extends Actor
+    with ActorLogging {
 
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy(maxNrOfRetries = 0) {
@@ -44,12 +56,12 @@ class TransitSystem(val beamScenario: BeamScenario, val scenario: Scenario, val 
   }
 
   private def initDriverAgents(
-                                context: ActorContext,
-                                initializer: TransitInitializer,
-                                scheduler: ActorRef,
-                                parkingManager: ActorRef,
-                                transits: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])]
-                              ) = {
+    context: ActorContext,
+    initializer: TransitInitializer,
+    scheduler: ActorRef,
+    parkingManager: ActorRef,
+    transits: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])]
+  ) = {
     transits.foreach {
       case (tripVehId, (route, legs)) =>
         initializer.createTransitVehicle(tripVehId, route, legs).foreach { vehicle =>

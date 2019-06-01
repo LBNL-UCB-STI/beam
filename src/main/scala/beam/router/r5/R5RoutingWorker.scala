@@ -165,25 +165,17 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
   private var travelTime: TravelTime = new FreeFlowTravelTime
 
-  private var agencyAndRouteByVehicleIds: Map[Id[Vehicle], (String, String)] = Map()
+  private val transitSchedule = new TransitInitializer(
+    beamConfig,
+    dates,
+    vehicleTypes,
+    transportNetwork,
+    BeamRouter.oneSecondTravelTime
+  ).initMap
 
-  val initializer =
-    new TransitInitializer(
-      beamConfig,
-      dates,
-      vehicleTypes,
-      transportNetwork,
-      BeamRouter.oneSecondTravelTime
-    )
-  val transitSchedule = initializer.initMap
-
-
-  transitSchedule.foreach {
-    case (tripVehId, (route, legs)) =>
-      initializer.createTransitVehicle(tripVehId, route, legs).foreach { vehicle =>
-        agencyAndRouteByVehicleIds += (Id
-          .createVehicleId(tripVehId.toString) -> (route.agency_id, route.route_id))
-      }
+  private val agencyAndRouteByVehicleIds: Map[Id[Vehicle], (String, String)] = transitSchedule.collect {
+    case (tripVehId, (route, _)) =>
+      Id.createVehicleId(tripVehId.toString) -> (route.agency_id, route.route_id)
   }
 
   private val cache = CacheBuilder
@@ -542,7 +534,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             Some(R5RoutingWorker.createBushwackingBeamLeg(request.departureTime, from, to, geo))
           } else {
             val streetSegment = profileResponse.options.get(0).access.get(0)
-            val theTravelPath = buildStreetPath(streetSegment, request.departureTime, StreetMode.WALK, vehicleTypes(body.vehicleTypeId))
+            val theTravelPath =
+              buildStreetPath(streetSegment, request.departureTime, StreetMode.WALK, vehicleTypes(body.vehicleTypeId))
             Some(
               BeamLeg(
                 request.departureTime,
