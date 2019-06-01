@@ -180,10 +180,6 @@ class BeamMobsim @Inject()(
           val maxHour = TimeUnit.SECONDS.toHours(scenario.getConfig.travelTimeCalculator().getMaxTime).toInt
           val warmStart = BeamWarmStart(beamServices.beamConfig, maxHour)
           warmStart.warmStartTravelTime(beamServices.beamRouter, scenario)
-
-          if (!beamServices.beamConfig.beam.warmStart.enabled && beamServices.beamConfig.beam.physsim.initializeRouterWithFreeFlowTimes) {
-            FreeFlowTravelTime.initializeRouterFreeFlow(beamServices, scenario)
-          }
         }
 
         scheduleRideHailManagerTimerMessages()
