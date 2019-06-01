@@ -5,8 +5,6 @@ import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.FuelType.Gasoline
-import beam.agentsim.agents.vehicles.VehicleCategory.Car
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.{Dropoff, Pickup}
 import beam.agentsim.infrastructure.TAZTreeMap
@@ -27,7 +25,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
 
 import scala.collection.immutable.List
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.ExecutionContext
 
 class FastHouseholdCAVSchedulingSpec
@@ -67,10 +65,10 @@ class FastHouseholdCAVSchedulingSpec
         new BeamVehicle(
           Id.createVehicleId("id1"),
           new Powertrain(0.0),
-          FastHouseholdCAVSchedulingSpec.defaultCAVBeamVehicleType
+          defaultCAVBeamVehicleType
         )
       )
-      val (pop: Population, household) = FastHouseholdCAVSchedulingSpec.scenario1(cavs)
+      val (pop: Population, household) = scenario1(cavs)
       val alg = new FastHouseholdCAVScheduling(household, cavs, Map((Pickup, 2), (Dropoff, 2)), skimmer = skimmer)(pop)
       val schedules = alg.getAllFeasibleSchedules
       schedules should have length 1
@@ -83,7 +81,7 @@ class FastHouseholdCAVSchedulingSpec
         new BeamVehicle(
           Id.createVehicleId("id1"),
           new Powertrain(0.0),
-          FastHouseholdCAVSchedulingSpec.defaultCAVBeamVehicleType
+          defaultCAVBeamVehicleType
         ),
         new BeamVehicle(
           Id.createVehicleId("id2"),
@@ -91,7 +89,7 @@ class FastHouseholdCAVSchedulingSpec
           beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
         )
       )
-      val (pop: Population, household) = FastHouseholdCAVSchedulingSpec.scenario2(cavs)
+      val (pop: Population, household) = scenario2(cavs)
       val alg = new FastHouseholdCAVScheduling(
         household,
         cavs,
@@ -110,15 +108,15 @@ class FastHouseholdCAVSchedulingSpec
         new BeamVehicle(
           Id.createVehicleId("id1"),
           new Powertrain(0.0),
-          FastHouseholdCAVSchedulingSpec.defaultCAVBeamVehicleType
+          defaultCAVBeamVehicleType
         ),
         new BeamVehicle(
           Id.createVehicleId("id2"),
           new Powertrain(0.0),
-          FastHouseholdCAVSchedulingSpec.defaultCAVBeamVehicleType
+          defaultCAVBeamVehicleType
         )
       )
-      val (pop: Population, household) = FastHouseholdCAVSchedulingSpec.scenario5(cavs)
+      val (pop: Population, household) = scenario5(cavs)
       val alg = new FastHouseholdCAVScheduling(
         household,
         cavs,
@@ -143,7 +141,7 @@ class FastHouseholdCAVSchedulingSpec
       var sum = 0
       var count = 0
       val t0 = System.nanoTime()
-      val (pop: Population, households) = FastHouseholdCAVSchedulingSpec.scenarioPerformance()
+      val (pop: Population, households) = scenarioPerformance()
       for ((household, vehicles) <- households) {
         val alg =
           new FastHouseholdCAVScheduling(
@@ -165,23 +163,10 @@ class FastHouseholdCAVSchedulingSpec
       println(s"*** scenario 6 *** ${sum / count} avg combinations per household, $elapsed sec elapsed ")
     }
   }
-}
 
-object FastHouseholdCAVSchedulingSpec {
+  private def defaultCAVBeamVehicleType = beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
 
-  val defaultCAVBeamVehicleType = BeamVehicleType(
-    Id.create("CAV-TYPE-DEFAULT", classOf[BeamVehicleType]),
-    4,
-    0,
-    4.5,
-    Gasoline,
-    3656.0,
-    3655980000.0,
-    vehicleCategory = Car,
-    automationLevel = 5
-  )
-
-  def scenario1(vehicles: List[BeamVehicle]): (Population, Household) = {
+  private def scenario1(vehicles: List[BeamVehicle]): (Population, Household) = {
     val sc: org.matsim.api.core.v01.Scenario = ScenarioUtils.createMutableScenario(ConfigUtils.createConfig())
     ScenarioUtils.loadScenario(sc)
     val household = new HouseholdsFactoryImpl().createHousehold(Id.create("dummy_scenario1", classOf[Household]))
@@ -207,7 +192,7 @@ object FastHouseholdCAVSchedulingSpec {
     (sc.getPopulation, household)
   }
 
-  def scenario2(vehicles: List[BeamVehicle]): (Population, Household) = {
+  private def scenario2(vehicles: List[BeamVehicle]): (Population, Household) = {
     val sc: org.matsim.api.core.v01.Scenario = ScenarioUtils.createMutableScenario(ConfigUtils.createConfig())
     ScenarioUtils.loadScenario(sc)
     val pop = sc.getPopulation
@@ -247,7 +232,7 @@ object FastHouseholdCAVSchedulingSpec {
     (sc.getPopulation, household)
   }
 
-  def scenarioPerformance(): (Population, List[(Household, List[BeamVehicle])]) = {
+  private def scenarioPerformance(): (Population, List[(Household, List[BeamVehicle])]) = {
     val sc: org.matsim.api.core.v01.Scenario = ScenarioUtils.createMutableScenario(ConfigUtils.createConfig())
     ScenarioUtils.loadScenario(sc)
     new PopulationReader(sc).readFile("test/input/sf-light/sample/25k/population.xml.gz")
@@ -261,12 +246,12 @@ object FastHouseholdCAVSchedulingSpec {
         new BeamVehicle(
           Id.createVehicleId(hh.getId.toString + "-veh1"),
           new Powertrain(0.0),
-          FastHouseholdCAVSchedulingSpec.defaultCAVBeamVehicleType
+          defaultCAVBeamVehicleType
         ),
         new BeamVehicle(
           Id.createVehicleId(hh.getId.toString + "-veh2"),
           new Powertrain(0.0),
-          FastHouseholdCAVSchedulingSpec.defaultCAVBeamVehicleType
+          defaultCAVBeamVehicleType
         )
       )
       hh.asInstanceOf[HouseholdImpl]
@@ -276,7 +261,7 @@ object FastHouseholdCAVSchedulingSpec {
     (sc.getPopulation, households.toList)
   }
 
-  def scenario5(vehicles: List[BeamVehicle]): (Population, Household) = {
+  private def scenario5(vehicles: List[BeamVehicle]): (Population, Household) = {
     val sc: org.matsim.api.core.v01.Scenario = ScenarioUtils.createMutableScenario(ConfigUtils.createConfig())
     ScenarioUtils.loadScenario(sc)
     val pop = sc.getPopulation
