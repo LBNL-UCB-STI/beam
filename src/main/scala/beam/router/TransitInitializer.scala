@@ -34,7 +34,6 @@ class TransitInitializer(
   travelTimeByLinkCalculator: (Int, Int, StreetMode) => Int
 ) extends ExponentialLazyLogging {
   private var numStopsNotFound = 0
-  private val transitVehicleTypesByRoute: Map[String, Map[String, String]] = loadTransitVehicleTypesMap()
 
   /*
    * Plan of action:
@@ -173,10 +172,6 @@ class TransitInitializer(
         }
     }
     val transitScheduleToCreate = transitData.toMap
-    transitScheduleToCreate.foreach {
-      case (tripVehId, (route, legs)) =>
-        createTransitVehicle(tripVehId, route, legs)
-    }
     val end = System.currentTimeMillis()
     logger.info(
       "Initialized transit trips in {} ms. Keys: {}, Values: {}",
@@ -185,74 +180,6 @@ class TransitInitializer(
       transitScheduleToCreate.values.size
     )
     transitScheduleToCreate
-  }
-
-  private def loadTransitVehicleTypesMap() = {
-    Try(
-      Source
-        .fromFile(beamConfig.beam.agentsim.agents.vehicles.transitVehicleTypesByRouteFile)
-        .getLines()
-        .toList
-        .tail
-    ).getOrElse(List())
-      .map(_.trim.split(","))
-      .filter(_.length > 2)
-      .groupBy(_(0))
-      .mapValues(_.groupBy(_(1)).mapValues(_.head(2)))
-  }
-
-  def getVehicleType(route: RouteInfo, mode: Modes.BeamMode): BeamVehicleType = {
-    val vehicleTypeId = Id.create(
-      transitVehicleTypesByRoute
-        .get(route.agency_id)
-        .fold(None.asInstanceOf[Option[String]])(_.get(route.route_id))
-        .getOrElse(mode.toString.toUpperCase + "-" + route.agency_id),
-      classOf[BeamVehicleType]
-    )
-
-    if (vehicleTypes.contains(vehicleTypeId)) {
-      vehicleTypes(vehicleTypeId)
-    } else {
-      logger.debug(
-        "no specific vehicleType available for mode and transit agency pair '{}', using default vehicleType instead",
-        vehicleTypeId.toString
-      )
-      //There has to be a default one defined
-      vehicleTypes.getOrElse(
-        Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[BeamVehicleType]),
-        vehicleTypes(Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]))
-      )
-    }
-  }
-
-  def createTransitVehicle(
-    transitVehId: Id[Vehicle],
-    route: RouteInfo,
-    legs: Seq[BeamLeg]
-  ): Option[BeamVehicle] = {
-    val mode =
-      Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
-
-    val vehicleType = getVehicleType(route, mode)
-
-    mode match {
-      case (BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY | GONDOLA) if vehicleType != null =>
-        val powertrain = Option(vehicleType.primaryFuelConsumptionInJoulePerMeter)
-          .map(new Powertrain(_))
-          .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
-
-        val beamVehicleId = BeamVehicle.createId(transitVehId) //, Some(mode.toString)
-
-        val vehicle: BeamVehicle = new BeamVehicle(
-          beamVehicleId,
-          powertrain,
-          vehicleType
-        ) // TODO: implement fuel level later as needed
-        Some(vehicle)
-      case _ =>
-        logger.error("{} is not supported yet", mode)
-        None
-    }
   }
 
   private def routeTransitPathThroughStreets(

@@ -15,12 +15,13 @@ import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
+import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
-import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
+import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TransitInitializer, TravelTimeObserved}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
-import beam.sim.BeamServices.{getTazTreeMap, FuelTypePrices}
+import beam.sim.BeamServices.{FuelTypePrices, getTazTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
@@ -31,7 +32,7 @@ import beam.utils.scenario.matsim.MatsimScenarioSource
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
 import beam.utils.scenario.{InputType, ScenarioLoader, ScenarioSource}
 import beam.utils.{NetworkHelper, _}
-import com.conveyal.r5.transit.TransportNetwork
+import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.google.inject
@@ -54,7 +55,7 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.concurrent.Await
 
 trait BeamHelper extends LazyLogging {
@@ -227,6 +228,20 @@ trait BeamHelper extends LazyLogging {
         secondaryConsumptionRateFilePathsByVehicleType =
           vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
       )
+
+    val dates = DateUtils(
+      ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
+      ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
+    )
+
+    val transitSchedule = new TransitInitializer(
+      beamConfig,
+      dates,
+      vehicleTypes,
+      transportNetwork,
+      BeamRouter.oneSecondTravelTime
+    ).initMap
+
     BeamScenario(
       readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
       vehicleTypes,
@@ -236,11 +251,9 @@ trait BeamHelper extends LazyLogging {
         vehicleCsvReader.getLinkToGradeRecordsUsing
       ),
       beamConfig,
-      DateUtils(
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
-      ),
-      PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath)
+      dates,
+      PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath),
+      transitSchedule
     )
   }
 
@@ -784,5 +797,6 @@ case class BeamScenario(
   vehicleEnergy: VehicleEnergy,
   beamConfig: BeamConfig,
   dates: DateUtils,
-  ptFares: PtFares
+  ptFares: PtFares,
+  transitSchedule: Map[Id[BeamVehicle], (RouteInfo, ArrayBuffer[BeamLeg])]
 )

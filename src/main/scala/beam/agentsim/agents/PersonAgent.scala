@@ -459,18 +459,6 @@ class PersonAgent(
       handleFailedRideHailReservation(error, response, data)
   }
 
-  def routeInfoByTripId(tripId: String): RouteInfo = {
-    transportNetwork.transitLayer.tripPatterns.forEach { pattern =>
-      pattern.tripSchedules.forEach { schedule =>
-      println(schedule.tripId)
-        if (schedule.tripId == tripId) {
-          return transportNetwork.transitLayer.routes.get(pattern.routeIndex)
-        }
-      }
-    }
-    throw new RuntimeException("trip not found: " + tripId)
-  }
-
   when(Waiting) {
     /*
      * Learn as passenger that it is time to board the vehicle
@@ -482,17 +470,15 @@ class PersonAgent(
       logDebug(s"PersonEntersVehicle: $vehicleToEnter")
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
-      val mode = data.currentTrip.get.tripClassifier
-
       if (currentLeg.cost > 0.0) {
-        val agencyId = routeInfoByTripId(vehicleToEnter.toString).agency_id
+        val agencyId = beamScenario.transitSchedule(Id.create(vehicleToEnter.toString, classOf[BeamVehicle]))._1.agency_id
         eventsManager.processEvent(new AgencyRevenueEvent(tick, agencyId, currentLeg.cost))
 
         eventsManager.processEvent(
           new PersonCostEvent(
             tick,
             id,
-            mode.value,
+            data.currentTrip.get.tripClassifier.value,
             0.0, // incentive applies to a whole trip and is accounted for at Arrival
             0.0, // only drivers pay tolls, if a toll is in the fare it's still a fare
             currentLeg.cost
