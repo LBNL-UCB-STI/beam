@@ -94,10 +94,10 @@ class TransitSystem(
   }
 
   def createTransitVehicle(
-                            transitVehId: Id[Vehicle],
-                            route: RouteInfo,
-                            legs: Seq[BeamLeg]
-                          ): Option[BeamVehicle] = {
+    transitVehId: Id[Vehicle],
+    route: RouteInfo,
+    legs: Seq[BeamLeg]
+  ): Option[BeamVehicle] = {
     val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
     val vehicleType = getVehicleType(route, mode)
     mode match {

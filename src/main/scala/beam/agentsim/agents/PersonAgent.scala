@@ -471,7 +471,8 @@ class PersonAgent(
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
       if (currentLeg.cost > 0.0) {
-        val agencyId = beamScenario.transitSchedule(Id.create(vehicleToEnter.toString, classOf[BeamVehicle]))._1.agency_id
+        val agencyId =
+          beamScenario.transitSchedule(Id.create(vehicleToEnter.toString, classOf[BeamVehicle]))._1.agency_id
         eventsManager.processEvent(new AgencyRevenueEvent(tick, agencyId, currentLeg.cost))
 
         eventsManager.processEvent(

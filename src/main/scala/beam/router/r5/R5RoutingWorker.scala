@@ -109,7 +109,13 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           mode: BeamMode
         ): TimeAndCost = TimeAndCost(None, None)
       }
-      val transitSchedule = new TransitInitializer(beamConfig, dates, vehicleTypes, networkCoordinator.transportNetwork, BeamRouter.oneSecondTravelTime).initMap
+      val transitSchedule = new TransitInitializer(
+        beamConfig,
+        dates,
+        vehicleTypes,
+        networkCoordinator.transportNetwork,
+        BeamRouter.oneSecondTravelTime
+      ).initMap
       BeamRouter.checkForConsistentTimeZoneOffsets(dates, networkCoordinator.transportNetwork)
       WorkerParameters(
         beamConfig,
@@ -169,7 +175,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
   private var travelTime: TravelTime = new FreeFlowTravelTime
 
-  private def agencyAndRoute(vehicleId: Id[Vehicle]):  (String, String) = {
+  private def agencyAndRoute(vehicleId: Id[Vehicle]): (String, String) = {
     val route = transitSchedule(Id.createVehicleId(vehicleId.toString))._1
     (route.agency_id, route.route_id)
   }

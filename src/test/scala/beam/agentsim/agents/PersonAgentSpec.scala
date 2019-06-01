@@ -50,7 +50,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.mutable.ListBuffer
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 
 class PersonAgentSpec
     extends TestKit(
@@ -319,8 +319,8 @@ class PersonAgentSpec
         Props(new Actor() {
           context.actorOf(
             Props(new Actor() {
-              context.actorOf(transitDriverProps, "TransitDriverAgent-"+busId.toString)
-              context.actorOf(transitDriverProps, "TransitDriverAgent-"+tramId.toString)
+              context.actorOf(transitDriverProps, "TransitDriverAgent-" + busId.toString)
+              context.actorOf(transitDriverProps, "TransitDriverAgent-" + tramId.toString)
 
               override def receive: Receive = Actor.emptyBehavior
             }),
