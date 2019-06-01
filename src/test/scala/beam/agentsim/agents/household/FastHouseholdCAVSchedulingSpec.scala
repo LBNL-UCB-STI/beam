@@ -164,7 +164,7 @@ class FastHouseholdCAVSchedulingSpec
     }
   }
 
-  private def defaultCAVBeamVehicleType = beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
+  private def defaultCAVBeamVehicleType = beamScenario.vehicleTypes(Id.create("CAV", classOf[BeamVehicleType]))
 
   private def scenario1(vehicles: List[BeamVehicle]): (Population, Household) = {
     val sc: org.matsim.api.core.v01.Scenario = ScenarioUtils.createMutableScenario(ConfigUtils.createConfig())
