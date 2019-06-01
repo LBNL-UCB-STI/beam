@@ -25,12 +25,29 @@ class BeamScenarioLoader(
 
   import BeamScenarioLoader._
 
+  type IdToAttributes = Map[String, Seq[(String, Double)]]
+
   private val availableModes: Seq[String] = BeamMode.allModes.map(_.value)
 
   private lazy val plans: Iterable[PlanElement] = {
     val r = scenarioSource.getPlans
     logger.info(s"Read ${r.size} plans")
     r
+  }
+
+  private def replaceHouseholdsAttributes(
+    households: Households,
+    loadedAttributes: IdToAttributes
+  ): Unit = {
+    val attributes = households.getHouseholdAttributes
+    attributes.clear()
+    loadedAttributes.foreach {
+      case (id, listOfAttributes) =>
+        listOfAttributes.foreach {
+          case (name, value) =>
+            attributes.putAttribute(id, name, value)
+        }
+    }
   }
 
   def loadScenario(): Scenario = {
@@ -48,9 +65,16 @@ class BeamScenarioLoader(
     replacePlansFromPopulation(scenarioPopulation, plans)
 
     val vehicles = scenarioSource.getVehicles
+
+    val loadedHouseholds = scenarioSource.getHousehold()
+
     val newHouseholds: Iterable[Household] =
-      buildMatsimHouseholds(scenarioSource.getHousehold, personsWithPlans, vehicles)
+      buildMatsimHouseholds(loadedHouseholds, personsWithPlans, vehicles)
+
     val households = replaceHouseholds(scenario.getHouseholds, newHouseholds)
+
+    val loadedAttributes = buildAttributesCoordinates(loadedHouseholds)
+    replaceHouseholdsAttributes(households, loadedAttributes)
 
     // beamServices
     beamServices.personHouseholds = buildServicesPersonHouseholds(households)
@@ -78,23 +102,23 @@ class BeamScenarioLoader(
     households
   }
 
-  private[utils] def buildAttributes(households: Iterable[HouseholdInfo]): Map[String, (String, Any)] = {
-    households.flatMap { householdInfo =>
+  private[utils] def buildAttributesCoordinates(
+    households: Iterable[HouseholdInfo]
+  ): IdToAttributes = {
+    households.map { householdInfo =>
       val newId = householdInfo.householdId.id
 
       val coord = buildCoordinates(householdInfo)
-      Seq(
-        newId -> ("homecoordx", coord.getX),
-        newId -> ("homecoordy", coord.getY)
-      )
+
+      newId -> Seq(("homecoordx", coord.getX), ("homecoordy", coord.getY))
     }.toMap
   }
 
   private def buildCoordinates(householdInfo: HouseholdInfo) = {
     if (beamServices.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
-      beamServices.geo.wgs2Utm(new Coord(householdInfo.x, householdInfo.y))
+      beamServices.geo.wgs2Utm(new Coord(householdInfo.locationX, householdInfo.locationY))
     } else {
-      new Coord(householdInfo.x, householdInfo.y)
+      new Coord(householdInfo.locationX, householdInfo.locationY)
     }
   }
 
