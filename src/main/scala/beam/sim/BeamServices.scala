@@ -1,10 +1,8 @@
 package beam.sim
 
 import java.io.FileNotFoundException
-import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorRef
-import akka.util.Timeout
 import beam.agentsim.agents.choice.mode.ModeIncentive
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.FuelType.FuelType
@@ -20,8 +18,6 @@ import org.matsim.core.controler._
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.households.Household
 import org.slf4j.LoggerFactory
-
-import scala.concurrent.duration.FiniteDuration
 
 @ImplementedBy(classOf[BeamServicesImpl])
 trait BeamServices {
@@ -81,9 +77,6 @@ object BeamServices {
   type FuelTypePrices = Map[FuelType, Double]
 
   private val logger = LoggerFactory.getLogger(this.getClass)
-  implicit val askTimeout: Timeout = Timeout(FiniteDuration(5L, TimeUnit.SECONDS))
-
-  var vehicleCounter = 1
 
   val defaultTazTreeMap: TAZTreeMap = {
     val tazQuadTree: QuadTree[TAZ] = new QuadTree(-1, -1, 1, 1)
