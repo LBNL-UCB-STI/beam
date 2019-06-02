@@ -825,13 +825,13 @@ class RideHailManager(
   }
 
   def dieIfNoChildren(): Unit = {
-    log.info(
-      "route request cache hits ({} / {}) or {}%",
-      cacheHits,
-      cacheAttempts,
-      Math.round(cacheHits.toDouble / cacheAttempts.toDouble * 100)
-    )
     if (context.children.isEmpty) {
+      log.info(
+        "route request cache hits ({} / {}) or {}%",
+        cacheHits,
+        cacheAttempts,
+        Math.round(cacheHits.toDouble / cacheAttempts.toDouble * 100)
+      )
       context.stop(self)
     } else {
       log.debug("Remaining: {}", context.children)
