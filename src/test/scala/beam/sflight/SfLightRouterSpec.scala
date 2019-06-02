@@ -40,35 +40,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       assert(routedStartTime == time)
     }
 
-    "respond with a bike route to a first reasonable RoutingRequest" in {
-      val origin = geoUtil.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
-      val destination = geoUtil.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
-      val time = 25740
-      router ! RoutingRequest(
-        origin,
-        destination,
-        time,
-        withTransit = false,
-        Vector(
-          StreetVehicle(
-            Id.createVehicleId("0"),
-            Id.create("BIKE-DEFAULT", classOf[BeamVehicleType]),
-            new SpaceTime(new Coord(origin.getX, origin.getY), time),
-            Modes.BeamMode.BIKE,
-            asDriver = true
-          )
-        )
-      )
-      val response = expectMsgType[RoutingResponse]
-      val bikeTrip = response.itineraries.find(_.tripClassifier == BIKE).getOrElse(fail)
-      val routedStartTime = bikeTrip.beamLegs.head.startTime
-      assert(routedStartTime == time)
-      println(bikeTrip.totalTravelTimeInSecs)
-      println(bikeTrip.beamLegs.head.travelPath.distanceInM)
-      println(bikeTrip.beamLegs.head.travelPath.distanceInM / bikeTrip.totalTravelTimeInSecs)
-    }
+    "respond with fast travel time for a fast bike" in {
+      val fastBike = beamScenario.vehicleTypes(Id.create("FAST-BIKE", classOf[BeamVehicleType]))
+      val expectedSpeed = 20
+      assume(fastBike.maxVelocity.get == expectedSpeed)
 
-    "respond with faster travel time for a faster bike" in {
       val origin = geoUtil.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
       val destination = geoUtil.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
       val time = 25740
@@ -80,7 +56,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
         Vector(
           StreetVehicle(
             Id.createVehicleId("0"),
-            Id.create("FAST-BIKE", classOf[BeamVehicleType]),
+            fastBike.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.BIKE,
             asDriver = true
@@ -91,9 +67,8 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       val bikeTrip = response.itineraries.find(_.tripClassifier == BIKE).getOrElse(fail)
       val routedStartTime = bikeTrip.beamLegs.head.startTime
       assert(routedStartTime == time)
-      println(bikeTrip.totalTravelTimeInSecs)
-      println(bikeTrip.beamLegs.head.travelPath.distanceInM)
-      println(bikeTrip.beamLegs.head.travelPath.distanceInM / bikeTrip.totalTravelTimeInSecs)
+      val actualSpeed = bikeTrip.beamLegs.head.travelPath.distanceInM / bikeTrip.totalTravelTimeInSecs
+      assert(Math.abs(actualSpeed - expectedSpeed) < 4) // Difference probably due to start/end link
     }
 
     "respond with a fallback walk route to a RoutingRequest where walking would take approx. 8 hours" in {
@@ -232,7 +207,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
         case BeamTrip(legs) =>
           legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
           inside(legs.loneElement) {
-            case BeamLeg(_, mode, _, BeamPath(links, linkTravelTime, _, _, _, _)) =>
+            case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _, _)) =>
               mode should be(WALK)
               links should be('empty)
           }
@@ -285,7 +260,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
                 case BeamTrip(legs) =>
                   legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
                   inside(legs.loneElement) {
-                    case BeamLeg(_, mode, _, BeamPath(_, linkTravelTime, _, _, _, _)) =>
+                    case BeamLeg(_, mode, _, BeamPath(_, _, _, _, _, _)) =>
                       mode should be(WALK)
                   }
               }
@@ -300,16 +275,16 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
                   case BeamTrip(legs) =>
                     legs should have size 3
                     inside(legs(0)) {
-                      case BeamLeg(_, mode, _, BeamPath(_, linkTravelTime, _, _, _, _)) =>
+                      case BeamLeg(_, mode, _, BeamPath(_, _, _, _, _, _)) =>
                         mode should be(WALK)
                     }
                     inside(legs(1)) {
-                      case BeamLeg(_, mode, _, BeamPath(links, linkTravelTime, _, _, _, _)) =>
+                      case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _, _)) =>
                         mode should be(CAR)
                         links should not be 'empty
                     }
                     inside(legs(2)) {
-                      case BeamLeg(_, mode, _, BeamPath(_, linkTravelTime, _, _, _, _)) =>
+                      case BeamLeg(_, mode, _, BeamPath(_, _, _, _, _, _)) =>
                         mode should be(WALK)
                     }
                 }
