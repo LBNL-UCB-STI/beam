@@ -1,9 +1,8 @@
 package beam.agentsim.agents.ridehail
 
-import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.BeamRouter.Location
+import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
-import beam.sim.{BeamServices, HasServices}
 import com.google.inject.Inject
 import org.matsim.core.utils.misc.Time
 
@@ -13,7 +12,7 @@ import scala.util.Random
 
 object RideHailSurgePricingManager {}
 
-class RideHailSurgePricingManager @Inject()(val beamServices: BeamServices, val tazTreeMap: TAZTreeMap) {
+class RideHailSurgePricingManager @Inject()(val beamServices: BeamServices) {
 
   val rideHailConfig: Agents.RideHail = beamServices.beamConfig.beam.agentsim.agents.rideHail
 
@@ -44,7 +43,7 @@ class RideHailSurgePricingManager @Inject()(val beamServices: BeamServices, val 
 
   //Scala like code
   val surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]] =
-    tazTreeMap.tazQuadTree.values.asScala.map { v =>
+    beamServices.tazTreeMap.tazQuadTree.values.asScala.map { v =>
       val array = (0 until numberOfTimeBins).foldLeft(new ArrayBuffer[SurgePriceBin]) { (arrayBuffer, _) =>
         arrayBuffer.append(defaultBinContent)
         arrayBuffer
@@ -133,7 +132,7 @@ class RideHailSurgePricingManager @Inject()(val beamServices: BeamServices, val 
   }
 
   def getSurgeLevel(location: Location, time: Double): Double = {
-    val taz = tazTreeMap.getTAZ(location.getX, location.getY)
+    val taz = beamServices.tazTreeMap.getTAZ(location.getX, location.getY)
     val timeBinIndex = getTimeBinIndex(time)
     surgePriceBins
       .get(taz.tazId.toString)
@@ -153,7 +152,7 @@ class RideHailSurgePricingManager @Inject()(val beamServices: BeamServices, val 
 
   def addRideCost(time: Double, cost: Double, pickupLocation: Location): Unit = {
 
-    val taz = tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY)
+    val taz = beamServices.tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY)
     val timeBinIndex = getTimeBinIndex(time)
 
     surgePriceBins.get(taz.tazId.toString).foreach { i =>

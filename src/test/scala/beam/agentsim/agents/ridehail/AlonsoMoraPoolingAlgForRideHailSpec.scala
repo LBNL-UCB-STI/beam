@@ -50,9 +50,9 @@ class AlonsoMoraPoolingAlgForRideHailSpec
   implicit val mockActorRef: ActorRef = probe.ref
   val beamExecConfig: BeamExecutionConfig = setupBeamWithConfig(system.settings.config)
   implicit val beamScenario = loadScenario(beamExecConfig.beamConfig)
-  val scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, beamScenario)
-  val injector = buildInjector(system.settings.config, scenario, beamScenario)
-  val services = buildBeamServices(injector, scenario)
+  lazy val scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, beamScenario)
+  lazy val injector = buildInjector(system.settings.config, scenario, beamScenario)
+  lazy val services = buildBeamServices(injector, scenario)
 
   describe("AlonsoMoraPoolingAlgForRideHail") {
     it("Creates a consistent plan") {
