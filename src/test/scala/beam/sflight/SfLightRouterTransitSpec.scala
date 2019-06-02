@@ -6,7 +6,6 @@ import akka.actor._
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.ZonalParkingManagerSpec
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode._
 import beam.router.model.EmbodiedBeamTrip
@@ -15,18 +14,9 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest._
 
-import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransitSpec") with Inside with LazyLogging {
-
-  override def beforeAll: Unit = {
-    super.beforeAll
-    val zonalParkingManager =
-      ZonalParkingManagerSpec.mockZonalParkingManager(services.beamConfig, services.geo, Some(router))
-    within(5 minutes) { // Router can take a while to initialize
-    }
-  }
 
   "A router" must {
     "respond with a route to a first reasonable RoutingRequest" in {
