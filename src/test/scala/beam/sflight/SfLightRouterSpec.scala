@@ -68,6 +68,34 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       println(bikeTrip.beamLegs.head.travelPath.distanceInM / bikeTrip.totalTravelTimeInSecs)
     }
 
+    "respond with faster travel time for a faster bike" in {
+      val origin = geoUtil.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
+      val destination = geoUtil.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
+      val time = 25740
+      router ! RoutingRequest(
+        origin,
+        destination,
+        time,
+        withTransit = false,
+        Vector(
+          StreetVehicle(
+            Id.createVehicleId("0"),
+            Id.create("FAST-BIKE", classOf[BeamVehicleType]),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time),
+            Modes.BeamMode.BIKE,
+            asDriver = true
+          )
+        )
+      )
+      val response = expectMsgType[RoutingResponse]
+      val bikeTrip = response.itineraries.find(_.tripClassifier == BIKE).getOrElse(fail)
+      val routedStartTime = bikeTrip.beamLegs.head.startTime
+      assert(routedStartTime == time)
+      println(bikeTrip.totalTravelTimeInSecs)
+      println(bikeTrip.beamLegs.head.travelPath.distanceInM)
+      println(bikeTrip.beamLegs.head.travelPath.distanceInM / bikeTrip.totalTravelTimeInSecs)
+    }
+
     "respond with a fallback walk route to a RoutingRequest where walking would take approx. 8 hours" in {
       val origin = new BeamRouter.Location(626575.0322098453, 4181202.599243111)
       val destination =
