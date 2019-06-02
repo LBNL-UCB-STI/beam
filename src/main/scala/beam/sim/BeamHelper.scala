@@ -15,13 +15,13 @@ import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
+import beam.router._
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
-import beam.router._
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
-import beam.sim.BeamServices.{getTazTreeMap, FuelTypePrices}
+import beam.sim.BeamServices.{FuelTypePrices, getTazTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
@@ -196,7 +196,7 @@ trait BeamHelper extends LazyLogging {
             )
           )
 
-          bind(classOf[NetworkHelper]).toInstance(new NetworkHelperImpl(beamScenario.network))
+          bind(classOf[NetworkHelper]).to(classOf[NetworkHelperImpl])
           bind(classOf[TAZTreeMap]).toInstance(getTazTreeMap(beamConfig.beam.agentsim.taz.filePath))
           bind(classOf[RideHailIterationHistory]).asEagerSingleton()
           bind(classOf[RouteHistory]).asEagerSingleton()
@@ -395,12 +395,7 @@ trait BeamHelper extends LazyLogging {
     if (isMetricsEnable) Kamon.start(clusterConfig.withFallback(ConfigFactory.defaultReference()))
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
-    import akka.cluster.singleton.{
-      ClusterSingletonManager,
-      ClusterSingletonManagerSettings,
-      ClusterSingletonProxy,
-      ClusterSingletonProxySettings
-    }
+    import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
