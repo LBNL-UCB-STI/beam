@@ -1,11 +1,9 @@
 package beam.analysis.plots;
 
-import beam.agentsim.infrastructure.TAZTreeMap;
 import beam.analysis.*;
 import beam.analysis.StatsFactory.StatsType;
 import beam.calibration.impl.example.ErrorComparisonType;
 import beam.calibration.impl.example.ModeChoiceObjectiveFunction;
-import beam.sim.BeamScenario;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import org.matsim.api.core.v01.events.Event;
@@ -44,15 +42,17 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
 
     private final Logger log = LoggerFactory.getLogger(GraphsStatsAgentSimEventsListener.class);
 
-    public GraphsStatsAgentSimEventsListener(BeamServices services, BeamScenario beamScenario, TAZTreeMap tazTreeMap) {
+    // No Arg Constructor
+    public GraphsStatsAgentSimEventsListener(BeamServices services) {
         this.beamConfig = services.beamConfig();
-        statsFactory = new StatsFactory(services, beamScenario, tazTreeMap);
+        statsFactory = new StatsFactory(services);
     }
 
+    // Constructor
     public GraphsStatsAgentSimEventsListener(EventsManager eventsManager,
                                              OutputDirectoryHierarchy controlerIO,
-                                             BeamServices services, BeamScenario beamScenario, TAZTreeMap tazTreeMap) {
-        this(services, beamScenario, tazTreeMap);
+                                             BeamServices services, BeamConfig beamConfig) {
+        this(services);
         try{
             statsFactory.createStats();
         }catch (Exception e){
@@ -61,7 +61,7 @@ public class GraphsStatsAgentSimEventsListener implements BasicEventHandler, Ite
 
         eventsManager.addHandler(this);
         CONTROLLER_IO = controlerIO;
-        PathTraversalSpatialTemporalTableGenerator.setVehicles(JavaConverters.mapAsJavaMap(beamScenario.vehicleTypes()));
+        PathTraversalSpatialTemporalTableGenerator.setVehicles(JavaConverters.mapAsJavaMap(services.beamScenario().vehicleTypes()));
     }
 
     // helper methods

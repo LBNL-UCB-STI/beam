@@ -1,15 +1,14 @@
 package beam.utils
 import java.io.File
 
-import beam.agentsim.infrastructure.TAZTreeMap
-import beam.router.{BeamSkimmer, TravelTimeObserved}
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
-import beam.router.r5.DefaultNetworkCoordinator
-import beam.sim.{BeamHelper, BeamScenario}
+import beam.router.{BeamSkimmer, TravelTimeObserved}
 import beam.sim.BeamServices.getTazTreeMap
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.{BeamHelper, BeamScenario}
 import com.google.inject.util.Providers
 import com.google.inject.{AbstractModule, Guice, Injector, Provider}
 import org.matsim.analysis.{CalcLinkStats, IterationStopWatch, ScoreStats, VolumesAnalyzer}

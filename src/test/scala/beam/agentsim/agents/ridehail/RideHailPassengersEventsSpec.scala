@@ -2,11 +2,10 @@ package beam.agentsim.agents.ridehail
 
 import beam.agentsim.events.PathTraversalEvent
 import beam.integration.IntegrationSpecCommon
-import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices}
-import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
+import beam.utils.FileUtils
 import org.matsim.api.core.v01.events.{Event, PersonEntersVehicleEvent, PersonLeavesVehicleEvent}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
@@ -43,7 +42,7 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
         injector.getInstance(classOf[EventsManager])
       eventManager.addHandler(eventHandler)
       val popAdjustment = DefaultPopulationAdjustment
-      popAdjustment(beamServices, beamScenario).update(scenario)
+      popAdjustment(beamServices).update(scenario)
       beamServices.controler.run()
     }
 

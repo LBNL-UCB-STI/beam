@@ -7,7 +7,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RouteHistory.LinkId
 import beam.router.model.EmbodiedBeamLeg
-import beam.sim.{BeamScenario, BeamServices}
+import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population._
 import org.matsim.households.Income.IncomePeriod
@@ -37,7 +37,6 @@ case class AttributesOfIndividual(
     beamMode: BeamMode,
     modeChoiceModel: ModeChoiceMultinomialLogit,
     beamServices: BeamServices,
-    beamScenario: BeamScenario,
     beamVehicleTypeId: Id[BeamVehicleType],
     destinationActivity: Option[Activity] = None,
     isRideHail: Boolean = false,
@@ -53,7 +52,7 @@ case class AttributesOfIndividual(
 
     val multiplier = beamMode match {
       case CAR =>
-        val vehicleAutomationLevel = getAutomationLevel(beamVehicleTypeId, beamServices, beamScenario)
+        val vehicleAutomationLevel = getAutomationLevel(beamVehicleTypeId, beamServices)
         if (isRideHail) {
           if (isPooledTrip) {
             getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeChoiceModel.modeMultipliers) *
@@ -81,7 +80,6 @@ case class AttributesOfIndividual(
     embodiedBeamLeg: EmbodiedBeamLeg,
     modeChoiceModel: ModeChoiceMultinomialLogit,
     beamServices: BeamServices,
-    beamScenario: BeamScenario,
     destinationActivity: Option[Activity]
   ): Double = {
     //NOTE: This gives answers in hours
@@ -95,7 +93,6 @@ case class AttributesOfIndividual(
             embodiedBeamLeg.beamLeg.mode,
             modeChoiceModel,
             beamServices,
-            beamScenario,
             embodiedBeamLeg.beamVehicleTypeId,
             destinationActivity,
             embodiedBeamLeg.isRideHail,
@@ -115,11 +112,10 @@ case class AttributesOfIndividual(
   private def getAutomationLevel(
     beamVehicleTypeId: Id[BeamVehicleType],
     beamServices: BeamServices,
-    beamScenario: BeamScenario,
   ): automationLevel = {
     val automationInt = beamServices
       .getDefaultAutomationLevel()
-      .getOrElse(beamScenario.vehicleTypes(beamVehicleTypeId).automationLevel)
+      .getOrElse(beamServices.beamScenario.vehicleTypes(beamVehicleTypeId).automationLevel)
     automationInt match {
       case 1 => levelLE2
       case 2 => levelLE2

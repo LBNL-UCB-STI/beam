@@ -13,7 +13,6 @@ import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.RoadCapacityAdj
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation;
 import beam.router.BeamRouter;
 import beam.sim.BeamConfigChangesObservable;
-import beam.sim.BeamScenario;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import beam.sim.metrics.MetricsSupport;
@@ -74,7 +73,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private Population jdeqsimPopulation;
     private TravelTime previousTravelTime;
     private BeamServices beamServices;
-    private BeamScenario beamScenario;
     private BeamConfigChangesObservable beamConfigChangesObservable;
 
     private AgentSimPhysSimInterfaceDebugger agentSimPhysSimInterfaceDebugger;
@@ -93,11 +91,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                                           OutputDirectoryHierarchy controlerIO,
                                           Scenario scenario,
                                           BeamServices beamServices,
-                                          BeamScenario beamScenario,
                                           BeamConfigChangesObservable beamConfigChangesObservable) {
         eventsManager.addHandler(this);
         this.beamServices = beamServices;
-        this.beamScenario = beamScenario;
         this.controlerIO = controlerIO;
         this.router = beamServices.beamRouter();
         this.beamConfig = beamServices.beamConfig();
@@ -338,7 +334,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
                 String vehicleType = pte.vehicleType();
                 Id<BeamVehicleType> beamVehicleTypeId = Id.create(vehicleType, BeamVehicleType.class);
-                boolean isCaccEnabled = beamScenario.vehicleTypes().get(beamVehicleTypeId).get().isCaccEnabled();
+                boolean isCaccEnabled = beamServices.beamScenario().vehicleTypes().get(beamVehicleTypeId).get().isCaccEnabled();
                 caccVehiclesMap.put(vehicleId, isCaccEnabled);
 
                 Id<Person> personId = Id.createPersonId(vehicleId);

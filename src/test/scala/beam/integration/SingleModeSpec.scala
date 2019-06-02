@@ -50,8 +50,7 @@ class SingleModeSpec
     services.matsimServices = matsimSvc
     services.modeChoiceCalculatorFactory = ModeChoiceCalculator(
       services.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
-      services,
-      beamScenario
+      services
     )
 
     scenario.getPopulation.getPersons.values.asScala

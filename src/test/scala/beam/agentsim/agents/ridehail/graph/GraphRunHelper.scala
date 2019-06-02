@@ -37,7 +37,7 @@ class GraphRunHelper(childModule: AbstractModule, baseConfig: Config) extends Be
 
   def run(): Unit = {
     val popAdjustment = DefaultPopulationAdjustment
-    popAdjustment(beamServices, beamScenario).update(scenario)
+    popAdjustment(beamServices).update(scenario)
     beamServices.controler.run()
   }
 

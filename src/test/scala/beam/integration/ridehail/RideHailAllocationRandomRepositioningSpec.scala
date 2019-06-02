@@ -40,7 +40,7 @@ class RideHailAllocationRandomRepositioningSpec extends FlatSpec with BeamHelper
 
     val beamServices = injector.getInstance(classOf[BeamServices])
     val controller = beamServices.controler
-    popAdjustment(beamServices, beamScenario).update(scenario)
+    popAdjustment(beamServices).update(scenario)
 
     controller.run()
 

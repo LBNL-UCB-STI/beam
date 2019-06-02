@@ -41,7 +41,7 @@ class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with Mockit
     )
 
     val services = injector.getInstance(classOf[BeamServices])
-    DefaultPopulationAdjustment(services, beamScenario).update(scenario)
+    DefaultPopulationAdjustment(services).update(scenario)
     val controller = services.controler
     controller.run()
 

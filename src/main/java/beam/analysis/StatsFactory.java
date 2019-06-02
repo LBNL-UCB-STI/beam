@@ -1,13 +1,10 @@
 package beam.analysis;
 
-import beam.agentsim.infrastructure.TAZTreeMap;
 import beam.analysis.plots.*;
 import beam.analysis.summary.*;
-import beam.sim.BeamScenario;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 
-import javax.inject.Inject;
 import java.beans.Beans;
 import java.util.Arrays;
 import java.util.Collection;
@@ -38,15 +35,10 @@ public class StatsFactory {
     private final BeamConfig beamConfig;
     private final BeamServices beamServices;
     private Map<StatsType, BeamAnalysis> beamStatsMap = new HashMap<>();
-    private final TAZTreeMap tazTreeMap;
-    private final BeamScenario beamScenario;
 
-    @Inject
-    public StatsFactory(BeamServices services, BeamScenario beamScenario, TAZTreeMap tazTreeMap) {
+    public StatsFactory(BeamServices services) {
         this.beamServices = services;
         this.beamConfig = services.beamConfig();
-        this.tazTreeMap = tazTreeMap;
-        this.beamScenario = beamScenario;
     }
 
     public BeamAnalysis getAnalysis(StatsType statsType) {
@@ -81,7 +73,7 @@ public class StatsFactory {
             case RideHailWaiting:
                 return new RideHailWaitingAnalysis(new RideHailWaitingAnalysis.WaitingStatsComputation(), beamConfig);
             case RideHailWaitingTaz:
-                return new RideHailWaitingTazAnalysis(beamServices, tazTreeMap);
+                return new RideHailWaitingTazAnalysis(beamServices);
             case ModeChosen:
                 return new ModeChosenAnalysis(new ModeChosenAnalysis.ModeChosenComputation(), beamConfig);
             case PersonVehicleTransition:
@@ -96,11 +88,11 @@ public class StatsFactory {
                 return new DeadHeadingAnalysis(writeGraphs);
             case VehicleHoursTraveled:
                 return new VehicleTravelTimeAnalysis(beamServices.matsimServices().getScenario(),
-                        beamServices.networkHelper(), beamScenario.vehicleTypes().keySet());
+                        beamServices.networkHelper(), beamServices.beamScenario().vehicleTypes().keySet());
             case VehicleMilesTraveled:
-                return new VehicleMilesTraveledAnalysis(beamScenario.vehicleTypes().keySet());
+                return new VehicleMilesTraveledAnalysis(beamServices.beamScenario().vehicleTypes().keySet());
             case NumberOfVehicles:
-                return new NumberOfVehiclesAnalysis(beamScenario);
+                return new NumberOfVehiclesAnalysis(beamServices.beamScenario());
             case PersonCost:
                 return new PersonCostAnalysis(beamServices);
             case AboveCapacityPtUsageDuration:

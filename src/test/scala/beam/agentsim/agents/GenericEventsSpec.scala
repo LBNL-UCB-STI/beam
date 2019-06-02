@@ -39,7 +39,7 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
     beamServices = injector.getInstance(classOf[BeamServices])
     beamServices.matsimServices = new MatsimServicesMock(null, scenario)
 
-    val popAdjustment = DefaultPopulationAdjustment(beamServices, injector.getInstance(classOf[BeamScenario]))
+    val popAdjustment = DefaultPopulationAdjustment(beamServices)
     popAdjustment.update(scenario)
 
     eventManager = injector.getInstance(classOf[EventsManager])

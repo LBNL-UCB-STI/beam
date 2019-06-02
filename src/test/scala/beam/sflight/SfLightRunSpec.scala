@@ -3,13 +3,12 @@ package beam.sflight
 import java.nio.file.Paths
 
 import beam.agentsim.events.ModeChoiceEvent
-import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices}
 import beam.tags.{ExcludeRegular, Periodic}
+import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
-import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.AbstractModule
@@ -51,11 +50,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
       val beamScenario = loadScenario(beamConfig)
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-      val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
-      networkCoordinator.loadNetwork()
-      networkCoordinator.convertFrequenciesToTrips()
-      val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
-      scenario.setNetwork(networkCoordinator.network)
+      scenario.setNetwork(beamScenario.network)
 
       var nCarTrips = 0
       val injector = org.matsim.core.controler.Injector.createInjector(
@@ -78,7 +73,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
         }
       )
       val services = injector.getInstance(classOf[BeamServices])
-      DefaultPopulationAdjustment(services, beamScenario).update(scenario)
+      DefaultPopulationAdjustment(services).update(scenario)
       val controler = services.controler
       controler.run()
       assert(nCarTrips > 1)

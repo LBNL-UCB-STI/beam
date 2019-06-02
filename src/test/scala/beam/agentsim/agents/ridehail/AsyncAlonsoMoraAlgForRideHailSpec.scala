@@ -9,11 +9,9 @@ import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail.{CustomerRequest, RVGraph, VehicleAndSchedule, _}
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
-import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamSkimmer
+import beam.sim.BeamHelper
 import beam.sim.common.GeoUtilsImpl
-import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.{Coord, Id}
@@ -50,34 +48,51 @@ class AsyncAlonsoMoraAlgForRideHailSpec
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val mockActorRef: ActorRef = probe.ref
-  private lazy val beamConfig = BeamConfig(system.settings.config)
+  val beamExecConfig: BeamExecutionConfig = setupBeamWithConfig(system.settings.config)
+  implicit val beamScenario = loadScenario(beamExecConfig.beamConfig)
+  val scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, beamScenario)
+  val injector = buildInjector(system.settings.config, scenario, beamScenario)
+  val services = buildBeamServices(injector, scenario)
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
-  private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-  private val matsimConfig = configBuilder.buildMatSimConf()
-  val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
-  implicit val beamScenario: BeamScenario = loadScenario(beamConfig)
-  val geo = new GeoUtilsImpl(beamConfig)
 
   describe("AsyncAlonsoMoraAlgForRideHailSpec") {
     it("Creates a consistent plan") {
-      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig, tAZTreeMap, beamScenario, geo)
+      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamExecConfig.beamConfig, services.tazTreeMap, beamScenario, new GeoUtilsImpl(beamExecConfig.beamConfig))
       val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenario1
       val alg: AsyncAlonsoMoraAlgForRideHail =
         new AsyncAlonsoMoraAlgForRideHail(
           AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(sc._2),
           sc._1,
-          Map[MobilityRequestTrait, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+          Map[MobilityRequestTrait, Int]((Pickup, 7 * 60), (Dropoff, 10 * 60)),
           maxRequestsPerVehicle = 1000,
-          null
+          services
         )
 
       import scala.concurrent.duration._
-      val assignment = Await.result(alg.greedyAssignment(), atMost = 10.minutes)
-      for (row <- assignment) {
-        assert(row._1.getId == "trip:[p1] -> [p4] -> " || row._1.getId == "trip:[p3] -> ")
-        assert(row._2.getId == "v2" || row._2.getId == "v1")
-      }
+      val assignment = Await.result(alg.greedyAssignment(), atMost = 10.minutes).toArray
+      assert(assignment(0)._2.getId == "v2")
+      assignment(0)._1.requests.foreach(p => assert(p.getId == "p1" || p.getId == "p4"))
+      assert(assignment(1)._2.getId == "v1")
+      assert(assignment(1)._1.requests.head.getId == "p3")
+    }
 
+    it("Creates a consistent plan considering a geofence ") {
+      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamExecConfig.beamConfig, services.tazTreeMap, beamScenario, new GeoUtilsImpl(beamExecConfig.beamConfig))
+      val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenarioGeoFence
+      val alg: AsyncAlonsoMoraAlgForRideHail =
+        new AsyncAlonsoMoraAlgForRideHail(
+          AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(sc._2),
+          sc._1,
+          Map[MobilityRequestTrait, Int]((Pickup, 7 * 60), (Dropoff, 10 * 60)),
+          maxRequestsPerVehicle = 1000,
+          null
+        )
+      import scala.concurrent.duration._
+      val assignment = Await.result(alg.greedyAssignment(), atMost = 10.minutes).toArray
+      assert(assignment(0)._2.getId == "v2")
+      assignment(0)._1.requests.foreach(p => assert(p.getId == "p1" || p.getId == "p4"))
+      assert(assignment(1)._2.getId == "v1")
+      assert(assignment(1)._1.requests.head.getId == "p2")
     }
 
     ignore("scales") {
@@ -86,7 +101,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
       import org.matsim.core.scenario.ScenarioUtils
       val sc = ScenarioUtils.createScenario(ConfigUtils.createConfig())
       new PopulationReader(sc).readFile("test/input/sf-light/sample/25k/population.xml.gz")
-      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamConfig, tAZTreeMap, beamScenario, geo)
+      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamExecConfig.beamConfig, services.tazTreeMap, beamScenario, new GeoUtilsImpl(beamExecConfig.beamConfig))
 
       val requests = mutable.ListBuffer.empty[CustomerRequest]
       sc.getPopulation.getPersons.values.asScala.map(p => BeamPlan(p.getSelectedPlan)).foreach { plan =>

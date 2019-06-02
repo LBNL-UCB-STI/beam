@@ -41,7 +41,7 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
     scenario.setNetwork(beamScenario.network)
 
     val services = buildBeamServices(buildInjector(config, scenario, beamScenario), scenario)
-    DefaultPopulationAdjustment(services, beamScenario).update(scenario)
+    DefaultPopulationAdjustment(services).update(scenario)
 
     val controller = services.controler
     controller.run()

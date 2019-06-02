@@ -8,8 +8,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.choice.mode.ModeIncentive
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.agentsim.agents.vehicles.FuelType.FuelType
-import beam.agentsim.infrastructure.TAZTreeMap
-import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -31,6 +30,7 @@ trait BeamServices {
   val injector: Injector
   val controler: ControlerI
   val beamConfig: BeamConfig
+  def beamScenario: BeamScenario
 
   val geo: GeoUtils
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory
@@ -40,6 +40,7 @@ trait BeamServices {
   var personHouseholds: Map[Id[Person], Household]
 
   var matsimServices: MatsimServices
+  def tazTreeMap: TAZTreeMap
   val modeIncentives: ModeIncentive
   var iterationNumber: Int = -1
 
@@ -64,7 +65,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
   val beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
-
+  def beamScenario: BeamScenario = injector.getInstance(classOf[BeamScenario])
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
 
   val rideHailTransitModes: Seq[BeamMode] =
@@ -94,9 +95,8 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
     Metrics.iterationNumber = iterationNumber
   }
 
-  private val _networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
-
-  def networkHelper: NetworkHelper = _networkHelper
+  override def networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
+  override def tazTreeMap: TAZTreeMap = injector.getInstance(classOf[TAZTreeMap])
 }
 
 object BeamServices {

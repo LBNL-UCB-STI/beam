@@ -8,18 +8,15 @@ import akka.util.Timeout
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail.{CustomerRequest, RVGraph, VehicleAndSchedule, _}
 import beam.agentsim.agents.vehicles.{BeamVehicleType, PersonIdWithActorRef}
 import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
-import beam.agentsim.infrastructure.TAZTreeMap
 import beam.router.BeamSkimmer
 import beam.sim.common.GeoUtilsImpl
-import beam.sim.config.BeamConfig
-import beam.sim.{BeamHelper, BeamScenario, BeamServices}
+import beam.sim.{BeamHelper, BeamScenario, Geofence}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.vehicles.Vehicle
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
 
@@ -51,14 +48,15 @@ class AlonsoMoraPoolingAlgForRideHailSpec
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val mockActorRef: ActorRef = probe.ref
-  private lazy val beamConfig = BeamConfig(system.settings.config)
-  private implicit lazy val beamScenario: BeamScenario = loadScenario(beamConfig)
-  val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
+  val beamExecConfig: BeamExecutionConfig = setupBeamWithConfig(system.settings.config)
+  implicit val beamScenario = loadScenario(beamExecConfig.beamConfig)
+  val scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, beamScenario)
+  val injector = buildInjector(system.settings.config, scenario, beamScenario)
+  val services = buildBeamServices(injector, scenario)
 
   describe("AlonsoMoraPoolingAlgForRideHail") {
     it("Creates a consistent plan") {
-      implicit val skimmer: BeamSkimmer =
-        new BeamSkimmer(beamConfig, tAZTreeMap, beamScenario, new GeoUtilsImpl(beamConfig))
+      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamExecConfig.beamConfig, services.tazTreeMap, beamScenario, new GeoUtilsImpl(beamExecConfig.beamConfig))
       val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenario1
       val alg: AlonsoMoraPoolingAlgForRideHail =
         new AlonsoMoraPoolingAlgForRideHail(
@@ -66,7 +64,7 @@ class AlonsoMoraPoolingAlgForRideHailSpec
           sc._1,
           Map[MobilityRequestTrait, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
           maxRequestsPerVehicle = 1000,
-          null
+          services
         )
 
       val rvGraph: RVGraph = alg.pairwiseRVGraph
@@ -107,7 +105,7 @@ class AlonsoMoraPoolingAlgForRideHailSpec
         }
       }
 
-      val rtvGraph = alg.rTVGraph(rvGraph, null)
+      val rtvGraph = alg.rTVGraph(rvGraph, services)
 
       for (v <- rtvGraph.vertexSet().asScala.filter(_.isInstanceOf[RideHailTrip])) {
         v.getId match {
@@ -178,6 +176,49 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
       createVehicleAndSchedule("v1", vehicleType, new Coord(5000, 5000), 8.hours.toSeconds.toInt)
     val v2: VehicleAndSchedule =
       createVehicleAndSchedule("v2", vehicleType, new Coord(2000, 2000), 8.hours.toSeconds.toInt)
+    val p1Req: CustomerRequest =
+      createPersonRequest(
+        makeVehPersonId("p1"),
+        new Coord(1000, 2000),
+        8.hours.toSeconds.toInt,
+        new Coord(18000, 19000)
+      )
+    val p4Req: CustomerRequest =
+      createPersonRequest(
+        makeVehPersonId("p4"),
+        new Coord(2000, 1000),
+        (8.hours.toSeconds + 5.minutes.toSeconds).toInt,
+        new Coord(20000, 18000)
+      )
+    val p2Req: CustomerRequest =
+      createPersonRequest(
+        makeVehPersonId("p2"),
+        new Coord(3000, 3000),
+        (8.hours.toSeconds + 1.minutes.toSeconds).toInt,
+        new Coord(19000, 18000)
+      )
+    val p3Req: CustomerRequest =
+      createPersonRequest(
+        makeVehPersonId("p3"),
+        new Coord(4000, 4000),
+        (8.hours.toSeconds + 2.minutes.toSeconds).toInt,
+        new Coord(21000, 20000)
+      )
+    (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
+  }
+
+  def scenarioGeoFence(
+    implicit skimmer: BeamSkimmer,
+    beamScenario: BeamScenario,
+    mockActorRef: ActorRef
+  ): (List[VehicleAndSchedule], List[CustomerRequest]) = {
+    import scala.concurrent.duration._
+    val gf = Geofence(10000, 10000, 13400)
+    val vehicleType = beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
+    val v1: VehicleAndSchedule =
+      createVehicleAndSchedule("v1", vehicleType, new Coord(5000, 5000), 8.hours.toSeconds.toInt, Some(gf))
+    val v2: VehicleAndSchedule =
+      createVehicleAndSchedule("v2", vehicleType, new Coord(2000, 2000), 8.hours.toSeconds.toInt, Some(gf))
     val p1Req: CustomerRequest =
       createPersonRequest(
         makeVehPersonId("p1"),

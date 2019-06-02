@@ -72,7 +72,7 @@ class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
       )
 
       val services = injector.getInstance(classOf[BeamServices])
-      DefaultPopulationAdjustment(services, beamScenario).update(scenario)
+      DefaultPopulationAdjustment(services).update(scenario)
       val controler = services.controler
       controler.run()
       assert(nDepartures == nArrivals)

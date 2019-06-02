@@ -48,7 +48,7 @@ class LCCMSpec extends FlatSpec with BeamHelper with MockitoSugar {
 
     val beamServices = injector.getInstance(classOf[BeamServices])
     val controller = beamServices.controler
-    popAdjustment(beamServices, beamScenario).update(scenario)
+    popAdjustment(beamServices).update(scenario)
 
     controller.run()
   }

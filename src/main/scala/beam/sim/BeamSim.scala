@@ -9,7 +9,6 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
-import beam.agentsim.infrastructure.TAZTreeMap
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
@@ -18,8 +17,6 @@ import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
-import beam.sim.common.GeoUtils
-import beam.sim.config.BeamConfig
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
@@ -43,13 +40,14 @@ import org.matsim.core.controler.listener.{
   ShutdownListener,
   StartupListener
 }
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
+
+import beam.sim.config.BeamConfig
 
 class BeamSim @Inject()(
   private val actorSystem: ActorSystem,
@@ -62,10 +60,7 @@ class BeamSim @Inject()(
   private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator,
   private val beamSkimmer: BeamSkimmer,
   private val travelTimeObserved: TravelTimeObserved,
-  private val beamConfigChangesObservable: BeamConfigChangesObservable,
-  private val tazTreeMap: TAZTreeMap,
-  private val beamScenario: BeamScenario,
-  private val geo: GeoUtils
+  private val beamConfigChangesObservable: BeamConfigChangesObservable
 ) extends StartupListener
     with IterationStartsListener
     with IterationEndsListener
@@ -92,8 +87,7 @@ class BeamSim @Inject()(
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
       beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
-      beamServices,
-      beamScenario
+      beamServices
     )
 
     metricsPrinter ! Subscribe("counter", "**")
@@ -102,11 +96,11 @@ class BeamSim @Inject()(
     val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
-        beamScenario,
+        beamServices.beamScenario,
         transportNetwork,
         scenario.getNetwork,
         networkHelper,
-        geo,
+        beamServices.geo,
         scenario,
         scenario.getTransitVehicles,
         fareCalculator,
@@ -119,6 +113,9 @@ class BeamSim @Inject()(
     warmStart.warmStartTravelTime(beamServices.beamRouter, scenario)
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
+    /*    if(null != beamServices.beamConfig.beam.agentsim.taz.file && !beamServices.beamConfig.beam.agentsim.taz.file.isEmpty)
+          beamServices.taz = TAZTreeMap.fromCsv(beamServices.beamConfig.beam.agentsim.taz.file)*/
+
     beamServices.matsimServices = event.getServices
 
     if (!beamServices.beamConfig.beam.physsim.skipPhysSim) {
@@ -128,7 +125,6 @@ class BeamSim @Inject()(
         event.getServices.getControlerIO,
         scenario,
         beamServices,
-        beamScenario,
         beamConfigChangesObservable
       )
       iterationStatsProviders += agentSimToPhysSimPlanConverter
@@ -138,8 +134,7 @@ class BeamSim @Inject()(
       eventsManager,
       event.getServices.getControlerIO,
       beamServices,
-      beamScenario,
-      tazTreeMap
+      beamServices.beamConfig
     )
     iterationStatsProviders += createGraphsFromEvents
     modalityStyleStats = new ModalityStyleStats()
@@ -156,8 +151,7 @@ class BeamSim @Inject()(
       eventsManager,
       beamServices,
       event.getServices.getInjector.getInstance(classOf[RideHailIterationHistory]),
-      transportNetwork,
-      tazTreeMap
+      transportNetwork
     )
 
     delayMetricAnalysis = new DelayMetricAnalysis(
@@ -168,7 +162,7 @@ class BeamSim @Inject()(
 
     val controllerIO = event.getServices.getControlerIO
     PopulationCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("population.csv"))
-    new VehiclesCsvWriter(beamServices, beamScenario).toCsv(scenario, controllerIO.getOutputFilename("vehicles.csv"))
+    VehiclesCsvWriter(beamServices).toCsv(scenario, controllerIO.getOutputFilename("vehicles.csv"))
     HouseholdsCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("households.csv"))
     NetworkCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("network.csv"))
 
@@ -178,7 +172,7 @@ class BeamSim @Inject()(
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     beamConfigChangesObservable.notifyChangeToSubscribers()
     ExponentialLazyLogging.reset()
-    beamScenario.privateVehicles.values.foreach(_.initializeFuelLevels)
+    beamServices.beamScenario.privateVehicles.values.foreach(_.initializeFuelLevels)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {

@@ -1,7 +1,6 @@
 package beam.agentsim.agents.ridehail
 
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
-import beam.agentsim.infrastructure.TAZTreeMap
 import beam.sim.BeamServices
 import beam.utils.GeoUtils
 import com.conveyal.r5.transit.TransportNetwork
@@ -86,8 +85,7 @@ class RideHailIterationsStatsCollector(
   eventsManager: EventsManager,
   beamServices: BeamServices,
   rideHailIterationHistoryActor: RideHailIterationHistory,
-  transportNetwork: TransportNetwork,
-  tazTreeMap: TAZTreeMap
+  transportNetwork: TransportNetwork
 ) extends BasicEventHandler
     with LazyLogging {
 
@@ -120,7 +118,7 @@ class RideHailIterationsStatsCollector(
     rideHailIterationHistoryActor updateRideHailStats
     TNCIterationStats(
       rideHailStats.mapValues(_.toList),
-      tazTreeMap,
+      beamServices.tazTreeMap,
       timeBinSizeInSec,
       numberOfTimeBins
     )
@@ -228,7 +226,7 @@ class RideHailIterationsStatsCollector(
   }
 
   private def getTazId(coord: Coord): String =
-    Try(tazTreeMap.getTAZ(coord.getX, coord.getY).tazId.toString).getOrElse("0")
+    Try(beamServices.tazTreeMap.getTAZ(coord.getX, coord.getY).tazId.toString).getOrElse("0")
 
   private def getTimeBin(time: Double): Int = (time / timeBinSizeInSec).toInt
 

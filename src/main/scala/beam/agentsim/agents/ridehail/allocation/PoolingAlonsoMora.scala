@@ -38,6 +38,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     rideHailManager.vehicleManager
       .getClosestIdleVehiclesWithinRadiusByETA(
         inquiry.pickUpLocationUTM,
+        inquiry.destinationUTM,
         rideHailManager.radiusInMeters,
         inquiry.departAt
       ) match {
@@ -142,6 +143,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
               rideHailManager.beamScenario.vehicleTypes(defaultBeamVehilceTypeId),
               veh.currentLocationUTM.loc,
               tick
+          ,
+              veh.geofence
           )
         )
 

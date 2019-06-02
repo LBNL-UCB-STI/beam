@@ -8,7 +8,6 @@ import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.ZonalParkingManagerSpec
 import beam.router.BeamRouter
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
@@ -34,10 +33,7 @@ import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.api.core.v01.{Coord, Id, Scenario, TransportMode}
 import org.matsim.core.config.groups.{GlobalConfigGroup, PlanCalcScoreConfigGroup}
 import org.matsim.core.router._
-import org.matsim.core.router.costcalculators.{
-  FreespeedTravelTimeAndDisutility,
-  RandomizingTimeDistanceTravelDisutilityFactory
-}
+import org.matsim.core.router.costcalculators.{FreespeedTravelTimeAndDisutility, RandomizingTimeDistanceTravelDisutilityFactory}
 import org.matsim.core.router.util.{LeastCostPathCalculator, PreProcessLandmarks}
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.core.trafficmonitoring.FreeSpeedTravelTime
@@ -118,7 +114,6 @@ class RouterPerformanceSpec
       ),
       "router"
     )
-    val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(beamConfig, geo, Some(router), None)
 
     within(60 seconds) { // Router can take a while to initialize
       router ! Identify(0)

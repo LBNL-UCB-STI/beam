@@ -15,8 +15,7 @@ import beam.agentsim.agents.household.HouseholdActor.{
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
-import beam.agentsim.infrastructure.ParkingStall.NoNeed
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.population.AttributesOfIndividual
@@ -45,24 +44,17 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
           veh.manager = Some(self)
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           veh.mustBeDrivenHome = true
-          parkingManager ? ParkingInquiry(
-            homeCoord,
-            homeCoord,
-            "home",
-            AttributesOfIndividual.EMPTY,
-            NoNeed,
-            0,
-            0
-          ) flatMap {
-            case ParkingInquiryResponse(stall, _) =>
-              veh.useParkingStall(stall)
-              self ? ReleaseVehicleAndReply(veh)
+          for {
+            ParkingInquiryResponse(stall, _) <- parkingManager ? ParkingInquiry(homeCoord, "home", 0.0, None, 0)
+          } {
+            veh.useParkingStall(stall)
           }
+          self ? ReleaseVehicleAndReply(veh)
         })
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
 
-    case NotifyVehicleIdle(vId, whenWhere, _, _, _) =>
+    case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
       val vehId = vId.asInstanceOf[Id[BeamVehicle]]
       vehicles(vehId).spaceTime = whenWhere
       logger.debug("updated vehicle {} with location {}", vehId, whenWhere)

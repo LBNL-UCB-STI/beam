@@ -7,7 +7,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.{Dropoff, Pickup}
-import beam.agentsim.infrastructure.TAZTreeMap
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.BeamSkimmer
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig

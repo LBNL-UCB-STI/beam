@@ -5,8 +5,8 @@ import java.util.Random
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.router.Modes.BeamMode
-import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.vehicles.VehiclesAdjustment
+import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.RandomUtils
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.scalalogging.LazyLogging
@@ -21,7 +21,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
-class ScenarioLoader(
+class UrbanSimScenarioLoader(
   var scenario: MutableScenario,
   val beamScenario: BeamScenario,
   var beamServices: BeamServices,
@@ -122,9 +122,9 @@ class ScenarioLoader(
         val id = Id.create(householdInfo.householdId.id, classOf[org.matsim.households.Household])
         val household = new HouseholdsFactoryImpl().createHousehold(id)
         val coord = if (beamServices.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
-          beamServices.geo.wgs2Utm(new Coord(householdInfo.x, householdInfo.y))
+          beamServices.geo.wgs2Utm(new Coord(householdInfo.locationX, householdInfo.locationY))
         } else {
-          new Coord(householdInfo.x, householdInfo.y)
+          new Coord(householdInfo.locationX, householdInfo.locationY)
         }
 
         household.setIncome(new IncomeImpl(householdInfo.income, Income.IncomePeriod.year))
@@ -242,7 +242,6 @@ class ScenarioLoader(
       personAttrib.putAttribute(personId, "age", personInfo.age)
       AvailableModeUtils.setAvailableModesForPerson_v2(
         beamServices,
-        beamScenario,
         person,
         population,
         availableModes.split(",")
