@@ -21,7 +21,7 @@ import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
-import beam.sim.BeamServices.{FuelTypePrices, getTazTreeMap}
+import beam.sim.BeamServices.{getTazTreeMap, FuelTypePrices}
 import beam.sim.common.GeoUtils
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
@@ -395,7 +395,12 @@ trait BeamHelper extends LazyLogging {
     if (isMetricsEnable) Kamon.start(clusterConfig.withFallback(ConfigFactory.defaultReference()))
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
-    import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
+    import akka.cluster.singleton.{
+      ClusterSingletonManager,
+      ClusterSingletonManagerSettings,
+      ClusterSingletonProxy,
+      ClusterSingletonProxySettings
+    }
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 

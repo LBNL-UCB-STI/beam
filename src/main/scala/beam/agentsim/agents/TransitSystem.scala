@@ -80,15 +80,16 @@ class TransitSystem(
   }
 }
 
-class TransitVehicleInitializer(val beamConfig: BeamConfig, val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]) extends ExponentialLazyLogging {
+class TransitVehicleInitializer(val beamConfig: BeamConfig, val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType])
+    extends ExponentialLazyLogging {
 
   private val transitVehicleTypesByRoute: Map[String, Map[String, String]] = loadTransitVehicleTypesMap()
 
   def createTransitVehicle(
-                            transitVehId: Id[Vehicle],
-                            route: RouteInfo,
-                            legs: Seq[BeamLeg]
-                          ): Option[BeamVehicle] = {
+    transitVehId: Id[Vehicle],
+    route: RouteInfo,
+    legs: Seq[BeamLeg]
+  ): Option[BeamVehicle] = {
     val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
     val vehicleType = getVehicleType(route, mode)
     mode match {
