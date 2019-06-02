@@ -46,7 +46,7 @@ class ZonalParkingManager(
         inquiry.valueOfTime,
         inquiry.parkingDuration,
         preferredParkingTypes,
-        inquiry.chargingInquiryData,
+        inquiry.chargingInquiry,
         zoneSearchTree,
         parkingZones,
         beamServices.tazTreeMap.tazQuadTree,

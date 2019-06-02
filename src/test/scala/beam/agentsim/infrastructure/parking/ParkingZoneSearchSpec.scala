@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure.parking
 
 import scala.util.Random
 
-import beam.agentsim.infrastructure.charging.ChargingInquiryData
+import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.taz._
 import beam.sim.common.GeoUtils
 import org.matsim.api.core.v01.{Coord, Id}
@@ -19,7 +19,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           destinationInMiddle,
           valueOfTime = 0.0,
           parkingDuration = 0.0, // ignore pricing ranking
-          Option.empty[ChargingInquiryData[String, String]],
+          Option.empty[ChargingInquiry],
           Seq(TAZ.DefaultTAZ),
           Seq(ParkingType.Public),
           tree,
@@ -37,7 +37,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           destinationNearTazA,
           valueOfTime = 1.0,
           parkingDuration = 0.0, // ignore pricing ranking
-          Option.empty[ChargingInquiryData[String, String]],
+          Option.empty[ChargingInquiry],
           tazsInProblem,
           Seq(ParkingType.Public),
           parkingSearchTree,
@@ -73,7 +73,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           destinationInMiddle,
           valueOfTime = 1.0,
           parkingDuration = 0.0, // ignore pricing ranking
-          Option.empty[ChargingInquiryData[String, String]],
+          Option.empty[ChargingInquiry],
           tazsInProblem,
           Seq(ParkingType.Public),
           parkingSearchTree,
@@ -115,7 +115,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           destinationNearTazA,
           valueOfTime = 1.0,
           parkingDuration = 0.0,
-          Option.empty[ChargingInquiryData[String, String]],
+          Option.empty[ChargingInquiry],
           tazsInProblem,
           Seq(ParkingType.Public),
           parkingSearchTree,
@@ -151,7 +151,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           destinationInMiddle,
           valueOfTime = valueOfTime,
           parkingDuration = parkingDuration,
-          Option.empty[ChargingInquiryData[String, String]],
+          Option.empty[ChargingInquiry],
           tazsInProblem,
           Seq(ParkingType.Public),
           parkingSearchTree,
@@ -187,7 +187,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           destinationInMiddle,
           valueOfTime = valueOfTime,
           parkingDuration = parkingDuration,
-          Option.empty[ChargingInquiryData[String, String]],
+          Option.empty[ChargingInquiry],
           tazsInProblem,
           Seq(ParkingType.Public),
           parkingSearchTree,
@@ -229,8 +229,8 @@ object ParkingZoneSearchSpec {
 
     val sourceData: Iterator[String] =
       """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
-        |A,Public,FlatFee,UltraFast,7,1000,unused
-        |B,Public,Block,UltraFast,18,100,unused
+        |A,Public,FlatFee,UltraFast(250,DC),7,1000,unused
+        |B,Public,Block,UltraFast(250,DC),18,100,unused
         |
       """.stripMargin.split("\n").toIterator
 
