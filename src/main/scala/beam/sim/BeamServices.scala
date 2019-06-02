@@ -60,7 +60,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
   var beamRouter: ActorRef = _
-  var rideHailIterationHistoryActor: ActorRef = _
 
   var personHouseholds: Map[Id[Person], Household] = Map()
 
