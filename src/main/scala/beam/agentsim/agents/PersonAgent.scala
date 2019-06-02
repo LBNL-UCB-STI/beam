@@ -31,7 +31,7 @@ import beam.router.osm.TollCalculator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
-import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
+import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
@@ -471,10 +471,10 @@ class PersonAgent(
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
       if (currentLeg.cost > 0.0) {
-        val agencyId =
-          beamScenario.transitSchedule(Id.create(vehicleToEnter.toString, classOf[BeamVehicle]))._1.agency_id
-        eventsManager.processEvent(new AgencyRevenueEvent(tick, agencyId, currentLeg.cost))
-
+        beamScenario.transitSchedule.get(Id.create(vehicleToEnter.toString, classOf[BeamVehicle])).foreach { trip =>
+          // If not in the transit schedule, it is not a transit but a ridehailing trip
+          eventsManager.processEvent(new AgencyRevenueEvent(tick, trip._1.agency_id, currentLeg.cost))
+        }
         eventsManager.processEvent(
           new PersonCostEvent(
             tick,
