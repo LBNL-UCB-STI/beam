@@ -3,19 +3,21 @@ package beam.agentsim.agents
 import java.util.concurrent.TimeUnit
 
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, OneForOneStrategy}
+import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy}
 import akka.util.Timeout
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.router.Modes
 import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
-import beam.router.{BeamRouter, Modes, TransitInitializer}
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig
 import beam.utils.NetworkHelper
+import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -33,8 +35,7 @@ class TransitSystem(
   val tollCalculator: TollCalculator,
   val geo: GeoUtils,
   val networkHelper: NetworkHelper,
-  val eventsManager: EventsManager,
-  val beamRouter: ActorRef
+  val eventsManager: EventsManager
 ) extends Actor
     with ActorLogging {
 
@@ -45,18 +46,7 @@ class TransitSystem(
     }
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  private val transitVehicleTypesByRoute: Map[String, Map[String, String]] = loadTransitVehicleTypesMap()
-
-  val initializer =
-    new TransitInitializer(
-      beamScenario.beamConfig,
-      beamScenario.dates,
-      beamScenario.vehicleTypes,
-      transportNetwork,
-      BeamRouter.oneSecondTravelTime
-    )
-
-  initDriverAgents(context, scheduler, parkingManager, initializer.initMap)
+  initDriverAgents()
   log.info("Transit schedule has been initialized")
 
   override def receive: Receive = {
@@ -64,15 +54,11 @@ class TransitSystem(
       sender ! CompletionNotice(triggerId, Vector())
   }
 
-  private def initDriverAgents(
-    context: ActorContext,
-    scheduler: ActorRef,
-    parkingManager: ActorRef,
-    transits: Map[Id[BeamVehicle], (RouteInfo, Seq[BeamLeg])]
-  ) = {
-    transits.foreach {
+  private def initDriverAgents(): Unit = {
+    val initializer = new TransitVehicleInitializer(beamScenario.beamConfig, beamScenario.vehicleTypes)
+    beamScenario.transitSchedule.foreach {
       case (tripVehId, (route, legs)) =>
-        createTransitVehicle(tripVehId, route, legs).foreach { vehicle =>
+        initializer.createTransitVehicle(tripVehId, route, legs).foreach { vehicle =>
           val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
           val transitDriverAgentProps = TransitDriverAgent.props(
             scheduler,
@@ -92,16 +78,21 @@ class TransitSystem(
         }
     }
   }
+}
+
+class TransitVehicleInitializer(val beamConfig: BeamConfig, val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]) extends ExponentialLazyLogging {
+
+  private val transitVehicleTypesByRoute: Map[String, Map[String, String]] = loadTransitVehicleTypesMap()
 
   def createTransitVehicle(
-    transitVehId: Id[Vehicle],
-    route: RouteInfo,
-    legs: Seq[BeamLeg]
-  ): Option[BeamVehicle] = {
+                            transitVehId: Id[Vehicle],
+                            route: RouteInfo,
+                            legs: Seq[BeamLeg]
+                          ): Option[BeamVehicle] = {
     val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
     val vehicleType = getVehicleType(route, mode)
     mode match {
-      case (BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY | GONDOLA) if vehicleType != null =>
+      case BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY | GONDOLA if vehicleType != null =>
         val powertrain = Option(vehicleType.primaryFuelConsumptionInJoulePerMeter)
           .map(new Powertrain(_))
           .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
@@ -115,7 +106,7 @@ class TransitSystem(
         ) // TODO: implement fuel level later as needed
         Some(vehicle)
       case _ =>
-        log.error("{} is not supported yet", mode)
+        logger.error("{} is not supported yet", mode)
         None
     }
   }
@@ -129,17 +120,17 @@ class TransitSystem(
       classOf[BeamVehicleType]
     )
 
-    if (beamScenario.vehicleTypes.contains(vehicleTypeId)) {
-      beamScenario.vehicleTypes(vehicleTypeId)
+    if (vehicleTypes.contains(vehicleTypeId)) {
+      vehicleTypes(vehicleTypeId)
     } else {
-      log.debug(
+      logger.debug(
         "no specific vehicleType available for mode and transit agency pair '{}', using default vehicleType instead",
         vehicleTypeId.toString
       )
       //There has to be a default one defined
-      beamScenario.vehicleTypes.getOrElse(
+      vehicleTypes.getOrElse(
         Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[BeamVehicleType]),
-        beamScenario.vehicleTypes(Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]))
+        vehicleTypes(Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]))
       )
     }
   }
@@ -147,7 +138,7 @@ class TransitSystem(
   private def loadTransitVehicleTypesMap() = {
     Try(
       Source
-        .fromFile(beamScenario.beamConfig.beam.agentsim.agents.vehicles.transitVehicleTypesByRouteFile)
+        .fromFile(beamConfig.beam.agentsim.agents.vehicles.transitVehicleTypesByRouteFile)
         .getLines()
         .toList
         .tail

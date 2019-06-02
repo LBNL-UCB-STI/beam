@@ -161,8 +161,7 @@ class BeamMobsim @Inject()(
               tollCalculator,
               geo,
               networkHelper,
-              eventsManager,
-              beamServices.beamRouter
+              eventsManager
             )
           ),
           "transit-system"
