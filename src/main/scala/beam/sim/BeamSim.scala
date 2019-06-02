@@ -116,8 +116,6 @@ class BeamSim @Inject()(
     /*    if(null != beamServices.beamConfig.beam.agentsim.taz.file && !beamServices.beamConfig.beam.agentsim.taz.file.isEmpty)
           beamServices.taz = TAZTreeMap.fromCsv(beamServices.beamConfig.beam.agentsim.taz.file)*/
 
-    beamServices.matsimServices = event.getServices
-
     if (!beamServices.beamConfig.beam.physsim.skipPhysSim) {
       agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(
         eventsManager,

@@ -47,7 +47,6 @@ class SingleModeSpec
     system = ActorSystem("single-mode-test-" + nextId, config)
     nextId += 1
     services = new BeamServicesImpl(injector)
-    services.matsimServices = matsimSvc
     services.modeChoiceCalculatorFactory = ModeChoiceCalculator(
       services.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
       services

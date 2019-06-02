@@ -140,8 +140,6 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
 
       override def startNewIteration(): Unit = throw new Exception("???")
 
-      override def matsimServices_=(x$1: org.matsim.core.controler.MatsimServices): Unit = ???
-
       override val tazTreeMap: TAZTreeMap =
         beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
       override val modeIncentives: ModeIncentive = ???

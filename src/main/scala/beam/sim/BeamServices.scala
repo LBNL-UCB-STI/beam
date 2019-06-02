@@ -39,7 +39,7 @@ trait BeamServices {
   val rideHailTransitModes: Seq[BeamMode]
   var personHouseholds: Map[Id[Person], Household]
 
-  var matsimServices: MatsimServices
+  def matsimServices: MatsimServices
   def tazTreeMap: TAZTreeMap
   val modeIncentives: ModeIncentive
   var iterationNumber: Int = -1
@@ -86,7 +86,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   var personHouseholds: Map[Id[Person], Household] = Map()
 
-  var matsimServices: MatsimServices = _
+  override def matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
 
   val modeIncentives = ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath)
 
