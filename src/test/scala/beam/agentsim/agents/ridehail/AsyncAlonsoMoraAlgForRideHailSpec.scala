@@ -57,7 +57,12 @@ class AsyncAlonsoMoraAlgForRideHailSpec
 
   describe("AsyncAlonsoMoraAlgForRideHailSpec") {
     it("Creates a consistent plan") {
-      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamExecConfig.beamConfig, services.tazTreeMap, beamScenario, new GeoUtilsImpl(beamExecConfig.beamConfig))
+      implicit val skimmer: BeamSkimmer = new BeamSkimmer(
+        beamExecConfig.beamConfig,
+        services.tazTreeMap,
+        beamScenario,
+        new GeoUtilsImpl(beamExecConfig.beamConfig)
+      )
       val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenario1
       val alg: AsyncAlonsoMoraAlgForRideHail =
         new AsyncAlonsoMoraAlgForRideHail(
@@ -77,7 +82,12 @@ class AsyncAlonsoMoraAlgForRideHailSpec
     }
 
     it("Creates a consistent plan considering a geofence ") {
-      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamExecConfig.beamConfig, services.tazTreeMap, beamScenario, new GeoUtilsImpl(beamExecConfig.beamConfig))
+      implicit val skimmer: BeamSkimmer = new BeamSkimmer(
+        beamExecConfig.beamConfig,
+        services.tazTreeMap,
+        beamScenario,
+        new GeoUtilsImpl(beamExecConfig.beamConfig)
+      )
       val sc = AlonsoMoraPoolingAlgForRideHailSpec.scenarioGeoFence
       val alg: AsyncAlonsoMoraAlgForRideHail =
         new AsyncAlonsoMoraAlgForRideHail(
@@ -101,7 +111,12 @@ class AsyncAlonsoMoraAlgForRideHailSpec
       import org.matsim.core.scenario.ScenarioUtils
       val sc = ScenarioUtils.createScenario(ConfigUtils.createConfig())
       new PopulationReader(sc).readFile("test/input/sf-light/sample/25k/population.xml.gz")
-      implicit val skimmer: BeamSkimmer = new BeamSkimmer(beamExecConfig.beamConfig, services.tazTreeMap, beamScenario, new GeoUtilsImpl(beamExecConfig.beamConfig))
+      implicit val skimmer: BeamSkimmer = new BeamSkimmer(
+        beamExecConfig.beamConfig,
+        services.tazTreeMap,
+        beamScenario,
+        new GeoUtilsImpl(beamExecConfig.beamConfig)
+      )
 
       val requests = mutable.ListBuffer.empty[CustomerRequest]
       sc.getPopulation.getPersons.values.asScala.map(p => BeamPlan(p.getSelectedPlan)).foreach { plan =>

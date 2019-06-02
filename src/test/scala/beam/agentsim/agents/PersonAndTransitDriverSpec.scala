@@ -79,7 +79,8 @@ class PersonAndTransitDriverSpec
   private lazy val beamSvc = buildBeamServices(injector, matsimScenario)
   private lazy val tollCalculator = injector.getInstance(classOf[TollCalculator])
   private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
-  private lazy val parkingManager = system.actorOf(ZonalParkingManager.props(beamSvc, beamSvc.beamRouter), "ParkingManager")
+  private lazy val parkingManager =
+    system.actorOf(ZonalParkingManager.props(beamSvc, beamSvc.beamRouter), "ParkingManager")
   private lazy val networkHelper = injector.getInstance(classOf[NetworkHelper])
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {

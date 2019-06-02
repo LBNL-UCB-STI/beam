@@ -142,8 +142,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
               veh.vehicleId.toString,
               rideHailManager.beamScenario.vehicleTypes(defaultBeamVehilceTypeId),
               veh.currentLocationUTM.loc,
-              tick
-          ,
+              tick,
               veh.geofence
           )
         )

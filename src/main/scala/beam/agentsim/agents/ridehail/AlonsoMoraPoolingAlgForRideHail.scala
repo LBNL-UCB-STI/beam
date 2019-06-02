@@ -275,8 +275,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     vid: String,
     vehicleType: BeamVehicleType,
     dst: Location,
-    dstTime: Int
-  ,
+    dstTime: Int,
     geofence: Option[Geofence] = None
   ): VehicleAndSchedule = {
     val v1 = new BeamVehicle(
