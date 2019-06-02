@@ -8,6 +8,8 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalcul
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
+import beam.router.gtfs.FareCalculator
+import beam.router.osm.TollCalculator
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.NetworkHelper
@@ -37,6 +39,8 @@ trait BeamServices {
   def tazTreeMap: TAZTreeMap
   val modeIncentives: ModeIncentive
   def networkHelper: NetworkHelper
+  def fareCalculator: FareCalculator
+  def tollCalculator: TollCalculator
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
@@ -69,6 +73,8 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   override def networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
   override def tazTreeMap: TAZTreeMap = injector.getInstance(classOf[TAZTreeMap])
+  override def fareCalculator: FareCalculator = injector.getInstance(classOf[FareCalculator])
+  override def tollCalculator: TollCalculator = injector.getInstance(classOf[TollCalculator])
 }
 
 object BeamServices {

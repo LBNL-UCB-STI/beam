@@ -99,7 +99,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
       val fuelTypePrices = readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
       val ptFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath)
-      val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
+      val fareCalculator = new FareCalculator(beamConfig)
       val tollCalculator = new TollCalculator(beamConfig)
       // TODO FIX ME
       val travelTimeAndCost = new TravelTimeAndCost {

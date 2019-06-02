@@ -96,7 +96,7 @@ class RouterPerformanceSpec
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 
-    val fareCalculator = new FareCalculator(beamConfig.beam.routing.r5.directory)
+    val fareCalculator = new FareCalculator(beamConfig)
     val tollCalculator = mock[TollCalculator]
     when(tollCalculator.calcTollByOsmIds(any())).thenReturn(0.0)
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()

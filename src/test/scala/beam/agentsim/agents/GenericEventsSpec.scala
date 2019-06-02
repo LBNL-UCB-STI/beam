@@ -1,11 +1,10 @@
 package beam.agentsim.agents
 
 import beam.integration.IntegrationSpecCommon
-import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamScenario, BeamServices}
-import beam.utils.{FileUtils, MatsimServicesMock, NetworkHelper, NetworkHelperImpl}
+import beam.utils.FileUtils
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler

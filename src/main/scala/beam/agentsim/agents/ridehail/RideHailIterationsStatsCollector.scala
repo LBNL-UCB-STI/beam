@@ -2,7 +2,7 @@ package beam.agentsim.agents.ridehail
 
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
 import beam.sim.BeamServices
-import beam.utils.GeoUtils
+import beam.sim.common.GeoUtils
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Coord

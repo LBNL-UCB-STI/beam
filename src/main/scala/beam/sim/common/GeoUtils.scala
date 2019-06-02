@@ -7,6 +7,7 @@ import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.map.GpxPoint
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.{EdgeStore, Split, StreetLayer}
+import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.{ImplementedBy, Inject}
 import com.vividsolutions.jts.geom.{Coordinate, Envelope}
 import org.matsim.api.core.v01
@@ -309,6 +310,11 @@ object GeoUtils {
     } else {
       rad
     }
+  }
+
+  def getR5EdgeCoord(linkIdInt: Int, transportNetwork: TransportNetwork): Coord = {
+    val currentEdge = transportNetwork.streetLayer.edgeStore.getCursor(linkIdInt)
+    new Coord(currentEdge.getGeometry.getCoordinate.x, currentEdge.getGeometry.getCoordinate.y)
   }
 
 }

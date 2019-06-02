@@ -2,7 +2,7 @@ package beam.agentsim.agents.ridehail
 
 import beam.agentsim.events.SpaceTime
 import beam.router.model.{BeamLeg, RoutingModel}
-import beam.utils.GeoUtils
+import beam.sim.common.GeoUtils
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.{Coord, Id}

@@ -14,9 +14,9 @@ import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
-import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
+import beam.sim.config.BeamConfig
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
@@ -40,14 +40,13 @@ import org.matsim.core.controler.listener.{
   ShutdownListener,
   StartupListener
 }
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
-
-import beam.sim.config.BeamConfig
 
 class BeamSim @Inject()(
   private val actorSystem: ActorSystem,
@@ -93,7 +92,6 @@ class BeamSim @Inject()(
     metricsPrinter ! Subscribe("counter", "**")
     metricsPrinter ! Subscribe("histogram", "**")
 
-    val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
         beamServices.beamScenario,
@@ -103,7 +101,7 @@ class BeamSim @Inject()(
         beamServices.geo,
         scenario,
         scenario.getTransitVehicles,
-        fareCalculator,
+        beamServices.fareCalculator,
         tollCalculator
       ),
       "router"

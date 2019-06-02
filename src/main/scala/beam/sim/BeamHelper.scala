@@ -16,6 +16,7 @@ import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router._
+import beam.router.gtfs.FareCalculator
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
@@ -203,6 +204,7 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[RouteHistory]).asEagerSingleton()
           bind(classOf[BeamSkimmer]).asEagerSingleton()
           bind(classOf[TravelTimeObserved]).asEagerSingleton()
+          bind(classOf[FareCalculator]).asEagerSingleton()
           bind(classOf[TollCalculator]).asEagerSingleton()
 
           bind(classOf[EventsManager]).to(classOf[LoggingEventsManager]).asEagerSingleton()
