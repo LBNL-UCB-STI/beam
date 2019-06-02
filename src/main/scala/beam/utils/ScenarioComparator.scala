@@ -11,10 +11,10 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.Modes
 import beam.router.r5.DefaultNetworkCoordinator
-import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.AttributesOfIndividual
+import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.BeamVehicleUtils._
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.google.inject.Injector
@@ -28,7 +28,6 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.concurrent.TrieMap
 import scala.util.control.Breaks
-import beam.agentsim.infrastructure.taz.TAZTreeMap
 
 object ScenarioComparator extends App with Comparator[MutableScenario] {
 
@@ -137,8 +136,6 @@ object ScenarioComparator extends App with Comparator[MutableScenario] {
         TrieMap(
           readVehiclesFile(beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath, vehicleTypes).toSeq: _*
         )
-
-      override def startNewIteration(): Unit = throw new Exception("???")
 
       override val tazTreeMap: TAZTreeMap =
         beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)

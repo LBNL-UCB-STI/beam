@@ -18,7 +18,7 @@ import beam.router._
 import beam.router.osm.TollCalculator
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
-import beam.sim.metrics.MetricsSupport
+import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.sim.monitoring.ErrorListener
 import beam.sim.vehiclesharing.Fleets
 import beam.utils._
@@ -70,13 +70,13 @@ class BeamMobsim @Inject()(
 
   override def run(): Unit = {
     logger.info("Starting Iteration")
-    startMeasuringIteration(beamServices.iterationNumber)
+    startMeasuringIteration(beamServices.matsimServices.getIterationNumber)
     logger.info("Preparing new Iteration (Start)")
     startSegment("iteration-preparation", "mobsim")
 
     if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("run.start (after GC): "))
-    beamServices.startNewIteration()
+    Metrics.iterationNumber = beamServices.matsimServices.getIterationNumber
     eventsManager.initProcessing()
     val iteration = actorSystem.actorOf(
       Props(new Actor with ActorLogging {
@@ -253,7 +253,7 @@ class BeamMobsim @Inject()(
             log.info("Starting Agentsim")
             startSegment("agentsim-execution", "agentsim")
 
-            scheduler ! StartSchedule(beamServices.iterationNumber)
+            scheduler ! StartSchedule(beamServices.matsimServices.getIterationNumber)
         }
 
         private def scheduleRideHailManagerTimerMessages(): Unit = {

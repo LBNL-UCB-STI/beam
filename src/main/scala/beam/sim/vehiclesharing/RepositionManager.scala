@@ -41,7 +41,7 @@ trait RepositionManager extends Actor with ActorLogging {
   var currentTick = 0
   val eos = 108000
 
-  if (getBeamServices.iterationNumber > 0 || getBeamServices.beamConfig.beam.warmStart.enabled)
+  if (getBeamServices.matsimServices.getIterationNumber > 0 || getBeamServices.beamConfig.beam.warmStart.enabled)
     getScheduler ! ScheduleTrigger(REPVehicleRepositionTrigger(getREPTimeStep), self)
 
   getScheduler ! ScheduleTrigger(REPDataCollectionTrigger(getDataCollectTimeStep), self)

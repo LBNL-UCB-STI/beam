@@ -42,10 +42,6 @@ trait BeamServices {
   def matsimServices: MatsimServices
   def tazTreeMap: TAZTreeMap
   val modeIncentives: ModeIncentive
-  var iterationNumber: Int = -1
-
-  def startNewIteration()
-
   def networkHelper: NetworkHelper
 
   def getModalBehaviors(): ModalBehaviors = {
@@ -89,11 +85,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   override def matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
 
   val modeIncentives = ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath)
-
-  def startNewIteration(): Unit = {
-    iterationNumber += 1
-    Metrics.iterationNumber = iterationNumber
-  }
 
   override def networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
   override def tazTreeMap: TAZTreeMap = injector.getInstance(classOf[TAZTreeMap])

@@ -429,13 +429,13 @@ class RideHailManager(
   if (beamServices.matsimServices != null) {
     rideHailinitialLocationSpatialPlot.writeCSV(
       beamServices.matsimServices.getControlerIO
-        .getIterationFilename(beamServices.iterationNumber, fileBaseName + ".csv")
+        .getIterationFilename(beamServices.matsimServices.getIterationNumber, fileBaseName + ".csv")
     )
 
     if (beamServices.beamConfig.beam.outputs.writeGraphs) {
       rideHailinitialLocationSpatialPlot.writeImage(
         beamServices.matsimServices.getControlerIO
-          .getIterationFilename(beamServices.iterationNumber, fileBaseName + ".png")
+          .getIterationFilename(beamServices.matsimServices.getIterationNumber, fileBaseName + ".png")
       )
     }
   }
