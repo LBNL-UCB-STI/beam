@@ -12,8 +12,6 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
-import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
-import beam.sim.metrics.Metrics
 import beam.utils.NetworkHelper
 import com.google.inject.{ImplementedBy, Inject, Injector}
 import org.matsim.api.core.v01.population.Person
@@ -43,18 +41,6 @@ trait BeamServices {
   def tazTreeMap: TAZTreeMap
   val modeIncentives: ModeIncentive
   def networkHelper: NetworkHelper
-
-  def getModalBehaviors(): ModalBehaviors = {
-    beamConfig.beam.agentsim.agents.modalBehaviors
-  }
-
-  def getDefaultAutomationLevel(): Option[Int] = {
-    if (beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationForVOTT) {
-      Option(beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationLevel)
-    } else {
-      None
-    }
-  }
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {

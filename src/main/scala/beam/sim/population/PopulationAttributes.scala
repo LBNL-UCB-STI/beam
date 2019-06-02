@@ -113,9 +113,11 @@ case class AttributesOfIndividual(
     beamVehicleTypeId: Id[BeamVehicleType],
     beamServices: BeamServices,
   ): automationLevel = {
-    val automationInt = beamServices
-      .getDefaultAutomationLevel()
-      .getOrElse(beamServices.beamScenario.vehicleTypes(beamVehicleTypeId).automationLevel)
+    val automationInt = if (beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationForVOTT) {
+      beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationLevel
+    } else {
+      beamServices.beamScenario.vehicleTypes(beamVehicleTypeId).automationLevel
+    }
     automationInt match {
       case 1 => levelLE2
       case 2 => levelLE2

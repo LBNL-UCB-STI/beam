@@ -31,7 +31,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     with ExponentialLazyLogging {
 
   var expectedMaximumUtility: Double = 0.0
-  val modalBehaviors: ModalBehaviors = beamServices.getModalBehaviors()
+  val modalBehaviors: ModalBehaviors = beamServices.beamConfig.beam.agentsim.agents.modalBehaviors
 
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
