@@ -461,9 +461,8 @@ class RideHailManager(
 
   override def receive: Receive = LoggingReceive {
     case "tick" =>
-      log.info(
-        "tick! numberPendingModifyPassengerScheduleAcks = {}",
-        modifyPassengerScheduleManager.numberPendingModifyPassengerScheduleAcks)
+      log.info("tick! waitingToReposition size: {} => {}", modifyPassengerScheduleManager.waitingToReposition.size,
+        modifyPassengerScheduleManager.waitingToReposition)
       val stash = method.invoke(this).asInstanceOf[Vector[AkkaEnvelope]]
       log.info(s"tick! The following messages are stashed: ${stash}")
 
@@ -690,6 +689,7 @@ class RideHailManager(
               )
               modifyPassengerScheduleManager
                 .modifyPassengerScheduleAckReceived(
+                  vehicleId,
                   triggersToSchedule,
                   tick
                 )
@@ -746,8 +746,8 @@ class RideHailManager(
           startRepositioning(tick, triggerId)
       }
 
-    case ReduceAwaitingRepositioningAckMessagesByOne =>
-      modifyPassengerScheduleManager.cancelRepositionAttempt()
+    case ReduceAwaitingRepositioningAckMessagesByOne(actorRef) =>
+      modifyPassengerScheduleManager.cancelRepositionAttempt(actorRef)
 
     case MoveOutOfServiceVehicleToDepotParking(passengerSchedule, tick, vehicleId, stall) =>
       pendingAgentsSentToPark.put(vehicleId, stall)
@@ -763,7 +763,7 @@ class RideHailManager(
         )
       } else {
         // Failed attempt to reposition a car that is no longer idle
-        modifyPassengerScheduleManager.cancelRepositionAttempt()
+        modifyPassengerScheduleManager.cancelRepositionAttempt(rideHailAgent)
       }
 
     case reply @ InterruptedWhileOffline(interruptId, vehicleId, tick) =>
@@ -838,11 +838,7 @@ class RideHailManager(
       outOfServiceVehicleManager.releaseTrigger(vehicleId)
 
     case Terminated(actorRef) =>
-      log.info(
-        "numberPendingModifyPassengerScheduleAcks = {} Terminated actorRef: {}",
-        modifyPassengerScheduleManager.numberPendingModifyPassengerScheduleAcks, actorRef
-      )
-      modifyPassengerScheduleManager.modifyPassengerScheduleAckReceived(Vector.empty, 0)
+      modifyPassengerScheduleManager.cancelRepositionAttempt(actorRef)
 
     case msg =>
       log.warning("unknown message received by RideHailManager {}", msg)
@@ -1369,6 +1365,8 @@ class RideHailManager(
       cleanUp
     } else {
       modifyPassengerScheduleManager.setNumberOfRepositioningsToProcess(repositionVehicles.size)
+      val toReposition = repositionVehicles.map(_._1).map(vehicleManager.getIdleVehicles).map(_.rideHailAgent).toSet
+      modifyPassengerScheduleManager.setRepositioningsToProcess(toReposition)
     }
 
     for ((vehicleId, destinationLocation) <- repositionVehicles) {
@@ -1410,12 +1408,12 @@ class RideHailManager(
             )
             self ! RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgentLocation.rideHailAgent)
           } else {
-            self ! ReduceAwaitingRepositioningAckMessagesByOne
+            self ! ReduceAwaitingRepositioningAckMessagesByOne(rideHailAgentLocation.rideHailAgent)
           }
         }
 
       } else {
-        modifyPassengerScheduleManager.cancelRepositionAttempt()
+        throw new Exception("Should not reach here in startRepositioning!")
       }
     }
 
