@@ -6,8 +6,9 @@ import java.util.Random
 import java.util.concurrent.TimeUnit
 
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Stash, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, OneForOneStrategy, Props, Stash, Terminated}
 import akka.event.LoggingReceive
+import akka.dispatch.{Envelope => AkkaEnvelope}
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim
@@ -20,11 +21,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -452,7 +449,24 @@ class RideHailManager(
     }
   }
 
+  import scala.concurrent.duration._
+  val tickTask: Cancellable =context.system.scheduler.schedule(2.seconds, 60.seconds, self, "tick")(context.dispatcher)
+  val method = this.getClass.getDeclaredMethod("akka$actor$StashSupport$$theStash")
+
+  override def postStop: Unit = {
+    log.info("postStop")
+    tickTask.cancel()
+    super.postStop()
+  }
+
   override def receive: Receive = LoggingReceive {
+    case "tick" =>
+      log.info(
+        "tick! numberPendingModifyPassengerScheduleAcks = {}",
+        modifyPassengerScheduleManager.numberPendingModifyPassengerScheduleAcks)
+      val stash = method.invoke(this).asInstanceOf[Vector[AkkaEnvelope]]
+      log.info(s"tick! The following messages are stashed: ${stash}")
+
     case LogActorState =>
       ReflectionUtils.logFields(log, this, 0)
       ReflectionUtils.logFields(log, rideHailResourceAllocationManager, 0)
@@ -822,6 +836,13 @@ class RideHailManager(
 
     case ReleaseAgentTrigger(vehicleId) =>
       outOfServiceVehicleManager.releaseTrigger(vehicleId)
+
+    case Terminated(actorRef) =>
+      log.info(
+        "numberPendingModifyPassengerScheduleAcks = {} Terminated actorRef: {}",
+        modifyPassengerScheduleManager.numberPendingModifyPassengerScheduleAcks, actorRef
+      )
+      modifyPassengerScheduleManager.modifyPassengerScheduleAckReceived(Vector.empty, 0)
 
     case msg =>
       log.warning("unknown message received by RideHailManager {}", msg)
