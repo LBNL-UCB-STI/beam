@@ -1007,7 +1007,7 @@ class PersonAgent(
       stop(Failure("Unexpected ParkingInquiryResponse"))
     case ev @ Event(
           TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, energyInJoules, Some(vehicle)), triggerId),
-          data
+          _
         ) =>
       // TODO JH discuss with colin, maybe it makes sense to move this somewhere else?!
       log.debug("state(PersonAgent.myUnhandled.EndRefuelSessionTrigger): {}", ev)
