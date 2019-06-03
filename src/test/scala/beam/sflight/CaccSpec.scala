@@ -4,6 +4,7 @@ import beam.analysis.plots.PersonTravelTimeAnalysis
 import beam.sim.BeamHelper
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
+import beam.tags.{ExcludeRegular, Periodic}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
@@ -62,7 +63,7 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
   }
 
   "SF Light" must {
-    "run 1k scenario car averageTravelTimes(deqsim.cacc.enabled=true) <= averageTravelTimes(deqsim.cacc.enabled=false)" in {
+    "run 1k scenario car averageTravelTimes(deqsim.cacc.enabled=true) <= averageTravelTimes(deqsim.cacc.enabled=false)" taggedAs (Periodic, ExcludeRegular) in {
       val iteration = 1
       val avgWithCaccEnabled = runSimulationAndReturnAvgCarTravelTimes(caccEnabled = true, iteration)
       val avgWithCaccDisabled = runSimulationAndReturnAvgCarTravelTimes(caccEnabled = false, iteration)
