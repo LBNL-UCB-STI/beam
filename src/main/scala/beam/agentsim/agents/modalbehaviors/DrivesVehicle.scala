@@ -73,10 +73,6 @@ object DrivesVehicle {
 
   case class BeamVehicleStateUpdate(id: Id[Vehicle], vehicleState: BeamVehicleState)
 
-  case class StopDrivingIfNoPassengerOnBoard(tick: Int, requestId: Int)
-
-  case class StopDrivingIfNoPassengerOnBoardReply(success: Boolean, requestId: Int, tick: Int)
-
   def processLinkEvents(eventsManager: EventsManager, vehicleId: Id[Vehicle], leg: BeamLeg): Unit = {
     val path = leg.travelPath
     if (path.linkTravelTime.nonEmpty & path.linkIds.size > 1) {
@@ -113,32 +109,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     toll: Double,
     fuelConsumed: Option[FuelConsumed] = None
   )
-
-  private def handleStopDrivingIfNoPassengerOnBoard(
-    tick: Int,
-    requestId: Int,
-    data: T
-  ): State = {
-    println("handleStopDrivingIfNoPassengerOnBoard:" + stateName)
-    data.passengerSchedule.schedule.keys
-      .drop(data.currentLegPassengerScheduleIndex)
-      .headOption match {
-      case Some(currentLeg) =>
-        println(currentLeg)
-        if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
-          log.info("stopping vehicle: {}", id)
-          goto(DrivingInterrupted) replying StopDrivingIfNoPassengerOnBoardReply(
-            success = true,
-            requestId,
-            tick
-          )
-        } else {
-          stay() replying StopDrivingIfNoPassengerOnBoardReply(success = false, requestId, tick)
-        }
-      case None =>
-        stay()
-    }
-  }
 
   var nextNotifyVehicleResourceIdle: Option[NotifyVehicleIdle] = None
 
@@ -305,6 +275,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           .asInstanceOf[T]
       }
 
+    //TODO Need explanation as to why we do nothing if we receive EndLeg but data is not type LiterallyDrivingData
     case ev @ Event(TriggerWithId(EndLegTrigger(tick), triggerId), data) =>
       log.debug("state(DrivesVehicle.Driving): {}", ev)
 
@@ -327,26 +298,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         data.currentLegPassengerScheduleIndex
       )
 
-    case ev @ Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
-      log.debug("state(DrivesVehicle.Driving): {}", ev)
-      data.passengerSchedule.schedule.keys.view
-        .drop(data.currentLegPassengerScheduleIndex)
-        .headOption match {
-        case Some(currentLeg) =>
-          if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
-            log.info("stopping vehicle: {}", id)
-            goto(DrivingInterrupted) replying StopDrivingIfNoPassengerOnBoardReply(
-              success = true,
-              requestId,
-              tick
-            )
-
-          } else {
-            stay() replying StopDrivingIfNoPassengerOnBoardReply(success = false, requestId, tick)
-          }
-        case None =>
-          stay()
-      }
   }
 
   when(DrivingInterrupted) {
@@ -543,9 +494,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
       stay()
 
-    case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
-      handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
-
   }
 
   when(WaitingToDriveInterrupted) {
@@ -674,11 +622,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           )
         )
         .asInstanceOf[T]
-
-    case Event(StopDrivingIfNoPassengerOnBoard(tick, requestId), data) =>
-      log.debug("DrivesVehicle.StopDrivingIfNoPassengerOnBoard -> unhandled + {}", stateName)
-
-      handleStopDrivingIfNoPassengerOnBoard(tick, requestId, data)
 
     // The following 2 (Board and Alight) can happen idiosyncratically if a person ended up taking a much longer than expected
     // trip and meanwhile a CAV was scheduled to pick them up (and then drop them off) for the next trip, but they're still driving baby

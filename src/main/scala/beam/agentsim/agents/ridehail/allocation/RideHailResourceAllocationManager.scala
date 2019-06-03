@@ -1,20 +1,14 @@
 package beam.agentsim.agents.ridehail.allocation
 
-import akka.actor.ActorRef
 import beam.agentsim.agents.MobilityRequest
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, PoolingInfo}
+import beam.agentsim.agents.ridehail.RideHailManager.{PoolingInfo}
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
-import beam.agentsim.agents.vehicles.VehiclePersonId
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
-import beam.router.model.EmbodiedBeamLeg
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
-
-import scala.collection.mutable
 
 abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager) extends LazyLogging {
 
@@ -193,12 +187,6 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
 
   def getUnprocessedCustomers: Set[RideHailRequest] = awaitingRoutes
 
-  /*
-   * This is deprecated.
-   */
-  def handleRideCancellationReply(reply: StopDrivingIfNoPassengerOnBoardReply): Unit = {
-    logger.trace("default implementation handleRideCancellationReply executed")
-  }
 }
 
 object RideHailResourceAllocationManager {
