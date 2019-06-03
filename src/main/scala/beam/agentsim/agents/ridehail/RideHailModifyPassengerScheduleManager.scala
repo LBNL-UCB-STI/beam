@@ -161,11 +161,6 @@ class RideHailModifyPassengerScheduleManager(
     modifyStatus.status = InterruptMessageStatus.MODIFY_PASSENGER_SCHEDULE_SENT
   }
 
-  // A wrapper method to make it more understandable what is happening
-  def cancelRepositionAttempt(): Unit = {
-    modifyPassengerScheduleAckReceived(Id.createVehicleId("DUMMY"), Vector(), 0)
-  }
-
   def cancelRepositionAttempt(agentToRemove: ActorRef): Unit = {
     repositioningFinished(agentToRemove)
   }
@@ -208,9 +203,9 @@ class RideHailModifyPassengerScheduleManager(
         log.debug("reposition and reservation race condition detected:" + vehicleId)
         log.debug("modifyStatusList: " + modifyStatusList.toString())
       }
-    }
 
-    allTriggersInWave = triggersToSchedule ++ allTriggersInWave
+      allTriggersInWave = triggersToSchedule ++ allTriggersInWave
+    }
     repositioningFinished(rideHailManager.vehicleManager.getRideHailAgentLocation(vehicleId).rideHailAgent)
   }
 
