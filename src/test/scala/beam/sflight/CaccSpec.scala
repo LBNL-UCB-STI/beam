@@ -1,12 +1,12 @@
 package beam.sflight
 
 import scala.io.Source
-
 import beam.analysis.plots.PersonTravelTimeAnalysis
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
+import beam.tags.{ExcludeRegular, Performance, Periodic}
 import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
@@ -74,12 +74,12 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
   }
 
   "SF Light" must {
-    "run 1k scenario car averageTravelTimes(deqsim.cacc.enabled=true) <= averageTravelTimes(deqsim.cacc.enabled=false)" in {
+    "run 1k scenario car averageTravelTimes(deqsim.cacc.enabled=true) < averageTravelTimes(deqsim.cacc.enabled=false)" taggedAs (Periodic, Performance, ExcludeRegular) in {
       val iteration = 1
       val avgWithCaccEnabled = runSimulationAndReturnAvgCarTravelTimes(caccEnabled = true, iteration)
       val avgWithCaccDisabled = runSimulationAndReturnAvgCarTravelTimes(caccEnabled = false, iteration)
 
-      assert(avgWithCaccEnabled <= avgWithCaccDisabled)
+      assert(avgWithCaccEnabled < avgWithCaccDisabled)
     }
   }
 
