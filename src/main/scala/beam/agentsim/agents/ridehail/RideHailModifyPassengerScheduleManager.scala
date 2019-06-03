@@ -49,7 +49,7 @@ class RideHailModifyPassengerScheduleManager(
    */
   def handleInterruptReply(reply: InterruptReply): Unit = {
     val rideHailAgent = rideHailManager.vehicleManager.getRideHailAgentLocation(reply.vehicleId).rideHailAgent
-    if (reply.isInstanceOf[InterruptedWhileOffline]) {
+    if (reply.isInstanceOf[InterruptedWhileOffline] && waitingToReposition.nonEmpty) {
       log.debug("Cancelling repositioning for {}, interruptId {}, numberPendingModifyPassengerScheduleAcks {}", reply.vehicleId, reply.interruptId, numberPendingModifyPassengerScheduleAcks)
       cancelRepositionAttempt(rideHailAgent)
       clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
