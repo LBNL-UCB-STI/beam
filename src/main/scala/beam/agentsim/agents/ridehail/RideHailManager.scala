@@ -1355,8 +1355,9 @@ class RideHailManager(
     log.debug("Starting wave of repositioning at {}", tick)
     modifyPassengerScheduleManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
 
-    val repositionVehicles: Vector[(Id[Vehicle], Location)] =
+    val repositionVehicles: Vector[(Id[Vehicle], Location)] = ProfilingUtils.timed(s"repositionVehicles at tick $tick", log.info) {
       rideHailResourceAllocationManager.repositionVehicles(tick)
+    }
 
     if (repositionVehicles.isEmpty) {
       log.debug("sendCompletionAndScheduleNewTimeout from 1204")
