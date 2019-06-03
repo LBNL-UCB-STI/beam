@@ -1,6 +1,6 @@
 package beam.sim
 
-import java.io.{BufferedInputStream, FileInputStream, FileNotFoundException}
+import java.io.{BufferedInputStream, File, FileInputStream, FileNotFoundException}
 import java.util.zip.GZIPInputStream
 
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
@@ -135,7 +135,12 @@ class RideHailFleetInitializer extends LazyLogging {
     */
   def writeFleetData(beamServices: BeamServices, fleetData: Seq[RideHailAgentInputData]): Unit = {
     try {
+      // Not sure this can even happen..
       if (beamServices.matsimServices == null || beamServices.matsimServices.getControlerIO == null) return
+      // If iteration directory doesn't exist, we are not in an iteration and shouldn't write anything
+      // (Class is run on its own.)
+      // (Normally, only ControlerListeners write things to the OutputDirectoryHierarchy.)
+      if (!new File(beamServices.matsimServices.getControlerIO.getIterationPath(beamServices.matsimServices.getIterationNumber)).exists()) return
       val filePath = beamServices.matsimServices.getControlerIO
         .getIterationFilename(
           beamServices.matsimServices.getIterationNumber,
