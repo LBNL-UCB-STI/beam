@@ -296,7 +296,7 @@ object HouseholdActor {
               person.getId,
               self,
               person.getSelectedPlan,
-              fleetManagers ++: sharedVehicleFleets :+ self,
+              fleetManagers ++: sharedVehicleFleets,
               beamSkimmer,
               routeHistory,
               travelTimeObserved
@@ -447,9 +447,6 @@ object HouseholdActor {
       case ReleaseVehicleAndReply(vehicle, tick) =>
         handleReleaseVehicle(vehicle, tick)
         sender() ! Success
-
-      case MobilityStatusInquiry(personId, _, originActivity) =>
-        sender() ! MobilityStatusResponse(Vector())
 
       case Finish =>
         context.children.foreach(_ ! Finish)
