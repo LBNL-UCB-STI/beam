@@ -47,7 +47,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
   val beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
-  def beamScenario: BeamScenario = injector.getInstance(classOf[BeamScenario])
+  val beamScenario: BeamScenario = injector.getInstance(classOf[BeamScenario])
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
 
   val rideHailTransitModes: Seq[BeamMode] =
@@ -67,7 +67,7 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   var personHouseholds: Map[Id[Person], Household] = Map()
 
-  override def matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
+  override val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
 
   val modeIncentives = ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath)
 
