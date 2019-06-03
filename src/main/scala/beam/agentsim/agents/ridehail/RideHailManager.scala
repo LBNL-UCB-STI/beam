@@ -461,8 +461,7 @@ class RideHailManager(
 
   override def receive: Receive = LoggingReceive {
     case "tick" =>
-      log.info("tick! waitingToReposition size: {} => {}", modifyPassengerScheduleManager.waitingToReposition.size,
-        modifyPassengerScheduleManager.waitingToReposition)
+      log.info("tick! waitingToReposition size: {} ", modifyPassengerScheduleManager.waitingToReposition.size)
       val stash = method.invoke(this).asInstanceOf[Vector[AkkaEnvelope]]
       log.info(s"tick! The following messages are stashed: ${stash}")
 
