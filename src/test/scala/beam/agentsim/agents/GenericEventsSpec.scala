@@ -14,14 +14,13 @@ import org.scalatest.{BeforeAndAfterAll, WordSpecLike}
 trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with BeamHelper with BeforeAndAfterAll {
 
   protected var beamServices: BeamServices = _
-  protected var beamScenario: BeamScenario = _
   protected var eventManager: EventsManager = _
   protected var scenario: Scenario = _
 
   override def beforeAll(): Unit = {
 
     val beamConfig = BeamConfig(baseConfig)
-    beamScenario = loadScenario(beamConfig)
+    val beamScenario = loadScenario(beamConfig)
     val configBuilder = new MatSimBeamConfigBuilder(baseConfig)
     val matsimConfig = configBuilder.buildMatSimConf()
     matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)

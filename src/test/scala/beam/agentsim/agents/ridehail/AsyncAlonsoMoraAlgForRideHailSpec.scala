@@ -49,7 +49,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
   private implicit val executionContext: ExecutionContext = system.dispatcher
   implicit val mockActorRef: ActorRef = probe.ref
   val beamExecConfig: BeamExecutionConfig = setupBeamWithConfig(system.settings.config)
-  implicit val beamScenario = loadScenario(beamExecConfig.beamConfig)
+  implicit lazy val beamScenario = loadScenario(beamExecConfig.beamConfig)
   lazy val scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, beamScenario)
   lazy val injector = buildInjector(system.settings.config, scenario, beamScenario)
   lazy val services = buildBeamServices(injector, scenario)

@@ -15,10 +15,10 @@ object GraphRunHelper {
 
 class GraphRunHelper(childModule: AbstractModule, baseConfig: Config) extends BeamHelper {
 
-  private val beamConfig = BeamConfig(baseConfig)
-  private val beamScenario = loadScenario(beamConfig)
-  private val configBuilder = new MatSimBeamConfigBuilder(baseConfig)
-  private val matsimConfig = configBuilder.buildMatSimConf()
+  private lazy val beamConfig = BeamConfig(baseConfig)
+  private lazy val beamScenario = loadScenario(beamConfig)
+  private lazy val configBuilder = new MatSimBeamConfigBuilder(baseConfig)
+  private lazy val matsimConfig = configBuilder.buildMatSimConf()
 
   matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
   FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
