@@ -49,7 +49,9 @@ class RideHailModifyPassengerScheduleManager(
    */
   def handleInterruptReply(reply: InterruptReply): Unit = {
     val rideHailAgent = rideHailManager.vehicleManager.getRideHailAgentLocation(reply.vehicleId).rideHailAgent
-    if (reply.isInstanceOf[InterruptedWhileOffline] && waitingToReposition.nonEmpty) {
+    val isRepositioning = waitingToReposition.nonEmpty
+    // This code should be executed only in case of random repositioning. If `waitingToReposition` is not empty, so it is the case!
+    if (reply.isInstanceOf[InterruptedWhileOffline] && isRepositioning) {
       log.debug("Cancelling repositioning for {}, interruptId {}, numberPendingModifyPassengerScheduleAcks {}", reply.vehicleId, reply.interruptId, numberPendingModifyPassengerScheduleAcks)
       cancelRepositionAttempt(rideHailAgent)
       clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
