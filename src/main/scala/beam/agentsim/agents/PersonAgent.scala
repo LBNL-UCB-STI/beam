@@ -6,6 +6,7 @@ import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicle
+import beam.agentsim.agents.household.HouseholdCAVDriverAgent
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
@@ -730,10 +731,21 @@ class PersonAgent(
         )
       )
       goto(WaitingForReservationConfirmation)
-    case Event(StateTimeout, BasePersonData(_, _, _ :: _, _, _, _, _, _, _, _, _)) =>
-      val (_, triggerId) = releaseTickAndTriggerId()
-      scheduler ! CompletionNotice(triggerId)
-      goto(Waiting)
+    // CAV
+    // TODO: Refactor so it uses literally the same code block as transit
+    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _, _)) =>
+      val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(
+        leg => leg.beamVehicleId == nextLeg.beamVehicleId
+      )
+      val resRequest = ReservationRequest(
+        legSegment.head.beamLeg,
+        legSegment.last.beamLeg,
+        PersonIdWithActorRef(id, self)
+      )
+      context.actorSelection(
+        householdRef.path.child(HouseholdCAVDriverAgent.idFromVehicleId(nextLeg.beamVehicleId).toString)
+      ) ! resRequest
+      goto(WaitingForReservationConfirmation)
 
     case Event(
         StateTimeout,

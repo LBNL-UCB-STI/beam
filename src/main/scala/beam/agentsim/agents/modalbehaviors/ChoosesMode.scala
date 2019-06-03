@@ -59,7 +59,7 @@ trait ChoosesMode {
       nextStateData match {
         // If I am already on a tour in a vehicle, only that vehicle is available to me
         case ChoosesModeData(
-            BasePersonData(_, _, _, _, currentModeOpt, Some(vehicle), _, _, _, _, _),
+            BasePersonData(_, _, _, _, _, Some(vehicle), _, _, _, _, _),
             _,
             _,
             _,
@@ -78,7 +78,7 @@ trait ChoosesMode {
             _,
             _,
             _
-            ) if currentModeOpt.isEmpty || currentModeOpt.get != CAV =>
+            ) =>
           self ! MobilityStatusResponse(Vector(beamVehicles(vehicle)))
         // Only need to get available street vehicles if our mode requires such a vehicle
         case ChoosesModeData(
@@ -87,7 +87,7 @@ trait ChoosesMode {
               _,
               _,
               _,
-              None | Some(CAR | CAV | BIKE | DRIVE_TRANSIT),
+              None | Some(CAR | BIKE | DRIVE_TRANSIT),
               _,
               _,
               _,
@@ -156,11 +156,7 @@ trait ChoosesMode {
         case Some(mode)
             if availableModes
               .contains(mode) && choosesModeData.personData.numberOfReplanningAttempts < beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts =>
-          if (mode == CAV && newlyAvailableBeamVehicles.find(_.streetVehicle.mode == CAV).isEmpty) {
-            None
-          } else {
-            Some(mode)
-          }
+          Some(mode)
         case Some(mode) if availableModes.contains(mode) =>
           Some(WALK)
         case None
@@ -182,7 +178,7 @@ trait ChoosesMode {
 
       var availablePersonalStreetVehicles =
         correctedCurrentTourMode match {
-          case None | Some(CAR | CAV | BIKE) =>
+          case None | Some(CAR | BIKE) =>
             // In these cases, a personal vehicle will be involved
             newlyAvailableBeamVehicles
           case Some(DRIVE_TRANSIT) =>
@@ -907,7 +903,6 @@ trait ChoosesMode {
             case Some(CAV) =>
               // Special case, if you are using household CAV, no choice was necessary you just use this mode
               // Construct the embodied trip to allow for processing by FinishingModeChoice and scoring
-              assert(choosesModeData.availablePersonalStreetVehicles.nonEmpty)
               val walk1 = EmbodiedBeamLeg.dummyLegAt(
                 _currentTick.get,
                 body.id,

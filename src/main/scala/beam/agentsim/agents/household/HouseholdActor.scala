@@ -344,7 +344,7 @@ object HouseholdActor {
                 }
                 .getOrElse(Seq())
             }
-            var passengerSchedule =
+            val passengerSchedule =
               PassengerSchedule().addLegs(BeamLeg.makeVectorLegsConsistentAsOrderdStandAloneLegs(theLegs.toVector))
             val updatedLegsIterator = passengerSchedule.schedule.keys.toIterator
             var pickDropsForGrouping: Map[PersonIdWithActorRef, List[BeamLeg]] = Map()
@@ -356,7 +356,8 @@ object HouseholdActor {
                   passengersToAdd = passengersToAdd - person
                   if (pickDropsForGrouping.contains(person)) {
                     val legs = pickDropsForGrouping(person)
-                    passengerSchedule = passengerSchedule.addPassenger(person, legs)
+                    // Don't add the passenger to the schedule.
+                    // Rather, let the PersonAgent consider CAV as Transit and make a ReservationRequest
                     personAndActivityToLegs = personAndActivityToLegs + ((
                       person.personId,
                       serviceRequest.pickupRequest.get.activity
@@ -448,12 +449,7 @@ object HouseholdActor {
         sender() ! Success
 
       case MobilityStatusInquiry(personId, _, originActivity) =>
-        personAndActivityToCav.get((personId, originActivity)) match {
-          case Some(cav) =>
-            sender() ! MobilityStatusResponse(Vector(ActualVehicle(cav)))
-          case _ =>
-            sender() ! MobilityStatusResponse(Vector())
-        }
+        sender() ! MobilityStatusResponse(Vector())
 
       case Finish =>
         context.children.foreach(_ ! Finish)

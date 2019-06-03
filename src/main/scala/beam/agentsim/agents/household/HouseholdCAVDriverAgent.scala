@@ -1,12 +1,12 @@
 package beam.agentsim.agents.household
 
-import akka.actor.{ActorContext, ActorRef, ActorSelection, Props}
 import akka.actor.FSM.Failure
 import akka.actor.Status.Success
+import akka.actor.{ActorContext, ActorRef, ActorSelection, Props}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.PersonAgent.{DrivingData, PassengerScheduleEmpty, VehicleStack, WaitingToDrive}
-import beam.agentsim.agents.household.HouseholdActor.{ReleaseVehicle, ReleaseVehicleAndReply}
+import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleAndReply
 import beam.agentsim.agents.household.HouseholdCAVDriverAgent.HouseholdCAVDriverData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, StartLegTrigger}
@@ -16,12 +16,12 @@ import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
-import beam.sim.{BeamScenario, BeamServices}
-import beam.sim.{BeamServices, Geofence}
+import beam.sim.{BeamScenario, BeamServices, Geofence}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
+import org.matsim.api.core.v01.events.PersonDepartureEvent
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
 class HouseholdCAVDriverAgent(
@@ -121,8 +121,6 @@ class HouseholdCAVDriverAgent(
 
 object HouseholdCAVDriverAgent {
 
-  def idFromVehicleId(vehId: Id[BeamVehicle]) = Id.create(s"cavDriver-$vehId", classOf[HouseholdCAVDriverAgent])
-
   def props(
     driverId: Id[HouseholdCAVDriverAgent],
     scheduler: ActorRef,
@@ -150,16 +148,11 @@ object HouseholdCAVDriverAgent {
     )
   }
 
-  def selectByVehicleId(transitVehicle: Id[Vehicle])(implicit context: ActorContext): ActorSelection = {
-    context.actorSelection("/user/population/household/" + createAgentIdFromVehicleId(transitVehicle))
+  def selectByVehicleId(householdId: Id[Household], transitVehicle: Id[Vehicle])(implicit context: ActorContext): ActorSelection = {
+    context.actorSelection("/user/population/" + householdId.toString + "/"+ idFromVehicleId(transitVehicle))
   }
 
-  def createAgentIdFromVehicleId(cavVehicle: Id[Vehicle]): Id[HouseholdCAVDriverAgent] = {
-    Id.create(
-      "HouseholdCAVDriverAgent-" + BeamVehicle.noSpecialChars(cavVehicle.toString),
-      classOf[HouseholdCAVDriverAgent]
-    )
-  }
+  def idFromVehicleId(vehId: Id[BeamVehicle]) = Id.create(s"cavDriver-$vehId", classOf[HouseholdCAVDriverAgent])
 
   case class HouseholdCAVDriverData(
     currentVehicleToken: BeamVehicle,
