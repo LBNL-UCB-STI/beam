@@ -230,7 +230,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           val vehiclesToReposition =
             RandomUtils.shuffle(idleVehicles, new java.util.Random()).splitAt(numVehiclesToReposition)._1
 
-          logger.info(s"vehiclesToReposition size: ${vehiclesToReposition.size}")
+          logger.info(s"repositioningShare: $repositioningShare, fleetSize: $fleetSize, vehiclesToReposition size: ${vehiclesToReposition.size}")
 
           val result = vehiclesToReposition.par
             .map { vehIdAndLoc =>
@@ -252,7 +252,6 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
               }
 
             }
-            .toVector
             .filterNot(_._2.getX == Double.MaxValue).seq.toVector
 
           result.foreach { case (id, coord) =>
