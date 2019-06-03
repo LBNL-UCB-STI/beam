@@ -10,9 +10,19 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailUtils
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
+import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.events.{ParkEvent, PathTraversalEvent, SpaceTime}
+import beam.agentsim.events.{
+  ChargingPlugInEvent,
+  ChargingPlugOutEvent,
+  ParkEvent,
+  PathTraversalEvent,
+  RefuelSessionEvent,
+  SpaceTime
+}
+import beam.agentsim.infrastructure.ParkingStall
+import beam.agentsim.infrastructure.charging.ChargingInquiry
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -20,7 +30,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{TRANSIT, WALK}
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
-import beam.sim.HasServices
+import beam.sim.{BeamServices, HasServices}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{
@@ -67,9 +77,14 @@ object DrivesVehicle {
 
   case class StopDriving(tick: Int)
 
-  case class StartRefuelTrigger(tick: Int) extends Trigger
+  case class StartRefuelSessionTrigger(tick: Int) extends Trigger
 
-  case class EndRefuelTrigger(tick: Int, sessionStart: Double, fuelAddedInJoule: Double) extends Trigger
+  case class EndRefuelSessionTrigger(
+    tick: Int,
+    sessionStart: Double,
+    fuelAddedInJoule: Double,
+    vehicle: Option[BeamVehicle] = None
+  ) extends Trigger
 
   case class BeamVehicleStateUpdate(id: Id[Vehicle], vehicleState: BeamVehicleState)
 
@@ -282,6 +297,27 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           currentBeamVehicle.reservedStall.foreach { stall =>
             currentBeamVehicle.useParkingStall(stall)
             eventsManager.processEvent(ParkEvent(tick, stall, currentBeamVehicle.id, id.toString)) // nextLeg.endTime -> to fix repeated path traversal
+
+            // RideHailAgent is not coming to this point
+            // todo JH think about: we have a charging spot with the highest utility,
+            //  but there is still no decision made if we are going to charge if
+            //  we are in opportunistic mode --> price threshold? dummy value?!
+            //  see ChoosesParking for logic -->
+            //  if BEV & Must -> Charge,
+            //  if BEV & Opp -> price threshold,
+            //  if PHEV -> price threshold (e vs gas?),
+            //  if !(PHEV|BEV) -> nothing
+            (currentBeamVehicle.beamVehicleType.primaryFuelType, currentBeamVehicle.beamVehicleType.secondaryFuelType) match {
+              case (Electricity, None) | (Electricity, Some(Gasoline)) => { //BEV | PHEV
+                stall.chargingPointType.foreach(
+                  _ => handleStartCharging(tick, triggerId, currentBeamVehicle)
+                )
+              }
+              case _ =>
+                log.warning(
+                  "Charging request on a spot without a charging point. This is not handled yet!" // todo JH discuss colin -> maybe -INF utility?
+                )
+            }
           }
           currentBeamVehicle.setReservedParkingStall(None)
         }
@@ -300,6 +336,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         )
         fuelConsumedByTrip.remove(id.asInstanceOf[Id[Person]])
         tollsAccumulated = 0.0
+
         goto(PassengerScheduleEmpty) using data
           .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
           .asInstanceOf[T]
@@ -456,6 +493,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
   }
 
   when(WaitingToDrive) {
+
     case ev @ Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
 //      log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
       log.debug("state(DrivesVehicle.WaitingToDrive): StartLegTrigger({},{}) for driver {}", tick, newLeg, id)
@@ -727,6 +765,45 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       tollCalculator.calcTollByLinkIds(leg.travelPath)
     else
       0.0
+  }
+
+  def handleStartCharging(tick: Int, triggerId: Long, vehicle: BeamVehicle) = {
+    log.debug("Vehicle {} connects to charger @ stall {}", vehicle.id, vehicle.stall.get)
+    vehicle.connectToChargingPoint()
+    eventsManager.processEvent(
+      new ChargingPlugInEvent(
+        tick,
+        vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
+        vehicle.id
+      )
+    )
+    // FIXME what if stay duration < session duration -> restrict to max(session duration, stay duration)
+    val dummyStayDurationInTicks = 200; // TODO JH remove / adapt
+
+    // todo JH discuss with colin -> what if refueling session takes longer than sim time?
+    //  -> this will produce a dead letter -> accept or restrict fueling session to sim time?
+
+    // todo JH refactor the following code
+    val (sessionDuration, energyDelivered): (Long, Double) =
+      if (vehicle
+            .refuelingSessionDurationAndEnergyInJoules()
+            ._1 > 0 && vehicle.refuelingSessionDurationAndEnergyInJoules()._1 < dummyStayDurationInTicks)
+        vehicle.refuelingSessionDurationAndEnergyInJoules()
+      else if (vehicle.refuelingSessionDurationAndEnergyInJoules()._1 > dummyStayDurationInTicks)
+        (dummyStayDurationInTicks, vehicle.refuelingSessionDurationAndEnergyInJoules()._1)
+      else
+        (0, vehicle.refuelingSessionDurationAndEnergyInJoules()._1)
+
+    val chargingEndTick = tick + sessionDuration.toInt
+
+    log.debug(
+      "scheduling EndRefuelSessionTrigger at {} with {} J to be delivered",
+      chargingEndTick,
+      energyDelivered
+    )
+
+    scheduler ! ScheduleTrigger(EndRefuelSessionTrigger(chargingEndTick, tick, energyDelivered, Some(vehicle)), self)
+
   }
 
 }

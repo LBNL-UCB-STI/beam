@@ -6,12 +6,18 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{EndRefuelSessionTrigger, StartLegTrigger}
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule}
-import beam.agentsim.events.{LeavingParkingEvent, RefuelEvent, SpaceTime}
+import beam.agentsim.events.{
+  ChargingPlugInEvent,
+  ChargingPlugOutEvent,
+  LeavingParkingEvent,
+  RefuelSessionEvent,
+  SpaceTime
+}
 import beam.agentsim.infrastructure.charging.ChargingInquiry
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -23,7 +29,7 @@ import beam.sim.common.GeoUtils
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 
 import scala.concurrent.duration.Duration
-import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.utils.ParkingManagerIdGenerator
 
 /**
@@ -45,6 +51,7 @@ trait ChoosesParking extends {
     beamVehicle: BeamVehicle
   ): Option[ChargingInquiry] = {
 
+    // todo JH review logic
     // the utility function // as todo config param
     // todo calibrate
     val beta1 = 1
@@ -150,7 +157,23 @@ trait ChoosesParking extends {
 
       // todo JH throw plugOut event + refuel event here if charging takes place
 
-      handleEndCharging(10000, tick, 0, currentBeamVehicle) // todo JH remove dummy values
+      //handleEndCharging(10000, tick, 0, currentBeamVehicle) // todo JH remove dummy values
+      if (currentBeamVehicle.isConnectedToChargingPoint()) {
+        currentBeamVehicle.disconnectFromChargingPoint()
+        eventsManager.processEvent(
+          new ChargingPlugOutEvent(
+            tick,
+            currentBeamVehicle.stall.get
+              .copy(locationUTM = beamServices.geo.utm2Wgs(currentBeamVehicle.stall.get.locationUTM)),
+            currentBeamVehicle.id
+          )
+        )
+        log.debug(
+          "Vehicle {} disconnected from charger @ stall {}",
+          currentBeamVehicle.id,
+          currentBeamVehicle.stall.get
+        )
+      }
 
       parkingManager ! ReleaseParkingStall(stall.parkingZoneId)
       val nextLeg = data.passengerSchedule.schedule.head._1
@@ -184,8 +207,6 @@ trait ChoosesParking extends {
       //parking Id
       //cost
       //location
-
-      println("stop")
 
       val distance =
         beamServices.geo.distUTMInMeters(stall.locationUTM, beamServices.geo.wgs2Utm(nextLeg.travelPath.endPoint.loc))
@@ -251,7 +272,6 @@ trait ChoosesParking extends {
         } yield (vehicle2StallResponse, stall2DestinationResponse)
 
         responses pipeTo self
-
         stay using data
       }
     case Event(
@@ -340,12 +360,10 @@ trait ChoosesParking extends {
 
   def handleEndCharging(energyInJoules: Double, tick: Int, sessionStart: Int, vehicle: BeamVehicle) = {
 
-    // todo plug out event
-
-    log.debug("Ending refuel session for {}", vehicle.id)
+    log.debug("Ending refuel session for {} in tick {}", vehicle.id, tick)
     vehicle.addFuel(energyInJoules)
     eventsManager.processEvent(
-      new RefuelEvent(
+      new RefuelSessionEvent(
         tick,
         vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
         energyInJoules,

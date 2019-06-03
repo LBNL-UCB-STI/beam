@@ -5,6 +5,7 @@ import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
 import beam.agentsim.agents.vehicles.ConsumptionRateFilterStore.{Primary, Secondary}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -51,6 +52,7 @@ class BeamVehicle(
   var secondaryFuelLevelInJoules = beamVehicleType.secondaryFuelCapacityInJoule.getOrElse(0.0)
 
   var mustBeDrivenHome: Boolean = false
+  private var connectedToChargingPoint: Boolean = false
 
   /**
     * The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
@@ -102,6 +104,23 @@ class BeamVehicle(
 
   def unsetParkingStall(): Unit = {
     stall = None
+  }
+
+  def connectToChargingPoint(): Unit = {
+    if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType == Electricity)
+      connectedToChargingPoint = true
+    else
+      logger.warn(
+        "Trying to connect a non BEV/PHEV to a electricity charging station. This will cause an explosion. Ignoring!"
+      )
+  }
+
+  def disconnectFromChargingPoint(): Unit = {
+    connectedToChargingPoint = false
+  }
+
+  def isConnectedToChargingPoint(): Boolean = {
+    connectedToChargingPoint
   }
 
   /**
@@ -198,8 +217,8 @@ class BeamVehicle(
               chargingPoint,
               primaryFuelLevelInJoules,
               beamVehicleType.primaryFuelCapacityInJoule,
-              100.0,
-              100.0,
+              100.0, // todo this should be vehicle dependent
+              100.0, // todo this should be vehicle dependen
               None
             )
           case None =>
@@ -288,6 +307,7 @@ object BeamVehicle {
 
   /**
     * Organizes the fuel consumption data table
+    *
     * @param beamLeg Instance of beam leg
     * @param networkHelper the transport network instance
     * @return list of fuel consumption objects generated

@@ -304,6 +304,7 @@ class PersonAgent(
   }
 
   when(PerformingActivity) {
+
     case Event(TriggerWithId(ActivityEndTrigger(tick), triggerId), data: BasePersonData) =>
       nextActivity(data) match {
         case None =>
@@ -334,6 +335,7 @@ class PersonAgent(
             SpaceTime(currentActivity(data).getCoord, _currentTick.get)
           )
       }
+
   }
 
   when(WaitingForDeparture) {
@@ -587,6 +589,12 @@ class PersonAgent(
   }
 
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
+
+//    case ev @ Event(TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, energyInJoules), triggerId), data) =>
+//      log.debug("state(DrivesVehicle.WaitingToDrive.EndRefuelSessionTrigger): {}", ev)
+//      handleEndCharging(energyInJoules, tick, sessionStart.toInt, currentBeamVehicle)
+//      stay() replying CompletionNotice(triggerId)
+
     case Event(
         StateTimeout,
         data @ BasePersonData(
@@ -997,6 +1005,17 @@ class PersonAgent(
       stop(Failure("Unexpected RideHailResponse"))
     case Event(ParkingInquiryResponse(_, _), _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))
+    case ev @ Event(
+          TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, energyInJoules, Some(vehicle)), triggerId),
+          data
+        ) =>
+      // TODO JH discuss with colin, maybe it makes sense to move this somewhere else?!
+      log.debug("state(PersonAgent.myUnhandled.EndRefuelSessionTrigger): {}", ev)
+      handleEndCharging(energyInJoules, tick, sessionStart.toInt, vehicle)
+      stay() replying CompletionNotice(triggerId)
+    case Event(e, s) =>
+      log.warning("received unhandled request {} in state {}/{}", e, stateName, s)
+      stay()
   }
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))
