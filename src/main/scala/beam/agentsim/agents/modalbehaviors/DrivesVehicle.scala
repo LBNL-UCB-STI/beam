@@ -299,7 +299,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
             eventsManager.processEvent(ParkEvent(tick, stall, currentBeamVehicle.id, id.toString)) // nextLeg.endTime -> to fix repeated path traversal
 
             // RideHailAgent is not coming to this point
-            // todo JH think about: we have a charging spot with the highest utility,
+            // todo JH think about: we have a charging spot here with the highest utility,
             //  but there is still no decision made if we are going to charge if
             //  we are in opportunistic mode --> price threshold? dummy value?!
             //  see ChoosesParking for logic -->
@@ -307,16 +307,18 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
             //  if BEV & Opp -> price threshold,
             //  if PHEV -> price threshold (e vs gas?),
             //  if !(PHEV|BEV) -> nothing
-            (currentBeamVehicle.beamVehicleType.primaryFuelType, currentBeamVehicle.beamVehicleType.secondaryFuelType) match {
-              case (Electricity, None) | (Electricity, Some(Gasoline)) => { //BEV | PHEV
-                stall.chargingPointType.foreach(
-                  _ => handleStartCharging(tick, triggerId, currentBeamVehicle)
-                )
+
+            if (currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV) {
+              stall.chargingPointType match {
+                case Some(_) => handleStartCharging(tick, triggerId, currentBeamVehicle)
+                case None =>
+                  log.warning(
+                    "Charging request by vehicle {} ({}) on a spot without a charging point (parkingZoneId: {}). This is not handled yet!",
+                    currentBeamVehicle.id,
+                    if (currentBeamVehicle.isBEV) "BEV" else if (currentBeamVehicle.isPHEV) "PHEV" else "non-electric",
+                    stall.parkingZoneId // todo JH discuss colin -> maybe -INF utility?
+                  )
               }
-              case _ =>
-                log.warning(
-                  "Charging request on a spot without a charging point. This is not handled yet!" // todo JH discuss colin -> maybe -INF utility?
-                )
             }
           }
           currentBeamVehicle.setReservedParkingStall(None)
@@ -797,9 +799,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     val chargingEndTick = tick + sessionDuration.toInt
 
     log.debug(
-      "scheduling EndRefuelSessionTrigger at {} with {} J to be delivered",
+      "scheduling EndRefuelSessionTrigger at {} with {} J to vehicle {} to be delivered",
       chargingEndTick,
-      energyDelivered
+      energyDelivered,
+      vehicle.id
     )
 
     scheduler ! ScheduleTrigger(EndRefuelSessionTrigger(chargingEndTick, tick, energyDelivered, Some(vehicle)), self)

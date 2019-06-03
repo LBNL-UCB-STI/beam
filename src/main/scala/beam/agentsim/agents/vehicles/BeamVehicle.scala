@@ -5,7 +5,7 @@ import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
 import beam.agentsim.agents.vehicles.ConsumptionRateFilterStore.{Primary, Secondary}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.FuelType.Electricity
+import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -218,7 +218,7 @@ class BeamVehicle(
               primaryFuelLevelInJoules,
               beamVehicleType.primaryFuelCapacityInJoule,
               100.0, // todo this should be vehicle dependent
-              100.0, // todo this should be vehicle dependen
+              100.0, // todo this should be vehicle dependent
               None
             )
           case None =>
@@ -254,6 +254,12 @@ class BeamVehicle(
   }
 
   def isCAV: Boolean = beamVehicleType.automationLevel > 3
+
+  def isBEV: Boolean =
+    beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType == None
+
+  def isPHEV: Boolean =
+    beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType == Some(Gasoline)
 
   def initializeFuelLevels = {
     primaryFuelLevelInJoules = beamVehicleType.primaryFuelCapacityInJoule

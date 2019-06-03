@@ -114,6 +114,7 @@ trait ChoosesParking extends {
 
       }
       case (Electricity, Some(Gasoline)) => { // PHEV
+        log.debug("ChargingInquiry by PHEV {}.", beamVehicle.id)
         ChargingInquiry(Some(mnl), None, beamVehicle, attributes.valueOfTime) // PHEV is always opportunistic
       }
       case _ => None
@@ -155,9 +156,6 @@ trait ChoosesParking extends {
         throw new RuntimeException(log.format("My vehicle {} is not parked.", currentBeamVehicle.id))
       }
 
-      // todo JH throw plugOut event + refuel event here if charging takes place
-
-      //handleEndCharging(10000, tick, 0, currentBeamVehicle) // todo JH remove dummy values
       if (currentBeamVehicle.isConnectedToChargingPoint()) {
         currentBeamVehicle.disconnectFromChargingPoint()
         eventsManager.processEvent(
@@ -360,7 +358,7 @@ trait ChoosesParking extends {
 
   def handleEndCharging(energyInJoules: Double, tick: Int, sessionStart: Int, vehicle: BeamVehicle) = {
 
-    log.debug("Ending refuel session for {} in tick {}", vehicle.id, tick)
+    log.debug("Ending refuel session for {} in tick {}. Provided {} J.", vehicle.id, tick, energyInJoules)
     vehicle.addFuel(energyInJoules)
     eventsManager.processEvent(
       new RefuelSessionEvent(
