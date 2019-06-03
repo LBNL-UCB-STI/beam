@@ -23,10 +23,10 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
   val tempScheduleStore: mutable.Map[Int, List[MobilityRequest]] = mutable.Map()
 
   val spatialPoolCustomerReqs: QuadTree[CustomerRequest] = new QuadTree[CustomerRequest](
-    rideHailManager.quadTreeBounds.minx,
-    rideHailManager.quadTreeBounds.miny,
-    rideHailManager.quadTreeBounds.maxx,
-    rideHailManager.quadTreeBounds.maxy
+    rideHailManager.activityQuadTreeBounds.minx,
+    rideHailManager.activityQuadTreeBounds.miny,
+    rideHailManager.activityQuadTreeBounds.maxx,
+    rideHailManager.activityQuadTreeBounds.maxy
   )
 
   val defaultBeamVehilceTypeId = Id.create(
