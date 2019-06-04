@@ -32,7 +32,6 @@ class RideHailModifyPassengerScheduleManager(
   private val vehicleIdToModifyPassengerScheduleStatus =
     mutable.Map[Id[Vehicle], RideHailModifyPassengerScheduleStatus]()
   var allTriggersInWave: Vector[ScheduleTrigger] = Vector()
-  var numberPendingModifyPassengerScheduleAcks: Int = 0
   var ignoreErrorPrint = false
 
   // We can change this to be Set[Id[Vehicle]], but then in case of terminated actor, we have to map it back to Id[Vehicle]
@@ -54,20 +53,19 @@ class RideHailModifyPassengerScheduleManager(
       log.debug(
         "Cancelling repositioning for {}, interruptId {}, numberPendingModifyPassengerScheduleAcks {}",
         reply.vehicleId,
-        reply.interruptId,
-        numberPendingModifyPassengerScheduleAcks
+        reply.interruptId
       )
       cancelRepositionAttempt(rideHailAgent)
       clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
     } else {
       interruptIdToModifyPassengerScheduleStatus.get(reply.interruptId) match {
-        case repositionStatus @ Some(RideHailModifyPassengerScheduleStatus(_,_,_,Reposition,_,_,INTERRUPT_SENT)) =>
+        case repositionStatus @ Some(RideHailModifyPassengerScheduleStatus(_,_,_,Reposition,_,_,InterruptSent)) =>
           // Success! Continue with reposition process
           sendModifyPassengerScheduleMessage(
             repositionStatus.get,
             reply.isInstanceOf[InterruptedWhileDriving]
           )
-        case reservationStatus @ Some(RideHailModifyPassengerScheduleStatus(_,_,_,SingleReservation,_,_,INTERRUPT_SENT)) =>
+        case reservationStatus @ Some(RideHailModifyPassengerScheduleStatus(_,_,_,SingleReservation,_,_,InterruptSent)) =>
           if (reply.isInstanceOf[InterruptedWhileOffline]) {
             // Oops, tried to reserve this vehicle before knowing it was unavailable
             log.debug(
@@ -117,8 +115,8 @@ class RideHailModifyPassengerScheduleManager(
     if (stopDriving) modifyStatus.rideHailAgent.tell(StopDriving(modifyStatus.tick), rideHailManagerRef)
     modifyStatus.rideHailAgent.tell(modifyStatus.modifyPassengerSchedule, rideHailManagerRef)
     modifyStatus.rideHailAgent.tell(Resume(), rideHailManagerRef)
-    interruptIdToModifyPassengerScheduleStatus.put(modifyStatus.interruptId,modifyStatus.copy(status = MODIFY_PASSENGER_SCHEDULE_SENT))
-    vehicleIdToModifyPassengerScheduleStatus.put(modifyStatus.vehicleId,modifyStatus.copy(status = MODIFY_PASSENGER_SCHEDULE_SENT))
+    interruptIdToModifyPassengerScheduleStatus.put(modifyStatus.interruptId,modifyStatus.copy(status = ModifyPassengerScheduleSent))
+    vehicleIdToModifyPassengerScheduleStatus.put(modifyStatus.vehicleId,modifyStatus.copy(status = ModifyPassengerScheduleSent))
   }
 
   def cancelRepositionAttempt(agentToRemove: ActorRef): Unit = {
@@ -234,7 +232,7 @@ class RideHailModifyPassengerScheduleManager(
         interruptOrigin,
         tick,
         rideHailAgent,
-        INTERRUPT_SENT
+        InterruptSent
       )
       //log.debug("RideHailModifyPassengerScheduleManager- sendInterruptMessage: " + rideHailModifyPassengerScheduleStatus)
       saveModifyStatusInCache(rideHailModifyPassengerScheduleStatus)
@@ -331,8 +329,8 @@ class RideHailModifyPassengerScheduleManager(
 }
 
 sealed trait InterruptMessageStatus
-case object INTERRUPT_SENT extends InterruptMessageStatus
-case object MODIFY_PASSENGER_SCHEDULE_SENT extends InterruptMessageStatus
+case object InterruptSent extends InterruptMessageStatus
+case object ModifyPassengerScheduleSent extends InterruptMessageStatus
 
 sealed trait BatchDispatchType
 trait InterruptOrigin extends BatchDispatchType
