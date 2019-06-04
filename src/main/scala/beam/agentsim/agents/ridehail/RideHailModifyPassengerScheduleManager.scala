@@ -124,11 +124,12 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def repositioningFinished(agentToRemove: ActorRef): Unit = {
-    if (!waitingToReposition.contains(agentToRemove)) {
+    if (waitingToReposition.contains(agentToRemove)) {
+      waitingToReposition = waitingToReposition - agentToRemove
+      checkIfRoundOfRepositioningIsDone()
+    }else{
       log.error("Not found in waitingToReposition: {}", agentToRemove)
     }
-    waitingToReposition = waitingToReposition - agentToRemove
-    checkIfRoundOfRepositioningIsDone()
   }
 
   def checkIfRoundOfRepositioningIsDone(): Unit = {
