@@ -61,12 +61,13 @@ class RideHailModifyPassengerScheduleManager(
       clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
     } else {
       interruptIdToModifyPassengerScheduleStatus.get(reply.interruptId) match {
-        case Some(RideHailModifyPassengerScheduleStatus(_,vehicleId,passengerSchedule,Reposition,tick,rideHailAgentRef,INTERRUPT_SENT)) =>
-          // detected race condition with reservation interrupt: if message coming back is reposition message interrupt, then the interrupt confirmation for reservation message is on
-          // its way - wait on that and count this reposition as completed.
-          cancelRepositionAttempt(rideHailAgent)
-          clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
-        case reservationStatus @ Some(RideHailModifyPassengerScheduleStatus(_,vehicleId,passengerSchedule,SingleReservation,tick,rideHailAgentRef,INTERRUPT_SENT)) =>
+        case repositionStatus @ Some(RideHailModifyPassengerScheduleStatus(_,_,_,Reposition,_,_,INTERRUPT_SENT)) =>
+          // Success! Continue with reposition process
+          sendModifyPassengerScheduleMessage(
+            repositionStatus.get,
+            reply.isInstanceOf[InterruptedWhileDriving]
+          )
+        case reservationStatus @ Some(RideHailModifyPassengerScheduleStatus(_,_,_,SingleReservation,_,_,INTERRUPT_SENT)) =>
           if (reply.isInstanceOf[InterruptedWhileOffline]) {
             // Oops, tried to reserve this vehicle before knowing it was unavailable
             log.debug(
@@ -164,14 +165,6 @@ class RideHailModifyPassengerScheduleManager(
       case _ =>
         throw new RuntimeException("Should not attempt to send completion when doing single reservations")
     }
-    //    log.debug("complete at {} triggerID {} with {} triggers", currentTick, triggerId, allTriggersInWave.size)
-    //      if (!allTriggersInWave.isEmpty) {
-    //        log.debug(
-    //          "triggers from {} to {}",
-    //          allTriggersInWave.map(_.trigger.tick).min,
-    //          allTriggersInWave.map(_.trigger.tick).max
-    //        )
-    //      }
     scheduler.tell(
       CompletionNotice(triggerId, allTriggersInWave :+ ScheduleTrigger(timerTrigger, rideHailManagerRef)),
       rideHailManagerRef
@@ -255,6 +248,35 @@ class RideHailModifyPassengerScheduleManager(
     }
   }
 
+  def checkInResource(
+                       vehicleId: Id[Vehicle],
+                       availableIn: Option[SpaceTime],
+                       passengerSchedule: Option[PassengerSchedule]
+                     ): Unit = {
+    passengerSchedule match {
+      case Some(schedule) =>
+        vehicleIdToModifyPassengerScheduleStatus.get(vehicleId).foreach{ status =>
+          if (availableIn.get.time > 0) {
+            val beamLeg =
+              status.modifyPassengerSchedule.updatedPassengerSchedule.schedule.toVector.last._1
+            val passengerScheduleLastLeg = schedule.schedule.toVector.last._1
+
+            if (beamLeg.endTime != passengerScheduleLastLeg.endTime && status.interruptOrigin == SingleReservation) {
+              // ignore, because this checkin is for a reposition and not the current Reservation
+              log.debug(
+                "checkin is not for current vehicle:" + status + ";checkInAt:" + availableIn
+              )
+            } else {
+              interruptIdToModifyPassengerScheduleStatus.remove(status.interruptId)
+              vehicleIdToModifyPassengerScheduleStatus.remove(vehicleId)
+            }
+          }
+        }
+      case None =>
+      //        log.debug("checkin: {} with empty passenger schedule", vehicleId)
+    }
+  }
+
   private def saveModifyStatusInCache(
     rideHailModifyPassengerScheduleStatus: RideHailModifyPassengerScheduleStatus
   ): Unit = {
@@ -291,35 +313,6 @@ class RideHailModifyPassengerScheduleManager(
 
   def isVehicleNeitherRepositioningNorProcessingReservation(vehicleId: Id[Vehicle]): Boolean = {
     !vehicleIdToModifyPassengerScheduleStatus.contains(vehicleId)
-  }
-
-  def checkInResource(
-    vehicleId: Id[Vehicle],
-    availableIn: Option[SpaceTime],
-    passengerSchedule: Option[PassengerSchedule]
-  ): Unit = {
-    passengerSchedule match {
-      case Some(schedule) =>
-        vehicleIdToModifyPassengerScheduleStatus.get(vehicleId).foreach{ status =>
-            if (availableIn.get.time > 0) {
-              val beamLeg =
-                status.modifyPassengerSchedule.updatedPassengerSchedule.schedule.toVector.last._1
-              val passengerScheduleLastLeg = schedule.schedule.toVector.last._1
-
-              if (beamLeg.endTime != passengerScheduleLastLeg.endTime && status.interruptOrigin == SingleReservation) {
-                // ignore, because this checkin is for a reposition and not the current Reservation
-                log.debug(
-                  "checkin is not for current vehicle:" + status + ";checkInAt:" + availableIn
-                )
-              } else {
-                interruptIdToModifyPassengerScheduleStatus.remove(status.interruptId)
-                vehicleIdToModifyPassengerScheduleStatus.remove(vehicleId)
-              }
-            }
-        }
-      case None =>
-      //        log.debug("checkin: {} with empty passenger schedule", vehicleId)
-    }
   }
 
   def printState(): Unit = {
