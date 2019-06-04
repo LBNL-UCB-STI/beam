@@ -6,6 +6,7 @@ import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicle
+import beam.agentsim.agents.household.HouseholdCAVDriverAgent
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
@@ -730,10 +731,21 @@ class PersonAgent(
         )
       )
       goto(WaitingForReservationConfirmation)
-    case Event(StateTimeout, BasePersonData(_, _, _ :: _, _, _, _, _, _, _, _, _)) =>
-      val (_, triggerId) = releaseTickAndTriggerId()
-      scheduler ! CompletionNotice(triggerId)
-      goto(Waiting)
+    // CAV
+    // TODO: Refactor so it uses literally the same code block as transit
+    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _, _)) =>
+      val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(
+        leg => leg.beamVehicleId == nextLeg.beamVehicleId
+      )
+      val resRequest = ReservationRequest(
+        legSegment.head.beamLeg,
+        legSegment.last.beamLeg,
+        PersonIdWithActorRef(id, self)
+      )
+      context.actorSelection(
+        householdRef.path.child(HouseholdCAVDriverAgent.idFromVehicleId(nextLeg.beamVehicleId).toString)
+      ) ! resRequest
+      goto(WaitingForReservationConfirmation)
 
     case Event(
         StateTimeout,
@@ -893,31 +905,8 @@ class PersonAgent(
   }
 
   def handleBoardOrAlightOutOfPlace(triggerId: Long, currentTrip: Option[EmbodiedBeamTrip]): State = {
-    currentTrip match {
-      case None =>
-        log.debug("Person {} stashing BoardOrAlight {} b/c no trip yet", id, triggerId)
-        stash
-        stay
-      case Some(trip) if trip.tripClassifier == CAV =>
-        log.debug("Person {} stashing BoardOrAlight {} b/c on CAV trip", id, triggerId)
-        stash
-        stay
-// FIXME: Find a way of expressing this case without looking at the vehicle type of a not locally known vehicle
-//      case Some(trip) if beamScenario.vehicleTypes.get(beamVehicleTypeId).exists(_.automationLevel > 3) =>
-//        log.warning(
-//          "Person {} in state {} is abandoning CAV trips for rest of day because received Board/Alight trigger while on {} trip",
-//          id,
-//          stateName,
-//          trip.tripClassifier
-//        )
-//        householdRef ! CancelCAVTrip(bodyVehiclePersonId)
-//        _experiencedBeamPlan.tours.foreach(tour => _experiencedBeamPlan.putStrategy(tour, ModeChoiceStrategy(None)))
-//        stay() replying CompletionNotice(triggerId, Vector())
-      case Some(trip) =>
-        log.debug("Person {} in state {} stashing BoardOrAlight {} b/c expecting this", id, stateName, triggerId)
-        stash
-        stay
-    }
+    stash
+    stay
   }
 
   val myUnhandled: StateFunction = {
