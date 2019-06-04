@@ -123,9 +123,9 @@ class UrbanSimScenarioLoader(
         val id = Id.create(householdInfo.householdId.id, classOf[org.matsim.households.Household])
         val household = new HouseholdsFactoryImpl().createHousehold(id)
         val coord = if (beamServices.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
-          beamServices.geo.wgs2Utm(new Coord(householdInfo.x, householdInfo.y))
+          beamServices.geo.wgs2Utm(new Coord(householdInfo.locationX, householdInfo.locationY))
         } else {
-          new Coord(householdInfo.x, householdInfo.y)
+          new Coord(householdInfo.locationX, householdInfo.locationY)
         }
 
         household.setIncome(new IncomeImpl(householdInfo.income, Income.IncomePeriod.year))

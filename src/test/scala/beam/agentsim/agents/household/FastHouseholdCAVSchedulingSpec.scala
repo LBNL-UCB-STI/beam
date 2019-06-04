@@ -12,7 +12,7 @@ import beam.agentsim.agents.vehicles.FuelType.{FuelType, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleCategory.Car
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleEnergy}
 import beam.agentsim.agents.{Dropoff, Pickup}
-import beam.agentsim.infrastructure.TAZTreeMap
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices

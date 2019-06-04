@@ -521,6 +521,11 @@ trait BeamHelper extends LazyLogging {
   }
 
   private def warmStart(beamConfig: BeamConfig, matsimConfig: MatsimConfig): Unit = {
+    if (beamConfig.beam.outputs.writeSkimsInterval == 0 && beamConfig.beam.warmStart.enabled) {
+      logger.warn(
+        "Beam skims are not being written out - skims will be missing for warm starting from the output of this run!"
+      )
+    }
     val maxHour = TimeUnit.SECONDS.toHours(matsimConfig.travelTimeCalculator().getMaxTime).toInt
     val beamWarmStart = BeamWarmStart(beamConfig, maxHour)
     beamWarmStart.warmStartPopulation(matsimConfig)
