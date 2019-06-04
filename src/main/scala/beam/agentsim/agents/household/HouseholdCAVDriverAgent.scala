@@ -144,8 +144,10 @@ object HouseholdCAVDriverAgent {
     )
   }
 
-  def selectByVehicleId(householdId: Id[Household], transitVehicle: Id[Vehicle])(implicit context: ActorContext): ActorSelection = {
-    context.actorSelection("/user/population/" + householdId.toString + "/"+ idFromVehicleId(transitVehicle))
+  def selectByVehicleId(householdId: Id[Household], transitVehicle: Id[Vehicle])(
+    implicit context: ActorContext
+  ): ActorSelection = {
+    context.actorSelection("/user/population/" + householdId.toString + "/" + idFromVehicleId(transitVehicle))
   }
 
   def idFromVehicleId(vehId: Id[BeamVehicle]) = Id.create(s"cavDriver-$vehId", classOf[HouseholdCAVDriverAgent])

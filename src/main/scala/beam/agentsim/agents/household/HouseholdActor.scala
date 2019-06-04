@@ -8,15 +8,18 @@ import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
+import beam.agentsim.agents._
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavTripLegsResponse}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.agents.ridehail.RideHailAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck, ModifyPassengerScheduleAcks}
+import beam.agentsim.agents.ridehail.RideHailAgent.{
+  ModifyPassengerSchedule,
+  ModifyPassengerScheduleAck,
+  ModifyPassengerScheduleAcks
+}
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
-import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, PersonIdWithActorRef}
-import beam.agentsim.agents._
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -95,7 +98,6 @@ object HouseholdActor {
   case class ReleaseVehicle(vehicle: BeamVehicle)
   case class ReleaseVehicleAndReply(vehicle: BeamVehicle, tick: Option[Int] = None)
   case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken])
-  case class CancelCAVTrip(person: PersonIdWithActorRef)
 
   /**
     * Implementation of intra-household interaction in BEAM using actors.
@@ -419,13 +421,6 @@ object HouseholdActor {
             )
           case _ =>
             sender() ! CavTripLegsResponse(None, List())
-        }
-      case CancelCAVTrip(person) =>
-        log.debug("Removing person {} from plan to use CAVs")
-        personAndActivityToCav.filter(_._1._1.equals(person.personId)).foreach { persActAndCAV =>
-          persActAndCAV._2.driver.get ! RemovePassengerFromTrip(person)
-          personAndActivityToCav = personAndActivityToCav - persActAndCAV._1
-          personAndActivityToLegs = personAndActivityToLegs - persActAndCAV._1
         }
 
       case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>

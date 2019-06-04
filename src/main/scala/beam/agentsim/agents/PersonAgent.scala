@@ -905,31 +905,8 @@ class PersonAgent(
   }
 
   def handleBoardOrAlightOutOfPlace(triggerId: Long, currentTrip: Option[EmbodiedBeamTrip]): State = {
-    currentTrip match {
-      case None =>
-        log.debug("Person {} stashing BoardOrAlight {} b/c no trip yet", id, triggerId)
-        stash
-        stay
-      case Some(trip) if trip.tripClassifier == CAV =>
-        log.debug("Person {} stashing BoardOrAlight {} b/c on CAV trip", id, triggerId)
-        stash
-        stay
-// FIXME: Find a way of expressing this case without looking at the vehicle type of a not locally known vehicle
-//      case Some(trip) if beamScenario.vehicleTypes.get(beamVehicleTypeId).exists(_.automationLevel > 3) =>
-//        log.warning(
-//          "Person {} in state {} is abandoning CAV trips for rest of day because received Board/Alight trigger while on {} trip",
-//          id,
-//          stateName,
-//          trip.tripClassifier
-//        )
-//        householdRef ! CancelCAVTrip(bodyVehiclePersonId)
-//        _experiencedBeamPlan.tours.foreach(tour => _experiencedBeamPlan.putStrategy(tour, ModeChoiceStrategy(None)))
-//        stay() replying CompletionNotice(triggerId, Vector())
-      case Some(trip) =>
-        log.debug("Person {} in state {} stashing BoardOrAlight {} b/c expecting this", id, stateName, triggerId)
-        stash
-        stay
-    }
+    stash
+    stay
   }
 
   val myUnhandled: StateFunction = {
