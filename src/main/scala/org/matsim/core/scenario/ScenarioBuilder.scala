@@ -64,7 +64,7 @@ object ScenarioBuilder {
     modules.put(groupName, config)
   }
 
-  def setHouseHolds(matsimConfig: MatsimConfig):Unit = {
+  def setHouseHolds(matsimConfig: MatsimConfig): Unit = {
     val r = new HouseholdsConfigGroup
     val field = matsimConfig.getClass.getDeclaredField("households")
     field.setAccessible(true)
