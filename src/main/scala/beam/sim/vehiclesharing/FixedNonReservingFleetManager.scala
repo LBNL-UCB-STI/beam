@@ -24,7 +24,6 @@ import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamSkimmer
 import beam.sim.BeamServices
-import beam.sim.population.AttributesOfIndividual
 import com.vividsolutions.jts.geom.{Coordinate, Envelope}
 import com.vividsolutions.jts.index.quadtree.Quadtree
 import org.matsim.api.core.v01.{Coord, Id}
@@ -35,6 +34,7 @@ import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
 private[vehiclesharing] class FixedNonReservingFleetManager(
+  val id: Id[VehicleManager],
   val parkingManager: ActorRef,
   val locations: Iterable[Coord],
   val vehicleType: BeamVehicleType,
@@ -42,7 +42,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   val beamServices: BeamServices,
   val beamSkimmer: BeamSkimmer,
   val maxWalkingDistance: Int,
-  val repositioningAlgorithm: Class[_ <: beam.sim.vehiclesharing.RepositionAlgorithm]
+  val repositionAlgorithmType: Option[RepositionAlgorithmType] = None
 ) extends Actor
     with ActorLogging
     with Stash
@@ -92,14 +92,14 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       sender ! MobilityStatusResponse(nearbyVehicles.take(5).map { vehicle =>
         Token(vehicle.id, self, vehicle.toStreetVehicle)
       })
-      getREPAlgorithm.collectData(whenWhere.time, whenWhere.loc, RepositionManager.inquiry)
+      collectData(whenWhere.time, whenWhere.loc, RepositionManager.inquiry)
 
     case TryToBoardVehicle(token, who) =>
       makeUnavailable(token.id, token.streetVehicle) match {
         case Some(vehicle) if token.streetVehicle.locationUTM == vehicle.spaceTime =>
           log.debug("Checked out " + vehicle.id)
           who ! Boarded(vehicle)
-          getREPAlgorithm.collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.boarded)
+          collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.boarded)
         case _ =>
           who ! NotAvailable
       }
@@ -109,12 +109,12 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
 
     case ReleaseVehicle(vehicle) =>
       makeAvailable(vehicle.id)
-      getREPAlgorithm.collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
+      collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
 
     case ReleaseVehicleAndReply(vehicle, _) =>
       makeAvailable(vehicle.id)
       sender() ! Success
-      getREPAlgorithm.collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
+      collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
   }
 
   def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(
@@ -125,15 +125,13 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
     0.0
   )
 
-  override def getId: Id[VehicleManager] = Id.create("FixedNonReservingFleetManager", classOf[VehicleManager])
-  override def getAvailableVehiclesIndex: Quadtree = availableVehiclesIndex
+  override def getId: Id[VehicleManager] = id
+  override def queryAvailableVehicles: List[BeamVehicle] =
+    availableVehiclesIndex.queryAll().asScala.map(_.asInstanceOf[BeamVehicle]).toList
   override def getScheduler: ActorRef = mainScheduler
-  override def getBeamServices: BeamServices = beamServices
-  override def getREPAlgorithm: RepositionAlgorithm = algorithm
-  override def getREPTimeStep: Int = 60 * 60
-  override def getBeamSkimmer: BeamSkimmer = beamSkimmer
-
-  val algorithm = repositioningAlgorithm.getConstructor(classOf[RepositionManager]).newInstance(this)
+  override def getServices: BeamServices = beamServices
+  def getRepositionAlgorithmType: Option[RepositionAlgorithmType] = repositionAlgorithmType
+  override def getSkimmer: BeamSkimmer = beamSkimmer
 
   override def makeAvailable(vehId: Id[BeamVehicle]): Boolean = {
     val vehicle = vehicles(vehId)

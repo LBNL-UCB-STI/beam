@@ -5,14 +5,18 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamSkimmer
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm
 import beam.utils.FileUtils
+import org.apache.log4j.Logger
 import org.matsim.api.core.v01.{Coord, Id}
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+
+trait VehicleManager
 
 trait FleetType {
 
@@ -36,7 +40,14 @@ object RandomPointInTAZ {
   }
 }
 
-case class FixedNonReservingFleetByTAZ(config: SharedFleets$Elm.FixedNonReservingFleetByTaz) extends FleetType {
+case class FixedNonReservingFleetByTAZ(
+  managerId: Id[VehicleManager],
+  config: SharedFleets$Elm.FixedNonReservingFleetByTaz,
+  repConfig: Option[BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition]
+) extends FleetType {
+  private val logger = Logger.getLogger(classOf[FixedNonReservingFleetByTAZ])
+  case class FixedNonReservingFleetByTAZException(message: String, cause: Throwable = null)
+      extends Exception(message, cause)
   override def props(
     beamServices: BeamServices,
     beamSkimmer: BeamSkimmer,
@@ -45,40 +56,46 @@ case class FixedNonReservingFleetByTAZ(config: SharedFleets$Elm.FixedNonReservin
   ): Props = {
     val initialLocation = mutable.ListBuffer[Coord]()
     val rand = new scala.util.Random(System.currentTimeMillis())
-    val res = readCsvFile(config.vehiclesSharePerTAZ)
-    if (res.nonEmpty) {
-      res.foreach {
-        case (idTaz, coord, percentage) =>
-          (0 until percentage * config.fleetSize).foreach(
-            _ =>
-              initialLocation.append(beamServices.tazTreeMap.getTAZ(Id.create(idTaz, classOf[TAZ])) match {
-                case Some(taz) => RandomPointInTAZ.get(taz, rand)
-                case _         => coord
-              })
-          )
-      }
-    } else {
-      val ok = config.vehiclesSharePerTAZ.split(",").foldLeft(true) { (res, x) =>
-        val y = x.split(":")
-        val out = beamServices.tazTreeMap.getTAZ(y(0)) match {
-          case Some(taz) =>
-            val percentage = y(1).toDouble
-            (0 until (percentage * config.fleetSize).toInt)
-              .foreach(_ => initialLocation.append(RandomPointInTAZ.get(taz, rand)))
-            true
-          case _ => false
+    config.vehiclesSharePerTAZFromCSV match {
+      case Some(fileName) =>
+        logger.info(s"Reading shared vehicle fleet from file: $fileName")
+        readCsvFile(fileName).foreach {
+          case (idTaz, coord, percentage) =>
+            (0 until percentage * config.fleetSize).foreach(
+              _ =>
+                initialLocation.append(beamServices.tazTreeMap.getTAZ(Id.create(idTaz, classOf[TAZ])) match {
+                  case Some(taz) => RandomPointInTAZ.get(taz, rand)
+                  case _         => coord
+                })
+            )
         }
-        res && out
-      }
-      if (!ok) {
-        // fall back here
-        initialLocation.clear()
-        val tazArray = beamServices.tazTreeMap.getTAZs.toArray
-        (1 to config.fleetSize).foreach { _ =>
-          val taz = tazArray(rand.nextInt(tazArray.length))
-          initialLocation.prepend(RandomPointInTAZ.get(taz, rand))
+      case _ =>
+        config.vehiclesSharePerTAZ match {
+          case Some(shareStr) =>
+            logger.info(s"Distribution of shared fleet by shares according to vehiclesSharePerTAZ: $shareStr")
+            shareStr.split(",").foreach { x =>
+              val y = x.split(":")
+              beamServices.tazTreeMap.getTAZ(y(0)) match {
+                case Some(taz) =>
+                  val percentage = y(1).toDouble
+                  (0 until (percentage * config.fleetSize).toInt)
+                    .foreach(_ => initialLocation.append(RandomPointInTAZ.get(taz, rand)))
+                case _ =>
+                  throw FixedNonReservingFleetByTAZException(
+                    s"wrong formats for vehicles shares by taz. review param vehiclesSharePerTAZ => $shareStr"
+                  )
+              }
+            }
+          case _ =>
+            logger.info(s"Random distribution of shared vehicle fleet i.e. no file or shares by Taz")
+            // fall back to a uniform distribution
+            initialLocation.clear()
+            val tazArray = beamServices.tazTreeMap.getTAZs.toArray
+            (1 to config.fleetSize).foreach { _ =>
+              val taz = tazArray(rand.nextInt(tazArray.length))
+              initialLocation.prepend(RandomPointInTAZ.get(taz, rand))
+            }
         }
-      }
     }
 
     val vehicleType = beamServices.vehicleTypes.getOrElse(
@@ -87,6 +104,7 @@ case class FixedNonReservingFleetByTAZ(config: SharedFleets$Elm.FixedNonReservin
     )
     Props(
       new FixedNonReservingFleetManager(
+        managerId,
         parkingManager,
         initialLocation,
         vehicleType,
@@ -94,7 +112,7 @@ case class FixedNonReservingFleetByTAZ(config: SharedFleets$Elm.FixedNonReservin
         beamServices,
         beamSkimmer,
         config.maxWalkingDistance,
-        Class.forName(config.repositioningClass).asSubclass(classOf[RepositionAlgorithm])
+        repConfig.map(RepositionAlgorithms.lookup(_))
       )
     )
   }
@@ -124,7 +142,8 @@ case class FixedNonReservingFleetByTAZ(config: SharedFleets$Elm.FixedNonReservin
   }
 }
 
-case class FixedNonReservingFleet(config: SharedFleets$Elm.FixedNonReserving) extends FleetType {
+case class FixedNonReservingFleet(managerId: Id[VehicleManager], config: SharedFleets$Elm.FixedNonReserving)
+    extends FleetType {
   override def props(
     beamServices: BeamServices,
     skimmer: BeamSkimmer,
@@ -142,14 +161,14 @@ case class FixedNonReservingFleet(config: SharedFleets$Elm.FixedNonReserving) ex
     )
     Props(
       new FixedNonReservingFleetManager(
+        managerId,
         parkingManager,
         initialSharedVehicleLocations,
         vehicleType,
         beamScheduler,
         beamServices,
         skimmer,
-        config.maxWalkingDistance,
-        classOf[beam.sim.vehiclesharing.AvailabilityBasedRepositioning]
+        config.maxWalkingDistance
       )
     )
   }

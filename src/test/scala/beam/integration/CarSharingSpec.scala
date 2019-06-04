@@ -158,12 +158,19 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
          |    name = "fixed-non-reserving-fleet-by-taz"
          |    managerType = "fixed-non-reserving-fleet-by-taz"
          |    fixed-non-reserving-fleet-by-taz {
-         |      vehicleTypeId = "sharedCar",
-         |      maxWalkingDistance = 1000,
-         |      repositioningClass = beam.sim.vehiclesharing.AvailabilityBasedRepositioning,
-         |      fleetSize = 40,
+         |      vehicleTypeId = "sharedCar"
+         |      maxWalkingDistance = 1000
+         |      fleetSize = 40
          |      vehiclesSharePerTAZ = "1:0.0,2:1.0,3:0.0,4:0.0"
          |    }
+         |    reposition {
+         |      name = "min-availability-undersupply-algorithm"
+         |      repositionTimeBin = 3600
+         |      statTimeBin = 300
+         |      min-availability-undersupply-algorithm {
+         |        matchLimit = 99999
+         |      }
+         |   }
          | }
          |]
          |beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts = 99999
