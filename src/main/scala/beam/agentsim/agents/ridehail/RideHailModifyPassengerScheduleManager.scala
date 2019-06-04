@@ -99,7 +99,7 @@ class RideHailModifyPassengerScheduleManager(
           log.error(
             "RideHailModifyPassengerScheduleManager- interruptId not found: interruptId {},interruptedPassengerSchedule {}, vehicle {}, tick {}",
             reply.interruptId,
-            reply.asInstanceOf[InterruptedWhileDriving].passengerSchedule,
+            if(reply.isInstanceOf[InterruptedWhileDriving]){reply.asInstanceOf[InterruptedWhileDriving].passengerSchedule}else{"NA"},
             reply.vehicleId,
             reply.tick
           )
