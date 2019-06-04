@@ -3,7 +3,8 @@ import java.io.{File, PrintWriter}
 
 import org.scalatest.{Matchers, WordSpecLike}
 
-class DuplicateConfigKeySpec extends WordSpecLike with Matchers{
+class DuplicateConfigKeySpec extends WordSpecLike with Matchers {
+
   val dummyConfString =
     """
       |beam.agentsim.simulationName = "beamville"
@@ -40,7 +41,6 @@ class DuplicateConfigKeySpec extends WordSpecLike with Matchers{
       }
     }
   }
-
 
   private def writeToFile(file: File, content: String): Unit = {
     val writer = new PrintWriter(file)
