@@ -1,13 +1,15 @@
 package beam.agentsim.agents.ridehail
 
 import java.awt.Color
+import java.lang.reflect.Method
 import java.util
 import java.util.Random
 import java.util.concurrent.TimeUnit
 
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Stash, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, OneForOneStrategy, Props, Stash, Terminated}
 import akka.event.LoggingReceive
+import akka.dispatch.{Envelope => AkkaEnvelope}
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim
@@ -439,7 +441,23 @@ class RideHailManager(
     }
   }
 
+  import scala.concurrent.duration._
+  val tickTask: Cancellable = context.system.scheduler.schedule(2.seconds, 60.seconds, self, "tick")(context.dispatcher)
+  // Black magic, remove once done with debugging
+  val method: Method = this.getClass.getDeclaredMethod("akka$actor$StashSupport$$theStash")
+
+  override def postStop: Unit = {
+    log.info("postStop")
+    tickTask.cancel()
+    super.postStop()
+  }
+
   override def receive: Receive = LoggingReceive {
+    case "tick" =>
+      log.info("tick! waitingToReposition size: {} ", modifyPassengerScheduleManager.waitingToReposition.size)
+      val stash = method.invoke(this).asInstanceOf[Vector[AkkaEnvelope]]
+      log.info(s"tick! The following messages are stashed: ${stash}")
+
     case LogActorState =>
       ReflectionUtils.logFields(log, this, 0)
       ReflectionUtils.logFields(log, rideHailResourceAllocationManager, 0)
@@ -651,6 +669,7 @@ class RideHailManager(
               )
               modifyPassengerScheduleManager
                 .modifyPassengerScheduleAckReceived(
+                  vehicleId,
                   triggersToSchedule,
                   tick
                 )
@@ -698,7 +717,7 @@ class RideHailManager(
       }
 
     case trigger @ TriggerWithId(RideHailRepositioningTrigger(tick), triggerId) =>
-//      DebugRepositioning.produceRepositioningDebugImages(tick, this)
+      //      DebugRepositioning.produceRepositioningDebugImages(tick, this)
       currentlyProcessingTimeoutTrigger match {
         case Some(_) =>
           stash()
@@ -707,8 +726,8 @@ class RideHailManager(
           startRepositioning(tick, triggerId)
       }
 
-    case ReduceAwaitingRepositioningAckMessagesByOne =>
-      modifyPassengerScheduleManager.cancelRepositionAttempt()
+    case ReduceAwaitingRepositioningAckMessagesByOne(actorRef) =>
+      modifyPassengerScheduleManager.cancelRepositionAttempt(actorRef)
 
     case MoveOutOfServiceVehicleToDepotParking(passengerSchedule, tick, vehicleId, stall) =>
       pendingAgentsSentToPark.put(vehicleId, stall)
@@ -792,6 +811,9 @@ class RideHailManager(
 
     case ReleaseAgentTrigger(vehicleId) =>
       outOfServiceVehicleManager.releaseTrigger(vehicleId)
+
+    case Terminated(actorRef) =>
+      modifyPassengerScheduleManager.cancelRepositionAttempt(actorRef)
 
     case msg =>
       log.warning("unknown message received by RideHailManager {}", msg)
@@ -900,8 +922,8 @@ class RideHailManager(
   ): List[RoutingRequest] = {
 
     val pickupSpaceTime = SpaceTime((request.pickUpLocationUTM, request.departAt))
-//    val customerAgentBody =
-//      StreetVehicle(request.customer.vehicleId, pickupSpaceTime, WALK, asDriver = true)
+    //    val customerAgentBody =
+    //      StreetVehicle(request.customer.vehicleId, pickupSpaceTime, WALK, asDriver = true)
     val rideHailVehicleAtOrigin = StreetVehicle(
       rideHailLocation.vehicleId,
       rideHailLocation.vehicleType.id,
@@ -912,7 +934,7 @@ class RideHailManager(
     val rideHailVehicleAtPickup =
       StreetVehicle(rideHailLocation.vehicleId, rideHailLocation.vehicleType.id, pickupSpaceTime, CAR, asDriver = false)
 
-// route from ride hailing vehicle to customer
+    // route from ride hailing vehicle to customer
     val rideHailAgent2Customer = RoutingRequest(
       rideHailLocation.currentLocationUTM.loc,
       request.pickUpLocationUTM,
@@ -920,7 +942,7 @@ class RideHailManager(
       withTransit = false,
       Vector(rideHailVehicleAtOrigin)
     )
-// route from customer to destination
+    // route from customer to destination
     val rideHail2Destination = RoutingRequest(
       request.pickUpLocationUTM,
       request.destinationUTM,
@@ -1086,8 +1108,8 @@ class RideHailManager(
         beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
         classOf[BeamVehicleType]
       )
-//    val ridehailBeamVehicleType = beamServices.vehicleTypes
-//      .getOrElse(ridehailBeamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
+    //    val ridehailBeamVehicleType = beamServices.vehicleTypes
+    //      .getOrElse(ridehailBeamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
     val rideHailAgentPersonId: Id[RideHailAgent] =
       Id.create(rideHailAgentName, classOf[RideHailAgent])
     val powertrain = Option(rideHailBeamVehicleType.primaryFuelConsumptionInJoulePerMeter)
@@ -1303,14 +1325,17 @@ class RideHailManager(
     modifyPassengerScheduleManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
 
     val repositionVehicles: Vector[(Id[Vehicle], Location)] =
-      rideHailResourceAllocationManager.repositionVehicles(tick)
+      ProfilingUtils.timed(s"repositionVehicles at tick $tick", log.info) {
+        rideHailResourceAllocationManager.repositionVehicles(tick)
+      }
 
     if (repositionVehicles.isEmpty) {
       log.debug("sendCompletionAndScheduleNewTimeout from 1204")
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(Reposition, tick)
       cleanUp
     } else {
-      modifyPassengerScheduleManager.setNumberOfRepositioningsToProcess(repositionVehicles.size)
+      val toReposition = repositionVehicles.map(_._1).map(vehicleManager.getIdleVehicles).map(_.rideHailAgent).toSet
+      modifyPassengerScheduleManager.setRepositioningsToProcess(toReposition)
     }
 
     for ((vehicleId, destinationLocation) <- repositionVehicles) {
@@ -1352,12 +1377,12 @@ class RideHailManager(
             )
             self ! RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgentLocation.rideHailAgent)
           } else {
-            self ! ReduceAwaitingRepositioningAckMessagesByOne
+            self ! ReduceAwaitingRepositioningAckMessagesByOne(rideHailAgentLocation.rideHailAgent)
           }
         }
 
       } else {
-        modifyPassengerScheduleManager.cancelRepositionAttempt()
+        throw new Exception("Should not reach here in startRepositioning!")
       }
     }
 

@@ -10,7 +10,6 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.core.utils.geometry.CoordUtils
 import org.matsim.vehicles.Vehicle
 import org.supercsv.io.CsvMapWriter
 import org.supercsv.prefs.CsvPreference
@@ -24,29 +23,32 @@ object RandomRepositioning {
 }
 
 class RandomRepositioning(val rideHailManager: RideHailManager)
-    extends RideHailResourceAllocationManager(rideHailManager) with LazyLogging {
+    extends RideHailResourceAllocationManager(rideHailManager)
+    with LazyLogging {
   if (rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds == 0) {
-    logger.warn("RandomRepositioning need to have set `beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds` > 0!")
+    logger.warn(
+      "RandomRepositioning need to have set `beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds` > 0!"
+    )
   }
-//  val intervalSize: Int = 300
-//
-//  val activities = rideHailManager.beamServices.matsimServices.getScenario.getPopulation.getPersons.values.asScala
-//    .flatMap { person =>
-//      person.getSelectedPlan.getPlanElements.asScala.collect {
-//        case act: Activity if act.getEndTime != Double.NegativeInfinity =>
-//          act
-//      }
-//    }
-//    .toArray
-//    .sortBy(x => x.getEndTime)
-//
-//  try {
-//    val as = ActivitySegment(rideHailManager.beamServices.matsimServices.getScenario, intervalSize)
-//
-//  } catch {
-//    case ex: Exception =>
-//      print(ex)
-//  }
+  //  val intervalSize: Int = 300
+  //
+  //  val activities = rideHailManager.beamServices.matsimServices.getScenario.getPopulation.getPersons.values.asScala
+  //    .flatMap { person =>
+  //      person.getSelectedPlan.getPlanElements.asScala.collect {
+  //        case act: Activity if act.getEndTime != Double.NegativeInfinity =>
+  //          act
+  //      }
+  //    }
+  //    .toArray
+  //    .sortBy(x => x.getEndTime)
+  //
+  //  try {
+  //    val as = ActivitySegment(rideHailManager.beamServices.matsimServices.getScenario, intervalSize)
+  //
+  //  } catch {
+  //    case ex: Exception =>
+  //      print(ex)
+  //  }
 
   val intervalForUpdatingQuadTree = 1800
 
@@ -57,7 +59,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
   def updatePersonActivityQuadTree(tick: Double) = {
     // rideHailManager.beamServices.matsimServices.getScenario.getPopulation.getPersons.values().stream().forEach{ person =>
     //    person.getSelectedPlan
-//
+    //
     //  }
 
     if (lastTimeQuadTreeUpdated + intervalForUpdatingQuadTree < tick) {
@@ -159,7 +161,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
     updatePersonActivityQuadTree(tick)
 
-    val algorithm = 3
+    val algorithm = 2
 
     algorithm match {
 
@@ -203,17 +205,17 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         }
         result.toVector
 
-//        if (rideHailManager.vehicleManager.getIdleVehicles.size >= 2) {
-//          // TODO: shuffle origin as well -> otherwise same vehicles maybe shuffled!!!!!!!!!! -> see next case
-//          val origin = rideHailManager.vehicleManager.getIdleVehicles.values.toVector
-//          val destination = scala.util.Random.shuffle(origin)
-//          (for ((o, d) <- origin zip destination)
-//            yield (o.vehicleId, d.currentLocationUTM.loc))
-//            .splitAt(numVehiclesToReposition)
-//            ._1
-//        } else {
-//          Vector()
-//        }
+      //        if (rideHailManager.vehicleManager.getIdleVehicles.size >= 2) {
+      //          // TODO: shuffle origin as well -> otherwise same vehicles maybe shuffled!!!!!!!!!! -> see next case
+      //          val origin = rideHailManager.vehicleManager.getIdleVehicles.values.toVector
+      //          val destination = scala.util.Random.shuffle(origin)
+      //          (for ((o, d) <- origin zip destination)
+      //            yield (o.vehicleId, d.currentLocationUTM.loc))
+      //            .splitAt(numVehiclesToReposition)
+      //            ._1
+      //        } else {
+      //          Vector()
+      //        }
 
       case 2 =>
         // max distance travel is 20min
@@ -223,20 +225,24 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.repositioningShare
         val fleetSize = rideHailManager.fleetSize
         val numVehiclesToReposition = (repositioningShare * fleetSize).toInt
-        if (rideHailManager.vehicleManager.getIdleVehicles.size >= 2) {
+        val idleVehicles = rideHailManager.vehicleManager.getIdleVehicles.values
+        if (idleVehicles.size >= 2) {
+          val vehiclesToReposition =
+            RandomUtils.shuffle(idleVehicles, new java.util.Random()).splitAt(numVehiclesToReposition)._1
 
-          val idleVehicles = rideHailManager.vehicleManager.getIdleVehicles.toList
+          logger.info(
+            s"repositioningShare: $repositioningShare, fleetSize: $fleetSize, vehiclesToReposition size: ${vehiclesToReposition.size}"
+          )
 
-          val vehiclesToReposition = scala.util.Random.shuffle(idleVehicles).splitAt(numVehiclesToReposition)._1
-
-          val result = vehiclesToReposition
+          val result = vehiclesToReposition.par
             .map { vehIdAndLoc =>
-              val (vehicleId, location) = vehIdAndLoc
+              val vehicleId = vehIdAndLoc.vehicleId
+              val location = vehIdAndLoc.currentLocationUTM
 
               val dest = scala.util.Random
                 .shuffle(
                   quadTree
-                    .getDisk(location.currentLocationUTM.loc.getX, location.currentLocationUTM.loc.getY, 5000)
+                    .getDisk(location.loc.getX, location.loc.getY, 5000)
                     .asScala
                     .toList
                 )
@@ -248,10 +254,15 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
               }
 
             }
-            .toVector
             .filterNot(_._2.getX == Double.MaxValue)
+            .seq
+            .toVector
 
-         // writeRepositioningToCSV(result, tick)
+          result.foreach {
+            case (id, coord) =>
+              logger.debug(s"$tick: Going to reposition $id to $coord")
+          }
+          writeRepositioningToCSV(result, tick)
 
           result
         } else {
@@ -259,11 +270,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         }
 
       case 3 =>
-
-
-        // check, if these are human drivers or CAVs
-
-
+        // max distance travel is 20min
+        // TODO: use skims to derive radius from it or other way around.
 
         val repositioningShare =
           rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.repositioningShare
@@ -273,43 +281,52 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
           val idleVehicles = rideHailManager.vehicleManager.getIdleVehicles.toList
 
-          val vehiclesToReposition = scala.util.Random.shuffle(idleVehicles.map{ vehLocation =>
+          val vehiclesToReposition = scala.util.Random
+            .shuffle(
+              idleVehicles
+                .map { vehLocation =>
+                  val loc = vehLocation._2.currentLocationUTM.loc
 
-            val loc=vehLocation._2.currentLocationUTM.loc
+                  val act = quadTree.getClosest(loc.getX, loc.getY)
 
-            val act=quadTree.getClosest(loc.getX,loc.getY)
+                  if (act == null) {
+                    DebugLib.emptyFunctionForSettingBreakPoint()
+                  }
 
-            if (act==null){
-              DebugLib.emptyFunctionForSettingBreakPoint()
-            }
-
-            val distance = rideHailManager.beamServices.geo.distUTMInMeters(act.getCoord,loc)
-            (vehLocation,distance)
-          }.sortBy{ case  (vehLocation,distance) => -distance  }.map( _._1).splitAt(2* numVehiclesToReposition)._1).splitAt(numVehiclesToReposition)._1
-
-
-
+                  val distance = rideHailManager.beamServices.geo.distUTMInMeters(act.getCoord, loc)
+                  (vehLocation, distance)
+                }
+                .sortBy { case (vehLocation, distance) => -distance }
+                .map(_._1)
+                .splitAt(2 * numVehiclesToReposition)
+                ._1
+            )
+            .splitAt(numVehiclesToReposition)
+            ._1
 
           val result = vehiclesToReposition
             .map { vehIdAndLoc =>
               val (vehicleId, location) = vehIdAndLoc
 
-
-
               val dest =
-                  quadTree
-                    .getDisk(location.currentLocationUTM.loc.getX, location.currentLocationUTM.loc.getY, 5000)
-                    .asScala
-                    .toList
-                .map{ act =>
-                   val closestIdleRHVehicle = rideHailManager.vehicleManager.availableRideHailAgentSpatialIndex.getClosest(act.getCoord.getX,act.getCoord.getY)
+                quadTree
+                  .getDisk(location.currentLocationUTM.loc.getX, location.currentLocationUTM.loc.getY, 5000)
+                  .asScala
+                  .toList
+                  .map { act =>
+                    val closestIdleRHVehicle = rideHailManager.vehicleManager.availableRideHailAgentSpatialIndex
+                      .getClosest(act.getCoord.getX, act.getCoord.getY)
 
+                    val distance = rideHailManager.beamServices.geo.distUTMInMeters(
+                      act.getCoord,
+                      closestIdleRHVehicle.currentLocationUTM.loc
+                    )
 
-                  val distance = rideHailManager.beamServices.geo.distUTMInMeters(act.getCoord,closestIdleRHVehicle.currentLocationUTM.loc)
-
-
-                  (act ,distance)
-                }.sortBy{ case  (act,distance) => -distance  }.map{_._1}.headOption
+                    (act, distance)
+                  }
+                  .sortBy { case (act, distance) => -distance }
+                  .map { _._1 }
+                  .headOption
 
               dest match {
                 case Some(act) => (vehicleId, act.getCoord)

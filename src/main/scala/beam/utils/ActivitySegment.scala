@@ -7,13 +7,16 @@ import org.matsim.api.core.v01.population.Activity
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 class ActivitySegment(val activities: Array[Activity], val binSize: Int) extends LazyLogging {
   import ActivitySegment._
 
+  val sorted = activities.sortBy(x => x.getEndTime)
+
   private val emptyArr: Array[Coord] = Array.empty
-  private val maxIdx: Int = activities.last.getEndTime.toInt / binSize
-  private val arr: Array[Array[Coord]] = build(activities, binSize)
+  private val maxIdx: Int = sorted.last.getEndTime.toInt / binSize
+  private val arr: Array[Array[Coord]] = build(sorted, binSize)
 
   val vector = arr.filter(x => x != null).map(x => x.toVector).toVector
   println(vector)
@@ -29,9 +32,9 @@ class ActivitySegment(val activities: Array[Activity], val binSize: Int) extends
     }
   }
 
-  def getCoords(startTime: Double, endTime: Double): IndexedSeq[Coord] = {
+  def getCoords(startTime: Double, endTime: Double): scala.collection.Set[Coord] = {
     require(startTime <= endTime)
-    val res = new ArrayBuffer[Coord]()
+    val res = new mutable.HashSet[Coord]()
     var t: Double = startTime
     while (t <= endTime) {
       getCoords(t).foreach(res += _)
@@ -42,6 +45,7 @@ class ActivitySegment(val activities: Array[Activity], val binSize: Int) extends
 }
 
 object ActivitySegment {
+
   def apply(scenario: Scenario, binSize: Int): ActivitySegment = {
     val activities = scenario.getPopulation.getPersons.values.asScala
       .flatMap { person =>
