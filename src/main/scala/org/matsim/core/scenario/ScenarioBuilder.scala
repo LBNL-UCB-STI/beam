@@ -1,11 +1,12 @@
 package org.matsim.core.scenario
 
 import java.util
-import java.util.TreeMap
 
 import org.matsim.api.core.v01.network.Network
-import org.matsim.core.config.groups.{NetworkConfigGroup, PlansConfigGroup, StrategyConfigGroup}
+import org.matsim.core.config.groups.{HouseholdsConfigGroup, NetworkConfigGroup, PlansConfigGroup, StrategyConfigGroup}
 import org.matsim.core.config.{ConfigGroup, Config => MatsimConfig}
+import org.matsim.core.controler.OutputDirectoryHierarchy
+import org.matsim.pt.config.TransitConfigGroup
 
 class ScenarioBuilder(private val scenario: MutableScenario) {
 
@@ -63,12 +64,35 @@ object ScenarioBuilder {
     modules.put(groupName, config)
   }
 
+  def setHouseHolds(matsimConfig: MatsimConfig):Unit = {
+    val r = new HouseholdsConfigGroup
+    val field = matsimConfig.getClass.getDeclaredField("households")
+    field.setAccessible(true)
+    field.set(matsimConfig, r)
+
+    applyToModules(matsimConfig, HouseholdsConfigGroup.GROUP_NAME, r)
+  }
+
+  def setTransit(matsimConfig: MatsimConfig): Unit = {
+    val r = new TransitConfigGroup
+    val field = matsimConfig.getClass.getDeclaredField("transit")
+    field.setAccessible(true)
+    field.set(matsimConfig, r)
+
+    applyToModules(matsimConfig, TransitConfigGroup.GROUP_NAME, r)
+  }
+
   private def buildMatsimConfig: MatsimConfig = {
     val result = new MatsimConfig()
-    setEmptyModules(result)
-    setEmptyNetwork(result)
-    setEmptyPlans(result)
-    setStrategy(result)
+    result.addCoreModules()
+    result.controler().setOverwriteFileSetting(OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles)
+//    setEmptyModules(result)
+//    setEmptyNetwork(result)
+//    setEmptyPlans(result)
+//    setStrategy(result)
+//    setHouseHolds(result)
+//    setTransit(result)
+//    setVehicles(result)
     result
   }
 
