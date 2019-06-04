@@ -1,7 +1,7 @@
 package beam.sim.vehiclesharing
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
@@ -118,7 +118,7 @@ case class AvailabilityBasedRepositioning(
               _,
               SpaceTime(org.taz.coord, now),
               org.taz.tazId,
-              SpaceTime(RandomPointInTAZ.get(dst.taz, rand), arrivalTime),
+              SpaceTime(TAZTreeMap.randomLocationInTAZ(dst.taz, rand), arrivalTime),
               dst.taz.tazId
             )
           )

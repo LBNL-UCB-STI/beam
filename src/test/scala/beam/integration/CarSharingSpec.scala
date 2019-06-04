@@ -6,11 +6,11 @@ import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.population.PopulationAdjustment.EXCLUDED_MODES
+import beam.sim.vehiclesharing.FleetUtils
 import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
 import com.typesafe.config.{Config, ConfigFactory}
-import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.events.IterationStartsEvent
@@ -21,7 +21,7 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
 
-  private val sharedCarTypeId = Id.create("sharedCar", classOf[BeamVehicleType])
+  private val sharedCarTypeId = org.matsim.api.core.v01.Id.create("sharedCar", classOf[BeamVehicleType])
 
   "Running a car-sharing-only scenario with abundant cars" must "result in everybody driving" in {
     val config = ConfigFactory
@@ -161,7 +161,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
          |      vehicleTypeId = "sharedCar"
          |      maxWalkingDistance = 1000
          |      fleetSize = 40
-         |      vehiclesSharePerTAZ = "1:0.0,2:1.0,3:0.0,4:0.0"
+         |      vehiclesSharePerTAZFromCSV = "output/test/vehiclesSharePerTAZ.csv"
          |    }
          |    reposition {
          |      name = "min-availability-undersupply-algorithm"
@@ -181,6 +181,9 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
   }
 
   private def runRepositionTest(config: Config): Unit = {
+    import org.matsim.api.core.v01.{Coord, Id}
+    import beam.agentsim.infrastructure.taz.TAZ
+
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSimConf()
     val beamConfig = BeamConfig(config)
@@ -194,6 +197,15 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
     var iteration = -1
     var carsharingTripsIt0 = 0
     var carsharingTripsIt1 = 0
+    FleetUtils.writeCSV(
+      "output/test/vehiclesSharePerTAZ.csv",
+      Vector(
+        (Id.create("1", classOf[TAZ]), new Coord(0, 0), 0.0),
+        (Id.create("2", classOf[TAZ]), new Coord(0, 0), 1.0),
+        (Id.create("3", classOf[TAZ]), new Coord(0, 0), 0.0),
+        (Id.create("4", classOf[TAZ]), new Coord(0, 0), 0.0)
+      )
+    )
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
       new AbstractModule() {
