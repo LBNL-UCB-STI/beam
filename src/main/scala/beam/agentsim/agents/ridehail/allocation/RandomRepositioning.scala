@@ -161,7 +161,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
     updatePersonActivityQuadTree(tick)
 
-    val algorithm = 2
+    val algorithm = 3
 
     algorithm match {
 
@@ -230,7 +230,9 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           val vehiclesToReposition =
             RandomUtils.shuffle(idleVehicles, new java.util.Random()).splitAt(numVehiclesToReposition)._1
 
-          logger.info(s"repositioningShare: $repositioningShare, fleetSize: $fleetSize, vehiclesToReposition size: ${vehiclesToReposition.size}")
+          logger.info(
+            s"repositioningShare: $repositioningShare, fleetSize: $fleetSize, vehiclesToReposition size: ${vehiclesToReposition.size}"
+          )
 
           val result = vehiclesToReposition.par
             .map { vehIdAndLoc =>
@@ -252,10 +254,13 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
               }
 
             }
-            .filterNot(_._2.getX == Double.MaxValue).seq.toVector
+            .filterNot(_._2.getX == Double.MaxValue)
+            .seq
+            .toVector
 
-          result.foreach { case (id, coord) =>
-            logger.debug(s"$tick: Going to reposition $id to $coord")
+          result.foreach {
+            case (id, coord) =>
+              logger.debug(s"$tick: Going to reposition $id to $coord")
           }
           writeRepositioningToCSV(result, tick)
 
@@ -273,9 +278,10 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         val fleetSize = rideHailManager.fleetSize
         val numVehiclesToReposition = (repositioningShare * fleetSize).toInt
         if (rideHailManager.vehicleManager.getIdleVehicles.size >= 2) {
-
           val idleVehicles = rideHailManager.vehicleManager.getIdleVehicles.toList
 
+          // Getting the furthest vehicle from Activity: vehicle which has nothing to do
+          // Find TOP 2 * numVehiclesToReposition furthest vehicle, shuffle them and get only `numVehiclesToReposition` to reposition
           val vehiclesToReposition = scala.util.Random
             .shuffle(
               idleVehicles
@@ -294,6 +300,12 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
             .splitAt(numVehiclesToReposition)
             ._1
 
+          // We're trying to move idle furthest vehicle to the activities which have no vehicles close to
+          // For each vehicle to reposition:
+          // - We trying to find an activity by the current location of vehicle
+          // - For that found activity, we try to find the closest available vehicle to that activity and measure the distance to it
+          // - We create a pair (Activity, Distance)
+          // Now we need to sort these pairs in desc order, so that's why `-distance` and get the head
           val result = vehiclesToReposition
             .map { vehIdAndLoc =>
               val (vehicleId, location) = vehIdAndLoc
@@ -304,9 +316,10 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
                   .asScala
                   .toList
                   .map { act =>
+                    // Get the closest available vehicle by activity coord
                     val closestIdleRHVehicle = rideHailManager.vehicleManager.availableRideHailAgentSpatialIndex
                       .getClosest(act.getCoord.getX, act.getCoord.getY)
-
+                    // Measure the distance to vehicle
                     val distance = rideHailManager.beamServices.geo.distUTMInMeters(
                       act.getCoord,
                       closestIdleRHVehicle.currentLocationUTM.loc
@@ -333,7 +346,6 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         } else {
           Vector()
         }
-
     }
     // other algorithms: compute on TAZ level need for new Vehicle: AvailableIdleRidehailVehicles/endingActsInOneHour_orDifferentInterval
     //
