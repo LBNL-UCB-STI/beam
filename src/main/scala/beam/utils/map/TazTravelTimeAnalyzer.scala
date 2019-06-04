@@ -3,8 +3,7 @@ package beam.utils.map
 import java.io.{BufferedWriter, Closeable}
 
 import beam.agentsim.events.PathTraversalEvent
-import beam.agentsim.infrastructure.TAZTreeMap
-import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.agentsim.infrastructure.taz._
 import beam.router.TravelTimeObserved
 import beam.router.TravelTimeObserved.PathCache
 import beam.sim.BeamServices
