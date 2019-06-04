@@ -349,6 +349,7 @@ class RideHailAgent(
   when(PassengerScheduleEmpty) {
     case ev @ Event(PassengerScheduleEmptyMessage(_, _, _), data) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
+
       goto(Idle) using data
         .withPassengerSchedule(PassengerSchedule())
         .withCurrentLegPassengerScheduleIndex(0)

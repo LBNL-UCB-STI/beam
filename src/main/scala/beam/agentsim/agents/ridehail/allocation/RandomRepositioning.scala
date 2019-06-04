@@ -157,6 +157,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
   override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
 
+//    VehicleShouldRefuel(Id,Option[RefuelingLocation]) // None -> signal the human to refuel
+
     // Do tests: 1.) no repos 2.) with just upcomming next activities 3.) clustering, etc.
 
     updatePersonActivityQuadTree(tick)
@@ -314,7 +316,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
                   .asScala
                   .toList
                   .map { act =>
-                    val closestIdleRHVehicle = rideHailManager.vehicleManager.availableRideHailAgentSpatialIndex
+                    val closestIdleRHVehicle = rideHailManager.vehicleManager.idleRideHailAgentSpatialIndex
                       .getClosest(act.getCoord.getX, act.getCoord.getY)
 
                     val distance = rideHailManager.beamServices.geo.distUTMInMeters(

@@ -7,7 +7,7 @@ import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
-import beam.router.BeamRouter.RoutingRequest
+import beam.router.BeamRouter.{Location, RoutingRequest}
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode.CAR
 import org.matsim.api.core.v01.Id
@@ -20,6 +20,7 @@ import scala.concurrent.{Await, TimeoutException}
 class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
 
+  val randomRepositioning: RandomRepositioning = new RandomRepositioning(rideHailManager)
   val tempScheduleStore: mutable.Map[Int, List[MobilityRequest]] = mutable.Map()
 
   val spatialPoolCustomerReqs: QuadTree[CustomerRequest] = new QuadTree[CustomerRequest](
@@ -86,9 +87,6 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         val vehicleId = routeResponses.head.itineraries.head.legs.head.beamVehicleId
         if (rideHailManager.vehicleManager.getIdleAndInServiceVehicles.contains(vehicleId) && !alreadyAllocated.contains(vehicleId)) {
           alreadyAllocated = alreadyAllocated + vehicleId
-          // NOTE: PickDrops use convention of storing an optional person Id and leg. The leg is intended to be the leg
-          // **to** the pickup or dropoff, not from the pickup or dropoff. This is the reverse of the convention used
-          // in MobilityServiceRequest
           val requestsWithLegs = if (tempScheduleStore.contains(request.requestId)) {
             // Pooled response
             tempScheduleStore.remove(request.requestId).get.map{ req =>
@@ -102,8 +100,9 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           } else {
             // Solo response
             List(
-//              PickDropIdAndLeg(Some(request.customer), routeResponses.head.itineraries.head.legs.headOption),
-//              PickDropIdAndLeg(Some(request.customer), routeResponses.last.itineraries.head.legs.headOption)
+              MobilityRequest.simpleRequest(Relocation,Some(request.customer),routeResponses.head.itineraries.head.legs.headOption),
+              MobilityRequest.simpleRequest(Pickup,Some(request.customer),routeResponses.last.itineraries.head.legs.headOption),
+              MobilityRequest.simpleRequest(Dropoff,Some(request.customer),None)
             )
           }
           allocResponses = allocResponses :+ VehicleMatchedToCustomers(
@@ -263,6 +262,9 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       allocResponses.groupBy(_.getClass).map(x => s"${x._1.getSimpleName} -- ${x._2.size}").mkString("\t")
     )
     VehicleAllocations(allocResponses)
+  }
+  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
+    randomRepositioning.repositionVehicles(tick)
   }
 
 }

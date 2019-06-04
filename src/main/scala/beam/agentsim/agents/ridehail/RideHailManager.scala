@@ -519,9 +519,9 @@ class RideHailManager(
         RideHailAgentLocation(beamVehicle.driver.get, vehicleId, beamVehicle.beamVehicleType, whenWhere, geofence, None, false)
       vehicleManager.vehicleState.put(vehicleId, beamVehicleState)
 
-      if (modifyPassengerScheduleManager
-            .noPendingReservations(vehicleId) || modifyPassengerScheduleManager
-            .isPendingReservationEnding(vehicleId, passengerSchedule)) {
+      if (!modifyPassengerScheduleManager
+            .isPendingReservation(vehicleId) || modifyPassengerScheduleManager
+            .doesPendingReservationContainPassSchedule(vehicleId, passengerSchedule)) {
 
         log.debug("range: {}", beamVehicleState.remainingPrimaryRangeInM / 1000.0)
         val stallOpt = pendingAgentsSentToPark.remove(vehicleId)
@@ -541,15 +541,15 @@ class RideHailManager(
                      .getOrElse(0.0) < beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters) {
           // not enough range to make trip
 
-          if (modifyPassengerScheduleManager.vehicleHasMoreThanOneOngoingRequests(vehicleId)) {
-            vehicleManager.putOutOfService(rideHailAgentLocation)
-            sender() ! NotifyVehicleResourceIdleReply(triggerId, Vector[ScheduleTrigger]())
-          } else {
+//          if (modifyPassengerScheduleManager.ve(vehicleId)) {
+//            vehicleManager.putOutOfService(rideHailAgentLocation)
+//            sender() ! NotifyVehicleResourceIdleReply(triggerId, Vector[ScheduleTrigger]())
+//          } else {
             log.debug("Not enough range: {}", vehicleId)
             outOfServiceVehicleManager.registerTrigger(vehicleId, triggerId)
             vehicleManager.putOutOfService(rideHailAgentLocation)
             findRefuelStationAndSendVehicle(rideHailAgentLocation)
-          }
+//          }
         } else {
           log.debug("Making available: {}", vehicleId)
           vehicleManager.makeAvailable(rideHailAgentLocation)

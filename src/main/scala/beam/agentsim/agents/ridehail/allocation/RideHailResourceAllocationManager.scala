@@ -1,7 +1,7 @@
 package beam.agentsim.agents.ridehail.allocation
 
-import beam.agentsim.agents.MobilityRequest
-import beam.agentsim.agents.ridehail.RideHailManager.{PoolingInfo}
+import beam.agentsim.agents.{Dropoff, MobilityRequest, Pickup, Relocation}
+import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
@@ -152,11 +152,12 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
           ) match {
           case Some(agentETA) =>
             alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId
-            val pickDropIdAndLegs = List(
-//              PickDropIdAndLeg(Some(request.customer), routingResponses.head.itineraries.head.legs.headOption),
-//              PickDropIdAndLeg(Some(request.customer), routingResponses.last.itineraries.head.legs.headOption)
-            )
-            VehicleMatchedToCustomers(request, agentETA.agentLocation, pickDropIdAndLegs)
+            val schedule = List(
+                MobilityRequest.simpleRequest(Relocation,Some(request.customer),routingResponses.head.itineraries.head.legs.headOption),
+                MobilityRequest.simpleRequest(Pickup,Some(request.customer),routingResponses.last.itineraries.head.legs.headOption),
+                MobilityRequest.simpleRequest(Dropoff,Some(request.customer),None)
+              )
+            VehicleMatchedToCustomers(request, agentETA.agentLocation, schedule)
           case None =>
             NoVehicleAllocated(request)
         }
