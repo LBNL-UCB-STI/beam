@@ -715,17 +715,12 @@ class RideHailManager(
       outOfServiceVehicleManager.initiateMovementToParkingDepot(vehicleId, passengerSchedule, tick)
 
     case RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgent) =>
-      if (vehicleManager.getIdleVehicles.contains(vehicleId)) {
-        modifyPassengerScheduleManager.repositionVehicle(
-          passengerSchedule,
-          tick,
-          vehicleId,
-          rideHailAgent
-        )
-      } else {
-        // Failed attempt to reposition a car that is no longer idle
-        modifyPassengerScheduleManager.cancelRepositionAttempt()
-      }
+      modifyPassengerScheduleManager.repositionVehicle(
+        passengerSchedule,
+        tick,
+        vehicleId,
+        rideHailAgent
+      )
 
     case reply @ InterruptedWhileOffline(interruptId, vehicleId, tick) =>
       modifyPassengerScheduleManager.handleInterruptReply(reply)
@@ -1066,9 +1061,14 @@ class RideHailManager(
       }
       request.customer.personRef ! DelayedRideHailResponse
     } else {
-      // We always use the request buffer even if we will process these requests immediately
-      rideHailResourceAllocationManager.addRequestToBuffer(request)
-      findAllocationsAndProcess(request.departAt)
+      if(currentlyProcessingTimeoutTrigger.isEmpty){
+        // We always use the request buffer even if we will process these requests immediately
+        rideHailResourceAllocationManager.addRequestToBuffer(request)
+        findAllocationsAndProcess(request.departAt)
+      }else{
+        // We're in middle of repositioning, so stash this message until we're done (method "cleanup" called)
+        stash()
+      }
     }
   }
 
