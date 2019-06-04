@@ -1,5 +1,6 @@
 package beam.utils
 
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import org.matsim.core.utils.io.IOUtils
@@ -28,7 +29,7 @@ object GpxCompareSimulationVsReference {
       val beamConfig = BeamConfig(config)
       val geo: beam.sim.common.GeoUtils = new GeoUtilsImpl(beamConfig)
 
-      val tazTreeMap: beam.agentsim.infrastructure.TAZTreeMap =
+      val tazTreeMap: TAZTreeMap =
         beam.sim.BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
 
       val mapReader: ICsvMapReader =
