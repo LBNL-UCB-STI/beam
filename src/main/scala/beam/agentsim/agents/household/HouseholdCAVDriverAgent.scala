@@ -100,11 +100,7 @@ class HouseholdCAVDriverAgent(
   }
 
   when(PassengerScheduleEmpty) {
-    case Event(PassengerScheduleEmptyMessage(lastVisited, _, _), _) =>
-      log.debug(s"Releasing CAV at ${lastVisited.time}")
-      vehicle.manager.get ! ReleaseVehicleAndReply(vehicle, Some(lastVisited.time))
-      stay
-    case Event(Success, _) =>
+    case Event(PassengerScheduleEmptyMessage(_, _, _), _) =>
       val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
       goto(Idle)
