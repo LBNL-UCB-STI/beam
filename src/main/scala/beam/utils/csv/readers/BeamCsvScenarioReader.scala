@@ -2,10 +2,11 @@ package beam.utils.csv.readers
 
 import java.util.{Map => JavaMap}
 
-import beam.utils.scenario._
 import beam.utils.scenario.matsim.BeamScenarioReader
 import beam.utils.{FileUtils, ProfilingUtils}
+import beam.utils.scenario._
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.lang3.math.NumberUtils
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
@@ -80,7 +81,13 @@ object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
     val householdId = getIfNotNull(rec, "householdId")
     val age = getIfNotNull(rec, "age").toInt
     val rank = getIfNotNull(rec, "householdRank", "0").toInt
-    PersonInfo(personId = PersonId(personId), householdId = HouseholdId(householdId), rank = rank, age = age)
+    PersonInfo(
+      personId = PersonId(personId),
+      householdId = HouseholdId(householdId),
+      rank = rank,
+      age = age,
+      valueOfTime = NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime", "0"), 0D)
+    )
   }
 
   private def toVehicle(rec: JavaMap[String, String]): VehicleInfo = {

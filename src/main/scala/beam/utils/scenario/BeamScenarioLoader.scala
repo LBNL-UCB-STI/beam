@@ -139,6 +139,7 @@ class BeamScenarioLoader(
       personAttrib.putAttribute(personId, "householdId", personInfo.householdId)
       personAttrib.putAttribute(personId, "rank", personInfo.rank)
       personAttrib.putAttribute(personId, "age", personInfo.age)
+      personAttrib.putAttribute(personId, "valueOfTime", personInfo.valueOfTime)
 
       AvailableModeUtils.setAvailableModesForPerson_v2(beamServices, person, population, availableModes)
 

@@ -4,7 +4,7 @@ case class PersonId(id: String) extends AnyVal
 
 case class HouseholdId(id: String) extends AnyVal
 
-case class PersonInfo(personId: PersonId, householdId: HouseholdId, rank: Int, age: Int)
+case class PersonInfo(personId: PersonId, householdId: HouseholdId, rank: Int, age: Int, valueOfTime: Double)
 
 case class PlanElement(
   personId: PersonId,
