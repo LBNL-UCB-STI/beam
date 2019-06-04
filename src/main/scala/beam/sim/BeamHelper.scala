@@ -406,8 +406,6 @@ trait BeamHelper extends LazyLogging {
     networkCoordinator: NetworkCoordinator
   ): inject.Injector = {
     val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
-    println("@@@@@@@@@@@@@@@@@@#1:" + scenario.getConfig)
-
     org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
       module(config, scenario, networkCoordinator, networkHelper)
@@ -452,6 +450,7 @@ trait BeamHelper extends LazyLogging {
     val scenarioConfig = beamConfig.beam.exchange.scenario
 
     val src = scenarioConfig.source.toLowerCase
+    println(scenarioConfig)
     val fileFormat = scenarioConfig.fileFormat
     ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
       if (src == "urbansim") {
