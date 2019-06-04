@@ -4,6 +4,7 @@ import beam.utils.scenario.InputType
 import beam.utils.scenario.urbansim.DataExchange._
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.lang3.math.NumberUtils
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
@@ -106,7 +107,13 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     val householdId = getIfNotNull(rec, "household_id")
     val age = getIfNotNull(rec, "age").toInt
     val rank: Int = 0
-    PersonInfo(personId = personId, householdId = householdId, rank = rank, age = age)
+    PersonInfo(
+      personId = personId,
+      householdId = householdId,
+      rank = rank,
+      age = age,
+      valueOfTime = NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime"), 0D)
+    )
   }
 
   private def toBuildingInfo(rec: java.util.Map[String, String]): BuildingInfo = {

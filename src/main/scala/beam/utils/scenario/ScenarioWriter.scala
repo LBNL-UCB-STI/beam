@@ -154,7 +154,13 @@ object CsvScenarioWriter extends ScenarioWriter with LazyLogging {
         val rank = personAttrib.getAttribute(personId, "rank").toString.toInt
         // There is no `age` attribute in matsim scenario, so will set it to 0
         val age = Option(personAttrib.getAttribute(personId, "age")).map(_.toString.toInt).getOrElse(0)
-        PersonInfo(personId = PersonId(personId), householdId = HouseholdId(householdId), rank = rank, age = age)
+        PersonInfo(
+          personId = PersonId(personId),
+          householdId = HouseholdId(householdId),
+          rank = rank,
+          age = age,
+          valueOfTime = Option(personAttrib.getAttribute(personId, "valueOfTime")).map(_.toString.toDouble).getOrElse(0D)
+        )
     }
   }
 }
