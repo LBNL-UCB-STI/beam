@@ -9,6 +9,7 @@ import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
 import scala.reflect.ClassTag
+import scala.util.Try
 
 object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
 
@@ -112,7 +113,7 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
       householdId = householdId,
       rank = rank,
       age = age,
-      valueOfTime = NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime"), 0D)
+      valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime"), 0D)).getOrElse(0D)
     )
   }
 
