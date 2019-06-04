@@ -5,21 +5,26 @@ import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
+import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
+import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicleType, PassengerSchedule}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule}
 import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
-import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
-import beam.agentsim.infrastructure.ParkingStall.NoNeed
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
+import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.sim.common.GeoUtils
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
-
 import scala.concurrent.duration.Duration
+
+import beam.agentsim.infrastructure.ParkingInquiry
+import beam.utils.ParkingManagerIdGenerator
 
 /**
   * BEAM
@@ -43,14 +48,20 @@ trait ChoosesParking extends {
       val lastLeg =
         personData.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId).last
 
+      val parkingDuration: Double = {
+        for {
+          act <- nextActivity(personData)
+          lastLegEndTime = lastLeg.beamLeg.endTime.toDouble
+        } yield act.getEndTime - lastLegEndTime
+      }.getOrElse(0.0)
+      val destinationUtm = beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc)
+
       parkingManager ! ParkingInquiry(
-        beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.startPoint.loc),
-        beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc),
+        destinationUtm,
         nextActivity(personData).get.getType,
-        attributes,
-        NoNeed,
-        lastLeg.beamLeg.endTime,
-        nextActivity(personData).get.getEndTime - lastLeg.beamLeg.endTime.toDouble
+        attributes.valueOfTime,
+        None, // future charging inquiry will be applied here
+        parkingDuration
       )
   }
   when(ReleasingParkingSpot, stateTimeout = Duration.Zero) {
@@ -63,7 +74,7 @@ trait ChoosesParking extends {
         val theVehicle = currentBeamVehicle
         throw new RuntimeException(log.format("My vehicle {} is not parked.", currentBeamVehicle.id))
       }
-      parkingManager ! ReleaseParkingStall(stall.id)
+      parkingManager ! ReleaseParkingStall(stall.parkingZoneId)
       val nextLeg = data.passengerSchedule.schedule.head._1
       val distance = beamServices.geo.distUTMInMeters(stall.locationUTM, nextLeg.travelPath.endPoint.loc)
       val energyCharge: Double = 0.0 //TODO
@@ -75,7 +86,7 @@ trait ChoosesParking extends {
       goto(WaitingToDrive) using data
 
     case Event(StateTimeout, data) =>
-      parkingManager ! ReleaseParkingStall(currentBeamVehicle.stall.get.id)
+      parkingManager ! ReleaseParkingStall(currentBeamVehicle.stall.get.parkingZoneId)
       currentBeamVehicle.unsetParkingStall()
       releaseTickAndTriggerId()
       goto(WaitingToDrive) using data
@@ -88,7 +99,7 @@ trait ChoosesParking extends {
         data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
       currentBeamVehicle.setReservedParkingStall(Some(stall))
 
-      data.currentVehicle.head
+      // data.currentVehicle.head
 
       //Veh id
       //distance to dest
@@ -230,12 +241,13 @@ trait ChoosesParking extends {
           )
         )
       )
+
       goto(WaitingToDrive) using data.copy(
         currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
         restOfCurrentTrip = newRestOfTrip.toList,
         passengerSchedule = newPassengerSchedule,
         currentLegPassengerScheduleIndex = 0,
-        currentVehicle = newVehicle,
+        currentVehicle = newVehicle
       )
   }
 

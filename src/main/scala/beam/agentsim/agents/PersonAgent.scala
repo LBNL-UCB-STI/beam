@@ -20,7 +20,7 @@ import beam.agentsim.agents.vehicles.VehicleCategory.Bike
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
-import beam.agentsim.infrastructure.ParkingManager.ParkingInquiryResponse
+import beam.agentsim.infrastructure.ParkingInquiryResponse
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -840,11 +840,10 @@ class PersonAgent(
   }
 
   def getReplanningReasonFrom(data: BasePersonData, prefix: String): String = {
-    (data.currentTourMode
+    data.currentTourMode
       .collect {
-        case mode if mode.isRideHail                      => s"$prefix RideHail"
-        case mode if mode.isMassTransit || mode.isTransit => s"$prefix PT"
-      })
+        case mode => s"$prefix $mode"
+      }
       .getOrElse(prefix)
   }
 

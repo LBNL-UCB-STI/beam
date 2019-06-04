@@ -1,7 +1,6 @@
 package beam.agentsim.agents.choice.logit
 
-import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{LccmData, Mandatory, Nonmandatory, TourType}
-import beam.agentsim.agents.choice.logit.MultinomialLogit.MnlData
+import LatentClassChoiceModel.{LccmData, Mandatory, Nonmandatory, TourType}
 import beam.sim.{BeamServices, HasServices}
 import org.matsim.core.utils.io.IOUtils
 import org.supercsv.cellprocessor.constraint.NotNull
@@ -21,11 +20,11 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
     beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.lccm.filePath
   )
 
-  val classMembershipModels: Map[TourType, MultinomialLogit] = extractClassMembershipModels(
+  val classMembershipModels: Map[TourType, MultinomialLogit[String, String]] = extractClassMembershipModels(
     lccmData
   )
 
-  val modeChoiceModels: Map[TourType, Map[String, MultinomialLogit]] = {
+  val modeChoiceModels: Map[TourType, Map[String, MultinomialLogit[String, String]]] = {
     val mods = extractModeChoiceModels(lccmData)
     mods
   }
@@ -50,57 +49,43 @@ class LatentClassChoiceModel(override val beamServices: BeamServices) extends Ha
 
   def extractClassMembershipModels(
     lccmData: IndexedSeq[LccmData]
-  ): Map[TourType, MultinomialLogit] = {
+  ): Map[TourType, MultinomialLogit[String, String]] = {
     val classMemData = lccmData.filter(_.model == "classMembership")
     Vector[TourType](Mandatory, Nonmandatory).map { theTourType =>
       val theData = classMemData.filter(_.tourType.equalsIgnoreCase(theTourType.toString))
-
-      val mnlData = theData.map { theDat =>
-        new MnlData(
-          theDat.alternative,
-          theDat.variable,
-          if (theDat.variable.equalsIgnoreCase("asc")) {
-            "intercept"
-          } else {
-            "multiplier"
-          },
-          theDat.value
-        )
+      val utilityFunctions: Iterable[(String, Map[String, UtilityFunctionOperation])] = for {
+        data          <- theData
+        alternativeId <- data.alternative
+      } yield {
+        (alternativeId.toString, Map(data.variable -> UtilityFunctionOperation(data.variable, data.value)))
       }
-
-      theTourType -> MultinomialLogit(mnlData)
+      theTourType -> MultinomialLogit(utilityFunctions.toMap)
     }.toMap
   }
 
   /*
-   * We use presence of ASC to indicate whether an alternative should be added to the MNL model. So even if an alternative is a base alterantive,
+   * We use presence of ASC to indicate whether an alternative should be added to the MNL model. So even if an alternative is a base alternative,
    * it should be given an ASC with value of 0.0 in order to be added to the choice set.
    */
   def extractModeChoiceModels(
     lccmData: IndexedSeq[LccmData]
-  ): Map[TourType, Map[String, MultinomialLogit]] = {
+  ): Map[TourType, Map[String, MultinomialLogit[String, String]]] = {
     val uniqueClasses = lccmData.map(_.latentClass).distinct
     val modeChoiceData = lccmData.filter(_.model == "modeChoice")
     Vector[TourType](Mandatory, Nonmandatory).map { theTourType =>
       val theTourTypeData = modeChoiceData.filter(_.tourType.equalsIgnoreCase(theTourType.toString))
       theTourType -> uniqueClasses.map { theLatentClass =>
         val theData = theTourTypeData.filter(_.latentClass.equalsIgnoreCase(theLatentClass))
-        val mnlData = theData.map { theDat =>
-          new MnlData(
-            theDat.alternative,
-            theDat.variable,
-            if (theDat.variable.equalsIgnoreCase("asc")) {
-              "intercept"
-            } else {
-              "multiplier"
-            },
-            theDat.value
-          )
+
+        val utilityFunctions: Iterable[(String, Map[String, UtilityFunctionOperation])] = for {
+          data          <- theData
+          alternativeId <- data.alternative
+        } yield {
+          (alternativeId.toString, Map(data.variable -> UtilityFunctionOperation(data.variable, data.value)))
         }
-        val altsToInclude =
-          mnlData.filter(_.paramName.equalsIgnoreCase("asc")).map(_.alternative).distinct
+
         theLatentClass -> MultinomialLogit(
-          mnlData.filter(mnlRow => altsToInclude.contains(mnlRow.alternative))
+          utilityFunctions.toMap
         )
       }.toMap
     }.toMap

@@ -53,8 +53,8 @@ object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
       householdId = HouseholdId(householdId),
       cars = cars,
       income = getIfNotNull(rec, "incomeValue").toDouble,
-      x = getIfNotNull(rec, "locationX").toDouble,
-      y = getIfNotNull(rec, "locationY").toDouble
+      locationX = getIfNotNull(rec, "locationX").toDouble,
+      locationY = getIfNotNull(rec, "locationY").toDouble
     )
   }
 

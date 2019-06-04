@@ -412,7 +412,7 @@ class RideHailAgent(
         vehicle.id
       )
     )
-    parkingManager ! ReleaseParkingStall(vehicle.stall.get.id)
+    parkingManager ! ReleaseParkingStall(vehicle.stall.get.parkingZoneId)
     val currentLocation = vehicle.stall.get.locationUTM
     vehicle.unsetParkingStall()
     currentLocation

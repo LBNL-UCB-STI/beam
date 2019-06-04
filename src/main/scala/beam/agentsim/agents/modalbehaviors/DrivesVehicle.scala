@@ -422,7 +422,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               currentBeamVehicle.id + " " + currentVehicleUnderControl
             )
             currentBeamVehicle.stall.foreach { theStall =>
-              parkingManager ! ReleaseParkingStall(theStall.id)
+              parkingManager ! ReleaseParkingStall(theStall.parkingZoneId)
             }
             currentBeamVehicle.unsetParkingStall()
           case None =>
