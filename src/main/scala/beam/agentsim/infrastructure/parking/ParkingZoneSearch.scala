@@ -98,7 +98,6 @@ object ParkingZoneSearch {
     }
   }
 
-  // todo JH RJF please talk to JH
   /**
     * samples from the set of discovered stalls using a multinomial logit function
     * @param found the discovered parkingZones
@@ -148,7 +147,6 @@ object ParkingZoneSearch {
             )
         }
 
-    // todo: sampleAlternative cannot return None, maybe doesn't need to be returning an Option[], but, what is it's behavior if the input is empty?
     utilityFunction.sampleAlternative(alternatives.toMap, random).
       map{ result =>
         val (taz, parkingType, parkingZone, coordinate) = result.alternativeType
