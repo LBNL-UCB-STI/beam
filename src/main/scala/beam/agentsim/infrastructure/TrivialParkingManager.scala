@@ -20,7 +20,7 @@ class AnotherTrivialParkingManager(location: Coord) extends Actor {
 
   override def receive: Receive = {
     case request: ParkingInquiry =>
-      val stall = ParkingStall.defaultStall(request.destinationUtm)
+      val stall = ParkingStall.defaultStall(location)
       sender ! ParkingInquiryResponse(stall, request.requestId)
       nextStallNum += 1
   }

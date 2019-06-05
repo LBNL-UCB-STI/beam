@@ -91,8 +91,8 @@ class UrbanSimScenarioSource(
         householdId = HouseholdId(householdInfo.householdId),
         cars = householdInfo.cars,
         income = householdInfo.income,
-        x = coord.getX,
-        y = coord.getY
+        locationX = coord.getX,
+        locationY = coord.getY
       )
     }
   }

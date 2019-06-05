@@ -13,9 +13,10 @@ object ParkingZoneSearch {
     * a nested structure to support a search over available parking attributes,
     * where traversal either terminates in an un-defined branch (no options found),
     * or a leaf, which contains the index of a ParkingZone in the ParkingZones lookup array
-    * with the matching attributes.
+    * with the matching attributes. type parameter A is a tag from a graph partitioning, such as a TAZ,
+    * or possibly an h3 label.
     */
-  type ZoneSearch = Map[Id[TAZ], Map[ParkingType, List[Int]]]
+  type ZoneSearch[A] = Map[Id[A], Map[ParkingType, List[Int]]]
 
   /**
     * these are the alternatives that are generated/instantiated by a search
@@ -60,7 +61,7 @@ object ParkingZoneSearch {
     utilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String],
     tazList: Seq[TAZ],
     parkingTypes: Seq[ParkingType],
-    tree: ZoneSearch,
+    tree: ZoneSearch[TAZ],
     parkingZones: Array[ParkingZone],
     distanceFunction: (Coord, Coord) => Double,
     random: Random
@@ -84,7 +85,7 @@ object ParkingZoneSearch {
     destinationUTM: Coord,
     tazList: Seq[TAZ],
     parkingTypes: Seq[ParkingType],
-    tree: ZoneSearch,
+    tree: ZoneSearch[TAZ],
     parkingZones: Array[ParkingZone],
     random: Random
   ): Seq[ParkingAlternative] = {

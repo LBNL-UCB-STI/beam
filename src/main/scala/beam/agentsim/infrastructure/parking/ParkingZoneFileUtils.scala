@@ -5,6 +5,7 @@ import java.io.{BufferedReader, File, IOException}
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 import scala.util.matching.Regex
+import scala.collection.JavaConverters._
 
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearch
@@ -28,6 +29,16 @@ object ParkingZoneFileUtils extends LazyLogging {
   val ParkingFileHeader: String = "taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor"
 
   /**
+    * when a parking file is not provided, we generate one that covers all TAZs with free and ubiquitous parking
+    * this should consider charging when it is implemented as well.
+    * @param tazId a valid id for a TAZ
+    * @param parkingType the parking type we are using to generate a row
+    * @return a row describing infinite free parking at this TAZ
+    */
+  def defaultParkingRow(tazId: String, parkingType: ParkingType): String =
+    s"$tazId,$parkingType,${PricingModel.FlatFee(0, 0)},None,${Int.MaxValue},0,unused"
+
+  /**
     * used to build up parking alternatives from a file
     * @param zones the parking zones read in
     * @param tree the search tree constructed from the loaded zones
@@ -36,7 +47,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     */
   case class ParkingLoadingAccumulator(
     zones: Array[ParkingZone] = Array.empty[ParkingZone],
-    tree: ZoneSearch = Map.empty[Id[TAZ], Map[ParkingType, List[Int]]],
+    tree: ZoneSearch[TAZ] = Map.empty[Id[TAZ], Map[ParkingType, List[Int]]],
     totalRows: Int = 0,
     failedRows: Int = 0
   ) {
@@ -66,7 +77,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     * @param writeDestinationPath a file path to write to
     */
   def writeParkingZoneFile(
-    stallSearch: ZoneSearch,
+    stallSearch: ZoneSearch[TAZ],
     stalls: Array[ParkingZone],
     writeDestinationPath: String
   ): Unit = {
@@ -119,7 +130,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     * @param header whether or not the file is expected to have a csv header row
     * @return table and tree
     */
-  def fromFile(filePath: String, header: Boolean = true): (Array[ParkingZone], ZoneSearch) =
+  def fromFile(filePath: String, header: Boolean = true): (Array[ParkingZone], ZoneSearch[TAZ]) =
     Try {
       val reader = IOUtils.getBufferedReader(filePath)
       if (header) reader.readLine()
@@ -266,5 +277,50 @@ object ParkingZoneFileUtils extends LazyLogging {
       )
 
     ParkingLoadingAccumulator(updatedStalls, updatedTree, accumulator.totalRows + 1, accumulator.failedRows)
+  }
+
+  /**
+    * generates ubiquitous parking from a taz centers file, such as test/input/beamville/taz-centers.csv
+    * @param tazFilePath path to the taz-centers file
+    * @return
+    */
+  def generateDefaultParkingFromTazfile(tazFilePath: String): (Array[ParkingZone], ZoneSearch[TAZ]) = {
+    Try {
+      IOUtils.getBufferedReader(tazFilePath)
+    } match {
+      case Success(reader) =>
+        generateDefaultParking(reader.lines.iterator.asScala, header = true)
+      case Failure(e) =>
+        throw new java.io.IOException(s"Unable to load taz file with path $tazFilePath.\n$e")
+    }
+  }
+
+  /**
+    * the first column of the taz-centers file is an Id[Taz], which we extract. it can be alphanumeric.
+    */
+  val TazFileRegex = """^(\w+),""".r.unanchored
+
+  /**
+    * generates ubiquitous parking from the contents of a TAZ centers file
+    * @param tazFileContents an iterator of lines from the TAZ centers file
+    * @param header if the header row exists
+    * @return parking zones and parking search tree
+    */
+  def generateDefaultParking(
+    tazFileContents: Iterator[String],
+    header: Boolean
+  ): (Array[ParkingZone], ZoneSearch[TAZ]) = {
+    val tazRows = if (header) tazFileContents.drop(1) else tazFileContents
+
+    val rows: Iterator[String] = for {
+      TazFileRegex(tazId) <- tazRows
+      parkingType         <- Seq(ParkingType.Public, ParkingType.Residential, ParkingType.Workplace)
+    } yield {
+      defaultParkingRow(tazId, parkingType)
+    }
+
+    val ParkingLoadingAccumulator(zones, tree, _, _) = fromIterator(rows, header = false)
+
+    (zones, tree)
   }
 }

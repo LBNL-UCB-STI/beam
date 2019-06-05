@@ -65,12 +65,12 @@ class ZonalParkingManagerSpec
 
       for {
         tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(
-          List((coordCenterOfUTM, 10000)),
+          coords = List((coordCenterOfUTM, 10000)),
           startAtId = 1,
-          167000,
-          0,
-          833000,
-          10000000
+          xMin = 167000,
+          yMin = 0,
+          xMax = 833000,
+          yMax = 10000000
         ) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
         services = beamServices(config, tazTreeMap)
@@ -111,7 +111,7 @@ class ZonalParkingManagerSpec
         config = BeamConfig(system.settings.config)
         services = beamServices(config, tazTreeMap)
         oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
-            |1,Workplace,FlatFee,TeslaSuperCharger,1,1234,unused
+            |1,Workplace,FlatFee,None,1,1234,unused
             |
           """.stripMargin.split("\n").toIterator
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
@@ -129,7 +129,7 @@ class ZonalParkingManagerSpec
             0,
             coordCenterOfUTM,
             1234.0,
-            Some(ChargingPointType.TeslaSuperCharger),
+            None,
             Some(PricingModel.FlatFee(1234, PricingModel.DefaultPricingInterval)),
             ParkingType.Workplace
           )
@@ -163,7 +163,7 @@ class ZonalParkingManagerSpec
         config = BeamConfig(system.settings.config)
         services = beamServices(config, tazTreeMap)
         oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
-          |1,Workplace,FlatFee,TeslaSuperCharger,1,1234,unused
+          |1,Workplace,FlatFee,None,1,1234,unused
           |
           """.stripMargin.split("\n").toIterator
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
@@ -183,7 +183,7 @@ class ZonalParkingManagerSpec
             expectedParkingZoneId,
             coordCenterOfUTM,
             1234.0,
-            Some(ChargingPointType.TeslaSuperCharger),
+            None,
             Some(PricingModel.FlatFee(1234, PricingModel.DefaultPricingInterval)),
             ParkingType.Workplace
           )
@@ -336,7 +336,7 @@ object ZonalParkingManagerSpec {
     val result = split.zipWithIndex
       .map {
         case (stalls, i) =>
-          s"${i + 1},Workplace,FlatFee,TeslaSuperCharger,$stalls,0,unused"
+          s"${i + 1},Workplace,FlatFee,None,$stalls,0,unused"
       }
       .mkString(s"$header\n", "\n", "")
       .split("\n")

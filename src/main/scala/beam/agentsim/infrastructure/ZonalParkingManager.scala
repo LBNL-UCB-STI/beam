@@ -19,7 +19,7 @@ import org.matsim.core.utils.collections.QuadTree
 class ZonalParkingManager(
   val beamServices: BeamServices,
   parkingZones: Array[ParkingZone],
-  zoneSearchTree: ParkingZoneSearch.ZoneSearch,
+  zoneSearchTree: ParkingZoneSearch.ZoneSearch[TAZ],
   rand: Random
 ) extends Actor
     with HasServices
@@ -178,7 +178,7 @@ object ZonalParkingManager {
     parkingDuration: Double,
     parkingTypes: Seq[ParkingType],
     utilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String],
-    searchTree: ParkingZoneSearch.ZoneSearch,
+    searchTree: ParkingZoneSearch.ZoneSearch[TAZ],
     stalls: Array[ParkingZone],
     tazQuadTree: QuadTree[TAZ],
     distanceFunction: (Coord, Coord) => Double,
