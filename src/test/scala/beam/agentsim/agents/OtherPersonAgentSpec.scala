@@ -43,7 +43,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.mutable.ListBuffer
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 
 /**
   * Created by sfeygin on 2/7/17.
@@ -110,7 +110,8 @@ class OtherPersonAgentSpec
   }
 
   private lazy val parkingManager = system.actorOf(
-    ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, beamSvc.geo, beamSvc.beamRouter), "ParkingManager"
+    ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, beamSvc.geo, beamSvc.beamRouter),
+    "ParkingManager"
   )
 
   private lazy val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)

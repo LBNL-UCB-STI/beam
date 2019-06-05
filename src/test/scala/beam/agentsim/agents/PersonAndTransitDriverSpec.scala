@@ -44,7 +44,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.mutable.ListBuffer
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -77,7 +77,10 @@ class PersonAndTransitDriverSpec
   private val injector = buildInjector(system.settings.config, matsimScenario, beamScenario)
   private lazy val beamSvc = buildBeamServices(injector, matsimScenario)
   private lazy val tollCalculator = injector.getInstance(classOf[TollCalculator])
-  private lazy val parkingManager = system.actorOf(ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, beamSvc.geo, beamSvc.beamRouter), "ParkingManager")
+  private lazy val parkingManager = system.actorOf(
+    ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, beamSvc.geo, beamSvc.beamRouter),
+    "ParkingManager"
+  )
   private lazy val networkHelper = injector.getInstance(classOf[NetworkHelper])
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
