@@ -49,10 +49,11 @@ case class FixedNonReservingFleetByTAZ(
             val fleetShare: Int = (share * config.fleetSize).toInt
             (0 until fleetShare).foreach(
               _ =>
-                initialLocation.append(beamServices.beamScenario.tazTreeMap.getTAZ(Id.create(idTaz, classOf[TAZ])) match {
-                  case Some(taz) => TAZTreeMap.randomLocationInTAZ(taz, rand)
-                  case _         => coord
-                })
+                initialLocation
+                  .append(beamServices.beamScenario.tazTreeMap.getTAZ(Id.create(idTaz, classOf[TAZ])) match {
+                    case Some(taz) => TAZTreeMap.randomLocationInTAZ(taz, rand)
+                    case _         => coord
+                  })
             )
         }
       case _ =>
