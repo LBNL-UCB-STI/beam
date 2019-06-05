@@ -118,7 +118,7 @@ class RideHailIterationsStatsCollector(
     rideHailIterationHistoryActor updateRideHailStats
     TNCIterationStats(
       rideHailStats.mapValues(_.toList),
-      beamServices.tazTreeMap,
+      beamServices.beamScenario.tazTreeMap,
       timeBinSizeInSec,
       numberOfTimeBins
     )
@@ -226,7 +226,7 @@ class RideHailIterationsStatsCollector(
   }
 
   private def getTazId(coord: Coord): String =
-    Try(beamServices.tazTreeMap.getTAZ(coord.getX, coord.getY).tazId.toString).getOrElse("0")
+    Try(beamServices.beamScenario.tazTreeMap.getTAZ(coord.getX, coord.getY).tazId.toString).getOrElse("0")
 
   private def getTimeBin(time: Double): Int = (time / timeBinSizeInSec).toInt
 

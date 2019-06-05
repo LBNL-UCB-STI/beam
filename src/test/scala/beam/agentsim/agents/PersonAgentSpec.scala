@@ -16,7 +16,6 @@ import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.{ReservationRequest, ReservationResponse, ReserveConfirmInfo, _}
 import beam.agentsim.events._
 import beam.agentsim.infrastructure.TrivialParkingManager
-import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
@@ -51,7 +50,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.mutable.ListBuffer
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 
 class PersonAgentSpec
     extends TestKit(
@@ -78,7 +77,6 @@ class PersonAgentSpec
   lazy val beamConfig = BeamConfig(system.settings.config)
   lazy val beamScenario = loadScenario(beamConfig)
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
-  private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
   private val tollCalculator = new TollCalculator(beamConfig)
 
   private lazy val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
@@ -175,9 +173,9 @@ class PersonAgentSpec
           parkingManager,
           tollCalculator,
           self,
-          beamSkimmer = new BeamSkimmer(beamConfig, tAZTreeMap, beamScenario, beamSvc.geo),
+          beamSkimmer = new BeamSkimmer(beamScenario, beamSvc.geo),
           routeHistory = new RouteHistory(beamConfig),
-          travelTimeObserved = new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null)
+          travelTimeObserved = new TravelTimeObserved(beamScenario, beamSvc.geo)
         )
       )
 
@@ -240,8 +238,8 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, tAZTreeMap, beamScenario, beamSvc.geo),
-          new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null)
+          new BeamSkimmer(beamScenario, beamSvc.geo),
+          new TravelTimeObserved(beamScenario, beamSvc.geo)
         )
       )
 
@@ -456,8 +454,8 @@ class PersonAgentSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, tAZTreeMap, beamScenario, beamSvc.geo),
-          new TravelTimeObserved(beamConfig, beamSvc, tAZTreeMap, null)
+          new BeamSkimmer(beamScenario, beamSvc.geo),
+          new TravelTimeObserved(beamScenario, beamSvc.geo)
         )
       )
       scheduler ! StartSchedule(0)

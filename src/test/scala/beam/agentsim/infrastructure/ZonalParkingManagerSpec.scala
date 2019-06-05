@@ -8,15 +8,12 @@ import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import beam.sim.BeamServices
-import beam.sim.common.GeoUtilsImpl
+import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.controler.MatsimServices
 import org.matsim.core.utils.collections.QuadTree
-import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
 
@@ -41,23 +38,13 @@ class ZonalParkingManagerSpec
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
 
-//  lazy val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/test-resources/beam/agentsim/infrastructure/taz-centers.csv")
-
-  def beamServices(config: BeamConfig, tazTreeMap: TAZTreeMap): BeamServices = {
-    val theServices = mock[BeamServices](withSettings().stubOnly())
-    val matsimServices = mock[MatsimServices]
-    when(theServices.matsimServices).thenReturn(matsimServices)
-    when(theServices.beamConfig).thenReturn(config)
-    when(theServices.tazTreeMap).thenReturn(tazTreeMap)
-    val geo = new GeoUtilsImpl(config)
-    when(theServices.geo).thenReturn(geo)
-    theServices
-  }
-
   val randomSeed: Long = 0
 
   // a coordinate in the center of the UTM coordinate system
   val coordCenterOfUTM = new Coord(500000, 5000000)
+
+  val beamConfig = BeamConfig(system.settings.config)
+  val geo = new GeoUtilsImpl(beamConfig)
 
   describe("ZonalParkingManager with no parking") {
     it("should return a response with an emergency stall") {
@@ -71,11 +58,11 @@ class ZonalParkingManagerSpec
           xMax = 833000,
           yMax = 10000000
         ) // one TAZ at agent coordinate
-        config = BeamConfig(system.settings.config)
-        services = beamServices(config, tazTreeMap)
+        config = beamConfig
         emptyParkingDescription: Iterator[String] = Iterator.empty
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
-          services,
+          tazTreeMap,
+          geo,
           emptyParkingDescription,
           new Random(randomSeed)
         )
@@ -108,13 +95,13 @@ class ZonalParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
-        services = beamServices(config, tazTreeMap)
         oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
             |1,Workplace,FlatFee,None,1,1234,unused
             |
           """.stripMargin.split("\n").toIterator
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
-          services,
+          tazTreeMap,
+          geo,
           oneParkingOption,
           new Random(randomSeed)
         )
@@ -160,13 +147,13 @@ class ZonalParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
-        services = beamServices(config, tazTreeMap)
         oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
           |1,Workplace,FlatFee,None,1,1234,unused
           |
           """.stripMargin.split("\n").toIterator
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
-          services,
+          tazTreeMap,
+          geo,
           oneParkingOption,
           new Random(randomSeed)
         )
@@ -227,12 +214,11 @@ class ZonalParkingManagerSpec
         trial <- 1 to trials
         numStalls = math.max(4, random.nextInt(maxParkingStalls))
         tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 100, 100)
-        config = BeamConfig(system.settings.config)
-        services = beamServices(config, tazTreeMap)
         split = ZonalParkingManagerSpec.randomSplitOfMaxStalls(numStalls, 4, random)
         parkingConfiguration: Iterator[String] = ZonalParkingManagerSpec.makeParkingConfiguration(split)
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
-          services,
+          tazTreeMap,
+          geo,
           parkingConfiguration,
           new Random(randomSeed)
         )
@@ -267,18 +253,12 @@ class ZonalParkingManagerSpec
 object ZonalParkingManagerSpec {
 
   def mockZonalParkingManager(
-    beamServices: BeamServices
-  )(implicit system: ActorSystem): ActorRef = {
-    val zonalParkingManagerProps = Props(ZonalParkingManager(beamServices, new Random(0L)))
-    TestActorRef[ZonalParkingManager](zonalParkingManagerProps)
-  }
-
-  def mockZonalParkingManager(
-    beamServices: BeamServices,
+    tazTreeMap: TAZTreeMap,
+    geo: GeoUtils,
     parkingDescription: Iterator[String],
     random: Random = Random
   )(implicit system: ActorSystem): ActorRef = {
-    val zonalParkingManagerProps = Props(ZonalParkingManager(parkingDescription, beamServices, random))
+    val zonalParkingManagerProps = Props(ZonalParkingManager(parkingDescription, tazTreeMap, geo, random))
     TestActorRef[ZonalParkingManager](zonalParkingManagerProps)
   }
 

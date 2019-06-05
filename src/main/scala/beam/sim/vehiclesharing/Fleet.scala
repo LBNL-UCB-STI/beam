@@ -4,7 +4,7 @@ import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamSkimmer
-import beam.sim.{BeamScenario, BeamServices}
+import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm
 import beam.utils.FileUtils
 import org.matsim.api.core.v01.{Coord, Id}
@@ -35,7 +35,7 @@ case class FixedNonReservingFleetFromFile(config: SharedFleets$Elm.FixedNonReser
     val rand = new scala.util.Random(System.currentTimeMillis())
     readCsvFile(config.filePathCSV).foreach {
       case (idTaz, coord, fleetSize) =>
-        val loc = beamServices.tazTreeMap.getTAZ(Id.create(idTaz, classOf[TAZ])) match {
+        val loc = beamServices.beamScenario.tazTreeMap.getTAZ(Id.create(idTaz, classOf[TAZ])) match {
           case Some(taz) =>
             val radius = Math.sqrt(taz.areaInSquareMeters / Math.PI)
             val a = 2 * Math.PI * rand.nextDouble()
@@ -111,7 +111,7 @@ case class FixedNonReservingRandomlyDistributedFleet(config: SharedFleets$Elm.Fi
     beamScheduler: ActorRef,
     parkingManager: ActorRef
   ): Props = {
-    val tazArray = beamServices.tazTreeMap.getTAZs.toArray
+    val tazArray = beamServices.beamScenario.tazTreeMap.getTAZs.toArray
     val initialLocation = mutable.ListBuffer[Coord]()
     val rand = new scala.util.Random(System.currentTimeMillis())
     (1 to config.fleetSize).foreach(_ => initialLocation.prepend(tazArray(rand.nextInt(tazArray.length)).coord))

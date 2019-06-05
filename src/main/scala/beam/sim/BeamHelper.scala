@@ -8,6 +8,7 @@ import java.util.{Properties, Random}
 
 import beam.agentsim.agents.choice.mode.PtFares
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
+import beam.agentsim.agents.vehicles.FuelType.FuelTypePrices
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.agentsim.infrastructure.taz.TAZTreeMap
@@ -22,7 +23,6 @@ import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
-import beam.sim.BeamServices.{getTazTreeMap, FuelTypePrices}
 import beam.sim.common.GeoUtils
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
@@ -199,7 +199,6 @@ trait BeamHelper extends LazyLogging {
           )
 
           bind(classOf[NetworkHelper]).to(classOf[NetworkHelperImpl]).asEagerSingleton()
-          bind(classOf[TAZTreeMap]).toInstance(getTazTreeMap(beamConfig.beam.agentsim.taz.filePath))
           bind(classOf[RideHailIterationHistory]).asEagerSingleton()
           bind(classOf[RouteHistory]).asEagerSingleton()
           bind(classOf[BeamSkimmer]).asEagerSingleton()
@@ -257,7 +256,8 @@ trait BeamHelper extends LazyLogging {
       PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath),
       networkCoordinator.transportNetwork,
       transitSchedule,
-      networkCoordinator.network
+      networkCoordinator.network,
+      TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
     )
   }
 
@@ -792,5 +792,6 @@ case class BeamScenario(
   ptFares: PtFares,
   transportNetwork: TransportNetwork,
   transitSchedule: Map[Id[BeamVehicle], (RouteInfo, ArrayBuffer[BeamLeg])],
-  network: Network
+  network: Network,
+  tazTreeMap: TAZTreeMap
 )

@@ -47,6 +47,8 @@ object FuelType {
       .find(_.toString.equalsIgnoreCase(value))
       .getOrElse(Undefined)
   }
+
+  type FuelTypePrices = Map[FuelType, Double]
 }
 
 object VehicleCategory {

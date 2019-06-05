@@ -43,7 +43,7 @@ class RideHailSurgePricingManager @Inject()(val beamServices: BeamServices) {
 
   //Scala like code
   val surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]] =
-    beamServices.tazTreeMap.tazQuadTree.values.asScala.map { v =>
+    beamServices.beamScenario.tazTreeMap.tazQuadTree.values.asScala.map { v =>
       val array = (0 until numberOfTimeBins).foldLeft(new ArrayBuffer[SurgePriceBin]) { (arrayBuffer, _) =>
         arrayBuffer.append(defaultBinContent)
         arrayBuffer
@@ -132,7 +132,7 @@ class RideHailSurgePricingManager @Inject()(val beamServices: BeamServices) {
   }
 
   def getSurgeLevel(location: Location, time: Double): Double = {
-    val taz = beamServices.tazTreeMap.getTAZ(location.getX, location.getY)
+    val taz = beamServices.beamScenario.tazTreeMap.getTAZ(location.getX, location.getY)
     val timeBinIndex = getTimeBinIndex(time)
     surgePriceBins
       .get(taz.tazId.toString)
@@ -152,7 +152,7 @@ class RideHailSurgePricingManager @Inject()(val beamServices: BeamServices) {
 
   def addRideCost(time: Double, cost: Double, pickupLocation: Location): Unit = {
 
-    val taz = beamServices.tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY)
+    val taz = beamServices.beamScenario.tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY)
     val timeBinIndex = getTimeBinIndex(time)
 
     surgePriceBins.get(taz.tazId.toString).foreach { i =>

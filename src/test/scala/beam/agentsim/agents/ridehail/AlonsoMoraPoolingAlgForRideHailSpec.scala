@@ -57,8 +57,6 @@ class AlonsoMoraPoolingAlgForRideHailSpec
   describe("AlonsoMoraPoolingAlgForRideHail") {
     it("Creates a consistent plan") {
       implicit val skimmer: BeamSkimmer = new BeamSkimmer(
-        beamExecConfig.beamConfig,
-        services.tazTreeMap,
         beamScenario,
         new GeoUtilsImpl(beamExecConfig.beamConfig)
       )

@@ -26,7 +26,7 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
     "be correctly initialized" in {
       val surgePricingManager = new RideHailSurgePricingManager(beamServices)
       surgePricingManager.priceAdjustmentStrategy = "CONTINUES_DEMAND_SUPPLY_MATCHING"
-      surgePricingManager.surgePriceBins should have size beamServices.tazTreeMap.tazQuadTree.size()
+      surgePricingManager.surgePriceBins should have size beamScenario.tazTreeMap.tazQuadTree.size()
       val expectedResult = SurgePriceBin(0.0, 0.0, 1.0, 1.0)
       surgePricingManager.surgePriceBins.values.map(f => f.map(_ shouldBe expectedResult))
     }
@@ -139,7 +139,7 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
       val rhspm = new RideHailSurgePricingManager(beamServices)
       rhspm.priceAdjustmentStrategy = "KEEP_PRICE_LEVEL_FIXED_AT_ONE"
 
-      val tazArray = beamServices.tazTreeMap.tazQuadTree.values.asScala.toSeq
+      val tazArray = beamScenario.tazTreeMap.tazQuadTree.values.asScala.toSeq
       val randomTaz = tazArray(Random.nextInt(tazArray.size))
 
       rhspm.getSurgeLevel(randomTaz.coord, 0) shouldEqual 1.0
@@ -149,7 +149,7 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
       val rhspm = new RideHailSurgePricingManager(beamServices)
       rhspm.priceAdjustmentStrategy = "CONTINUES_DEMAND_SUPPLY_MATCHING"
 
-      val tazArray = beamServices.tazTreeMap.tazQuadTree.values.asScala.toSeq
+      val tazArray = beamScenario.tazTreeMap.tazQuadTree.values.asScala.toSeq
 
       val randomTaz = tazArray(2)
       val timeBinSize = beamConfig.beam.agentsim.timeBinSize
@@ -164,7 +164,7 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
 
     "correctly add ride cost" in {
       val rhspm = new RideHailSurgePricingManager(beamServices)
-      val tazArray = beamServices.tazTreeMap.tazQuadTree.values.asScala.toList
+      val tazArray = beamScenario.tazTreeMap.tazQuadTree.values.asScala.toList
 
       val randomTaz = tazArray(2)
       val timeBinSize = beamConfig.beam.agentsim.timeBinSize

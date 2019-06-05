@@ -4,24 +4,12 @@ import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  BIKE,
-  CAR,
-  CAV,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamTrip}
 import beam.sim.common.GeoUtils
-import beam.sim.config.BeamConfig
 import beam.sim.vehiclesharing.VehicleManager
 import beam.sim.{BeamScenario, BeamServices, BeamWarmStart}
 import beam.utils.{FileUtils, ProfilingUtils}
@@ -40,12 +28,11 @@ import scala.util.control.NonFatal
 
 //TODO to be validated against google api
 class BeamSkimmer @Inject()(
-  val beamConfig: BeamConfig,
-  val tazTreeMap: TAZTreeMap,
   val beamScenario: BeamScenario,
   val geo: GeoUtils
 ) extends LazyLogging {
   import BeamSkimmer._
+  import beamScenario._
 
   private val SKIMS_FILE_NAME = "skims.csv.gz"
 
@@ -211,9 +198,7 @@ class BeamSkimmer @Inject()(
     trip: EmbodiedBeamTrip,
     generalizedTimeInHours: Double,
     generalizedCost: Double,
-    energyConsumption: Double,
-    beamServices: BeamServices
-  ): Option[SkimInternal] = {
+    energyConsumption: Double): Option[SkimInternal] = {
     val mode = trip.tripClassifier
     val correctedTrip = mode match {
       case WALK =>

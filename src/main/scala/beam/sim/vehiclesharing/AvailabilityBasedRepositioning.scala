@@ -23,7 +23,7 @@ private[vehiclesharing] class AvailabilityBasedRepositioning(
   val orderingShortage = Ordering.by[RepositioningRequest, Int](_.shortage)
   val availability = "VEHAvailability"
 
-  beamServices.tazTreeMap.getTAZs.foreach { taz =>
+  beamServices.beamScenario.tazTreeMap.getTAZs.foreach { taz =>
     (0 to 108000 / repositionManager.getREPTimeStep).foreach { i =>
       val time = i * repositionManager.getREPTimeStep
       val availVal = getSkim(time, taz.tazId, availability)
@@ -60,7 +60,7 @@ private[vehiclesharing] class AvailabilityBasedRepositioning(
 
     val nowRepBin = now / repositionManager.getREPTimeStep
     val futureRepBin = nowRepBin + 1
-    beamServices.tazTreeMap.getTAZs.foreach { taz =>
+    beamServices.beamScenario.tazTreeMap.getTAZs.foreach { taz =>
       val availValMin = minAvailabilityMap((nowRepBin, taz.tazId))
       val InquiryUnboarded = unboardedVehicleInquiry((futureRepBin, taz.tazId))
       if (availValMin > 0) {
@@ -113,7 +113,7 @@ private[vehiclesharing] class AvailabilityBasedRepositioning(
           .take(fs)
           .filter(
             v =>
-              org.taz == beamServices.tazTreeMap.getTAZ(
+              org.taz == beamServices.beamScenario.tazTreeMap.getTAZ(
                 v.asInstanceOf[BeamVehicle].spaceTime.loc.getX,
                 v.asInstanceOf[BeamVehicle].spaceTime.loc.getY
             )

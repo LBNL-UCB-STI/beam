@@ -5,6 +5,7 @@ import beam.agentsim.agents.PersonTestUtil
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.events.PathTraversalEvent
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.Modes.BeamMode
 import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.common.GeoUtilsImpl
@@ -116,7 +117,6 @@ class SingleModeSpec
         new RouteHistory(services.beamConfig),
         mock[BeamSkimmer],
         mock[TravelTimeObserved],
-        BeamServices.defaultTazTreeMap,
         new GeoUtilsImpl(services.beamConfig),
         networkHelper
       )
@@ -164,7 +164,6 @@ class SingleModeSpec
         new RouteHistory(services.beamConfig),
         mock[BeamSkimmer],
         mock[TravelTimeObserved],
-        BeamServices.defaultTazTreeMap,
         new GeoUtilsImpl(services.beamConfig),
         networkHelper
       )
@@ -231,7 +230,6 @@ class SingleModeSpec
         new RouteHistory(services.beamConfig),
         mock[BeamSkimmer],
         mock[TravelTimeObserved],
-        BeamServices.defaultTazTreeMap,
         new GeoUtilsImpl(services.beamConfig),
         networkHelper
       )
@@ -303,7 +301,6 @@ class SingleModeSpec
         new RouteHistory(services.beamConfig),
         mock[BeamSkimmer],
         mock[TravelTimeObserved],
-        BeamServices.defaultTazTreeMap,
         new GeoUtilsImpl(services.beamConfig),
         networkHelper
       )

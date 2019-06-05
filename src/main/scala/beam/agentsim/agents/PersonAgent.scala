@@ -815,8 +815,7 @@ class PersonAgent(
             correctedTrip,
             generalizedTime,
             generalizedCost,
-            curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel,
-            beamServices
+            curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel
           )
           travelTimeObserved.observeTrip(
             correctedTrip,

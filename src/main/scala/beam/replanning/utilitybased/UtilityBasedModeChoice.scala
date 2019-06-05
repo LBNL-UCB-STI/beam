@@ -3,7 +3,7 @@ package beam.replanning.utilitybased
 import beam.agentsim.agents.memberships.HouseholdMembershipAllocator
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.sim.{BeamScenario, BeamServices}
-import beam.sim.BeamServices.FuelTypePrices
+import beam.agentsim.agents.vehicles.FuelType.FuelTypePrices
 import com.google.inject.Provider
 import javax.inject.Inject
 import org.matsim.api.core.v01.Scenario

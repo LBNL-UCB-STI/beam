@@ -14,7 +14,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
-import beam.agentsim.infrastructure.ZonalParkingManagerSpec
+import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
@@ -22,23 +22,16 @@ import beam.router.Modes.BeamMode
 import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
-import beam.sim.common.GeoUtilsImpl
-import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.{BeamHelper, BeamServices}
+import beam.sim.BeamHelper
 import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.controler.MatsimServices
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.core.scenario.ScenarioUtils
-import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
-
-import scala.collection.concurrent.TrieMap
 
 class RideHailAgentSpec
     extends TestKit(
@@ -58,28 +51,18 @@ class RideHailAgentSpec
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
-  lazy val config = BeamConfig(system.settings.config)
-  lazy val beamScenario = loadScenario(config)
+  private val executionConfig: BeamExecutionConfig = setupBeamWithConfig(system.settings.config)
+  private lazy val config = executionConfig.beamConfig
+  private lazy val beamScenario = loadScenario(config)
+  private lazy val matsimScenario = buildScenarioFromMatsimConfig(executionConfig.matsimConfig, beamScenario)
+  private val injector = buildInjector(system.settings.config, matsimScenario, beamScenario)
+  private lazy val services = buildBeamServices(injector, matsimScenario)
+
   lazy val eventsManager = new EventsManagerImpl()
 
-  private val vehicles = TrieMap[Id[BeamVehicle], BeamVehicle]()
-
-  private lazy val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-  private lazy val matsimConfig = configBuilder.buildMatSimConf()
-  val geo = new GeoUtilsImpl(config)
-
-  lazy val services: BeamServices = {
-    val matsimServices = mock[MatsimServices]
-    val theServices = mock[BeamServices](withSettings().stubOnly())
-    when(theServices.beamConfig).thenReturn(config)
-    when(theServices.geo).thenReturn(geo)
-    when(theServices.matsimServices).thenReturn(matsimServices)
-    val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
-    ScenarioUtils.loadScenario(scenario)
-    when(matsimServices.getScenario).thenReturn(scenario)
-    theServices
-  }
-  private lazy val zonalParkingManager: ActorRef = ZonalParkingManagerSpec.mockZonalParkingManager(services)
+  private lazy val zonalParkingManager = system.actorOf(
+    ZonalParkingManager.props(config, beamScenario.tazTreeMap, services.geo, services.beamRouter), "ParkingManager"
+  )
 
   case class TestTrigger(tick: Int) extends Trigger
 
@@ -168,7 +151,6 @@ class RideHailAgentSpec
           beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
         )
       beamVehicle.manager = Some(self)
-      vehicles.put(vehicleId, beamVehicle)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -245,7 +227,6 @@ class RideHailAgentSpec
           beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
         )
       beamVehicle.manager = Some(self)
-      vehicles.put(vehicleId, beamVehicle)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -314,7 +295,6 @@ class RideHailAgentSpec
           beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
         )
       beamVehicle.manager = Some(self)
-      vehicles.put(vehicleId, beamVehicle)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(

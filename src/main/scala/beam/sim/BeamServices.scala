@@ -36,7 +36,6 @@ trait BeamServices {
   var personHouseholds: Map[Id[Person], Household]
 
   def matsimServices: MatsimServices
-  def tazTreeMap: TAZTreeMap
   val modeIncentives: ModeIncentive
   def networkHelper: NetworkHelper
   def fareCalculator: FareCalculator
@@ -72,37 +71,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val modeIncentives = ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath)
 
   override def networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
-  override def tazTreeMap: TAZTreeMap = injector.getInstance(classOf[TAZTreeMap])
   override def fareCalculator: FareCalculator = injector.getInstance(classOf[FareCalculator])
   override def tollCalculator: TollCalculator = injector.getInstance(classOf[TollCalculator])
-}
-
-object BeamServices {
-
-  type FuelTypePrices = Map[FuelType, Double]
-
-  private val logger = LoggerFactory.getLogger(this.getClass)
-
-  val defaultTazTreeMap: TAZTreeMap = {
-    val tazQuadTree: QuadTree[TAZ] = new QuadTree(-1, -1, 1, 1)
-    val taz = new TAZ("0", new Coord(0.0, 0.0), 0.0)
-    tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
-    new TAZTreeMap(tazQuadTree)
-  }
-
-  def getTazTreeMap(filePath: String): TAZTreeMap = {
-    try {
-      TAZTreeMap.fromCsv(filePath)
-    } catch {
-      case fe: FileNotFoundException =>
-        logger.error("No TAZ file found at given file path (using defaultTazTreeMap): %s" format filePath, fe)
-        defaultTazTreeMap
-      case e: Exception =>
-        logger.error(
-          "Exception occurred while reading from CSV file from path (using defaultTazTreeMap): %s" format e.getMessage,
-          e
-        )
-        defaultTazTreeMap
-    }
-  }
 }

@@ -3,7 +3,7 @@ package beam.sim
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Success
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Identify, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Props, Terminated}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
@@ -11,7 +11,6 @@ import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTr
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
 import beam.agentsim.infrastructure.ZonalParkingManager
-import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.router._
@@ -51,7 +50,6 @@ class BeamMobsim @Inject()(
   val routeHistory: RouteHistory,
   val beamSkimmer: BeamSkimmer,
   val travelTimeObserved: TravelTimeObserved,
-  val tazTreeMap: TAZTreeMap,
   val geo: GeoUtils,
   val networkHelper: NetworkHelper
 ) extends Mobsim
@@ -101,7 +99,7 @@ class BeamMobsim @Inject()(
 
         private val parkingManager = context.actorOf(
           ZonalParkingManager
-            .props(beamServices, beamServices.beamRouter),
+            .props(beamScenario.beamConfig, beamScenario.tazTreeMap, beamServices.geo, beamServices.beamRouter),
           "ParkingManager"
         )
         context.watch(parkingManager)

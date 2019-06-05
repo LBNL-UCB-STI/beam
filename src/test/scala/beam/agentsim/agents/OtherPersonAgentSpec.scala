@@ -7,8 +7,6 @@ import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import akka.util.Timeout
 import beam.agentsim.agents.PersonTestUtil._
-import beam.agentsim.agents.choice.mode.ModeIncentive
-import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
@@ -25,33 +23,27 @@ import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
-import beam.sim.BeamServices.getTazTreeMap
-import beam.sim.common.GeoUtilsImpl
-import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
-import com.google.inject.{AbstractModule, Guice, Injector}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
-import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.{Activity, Person}
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.TeleportationArrivalEvent
 import org.matsim.core.config.ConfigUtils
-import org.matsim.core.controler.MatsimServices
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
-import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.mutable.ListBuffer
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 
 /**
   * Created by sfeygin on 2/7/17.
@@ -74,33 +66,18 @@ class OtherPersonAgentSpec
     with ImplicitSender {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
-  lazy val beamConfig = BeamConfig(system.settings.config)
-  lazy val beamScenario = loadScenario(beamConfig)
-  private lazy val tazTreeMap = getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
+  private val executionConfig: BeamExecutionConfig = setupBeamWithConfig(system.settings.config)
+  private lazy val beamConfig = executionConfig.beamConfig
+  private lazy val beamScenario = loadScenario(beamConfig)
+  private lazy val matsimScenario = buildScenarioFromMatsimConfig(executionConfig.matsimConfig, beamScenario)
+  private val injector = buildInjector(system.settings.config, matsimScenario, beamScenario)
+  private lazy val beamSvc = buildBeamServices(injector, matsimScenario)
+
   lazy val eventsManager = new EventsManagerImpl()
 
   lazy val dummyAgentId: Id[Person] = Id.createPersonId("dummyAgent")
 
   lazy val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
-
-  lazy val guiceInjector: Injector = Guice.createInjector(new AbstractModule() {
-    protected def configure(): Unit = {
-      bind(classOf[TravelTimeObserved]).toInstance(mock[TravelTimeObserved])
-    }
-  })
-
-  lazy val beamSvc: BeamServices = {
-    lazy val injector = guiceInjector
-    lazy val theServices = mock[BeamServices](withSettings().stubOnly())
-    when(theServices.matsimServices).thenReturn(mock[MatsimServices])
-    when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
-    when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
-    when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
-    lazy val geo = new GeoUtilsImpl(beamConfig)
-    when(theServices.geo).thenReturn(geo)
-    theServices
-  }
 
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(
@@ -133,9 +110,7 @@ class OtherPersonAgentSpec
   }
 
   private lazy val parkingManager = system.actorOf(
-    ZonalParkingManager
-      .props(beamSvc, beamSvc.beamRouter),
-    "ParkingManager"
+    ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, beamSvc.geo, beamSvc.beamRouter), "ParkingManager"
   )
 
   private lazy val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
@@ -293,8 +268,8 @@ class OtherPersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, tazTreeMap, beamScenario, beamSvc.geo),
-          new TravelTimeObserved(beamConfig, beamSvc, tazTreeMap, null)
+          new BeamSkimmer(beamScenario, beamSvc.geo),
+          new TravelTimeObserved(beamScenario, beamSvc.geo)
         )
       )
       scheduler ! StartSchedule(0)
