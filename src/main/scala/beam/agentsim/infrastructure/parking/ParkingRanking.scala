@@ -69,20 +69,4 @@ object ParkingRanking {
 
     ???
   }
-
-  /**
-    * accumulator used to carry the best-ranked parking attributes along with aggregate search data
-    * @param bestTAZ TAZ where best-ranked ParkingZone is stored
-    * @param bestParkingType ParkingType related to the best-ranked ParkingZone
-    * @param bestParkingZone the best-ranked ParkingZone
-    * @param bestCoord the sampled coordinate of the stall
-    * @param bestRankingValue the ranking value associated with the best-ranked ParkingZone
-    */
-  case class RankingAccumulator(
-    bestTAZ: TAZ,
-    bestParkingType: ParkingType,
-    bestParkingZone: ParkingZone,
-    bestCoord: Coord,
-    bestRankingValue: Double
-  )
 }

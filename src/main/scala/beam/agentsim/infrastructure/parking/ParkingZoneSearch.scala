@@ -4,7 +4,6 @@ import beam.agentsim.agents.choice.logit.MultinomialLogit
 
 import scala.util.{Failure, Random, Success, Try}
 import beam.agentsim.infrastructure.charging._
-import beam.agentsim.infrastructure.parking.ParkingRanking.RankingAccumulator
 import beam.agentsim.infrastructure.taz.TAZ
 import org.matsim.api.core.v01.{Coord, Id}
 
@@ -18,7 +17,6 @@ object ParkingZoneSearch {
     */
   type ZoneSearch = Map[Id[TAZ], Map[ParkingType, List[Int]]]
 
-
   /**
     * these are the alternatives that are generated/instantiated by a search
     * and then are selected by either a sampling function (via a multinomial
@@ -27,10 +25,26 @@ object ParkingZoneSearch {
   type ParkingAlternative = (TAZ, ParkingType, ParkingZone, Coord)
 
   /**
+    * the best-ranked parking attributes along with aggregate search data
+    * @param bestTAZ TAZ where best-ranked ParkingZone is stored
+    * @param bestParkingType ParkingType related to the best-ranked ParkingZone
+    * @param bestParkingZone the best-ranked ParkingZone
+    * @param bestCoord the sampled coordinate of the stall
+    * @param bestUtility the ranking value/utility score associated with the selected ParkingZone
+    */
+  case class ParkingSearchResult(
+    bestTAZ: TAZ,
+    bestParkingType: ParkingType,
+    bestParkingZone: ParkingZone,
+    bestCoord: Coord,
+    bestUtility: Double
+  )
+
+  /**
     * find the best parking alternative for the data in this request
     * @param destinationUTM coordinates of this request
     * @param valueOfTime agent's value of time in seconds
-    * @param chargingInquiry ChargingPreference per type of ChargingPoint
+    * @param utilityFunction a utility function for parking alternatives
     * @param tazList the TAZ we are looking in
     * @param parkingTypes the parking types we are interested in
     * @param tree search tree of parking infrastructure
@@ -43,16 +57,17 @@ object ParkingZoneSearch {
     destinationUTM: Coord,
     valueOfTime: Double,
     parkingDuration: Double,
-    chargingInquiry: Option[ChargingInquiry],
+    utilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String],
     tazList: Seq[TAZ],
     parkingTypes: Seq[ParkingType],
     tree: ZoneSearch,
     parkingZones: Array[ParkingZone],
     distanceFunction: (Coord, Coord) => Double,
     random: Random
-  ): Option[RankingAccumulator] = {
+  ): Option[ParkingSearchResult] = {
     val found = findParkingZones(destinationUTM, tazList, parkingTypes, tree, parkingZones, random)
-    takeBestByRanking(destinationUTM, valueOfTime, parkingDuration, found, chargingInquiry, distanceFunction)
+//    takeBestByRanking(destinationUTM, valueOfTime, parkingDuration, found, utilityFunction, distanceFunction)
+    takeBestBySampling(found, destinationUTM, parkingDuration.toInt, valueOfTime, utilityFunction, distanceFunction, random)
   }
 
   /**
@@ -118,7 +133,7 @@ object ParkingZoneSearch {
                           utilityFunction: MultinomialLogit[ParkingAlternative, String],
                           distanceFunction: (Coord, Coord) => Double,
                           random: Random
-                        ): Option[RankingAccumulator] = {
+                        ): Option[ParkingSearchResult] = {
 
     val alternatives: Iterable[(ParkingAlternative, Map[String, Double])] =
       found.
@@ -148,13 +163,13 @@ object ParkingZoneSearch {
             )
         }
 
-    // todo: sampleAlternative cannot return None, maybe doesn't need to be returning an Option[], but, what is it's behavior if the input is empty?
+
     utilityFunction.sampleAlternative(alternatives.toMap, random).
       map{ result =>
         val (taz, parkingType, parkingZone, coordinate) = result.alternativeType
 
         val utility = result.utility
-        RankingAccumulator(
+        ParkingSearchResult(
           taz,
           parkingType,
           parkingZone,
@@ -179,9 +194,9 @@ object ParkingZoneSearch {
     found: Iterable[(TAZ, ParkingType, ParkingZone, Coord)],
     chargingInquiry: Option[ChargingInquiry],
     distanceFunction: (Coord, Coord) => Double
-  ): Option[RankingAccumulator] = {
+  ): Option[ParkingSearchResult] = {
 
-    found.foldLeft(Option.empty[RankingAccumulator]) { (accOption, parkingZoneTuple) =>
+    found.foldLeft(Option.empty[ParkingSearchResult]) { (accOption, parkingZoneTuple) =>
       val (thisTAZ: TAZ, thisParkingType: ParkingType, thisParkingZone: ParkingZone, stallLocation: Coord) =
         parkingZoneTuple
 
@@ -201,7 +216,7 @@ object ParkingZoneSearch {
         case None =>
           // the first zone found becomes the first accumulator
           Some {
-            RankingAccumulator(
+            ParkingSearchResult(
               thisTAZ,
               thisParkingType,
               thisParkingZone,
@@ -209,16 +224,16 @@ object ParkingZoneSearch {
               thisRank
             )
           }
-        case Some(acc: RankingAccumulator) =>
+        case Some(acc: ParkingSearchResult) =>
           // update the aggregate data, and optionally, update the best zone if it's ranking is superior
-          if (acc.bestRankingValue < thisRank) {
+          if (acc.bestUtility < thisRank) {
             Some {
               acc.copy(
                 bestTAZ = thisTAZ,
                 bestParkingType = thisParkingType,
                 bestParkingZone = thisParkingZone,
                 bestCoord = stallLocation,
-                bestRankingValue = thisRank
+                bestUtility = thisRank
               )
             }
           } else {

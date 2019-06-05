@@ -741,13 +741,7 @@ class PersonWithVehicleSharingSpec
     person
   }
 
-  def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(
-    whenWhere.loc,
-    "wherever",
-    0.0,
-    None,
-    0.0
-  )
+  def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(whenWhere.loc, "wherever")
 
   override def beforeAll: Unit = {
     networkCoordinator.loadNetwork()
