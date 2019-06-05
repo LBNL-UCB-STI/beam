@@ -35,7 +35,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
     "search for parking with full availability" should {
       "find a spot in the nearest TAZ with full availability which places the stall exactly at the driver's destination" in new ParkingZoneSearchSpec.SimpleParkingAlternatives {
         val result: Option[ParkingZoneSearch.ParkingSearchResult] = ParkingZoneSearch.find(
-          destinationNearTazA,
+          destinationNearTazB,
           valueOfTime = 1.0,
           parkingDuration = 0.0, // ignore pricing ranking
           ParkingInquiry.simpleDistanceUtilityFunction,
@@ -49,16 +49,18 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
 
         result match {
           case None                                                                                             => fail()
-          case Some(ParkingZoneSearch.ParkingSearchResult(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
+          case Some(ParkingZoneSearch.ParkingSearchResult(taz, parkingType, parkingZone, stallCoord, utilityOfAlternative)) =>
+            // the TAZ selected should be TAZ A
+            taz should equal (tazB)
+
             // since everything is equal, either TAZ should work out, but
-            // whichever one was selected, it should have had a ranking value of zero
-            rankingValue should equal(0.0)
+            utilityOfAlternative should equal(1.0)
 
             // these should be consistent with the configuration of this scenario
             parkingType should equal(ParkingType.Public)
 
             // since availability is 18/18 = 1.0, sample location should equal destination coordinate
-            stallCoord should equal(destinationNearTazA)
+            stallCoord should equal(destinationNearTazB)
         }
       }
     }
@@ -230,8 +232,8 @@ object ParkingZoneSearchSpec {
 
     val sourceData: Iterator[String] =
       """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
-        |A,Public,FlatFee,UltraFast(250,DC),7,1000,unused
-        |B,Public,Block,UltraFast(250,DC),18,100,unused
+        |A,Public,FlatFee,none,7,1000,unused
+        |B,Public,Block,none,18,100,unused
         |
       """.stripMargin.split("\n").toIterator
 

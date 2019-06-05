@@ -23,7 +23,7 @@ object ParkingZoneSearch {
     * and then are selected by either a sampling function (via a multinomial
     * logit function) or by ranking the utility of these alternatives.
     */
-  type ParkingAlternative = (TAZ, ParkingType, ParkingZone, Coord)
+  case class ParkingAlternative(taz: TAZ, parkingType: ParkingType, parkingZone: ParkingZone, coord: Coord)
 
   /**
     * the best-ranked parking attributes along with aggregate search data
@@ -107,7 +107,7 @@ object ParkingZoneSearch {
           val parkingAvailability: Double = parkingZone.availability
           val stallLocation: Coord =
             ParkingStallSampling.availabilityAwareSampling(random, destinationUTM, taz, parkingAvailability)
-          (taz, parkingType, parkingZones(parkingZoneId), stallLocation)
+          ParkingAlternative(taz, parkingType, parkingZones(parkingZoneId), stallLocation)
         case Failure(e) =>
           throw new IndexOutOfBoundsException(s"Attempting to access ParkingZone with index $parkingZoneId failed.\n$e")
       }
@@ -139,7 +139,7 @@ object ParkingZoneSearch {
       found.
         map{ parkingAlternative =>
 
-          val (_, _, parkingZone, stallCoordinate) = parkingAlternative
+          val ParkingAlternative(_, _, parkingZone, stallCoordinate) = parkingAlternative
 
           val parkingTicket: Double = parkingZone.pricingModel match {
             case Some(pricingModel) =>
@@ -166,7 +166,7 @@ object ParkingZoneSearch {
 
     utilityFunction.sampleAlternative(alternatives.toMap, random).
       map{ result =>
-        val (taz, parkingType, parkingZone, coordinate) = result.alternativeType
+        val ParkingAlternative(taz, parkingType, parkingZone, coordinate) = result.alternativeType
 
         val utility = result.utility
         ParkingSearchResult(
