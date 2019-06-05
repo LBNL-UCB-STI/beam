@@ -308,7 +308,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           // - For that found activity, we try to find the closest available vehicle to that activity and measure the distance to it
           // - We create a pair (Activity, Distance)
           // Now we need to sort these pairs in desc order, so that's why `-distance` and get the head
-          val result = vehiclesToReposition
+          val result = vehiclesToReposition.par
             .map { vehIdAndLoc =>
               val (vehicleId, location) = vehIdAndLoc
 
@@ -339,8 +339,9 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
               }
 
             }
-            .toVector
             .filterNot(_._2.getX == Double.MaxValue)
+            .seq
+            .toVector
 
           // writeRepositioningToCSV(result, tick)
 
