@@ -247,7 +247,6 @@ object AlonsoMoraPoolingAlgForRideHail {
         Id.create("Car", classOf[BeamVehicleType])
       )
       .time
-      .toInt
     CustomerRequest(
       vehiclePersonId,
       MobilityRequest(

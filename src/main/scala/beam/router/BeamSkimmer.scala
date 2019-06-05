@@ -293,6 +293,7 @@ class BeamSkimmer @Inject()(
     skims = new TrieMap()
     previousSkimsPlus = skimsPlus
     skimsPlus = new TrieMap()
+    trackSkimsPlusTS = -1
   }
 
   def getExcerptData(

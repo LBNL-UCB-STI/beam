@@ -21,9 +21,11 @@ import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.sim.monitoring.ErrorListener
 import beam.sim.vehiclesharing.Fleets
 import beam.utils._
+import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.population.{Activity, Person, Population => MATSimPopulation}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
@@ -31,6 +33,7 @@ import org.matsim.core.utils.misc.Time
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.collection.JavaConverters._
 
 /**
   * AgentSim.
@@ -97,6 +100,13 @@ class BeamMobsim @Inject()(
           beamServices.geo.wgs2Utm(transportNetwork.streetLayer.envelope)
         envelopeInUTM.expandBy(beamServices.beamConfig.beam.spatial.boundingBoxBuffer)
 
+        val activityQuadTreeBounds: QuadTreeBounds = buildActivityQuadTreeBounds(scenario.getPopulation)
+        log.info(s"envelopeInUTM before expansion: $envelopeInUTM")
+
+        envelopeInUTM.expandToInclude(activityQuadTreeBounds.minx, activityQuadTreeBounds.miny)
+        envelopeInUTM.expandToInclude(activityQuadTreeBounds.maxx, activityQuadTreeBounds.maxy)
+        log.info(s"envelopeInUTM after expansion: $envelopeInUTM")
+
         private val parkingManager = context.actorOf(
           ZonalParkingManager
             .props(beamScenario.beamConfig, beamScenario.tazTreeMap, beamServices.geo, beamServices.beamRouter),
@@ -118,6 +128,7 @@ class BeamMobsim @Inject()(
               beamServices.beamRouter,
               parkingManager,
               envelopeInUTM,
+              activityQuadTreeBounds,
               rideHailSurgePricingManager,
               rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
               beamSkimmer,
@@ -269,6 +280,31 @@ class BeamMobsim @Inject()(
     endSegment("agentsim-events", "agentsim")
 
     logger.info("Processing Agentsim Events (End)")
+  }
+
+  def buildActivityQuadTreeBounds(population: MATSimPopulation): QuadTreeBounds = {
+    val persons = population.getPersons.values().asInstanceOf[java.util.Collection[Person]].asScala.view
+    val activities = persons.flatMap(p => p.getSelectedPlan.getPlanElements.asScala.view).collect {
+      case activity: Activity =>
+        activity
+    }
+    val coordinates = activities.map(_.getCoord)
+    // Force to compute xs and ys arrays
+    val xs = coordinates.map(_.getX).toArray
+    val ys = coordinates.map(_.getY).toArray
+    val xMin = xs.min
+    val xMax = xs.max
+    val yMin = ys.min
+    val yMax = ys.max
+    logger.info(
+      s"QuadTreeBounds with X: [$xMin; $xMax], Y: [$yMin, $yMax]. boundingBoxBuffer: ${beamServices.beamConfig.beam.spatial.boundingBoxBuffer}"
+    )
+    QuadTreeBounds(
+      xMin - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
+      yMin - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
+      xMax + beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
+      yMax + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
+    )
   }
 
 }
