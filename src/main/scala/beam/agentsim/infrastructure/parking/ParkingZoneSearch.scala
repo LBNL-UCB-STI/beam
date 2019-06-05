@@ -113,7 +113,6 @@ object ParkingZoneSearch {
     }
   }
 
-  // todo JH RJF please talk to JH
   /**
     * samples from the set of discovered stalls using a multinomial logit function
     * @param found the discovered parkingZones

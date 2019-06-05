@@ -21,11 +21,13 @@ import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.common.GeoUtils
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
-import scala.concurrent.duration.Duration
 
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch
+import scala.concurrent.duration.Duration
+import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, ParkingZoneSearch}
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.utils.ParkingManagerIdGenerator
+import org.matsim.api.core.v01.Coord
 
 /**
   * BEAM

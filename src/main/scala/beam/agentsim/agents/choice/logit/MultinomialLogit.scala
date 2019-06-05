@@ -158,7 +158,7 @@ object MultinomialLogit {
   )
 
   def apply[A, T](utilityFunctions: Map[A, Map[T, UtilityFunctionOperation]]): MultinomialLogit[A, T] = {
-    new MultinomialLogit(utilityFunctions, Map())
+    new MultinomialLogit(utilityFunctions, Map.empty)
   }
 
   def apply[A, T](
@@ -170,7 +170,7 @@ object MultinomialLogit {
 
   // cannot add this constructor, because after type erasure, it looks the same as the first one. :-(
 //  def apply[A, T](
-//    commonUtilityFunction: Map[T, UtilityFunctionOperation]
-//  ): MultinomialLogit[A, T] = new MultinomialLogit(Map.empty, commonUtilityFunction)
+//    singleUtilityFunction: Map[T, UtilityFunctionOperation]
+//  ): MultinomialLogit[A, T] = new MultinomialLogit(Map.empty, singleUtilityFunction)
 
 }
