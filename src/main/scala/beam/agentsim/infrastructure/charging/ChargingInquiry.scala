@@ -5,7 +5,7 @@ import beam.agentsim.infrastructure.parking.ParkingZoneSearch
 import org.matsim.vehicles.VehicleType
 
 case class ChargingInquiry(
-  utility: Option[MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String]],
+  utility: Option[MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String]], // todo JH move to ParkingInquiry and make it non optional
   plugData: Option[List[ChargingPointType]],
   vehicle: BeamVehicle,
   vot: Double
