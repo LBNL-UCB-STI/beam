@@ -1,5 +1,8 @@
 package beam.agentsim.agents.ridehail
 
+import akka.actor.FSM.Failure
+import akka.actor.{ActorRef, Props, Stash}
+
 import beam.agentsim.Resource.{NotifyVehicleIdle, NotifyVehicleOutOfService, ReleaseParkingStall}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -12,6 +15,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.{RefuelSessionEvent, SpaceTime}
 import beam.agentsim.infrastructure.charging.ChargingInquiry
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
@@ -431,16 +435,14 @@ class RideHailAgent(
     val beta1 = 1
     val beta2 = 1
     val beta3 = 0.001
-    val mnlUtilityFunction: Map[String, Map[String, UtilityFunctionOperation]] = Map(
-      "ParkingSpot" -> Map(
-        "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
-        "distanceFactor"    -> UtilityFunctionOperation("multiplier", -beta2),
-        "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
-      )
+    val commonUtilityParams: Map[String, UtilityFunctionOperation] = Map(
+      "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
+      "distanceFactor"    -> UtilityFunctionOperation("multiplier", -beta2),
+      "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
     )
-    val mnl = MultinomialLogit[String, String](null)
-    val chargingInquiry = ChargingInquiry(Some(mnl), plugData = None, vehicle, vot = 0.0)
-    val inquiry = ParkingInquiry(destinationUtm, "work", 0.0, chargingInquiry, 0.0)
+    val mnl = new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](Map.empty, commonUtilityParams)
+    //val chargingInquiry = ChargingInquiry(Some(mnl), plugData = None, vehicle, vot = 0.0)
+    val inquiry = ParkingInquiry(destinationUtm, "work", 0.0, mnl, 0.0)
     parkingManager ! inquiry
   }
 
