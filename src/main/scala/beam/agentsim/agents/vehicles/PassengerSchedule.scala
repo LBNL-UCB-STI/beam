@@ -60,7 +60,11 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
   def numUniquePassengers: Int = schedule.values.flatMap(_.riders).toSet.size
 
   def linkAtTime(tick: Int): Int = {
-    schedule.keys.find(_.startTime <= tick).map(_.travelPath.linkAtTime(tick)).getOrElse(-1)
+    if(tick < schedule.keys.head.startTime){
+      schedule.keys.head.travelPath.linkIds.head
+    }else{
+      schedule.keys.toList.reverse.find(_.startTime <= tick).map(_.travelPath.linkAtTime(tick)).get
+    }
   }
   def locationAtTime(tick: Int, beamServices: BeamServices): Location = {
     beamServices.networkHelper.getLink(linkAtTime(tick)).get.getCoord

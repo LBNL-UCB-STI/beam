@@ -993,6 +993,9 @@ class RideHailManager(
       travelProposal.estimatedPrice(request.customer.personId),
       request.pickUpLocationUTM
     )
+    if(vehicleManager.inServiceRideHailVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId)){
+      val i = 0
+    }
 
     // Track remaining seats available
     vehicleManager.putIntoService(travelProposal.rideHailAgentLocation.copy(currentPassengerSchedule = Some(travelProposal.passengerSchedule), servingPooledTrip = request.asPooled))

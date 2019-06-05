@@ -347,8 +347,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     }
     val res = VehicleAndSchedule(
       v1,
-//      alonsoSchedule.sortBy(_.baselineNonPooledTime).reverse.takeWhile(_.tag != EnRoute).toList ++ alonsoSchedule.find(_.tag==EnRoute).toList ,
-      alonsoSchedule.sortBy(_.baselineNonPooledTime).reverse.toList ,
+      alonsoSchedule.sortBy(mr => (mr.baselineNonPooledTime,mr.person.map(_.personId.toString).getOrElse(""))).reverse.toList ,
       veh.geofence,
       veh.vehicleType.seatingCapacity
     )

@@ -77,6 +77,7 @@ class RideHailModifyPassengerScheduleManager(
               .modifyPassengerSchedule
               .reservationRequestId
               .get
+            vehicleIdToModifyPassengerScheduleStatus.remove(reply.vehicleId)
             if (rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId)) {
               log.debug(
                 "sendCompletionAndScheduleNewTimeout from line 100 @ {} with trigger {}",

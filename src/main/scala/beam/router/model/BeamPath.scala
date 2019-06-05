@@ -54,7 +54,7 @@ case class BeamPath(
   }
   def linkAtTime(tick: Int): Int = {
     tick - startPoint.time match {
-      case secondsAlongPath if secondsAlongPath < 0 =>
+      case secondsAlongPath if secondsAlongPath <= 0 =>
         linkIds.head
       case secondsAlongPath if secondsAlongPath > linkTravelTime.sum =>
         linkIds.last

@@ -41,7 +41,15 @@ case class MobilityRequest(
       case None    => "None"
     }
 //    s"${formatTime(baselineNonPooledTime)}|$tag|${personid}|${activity.getType}| => ${formatTime(serviceTime)}"
-    s"${baselineNonPooledTime}|$tag|${personid}|${activity.getType}| => ${serviceTime}"
+    s"${baselineNonPooledTime}|$tag|${personid}|${activity.getCoord}| => ${serviceTime}"
+  }
+  override def equals(that: Any): Boolean = {
+    if(that.isInstanceOf[MobilityRequest]){
+      val thatMobReq = that.asInstanceOf[MobilityRequest]
+      this.person == thatMobReq.person && this.baselineNonPooledTime == thatMobReq.baselineNonPooledTime && this.tag == thatMobReq.tag
+    }else{
+      false
+    }
   }
 }
 
