@@ -1,22 +1,25 @@
 package beam.agentsim.agents.ridehail
 
-import akka.actor.FSM.Failure
-import akka.actor.{ActorRef, Props, Stash}
 import beam.agentsim.Resource.{NotifyVehicleIdle, NotifyVehicleOutOfService, ReleaseParkingStall}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
+import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
+import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.{RefuelSessionEvent, SpaceTime}
+import beam.agentsim.infrastructure.charging.ChargingInquiry
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.common.Range
+import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, Geofence}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
@@ -130,6 +133,7 @@ object RideHailAgent {
   case object Idle extends BeamAgentState
 
   case object Offline extends BeamAgentState
+  case object OfflineForCharging extends BeamAgentState
 
   case object IdleInterrupted extends BeamAgentState
 
@@ -228,6 +232,33 @@ class RideHailAgent(
           .copy(currentVehicle = Vector(vehicle.id), remainingShifts = shifts.get)
       }
   }
+  when(OfflineForCharging) {
+    case ev @ Event(ParkingInquiryResponse(stall, _), data) =>
+      log.debug("state(RideHailingAgent.OfflineForCharging.ParkingInquiryResponse): {}", ev)
+      vehicle.useParkingStall(stall)
+      handleStartCharging(vehicle.spaceTime.time, vehicle)
+      stay
+    case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
+      log.debug("state(RideHailingAgent.OfflineForCharging.Interrupt): {}", ev)
+      stay replying InterruptedWhileOffline(interruptId, vehicle.id, tick)
+    case ev @ Event(
+      TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, energyInJoules, _), triggerId),
+      data
+    ) =>
+      log.debug("state(RideHailingAgent.OfflineForCharging.EndRefuelSessionTrigger): {}", ev)
+      val currentLocation = handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
+      vehicle.spaceTime = SpaceTime(currentLocation, tick)
+      rideHailManager ! NotifyVehicleIdle(
+        vehicle.id,
+        vehicle.spaceTime.copy(time = tick),
+        PassengerSchedule(),
+        vehicle.getState,
+        geofence,
+        Some(triggerId)
+      )
+      goto(Idle)
+  }
+
   when(Offline) {
     case Event(TriggerWithId(StartShiftTrigger(tick), triggerId), _) =>
       log.debug("state(RideHailingAgent.Offline): starting shift {}", id)
@@ -349,10 +380,21 @@ class RideHailAgent(
   when(PassengerScheduleEmpty) {
     case ev @ Event(PassengerScheduleEmptyMessage(_, _, _), data) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
-      goto(Idle) using data
-        .withPassengerSchedule(PassengerSchedule())
-        .withCurrentLegPassengerScheduleIndex(0)
-        .asInstanceOf[RideHailAgentData]
+      if(!vehicle.isCAV){
+        log.debug("Empty human ridehail vehicle requesting charged parking")
+        rideHailManager ! NotifyVehicleOutOfService(vehicle.id)
+        requestChargedParking()
+        goto(OfflineForCharging) using data
+          .withPassengerSchedule(PassengerSchedule())
+          .withCurrentLegPassengerScheduleIndex(0)
+          .asInstanceOf[RideHailAgentData]
+      }
+      else {
+        goto(Idle) using data
+          .withPassengerSchedule(PassengerSchedule())
+          .withCurrentLegPassengerScheduleIndex(0)
+          .asInstanceOf[RideHailAgentData]
+      }
     case ev @ Event(Interrupt(_, _), _) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
       stash()
@@ -381,6 +423,26 @@ class RideHailAgent(
   }
 
   override def logPrefix(): String = s"RideHailAgent $id: "
+
+  def requestChargedParking(): Unit = {
+    val rideHailAgentLocation =
+      RideHailAgentLocation(vehicle.driver.get, vehicle.id, vehicle.beamVehicleType.id, vehicle.spaceTime, geofence)
+    val destinationUtm = rideHailAgentLocation.currentLocationUTM.loc
+    val beta1 = 1
+    val beta2 = 1
+    val beta3 = 0.001
+    val mnlUtilityFunction: Map[String, Map[String, UtilityFunctionOperation]] = Map(
+      "ParkingSpot" -> Map(
+        "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
+        "distanceFactor"    -> UtilityFunctionOperation("multiplier", -beta2),
+        "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
+      )
+    )
+    val mnl = MultinomialLogit[String, String](null)
+    val chargingInquiry = ChargingInquiry(Some(mnl), plugData = None, vehicle, vot = 0.0)
+    val inquiry = ParkingInquiry(destinationUtm, "work", 0.0, chargingInquiry, 0.0)
+    parkingManager ! inquiry
+  }
 
   def handleStartRefuel(tick: Int, triggerId: Long) = {
     val (sessionDuration, energyDelivered) =
