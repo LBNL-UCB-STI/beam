@@ -288,10 +288,12 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
                 .map { vehLocation =>
                   val loc = vehLocation._2.currentLocationUTM.loc
 
-                  val act = quadTree.getClosest(loc.getX, loc.getY)
-                  val distance = rideHailManager.beamServices.geo.distUTMInMeters(act.getCoord, loc)
-                  (vehLocation, distance)
+                  Option(quadTree.getClosest(loc.getX, loc.getY)).map { act => 
+                    val distance = rideHailManager.beamServices.geo.distUTMInMeters(act.getCoord, loc)
+                    (vehLocation, distance)
+                  }
                 }
+                .flatten
                 .sortBy { case (vehLocation, distance) => -distance }
                 .map(_._1)
                 .splitAt(2 * numVehiclesToReposition)
