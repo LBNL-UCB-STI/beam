@@ -21,11 +21,13 @@ import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.common.GeoUtils
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
-import scala.concurrent.duration.Duration
 
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch
+import scala.concurrent.duration.Duration
+import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, ParkingZoneSearch}
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.utils.ParkingManagerIdGenerator
+import org.matsim.api.core.v01.Coord
 
 /**
   * BEAM
@@ -55,15 +57,14 @@ trait ChoosesParking extends {
     val distanceBuffer = 25000 // in meter (the distance that should be considered as buffer for range estimation
 
     // todo for all charginginquiries: extract plugs from vehicles and pass it over to ZM
-
-    val commonUtilityParams: Map[String, UtilityFunctionOperation] = Map(
-      "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
-      "distanceFactor"    -> UtilityFunctionOperation("multiplier", -beta2),
-      "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
+    val mnl = MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](
+      Map.empty,
+      Map(
+        "energyPriceFactor" -> UtilityFunctionOperation.Multiplier(-1.0),
+        "distanceFactor" -> UtilityFunctionOperation.Multiplier(-1.0),
+        "installedCapacity" -> UtilityFunctionOperation.Multiplier(-0.001)
+      )
     )
-
-
-    val mnl = MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](commonUtilityParams)
 
     (beamVehicle.beamVehicleType.primaryFuelType, beamVehicle.beamVehicleType.secondaryFuelType) match {
       case (Electricity, None) => { //BEV
