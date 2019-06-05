@@ -167,4 +167,9 @@ object MultinomialLogit {
   ): MultinomialLogit[A, T] = {
     new MultinomialLogit(utilityFunctions, commonUtilityFunction)
   }
+
+  def apply[A, T](
+    commonUtilityFunction: Map[T, UtilityFunctionOperation]
+  ): MultinomialLogit[A, T] = {
+    new MultinomialLogit(Map.empty, commonUtilityFunction)
 }

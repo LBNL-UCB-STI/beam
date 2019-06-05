@@ -1,19 +1,20 @@
 package beam.agentsim.infrastructure.charging
 import beam.agentsim.agents.choice.logit.MultinomialLogit
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch
 import org.matsim.vehicles.VehicleType
 
 case class ChargingInquiry(
-  val utility: Option[MultinomialLogit[String, String]],
-  val plugData: Option[List[ChargingPointType]],
-  val vehicle: BeamVehicle,
-  val vot: Double
+  utility: Option[MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String]],
+  plugData: Option[List[ChargingPointType]],
+  vehicle: BeamVehicle,
+  vot: Double
 )
 
 object ChargingInquiry {
 
   def apply(
-    utility: Option[MultinomialLogit[String, String]],
+    utility: Option[MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String]],
     plugData: Option[List[ChargingPointType]],
     vehicle: BeamVehicle,
     vot: Double

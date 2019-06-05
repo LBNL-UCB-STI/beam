@@ -11,13 +11,7 @@ import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, Releasi
 import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule}
-import beam.agentsim.events.{
-  ChargingPlugInEvent,
-  ChargingPlugOutEvent,
-  LeavingParkingEvent,
-  RefuelSessionEvent,
-  SpaceTime
-}
+import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent, LeavingParkingEvent, RefuelSessionEvent, SpaceTime}
 import beam.agentsim.infrastructure.charging.ChargingInquiry
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -27,8 +21,9 @@ import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.common.GeoUtils
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
-
 import scala.concurrent.duration.Duration
+
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.utils.ParkingManagerIdGenerator
 
@@ -61,15 +56,14 @@ trait ChoosesParking extends {
 
     // todo for all charginginquiries: extract plugs from vehicles and pass it over to ZM
 
-    val mnlUtilityFunction: Map[String, Map[String, UtilityFunctionOperation]] = Map(
-      "ParkingSpot" -> Map(
-        "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
-        "distanceFactor"    -> UtilityFunctionOperation("multiplier", -beta2),
-        "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
-      )
+    val commonUtilityParams: Map[String, UtilityFunctionOperation] = Map(
+      "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
+      "distanceFactor"    -> UtilityFunctionOperation("multiplier", -beta2),
+      "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
     )
 
-    val mnl = MultinomialLogit(mnlUtilityFunction)
+
+    val mnl = MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](commonUtilityParams)
 
     (beamVehicle.beamVehicleType.primaryFuelType, beamVehicle.beamVehicleType.secondaryFuelType) match {
       case (Electricity, None) => { //BEV
