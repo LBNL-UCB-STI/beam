@@ -159,7 +159,8 @@ object CsvScenarioWriter extends ScenarioWriter with LazyLogging {
           householdId = HouseholdId(householdId),
           rank = rank,
           age = age,
-          valueOfTime = Option(personAttrib.getAttribute(personId, "valueOfTime")).map(_.toString.toDouble).getOrElse(0D)
+          valueOfTime =
+            Option(personAttrib.getAttribute(personId, "valueOfTime")).map(_.toString.toDouble).getOrElse(0D)
         )
     }
   }
