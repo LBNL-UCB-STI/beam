@@ -18,6 +18,14 @@ object ParkingZoneSearch {
     */
   type ZoneSearch = Map[Id[TAZ], Map[ParkingType, List[Int]]]
 
+
+  /**
+    * these are the alternatives that are generated/instantiated by a search
+    * and then are selected by either a sampling function (via a multinomial
+    * logit function) or by ranking the utility of these alternatives.
+    */
+  type ParkingAlternative = (TAZ, ParkingType, ParkingZone, Coord)
+
   /**
     * find the best parking alternative for the data in this request
     * @param destinationUTM coordinates of this request
@@ -44,7 +52,7 @@ object ParkingZoneSearch {
     random: Random
   ): Option[RankingAccumulator] = {
     val found = findParkingZones(destinationUTM, tazList, parkingTypes, tree, parkingZones, random)
-    takeBestByRanking(destinationUTM, found, chargingInquiry, distanceFunction)
+    takeBestByRanking(destinationUTM, valueOfTime, parkingDuration, found, chargingInquiry, distanceFunction)
   }
 
   /**
@@ -64,7 +72,7 @@ object ParkingZoneSearch {
     tree: ZoneSearch,
     parkingZones: Array[ParkingZone],
     random: Random
-  ): Seq[(TAZ, ParkingType, ParkingZone, Coord)] = {
+  ): Seq[ParkingAlternative] = {
 
     // conduct search (toList required to combine Option and List monads)
     for {
@@ -91,79 +99,76 @@ object ParkingZoneSearch {
   }
 
   // todo JH RJF please talk to JH
-//  /**
-//    * samples from the set of discovered stalls using a multinomial logit function
-//    * @param found the discovered parkingZones
-//    * @param destinationUTM coordinates of this request
-//    * @param parkingDuration the duration of the forthcoming agent activity
-//    * @param valueOfTime this agent's value of time
-//    * @param utilityFunction a multinomial logit function for sampling utility from a set of parking alternatives
-//    * @param distanceFunction a function that computes the distance between two coordinates
-//    * @param random random generator
-//    * @return the parking alternative that will be used for parking this agent's vehicle
-//    */
-//  def takeBestBySampling(
-//                          found: Iterable[ParkingRanking.ParkingAlternative],
-//                          destinationUTM: Coord,
-//                          parkingDuration: Int,
-//                          valueOfTime: Double,
-//                          utilityFunction: MultinomialLogit[ParkingRanking.ParkingAlternative, String],
-//                          distanceFunction: (Coord, Coord) => Double,
-//                          random: Random
-//                        ): Option[RankingAccumulator] = {
-//
-//    val alternatives: Iterable[Alternative[String, ParkingRanking.ParkingAlternative]] =
-//      found.
-//        map{ alt =>
-//
-//          val (_, _, parkingZone, stallCoordinate) = alt
-//
-//          val parkingTicket: Double = parkingZone.pricingModel match {
-//            case Some(pricingModel) =>
-//              PricingModel.evaluateParkingTicket(pricingModel, parkingDuration)
-//            case None =>
-//              0.0
-//          }
-//
-//          val installedCapacity = parkingZone.chargingPointType match {
-//            case Some(chargingPoint) => ChargingPointType.getChargingPointInstalledPowerInKw(chargingPoint)
-//            case None                => 0
-//          }
-//
-//          val distance: Double = distanceFunction(destinationUTM, stallCoordinate)
-//
-//          Alternative[String, (TAZ, ParkingType, ParkingZone, Coord)](
-//            alt,
-//            Map(
-//              "energyPriceFactor" -> (parkingTicket * installedCapacity),
-//              "distanceFactor"    -> (distance / 1.4 / 3600.0) * valueOfTime,
-//              "installedCapacity" -> installedCapacity
-//            )
-//          )
-//        }
-//
-//    // todo: sampleAlternative cannot return None, maybe doesn't need to be returning an Option[], but, what is it's behavior if the input is empty?
-//    utilityFunction.sampleAlternative(alternatives.toVector, random).
-//      map{ alternative =>
-//        val (taz, parkingType, parkingZone, coordinate) = alternative.alternativeTypeId
-//        // todo: report sampled utility value here? would be nice for calling function to be able to log
-//        val utility = 0.0
-//        RankingAccumulator(
-//          taz,
-//          parkingType,
-//          parkingZone,
-//          coordinate,
-//          utility
-//        )
-//      }
-//  }
+  /**
+    * samples from the set of discovered stalls using a multinomial logit function
+    * @param found the discovered parkingZones
+    * @param destinationUTM coordinates of this request
+    * @param parkingDuration the duration of the forthcoming agent activity
+    * @param valueOfTime this agent's value of time
+    * @param utilityFunction a multinomial logit function for sampling utility from a set of parking alternatives
+    * @param distanceFunction a function that computes the distance between two coordinates
+    * @param random random generator
+    * @return the parking alternative that will be used for parking this agent's vehicle
+    */
+  def takeBestBySampling(
+                          found: Iterable[ParkingAlternative],
+                          destinationUTM: Coord,
+                          parkingDuration: Int,
+                          valueOfTime: Double,
+                          utilityFunction: MultinomialLogit[ParkingAlternative, String],
+                          distanceFunction: (Coord, Coord) => Double,
+                          random: Random
+                        ): Option[RankingAccumulator] = {
+
+    val alternatives: Iterable[(ParkingAlternative, Map[String, Double])] =
+      found.
+        map{ parkingAlternative =>
+
+          val (_, _, parkingZone, stallCoordinate) = parkingAlternative
+
+          val parkingTicket: Double = parkingZone.pricingModel match {
+            case Some(pricingModel) =>
+              PricingModel.evaluateParkingTicket(pricingModel, parkingDuration)
+            case None =>
+              0.0
+          }
+
+          val installedCapacity = parkingZone.chargingPointType match {
+            case Some(chargingPoint) => ChargingPointType.getChargingPointInstalledPowerInKw(chargingPoint)
+            case None                => 0
+          }
+
+          val distance: Double = distanceFunction(destinationUTM, stallCoordinate)
+
+          parkingAlternative ->
+            Map(
+              "energyPriceFactor" -> (parkingTicket * installedCapacity),
+              "distanceFactor"    -> (distance / 1.4 / 3600.0) * valueOfTime,
+              "installedCapacity" -> installedCapacity
+            )
+        }
+
+    // todo: sampleAlternative cannot return None, maybe doesn't need to be returning an Option[], but, what is it's behavior if the input is empty?
+    utilityFunction.sampleAlternative(alternatives.toMap, random).
+      map{ result =>
+        val (taz, parkingType, parkingZone, coordinate) = result.alternativeType
+
+        val utility = result.utility
+        RankingAccumulator(
+          taz,
+          parkingType,
+          parkingZone,
+          coordinate,
+          utility
+        )
+      }
+  }
 
   /**
     * finds the best parking zone id based on maximizing it's associated cost function evaluation
     * @param destinationUTM coordinates of this request
     * @param found the discovered parkingZones
     * @param chargingInquiry ChargingPreference per type of ChargingPoint
-    * @param rankingFunction ranking function for comparing options
     * @param distanceFunction a function that computes the distance between two coordinates
     * @return the best parking option based on our cost function ranking evaluation
     */
@@ -173,7 +178,6 @@ object ParkingZoneSearch {
     parkingDuration: Double,
     found: Iterable[(TAZ, ParkingType, ParkingZone, Coord)],
     chargingInquiry: Option[ChargingInquiry],
-    rankingFunction: ParkingRanking.RankingFunction,
     distanceFunction: (Coord, Coord) => Double
   ): Option[RankingAccumulator] = {
 
@@ -184,7 +188,13 @@ object ParkingZoneSearch {
       val walkingDistance: Double = distanceFunction(destinationUTM, stallLocation)
 
       // rank this parking zone
-      val thisRank = ParkingRanking(thisParkingZone, parkingDuration, walkingDistance, valueOfTime)
+      val thisRank = ParkingRanking.rankingValue(
+        thisParkingZone,
+        parkingDuration,
+        walkingDistance,
+        valueOfTime,
+        chargingInquiry
+      )
 
       // update fold accumulator with best-ranked parking zone along with relevant attributes
       accOption match {

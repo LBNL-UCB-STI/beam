@@ -3,7 +3,6 @@ package beam.agentsim.infrastructure.parking
 import java.io.{BufferedReader, File, IOException}
 
 import scala.annotation.tailrec
-import scala.collection.Map
 import scala.util.{Failure, Success, Try}
 import scala.util.matching.Regex
 
