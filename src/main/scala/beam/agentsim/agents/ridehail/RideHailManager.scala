@@ -535,7 +535,7 @@ class RideHailManager(
           log.debug("Initiate refuel session for vehicle: {}", vehicleId)
           // this agent has arrived to refuel, initiate that session
           val startFuelTrigger = ScheduleTrigger(
-            StartRefuelTrigger(whenWhere.time),
+            StartRefuelSessionTrigger(whenWhere.time),
             rideHailAgentLocation.rideHailAgent
           )
           resources(rideHailAgentLocation.vehicleId).useParkingStall(stallOpt.get)

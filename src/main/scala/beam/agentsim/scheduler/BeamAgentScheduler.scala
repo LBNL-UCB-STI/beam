@@ -7,6 +7,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Terminated
 import akka.event.LoggingReceive
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.EndRefuelSessionTrigger
 import beam.agentsim.agents.ridehail.RideHailManager.{
   ContinueBufferedRideHailRequests,
   RecoverFromStuckness,
@@ -231,6 +232,7 @@ class BeamAgentScheduler(
       if (started) doSimStep(nowInSeconds)
 
     case triggerToSchedule: ScheduleTrigger =>
+//      log.debug("Received trigger {}", triggerToSchedule) // todo JH comment or delete
       context.watch(triggerToSchedule.agent)
       scheduleTrigger(triggerToSchedule)
       if (started) doSimStep(nowInSeconds)
@@ -356,7 +358,7 @@ class BeamAgentScheduler(
           .tick <= stopTick) {
       nowInSeconds = newNow
 
-      // println("doSimStep:" + newNow)
+      //log.debug("doSimStep: {}", newNow) // todo JH comment or delete
 
       if (awaitingResponse.isEmpty || nowInSeconds - awaitingResponse
             .keySet()
@@ -368,7 +370,7 @@ class BeamAgentScheduler(
                  .tick <= nowInSeconds) {
           val scheduledTrigger = this.triggerQueue.poll()
           val triggerWithId = scheduledTrigger.triggerWithId
-          //log.info(s"dispatching $triggerWithId")
+          //log.info(s"dispatching $triggerWithId") // todo JH comment or delete
           awaitingResponse.put(triggerWithId.trigger.tick, scheduledTrigger)
           stuckFinder.add(System.currentTimeMillis(), scheduledTrigger, true)
 

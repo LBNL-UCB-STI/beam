@@ -9,7 +9,7 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
 
-class RefuelEvent(
+class RefuelSessionEvent(
   tick: Double,
   stall: ParkingStall,
   energyInJoules: Double,
@@ -18,10 +18,10 @@ class RefuelEvent(
 ) extends Event(tick)
     with HasPersonId
     with ScalaEvent {
-  import RefuelEvent._
+
+  import RefuelSessionEvent._
 
   override def getPersonId: Id[Person] = Id.create(vehId, classOf[Person])
-
   override def getEventType: String = EVENT_TYPE
 
   val pricingModelString = stall.pricingModel.map { _.toString }.getOrElse("None")
@@ -32,7 +32,7 @@ class RefuelEvent(
     attributes.put(ATTRIBUTE_ENERGY_DELIVERED, energyInJoules.toString)
     attributes.put(ATTRIBUTE_SESSION_DURATION, sessionDuration.toString)
     attributes.put(ATTRIBUTE_VEHICLE_ID, vehId.toString)
-    attributes.put(ATTRIBUTE_COST, stall.cost.toString)
+    attributes.put(ATTRIBUTE_PRICE, stall.cost.toString)
     attributes.put(ATTRIBUTE_LOCATION_X, stall.locationUTM.getX.toString)
     attributes.put(ATTRIBUTE_LOCATION_Y, stall.locationUTM.getY.toString)
     attributes.put(ATTRIBUTE_PARKING_TYPE, stall.parkingType.toString)
@@ -43,12 +43,12 @@ class RefuelEvent(
   }
 }
 
-object RefuelEvent {
-  val EVENT_TYPE: String = "RefuelEvent"
-  val ATTRIBUTE_VEHICLE_ID: String = "vehicle"
-  val ATTRIBUTE_ENERGY_DELIVERED: String = "fuel"
+object RefuelSessionEvent {
+  val EVENT_TYPE: String = "RefuelSessionEvent"
   val ATTRIBUTE_SESSION_DURATION: String = "duration"
-  val ATTRIBUTE_COST: String = "cost"
+  val ATTRIBUTE_ENERGY_DELIVERED: String = "fuel"
+  val ATTRIBUTE_VEHICLE_ID: String = "vehicle"
+  val ATTRIBUTE_PRICE: String = "price"
   val ATTRIBUTE_LOCATION_X: String = "locationX"
   val ATTRIBUTE_LOCATION_Y: String = "locationY"
   val ATTRIBUTE_PARKING_TYPE: String = "parkingType"

@@ -10,7 +10,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
-import beam.agentsim.events.{RefuelEvent, SpaceTime}
+import beam.agentsim.events.{RefuelSessionEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -250,14 +250,14 @@ class RideHailAgent(
         ) =>
       log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
       handleNotifyVehicleResourceIdleReply(reply, data)
-    case ev @ Event(TriggerWithId(StartRefuelTrigger(tick), triggerId), _) =>
-      log.debug("state(RideHailingAgent.Offline.StartRefuelTrigger): {}", ev)
+    case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(tick), triggerId), _) =>
+      log.debug("state(RideHailingAgent.Offline.StartRefuelSessionTrigger): {}", ev)
       handleStartRefuel(tick, triggerId)
     case ev @ Event(
-          TriggerWithId(EndRefuelTrigger(tick, sessionStart, energyInJoules), triggerId),
+          TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, energyInJoules, _), triggerId),
           data
         ) =>
-      log.debug("state(RideHailingAgent.Offline.EndRefuelTrigger): {}", ev)
+      log.debug("state(RideHailingAgent.Offline.EndRefuelSessionTrigger): {}", ev)
       val currentLocation = handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
       vehicle.spaceTime = SpaceTime(currentLocation, tick)
       stay() replying CompletionNotice(triggerId)
@@ -285,10 +285,10 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
       handleNotifyVehicleResourceIdleReply(reply, data)
     case ev @ Event(
-          TriggerWithId(EndRefuelTrigger(tick, sessionStart, energyInJoules), triggerId),
+          TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, energyInJoules, _), triggerId),
           data
         ) =>
-      log.debug("state(RideHailingAgent.Idle.EndRefuelTrigger): {}", ev)
+      log.debug("state(RideHailingAgent.Idle.EndRefuelSessionTrigger): {}", ev)
       holdTickAndTriggerId(tick, triggerId)
       val currentLocation = handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
       vehicle.manager.foreach(
@@ -302,8 +302,8 @@ class RideHailAgent(
         )
       )
       stay()
-    case ev @ Event(TriggerWithId(StartRefuelTrigger(tick), triggerId), _) =>
-      log.debug("state(RideHailingAgent.Idle.StartRefuelTrigger): {}", ev)
+    case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(tick), triggerId), _) =>
+      log.debug("state(RideHailingAgent.Idle.StartRefuelSessionTrigger): {}", ev)
       handleStartRefuel(tick, triggerId)
   }
 
@@ -387,14 +387,14 @@ class RideHailAgent(
       vehicle.refuelingSessionDurationAndEnergyInJoules()
 
     log.debug(
-      "scheduling EndRefuelTrigger at {} with {} J to be delivered",
+      "scheduling EndRefuelSessionTrigger at {} with {} J to be delivered",
       tick + sessionDuration.toInt,
       energyDelivered
     )
     stay() replying CompletionNotice(
       triggerId,
       Vector(
-        ScheduleTrigger(EndRefuelTrigger(tick + sessionDuration.toInt, tick, energyDelivered), self)
+        ScheduleTrigger(EndRefuelSessionTrigger(tick + sessionDuration.toInt, tick, energyDelivered), self)
       )
     )
   }
@@ -403,7 +403,7 @@ class RideHailAgent(
     log.debug("Ending refuel session for {}", vehicle.id)
     vehicle.addFuel(energyInJoules)
     eventsManager.processEvent(
-      new RefuelEvent(
+      new RefuelSessionEvent(
         tick,
         vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
         energyInJoules,
