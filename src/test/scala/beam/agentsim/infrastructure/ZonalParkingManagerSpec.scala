@@ -2,26 +2,25 @@ package beam.agentsim.infrastructure
 
 import java.util.concurrent.TimeUnit
 
-import scala.util.Random
-
 import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
+import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
-import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.MatsimServices
 import org.matsim.core.utils.collections.QuadTree
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
+
+import scala.util.Random
 
 class ZonalParkingManagerSpec
     extends TestKit(
@@ -82,16 +81,14 @@ class ZonalParkingManagerSpec
         )
       } {
 
-        val inquiry = ParkingInquiry(coordCenterOfUTM, "work", 0.0, None, 0.0)
-        val expectedStall: ParkingStall = ParkingStall.lastResortStall(new Random(randomSeed))
-
-        zonalParkingManager ! inquiry
+        zonalParkingManager ! ParkingInquiry(coordCenterOfUTM, "work", 0.0, None, 0.0)
 
         // note on the random seed:
         // since there are no TAZs to search and sample parking locations from,
         // the random number generator is unused by the [[ZonalParkingManager]] search, and we can
         // therefore rely on the coordinate that is generated when [[ZonalParkingManager]] calls [[ParkingStall.emergencyStall]] internally
-        expectMsg(ParkingInquiryResponse(expectedStall, inquiry.requestId))
+        val response = expectMsgType[ParkingInquiryResponse]
+        assert(response.stall.tazId == TAZ.EmergencyTAZId)
       }
     }
   }

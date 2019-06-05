@@ -3,9 +3,9 @@ package beam.agentsim.infrastructure
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Random, Success, Try}
-
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
+import beam.agentsim.infrastructure.ParkingStall.CostOfEmergencyStall
 import beam.agentsim.infrastructure.charging.ChargingInquiryData
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
@@ -107,6 +107,7 @@ object ZonalParkingManager extends LazyLogging {
 
   /**
     * constructs a ZonalParkingManager from file
+    *
     * @param beamServices central repository for simulation data
     * @param random random number generator used to sample parking stall locations
     * @return an instance of the ZonalParkingManager class
@@ -137,6 +138,7 @@ object ZonalParkingManager extends LazyLogging {
 
   /**
     * constructs a ZonalParkingManager from a string iterator
+    *
     * @param parkingDescription line-by-line string representation of parking including header
     * @param beamServices central repository for simulation data
     * @param random random generator used for sampling parking locations
@@ -155,6 +157,7 @@ object ZonalParkingManager extends LazyLogging {
 
   /**
     * builds a ZonalParkingManager Actor
+    *
     * @param beamServices core services related to this simulation
     * @param beamRouter Actor responsible for routing decisions (deprecated/previously unused)
     * @return
@@ -169,6 +172,7 @@ object ZonalParkingManager extends LazyLogging {
 
   /**
     * looks for the nearest ParkingZone that meets the agent's needs
+    *
     * @param searchStartRadius small radius describing a ring shape
     * @param searchMaxRadius larger radius describing a ring shape
     * @param destinationUTM coordinates of this request
@@ -258,7 +262,14 @@ object ZonalParkingManager extends LazyLogging {
       case Some(result) =>
         result
       case None =>
-        val newStall = ParkingStall.lastResortStall(random)
+        val newStall =
+          ParkingStall
+            .defaultStall(destinationUTM)
+            .copy(
+              cost = CostOfEmergencyStall,
+              pricingModel = Some(PricingModel.FlatFee(CostOfEmergencyStall.toInt)),
+              tazId = TAZ.EmergencyTAZId
+            )
         (ParkingZone.DefaultParkingZone, newStall)
     }
   }
