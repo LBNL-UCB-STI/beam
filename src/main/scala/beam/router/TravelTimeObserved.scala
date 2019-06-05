@@ -3,8 +3,7 @@ import java.awt.geom.Ellipse2D
 import java.awt.{BasicStroke, Color}
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.infrastructure.taz.TAZTreeMap
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz._
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR

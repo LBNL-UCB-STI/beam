@@ -115,13 +115,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       getREPAlgorithm.collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
   }
 
-  def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(
-    whenWhere.loc,
-    "wherever",
-    0.0,
-    None,
-    0.0
-  )
+  def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(whenWhere.loc, "wherever")
 
   override def getId: Id[VehicleManager] = Id.create("FixedNonReservingFleetManager", classOf[VehicleManager])
   override def getAvailableVehiclesIndex: Quadtree = availableVehiclesIndex

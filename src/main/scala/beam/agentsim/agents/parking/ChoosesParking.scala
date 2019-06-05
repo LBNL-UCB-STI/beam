@@ -11,13 +11,7 @@ import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, Releasi
 import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule}
-import beam.agentsim.events.{
-  ChargingPlugInEvent,
-  ChargingPlugOutEvent,
-  LeavingParkingEvent,
-  RefuelSessionEvent,
-  SpaceTime
-}
+import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent, LeavingParkingEvent, RefuelSessionEvent, SpaceTime}
 import beam.agentsim.infrastructure.charging.ChargingInquiry
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -29,8 +23,11 @@ import beam.sim.common.GeoUtils
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 
 import scala.concurrent.duration.Duration
+import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, ParkingZoneSearch}
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.utils.ParkingManagerIdGenerator
+import org.matsim.api.core.v01.Coord
 
 /**
   * BEAM
@@ -45,81 +42,6 @@ object ChoosesParking {
 
 trait ChoosesParking extends {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
-
-  def getChargingInquiryData(
-    personData: BasePersonData,
-    beamVehicle: BeamVehicle
-  ): Option[ChargingInquiry] = {
-
-    // todo JH review logic
-    // the utility function // as todo config param
-    // todo calibrate
-    val beta1 = 1
-    val beta2 = 1
-    val beta3 = 0.001
-    val distanceBuffer = 25000 // in meter (the distance that should be considered as buffer for range estimation
-
-    // todo for all charginginquiries: extract plugs from vehicles and pass it over to ZM
-
-    val mnlUtilityFunction: Map[String, Map[String, UtilityFunctionOperation]] = Map(
-      "ParkingSpot" -> Map(
-        "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
-        "distanceFactor"    -> UtilityFunctionOperation("multiplier", -beta2),
-        "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
-      )
-    )
-
-    val mnl = MultinomialLogit(mnlUtilityFunction)
-
-    (beamVehicle.beamVehicleType.primaryFuelType, beamVehicle.beamVehicleType.secondaryFuelType) match {
-      case (Electricity, None) => { //BEV
-        //calculate the remaining driving distance in meters, reduced by 10% of the installed battery capacity as safety margin
-        val remainingDrivingDist = (beamServices
-          .privateVehicles(personData.currentVehicle.head)
-          .primaryFuelLevelInJoules / beamVehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter) - distanceBuffer
-        log.debug(s"Remaining distance until BEV has only 10% of it's SOC left =  $remainingDrivingDist meter")
-
-        val remainingTourDist = nextActivity(personData) match {
-          case Some(nextAct) =>
-            val nextActIdx = currentTour(personData).tripIndexOfElement(nextAct)
-            currentTour(personData).trips
-              .slice(nextActIdx, currentTour(personData).trips.length)
-              .sliding(2, 1)
-              .toList // todo try without list
-              .foldLeft(0d) { (sum, pair) =>
-                sum + Math
-                  .ceil(
-                    beamSkimmer
-                      .getTimeDistanceAndCost(
-                        pair.head.activity.getCoord,
-                        pair.last.activity.getCoord,
-                        0,
-                        CAR,
-                        beamVehicle.beamVehicleType.id
-                      )
-                      .distance
-                  )
-              }
-          case None =>
-            0 // if we don't have any more trips we don't need a chargingInquiry as we are @home again => assumption: charging @home always takes place
-        }
-
-        remainingTourDist match {
-          case 0 => None
-          case _ if remainingDrivingDist <= remainingTourDist =>
-            ChargingInquiry(None, None, beamVehicle, attributes.valueOfTime) // must
-          case _ if remainingDrivingDist > remainingTourDist =>
-            ChargingInquiry(Some(mnl), None, beamVehicle, attributes.valueOfTime) // opportunistic
-        }
-
-      }
-      case (Electricity, Some(Gasoline)) => { // PHEV
-        log.debug("ChargingInquiry by PHEV {}.", beamVehicle.id)
-        ChargingInquiry(Some(mnl), None, beamVehicle, attributes.valueOfTime) // PHEV is always opportunistic
-      }
-      case _ => None
-    }
-  }
 
   onTransition {
     case ReadyToChooseParking -> ChoosingParkingSpot =>
@@ -137,11 +59,27 @@ trait ChoosesParking extends {
       }.getOrElse(0.0)
       val destinationUtm = beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc)
 
+      val beta1 = 1
+      val beta2 = 1
+      val beta3 = 0.001
+
+      // todo for all charginginquiries: extract plugs from vehicles and pass it over to ZM
+
+      val utilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
+        new MultinomialLogit(
+          Map.empty,
+          Map(
+            "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
+            "distanceFactor"    -> UtilityFunctionOperation("multiplier", -beta2),
+            "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
+          )
+        )
+
       parkingManager ! ParkingInquiry(
         destinationUtm,
         nextActivity(personData).get.getType,
         attributes.valueOfTime,
-        getChargingInquiryData(personData, currentBeamVehicle),
+        utilityFunction,
         parkingDuration
       )
   }
