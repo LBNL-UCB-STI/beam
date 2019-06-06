@@ -142,7 +142,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
             veh =>
               createVehicleAndScheduleFromRideHailAgentLocation(
                 veh,
-                tick,
+                tick + rideHailManager.beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
                 rideHailManager.beamServices
               )
           ).toList

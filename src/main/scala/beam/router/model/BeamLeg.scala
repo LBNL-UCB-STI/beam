@@ -69,7 +69,8 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
   def subLegThrough(throughTime: Int, networkHelper: NetworkHelper, geoUtils: GeoUtils):BeamLeg = {
     val linkAtTime = this.travelPath.linkAtTime(throughTime)
     val indexOfNewEndLink = this.travelPath.linkIds.indexWhere(_ == linkAtTime)
-    val newEndPoint = SpaceTime(geoUtils.utm2Wgs(networkHelper.getLink(this.travelPath.linkIds(indexOfNewEndLink)).get.getCoord),throughTime)
+    val newDuration = if(indexOfNewEndLink<=1){0}else{math.round(this.travelPath.linkTravelTime.take(indexOfNewEndLink).tail.sum).toInt}
+    val newEndPoint = SpaceTime(geoUtils.utm2Wgs(networkHelper.getLink(this.travelPath.linkIds(indexOfNewEndLink)).get.getCoord),this.startTime+newDuration)
     val newTravelPath = this.travelPath.copy(linkIds = this.travelPath.linkIds.take(indexOfNewEndLink+1),
       linkTravelTime = this.travelPath.linkTravelTime.take(indexOfNewEndLink+1),
       endPoint = newEndPoint)
