@@ -5,7 +5,7 @@ import java.io.{File, FileWriter}
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.Location
-import beam.utils.{DebugLib, FileUtils, RandomUtils}
+import beam.utils.{FileUtils, RandomUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
@@ -285,17 +285,15 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           val vehiclesToReposition = scala.util.Random
             .shuffle(
               idleVehicles
-                .map { vehLocation =>
+                .flatMap { vehLocation =>
                   val loc = vehLocation._2.currentLocationUTM.loc
 
                   val act = quadTree.getClosest(loc.getX, loc.getY)
 
-                  if (act == null) {
-                    DebugLib.emptyFunctionForSettingBreakPoint()
+                  Option(quadTree.getClosest(loc.getX, loc.getY)).map { act =>
+                    val distance = rideHailManager.beamServices.geo.distUTMInMeters(act.getCoord, loc)
+                    (vehLocation, distance)
                   }
-
-                  val distance = rideHailManager.beamServices.geo.distUTMInMeters(act.getCoord, loc)
-                  (vehLocation, distance)
                 }
                 .sortBy { case (vehLocation, distance) => -distance }
                 .map(_._1)
