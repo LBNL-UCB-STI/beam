@@ -12,14 +12,13 @@ state FinishingModeChoice #eb1921
 
 'Transition State'
 
-FinishingModeChoice --> WaitingForDeparture : StateTimeout
+FinishingModeChoice -[#blue,dotted]-> WaitingForDeparture : IntermediateTransitionState
 ChoosingMode --> ChoosingMode : MobilityStatusResponse
 ChoosingMode --> ChoosingMode : RoutingResponse
 ChoosingMode --> ChoosingMode : RideHailResponse
 ChoosingMode --> ChoosingMode : ParkingInquiryResponse
 ChoosingMode --> ChoosingMode : CavTripLegsResponse
 ChoosingMode --> FinishingModeChoice
-
 
 
 @enduml

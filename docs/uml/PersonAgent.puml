@@ -54,7 +54,7 @@ Moving --> ProcessingNextLegOrStartActivity : AlightVehicleTrigger
 
 PassengerScheduleEmpty --> ProcessingNextLegOrStartActivity: PassengerScheduleEmptyMessage
 
-ReadyToChooseParking --> ChoosingParkingSpot: StateTimeout
+ReadyToChooseParking -[#blue,dotted]-> ChoosingParkingSpot: IntermediateTransitionState
 
 TryingToBoardVehicle --> ProcessingNextLegOrStartActivity : Boarded
 TryingToBoardVehicle --> ChoosingMode : NotAvailable
@@ -62,12 +62,12 @@ TryingToBoardVehicle --> ChoosingMode : NotAvailable
 
 ProcessingNextLegOrStartActivity --> ReleasingParkingSpot : ProcessingNextLegOrStartActivity
 ProcessingNextLegOrStartActivity --> WaitingToDrive : ProcessingNextLegOrStartActivity
-ProcessingNextLegOrStartActivity --> ChoosingMode : StateTimeout
-ProcessingNextLegOrStartActivity --> WaitingForReservationConfirmation : StateTimeout
-ProcessingNextLegOrStartActivity --> Waiting : StateTimeout
-ProcessingNextLegOrStartActivity --> PerformingActivity : StateTimeout
+ProcessingNextLegOrStartActivity -[#blue,dotted]-> ChoosingMode : IntermediateTransitionState
+ProcessingNextLegOrStartActivity -[#blue,dotted]-> WaitingForReservationConfirmation : IntermediateTransitionState
+ProcessingNextLegOrStartActivity -[#blue,dotted]-> Waiting : IntermediateTransitionState
+ProcessingNextLegOrStartActivity -[#blue,dotted]-> PerformingActivity : IntermediateTransitionState
 '[*] is stop event'
-ProcessingNextLegOrStartActivity --> [*] : StateTimeout
+ProcessingNextLegOrStartActivity -[#blue,dotted]-> [*] : IntermediateTransitionState
 
 
 
