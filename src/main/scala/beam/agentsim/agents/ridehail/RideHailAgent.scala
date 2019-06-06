@@ -337,27 +337,30 @@ class RideHailAgent(
         val currentLeg = data.passengerSchedule.schedule.view.drop(data.currentLegPassengerScheduleIndex).head._1
         val updatedStopTime = math.max(currentLeg.startTime,tick)
         val resolvedPassengerSchedule: PassengerSchedule = DrivesVehicle.resolvePassengerScheduleConflicts(updatedStopTime, data.passengerSchedule, updatedPassengerSchedule, beamServices.networkHelper, beamServices.geo)
+        val newNextLeg = resolvedPassengerSchedule.schedule.keys.toIndexedSeq(data.currentLegPassengerScheduleIndex)
 
-        // Find the
+        if(resolvedPassengerSchedule.schedule.values.exists(_.riders.size==6)){
+          val i = 0
+        }
+
         val triggerToSchedule = Vector(
           ScheduleTrigger(
             StartLegTrigger(
-              updatedPassengerSchedule.schedule.firstKey.startTime,
-              updatedPassengerSchedule.schedule.firstKey
+              newNextLeg.startTime,
+              newNextLeg
             ),
             self
           )
         )
         goto(WaitingToDriveInterrupted) using data
           .copy(geofence = geofence)
-          .withPassengerSchedule(updatedPassengerSchedule)
+          .withPassengerSchedule(resolvedPassengerSchedule)
           .asInstanceOf[RideHailAgentData] replying ModifyPassengerScheduleAck(
           requestId,
           triggerToSchedule,
           vehicle.id,
           tick,
         )
-
       }
     case ev @ Event(Resume(), _) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)

@@ -901,7 +901,7 @@ class PersonAgent(
         _experiencedBeamPlan.tours.foreach(tour => _experiencedBeamPlan.putStrategy(tour, ModeChoiceStrategy(None)))
         stay() replying CompletionNotice(triggerId, Vector())
       case Some(trip) =>
-        log.debug("Person {} in state {} stashing BoardOrAlight {} b/c expecting this", id, stateName, triggerId)
+        log.debug("Person {} in state {} stashing BoardOrAlight {} while on trip {}", id, stateName, triggerId, trip)
         stash
         stay
     }

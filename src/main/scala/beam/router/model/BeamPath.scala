@@ -62,16 +62,15 @@ case class BeamPath(
   }
   def linkAtTime(tick: Int): Int = {
     tick - startPoint.time match {
-      case secondsAlongPath if secondsAlongPath <= 0 =>
+      case secondsAlongPath if secondsAlongPath <= 0 || linkIds.size <= 1 =>
         linkIds.head
-      case secondsAlongPath if secondsAlongPath > linkTravelTime.sum =>
+      case secondsAlongPath if secondsAlongPath > linkTravelTime.tail.sum =>
         linkIds.last
       case secondsAlongPath =>
-        if(linkIds.size>1){
-          linkIds.tail(linkTravelTime.tail.scanLeft(0.0)((a, b) => a + b).indexWhere(_ >= secondsAlongPath) - 1)
-        }else{
-          linkIds.head
+        if(linkTravelTime.tail.scanLeft(0.0)((a, b) => a + b).indexWhere(_ >= secondsAlongPath) < 0){
+          val i = 0
         }
+        linkIds.tail(linkTravelTime.tail.scanLeft(0.0)((a, b) => a + b).indexWhere(_ >= secondsAlongPath) - 1)
     }
   }
 }

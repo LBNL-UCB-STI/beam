@@ -38,7 +38,8 @@ object DrivesVehicle {
   def resolvePassengerScheduleConflicts(stopTick: Int, oldPassengerSchedule: PassengerSchedule, updatedPassengerSchedule: PassengerSchedule, networkHelper: NetworkHelper, geoUtils: GeoUtils): PassengerSchedule = {
     // First attempt to find the link in updated that corresponds to the stopping link in old
     val stoppingLink = oldPassengerSchedule.linkAtTime(stopTick)
-    updatedPassengerSchedule.schedule.keys.toList.reverse.find(_.travelPath.linkIds.contains(stoppingLink)) match {
+    val updatedLegsInSchedule = updatedPassengerSchedule.schedule.keys.toList
+    updatedLegsInSchedule.reverse.find(_.travelPath.linkIds.contains(stoppingLink)) match {
       case Some(startingLeg) =>
         val indexOfStartingLink = startingLeg.travelPath.linkIds.indexWhere(_ == stoppingLink)
         val newLinks = startingLeg.travelPath.linkIds.drop(indexOfStartingLink)
@@ -53,7 +54,14 @@ object DrivesVehicle {
           newDistance
         )
         val updatedStartingLeg = BeamLeg(stopTick,startingLeg.mode,newTravelPath.duration,newTravelPath)
-        PassengerSchedule()
+        val indexOfStartingLeg = updatedLegsInSchedule.indexOf(startingLeg)
+        val newLegsInSchedule = updatedLegsInSchedule.slice(0, indexOfStartingLeg) ++ (updatedStartingLeg +: updatedLegsInSchedule.slice(indexOfStartingLeg+1,updatedPassengerSchedule.schedule.size))
+        var newPassSchedule = PassengerSchedule().addLegs(newLegsInSchedule)
+        updatedPassengerSchedule.uniquePassengers.foreach{ pass =>
+          val indicesOfMatchingElements = updatedPassengerSchedule.legsWithPassenger(pass).toIndexedSeq.map(updatedLegsInSchedule.indexOf(_))
+          newPassSchedule = newPassSchedule.addPassenger(pass,indicesOfMatchingElements.map(newLegsInSchedule(_)))
+        }
+        newPassSchedule
       case None =>
         // Instead we will have to find the starting point using closest Euclidean distance of the links
         PassengerSchedule()
@@ -188,9 +196,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 //        currentVehicleUnderControl,
 //        tick
 //      )
+      if(tick == 24659){
+        val i = 0
+      }
 
       data.passengerSchedule.schedule(currentLeg).alighters.foreach { pv =>
-        logDebug(s"Scheduling AlightVehicleTrigger for Person $pv.personRef @ $tick")
+        logDebug(s"Scheduling AlightVehicleTrigger for Person ${pv.personId} from vehicle ${data.currentVehicle.head} @ $tick")
         scheduler ! ScheduleTrigger(
           AlightVehicleTrigger(
             tick,
@@ -332,9 +343,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         .getOrElse(throw new RuntimeException("Current Vehicle is not available."))
 
       val updatedStopTick = math.max(stopTick,currentLeg.startTime)
+      val partiallyCompletedBeamLeg = currentLeg.subLegThrough(updatedStopTick,beamServices.networkHelper, beamServices.geo)
 
       val currentLocation = if(updatedStopTick > currentLeg.startTime){
-        val partiallyCompletedBeamLeg = currentLeg.subLegThrough(updatedStopTick,beamServices.networkHelper, beamServices.geo)
         val fuelConsumed = currentBeamVehicle.useFuel(partiallyCompletedBeamLeg, beamServices)
 
         val tollOnCurrentLeg = toll(currentLeg)
@@ -371,9 +382,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 //        nextNotifyVehicleResourceIdle
 //      )
 
-
       if (data.passengerSchedule.numLegsWithPassengersAfter(data.currentLegPassengerScheduleIndex) > 0){
-        goto(IdleInterrupted) using data
+        val newLegAndManifest = (partiallyCompletedBeamLeg, data.passengerSchedule.schedule(currentLeg))
+        val revisedPassSched = PassengerSchedule(data.passengerSchedule.schedule.slice(0,data.currentLegPassengerScheduleIndex) + newLegAndManifest)
+        goto(IdleInterrupted) using data.withPassengerSchedule(revisedPassSched)
           .asInstanceOf[T]
       }else{
         eventsManager.processEvent(
@@ -452,7 +464,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           .boarders
           .map { personVehicle =>
             logDebug(
-              s"Scheduling BoardVehicleTrigger at $tick for Person ${personVehicle.personId} into vehicle ${data.currentVehicle.head}"
+              s"Scheduling BoardVehicleTrigger at $tick for Person ${personVehicle.personId} into vehicle ${data.currentVehicle.head} @ $tick"
             )
             ScheduleTrigger(
               BoardVehicleTrigger(tick, data.currentVehicle.head, Some(currentBeamVehicle.beamVehicleType.id)),

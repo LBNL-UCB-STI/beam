@@ -32,6 +32,7 @@ class AsyncAlonsoMoraAlgForRideHail(
     val edges = MListBuffer.empty[(RTVGraphNode, RTVGraphNode)]
     val finalRequestsList = MListBuffer.empty[RideHailTrip]
     val center = v.getRequestWithCurrentVehiclePosition.activity.getCoord
+    val currentTimeOfVehicle = v.getRequestWithCurrentVehiclePosition.baselineNonPooledTime
     val searchRadius = timeWindow(Pickup) * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
     val requests = v.geofence match {
       case Some(gf) =>
@@ -49,6 +50,7 @@ class AsyncAlonsoMoraAlgForRideHail(
         spatialDemand.getDisk(center.getX, center.getY, searchRadius).asScala.toList
     }
     requests
+      .filter(_.pickup.baselineNonPooledTime >= currentTimeOfVehicle)
       .sortBy(x => GeoUtils.minkowskiDistFormula(center, x.pickup.activity.getCoord))
       .take(maxRequestsPerVehicle) foreach (
       r =>

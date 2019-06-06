@@ -57,6 +57,8 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
     new PassengerSchedule(newSchedule)
   }
 
+  def uniquePassengers: Set[VehiclePersonId] = schedule.values.flatMap(_.riders).toSet
+
   def numUniquePassengers: Int = schedule.values.flatMap(_.riders).toSet.size
 
   def numLegsWithPassengersAfter(legIndex: Int): Int = schedule.slice(legIndex,schedule.size).values.filter(_.riders.size>0).size

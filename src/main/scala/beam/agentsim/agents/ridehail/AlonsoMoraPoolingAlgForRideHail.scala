@@ -11,7 +11,6 @@ import beam.router.BeamSkimmer.Skim
 import beam.router.Modes.BeamMode
 import beam.router.BeamSkimmer
 import beam.sim.{BeamServices, Geofence}
-import com.vividsolutions.jts.geom.Envelope
 import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedWeightedGraph}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Activity
@@ -214,7 +213,10 @@ object AlonsoMoraPoolingAlgForRideHail {
   )(
     implicit skimmer: BeamSkimmer
   ): Option[List[MobilityRequest]] = {
-    val sortedRequests = requests.filter(_.tag != EnRoute).sortWith(_.baselineNonPooledTime < _.baselineNonPooledTime)
+    if(requests.exists(_.tag == EnRoute)){
+      val i = 0
+    }
+    val sortedRequests = requests.sortWith(_.baselineNonPooledTime < _.baselineNonPooledTime)
     import scala.collection.mutable.{ListBuffer => MListBuffer}
     val newPoolingList = MListBuffer(sortedRequests.head.copy())
     sortedRequests.drop(1).foldLeft(()) {
@@ -275,7 +277,7 @@ object AlonsoMoraPoolingAlgForRideHail {
       BeamVehicleType.defaultCarBeamVehicleType
     )
     val vehCurrentLocation = veh.currentPassengerSchedule.map(_.locationAtTime(tick,beamServices)).getOrElse(veh.currentLocationUTM.loc)
-    val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${veh.vehicleId}Act0", veh.currentLocationUTM.loc)
+    val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${veh.vehicleId}Act0", vehCurrentLocation)
     v1Act0.setEndTime(tick)
     var alonsoSchedule: ListBuffer[MobilityRequest] = ListBuffer()
     veh.currentPassengerSchedule.foreach {
@@ -351,10 +353,6 @@ object AlonsoMoraPoolingAlgForRideHail {
       veh.geofence,
       veh.vehicleType.seatingCapacity
     )
-
-    if(res.getFreeSeats <4){
-      val i = 0
-    }
     res
   }
 
@@ -405,7 +403,7 @@ object AlonsoMoraPoolingAlgForRideHail {
   // Ride Hail vehicles, capacity and their predefined schedule
   case class VehicleAndSchedule(vehicle: BeamVehicle, schedule: List[MobilityRequest], geofence: Option[Geofence], seatsAvailable: Int)
       extends RVGraphNode {
-    private val numberOfPassengers: Int = schedule.takeWhile(_.tag != EnRoute).count(_.tag == Dropoff)
+    private val numberOfPassengers: Int = schedule.takeWhile(_.tag != EnRoute).count(req => req.person.isDefined && req.tag == Dropoff )
     override def getId: String = vehicle.id.toString
     def getFreeSeats: Int = seatsAvailable - numberOfPassengers
     def getRequestWithCurrentVehiclePosition: MobilityRequest = schedule.find(_.tag==EnRoute).getOrElse(schedule.head)

@@ -142,7 +142,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
             veh =>
               createVehicleAndScheduleFromRideHailAgentLocation(
                 veh,
-                tick + rideHailManager.beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
+                tick,
                 rideHailManager.beamServices
               )
           ).toList
@@ -191,7 +191,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
 
       assignment.foreach {
         case (theTrip, vehicleAndOldSchedule, cost) =>
-          // Pooling alg can return a schedule identical to already in progress, for these we ignore
+          // Pooling alg can return a schedule identical to one that is already in progress, for these we ignore
           if(theTrip.schedule != vehicleAndOldSchedule.schedule){
             if(!rideHailManager.vehicleManager.inServiceRideHailVehicles.isEmpty){
               val i = 0
