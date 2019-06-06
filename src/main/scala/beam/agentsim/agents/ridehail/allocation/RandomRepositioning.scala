@@ -252,7 +252,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
             }
           }
 
-          writeRepositioningToCSV(result, tick)
+          // writeRepositioningToCSV(result, tick)
 
           result
         } else {
