@@ -244,6 +244,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           logger.info(
             s"repositioningShare: $repositioningShare, fleetSize: $fleetSize, vehiclesToReposition size: ${vehiclesToReposition.size}, will reposition ${result.size}"
           )
+          logger.info(s"tick is $tick. Activities in [tick + 1200, tick + 3600]: ${activitiesCoordinates.size}")
 
           logger.whenDebugEnabled {
             result.foreach {
