@@ -18,6 +18,8 @@ class MultinomialLogit[A, T](
   common: Map[T, UtilityFunctionOperation]
 ) extends LazyLogging {
 
+  import MultinomialLogit._
+
   /**
     * Sample over a set of types A by calculating the probabilities of each alternative
     * and then draw one randomly.
@@ -36,35 +38,39 @@ class MultinomialLogit[A, T](
     if (alternatives.isEmpty) None
     else {
 
-      // one-pass evaluation and sorting in descending order by alternative utilities
-      val altsWithUtilitySortedDesc: Iterable[(A, Double)] =
-        alternatives.foldLeft(SortedSet.empty[(A, Double)](Ordering.by { -_._2 })) {
-          case (set, (alt, attributes)) =>
+      // evaluate utility of alternatives
+      val altsWithUtility: Iterable[AlternativeWithUtility[A]] =
+        alternatives.foldLeft(List.empty[AlternativeWithUtility[A]]) {
+          case (accumulator, (alt, attributes)) =>
             getUtilityOfAlternative(alt, attributes) match {
-              case None => set
+              case None => accumulator
               case Some(thisUtility) =>
-                set + ((alt, math.exp(thisUtility)))
+                if (thisUtility == Double.PositiveInfinity) {
+                  // place on tail of list, allowing us to short-circuit the sampling in next step
+                  accumulator :+ AlternativeWithUtility(alt, math.exp(thisUtility))
+                } else {
+                  AlternativeWithUtility(alt, math.exp(thisUtility)) +: accumulator
+                }
             }
-          case _ => throw new RuntimeException("Error during alternatives evaluation.")
         }
 
-      altsWithUtilitySortedDesc.headOption.flatMap {
-        case (possiblyInfiniteAlt, possiblyInfinite) =>
+      altsWithUtility.lastOption.flatMap {
+        case AlternativeWithUtility(possiblyInfiniteAlt, possiblyInfinite) =>
           if (possiblyInfinite == Double.PositiveInfinity) {
-            // take the first infinitely-valued alternative
+            // take any infinitely-valued alternative
             Some { MultinomialLogit.MNLSample(possiblyInfiniteAlt, possiblyInfinite, 1.0, 1.0) }
           } else {
 
             // denominator used for transforming utility values into draw probabilities
-            val sumOfExponentialUtilities: Double = altsWithUtilitySortedDesc.map { case (_, u) => u }.sum
+            val sumOfExponentialUtilities: Double = altsWithUtility.map { _.expUtility }.sum
 
             // build the cumulative distribution function (cdf) by transforming alternatives into a list
             // in ascending order of thresholds (== descending order of alternative utilities)
             // by successive draw thresholds
             val asProbabilitySpread: List[MultinomialLogit.MNLSample[A]] =
-              altsWithUtilitySortedDesc
+              altsWithUtility
                 .foldLeft((0.0, List.empty[MultinomialLogit.MNLSample[A]])) {
-                  case ((prefix, stackedProbabilitiesList), (alt, expUtility)) =>
+                  case ((prefix, stackedProbabilitiesList), AlternativeWithUtility(alt, expUtility)) =>
                     val probability: Double = expUtility / sumOfExponentialUtilities
                     val nextDrawThreshold: Double = prefix + probability
                     val mnlSample = MultinomialLogit.MNLSample(
@@ -149,6 +155,13 @@ class MultinomialLogit[A, T](
 }
 
 object MultinomialLogit {
+
+  private[MultinomialLogit] case class AlternativeWithUtility[A](
+    alternative: A,
+    expUtility: Double
+  ) {
+    override def hashCode: Int = alternative.hashCode
+  }
 
   case class MNLSample[AlternativeType](
     alternativeType: AlternativeType,
