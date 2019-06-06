@@ -13,8 +13,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
-import beam.agentsim.infrastructure.ParkingStall.NoNeed
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.population.AttributesOfIndividual
@@ -61,12 +60,10 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
 
   def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(
     whenWhere.loc,
-    whenWhere.loc,
     "wherever",
-    AttributesOfIndividual.EMPTY,
-    NoNeed,
-    0,
-    0
+    0.0,
+    None,
+    0.0
   )
 
 }
