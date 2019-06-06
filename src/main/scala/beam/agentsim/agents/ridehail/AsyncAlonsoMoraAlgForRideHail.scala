@@ -1,6 +1,6 @@
 package beam.agentsim.agents.ridehail
 
-import beam.agentsim.agents.{MobilityRequestType, Pickup}
+import beam.agentsim.agents.{EnRoute, MobilityRequestType, Pickup}
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
@@ -50,12 +50,13 @@ class AsyncAlonsoMoraAlgForRideHail(
         spatialDemand.getDisk(center.getX, center.getY, searchRadius).asScala.toList
     }
     requests
-      .filter(_.pickup.baselineNonPooledTime >= currentTimeOfVehicle)
+      //.filter(_.pickup.baselineNonPooledTime >= currentTimeOfVehicle)
       .sortBy(x => GeoUtils.minkowskiDistFormula(center, x.pickup.activity.getCoord))
       .take(maxRequestsPerVehicle) foreach (
       r =>
+
         AlonsoMoraPoolingAlgForRideHail
-          .getRidehailSchedule(timeWindow, v.schedule ++ List(r.pickup, r.dropoff), beamServices) match {
+          .getRidehailSchedule(timeWindow, v.schedule, List(r.pickup, r.dropoff), beamServices) match {
           case Some(schedule) =>
             val t = RideHailTrip(List(r), schedule)
             finalRequestsList append t
@@ -79,7 +80,8 @@ class AsyncAlonsoMoraAlgForRideHail(
           AlonsoMoraPoolingAlgForRideHail
             .getRidehailSchedule(
               timeWindow,
-              v.schedule ++ (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
+              v.schedule,
+              (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
               beamServices
             ) match {
             case Some(schedule) =>
@@ -162,6 +164,9 @@ class AsyncAlonsoMoraAlgForRideHail(
                 greedyAssignmentList.append((trip, vehicle, cost))
               }
           }
+      }
+      if(greedyAssignmentList.nonEmpty && greedyAssignmentList.flatMap(_._1.schedule).exists(_.tag == EnRoute)) {
+        println("ok")
       }
       greedyAssignmentList.toList
     }
