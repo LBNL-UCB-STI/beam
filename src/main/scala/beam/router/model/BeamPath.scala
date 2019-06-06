@@ -7,10 +7,13 @@ import beam.router.model.RoutingModel.TransitStopsInfo
   *
   * @param linkIds      either matsim linkId or R5 edgeIds that describes whole path
   * @param transitStops start and end stop if this path is transit (partial) route
+  *
+  * IMPORTANT NOTE: Convention is that a BeamPath starts at the **end** of the first link and ends at the end of the last link.
+  * We therefore ignore the first link in estimating travel time.
   */
 case class BeamPath(
   linkIds: IndexedSeq[Int],
-  linkTravelTime: IndexedSeq[Int],
+  linkTravelTime: IndexedSeq[Double],
   transitStops: Option[TransitStopsInfo],
   startPoint: SpaceTime,
   endPoint: SpaceTime,
@@ -24,13 +27,17 @@ case class BeamPath(
   private def checkCoordinates(point: SpaceTime) {
     if (point != null) {
       assert(
-        point.loc == null || point.loc.getX > -180 && point.loc.getX < 180 && point.loc.getY > -90 && point.loc.getY < 90,
+        point.loc == null || (point.loc.getX > -180 && point.loc.getX < 180 && point.loc.getY > -90 && point.loc.getY < 90),
         s"Bad coordinate ${point.loc}"
       )
     }
   }
 
-  def duration: Int = endPoint.time - startPoint.time
+  def duration: Int = (endPoint.time - startPoint.time)
+
+  if(linkTravelTime.size > 1 && math.abs(math.round(linkTravelTime.tail.sum).toInt - (endPoint.time - startPoint.time)) > 1){
+    assert(false)
+  }
 
   def toShortString: String =
     if (linkIds.nonEmpty) {
@@ -46,10 +53,11 @@ case class BeamPath(
     )
 
   def scaleTravelTimes(scaleBy: Double): BeamPath = {
-    val newLinkTimes = this.linkTravelTime.map(travelTime => Math.round(travelTime.toDouble * scaleBy).toInt)
+    val newLinkTimes = this.linkTravelTime.map(travelTime => travelTime * scaleBy)
+    val newDuration = if(newLinkTimes.size>1){math.round(newLinkTimes.tail.sum).toInt}else{0}
     this.copy(
       linkTravelTime = newLinkTimes,
-      endPoint = this.endPoint.copy(time = this.startPoint.time + newLinkTimes.tail.sum)
+      endPoint = this.endPoint.copy(time = this.startPoint.time + newDuration)
     )
   }
   def linkAtTime(tick: Int): Int = {
@@ -59,7 +67,11 @@ case class BeamPath(
       case secondsAlongPath if secondsAlongPath > linkTravelTime.sum =>
         linkIds.last
       case secondsAlongPath =>
-        linkIds(linkTravelTime.scanLeft(0)((a, b) => a + b).indexWhere(_ >= secondsAlongPath) - 1)
+        if(linkIds.size>1){
+          linkIds.tail(linkTravelTime.tail.scanLeft(0.0)((a, b) => a + b).indexWhere(_ >= secondsAlongPath) - 1)
+        }else{
+          linkIds.head
+        }
     }
   }
 }

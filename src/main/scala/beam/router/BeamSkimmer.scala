@@ -87,7 +87,7 @@ class BeamSkimmer @Inject()(val beamConfig: BeamConfig, val beamServices: BeamSe
             departureTime,
             mode,
             travelTime,
-            new BeamPath(null, null, None, null, null, travelDistance)
+            new BeamPath(IndexedSeq(), IndexedSeq(), None, null, null, travelDistance)
           ),
           vehicleTypeId,
           beamServices

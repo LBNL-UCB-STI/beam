@@ -164,7 +164,7 @@ class BeamScoringFunctionFactory @Inject()(
                   val (existingAverageGeneralizedTime, observedGeneralizedTimesCount) =
                     BeamScoringFunctionFactory.linkAverageGeneralizedTimes.getOrElse(linkId, 0D -> 0)
                   val generalizedLinkTime = attributes.getGeneralizedTimeOfLinkForMNL(
-                    (linkId, linkTT),
+                    (linkId, math.round(linkTT.toFloat)),
                     leg.beamLeg.mode,
                     modeChoiceMultinomialLogit,
                     beamServices,

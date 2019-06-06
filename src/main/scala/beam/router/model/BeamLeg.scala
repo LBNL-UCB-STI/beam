@@ -4,7 +4,8 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.WALK
-import beam.utils.TravelTimeUtils
+import beam.sim.common.GeoUtils
+import beam.utils.{NetworkHelper, TravelTimeUtils}
 
 /**
   *
@@ -29,17 +30,13 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
   }
 
   def scaleToNewDuration(newDuration: Int): BeamLeg = {
-    val newTravelPath = this.travelPath.copy(
-      linkTravelTime =
-        TravelTimeUtils.scaleTravelTime(newDuration, this.travelPath.linkTravelTime.sum, this.travelPath.linkTravelTime)
-    )
+    val newTravelPath = this.travelPath.scaleTravelTimes(newDuration.toDouble/this.duration.toDouble)
     this
       .copy(
         duration = newDuration,
         travelPath = newTravelPath
       )
   }
-
   def scaleLegDuration(scaleBy: Double): BeamLeg = {
     val newTravelPath = this.travelPath.scaleTravelTimes(scaleBy)
     this
@@ -64,6 +61,19 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
       travelPath.distanceInM + nextLeg.travelPath.distanceInM
     )
     this.copy(travelPath = newTravelPath).updateStartTime(startTime)
+  }
+  /**
+    * SubLegBefore
+    * Returns a new BeamLeg composed as if one traversed the original BeamLeg until throughTime
+    */
+  def subLegThrough(throughTime: Int, networkHelper: NetworkHelper, geoUtils: GeoUtils):BeamLeg = {
+    val linkAtTime = this.travelPath.linkAtTime(throughTime)
+    val indexOfNewEndLink = this.travelPath.linkIds.indexWhere(_ == linkAtTime)
+    val newEndPoint = SpaceTime(geoUtils.utm2Wgs(networkHelper.getLink(this.travelPath.linkIds(indexOfNewEndLink)).get.getCoord),throughTime)
+    val newTravelPath = this.travelPath.copy(linkIds = this.travelPath.linkIds.take(indexOfNewEndLink+1),
+      linkTravelTime = this.travelPath.linkTravelTime.take(indexOfNewEndLink+1),
+      endPoint = newEndPoint)
+    this.copy(duration = newTravelPath.duration, travelPath = newTravelPath)
   }
 
   override def toString: String =

@@ -59,17 +59,6 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     }
   }
 
-  def scheduleIsChangedFromInService(vehicleAndSchedule: VehicleAndSchedule, tick: Int) = {
-    rideHailManager.vehicleManager.inServiceRideHailVehicles.get(vehicleAndSchedule.vehicle.id).map{ inService =>
-      val inServiceVehAndSched = createVehicleAndScheduleFromRideHailAgentLocation(
-        inService,
-        tick,
-        rideHailManager.beamServices
-      )
-      inServiceVehAndSched.schedule != vehicleAndSchedule.schedule
-    }.getOrElse(true)
-  }
-
   override def allocateVehiclesToCustomers(
     tick: Int,
     vehicleAllocationRequest: AllocationRequests
@@ -153,7 +142,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
             veh =>
               createVehicleAndScheduleFromRideHailAgentLocation(
                 veh,
-                tick,
+                tick + rideHailManager.beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
                 rideHailManager.beamServices
               )
           ).toList
@@ -201,13 +190,13 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       }
 
       assignment.foreach {
-        case (theTrip, vehicleAndSchedule, cost) =>
+        case (theTrip, vehicleAndOldSchedule, cost) =>
           // Pooling alg can return a schedule identical to already in progress, for these we ignore
-          if(scheduleIsChangedFromInService(vehicleAndSchedule, tick)){
+          if(theTrip.schedule != vehicleAndOldSchedule.schedule){
             if(!rideHailManager.vehicleManager.inServiceRideHailVehicles.isEmpty){
               val i = 0
             }
-            alreadyAllocated = alreadyAllocated + vehicleAndSchedule.vehicle.id
+            alreadyAllocated = alreadyAllocated + vehicleAndOldSchedule.vehicle.id
             var newRideHailRequest: Option[RideHailRequest] = None
             var scheduleToCache: List[MobilityRequest] = List()
             val rReqs = (theTrip.schedule.find(_.tag==EnRoute).toList ++ theTrip.schedule.reverse.takeWhile(_.tag != EnRoute).reverse)
@@ -239,8 +228,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                     withTransit = false,
                     IndexedSeq(
                       StreetVehicle(
-                        Id.create(vehicleAndSchedule.vehicle.id.toString, classOf[Vehicle]),
-                        vehicleAndSchedule.vehicle.beamVehicleType.id,
+                        Id.create(vehicleAndOldSchedule.vehicle.id.toString, classOf[Vehicle]),
+                        vehicleAndOldSchedule.vehicle.beamVehicleType.id,
                         origin,
                         CAR,
                         asDriver = true

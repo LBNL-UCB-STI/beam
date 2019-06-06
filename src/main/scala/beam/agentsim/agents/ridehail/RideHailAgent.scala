@@ -312,25 +312,53 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
       // i.e. for what time it is. For now, we just believe it that time is not running backwards.
-      log.debug("updating Passenger schedule - vehicleId({}): {}", id, updatedPassengerSchedule)
-      val triggerToSchedule = Vector(
-        ScheduleTrigger(
-          StartLegTrigger(
-            updatedPassengerSchedule.schedule.firstKey.startTime,
-            updatedPassengerSchedule.schedule.firstKey
-          ),
-          self
+      if(data.passengerSchedule.schedule.isEmpty){
+        log.debug("updating Passenger schedule - vehicleId({}): {}", id, updatedPassengerSchedule)
+        val triggerToSchedule = Vector(
+          ScheduleTrigger(
+            StartLegTrigger(
+              updatedPassengerSchedule.schedule.firstKey.startTime,
+              updatedPassengerSchedule.schedule.firstKey
+            ),
+            self
+          )
         )
-      )
-      goto(WaitingToDriveInterrupted) using data
-        .copy(geofence = geofence)
-        .withPassengerSchedule(updatedPassengerSchedule)
-        .asInstanceOf[RideHailAgentData] replying ModifyPassengerScheduleAck(
-        requestId,
-        triggerToSchedule,
-        vehicle.id,
-        tick,
-      )
+        goto(WaitingToDriveInterrupted) using data
+          .copy(geofence = geofence)
+          .withPassengerSchedule(updatedPassengerSchedule)
+          .asInstanceOf[RideHailAgentData] replying ModifyPassengerScheduleAck(
+          requestId,
+          triggerToSchedule,
+          vehicle.id,
+          tick,
+        )
+      }else{
+        log.debug("merging existing passenger schedule with updated - vehicleId({}), existing: {}, updated: {}", id, data.passengerSchedule, updatedPassengerSchedule)
+        val currentLeg = data.passengerSchedule.schedule.view.drop(data.currentLegPassengerScheduleIndex).head._1
+        val updatedStopTime = math.max(currentLeg.startTime,tick)
+        val resolvedPassengerSchedule: PassengerSchedule = DrivesVehicle.resolvePassengerScheduleConflicts(updatedStopTime, data.passengerSchedule, updatedPassengerSchedule, beamServices.networkHelper, beamServices.geo)
+
+        // Find the
+        val triggerToSchedule = Vector(
+          ScheduleTrigger(
+            StartLegTrigger(
+              updatedPassengerSchedule.schedule.firstKey.startTime,
+              updatedPassengerSchedule.schedule.firstKey
+            ),
+            self
+          )
+        )
+        goto(WaitingToDriveInterrupted) using data
+          .copy(geofence = geofence)
+          .withPassengerSchedule(updatedPassengerSchedule)
+          .asInstanceOf[RideHailAgentData] replying ModifyPassengerScheduleAck(
+          requestId,
+          triggerToSchedule,
+          vehicle.id,
+          tick,
+        )
+
+      }
     case ev @ Event(Resume(), _) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       goto(Idle)

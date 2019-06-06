@@ -146,10 +146,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
       }
 
-      val defaultTravelTimeByLink = (time: Int, linkId: Int, mode: StreetMode) => {
+      val defaultTravelTimeByLink = (time: Double, linkId: Int, mode: StreetMode) => {
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-        val tt = (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, mode)).round
-        tt.toInt
+        edge.getLengthM / edge.calculateSpeed(new ProfileRequest, mode)
       }
       val initializer =
         new TransitInitializer(
@@ -799,7 +798,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       SpaceTime(
         segment.geometry.getEndPoint.getX,
         segment.geometry.getEndPoint.getY,
-        tripStartTime + linksTimesDistances.travelTimes.tail.sum
+        tripStartTime + math.round(linksTimesDistances.travelTimes.tail.sum.toFloat)
       ),
       distance
     )
@@ -819,7 +818,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       SpaceTime(
         endLoc.getX,
         endLoc.getY,
-        tripStartTime + linksTimesDistances.travelTimes.tail.sum
+        tripStartTime + math.round(linksTimesDistances.travelTimes.tail.sum.toFloat)
       ),
       linksTimesDistances.distances.tail.foldLeft(0.0)(_ + _)
     )
@@ -930,16 +929,15 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       case None => new EdgeStore.DefaultTravelTimeCalculator
     }
 
-  private def travelTimeByLinkCalculator(time: Int, linkId: Int, mode: StreetMode): Int = {
+  private def travelTimeByLinkCalculator(time: Double, linkId: Int, mode: StreetMode): Double = {
     maybeTravelTime match {
       case Some(matsimTravelTime) if mode == StreetMode.CAR =>
-        getTravelTime(time, linkId, matsimTravelTime).round.toInt
+        getTravelTime(math.round(time.toFloat), linkId, matsimTravelTime)
 
       case _ =>
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
         //        (new EdgeStore.DefaultTravelTimeCalculator).getTravelTimeMilliseconds(edge,)
-        val tt = (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, mode)).round
-        tt.toInt
+        (edge.getLengthM / edge.calculateSpeed(new ProfileRequest, mode))
     }
   }
 

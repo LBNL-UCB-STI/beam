@@ -113,7 +113,9 @@ class RideHailModifyPassengerScheduleManager(
     modifyStatus: RideHailModifyPassengerScheduleStatus,
     stopDriving: Boolean
   ): Unit = {
-    if (stopDriving) modifyStatus.rideHailAgent.tell(StopDriving(modifyStatus.tick), rideHailManagerRef)
+    if (stopDriving) {
+      modifyStatus.rideHailAgent.tell(StopDriving(modifyStatus.tick), rideHailManagerRef)
+    }
     modifyStatus.rideHailAgent.tell(modifyStatus.modifyPassengerSchedule, rideHailManagerRef)
     modifyStatus.rideHailAgent.tell(Resume(), rideHailManagerRef)
     interruptIdToModifyPassengerScheduleStatus.put(modifyStatus.interruptId,modifyStatus.copy(status = ModifyPassengerScheduleSent))
@@ -212,7 +214,7 @@ class RideHailModifyPassengerScheduleManager(
     )
     sendInterruptMessage(
       ModifyPassengerSchedule(passengerSchedule, tick, reservationRequestId),
-      passengerSchedule.schedule.head._1.startTime,
+      tick,
       rideHailAgent.vehicleId,
       rideHailAgent.rideHailAgent,
       SingleReservation
@@ -248,35 +250,6 @@ class RideHailModifyPassengerScheduleManager(
     }
   }
 
-  def checkInResource(
-                       vehicleId: Id[Vehicle],
-                       availableIn: Option[SpaceTime],
-                       passengerSchedule: Option[PassengerSchedule]
-                     ): Unit = {
-    passengerSchedule match {
-      case Some(schedule) =>
-        vehicleIdToModifyPassengerScheduleStatus.get(vehicleId).foreach{ status =>
-          if (availableIn.get.time > 0) {
-            val beamLeg =
-              status.modifyPassengerSchedule.updatedPassengerSchedule.schedule.toVector.last._1
-            val passengerScheduleLastLeg = schedule.schedule.toVector.last._1
-
-            if (beamLeg.endTime != passengerScheduleLastLeg.endTime && status.interruptOrigin == SingleReservation) {
-              // ignore, because this checkin is for a reposition and not the current Reservation
-              log.debug(
-                "checkin is not for current vehicle:" + status + ";checkInAt:" + availableIn
-              )
-            } else {
-              interruptIdToModifyPassengerScheduleStatus.remove(status.interruptId)
-              vehicleIdToModifyPassengerScheduleStatus.remove(vehicleId)
-            }
-          }
-        }
-      case None =>
-      //        log.debug("checkin: {} with empty passenger schedule", vehicleId)
-    }
-  }
-
   private def saveModifyStatusInCache(
     rideHailModifyPassengerScheduleStatus: RideHailModifyPassengerScheduleStatus
   ): Unit = {
@@ -284,6 +257,12 @@ class RideHailModifyPassengerScheduleManager(
     vehicleIdToModifyPassengerScheduleStatus.put(rideHailModifyPassengerScheduleStatus.vehicleId,rideHailModifyPassengerScheduleStatus)
   }
 
+  def clearModifyStatusFromCacheWithVehicleId(vehicleId: Id[Vehicle]): Unit = {
+    vehicleIdToModifyPassengerScheduleStatus.get(vehicleId).foreach { status =>
+      interruptIdToModifyPassengerScheduleStatus.remove(status.interruptId)
+      vehicleIdToModifyPassengerScheduleStatus.remove(vehicleId)
+    }
+  }
   private def clearModifyStatusFromCacheWithInterruptId(
     interruptId: Id[Interrupt]
   ): Unit = {

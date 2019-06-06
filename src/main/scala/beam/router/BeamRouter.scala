@@ -639,5 +639,5 @@ object BeamRouter {
   case object GimmeWork extends WorkMessage
   case object WorkAvailable extends WorkMessage
 
-  def oneSecondTravelTime(a: Int, b: Int, c: StreetMode) = 1
+  def oneSecondTravelTime(a: Double, b: Int, c: StreetMode) = 1.0
 }
