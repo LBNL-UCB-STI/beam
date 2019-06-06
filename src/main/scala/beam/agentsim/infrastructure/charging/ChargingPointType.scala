@@ -70,7 +70,7 @@ object ChargingPointType {
         Some(CustomChargingPoint(id, installedCapacity, currentType))
       case _ =>
         None
-        throw new IllegalArgumentException("invalid argument for ChargingPointType: " + s.trim.toLowerCase)
+        //throw new IllegalArgumentException("invalid argument for ChargingPointType: " + s.trim.toLowerCase)
     }
   }
 

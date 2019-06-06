@@ -770,7 +770,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
   }
 
   def handleStartCharging(tick: Int, vehicle: BeamVehicle) = {
-    log.debug("Vehicle {} connects to charger @ stall {}", vehicle.id, vehicle.stall.get)
+    log.error("Vehicle {} connects to charger @ stall {}", vehicle.id, vehicle.stall.get)
     vehicle.connectToChargingPoint()
     eventsManager.processEvent(
       new ChargingPlugInEvent(
@@ -798,7 +798,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
     val chargingEndTick = tick + sessionDuration.toInt
 
-    log.debug(
+    log.error(
       "scheduling EndRefuelSessionTrigger at {} with {} J to vehicle {} to be delivered",
       chargingEndTick,
       energyDelivered,
