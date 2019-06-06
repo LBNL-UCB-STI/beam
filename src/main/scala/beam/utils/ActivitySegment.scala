@@ -18,9 +18,6 @@ class ActivitySegment(val activities: Array[Activity], val binSize: Int) extends
   private val maxIdx: Int = sorted.last.getEndTime.toInt / binSize
   private val arr: Array[Array[Coord]] = build(sorted, binSize)
 
-  val vector = arr.filter(x => x != null).map(x => x.toVector).toVector
-  println(vector)
-
   def getCoords(time: Double): IndexedSeq[Coord] = {
     val idx = time.toInt / binSize
     if (idx > maxIdx) {
