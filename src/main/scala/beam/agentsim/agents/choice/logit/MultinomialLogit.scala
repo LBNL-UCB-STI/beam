@@ -47,18 +47,18 @@ class MultinomialLogit[A, T](
               case Some(thisUtility) =>
                 if (thisUtility == Double.PositiveInfinity) {
                   // place on tail of list, allowing us to short-circuit the sampling in next step
-                  accumulator :+ AlternativeWithUtility(alt, math.exp(thisUtility))
+                  accumulator :+ AlternativeWithUtility(alt, thisUtility, math.exp(thisUtility))
                 } else {
-                  AlternativeWithUtility(alt, math.exp(thisUtility)) +: accumulator
+                  AlternativeWithUtility(alt, thisUtility, math.exp(thisUtility)) +: accumulator
                 }
             }
         }
 
       altsWithUtility.lastOption.flatMap {
-        case AlternativeWithUtility(possiblyInfiniteAlt, possiblyInfinite) =>
-          if (possiblyInfinite == Double.PositiveInfinity) {
+        case AlternativeWithUtility(possiblyInfiniteAlt, possiblyInfiniteUtility, possiblyInfiniteExpUtility) =>
+          if (possiblyInfiniteExpUtility == Double.PositiveInfinity) {
             // take any infinitely-valued alternative
-            Some { MultinomialLogit.MNLSample(possiblyInfiniteAlt, possiblyInfinite, 1.0, 1.0) }
+            Some { MultinomialLogit.MNLSample(possiblyInfiniteAlt, possiblyInfiniteUtility, 1.0, 1.0) }
           } else {
 
             // denominator used for transforming utility values into draw probabilities
@@ -70,12 +70,12 @@ class MultinomialLogit[A, T](
             val asProbabilitySpread: List[MultinomialLogit.MNLSample[A]] =
               altsWithUtility
                 .foldLeft((0.0, List.empty[MultinomialLogit.MNLSample[A]])) {
-                  case ((prefix, stackedProbabilitiesList), AlternativeWithUtility(alt, expUtility)) =>
+                  case ((prefix, stackedProbabilitiesList), AlternativeWithUtility(alt, utility, expUtility)) =>
                     val probability: Double = expUtility / sumOfExponentialUtilities
                     val nextDrawThreshold: Double = prefix + probability
                     val mnlSample = MultinomialLogit.MNLSample(
                       alt,
-                      expUtility,
+                      utility,
                       nextDrawThreshold,
                       probability
                     )
@@ -158,6 +158,7 @@ object MultinomialLogit {
 
   private[MultinomialLogit] case class AlternativeWithUtility[A](
     alternative: A,
+    utility: Double,
     expUtility: Double
   ) {
     override def hashCode: Int = alternative.hashCode
