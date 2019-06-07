@@ -118,17 +118,16 @@ class MultinomialLogitSpec extends WordSpecLike with Matchers {
       val random: Random = new Random(0)
       val mnl: MultinomialLogit[String, String] = new MultinomialLogit[String, String](Map.empty, utilityFunctions)
       mnl.sampleAlternative(alternatives, random) match {
-        case None => fail()
+        case None           => fail()
         case Some(selected) =>
-
           // these alternatives have a dangerous cost value
-          selected.alternativeType should (equal ("B") or equal ("D"))
+          selected.alternativeType should (equal("B") or equal("D"))
 
           // the alternatives that "blow up" to infinity have a dangerous cost
-          selected.utility should equal (dangerousCostValue)
+          selected.utility should equal(dangerousCostValue)
 
           // the dangerous cost value, when e is raised to them, should go to pos. infinity
-          math.pow(math.E, dangerousCostValue) should equal (Double.PositiveInfinity)
+          math.pow(math.E, dangerousCostValue) should equal(Double.PositiveInfinity)
       }
     }
   }
@@ -138,25 +137,27 @@ class MultinomialLogitSpec extends WordSpecLike with Matchers {
       val random: Random = new Random(0)
       val mnl: MultinomialLogit[String, String] = new MultinomialLogit[String, String](Map.empty, utilityFunctions)
       mnl.sampleAlternative(alternatives, random) match {
-        case None => fail()
+        case None           => fail()
         case Some(selected) =>
           // there are four equal alternatives, so, they should each be given a 25% probability of selection
-          selected.realProbability should equal (0.25)
+          selected.realProbability should equal(0.25)
 
           // the utility should be the same
-          selected.utility should equal (alternativesCost)
+          selected.utility should equal(alternativesCost)
       }
     }
   }
 }
 
-
 object MultinomialLogitSpec {
+
   trait InfinitelyValuedAlternatives {
     val dangerousCostValue = 1000.0
+
     val utilityFunctions = Map(
       "value" -> UtilityFunctionOperation.Multiplier(1.0)
     )
+
     // alternatives B and D should evaluate to e^1000 which is greater than Double.MaxValue => infinite
     val alternatives: Map[String, Map[String, Double]] = Map(
       "A" -> Map(
@@ -173,11 +174,14 @@ object MultinomialLogitSpec {
       )
     )
   }
+
   trait EquallyValuedAlternatives {
     val alternativesCost = -1
+
     val utilityFunctions = Map(
       "value" -> UtilityFunctionOperation.Multiplier(1.0)
     )
+
     val alternatives: Map[String, Map[String, Double]] = Map(
       "A" -> Map(
         "value" -> alternativesCost
