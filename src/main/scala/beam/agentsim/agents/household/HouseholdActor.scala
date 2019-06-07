@@ -143,8 +143,6 @@ object HouseholdActor {
         case _: AssertionError => Stop
       }
 
-    schedulerRef ! ScheduleTrigger(InitializeTrigger(0), self)
-
     if (beamServices.beamConfig.beam.experimental.optimizer.enabled) {
       //Create the solver actor
       val solver = context.actorOf(beam.agentsim.agents.household.HouseholdSolverActor.props)

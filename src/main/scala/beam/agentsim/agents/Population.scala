@@ -3,13 +3,12 @@ package beam.agentsim.agents
 import java.util.concurrent.TimeUnit
 
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, Identify, OneForOneStrategy, Props, Terminated}
-import akka.pattern._
+import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.osm.TollCalculator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
@@ -22,7 +21,6 @@ import org.matsim.households.Household
 
 import scala.collection.JavaConverters._
 import scala.collection.{mutable, JavaConverters}
-import scala.concurrent.{Await, Future}
 
 class Population(
   val scenario: Scenario,
@@ -83,76 +81,63 @@ class Population(
   }
 
   private def initHouseholds(iterId: Option[String] = None): Unit = {
-    import scala.concurrent.ExecutionContext.Implicits.global
+    scenario.getHouseholds.getHouseholds.values().forEach { household =>
+      //TODO a good example where projection should accompany the data
+      if (scenario.getHouseholds.getHouseholdAttributes
+            .getAttribute(household.getId.toString, "homecoordx") == null) {
+        log.error(
+          s"Cannot find homeCoordX for household ${household.getId} which will be interpreted at 0.0"
+        )
+      }
+      if (scenario.getHouseholds.getHouseholdAttributes
+            .getAttribute(household.getId.toString.toLowerCase(), "homecoordy") == null) {
+        log.error(
+          s"Cannot find homeCoordY for household ${household.getId} which will be interpreted at 0.0"
+        )
+      }
+      val homeCoord = new Coord(
+        scenario.getHouseholds.getHouseholdAttributes
+          .getAttribute(household.getId.toString, "homecoordx")
+          .asInstanceOf[Double],
+        scenario.getHouseholds.getHouseholdAttributes
+          .getAttribute(household.getId.toString, "homecoordy")
+          .asInstanceOf[Double]
+      )
 
-    try {
-      // Have to wait for households to create people so they can send their first trigger to the scheduler
-      val houseHoldsInitialized =
-        Future.sequence(scenario.getHouseholds.getHouseholds.values().asScala.map { household =>
-          //TODO a good example where projection should accompany the data
-          if (scenario.getHouseholds.getHouseholdAttributes
-                .getAttribute(household.getId.toString, "homecoordx") == null) {
-            log.error(
-              s"Cannot find homeCoordX for household ${household.getId} which will be interpreted at 0.0"
-            )
-          }
-          if (scenario.getHouseholds.getHouseholdAttributes
-                .getAttribute(household.getId.toString.toLowerCase(), "homecoordy") == null) {
-            log.error(
-              s"Cannot find homeCoordY for household ${household.getId} which will be interpreted at 0.0"
-            )
-          }
-          val homeCoord = new Coord(
-            scenario.getHouseholds.getHouseholdAttributes
-              .getAttribute(household.getId.toString, "homecoordx")
-              .asInstanceOf[Double],
-            scenario.getHouseholds.getHouseholdAttributes
-              .getAttribute(household.getId.toString, "homecoordy")
-              .asInstanceOf[Double]
-          )
-
-          val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
-            .collectionAsScalaIterable(household.getVehicleIds)
-            .map { vid =>
-              val bvid = BeamVehicle.createId(vid)
-              bvid -> beamScenario.privateVehicles(bvid)
-            }
-            .toMap
-          val householdActor = context.actorOf(
-            HouseholdActor.props(
-              beamServices,
-              beamScenario,
-              beamServices.modeChoiceCalculatorFactory,
-              scheduler,
-              transportNetwork,
-              tollCalculator,
-              router,
-              rideHailManager,
-              parkingManager,
-              eventsManager,
-              scenario.getPopulation,
-              household,
-              householdVehicles,
-              homeCoord,
-              sharedVehicleFleets,
-              routeHistory,
-              beamSkimmer,
-              travelTimeObserved
-            ),
-            household.getId.toString
-          )
-
-          context.watch(householdActor)
-          householdActor ? Identify(0)
-        })
-      Await.result(houseHoldsInitialized, timeout.duration)
-      log.info(s"Initialized ${scenario.getHouseholds.getHouseholds.size} households")
-    } catch {
-      case e: Exception =>
-        log.error(e, "Error initializing houseHolds")
-        throw e
+      val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
+        .collectionAsScalaIterable(household.getVehicleIds)
+        .map { vid =>
+          val bvid = BeamVehicle.createId(vid)
+          bvid -> beamScenario.privateVehicles(bvid)
+        }
+        .toMap
+      val householdActor = context.actorOf(
+        HouseholdActor.props(
+          beamServices,
+          beamScenario,
+          beamServices.modeChoiceCalculatorFactory,
+          scheduler,
+          transportNetwork,
+          tollCalculator,
+          router,
+          rideHailManager,
+          parkingManager,
+          eventsManager,
+          scenario.getPopulation,
+          household,
+          householdVehicles,
+          homeCoord,
+          sharedVehicleFleets,
+          routeHistory,
+          beamSkimmer,
+          travelTimeObserved
+        ),
+        household.getId.toString
+      )
+      context.watch(householdActor)
+      scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
     }
-
+    log.info(s"Initialized ${scenario.getHouseholds.getHouseholds.size} households")
   }
 
 }
