@@ -45,6 +45,11 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
     freeSpeeds.sum / freeSpeeds.length
   }
 
+
+  val repoShare: Double = rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.repositioningShare
+  val numVehiclesToReposition: Int = (repoShare * rideHailManager.numRideHailAgents).toInt
+  logger.info(s"repositioningShare: $repoShare, numRideHailAgents: ${rideHailManager.numRideHailAgents}, numVehiclesToReposition $numVehiclesToReposition")
+
   val intervalSize: Int = 300
 
   val activitySegment: ActivitySegment = ActivitySegment(rideHailManager.beamServices.matsimServices.getScenario, intervalSize)
@@ -214,18 +219,11 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         // max distance travel is 20min
         // TODO: use skims to derive radius from it or other way around.
 
-        val repositioningShare =
-          rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.repositioningShare
-        val fleetSize = rideHailManager.fleetSize
-        val numVehiclesToReposition = (repositioningShare * fleetSize).toInt
+
         val idleVehicles = rideHailManager.vehicleManager.getIdleVehicles.values
         if (idleVehicles.size >= 2) {
-          val vehiclesToReposition =
-            RandomUtils.shuffle(idleVehicles, new java.util.Random()).splitAt(numVehiclesToReposition)._1
-
-          val activitiesCoordinates = activitySegment.getCoords(tick + 20 * 60,  tick + 3600)
-
-          val result = vehiclesToReposition.par
+         val activitiesCoordinates = activitySegment.getCoords(tick + 20 * 60,  tick + 3600)
+          val vehiclesToReposition = idleVehicles.par
             .flatMap { vehIdAndLoc =>
               val vehicleId = vehIdAndLoc.vehicleId
               val location = vehIdAndLoc.currentLocationUTM
@@ -239,11 +237,12 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
               }
             }
             .seq
-            .toVector
 
+          val result = RandomUtils.shuffle(vehiclesToReposition, new java.util.Random()).splitAt(numVehiclesToReposition)._1.toVector
           logger.info(
-            s"repositioningShare: $repositioningShare, fleetSize: $fleetSize, vehiclesToReposition size: ${vehiclesToReposition.size}, will reposition ${result.size}"
+            s"Will reposition ${result.size} which are randonly picked from ${vehiclesToReposition.size}"
           )
+          logger.info(s"tick is $tick. Activities in [tick + 20*60, tick + 3600]: ${activitiesCoordinates.size}")
 
           logger.whenDebugEnabled {
             result.foreach {
@@ -252,7 +251,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
             }
           }
 
-          writeRepositioningToCSV(result, tick)
+          // writeRepositioningToCSV(result, tick)
 
           result
         } else {
