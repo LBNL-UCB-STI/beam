@@ -170,7 +170,7 @@ object ParkingZoneSearch {
 //          "energyPriceFactor"       -> (parkingTicket * installedCapacity), //todo JH we need a value for energy price
           "distanceFactor"          -> (distance / 1.4 / 3600.0) * valueOfTime,
           "installedCapacity"       -> installedCapacity,
-          "parkingCostsPriceFactor" -> parkingTicket
+          "parkingCostsPriceFactor" -> parkingTicket / 1000 //in US$
         )
       }
 

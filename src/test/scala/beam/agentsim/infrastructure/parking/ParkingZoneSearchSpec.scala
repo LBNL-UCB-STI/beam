@@ -52,11 +52,11 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           case Some(
               ParkingZoneSearch.ParkingSearchResult(taz, parkingType, parkingZone, stallCoord, utilityOfAlternative)
               ) =>
-            // the TAZ selected should be TAZ A
+            // the TAZ selected should be TAZ B
             taz should equal(tazB)
 
             // since everything is equal, either TAZ should work out, but
-            utilityOfAlternative should equal(1.0)
+            utilityOfAlternative should equal(0)
 
             // these should be consistent with the configuration of this scenario
             parkingType should equal(ParkingType.Public)
