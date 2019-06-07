@@ -32,14 +32,17 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
   private var personHouseholds: Map[Id[Person], Household] = _
 
   override protected def beforeAll(): Unit = {
-    val beamExecConfig: BeamExecutionConfig = setupBeamWithConfig(config)
+    val beamExecutionConfig: BeamExecutionConfig = setupBeamWithConfig(config)
 
-    val networkCoordinator = buildNetworkCoordinator(beamExecConfig.beamConfig)
-//    scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, networkCoordinator)
-    scenario = ScenarioBuilder.builder.withNetwork(networkCoordinator.network).build
-    val injector = buildInjector(config, scenario, networkCoordinator)
-    val services = buildBeamServices(injector, scenario, beamExecConfig.matsimConfig, networkCoordinator)
-    fillScenarioWithExternalSources(injector, scenario, beamExecConfig.matsimConfig, networkCoordinator, services)
+    val networkCoordinator = buildNetworkCoordinator(beamExecutionConfig.beamConfig)
+
+    val (services, scenario) = buildBeamServicesAndScenario(
+      config,
+      beamExecutionConfig.beamConfig,
+      beamExecutionConfig.matsimConfig,
+      networkCoordinator
+    )
+
     runBeam(services, scenario, networkCoordinator, scenario.getConfig.controler().getOutputDirectory)
     personHouseholds = scenario.getHouseholds.getHouseholds
       .values()
