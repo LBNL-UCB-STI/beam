@@ -239,8 +239,9 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
             .seq
 
           val result = RandomUtils.shuffle(vehiclesToReposition, new java.util.Random()).splitAt(numVehiclesToReposition)._1.toVector
+          val percent = (if (idleVehicles.size == 0) 0 else result.size.toDouble / idleVehicles.size) * 100
           logger.info(
-            s"Will reposition ${result.size} which are randonly picked from ${vehiclesToReposition.size}"
+            s"Will reposition ${result.size} which are randomly picked from ${vehiclesToReposition.size}. Number of idleVehicles: ${idleVehicles.size}, repositioning ${percent} % of idle vehicle"
           )
           logger.info(s"tick is $tick. Activities in [tick + 20*60, tick + 3600]: ${activitiesCoordinates.size}")
 
