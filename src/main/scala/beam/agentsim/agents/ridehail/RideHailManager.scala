@@ -242,6 +242,26 @@ class RideHailManager(
       .build()
   }
 
+  private val initialNumHouseholdVehicles = scenario.getHouseholds.getHouseholds
+    .values()
+    .asScala
+    .flatMap { hh =>
+      hh.getVehicleIds.asScala.map { vehId =>
+        beamServices.privateVehicles
+          .get(vehId)
+          .map(_.beamVehicleType)
+          .getOrElse(throw new IllegalStateException(s"$vehId is not found in `beamServices.privateVehicles`"))
+      }
+    }
+    .filter(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car)
+    .size / beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
+  // Undo sampling to estimate initial number
+
+  val numRideHailAgents = math.round(
+    initialNumHouseholdVehicles *
+      beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet
+  )
+
   def fleetSize: Int = resources.size
 
   val radiusInMeters: Double =
@@ -297,25 +317,7 @@ class RideHailManager(
   // Are we in the middle of processing a batch?
   var currentlyProcessingTimeoutTrigger: Option[TriggerWithId] = None
 
-  private val initialNumHouseholdVehicles = scenario.getHouseholds.getHouseholds
-    .values()
-    .asScala
-    .flatMap { hh =>
-      hh.getVehicleIds.asScala.map { vehId =>
-        beamServices.privateVehicles
-          .get(vehId)
-          .map(_.beamVehicleType)
-          .getOrElse(throw new IllegalStateException(s"$vehId is not found in `beamServices.privateVehicles`"))
-      }
-    }
-    .filter(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car)
-    .size / beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
-  // Undo sampling to estimate initial number
 
-  private val numRideHailAgents = math.round(
-    initialNumHouseholdVehicles *
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet
-  )
 
   // Cache analysis
   private var cacheAttempts = 0
