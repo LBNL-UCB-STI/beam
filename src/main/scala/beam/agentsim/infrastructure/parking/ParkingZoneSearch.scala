@@ -201,14 +201,19 @@ object ParkingZoneSearch {
     destinationUTM: Coord,
     valueOfTime: Double,
     parkingDuration: Double,
-    found: Iterable[(TAZ, ParkingType, ParkingZone, Coord)],
+    found: Iterable[ParkingAlternative],
     chargingInquiry: Option[ChargingInquiry],
     distanceFunction: (Coord, Coord) => Double
   ): Option[ParkingSearchResult] = {
 
-    found.foldLeft(Option.empty[ParkingSearchResult]) { (accOption, parkingZoneTuple) =>
+    found.foldLeft(Option.empty[ParkingSearchResult]) { (accOption, parkingAlternative) =>
       val (thisTAZ: TAZ, thisParkingType: ParkingType, thisParkingZone: ParkingZone, stallLocation: Coord) =
-        parkingZoneTuple
+        (
+          parkingAlternative.taz,
+          parkingAlternative.parkingType,
+          parkingAlternative.parkingZone,
+          parkingAlternative.coord
+        )
 
       val walkingDistance: Double = distanceFunction(destinationUTM, stallLocation)
 

@@ -38,6 +38,14 @@ object ParkingInquiry {
       )
     )
 
+  val simpleDistanceEqualUtilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
+    new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](
+      Map.empty,
+      Map(
+        "distanceFactor" -> UtilityFunctionOperation.Multiplier(-1)
+      )
+    )
+
   def apply(locationUtm: Location, activity: String): ParkingInquiry = {
     ParkingInquiry(locationUtm, activity, 0.0, simpleDistanceAndParkingTicketEqualUtilityFunction, 0)
   }
