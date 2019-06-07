@@ -20,7 +20,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           destinationInMiddle,
           valueOfTime = 0.0,
           parkingDuration = 0.0, // ignore pricing ranking
-          ParkingInquiry.simpleDistanceUtilityFunction,
+          ParkingInquiry.simpleDistanceAndParkingTicketEqualUtilityFunction,
           Seq(TAZ.DefaultTAZ),
           Seq(ParkingType.Public),
           tree,
@@ -38,7 +38,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           destinationNearTazB,
           valueOfTime = 1.0,
           parkingDuration = 0.0, // ignore pricing ranking
-          ParkingInquiry.simpleDistanceUtilityFunction,
+          ParkingInquiry.simpleDistanceAndParkingTicketEqualUtilityFunction,
           tazsInProblem,
           Seq(ParkingType.Public),
           parkingSearchTree,
@@ -48,10 +48,12 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         )
 
         result match {
-          case None                                                                                             => fail()
-          case Some(ParkingZoneSearch.ParkingSearchResult(taz, parkingType, parkingZone, stallCoord, utilityOfAlternative)) =>
+          case None => fail()
+          case Some(
+              ParkingZoneSearch.ParkingSearchResult(taz, parkingType, parkingZone, stallCoord, utilityOfAlternative)
+              ) =>
             // the TAZ selected should be TAZ A
-            taz should equal (tazB)
+            taz should equal(tazB)
 
             // since everything is equal, either TAZ should work out, but
             utilityOfAlternative should equal(1.0)
@@ -76,7 +78,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           destinationInMiddle,
           valueOfTime = 1.0,
           parkingDuration = 0.0, // ignore pricing ranking
-          ParkingInquiry.simpleDistanceUtilityFunction,
+          ParkingInquiry.simpleDistanceAndParkingTicketEqualUtilityFunction,
           tazsInProblem,
           Seq(ParkingType.Public),
           parkingSearchTree,
@@ -86,7 +88,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         )
 
         result match {
-          case None                                                                                             => fail()
+          case None                                                                                                 => fail()
           case Some(ParkingZoneSearch.ParkingSearchResult(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
             // TAZ B should have been selected because everything is equal except for availability is lower for A
             taz should equal(tazB)
@@ -118,7 +120,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           destinationNearTazA,
           valueOfTime = 1.0,
           parkingDuration = 0.0,
-          ParkingInquiry.simpleDistanceUtilityFunction,
+          ParkingInquiry.simpleDistanceAndParkingTicketEqualUtilityFunction,
           tazsInProblem,
           Seq(ParkingType.Public),
           parkingSearchTree,
@@ -128,7 +130,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         )
 
         result match {
-          case None                                                                                             => fail()
+          case None                                                                                                 => fail()
           case Some(ParkingZoneSearch.ParkingSearchResult(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
             // TAZ B should have been selected because everything is equal except for availability is lower for A
             taz should equal(tazB)
@@ -154,7 +156,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           destinationInMiddle,
           valueOfTime = valueOfTime,
           parkingDuration = parkingDuration,
-          ParkingInquiry.simpleDistanceUtilityFunction,
+          ParkingInquiry.simpleDistanceAndParkingTicketEqualUtilityFunction,
           tazsInProblem,
           Seq(ParkingType.Public),
           parkingSearchTree,
@@ -164,7 +166,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         )
 
         result match {
-          case None                                                                                             => fail()
+          case None                                                                                                 => fail()
           case Some(ParkingZoneSearch.ParkingSearchResult(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
             // TAZ B should have been selected because everything is equal except for availability is lower for A
             taz should equal(tazB)
@@ -190,7 +192,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           destinationInMiddle,
           valueOfTime = valueOfTime,
           parkingDuration = parkingDuration,
-          ParkingInquiry.simpleDistanceUtilityFunction,
+          ParkingInquiry.simpleDistanceAndParkingTicketEqualUtilityFunction,
           tazsInProblem,
           Seq(ParkingType.Public),
           parkingSearchTree,
@@ -200,7 +202,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         )
 
         result match {
-          case None                                                                                             => fail()
+          case None                                                                                                 => fail()
           case Some(ParkingZoneSearch.ParkingSearchResult(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
             // TAZ B should have been selected because everything is equal except for availability is lower for A
             taz should equal(tazA)

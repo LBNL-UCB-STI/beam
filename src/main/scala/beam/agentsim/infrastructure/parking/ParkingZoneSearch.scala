@@ -27,6 +27,7 @@ object ParkingZoneSearch {
 
   /**
     * the best-ranked parking attributes along with aggregate search data
+    *
     * @param bestTAZ TAZ where best-ranked ParkingZone is stored
     * @param bestParkingType ParkingType related to the best-ranked ParkingZone
     * @param bestParkingZone the best-ranked ParkingZone
@@ -43,6 +44,7 @@ object ParkingZoneSearch {
 
   /**
     * find the best parking alternative for the data in this request
+    *
     * @param destinationUTM coordinates of this request
     * @param valueOfTime agent's value of time in seconds
     * @param utilityFunction a utility function for parking alternatives
@@ -68,11 +70,20 @@ object ParkingZoneSearch {
   ): Option[ParkingSearchResult] = {
     val found = findParkingZones(destinationUTM, tazList, parkingTypes, tree, parkingZones, random)
 //    takeBestByRanking(destinationUTM, valueOfTime, parkingDuration, found, utilityFunction, distanceFunction)
-    takeBestBySampling(found, destinationUTM, parkingDuration.toInt, valueOfTime, utilityFunction, distanceFunction, random)
+    takeBestBySampling(
+      found,
+      destinationUTM,
+      parkingDuration.toInt,
+      valueOfTime,
+      utilityFunction,
+      distanceFunction,
+      random
+    )
   }
 
   /**
     * look for matching ParkingZones, within a TAZ, which have vacancies
+    *
     * @param destinationUTM coordinates of this request
     * @param tazList the TAZ we are looking in
     * @param parkingTypes the parking types we are interested in
@@ -116,6 +127,7 @@ object ParkingZoneSearch {
 
   /**
     * samples from the set of discovered stalls using a multinomial logit function
+    *
     * @param found the discovered parkingZones
     * @param destinationUTM coordinates of this request
     * @param parkingDuration the duration of the forthcoming agent activity
@@ -126,61 +138,59 @@ object ParkingZoneSearch {
     * @return the parking alternative that will be used for parking this agent's vehicle
     */
   def takeBestBySampling(
-                          found: Iterable[ParkingAlternative],
-                          destinationUTM: Coord,
-                          parkingDuration: Int,
-                          valueOfTime: Double,
-                          utilityFunction: MultinomialLogit[ParkingAlternative, String],
-                          distanceFunction: (Coord, Coord) => Double,
-                          random: Random
-                        ): Option[ParkingSearchResult] = {
+    found: Iterable[ParkingAlternative],
+    destinationUTM: Coord,
+    parkingDuration: Int,
+    valueOfTime: Double,
+    utilityFunction: MultinomialLogit[ParkingAlternative, String],
+    distanceFunction: (Coord, Coord) => Double,
+    random: Random
+  ): Option[ParkingSearchResult] = {
 
     val alternatives: Iterable[(ParkingAlternative, Map[String, Double])] =
-      found.
-        map{ parkingAlternative =>
+      found.map { parkingAlternative =>
+        val ParkingAlternative(_, _, parkingZone, stallCoordinate) = parkingAlternative
 
-          val ParkingAlternative(_, _, parkingZone, stallCoordinate) = parkingAlternative
-
-          val parkingTicket: Double = parkingZone.pricingModel match {
-            case Some(pricingModel) =>
-              PricingModel.evaluateParkingTicket(pricingModel, parkingDuration)
-            case None =>
-              0.0
-          }
-
-          val installedCapacity = parkingZone.chargingPointType match {
-            case Some(chargingPoint) => ChargingPointType.getChargingPointInstalledPowerInKw(chargingPoint)
-            case None                => 0
-          }
-
-          val distance: Double = distanceFunction(destinationUTM, stallCoordinate)
-
-          parkingAlternative ->
-            Map(
-              "energyPriceFactor" -> (parkingTicket * installedCapacity),
-              "distanceFactor"    -> (distance / 1.4 / 3600.0) * valueOfTime,
-              "installedCapacity" -> installedCapacity
-            )
+        val parkingTicket: Double = parkingZone.pricingModel match {
+          case Some(pricingModel) =>
+            PricingModel.evaluateParkingTicket(pricingModel, parkingDuration)
+          case None =>
+            0.0
         }
 
+        val installedCapacity = parkingZone.chargingPointType match {
+          case Some(chargingPoint) => ChargingPointType.getChargingPointInstalledPowerInKw(chargingPoint)
+          case None                => 0
+        }
 
-    utilityFunction.sampleAlternative(alternatives.toMap, random).
-      map{ result =>
-        val ParkingAlternative(taz, parkingType, parkingZone, coordinate) = result.alternativeType
+        val distance: Double = distanceFunction(destinationUTM, stallCoordinate)
 
-        val utility = result.utility
-        ParkingSearchResult(
-          taz,
-          parkingType,
-          parkingZone,
-          coordinate,
-          utility
+        parkingAlternative ->
+        Map(
+//          "energyPriceFactor"       -> (parkingTicket * installedCapacity), //todo JH we need a value for energy price
+          "distanceFactor"          -> (distance / 1.4 / 3600.0) * valueOfTime,
+          "installedCapacity"       -> installedCapacity,
+          "parkingCostsPriceFactor" -> parkingTicket
         )
       }
+
+    utilityFunction.sampleAlternative(alternatives.toMap, random).map { result =>
+      val ParkingAlternative(taz, parkingType, parkingZone, coordinate) = result.alternativeType
+
+      val utility = result.utility
+      ParkingSearchResult(
+        taz,
+        parkingType,
+        parkingZone,
+        coordinate,
+        utility
+      )
+    }
   }
 
   /**
     * finds the best parking zone id based on maximizing it's associated cost function evaluation
+    *
     * @param destinationUTM coordinates of this request
     * @param found the discovered parkingZones
     * @param chargingInquiry ChargingPreference per type of ChargingPoint

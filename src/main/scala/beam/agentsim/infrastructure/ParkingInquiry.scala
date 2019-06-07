@@ -7,6 +7,7 @@ import beam.utils.ParkingManagerIdGenerator
 
 /**
   * message sent from a ChoosesParking agent to a Parking Manager to request parking
+  *
   * @param destinationUtm the location where we are seeking nearby parking
   * @param activityType the activity that the agent will partake in after parking
   * @param valueOfTime the value of time for the requestor
@@ -27,13 +28,17 @@ case class ParkingInquiry(
 
 object ParkingInquiry {
 
-  val simpleDistanceUtilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
+  val simpleDistanceAndParkingTicketEqualUtilityFunction
+    : MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
     new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](
       Map.empty,
-      Map("distanceFactor" -> UtilityFunctionOperation.Multiplier(-1))
+      Map(
+        "distanceFactor"          -> UtilityFunctionOperation.Multiplier(-1),
+        "parkingCostsPriceFactor" -> UtilityFunctionOperation.Multiplier(-1)
+      )
     )
 
   def apply(locationUtm: Location, activity: String): ParkingInquiry = {
-    ParkingInquiry(locationUtm, activity, 0.0, simpleDistanceUtilityFunction,0)
+    ParkingInquiry(locationUtm, activity, 0.0, simpleDistanceAndParkingTicketEqualUtilityFunction, 0)
   }
 }

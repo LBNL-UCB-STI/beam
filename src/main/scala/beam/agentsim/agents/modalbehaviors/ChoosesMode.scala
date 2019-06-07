@@ -723,7 +723,7 @@ trait ChoosesMode {
       destinationInUTM,
       activityType,
       attributes.valueOfTime,
-      ParkingInquiry.simpleDistanceUtilityFunction,
+      ParkingInquiry.simpleDistanceAndParkingTicketEqualUtilityFunction,
       duration,
       reserveStall = false
     )
