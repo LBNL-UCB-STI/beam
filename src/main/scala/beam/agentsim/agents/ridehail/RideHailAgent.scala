@@ -337,6 +337,9 @@ class RideHailAgent(
         val currentLeg = data.passengerSchedule.schedule.view.drop(data.currentLegPassengerScheduleIndex).head._1
         val updatedStopTime = math.max(currentLeg.startTime,tick)
         val resolvedPassengerSchedule: PassengerSchedule = DrivesVehicle.resolvePassengerScheduleConflicts(updatedStopTime, data.passengerSchedule, updatedPassengerSchedule, beamServices.networkHelper, beamServices.geo)
+        if(data.currentLegPassengerScheduleIndex >= resolvedPassengerSchedule.schedule.size ){
+          val i = 0
+        }
         val newNextLeg = resolvedPassengerSchedule.schedule.keys.toIndexedSeq(data.currentLegPassengerScheduleIndex)
 
         if(resolvedPassengerSchedule.schedule.values.exists(_.riders.size==6)){

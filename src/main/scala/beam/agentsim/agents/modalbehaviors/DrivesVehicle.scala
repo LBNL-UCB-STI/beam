@@ -32,40 +32,44 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.mutable
 
 /**
-  * @author dserdiuk on 7/29/17.
+  * DrivesVehicle
   */
 object DrivesVehicle {
   def resolvePassengerScheduleConflicts(stopTick: Int, oldPassengerSchedule: PassengerSchedule, updatedPassengerSchedule: PassengerSchedule, networkHelper: NetworkHelper, geoUtils: GeoUtils): PassengerSchedule = {
     // First attempt to find the link in updated that corresponds to the stopping link in old
     val stoppingLink = oldPassengerSchedule.linkAtTime(stopTick)
     val updatedLegsInSchedule = updatedPassengerSchedule.schedule.keys.toList
-    updatedLegsInSchedule.reverse.find(_.travelPath.linkIds.contains(stoppingLink)) match {
-      case Some(startingLeg) =>
-        val indexOfStartingLink = startingLeg.travelPath.linkIds.indexWhere(_ == stoppingLink)
-        val newLinks = startingLeg.travelPath.linkIds.drop(indexOfStartingLink)
-        val newDistance = newLinks.map(networkHelper.getLink(_).map(_.getLength.toInt).getOrElse(0)).sum
-        val newStart = SpaceTime(geoUtils.utm2Wgs(networkHelper.getLink(newLinks.head).get.getCoord),stopTick)
-        val newDuration = if(newLinks.size <= 1){0}else{math.round(startingLeg.travelPath.linkTravelTime.drop(indexOfStartingLink).tail.sum.toFloat)}
-        val newTravelPath = BeamPath(newLinks,
-          startingLeg.travelPath.linkTravelTime.drop(indexOfStartingLink),
-          None,
-          newStart,
-          startingLeg.travelPath.endPoint.copy(time = newStart.time + newDuration),
-          newDistance
-        )
-        val updatedStartingLeg = BeamLeg(stopTick,startingLeg.mode,newTravelPath.duration,newTravelPath)
-        val indexOfStartingLeg = updatedLegsInSchedule.indexOf(startingLeg)
-        val newLegsInSchedule = updatedLegsInSchedule.slice(0, indexOfStartingLeg) ++ (updatedStartingLeg +: updatedLegsInSchedule.slice(indexOfStartingLeg+1,updatedPassengerSchedule.schedule.size))
-        var newPassSchedule = PassengerSchedule().addLegs(newLegsInSchedule)
-        updatedPassengerSchedule.uniquePassengers.foreach{ pass =>
-          val indicesOfMatchingElements = updatedPassengerSchedule.legsWithPassenger(pass).toIndexedSeq.map(updatedLegsInSchedule.indexOf(_))
-          newPassSchedule = newPassSchedule.addPassenger(pass,indicesOfMatchingElements.map(newLegsInSchedule(_)))
-        }
-        newPassSchedule
+    val startingLeg = updatedLegsInSchedule.reverse.find(_.travelPath.linkIds.contains(stoppingLink)) match {
+      case Some(leg) =>
+       leg
       case None =>
         // Instead we will have to find the starting point using closest Euclidean distance of the links
-        PassengerSchedule()
+        val stoppingCoord = networkHelper.getLink(stoppingLink).get.getCoord
+        val allLinks = updatedLegsInSchedule.flatMap(_.travelPath.linkIds)
+        val startingLink = allLinks(allLinks.map(networkHelper.getLink(_).get.getCoord).map(geoUtils.distUTMInMeters(_,stoppingCoord)).zipWithIndex.min._2)
+        updatedLegsInSchedule.reverse.find(_.travelPath.linkIds.contains(startingLink)).get
     }
+    val indexOfStartingLink = startingLeg.travelPath.linkIds.indexWhere(_ == stoppingLink)
+    val newLinks = startingLeg.travelPath.linkIds.drop(indexOfStartingLink)
+    val newDistance = newLinks.map(networkHelper.getLink(_).map(_.getLength.toInt).getOrElse(0)).sum
+    val newStart = SpaceTime(geoUtils.utm2Wgs(networkHelper.getLink(newLinks.head).get.getCoord),stopTick)
+    val newDuration = if(newLinks.size <= 1){0}else{math.round(startingLeg.travelPath.linkTravelTime.drop(indexOfStartingLink).tail.sum.toFloat)}
+    val newTravelPath = BeamPath(newLinks,
+      startingLeg.travelPath.linkTravelTime.drop(indexOfStartingLink),
+      None,
+      newStart,
+      startingLeg.travelPath.endPoint.copy(time = newStart.time + newDuration),
+      newDistance
+    )
+    val updatedStartingLeg = BeamLeg(stopTick,startingLeg.mode,newTravelPath.duration,newTravelPath)
+    val indexOfStartingLeg = updatedLegsInSchedule.indexOf(startingLeg)
+    val newLegsInSchedule = updatedLegsInSchedule.slice(0, indexOfStartingLeg) ++ (updatedStartingLeg +: updatedLegsInSchedule.slice(indexOfStartingLeg+1,updatedPassengerSchedule.schedule.size))
+    var newPassSchedule = PassengerSchedule().addLegs(newLegsInSchedule)
+    updatedPassengerSchedule.uniquePassengers.foreach{ pass =>
+      val indicesOfMatchingElements = updatedPassengerSchedule.legsWithPassenger(pass).toIndexedSeq.map(updatedLegsInSchedule.indexOf(_))
+      newPassSchedule = newPassSchedule.addPassenger(pass,indicesOfMatchingElements.map(newLegsInSchedule(_)))
+    }
+    newPassSchedule
   }
 
 

@@ -201,6 +201,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           if(theTrip.schedule != vehicleAndOldSchedule.schedule){
             if(!rideHailManager.vehicleManager.inServiceRideHailVehicles.isEmpty){
               val i = 0
+              rideHailManager.log.debug("Assigned to EnRoute vehicle {} the trip: \n {}",vehicleAndOldSchedule.vehicle.id,theTrip)
             }
             alreadyAllocated = alreadyAllocated + vehicleAndOldSchedule.vehicle.id
             var newRideHailRequest: Option[RideHailRequest] = None
