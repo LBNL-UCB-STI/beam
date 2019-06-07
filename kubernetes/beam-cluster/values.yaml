@@ -36,6 +36,7 @@ job:
     replicas: 2
   image: ${beamImage}
   imageTag: ${beamImageTag}
+  config: ${simulationConfig}
 
 global:
   namespace: ${simulationNamespace}

@@ -33,18 +33,19 @@ spec:
           image: {{ .Values.job.image }}:{{ .Values.job.imageTag }}
           resources:
             limits:
-              cpu: "14"
-              memory: 30Gi
+              cpu: {{ printf "%d" .Values.job.resources.cpu | quote }}
+              memory: {{ "%dGi" .Values.job.resources.memory | quote }}
             requests:
-              cpu: "12"
-              memory: 28Gi
-          args: ["--config", {{ printf "%s/production/sfbay/smart/smart-baseline.conf" .Values.volume.data.path | quote }}, "--cluster-type", "master", "--node-host", {{ (include "beam-simulation.service" . ) | quote }}, "--node-port", "2552", "--seed-address", {{ printf "%s:2552" (include "beam-simulation.service" . ) | quote }}, "--use-local-worker", "true"]
+              cpu: {{ printf "%d" .Values.job.resources.cpu | sub 2 | quote }}
+              memory: {{ printf "%dGi" .Values.job.resources.memory | sub 2 | quote }}
+          args: ["--config", {{ printf "%s/%s" .Values.volume.data.path .Values.job.config | quote }}, "--cluster-type", "master", "--node-host", {{ (include "beam-simulation.service" . ) | quote }}, "--node-port", "2552", "--seed-address", {{ printf "%s:2552" (include "beam-simulation.service" . ) | quote }}, "--use-local-worker", "true"]
           imagePullPolicy: Always
           env:
             - name: BEAM_OUTPUT
               value: {{ .Values.volume.output.path | quote }}
             - name: JAVA_OPTS
-              value: '"-Xmx28G" "-Xms14G"'
+              #value: '"-Xmx28G" "-Xms14G"'
+              value: {{ .Values.job.jvm }}
           ports:
             # akka remoting
             - name: {{ .Values.service.akkaPort.name | quote }}

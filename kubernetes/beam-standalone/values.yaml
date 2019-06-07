@@ -28,13 +28,11 @@ job:
   hostname: beam-master
   image: ${beamImage}
   imageTag: ${beamImageTag}
+  config: ${simulationConfig}
+  jvm: '"-Xmx28G" "-Xms14G"'
   resources:
-    limits:
-      cpu: 300m
-      memory: 2G
-    requests:
-      cpu: 300m
-      memory: 1G
+      cpu: ${cpu}
+      memory: ${mem}
 
 global:
   namespace: ${simulationNamespace}

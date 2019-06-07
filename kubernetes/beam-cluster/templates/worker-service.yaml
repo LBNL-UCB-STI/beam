@@ -62,7 +62,7 @@ spec:
             requests:
               cpu: "12"
               memory: 28Gi
-          args: ["--config",  {{ printf "%s/sf-light/sf-light-25k.conf" .Values.volume.data.path | quote }}, "--cluster-type", "worker", "--node-host", "$HOSTNAME_VALUE", "--node-port", {{ .Values.service.akkaPort.worker.port | quote }}, "--seed-address", {{ printf "%s:%s" (include "beam-simulation.master.service" . ) .Values.service.akkaPort.master.port | quote }}]
+          args: ["--config",  {{ printf "%s/%s" .Values.volume.data.path .Values.job.config | quote }}, "--cluster-type", "worker", "--node-host", "$HOSTNAME_VALUE", "--node-port", {{ .Values.service.akkaPort.worker.port | quote }}, "--seed-address", {{ printf "%s:%s" (include "beam-simulation.master.service" . ) .Values.service.akkaPort.master.port | quote }}]
           imagePullPolicy: Always
           env:
             - name: BEAM_OUTPUT

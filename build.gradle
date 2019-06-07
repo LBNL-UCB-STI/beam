@@ -813,6 +813,7 @@ shadowJar {
 
 helm {
     home = file("${project.buildDir}/helm")
+    debug = true
 
     def dateCreation = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"))
 
@@ -823,6 +824,7 @@ helm {
         values.put 'authorName', 'Kirill Mitin'
         values.put 'authorEmail', 'mitin.kirill.ol@gmail.com'
         values.put 'creationTime', dateCreation
+        values.put 'simulationConfig', "${project.findProperty('config')}"
     }
     lint {
         strict = true

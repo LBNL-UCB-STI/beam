@@ -113,6 +113,10 @@ Useful commands:
  - `kubectl get pods --all-namespaces` will show all pods
  - `kubectl -n %namespace% logs %pod_name%` will show logs from corresponding pod
  - `kubectl -n %namespace% describe pods|daemonsets.apps|jobs.batch|nodes|services|statefulsets.apps %resource_name%` get detailed info
+ 
+gradle deploy -PregionId=us-west-2 -PinstanceType=c5.x4large -PclusterName=beam-cluster-2019-06-04-02-26-31 -Pnodes=4
+gradle describeEksOutput -PregionId=us-west-2 -PinstanceType=c5.4xlarge
+  
 
 [Daemonset]: https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/
 
