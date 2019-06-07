@@ -171,7 +171,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           LiterallyDrivingData(data, legEndingAt)
         ) if tick == legEndingAt =>
 //      log.debug("state(DrivesVehicle.Driving): {}", ev)
-      log.debug("state(DrivesVehicle.Driving): EndLegTrigger({}) for driver {}", tick, id)
+      log.debug("state(DrivesVehicle.Driving): EndLegTrigger({}) for driver {} event: {}", tick, id, ev)
       val currentLeg = data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
         .headOption
@@ -348,7 +348,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       log.debug("state(DrivesVehicle.Driving): {}", ev)
 
       log.debug(
-        "DrivesVehicle.IgnoreEndLegTrigger: vehicleId({}), tick({}), triggerId({}), data({})",
+        "DrivesVehicle.IgnoreEndLegTrigger: vehicleId({}), tick({}), triggerId({}), data({}), event("+ev+")",
         id,
         tick,
         triggerId,
@@ -399,8 +399,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
         .getOrElse(throw new RuntimeException("Current Vehicle is not available."))
 
       if (data.passengerSchedule.schedule(currentLeg).riders.nonEmpty) {
-        log.error("DrivingInterrupted.StopDriving.Vehicle: " + data.currentVehicle.head)
-        log.error("DrivingInterrupted.StopDriving.PassengerSchedule: " + data.passengerSchedule)
+        log.debug("DrivingInterrupted.StopDriving.Vehicle: " + data.currentVehicle.head)
+        log.debug("DrivingInterrupted.StopDriving.PassengerSchedule: " + data.passengerSchedule)
       }
 
       assert(data.passengerSchedule.schedule(currentLeg).riders.isEmpty)
@@ -498,7 +498,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
     case ev @ Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
 //      log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
-      log.debug("state(DrivesVehicle.WaitingToDrive): StartLegTrigger({},{}) for driver {}", tick, newLeg, id)
+      log.debug("state(DrivesVehicle.WaitingToDrive): StartLegTrigger({},{}) for driver {} - event = {}", tick, newLeg, id, ev)
 
       if (data.currentVehicle.isEmpty) {
         stop(Failure("person received StartLegTrigger for leg {} but has an empty data.currentVehicle", newLeg))
@@ -566,7 +566,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       log.debug("state(DrivesVehicle.WaitingToDrive.NotifyVehicleResourceIdleReply): {}", ev)
 
       if (triggerId != _currentTriggerId) {
-        log.error(
+        log.debug(
           "Driver {}: local triggerId {} does not match the id received from resource manager {}",
           id,
           _currentTriggerId,
