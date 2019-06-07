@@ -27,8 +27,8 @@ public class VehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
             String vehicleType = pte.vehicleType();
             double lengthInMeters = pte.legLength();
 
-            milesTraveledByVehicleType.merge(vehicleType, lengthInMeters, (d1, d2) -> d1 + d2);
             if (!vehicleType.equalsIgnoreCase(humanBodyVehicleType)) {
+                milesTraveledByVehicleType.merge(vehicleType, lengthInMeters, (d1, d2) -> d1 + d2);
                 milesTraveledByVehicleType.merge("total", lengthInMeters, (d1, d2) -> d1 + d2);
             }
 
