@@ -15,7 +15,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
 import beam.agentsim.infrastructure.{AnotherTrivialParkingManager, TrivialParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerProps, StartSchedule}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, WALK}
@@ -51,7 +51,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 
 class PersonWithPersonalVehiclePlanSpec
     extends TestKit(
@@ -198,6 +198,7 @@ class PersonWithPersonalVehiclePlanSpec
           )
         )
       )
+      scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
 
       scheduler ! StartSchedule(0)
 
@@ -424,6 +425,7 @@ class PersonWithPersonalVehiclePlanSpec
           )
         )
       )
+      scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
 
       scheduler ! StartSchedule(0)
 
@@ -567,7 +569,7 @@ class PersonWithPersonalVehiclePlanSpec
           mock[TravelTimeObserved]
         )
       )
-      val personActor = householdActor.getSingleChild(person.getId.toString)
+      scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
 
       scheduler ! StartSchedule(0)
 
@@ -663,6 +665,7 @@ class PersonWithPersonalVehiclePlanSpec
           mock[TravelTimeObserved]
         )
       )
+      scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
       scheduler ! StartSchedule(0)
 
       val routingRequest = expectMsgType[RoutingRequest]

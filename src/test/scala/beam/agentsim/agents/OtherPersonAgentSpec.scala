@@ -273,6 +273,7 @@ class OtherPersonAgentSpec
           new TravelTimeObserved(beamScenario, beamSvc.geo)
         )
       )
+      scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
       scheduler ! StartSchedule(0)
 
       expectMsgType[RoutingRequest]

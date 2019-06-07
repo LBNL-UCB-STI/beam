@@ -338,6 +338,7 @@ class PersonAndTransitDriverSpec
           mock[TravelTimeObserved]
         )
       )
+      scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
 
       scheduler ! StartSchedule(0)
 
