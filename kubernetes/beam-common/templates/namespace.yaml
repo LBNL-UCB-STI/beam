@@ -1,22 +1,22 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: {{ .Values.global.namespace }}
-  annotations:
-    "helm.sh/hook": "pre-install"
-    "helm.sh/hook-weight": "1"
+    name: {{ .Values.global.namespace }}
+    annotations:
+        "helm.sh/hook": "pre-install"
+        "helm.sh/hook-weight": "1"
 ---
 apiVersion: v1
 kind: ResourceQuota
 metadata:
-  name: {{ template "beam-simulation.resources" . }}
-  namespace: {{ .Values.global.namespace }}
-  annotations:
-    "helm.sh/hook": "pre-install"
-    "helm.sh/hook-weight": "2"
+    name: {{ template "beam-simulation.resources" . }}
+    namespace: {{ .Values.global.namespace }}
+    annotations:
+        "helm.sh/hook": "pre-install"
+        "helm.sh/hook-weight": "2"
 spec:
-  hard:
-    requests.cpu: "28"
-    requests.memory: 58Gi
-    limits.cpu: "30"
-    limits.memory: 62Gi
+    hard:
+        limits.cpu: {{ printf  "%d" ( int .Values.global.resources.cpu ) | quote }}
+        limits.memory: {{ printf "%dGi" ( int .Values.global.resources.memory ) | quote }}
+        requests.cpu: {{ printf  "%d" ( sub .Values.global.resources.cpu 2 ) | quote }}
+        requests.memory: {{ printf "%dGi" ( sub .Values.global.resources.memory 2 ) | quote }}

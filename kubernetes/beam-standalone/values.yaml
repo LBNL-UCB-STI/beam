@@ -29,13 +29,12 @@ job:
   image: ${beamImage}
   imageTag: ${beamImageTag}
   config: ${simulationConfig}
-  jvm: '"-Xmx28G" "-Xms14G"'
-  resources:
-      cpu: ${cpu}
-      memory: ${mem}
 
 global:
   namespace: ${simulationNamespace}
   creation: ${creationTime}
   secret:
     docker: dockerhub
+  resources:
+    cpu: ${cpu}
+    memory: ${mem}

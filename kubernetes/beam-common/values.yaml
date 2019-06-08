@@ -27,3 +27,6 @@ global:
   creation: ${creationTime}
   secret:
     docker: dockerhub
+  resources:
+    cpu: ${cpu}
+    memory: ${mem}

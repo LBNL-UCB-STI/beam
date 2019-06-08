@@ -1,83 +1,83 @@
 apiVersion: v1
 kind: Service
 metadata:
-  labels:
-    app: {{ template "beam-simulation.worker.service" . }}
-    "helm.sh/hook": "post-install"
-    "helm.sh/hook-weight": "4"
-    {{- include "beam-simulation.release_labels" . | indent 4 }}
-  name: {{ template "beam-simulation.worker.service" . }}
-  namespace: {{ .Values.global.namespace }}
+    labels:
+        app: {{ template "beam-simulation.worker.service" . }}
+        "helm.sh/hook": "post-install"
+        "helm.sh/hook-weight": "4"
+        {{- include "beam-simulation.release_labels" . | indent 8 }}
+    name: {{ template "beam-simulation.worker.service" . }}
+    namespace: {{ .Values.global.namespace }}
 spec:
-  clusterIP: {{ .Values.service.akkaPort.worker.type }}
-  ports:
-    - port: {{ .Values.service.akkaPort.worker.port }}
-      name: {{ .Values.service.akkaPort.worker.name | quote }}
-  selector:
-    app: {{ template "beam-simulation.worker.job" . }}
+    clusterIP: {{ .Values.service.akkaPort.worker.type }}
+    ports:
+        - port: {{ .Values.service.akkaPort.worker.port }}
+          name: {{ .Values.service.akkaPort.worker.name | quote }}
+    selector:
+        app: {{ template "beam-simulation.worker.job" . }}
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ template "beam-simulation.worker.set" . }}
-  namespace: {{ .Values.global.namespace }}
-  labels:
-    "helm.sh/hook": "post-install"
-    "helm.sh/hook-weight": "4"
-    app: {{ template "beam-simulation.worker.set" . }}
-    {{- include "beam-simulation.release_labels" . | indent 4 }}
+    name: {{ template "beam-simulation.worker.set" . }}
+    namespace: {{ .Values.global.namespace }}
+    labels:
+        "helm.sh/hook": "post-install"
+        "helm.sh/hook-weight": "4"
+        app: {{ template "beam-simulation.worker.set" . }}
+        {{- include "beam-simulation.release_labels" . | indent 8 }}
 spec:
-  selector:
-    matchLabels:
-      app: {{ template "beam-simulation.worker.job" . }}
-  serviceName: {{ template "beam-simulation.worker.service" . }}
-  replicas: {{ .Values.job.worker.replicas }}
-  template:
-    metadata:
-      labels:
-        app: {{ template "beam-simulation.worker.job" . }}
-        node: worker
-    spec:
-      hostname: {{ .Values.job.worker.hostname }}
-      dnsPolicy: ClusterFirst
+    selector:
+        matchLabels:
+            app: {{ template "beam-simulation.worker.job" . }}
+    serviceName: {{ template "beam-simulation.worker.service" . }}
+    replicas: {{ .Values.job.worker.replicas }}
+    template:
+        metadata:
+            labels:
+                app: {{ template "beam-simulation.worker.job" . }}
+                node: worker
+        spec:
+            hostname: {{ .Values.job.worker.hostname }}
+            dnsPolicy: ClusterFirst
 
-      volumes:
-        - name: {{ .Values.volume.output.name }}
-          emptyDir: {}
-        - name: {{ .Values.volume.data.name }}
-          hostPath:
-            path: {{ .Values.volume.data.host }}
+            volumes:
+                - name: {{ .Values.volume.output.name }}
+                  emptyDir: {}
+                - name: {{ .Values.volume.data.name }}
+                  hostPath:
+                      path: {{ .Values.volume.data.host }}
 
-      imagePullSecrets:
-        - name: {{ .Values.global.secret.docker }}
+            imagePullSecrets:
+                - name: {{ .Values.global.secret.docker }}
 
-      containers:
+            containers:
 
-        - name: {{ template "beam-simulation.worker.job.container" . }}
-          image: {{ .Values.job.image }}:{{ .Values.job.imageTag }}
-          resources:
-            limits:
-              cpu: "14"
-              memory: 30Gi
-            requests:
-              cpu: "12"
-              memory: 28Gi
-          args: ["--config",  {{ printf "%s/%s" .Values.volume.data.path .Values.job.config | quote }}, "--cluster-type", "worker", "--node-host", "$HOSTNAME_VALUE", "--node-port", {{ .Values.service.akkaPort.worker.port | quote }}, "--seed-address", {{ printf "%s:%s" (include "beam-simulation.master.service" . ) .Values.service.akkaPort.master.port | quote }}]
-          imagePullPolicy: Always
-          env:
-            - name: BEAM_OUTPUT
-              value: {{ .Values.volume.output.path | quote }}
-            - name: JAVA_OPTS
-              value: '"-Xmx28G" "-Xms14G"'
-            - name: HOSTNAME_COMMAND
-              value: "ifconfig | grep \"inet addr:\" | awk  -F'[: ]+' '!/127/{print $$4}'"
-          ports:
-            # akka remoting
-            - name: {{ .Values.service.akkaPort.worker.name | quote }}
-              containerPort: {{ .Values.service.akkaPort.worker.port }}
-              protocol: TCP
-          volumeMounts:
-            - name: {{ .Values.volume.output.name }}
-              mountPath: {{ .Values.volume.output.path }}
-            - name: {{ .Values.volume.data.name }}
-              mountPath: {{ .Values.volume.data.path }}
+                - name: {{ template "beam-simulation.worker.job.container" . }}
+                  image: {{ .Values.job.image }}:{{ .Values.job.imageTag }}
+                  resources:
+                      limits:
+                          cpu: {{ sub .Values.global.resources.cpu 1 }}
+                          memory: {{ printf "%dGi" ( sub .Values.global.resources.memory 1 ) | quote }}
+                      requests:
+                          cpu: {{ sub .Values.global.resources.cpu 2 }}
+                          memory: {{ printf "%dGi" ( sub .Values.global.resources.memory 2 ) | quote }}
+                  args: ["--config",  {{ printf "%s/%s" .Values.volume.data.path .Values.job.config | quote }}, "--cluster-type", "worker", "--node-host", "$HOSTNAME_VALUE", "--node-port", {{ .Values.service.akkaPort.worker.port | quote }}, "--seed-address", {{ printf "%s:%s" (include "beam-simulation.master.service" . ) .Values.service.akkaPort.master.port | quote }}]
+                  imagePullPolicy: Always
+                  env:
+                      - name: BEAM_OUTPUT
+                        value: {{ .Values.volume.output.path | quote }}
+                      - name: JAVA_OPTS
+                        value: '{{ printf "-Xmx%dG" ( sub .Values.global.resources.memory 2 ) | quote }} {{ printf "-Xmx%dG" ( div .Values.global.resources.memory 2 ) | quote }}'
+                      - name: HOSTNAME_COMMAND
+                        value: "ifconfig | grep \"inet addr:\" | awk  -F'[: ]+' '!/127/{print $$4}'"
+                  ports:
+                      # akka remoting
+                      - name: {{ .Values.service.akkaPort.worker.name | quote }}
+                        containerPort: {{ .Values.service.akkaPort.worker.port }}
+                        protocol: TCP
+                  volumeMounts:
+                      - name: {{ .Values.volume.output.name }}
+                        mountPath: {{ .Values.volume.output.path }}
+                      - name: {{ .Values.volume.data.name }}
+                        mountPath: {{ .Values.volume.data.path }}

@@ -18,13 +18,6 @@ spec:
         image: kmitin/s3fs:latest
         securityContext:
           privileged: true
-        resources:
-          limits:
-            cpu: 2
-            memory: 6Gi
-          requests:
-            cpu: 2
-            memory: 5Gi
         # use ALL  entries in the config map as environment variables
         env:
         - name: S3_BUCKET

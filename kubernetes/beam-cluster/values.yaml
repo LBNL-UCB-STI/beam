@@ -4,7 +4,7 @@ service:
     master:
       name: "akka-remote"
       type: None
-      port : "2552"
+      port: "2552"
     worker:
       name: "akka-remote"
       type: None
@@ -43,3 +43,6 @@ global:
   creation: ${creationTime}
   secret:
     docker: dockerhub
+  resources:
+    cpu: ${cpu}
+    memory: ${mem}

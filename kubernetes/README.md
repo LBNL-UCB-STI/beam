@@ -102,7 +102,7 @@ Before deployment check `kubectl config current-context` that k8s client is map 
 
 Gradle deployment command already contains build phase and doesnt need any prerequisites except kubectl configuration.
 
-- `gradle deployStandaloneChart` will package and deploy standalone version
+- `gradle deployStandaloneChart -Pconfig=%s3_path_to_config% -Pmem=32 -Pcpu=16` will package and deploy standalone version
 - `gradle deployClusterChart`  will package and deploy cluster simulation
 
 To check currently deployed releases run `helm list`
@@ -114,10 +114,30 @@ Useful commands:
  - `kubectl -n %namespace% logs %pod_name%` will show logs from corresponding pod
  - `kubectl -n %namespace% describe pods|daemonsets.apps|jobs.batch|nodes|services|statefulsets.apps %resource_name%` get detailed info
  
-gradle deploy -PregionId=us-west-2 -PinstanceType=c5.x4large -PclusterName=beam-cluster-2019-06-04-02-26-31 -Pnodes=4
-gradle describeEksOutput -PregionId=us-west-2 -PinstanceType=c5.4xlarge
-  
+Kubernetes cluster creation
+-----
 
+`build.gradle` script covers functionality to create and spin up EKS cluster. It is split in 2 steps.
+Spliteration was done because of full procedure of cluster creation takes about 10-15 minutes.
+So currently flow contains first step of init EKS cluster and second spin up worker nodes.
+
+Every step wrapped around of the corresponding lambda function, which calls by gradle.
+
+To create EKS cluster run `./gradlew createEKSCluster -PregionId=us-west-2 -PinstanceType=%instance_type%` and wait for output. 
+It will return a name of EKS cluster. Cluster master has very low Amazon rate and can be hold for a future use.
+
+Second step is to add worker nodes to EKS, add local configuration and base cluster setup. It extends standard `deploy` task, 
+when few deployment nodes are provided. 
+
+Run `./gradlew deploy -PregionId=us-west-2 -PinstanceType=%instance_type% -PclusterName=%cluster_name% -Pnodes=4` 
+it takes about 3 minutes and after kubernetes cluster is ready to use. 
+
+To validate that everything is successfully created, run `kubectl describe nodes` check type of nodes and it amount.
+  
+`gradle deployStandaloneChart -Pconfig=production/sfbay/smart/smart-baseline.conf -Pmem=32 -Pcpu=16`  
+
+`gradle deployClusterChart -Pconfig=production/sfbay/smart/smart-baseline.conf -Pmem=32 -Pcpu=16`  
+  
 [Daemonset]: https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/
 
 [FUSE]: https://en.wikipedia.org/wiki/Filesystem_in_Userspace

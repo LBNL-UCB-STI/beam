@@ -825,6 +825,8 @@ helm {
         values.put 'authorEmail', 'mitin.kirill.ol@gmail.com'
         values.put 'creationTime', dateCreation
         values.put 'simulationConfig', "${project.findProperty('config')}"
+        values.put 'mem', "${project.findProperty('mem')}"
+        values.put 'cpu', "${project.findProperty('cpu')}"
     }
     lint {
         strict = true
@@ -962,7 +964,7 @@ task initEksCreation(type: AWSLambdaInvokeTask) {
     }
 }
 
-task describeEksOutput(dependsOn: initEksCreation) {
+task createEKSCluster(dependsOn: initEksCreation) {
     def pload = """{
     "region": "${project.findProperty('regionId')}",
     "creation_tag": "${initEksCreation.creation}"
