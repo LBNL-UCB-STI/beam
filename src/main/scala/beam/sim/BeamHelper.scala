@@ -443,7 +443,8 @@ trait BeamHelper extends LazyLogging {
       if (src == "urbansim") {
         val externalFolderExists: Boolean = Option(scenarioConfig.folder).exists(new File(_).isDirectory)
         if (externalFolderExists) {
-          val (emptyScenario, injector, services) = buildEmptyScenarioAndInjetorAndService(typesafeConfig, matsimConfig, networkCoordinator)
+          val (emptyScenario, injector, services) =
+            buildEmptyScenarioAndInjetorAndService(typesafeConfig, matsimConfig, networkCoordinator)
 
           val scenario = {
             val source = buildUrbansimScenarioSource(injector, beamConfig)
@@ -457,7 +458,8 @@ trait BeamHelper extends LazyLogging {
       } else if (src == "beam") {
         fileFormat match {
           case "csv" =>
-            val (emptyScenario, _, services) = buildEmptyScenarioAndInjetorAndService(typesafeConfig, matsimConfig, networkCoordinator)
+            val (emptyScenario, _, services) =
+              buildEmptyScenarioAndInjetorAndService(typesafeConfig, matsimConfig, networkCoordinator)
 
             val scenario = {
               val source = new BeamScenarioSource(
@@ -486,7 +488,11 @@ trait BeamHelper extends LazyLogging {
     }
   }
 
-  private def buildInjectorAndService(typesafeConfig: TypesafeConfig, networkCoordinator: NetworkCoordinator, scenario: MutableScenario): (inject.Injector, BeamServices) = {
+  private def buildInjectorAndService(
+    typesafeConfig: TypesafeConfig,
+    networkCoordinator: NetworkCoordinator,
+    scenario: MutableScenario
+  ): (inject.Injector, BeamServices) = {
     val injector = buildInjector(typesafeConfig, scenario, networkCoordinator)
 
     val services = injector.getInstance(classOf[BeamServices])
@@ -496,9 +502,10 @@ trait BeamHelper extends LazyLogging {
   }
 
   private def buildEmptyScenarioAndInjetorAndService(
-                                                 typesafeConfig: TypesafeConfig,
-                                                 matsimConfig: MatsimConfig,
-                                                 networkCoordinator: NetworkCoordinator): (MutableScenario, inject.Injector, BeamServices) = {
+    typesafeConfig: TypesafeConfig,
+    matsimConfig: MatsimConfig,
+    networkCoordinator: NetworkCoordinator
+  ): (MutableScenario, inject.Injector, BeamServices) = {
     val emptyScenario = ScenarioBuilder(matsimConfig).withNetwork(networkCoordinator.network).build
 
     val (injector, services) = buildInjectorAndService(typesafeConfig, networkCoordinator, emptyScenario)
