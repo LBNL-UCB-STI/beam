@@ -2,8 +2,11 @@ package beam.agentsim.agents.ridehail
 
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestKit}
+import beam.agentsim.infrastructure.TrivialParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
+import beam.router.{BeamRouter, BeamSkimmer, RouteHistory}
 import beam.sim.BeamHelper
+import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.{SimRunnerForTest, StuckFinder}
 import beam.utils.TestConfigUtils.testConfig
@@ -11,6 +14,7 @@ import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.scalatest.FunSpecLike
+import org.scalatest.mockito.MockitoSugar
 
 class RideHailManagerSpec extends TestKit(ActorSystem(
   name = "RideHailManagerSpec",
@@ -23,7 +27,7 @@ class RideHailManagerSpec extends TestKit(ActorSystem(
         """
     )
     .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
-)) with BeamHelper with FunSpecLike {
+)) with BeamHelper with FunSpecLike with MockitoSugar {
 
   lazy val beamConfig = BeamConfig(system.settings.config)
   lazy val matsimConfig = new MatSimBeamConfigBuilder(system.settings.config).buildMatSimConf()
@@ -36,6 +40,20 @@ class RideHailManagerSpec extends TestKit(ActorSystem(
   describe("A RideHailManager") {
     it("should do something") {
       val scheduler = TestActorRef[BeamAgentScheduler](Props(new BeamAgentScheduler(beamConfig, Int.MaxValue, 10, new StuckFinder(beamConfig.beam.debug.stuckAgentDetection))))
+      val parkingManager = system.actorOf(Props(new TrivialParkingManager()))
+      val beamRouter = BeamRouter.props(
+        beamScenario,
+        beamScenario.transportNetwork,
+        beamScenario.network,
+        beamServices.networkHelper,
+        new GeoUtilsImpl(beamConfig),
+        scenario,
+        scenario.getTransitVehicles,
+        beamServices.fareCalculator,
+        beamServices.tollCalculator
+      )
+      val routeHistory = mock[RouteHistory]
+      val beamSkimmer = mock[BeamSkimmer]
       val props = Props(new RideHailManager(new RideHailManager(
         Id.create("GlobalRHM", classOf[RideHailManager]),
         beamServices,
