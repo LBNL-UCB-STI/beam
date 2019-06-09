@@ -8,17 +8,28 @@ import beam.sim.common.GeoUtils
 import beam.utils.scenario.{PersonId, PlanElement}
 import beam.utils.{EventReader, FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.utils.io.IOUtils
+import org.matsim.vehicles.Vehicle
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
+
+case class VehicleLocation(vehicleId: Id[Vehicle], x: Double, y: Double, time: Int)
 
 object RepositioningAnalyzer extends LazyLogging {
   private def getIfNotNull(rec: java.util.Map[String, String], column: String): String = {
     val v = rec.get(column)
     assert(v != null, s"Value in column '$column' is null")
     v
+  }
+
+  def toInitVehicalLocation(rec: java.util.Map[String, String]): VehicleLocation = {
+    val id = Id.createVehicleId(getIfNotNull(rec, "id"))
+    // Yes, it contains leading space
+    val x = getIfNotNull(rec, " initialLocationX").toDouble
+    val y = getIfNotNull(rec, " initialLocationY").toDouble
+    VehicleLocation(vehicleId = id, x = x, y = y, time = 0)
   }
 
   def toPlanInfo(rec: java.util.Map[String, String]): PlanElement = {
@@ -43,10 +54,10 @@ object RepositioningAnalyzer extends LazyLogging {
     )
   }
 
-  def writeActivities(activitiesPerHour: Map[Int, Array[PlanElement]]): Unit = {
+  def writeActivities(path: String, activitiesPerHour: Map[Int, Array[PlanElement]]): Unit = {
     implicit val writer: BufferedWriter =
-      IOUtils.getBufferedWriter("C:/temp/Repos/act_hour_location.csvh")
-    writer.write("hour,end_x,end_y,person_id,activity_end_time")
+      IOUtils.getBufferedWriter(path)
+    writer.write("hour,x,y,person_id,activity_end_time")
     writer.write(System.lineSeparator())
     (0 to activitiesPerHour.keys.max).foreach { h =>
       activitiesPerHour(h).foreach { planElement =>
@@ -67,12 +78,17 @@ object RepositioningAnalyzer extends LazyLogging {
       override def localCRS: String = "epsg:26910"
     }
 
-    val shouldWriteActivities = false
-    if (shouldWriteActivities) {
+    val basePath = "C:/temp/Repos/RANDOM_REPOSITIONING-UNIFORM_RANDOM_Furthest"
+    val eventsFilePath = s"${basePath}/0.events.csv"
+    val initFleetLocationPath = s"${basePath}/0.rideHailFleet.csv"
+    val activityPath = s"${basePath}/0.plans.csv"
+
+    val shouldWriteActivitiesLocation = false
+    if (shouldWriteActivitiesLocation) {
       val activitiesPerHour =
         FileUtils
           .using(
-            new CsvMapReader(FileUtils.readerFromFile("C:/temp/Repos/0.plans.csv"), CsvPreference.STANDARD_PREFERENCE)
+            new CsvMapReader(FileUtils.readerFromFile(activityPath), CsvPreference.STANDARD_PREFERENCE)
           ) { csvRdr =>
             val header = csvRdr.getHeader(true)
             Iterator.continually(csvRdr.read(header: _*)).takeWhile(_ != null).map(toPlanInfo).toArray
@@ -90,29 +106,40 @@ object RepositioningAnalyzer extends LazyLogging {
             case (hour, xs) =>
               hour -> xs.map(_._2)
           }
-      writeActivities(activitiesPerHour)
-      println(activitiesPerHour)
+      writeActivities(s"${basePath}/act_hour_location.csvh", activitiesPerHour)
     }
+
+
+    val initLoc = FileUtils
+      .using(
+        new CsvMapReader(FileUtils.readerFromFile(initFleetLocationPath), CsvPreference.STANDARD_PREFERENCE)
+      ) { csvRdr =>
+        val header = csvRdr.getHeader(true)
+        Iterator.continually(csvRdr.read(header: _*)).takeWhile(_ != null).map(toInitVehicalLocation).toArray
+      }
+
     // This is lazy, it just creates an iterator
     val (events: Iterator[Event], closable: Closeable) =
-      EventReader.fromCsvFile("C:/temp/Repos/sfbay-smart-base__2019-06-04_02-43-10_0.events.csv", filter)
+      EventReader.fromCsvFile(eventsFilePath, filter)
 
     try {
       // Actual reading happens here because we force computation by `toArray`
-      val pathTraversalEvents = ProfilingUtils.timed("Read PathTraversal and filter by mode", x => logger.info(x)) {
+      val vehicleLocations = ProfilingUtils.timed("Read PathTraversal and filter by mode", x => logger.info(x)) {
         events
           .map(PathTraversalEvent.apply)
           .map { event =>
-            val wgsStart = geoUtils.wgs2Utm(new Coord(event.startX, event.startY))
             val wgsEnd = geoUtils.wgs2Utm(new Coord(event.endX, event.endY))
-            event.copy(startX = wgsStart.getX, startY = wgsStart.getY, endX = wgsEnd.getX, endY = wgsEnd.getY)
+            VehicleLocation(vehicleId = event.vehicleId, x = wgsEnd.getX, y = wgsEnd.getY, time = event.time.toInt)
           }
           .toArray
       }
-      logger.info(s"pathTraversalEvents size: ${pathTraversalEvents.length}")
+      logger.info(s"vehicleLocations size: ${vehicleLocations.length}")
 
-      val withHour = pathTraversalEvents.map(event => TimeUnit.SECONDS.toHours(event.time.toLong).toInt -> event)
-      val hourToEvents = withHour
+      val withInitLocation = initLoc ++ vehicleLocations
+      logger.info(s"withInitLocation size: ${withInitLocation.length}")
+
+      val withHour = withInitLocation.map(vl => TimeUnit.SECONDS.toHours(vl.time.toLong).toInt -> vl)
+      val hourToLoc = withHour
         .groupBy { case (h, _) => h }
         .map {
           case (h, eventsThisHour) =>
@@ -130,10 +157,10 @@ object RepositioningAnalyzer extends LazyLogging {
 
       val shouldAccumulate: Boolean = true
       val allData = if (shouldAccumulate) {
-        (0 to hourToEvents.keys.max).map { hour =>
-          val dataWithPrevHours = (0 until hour).foldLeft(hourToEvents.getOrElse(hour, Map.empty)) {
+        (0 to hourToLoc.keys.max).map { hour =>
+          val dataWithPrevHours = (0 until hour).foldLeft(hourToLoc.getOrElse(hour, Map.empty)) {
             case (acc, h) =>
-              val prevHourData = hourToEvents.getOrElse(h, Map.empty)
+              val prevHourData = hourToLoc.getOrElse(h, Map.empty)
               val noInAcc = prevHourData.keySet.diff(acc.keySet)
               noInAcc.foldLeft(acc) {
                 case (toUpdate, key) =>
@@ -142,29 +169,26 @@ object RepositioningAnalyzer extends LazyLogging {
           }
           hour -> dataWithPrevHours
         }.toMap
-      }
-      else {
-        hourToEvents
+      } else {
+        hourToLoc
       }
 
       val accInPath = if (shouldAccumulate) "_acc" else "_noacc"
       implicit val writer: BufferedWriter =
-        IOUtils.getBufferedWriter(s"C:/temp/Repos/sfbay-smart-base__2019-06-04_02-43-10_per_hour_location_${accInPath}.csvh")
-      writer.write("hour,vehicle_id,end_x,end_y,time,departure_time,arrival_time,start_x,start_y")
+        IOUtils.getBufferedWriter(
+          s"${basePath}/per_hour_location_${accInPath}.csvh"
+        )
+      writer.write("hour,vehicle_id,x,y,time")
       writer.write(System.lineSeparator())
 
-      (0 to hourToEvents.keys.max).foreach { h =>
+      (0 to hourToLoc.keys.max).foreach { h =>
         allData(h).foreach {
           case (vehId, pte) =>
             writeAsString(h)
             writeAsString(vehId)
-            writeAsString(pte.endX)
-            writeAsString(pte.endY)
-            writeAsString(pte.time)
-            writeAsString(pte.departureTime)
-            writeAsString(pte.arrivalTime)
-            writeAsString(pte.startX)
-            writeAsString(pte.startY, shouldAddComma = false)
+            writeAsString(pte.x)
+            writeAsString(pte.y)
+            writeAsString(pte.time, shouldAddComma = false)
             writer.write(System.lineSeparator())
         }
       }
@@ -185,7 +209,7 @@ object RepositioningAnalyzer extends LazyLogging {
     val attribs = event.getAttributes
     // We need only PathTraversal for ride hail vehicles with mode `CAR`
     val isNeededEvent = event.getEventType == "PathTraversal" && Option(attribs.get("mode")).contains("car") &&
-      Option(attribs.get("vehicle")).exists(vehicle => vehicle.contains("rideHailVehicle-"))
+    Option(attribs.get("vehicle")).exists(vehicle => vehicle.contains("rideHailVehicle-"))
     isNeededEvent
   }
 
