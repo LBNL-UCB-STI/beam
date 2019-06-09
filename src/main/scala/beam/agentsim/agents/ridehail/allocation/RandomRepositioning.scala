@@ -338,23 +338,25 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         val fleetSize = rideHailManager.fleetSize
         val numVehiclesToReposition = (repositioningShare * fleetSize).toInt
         if (rideHailManager.vehicleManager.getIdleVehicles.size >= 2) {
-          val idleVehicles = rideHailManager.vehicleManager.getIdleVehicles.toList
+          val nonRepositioningIdleVehicles = rideHailManager.vehicleManager.getIdleVehicles.values.filter { ral =>
+            rideHailManager.modifyPassengerScheduleManager.isVehicleNeitherRepositioningNorProcessingReservation(
+              ral.vehicleId
+            )
+          }
 
           // Getting the furthest vehicle from Activity: vehicle which has nothing to do
           // Find TOP 2 * numVehiclesToReposition furthest vehicle, shuffle them and get only `numVehiclesToReposition` to reposition
           val vehiclesToReposition = scala.util.Random
             .shuffle(
-              idleVehicles
+              nonRepositioningIdleVehicles
                 .flatMap { vehLocation =>
-                  val loc = vehLocation._2.currentLocationUTM.loc
-
-                  val act = quadTree.getClosest(loc.getX, loc.getY)
-
+                  val loc = vehLocation.currentLocationUTM.loc
                   Option(quadTree.getClosest(loc.getX, loc.getY)).map { act =>
                     val distance = rideHailManager.beamServices.geo.distUTMInMeters(act.getCoord, loc)
                     (vehLocation, distance)
                   }
                 }
+                .toVector
                 .sortBy { case (vehLocation, distance) => -distance }
                 .map(_._1)
                 .splitAt(2 * numVehiclesToReposition)
@@ -371,11 +373,12 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           // Now we need to sort these pairs in desc order, so that's why `-distance` and get the head
           val result = vehiclesToReposition.par
             .map { vehIdAndLoc =>
-              val (vehicleId, location) = vehIdAndLoc
+              val vehicleId = vehIdAndLoc.vehicleId
+              val location = vehIdAndLoc.currentLocationUTM
 
               val dest =
                 quadTree
-                  .getDisk(location.currentLocationUTM.loc.getX, location.currentLocationUTM.loc.getY, 5000)
+                  .getDisk(location.loc.getX, location.loc.getY, 5000)
                   .asScala
                   .toList
                   .map { act =>
