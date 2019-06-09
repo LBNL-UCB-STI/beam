@@ -162,7 +162,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
     updatePersonActivityQuadTree(tick)
 
-    val algorithm = 2
+    val algorithm = 4
 
     algorithm match {
 
@@ -286,7 +286,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
             val location = vehIdAndLoc.currentLocationUTM
             val filtered = activitiesCoordinates.filter { actCoord =>
               val distance = rideHailManager.beamServices.geo.distUTMInMeters(actCoord, location.loc)
-              distance <= 5000 && distance >= 300
+              distance <= 40000 && distance >= 10000
             }
             val maybeFurthest =
               if (filtered.isEmpty)
