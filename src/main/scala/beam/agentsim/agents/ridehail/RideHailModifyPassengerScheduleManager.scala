@@ -64,11 +64,11 @@ class RideHailModifyPassengerScheduleManager(
       interruptIdToModifyPassengerScheduleStatus.get(reply.interruptId) match {
         case None =>
           log.error(
-            "RideHailModifyPassengerScheduleManager- interruptId not found: interruptId {},interruptedPassengerSchedule {}, vehicle {}, tick {}",
+            "RideHailModifyPassengerScheduleManager- interruptId not found: interruptId {}, vehicle {}, tick {}, reply {}",
             reply.interruptId,
-            reply.asInstanceOf[InterruptedWhileDriving].passengerSchedule,
             reply.vehicleId,
-            reply.tick
+            reply.tick,
+            reply
           )
           cancelRepositionAttempt(reply.vehicleId)
         case Some(modifyStatus) =>
