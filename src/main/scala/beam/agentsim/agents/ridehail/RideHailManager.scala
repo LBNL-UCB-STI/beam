@@ -749,8 +749,8 @@ class RideHailManager(
           startRepositioning(tick, triggerId)
       }
 
-    case ReduceAwaitingRepositioningAckMessagesByOne(actorRef) =>
-      modifyPassengerScheduleManager.cancelRepositionAttempt(actorRef)
+    case ReduceAwaitingRepositioningAckMessagesByOne(vehicleId) =>
+      modifyPassengerScheduleManager.cancelRepositionAttempt(vehicleId)
 
     case MoveOutOfServiceVehicleToDepotParking(passengerSchedule, tick, vehicleId, stall) =>
       pendingAgentsSentToPark.put(vehicleId, stall)
@@ -766,7 +766,7 @@ class RideHailManager(
         )
       } else {
         // Failed attempt to reposition a car that is no longer idle
-        modifyPassengerScheduleManager.cancelRepositionAttempt(rideHailAgent)
+        modifyPassengerScheduleManager.cancelRepositionAttempt(vehicleId)
       }
 
     case reply @ InterruptedWhileOffline(interruptId, vehicleId, tick) =>
@@ -841,11 +841,21 @@ class RideHailManager(
       outOfServiceVehicleManager.releaseTrigger(vehicleId)
 
     case Terminated(actorRef) =>
-      modifyPassengerScheduleManager.cancelRepositionAttempt(actorRef)
+      findRideHailAgentIn(actorRef, vehicleManager.availableRideHailVehicles).orElse(
+        findRideHailAgentIn(actorRef, vehicleManager.inServiceRideHailVehicles)).orElse(
+        findRideHailAgentIn(actorRef, vehicleManager.outOfServiceRideHailVehicles)).foreach { vehId =>
+        modifyPassengerScheduleManager.cancelRepositionAttempt(vehId)
+      }
 
     case msg =>
       log.warning("unknown message received by RideHailManager {}", msg)
 
+  }
+
+  def findRideHailAgentIn(actorRef: ActorRef,  map: scala.collection.Map[Id[Vehicle], RideHailAgentLocation]): Option[Id[Vehicle]] = {
+    map.find { case (k, v) =>
+      v.rideHailAgent == actorRef
+    }.map(_._1)
   }
 
   def dieIfNoChildren(): Unit = {
@@ -1369,7 +1379,7 @@ class RideHailManager(
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(Reposition, tick)
       cleanUp
     } else {
-      val toReposition = repositionVehicles.map(_._1).map(vehicleManager.getIdleVehicles).map(_.rideHailAgent).toSet
+      val toReposition = repositionVehicles.map(_._1).map(vehicleManager.getIdleVehicles).map(_.vehicleId).toSet
       modifyPassengerScheduleManager.setRepositioningsToProcess(toReposition)
     }
 
@@ -1412,7 +1422,7 @@ class RideHailManager(
             )
             self ! RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgentLocation.rideHailAgent)
           } else {
-            self ! ReduceAwaitingRepositioningAckMessagesByOne(rideHailAgentLocation.rideHailAgent)
+            self ! ReduceAwaitingRepositioningAckMessagesByOne(rideHailAgentLocation.vehicleId)
           }
         }
 

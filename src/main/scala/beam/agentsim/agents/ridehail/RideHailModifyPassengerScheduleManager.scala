@@ -38,9 +38,9 @@ class RideHailModifyPassengerScheduleManager(
 
   // We can change this to be Set[Id[Vehicle]], but then in case of terminated actor, we have to map it back to Id[Vehicle]
   //
-  var waitingToReposition: Set[ActorRef] = Set.empty
+  var waitingToReposition: Set[Id[Vehicle]] = Set.empty
 
-  def setRepositioningsToProcess(toReposition: Set[ActorRef]): Unit = {
+  def setRepositioningsToProcess(toReposition: Set[Id[Vehicle]]): Unit = {
     waitingToReposition = toReposition
   }
 
@@ -58,7 +58,7 @@ class RideHailModifyPassengerScheduleManager(
         reply.interruptId,
         numberPendingModifyPassengerScheduleAcks
       )
-      cancelRepositionAttempt(rideHailAgent)
+      cancelRepositionAttempt(reply.vehicleId)
       clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
     } else {
       interruptIdToModifyPassengerScheduleStatus.get(reply.interruptId) match {
@@ -70,7 +70,7 @@ class RideHailModifyPassengerScheduleManager(
             reply.vehicleId,
             reply.tick
           )
-          cancelRepositionAttempt(rideHailAgent)
+          cancelRepositionAttempt(reply.vehicleId)
         case Some(modifyStatus) =>
           assert(reply.vehicleId == modifyStatus.vehicleId)
           assert(reply.tick == modifyStatus.tick)
@@ -95,7 +95,7 @@ class RideHailModifyPassengerScheduleManager(
                 case Reposition =>
                   // detected race condition with reservation interrupt: if message coming back is reposition message interrupt, then the interrupt confirmation for reservation message is on
                   // its way - wait on that and count this reposition as completed.
-                  cancelRepositionAttempt(rideHailAgent)
+                  cancelRepositionAttempt(reply.vehicleId)
                   clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
 
                   /* We are overwriting a reposition with a reservation, if the driver was interrupted while driving,
@@ -169,15 +169,15 @@ class RideHailModifyPassengerScheduleManager(
     modifyStatus.status = InterruptMessageStatus.MODIFY_PASSENGER_SCHEDULE_SENT
   }
 
-  def cancelRepositionAttempt(agentToRemove: ActorRef): Unit = {
-    repositioningFinished(agentToRemove)
+  def cancelRepositionAttempt(vehicleId: Id[Vehicle]): Unit = {
+    repositioningFinished(vehicleId)
   }
 
-  def repositioningFinished(agentToRemove: ActorRef): Unit = {
-    if (!waitingToReposition.contains(agentToRemove)) {
-      log.error("Not found in waitingToReposition: {}", agentToRemove)
+  def repositioningFinished(vehicleId: Id[Vehicle]): Unit = {
+    if (!waitingToReposition.contains(vehicleId)) {
+      log.error("Not found in waitingToReposition: {}", vehicleId)
     }
-    waitingToReposition = waitingToReposition - agentToRemove
+    waitingToReposition = waitingToReposition - vehicleId
     checkIfRoundOfRepositioningIsDone()
   }
 
@@ -216,7 +216,7 @@ class RideHailModifyPassengerScheduleManager(
 
       allTriggersInWave = triggersToSchedule ++ allTriggersInWave
     }
-    repositioningFinished(rideHailManager.vehicleManager.getRideHailAgentLocation(vehicleId).rideHailAgent)
+    repositioningFinished(vehicleId)
   }
 
   def getModifyStatusListForId(
@@ -332,7 +332,7 @@ class RideHailModifyPassengerScheduleManager(
       saveModifyStatusInCache(rideHailModifyPassengerScheduleStatus)
       sendInterruptMessage(rideHailModifyPassengerScheduleStatus)
     } else {
-      cancelRepositionAttempt(rideHailAgent)
+      cancelRepositionAttempt(vehicleId)
       log.debug(
         "RideHailModifyPassengerScheduleManager- message ignored as repositioning cannot overwrite reserve: {}",
         vehicleId
@@ -530,7 +530,7 @@ case class RideHailModifyPassengerScheduleStatus(
   var status: InterruptMessageStatus.Value = InterruptMessageStatus.UNDEFINED
 )
 
-case class ReduceAwaitingRepositioningAckMessagesByOne(toRemove: ActorRef)
+case class ReduceAwaitingRepositioningAckMessagesByOne(vehicleId: Id[Vehicle])
 
 object RideHailModifyPassengerScheduleManager {
 
