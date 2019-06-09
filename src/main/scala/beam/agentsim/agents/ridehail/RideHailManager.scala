@@ -1335,31 +1335,6 @@ class RideHailManager(
     rideHailResourceAllocationManager.removeRequestFromBuffer(request)
   }
 
-  def getQuadTreeBound(population: Population): QuadTreeBounds = {
-    val persons = population.getPersons.values().asInstanceOf[util.Collection[Person]].asScala.view
-    val activities = persons.flatMap(p => p.getSelectedPlan.getPlanElements.asScala.view).collect {
-      case activity: Activity =>
-        activity
-    }
-    val coordinates = activities.map(_.getCoord)
-    // Force to compute xs and ys arrays
-    val xs = coordinates.map(_.getX).toArray
-    val ys = coordinates.map(_.getY).toArray
-    val xMin = xs.min
-    val xMax = xs.max
-    val yMin = ys.min
-    val yMax = ys.max
-    log.info(
-      s"QuadTreeBounds with X: [$xMin; $xMax], Y: [$yMin, $yMax]. boundingBoxBuffer: ${beamServices.beamConfig.beam.spatial.boundingBoxBuffer}"
-    )
-    QuadTreeBounds(
-      xMin - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
-      yMin - beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
-      xMax + beamServices.beamConfig.beam.spatial.boundingBoxBuffer,
-      yMax + beamServices.beamConfig.beam.spatial.boundingBoxBuffer
-    )
-  }
-
   def cleanUp = {
     currentlyProcessingTimeoutTrigger = None
     unstashAll()
