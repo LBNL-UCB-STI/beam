@@ -174,11 +174,13 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def repositioningFinished(vehicleId: Id[Vehicle]): Unit = {
-    if (!waitingToReposition.contains(vehicleId)) {
+    if (waitingToReposition.contains(vehicleId)) {
+      waitingToReposition = waitingToReposition - vehicleId
+      checkIfRoundOfRepositioningIsDone()
+    }
+    else {
       log.error("Not found in waitingToReposition: {}", vehicleId)
     }
-    waitingToReposition = waitingToReposition - vehicleId
-    checkIfRoundOfRepositioningIsDone()
   }
 
   def checkIfRoundOfRepositioningIsDone(): Unit = {
