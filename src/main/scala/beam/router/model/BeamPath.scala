@@ -35,7 +35,7 @@ case class BeamPath(
 
   def duration: Int = (endPoint.time - startPoint.time)
 
-  if(linkTravelTime.size > 1 && math.abs(math.round(linkTravelTime.tail.sum).toInt - (endPoint.time - startPoint.time)) > 1){
+  if(linkTravelTime.size > 1 && math.abs(math.round(linkTravelTime.tail.sum).toInt - (endPoint.time - startPoint.time)) > 2){
     assert(false)
   }
 
