@@ -15,7 +15,7 @@ import org.matsim.vehicles.Vehicle
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
-case class VehicleLocation(vehicleId: Id[Vehicle], x: Double, y: Double, time: Int)
+case class VehicleLocation(vehicleId: Id[Vehicle], x: Double, y: Double, time: Int, numOfPassangers: Int)
 
 object RepositioningAnalyzer extends LazyLogging {
   private def getIfNotNull(rec: java.util.Map[String, String], column: String): String = {
@@ -29,7 +29,7 @@ object RepositioningAnalyzer extends LazyLogging {
     // Yes, it contains leading space
     val x = getIfNotNull(rec, " initialLocationX").toDouble
     val y = getIfNotNull(rec, " initialLocationY").toDouble
-    VehicleLocation(vehicleId = id, x = x, y = y, time = 0)
+    VehicleLocation(vehicleId = id, x = x, y = y, time = 0, numOfPassangers = -1)
   }
 
   def toPlanInfo(rec: java.util.Map[String, String]): PlanElement = {
@@ -78,10 +78,10 @@ object RepositioningAnalyzer extends LazyLogging {
       override def localCRS: String = "epsg:26910"
     }
 
-    val basePath = "C:/temp/Repos/RANDOM_REPOSITIONING-UNIFORM_RANDOM_Furthest"
-    val eventsFilePath = s"${basePath}/0.events.csv"
+    val basePath = "C:/temp/Repos/RANDOM_REPOSITIONING-UNIFORM_RANDOM_Furthest_bigger_distance_0.1_fleet"
+    val eventsFilePath = s"${basePath}/0.events.csv.gz"
     val initFleetLocationPath = s"${basePath}/0.rideHailFleet.csv"
-    val activityPath = s"${basePath}/0.plans.csv"
+    val activityPath = "C:/temp/Repos/0.plans.csv"
 
     val shouldWriteActivitiesLocation = false
     if (shouldWriteActivitiesLocation) {
@@ -129,7 +129,7 @@ object RepositioningAnalyzer extends LazyLogging {
           .map(PathTraversalEvent.apply)
           .map { event =>
             val wgsEnd = geoUtils.wgs2Utm(new Coord(event.endX, event.endY))
-            VehicleLocation(vehicleId = event.vehicleId, x = wgsEnd.getX, y = wgsEnd.getY, time = event.time.toInt)
+            VehicleLocation(vehicleId = event.vehicleId, x = wgsEnd.getX, y = wgsEnd.getY, time = event.time.toInt, numOfPassangers = event.numberOfPassengers)
           }
           .toArray
       }
@@ -161,10 +161,21 @@ object RepositioningAnalyzer extends LazyLogging {
           val dataWithPrevHours = (0 until hour).foldLeft(hourToLoc.getOrElse(hour, Map.empty)) {
             case (acc, h) =>
               val prevHourData = hourToLoc.getOrElse(h, Map.empty)
-              val noInAcc = prevHourData.keySet.diff(acc.keySet)
-              noInAcc.foldLeft(acc) {
+              val allKeys = prevHourData.keySet ++ acc.keySet
+              allKeys.foldLeft(acc) {
                 case (toUpdate, key) =>
-                  toUpdate.updated(key, prevHourData(key))
+                  val updated = (prevHourData.get(key), acc.get(key)) match {
+                    case (Some(prev), Some(current)) =>
+                      val time = if (prev.time != 0) prev.time else current.time
+                      current.copy(time = time)
+                    case (Some(prev), None)  =>
+                      prev
+                    case (None, Some(curr)) =>
+                      curr
+                    case (None, None) =>
+                      throw new Exception("WTF?")
+                  }
+                  toUpdate.updated(key, updated)
               }
           }
           hour -> dataWithPrevHours
@@ -178,8 +189,8 @@ object RepositioningAnalyzer extends LazyLogging {
         IOUtils.getBufferedWriter(
           s"${basePath}/per_hour_location_${accInPath}.csvh"
         )
-      writer.write("hour,vehicle_id,x,y,time")
-      writer.write(System.lineSeparator())
+      writer.write("hour,vehicle_id,x,y,time,num_of_passengers")
+      writer.write("\n")
 
       (0 to hourToLoc.keys.max).foreach { h =>
         allData(h).foreach {
@@ -188,8 +199,9 @@ object RepositioningAnalyzer extends LazyLogging {
             writeAsString(vehId)
             writeAsString(pte.x)
             writeAsString(pte.y)
-            writeAsString(pte.time, shouldAddComma = false)
-            writer.write(System.lineSeparator())
+            writeAsString(pte.time)
+            writeAsString(pte.numOfPassangers, shouldAddComma = false)
+            writer.write("\n")
         }
       }
       writer.flush()
