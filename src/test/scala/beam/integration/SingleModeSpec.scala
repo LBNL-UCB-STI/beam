@@ -114,8 +114,8 @@ class SingleModeSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        mock[BeamSkimmer],
-        mock[TravelTimeObserved],
+        new BeamSkimmer(beamScenario, services.geo),
+        new TravelTimeObserved(beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
         networkHelper
       )
@@ -161,8 +161,8 @@ class SingleModeSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        mock[BeamSkimmer],
-        mock[TravelTimeObserved],
+        new BeamSkimmer(beamScenario, services.geo),
+        new TravelTimeObserved(beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
         networkHelper
       )
@@ -227,8 +227,8 @@ class SingleModeSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        mock[BeamSkimmer],
-        mock[TravelTimeObserved],
+        new BeamSkimmer(beamScenario, services.geo),
+        new TravelTimeObserved(beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
         networkHelper
       )
@@ -298,8 +298,8 @@ class SingleModeSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        mock[BeamSkimmer],
-        mock[TravelTimeObserved],
+        new BeamSkimmer(beamScenario, services.geo),
+        new TravelTimeObserved(beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
         networkHelper
       )
