@@ -45,67 +45,14 @@ class RideHailManagerSpec
     with FunSpecLike
     with MockitoSugar
     with BeforeAndAfterAll {
-  lazy val beamExecutionConfig = setupBeamWithConfig(system.settings.config)
-  lazy val beamConfig = beamExecutionConfig.beamConfig
-  lazy val matsimConfig = beamExecutionConfig.matsimConfig
-  lazy val beamScenario = loadScenario(beamConfig)
-  lazy val scenario = buildScenarioFromMatsimConfig(matsimConfig, beamScenario)
-  lazy val injector = buildInjector(system.settings.config, scenario, beamScenario)
-  lazy val beamServices = buildBeamServices(injector, scenario)
-
-  override def afterAll: Unit = {
-    TestKit.shutdownActorSystem(system)
-  }
 
   describe("A RideHailManager") {
 
     it("should let me hail a ride") {
-      val scheduler = TestActorRef[BeamAgentScheduler](
-        Props(
-          new BeamAgentScheduler(
-            beamConfig,
-            24 * 60 * 60,
-            10,
-            new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
-          )
-        )
-      )
+      val scheduler = TestActorRef[BeamAgentScheduler](schedulerProps)
       val parkingManager = TestActorRef[TrivialParkingManager](Props(new TrivialParkingManager()))
-      val beamRouterProps = BeamRouter.props(
-        beamScenario,
-        beamScenario.transportNetwork,
-        beamScenario.network,
-        beamServices.networkHelper,
-        new GeoUtilsImpl(beamConfig),
-        scenario,
-        scenario.getTransitVehicles,
-        beamServices.fareCalculator,
-        beamServices.tollCalculator
-      )
       val beamRouter = TestActorRef[BeamRouter](beamRouterProps)
-      val routeHistory = mock[RouteHistory]
-      when(routeHistory.getRoute(any(), any(), any())).thenReturn(None)
-      val beamSkimmer = mock[BeamSkimmer]
-      val rideHailSurgePricingManager = mock[RideHailSurgePricingManager]
-      val props = Props(
-        new RideHailManager(
-          Id.create("GlobalRHM", classOf[RideHailManager]),
-          beamServices,
-          beamScenario,
-          beamScenario.transportNetwork,
-          beamServices.tollCalculator,
-          beamServices.matsimServices.getScenario,
-          beamServices.matsimServices.getEvents,
-          scheduler,
-          beamRouter,
-          parkingManager,
-          rideHailSurgePricingManager,
-          None,
-          beamSkimmer,
-          routeHistory
-        )
-      )
-      val rideHailManager = TestActorRef[RideHailManager](props)
+      val rideHailManager = TestActorRef[RideHailManager](rideHailManagerProps(scheduler, parkingManager, beamRouter))
       scheduler ! ScheduleTrigger(InitializeTrigger(0), rideHailManager)
 
       val me = beamServices.matsimServices.getScenario.getPopulation.getPersons.values.iterator.next
@@ -138,4 +85,64 @@ class RideHailManagerSpec
       }
     }
   }
+
+  lazy val beamExecutionConfig = setupBeamWithConfig(system.settings.config)
+  lazy val beamConfig = beamExecutionConfig.beamConfig
+  lazy val matsimConfig = beamExecutionConfig.matsimConfig
+  lazy val beamScenario = loadScenario(beamConfig)
+  lazy val scenario = buildScenarioFromMatsimConfig(matsimConfig, beamScenario)
+  lazy val injector = buildInjector(system.settings.config, scenario, beamScenario)
+  lazy val beamServices = buildBeamServices(injector, scenario)
+
+  val beamRouterProps = BeamRouter.props(
+    beamScenario,
+    beamScenario.transportNetwork,
+    beamScenario.network,
+    beamServices.networkHelper,
+    new GeoUtilsImpl(beamConfig),
+    scenario,
+    scenario.getTransitVehicles,
+    beamServices.fareCalculator,
+    beamServices.tollCalculator
+  )
+
+  val schedulerProps = Props(
+    new BeamAgentScheduler(
+      beamConfig,
+      24 * 60 * 60,
+      10,
+      new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
+    )
+  )
+
+  private def rideHailManagerProps(scheduler: TestActorRef[BeamAgentScheduler], parkingManager: TestActorRef[TrivialParkingManager], beamRouter: TestActorRef[BeamRouter]) = {
+    val routeHistory = mock[RouteHistory]
+    when(routeHistory.getRoute(any(), any(), any())).thenReturn(None)
+    val beamSkimmer = mock[BeamSkimmer]
+    val rideHailSurgePricingManager = mock[RideHailSurgePricingManager]
+    Props(
+      new RideHailManager(
+        Id.create("GlobalRHM", classOf[RideHailManager]),
+        beamServices,
+        beamScenario,
+        beamScenario.transportNetwork,
+        beamServices.tollCalculator,
+        beamServices.matsimServices.getScenario,
+        beamServices.matsimServices.getEvents,
+        scheduler,
+        beamRouter,
+        parkingManager,
+        rideHailSurgePricingManager,
+        None,
+        beamSkimmer,
+        routeHistory
+      )
+    )
+  }
+
+  override def afterAll: Unit = {
+    TestKit.shutdownActorSystem(system)
+  }
+
+
 }
