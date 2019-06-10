@@ -35,6 +35,7 @@ class RideHailManagerSpec
         akka.actor.debug.fsm = true
         akka.loglevel = debug
         beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet = 1.0
+        beam.agentsim.agents.rideHail.allocationManager.name = POOLING
         """
           )
           .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
@@ -48,7 +49,7 @@ class RideHailManagerSpec
 
   describe("A RideHailManager") {
 
-    it("should let me hail a ride") {
+    it("should let me inquire for and reserve a ride, and pick me up") {
       val scheduler = TestActorRef[BeamAgentScheduler](schedulerProps)
       val parkingManager = TestActorRef[TrivialParkingManager](Props(new TrivialParkingManager()))
       val beamRouter = TestActorRef[BeamRouter](beamRouterProps)
@@ -84,6 +85,39 @@ class RideHailManagerSpec
         expectMsgType[CompletionNotice]
       }
     }
+
+    //    it("should pool several rides") {
+    //      val scheduler = TestActorRef[BeamAgentScheduler](schedulerProps)
+    //      val parkingManager = TestActorRef[TrivialParkingManager](Props(new TrivialParkingManager()))
+    //      val beamRouter = TestActorRef[BeamRouter](beamRouterProps)
+    //      val rideHailManager = TestActorRef[RideHailManager](rideHailManagerProps(scheduler, parkingManager, beamRouter))
+    //      scheduler ! ScheduleTrigger(InitializeTrigger(0), rideHailManager)
+    //
+    //      val me = beamServices.matsimServices.getScenario.getPopulation.getPersons.values.iterator.next
+    //      val home = me.getSelectedPlan.getPlanElements.get(0).asInstanceOf[Activity]
+    //      val work = me.getSelectedPlan.getPlanElements.get(2).asInstanceOf[Activity]
+    //      scheduler ! ScheduleTrigger(InitializeTrigger(home.getEndTime.toInt), self)
+    //
+    //      scheduler ! StartSchedule(0)
+    //
+    //      within(1 minute) {
+    //        val trigger = expectMsgType[TriggerWithId]
+    //        for (i <- 1 to 5) {
+    //          val request = RideHailRequest(
+    //            RideHailInquiry,
+    //            PersonIdWithActorRef(Id.createPersonId(i), self),
+    //            home.getCoord,
+    //            home.getEndTime.toInt,
+    //            work.getCoord
+    //          )
+    //          rideHailManager ! request
+    //        }
+    //        // I can only make a ride hail request when I am in the time window for my departure, not earlier
+    //        println(expectMsgType[RideHailResponse])
+    //        scheduler ! CompletionNotice(trigger.triggerId)
+    //        expectMsgType[CompletionNotice]
+    //      }
+    //    }
   }
 
   lazy val beamExecutionConfig = setupBeamWithConfig(system.settings.config)
@@ -115,7 +149,11 @@ class RideHailManagerSpec
     )
   )
 
-  private def rideHailManagerProps(scheduler: TestActorRef[BeamAgentScheduler], parkingManager: TestActorRef[TrivialParkingManager], beamRouter: TestActorRef[BeamRouter]) = {
+  private def rideHailManagerProps(
+                                    scheduler: TestActorRef[BeamAgentScheduler],
+                                    parkingManager: TestActorRef[TrivialParkingManager],
+                                    beamRouter: TestActorRef[BeamRouter]
+                                  ) = {
     val routeHistory = mock[RouteHistory]
     when(routeHistory.getRoute(any(), any(), any())).thenReturn(None)
     val beamSkimmer = mock[BeamSkimmer]
@@ -143,6 +181,5 @@ class RideHailManagerSpec
   override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
   }
-
 
 }
