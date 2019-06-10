@@ -14,12 +14,13 @@ import beam.sim.common.GeoUtilsImpl
 import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Activity
-import org.matsim.api.core.v01.{Coord, Id}
+import org.mockito.ArgumentMatchers._
+import org.mockito.Mockito._
 import org.scalatest.FunSpecLike
 import org.scalatest.mockito.MockitoSugar
-import org.mockito.Mockito._
-import org.mockito.ArgumentMatchers._
+
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -52,7 +53,8 @@ class RideHailManagerSpec
   lazy val beamServices = buildBeamServices(injector, scenario)
 
   describe("A RideHailManager") {
-    it("should do something") {
+
+    it("should let me hail a ride") {
       val scheduler = TestActorRef[BeamAgentScheduler](
         Props(
           new BeamAgentScheduler(
@@ -110,6 +112,7 @@ class RideHailManagerSpec
 
       within(1 minute) {
         val trigger = expectMsgType[TriggerWithId]
+        // I can only make a ride hail request when I am in the time window for my departure, not earlier
         val request = RideHailRequest(
           RideHailInquiry,
           PersonIdWithActorRef(me.getId, self),
@@ -119,10 +122,15 @@ class RideHailManagerSpec
         )
         rideHailManager ! request
         expectMsgType[RideHailResponse]
-        scheduler ! CompletionNotice(trigger.triggerId)
+        rideHailManager ! request.copy(requestType = ReserveRide)
+        val rideHailResponse = expectMsgType[RideHailResponse]
+        scheduler ! CompletionNotice(trigger.triggerId, rideHailResponse.triggersToSchedule)
+        val boardVehicleTrigger = expectMsgType[TriggerWithId]
+        scheduler ! CompletionNotice(boardVehicleTrigger.triggerId)
+        val leaveVehicleTrigger = expectMsgType[TriggerWithId]
+        scheduler ! CompletionNotice(leaveVehicleTrigger.triggerId)
         expectMsgType[CompletionNotice]
       }
     }
-
   }
 }
