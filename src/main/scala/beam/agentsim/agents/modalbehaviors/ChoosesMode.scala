@@ -917,19 +917,7 @@ trait ChoosesMode {
               )
               val cavLegs = cavTripLegs.legs.size match {
                 case 0 =>
-                  List(
-                    EmbodiedBeamLeg.dummyLegAt(
-                      _currentTick.get,
-                      body.id,
-                      isLastLeg = false,
-                      beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc),
-                      CAV,
-                      cavTripLegs.cavOpt
-                        .map(_.beamVehicleType.id)
-                        .getOrElse(Id.create("Car", classOf[BeamVehicleType])),
-                      false
-                    )
-                  )
+                  throw new RuntimeException("Got a CAV trip without legs, don't know what that means.")
                 case _ =>
                   cavTripLegs.legs
               }
