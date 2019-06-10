@@ -21,7 +21,11 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{
+  CouldNotFindRouteToCustomer,
+  DriverNotFoundError,
+  RideHailVehicleTakenError
+}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -58,7 +62,6 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.math.{max, min}
-
 
 object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLocation, Double)] {
   override def compare(
@@ -228,7 +231,9 @@ class RideHailManager(
   private val envelopeInUTM = beamServices.geo.wgs2Utm(beamScenario.transportNetwork.streetLayer.envelope)
   envelopeInUTM.expandBy(beamScenario.beamConfig.beam.spatial.boundingBoxBuffer)
 
-  val activityQuadTreeBounds: QuadTreeBounds = buildActivityQuadTreeBounds(beamServices.matsimServices.getScenario.getPopulation)
+  val activityQuadTreeBounds: QuadTreeBounds = buildActivityQuadTreeBounds(
+    beamServices.matsimServices.getScenario.getPopulation
+  )
   log.info(s"envelopeInUTM before expansion: $envelopeInUTM")
 
   envelopeInUTM.expandToInclude(activityQuadTreeBounds.minx, activityQuadTreeBounds.miny)

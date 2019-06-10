@@ -3,7 +3,18 @@ package beam.sim
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Success
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Props, Terminated}
+import akka.actor.SupervisorStrategy.Stop
+import akka.actor.{
+  Actor,
+  ActorLogging,
+  ActorRef,
+  ActorSystem,
+  Cancellable,
+  DeadLetter,
+  OneForOneStrategy,
+  Props,
+  Terminated
+}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
@@ -98,6 +109,13 @@ class BeamMobsimIteration(
 ) extends Actor
     with ActorLogging
     with MetricsSupport {
+
+  override val supervisorStrategy: OneForOneStrategy =
+    OneForOneStrategy(maxNrOfRetries = 0) {
+      case _: Exception      => Stop
+      case _: AssertionError => Stop
+    }
+
   import beamServices._
   private val config: Beam.Agentsim = beamConfig.beam.agentsim
 
