@@ -18,7 +18,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Activity
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
-import org.scalatest.FunSpecLike
+import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 import org.scalatest.mockito.MockitoSugar
 
 import scala.concurrent.duration._
@@ -43,7 +43,8 @@ class RideHailManagerSpec
     with BeamHelper
     with ImplicitSender
     with FunSpecLike
-    with MockitoSugar {
+    with MockitoSugar
+    with BeforeAndAfterAll {
   lazy val beamExecutionConfig = setupBeamWithConfig(system.settings.config)
   lazy val beamConfig = beamExecutionConfig.beamConfig
   lazy val matsimConfig = beamExecutionConfig.matsimConfig
@@ -51,6 +52,10 @@ class RideHailManagerSpec
   lazy val scenario = buildScenarioFromMatsimConfig(matsimConfig, beamScenario)
   lazy val injector = buildInjector(system.settings.config, scenario, beamScenario)
   lazy val beamServices = buildBeamServices(injector, scenario)
+
+  override def afterAll: Unit = {
+    TestKit.shutdownActorSystem(system)
+  }
 
   describe("A RideHailManager") {
 
