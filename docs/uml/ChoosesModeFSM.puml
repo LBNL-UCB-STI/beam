@@ -12,7 +12,7 @@ state FinishingModeChoice #eb1921
 
 'Transition State'
 
-FinishingModeChoice -[#blue,dotted]-> WaitingForDeparture : IntermediateTransitionState
+FinishingModeChoice -[#blue,dotted]-> WaitingForDeparture : IntermediateTransition
 ChoosingMode --> ChoosingMode : MobilityStatusResponse
 ChoosingMode --> ChoosingMode : RoutingResponse
 ChoosingMode --> ChoosingMode : RideHailResponse

@@ -12,7 +12,7 @@ state ChoosingParkingSpot #eb1921
 
 'Transition State'
 ReleasingParkingSpot --> ReleasingParkingSpot: StartLegTrigger
-ReleasingParkingSpot -[#blue,dotted]-> WaitingToDrive: IntermediateTransitionState
+ReleasingParkingSpot -[#blue,dotted]-> WaitingToDrive: IntermediateTransition
 ChoosingParkingSpot --> ChoosingParkingSpot : ParkingInquiryResponse
 ChoosingParkingSpot --> WaitingToDrive : RoutingResponse
 
