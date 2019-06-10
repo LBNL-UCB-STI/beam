@@ -51,14 +51,20 @@ object PlansCsvWriter extends ScenarioCsvWriter {
       case (_, person) =>
         person.getPlans.asScala.zipWithIndex.flatMap {
           case (plan: Plan, planIndex: Int) =>
-            plan.getPlanElements.asScala.map { planElement =>
-              toPlanInfo(planIndex, plan.getPerson.getId.toString, planElement)
+            plan.getPlanElements.asScala.zipWithIndex.map {
+              case (planElement, planElementIndex) =>
+                toPlanInfo(planIndex, plan.getPerson.getId.toString, planElement, planElementIndex)
             }
         }
     }
   }
 
-  private def toPlanInfo(planIndex: Int, personId: String, planElement: MatsimPlanElement): PlanElement = {
+  private def toPlanInfo(
+    planIndex: Int,
+    personId: String,
+    planElement: MatsimPlanElement,
+    planeElementIndex: Int
+  ): PlanElement = {
     planElement match {
       case leg: Leg =>
         // Set legMode to None, if it's empty string
@@ -68,9 +74,10 @@ object PlansCsvWriter extends ScenarioCsvWriter {
         }
 
         PlanElement(
+          planIndex = planIndex,
           personId = PersonId(personId),
           planElementType = "leg",
-          planElementIndex = planIndex,
+          planElementIndex = planeElementIndex,
           activityType = None,
           activityLocationX = None,
           activityLocationY = None,
@@ -81,7 +88,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
         PlanElement(
           personId = PersonId(personId),
           planElementType = "activity",
-          planElementIndex = planIndex,
+          planElementIndex = planeElementIndex,
           activityType = Option(act.getType),
           activityLocationX = Option(act.getCoord.getX),
           activityLocationY = Option(act.getCoord.getY),
@@ -95,7 +102,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
     val plans = getPlanInfo(scenario)
     plans.toIterator.map { planInfo =>
       PlanEntry(
-        planIndex = planInfo.planElementIndex,
+        planIndex = planInfo.planIndex,
         planElementIndex = planInfo.planElementIndex,
         personId = planInfo.personId.id,
         planElementType = planInfo.planElementType,
