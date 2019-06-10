@@ -150,10 +150,10 @@ class RideHailManagerSpec
   )
 
   private def rideHailManagerProps(
-                                    scheduler: TestActorRef[BeamAgentScheduler],
-                                    parkingManager: TestActorRef[TrivialParkingManager],
-                                    beamRouter: TestActorRef[BeamRouter]
-                                  ) = {
+    scheduler: TestActorRef[BeamAgentScheduler],
+    parkingManager: TestActorRef[TrivialParkingManager],
+    beamRouter: TestActorRef[BeamRouter]
+  ) = {
     val routeHistory = mock[RouteHistory]
     when(routeHistory.getRoute(any(), any(), any())).thenReturn(None)
     val beamSkimmer = mock[BeamSkimmer]
