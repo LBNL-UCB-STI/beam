@@ -21,17 +21,14 @@ import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.sim.monitoring.ErrorListener
 import beam.sim.vehiclesharing.Fleets
 import beam.utils._
-import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.{Activity, Person, Population => MATSimPopulation}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.utils.misc.Time
 
-import scala.collection.JavaConverters._
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -121,16 +118,6 @@ class BeamMobsimIteration(
   context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
   context.watch(scheduler)
 
-  private val envelopeInUTM = geo.wgs2Utm(beamScenario.transportNetwork.streetLayer.envelope)
-  envelopeInUTM.expandBy(beamConfig.beam.spatial.boundingBoxBuffer)
-
-  val activityQuadTreeBounds: QuadTreeBounds = buildActivityQuadTreeBounds(matsimServices.getScenario.getPopulation)
-  log.info(s"envelopeInUTM before expansion: $envelopeInUTM")
-
-  envelopeInUTM.expandToInclude(activityQuadTreeBounds.minx, activityQuadTreeBounds.miny)
-  envelopeInUTM.expandToInclude(activityQuadTreeBounds.maxx, activityQuadTreeBounds.maxy)
-  log.info(s"envelopeInUTM after expansion: $envelopeInUTM")
-
   private val parkingManager = context.actorOf(
     ZonalParkingManager
       .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, beamRouter),
@@ -151,8 +138,6 @@ class BeamMobsimIteration(
         scheduler,
         beamRouter,
         parkingManager,
-        envelopeInUTM,
-        activityQuadTreeBounds,
         rideHailSurgePricingManager,
         rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
         beamSkimmer,
@@ -293,31 +278,6 @@ class BeamMobsimIteration(
       scheduler ! ScheduleTrigger(RideHailRepositioningTrigger(0), rideHailManager)
     if (config.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0)
       scheduler ! ScheduleTrigger(BufferedRideHailRequestsTrigger(0), rideHailManager)
-  }
-
-  def buildActivityQuadTreeBounds(population: MATSimPopulation): QuadTreeBounds = {
-    val persons = population.getPersons.values().asInstanceOf[java.util.Collection[Person]].asScala.view
-    val activities = persons.flatMap(p => p.getSelectedPlan.getPlanElements.asScala.view).collect {
-      case activity: Activity =>
-        activity
-    }
-    val coordinates = activities.map(_.getCoord)
-    // Force to compute xs and ys arrays
-    val xs = coordinates.map(_.getX).toArray
-    val ys = coordinates.map(_.getY).toArray
-    val xMin = xs.min
-    val xMax = xs.max
-    val yMin = ys.min
-    val yMax = ys.max
-    log.info(
-      s"QuadTreeBounds with X: [$xMin; $xMax], Y: [$yMin, $yMax]. boundingBoxBuffer: ${beamConfig.beam.spatial.boundingBoxBuffer}"
-    )
-    QuadTreeBounds(
-      xMin - beamConfig.beam.spatial.boundingBoxBuffer,
-      yMin - beamConfig.beam.spatial.boundingBoxBuffer,
-      xMax + beamConfig.beam.spatial.boundingBoxBuffer,
-      yMax + beamConfig.beam.spatial.boundingBoxBuffer
-    )
   }
 
 }

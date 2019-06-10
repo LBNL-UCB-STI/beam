@@ -21,11 +21,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -50,9 +46,8 @@ import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.transit.TransportNetwork
 import com.eaio.uuid.UUIDGen
 import com.google.common.cache.{Cache, CacheBuilder}
-import com.vividsolutions.jts.geom.Envelope
 import org.apache.commons.math3.distribution.UniformRealDistribution
-import org.matsim.api.core.v01.population.{Activity, Person}
+import org.matsim.api.core.v01.population.{Activity, Person, Population => MATSimPopulation}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
@@ -63,6 +58,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.math.{max, min}
+
 
 object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLocation, Double)] {
   override def compare(
@@ -210,8 +206,6 @@ class RideHailManager(
   val scheduler: ActorRef,
   val router: ActorRef,
   val parkingManager: ActorRef,
-  val boundingBox: Envelope,
-  val activityQuadTreeBounds: QuadTreeBounds,
   val surgePricingManager: RideHailSurgePricingManager,
   val tncIterationStats: Option[TNCIterationStats],
   val beamSkimmer: BeamSkimmer,
@@ -231,10 +225,20 @@ class RideHailManager(
       case _: AssertionError => Stop
     }
 
+  private val envelopeInUTM = beamServices.geo.wgs2Utm(beamScenario.transportNetwork.streetLayer.envelope)
+  envelopeInUTM.expandBy(beamScenario.beamConfig.beam.spatial.boundingBoxBuffer)
+
+  val activityQuadTreeBounds: QuadTreeBounds = buildActivityQuadTreeBounds(beamServices.matsimServices.getScenario.getPopulation)
+  log.info(s"envelopeInUTM before expansion: $envelopeInUTM")
+
+  envelopeInUTM.expandToInclude(activityQuadTreeBounds.minx, activityQuadTreeBounds.miny)
+  envelopeInUTM.expandToInclude(activityQuadTreeBounds.maxx, activityQuadTreeBounds.maxy)
+  log.info(s"envelopeInUTM after expansion: $envelopeInUTM")
+
   /**
     * Customer inquiries awaiting reservation confirmation.
     */
-  val vehicleManager: RideHailVehicleManager = new RideHailVehicleManager(this, boundingBox)
+  val vehicleManager: RideHailVehicleManager = new RideHailVehicleManager(this, envelopeInUTM)
 
   lazy val travelProposalCache: Cache[String, TravelProposal] = {
     CacheBuilder
@@ -283,8 +287,8 @@ class RideHailManager(
   private val defaultCostPerSecond = DefaultCostPerMinute / 60.0d
   private val pooledCostPerSecond = PooledCostPerMinute / 60.0d
 
-  beamServices.beamRouter ! GetTravelTime
-  beamServices.beamRouter ! GetMatSimNetwork
+  router ! GetTravelTime
+  router ! GetMatSimNetwork
   //TODO improve search to take into account time when available
   private val pendingModifyPassengerScheduleAcks = mutable.HashMap[Int, RideHailResponse]()
   private var numPendingRoutingRequestsForReservations = 0
@@ -1453,5 +1457,30 @@ class RideHailManager(
       Array((startTimes zip endTimes).foreach(x => outArray += Array("{", x._1, ":", x._2, "}").mkString))
       return Option(outArray.mkString(";"))
     }
+  }
+
+  def buildActivityQuadTreeBounds(population: MATSimPopulation): QuadTreeBounds = {
+    val persons = population.getPersons.values().asInstanceOf[java.util.Collection[Person]].asScala.view
+    val activities = persons.flatMap(p => p.getSelectedPlan.getPlanElements.asScala.view).collect {
+      case activity: Activity =>
+        activity
+    }
+    val coordinates = activities.map(_.getCoord)
+    // Force to compute xs and ys arrays
+    val xs = coordinates.map(_.getX).toArray
+    val ys = coordinates.map(_.getY).toArray
+    val xMin = xs.min
+    val xMax = xs.max
+    val yMin = ys.min
+    val yMax = ys.max
+    log.info(
+      s"QuadTreeBounds with X: [$xMin; $xMax], Y: [$yMin, $yMax]. boundingBoxBuffer: ${beamScenario.beamConfig.beam.spatial.boundingBoxBuffer}"
+    )
+    QuadTreeBounds(
+      xMin - beamScenario.beamConfig.beam.spatial.boundingBoxBuffer,
+      yMin - beamScenario.beamConfig.beam.spatial.boundingBoxBuffer,
+      xMax + beamScenario.beamConfig.beam.spatial.boundingBoxBuffer,
+      yMax + beamScenario.beamConfig.beam.spatial.boundingBoxBuffer
+    )
   }
 }
