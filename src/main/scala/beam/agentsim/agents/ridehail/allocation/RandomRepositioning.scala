@@ -448,7 +448,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
             .toVector
             .sliding(numberOfRepos, numberOfRepos)
             .toArray
-          val repositionPerTick = neverMovedVehicles.length.toDouble / numberOfRepos
+          val repositionPerTick = rideHailManager.beamServices.getNeverMovedVehicles.length.toDouble / numberOfRepos
 
           logger.info(s"neverMovedVehicles: ${neverMovedVehicles.length}")
           logger.info(s"lastTickWithRepos: $lastTickWithRepos, step: $step, numberOfRepos: $numberOfRepos, repositionPerTick: $repositionPerTick")
