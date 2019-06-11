@@ -35,13 +35,16 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
-    attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity]
+    attributesOfIndividual: AttributesOfIndividual,  // TODO: XXXX should get personInfo here and log
+    destinationActivity: Option[Activity],
+
+    personInfo: Option[Person] = None
   ): Option[EmbodiedBeamTrip] = {
     if (alternatives.isEmpty) {
       None
     } else {
       val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives, attributesOfIndividual, destinationActivity)
+
       val bestInGroup =
       modeCostTimeTransfers groupBy (_.mode) map {
         case (_, group) => group minBy timeAndCost
@@ -57,7 +60,8 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         (mct.mode.value, theParams ++ transferParam)
       }.toMap
 
-      val chosenModeOpt = model.sampleAlternative(inputData, new Random())
+      // TODO: personInfo should be deleted
+      val chosenModeOpt = model.sampleAlternative(inputData, new Random(), personInfo)
       expectedMaximumUtility = model.getExpectedMaximumUtility(inputData).getOrElse(0)
 
       chosenModeOpt match {
@@ -157,6 +161,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       val scaledTime = attributesOfIndividual.getVOT(
         getGeneralizedTimeOfTrip(altAndIdx._1, Some(attributesOfIndividual), destinationActivity)
       )
+      logger.warn(s"Scaled time: ${scaledTime}")
       ModeCostTimeTransfer(
         mode,
         incentivizedCost,

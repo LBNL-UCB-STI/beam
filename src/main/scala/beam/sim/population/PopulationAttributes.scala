@@ -12,6 +12,7 @@ import org.matsim.api.core.v01.population._
 import beam.sim.BeamServices
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
 import beam.router.RouteHistory.LinkId
+import beam.utils.scenario.{PersonId, PersonInfo}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -25,7 +26,10 @@ case class AttributesOfIndividual(
   availableModes: Seq[BeamMode],
   valueOfTime: Double,
   age: Option[Int],
-  income: Option[Double]
+  income: Option[Double],
+
+  // temporary for loging purposes
+//  personId: Option[PersonId] = None
 ) extends PopulationAttributes {
   lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
 

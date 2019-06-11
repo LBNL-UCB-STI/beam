@@ -885,10 +885,13 @@ trait ChoosesMode {
           .get("beam-attributes")
           .asInstanceOf[AttributesOfIndividual]
 
+      log.warning(s"Person ID:${matsimPlan.getPerson.getId}")
       modeChoiceCalculator(
         filteredItinerariesForChoice,
         attributesOfIndividual,
-        nextActivity(choosesModeData.personData)
+        nextActivity(choosesModeData.personData),
+
+        Some(matsimPlan.getPerson)   // TODO: temporary. should be deleted
       ) match {
         case Some(chosenTrip) =>
           goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(chosenTrip))
