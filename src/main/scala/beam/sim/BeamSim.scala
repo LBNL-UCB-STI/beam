@@ -36,12 +36,7 @@ import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events._
-import org.matsim.core.controler.listener.{
-  IterationEndsListener,
-  IterationStartsListener,
-  ShutdownListener,
-  StartupListener
-}
+import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -186,7 +181,8 @@ class BeamSim @Inject()(
 
     val outputGraphsFuture = Future {
       if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
-        modalityStyleStats.processData(scenario.getPopulation, event)
+        modalityStyleStats.processData(scenario.getPopulation,
+          event)
         modalityStyleStats.buildModalityStyleGraph()
       }
       createGraphsFromEvents.createGraphs(event)
@@ -219,6 +215,10 @@ class BeamSim @Inject()(
       // rideHailIterationHistoryActor ! CollectRideHailStats
       tncIterationsStatsCollector
         .tellHistoryToRideHailIterationHistoryActorAndReset()
+
+      val neverMoved = tncIterationsStatsCollector.getNeverMovedVehicles
+      beamServices.setNeverMovedVehicles(neverMoved)
+      logger.info(s"neverMovedVehicle: ${neverMoved.size}")
 
       if (beamConfig.beam.replanning.Module_2.equalsIgnoreCase("ClearRoutes")) {
         routeHistory.expireRoutes(beamConfig.beam.replanning.ModuleProbability_2)

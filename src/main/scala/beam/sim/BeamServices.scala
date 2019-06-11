@@ -77,6 +77,16 @@ trait BeamServices {
       None
     }
   }
+
+  @volatile
+  private var _neverMovedVehicles: IndexedSeq[String] = Vector.empty
+
+  def setNeverMovedVehicles(neverMovedVehicles: IndexedSeq[String]): Unit = {
+    _neverMovedVehicles = neverMovedVehicles
+  }
+  def getNeverMovedVehicles: IndexedSeq[String] = {
+    _neverMovedVehicles
+  }
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
