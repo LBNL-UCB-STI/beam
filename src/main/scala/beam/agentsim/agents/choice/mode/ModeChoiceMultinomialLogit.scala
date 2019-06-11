@@ -2,7 +2,6 @@ package beam.agentsim.agents.choice.mode
 
 import beam.agentsim.agents.choice.logit._
 import beam.agentsim.agents.choice.logit
-
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
@@ -11,17 +10,20 @@ import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
-import beam.sim.population.AttributesOfIndividual
+import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
+import beam.utils.json.Format
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
+
+import io.circe.syntax._
 
 /**
   * BEAM
@@ -29,6 +31,12 @@ import scala.util.Random
 class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: MultinomialLogit[String, String])
     extends ModeChoiceCalculator
     with ExponentialLazyLogging {
+
+  implicit val HouseholdAttributesFormat = new Format[HouseholdAttributes]
+  implicit val BeamModeFormat = new Format[BeamMode]
+  implicit val AttributesOfIndividualFormat = new Format[AttributesOfIndividual]
+  implicit val ModeCostTimeTransferFormat = new Format[ModeCostTimeTransfer]
+  implicit val MNLSampleFormat = new Format[MultinomialLogit.MNLSample[String]]
 
   var expectedMaximumUtility: Double = 0.0
   val modalBehaviors: ModalBehaviors = beamServices.getModalBehaviors()
@@ -63,6 +71,14 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       // TODO: personInfo should be deleted
       val chosenModeOpt = model.sampleAlternative(inputData, new Random(), personInfo)
       expectedMaximumUtility = model.getExpectedMaximumUtility(inputData).getOrElse(0)
+
+      logger.info(
+        s"""For the person: ${personInfo}
+           |attributesOfIndividual: ${attributesOfIndividual.asJson.toString}
+           |bestInGroup: ${bestInGroup.asJson.toString}
+           |inputData: ${inputData.asJson.toString}
+           |chosenModeOpt: ${chosenModeOpt.asJson.toString}
+         """.stripMargin)
 
       chosenModeOpt match {
         case Some(chosenMode) =>
@@ -161,7 +177,6 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       val scaledTime = attributesOfIndividual.getVOT(
         getGeneralizedTimeOfTrip(altAndIdx._1, Some(attributesOfIndividual), destinationActivity)
       )
-      logger.warn(s"Scaled time: ${scaledTime}")
       ModeCostTimeTransfer(
         mode,
         incentivizedCost,

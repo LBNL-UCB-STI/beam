@@ -134,13 +134,15 @@ class BeamScenarioLoader(
       val person = population.getFactory.createPerson(Id.createPersonId(personInfo.personId.id)) // TODO: find way to create a person without previous instance
 
       val personId = person.getId.toString
-
       val personAttrib = population.getPersonAttributes
+      val sexChar = if (personInfo.isFemale) "F" else "M"
       personAttrib.putAttribute(personId, "householdId", personInfo.householdId)
       personAttrib.putAttribute(personId, "rank", personInfo.rank)
       personAttrib.putAttribute(personId, "age", personInfo.age)
+      personAttrib.putAttribute(personId, "sex", sexChar)
       personAttrib.putAttribute(personId, "valueOfTime", personInfo.valueOfTime)
-
+      person.getAttributes.putAttribute("sex", sexChar)
+      person.getAttributes.putAttribute("age", personInfo.age)
       AvailableModeUtils.setAvailableModesForPerson_v2(beamServices, person, population, availableModes)
 
       population.addPerson(person)
