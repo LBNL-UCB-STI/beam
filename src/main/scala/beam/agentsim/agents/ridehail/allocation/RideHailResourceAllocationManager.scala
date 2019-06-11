@@ -173,7 +173,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    * Currently it is not possible to enable repositioning AND batch allocation simultaneously. But simultaneous execution
    * will be enabled in the near-term.
    */
-  def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
+  def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)] = {
     logger.trace("default implementation repositionVehicles executed")
     Vector()
   }

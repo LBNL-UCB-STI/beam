@@ -42,6 +42,7 @@ class ActivitySegment(val activities: Array[Activity], val binSize: Int) extends
 }
 
 object ActivitySegment {
+
   def apply(scenario: Scenario, binSize: Int): ActivitySegment = {
     val activities = scenario.getPopulation.getPersons.values.asScala
       .flatMap { person =>

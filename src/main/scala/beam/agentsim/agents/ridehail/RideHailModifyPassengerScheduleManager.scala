@@ -272,10 +272,6 @@ class RideHailModifyPassengerScheduleManager(
     allTriggersInWave = allTriggersInWave ++ newTriggers
   }
 
-  def setNumberOfRepositioningsToProcess(awaitAcks: Int): Unit = {
-    numberPendingModifyPassengerScheduleAcks = awaitAcks
-  }
-
   def startWaveOfRepositioningOrBatchedReservationRequests(tick: Int, triggerId: Long): Unit = {
     assert(
       vehicleIdToModifyPassengerScheduleStatus.values.count(scheduleStatuses => scheduleStatuses.nonEmpty)
