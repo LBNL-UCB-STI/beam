@@ -237,23 +237,30 @@ class RideHailAgent(
 
   when(PendingOfflineForCharging) {
     case ev @ Event(
-      reply @ NotifyVehicleResourceIdleReply(_, _),
-      data
-    ) =>
-      log.debug("state(RideHailAgent.PendingOfflineForCharging.NotifyVehicleResourceIdleReply): {} tick: {}",
-        ev, _currentTick)
+          reply @ NotifyVehicleResourceIdleReply(_, _),
+          data
+        ) =>
+      log.debug(
+        "state(RideHailAgent.PendingOfflineForCharging.NotifyVehicleResourceIdleReply): {} tick: {}",
+        ev,
+        _currentTick
+      )
       val tickOption = _currentTick
       val currentTriggerIdOption = _currentTriggerId
       handleNotifyVehicleResourceIdleReply(reply, data)
       requestParkingStall()
       val tick = _currentTick.getOrElse({
-        log.warning("Current tick is empty when moving vehicle to OfflineForCharging. " +
-          "This likely will get the agent stuck")
+        log.warning(
+          "Current tick is empty when moving vehicle to OfflineForCharging. " +
+          "This likely will get the agent stuck"
+        )
         0
       })
       val triggerId = currentTriggerIdOption.getOrElse({
-        log.warning("Current trigger id is empty when moving vehicle to OfflineForCharging. " +
-          "This COULD get the agent stuck")
+        log.warning(
+          "Current trigger id is empty when moving vehicle to OfflineForCharging. " +
+          "This COULD get the agent stuck"
+        )
         0L
       })
       holdTickAndTriggerId(tick, triggerId)
@@ -265,19 +272,18 @@ class RideHailAgent(
       log.debug("state(RideHailAgent.OfflineForCharging.ParkingInquiryResponse): {}", ev)
       vehicle.useParkingStall(stall)
       log.debug("Refuel started at " + _currentTick)
-      val(tick, triggerId) = releaseTickAndTriggerId()
-      if(vehicle.isBEV || vehicle.isPHEV) {
+      val (tick, triggerId) = releaseTickAndTriggerId()
+      if (vehicle.isBEV || vehicle.isPHEV) {
         handleStartCharging(tick, vehicle)
         stay
-      }
-      else handleStartRefuel(tick, triggerId)
+      } else handleStartRefuel(tick, triggerId)
     case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
       log.debug("state(RideHailAgent.OfflineForCharging.Interrupt): {}", ev)
       stay replying InterruptedWhileOffline(interruptId, vehicle.id, tick)
     case ev @ Event(
-      EndRefuelSessionTrigger(tick, sessionStart, energyInJoules, _),
-      data
-    ) =>
+          EndRefuelSessionTrigger(tick, sessionStart, energyInJoules, _),
+          data
+        ) =>
       log.debug("state(RideHailAgent.OfflineForCharging.EndRefuelSessionTrigger): {}", ev)
       val currentLocation = handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
       vehicle.spaceTime = SpaceTime(currentLocation, tick)
@@ -413,15 +419,14 @@ class RideHailAgent(
   when(PassengerScheduleEmpty) {
     case ev @ Event(PassengerScheduleEmptyMessage(_, _, _), data) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
-      if(!vehicle.isCAV){
+      if (!vehicle.isCAV) {
         log.debug("Empty human ridehail vehicle requesting parking stall: event = " + ev)
         rideHailManager ! NotifyVehicleOutOfService(vehicle.id)
         goto(PendingOfflineForCharging) using data
           .withPassengerSchedule(PassengerSchedule())
           .withCurrentLegPassengerScheduleIndex(0)
           .asInstanceOf[RideHailAgentData]
-      }
-      else
+      } else
         goto(Idle) using data
           .withPassengerSchedule(PassengerSchedule())
           .withCurrentLegPassengerScheduleIndex(0)

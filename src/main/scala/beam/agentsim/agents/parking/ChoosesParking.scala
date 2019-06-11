@@ -11,7 +11,13 @@ import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, Releasi
 import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule}
-import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent, LeavingParkingEvent, RefuelSessionEvent, SpaceTime}
+import beam.agentsim.events.{
+  ChargingPlugInEvent,
+  ChargingPlugOutEvent,
+  LeavingParkingEvent,
+  RefuelSessionEvent,
+  SpaceTime
+}
 import beam.agentsim.infrastructure.charging.ChargingInquiry
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId

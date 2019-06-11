@@ -19,31 +19,30 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
               case None => fail("should contain TAZ with id = 1 in the lookup tree")
               case Some(lookupSubtree) =>
                 lookupSubtree.get(ParkingType.Residential) match {
-                  case None => fail("should contain a 'residential' parking type under TAZ 1 in the lookup tree")
+                  case None                     => fail("should contain a 'residential' parking type under TAZ 1 in the lookup tree")
                   case Some(listOfParkingZones) =>
-
                     // confirm lookup table and collection have correct attributes
-                    lookupSubtree.size should equal (1)
-                    lookupTree.size should equal (1)
-                    listOfParkingZones.length should equal (1)
+                    lookupSubtree.size should equal(1)
+                    lookupTree.size should equal(1)
+                    listOfParkingZones.length should equal(1)
 
                     // extract parking zone based on discovered zone id
                     val foundParkingZoneId: Int = listOfParkingZones.head
                     val parkingZone: ParkingZone = collection(foundParkingZoneId)
 
                     // confirm parking zone has correct attributes
-                    parkingZone.parkingZoneId should equal (foundParkingZoneId)
-                    parkingZone.maxStalls should equal (testNumStalls)
-                    parkingZone.stallsAvailable should equal (testNumStalls)
+                    parkingZone.parkingZoneId should equal(foundParkingZoneId)
+                    parkingZone.maxStalls should equal(testNumStalls)
+                    parkingZone.stallsAvailable should equal(testNumStalls)
                     parkingZone.pricingModel match {
-                      case None => fail("should have found a pricing model in the parking zone")
-                      case Some(PricingModel.FlatFee(cost, _)) => cost should equal (testFeeInCents)
-                      case x => fail(s"found $x but expected $testPricingModel pricing model type in the parking zone")
+                      case None                                => fail("should have found a pricing model in the parking zone")
+                      case Some(PricingModel.FlatFee(cost, _)) => cost should equal(testFeeInCents)
+                      case x                                   => fail(s"found $x but expected $testPricingModel pricing model type in the parking zone")
                     }
                     parkingZone.chargingPointType match {
                       case None => fail("should have found a charging point in the parking zone")
                       case Some(chargingPoint) =>
-                        chargingPoint should equal (ChargingPointType.TeslaSuperCharger)
+                        chargingPoint should equal(ChargingPointType.TeslaSuperCharger)
                     }
 
                 }

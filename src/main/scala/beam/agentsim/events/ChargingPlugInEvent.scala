@@ -40,7 +40,7 @@ class ChargingPlugInEvent(
 
 }
 
-object ChargingPlugInEvent{
+object ChargingPlugInEvent {
   val EVENT_TYPE: String = "ChargingPlugInEvent"
   val ATTRIBUTE_VEHICLE_ID: String = "vehicle"
   val ATTRIBUTE_PRICE: String = "price"
