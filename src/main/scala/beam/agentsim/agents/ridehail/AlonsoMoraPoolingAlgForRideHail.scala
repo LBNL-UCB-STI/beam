@@ -244,7 +244,6 @@ object AlonsoMoraPoolingAlgForRideHail {
         BeamVehicleType.defaultCarBeamVehicleType.id
       )
       .time
-      .toInt
     CustomerRequest(
       vehiclePersonId,
       MobilityRequest(

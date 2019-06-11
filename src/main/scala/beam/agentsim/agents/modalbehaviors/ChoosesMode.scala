@@ -13,9 +13,8 @@ import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, _}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
-import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall
-import beam.agentsim.infrastructure.ParkingStall.{Any, NoNeed}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter._
 import beam.router.Modes
@@ -722,13 +721,10 @@ trait ChoosesMode {
   ): Option[Int] = {
     val inquiry = ParkingInquiry(
       destinationInUTM,
-      destinationInUTM,
       activityType,
-      attributes,
-      NoNeed,
-      arrivalTime,
+      attributes.valueOfTime,
+      None,
       duration,
-      Any,
       reserveStall = false
     )
     parkingManager ! inquiry
@@ -1150,9 +1146,9 @@ object ChoosesMode {
       parkingResponse = if (withParking) {
         None
       } else {
-        Some(ParkingInquiryResponse(ParkingStall.emptyParkingStall, 0))
+        Some(ParkingInquiryResponse(ParkingStall.lastResortStall(), 0))
       },
-      driveTransitParkingResponse = Some(ParkingInquiryResponse(ParkingStall.emptyParkingStall, 0)),
+      driveTransitParkingResponse = Some(ParkingInquiryResponse(ParkingStall.lastResortStall(), 0)),
       rideHailResult = if (withRideHail) {
         None
       } else {
