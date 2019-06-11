@@ -22,7 +22,7 @@ class RepositioningLowWaitingTimes(
   var boundsCalculator: Option[BoundsCalculator] = None
   var firstRepositionCoordsOfDay: Option[(Coord, Coord)] = None
 
-  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
+  override def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)] = {
 
     rideHailManager.tncIterationStats match {
       case Some(tncIterStats) =>
