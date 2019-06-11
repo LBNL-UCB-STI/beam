@@ -247,7 +247,7 @@ object TravelTimeObserved extends LazyLogging {
   }
 
   def generateChart(series: mutable.ListBuffer[(Int, Double, Double)], path: String): Unit = {
-    def drawLineHelper(color: Color, percent: Int, xyplot: XYPlot, max: Double) = {
+    def drawLineHelper(color: Color, percent: Int, xyplot: XYPlot, max: Double, text: Double) = {
       xyplot.addAnnotation(
         new XYLineAnnotation(
           0,
@@ -261,7 +261,7 @@ object TravelTimeObserved extends LazyLogging {
 
       xyplot.addAnnotation(
         new XYTextAnnotation(
-          s"$percent%",
+          s"$text%",
           max * Math.cos(Math.toRadians(45 + percent)) / 2,
           max * Math.sin(Math.toRadians(45 + percent)) / 2
         )
@@ -345,25 +345,21 @@ object TravelTimeObserved extends LazyLogging {
       )
     )
 
-    val percents: Map[Int, Color] = Map(
-      15 -> Color.RED,
-      30 -> Color.BLUE
+    val percents = List(
+      (18, Color.RED, -50.0),
+      (-18, Color.RED, 100.0),
+      (36, Color.BLUE, -83.0),
+      (-36, Color.BLUE, 500.0)
     )
 
     percents.foreach {
-      case (percent: Int, color: Color) =>
+      case (percent: Int, color: Color, value: Double) =>
         drawLineHelper(
           color,
           percent,
           xyplot,
-          max
-        )
-
-        drawLineHelper(
-          color,
-          -percent,
-          xyplot,
-          max
+          max,
+          value
         )
     }
 
