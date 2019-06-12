@@ -11,6 +11,7 @@ import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
 import scala.reflect.ClassTag
+import scala.util.Try
 
 object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
   override def inputType: InputType = InputType.CSV
@@ -82,13 +83,14 @@ object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
     val age = getIfNotNull(rec, "age").toInt
     val isFemale = getIfNotNull(rec, "isFemale", "false").toBoolean
     val rank = getIfNotNull(rec, "householdRank", "0").toInt
+    val valueOfTime = NumberUtils.toDouble(Try(getIfNotNull(rec, "valueOfTime", "0")).getOrElse("0"), 0D)
     PersonInfo(
       personId = PersonId(personId),
       householdId = HouseholdId(householdId),
       rank = rank,
       age = age,
       isFemale = isFemale,
-      valueOfTime = NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime", "0"), 0D)
+      valueOfTime = valueOfTime
     )
   }
 
