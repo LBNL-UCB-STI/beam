@@ -2,6 +2,9 @@ package beam.agentsim.agents.ridehail
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Props, Stash}
+import scala.concurrent.duration._
+import akka.pattern.ask
+
 import beam.agentsim.Resource.{NotifyVehicleIdle, NotifyVehicleOutOfService, ReleaseParkingStall}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -15,7 +18,7 @@ import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.{RefuelSessionEvent, SpaceTime}
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, RequestCurrentTime, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
@@ -27,6 +30,8 @@ import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicle
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
+
+import scala.concurrent.Await
 
 object RideHailAgent {
   val idPrefix: String = "rideHailAgent"
@@ -142,6 +147,9 @@ object RideHailAgent {
   case class StartShiftTrigger(tick: Int) extends Trigger
   case class EndShiftTrigger(tick: Int) extends Trigger
 
+  case class StartParkingTrigger(tick: Int) extends Trigger
+  case class EndParkingTrigger(tick: Int) extends Trigger
+
 }
 
 class RideHailAgent(
@@ -247,39 +255,87 @@ class RideHailAgent(
       )
       val tickOption = _currentTick
       val currentTriggerIdOption = _currentTriggerId
-      handleNotifyVehicleResourceIdleReply(reply, data)
-      requestParkingStall()
       val tick = _currentTick.getOrElse({
         log.warning(
           "Current tick is empty when moving vehicle to OfflineForCharging. " +
-          "This likely will get the agent stuck"
+            "Reverting to having to ask for the current time"
         )
-        0
+        val currentTick = Await.result((scheduler ? RequestCurrentTime).mapTo[Int], atMost = 5.seconds)
+        log.warning("Current tick now " + currentTick)
+        currentTick
       })
-      val triggerId = currentTriggerIdOption.getOrElse({
+
+      val startFuelTrigger = ScheduleTrigger(
+        StartRefuelSessionTrigger(tick),
+        self
+      )
+
+      val newReply = reply.copy(newTriggers = Vector(startFuelTrigger))
+
+      handleNotifyVehicleResourceIdleReply(newReply, data)
+      //requestParkingStall()
+      /*val tick = _currentTick.getOrElse({
+        log.warning(
+          "Current tick is empty when moving vehicle to OfflineForCharging. " +
+          "Reverting to having to ask for the current time"
+        )
+        val currentTick = Await.result((scheduler ? RequestCurrentTime).mapTo[Int], atMost = 5.seconds)
+        log.warning("Current tick now " + currentTick)
+        currentTick
+      })*/
+      /*val triggerId = currentTriggerIdOption.getOrElse({
         log.warning(
           "Current trigger id is empty when moving vehicle to OfflineForCharging. " +
           "This COULD get the agent stuck"
         )
         0L
       })
-      holdTickAndTriggerId(tick, triggerId)
+      holdTickAndTriggerId(tick, triggerId)*/
       goto(OfflineForCharging)
   }
 
   when(OfflineForCharging) {
+    case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(tick), triggerId), _) =>
+      log.debug("state(RideHailAgent.OfflineForCharging.StartRefuelSessionTrigger): {}", ev)
+      requestParkingStall()
+      holdTickAndTriggerId(tick, triggerId)
+      stay
+
+
+
     case ev @ Event(ParkingInquiryResponse(stall, _), _) =>
       log.debug("state(RideHailAgent.OfflineForCharging.ParkingInquiryResponse): {}", ev)
+
       vehicle.useParkingStall(stall)
       log.debug("Refuel started at " + _currentTick)
       val (tick, triggerId) = releaseTickAndTriggerId()
+      val currentTick = Await.result((scheduler ? RequestCurrentTime).mapTo[Int], atMost = 5.seconds)
+      log.warning("Current tick after ParkingInquiry " + currentTick + " compared to " + tick)
+
       if (vehicle.isBEV || vehicle.isPHEV) {
-        handleStartCharging(tick, vehicle)
+        handleStartCharging(tick, triggerId, vehicle)
         stay
       } else handleStartRefuel(tick, triggerId)
+
     case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
       log.debug("state(RideHailAgent.OfflineForCharging.Interrupt): {}", ev)
       stay replying InterruptedWhileOffline(interruptId, vehicle.id, tick)
+    case ev @ Event(
+      TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, energyInJoules, _), triggerId),
+      data
+    ) =>
+      log.debug("state(RideHailAgent.OfflineForCharging.TriggerWithId(EndRefuelSessionTrigger)): {}", ev)
+      val currentLocation = handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
+      vehicle.spaceTime = SpaceTime(currentLocation, tick)
+      rideHailManager ! NotifyVehicleIdle(
+        vehicle.id,
+        vehicle.spaceTime.copy(time = tick),
+        PassengerSchedule(),
+        vehicle.getState,
+        geofence,
+        None
+      )
+      goto(Idle)
     case ev @ Event(
           EndRefuelSessionTrigger(tick, sessionStart, energyInJoules, _),
           data
@@ -418,7 +474,7 @@ class RideHailAgent(
 
   when(PassengerScheduleEmpty) {
     case ev @ Event(PassengerScheduleEmptyMessage(_, _, _), data) =>
-      log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
+      log.warning("state(RideHailingAgent.PassengerScheduleEmpty): {} Remaining Shifts: {}", ev, data.remainingShifts)
       if (!vehicle.isCAV) {
         log.debug("Empty human ridehail vehicle requesting parking stall: event = " + ev)
         rideHailManager ! NotifyVehicleOutOfService(vehicle.id)
@@ -481,7 +537,7 @@ class RideHailAgent(
     val (sessionDuration, energyDelivered) =
       vehicle.refuelingSessionDurationAndEnergyInJoules()
 
-    log.debug(
+    log.warning(
       "scheduling EndRefuelSessionTrigger at {} with {} J to be delivered",
       tick + sessionDuration.toInt,
       energyDelivered

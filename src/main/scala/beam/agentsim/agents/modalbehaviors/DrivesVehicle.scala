@@ -310,7 +310,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
             if (currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV) {
               stall.chargingPointType match {
-                case Some(_) => handleStartCharging(tick, currentBeamVehicle)
+                case Some(_) => handleStartCharging(tick, 0L, currentBeamVehicle)
                 case None =>
                   log.warning(
                     "Charging request by vehicle {} ({}) on a spot without a charging point (parkingZoneId: {}). This is not handled yet!",
@@ -769,7 +769,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       0.0
   }
 
-  def handleStartCharging(tick: Int, vehicle: BeamVehicle) = {
+  def handleStartCharging(tick: Int, triggerId: Long, vehicle: BeamVehicle) = {
     log.debug("Vehicle {} connects to charger @ stall {}", vehicle.id, vehicle.stall.get)
     vehicle.connectToChargingPoint()
     eventsManager.processEvent(
@@ -798,14 +798,22 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
     val chargingEndTick = tick + sessionDuration.toInt
 
-    log.debug(
+    log.warning(
       "scheduling EndRefuelSessionTrigger at {} with {} J to vehicle {} to be delivered",
       chargingEndTick,
       energyDelivered,
       vehicle.id
     )
 
-    scheduler ! ScheduleTrigger(EndRefuelSessionTrigger(chargingEndTick, tick, energyDelivered, Some(vehicle)), self)
+
+    val complete = CompletionNotice(
+      triggerId,
+      Vector(
+        ScheduleTrigger(EndRefuelSessionTrigger(chargingEndTick, tick, energyDelivered, Some(vehicle)), self)
+      )
+    )
+
+    scheduler ! complete//ScheduleTrigger(EndRefuelSessionTrigger(chargingEndTick, tick, energyDelivered, Some(vehicle)), self)
 
   }
 
