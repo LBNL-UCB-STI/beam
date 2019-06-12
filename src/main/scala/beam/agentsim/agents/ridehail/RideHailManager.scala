@@ -1348,6 +1348,7 @@ class RideHailManager(
       ProfilingUtils.timed(s"repositionVehicles at tick $tick", log.info) {
         rideHailResourceAllocationManager.repositionVehicles(tick)
       }
+    log.info(s"Will reposition ${repositionVehicles.size} at the tick {}", tick)
 
     if (repositionVehicles.isEmpty) {
       log.debug("sendCompletionAndScheduleNewTimeout from 1204")
