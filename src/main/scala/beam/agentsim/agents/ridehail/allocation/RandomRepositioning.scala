@@ -174,7 +174,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
     updatePersonActivityQuadTree(tick)
 
-    val algorithm = 6
+    val algorithm = 7
 
     algorithm match {
 
