@@ -3,7 +3,7 @@ package beam.utils.scenario
 import java.util.Random
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory}
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.sim.vehicles.VehiclesAdjustment
@@ -21,7 +21,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
-class ScenarioLoader(
+class UrbanSimScenarioLoader(
   var scenario: MutableScenario,
   var beamServices: BeamServices,
   val scenarioSource: ScenarioSource
@@ -121,9 +121,9 @@ class ScenarioLoader(
         val id = Id.create(householdInfo.householdId.id, classOf[org.matsim.households.Household])
         val household = new HouseholdsFactoryImpl().createHousehold(id)
         val coord = if (beamServices.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
-          beamServices.geo.wgs2Utm(new Coord(householdInfo.x, householdInfo.y))
+          beamServices.geo.wgs2Utm(new Coord(householdInfo.locationX, householdInfo.locationY))
         } else {
-          new Coord(householdInfo.x, householdInfo.y)
+          new Coord(householdInfo.locationX, householdInfo.locationY)
         }
 
         household.setIncome(new IncomeImpl(householdInfo.income, Income.IncomePeriod.year))
@@ -148,13 +148,16 @@ class ScenarioLoader(
           )
           .toBuffer
 
-        vehicleTypes.append(
-          beamServices.vehicleTypes.values
-            .find(_.vehicleCategory == VehicleCategory.Bike)
-            .getOrElse(BeamVehicleType.defaultBikeBeamVehicleType)
-        )
+        beamServices.vehicleTypes.values
+          .find(_.vehicleCategory == VehicleCategory.Bike) match {
+          case Some(vehType) =>
+            vehicleTypes.append(vehType)
+          case None =>
+            throw new RuntimeException("Bike not found in vehicle types.")
+        }
         initialVehicleCounter += householdInfo.cars
         totalCarCount += vehicleTypes.count(_.vehicleCategory.toString == "Car")
+
         val vehicleIds = new java.util.ArrayList[Id[Vehicle]]
         vehicleTypes.foreach { beamVehicleType =>
           val vt = VehicleUtils.getFactory.createVehicleType(Id.create(beamVehicleType.id, classOf[VehicleType]))
@@ -251,21 +254,27 @@ class ScenarioLoader(
           person.addPlan(plan)
           person.setSelectedPlan(plan)
         }
-        val planElement = planInfo.planElement
+        val planElement = planInfo.planElementType
         if (planElement.equalsIgnoreCase("leg")) {
-          planInfo.mode match {
+          planInfo.legMode match {
             case Some(mode) =>
               PopulationUtils.createAndAddLeg(plan, mode)
             case None =>
               PopulationUtils.createAndAddLeg(plan, "")
           }
         } else if (planElement.equalsIgnoreCase("activity")) {
-          assert(planInfo.x.isDefined, s"planElement is `activity`, but `x` is None! planInfo: $planInfo")
-          assert(planInfo.y.isDefined, s"planElement is `activity`, but `y` is None! planInfo: $planInfo")
+          assert(
+            planInfo.activityLocationX.isDefined,
+            s"planElement is `activity`, but `x` is None! planInfo: $planInfo"
+          )
+          assert(
+            planInfo.activityLocationY.isDefined,
+            s"planElement is `activity`, but `y` is None! planInfo: $planInfo"
+          )
           val coord = if (beamServices.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
-            beamServices.geo.wgs2Utm(new Coord(planInfo.x.get, planInfo.y.get))
+            beamServices.geo.wgs2Utm(new Coord(planInfo.activityLocationX.get, planInfo.activityLocationY.get))
           } else {
-            new Coord(planInfo.x.get, planInfo.y.get)
+            new Coord(planInfo.activityLocationX.get, planInfo.activityLocationY.get)
           }
           val activityType = planInfo.activityType.getOrElse(
             throw new IllegalStateException(
@@ -273,7 +282,7 @@ class ScenarioLoader(
             )
           )
           val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)
-          planInfo.endTime.foreach { endTime =>
+          planInfo.activityEndTime.foreach { endTime =>
             act.setEndTime(endTime * 60 * 60)
           }
         }

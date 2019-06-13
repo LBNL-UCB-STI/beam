@@ -8,13 +8,13 @@ import scala.xml.{Node, NodeSeq}
 
 class PopulationXml2CsvConverter(householdsXml: File, populationAttributesXml: File) extends Xml2CsvFileConverter {
 
-  override val fields: Seq[String] = Seq("personId", "age", "isFemale", "householdId", "houseHoldRank", "excludedModes")
+  override val fields: Seq[String] = Seq("personId", "age", "isFemale", "householdId", "householdRank", "excludedModes")
 
   private case class Person(
-    personId: Int,
+    personId: String,
     age: Int,
     isFemale: Boolean,
-    householdId: Int,
+    householdId: String,
     householdRank: Int,
     excludedModes: String
   ) {
@@ -22,10 +22,10 @@ class PopulationXml2CsvConverter(householdsXml: File, populationAttributesXml: F
       Seq(personId, age, isFemale, householdId, householdRank, excludedModes).mkString(FieldSeparator)
   }
 
-  private case class HouseholdMembers(houseHoldId: Int, memberIds: Seq[Int])
+  private case class HouseholdMembers(houseHoldId: String, memberIds: Seq[String])
 
-  type MemberId = Int
-  type HouseholdId = Int
+  type MemberId = String
+  type HouseholdId = String
   type MemberToHousehold = Map[MemberId, HouseholdId]
   private def readMemberToHousehold(): MemberToHousehold = {
     val parser = ConstructingParser.fromFile(householdsXml, preserveWS = true)
@@ -53,26 +53,26 @@ class PopulationXml2CsvConverter(householdsXml: File, populationAttributesXml: F
     def fromSeq(name: String): String = attrs.find(_.attributes("name").text == name).get.text
 
     PersonAttributes(
-      objectId = node.attributes("id").toString.toInt,
+      objectId = node.attributes("id").toString,
       excludedModes = fromSeq("excluded-modes"),
       rank = fromSeq("rank").toInt
     )
   }
 
-  private case class PersonAttributes(objectId: Int, excludedModes: String, rank: Int) {
+  private case class PersonAttributes(objectId: String, excludedModes: String, rank: Int) {
     override def toString: String = Seq(objectId, excludedModes, rank).mkString(FieldSeparator)
   }
 
   private def toHouseholdMembers(node: Node): HouseholdMembers = {
-    val householdId = node.attributes("id").text.toInt
+    val householdId = node.attributes("id").text
     val memberIds = (node \ "members" \ "personId").map { node =>
-      node.attributes("refId").text.toInt
+      node.attributes("refId").text
     }
     HouseholdMembers(householdId, memberIds)
   }
 
   private def toPerson(node: Node, memberToHousehold: MemberToHousehold, member2Rank: MemberToRank): Person = {
-    val memberId = node.attributes("id").toString.toInt
+    val memberId = node.attributes("id").toString
     Person(
       personId = memberId,
       age = 30,

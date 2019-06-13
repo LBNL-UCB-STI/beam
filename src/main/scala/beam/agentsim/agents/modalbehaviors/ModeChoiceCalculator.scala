@@ -1,17 +1,15 @@
 package beam.agentsim.agents.modalbehaviors
 
-import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
+import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.mode._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, HasServices}
-import org.matsim.api.core.v01.population.Activity
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Activity, Person}
 
-import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
@@ -19,8 +17,6 @@ import scala.util.Random
   * BEAM
   */
 trait ModeChoiceCalculator extends HasServices {
-
-  import ModeChoiceCalculator._
 
   implicit lazy val random: Random = new Random(
     beamServices.beamConfig.matsim.modules.global.randomSeed

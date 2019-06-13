@@ -11,7 +11,7 @@ import scala.collection.JavaConverters._
 object PopulationCsvWriter extends ScenarioCsvWriter {
 
   override protected val fields: Seq[String] =
-    Seq("personId", "age", "isFemale", "householdId", "houseHoldRank", "excludedModes")
+    Seq("personId", "age", "isFemale", "householdId", "householdRank", "excludedModes", "valueOfTime")
 
   override def contentIterator(scenario: Scenario): Iterator[String] = {
     val personIdToHouseHoldId: Map[Id[Person], Id[Household]] = scenario.getHouseholds.getHouseholds
@@ -28,20 +28,26 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
       val customAttributes: AttributesOfIndividual =
         person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
 
-      val excludedModes = personAttributes
-        .getAttribute(person.getId.toString, "excluded-modes")
-        .toString
-        .replaceAll(",", ArrayItemSeparator)
-        .split(ArrayItemSeparator)
-        .mkString(ArrayStartString, ArrayItemSeparator, ArrayEndString)
+      // `personAttributes.getAttribute(...)` can return `null`
+      val excludedModes = Option(
+        personAttributes
+          .getAttribute(person.getId.toString, "excluded-modes")
+      ).map { attrib =>
+          attrib.toString
+            .replaceAll(",", ArrayItemSeparator)
+            .split(ArrayItemSeparator)
+            .mkString(ArrayStartString, ArrayItemSeparator, ArrayEndString)
+        }
+        .getOrElse("")
 
       val values = Seq(
         person.getId.toString,
         customAttributes.age.getOrElse(""),
         !customAttributes.isMale,
-        personIdToHouseHoldId(person.getId),
+        personIdToHouseHoldId.get(person.getId).map(_.toString).getOrElse(""),
         String.valueOf(personAttributes.getAttribute(person.getId.toString, "rank")),
-        excludedModes
+        excludedModes,
+        Option(personAttributes.getAttribute(person.getId.toString, "valueOfTime")).getOrElse("")
       )
       values.mkString("", FieldSeparator, LineSeparator)
     }

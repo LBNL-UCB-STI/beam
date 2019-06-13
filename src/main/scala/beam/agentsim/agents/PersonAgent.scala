@@ -19,8 +19,8 @@ import beam.agentsim.agents.vehicles.BeamVehicle.FuelConsumed
 import beam.agentsim.agents.vehicles.VehicleCategory.Bike
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
-import beam.agentsim.events.resources.ReservationError
-import beam.agentsim.infrastructure.ParkingManager.ParkingInquiryResponse
+import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
+import beam.agentsim.infrastructure.ParkingInquiryResponse
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -29,7 +29,7 @@ import beam.router.Modes.BeamMode.{CAR, CAV, WALK, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
-import beam.sim.BeamServices
+import beam.sim.{BeamServices, Geofence}
 import beam.sim.population.AttributesOfIndividual
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
@@ -100,6 +100,8 @@ object PersonAgent {
     def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int): DrivingData
 
     def hasParkingBehaviors: Boolean
+
+    def geofence: Option[Geofence]
   }
 
   case class LiterallyDrivingData(delegate: DrivingData, legEndsAt: Double) extends DrivingData { // sorry
@@ -120,6 +122,8 @@ object PersonAgent {
       )
 
     override def hasParkingBehaviors: Boolean = false
+
+    override def geofence: Option[Geofence] = delegate.geofence
   }
 
   case class BasePersonData(
@@ -143,6 +147,8 @@ object PersonAgent {
     ): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
 
     override def hasParkingBehaviors: Boolean = true
+
+    override def geofence: Option[Geofence] = None
   }
 
   case class ActivityStartTrigger(tick: Int) extends Trigger
@@ -380,7 +386,8 @@ class PersonAgent(
   ): State = {
     logDebug(s"replanning because ${error.errorCode}")
     val tick = _currentTick.getOrElse(response.request.departAt)
-    actorEventsManager ! new ReplanningEvent(tick, Id.createPersonId(id))
+    val replanningReason = getReplanningReasonFrom(data, error.errorCode.entryName)
+    actorEventsManager ! new ReplanningEvent(tick, Id.createPersonId(id), replanningReason)
     goto(ChoosingMode) using ChoosesModeData(
       data.copy(currentTourMode = None, numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
       currentLocation = SpaceTime(
@@ -401,7 +408,8 @@ class PersonAgent(
         data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _)
         ) =>
       logDebug(s"replanning because ${firstErrorResponse.errorCode}")
-      actorEventsManager ! (new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
+      val replanningReason = getReplanningReasonFrom(data, firstErrorResponse.errorCode.entryName)
+      actorEventsManager ! (new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason))
       goto(ChoosingMode) using ChoosesModeData(
         data.copy(numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
         currentLocation =
@@ -443,9 +451,6 @@ class PersonAgent(
           TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter, theMode), triggerId),
           data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _)
         ) =>
-      if (theMode == CAV || data.currentTrip.get.tripClassifier == CAV) {
-        val i = 0
-      }
       logDebug(s"PersonEntersVehicle: $vehicleToEnter")
       actorEventsManager ! new PersonEntersVehicleEvent(tick, id, vehicleToEnter)
 
@@ -555,7 +560,8 @@ class PersonAgent(
       goto(ProcessingNextLegOrStartActivity)
     case Event(NotAvailable, basePersonData: BasePersonData) =>
       log.debug("{} replanning because vehicle not available when trying to board")
-      actorEventsManager ! (new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
+      val replanningReason = getReplanningReasonFrom(basePersonData, ReservationErrorCode.ResourceUnavailable.entryName)
+      actorEventsManager ! (new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason))
       goto(ChoosingMode) using ChoosesModeData(
         basePersonData.copy(
           currentTourMode = None, // Have to give up my mode as well, perhaps there's no option left for driving.
@@ -644,7 +650,8 @@ class PersonAgent(
       // portion.
       log.debug("Missed transit pickup, late by {} sec", _currentTick.get - nextLeg.beamLeg.startTime)
 
-      actorEventsManager ! (new ReplanningEvent(_currentTick.get, Id.createPersonId(id)))
+      val replanningReason = getReplanningReasonFrom(data, ReservationErrorCode.MissedTransitPickup.entryName)
+      actorEventsManager ! (new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason))
       goto(ChoosingMode) using ChoosesModeData(
         personData = data
           .copy(currentTourMode = Some(WALK_TRANSIT), numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
@@ -807,6 +814,14 @@ class PersonAgent(
       }
   }
 
+  def getReplanningReasonFrom(data: BasePersonData, prefix: String): String = {
+    data.currentTourMode
+      .collect {
+        case mode => s"$prefix $mode"
+      }
+      .getOrElse(prefix)
+  }
+
   def handleSuccessfulReservation(
     triggersToSchedule: Vector[ScheduleTrigger],
     data: BasePersonData,
@@ -850,7 +865,7 @@ class PersonAgent(
         log.debug("Person {} stashing BoardOrAlight {} b/c on CAV trip", id, triggerId)
         stash
         stay
-      case Some(trip) if beamServices.vehicleTypes.get(beamVehicleTypeId).map(_.automationLevel > 3).getOrElse(false) =>
+      case Some(trip) if beamServices.vehicleTypes.get(beamVehicleTypeId).exists(_.automationLevel > 3) =>
         log.warning(
           "Person {} in state {} is abandoning CAV trips for rest of day because received Board/Alight trigger while on {} trip",
           id,
@@ -936,7 +951,7 @@ class PersonAgent(
     case Event(
         TriggerWithId(BoardVehicleTrigger(_, vehicleId, Some(vehicleTypeId)), triggerId),
         BasePersonData(_, currentTrip, _, currentVehicle, _, _, _, _, _, _, _)
-        ) if !currentVehicle.isEmpty && currentVehicle.head.equals(vehicleId) =>
+        ) if currentVehicle.nonEmpty && currentVehicle.head.equals(vehicleId) =>
       log.debug("Person {} in state {} received Board for vehicle that he is already on, ignoring...", id, stateName)
       stay() replying CompletionNotice(triggerId, Vector())
     case Event(
@@ -949,7 +964,7 @@ class PersonAgent(
         BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _)
         ) =>
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip, vehicleTypeId)
-    case Event(NotifyVehicleIdle(_, _, _, _, _), _) =>
+    case Event(NotifyVehicleIdle(_, _, _, _, _, _), _) =>
       stay()
     case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>
       stay() replying CompletionNotice(triggerId)

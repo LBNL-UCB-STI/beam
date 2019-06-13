@@ -175,6 +175,10 @@ class BeamSim @Inject()(
     beamConfigChangesObservable.notifyChangeToSubscribers()
     ExponentialLazyLogging.reset()
     beamServices.privateVehicles.values.foreach(_.initializeFuelLevels)
+    val controllerIO = event.getServices.getControlerIO
+    if (isFirstIteration(event.getIteration)) {
+      PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv"))
+    }
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
@@ -274,6 +278,11 @@ class BeamSim @Inject()(
     renameGeneratedOutputFiles(event)
     logger.info("Ending Iteration")
     delayMetricAnalysis.generateDelayAnalysis(event)
+  }
+
+  private def isFirstIteration(currentIteration: Integer): Boolean = {
+    val firstIteration = beamServices.beamConfig.matsim.modules.controler.firstIteration
+    currentIteration == firstIteration
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {

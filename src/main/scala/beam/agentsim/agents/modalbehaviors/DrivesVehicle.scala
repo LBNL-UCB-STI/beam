@@ -187,6 +187,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
             beamServices.geo.wgs2Utm(currentLeg.travelPath.endPoint),
             data.passengerSchedule,
             currentBeamVehicle.getState,
+            data.geofence,
             Some(triggerId)
           )
         )
@@ -378,6 +379,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
           beamServices.geo.wgs2Utm(updatedBeamLeg.travelPath.endPoint),
           data.passengerSchedule,
           currentBeamVehicle.getState,
+          data.geofence,
           _currentTriggerId
         )
       )
@@ -467,7 +469,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               currentBeamVehicle.id + " " + currentVehicleUnderControl
             )
             currentBeamVehicle.stall.foreach { theStall =>
-              parkingManager ! ReleaseParkingStall(theStall.id)
+              parkingManager ! ReleaseParkingStall(theStall.parkingZoneId)
             }
             currentBeamVehicle.unsetParkingStall()
           case None =>

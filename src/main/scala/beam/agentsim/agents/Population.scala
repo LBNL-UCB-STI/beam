@@ -143,6 +143,7 @@ class Population(
         log.error(e, "Error initializing houseHolds")
         throw e
     }
+
   }
 
 }

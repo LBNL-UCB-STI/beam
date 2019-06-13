@@ -21,9 +21,9 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
-import beam.agentsim.infrastructure.ParkingStall.NoNeed
-import beam.agentsim.infrastructure.{TAZTreeMap, TrivialParkingManager}
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
+import beam.agentsim.infrastructure.TrivialParkingManager
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
@@ -743,12 +743,10 @@ class PersonWithVehicleSharingSpec
 
   def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(
     whenWhere.loc,
-    whenWhere.loc,
     "wherever",
-    AttributesOfIndividual.EMPTY,
-    NoNeed,
-    0,
-    0
+    0.0,
+    None,
+    0.0
   )
 
   override def beforeAll: Unit = {

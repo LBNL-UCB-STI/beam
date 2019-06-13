@@ -3,7 +3,8 @@ package beam.agentsim.agents.choice.mode
 import java.util.Random
 
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, TourType}
-import beam.agentsim.agents.choice.logit.{AlternativeAttributes, LatentClassChoiceModel}
+import beam.agentsim.agents.choice.logit.MultinomialLogit.MNLSample
+import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.mode.ModeChoiceLCCM.ModeChoiceData
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
@@ -71,10 +72,10 @@ class ModeChoiceLCCM(
           "cost" -> alt.cost,
           "time" -> (alt.walkTime + alt.bikeTime + alt.vehicleTime + alt.waitTime)
         )
-        AlternativeAttributes(alt.mode.value, theParams)
-      }
+        (alt.mode.value, theParams)
+      }.toMap
 
-      val attribIndivData: AlternativeAttributes = {
+      val attribIndivData: Map[String, Map[String, Double]] = {
         val theParams: Map[String, Double] = Map(
           "income"        -> attributesOfIndividual.householdAttributes.householdIncome,
           "householdSize" -> attributesOfIndividual.householdAttributes.householdSize,
@@ -86,18 +87,18 @@ class ModeChoiceLCCM(
           "numCars"  -> attributesOfIndividual.householdAttributes.numCars,
           "numBikes" -> attributesOfIndividual.householdAttributes.numBikes
         )
-        AlternativeAttributes("dummy", theParams)
+        Map("dummy" -> theParams)
       }
 
       val classMembershipInputData =
-        lccm.classMembershipModels.head._2.alternativeParams.keySet.map { theClassName =>
+        lccm.classMembershipModels.head._2.utilityFunctions.keySet.map { theClassName =>
           val modeChoiceExpectedMaxUtility = lccm
             .modeChoiceModels(tourType)(theClassName)
-            .getExpectedMaximumUtility(modeChoiceInputData)
+            .getExpectedMaximumUtility(modeChoiceInputData.toMap)
           val surplusAttrib: Map[String, Double] =
-            Map("surplus" -> modeChoiceExpectedMaxUtility)
-          AlternativeAttributes(theClassName, attribIndivData.attributes ++ surplusAttrib)
-        }.toVector
+            Map("surplus" -> modeChoiceExpectedMaxUtility.getOrElse(0))
+          (theClassName, attribIndivData.head._2 ++ surplusAttrib)
+        }.toMap
 
       /*
        * Evaluate and sample from classmembership, then sample from corresponding mode choice model
@@ -113,16 +114,17 @@ class ModeChoiceLCCM(
           )
         case Some(chosenClass) =>
           val chosenModeOpt = lccm
-            .modeChoiceModels(tourType)(chosenClass)
+            .modeChoiceModels(tourType)(chosenClass.alternativeType)
             .sampleAlternative(modeChoiceInputData, new Random())
           expectedMaximumUtility = lccm
-            .modeChoiceModels(tourType)(chosenClass)
+            .modeChoiceModels(tourType)(chosenClass.alternativeType)
             .getExpectedMaximumUtility(modeChoiceInputData)
+            .getOrElse(0)
 
           chosenModeOpt match {
             case Some(chosenMode) =>
               val chosenAlt =
-                bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode))
+                bestInGroup.filter(_.mode.value.equalsIgnoreCase(chosenMode.alternativeType))
               if (chosenAlt.isEmpty) {
                 None
               } else {
@@ -142,15 +144,15 @@ class ModeChoiceLCCM(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     conditionedOnModalityStyle: String,
     tourType: TourType
-  ): Option[String] = {
+  ): Option[MNLSample[String]] = {
     val bestInGroup = altsToBestInGroup(alternatives, tourType)
     val modeChoiceInputData = bestInGroup.map { alt =>
       val theParams = Map(
         "cost" -> alt.cost,
         "time" -> (alt.walkTime + alt.bikeTime + alt.vehicleTime + alt.waitTime)
       )
-      AlternativeAttributes(alt.mode.value, theParams)
-    }
+      (alt.mode.value, theParams)
+    }.toMap
     lccm
       .modeChoiceModels(tourType)(conditionedOnModalityStyle)
       .sampleAlternative(modeChoiceInputData, new Random())
@@ -162,7 +164,7 @@ class ModeChoiceLCCM(
   ): Map[String, Double] = {
     lccm
       .classMembershipModels(tourType)
-      .alternativeParams
+      .utilityFunctions
       .keySet
       .map(theStyle => (theStyle, utilityOf(embodiedBeamTrip, theStyle, tourType)))
       .toMap
@@ -258,7 +260,8 @@ class ModeChoiceLCCM(
     val theParams = Map("cost" -> cost, "time" -> time)
     lccm
       .modeChoiceModels(tourType)(conditionedOnModalityStyle)
-      .getUtilityOfAlternative(AlternativeAttributes(mode.value, theParams))
+      .getUtilityOfAlternative(mode.value, theParams)
+      .getOrElse(0)
   }
 
   override def utilityOf(
@@ -271,7 +274,7 @@ class ModeChoiceLCCM(
     trips: ListBuffer[EmbodiedBeamTrip],
     person: Person,
     attributesOfIndividual: AttributesOfIndividual
-  ) = {
+  ): Double = {
     // Compute and log all-day score w.r.t. all modality styles
     // One of them has many suspicious-looking 0.0 values. Probably something which
     // should be minus infinity or exception instead.
@@ -311,22 +314,21 @@ class ModeChoiceLCCM(
     lccm
       .classMembershipModels(Mandatory)
       .getUtilityOfAlternative(
-        AlternativeAttributes(
-          attributesOfIndividual.modalityStyle.get,
-          Map(
-            "income"        -> attributesOfIndividual.householdAttributes.householdIncome,
-            "householdSize" -> attributesOfIndividual.householdAttributes.householdSize.toDouble,
-            "male" -> (if (attributesOfIndividual.isMale) {
-                         1.0
-                       } else {
-                         0.0
-                       }),
-            "numCars"  -> attributesOfIndividual.householdAttributes.numCars.toDouble,
-            "numBikes" -> attributesOfIndividual.householdAttributes.numBikes.toDouble,
-            "surplus"  -> logsum // not the logsum-thing (yet), but the conditional utility of this actual plan given the class
-          )
+        attributesOfIndividual.modalityStyle.get,
+        Map(
+          "income"        -> attributesOfIndividual.householdAttributes.householdIncome,
+          "householdSize" -> attributesOfIndividual.householdAttributes.householdSize.toDouble,
+          "male" -> (if (attributesOfIndividual.isMale) {
+                       1.0
+                     } else {
+                       0.0
+                     }),
+          "numCars"  -> attributesOfIndividual.householdAttributes.numCars.toDouble,
+          "numBikes" -> attributesOfIndividual.householdAttributes.numBikes.toDouble,
+          "surplus"  -> logsum // not the logsum-thing (yet), but the conditional utility of this actual plan given the class
         )
       )
+      .getOrElse(0)
   }
 
 }

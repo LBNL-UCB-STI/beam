@@ -15,6 +15,7 @@ public class VehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
     private Map<String, Double> milesTraveledByVehicleType = new HashMap<>();
     private Set<Id<BeamVehicleType>> vehicleTypes;
     private String humanBodyVehicleType = BeamVehicleType.defaultHumanBodyBeamVehicleType().id().toString();
+    private final double meterToMileConverterConst = 0.000621371192;  // unit conversion from meters to miles
 
     public VehicleMilesTraveledAnalysis(Set<Id<BeamVehicleType>> vehicleTypes) {
         this.vehicleTypes = vehicleTypes;
@@ -27,8 +28,8 @@ public class VehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
             String vehicleType = pte.vehicleType();
             double lengthInMeters = pte.legLength();
 
-            milesTraveledByVehicleType.merge(vehicleType, lengthInMeters, (d1, d2) -> d1 + d2);
             if (!vehicleType.equalsIgnoreCase(humanBodyVehicleType)) {
+                milesTraveledByVehicleType.merge(vehicleType, lengthInMeters, (d1, d2) -> d1 + d2);
                 milesTraveledByVehicleType.merge("total", lengthInMeters, (d1, d2) -> d1 + d2);
             }
 
@@ -43,10 +44,10 @@ public class VehicleMilesTraveledAnalysis implements IterationSummaryAnalysis {
     public Map<String, Double> getSummaryStats() {
         Map<String, Double> result = milesTraveledByVehicleType.entrySet().stream().collect(Collectors.toMap(
                 e -> "motorizedVehicleMilesTraveled_" + e.getKey(),
-                e -> e.getValue() * 0.000621371192 // unit conversion from meters to miles
+                e -> e.getValue() * meterToMileConverterConst
         ));
 
-        vehicleTypes.foreach(vt -> result.merge("vehicleMilesTraveled_" + vt.toString(),0D, (d1, d2) -> d1 + d2));
+        vehicleTypes.foreach(vt -> result.put("vehicleMilesTraveled_" + vt.toString(), milesTraveledByVehicleType.getOrDefault(vt.toString(), 0.0) * meterToMileConverterConst));
 
         return result;
     }

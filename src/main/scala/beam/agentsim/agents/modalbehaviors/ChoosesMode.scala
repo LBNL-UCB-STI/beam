@@ -13,25 +13,23 @@ import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{VehiclePersonId, _}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
-import beam.agentsim.infrastructure.ParkingManager.{ParkingInquiry, ParkingInquiryResponse}
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.infrastructure.ParkingStall
-import beam.agentsim.infrastructure.ParkingStall.{Any, NoNeed}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter._
 import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
-import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.R5RoutingWorker
+import beam.sim.Geofence
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.plan.sampling.AvailableModeUtils._
 import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
+import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -53,7 +51,7 @@ trait ChoosesMode {
 
   def bodyVehiclePersonId = VehiclePersonId(body.id, id, self)
 
-  def currentTourBeamVehicle =
+  def currentTourBeamVehicle: BeamVehicle =
     beamVehicles(stateData.asInstanceOf[ChoosesModeData].personData.currentTourPersonalVehicle.get)
       .asInstanceOf[ActualVehicle]
       .vehicle
@@ -157,7 +155,9 @@ trait ChoosesMode {
       )
       // Make sure the current mode is allowable
       val correctedCurrentTourMode = choosesModeData.personData.currentTourMode match {
-        case Some(mode) if availableModes.contains(mode) && choosesModeData.personData.numberOfReplanningAttempts < 3 =>
+        case Some(mode)
+            if availableModes
+              .contains(mode) && choosesModeData.personData.numberOfReplanningAttempts < beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts =>
           if (mode == CAV && newlyAvailableBeamVehicles.find(_.streetVehicle.mode == CAV).isEmpty) {
             None
           } else {
@@ -165,7 +165,8 @@ trait ChoosesMode {
           }
         case Some(mode) if availableModes.contains(mode) =>
           Some(WALK)
-        case None if choosesModeData.personData.numberOfReplanningAttempts >= 3 =>
+        case None
+            if choosesModeData.personData.numberOfReplanningAttempts >= beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts =>
           Some(WALK)
         case _ =>
           None
@@ -720,13 +721,10 @@ trait ChoosesMode {
   ): Option[Int] = {
     val inquiry = ParkingInquiry(
       destinationInUTM,
-      destinationInUTM,
       activityType,
-      attributes,
-      NoNeed,
-      arrivalTime,
+      attributes.valueOfTime,
+      None,
       duration,
-      Any,
       reserveStall = false
     )
     parkingManager ! inquiry
@@ -899,11 +897,11 @@ trait ChoosesMode {
             case Some(CAV) =>
               // Special case, if you are using household CAV, no choice was necessary you just use this mode
               // Construct the embodied trip to allow for processing by FinishingModeChoice and scoring
-              assert(choosesModeData.availablePersonalStreetVehicles.size > 0)
+              assert(choosesModeData.availablePersonalStreetVehicles.nonEmpty)
               val walk1 = EmbodiedBeamLeg.dummyLegAt(
                 _currentTick.get,
                 body.id,
-                false,
+                isLastLeg = false,
                 if (cavTripLegs.legs.isEmpty) {
                   beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc)
                 } else {
@@ -916,7 +914,7 @@ trait ChoosesMode {
                     EmbodiedBeamLeg.dummyLegAt(
                       _currentTick.get,
                       body.id,
-                      false,
+                      isLastLeg = false,
                       beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc),
                       CAV,
                       cavTripLegs.cavOpt
@@ -932,7 +930,7 @@ trait ChoosesMode {
                 EmbodiedBeamLeg.dummyLegAt(
                   _currentTick.get + cavLegs.map(_.beamLeg.duration).sum,
                   body.id,
-                  true,
+                  isLastLeg = true,
                   if (cavTripLegs.legs.isEmpty) {
                     beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc)
                   } else {
@@ -1117,6 +1115,8 @@ object ChoosesMode {
       )
 
     override def hasParkingBehaviors: Boolean = true
+
+    override def geofence: Option[Geofence] = None
   }
 
   case class ChoosesModeResponsePlaceholders(
@@ -1146,9 +1146,9 @@ object ChoosesMode {
       parkingResponse = if (withParking) {
         None
       } else {
-        Some(ParkingInquiryResponse(ParkingStall.emptyParkingStall, 0))
+        Some(ParkingInquiryResponse(ParkingStall.lastResortStall(), 0))
       },
-      driveTransitParkingResponse = Some(ParkingInquiryResponse(ParkingStall.emptyParkingStall, 0)),
+      driveTransitParkingResponse = Some(ParkingInquiryResponse(ParkingStall.lastResortStall(), 0)),
       rideHailResult = if (withRideHail) {
         None
       } else {
