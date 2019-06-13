@@ -78,9 +78,9 @@ object RepositioningAnalyzer extends LazyLogging {
       override def localCRS: String = "epsg:26910"
     }
 
-    val basePath = "C:/temp/Repos/RANDOM_REPOSITIONING-UNIFORM_RANDOM_Furthest_bigger_distance_0.1_fleet"
-    val eventsFilePath = s"${basePath}/0.events.csv.gz"
-    val initFleetLocationPath = s"${basePath}/0.rideHailFleet.csv"
+    val basePath = "C:/temp/Repos/RANDOM_REPOSITIONING_ALGO_7"
+    val eventsFilePath = s"${basePath}/1.events.csv.gz"
+    val initFleetLocationPath = s"${basePath}/1.rideHailFleet.csv"
     val activityPath = "C:/temp/Repos/0.plans.csv"
 
     val shouldWriteActivitiesLocation = false
@@ -109,7 +109,6 @@ object RepositioningAnalyzer extends LazyLogging {
       writeActivities(s"${basePath}/act_hour_location.csvh", activitiesPerHour)
     }
 
-
     val initLoc = FileUtils
       .using(
         new CsvMapReader(FileUtils.readerFromFile(initFleetLocationPath), CsvPreference.STANDARD_PREFERENCE)
@@ -129,7 +128,13 @@ object RepositioningAnalyzer extends LazyLogging {
           .map(PathTraversalEvent.apply)
           .map { event =>
             val wgsEnd = geoUtils.wgs2Utm(new Coord(event.endX, event.endY))
-            VehicleLocation(vehicleId = event.vehicleId, x = wgsEnd.getX, y = wgsEnd.getY, time = event.time.toInt, numOfPassangers = event.numberOfPassengers)
+            VehicleLocation(
+              vehicleId = event.vehicleId,
+              x = wgsEnd.getX,
+              y = wgsEnd.getY,
+              time = event.time.toInt,
+              numOfPassangers = event.numberOfPassengers
+            )
           }
           .toArray
       }
@@ -139,6 +144,13 @@ object RepositioningAnalyzer extends LazyLogging {
       logger.info(s"withInitLocation size: ${withInitLocation.length}")
 
       val withHour = withInitLocation.map(vl => TimeUnit.SECONDS.toHours(vl.time.toLong).toInt -> vl)
+
+      val shouldWriteVehicleLocation: Boolean = true
+      if (shouldWriteVehicleLocation) {
+        writeVehicleLocation(basePath, withHour)
+      }
+      sys.exit(1)
+
       val hourToLoc = withHour
         .groupBy { case (h, _) => h }
         .map {
@@ -168,7 +180,7 @@ object RepositioningAnalyzer extends LazyLogging {
                     case (Some(prev), Some(current)) =>
                       val time = if (prev.time != 0) prev.time else current.time
                       current.copy(time = time)
-                    case (Some(prev), None)  =>
+                    case (Some(prev), None) =>
                       prev
                     case (None, Some(curr)) =>
                       curr
@@ -237,5 +249,26 @@ object RepositioningAnalyzer extends LazyLogging {
     val startWgsCoord = new Coord(x, y)
     val startUtmCoord = geoUtils.wgs2Utm(startWgsCoord)
     startUtmCoord
+  }
+
+  def writeVehicleLocation(basePath: String, withHour: Array[(Int, VehicleLocation)]): Unit = {
+    implicit val writer: BufferedWriter =
+      IOUtils.getBufferedWriter(
+        s"${basePath}/vehicle_location.csvh"
+      )
+    writer.write("hour,vehicle_id,x,y,time,num_of_passengers")
+    writer.write("\n")
+    withHour.foreach {
+      case (h, vehicleLocation) =>
+        writeAsString(h)
+        writeAsString(vehicleLocation.vehicleId)
+        writeAsString(vehicleLocation.x)
+        writeAsString(vehicleLocation.y)
+        writeAsString(vehicleLocation.time)
+        writeAsString(vehicleLocation.numOfPassangers, shouldAddComma = false)
+        writer.write("\n")
+    }
+    writer.flush()
+    writer.close()
   }
 }
