@@ -805,7 +805,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       vehicle.id
     )
 
-
     triggerIdOption match {
       case Some(triggerId) =>
         val complete = CompletionNotice(
@@ -817,7 +816,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
         scheduler ! complete
       case None =>
-        scheduler ! ScheduleTrigger(EndRefuelSessionTrigger(chargingEndTick, tick, energyDelivered, Some(vehicle)), self)
+        scheduler ! ScheduleTrigger(
+          EndRefuelSessionTrigger(chargingEndTick, tick, energyDelivered, Some(vehicle)),
+          self
+        )
     }
   }
 
