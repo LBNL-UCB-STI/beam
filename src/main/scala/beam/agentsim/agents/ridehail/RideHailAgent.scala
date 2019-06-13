@@ -313,7 +313,7 @@ class RideHailAgent(
       log.warning("Current tick after ParkingInquiry " + currentTick + " compared to " + tick)
 
       if (vehicle.isBEV || vehicle.isPHEV) {
-        handleStartCharging(tick, triggerId, vehicle)
+        handleStartCharging(tick, Some(triggerId), vehicle)
         stay
       } else handleStartRefuel(tick, triggerId)
 
@@ -473,8 +473,8 @@ class RideHailAgent(
   }
 
   when(PassengerScheduleEmpty) {
-    case ev @ Event(PassengerScheduleEmptyMessage(_, _, _), data) =>
-      log.warning("state(RideHailingAgent.PassengerScheduleEmpty): {} Remaining Shifts: {}", ev, data.remainingShifts)
+    case ev @ Event(PassengerScheduleEmptyMessage(lastTime, _, _), data) =>
+      log.error("state(RideHailingAgent.PassengerScheduleEmpty): {} Remaining Shifts: {}", ev, data.remainingShifts)
       import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
       def metersToMiles(meters: Double) = meters/1600
       def remainingRangeInMiles(vehicleState: BeamVehicleState) =
@@ -490,9 +490,18 @@ class RideHailAgent(
          E.g. P(charge) = 1 - (rangeLeft - 20)*slopeParam….
          where any range that yields a negative probability would just be truncated to 0
          */
-          log.debug("Empty human ridehail vehicle requesting parking stall: event = " + ev)
+          log.error("Empty human ridehail vehicle requesting parking stall: event = " + ev)
           rideHailManager ! NotifyVehicleOutOfService(vehicle.id)
-          goto(PendingOfflineForCharging) using data
+
+          //Should I use the tick or the last time?
+          val (_, triggerId) = releaseTickAndTriggerId()
+          val startFuelTrigger = ScheduleTrigger(
+            StartRefuelSessionTrigger(lastTime.time),
+            self
+          )
+          scheduler ! CompletionNotice(triggerId, Vector(startFuelTrigger))
+
+          goto(OfflineForCharging) using data
             .withPassengerSchedule(PassengerSchedule())
             .withCurrentLegPassengerScheduleIndex(0)
             .asInstanceOf[RideHailAgentData]
@@ -500,23 +509,35 @@ class RideHailAgent(
           val percentageChanceToRefuel = Math.max(100 - (remainingRangeInMilesVal.toInt - 20), 0)
           val randomChance = scala.util.Random.nextInt(100)
           if(randomChance < percentageChanceToRefuel){
-            log.debug("Empty human ridehail vehicle requesting parking stall since percentage hit: event = " + ev)
+            log.error("Empty human ridehail vehicle requesting parking stall since percentage hit: event = " + ev)
             rideHailManager ! NotifyVehicleOutOfService(vehicle.id)
-            goto(PendingOfflineForCharging) using data
+
+            //Should I use the tick or the last time?
+            val (_, triggerId) = releaseTickAndTriggerId()
+            val startFuelTrigger = ScheduleTrigger(
+              StartRefuelSessionTrigger(lastTime.time),
+              self
+            )
+            scheduler ! CompletionNotice(triggerId, Vector(startFuelTrigger))
+
+            goto(OfflineForCharging) using data
               .withPassengerSchedule(PassengerSchedule())
               .withCurrentLegPassengerScheduleIndex(0)
               .asInstanceOf[RideHailAgentData]
           } else {
+            log.error("Empty human ridehail vehicle NOT requesting parking stall: event = " + ev)
             goto(Idle) using data
               .withPassengerSchedule(PassengerSchedule())
               .withCurrentLegPassengerScheduleIndex(0)
               .asInstanceOf[RideHailAgentData]
           }
-      } else
+      } else {
+        log.error("Ridehail vehicle default NOT Empty human: event = " + ev)
         goto(Idle) using data
           .withPassengerSchedule(PassengerSchedule())
           .withCurrentLegPassengerScheduleIndex(0)
           .asInstanceOf[RideHailAgentData]
+      }
     case ev @ Event(Interrupt(_, _), _) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
       stash()
