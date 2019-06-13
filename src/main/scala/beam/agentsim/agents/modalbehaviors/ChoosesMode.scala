@@ -903,39 +903,35 @@ trait ChoosesMode {
             case Some(CAV) =>
               // Special case, if you are using household CAV, no choice was necessary you just use this mode
               // Construct the embodied trip to allow for processing by FinishingModeChoice and scoring
-              val walk1 = EmbodiedBeamLeg.dummyLegAt(
-                _currentTick.get,
-                body.id,
-                isLastLeg = false,
-                if (cavTripLegs.legs.isEmpty) {
-                  beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc)
-                } else {
-                  cavTripLegs.legs.head.beamLeg.travelPath.startPoint.loc
-                },
-                WALK,
-                body.beamVehicleType.id
-              )
-              val cavLegs = cavTripLegs.legs.size match {
-                case 0 =>
-                  throw new RuntimeException("Got a CAV trip without legs, don't know what that means.")
-                case _ =>
-                  cavTripLegs.legs
-              }
-              val walk2 =
-                EmbodiedBeamLeg.dummyLegAt(
-                  _currentTick.get + cavLegs.map(_.beamLeg.duration).sum,
+              if (cavTripLegs.legs.nonEmpty) {
+                val walk1 = EmbodiedBeamLeg.dummyLegAt(
+                  _currentTick.get,
                   body.id,
-                  isLastLeg = true,
-                  if (cavTripLegs.legs.isEmpty) {
-                    beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc)
-                  } else {
-                    cavTripLegs.legs.last.beamLeg.travelPath.endPoint.loc
-                  },
+                  isLastLeg = false,
+                  cavTripLegs.legs.head.beamLeg.travelPath.startPoint.loc,
                   WALK,
                   body.beamVehicleType.id
                 )
-              val cavTrip = EmbodiedBeamTrip(walk1 +: cavLegs.toVector :+ walk2)
-              goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(cavTrip))
+                val walk2 = EmbodiedBeamLeg.dummyLegAt(
+                  _currentTick.get + cavTripLegs.legs.map(_.beamLeg.duration).sum,
+                  body.id,
+                  isLastLeg = true,
+                  cavTripLegs.legs.last.beamLeg.travelPath.endPoint.loc,
+                  WALK,
+                  body.beamVehicleType.id
+                )
+                val cavTrip = EmbodiedBeamTrip(walk1 +: cavTripLegs.legs.toVector :+ walk2)
+                goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(cavTrip))
+              } else {
+                val bushwhackingTrip = R5RoutingWorker.createBushwackingTrip(
+                  choosesModeData.currentLocation.loc,
+                  nextActivity(choosesModeData.personData).get.getCoord,
+                  _currentTick.get,
+                  body.toStreetVehicle,
+                  geo
+                )
+                goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(bushwhackingTrip))
+              }
             case _ =>
               // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
               val originalWalkTripLeg =
