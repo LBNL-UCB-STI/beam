@@ -1,14 +1,9 @@
 package beam.agentsim.agents
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
-import akka.util.Timeout
 import beam.agentsim.agents.PersonTestUtil._
-import beam.agentsim.agents.choice.mode.ModeIncentive
-import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
@@ -23,38 +18,33 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
-import beam.router.osm.TollCalculator
-import beam.router.r5.DefaultNetworkCoordinator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
-import beam.sim.common.GeoUtilsImpl
-import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
-import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.TestConfigUtils.testConfig
-import beam.utils.{NetworkHelperImpl, StuckFinder}
+import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events._
-import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.{Activity, Person}
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.config.ConfigUtils
-import org.matsim.core.controler.MatsimServices
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
-import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.mutable.ListBuffer
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 
 class PersonAgentSpec
-    extends TestKit(
-      ActorSystem(
+    extends {
+      val config = testConfig("test/input/beamville/beam.conf").resolve()
+      private val personAgentSpec = ActorSystem(
         name = "PersonAgentSpec",
         config = ConfigFactory
           .parseString(
@@ -64,36 +54,20 @@ class PersonAgentSpec
         akka.loglevel = debug
         """
           )
-          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+          .withFallback(config)
       )
+    } with TestKit(
+      personAgentSpec
     )
-    with BeamHelper
-    with FunSpecLike
+      with FunSpecLike
+      with SimRunnerForTest
     with BeforeAndAfterAll
     with MockitoSugar
     with ImplicitSender {
 
-  private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
-  lazy val beamConfig = BeamConfig(system.settings.config)
-  lazy val beamScenario = loadScenario(beamConfig)
+  override def outputDirPath: String = TestConfigUtils.testOutputDir
+
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
-  private val tollCalculator = new TollCalculator(beamConfig)
-
-  private lazy val networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
-  private lazy val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
-
-  lazy val beamSvc: BeamServices = {
-    val matsimServices = mock[MatsimServices]
-    val theServices = mock[BeamServices](withSettings().stubOnly())
-    when(theServices.matsimServices).thenReturn(matsimServices)
-    when(theServices.matsimServices.getScenario).thenReturn(mock[Scenario])
-    when(theServices.matsimServices.getScenario.getNetwork).thenReturn(mock[Network])
-    when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
-    when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
-    when(theServices.networkHelper).thenReturn(networkHelper)
-    theServices
-  }
 
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(
@@ -103,7 +77,7 @@ class PersonAgentSpec
     ): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
 
-    override val beamServices: BeamServices = beamSvc
+    override val beamServices: BeamServices = services
 
     override def utilityOf(
       alternative: EmbodiedBeamTrip,
@@ -122,9 +96,6 @@ class PersonAgentSpec
 
   // Mock a transit driver (who has to be a child of a mock router)
   private lazy val transitDriverProps = Props(new ForwardActor(self))
-
-  private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-  private val matsimConfig = configBuilder.buildMatSimConf()
 
   describe("A PersonAgent") {
 
@@ -161,10 +132,10 @@ class PersonAgentSpec
       val personAgentRef = TestFSMRef(
         new PersonAgent(
           scheduler,
-          beamSvc,
+          services,
           beamScenario,
           modeChoiceCalculator,
-          networkCoordinator.transportNetwork,
+          beamScenario.transportNetwork,
           self,
           self,
           eventsManager,
@@ -173,9 +144,9 @@ class PersonAgentSpec
           parkingManager,
           tollCalculator,
           self,
-          beamSkimmer = new BeamSkimmer(beamScenario, beamSvc.geo),
+          beamSkimmer = new BeamSkimmer(beamScenario, services.geo),
           routeHistory = new RouteHistory(beamConfig),
-          travelTimeObserved = new TravelTimeObserved(beamScenario, beamSvc.geo)
+          travelTimeObserved = new TravelTimeObserved(beamScenario, services.geo)
         )
       )
 
@@ -222,11 +193,11 @@ class PersonAgentSpec
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
-          beamSvc,
+          services,
           beamScenario,
           _ => modeChoiceCalculator,
           scheduler,
-          networkCoordinator.transportNetwork,
+          beamScenario.transportNetwork,
           tollCalculator,
           self,
           self,
@@ -238,8 +209,8 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamScenario, beamSvc.geo),
-          new TravelTimeObserved(beamScenario, beamSvc.geo)
+          new BeamSkimmer(beamScenario, services.geo),
+          new TravelTimeObserved(beamScenario, services.geo)
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -354,8 +325,8 @@ class PersonAgentSpec
             Vector(),
             Vector(),
             Some(TransitStopsInfo(1, busId, 2)),
-            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
-            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
+            SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
+            SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
             1.0
           )
         ),
@@ -374,8 +345,8 @@ class PersonAgentSpec
             Vector(),
             Vector(),
             Some(TransitStopsInfo(2, busId, 3)),
-            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
-            SpaceTime(beamSvc.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
+            SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
+            SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             1.0
           )
         ),
@@ -394,8 +365,8 @@ class PersonAgentSpec
             linkIds = Vector(),
             linkTravelTime = Vector(),
             transitStops = Some(TransitStopsInfo(3, tramId, 4)),
-            startPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
-            endPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
+            startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
+            endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
             distanceInM = 1.0
           )
         ),
@@ -439,11 +410,11 @@ class PersonAgentSpec
       val parkingManager = system.actorOf(Props(new TrivialParkingManager))
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
-          beamServices = beamSvc,
+          beamServices = services,
           beamScenario,
           modeChoiceCalculatorFactory = _ => modeChoiceCalculator,
           schedulerRef = scheduler,
-          transportNetwork = networkCoordinator.transportNetwork,
+          transportNetwork = beamScenario.transportNetwork,
           tollCalculator,
           router = self,
           rideHailManager = self,
@@ -455,8 +426,8 @@ class PersonAgentSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamScenario, beamSvc.geo),
-          new TravelTimeObserved(beamScenario, beamSvc.geo)
+          new BeamSkimmer(beamScenario, services.geo),
+          new TravelTimeObserved(beamScenario, services.geo)
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -477,8 +448,8 @@ class PersonAgentSpec
                     linkIds = Vector(),
                     linkTravelTime = Vector(),
                     transitStops = None,
-                    startPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
-                    endPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 28800),
+                    startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
+                    endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 28800),
                     distanceInM = 1D
                   )
                 ),
@@ -500,8 +471,8 @@ class PersonAgentSpec
                     linkIds = Vector(),
                     linkTravelTime = Vector(),
                     transitStops = None,
-                    startPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
-                    endPoint = SpaceTime(beamSvc.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
+                    startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
+                    endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
                     distanceInM = 1D
                   )
                 ),
@@ -605,12 +576,7 @@ class PersonAgentSpec
 
   }
 
-  override def beforeAll: Unit = {
-    networkCoordinator.loadNetwork()
-    networkCoordinator.convertFrequenciesToTrips()
-  }
-
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     shutdown()
   }
 

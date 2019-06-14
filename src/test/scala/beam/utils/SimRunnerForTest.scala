@@ -19,7 +19,7 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll { this: Suite =
   def outputDirPath: String
 
   // Next things are pretty cheap in initialization, so let it be non-lazy
-  val beamCfg = BeamConfig(config)
+  val beamConfig = BeamConfig(config)
   val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()
   matsimConfig.controler.setOutputDirectory(outputDirPath)
   matsimConfig.controler.setOverwriteFileSetting(OverwriteFileSetting.overwriteExistingFiles)
@@ -36,7 +36,7 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll { this: Suite =
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
-    beamScenario = loadScenario(beamCfg)
+    beamScenario = loadScenario(beamConfig)
     scenario = buildScenarioFromMatsimConfig(matsimConfig, beamScenario)
     injector = buildInjector(config, scenario, beamScenario)
     services = new BeamServicesImpl(injector)
