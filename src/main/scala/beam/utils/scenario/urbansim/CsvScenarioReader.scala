@@ -107,12 +107,17 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     val personId = getIfNotNull(rec, "person_id")
     val householdId = getIfNotNull(rec, "household_id")
     val age = getIfNotNull(rec, "age").toInt
+    val isFemaleValue: Boolean = {
+      val value = getIfNotNull(rec, "sex")
+      value == "2" || value == "F"
+    }
     val rank: Int = 0
     PersonInfo(
       personId = personId,
       householdId = householdId,
       rank = rank,
       age = age,
+      isFemale = isFemaleValue,
       valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime"), 0D)).getOrElse(0D)
     )
   }

@@ -239,6 +239,11 @@ class UrbanSimScenarioLoader(
       // FIXME Search for "householdId" in the code does not show any place where it used
       personAttrib.putAttribute(personId, "rank", personInfo.rank)
       personAttrib.putAttribute(personId, "age", personInfo.age)
+
+      val sexChar = if (personInfo.isFemale) "F" else "M"
+      personAttrib.putAttribute(personId, "sex", sexChar)
+      person.getAttributes.putAttribute("sex", sexChar)
+
       AvailableModeUtils.setAvailableModesForPerson_v2(beamServices, person, population, availableModes.split(","))
       population.addPerson(person)
     }
