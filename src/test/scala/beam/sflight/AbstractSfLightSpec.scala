@@ -17,48 +17,19 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class AbstractSfLightSpec(val name: String)
-    extends SimRunnerForTest
+    extends WordSpecLike
     with TestKitBase
-    with WordSpecLike
+    with SimRunnerForTest
+    with RouterForTest
     with Matchers
     with ImplicitSender
-    with MockitoSugar
-    with BeforeAndAfterAll {
+    with MockitoSugar {
   lazy implicit val system = ActorSystem(name, ConfigFactory.parseString("""
       |akka.test.timefactor=10""".stripMargin))
 
   def outputDirPath: String = basePath + "/" + testOutputDir + name
   def config: Config = testConfig("test/input/sf-light/sf-light.conf").resolve()
 
-  lazy val services: BeamServices = new BeamServicesImpl(injector)
-  var router: ActorRef = _
-
-  override def beforeAll: Unit = {
-    val beamScenario = injector.getInstance(classOf[BeamScenario])
-    router = system.actorOf(
-      BeamRouter.props(
-        beamScenario,
-        beamScenario.transportNetwork,
-        beamScenario.network,
-        new NetworkHelperImpl(beamScenario.network),
-        new GeoUtilsImpl(beamScenario.beamConfig),
-        scenario,
-        scenario.getTransitVehicles,
-        fareCalculator,
-        tollCalculator
-      )
-    )
-
-    within(5 minute) { // Router can take a while to initialize
-      router ! Identify(0)
-      expectMsgType[ActorIdentity]
-    }
-  }
-
-  override def afterAll: Unit = {
-    router ! PoisonPill
-    system.terminate()
-  }
 
   def planToVec(plan: Plan): Vector[Activity] = {
     plan.getPlanElements.asScala

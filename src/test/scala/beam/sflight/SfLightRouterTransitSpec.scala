@@ -1,7 +1,5 @@
 package beam.sflight
 
-import java.io.{BufferedWriter, File, FileWriter}
-
 import akka.actor._
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -10,7 +8,6 @@ import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode._
 import beam.router.model.EmbodiedBeamTrip
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest._
 
@@ -31,7 +28,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
-            Id.create("Car", classOf[BeamVehicleType]),
+            Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             new SpaceTime(origin, time),
             WALK,
             asDriver = true
@@ -48,7 +45,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
       assert(transitOption.legs.head.beamLeg.startTime == 25992)
     }
 
-    "respond with a drive_transit and a walk_transit route for each trip in sflight" ignore {
+    "respond with a drive_transit and a walk_transit route for each trip in sflight" in {
       scenario.getPopulation.getPersons
         .values()
         .forEach(person => {
@@ -74,7 +71,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
                   ),
                   StreetVehicle(
                     Id.createVehicleId("body-116378-2"),
-                    Id.create("Car", classOf[BeamVehicleType]),
+                    Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
                     new SpaceTime(new Coord(origin.getX, origin.getY), time),
                     WALK,
                     asDriver = true
@@ -82,16 +79,9 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
                 )
               )
               val response = expectMsgType[RoutingResponse]
-
-              // writeResponseToFile(origin, destination, time, response)
-              if (!response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT)) {
-                logger.debug("failure here")
-              }
-
-              assert(response.itineraries.exists(_.costEstimate > 0))
-              assert(response.itineraries.filter(_.tripClassifier.isTransit).forall(_.costEstimate > 0))
               assert(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))
               assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
+              assert(response.itineraries.filter(_.tripClassifier.isTransit).forall(_.costEstimate > 0))
             })
         })
     }
@@ -108,7 +98,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
-            Id.create("Car", classOf[BeamVehicleType]),
+            Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             new SpaceTime(origin, time),
             WALK,
             asDriver = true
@@ -134,7 +124,7 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
         Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
-            Id.create("Car", classOf[BeamVehicleType]),
+            Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             new SpaceTime(origin, time),
             WALK,
             asDriver = true
@@ -148,68 +138,6 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
     }
 
-  }
-
-//  Vector(itinerary ->, [x=550046.6183707184][y=4173684.1312090624], [x=551010.1423040839][y=4184361.3484820053], DiscreteTime(54960), WALK_TRANSIT, 18.70
-
-  private def printResponse(
-    origin: Location,
-    destination: Location,
-    time: Int,
-    response: RoutingResponse
-  ): Unit = {
-    response.itineraries.foreach(
-      it =>
-        logger.debug(
-          Vector(
-            "itinerary ->",
-            origin,
-            destination,
-            time,
-            it.tripClassifier,
-            it.costEstimate,
-            it.legs.zipWithIndex.map(
-              t =>
-                (
-                  t._1.beamLeg.mode,
-                  it.legs.zipWithIndex.filter(_._2 < t._2).map(_._1.beamLeg.duration).sum
-              )
-            )
-          ).toString()
-      )
-    )
-  }
-
-  private def writeResponseToFile(
-    personId: Id[Person],
-    origin: Location,
-    destination: Location,
-    time: Int,
-    response: RoutingResponse
-  ): Unit = {
-    val writer = new BufferedWriter(new FileWriter(new File("d:/test-out.txt"), true))
-    response.itineraries.foreach(
-      it =>
-        writer.append(
-          Vector(
-            "itinerary ->",
-            personId.toString,
-            origin,
-            destination,
-            time,
-            it.tripClassifier,
-            it.costEstimate,
-            it.legs.zipWithIndex.map(
-              t =>
-                (
-                  t._1.beamLeg.mode,
-                  it.legs.zipWithIndex.filter(_._2 < t._2).map(_._1.beamLeg.duration).sum
-              )
-            )
-          ).toString() + "\n"
-      )
-    )
-    writer.close()
   }
 
   def assertMakesSense(trip: EmbodiedBeamTrip): Unit = {

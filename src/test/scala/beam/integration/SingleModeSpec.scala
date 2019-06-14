@@ -1,15 +1,15 @@
 package beam.integration
 
 import akka.actor._
+import akka.testkit.TestKitBase
 import beam.agentsim.agents.PersonTestUtil
-import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.events.PathTraversalEvent
-import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.Modes.BeamMode
-import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
+import beam.sflight.RouterForTest
 import beam.sim.common.GeoUtilsImpl
-import beam.sim.{BeamHelper, BeamMobsim, BeamServices, BeamServicesImpl}
+import beam.sim.{BeamHelper, BeamMobsim}
 import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
@@ -25,62 +25,27 @@ import scala.collection.mutable
 import scala.language.postfixOps
 
 class SingleModeSpec
-    extends SimRunnerForTest
-    with WordSpecLike
+    extends WordSpecLike
+    with TestKitBase
+    with SimRunnerForTest
+    with RouterForTest
     with BeamHelper
     with Matchers
-    with MockitoSugar
-    with BeforeAndAfterEach {
+    with MockitoSugar {
 
   def config: com.typesafe.config.Config =
     ConfigFactory
       .parseString("""akka.test.timefactor = 10""")
       .withFallback(testConfig("test/input/sf-light/sf-light.conf").resolve())
-  def outputDirPath = basePath + "/" + testOutputDir + "single-mode-test"
 
-  var router: ActorRef = _
-  var services: BeamServices = _
-  var nextId: Int = 0
-  var system: ActorSystem = _
+  def outputDirPath: String = basePath + "/" + testOutputDir + "single-mode-test"
 
-  override def beforeEach: Unit = {
-    // Create brand new Actor system every time (just to make sure that the same actor names can be reused)
-    system = ActorSystem("single-mode-test-" + nextId, config)
-    nextId += 1
-    services = new BeamServicesImpl(injector)
-    services.modeChoiceCalculatorFactory = ModeChoiceCalculator(
-      services.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
-      services
-    )
-
-    scenario.getPopulation.getPersons.values.asScala
-      .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allModes))
-
-    router = system.actorOf(
-      BeamRouter.props(
-        beamScenario,
-        beamScenario.transportNetwork,
-        beamScenario.network,
-        networkHelper,
-        new GeoUtilsImpl(beamCfg),
-        scenario,
-        scenario.getTransitVehicles,
-        fareCalculator,
-        tollCalculator
-      ),
-      "router"
-    )
-    services.beamRouter = router
-  }
-
-  override def afterEach: Unit = {
-    system.terminate()
-    router = null
-    services = null
-  }
+  lazy implicit val system: ActorSystem = ActorSystem("SingleModeSpec", config)
 
   "The agentsim" must {
     "let everybody walk when their plan says so" in {
+      scenario.getPopulation.getPersons.values.asScala
+        .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allModes))
       scenario.getPopulation.getPersons
         .values()
         .forEach { person =>
@@ -130,6 +95,8 @@ class SingleModeSpec
     }
 
     "let everybody take transit when their plan says so" in {
+      scenario.getPopulation.getPersons.values.asScala
+        .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allModes))
       scenario.getPopulation.getPersons
         .values()
         .forEach { person =>
@@ -177,6 +144,8 @@ class SingleModeSpec
     }
 
     "let everybody take drive_transit when their plan says so" in {
+      scenario.getPopulation.getPersons.values.asScala
+        .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allModes))
       // Here, we only set the mode for the first leg of each tour -- prescribing a mode for the tour,
       // but not for individual legs except the first one.
       // We want to make sure that our car is returned home.
@@ -263,6 +232,8 @@ class SingleModeSpec
     }
 
     "let everybody drive when their plan says so" in {
+      scenario.getPopulation.getPersons.values.asScala
+        .foreach(p => PersonTestUtil.putDefaultBeamAttributes(p, BeamMode.allModes))
       scenario.getPopulation.getPersons
         .values()
         .forEach { person =>
@@ -315,6 +286,10 @@ class SingleModeSpec
           )
       }
     }
+  }
+
+  override def afterAll(): Unit = {
+    shutdown()
   }
 
 }
