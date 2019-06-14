@@ -140,7 +140,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         EventWriterXML_viaCompatible eventsWriterXML = null;
         if (shouldWritePhysSimEvents(iterationNumber)) {
 
-            eventsWriterXML = new EventWriterXML_viaCompatible(controlerIO.getIterationFilename(iterationNumber, "physSimEvents.xml.gz"), beamConfig.beam().physsim().eventsForFullVersionOfVia());
+            eventsWriterXML = new EventWriterXML_viaCompatible(controlerIO.getIterationFilename(iterationNumber, "physSimEvents.xml.gz"), beamConfig.beam().physsim().eventsForFullVersionOfVia(), beamConfig.beam().physsim().eventsSampling());
             jdeqsimEvents.addHandler(eventsWriterXML);
         }
 
