@@ -1,6 +1,6 @@
 package beam.sflight
 
-import akka.actor.{ActorIdentity, ActorRef, Identify, PoisonPill}
+import akka.actor.{ActorRef, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKitBase}
 import beam.router.BeamRouter
 import beam.sim.BeamScenario
@@ -8,7 +8,6 @@ import beam.sim.common.GeoUtilsImpl
 import beam.utils.{NetworkHelperImpl, SimRunnerForTest}
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
-import scala.concurrent.duration._
 import scala.language.postfixOps
 
 trait RouterForTest extends BeforeAndAfterAll with ImplicitSender {
@@ -32,11 +31,6 @@ trait RouterForTest extends BeforeAndAfterAll with ImplicitSender {
         tollCalculator
       )
     )
-
-    within(5 minutes) { // Router can take a while to initialize
-      router ! Identify(0)
-      expectMsgType[ActorIdentity]
-    }
     services.beamRouter = router // :-(
   }
 
