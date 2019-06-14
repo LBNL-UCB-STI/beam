@@ -55,7 +55,6 @@ class SingleModeSpec
           }
         }
       val events = mutable.ListBuffer[Event]()
-      val eventsManager = EventsUtils.createEventsManager()
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
@@ -84,12 +83,17 @@ class SingleModeSpec
         networkHelper
       )
       mobsim.run()
+
+      assert(events.nonEmpty)
+      var seenEvent = false
       events.foreach {
         case event: PersonDepartureEvent =>
           assert(
             event.getLegMode == "walk" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
           )
+          seenEvent = true
       }
+      assert(seenEvent, "Have not seend `PersonDepartureEvent`")
     }
 
     "let everybody take transit when their plan says so" in {
@@ -104,7 +108,6 @@ class SingleModeSpec
           }
         }
       val events = mutable.ListBuffer[Event]()
-      val eventsManager = EventsUtils.createEventsManager()
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
@@ -133,12 +136,17 @@ class SingleModeSpec
         networkHelper
       )
       mobsim.run()
+
+      assert(events.nonEmpty)
+      var seenEvent = false
       events.foreach {
         case event: PersonDepartureEvent =>
           assert(
             event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
           )
+          seenEvent = true
       }
+      assert(seenEvent, "Have not seend `PersonDepartureEvent`")
     }
 
     "let everybody take drive_transit when their plan says so" in {
@@ -172,7 +180,6 @@ class SingleModeSpec
           }
         }
       val events = mutable.ListBuffer[Event]()
-      val eventsManager = EventsUtils.createEventsManager()
       eventsManager.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
@@ -201,13 +208,19 @@ class SingleModeSpec
         networkHelper
       )
       mobsim.run()
+
+      assert(events.nonEmpty)
+      var seenEvent = false
       events.collect {
         case event: PersonDepartureEvent =>
           // drive_transit can fail -- maybe I don't have a car
           assert(
             event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "drive_transit" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
           )
+          seenEvent = true
       }
+      assert(seenEvent, "Have not seen `PersonDepartureEvent`")
+
       val eventsByPerson = events.groupBy(_.getAttributes.get("person"))
       val filteredEventsByPerson = eventsByPerson.filter {
         _._2
@@ -242,7 +255,6 @@ class SingleModeSpec
             }
           }
         }
-      val eventsManager = EventsUtils.createEventsManager()
       val events = mutable.ListBuffer[Event]()
       eventsManager.addHandler(
         new BasicEventHandler {
@@ -274,6 +286,9 @@ class SingleModeSpec
         networkHelper
       )
       mobsim.run()
+
+      assert(events.nonEmpty)
+      var seenEvent = false
       events.collect {
         case event: PersonDepartureEvent =>
           // Wr still get some failing car routes.
@@ -282,12 +297,9 @@ class SingleModeSpec
           assert(
             event.getLegMode == "walk" || event.getLegMode == "car" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
           )
+          seenEvent = true
       }
+      assert(seenEvent, "Have not seen `PersonDepartureEvent`")
     }
   }
-
-  override def afterAll(): Unit = {
-    shutdown()
-  }
-
 }

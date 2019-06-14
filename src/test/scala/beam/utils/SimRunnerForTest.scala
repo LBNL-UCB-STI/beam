@@ -8,6 +8,7 @@ import beam.sim.{BeamHelper, BeamScenario, BeamServices, BeamServicesImpl}
 import beam.sim.common.GeoUtils
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import com.google.inject.Injector
+import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.matsim.core.scenario.MutableScenario
 import org.scalatest.{BeforeAndAfterAll, Suite}
@@ -33,6 +34,7 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll { this: Suite =
   def tollCalculator: TollCalculator = injector.getInstance(classOf[TollCalculator])
   def geoUtil: GeoUtils = injector.getInstance(classOf[GeoUtils])
   def networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
+  def eventsManager: EventsManager = injector.getInstance(classOf[EventsManager])
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
@@ -50,7 +52,7 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll { this: Suite =
     beamScenario = null
     scenario = null
     injector = null
+    services = null
     super.afterAll()
   }
-
 }

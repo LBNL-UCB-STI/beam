@@ -56,7 +56,7 @@ class RideHailAgentSpec
 
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
-  lazy val eventsManager = new EventsManagerImpl()
+  lazy val eventMgr = new EventsManagerImpl()
 
   private lazy val zonalParkingManager = system.actorOf(
     ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter),
@@ -167,7 +167,7 @@ class RideHailAgentSpec
           new Coord(0.0, 0.0),
           None,
           None,
-          eventsManager,
+          eventMgr,
           zonalParkingManager,
           services,
           beamScenario,
@@ -243,7 +243,7 @@ class RideHailAgentSpec
           new Coord(0.0, 0.0),
           None,
           None,
-          eventsManager,
+          eventMgr,
           zonalParkingManager,
           services,
           beamScenario,
@@ -311,7 +311,7 @@ class RideHailAgentSpec
           new Coord(0.0, 0.0),
           None,
           None,
-          eventsManager,
+          eventMgr,
           zonalParkingManager,
           services,
           beamScenario,
@@ -370,7 +370,7 @@ class RideHailAgentSpec
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    eventsManager.addHandler(new BasicEventHandler {
+    eventMgr.addHandler(new BasicEventHandler {
       override def handleEvent(event: Event): Unit = {
         self ! event
       }

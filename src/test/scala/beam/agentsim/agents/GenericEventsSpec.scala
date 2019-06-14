@@ -42,6 +42,13 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
     eventManager = injector.getInstance(classOf[EventsManager])
   }
 
+  override protected def afterAll(): Unit = {
+    scenario = null
+    eventManager = null
+    beamServices = null
+    super.afterAll()
+  }
+
   def processHandlers(eventHandlers: List[BasicEventHandler]): Unit = {
     for (eventHandler <- eventHandlers)
       eventManager.addHandler(eventHandler)
