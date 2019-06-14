@@ -2,7 +2,7 @@ package beam.agentsim.agents
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.TestActors.ForwardActor
-import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
+import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKitBase, TestProbe}
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
@@ -23,7 +23,7 @@ import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.{Activity, Person}
@@ -35,35 +35,31 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
+import org.scalatest.FunSpecLike
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.mutable.ListBuffer
 import scala.collection.{JavaConverters, mutable}
 
 class PersonAgentSpec
-    extends {
-      val config = testConfig("test/input/beamville/beam.conf").resolve()
-      private val personAgentSpec = ActorSystem(
-        name = "PersonAgentSpec",
-        config = ConfigFactory
-          .parseString(
-            """
+    extends FunSpecLike
+    with TestKitBase
+    with SimRunnerForTest
+    with MockitoSugar
+    with ImplicitSender {
+
+  lazy val config: Config = ConfigFactory
+    .parseString(
+      """
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
         """
-          )
-          .withFallback(config)
-      )
-    } with TestKit(
-      personAgentSpec
     )
-      with FunSpecLike
-      with SimRunnerForTest
-    with BeforeAndAfterAll
-    with MockitoSugar
-    with ImplicitSender {
+    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .resolve()
+
+  lazy implicit val system: ActorSystem = ActorSystem("PersonAgentSpec", config)
 
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
