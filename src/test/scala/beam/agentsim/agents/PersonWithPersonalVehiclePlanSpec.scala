@@ -37,7 +37,7 @@ import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
 import scala.collection.mutable.ListBuffer
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 
 class PersonWithPersonalVehiclePlanSpec
     extends FunSpecLike
@@ -64,7 +64,7 @@ class PersonWithPersonalVehiclePlanSpec
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
-  
+
   private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
     override def apply(
       alternatives: IndexedSeq[EmbodiedBeamTrip],
@@ -89,7 +89,7 @@ class PersonWithPersonalVehiclePlanSpec
       attributesOfIndividual: AttributesOfIndividual
     ): Double = 0.0
   }
-  
+
   describe("A PersonAgent") {
 
     val hoseHoldDummyId = Id.create("dummy", classOf[Household])
@@ -227,7 +227,8 @@ class PersonWithPersonalVehiclePlanSpec
                       services.geo.utm2Wgs(parkingRoutingRequest.originUTM),
                       parkingRoutingRequest.departureTime
                     ),
-                    endPoint = SpaceTime(services.geo.utm2Wgs(parkingLocation), parkingRoutingRequest.departureTime + 50),
+                    endPoint =
+                      SpaceTime(services.geo.utm2Wgs(parkingLocation), parkingRoutingRequest.departureTime + 50),
                     distanceInM = 1000D
                   )
                 ),
@@ -726,6 +727,7 @@ class PersonWithPersonalVehiclePlanSpec
 
   override def afterAll(): Unit = {
     shutdown()
+    super.afterAll()
   }
 
 }

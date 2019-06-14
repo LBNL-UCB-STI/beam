@@ -43,7 +43,7 @@ import org.scalatest.FunSpecLike
 import org.scalatest.mockito.MockitoSugar
 
 import scala.collection.mutable.ListBuffer
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -439,7 +439,7 @@ class PersonAndTransitDriverSpec
 
   override def afterAll(): Unit = {
     shutdown()
-    super.shutdown()
+    super.afterAll()
   }
 
 }

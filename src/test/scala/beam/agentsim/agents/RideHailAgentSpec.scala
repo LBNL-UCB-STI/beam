@@ -32,7 +32,7 @@ import org.scalatest.FunSpecLike
 import org.scalatest.mockito.MockitoSugar
 
 class RideHailAgentSpec
-  extends FunSpecLike
+    extends FunSpecLike
     with TestKitBase
     with SimRunnerForTest
     with MockitoSugar

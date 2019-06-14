@@ -40,14 +40,9 @@ import org.scalatest.FunSpecLike
 import org.scalatest.mockito.MockitoSugar
 
 import scala.collection.mutable.ListBuffer
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 
-class PersonAgentSpec
-    extends FunSpecLike
-    with TestKitBase
-    with SimRunnerForTest
-    with MockitoSugar
-    with ImplicitSender {
+class PersonAgentSpec extends FunSpecLike with TestKitBase with SimRunnerForTest with MockitoSugar with ImplicitSender {
 
   lazy val config: Config = ConfigFactory
     .parseString(
@@ -928,6 +923,7 @@ class PersonAgentSpec
 
   override def afterAll(): Unit = {
     shutdown()
+    super.afterAll()
   }
 
 }

@@ -11,7 +11,8 @@ import org.scalatest.{BeforeAndAfterAll, Suite}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-trait RouterForTest extends BeforeAndAfterAll with ImplicitSender { this: Suite with SimRunnerForTest with TestKitBase =>
+trait RouterForTest extends BeforeAndAfterAll with ImplicitSender {
+  this: Suite with SimRunnerForTest with TestKitBase =>
 
   var router: ActorRef = _
 

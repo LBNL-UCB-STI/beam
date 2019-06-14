@@ -30,7 +30,6 @@ class AbstractSfLightSpec(val name: String)
   def outputDirPath: String = basePath + "/" + testOutputDir + name
   def config: Config = testConfig("test/input/sf-light/sf-light.conf").resolve()
 
-
   def planToVec(plan: Plan): Vector[Activity] = {
     plan.getPlanElements.asScala
       .filter(_.isInstanceOf[Activity])
