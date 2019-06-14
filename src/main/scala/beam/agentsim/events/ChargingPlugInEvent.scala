@@ -12,8 +12,10 @@ import org.matsim.vehicles.Vehicle
 class ChargingPlugInEvent(
   tick: Double,
   stall: ParkingStall,
-  vehId: Id[Vehicle]
-) extends Event(tick)
+  vehId: Id[Vehicle],
+  primaryFuelLevel: Double,
+  secondaryFuelLevel: Option[Double],
+                         ) extends Event(tick)
     with HasPersonId
     with ScalaEvent {
 
@@ -28,6 +30,8 @@ class ChargingPlugInEvent(
   override def getAttributes: util.Map[String, String] = {
     val attributes = super.getAttributes
     attributes.put(ATTRIBUTE_VEHICLE_ID, vehId.toString)
+    attributes.put(ATTRIBUTE_PRIMARY_FUEL, primaryFuelLevel.toString)
+    attributes.put(ATTRIBUTE_SECONDARY_FUEL, secondaryFuelLevel.map(_.toString).getOrElse(""))
     attributes.put(ATTRIBUTE_PRICE, stall.cost.toString)
     attributes.put(ATTRIBUTE_LOCATION_X, stall.locationUTM.getX.toString)
     attributes.put(ATTRIBUTE_LOCATION_Y, stall.locationUTM.getY.toString)
@@ -43,6 +47,8 @@ class ChargingPlugInEvent(
 object ChargingPlugInEvent {
   val EVENT_TYPE: String = "ChargingPlugInEvent"
   val ATTRIBUTE_VEHICLE_ID: String = "vehicle"
+  val ATTRIBUTE_PRIMARY_FUEL: String = "primaryFuel"
+  val ATTRIBUTE_SECONDARY_FUEL: String = "secondaryFuel"
   val ATTRIBUTE_PRICE: String = "price"
   val ATTRIBUTE_LOCATION_X: String = "locationX"
   val ATTRIBUTE_LOCATION_Y: String = "locationY"

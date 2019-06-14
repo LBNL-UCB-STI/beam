@@ -312,7 +312,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
               stall.chargingPointType match {
                 case Some(_) => handleStartCharging(tick, None, currentBeamVehicle)
                 case None =>
-                  log.warning(
+                  log.debug(
                     "Charging request by vehicle {} ({}) on a spot without a charging point (parkingZoneId: {}). This is not handled yet!",
                     currentBeamVehicle.id,
                     if (currentBeamVehicle.isBEV) "BEV" else if (currentBeamVehicle.isPHEV) "PHEV" else "non-electric",
@@ -776,29 +776,16 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       new ChargingPlugInEvent(
         tick,
         vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
-        vehicle.id
+        vehicle.id,
+        vehicle.primaryFuelLevelInJoules,
+        vehicle.beamVehicleType.secondaryFuelType.map(_ => vehicle.secondaryFuelLevelInJoules)
       )
     )
-    // FIXME what if stay duration < session duration -> restrict to max(session duration, stay duration)
-    val dummyStayDurationInTicks = 200; // TODO JH remove / adapt
-
-    // todo JH discuss with colin -> what if refueling session takes longer than sim time?
-    //  -> this will produce a dead letter -> accept or restrict fueling session to sim time?
-
-    // todo JH refactor the following code
-    val (sessionDuration, energyDelivered): (Long, Double) =
-      if (vehicle
-            .refuelingSessionDurationAndEnergyInJoules()
-            ._1 > 0 && vehicle.refuelingSessionDurationAndEnergyInJoules()._1 < dummyStayDurationInTicks)
-        vehicle.refuelingSessionDurationAndEnergyInJoules()
-      else if (vehicle.refuelingSessionDurationAndEnergyInJoules()._1 > dummyStayDurationInTicks)
-        (dummyStayDurationInTicks, vehicle.refuelingSessionDurationAndEnergyInJoules()._1)
-      else
-        (0, vehicle.refuelingSessionDurationAndEnergyInJoules()._1)
+    val (sessionDuration, energyDelivered): (Long, Double) = vehicle.refuelingSessionDurationAndEnergyInJoules()
 
     val chargingEndTick = tick + sessionDuration.toInt
 
-    log.warning(
+    log.debug(
       "scheduling EndRefuelSessionTrigger at {} with {} J to vehicle {} to be delivered",
       chargingEndTick,
       energyDelivered,
@@ -806,16 +793,16 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
     )
 
     triggerIdOption match {
-      case Some(triggerId) =>
+      case Some(triggerId) => // Some happens when a RideHailAgent chargers
         val complete = CompletionNotice(
           triggerId,
           Vector(
             ScheduleTrigger(EndRefuelSessionTrigger(chargingEndTick, tick, energyDelivered, Some(vehicle)), self)
           )
         )
-
         scheduler ! complete
-      case None =>
+
+      case None => // None happens when a PersonAgent charges
         scheduler ! ScheduleTrigger(
           EndRefuelSessionTrigger(chargingEndTick, tick, energyDelivered, Some(vehicle)),
           self
