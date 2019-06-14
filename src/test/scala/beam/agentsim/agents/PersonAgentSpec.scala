@@ -1,6 +1,6 @@
 package beam.agentsim.agents
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKitBase, TestProbe}
 import beam.agentsim.agents.PersonTestUtil._
@@ -10,7 +10,7 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.{ReservationRequest, ReservationResponse, ReserveConfirmInfo, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.TrivialParkingManager
+import beam.agentsim.infrastructure.{TrivialParkingManager, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
@@ -18,6 +18,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
+import beam.router.osm.TollCalculator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
@@ -282,7 +283,7 @@ class PersonAgentSpec
       val busId = Id.createVehicleId("bus:B3-WEST-1-175")
       val tramId = Id.createVehicleId("train:R2-SOUTH-1-93")
 
-      val iteration: ActorRef = system.actorOf(
+      val iteration: ActorRef = TestActorRef(
         Props(new Actor() {
           context.actorOf(
             Props(new Actor() {
@@ -568,6 +569,359 @@ class PersonAgentSpec
       events.expectMsgType[ActivityStartEvent]
 
       expectMsgType[CompletionNotice]
+      iteration ! PoisonPill
+    }
+
+    it("should also work when the first bus is late") {
+      val eventsManager = new EventsManagerImpl()
+      val events = new TestProbe(system)
+      eventsManager.addHandler(new BasicEventHandler {
+        override def handleEvent(event: Event): Unit = {
+          events.ref ! event
+        }
+      })
+      val transitDriverProps = Props(new ForwardActor(self))
+      val busId = Id.createVehicleId("bus:B3-WEST-1-175")
+      val tramId = Id.createVehicleId("train:R2-SOUTH-1-93")
+
+      val iteration: ActorRef = TestActorRef(
+        Props(new Actor() {
+          context.actorOf(
+            Props(new Actor() {
+              context.actorOf(transitDriverProps, "TransitDriverAgent-" + busId.toString)
+              context.actorOf(transitDriverProps, "TransitDriverAgent-" + tramId.toString)
+
+              override def receive: Receive = Actor.emptyBehavior
+            }),
+            "transit-system"
+          )
+
+          override def receive: Receive = Actor.emptyBehavior
+        }),
+        "BeamMobsim.iteration"
+      )
+
+      val busLeg = EmbodiedBeamLeg(
+        BeamLeg(
+          28800,
+          BeamMode.BUS,
+          600,
+          BeamPath(
+            Vector(),
+            Vector(),
+            Some(TransitStopsInfo(1, busId, 2)),
+            SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
+            SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
+            1.0
+          )
+        ),
+        busId,
+        Id.create("Car", classOf[BeamVehicleType]),
+        asDriver = false,
+        0,
+        unbecomeDriverOnCompletion = false
+      )
+      val busLeg2 = EmbodiedBeamLeg(
+        BeamLeg(
+          29400,
+          BeamMode.BUS,
+          600,
+          BeamPath(
+            Vector(),
+            Vector(),
+            Some(TransitStopsInfo(2, busId, 3)),
+            SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
+            SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
+            1.0
+          )
+        ),
+        busId,
+        Id.create("Car", classOf[BeamVehicleType]),
+        asDriver = false,
+        0,
+        unbecomeDriverOnCompletion = false
+      )
+      val tramLeg = EmbodiedBeamLeg(
+        BeamLeg(
+          30000,
+          BeamMode.TRAM,
+          600,
+          BeamPath(
+            Vector(),
+            Vector(),
+            Some(TransitStopsInfo(3, tramId, 4)),
+            SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
+            SpaceTime(services.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
+            1.0
+          )
+        ),
+        tramId,
+        Id.create("Car", classOf[BeamVehicleType]),
+        asDriver = false,
+        0,
+        unbecomeDriverOnCompletion = false
+      )
+      val replannedTramLeg = EmbodiedBeamLeg(
+        BeamLeg(
+          35000,
+          BeamMode.TRAM,
+          600,
+          BeamPath(
+            Vector(),
+            Vector(),
+            Some(TransitStopsInfo(3, tramId, 4)),
+            SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 35000),
+            SpaceTime(services.geo.utm2Wgs(new Coord(190000.4, 1300)), 35600),
+            1.0
+          )
+        ),
+        tramId,
+        Id.create("Car", classOf[BeamVehicleType]),
+        asDriver = false,
+        0,
+        unbecomeDriverOnCompletion = false
+      )
+
+      val household = householdsFactory.createHousehold(Id.create("dummy", classOf[Household]))
+      val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+      val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
+      putDefaultBeamAttributes(person, Vector(WALK_TRANSIT))
+      val plan = PopulationUtils.getFactory.createPlan()
+      val homeActivity = PopulationUtils.createActivityFromCoord("home", new Coord(166321.9, 1568.87))
+      homeActivity.setEndTime(28800) // 8:00:00 AM
+      plan.addActivity(homeActivity)
+      val leg = PopulationUtils.createLeg("walk_transit")
+      val route = RouteUtils.createLinkNetworkRouteImpl(
+        Id.createLinkId(1),
+        Array[Id[Link]](),
+        Id.createLinkId(2)
+      )
+      leg.setRoute(route)
+      plan.addLeg(leg)
+      val workActivity = PopulationUtils.createActivityFromCoord("work", new Coord(167138.4, 1117))
+      workActivity.setEndTime(61200) //5:00:00 PM
+      plan.addActivity(workActivity)
+      person.addPlan(plan)
+      population.addPerson(person)
+      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+      val scheduler = TestActorRef[BeamAgentScheduler](
+        SchedulerProps(
+          beamConfig,
+          stopTick = 1000000,
+          maxWindow = 10,
+          new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
+        )
+      )
+
+      val parkingManager = system.actorOf(
+        ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter),
+        "ParkingManager"
+      )
+
+      val householdActor = TestActorRef[HouseholdActor](
+        new HouseholdActor(
+          services,
+          beamScenario,
+          _ => modeChoiceCalculator,
+          scheduler,
+          beamScenario.transportNetwork,
+          new TollCalculator(services.beamConfig),
+          self,
+          self,
+          parkingManager,
+          eventsManager,
+          population,
+          household,
+          Map(),
+          new Coord(0.0, 0.0),
+          Vector(),
+          new RouteHistory(beamConfig),
+          new BeamSkimmer(beamScenario, services.geo),
+          new TravelTimeObserved(beamScenario, services.geo)
+        )
+      )
+      scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
+      scheduler ! StartSchedule(0)
+
+      expectMsgType[RoutingRequest]
+      val personActor = lastSender
+
+      scheduler ! ScheduleTrigger(
+        BoardVehicleTrigger(28800, busLeg.beamVehicleId),
+        personActor
+      )
+      scheduler ! ScheduleTrigger(
+        AlightVehicleTrigger(34400, busLeg.beamVehicleId),
+        personActor
+      )
+
+      lastSender ! RoutingResponse(
+        Vector(
+          EmbodiedBeamTrip(
+            Vector(
+              EmbodiedBeamLeg(
+                BeamLeg(
+                  28800,
+                  BeamMode.WALK,
+                  0,
+                  BeamPath(
+                    Vector(),
+                    Vector(),
+                    None,
+                    SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
+                    SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 28800),
+                    1.0
+                  )
+                ),
+                Id.createVehicleId("body-dummyAgent"),
+                Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
+                asDriver = true,
+                0,
+                unbecomeDriverOnCompletion = false
+              ),
+              busLeg,
+              busLeg2,
+              tramLeg,
+              EmbodiedBeamLeg(
+                BeamLeg(
+                  30600,
+                  BeamMode.WALK,
+                  0,
+                  BeamPath(
+                    Vector(),
+                    Vector(),
+                    None,
+                    SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
+                    SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
+                    1.0
+                  )
+                ),
+                Id.createVehicleId("body-dummyAgent"),
+                Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
+                asDriver = true,
+                0,
+                unbecomeDriverOnCompletion = false
+              )
+            )
+          )
+        ),
+        requestId = 1
+      )
+
+      events.expectMsgType[ModeChoiceEvent]
+      events.expectMsgType[ActivityEndEvent]
+      events.expectMsgType[PersonDepartureEvent]
+
+      events.expectMsgType[PersonEntersVehicleEvent]
+      events.expectMsgType[VehicleEntersTrafficEvent]
+      events.expectMsgType[VehicleLeavesTrafficEvent]
+      events.expectMsgType[PathTraversalEvent]
+
+      val reservationRequestBus = expectMsgType[ReservationRequest]
+
+      lastSender ! ReservationResponse(
+        reservationRequestBus.requestId,
+        Right(
+          ReserveConfirmInfo(
+            busLeg.beamLeg,
+            busLeg2.beamLeg,
+            reservationRequestBus.passengerVehiclePersonId
+          )
+        ),
+        TRANSIT
+      )
+      events.expectMsgType[PersonEntersVehicleEvent]
+
+      //Generating 2 events of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent
+
+      val personLeavesVehicleEvent = events.expectMsgType[PersonLeavesVehicleEvent]
+      assert(personLeavesVehicleEvent.getTime == 34400.0)
+
+      events.expectMsgType[ReplanningEvent]
+      expectMsgType[RoutingRequest]
+      lastSender ! RoutingResponse(
+        Vector(
+          EmbodiedBeamTrip(
+            Vector(
+              replannedTramLeg,
+              EmbodiedBeamLeg(
+                BeamLeg(
+                  35600,
+                  BeamMode.WALK,
+                  0,
+                  BeamPath(
+                    Vector(),
+                    Vector(),
+                    None,
+                    SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 35600),
+                    SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 35600),
+                    1.0
+                  )
+                ),
+                Id.createVehicleId("body-dummyAgent"),
+                Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
+                asDriver = true,
+                0,
+                unbecomeDriverOnCompletion = false
+              )
+            )
+          )
+        ),
+        1
+      )
+      events.expectMsgType[ModeChoiceEvent]
+
+      // Person first does the dummy walk leg
+      events.expectMsgType[VehicleEntersTrafficEvent]
+      events.expectMsgType[VehicleLeavesTrafficEvent]
+      events.expectMsgType[PathTraversalEvent]
+
+      val reservationRequestTram = expectMsgType[ReservationRequest]
+      lastSender ! ReservationResponse(
+        reservationRequestTram.requestId,
+        Right(
+          ReserveConfirmInfo(
+            tramLeg.beamLeg,
+            tramLeg.beamLeg,
+            reservationRequestBus.passengerVehiclePersonId,
+            Vector(
+              ScheduleTrigger(
+                BoardVehicleTrigger(
+                  35000,
+                  replannedTramLeg.beamVehicleId
+                ),
+                personActor
+              ),
+              ScheduleTrigger(
+                AlightVehicleTrigger(
+                  40000,
+                  replannedTramLeg.beamVehicleId
+                ),
+                personActor
+              ) // My tram is late!
+            )
+          )
+        ),
+        TRANSIT
+      )
+
+      events.expectMsgType[PersonEntersVehicleEvent]
+
+      //Generating 2 events of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent
+
+      events.expectMsgType[PersonLeavesVehicleEvent]
+
+      events.expectMsgType[VehicleEntersTrafficEvent]
+      events.expectMsgType[VehicleLeavesTrafficEvent]
+
+      events.expectMsgType[PathTraversalEvent]
+      events.expectMsgType[TeleportationArrivalEvent]
+
+      events.expectMsgType[PersonArrivalEvent]
+      events.expectMsgType[ActivityStartEvent]
+
+      expectMsgType[CompletionNotice]
+      iteration ! PoisonPill
     }
 
   }
