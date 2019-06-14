@@ -1,89 +1,54 @@
 package beam.router
 
-import akka.actor.{ActorIdentity, ActorRef, ActorSystem, Identify}
-import akka.testkit.{ImplicitSender, TestKit}
+import akka.actor.ActorSystem
+import akka.testkit.{ImplicitSender, TestKitBase}
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
-import beam.router.gtfs.FareCalculator
-import beam.router.gtfs.FareCalculator.BeamFareSegment
 import beam.router.model.{BeamLeg, BeamPath, RoutingModel}
-import beam.router.osm.TollCalculator
-import beam.router.r5.DefaultNetworkCoordinator
-import beam.sim.common.{GeoUtils, GeoUtilsImpl}
-import beam.sim.config.BeamConfig
-import beam.sim.{BeamHelper, BeamScenario}
-import beam.utils.NetworkHelperImpl
+import beam.sflight.RouterForTest
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.{SimRunnerForTest, TestConfigUtils}
+import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.events.EventsUtils
-import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.vehicles.Vehicle
-import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
-import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class TimeDependentRoutingSpec
-    extends TestKit(
-      ActorSystem("TimeDependentRoutingSpec", testConfig("test/input/beamville/beam.conf").resolve())
-    )
-    with WordSpecLike
+    extends WordSpecLike
+    with TestKitBase
     with Matchers
     with ImplicitSender
     with MockitoSugar
-    with BeamHelper
+    with SimRunnerForTest
+    with RouterForTest
     with BeforeAndAfterAll {
 
-  var router: ActorRef = _
-  var networkCoordinator: DefaultNetworkCoordinator = _
-  var geo: GeoUtils = _
-  var beamScenario: BeamScenario = _
-
-  override def beforeAll: Unit = {
-    val beamConfig = BeamConfig(system.settings.config)
-    beamScenario = loadScenario(beamConfig)
-
-    val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
-    geo = new GeoUtilsImpl(beamConfig)
-    networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
-    networkCoordinator.loadNetwork()
-    networkCoordinator.convertFrequenciesToTrips()
-
-    val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
-    val fareCalculator = mock[FareCalculator]
-    when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
-    val tollCalculator = mock[TollCalculator]
-    when(tollCalculator.calcTollByOsmIds(any())).thenReturn(0.0)
-    router = system.actorOf(
-      BeamRouter.props(
-        beamScenario,
-        networkCoordinator.transportNetwork,
-        networkCoordinator.network,
-        networkHelper,
-        geo,
-        scenario,
-        scenario.getTransitVehicles,
-        fareCalculator,
-        tollCalculator
-      )
+  lazy val config: Config = ConfigFactory
+    .parseString(
+      """
+        akka.log-dead-letters = 10
+        akka.actor.debug.fsm = true
+        akka.loglevel = debug
+        """
     )
+    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .resolve()
 
-    within(60 seconds) { // Router can take a while to initialize
-      router ! Identify(0)
-      expectMsgType[ActorIdentity]
-    }
-  }
+  lazy implicit val system: ActorSystem = ActorSystem("TimeDependentRoutingSpec", config)
+
+  override def outputDirPath: String = TestConfigUtils.testOutputDir
 
   "A time-dependent router" must {
     val origin = new BeamRouter.Location(166321.9, 1568.87)
@@ -99,8 +64,8 @@ class TimeDependentRoutingSpec
           Vector(143, 60, 58, 62, 80, 74, 68, 154),
           Vector(),
           None,
-          SpaceTime(geo.utm2Wgs(origin), 3000),
-          SpaceTime(geo.utm2Wgs(destination), 3000),
+          SpaceTime(services.geo.utm2Wgs(origin), 3000),
+          SpaceTime(services.geo.utm2Wgs(destination), 3000),
           0.0
         )
       )
@@ -120,8 +85,8 @@ class TimeDependentRoutingSpec
           Vector(143, 60, 58, 62, 80, 74, 68, 154),
           Vector(),
           None,
-          SpaceTime(geo.utm2Wgs(origin), 3000),
-          SpaceTime(geo.utm2Wgs(destination), 3000),
+          SpaceTime(services.geo.utm2Wgs(origin), 3000),
+          SpaceTime(services.geo.utm2Wgs(destination), 3000),
           0.0
         )
       )
@@ -141,8 +106,8 @@ class TimeDependentRoutingSpec
           Vector(143, 60, 58, 62, 80, 74, 68, 154),
           Vector(),
           None,
-          SpaceTime(geo.utm2Wgs(origin), 3000),
-          SpaceTime(geo.utm2Wgs(destination), 3000),
+          SpaceTime(services.geo.utm2Wgs(origin), 3000),
+          SpaceTime(services.geo.utm2Wgs(destination), 3000),
           0.0
         )
       )
@@ -224,7 +189,7 @@ class TimeDependentRoutingSpec
       // (Should be MATSim free flow travel times)
       val eventsForTravelTimeCalculator = EventsUtils.createEventsManager()
       val travelTimeCalculator =
-        new TravelTimeCalculator(networkCoordinator.network, ConfigUtils.createConfig().travelTimeCalculator())
+        new TravelTimeCalculator(beamScenario.network, ConfigUtils.createConfig().travelTimeCalculator())
       eventsForTravelTimeCalculator.addHandler(travelTimeCalculator)
       router ! UpdateTravelTimeLocal(travelTimeCalculator.getLinkTravelTimes)
       val vehicleId = Id.createVehicleId("car")
@@ -256,7 +221,7 @@ class TimeDependentRoutingSpec
 
       def gap = estimatedTotalTravelTime - experiencedTotalTravelTime
 
-      for (_ <- 1 to 5) {
+      for (_ <- 1 to 10) {
         RoutingModel
           .traverseStreetLeg(carOption.legs(0).beamLeg, vehicleId, longerTravelTimes)
           .foreach(eventsForTravelTimeCalculator.processEvent)
@@ -306,8 +271,9 @@ class TimeDependentRoutingSpec
 
   }
 
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     shutdown()
+    super.afterAll()
   }
 
 }
