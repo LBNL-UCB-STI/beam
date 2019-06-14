@@ -437,8 +437,9 @@ class PersonAndTransitDriverSpec
 
   }
 
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     shutdown()
+    super.shutdown()
   }
 
 }
