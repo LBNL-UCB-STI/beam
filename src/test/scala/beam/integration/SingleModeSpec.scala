@@ -18,7 +18,6 @@ import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.core.events.EventsUtils
 import org.matsim.core.events.handler.BasicEventHandler
 import org.scalatest._
-import org.scalatest.mockito.MockitoSugar
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -30,8 +29,7 @@ class SingleModeSpec
     with SimRunnerForTest
     with RouterForTest
     with BeamHelper
-    with Matchers
-    with MockitoSugar {
+    with Matchers {
 
   def config: com.typesafe.config.Config =
     ConfigFactory
@@ -80,8 +78,8 @@ class SingleModeSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        mock[BeamSkimmer],
-        mock[TravelTimeObserved],
+        new BeamSkimmer(beamScenario, services.geo),
+        new TravelTimeObserved(beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
         networkHelper
       )
@@ -129,8 +127,8 @@ class SingleModeSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        mock[BeamSkimmer],
-        mock[TravelTimeObserved],
+        new BeamSkimmer(beamScenario, services.geo),
+        new TravelTimeObserved(beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
         networkHelper
       )
@@ -197,8 +195,8 @@ class SingleModeSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        mock[BeamSkimmer],
-        mock[TravelTimeObserved],
+        new BeamSkimmer(beamScenario, services.geo),
+        new TravelTimeObserved(beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
         networkHelper
       )
@@ -270,8 +268,8 @@ class SingleModeSpec
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
-        mock[BeamSkimmer],
-        mock[TravelTimeObserved],
+        new BeamSkimmer(beamScenario, services.geo),
+        new TravelTimeObserved(beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
         networkHelper
       )
