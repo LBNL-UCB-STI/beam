@@ -292,6 +292,7 @@ class RideHailAgent(
   when(Offline) {
     case Event(TriggerWithId(StartShiftTrigger(tick), triggerId), _) =>
       log.debug("state(RideHailingAgent.Offline): starting shift {}", id)
+      holdTickAndTriggerId(tick, triggerId)
       rideHailManager ! NotifyVehicleIdle(
         vehicle.id,
         vehicle.spaceTime.copy(time = tick),
@@ -300,7 +301,6 @@ class RideHailAgent(
         geofence,
         Some(triggerId)
       )
-      holdTickAndTriggerId(tick, triggerId)
       goto(Idle)
     case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
       log.debug("state(RideHailingAgent.Offline): {}", ev)
