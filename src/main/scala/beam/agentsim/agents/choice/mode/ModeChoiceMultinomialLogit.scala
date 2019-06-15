@@ -128,7 +128,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     alternatives.zipWithIndex.map { altAndIdx =>
       val mode = altAndIdx._1.tripClassifier
       val totalCost = getNonTimeCost(altAndIdx._1)
-      val incentive: Double = beamServices.modeIncentives.computeIncentive(attributesOfIndividual, mode)
+      val incentive: Double = beamServices.beamScenario.modeIncentives.computeIncentive(attributesOfIndividual, mode)
 
       val incentivizedCost =
         Math.max(0, totalCost.toDouble - incentive)

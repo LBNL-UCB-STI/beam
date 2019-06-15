@@ -6,7 +6,7 @@ import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 import java.util.{Properties, Random}
 
-import beam.agentsim.agents.choice.mode.PtFares
+import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.FuelType.FuelTypePrices
 import beam.agentsim.agents.vehicles._
@@ -258,7 +258,8 @@ trait BeamHelper extends LazyLogging {
       networkCoordinator.transportNetwork,
       transitSchedule,
       networkCoordinator.network,
-      TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
+      TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath),
+      ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath)
     )
   }
 
@@ -799,7 +800,8 @@ case class BeamScenario(
   transportNetwork: TransportNetwork,
   transitSchedule: Map[Id[BeamVehicle], (RouteInfo, ArrayBuffer[BeamLeg])],
   network: Network,
-  tazTreeMap: TAZTreeMap
+  tazTreeMap: TAZTreeMap,
+  modeIncentives: ModeIncentive
 ) {
   lazy val rideHailTransitModes: Seq[BeamMode] =
     if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("all")) BeamMode.transitModes

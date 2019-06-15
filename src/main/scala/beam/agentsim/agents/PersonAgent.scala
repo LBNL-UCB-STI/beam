@@ -793,7 +793,7 @@ class PersonAgent(
           eventsManager.processEvent(
             new PersonArrivalEvent(tick, id, activity.getLinkId, currentTrip.tripClassifier.value)
           )
-          val incentive = beamServices.modeIncentives.computeIncentive(attributes, currentTrip.tripClassifier)
+          val incentive = beamScenario.modeIncentives.computeIncentive(attributes, currentTrip.tripClassifier)
           if (incentive > 0.0)
             eventsManager.processEvent(
               new PersonCostEvent(

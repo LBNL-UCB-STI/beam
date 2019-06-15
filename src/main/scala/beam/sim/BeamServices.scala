@@ -35,7 +35,6 @@ trait BeamServices {
   var personHouseholds: Map[Id[Person], Household]
 
   def matsimServices: MatsimServices
-  val modeIncentives: ModeIncentive
   def networkHelper: NetworkHelper
   def fareCalculator: FareCalculator
   def tollCalculator: TollCalculator
@@ -54,8 +53,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   var personHouseholds: Map[Id[Person], Household] = Map()
 
   override val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
-
-  val modeIncentives = ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath)
 
   override def networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
   override def fareCalculator: FareCalculator = injector.getInstance(classOf[FareCalculator])
