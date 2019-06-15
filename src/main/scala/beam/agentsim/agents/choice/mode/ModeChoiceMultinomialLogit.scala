@@ -2,7 +2,6 @@ package beam.agentsim.agents.choice.mode
 
 import beam.agentsim.agents.choice.logit._
 import beam.agentsim.agents.choice.logit
-
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
@@ -18,6 +17,7 @@ import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
+import beam.sim.config.BeamConfig
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -29,6 +29,8 @@ import scala.util.Random
 class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: MultinomialLogit[String, String])
     extends ModeChoiceCalculator
     with ExponentialLazyLogging {
+
+  override lazy val beamConfig: BeamConfig = beamServices.beamConfig
 
   var expectedMaximumUtility: Double = 0.0
   val modalBehaviors: ModalBehaviors = beamServices.beamConfig.beam.agentsim.agents.modalBehaviors

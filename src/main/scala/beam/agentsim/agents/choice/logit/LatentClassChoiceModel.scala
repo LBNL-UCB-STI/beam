@@ -1,7 +1,7 @@
 package beam.agentsim.agents.choice.logit
 
-import LatentClassChoiceModel.{LccmData, Mandatory, Nonmandatory, TourType}
-import beam.sim.{BeamServices, HasServices}
+import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{LccmData, Mandatory, Nonmandatory, TourType}
+import beam.sim.BeamServices
 import org.matsim.core.utils.io.IOUtils
 import org.supercsv.cellprocessor.constraint.NotNull
 import org.supercsv.cellprocessor.ift.CellProcessor
@@ -15,7 +15,7 @@ import scala.collection.mutable
 /**
   * BEAM
   */
-class LatentClassChoiceModel(override val beamServices: BeamServices) extends HasServices {
+class LatentClassChoiceModel(val beamServices: BeamServices) {
   private val lccmData: IndexedSeq[LccmData] = parseModeChoiceParams(
     beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.lccm.filePath
   )

@@ -7,8 +7,8 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.TransitDriverAgent.createAgentIdFromVehicleId
+import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
-import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
@@ -21,15 +21,12 @@ import beam.router.Modes.BeamMode.WALK_TRANSIT
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
-import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
-import beam.sim.population.AttributesOfIndividual
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.Link
-import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.api.internal.HasPersonId
@@ -42,8 +39,7 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.scalatest.FunSpecLike
 import org.scalatest.mockito.MockitoSugar
 
-import scala.collection.mutable.ListBuffer
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -79,30 +75,7 @@ class PersonAndTransitDriverSpec
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
-  private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
-    override def apply(
-      alternatives: IndexedSeq[EmbodiedBeamTrip],
-      attributesOfIndividual: AttributesOfIndividual,
-      destinationActivity: Option[Activity]
-    ): Option[EmbodiedBeamTrip] =
-      Some(alternatives.head)
-
-    override val beamServices: BeamServices = services
-
-    override def utilityOf(
-      alternative: EmbodiedBeamTrip,
-      attributesOfIndividual: AttributesOfIndividual,
-      destinationActivity: Option[Activity]
-    ): Double = 0.0
-
-    override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0D
-
-    override def computeAllDayUtility(
-      trips: ListBuffer[EmbodiedBeamTrip],
-      person: Person,
-      attributesOfIndividual: AttributesOfIndividual
-    ): Double = 0.0
-  }
+  private lazy val modeChoiceCalculator = new ModeChoiceUniformRandom(beamConfig)
 
   describe("A PersonAgent") {
 

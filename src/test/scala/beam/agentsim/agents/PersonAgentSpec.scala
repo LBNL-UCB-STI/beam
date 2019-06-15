@@ -4,9 +4,9 @@ import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKitBase, TestProbe}
 import beam.agentsim.agents.PersonTestUtil._
+import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
-import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.{ReservationRequest, ReservationResponse, ReserveConfirmInfo, _}
 import beam.agentsim.events._
@@ -20,14 +20,11 @@ import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
-import beam.sim.BeamServices
-import beam.sim.population.AttributesOfIndividual
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.Link
-import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.config.ConfigUtils
@@ -39,8 +36,7 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.scalatest.FunSpecLike
 import org.scalatest.mockito.MockitoSugar
 
-import scala.collection.mutable.ListBuffer
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 
 class PersonAgentSpec extends FunSpecLike with TestKitBase with SimRunnerForTest with MockitoSugar with ImplicitSender {
 
@@ -61,30 +57,7 @@ class PersonAgentSpec extends FunSpecLike with TestKitBase with SimRunnerForTest
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
-  private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
-    override def apply(
-      alternatives: IndexedSeq[EmbodiedBeamTrip],
-      attributesOfIndividual: AttributesOfIndividual,
-      destinationActivity: Option[Activity]
-    ): Option[EmbodiedBeamTrip] =
-      Some(alternatives.head)
-
-    override val beamServices: BeamServices = services
-
-    override def utilityOf(
-      alternative: EmbodiedBeamTrip,
-      attributesOfIndividual: AttributesOfIndividual,
-      destinationActivity: Option[Activity]
-    ): Double = 0.0
-
-    override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0D
-
-    override def computeAllDayUtility(
-      trips: ListBuffer[EmbodiedBeamTrip],
-      person: Person,
-      attributesOfIndividual: AttributesOfIndividual
-    ): Double = 0.0
-  }
+  private lazy val modeChoiceCalculator = new ModeChoiceUniformRandom(beamConfig)
 
   // Mock a transit driver (who has to be a child of a mock router)
   private lazy val transitDriverProps = Props(new ForwardActor(self))
