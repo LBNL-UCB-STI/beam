@@ -43,7 +43,7 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
     this.beamServices = beamServices;
     averageVot=getAverageVOT();
 
-    if(beamServices.personHouseholds().values().filter((Household hh) -> hh.getIncome().getIncome()!=0).size()!=beamServices.personHouseholds().size()){
+    if(beamServices.matsimServices().getScenario().getHouseholds().getHouseholds().values().stream().filter((Household hh) -> hh.getIncome().getIncome()!=0).count() != beamServices.matsimServices().getScenario().getHouseholds().getHouseholds().size()){
       logger.error("Some households have income not set - default dummy income values will be used: "+ defaultDummyHouseholdIncome);
     }
   }
@@ -96,7 +96,7 @@ public class PersonCostAnalysis implements IterationSummaryAnalysis {
     }
     if (event instanceof ActivityStartEvent || event.getEventType().equalsIgnoreCase(ActivityStartEvent.EVENT_TYPE)) {
       ActivityStartEvent ase = (ActivityStartEvent) event;
-      Option<Household> householdOption = beamServices.personHouseholds().get(ase.getPersonId());
+      Option<Household> householdOption = beamServices.beamScenario().personHouseholds().get(ase.getPersonId());
       if (householdOption.nonEmpty()) {
         String personId = ase.getPersonId().toString();
         double householdIncome=householdOption.get().getIncome().getIncome();

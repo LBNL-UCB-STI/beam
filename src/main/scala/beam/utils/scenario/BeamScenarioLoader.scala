@@ -77,7 +77,7 @@ class BeamScenarioLoader(
     replaceHouseholdsAttributes(households, loadedAttributes)
 
     // beamServices
-    beamServices.personHouseholds = buildServicesPersonHouseholds(households)
+    beamServices.beamScenario.personHouseholds = buildServicesPersonHouseholds(households)
     beamServices.beamScenario.privateVehicles.clear()
     vehicles
       .map(c => buildBeamVehicle(beamServices.beamScenario.vehicleTypes, c))

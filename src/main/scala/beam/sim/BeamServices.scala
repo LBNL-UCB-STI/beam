@@ -32,7 +32,6 @@ trait BeamServices {
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory
 
   var beamRouter: ActorRef
-  var personHouseholds: Map[Id[Person], Household]
 
   def matsimServices: MatsimServices
   def networkHelper: NetworkHelper
@@ -49,8 +48,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
   var beamRouter: ActorRef = _
-
-  var personHouseholds: Map[Id[Person], Household] = Map()
 
   override val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
 

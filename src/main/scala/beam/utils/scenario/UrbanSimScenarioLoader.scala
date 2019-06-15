@@ -72,7 +72,7 @@ class UrbanSimScenarioLoader(
   }
 
   private def replacePersonHouseholdFromService(): Unit = {
-    beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
+    beamServices.beamScenario.personHouseholds = scenario.getHouseholds.getHouseholds
       .values()
       .asScala
       .flatMap(h => h.getMemberIds.asScala.map(_ -> h))

@@ -218,7 +218,7 @@ object PopulationAdjustment extends LazyLogging {
         .flatMap(attrib => Option(attrib.getAttribute("modality-style")).map(_.toString))
 
     // Read household attributes for the person
-    val householdAttributes = beamServices.personHouseholds.get(person.getId).fold(HouseholdAttributes.EMPTY) {
+    val householdAttributes = beamServices.beamScenario.personHouseholds.get(person.getId).fold(HouseholdAttributes.EMPTY) {
       household =>
         val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] =
           agentsim.agents.Population.getVehiclesFromHousehold(household, beamServices.beamScenario)
