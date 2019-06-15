@@ -35,6 +35,7 @@ import beam.sim.population.AttributesOfIndividual
 import beam.utils.{NetworkHelperImpl, StuckFinder}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
+import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.population.{Activity, Person}
@@ -76,7 +77,8 @@ class PersonAgentSpec
     with BeforeAndAfterAll
     with MockitoSugar
     with beam.utils.InjectableMock
-    with ImplicitSender {
+    with ImplicitSender
+    with BeamvilleFixtures {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   lazy val beamConfig = BeamConfig(system.settings.config)
@@ -206,7 +208,8 @@ class PersonAgentSpec
           tollCalculator,
           self,
           beamSkimmer = new BeamSkimmer(beamConfig, beamSvc),
-          routeHistory = new RouteHistory(beamConfig)
+          routeHistory = new RouteHistory(beamConfig),
+          boundingBox = boundingBox,
         )
       )
 
@@ -268,7 +271,8 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc)
+          new BeamSkimmer(beamConfig, beamSvc),
+          boundingBox
         )
       )
 
@@ -493,7 +497,8 @@ class PersonAgentSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc)
+          new BeamSkimmer(beamConfig, beamSvc),
+          boundingBox
         )
       )
       scheduler ! StartSchedule(0)

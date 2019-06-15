@@ -73,7 +73,8 @@ class PersonAndTransitDriverSpec
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
-    with ImplicitSender {
+    with ImplicitSender
+    with BeamvilleFixtures {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   private lazy val beamConfig = BeamConfig(system.settings.config)
@@ -141,7 +142,7 @@ class PersonAndTransitDriverSpec
 
   private lazy val parkingManager = system.actorOf(
     ZonalParkingManager
-      .props(beamSvc, beamSvc.beamRouter),
+      .props(beamSvc, beamSvc.beamRouter, boundingBox),
     "ParkingManager"
   )
 
@@ -356,7 +357,8 @@ class PersonAndTransitDriverSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc)
+          new BeamSkimmer(beamConfig, beamSvc),
+          boundingBox
         )
       )
 

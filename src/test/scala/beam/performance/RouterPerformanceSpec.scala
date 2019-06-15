@@ -7,6 +7,7 @@ import java.util.concurrent.ThreadLocalRandom
 import akka.actor.Status.Success
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -70,7 +71,8 @@ class RouterPerformanceSpec
     with MockitoSugar
     with BeforeAndAfterAllConfigMap
     with MetricsSupport
-    with LazyLogging {
+    with LazyLogging
+    with BeamvilleFixtures {
 
   var config: Config = _
   var network: Network = _
@@ -125,7 +127,7 @@ class RouterPerformanceSpec
       ),
       "router"
     )
-    val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(services)
+    val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(services, boundingBox)
 
     within(60 seconds) { // Router can take a while to initialize
       router ! Identify(0)

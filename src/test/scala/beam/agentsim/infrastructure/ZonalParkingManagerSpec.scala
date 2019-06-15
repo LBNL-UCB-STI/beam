@@ -3,11 +3,11 @@ package beam.agentsim.infrastructure
 import java.util.concurrent.TimeUnit
 
 import scala.util.Random
-
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
+import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
@@ -16,6 +16,7 @@ import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.MatsimServices
 import org.matsim.core.utils.collections.QuadTree
@@ -38,7 +39,8 @@ class ZonalParkingManagerSpec
     with BeforeAndAfterAll
     with MockitoSugar
     with ImplicitSender
-    with Matchers {
+    with Matchers
+    with BeamvilleFixtures {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
 
@@ -78,12 +80,13 @@ class ZonalParkingManagerSpec
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
           services,
           emptyParkingDescription,
+          boundingBox,
           new Random(randomSeed)
         )
       } {
 
         val inquiry = ParkingInquiry(coordCenterOfUTM, "work", 0.0, None, 0.0)
-        val expectedStall: ParkingStall = ParkingStall.lastResortStall(new Random(randomSeed))
+        val expectedStall: ParkingStall = ParkingStall.lastResortStall(boundingBox, new Random(randomSeed))
 
         zonalParkingManager ! inquiry
 
@@ -117,6 +120,7 @@ class ZonalParkingManagerSpec
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
           services,
           oneParkingOption,
+          boundingBox,
           new Random(randomSeed)
         )
       } {
@@ -169,6 +173,7 @@ class ZonalParkingManagerSpec
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
           services,
           oneParkingOption,
+          boundingBox,
           new Random(randomSeed)
         )
       } {
@@ -235,6 +240,7 @@ class ZonalParkingManagerSpec
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
           services,
           parkingConfiguration,
+          boundingBox,
           new Random(randomSeed)
         )
       } {
@@ -268,18 +274,20 @@ class ZonalParkingManagerSpec
 object ZonalParkingManagerSpec {
 
   def mockZonalParkingManager(
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    boundingBox: Envelope
   )(implicit system: ActorSystem): ActorRef = {
-    val zonalParkingManagerProps = Props(ZonalParkingManager(beamServices, new Random(0L)))
+    val zonalParkingManagerProps = Props(ZonalParkingManager(beamServices, new Random(0L), boundingBox))
     TestActorRef[ZonalParkingManager](zonalParkingManagerProps)
   }
 
   def mockZonalParkingManager(
     beamServices: BeamServices,
     parkingDescription: Iterator[String],
+    boundingBox: Envelope,
     random: Random = Random
   )(implicit system: ActorSystem): ActorRef = {
-    val zonalParkingManagerProps = Props(ZonalParkingManager(parkingDescription, beamServices, random))
+    val zonalParkingManagerProps = Props(ZonalParkingManager(parkingDescription, beamServices, random, boundingBox))
     TestActorRef[ZonalParkingManager](zonalParkingManagerProps)
   }
 

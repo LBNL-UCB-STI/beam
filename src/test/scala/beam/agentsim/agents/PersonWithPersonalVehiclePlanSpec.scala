@@ -74,7 +74,8 @@ class PersonWithPersonalVehiclePlanSpec
     with BeforeAndAfterAll
     with MockitoSugar
     with beam.utils.InjectableMock
-    with ImplicitSender {
+    with ImplicitSender
+    with BeamvilleFixtures {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   lazy val beamConfig = BeamConfig(system.settings.config)
@@ -198,7 +199,8 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamConfig, beamSvc)
+            new BeamSkimmer(beamConfig, beamSvc),
+            boundingBox
           )
         )
       )
@@ -425,7 +427,8 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamConfig, beamSvc)
+            new BeamSkimmer(beamConfig, beamSvc),
+            boundingBox
           )
         )
       )
@@ -567,7 +570,8 @@ class PersonWithPersonalVehiclePlanSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc)
+          new BeamSkimmer(beamConfig, beamSvc),
+          boundingBox
         )
       )
       val personActor = householdActor.getSingleChild(person.getId.toString)
@@ -661,7 +665,8 @@ class PersonWithPersonalVehiclePlanSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc)
+          new BeamSkimmer(beamConfig, beamSvc),
+          boundingBox
         )
       )
       scheduler ! StartSchedule(0)

@@ -12,6 +12,7 @@ import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode._
 import beam.router.model.EmbodiedBeamTrip
 import com.typesafe.scalalogging.LazyLogging
+import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest._
@@ -20,10 +21,11 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransitSpec") with Inside with LazyLogging {
+  val boundingBox: Envelope = new Envelope(167000, 833000, 0, 10000000)
 
   override def beforeAll: Unit = {
     super.beforeAll
-    val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(services)
+    val zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(services, boundingBox)
     within(5 minutes) { // Router can take a while to initialize
       router ! InitTransit(new TestProbe(system).ref, zonalParkingManager)
       expectMsgType[Any] // success

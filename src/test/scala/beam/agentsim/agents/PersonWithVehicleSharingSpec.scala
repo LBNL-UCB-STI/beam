@@ -82,7 +82,8 @@ class PersonWithVehicleSharingSpec
     with BeforeAndAfterAll
     with MockitoSugar
     with beam.utils.InjectableMock
-    with ImplicitSender {
+    with ImplicitSender
+    with BeamvilleFixtures {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = system.dispatcher
@@ -199,7 +200,8 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamConfig, beamSvc)
+            new BeamSkimmer(beamConfig, beamSvc),
+            boundingBox
           )
         )
       )
@@ -341,7 +343,8 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamConfig, beamSvc)
+            new BeamSkimmer(beamConfig, beamSvc),
+            boundingBox
           )
         )
       )
@@ -582,7 +585,8 @@ class PersonWithVehicleSharingSpec
           new Coord(0.0, 0.0),
           Vector(mockSharedVehicleFleet.ref),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc)
+          new BeamSkimmer(beamConfig, beamSvc),
+          boundingBox
         )
       )
 
