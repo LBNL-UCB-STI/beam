@@ -107,7 +107,7 @@ class BeamMobsim @Inject()(
 
         private val parkingManager = context.actorOf(
           ZonalParkingManager
-            .props(beamServices, beamServices.beamRouter),
+            .props(beamServices, beamServices.beamRouter, envelopeInUTM),
           "ParkingManager"
         )
         context.watch(parkingManager)
@@ -169,7 +169,8 @@ class BeamMobsim @Inject()(
             sharedVehicleFleets,
             eventsManager,
             routeHistory,
-            beamSkimmer
+            beamSkimmer,
+            envelopeInUTM
           ),
           "population"
         )
