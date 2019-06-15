@@ -58,8 +58,6 @@ class UrbanSimScenarioLoader(
     applyHousehold(householdsWithMembers, householdIdToPersons)
     // beamServices.privateVehicles is properly populated here, after `applyHousehold` call
 
-    replacePersonHouseholdFromService()
-
     // beamServices.personHouseholds is used later on in PopulationAdjustment.createAttributesOfIndividual when we
     logger.info("Applying persons...")
     applyPersons(personsWithPlans)
@@ -69,14 +67,6 @@ class UrbanSimScenarioLoader(
 
     logger.info("The scenario loading is completed..")
     scenario
-  }
-
-  private def replacePersonHouseholdFromService(): Unit = {
-    beamServices.beamScenario.personHouseholds = scenario.getHouseholds.getHouseholds
-      .values()
-      .asScala
-      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
-      .toMap
   }
 
   private def clear(): Unit = {

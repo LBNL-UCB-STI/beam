@@ -201,6 +201,12 @@ object PopulationAdjustment extends LazyLogging {
     population: MPopulation,
     person: Person
   ): AttributesOfIndividual = {
+    val personHouseholds = beamServices.matsimServices.getScenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
+      .toMap
+
     val personAttributes = population.getPersonAttributes
     // Read excluded-modes set for the person and calculate the possible available modes for the person
     val excludedModes = AvailableModeUtils.getExcludedModesForPerson(population, person.getId.toString)
@@ -218,7 +224,7 @@ object PopulationAdjustment extends LazyLogging {
         .flatMap(attrib => Option(attrib.getAttribute("modality-style")).map(_.toString))
 
     // Read household attributes for the person
-    val householdAttributes = beamServices.beamScenario.personHouseholds.get(person.getId).fold(HouseholdAttributes.EMPTY) {
+    val householdAttributes = personHouseholds.get(person.getId).fold(HouseholdAttributes.EMPTY) {
       household =>
         val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] =
           agentsim.agents.Population.getVehiclesFromHousehold(household, beamServices.beamScenario)

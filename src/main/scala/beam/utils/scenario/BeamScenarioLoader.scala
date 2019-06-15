@@ -77,7 +77,6 @@ class BeamScenarioLoader(
     replaceHouseholdsAttributes(households, loadedAttributes)
 
     // beamServices
-    beamServices.beamScenario.personHouseholds = buildServicesPersonHouseholds(households)
     beamServices.beamScenario.privateVehicles.clear()
     vehicles
       .map(c => buildBeamVehicle(beamServices.beamScenario.vehicleTypes, c))
@@ -261,14 +260,6 @@ object BeamScenarioLoader extends LazyLogging {
         logger.warn(s"Could not find vehicles for the `household_id` '${householdInfo.householdId}'")
         util.Collections.emptyList()
     }
-  }
-
-  def buildServicesPersonHouseholds(households: Households): Map[Id[Person], Household] = {
-    households.getHouseholds
-      .values()
-      .asScala
-      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
-      .toMap
   }
 
   def buildBeamVehicle(map: Map[Id[BeamVehicleType], BeamVehicleType], info: VehicleInfo): BeamVehicle = {

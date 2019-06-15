@@ -733,22 +733,11 @@ trait BeamHelper extends LazyLogging {
                      )}
            |Number of persons: $numOfPersons. Removed: ${notSelectedPersonIds.size}""".stripMargin)
 
-      beamScenario.personHouseholds = scenario.getHouseholds.getHouseholds
-        .values()
-        .asScala
-        .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
-        .toMap
-
       val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
       populationAdjustment.update(scenario)
     } else {
       val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
       populationAdjustment.update(scenario)
-      beamScenario.personHouseholds = scenario.getHouseholds.getHouseholds
-        .values()
-        .asScala
-        .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
-        .toMap
     }
   }
 
@@ -814,5 +803,4 @@ case class BeamScenario(
         .toSeq
         .flatten
     }
-  var personHouseholds: Map[Id[Person], Household] = Map()
 }
