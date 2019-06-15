@@ -221,6 +221,12 @@ class UrbanSimScenarioLoader(
   }
 
   private[utils] def applyPersons(persons: Iterable[PersonInfo]): Unit = {
+    val personHouseholds = beamServices.matsimServices.getScenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
+      .toMap
+
     persons.foreach { personInfo =>
       val person = population.getFactory.createPerson(Id.createPersonId(personInfo.personId.id))
       val personId = person.getId.toString
@@ -233,6 +239,7 @@ class UrbanSimScenarioLoader(
       AvailableModeUtils.setAvailableModesForPerson_v2(
         beamServices,
         person,
+        personHouseholds(person.getId),
         population,
         availableModes.split(",")
       )

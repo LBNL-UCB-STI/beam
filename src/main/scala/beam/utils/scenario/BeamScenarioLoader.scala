@@ -129,6 +129,12 @@ class BeamScenarioLoader(
     population.getPersons.clear()
     population.getPersonAttributes.clear()
 
+    val personHouseholds = beamServices.matsimServices.getScenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
+      .toMap
+
     persons.foreach { personInfo =>
       val person = population.getFactory.createPerson(Id.createPersonId(personInfo.personId.id)) // TODO: find way to create a person without previous instance
 
@@ -139,7 +145,7 @@ class BeamScenarioLoader(
       personAttrib.putAttribute(personId, "rank", personInfo.rank)
       personAttrib.putAttribute(personId, "age", personInfo.age)
 
-      AvailableModeUtils.setAvailableModesForPerson_v2(beamServices, person, population, availableModes)
+      AvailableModeUtils.setAvailableModesForPerson_v2(beamServices, person, personHouseholds(person.getId), population, availableModes)
 
       population.addPerson(person)
     }
