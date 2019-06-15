@@ -1,10 +1,7 @@
 package beam.agentsim.agents
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
-import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.BeamVehicle
@@ -19,8 +16,7 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
 
-import scala.collection.JavaConverters._
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.JavaConverters
 
 class Population(
   val scenario: Scenario,
@@ -47,14 +43,6 @@ class Population(
       case _: Exception      => Stop
       case _: AssertionError => Stop
     }
-  private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
-
-  private val personToHouseholdId: mutable.Map[Id[Person], Id[Household]] =
-    mutable.Map()
-  scenario.getHouseholds.getHouseholds.forEach { (householdId, matSimHousehold) =>
-    personToHouseholdId ++= matSimHousehold.getMemberIds.asScala
-      .map(personId => personId -> householdId)
-  }
 
   initHouseholds()
 
