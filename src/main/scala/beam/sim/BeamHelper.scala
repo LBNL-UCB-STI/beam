@@ -16,6 +16,7 @@ import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
+import beam.router.Modes.BeamMode
 import beam.router._
 import beam.router.gtfs.FareCalculator
 import beam.router.model.BeamLeg
@@ -799,4 +800,16 @@ case class BeamScenario(
   transitSchedule: Map[Id[BeamVehicle], (RouteInfo, ArrayBuffer[BeamLeg])],
   network: Network,
   tazTreeMap: TAZTreeMap
-)
+) {
+  lazy val rideHailTransitModes: Seq[BeamMode] =
+    if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("all")) BeamMode.transitModes
+    else if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("mass"))
+      BeamMode.massTransitModes
+    else {
+      beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.toUpperCase
+        .split(",")
+        .map(BeamMode.fromString)
+        .toSeq
+        .flatten
+    }
+}

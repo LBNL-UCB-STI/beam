@@ -32,7 +32,6 @@ trait BeamServices {
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory
 
   var beamRouter: ActorRef
-  val rideHailTransitModes: Seq[BeamMode]
   var personHouseholds: Map[Id[Person], Household]
 
   def matsimServices: MatsimServices
@@ -48,18 +47,6 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
   val beamConfig: BeamConfig = injector.getInstance(classOf[BeamConfig])
   val beamScenario: BeamScenario = injector.getInstance(classOf[BeamScenario])
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
-
-  val rideHailTransitModes: Seq[BeamMode] =
-    if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("all")) BeamMode.transitModes
-    else if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("mass"))
-      BeamMode.massTransitModes
-    else {
-      beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.toUpperCase
-        .split(",")
-        .map(BeamMode.fromString)
-        .toSeq
-        .flatten
-    }
 
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
   var beamRouter: ActorRef = _
