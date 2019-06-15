@@ -204,14 +204,14 @@ class PersonAndTransitDriverSpec
           scheduler = scheduler,
           beamScenario,
           transportNetwork = beamScenario.transportNetwork,
-          tollCalculator = tollCalculator,
+          tollCalculator = services.tollCalculator,
           eventsManager = eventsManager,
           parkingManager = parkingManager,
           transitDriverId = Id.create(busId.toString, classOf[TransitDriverAgent]),
           vehicle = bus,
           Array(busLeg.beamLeg, busLeg2.beamLeg),
           new GeoUtilsImpl(beamConfig),
-          networkHelper
+          services.networkHelper
         )
       )
       val tramDriverProps = Props(
@@ -219,14 +219,14 @@ class PersonAndTransitDriverSpec
           scheduler = scheduler,
           beamScenario,
           transportNetwork = beamScenario.transportNetwork,
-          tollCalculator = tollCalculator,
+          tollCalculator = services.tollCalculator,
           eventsManager = eventsManager,
           parkingManager = parkingManager,
           transitDriverId = Id.create(tramId.toString, classOf[TransitDriverAgent]),
           vehicle = tram,
           Array(tramLeg.beamLeg),
           new GeoUtilsImpl(beamConfig),
-          networkHelper
+          services.networkHelper
         )
       )
 
@@ -292,7 +292,7 @@ class PersonAndTransitDriverSpec
           modeChoiceCalculatorFactory = _ => modeChoiceCalculator,
           schedulerRef = scheduler,
           transportNetwork = beamScenario.transportNetwork,
-          tollCalculator,
+          services.tollCalculator,
           router = self,
           rideHailManager = self,
           parkingManager = parkingManager,

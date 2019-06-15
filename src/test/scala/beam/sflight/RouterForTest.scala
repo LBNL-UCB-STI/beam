@@ -3,7 +3,6 @@ package beam.sflight
 import akka.actor.{ActorRef, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKitBase}
 import beam.router.BeamRouter
-import beam.sim.BeamScenario
 import beam.sim.common.GeoUtilsImpl
 import beam.utils.{NetworkHelperImpl, SimRunnerForTest}
 import org.scalatest.{BeforeAndAfterAll, Suite}
@@ -17,7 +16,7 @@ trait RouterForTest extends BeforeAndAfterAll with ImplicitSender {
 
   override def beforeAll: Unit = {
     super.beforeAll()
-    val beamScenario = injector.getInstance(classOf[BeamScenario])
+    val beamScenario = services.beamScenario
     router = system.actorOf(
       BeamRouter.props(
         beamScenario,
@@ -27,8 +26,8 @@ trait RouterForTest extends BeforeAndAfterAll with ImplicitSender {
         new GeoUtilsImpl(beamScenario.beamConfig),
         scenario,
         scenario.getTransitVehicles,
-        fareCalculator,
-        tollCalculator
+        services.fareCalculator,
+        services.tollCalculator
       )
     )
     services.beamRouter = router // :-(

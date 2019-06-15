@@ -15,7 +15,6 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg}
-import org.matsim.core.events.EventsUtils
 import org.matsim.core.events.handler.BasicEventHandler
 import org.scalatest._
 
@@ -55,7 +54,7 @@ class SingleModeSpec
           }
         }
       val events = mutable.ListBuffer[Event]()
-      eventsManager.addHandler(
+      services.matsimServices.getEvents.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
             event match {
@@ -70,9 +69,9 @@ class SingleModeSpec
         services,
         beamScenario,
         beamScenario.transportNetwork,
-        tollCalculator,
+        services.tollCalculator,
         scenario,
-        eventsManager,
+        services.matsimServices.getEvents,
         system,
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
@@ -80,7 +79,7 @@ class SingleModeSpec
         new BeamSkimmer(beamScenario, services.geo),
         new TravelTimeObserved(beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
-        networkHelper
+        services.networkHelper
       )
       mobsim.run()
 
@@ -108,7 +107,7 @@ class SingleModeSpec
           }
         }
       val events = mutable.ListBuffer[Event]()
-      eventsManager.addHandler(
+      services.matsimServices.getEvents.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
             event match {
@@ -123,9 +122,9 @@ class SingleModeSpec
         services,
         beamScenario,
         beamScenario.transportNetwork,
-        tollCalculator,
+        services.tollCalculator,
         scenario,
-        eventsManager,
+        services.matsimServices.getEvents,
         system,
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
@@ -133,7 +132,7 @@ class SingleModeSpec
         new BeamSkimmer(beamScenario, services.geo),
         new TravelTimeObserved(beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
-        networkHelper
+        services.networkHelper
       )
       mobsim.run()
 
@@ -180,7 +179,7 @@ class SingleModeSpec
           }
         }
       val events = mutable.ListBuffer[Event]()
-      eventsManager.addHandler(
+      services.matsimServices.getEvents.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
             event match {
@@ -195,9 +194,9 @@ class SingleModeSpec
         services,
         beamScenario,
         beamScenario.transportNetwork,
-        tollCalculator,
+        services.tollCalculator,
         scenario,
-        eventsManager,
+        services.matsimServices.getEvents,
         system,
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
@@ -205,7 +204,7 @@ class SingleModeSpec
         new BeamSkimmer(beamScenario, services.geo),
         new TravelTimeObserved(beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
-        networkHelper
+        services.networkHelper
       )
       mobsim.run()
 
@@ -256,7 +255,7 @@ class SingleModeSpec
           }
         }
       val events = mutable.ListBuffer[Event]()
-      eventsManager.addHandler(
+      services.matsimServices.getEvents.addHandler(
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
             event match {
@@ -273,9 +272,9 @@ class SingleModeSpec
         services,
         beamScenario,
         beamScenario.transportNetwork,
-        tollCalculator,
+        services.tollCalculator,
         scenario,
-        eventsManager,
+        services.matsimServices.getEvents,
         system,
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
@@ -283,7 +282,7 @@ class SingleModeSpec
         new BeamSkimmer(beamScenario, services.geo),
         new TravelTimeObserved(beamScenario, services.geo),
         new GeoUtilsImpl(services.beamConfig),
-        networkHelper
+        services.networkHelper
       )
       mobsim.run()
 

@@ -45,8 +45,8 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       val expectedSpeed = 20
       assume(fastBike.maxVelocity.get == expectedSpeed)
 
-      val origin = geoUtil.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
-      val destination = geoUtil.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
+      val origin = services.geo.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
+      val destination = services.geo.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
       val time = 25740
       router ! RoutingRequest(
         origin,
@@ -165,8 +165,8 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
     }
 
     "respond with a walk and a car route for going from downtown SF to Treasure Island" in {
-      val origin = geoUtil.wgs2Utm(new Coord(-122.439194, 37.785368))
-      val destination = geoUtil.wgs2Utm(new Coord(-122.3712, 37.815819))
+      val origin = services.geo.wgs2Utm(new Coord(-122.439194, 37.785368))
+      val destination = services.geo.wgs2Utm(new Coord(-122.3712, 37.815819))
       val time = 27840
       router ! RoutingRequest(
         origin,

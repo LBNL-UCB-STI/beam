@@ -2,13 +2,9 @@ package beam.utils
 import java.io.File
 
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.router.gtfs.FareCalculator
-import beam.router.osm.TollCalculator
-import beam.sim.{BeamHelper, BeamScenario, BeamServices, BeamServicesImpl}
-import beam.sim.common.GeoUtils
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.{BeamHelper, BeamScenario, BeamServices, BeamServicesImpl}
 import com.google.inject.Injector
-import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.matsim.core.scenario.MutableScenario
 import org.scalatest.{BeforeAndAfterAll, Suite}
@@ -29,12 +25,6 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll { this: Suite =
   var scenario: MutableScenario = _
   var injector: Injector = _
   var services: BeamServices = _
-
-  def fareCalculator: FareCalculator = injector.getInstance(classOf[FareCalculator])
-  def tollCalculator: TollCalculator = injector.getInstance(classOf[TollCalculator])
-  def geoUtil: GeoUtils = injector.getInstance(classOf[GeoUtils])
-  def networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
-  def eventsManager: EventsManager = injector.getInstance(classOf[EventsManager])
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()

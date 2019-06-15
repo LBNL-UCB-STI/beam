@@ -17,8 +17,8 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
 
   "A router" must {
     "respond with a route to a first reasonable RoutingRequest" in {
-      val origin = geoUtil.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
-      val destination = geoUtil.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
+      val origin = services.geo.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
+      val destination = services.geo.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
       val time = 25740
       router ! RoutingRequest(
         origin,
@@ -113,8 +113,8 @@ class SfLightRouterTransitSpec extends AbstractSfLightSpec("SfLightRouterTransit
     }
 
     "respond with a BART route without transfer having cost 1.95 USD." in {
-      val origin = geoUtil.wgs2Utm(new Coord(-122.41969, 37.76506)) // 16th St. Mission
-      val destination = geoUtil.wgs2Utm(new Coord(-122.40686, 37.784992)) // Powell St.
+      val origin = services.geo.wgs2Utm(new Coord(-122.41969, 37.76506)) // 16th St. Mission
+      val destination = services.geo.wgs2Utm(new Coord(-122.40686, 37.784992)) // Powell St.
       val time = 51840
       router ! RoutingRequest(
         origin,
