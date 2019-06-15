@@ -226,7 +226,10 @@ object PopulationAdjustment extends LazyLogging {
         .flatMap(attrib => Option(attrib.getAttribute("modality-style")).map(_.toString))
 
     // Read household attributes for the person
-    val householdAttributes = HouseholdAttributes(household, agentsim.agents.Population.getVehiclesFromHousehold(household, beamServices.beamScenario))
+    val householdAttributes = HouseholdAttributes(
+      household,
+      agentsim.agents.Population.getVehiclesFromHousehold(household, beamServices.beamScenario)
+    )
 
     // Read person attribute "valueOfTime", use function of HH income if not, and default it to the respective config value if neither is found
     val valueOfTime: Double =

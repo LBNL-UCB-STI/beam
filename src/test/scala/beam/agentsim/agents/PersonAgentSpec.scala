@@ -36,7 +36,7 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.scalatest.FunSpecLike
 import org.scalatest.mockito.MockitoSugar
 
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 
 class PersonAgentSpec extends FunSpecLike with TestKitBase with SimRunnerForTest with MockitoSugar with ImplicitSender {
 
