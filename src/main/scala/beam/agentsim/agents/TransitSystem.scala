@@ -1,10 +1,8 @@
 package beam.agentsim.agents
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy}
-import akka.util.Timeout
+import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Terminated}
+import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -44,14 +42,30 @@ class TransitSystem(
       case _: Exception      => Stop
       case _: AssertionError => Stop
     }
-  private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   initDriverAgents()
   log.info("Transit schedule has been initialized")
 
-  override def receive: Receive = {
+  override def receive: PartialFunction[Any, Unit] = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       sender ! CompletionNotice(triggerId, Vector())
+    case Terminated(_) =>
+    // Do nothing
+    case Finish =>
+      context.children.foreach(_ ! Finish)
+      dieIfNoChildren()
+      context.become {
+        case Terminated(_) =>
+          dieIfNoChildren()
+      }
+  }
+
+  def dieIfNoChildren(): Unit = {
+    if (context.children.isEmpty) {
+      context.stop(self)
+    } else {
+      log.debug("Remaining: {}", context.children)
+    }
   }
 
   private def initDriverAgents(): Unit = {
@@ -74,6 +88,7 @@ class TransitSystem(
             networkHelper
           )
           val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
+          context.watch(transitDriver)
           scheduler ! ScheduleTrigger(InitializeTrigger(0), transitDriver)
         }
     }

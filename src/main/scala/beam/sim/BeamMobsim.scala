@@ -188,7 +188,7 @@ class BeamMobsimIteration(
   sharedVehicleFleets.foreach(context.watch)
   sharedVehicleFleets.foreach(scheduler ! ScheduleTrigger(InitializeTrigger(0), _))
 
-  val transitSystem = context.actorOf(
+  private val transitSystem = context.actorOf(
     Props(
       new TransitSystem(
         beamScenario,
@@ -259,10 +259,10 @@ class BeamMobsimIteration(
 
       population ! Finish
       rideHailManager ! Finish
+      transitSystem ! Finish
       context.stop(scheduler)
       context.stop(errorListener)
       context.stop(parkingManager)
-      context.stop(transitSystem)
       sharedVehicleFleets.foreach(context.stop)
       if (beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
         debugActorWithTimerCancellable.cancel()
