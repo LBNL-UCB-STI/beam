@@ -483,6 +483,7 @@ class RideHailManager(
 
   log.info(
     s"""
+       |vehicleState: ${vehicleManager.vehicleState.keySet.size}
        |notMovedAtAll: ${rhs.getRideHailUtilization.notMovedAtAll.size}
        |movedWithoutPassenger: ${rhs.getRideHailUtilization.movedWithoutPassenger.size}
        |movedWithPassengers: ${rhs.getRideHailUtilization.movedWithPassengers.size}
@@ -540,6 +541,9 @@ class RideHailManager(
   var timeSpendForHandleRideHailInquiryMs: Long = 0
   var nHandleRideHailInquiry: Int = 0
 
+  var timeSpendForFindAllocationsAndProcessMs: Long = 0
+  var nFindAllocationsAndProcess: Int = 0
+
   override def receive: Receive = LoggingReceive {
     case "tick" =>
       log.info("tick! waitingToReposition size: {} ", modifyPassengerScheduleManager.waitingToReposition.size)
@@ -547,10 +551,13 @@ class RideHailManager(
         val stash = method.invoke(this).asInstanceOf[Vector[AkkaEnvelope]]
         log.info(s"tick! The following messages are stashed: ${stash}")
       }
-      val avg = timeSpendForHandleRideHailInquiryMs.toDouble / nHandleRideHailInquiry
-      log.info(s"timeSpendForHandleRideHailInquiryMs: $timeSpendForHandleRideHailInquiryMs, nHandleRideHailInquiry: $nHandleRideHailInquiry. AVG: $avg")
+      log.info(s"timeSpendForHandleRideHailInquiryMs: $timeSpendForHandleRideHailInquiryMs, nHandleRideHailInquiry: $nHandleRideHailInquiry. AVG: ${timeSpendForHandleRideHailInquiryMs.toDouble / nHandleRideHailInquiry}")
       timeSpendForHandleRideHailInquiryMs = 0
       nHandleRideHailInquiry = 0
+
+      log.info(s"timeSpendForFindAllocationsAndProcessMs: $timeSpendForFindAllocationsAndProcessMs, nFindAllocationsAndProcess: $nFindAllocationsAndProcess. AVG: ${timeSpendForFindAllocationsAndProcessMs.toDouble / nFindAllocationsAndProcess}")
+      timeSpendForFindAllocationsAndProcessMs = 0
+      nFindAllocationsAndProcess = 0
 
     case LogActorState =>
       ReflectionUtils.logFields(log, this, 0)
@@ -1323,6 +1330,7 @@ class RideHailManager(
    * The differences are resolved through the boolean processBufferedRequestsOnTimeout.
    */
   private def findAllocationsAndProcess(tick: Int) = {
+    val s = System.currentTimeMillis()
     var allRoutesRequired: List[RoutingRequest] = List()
     log.debug("findAllocationsAndProcess @ {}", tick)
 
@@ -1361,6 +1369,9 @@ class RideHailManager(
       rideHailResourceAllocationManager.clearPrimaryBufferAndFillFromSecondary
       cleanUp
     }
+    val diff = System.currentTimeMillis() - s
+    timeSpendForFindAllocationsAndProcessMs += diff
+    nFindAllocationsAndProcess += 1
   }
 
   //TODO this doesn't distinguish fare by customer, lumps them all together
