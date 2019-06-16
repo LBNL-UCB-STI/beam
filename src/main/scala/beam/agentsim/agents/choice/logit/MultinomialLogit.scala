@@ -31,7 +31,7 @@ class MultinomialLogit[A, T](
     */
   def sampleAlternative(
     alternatives: Map[A, Map[T, Double]],
-    random: Random,
+    random: Random
   ): Option[MultinomialLogit.MNLSample[A]] = {
     if (alternatives.isEmpty) None
     else {
