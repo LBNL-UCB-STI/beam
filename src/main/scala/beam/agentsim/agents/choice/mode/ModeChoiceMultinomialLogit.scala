@@ -33,8 +33,8 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
-    attributesOfIndividual: AttributesOfIndividual, // TODO: XXXX should get personInfo here and log
-    destinationActivity: Option[Activity],
+    attributesOfIndividual: AttributesOfIndividual,
+    destinationActivity: Option[Activity]
   ): Option[EmbodiedBeamTrip] = {
     if (alternatives.isEmpty) {
       None
