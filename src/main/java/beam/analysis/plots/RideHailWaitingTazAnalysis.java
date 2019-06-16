@@ -58,7 +58,7 @@ public class RideHailWaitingTazAnalysis implements GraphAnalysis {
                 //process and add the waiting time to the total time spent by all the passengers on waiting for a ride hail
                 ReserveRideHailEvent reserveRideHailEvent = (ReserveRideHailEvent) rideHailWaitingQueue.get(_personId);
                 Coord pickupCoord = beamServices.geo().wgs2Utm(new Coord(reserveRideHailEvent.originX, reserveRideHailEvent.originY));
-                TAZ pickUpLocationTAZ = beamServices.tazTreeMap().getTAZ(pickupCoord.getX(),pickupCoord.getY());
+                TAZ pickUpLocationTAZ = beamServices.beamScenario().tazTreeMap().getTAZ(pickupCoord.getX(),pickupCoord.getY());
                 double waitingTime = personEntersVehicleEvent.getTime() - reserveRideHailEvent.getTime();
                 processRideHailWaitingTimesAndTaz(reserveRideHailEvent, waitingTime,pickUpLocationTAZ);
                 // Remove the passenger from the waiting queue , as the passenger entered the vehicle.

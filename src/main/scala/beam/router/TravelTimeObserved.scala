@@ -3,15 +3,13 @@ import java.awt.geom.Ellipse2D
 import java.awt.{BasicStroke, Color}
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.infrastructure.taz.TAZTreeMap
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.CAR
+import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.sim.BeamServices
+import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
-import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, GeoJsonReader, ProfilingUtils}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -29,16 +27,18 @@ import org.opengis.feature.Feature
 import org.opengis.feature.simple.SimpleFeature
 import org.supercsv.io.{CsvMapReader, ICsvMapReader}
 import org.supercsv.prefs.CsvPreference
+
 import scala.collection.mutable
 
 class TravelTimeObserved @Inject()(
-  val beamConfig: BeamConfig,
-  val beamServices: BeamServices
+  val beamScenario: BeamScenario,
+  val geo: GeoUtils
 ) extends LazyLogging {
   import TravelTimeObserved._
+  import beamScenario._
 
   @volatile
-  private var skimmer: BeamSkimmer = new BeamSkimmer(beamConfig, beamServices)
+  private var skimmer: BeamSkimmer = new BeamSkimmer(beamScenario, geo)
 
   private val observedTravelTimesOpt: Option[Map[PathCache, Float]] = {
     val zoneBoundariesFilePath = beamConfig.beam.calibration.roadNetwork.travelTimes.zoneBoundariesFilePath
@@ -47,8 +47,8 @@ class TravelTimeObserved @Inject()(
     if (zoneBoundariesFilePath.nonEmpty && zoneODTravelTimesFilePath.nonEmpty) {
       val tazToMovId: Map[TAZ, Int] = buildTAZ2MovementId(
         zoneBoundariesFilePath,
-        beamServices.geo,
-        beamServices.tazTreeMap
+        geo,
+        tazTreeMap
       )
       val movId2Taz: Map[Int, TAZ] = tazToMovId.map { case (k, v) => v -> k }
       Some(buildPathCache2TravelTime(zoneODTravelTimesFilePath, movId2Taz))
@@ -73,13 +73,18 @@ class TravelTimeObserved @Inject()(
         carLeg.beamLeg.startTime,
         Id.createVehicleId(""),
         isLastLeg = false,
-        carLeg.beamLeg.travelPath.startPoint.loc
+        carLeg.beamLeg.travelPath.startPoint.loc,
+        WALK,
+        dummyId
       )
+
       val dummyTail = EmbodiedBeamLeg.dummyLegAt(
         carLeg.beamLeg.endTime,
         Id.createVehicleId(""),
         isLastLeg = true,
-        carLeg.beamLeg.travelPath.endPoint.loc
+        carLeg.beamLeg.travelPath.endPoint.loc,
+        WALK,
+        dummyId
       )
       // In case of `CAV` we have to override its mode to `CAR`
       val fixedCarLeg = if (carLeg.beamLeg.mode == BeamMode.CAV) {
@@ -88,13 +93,13 @@ class TravelTimeObserved @Inject()(
         carLeg
       }
       val carTrip = EmbodiedBeamTrip(Vector(dummyHead, fixedCarLeg, dummyTail))
-      skimmer.observeTrip(carTrip, generalizedTimeInHours, generalizedCost, energyConsumption, beamServices)
+      skimmer.observeTrip(carTrip, generalizedTimeInHours, generalizedCost, energyConsumption)
     }
   }
 
   def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     writeTravelTimeObservedVsSimulated(event)
-    skimmer = new BeamSkimmer(beamConfig, beamServices)
+    skimmer = new BeamSkimmer(beamScenario, geo)
   }
 
   def writeTravelTimeObservedVsSimulated(event: IterationEndsEvent): Unit = {
@@ -121,9 +126,9 @@ class TravelTimeObserved @Inject()(
     val categoryDataset = new HistogramDataset()
     var deltasOfObservedSimulatedTimes = new mutable.ListBuffer[Double]
 
-    beamServices.tazTreeMap.getTAZs
+    tazTreeMap.getTAZs
       .foreach { origin =>
-        beamServices.tazTreeMap.getTAZs.foreach { destination =>
+        tazTreeMap.getTAZs.foreach { destination =>
           uniqueModes.foreach { mode =>
             uniqueTimeBins
               .foreach { timeBin =>

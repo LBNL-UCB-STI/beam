@@ -3,7 +3,7 @@ package beam.utils
 import java.util
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.FuelType.{FuelType}
+import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles._
 import org.matsim.api.core.v01.Id
 import org.matsim.households.Household
@@ -50,10 +50,7 @@ object BeamVehicleUtils {
     }
   }
 
-  def readBeamVehicleTypeFile(
-    filePath: String,
-    fuelTypePrices: scala.collection.Map[FuelType, Double]
-  ): Map[Id[BeamVehicleType], BeamVehicleType] = {
+  def readBeamVehicleTypeFile(filePath: String): Map[Id[BeamVehicleType], BeamVehicleType] = {
     readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicleType], BeamVehicleType]()) {
       case (line: util.Map[String, String], z) =>
         val vIdString = line.get("vehicleTypeId")

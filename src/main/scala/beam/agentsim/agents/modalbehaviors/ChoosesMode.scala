@@ -11,15 +11,13 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token, 
 import beam.agentsim.agents.ridehail.{RideHailInquiry, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{VehiclePersonId, _}
+import beam.agentsim.agents.vehicles.{PersonIdWithActorRef, _}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
-import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
-import beam.agentsim.infrastructure.ParkingStall
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter._
-import beam.router.Modes
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode._
+import beam.router.Modes.BeamMode.{WALK, _}
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.R5RoutingWorker
 import beam.sim.Geofence
@@ -44,13 +42,13 @@ trait ChoosesMode {
   val dummyRHVehicle =
     StreetVehicle(
       Id.create("dummyRH", classOf[Vehicle]),
-      BeamVehicleType.defaultCarBeamVehicleType.id,
+      Id.create("Car", classOf[BeamVehicleType]),
       SpaceTime(0.0, 0.0, 0),
       CAR,
       asDriver = false
     )
 
-  def bodyVehiclePersonId = VehiclePersonId(body.id, id, self)
+  def bodyVehiclePersonId = PersonIdWithActorRef(id, self)
 
   def boundingBox: Envelope
 
@@ -64,7 +62,7 @@ trait ChoosesMode {
       nextStateData match {
         // If I am already on a tour in a vehicle, only that vehicle is available to me
         case ChoosesModeData(
-            BasePersonData(_, _, _, _, currentModeOpt, Some(vehicle), _, _, _, _, _),
+            BasePersonData(_, _, _, _, _, Some(vehicle), _, _, _, _, _),
             _,
             _,
             _,
@@ -83,7 +81,7 @@ trait ChoosesMode {
             _,
             _,
             _
-            ) if currentModeOpt.isEmpty || currentModeOpt.get != CAV =>
+            ) =>
           self ! MobilityStatusResponse(Vector(beamVehicles(vehicle)))
         // Only need to get available street vehicles if our mode requires such a vehicle
         case ChoosesModeData(
@@ -92,7 +90,7 @@ trait ChoosesMode {
               _,
               _,
               _,
-              None | Some(CAR | CAV | BIKE | DRIVE_TRANSIT),
+              None | Some(CAR | BIKE | DRIVE_TRANSIT),
               _,
               _,
               _,
@@ -161,11 +159,7 @@ trait ChoosesMode {
         case Some(mode)
             if availableModes
               .contains(mode) && choosesModeData.personData.numberOfReplanningAttempts < beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts =>
-          if (mode == CAV && newlyAvailableBeamVehicles.find(_.streetVehicle.mode == CAV).isEmpty) {
-            None
-          } else {
-            Some(mode)
-          }
+          Some(mode)
         case Some(mode) if availableModes.contains(mode) =>
           Some(WALK)
         case None
@@ -177,7 +171,7 @@ trait ChoosesMode {
 
       val bodyStreetVehicle = StreetVehicle(
         body.id,
-        BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+        body.beamVehicleType.id,
         currentPersonLocation,
         WALK,
         asDriver = true
@@ -187,7 +181,7 @@ trait ChoosesMode {
 
       var availablePersonalStreetVehicles =
         correctedCurrentTourMode match {
-          case None | Some(CAR | CAV | BIKE) =>
+          case None | Some(CAR | BIKE) =>
             // In these cases, a personal vehicle will be involved
             newlyAvailableBeamVehicles
           case Some(DRIVE_TRANSIT) =>
@@ -431,7 +425,7 @@ trait ChoosesMode {
         choosesModeData: ChoosesModeData
         ) if choosesModeData.rideHail2TransitRoutingRequestId.contains(requestId) =>
       theRouterResult.itineraries.view.foreach { resp =>
-        resp.beamLegs().filter(_.mode == CAR).foreach { leg =>
+        resp.beamLegs.filter(_.mode == CAR).foreach { leg =>
           routeHistory.rememberRoute(leg.travelPath.linkIds, leg.startTime)
         }
       }
@@ -501,7 +495,7 @@ trait ChoosesMode {
       stay() using newPersonData
     case Event(response: RoutingResponse, choosesModeData: ChoosesModeData) =>
       response.itineraries.view.foreach { resp =>
-        resp.beamLegs().filter(_.mode == CAR).foreach { leg =>
+        resp.beamLegs.filter(_.mode == CAR).foreach { leg =>
           routeHistory.rememberRoute(leg.travelPath.linkIds, leg.startTime)
         }
       }
@@ -520,7 +514,7 @@ trait ChoosesMode {
             val startLeg = EmbodiedBeamLeg(
               BeamLeg.dummyLeg(trip.legs.head.beamLeg.startTime, trip.legs.head.beamLeg.travelPath.startPoint.loc),
               body.id,
-              BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+              body.beamVehicleType.id,
               asDriver = true,
               0,
               unbecomeDriverOnCompletion = false
@@ -533,7 +527,7 @@ trait ChoosesMode {
             val endLeg = EmbodiedBeamLeg(
               BeamLeg.dummyLeg(trip.legs.last.beamLeg.endTime, trip.legs.last.beamLeg.travelPath.endPoint.loc),
               body.id,
-              BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+              body.beamVehicleType.id,
               asDriver = true,
               0,
               unbecomeDriverOnCompletion = true
@@ -576,7 +570,7 @@ trait ChoosesMode {
     rideHail2TransitResult: Option[RideHailResponse]
   ): Boolean = {
     driveTransitTrip.isDefined && driveTransitTrip.get.legs
-      .exists(leg => beamServices.rideHailTransitModes.contains(leg.beamLeg.mode)) &&
+      .exists(leg => beamScenario.rideHailTransitModes.contains(leg.beamLeg.mode)) &&
     rideHail2TransitResult.getOrElse(RideHailResponse.DUMMY).error.isEmpty
   }
 
@@ -706,11 +700,19 @@ trait ChoosesMode {
               fullTrip.head.beamLeg.startTime,
               body.id,
               false,
-              fullTrip.head.beamLeg.travelPath.startPoint.loc
+              fullTrip.head.beamLeg.travelPath.startPoint.loc,
+              WALK,
+              body.beamVehicleType.id
             ) +:
             fullTrip :+
-            EmbodiedBeamLeg
-              .dummyLegAt(fullTrip.last.beamLeg.endTime, body.id, true, fullTrip.last.beamLeg.travelPath.endPoint.loc)
+            EmbodiedBeamLeg.dummyLegAt(
+              fullTrip.last.beamLeg.endTime,
+              body.id,
+              true,
+              fullTrip.last.beamLeg.travelPath.endPoint.loc,
+              WALK,
+              body.beamVehicleType.id
+            )
           )
         )
       }
@@ -837,14 +839,18 @@ trait ChoosesMode {
                 partialItin.head.beamLeg.startTime,
                 body.id,
                 false,
-                partialItin.head.beamLeg.travelPath.startPoint.loc
+                partialItin.head.beamLeg.travelPath.startPoint.loc,
+                WALK,
+                body.beamVehicleType.id
               ) +:
               partialItin :+
               EmbodiedBeamLeg.dummyLegAt(
                 partialItin.last.beamLeg.endTime,
                 body.id,
                 true,
-                partialItin.last.beamLeg.travelPath.endPoint.loc
+                partialItin.last.beamLeg.travelPath.endPoint.loc,
+                WALK,
+                body.beamVehicleType.id
               ))
             )
           }
@@ -903,48 +909,35 @@ trait ChoosesMode {
             case Some(CAV) =>
               // Special case, if you are using household CAV, no choice was necessary you just use this mode
               // Construct the embodied trip to allow for processing by FinishingModeChoice and scoring
-              assert(choosesModeData.availablePersonalStreetVehicles.nonEmpty)
-              val walk1 = EmbodiedBeamLeg.dummyLegAt(
-                _currentTick.get,
-                body.id,
-                isLastLeg = false,
-                if (cavTripLegs.legs.isEmpty) {
-                  beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc)
-                } else {
-                  cavTripLegs.legs.head.beamLeg.travelPath.startPoint.loc
-                }
-              )
-              val cavLegs = cavTripLegs.legs.size match {
-                case 0 =>
-                  List(
-                    EmbodiedBeamLeg.dummyLegAt(
-                      _currentTick.get,
-                      body.id,
-                      isLastLeg = false,
-                      beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc),
-                      CAV,
-                      cavTripLegs.cavOpt
-                        .map(_.beamVehicleType.id)
-                        .getOrElse(BeamVehicleType.defaultCarBeamVehicleType.id),
-                      false
-                    )
-                  )
-                case _ =>
-                  cavTripLegs.legs
-              }
-              val walk2 =
-                EmbodiedBeamLeg.dummyLegAt(
-                  _currentTick.get + cavLegs.map(_.beamLeg.duration).sum,
+              if (cavTripLegs.legs.nonEmpty) {
+                val walk1 = EmbodiedBeamLeg.dummyLegAt(
+                  _currentTick.get,
+                  body.id,
+                  isLastLeg = false,
+                  cavTripLegs.legs.head.beamLeg.travelPath.startPoint.loc,
+                  WALK,
+                  body.beamVehicleType.id
+                )
+                val walk2 = EmbodiedBeamLeg.dummyLegAt(
+                  _currentTick.get + cavTripLegs.legs.map(_.beamLeg.duration).sum,
                   body.id,
                   isLastLeg = true,
-                  if (cavTripLegs.legs.isEmpty) {
-                    beamServices.geo.utm2Wgs(choosesModeData.currentLocation.loc)
-                  } else {
-                    cavTripLegs.legs.last.beamLeg.travelPath.endPoint.loc
-                  }
+                  cavTripLegs.legs.last.beamLeg.travelPath.endPoint.loc,
+                  WALK,
+                  body.beamVehicleType.id
                 )
-              val cavTrip = EmbodiedBeamTrip(walk1 +: cavLegs.toVector :+ walk2)
-              goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(cavTrip))
+                val cavTrip = EmbodiedBeamTrip(walk1 +: cavTripLegs.legs.toVector :+ walk2)
+                goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(cavTrip))
+              } else {
+                val bushwhackingTrip = R5RoutingWorker.createBushwackingTrip(
+                  choosesModeData.currentLocation.loc,
+                  nextActivity(choosesModeData.personData).get.getCoord,
+                  _currentTick.get,
+                  body.toStreetVehicle,
+                  geo
+                )
+                goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(bushwhackingTrip))
+              }
             case _ =>
               // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
               val originalWalkTripLeg =
@@ -958,7 +951,7 @@ trait ChoosesMode {
                         beamServices.geo.utm2Wgs(nextAct.getCoord),
                         _currentTick.get,
                         body.toStreetVehicle,
-                        beamServices
+                        beamServices.geo
                       )
                       .legs
                       .head
@@ -1186,7 +1179,7 @@ object ChoosesMode {
 
   case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[Vehicle])
 
-  case class CavTripLegsRequest(person: VehiclePersonId, originActivity: Activity)
+  case class CavTripLegsRequest(person: PersonIdWithActorRef, originActivity: Activity)
   case class CavTripLegsResponse(cavOpt: Option[BeamVehicle], legs: List[EmbodiedBeamLeg])
 
 }

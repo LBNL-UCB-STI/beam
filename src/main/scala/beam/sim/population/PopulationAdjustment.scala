@@ -9,6 +9,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Person, Population => MPopulation}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.population.PersonUtils
+import org.matsim.households.Household
 
 import scala.collection.JavaConverters._
 
@@ -27,10 +28,16 @@ trait PopulationAdjustment extends LazyLogging {
     * @return updated population
     */
   def updateAttributes(population: MPopulation): MPopulation = {
+    val personHouseholds = beamServices.matsimServices.getScenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
+      .toMap
+
     //Iterate over each person in the population
     population.getPersons.asScala.foreach {
       case (_, person) =>
-        val attributes = createAttributesOfIndividual(beamServices, population, person)
+        val attributes = createAttributesOfIndividual(beamServices, population, person, personHouseholds(person.getId))
         person.getCustomAttributes.put(PopulationAdjustment.BEAM_ATTRIBUTES, attributes)
     }
     population
@@ -199,7 +206,8 @@ object PopulationAdjustment extends LazyLogging {
   def createAttributesOfIndividual(
     beamServices: BeamServices,
     population: MPopulation,
-    person: Person
+    person: Person,
+    household: Household
   ): AttributesOfIndividual = {
     val personAttributes = population.getPersonAttributes
     // Read excluded-modes set for the person and calculate the possible available modes for the person
@@ -218,12 +226,11 @@ object PopulationAdjustment extends LazyLogging {
         .flatMap(attrib => Option(attrib.getAttribute("modality-style")).map(_.toString))
 
     // Read household attributes for the person
-    val householdAttributes = beamServices.personHouseholds.get(person.getId).fold(HouseholdAttributes.EMPTY) {
-      household =>
-        val houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle] =
-          agentsim.agents.Population.getVehiclesFromHousehold(household, beamServices)
-        HouseholdAttributes(household, houseHoldVehicles)
-    }
+    val householdAttributes = HouseholdAttributes(
+      household,
+      agentsim.agents.Population.getVehiclesFromHousehold(household, beamServices.beamScenario)
+    )
+
     // Read person attribute "valueOfTime", use function of HH income if not, and default it to the respective config value if neither is found
     val valueOfTime: Double =
       Option(personAttributes.getAttribute(person.getId.toString, "valueOfTime"))

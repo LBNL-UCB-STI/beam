@@ -14,9 +14,9 @@ import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
-import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
+import beam.sim.config.BeamConfig
 import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
@@ -40,14 +40,13 @@ import org.matsim.core.controler.listener.{
   ShutdownListener,
   StartupListener
 }
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
-
-import beam.sim.config.BeamConfig
 
 class BeamSim @Inject()(
   private val actorSystem: ActorSystem,
@@ -93,26 +92,27 @@ class BeamSim @Inject()(
     metricsPrinter ! Subscribe("counter", "**")
     metricsPrinter ! Subscribe("histogram", "**")
 
-    val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
-        beamServices,
+        beamServices.beamScenario,
         transportNetwork,
         scenario.getNetwork,
+        networkHelper,
+        beamServices.geo,
         scenario,
-        eventsManager,
         scenario.getTransitVehicles,
-        fareCalculator,
+        beamServices.fareCalculator,
         tollCalculator
       ),
       "router"
     )
+    val maxHour = TimeUnit.SECONDS.toHours(scenario.getConfig.travelTimeCalculator().getMaxTime).toInt
+    val warmStart = BeamWarmStart(beamServices.beamConfig, maxHour)
+    warmStart.warmStartTravelTime(beamServices.beamRouter, scenario)
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
     /*    if(null != beamServices.beamConfig.beam.agentsim.taz.file && !beamServices.beamConfig.beam.agentsim.taz.file.isEmpty)
           beamServices.taz = TAZTreeMap.fromCsv(beamServices.beamConfig.beam.agentsim.taz.file)*/
-
-    beamServices.matsimServices = event.getServices
 
     if (!beamServices.beamConfig.beam.physsim.skipPhysSim) {
       agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(
@@ -168,7 +168,7 @@ class BeamSim @Inject()(
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     beamConfigChangesObservable.notifyChangeToSubscribers()
     ExponentialLazyLogging.reset()
-    beamServices.privateVehicles.values.foreach(_.initializeFuelLevels)
+    beamServices.beamScenario.privateVehicles.values.foreach(_.initializeFuelLevels)
     val controllerIO = event.getServices.getControlerIO
     if (isFirstIteration(event.getIteration)) {
       PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv"))

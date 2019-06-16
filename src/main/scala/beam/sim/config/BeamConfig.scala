@@ -52,6 +52,7 @@ object BeamConfig {
 
     object Agentsim {
       case class Agents(
+        bodyType: java.lang.String,
         households: BeamConfig.Beam.Agentsim.Agents.Households,
         modalBehaviors: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors,
         modeIncentive: BeamConfig.Beam.Agentsim.Agents.ModeIncentive,
@@ -1168,6 +1169,7 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents = {
           BeamConfig.Beam.Agentsim.Agents(
+            bodyType = if (c.hasPathOrNull("bodyType")) c.getString("bodyType") else "BODY-TYPE-DEFAULT",
             households = BeamConfig.Beam.Agentsim.Agents.Households(
               if (c.hasPathOrNull("households")) c.getConfig("households")
               else com.typesafe.config.ConfigFactory.parseString("households{}")
