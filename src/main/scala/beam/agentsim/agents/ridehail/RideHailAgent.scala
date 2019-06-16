@@ -276,16 +276,9 @@ class RideHailAgent(
         ) =>
       log.debug("state(RideHailAgent.OfflineForCharging.TriggerWithId(EndRefuelSessionTrigger)): {}", ev)
       holdTickAndTriggerId(tick, triggerId)
+      nextNotifyVehicleResourceIdle = nextNotifyVehicleResourceIdle.map(_.copy(triggerId = _currentTriggerId))
       val currentLocation = handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
       vehicle.spaceTime = SpaceTime(currentLocation, tick)
-      rideHailManager ! NotifyVehicleIdle(
-        vehicle.id,
-        vehicle.spaceTime.copy(time = tick),
-        PassengerSchedule(),
-        vehicle.getState,
-        geofence,
-        None
-      )
       goto(Idle)
   }
 
@@ -359,7 +352,7 @@ class RideHailAgent(
           data.passengerSchedule,
           vehicle.getState,
           geofence,
-          _currentTriggerId
+          Some(triggerId)
         )
       )
       stay()
@@ -605,14 +598,15 @@ class RideHailAgent(
         case Some(nextIdle) =>
           _currentTriggerId.foreach(
             log.debug(
-              "state(RideHailingAgent.awaiting NotifyVehicleResourceIdleReply) - triggerId: {}",
+              "RHA {}: state(transitioning to Idle NotifyVehicleResourceIdleReply) - ev: {}, triggerId: {}",id,
+              nextIdle,
               _
             )
           )
-
           if (_currentTriggerId != nextIdle.triggerId) {
             log.error(
-              "_currentTriggerId({}) and nextNotifyVehicleResourceIdle.triggerId({}) don't match - vehicleId({})",
+              "RHA {}: _currentTriggerId({}) and nextNotifyVehicleResourceIdle.triggerId({}) don't match - vehicleId({})",
+              id,
               _currentTriggerId,
               nextIdle.triggerId,
               vehicle.id
