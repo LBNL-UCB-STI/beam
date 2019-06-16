@@ -46,7 +46,6 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     val injector = buildInjector(config, scenario, beamScenario)
     val services = buildBeamServices(injector, scenario)
 
-
     runBeam(services, scenario, beamScenario, scenario.getConfig.controler().getOutputDirectory)
     personHouseholds = scenario.getHouseholds.getHouseholds
       .values()
