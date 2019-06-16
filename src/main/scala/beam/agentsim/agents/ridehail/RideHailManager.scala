@@ -518,7 +518,7 @@ class RideHailManager(
 
   import scala.concurrent.duration._
 
-  val maybeTick: Option[Cancellable] = if (beamServices.beamConfig.beam.debug.debugEnabled) {
+  val maybeTick: Option[Cancellable] = if (true) {
     Some(context.system.scheduler.schedule(2.seconds, 60.seconds, self, "tick")(context.dispatcher))
   } else None
 
@@ -537,6 +537,9 @@ class RideHailManager(
     super.postStop()
   }
 
+  var timeSpendForHandleRideHailInquiryMs: Long = 0
+  var nHandleRideHailInquiry: Int = 0
+
   override def receive: Receive = LoggingReceive {
     case "tick" =>
       log.info("tick! waitingToReposition size: {} ", modifyPassengerScheduleManager.waitingToReposition.size)
@@ -544,6 +547,10 @@ class RideHailManager(
         val stash = method.invoke(this).asInstanceOf[Vector[AkkaEnvelope]]
         log.info(s"tick! The following messages are stashed: ${stash}")
       }
+      val avg = timeSpendForHandleRideHailInquiryMs.toDouble / nHandleRideHailInquiry
+      log.info(s"timeSpendForHandleRideHailInquiryMs: $timeSpendForHandleRideHailInquiryMs, nHandleRideHailInquiry: $nHandleRideHailInquiry. AVG: $avg")
+      timeSpendForHandleRideHailInquiryMs = 0
+      nHandleRideHailInquiry = 0
 
     case LogActorState =>
       ReflectionUtils.logFields(log, this, 0)
@@ -667,7 +674,11 @@ class RideHailManager(
       rideHailNetworkApi.setMATSimNetwork(network)
 
     case inquiry @ RideHailRequest(RideHailInquiry, _, _, _, _, _, _, _) =>
+      val s = System.currentTimeMillis
       handleRideHailInquiry(inquiry)
+      val diff = System.currentTimeMillis
+      nHandleRideHailInquiry += 1
+      timeSpendForHandleRideHailInquiryMs += diff
 
     case R5Network(network) =>
       rideHailNetworkApi.setR5Network(network)
