@@ -46,6 +46,11 @@ import org.matsim.core.controler._
   * so desired, but we would need our own replacement for [[Controler]], and refactor [[BeamSim]] and
   * [[BeamMobsim]]. Please don't create a global variable because you don't like the [[Injector]].
   *
+  * IMPORTANT: The code below is not typical code. It is the most atypical code. It is the implementation
+  * of a refactoring device. Real code never needs to directly reference the injector in any way, except
+  * in the outermost layer, the main method basically. If you see a reference to an injector in user code,
+  * please try to remove it.
+  *
   */
 @ImplementedBy(classOf[BeamServicesImpl])
 trait BeamServices {
