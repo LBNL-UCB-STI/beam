@@ -37,7 +37,7 @@ case class AttributesOfIndividual(
     beamMode: BeamMode,
     modeChoiceModel: ModeChoiceMultinomialLogit,
     beamServices: BeamServices,
-    beamVehicleTypeId: Option[Id[BeamVehicleType]] = None,
+    beamVehicleTypeId: Id[BeamVehicleType],
     destinationActivity: Option[Activity] = None,
     isRideHail: Boolean = false,
     isPooledTrip: Boolean = false
@@ -93,7 +93,7 @@ case class AttributesOfIndividual(
             embodiedBeamLeg.beamLeg.mode,
             modeChoiceModel,
             beamServices,
-            Option(embodiedBeamLeg.beamVehicleTypeId),
+            embodiedBeamLeg.beamVehicleTypeId,
             destinationActivity,
             embodiedBeamLeg.isRideHail,
             embodiedBeamLeg.isPooledTrip
@@ -110,21 +110,13 @@ case class AttributesOfIndividual(
   }
 
   private def getAutomationLevel(
-    beamVehicleTypeId: Option[Id[BeamVehicleType]],
-    beamServices: BeamServices
+    beamVehicleTypeId: Id[BeamVehicleType],
+    beamServices: BeamServices,
   ): automationLevel = {
-    val automationInt = beamVehicleTypeId match {
-      case Some(beamVehicleTypeId) =>
-        // Use default if it exists, otherwise look up from vehicle ID
-        beamServices
-          .getDefaultAutomationLevel()
-          .getOrElse(
-            beamServices.vehicleTypes
-              .getOrElse(beamVehicleTypeId, BeamVehicleType.defaultCarBeamVehicleType)
-              .automationLevel
-          )
-      case None =>
-        1
+    val automationInt = if (beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationForVOTT) {
+      beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationLevel
+    } else {
+      beamServices.beamScenario.vehicleTypes(beamVehicleTypeId).automationLevel
     }
     automationInt match {
       case 1 => levelLE2

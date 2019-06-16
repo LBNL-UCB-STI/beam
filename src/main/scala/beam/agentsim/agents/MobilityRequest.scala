@@ -1,6 +1,6 @@
 package beam.agentsim.agents
 import beam.agentsim.agents.planning.Trip
-import beam.agentsim.agents.vehicles.VehiclePersonId
+import beam.agentsim.agents.vehicles.PersonIdWithActorRef
 import beam.router.Modes.BeamMode
 import org.matsim.api.core.v01.population.Activity
 
@@ -11,7 +11,7 @@ case object Relocation extends MobilityRequestTrait { override def toString: Str
 case object Init extends MobilityRequestTrait { override def toString: String = "init" }
 
 case class MobilityRequest(
-  person: Option[VehiclePersonId],
+  person: Option[PersonIdWithActorRef],
   activity: Activity,
   time: Int,
   trip: Trip,

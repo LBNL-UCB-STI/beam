@@ -8,7 +8,7 @@ class VehicleTravelTimeAnalysisSpec extends GenericAnalysisSpec with Matchers {
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    val vehicleTypes = beamServices.vehicleTypes.keySet
+    val vehicleTypes = beamServices.beamScenario.vehicleTypes.keySet
     runAnalysis(new VehicleTravelTimeAnalysis(scenario, beamServices.networkHelper, vehicleTypes))
   }
 

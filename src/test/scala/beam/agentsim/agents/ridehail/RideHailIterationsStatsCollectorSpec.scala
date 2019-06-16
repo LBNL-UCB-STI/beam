@@ -13,7 +13,7 @@ class RideHailIterationsStatsCollectorSpec extends GenericEventsSpec with Matche
         events,
         beamServices,
         null,
-        networkCoordinator.transportNetwork
+        beamServices.beamScenario.transportNetwork
       )
 
       processHandlers(List(tncHandler))

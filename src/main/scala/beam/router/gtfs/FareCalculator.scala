@@ -5,11 +5,13 @@ import java.nio.file.{Files, Path, Paths}
 import java.util.zip.ZipFile
 
 import beam.router.gtfs.FareCalculator._
+import beam.sim.config.BeamConfig
 import com.conveyal.gtfs.GTFSFeed
+import javax.inject.Inject
 
-class FareCalculator(directory: String) {
+class FareCalculator @Inject()(beamConfig: BeamConfig) {
 
-  private val dataDirectory: Path = Paths.get(directory)
+  private val dataDirectory: Path = Paths.get(beamConfig.beam.routing.r5.directory)
   private val cacheFile: File = dataDirectory.resolve("fares.dat").toFile
 
   /**

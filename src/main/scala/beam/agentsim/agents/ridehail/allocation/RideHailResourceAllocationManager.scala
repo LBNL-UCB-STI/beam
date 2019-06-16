@@ -5,7 +5,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassenge
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, PoolingInfo}
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
-import beam.agentsim.agents.vehicles.VehiclePersonId
+import beam.agentsim.agents.vehicles.PersonIdWithActorRef
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.model.EmbodiedBeamLeg
 import com.typesafe.scalalogging.LazyLogging
@@ -277,7 +277,7 @@ case class VehicleMatchedToCustomers(
   rideHailAgentLocation: RideHailAgentLocation,
   pickDropIdWithRoutes: List[PickDropIdAndLeg]
 ) extends VehicleAllocation
-case class PickDropIdAndLeg(personId: Option[VehiclePersonId], leg: Option[EmbodiedBeamLeg])
+case class PickDropIdAndLeg(personId: Option[PersonIdWithActorRef], leg: Option[EmbodiedBeamLeg])
 
 case class AllocationRequests(requests: Map[RideHailRequest, List[RoutingResponse]])
 

@@ -8,8 +8,10 @@ import beam.router.Modes.BeamMode
 import beam.sim.{BeamServices, OutputDataDescription}
 import beam.utils.{FileUtils, OutputDataDescriptor}
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{Event, PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.core.controler.events.IterationEndsEvent
+import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -106,17 +108,15 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
              stop tracking the person
        */
       case personEntersVehicleEvent: PersonEntersVehicleEvent =>
-        if (personOutboundParkingStatsTracker.contains(personEntersVehicleEvent.getPersonId.toString) && BeamVehicleType
-              .isTransitVehicle(
-                personEntersVehicleEvent.getVehicleId
-              )) {
+        if (personOutboundParkingStatsTracker.contains(personEntersVehicleEvent.getPersonId.toString) && isTransitVehicle(
+              personEntersVehicleEvent.getVehicleId
+            )) {
           //stop tracking the person
           personOutboundParkingStatsTracker.remove(personEntersVehicleEvent.getPersonId.toString)
         }
-        if (personInboundParkingStatsTracker.contains(personEntersVehicleEvent.getPersonId.toString) && BeamVehicleType
-              .isTransitVehicle(
-                personEntersVehicleEvent.getVehicleId
-              )) {
+        if (personInboundParkingStatsTracker.contains(personEntersVehicleEvent.getPersonId.toString) && isTransitVehicle(
+              personEntersVehicleEvent.getVehicleId
+            )) {
           //stop tracking the person
           personInboundParkingStatsTracker.remove(personEntersVehicleEvent.getPersonId.toString)
         }
@@ -198,6 +198,10 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
       case _ =>
     }
   }
+
+  def isTransitVehicle(beamVehicleId: Id[Vehicle]): Boolean =
+    List("bus", "train", "subway", "tram", "rail", "cable_car", "ferry")
+      .exists(beamVehicleId.toString.toLowerCase.startsWith)
 
   /**
     * Processes the collected outbound parking stats of a person

@@ -56,7 +56,7 @@ trait RepositionManager extends Actor with ActorLogging {
     case Some(algorithmType) =>
       getScheduler ! ScheduleTrigger(REPDataCollectionTrigger(algorithmType.getStatTimeBin), self)
       var alg: RepositionAlgorithm = null
-      if (getServices.iterationNumber > 0 || getServices.beamConfig.beam.warmStart.enabled) {
+      if (getServices.matsimServices.getIterationNumber > 0 || getServices.beamConfig.beam.warmStart.enabled) {
         alg = algorithmType.getInstance(getId, getServices, getSkimmer)
         getScheduler ! ScheduleTrigger(REPVehicleRepositionTrigger(algorithmType.getRepositionTimeBin), self)
       }

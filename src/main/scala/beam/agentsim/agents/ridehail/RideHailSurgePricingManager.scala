@@ -1,8 +1,8 @@
 package beam.agentsim.agents.ridehail
 
 import beam.router.BeamRouter.Location
+import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
-import beam.sim.{BeamServices, HasServices}
 import com.google.inject.Inject
 import org.matsim.core.utils.misc.Time
 
@@ -12,7 +12,7 @@ import scala.util.Random
 
 object RideHailSurgePricingManager {}
 
-class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServices) extends HasServices {
+class RideHailSurgePricingManager @Inject()(val beamServices: BeamServices) {
 
   val rideHailConfig: Agents.RideHail = beamServices.beamConfig.beam.agentsim.agents.rideHail
 
@@ -43,7 +43,7 @@ class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServi
 
   //Scala like code
   val surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]] =
-    beamServices.tazTreeMap.tazQuadTree.values.asScala.map { v =>
+    beamServices.beamScenario.tazTreeMap.tazQuadTree.values.asScala.map { v =>
       val array = (0 until numberOfTimeBins).foldLeft(new ArrayBuffer[SurgePriceBin]) { (arrayBuffer, _) =>
         arrayBuffer.append(defaultBinContent)
         arrayBuffer
@@ -132,7 +132,7 @@ class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServi
   }
 
   def getSurgeLevel(location: Location, time: Double): Double = {
-    val taz = beamServices.tazTreeMap.getTAZ(location.getX, location.getY)
+    val taz = beamServices.beamScenario.tazTreeMap.getTAZ(location.getX, location.getY)
     val timeBinIndex = getTimeBinIndex(time)
     surgePriceBins
       .get(taz.tazId.toString)
@@ -152,7 +152,7 @@ class RideHailSurgePricingManager @Inject()(override val beamServices: BeamServi
 
   def addRideCost(time: Double, cost: Double, pickupLocation: Location): Unit = {
 
-    val taz = beamServices.tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY)
+    val taz = beamServices.beamScenario.tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY)
     val timeBinIndex = getTimeBinIndex(time)
 
     surgePriceBins.get(taz.tazId.toString).foreach { i =>
