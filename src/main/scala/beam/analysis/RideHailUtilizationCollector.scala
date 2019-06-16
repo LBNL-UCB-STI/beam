@@ -12,7 +12,13 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.mutable.ArrayBuffer
 
 case class VehicleRideInfo(vehicleId: Id[Vehicle], startCoord: Coord, endCoord: Coord, numOfPassengers: Int)
-case class RideHailUtilization(notMovedAtAll: Set[Id[Vehicle]], movedWithoutPassenger: Set[Id[Vehicle]], movedWithPassengers: IndexedSeq[VehicleRideInfo])
+case class RideHailUtilization
+(
+  notMovedAtAll: Set[Id[Vehicle]],
+  movedWithoutPassenger: Set[Id[Vehicle]],
+  movedWithPassengers: Set[Id[Vehicle]],
+  rides: IndexedSeq[VehicleRideInfo]
+)
 
 class RideHailUtilizationCollector(beamSvc: BeamServices) extends BasicEventHandler with IterationEndsListener {
   private val rides: ArrayBuffer[VehicleRideInfo] = ArrayBuffer()
@@ -43,7 +49,7 @@ class RideHailUtilizationCollector(beamSvc: BeamServices) extends BasicEventHand
     val movedWithPassengers = RideHailUtilizationCollector.getRidesWithPassengers(rides)
     val movedVehicleIds = movedWithPassengers.map(_.vehicleId).toSet
     val neverMoved = beamSvc.rideHailState.getAllRideHailVehicles -- movedVehicleIds -- movedWithoutPassenger
-    beamSvc.rideHailState.setRideHailUtilization(RideHailUtilization(neverMoved, movedWithoutPassenger, movedWithPassengers))
+    beamSvc.rideHailState.setRideHailUtilization(RideHailUtilization(neverMoved, movedWithoutPassenger, movedVehicleIds, rides.toArray[VehicleRideInfo]))
   }
 }
 

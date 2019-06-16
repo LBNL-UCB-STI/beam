@@ -18,10 +18,16 @@ class RideHailState extends LazyLogging{
   }
 
   @volatile
-  private var _rideHailUtilization: RideHailUtilization = RideHailUtilization(Set.empty, Set.empty, IndexedSeq.empty)
+  private var _rideHailUtilization: RideHailUtilization = RideHailUtilization(Set.empty, Set.empty, Set.empty, IndexedSeq.empty)
 
   def setRideHailUtilization(utilization: RideHailUtilization): Unit = {
-    logger.info(s"Set new utilization. notMovedAtAll: ${utilization.notMovedAtAll.size}, movedWithoutPassenger: ${utilization.movedWithoutPassenger.size}, movedWithPassengers: ${utilization.movedWithPassengers.size}")
+    logger.info(
+      s"""
+         |Set new utilization:
+         |notMovedAtAll: ${utilization.notMovedAtAll.size}
+         |movedWithoutPassenger: ${utilization.movedWithoutPassenger.size}
+         |movedWithPassengers: ${utilization.movedWithPassengers.size}
+         |total rides: ${utilization.rides.size}""".stripMargin)
     _rideHailUtilization = utilization
   }
 
