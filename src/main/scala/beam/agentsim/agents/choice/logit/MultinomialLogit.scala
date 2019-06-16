@@ -48,27 +48,6 @@ class MultinomialLogit[A, T](
           case _ => throw new RuntimeException("Error during alternatives evaluation.")
         }
 
-      // TODO: XXXX should be logged altsWithUtilitySortedDesc
-      val textToLog: String = personInfo match {
-        case Some(pInfo) =>
-          import scala.collection.JavaConverters._
-          Seq(
-            s"@@@@ With PersonInfo",
-            s"PersonId: ${pInfo.getId}",
-            s"Selected plan: ${pInfo.getSelectedPlan}",
-            s"Plans:\n${pInfo.getPlans.asScala.mkString("\n")}",
-            s"Alternatives:\n${alternatives.mkString("\n")}",
-            s"Alternatives Utility sorted desc:\n${altsWithUtilitySortedDesc.mkString("\n")}"
-          ).mkString("\n" + ("*" * 50) + "\n", "\n", "\n" + ("*" * 50) + "\n")
-        case None =>
-          Seq(
-            s"!!!! No Person Info passed",
-            s"Alternatives:\n${alternatives.mkString("\n")}",
-            s"Alternatives Utility sorted desc:\n${altsWithUtilitySortedDesc.mkString("\n")}"
-          ).mkString("\n" + ("*" * 50) + "\n", "\n", "\n" + ("*" * 50) + "\n")
-      }
-      logger.warn(textToLog)
-
       altsWithUtilitySortedDesc.headOption.flatMap {
         case (possiblyInfiniteAlt, possiblyInfinite) =>
           if (possiblyInfinite == Double.PositiveInfinity) {
