@@ -676,7 +676,7 @@ class RideHailManager(
     case inquiry @ RideHailRequest(RideHailInquiry, _, _, _, _, _, _, _) =>
       val s = System.currentTimeMillis
       handleRideHailInquiry(inquiry)
-      val diff = System.currentTimeMillis
+      val diff = System.currentTimeMillis - s
       nHandleRideHailInquiry += 1
       timeSpendForHandleRideHailInquiryMs += diff
 
