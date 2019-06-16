@@ -47,8 +47,8 @@ class ChargingPlugInEvent(
 object ChargingPlugInEvent {
   val EVENT_TYPE: String = "ChargingPlugInEvent"
   val ATTRIBUTE_VEHICLE_ID: String = "vehicle"
-  val ATTRIBUTE_PRIMARY_FUEL: String = "primaryFuel"
-  val ATTRIBUTE_SECONDARY_FUEL: String = "secondaryFuel"
+  val ATTRIBUTE_PRIMARY_FUEL: String = "primaryFuelLevel"
+  val ATTRIBUTE_SECONDARY_FUEL: String = "secondaryFuelLevel"
   val ATTRIBUTE_PRICE: String = "price"
   val ATTRIBUTE_LOCATION_X: String = "locationX"
   val ATTRIBUTE_LOCATION_Y: String = "locationY"

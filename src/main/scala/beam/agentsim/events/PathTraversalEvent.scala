@@ -126,8 +126,8 @@ object PathTraversalEvent {
   val ATTRIBUTE_START_COORDINATE_Y: String = "startY"
   val ATTRIBUTE_END_COORDINATE_X: String = "endX"
   val ATTRIBUTE_END_COORDINATE_Y: String = "endY"
-  val ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL: String = "endLegPrimaryFuelLevel"
-  val ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL: String = "endLegSecondaryFuelLevel"
+  val ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL: String = "primaryFuelLevel"
+  val ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL: String = "secondaryFuelLevel"
   val ATTRIBUTE_TOLL_PAID: String = "tollPaid"
   val ATTRIBUTE_SEATING_CAPACITY: String = "seatingCapacity"
   /*
