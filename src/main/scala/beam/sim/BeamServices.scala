@@ -1,26 +1,52 @@
 package beam.sim
 
-import java.io.FileNotFoundException
-
 import akka.actor.ActorRef
-import beam.agentsim.agents.choice.mode.ModeIncentive
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
-import beam.agentsim.agents.vehicles.FuelType.FuelType
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.NetworkHelper
 import com.google.inject.{ImplementedBy, Inject, Injector}
-import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler._
-import org.matsim.core.utils.collections.QuadTree
-import org.matsim.households.Household
-import org.slf4j.LoggerFactory
 
+/**
+  * MATSim heavily uses Guice-based dependency injection (DI),
+  * and BEAM somewhat uses it, too.
+  *
+  * This class is a device used by BEAM classes that can't passively use DI,
+  * but still need to access things that are only available via the Injector.
+  *
+  * If there are any vars here, we're still in the process of refactoring them away.
+  * Please don't add any.
+  *
+  * Actually, you probably don't need to add anything:
+  *
+  * If you want to introduce a new simulation-wide data container and you're wondering
+  * where to put it, look no further than [[BeamScenario]].
+  *
+  * If you want to introduce a new simulated entity (which is, of course, restarted every
+  * iteration), you want to write a [[beam.agentsim.agents.BeamAgent]] and
+  * start it from [[BeamMobsimIteration]] (or from another [[beam.agentsim.agents.BeamAgent]]).
+  *
+  * If you want to introduce a new thing that keeps track of something iteration-to-iteration,
+  * like the [[beam.agentsim.agents.ridehail.RideHailIterationHistory]],
+  * please bind it into the [[Injector]] (see that class for how this is done), and let it listen
+  * to events. If you want simulated entities to access that thing to look something up,
+  * pass it through [[BeamMobsim]] into [[BeamMobsimIteration]], and further into your simulated entity,
+  * but take care to not violate the actor model, i.e. the simulated entity may only look at a part of your class
+  * that is immutable during the iteration (e.g. put together after each iteration). If that is not
+  * possible, maybe the thing you want to write is really a simulated entity, in which case see above.
+  *
+  * For now, use MATSim constructs like [[org.matsim.core.events.handler.EventHandler]] and
+  * [[org.matsim.core.controler.listener.ControlerListener]] to let your thing observe the simulation.
+  *
+  * Note that the bit about the [[Injector]] is totally tangential, it's just the currently most
+  * consistent place to put this kind of thing. Nothing keeps us from getting rid of that construct, if
+  * so desired, but we would need our own replacement for [[Controler]], and refactor [[BeamSim]] and
+  * [[BeamMobsim]]. Please don't create a global variable because you don't like the [[Injector]].
+  *
+  */
 @ImplementedBy(classOf[BeamServicesImpl])
 trait BeamServices {
   val injector: Injector
