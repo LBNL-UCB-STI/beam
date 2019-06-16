@@ -1,18 +1,17 @@
 package beam.sim.population
 
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
-import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
-import org.matsim.api.core.v01.Id
-import org.matsim.households.{Household, IncomeImpl}
-import org.matsim.households.Income.IncomePeriod
-import org.matsim.api.core.v01.population._
-import beam.sim.BeamServices
-import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
 import beam.router.RouteHistory.LinkId
-import beam.utils.scenario.{PersonId, PersonInfo}
+import beam.router.model.EmbodiedBeamLeg
+import beam.sim.BeamServices
+import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population._
+import org.matsim.households.Income.IncomePeriod
+import org.matsim.households.{Household, IncomeImpl}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -27,8 +26,6 @@ case class AttributesOfIndividual(
   valueOfTime: Double,
   age: Option[Int],
   income: Option[Double],
-  // temporary for loging purposes
-//  personId: Option[PersonId] = None
 ) extends PopulationAttributes {
   lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
 
