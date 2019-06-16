@@ -301,7 +301,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
   def assertMakesSense(trip: BeamTrip): Unit = {
     var time = trip.legs.head.startTime
     trip.legs.foreach(leg => {
-      assert(leg.startTime == time, "Leg starts when previous one finishes.")
+      assert(leg.startTime >= time, "Leg starts when previous one finishes.")
       time += leg.duration
     })
   }
