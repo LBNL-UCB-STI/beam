@@ -54,7 +54,7 @@ class BeamMobsim @Inject()(
     with MetricsSupport {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  val RideHailManagerInitTimeout: FiniteDuration = 100.seconds
+  val RideHailManagerInitTimeout: FiniteDuration = 500.seconds
 
   var memoryLoggingTimerActorRef: ActorRef = _
   var memoryLoggingTimerCancellable: Cancellable = _

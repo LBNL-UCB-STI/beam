@@ -13,7 +13,7 @@ import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIteratio
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
-import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider}
+import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtilizationCollector}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
@@ -81,6 +81,8 @@ class BeamSim @Inject()(
   var metricsPrinter: ActorRef = actorSystem.actorOf(MetricsPrinter.props())
   val summaryData = new mutable.HashMap[String, mutable.Map[Int, Double]]()
 
+  var rhuc: RideHailUtilizationCollector = _
+
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
       beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
@@ -89,6 +91,9 @@ class BeamSim @Inject()(
 
     metricsPrinter ! Subscribe("counter", "**")
     metricsPrinter ! Subscribe("histogram", "**")
+
+    rhuc = new RideHailUtilizationCollector(beamServices)
+    eventsManager.addHandler(rhuc)
 
     val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
     beamServices.beamRouter = actorSystem.actorOf(
@@ -179,6 +184,8 @@ class BeamSim @Inject()(
     if (beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
+    rhuc.notifyIterationEnds(event)
+
     val outputGraphsFuture = Future {
       if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
         modalityStyleStats.processData(scenario.getPopulation,
@@ -215,10 +222,6 @@ class BeamSim @Inject()(
       // rideHailIterationHistoryActor ! CollectRideHailStats
       tncIterationsStatsCollector
         .tellHistoryToRideHailIterationHistoryActorAndReset()
-
-      val neverMoved = tncIterationsStatsCollector.getNeverMovedVehicles
-      beamServices.setNeverMovedVehicles(neverMoved)
-      logger.info(s"neverMovedVehicle: ${neverMoved.size}")
 
       if (beamConfig.beam.replanning.Module_2.equalsIgnoreCase("ClearRoutes")) {
         routeHistory.expireRoutes(beamConfig.beam.replanning.ModuleProbability_2)
@@ -272,6 +275,8 @@ class BeamSim @Inject()(
     if (beamConfig.beam.outputs.writeGraphs) {
       generateRepositioningGraphs(event)
     }
+
+    eventsManager.removeHandler(rhuc)
 
     logger.info("Ending Iteration")
     delayMetricAnalysis.generateDelayAnalysis(event)

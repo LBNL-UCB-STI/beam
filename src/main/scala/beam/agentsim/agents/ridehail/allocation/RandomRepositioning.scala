@@ -53,13 +53,23 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
     s"repositioningShare: $repoShare, numRideHailAgents: ${rideHailManager.numRideHailAgents}, numVehiclesToReposition $numVehiclesToReposition"
   )
 
+  val rhs = rideHailManager.beamServices.rideHailState
+  val vehicleAllowedToReposition: mutable.Set[Id[Vehicle]] = {
+    mutable.HashSet((rhs.getRideHailUtilization.notMovedAtAll ++ rhs.getRideHailUtilization.movedWithoutPassenger).toSeq: _*)
+  }
+
   // Precompute on the first tick where to reposition for the whole day
   val lastTickWithRepos = 24*3600
   val step = rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds
   val numberOfRepos = lastTickWithRepos / step
-  val repositionPerTick = rideHailManager.beamServices.getNeverMovedVehicles.length.toDouble / numberOfRepos
-  logger.info(s"lastTickWithRepos: $lastTickWithRepos, step: $step, numberOfRepos: $numberOfRepos, repositionPerTick: $repositionPerTick")
-  val vehicleAllowedToReposition: mutable.Set[Id[Vehicle]] = mutable.HashSet(rideHailManager.beamServices.getNeverMovedVehicles.map { id => Id.createVehicleId(id)} :_*)
+  val repositionPerTick = vehicleAllowedToReposition.size.toDouble / numberOfRepos
+  logger.info(
+    s"""
+       |vehicleAllowedToReposition: ${vehicleAllowedToReposition.size}
+       |lastTickWithRepos: $lastTickWithRepos
+       |step: $step
+       |numberOfRepos: $numberOfRepos
+       |repositionPerTick: $repositionPerTick""".stripMargin)
 
   val intervalSize: Int = rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds
 
@@ -448,14 +458,13 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
       case 6 =>
         if (tick == 0) {
-
-
-          val neverMovedVehiclesBatched = RandomUtils.shuffle(rideHailManager.beamServices.getNeverMovedVehicles.map { id => Id.createVehicleId(id)}, new Random())
+          val okToReposition = rhs.getRideHailUtilization.notMovedAtAll ++ rhs.getRideHailUtilization.movedWithoutPassenger
+          val neverMovedVehiclesBatched = RandomUtils.shuffle(okToReposition, new Random())
             .toVector
             .sliding(numberOfRepos, numberOfRepos)
             .toArray
 
-          logger.info(s"neverMovedVehicles size: ${rideHailManager.beamServices.getNeverMovedVehicles.length}")
+          logger.info(s"okToReposition size: ${okToReposition.size}")
           logger.info(s"neverMovedVehiclesBatched size: ${neverMovedVehiclesBatched.length}")
 
           if (repositionPerTick >= 1) {
