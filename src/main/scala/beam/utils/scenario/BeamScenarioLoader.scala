@@ -5,7 +5,8 @@ import java.util
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.Modes.BeamMode
-import beam.sim.BeamServices
+import beam.sim.BeamScenario
+import beam.sim.common.GeoUtils
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Person, Population}
@@ -19,8 +20,9 @@ import scala.collection.JavaConverters._
 
 class BeamScenarioLoader(
   var scenario: MutableScenario,
-  var beamServices: BeamServices,
-  val scenarioSource: ScenarioSource
+  var beamScenario: BeamScenario,
+  val scenarioSource: ScenarioSource,
+  val geo: GeoUtils
 ) extends LazyLogging {
 
   import BeamScenarioLoader._
@@ -77,10 +79,10 @@ class BeamScenarioLoader(
     replaceHouseholdsAttributes(households, loadedAttributes)
 
     // beamServices
-    beamServices.beamScenario.privateVehicles.clear()
+    beamScenario.privateVehicles.clear()
     vehicles
-      .map(c => buildBeamVehicle(beamServices.beamScenario.vehicleTypes, c))
-      .foreach(v => beamServices.beamScenario.privateVehicles.put(v.id, v))
+      .map(c => buildBeamVehicle(beamScenario.vehicleTypes, c))
+      .foreach(v => beamScenario.privateVehicles.put(v.id, v))
 
     logger.info("The scenario loading is completed.")
     scenario
@@ -114,8 +116,8 @@ class BeamScenarioLoader(
   }
 
   private def buildCoordinates(householdInfo: HouseholdInfo) = {
-    if (beamServices.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
-      beamServices.geo.wgs2Utm(new Coord(householdInfo.locationX, householdInfo.locationY))
+    if (beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
+      geo.wgs2Utm(new Coord(householdInfo.locationX, householdInfo.locationY))
     } else {
       new Coord(householdInfo.locationX, householdInfo.locationY)
     }
@@ -129,7 +131,7 @@ class BeamScenarioLoader(
     population.getPersons.clear()
     population.getPersonAttributes.clear()
 
-    val personHouseholds = beamServices.matsimServices.getScenario.getHouseholds.getHouseholds
+    val personHouseholds = scenario.getHouseholds.getHouseholds
       .values()
       .asScala
       .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
@@ -149,7 +151,7 @@ class BeamScenarioLoader(
       person.getAttributes.putAttribute("sex", sexChar)
       person.getAttributes.putAttribute("age", personInfo.age)
       AvailableModeUtils.setAvailableModesForPerson_v2(
-        beamServices,
+        beamScenario,
         person,
         personHouseholds(person.getId),
         population,
@@ -184,8 +186,8 @@ class BeamScenarioLoader(
           }
         } else if (planElement.equalsIgnoreCase("activity")) {
           assertActivityHasLocation(planInfo)
-          val coord = if (beamServices.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
-            beamServices.geo.wgs2Utm(new Coord(planInfo.activityLocationX.get, planInfo.activityLocationY.get))
+          val coord = if (beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
+            geo.wgs2Utm(new Coord(planInfo.activityLocationX.get, planInfo.activityLocationY.get))
           } else {
             new Coord(planInfo.activityLocationX.get, planInfo.activityLocationY.get)
           }

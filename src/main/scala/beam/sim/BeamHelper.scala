@@ -24,7 +24,7 @@ import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
-import beam.sim.common.GeoUtils
+import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
@@ -400,12 +400,7 @@ trait BeamHelper extends LazyLogging {
     if (isMetricsEnable) Kamon.start(clusterConfig.withFallback(ConfigFactory.defaultReference()))
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
-    import akka.cluster.singleton.{
-      ClusterSingletonManager,
-      ClusterSingletonManagerSettings,
-      ClusterSingletonProxy,
-      ClusterSingletonProxySettings
-    }
+    import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
@@ -457,19 +452,21 @@ trait BeamHelper extends LazyLogging {
   def runBeamWithConfig(config: TypesafeConfig): (MatsimConfig, String) = {
     val beamExecutionConfig = setupBeamWithConfig(config)
     val networkCoordinator: NetworkCoordinator = buildNetworkCoordinator(beamExecutionConfig.beamConfig)
-    val (services, scenario) = buildBeamServicesAndScenario(
+    val (scenario, beamScenario) = buildBeamServicesAndScenario(
       config,
       beamExecutionConfig.beamConfig,
       beamExecutionConfig.matsimConfig,
       networkCoordinator
     )
+    val injector: inject.Injector = buildInjector(config, scenario, beamScenario)
+    val services = injector.getInstance(classOf[BeamServices])
 
     warmStart(beamExecutionConfig.beamConfig, beamExecutionConfig.matsimConfig)
 
     runBeam(
       services,
       scenario,
-      injector.getInstance(classOf[BeamScenario]),
+      beamScenario,
       beamExecutionConfig.outputDirectory
     )
     (scenario.getConfig, beamExecutionConfig.outputDirectory)
@@ -502,6 +499,14 @@ trait BeamHelper extends LazyLogging {
     val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     fixDanglingPersons(result)
     result.setNetwork(beamScenario.network)
+    result
+  }
+
+  def buildBeamServices(
+    injector: inject.Injector,
+    scenario: MutableScenario,
+  ): BeamServices = {
+    val result = injector.getInstance(classOf[BeamServices])
     result
   }
 
@@ -546,7 +551,7 @@ trait BeamHelper extends LazyLogging {
     beamConfig: BeamConfig,
     matsimConfig: MatsimConfig,
     networkCoordinator: NetworkCoordinator,
-  ): (BeamServices, MutableScenario) = {
+  ): (MutableScenario, BeamScenario) = {
     val scenarioConfig = beamConfig.beam.exchange.scenario
 
     val src = scenarioConfig.source.toLowerCase
@@ -557,42 +562,37 @@ trait BeamHelper extends LazyLogging {
       if (src == "urbansim") {
         val externalFolderExists: Boolean = Option(scenarioConfig.folder).exists(new File(_).isDirectory)
         if (externalFolderExists) {
-          val (emptyScenario, injector, services) =
-            buildEmptyScenarioAndInjetorAndService(typesafeConfig, matsimConfig, networkCoordinator)
-
+          val emptyScenario = ScenarioBuilder(matsimConfig).withNetwork(networkCoordinator.network).build
+          val beamScenario = loadScenario(beamConfig)
           val scenario = {
-            val source = buildUrbansimScenarioSource(injector, beamConfig)
-            new UrbanSimScenarioLoader(emptyScenario, services, source).loadScenario()
+            val source = buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
+            new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
           }.asInstanceOf[MutableScenario]
-
-          (services, scenario)
+          (scenario, beamScenario)
         } else {
           throw new IllegalArgumentException(s"Urbansim needs a valid folder:[${scenarioConfig.folder}]")
         }
       } else if (src == "beam") {
         fileFormat match {
           case "csv" =>
-            val (emptyScenario, _, services) =
-              buildEmptyScenarioAndInjetorAndService(typesafeConfig, matsimConfig, networkCoordinator)
-
+            val emptyScenario = ScenarioBuilder(matsimConfig).withNetwork(networkCoordinator.network).build
+            val beamScenario = loadScenario(beamConfig)
             val scenario = {
               val source = new BeamScenarioSource(
                 scenarioFolder = scenarioConfig.folder,
                 rdr = readers.BeamCsvScenarioReader
               )
-              new BeamScenarioLoader(emptyScenario, services, source).loadScenario()
+              new BeamScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
             }.asInstanceOf[MutableScenario]
-
-            (services, scenario)
+            (scenario, beamScenario)
           case "xml" =>
+            val beamScenario = loadScenario(beamConfig)
             val scenario = {
               val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
               fixDanglingPersons(result)
               result
             }
-            val (_, services) = buildInjectorAndService(typesafeConfig, networkCoordinator, scenario)
-
-            (services, scenario)
+            (scenario, beamScenario)
           case unknown =>
             throw new IllegalArgumentException(s"Beam does not support [$unknown] file type")
         }
@@ -600,31 +600,6 @@ trait BeamHelper extends LazyLogging {
         throw new NotImplementedError(s"ScenarioSource '$src' is not yet implemented")
       }
     }
-  }
-
-  private def buildInjectorAndService(
-    typesafeConfig: TypesafeConfig,
-    networkCoordinator: NetworkCoordinator,
-    scenario: MutableScenario
-  ): (inject.Injector, BeamServices) = {
-    val injector = buildInjector(typesafeConfig, scenario, networkCoordinator)
-
-    val services = injector.getInstance(classOf[BeamServices])
-    services.setTransitFleetSizes(networkCoordinator.tripFleetSizeMap)
-
-    (injector, services)
-  }
-
-  private def buildEmptyScenarioAndInjetorAndService(
-    typesafeConfig: TypesafeConfig,
-    matsimConfig: MatsimConfig,
-    networkCoordinator: NetworkCoordinator
-  ): (MutableScenario, inject.Injector, BeamServices) = {
-    val emptyScenario = ScenarioBuilder(matsimConfig).withNetwork(networkCoordinator.network).build
-
-    val (injector, services) = buildInjectorAndService(typesafeConfig, networkCoordinator, emptyScenario)
-
-    (emptyScenario, injector, services)
   }
 
   case class BeamExecutionConfig(beamConfig: BeamConfig, matsimConfig: MatsimConfig, outputDirectory: String)
@@ -803,7 +778,7 @@ trait BeamHelper extends LazyLogging {
   }
 
   private def buildUrbansimScenarioSource(
-    injector: inject.Injector,
+    geo: GeoUtils,
     beamConfig: BeamConfig
   ): UrbanSimScenarioSource = {
     val fileFormat: InputType = Option(beamConfig.beam.exchange.scenario.fileFormat)
@@ -821,7 +796,7 @@ trait BeamHelper extends LazyLogging {
     new UrbanSimScenarioSource(
       scenarioFolder = beamConfig.beam.exchange.scenario.folder,
       rdr = scenarioReader,
-      geoUtils = injector.getInstance(classOf[GeoUtils]),
+      geoUtils = geo,
       shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
     )
   }

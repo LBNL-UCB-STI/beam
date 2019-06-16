@@ -7,7 +7,7 @@ import beam.sim.{BeamScenario, BeamServices}
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.Coord
 
-case class UniformVehiclesAdjustment(beamServices: BeamServices, beamScenario: BeamScenario)
+case class UniformVehiclesAdjustment(beamScenario: BeamScenario)
     extends VehiclesAdjustment {
 
   private val vehicleTypesAndProbabilitiesByCategory: Map[(VehicleCategory, String), Array[(BeamVehicleType, Double)]] =
@@ -59,7 +59,7 @@ case class UniformVehiclesAdjustment(beamServices: BeamServices, beamScenario: B
 
   private def matchCarUse(vehicleTypeId: String): String = {
     vehicleTypeId.toString.split("_").headOption match {
-      case Some(beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypePrefix) =>
+      case Some(beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypePrefix) =>
         "Ride Hail Vehicle"
       case _ => "Usage Not Set"
     }
