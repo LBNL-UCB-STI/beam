@@ -48,7 +48,8 @@ class PersonAndTransitDriverSpec
     with TestKitBase
     with SimRunnerForTest
     with MockitoSugar
-    with ImplicitSender {
+    with ImplicitSender
+    with BeamvilleFixtures {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
 
@@ -69,7 +70,7 @@ class PersonAndTransitDriverSpec
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
   private lazy val parkingManager = system.actorOf(
-    ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter),
+    ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter, boundingBox),
     "ParkingManager"
   )
 
@@ -303,8 +304,9 @@ class PersonAndTransitDriverSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          mock[BeamSkimmer],
-          mock[TravelTimeObserved]
+          new BeamSkimmer(beamScenario, services.geo),
+          new TravelTimeObserved(beamScenario, services.geo),
+          boundingBox
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)

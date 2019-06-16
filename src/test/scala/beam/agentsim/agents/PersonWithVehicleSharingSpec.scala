@@ -53,7 +53,8 @@ class PersonWithVehicleSharingSpec
     with TestKitBase
     with SimRunnerForTest
     with MockitoSugar
-    with ImplicitSender {
+    with ImplicitSender
+    with BeamvilleFixtures {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = system.dispatcher
@@ -133,8 +134,9 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
-            mock[BeamSkimmer],
-            mock[TravelTimeObserved]
+            new BeamSkimmer(beamScenario, services.geo),
+            new TravelTimeObserved(beamScenario, services.geo),
+            boundingBox
           )
         )
       )
@@ -273,8 +275,9 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
-            mock[BeamSkimmer],
-            mock[TravelTimeObserved]
+            new BeamSkimmer(beamScenario, services.geo),
+            new TravelTimeObserved(beamScenario, services.geo),
+            boundingBox
           )
         )
       )
@@ -511,8 +514,9 @@ class PersonWithVehicleSharingSpec
           new Coord(0.0, 0.0),
           Vector(mockSharedVehicleFleet.ref),
           new RouteHistory(beamConfig),
-          mock[BeamSkimmer],
-          mock[TravelTimeObserved]
+          new BeamSkimmer(beamScenario, services.geo),
+          new TravelTimeObserved(beamScenario, services.geo),
+          boundingBox
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)

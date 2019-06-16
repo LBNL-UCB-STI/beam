@@ -36,7 +36,8 @@ class RideHailAgentSpec
     with TestKitBase
     with SimRunnerForTest
     with MockitoSugar
-    with ImplicitSender {
+    with ImplicitSender
+    with BeamvilleFixtures {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
 
@@ -59,7 +60,7 @@ class RideHailAgentSpec
   lazy val eventMgr = new EventsManagerImpl()
 
   private lazy val zonalParkingManager = system.actorOf(
-    ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter),
+    ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter, boundingBox),
     "ParkingManager"
   )
 

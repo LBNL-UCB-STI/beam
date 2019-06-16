@@ -32,6 +32,7 @@ import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
 import com.conveyal.r5.transit.TransportNetwork
+import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -68,7 +69,8 @@ object HouseholdActor {
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     routeHistory: RouteHistory,
     beamSkimmer: BeamSkimmer,
-    travelTimeObserved: TravelTimeObserved
+    travelTimeObserved: TravelTimeObserved,
+    boundingBox: Envelope
   ): Props = {
     Props(
       new HouseholdActor(
@@ -89,7 +91,8 @@ object HouseholdActor {
         sharedVehicleFleets,
         routeHistory,
         beamSkimmer,
-        travelTimeObserved
+        travelTimeObserved,
+        boundingBox
       )
     )
   }
@@ -130,7 +133,8 @@ object HouseholdActor {
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     routeHistory: RouteHistory,
     beamSkimmer: BeamSkimmer,
-    travelTimeObserved: TravelTimeObserved
+    travelTimeObserved: TravelTimeObserved,
+    boundingBox: Envelope
   ) extends Actor
       with HasTickAndTrigger
       with ActorLogging {
@@ -291,7 +295,8 @@ object HouseholdActor {
               fleetManagers ++: sharedVehicleFleets,
               beamSkimmer,
               routeHistory,
-              travelTimeObserved
+              travelTimeObserved,
+              boundingBox
             ),
             person.getId.toString
           )

@@ -2,16 +2,21 @@ package beam.agentsim.infrastructure
 
 import java.util.concurrent.TimeUnit
 
+import scala.util.Random
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
+import beam.agentsim.agents.BeamvilleFixtures
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.scalatest.mockito.MockitoSugar
@@ -34,7 +39,8 @@ class ZonalParkingManagerSpec
     with BeforeAndAfterAll
     with MockitoSugar
     with ImplicitSender
-    with Matchers {
+    with Matchers
+    with BeamvilleFixtures {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
 
@@ -64,12 +70,13 @@ class ZonalParkingManagerSpec
           tazTreeMap,
           geo,
           emptyParkingDescription,
+          boundingBox,
           new Random(randomSeed)
         )
       } {
 
         val inquiry = ParkingInquiry(coordCenterOfUTM, "work", 0.0, None, 0.0)
-        val expectedStall: ParkingStall = ParkingStall.lastResortStall(new Random(randomSeed))
+        val expectedStall: ParkingStall = ParkingStall.lastResortStall(boundingBox, new Random(randomSeed))
 
         zonalParkingManager ! inquiry
 
@@ -103,6 +110,7 @@ class ZonalParkingManagerSpec
           tazTreeMap,
           geo,
           oneParkingOption,
+          boundingBox,
           new Random(randomSeed)
         )
       } {
@@ -155,6 +163,7 @@ class ZonalParkingManagerSpec
           tazTreeMap,
           geo,
           oneParkingOption,
+          boundingBox,
           new Random(randomSeed)
         )
       } {
@@ -220,6 +229,7 @@ class ZonalParkingManagerSpec
           tazTreeMap,
           geo,
           parkingConfiguration,
+          boundingBox,
           new Random(randomSeed)
         )
       } {
@@ -256,9 +266,10 @@ object ZonalParkingManagerSpec {
     tazTreeMap: TAZTreeMap,
     geo: GeoUtils,
     parkingDescription: Iterator[String],
+    boundingBox: Envelope,
     random: Random = Random
   )(implicit system: ActorSystem): ActorRef = {
-    val zonalParkingManagerProps = Props(ZonalParkingManager(parkingDescription, tazTreeMap, geo, random))
+    val zonalParkingManagerProps = Props(ZonalParkingManager(parkingDescription, tazTreeMap, geo, random, boundingBox))
     TestActorRef[ZonalParkingManager](zonalParkingManagerProps)
   }
 

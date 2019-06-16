@@ -11,6 +11,7 @@ import beam.router.osm.TollCalculator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.{BeamScenario, BeamServices}
 import com.conveyal.r5.transit.TransportNetwork
+import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -32,7 +33,8 @@ class Population(
   val eventsManager: EventsManager,
   val routeHistory: RouteHistory,
   val beamSkimmer: BeamSkimmer,
-  val travelTimeObserved: TravelTimeObserved
+  val travelTimeObserved: TravelTimeObserved,
+  boundingBox: Envelope
 ) extends Actor
     with ActorLogging {
 
@@ -118,7 +120,8 @@ class Population(
           sharedVehicleFleets,
           routeHistory,
           beamSkimmer,
-          travelTimeObserved
+          travelTimeObserved,
+          boundingBox
         ),
         household.getId.toString
       )
@@ -163,7 +166,8 @@ object Population {
     eventsManager: EventsManager,
     routeHistory: RouteHistory,
     beamSkimmer: BeamSkimmer,
-    travelTimeObserved: TravelTimeObserved
+    travelTimeObserved: TravelTimeObserved,
+    boundingBox: Envelope
   ): Props = {
     Props(
       new Population(
@@ -180,7 +184,8 @@ object Population {
         eventsManager,
         routeHistory,
         beamSkimmer,
-        travelTimeObserved
+        travelTimeObserved,
+        boundingBox
       )
     )
   }

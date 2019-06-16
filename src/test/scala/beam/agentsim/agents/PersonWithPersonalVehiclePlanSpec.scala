@@ -42,7 +42,8 @@ class PersonWithPersonalVehiclePlanSpec
     with SimRunnerForTest
     with BeforeAndAfterAll
     with MockitoSugar
-    with ImplicitSender {
+    with ImplicitSender
+    with BeamvilleFixtures {
 
   lazy val config: Config = ConfigFactory
     .parseString(
@@ -122,8 +123,9 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(beamConfig),
-            mock[BeamSkimmer],
-            mock[TravelTimeObserved]
+            new BeamSkimmer(beamScenario, services.geo),
+            new TravelTimeObserved(beamScenario, services.geo),
+            boundingBox
           )
         )
       )
@@ -338,8 +340,9 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             new RouteHistory(beamConfig),
-            mock[BeamSkimmer],
-            mock[TravelTimeObserved]
+            new BeamSkimmer(beamScenario, services.geo),
+            new TravelTimeObserved(beamScenario, services.geo),
+            boundingBox
           )
         )
       )
@@ -478,8 +481,9 @@ class PersonWithPersonalVehiclePlanSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          mock[BeamSkimmer],
-          mock[TravelTimeObserved]
+          new BeamSkimmer(beamScenario, services.geo),
+          new TravelTimeObserved(beamScenario, services.geo),
+          boundingBox
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -569,8 +573,9 @@ class PersonWithPersonalVehiclePlanSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          mock[BeamSkimmer],
-          mock[TravelTimeObserved]
+          new BeamSkimmer(beamScenario, services.geo),
+          new TravelTimeObserved(beamScenario, services.geo),
+          boundingBox
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)

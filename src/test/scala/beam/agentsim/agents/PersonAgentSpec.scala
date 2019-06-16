@@ -23,6 +23,8 @@ import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.ConfigFactory
+import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
@@ -38,7 +40,13 @@ import org.scalatest.mockito.MockitoSugar
 
 import scala.collection.{mutable, JavaConverters}
 
-class PersonAgentSpec extends FunSpecLike with TestKitBase with SimRunnerForTest with MockitoSugar with ImplicitSender {
+class PersonAgentSpec
+    extends FunSpecLike
+    with TestKitBase
+    with SimRunnerForTest
+    with MockitoSugar
+    with ImplicitSender
+    with BeamvilleFixtures {
 
   lazy val config: Config = ConfigFactory
     .parseString(
@@ -111,7 +119,8 @@ class PersonAgentSpec extends FunSpecLike with TestKitBase with SimRunnerForTest
           self,
           beamSkimmer = new BeamSkimmer(beamScenario, services.geo),
           routeHistory = new RouteHistory(beamConfig),
-          travelTimeObserved = new TravelTimeObserved(beamScenario, services.geo)
+          travelTimeObserved = new TravelTimeObserved(beamScenario, services.geo),
+          boundingBox = boundingBox
         )
       )
 
@@ -175,7 +184,8 @@ class PersonAgentSpec extends FunSpecLike with TestKitBase with SimRunnerForTest
           Vector(),
           new RouteHistory(beamConfig),
           new BeamSkimmer(beamScenario, services.geo),
-          new TravelTimeObserved(beamScenario, services.geo)
+          new TravelTimeObserved(beamScenario, services.geo),
+          boundingBox
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -392,7 +402,8 @@ class PersonAgentSpec extends FunSpecLike with TestKitBase with SimRunnerForTest
           Vector(),
           new RouteHistory(beamConfig),
           new BeamSkimmer(beamScenario, services.geo),
-          new TravelTimeObserved(beamScenario, services.geo)
+          new TravelTimeObserved(beamScenario, services.geo),
+          boundingBox
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -682,7 +693,7 @@ class PersonAgentSpec extends FunSpecLike with TestKitBase with SimRunnerForTest
       )
 
       val parkingManager = system.actorOf(
-        ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter),
+        ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter, boundingBox),
         "ParkingManager"
       )
 
@@ -705,7 +716,8 @@ class PersonAgentSpec extends FunSpecLike with TestKitBase with SimRunnerForTest
           Vector(),
           new RouteHistory(beamConfig),
           new BeamSkimmer(beamScenario, services.geo),
-          new TravelTimeObserved(beamScenario, services.geo)
+          new TravelTimeObserved(beamScenario, services.geo),
+          boundingBox
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)

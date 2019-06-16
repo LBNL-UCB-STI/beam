@@ -133,7 +133,7 @@ class BeamMobsimIteration(
 
   private val parkingManager = context.actorOf(
     ZonalParkingManager
-      .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, beamRouter),
+      .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, beamRouter, envelopeInUTM),
     "ParkingManager"
   )
   context.watch(parkingManager)
@@ -222,7 +222,8 @@ class BeamMobsimIteration(
       matsimServices.getEvents,
       routeHistory,
       beamSkimmer,
-      travelTimeObserved
+      travelTimeObserved,
+      envelopeInUTM
     ),
     "population"
   )

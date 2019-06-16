@@ -34,6 +34,7 @@ import beam.sim.{BeamServices, Geofence}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
 import com.conveyal.r5.transit.TransportNetwork
+import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
@@ -65,7 +66,8 @@ object PersonAgent {
     sharedVehicleFleets: Seq[ActorRef],
     beamSkimmer: BeamSkimmer,
     routeHistory: RouteHistory,
-    travelTimeObserved: TravelTimeObserved
+    travelTimeObserved: TravelTimeObserved,
+    boundingBox: Envelope
   ): Props = {
     Props(
       new PersonAgent(
@@ -85,7 +87,8 @@ object PersonAgent {
         sharedVehicleFleets,
         beamSkimmer,
         routeHistory,
-        travelTimeObserved
+        travelTimeObserved,
+        boundingBox
       )
     )
   }
@@ -235,7 +238,8 @@ class PersonAgent(
   val vehicleFleets: Seq[ActorRef] = Vector(),
   val beamSkimmer: BeamSkimmer,
   val routeHistory: RouteHistory,
-  val travelTimeObserved: TravelTimeObserved
+  val travelTimeObserved: TravelTimeObserved,
+  val boundingBox: Envelope
 ) extends DrivesVehicle[PersonData]
     with ChoosesMode
     with ChoosesParking
