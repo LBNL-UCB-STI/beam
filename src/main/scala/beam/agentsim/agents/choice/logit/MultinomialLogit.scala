@@ -32,8 +32,6 @@ class MultinomialLogit[A, T](
   def sampleAlternative(
     alternatives: Map[A, Map[T, Double]],
     random: Random,
-
-    personInfo: Option[Person] = None // todo: to delete
   ): Option[MultinomialLogit.MNLSample[A]] = {
     if (alternatives.isEmpty) None
     else {
@@ -70,7 +68,6 @@ class MultinomialLogit[A, T](
           ).mkString("\n" + ("*" * 50) + "\n", "\n", "\n" + ("*" * 50) + "\n")
       }
       logger.warn(textToLog)
-
 
       altsWithUtilitySortedDesc.headOption.flatMap {
         case (possiblyInfiniteAlt, possiblyInfinite) =>

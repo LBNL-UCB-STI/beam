@@ -18,10 +18,10 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
   // urbansim loader fill the age in the property personAttributes
   def readAge(option1: Option[Int], option2: Option[Int]): Option[Int] = {
     (option1, option2) match {
-      case (Some(v1), None) => Some(v1)
+      case (Some(v1), None)     => Some(v1)
       case (Some(v1), Some(v2)) => Some(Integer.max(v1, v2))
-      case (None, Some(v2)) => Some(v2)
-      case (None, None) => None
+      case (None, Some(v2))     => Some(v2)
+      case (None, None)         => None
     }
   }
 
@@ -52,7 +52,6 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
         }
         .getOrElse("")
 
-
       val personAge = readAge(
         customAttributes.age,
         Option(personAttributes.getAttribute(person.getId.toString, "age")).map(_.toString.toInt)
@@ -65,7 +64,8 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
         personIdToHouseHoldId.get(person.getId).map(_.toString).getOrElse(""),
         String.valueOf(personAttributes.getAttribute(person.getId.toString, "rank")),
         excludedModes,
-        Option(personAttributes.getAttribute(person.getId.toString, "valueOfTime")).getOrElse(customAttributes.valueOfTime)
+        Option(personAttributes.getAttribute(person.getId.toString, "valueOfTime"))
+          .getOrElse(customAttributes.valueOfTime)
       )
       values.mkString("", FieldSeparator, LineSeparator)
     }

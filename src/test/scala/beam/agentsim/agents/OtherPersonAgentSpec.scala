@@ -114,8 +114,6 @@ class OtherPersonAgentSpec
       alternatives: IndexedSeq[EmbodiedBeamTrip],
       attributesOfIndividual: AttributesOfIndividual,
       destinationActivity: Option[Activity],
-
-      personInfo: Option[Person] = None
     ): Option[EmbodiedBeamTrip] =
       Some(alternatives.head)
 

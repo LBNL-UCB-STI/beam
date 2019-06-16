@@ -19,8 +19,6 @@ class ModeChoiceUniformRandom(val beamServices: BeamServices) extends ModeChoice
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity],
-
-    personInfo: Option[Person] = None
   ): Option[EmbodiedBeamTrip] = {
     if (alternatives.nonEmpty) {
       Some(alternatives(chooseRandomAlternativeIndex(alternatives)))

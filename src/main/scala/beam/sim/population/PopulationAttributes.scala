@@ -27,7 +27,6 @@ case class AttributesOfIndividual(
   valueOfTime: Double,
   age: Option[Int],
   income: Option[Double],
-
   // temporary for loging purposes
 //  personId: Option[PersonId] = None
 ) extends PopulationAttributes {
