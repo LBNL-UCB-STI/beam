@@ -25,6 +25,7 @@ import beam.router.r5.R5RoutingWorker
 import beam.sim.Geofence
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.plan.sampling.AvailableModeUtils._
+import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.routes.NetworkRoute
@@ -50,6 +51,8 @@ trait ChoosesMode {
     )
 
   def bodyVehiclePersonId = VehiclePersonId(body.id, id, self)
+
+  def boundingBox: Envelope
 
   def currentTourBeamVehicle: BeamVehicle =
     beamVehicles(stateData.asInstanceOf[ChoosesModeData].personData.currentTourPersonalVehicle.get)
@@ -281,6 +284,7 @@ trait ChoosesMode {
         case None =>
           if (hasRideHail) {
             responsePlaceholders = makeResponsePlaceholders(
+              boundingBox,
               withRouting = true,
               withParking = willRequestDrivingRoute,
               withRideHail = true,
@@ -291,7 +295,8 @@ trait ChoosesMode {
               requestId = makeRideHailTransitRoutingRequest(bodyStreetVehicle)
             }
           } else {
-            responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = willRequestDrivingRoute)
+            responsePlaceholders =
+              makeResponsePlaceholders(boundingBox, withRouting = true, withParking = willRequestDrivingRoute)
             requestId = None
           }
           parkingRequestId = makeRequestWith(
@@ -300,15 +305,15 @@ trait ChoosesMode {
             withParking = willRequestDrivingRoute
           )
         case Some(WALK) =>
-          responsePlaceholders = makeResponsePlaceholders(withRouting = true)
+          responsePlaceholders = makeResponsePlaceholders(boundingBox, withRouting = true)
           makeRequestWith(withTransit = false, Vector(bodyStreetVehicle), withParking = false)
         case Some(WALK_TRANSIT) =>
-          responsePlaceholders = makeResponsePlaceholders(withRouting = true)
+          responsePlaceholders = makeResponsePlaceholders(boundingBox, withRouting = true)
           makeRequestWith(withTransit = true, Vector(bodyStreetVehicle), withParking = false)
         case Some(CAV) =>
           // Request from household the trip legs to put into trip
           householdRef ! CavTripLegsRequest(bodyVehiclePersonId, currentActivity(choosesModeData.personData))
-          responsePlaceholders = makeResponsePlaceholders(withPrivateCAV = true)
+          responsePlaceholders = makeResponsePlaceholders(boundingBox, withPrivateCAV = true)
         case Some(mode @ (CAR | BIKE)) =>
           val maybeLeg = _experiencedBeamPlan.getPlanElements
             .get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
@@ -337,10 +342,10 @@ trait ChoosesMode {
                     destination.time,
                     nextAct.getEndTime.intValue() - destination.time
                   )
-                  responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = true)
+                  responsePlaceholders = makeResponsePlaceholders(boundingBox, withRouting = true, withParking = true)
                 case _ =>
                   makeRequestWith(withTransit = false, Vector(bodyStreetVehicle), withParking = false)
-                  responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = false)
+                  responsePlaceholders = makeResponsePlaceholders(boundingBox, withRouting = true, withParking = false)
               }
             case _ =>
               parkingRequestId = makeRequestWith(
@@ -348,7 +353,8 @@ trait ChoosesMode {
                 filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), mode) :+ bodyStreetVehicle,
                 withParking = mode == CAR
               )
-              responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = mode == CAR)
+              responsePlaceholders =
+                makeResponsePlaceholders(boundingBox, withRouting = true, withParking = mode == CAR)
           }
         case Some(DRIVE_TRANSIT) =>
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
@@ -365,7 +371,7 @@ trait ChoosesMode {
                 filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), CAR) :+ bodyStreetVehicle,
                 withParking = false
               )
-              responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = false)
+              responsePlaceholders = makeResponsePlaceholders(boundingBox, withRouting = true, withParking = false)
             case (LastTripIndex, Some(currentTourPersonalVehicle)) =>
               // At the end of the tour, only drive home a vehicle that we have also taken away from there.
               parkingRequestId = makeRequestWith(
@@ -376,28 +382,28 @@ trait ChoosesMode {
                 streetVehiclesIntermodalUse = Egress,
                 withParking = true
               )
-              responsePlaceholders = makeResponsePlaceholders(withRouting = true, withParking = true)
+              responsePlaceholders = makeResponsePlaceholders(boundingBox, withRouting = true, withParking = true)
             case _ =>
               // Reset available vehicles so we don't release our car that we've left during this replanning
               availablePersonalStreetVehicles = Vector()
               makeRequestWith(withTransit = true, Vector(bodyStreetVehicle), withParking = false)
-              responsePlaceholders = makeResponsePlaceholders(withRouting = true)
+              responsePlaceholders = makeResponsePlaceholders(boundingBox, withRouting = true)
           }
         case Some(RIDE_HAIL | RIDE_HAIL_POOLED) if choosesModeData.isWithinTripReplanning =>
           // Give up on all ride hail after a failure
-          responsePlaceholders = makeResponsePlaceholders(withRouting = true)
+          responsePlaceholders = makeResponsePlaceholders(boundingBox, withRouting = true)
           makeRequestWith(withTransit = true, Vector(bodyStreetVehicle), withParking = false)
         case Some(RIDE_HAIL | RIDE_HAIL_POOLED) =>
-          responsePlaceholders = makeResponsePlaceholders(withRouting = true, withRideHail = true)
+          responsePlaceholders = makeResponsePlaceholders(boundingBox, withRouting = true, withRideHail = true)
           makeRequestWith(withTransit = false, Vector(bodyStreetVehicle), withParking = false) // We need a WALK alternative if RH fails
           makeRideHailRequest()
         case Some(RIDE_HAIL_TRANSIT) if choosesModeData.isWithinTripReplanning =>
           // Give up on ride hail transit after a failure, too complicated, but try regular ride hail again
-          responsePlaceholders = makeResponsePlaceholders(withRouting = true, withRideHail = true)
+          responsePlaceholders = makeResponsePlaceholders(boundingBox, withRouting = true, withRideHail = true)
           makeRequestWith(withTransit = true, Vector(bodyStreetVehicle), withParking = false)
           makeRideHailRequest()
         case Some(RIDE_HAIL_TRANSIT) =>
-          responsePlaceholders = makeResponsePlaceholders(withRideHailTransit = true)
+          responsePlaceholders = makeResponsePlaceholders(boundingBox, withRideHailTransit = true)
           requestId = makeRideHailTransitRoutingRequest(bodyStreetVehicle)
         case Some(m) =>
           logDebug(m.toString)
@@ -1131,6 +1137,7 @@ object ChoosesMode {
   )
 
   def makeResponsePlaceholders(
+    boundingBox: Envelope,
     withRouting: Boolean = false,
     withParking: Boolean = false,
     withRideHail: Boolean = false,
@@ -1146,9 +1153,9 @@ object ChoosesMode {
       parkingResponse = if (withParking) {
         None
       } else {
-        Some(ParkingInquiryResponse(ParkingStall.lastResortStall(), 0))
+        Some(ParkingInquiryResponse(ParkingStall.lastResortStall(boundingBox), 0))
       },
-      driveTransitParkingResponse = Some(ParkingInquiryResponse(ParkingStall.lastResortStall(), 0)),
+      driveTransitParkingResponse = Some(ParkingInquiryResponse(ParkingStall.lastResortStall(boundingBox), 0)),
       rideHailResult = if (withRideHail) {
         None
       } else {

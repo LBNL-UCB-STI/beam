@@ -54,7 +54,8 @@ class RideHailAgentSpec
     with FunSpecLike
     with BeforeAndAfterAll
     with MockitoSugar
-    with ImplicitSender {
+    with ImplicitSender
+    with BeamvilleFixtures {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   lazy val config = BeamConfig(system.settings.config)
@@ -78,7 +79,8 @@ class RideHailAgentSpec
     when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
     theServices
   }
-  private lazy val zonalParkingManager: ActorRef = ZonalParkingManagerSpec.mockZonalParkingManager(services)
+  private lazy val zonalParkingManager: ActorRef =
+    ZonalParkingManagerSpec.mockZonalParkingManager(services, boundingBox)
 
   case class TestTrigger(tick: Int) extends Trigger
 

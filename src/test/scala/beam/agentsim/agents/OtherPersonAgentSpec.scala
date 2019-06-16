@@ -34,6 +34,7 @@ import beam.utils.StuckFinder
 import beam.utils.TestConfigUtils.testConfig
 import com.google.inject.{AbstractModule, Guice, Injector}
 import com.typesafe.config.ConfigFactory
+import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.population.{Activity, Person}
@@ -73,7 +74,8 @@ class OtherPersonAgentSpec
     with BeforeAndAfterAll
     with MockitoSugar
     with beam.utils.InjectableMock
-    with ImplicitSender {
+    with ImplicitSender
+    with BeamvilleFixtures {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
   lazy val beamConfig = BeamConfig(system.settings.config)
@@ -143,7 +145,7 @@ class OtherPersonAgentSpec
 
   private lazy val parkingManager = system.actorOf(
     ZonalParkingManager
-      .props(beamSvc, beamSvc.beamRouter),
+      .props(beamSvc, beamSvc.beamRouter, boundingBox),
     "ParkingManager"
   )
 
@@ -325,7 +327,8 @@ class OtherPersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc)
+          new BeamSkimmer(beamConfig, beamSvc),
+          boundingBox
         )
       )
       scheduler ! StartSchedule(0)
