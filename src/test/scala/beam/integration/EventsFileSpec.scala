@@ -36,12 +36,13 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
     val networkCoordinator = buildNetworkCoordinator(beamExecutionConfig.beamConfig)
 
-    val (services, scenario) = buildBeamServicesAndScenario(
+    val (services, scenarioBuilt) = buildBeamServicesAndScenario(
       config,
       beamExecutionConfig.beamConfig,
       beamExecutionConfig.matsimConfig,
       networkCoordinator
     )
+    scenario = scenarioBuilt
 
     runBeam(services, scenario, networkCoordinator, scenario.getConfig.controler().getOutputDirectory)
     personHouseholds = scenario.getHouseholds.getHouseholds
