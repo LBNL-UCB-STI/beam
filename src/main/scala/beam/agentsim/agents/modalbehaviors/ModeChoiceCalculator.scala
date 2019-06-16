@@ -49,7 +49,7 @@ trait ModeChoiceCalculator extends HasServices {
   def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity],
+    destinationActivity: Option[Activity]
   ): Option[EmbodiedBeamTrip]
 
   def utilityOf(

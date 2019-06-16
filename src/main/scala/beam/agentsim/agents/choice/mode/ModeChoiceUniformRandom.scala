@@ -18,7 +18,7 @@ class ModeChoiceUniformRandom(val beamServices: BeamServices) extends ModeChoice
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity],
+    destinationActivity: Option[Activity]
   ): Option[EmbodiedBeamTrip] = {
     if (alternatives.nonEmpty) {
       Some(alternatives(chooseRandomAlternativeIndex(alternatives)))
