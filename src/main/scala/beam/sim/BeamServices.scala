@@ -48,8 +48,8 @@ import org.matsim.core.controler._
   *
   * IMPORTANT: The code below is not typical code. It is the most atypical code. It is the implementation
   * of a refactoring device. Real code never needs to directly reference the injector in any way, except
-  * in the outermost layer, the main method basically. If you see a reference to an injector in user code,
-  * please try to remove it.
+  * in the outermost layer, the main method basically. [[BeamHelper]] in our case.
+  * If you see a reference to an injector in user code, please try to remove it.
   *
   */
 @ImplementedBy(classOf[BeamServicesImpl])
