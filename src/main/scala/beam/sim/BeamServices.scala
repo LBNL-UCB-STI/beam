@@ -34,7 +34,7 @@ import org.matsim.core.controler._
   * please bind it into the [[Injector]] (see that class for how this is done), and let it listen
   * to events. If you want simulated entities to access that thing to look something up,
   * pass it through [[BeamMobsim]] into [[BeamMobsimIteration]], and further into your simulated entity,
-  * but take care to not violate the actor model, i.e. the simulated entity may only look at a part of your class
+  * but take care to not violate the actor model, i.e. the simulated entity must only look at a part of your class
   * that is immutable during the iteration (e.g. put together after each iteration). If that is not
   * possible, maybe the thing you want to write is really a simulated entity, in which case see above.
   *
