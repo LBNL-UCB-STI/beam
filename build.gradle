@@ -112,10 +112,9 @@ allprojects {
 dependencies {
 
     //beam-utilities
-    compile(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.1') {
-        exclude group: 'com.github.michaz', module: 'r5'
-    }
-    
+    compile 'com.github.LBNL-UCB-STI:beam-utilities:cb4e974d98'
+
+
     ////////////////////////////
     // Java dependencies
     ////////////////////////////
@@ -160,10 +159,10 @@ dependencies {
         exclude group: 'org.matsim', module: 'matsim'
     }
 
-    compile(group: 'com.github.wrashid.matsim', name: 'matsim', version: '0.10.1-beam-6') {
+    compile ('com.github.wrashid.matsim:matsim:rajnikantsh~remove-redundant-code-SNAPSHOT'){
         exclude group: 'log4j', module: 'log4j'
     }
-
+    
     compile "org.slf4j:slf4j-api:${slf4jVersion}"
     compile "ch.qos.logback:logback-classic:1.2.3"
     compile "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
