@@ -336,6 +336,10 @@ class RideHailManager(
 
   val rhs: RideHailState = beamServices.rideHailState
 
+
+  val isRepositioningInTheBeginning: Boolean = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.name == "HOME_HISTORICAL"
+  log.info(s"isRepositioningInTheBeginning: $isRepositioningInTheBeginning")
+
   val shouldReposition
     : Set[Id[Vehicle]] = rhs.getRideHailUtilization.notMovedAtAll ++ rhs.getRideHailUtilization.movedWithoutPassenger
 
@@ -489,8 +493,29 @@ class RideHailManager(
       .map { case (numOfPassengers, xs) =>
         numOfPassengers -> xs.size
       }
-
   log.info(s"Utilization: $utilizationMap")
+
+  val numOfRidesToVehicleId: Seq[(Int, Id[Vehicle])] = rhs.getRideHailUtilization.rides.groupBy(x => x.vehicleId)
+      .map { case (vehId, xs) =>
+        vehId -> xs.count(_.numOfPassengers > 0)
+      }
+      .toSeq
+      .map { case (vehId, nRides) =>
+        nRides -> vehId
+      }
+  val anotherUtil: Vector[(Int, Int)] = numOfRidesToVehicleId.groupBy { case (nRides, id) => nRides }
+      .map { case (nRides, xs) =>
+        nRides -> xs.map(_._2).size
+      }
+      .toVector
+      .sortBy { case (nRides, nVehicles) => -nRides }
+
+  log.info(s"anotherUtil: $anotherUtil")
+
+  val totalNumberOfPassengerRides = rhs.getRideHailUtilization.rides.count(x => x.numOfPassengers > 0)
+
+  val totalNumberOfMovedPassengers = rhs.getRideHailUtilization.rides.filter(x => x.numOfPassengers > 0)
+    .map(_.numOfPassengers).sum
 
   log.info(s"""
        |usedActivities: ${usedActivities.size}
@@ -499,8 +524,10 @@ class RideHailManager(
        |vehicleToActivity: ${vehicleToActivity.size}
        |vehicleToFirstRide: ${vehicleToFirstRide.size}
        |notMovedAtAll: ${rhs.getRideHailUtilization.notMovedAtAll.size}
-       |movedWithoutPassenger: ${rhs.getRideHailUtilization.movedWithoutPassenger.size}
-       |movedWithPassengers: ${rhs.getRideHailUtilization.movedWithPassengers.size}
+       |movedWithoutPassengerUniqueVehicles: ${rhs.getRideHailUtilization.movedWithoutPassenger.size}
+       |movedWithPassengersUniqueVehicles: ${rhs.getRideHailUtilization.movedWithPassengers.size}
+       |totalNumberOfMovedPassengers: ${totalNumberOfMovedPassengers}
+       |totalNumberOfPassengerRides: ${totalNumberOfPassengerRides}
        |total rides: ${rhs.getRideHailUtilization.rides.size}""".stripMargin)
 
   rhs.setAllRideHailVehicles(vehicleManager.vehicleState.keySet.toSet)
@@ -1292,7 +1319,7 @@ class RideHailManager(
     )
 
     val vehId = Id.createVehicleId(rideHailVehicleId)
-    val initLocation = if (beamServices.iterationNumber == 0) {
+    val initLocation = if (beamServices.iterationNumber == 0 || !isRepositioningInTheBeginning) {
       rideInitialLocation
     } else {
       vehicleToFirstRide.get(vehId).map(_.startCoord).getOrElse {
