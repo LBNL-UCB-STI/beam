@@ -485,6 +485,13 @@ class RideHailManager(
       )
   }
 
+  val utilizationMap = rhs.getRideHailUtilization.rides.groupBy(x => x.numOfPassengers)
+      .map { case (numOfPassengers, xs) =>
+        numOfPassengers -> xs.size
+      }
+
+  log.info(s"Utilization: $utilizationMap")
+
   log.info(s"""
        |usedActivities: ${usedActivities.size}
        |availableActivities: ${availableActivities.size}
