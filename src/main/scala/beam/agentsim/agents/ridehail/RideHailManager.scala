@@ -508,7 +508,7 @@ class RideHailManager(
         nRides -> xs.map(_._2).size
       }
       .toVector
-      .sortBy { case (nRides, nVehicles) => -nRides }
+      .sortBy { case (nRides, _) => nRides }
 
   log.info(s"anotherUtil: $anotherUtil")
 
