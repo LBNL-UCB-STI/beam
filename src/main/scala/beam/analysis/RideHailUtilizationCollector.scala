@@ -11,7 +11,7 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable.ArrayBuffer
 
-case class VehicleRideInfo(vehicleId: Id[Vehicle], startCoord: Coord, endCoord: Coord, numOfPassengers: Int)
+case class VehicleRideInfo(vehicleId: Id[Vehicle], time: Int, startCoord: Coord, endCoord: Coord, numOfPassengers: Int)
 case class RideHailUtilization
 (
   notMovedAtAll: Set[Id[Vehicle]],
@@ -39,7 +39,7 @@ class RideHailUtilizationCollector(beamSvc: BeamServices) extends BasicEventHand
     // Yes, PathTraversalEvent contains coordinates in WGS
     val startCoord = beamSvc.geo.wgs2Utm(new Coord(pte.startX, pte.startY))
     val endCoord = beamSvc.geo.wgs2Utm(new Coord(pte.endX, pte.endY))
-    val vri = VehicleRideInfo(pte.vehicleId, startCoord, endCoord, pte.numberOfPassengers)
+    val vri = VehicleRideInfo(pte.vehicleId, pte.time.toInt, startCoord, endCoord, pte.numberOfPassengers)
     rides += vri
     vri
   }
