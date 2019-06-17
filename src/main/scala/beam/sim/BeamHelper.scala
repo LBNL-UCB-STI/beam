@@ -778,29 +778,3 @@ trait BeamHelper extends LazyLogging {
 }
 
 case class MapStringDouble(data: Map[String, Double])
-case class BeamScenario(
-  fuelTypePrices: FuelTypePrices,
-  vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
-  privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle],
-  vehicleEnergy: VehicleEnergy,
-  beamConfig: BeamConfig,
-  dates: DateUtils,
-  ptFares: PtFares,
-  transportNetwork: TransportNetwork,
-  transitSchedule: Map[Id[BeamVehicle], (RouteInfo, ArrayBuffer[BeamLeg])],
-  network: Network,
-  tazTreeMap: TAZTreeMap,
-  modeIncentives: ModeIncentive
-) {
-  lazy val rideHailTransitModes: Seq[BeamMode] =
-    if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("all")) BeamMode.transitModes
-    else if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("mass"))
-      BeamMode.massTransitModes
-    else {
-      beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.toUpperCase
-        .split(",")
-        .map(BeamMode.fromString)
-        .toSeq
-        .flatten
-    }
-}
