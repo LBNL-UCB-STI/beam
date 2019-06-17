@@ -15,7 +15,7 @@ class ChargingPlugInEvent(
   vehId: Id[Vehicle],
   primaryFuelLevel: Double,
   secondaryFuelLevel: Option[Double],
-                         ) extends Event(tick)
+) extends Event(tick)
     with HasPersonId
     with ScalaEvent {
 

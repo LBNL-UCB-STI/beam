@@ -103,7 +103,7 @@ class ZonalParkingManager(
   }
 }
 
-object ZonalParkingManager {
+object ZonalParkingManager extends LazyLogging {
 
   val ParkingDurationForRideHailAgents: Int = 30 * 60 // 30 minutes?
   val SearchFactor: Double = 2.0 // increases search radius by this factor at each iteration

@@ -269,7 +269,14 @@ class RideHailAgent(
       val (tick, triggerId) = releaseTickAndTriggerId()
 
       if (vehicle.isBEV || vehicle.isPHEV) {
-        handleStartCharging(tick, Some(triggerId), vehicle)
+        handleStartCharging(tick, vehicle) { (chargingEndTick: Int, energyDelivered: Double) =>
+          CompletionNotice(
+            triggerId,
+            Vector(
+              ScheduleTrigger(EndRefuelSessionTrigger(chargingEndTick, tick, energyDelivered, Some(vehicle)), self)
+            )
+          )
+        }
         stay
       } else handleStartRefuel(tick, triggerId)
 
@@ -604,7 +611,8 @@ class RideHailAgent(
         case Some(nextIdle) =>
           _currentTriggerId.foreach(
             log.debug(
-              "RHA {}: state(transitioning to Idle NotifyVehicleResourceIdleReply) - ev: {}, triggerId: {}",id,
+              "RHA {}: state(transitioning to Idle NotifyVehicleResourceIdleReply) - ev: {}, triggerId: {}",
+              id,
               nextIdle,
               _
             )

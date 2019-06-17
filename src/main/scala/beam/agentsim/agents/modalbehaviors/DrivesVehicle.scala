@@ -23,7 +23,7 @@ import beam.agentsim.events.{
 }
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingInquiry
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerMessage}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
@@ -312,7 +312,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
 
             if (currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV) {
               stall.chargingPointType match {
-                case Some(_) => handleStartCharging(tick, None, currentBeamVehicle)
+                case Some(_) => // Currently only occurs when a PersonAgent charges
+                  handleStartCharging(tick, currentBeamVehicle) { (chargingEndTick: Int, energyDelivered: Double) =>
+                    ScheduleTrigger(
+                      EndRefuelSessionTrigger(chargingEndTick, tick, energyDelivered, Some(currentBeamVehicle)),
+                      self
+                    )
+                  }
                 case None =>
                   log.debug(
                     "Charging request by vehicle {} ({}) on a spot without a charging point (parkingZoneId: {}). This is not handled yet!",
@@ -768,13 +774,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       0.0
   }
 
-  def handleStartCharging(tick: Int, triggerIdOption: Option[Long], vehicle: BeamVehicle) = {
+  def handleStartCharging(tick: Int, vehicle: BeamVehicle)(schedulerMessage: (Int, Double) => SchedulerMessage) = {
     log.debug("Vehicle {} connects to charger @ stall {}", vehicle.id, vehicle.stall.get)
     vehicle.connectToChargingPoint()
     eventsManager.processEvent(
       new ChargingPlugInEvent(
         tick,
-        vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
+        vehicle.stall.get.copy(locationUTM = geo.utm2Wgs(vehicle.stall.get.locationUTM)),
         vehicle.id,
         vehicle.primaryFuelLevelInJoules,
         vehicle.beamVehicleType.secondaryFuelType.map(_ => vehicle.secondaryFuelLevelInJoules)
@@ -791,22 +797,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       vehicle.id
     )
 
-    triggerIdOption match {
-      case Some(triggerId) => // Some happens when a RideHailAgent chargers
-        val complete = CompletionNotice(
-          triggerId,
-          Vector(
-            ScheduleTrigger(EndRefuelSessionTrigger(chargingEndTick, tick, energyDelivered, Some(vehicle)), self)
-          )
-        )
-        scheduler ! complete
-
-      case None => // None happens when a PersonAgent charges
-        scheduler ! ScheduleTrigger(
-          EndRefuelSessionTrigger(chargingEndTick, tick, energyDelivered, Some(vehicle)),
-          self
-        )
-    }
+    scheduler ! schedulerMessage(chargingEndTick, sessionDuration)
   }
 
 }
