@@ -10,6 +10,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.opengis.feature.simple.SimpleFeature
+import org.slf4j.LoggerFactory
 import org.supercsv.io._
 import org.supercsv.prefs.CsvPreference
 
@@ -53,6 +54,8 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
 }
 
 object TAZTreeMap {
+
+  private val logger = LoggerFactory.getLogger(this.getClass)
 
   val emptyTAZId = Id.create("NA", classOf[TAZ])
 
@@ -181,4 +184,40 @@ object TAZTreeMap {
     }
     res
   }
+
+  def getTazTreeMap(filePath: String): TAZTreeMap = {
+    try {
+      TAZTreeMap.fromCsv(filePath)
+    } catch {
+      case fe: FileNotFoundException =>
+        logger.error("No TAZ file found at given file path (using defaultTazTreeMap): %s" format filePath, fe)
+        defaultTazTreeMap
+      case e: Exception =>
+        logger.error(
+          "Exception occurred while reading from CSV file from path (using defaultTazTreeMap): %s" format e.getMessage,
+          e
+        )
+        defaultTazTreeMap
+    }
+  }
+
+  val defaultTazTreeMap: TAZTreeMap = {
+    val tazQuadTree: QuadTree[TAZ] = new QuadTree(-1, -1, 1, 1)
+    val taz = new TAZ("0", new Coord(0.0, 0.0), 0.0)
+    tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
+    new TAZTreeMap(tazQuadTree)
+  }
+
+  def randomLocationInTAZ(
+    taz: TAZ,
+    rand: scala.util.Random = new scala.util.Random(System.currentTimeMillis())
+  ): Coord = {
+    val radius = Math.sqrt(taz.areaInSquareMeters / Math.PI) / 2
+    val a = 2 * Math.PI * rand.nextDouble()
+    val r = radius * Math.sqrt(rand.nextDouble())
+    val x = r * Math.cos(a)
+    val y = r * Math.sin(a)
+    new Coord(taz.coord.getX + x, taz.coord.getY + y)
+  }
+
 }

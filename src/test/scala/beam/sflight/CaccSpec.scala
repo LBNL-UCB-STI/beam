@@ -1,19 +1,19 @@
 package beam.sflight
 
-import scala.io.Source
-
 import beam.analysis.plots.PersonTravelTimeAnalysis
-import beam.router.r5.DefaultNetworkCoordinator
-import beam.sim.{BeamHelper, BeamServices}
+import beam.sim.BeamHelper
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
-import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
+import beam.tags.{ExcludeRegular, Periodic}
+import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.core.config.Config
-import org.matsim.core.controler.{AbstractModule, OutputDirectoryHierarchy}
+import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap, Matchers, WordSpecLike}
+import org.scalatest.{BeforeAndAfterAllConfigMap, Matchers, WordSpecLike}
+
+import scala.io.Source
 
 class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap {
 
@@ -36,23 +36,12 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
 
     val outputDir: String = FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
-    val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
-    networkCoordinator.loadNetwork()
-    networkCoordinator.convertFrequenciesToTrips()
+    val beamScenario = loadScenario(beamConfig)
 
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-    scenario.setNetwork(networkCoordinator.network)
+    scenario.setNetwork(beamScenario.network)
 
-    val injector = org.matsim.core.controler.Injector.createInjector(
-      scenario.getConfig,
-      new AbstractModule() {
-        override def install(): Unit = {
-          val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
-          install(module(config, scenario, networkCoordinator, networkHelper))
-        }
-      }
-    )
-    val services = injector.getInstance(classOf[BeamServices])
+    val services = buildBeamServices(buildInjector(config, scenario, beamScenario), scenario)
     DefaultPopulationAdjustment(services).update(scenario)
 
     val controller = services.controler
@@ -74,7 +63,7 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
   }
 
   "SF Light" must {
-    "run 1k scenario car averageTravelTimes(deqsim.cacc.enabled=true) <= averageTravelTimes(deqsim.cacc.enabled=false)" in {
+    "run 1k scenario car averageTravelTimes(deqsim.cacc.enabled=true) <= averageTravelTimes(deqsim.cacc.enabled=false)" taggedAs (Periodic, ExcludeRegular) in {
       val iteration = 1
       val avgWithCaccEnabled = runSimulationAndReturnAvgCarTravelTimes(caccEnabled = true, iteration)
       val avgWithCaccDisabled = runSimulationAndReturnAvgCarTravelTimes(caccEnabled = false, iteration)

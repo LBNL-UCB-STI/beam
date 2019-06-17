@@ -8,6 +8,7 @@ import beam.sim.population.{AttributesOfIndividual, PopulationAdjustment}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Person, Plan, Population}
 import org.matsim.core.population.algorithms.PermissibleModesCalculator
+import org.matsim.households.Household
 
 import scala.collection.JavaConverters
 
@@ -99,6 +100,7 @@ object AvailableModeUtils extends LazyLogging {
   def setAvailableModesForPerson_v2(
     beamServices: BeamServices,
     person: Person,
+    household: Household,
     population: Population,
     permissibleModes: Seq[String]
   ): Unit = {
@@ -107,7 +109,7 @@ object AvailableModeUtils extends LazyLogging {
         .get(PopulationAdjustment.BEAM_ATTRIBUTES)
         .asInstanceOf[AttributesOfIndividual]
     ).getOrElse {
-      val attribs = PopulationAdjustment.createAttributesOfIndividual(beamServices, population, person)
+      val attribs = PopulationAdjustment.createAttributesOfIndividual(beamServices, population, person, household)
       person.getCustomAttributes.put(PopulationAdjustment.BEAM_ATTRIBUTES, attribs)
       attribs
     }

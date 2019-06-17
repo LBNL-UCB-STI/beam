@@ -5,8 +5,8 @@ import java.util.Random
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.router.Modes.BeamMode
-import beam.sim.BeamServices
 import beam.sim.vehicles.VehiclesAdjustment
+import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.RandomUtils
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.scalalogging.LazyLogging
@@ -23,6 +23,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class UrbanSimScenarioLoader(
   var scenario: MutableScenario,
+  val beamScenario: BeamScenario,
   var beamServices: BeamServices,
   val scenarioSource: ScenarioSource
 ) extends LazyLogging {
@@ -57,8 +58,6 @@ class UrbanSimScenarioLoader(
     applyHousehold(householdsWithMembers, householdIdToPersons)
     // beamServices.privateVehicles is properly populated here, after `applyHousehold` call
 
-    replacePersonHouseholdFromService()
-
     // beamServices.personHouseholds is used later on in PopulationAdjustment.createAttributesOfIndividual when we
     logger.info("Applying persons...")
     applyPersons(personsWithPlans)
@@ -70,21 +69,13 @@ class UrbanSimScenarioLoader(
     scenario
   }
 
-  private def replacePersonHouseholdFromService(): Unit = {
-    beamServices.personHouseholds = scenario.getHouseholds.getHouseholds
-      .values()
-      .asScala
-      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
-      .toMap
-  }
-
   private def clear(): Unit = {
     scenario.getPopulation.getPersons.clear()
     scenario.getPopulation.getPersonAttributes.clear()
     scenario.getHouseholds.getHouseholds.clear()
     scenario.getHouseholds.getHouseholdAttributes.clear()
 
-    beamServices.privateVehicles.clear()
+    beamScenario.privateVehicles.clear()
   }
 
   private[utils] def getPersonsWithPlan(
@@ -112,7 +103,7 @@ class UrbanSimScenarioLoader(
 
     val scaleFactor = beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
 
-    val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamServices)
+    val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamServices, beamScenario)
     val realDistribution: UniformRealDistribution = new UniformRealDistribution()
     realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
@@ -148,7 +139,7 @@ class UrbanSimScenarioLoader(
           )
           .toBuffer
 
-        beamServices.vehicleTypes.values
+        beamScenario.vehicleTypes.values
           .find(_.vehicleCategory == VehicleCategory.Bike) match {
           case Some(vehType) =>
             vehicleTypes.append(vehType)
@@ -166,7 +157,7 @@ class UrbanSimScenarioLoader(
           val bvId = Id.create(vehicle.getId, classOf[BeamVehicle])
           val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
           val beamVehicle = new BeamVehicle(bvId, powerTrain, beamVehicleType)
-          beamServices.privateVehicles.put(beamVehicle.id, beamVehicle)
+          beamScenario.privateVehicles.put(beamVehicle.id, beamVehicle)
           vehicleCounter = vehicleCounter + 1
         }
         household.setVehicleIds(vehicleIds)
@@ -230,6 +221,12 @@ class UrbanSimScenarioLoader(
   }
 
   private[utils] def applyPersons(persons: Iterable[PersonInfo]): Unit = {
+    val personHouseholds = beamServices.matsimServices.getScenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
+      .toMap
+
     persons.foreach { personInfo =>
       val person = population.getFactory.createPerson(Id.createPersonId(personInfo.personId.id))
       val personId = person.getId.toString
@@ -239,7 +236,13 @@ class UrbanSimScenarioLoader(
       // FIXME Search for "householdId" in the code does not show any place where it used
       personAttrib.putAttribute(personId, "rank", personInfo.rank)
       personAttrib.putAttribute(personId, "age", personInfo.age)
-      AvailableModeUtils.setAvailableModesForPerson_v2(beamServices, person, population, availableModes.split(","))
+      AvailableModeUtils.setAvailableModesForPerson_v2(
+        beamServices,
+        person,
+        personHouseholds(person.getId),
+        population,
+        availableModes.split(",")
+      )
       population.addPerson(person)
     }
   }

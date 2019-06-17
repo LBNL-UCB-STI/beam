@@ -8,6 +8,7 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{EndRefuelSessionTrigger, StartLegTrigger}
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
+import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule}
@@ -231,7 +232,7 @@ trait ChoosesParking extends {
           EmbodiedBeamLeg(
             nextLeg,
             data.currentVehicle.head,
-            BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+            body.beamVehicleType.id,
             true,
             0.0,
             true
