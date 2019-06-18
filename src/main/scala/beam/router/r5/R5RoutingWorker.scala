@@ -12,7 +12,6 @@ import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.Modes._
@@ -985,9 +984,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           assert(link != null)
           val physSimTravelTime = travelTime.getLinkTravelTime(link, time, null, null).ceil.toInt
           val linkTravelTime = Math.max(physSimTravelTime, minTravelTime)
-          if (linkTravelTime > maxTravelTime) {
-            println("wurst")
-          }
           Math.min(linkTravelTime, maxTravelTime)
         }
       }
