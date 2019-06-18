@@ -1,12 +1,12 @@
 package beam.agentsim.agents.household
 
-import akka.actor.{ActorContext, ActorRef, ActorSelection, Props}
 import akka.actor.FSM.Failure
 import akka.actor.Status.Success
+import akka.actor.{ActorContext, ActorRef, ActorSelection, Props}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.PersonAgent.{DrivingData, PassengerScheduleEmpty, VehicleStack, WaitingToDrive}
-import beam.agentsim.agents.household.HouseholdActor.{ReleaseVehicle, ReleaseVehicleAndReply}
+import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleAndReply
 import beam.agentsim.agents.household.HouseholdCAVDriverAgent.HouseholdCAVDriverData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, StartLegTrigger}
@@ -16,23 +16,27 @@ import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
-import beam.sim.{BeamServices, Geofence}
+import beam.sim.{BeamScenario, BeamServices, Geofence}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
+import org.matsim.api.core.v01.events.PersonDepartureEvent
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
 class HouseholdCAVDriverAgent(
   val driverId: Id[HouseholdCAVDriverAgent],
   val scheduler: ActorRef,
   val beamServices: BeamServices,
+  val beamScenario: BeamScenario,
   val eventsManager: EventsManager,
   val parkingManager: ActorRef,
   val vehicle: BeamVehicle,
   val transportNetwork: TransportNetwork,
   val tollCalculator: TollCalculator
 ) extends DrivesVehicle[HouseholdCAVDriverData] {
+  val networkHelper = beamServices.networkHelper
+  val geo = beamServices.geo
 
   override val id: Id[HouseholdCAVDriverAgent] = driverId
 
@@ -96,11 +100,7 @@ class HouseholdCAVDriverAgent(
   }
 
   when(PassengerScheduleEmpty) {
-    case Event(PassengerScheduleEmptyMessage(lastVisited, _, _), _) =>
-      log.debug(s"Releasing CAV at ${lastVisited.time}")
-      vehicle.manager.get ! ReleaseVehicleAndReply(vehicle, Some(lastVisited.time))
-      stay
-    case Event(Success, _) =>
+    case Event(PassengerScheduleEmptyMessage(_, _, _), _) =>
       val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
       goto(Idle)
@@ -117,12 +117,11 @@ class HouseholdCAVDriverAgent(
 
 object HouseholdCAVDriverAgent {
 
-  def idFromVehicleId(vehId: Id[BeamVehicle]) = Id.create(s"cavDriver-$vehId", classOf[HouseholdCAVDriverAgent])
-
   def props(
     driverId: Id[HouseholdCAVDriverAgent],
     scheduler: ActorRef,
     services: BeamServices,
+    beamScenario: BeamScenario,
     eventsManager: EventsManager,
     parkingManager: ActorRef,
     vehicle: BeamVehicle,
@@ -135,6 +134,7 @@ object HouseholdCAVDriverAgent {
         driverId,
         scheduler,
         services,
+        beamScenario,
         eventsManager,
         parkingManager,
         vehicle,
@@ -144,16 +144,13 @@ object HouseholdCAVDriverAgent {
     )
   }
 
-  def selectByVehicleId(transitVehicle: Id[Vehicle])(implicit context: ActorContext): ActorSelection = {
-    context.actorSelection("/user/population/household/" + createAgentIdFromVehicleId(transitVehicle))
+  def selectByVehicleId(householdId: Id[Household], transitVehicle: Id[Vehicle])(
+    implicit context: ActorContext
+  ): ActorSelection = {
+    context.actorSelection("/user/population/" + householdId.toString + "/" + idFromVehicleId(transitVehicle))
   }
 
-  def createAgentIdFromVehicleId(cavVehicle: Id[Vehicle]): Id[HouseholdCAVDriverAgent] = {
-    Id.create(
-      "HouseholdCAVDriverAgent-" + BeamVehicle.noSpecialChars(cavVehicle.toString),
-      classOf[HouseholdCAVDriverAgent]
-    )
-  }
+  def idFromVehicleId(vehId: Id[BeamVehicle]) = Id.create(s"cavDriver-$vehId", classOf[HouseholdCAVDriverAgent])
 
   case class HouseholdCAVDriverData(
     currentVehicleToken: BeamVehicle,

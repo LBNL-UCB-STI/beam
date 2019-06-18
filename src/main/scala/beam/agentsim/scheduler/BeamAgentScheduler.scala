@@ -7,6 +7,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Terminated
 import akka.event.LoggingReceive
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.EndRefuelSessionTrigger
 import beam.agentsim.agents.ridehail.RideHailManager.{
   ContinueBufferedRideHailRequests,
   RecoverFromStuckness,
@@ -51,6 +52,8 @@ object BeamAgentScheduler {
   ) extends SchedulerMessage
 
   case object Monitor extends SchedulerMessage
+
+  case object RequestCurrentTime extends SchedulerMessage
 
   case object SkipOverBadActors extends SchedulerMessage
 
@@ -231,6 +234,7 @@ class BeamAgentScheduler(
       if (started) doSimStep(nowInSeconds)
 
     case triggerToSchedule: ScheduleTrigger =>
+//      log.debug("Received trigger {}", triggerToSchedule) // todo JH comment or delete
       context.watch(triggerToSchedule.agent)
       scheduleTrigger(triggerToSchedule)
       if (started) doSimStep(nowInSeconds)
@@ -241,6 +245,9 @@ class BeamAgentScheduler(
 
     case Terminated(actor) =>
       terminateActor(actor)
+
+    case RequestCurrentTime =>
+      sender ! nowInSeconds
 
     case Monitor =>
       if (beamConfig.beam.debug.debugEnabled) {
@@ -356,7 +363,7 @@ class BeamAgentScheduler(
           .tick <= stopTick) {
       nowInSeconds = newNow
 
-      // println("doSimStep:" + newNow)
+      //log.debug("doSimStep: {}", newNow) // todo JH comment or delete
 
       if (awaitingResponse.isEmpty || nowInSeconds - awaitingResponse
             .keySet()
@@ -368,7 +375,7 @@ class BeamAgentScheduler(
                  .tick <= nowInSeconds) {
           val scheduledTrigger = this.triggerQueue.poll()
           val triggerWithId = scheduledTrigger.triggerWithId
-          //log.info(s"dispatching $triggerWithId")
+          //log.info(s"dispatching $triggerWithId") // todo JH comment or delete
           awaitingResponse.put(triggerWithId.trigger.tick, scheduledTrigger)
           stuckFinder.add(System.currentTimeMillis(), scheduledTrigger, true)
 

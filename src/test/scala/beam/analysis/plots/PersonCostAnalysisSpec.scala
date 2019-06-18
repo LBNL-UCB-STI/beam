@@ -1,7 +1,6 @@
 package beam.analysis.plots
 
 import beam.analysis.summary.PersonCostAnalysis
-import beam.utils.MatsimServicesMock
 import org.scalatest.Matchers
 
 class PersonCostAnalysisSpec extends GenericAnalysisSpec with Matchers {

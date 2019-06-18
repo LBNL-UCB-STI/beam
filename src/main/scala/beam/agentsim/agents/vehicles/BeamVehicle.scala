@@ -5,18 +5,17 @@ import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
 import beam.agentsim.agents.vehicles.ConsumptionRateFilterStore.{Primary, Secondary}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.router.Modes
-import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, WALK}
 import beam.router.model.BeamLeg
-import beam.sim.{BeamServices, Geofence}
-import beam.sim.common.GeoUtils
-import beam.sim.common.GeoUtils.{Straight, TurningDirection}
+import beam.sim.BeamScenario
+import beam.sim.common.GeoUtils.TurningDirection
 import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.Id
@@ -51,6 +50,7 @@ class BeamVehicle(
   var secondaryFuelLevelInJoules = beamVehicleType.secondaryFuelCapacityInJoule.getOrElse(0.0)
 
   var mustBeDrivenHome: Boolean = false
+  private var connectedToChargingPoint: Boolean = false
 
   /**
     * The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
@@ -104,6 +104,23 @@ class BeamVehicle(
     stall = None
   }
 
+  def connectToChargingPoint(): Unit = {
+    if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType == Electricity)
+      connectedToChargingPoint = true
+    else
+      logger.warn(
+        "Trying to connect a non BEV/PHEV to a electricity charging station. This will cause an explosion. Ignoring!"
+      )
+  }
+
+  def disconnectFromChargingPoint(): Unit = {
+    connectedToChargingPoint = false
+  }
+
+  def isConnectedToChargingPoint(): Boolean = {
+    connectedToChargingPoint
+  }
+
   /**
     * useFuel
     *
@@ -120,22 +137,19 @@ class BeamVehicle(
     *
     * It is up to the manager / driver of this vehicle to decide how to react if fuel level becomes negative.
     *
-    * @param beamLeg
-    * @param beamServices
-    * @return FuelConsumed
     */
-  def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): FuelConsumed = {
+  def useFuel(beamLeg: BeamLeg, beamScenario: BeamScenario, networkHelper: NetworkHelper): FuelConsumed = {
     val fuelConsumptionData =
       BeamVehicle.collectFuelConsumptionData(
         beamLeg,
         beamVehicleType,
-        beamServices.networkHelper,
-        beamServices.vehicleEnergy.vehicleEnergyMappingExistsFor(beamVehicleType)
+        networkHelper,
+        beamScenario.vehicleEnergy.vehicleEnergyMappingExistsFor(beamVehicleType)
       )
 
     val primaryEnergyForFullLeg =
       /*val (primaryEnergyForFullLeg, primaryLoggingData) =*/
-      beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
+      beamScenario.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
         fuelConsumptionData,
         fallBack = powerTrain.getRateInJoulesPerMeter,
         Primary
@@ -148,7 +162,7 @@ class BeamVehicle(
         // Use secondary fuel if possible
         val secondaryEnergyForFullLeg =
           /*val (secondaryEnergyForFullLeg, secondaryLoggingData) =*/
-          beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
+          beamScenario.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
             fuelConsumptionData,
             fallBack = powerTrain.getRateInJoulesPerMeter,
             Secondary
@@ -198,8 +212,8 @@ class BeamVehicle(
               chargingPoint,
               primaryFuelLevelInJoules,
               beamVehicleType.primaryFuelCapacityInJoule,
-              100.0,
-              100.0,
+              1e6, // todo this should be vehicle dependent
+              1e6, // todo this should be vehicle dependent
               None
             )
           case None =>
@@ -235,6 +249,12 @@ class BeamVehicle(
   }
 
   def isCAV: Boolean = beamVehicleType.automationLevel > 3
+
+  def isBEV: Boolean =
+    beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType == None
+
+  def isPHEV: Boolean =
+    beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType == Some(Gasoline)
 
   def initializeFuelLevels = {
     primaryFuelLevelInJoules = beamVehicleType.primaryFuelCapacityInJoule
@@ -288,6 +308,7 @@ object BeamVehicle {
 
   /**
     * Organizes the fuel consumption data table
+    *
     * @param beamLeg Instance of beam leg
     * @param networkHelper the transport network instance
     * @return list of fuel consumption objects generated

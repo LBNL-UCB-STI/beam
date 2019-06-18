@@ -6,7 +6,7 @@ import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.TollRevenueAnalysis
 import beam.router.Modes.BeamMode.{BIKE, CAR}
-import beam.sim.BeamHelper
+import beam.sim.{BeamHelper, BeamScenario}
 import beam.utils.EventReader._
 import com.typesafe.config.{Config, ConfigValueFactory}
 import org.matsim.api.core.v01.Id
@@ -33,13 +33,17 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
   override protected def beforeAll(): Unit = {
     val beamExecConfig: BeamExecutionConfig = setupBeamWithConfig(config)
-
-    val networkCoordinator = buildNetworkCoordinator(beamExecConfig.beamConfig)
-    scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, networkCoordinator)
-    val injector = buildInjector(config, scenario, networkCoordinator)
-    val services = buildBeamServices(injector, scenario, beamExecConfig.matsimConfig, networkCoordinator)
-    fillScenarioWithExternalSources(injector, scenario, beamExecConfig.matsimConfig, networkCoordinator, services)
-    runBeam(services, scenario, networkCoordinator, scenario.getConfig.controler().getOutputDirectory)
+    val beamScenario = loadScenario(beamExecConfig.beamConfig)
+    scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, beamScenario)
+    val injector = buildInjector(config, scenario, beamScenario)
+    val services = buildBeamServices(injector, scenario)
+    fillScenarioWithExternalSources(injector, scenario, services)
+    runBeam(
+      services,
+      scenario,
+      injector.getInstance(classOf[BeamScenario]),
+      scenario.getConfig.controler().getOutputDirectory
+    )
     personHouseholds = scenario.getHouseholds.getHouseholds
       .values()
       .asScala
