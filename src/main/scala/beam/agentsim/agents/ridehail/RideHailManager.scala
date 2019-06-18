@@ -36,7 +36,7 @@ import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.analysis.VehicleRideInfo
+import beam.analysis.RideInfo
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, _}
 import beam.router.Modes.BeamMode._
@@ -359,14 +359,14 @@ class RideHailManager(
           acts
         }
         .filterNot(x => usedActivities.contains(x)),
-      new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
+      new Random()
     )
     .toVector
 
   // ArrayList to be able to have amortized constant time for the removal from the end
   val modifiableActivities: util.ArrayList[Activity] = new util.ArrayList[Activity](availableActivities.asJava)
 
-  val vehicleToFirstRide: Map[Id[Vehicle], VehicleRideInfo] =
+  val vehicleToFirstRide: Map[Id[Vehicle], RideInfo] =
     ProfilingUtils.timed("Build vehicleToFirstRide", log.info) {
       rhs.getRideHailUtilization.rides
         .filter(x => x.numOfPassengers > 0)
@@ -489,34 +489,6 @@ class RideHailManager(
       )
   }
 
-  val utilizationMap = rhs.getRideHailUtilization.rides.groupBy(x => x.numOfPassengers)
-      .map { case (numOfPassengers, xs) =>
-        numOfPassengers -> xs.size
-      }
-  log.info(s"Utilization: $utilizationMap")
-
-  val numOfRidesToVehicleId: Seq[(Int, Id[Vehicle])] = rhs.getRideHailUtilization.rides.groupBy(x => x.vehicleId)
-      .map { case (vehId, xs) =>
-        vehId -> xs.count(_.numOfPassengers > 0)
-      }
-      .toSeq
-      .map { case (vehId, nRides) =>
-        nRides -> vehId
-      }
-  val anotherUtil: Vector[(Int, Int)] = numOfRidesToVehicleId.groupBy { case (nRides, id) => nRides }
-      .map { case (nRides, xs) =>
-        nRides -> xs.map(_._2).size
-      }
-      .toVector
-      .sortBy { case (nRides, _) => nRides }
-
-  log.info(s"anotherUtil: $anotherUtil")
-
-  val totalNumberOfPassengerRides = rhs.getRideHailUtilization.rides.count(x => x.numOfPassengers > 0)
-
-  val totalNumberOfMovedPassengers = rhs.getRideHailUtilization.rides.filter(x => x.numOfPassengers > 0)
-    .map(_.numOfPassengers).sum
-
   log.info(s"""
        |usedActivities: ${usedActivities.size}
        |availableActivities: ${availableActivities.size}
@@ -526,8 +498,6 @@ class RideHailManager(
        |notMovedAtAll: ${rhs.getRideHailUtilization.notMovedAtAll.size}
        |movedWithoutPassengerUniqueVehicles: ${rhs.getRideHailUtilization.movedWithoutPassenger.size}
        |movedWithPassengersUniqueVehicles: ${rhs.getRideHailUtilization.movedWithPassengers.size}
-       |totalNumberOfMovedPassengers: ${totalNumberOfMovedPassengers}
-       |totalNumberOfPassengerRides: ${totalNumberOfPassengerRides}
        |total rides: ${rhs.getRideHailUtilization.rides.size}""".stripMargin)
 
   rhs.setAllRideHailVehicles(vehicleManager.vehicleState.keySet.toSet)
