@@ -27,7 +27,7 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
     extends BasicEventHandler
     with IterationEndsListener
     with LazyLogging {
-  val shouldDumpRides: Boolean = false
+  val shouldDumpRides: Boolean = true
   private val rides: ArrayBuffer[RideInfo] = ArrayBuffer()
 
   override def handleEvent(event: Event): Unit = {

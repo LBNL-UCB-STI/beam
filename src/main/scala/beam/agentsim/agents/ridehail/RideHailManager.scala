@@ -489,9 +489,13 @@ class RideHailManager(
       )
   }
 
+  val newActivities = availableActivities.size - modifiableActivities.size
+
   log.info(s"""
        |usedActivities: ${usedActivities.size}
        |availableActivities: ${availableActivities.size}
+       |modifiableActivities: ${modifiableActivities.size}
+       |newActivities: ${newActivities}
        |vehicleState: ${vehicleManager.vehicleState.keySet.size}
        |vehicleToActivity: ${vehicleToActivity.size}
        |vehicleToFirstRide: ${vehicleToFirstRide.size}
