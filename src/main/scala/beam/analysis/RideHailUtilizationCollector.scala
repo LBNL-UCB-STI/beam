@@ -2,7 +2,7 @@ package beam.analysis
 
 import java.io.{BufferedWriter, Writer}
 
-import beam.agentsim.events.PathTraversalEvent
+import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
 import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
@@ -29,17 +29,28 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
     with LazyLogging {
   val shouldDumpRides: Boolean = true
   private val rides: ArrayBuffer[RideInfo] = ArrayBuffer()
+  private var rideHailChoices: Int = 0
+  private var rideHailInAlternatives: Int = 0
+  private var totalModeChoices: Int = 0
 
   override def handleEvent(event: Event): Unit = {
     event match {
       case pte: PathTraversalEvent if pte.vehicleId.toString.contains("rideHailVehicle-") =>
         handle(pte)
+      case mc: ModeChoiceEvent =>
+        if (mc.mode == "ride_hail")
+          rideHailChoices += 1
+        if (mc.availableAlternatives.contains("RIDE_HAIL"))
+          rideHailInAlternatives += 1
+        totalModeChoices += 1
       case _ =>
     }
   }
 
   override def reset(iteration: Int): Unit = {
     rides.clear()
+    rideHailChoices = 0
+    totalModeChoices = 0
   }
 
   def handle(pte: PathTraversalEvent): RideInfo = {
@@ -93,7 +104,10 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
         |totalNumberOfMovedPassengers: $totalNumberOfMovedPassengers
         |numOfPassengersToTheNumberOfRides: $numOfPassengersToTheNumberOfRides
         |ridesToVehicles: $ridesToVehicles
-        |total rides: ${rides.length}""".stripMargin
+        |total rides: ${rides.length}
+        |rideHailChoices: $rideHailChoices
+        |rideHailInAlternatives: $rideHailInAlternatives
+        |totalModeChoices: $totalModeChoices""".stripMargin
     logger.info(msg)
   }
 
