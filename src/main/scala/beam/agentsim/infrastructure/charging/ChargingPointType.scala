@@ -20,6 +20,12 @@ object ChargingPointType {
 
   case object Cee63ASocket extends ChargingPointType
 
+  case object Default50 extends ChargingPointType
+
+  case object Default150 extends ChargingPointType
+
+  case object Default250 extends ChargingPointType
+
   case object ChargingStationType1 extends ChargingPointType
 
   case object ChargingStationType2 extends ChargingPointType
@@ -50,7 +56,7 @@ object ChargingPointType {
     }
   }
 
-  private[ChargingPointType] val CustomChargingPointRegex: Regex = "(\\w+\\d*)\\((\\d+\\.?\\d+\\s*),(\\s*\\w{2})\\)".r
+  private[ChargingPointType] val CustomChargingPointRegex: Regex = "(\\w+\\d*)\\((\\d+\\.?\\d+\\s*),(\\s*\\w{2})\\)".r.unanchored
 
   // matches either the standard ones or a custom one
   def apply(s: String): Option[ChargingPointType] = {
@@ -65,6 +71,9 @@ object ChargingPointType {
       case "chargingstationccscombotype1" => Some(ChargingStationCcsComboType1)
       case "chargingstationccscombotype2" => Some(ChargingStationCcsComboType2)
       case "teslasupercharger"            => Some(TeslaSuperCharger)
+      case "50kw"                         => Some(Default50)
+      case "150kw"                        => Some(Default150)
+      case "250kw"                        => Some(Default250)
       case "nocharger" | "none" | ""      => None
       case CustomChargingPointRegex(id, installedCapacity, currentType) =>
         Some(CustomChargingPoint(id, installedCapacity, currentType))
@@ -82,6 +91,9 @@ object ChargingPointType {
       case Cee16ASocket                 => 11
       case Cee32ASocket                 => 22
       case Cee63ASocket                 => 43
+      case Default50                    => 50
+      case Default150                   => 150
+      case Default250                   => 250
       case ChargingStationType1         => 7.2
       case ChargingStationType2         => 43
       case ChargingStationCcsComboType1 => 11
@@ -99,6 +111,9 @@ object ChargingPointType {
       case Cee16ASocket                 => AC
       case Cee32ASocket                 => AC
       case Cee63ASocket                 => AC
+      case Default50                    => DC
+      case Default150                   => DC
+      case Default250                   => DC
       case ChargingStationType1         => AC
       case ChargingStationType2         => AC
       case ChargingStationCcsComboType1 => DC
