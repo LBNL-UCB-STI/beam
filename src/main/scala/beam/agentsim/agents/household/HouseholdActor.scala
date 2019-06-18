@@ -2,8 +2,9 @@ package beam.agentsim.agents.household
 
 import java.util.concurrent.TimeUnit
 
+import akka.actor.FSM.Failure
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Status, Terminated}
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
@@ -399,6 +400,9 @@ object HouseholdActor {
             .pipeTo(self)
         }
 
+      case Status.Failure(reason) =>
+        throw new RuntimeException(reason)
+
       case ModifyPassengerScheduleAcks(acks) =>
         val (_, triggerId) = releaseTickAndTriggerId()
         completeInitialization(triggerId, acks.flatMap(_.triggersToSchedule).toVector)
@@ -441,6 +445,7 @@ object HouseholdActor {
 
       case Terminated(_) =>
       // Do nothing
+
     }
 
     def completeInitialization(triggerId: Long, triggersToSchedule: Vector[ScheduleTrigger]): Unit = {
