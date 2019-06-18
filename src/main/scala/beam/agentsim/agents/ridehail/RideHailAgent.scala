@@ -71,7 +71,8 @@ object RideHailAgent {
     currentVehicle: VehicleStack = Vector(),
     passengerSchedule: PassengerSchedule = PassengerSchedule(),
     currentLegPassengerScheduleIndex: Int = 0,
-    remainingShifts: List[Range] = List()
+    remainingShifts: List[Range] = List(),
+    geofence: Option[Geofence] = None
   ) extends DrivingData {
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
       copy(passengerSchedule = newPassengerSchedule)
@@ -81,6 +82,7 @@ object RideHailAgent {
     ): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
 
     override def hasParkingBehaviors: Boolean = false
+
   }
 
   // triggerId is included to facilitate debugging
@@ -211,6 +213,7 @@ class RideHailAgent(
           vehicle.spaceTime,
           PassengerSchedule(),
           vehicle.getState,
+          geofence,
           Some(triggerId)
         )
         holdTickAndTriggerId(tick, triggerId)
@@ -233,6 +236,7 @@ class RideHailAgent(
         vehicle.spaceTime.copy(time = tick),
         PassengerSchedule(),
         vehicle.getState,
+        geofence,
         Some(triggerId)
       )
       holdTickAndTriggerId(tick, triggerId)
@@ -262,7 +266,7 @@ class RideHailAgent(
   when(Idle) {
     case Event(
         TriggerWithId(EndShiftTrigger(tick), triggerId),
-        data @ RideHailAgentData(_, _, _, _, _)
+        data @ RideHailAgentData(_, _, _, _, _, _)
         ) =>
       val newShiftToSchedule = if (data.remainingShifts.size < 1) {
         Vector()
@@ -293,6 +297,7 @@ class RideHailAgent(
           SpaceTime(currentLocation, tick),
           data.passengerSchedule,
           vehicle.getState,
+          geofence,
           _currentTriggerId
         )
       )
@@ -318,12 +323,13 @@ class RideHailAgent(
         )
       )
       goto(WaitingToDriveInterrupted) using data
+        .copy(geofence = geofence)
         .withPassengerSchedule(updatedPassengerSchedule)
         .asInstanceOf[RideHailAgentData] replying ModifyPassengerScheduleAck(
         requestId,
         triggerToSchedule,
         vehicle.id,
-        tick
+        tick,
       )
     case ev @ Event(Resume(), _) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
@@ -405,7 +411,7 @@ class RideHailAgent(
         vehicle.id
       )
     )
-    parkingManager ! ReleaseParkingStall(vehicle.stall.get.id)
+    parkingManager ! ReleaseParkingStall(vehicle.stall.get.parkingZoneId)
     val currentLocation = vehicle.stall.get.locationUTM
     vehicle.unsetParkingStall()
     currentLocation

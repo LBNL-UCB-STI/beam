@@ -3,8 +3,8 @@ import java.awt.geom.Ellipse2D
 import java.awt.{BasicStroke, Color}
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.infrastructure.TAZTreeMap
-import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.agentsim.infrastructure.taz.TAZTreeMap
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
@@ -29,7 +29,6 @@ import org.opengis.feature.Feature
 import org.opengis.feature.simple.SimpleFeature
 import org.supercsv.io.{CsvMapReader, ICsvMapReader}
 import org.supercsv.prefs.CsvPreference
-
 import scala.collection.mutable
 
 class TravelTimeObserved @Inject()(
@@ -312,7 +311,7 @@ object TravelTimeObserved extends LazyLogging {
       new Color(255, 0, 60) // dark red
     )
 
-    (0 to seriesPerCount.size - 1).map { counter =>
+    (0 until seriesPerCount.size).map { counter =>
       val renderer = xyplot
         .getRendererForDataset(xyplot.getDataset(0))
 

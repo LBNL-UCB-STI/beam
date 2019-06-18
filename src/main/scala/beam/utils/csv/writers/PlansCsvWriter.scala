@@ -51,14 +51,20 @@ object PlansCsvWriter extends ScenarioCsvWriter {
       case (_, person) =>
         person.getPlans.asScala.zipWithIndex.flatMap {
           case (plan: Plan, planIndex: Int) =>
-            plan.getPlanElements.asScala.map { planElement =>
-              toPlanInfo(planIndex, plan.getPerson.getId.toString, planElement)
+            plan.getPlanElements.asScala.zipWithIndex.map {
+              case (planElement, planElementIndex) =>
+                toPlanInfo(planIndex, plan.getPerson.getId.toString, planElement, planElementIndex)
             }
         }
     }
   }
 
-  private def toPlanInfo(planIndex: Int, personId: String, planElement: MatsimPlanElement): PlanElement = {
+  private def toPlanInfo(
+    planIndex: Int,
+    personId: String,
+    planElement: MatsimPlanElement,
+    planeElementIndex: Int
+  ): PlanElement = {
     planElement match {
       case leg: Leg =>
         // Set legMode to None, if it's empty string
@@ -68,25 +74,26 @@ object PlansCsvWriter extends ScenarioCsvWriter {
         }
 
         PlanElement(
+          planIndex = planIndex,
           personId = PersonId(personId),
-          planElement = "leg",
-          planElementIndex = planIndex,
+          planElementType = "leg",
+          planElementIndex = planeElementIndex,
           activityType = None,
-          x = None,
-          y = None,
-          endTime = None,
-          mode = mode
+          activityLocationX = None,
+          activityLocationY = None,
+          activityEndTime = None,
+          legMode = mode
         )
       case act: Activity =>
         PlanElement(
           personId = PersonId(personId),
-          planElement = "activity",
-          planElementIndex = planIndex,
+          planElementType = "activity",
+          planElementIndex = planeElementIndex,
           activityType = Option(act.getType),
-          x = Option(act.getCoord.getX),
-          y = Option(act.getCoord.getY),
-          endTime = Option(act.getEndTime),
-          mode = None
+          activityLocationX = Option(act.getCoord.getX),
+          activityLocationY = Option(act.getCoord.getY),
+          activityEndTime = Option(act.getEndTime),
+          legMode = None
         )
     }
   }
@@ -95,15 +102,15 @@ object PlansCsvWriter extends ScenarioCsvWriter {
     val plans = getPlanInfo(scenario)
     plans.toIterator.map { planInfo =>
       PlanEntry(
-        planIndex = planInfo.planElementIndex,
+        planIndex = planInfo.planIndex,
         planElementIndex = planInfo.planElementIndex,
         personId = planInfo.personId.id,
-        planElementType = planInfo.planElement,
+        planElementType = planInfo.planElementType,
         activityType = planInfo.activityType.getOrElse(""),
-        activityLocationX = planInfo.x.map(_.toString).getOrElse(""),
-        activityLocationY = planInfo.y.map(_.toString).getOrElse(""),
-        activityEndTime = planInfo.endTime.map(_.toString).getOrElse(""),
-        legMode = planInfo.mode.getOrElse("")
+        activityLocationX = planInfo.activityLocationX.map(_.toString).getOrElse(""),
+        activityLocationY = planInfo.activityLocationY.map(_.toString).getOrElse(""),
+        activityEndTime = planInfo.activityEndTime.map(_.toString).getOrElse(""),
+        legMode = planInfo.legMode.getOrElse("")
       ).toString
     }
   }

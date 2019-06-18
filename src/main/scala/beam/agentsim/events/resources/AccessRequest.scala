@@ -76,4 +76,6 @@ case object ReservationErrorCode extends Enum[ReservationErrorCode] {
 
   case object VehicleNotUnderControl extends ReservationErrorCode
 
+  case object MissedTransitPickup extends ReservationErrorCode
+
 }

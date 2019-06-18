@@ -100,7 +100,7 @@ class TriggerMeasurer(val cfg: BeamConfig.Beam.Debug.TriggerMeasurer) extends La
 
   private def getMaxPerActorType: Map[String, Map[String, Int]] = {
     // Do not remove `toIterable` (Map can't contain duplicates!)
-    val actorTypeToTriggers = actorToTriggerMessages.toIterable.map {
+    val actorTypeToTriggers = actorToTriggerMessages.map {
       case (actorRef, map) =>
         getType(actorRef) -> map.map { case (k, v) => k.getName -> v }
     }
