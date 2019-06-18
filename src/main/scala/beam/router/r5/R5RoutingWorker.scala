@@ -176,9 +176,13 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
   private var travelTime: TravelTime = new FreeFlowTravelTime
 
-  val linksBelowMinCarSpeed = networkHelper.allLinks.count(l => l.getFreespeed < beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond)
+  val linksBelowMinCarSpeed =
+    networkHelper.allLinks.count(l => l.getFreespeed < beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond)
   if (linksBelowMinCarSpeed > 0) {
-    log.warning("{} links are below quick_fix_minCarSpeedInMetersPerSecond, already in free-flow", linksBelowMinCarSpeed)
+    log.warning(
+      "{} links are below quick_fix_minCarSpeedInMetersPerSecond, already in free-flow",
+      linksBelowMinCarSpeed
+    )
   }
 
   private def agencyAndRoute(vehicleId: Id[Vehicle]): (String, String) = {
