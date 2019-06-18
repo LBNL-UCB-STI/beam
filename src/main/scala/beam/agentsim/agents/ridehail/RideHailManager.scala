@@ -381,6 +381,8 @@ class RideHailManager(
     }
   val vehicleToActivity: mutable.HashMap[Id[Vehicle], Activity] = mutable.HashMap()
 
+  var missedAssignment: Int = 0
+
   beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.initType match {
     case "PROCEDURAL" =>
       val averageOnDutyHoursPerDay = 3.52 // Measured from Austin Data, assuming drivers took at least 4 trips
@@ -437,7 +439,8 @@ class RideHailManager(
                 vehicleType,
                 rideInitialLocation,
                 shiftString,
-                None
+                None,
+                Some((shiftStartTime, shiftEndTime))
               )
               fleetData += rideHailAgentInputData
               rideHailAgentInputData
@@ -448,6 +451,7 @@ class RideHailManager(
                 vehicleType,
                 rideInitialLocation,
                 shiftString,
+                None,
                 None
               )
               fleetData += rideHailAgentInputData
@@ -470,7 +474,7 @@ class RideHailManager(
       }
 
       new RideHailFleetInitializer().writeFleetData(beamServices, fleetData)
-      log.info("Initialized {} ride hailing shifts", idx)
+      log.info("Initialized {} ride hailing shifts. fleetData size: {}", idx, fleetData.size)
 
     case "FILE" =>
       new RideHailFleetInitializer().init(beamServices) foreach { fleetData =>
@@ -479,7 +483,8 @@ class RideHailManager(
           BeamVehicleType.defaultCarBeamVehicleType,
           new Coord(fleetData.initialLocationX, fleetData.initialLocationY),
           fleetData.shifts,
-          fleetData.toGeofence
+          fleetData.toGeofence,
+          None
         )
       }
     case _ =>
@@ -492,6 +497,7 @@ class RideHailManager(
   val newActivities = availableActivities.size - modifiableActivities.size
 
   log.info(s"""
+       |missedAssignment: ${missedAssignment}
        |usedActivities: ${usedActivities.size}
        |availableActivities: ${availableActivities.size}
        |modifiableActivities: ${modifiableActivities.size}
@@ -1270,7 +1276,8 @@ class RideHailManager(
     rideHailBeamVehicleType: BeamVehicleType,
     rideInitialLocation: Coord,
     shifts: Option[String],
-    geofence: Option[Geofence]
+    geofence: Option[Geofence],
+    shiftTime: Option[(Int, Int)]
   ): RideHailAgentInputData = {
     val rideHailAgentName = s"rideHailAgent-${rideHailAgentIdentifier}"
     val rideHailVehicleId = BeamVehicle.createId(rideHailAgentIdentifier, Some("rideHailVehicle"))
@@ -1301,6 +1308,13 @@ class RideHailManager(
         val lastIdx = modifiableActivities.size - 1
         val nextActivity = modifiableActivities.get(lastIdx)
         modifiableActivities.remove(lastIdx)
+        shiftTime.foreach { case (start, end) =>
+          val isOk = start >= nextActivity.getEndTime && end <= nextActivity.getEndTime
+          if (!isOk) {
+            log.warning(s"$vehId assigned to activity $nextActivity with endTime ${nextActivity.getEndTime}, but his shift time is ${shifts.get}.")
+            missedAssignment += 1
+          }
+        }
         nextActivity.getCoord
       }
     }
