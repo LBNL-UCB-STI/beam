@@ -8,6 +8,7 @@ import org.apache.avro.generic.GenericRecord
 import org.apache.commons.lang3.math.NumberUtils
 
 import scala.reflect.ClassTag
+import scala.util.Try
 
 object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
 
@@ -96,7 +97,7 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     val householdId = getIfNotNull(rec, "household_id").toString
     val age = getIfNotNull(rec, "age").asInstanceOf[Long].toInt
     val isFemaleValue = {
-      val value = getIfNotNull(rec, "sex").asInstanceOf[Long]
+      val value = Try(getIfNotNull(rec, "sex").asInstanceOf[Long]).getOrElse(1L)
       value == 2L
     }
     val rank: Int = 0
@@ -106,7 +107,7 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
       rank = rank,
       age = age,
       isFemale = isFemaleValue,
-      valueOfTime = NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime").toString, 0D)
+      valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime").toString, 0D)).getOrElse(0D)
     )
   }
 
