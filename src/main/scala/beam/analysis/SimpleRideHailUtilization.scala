@@ -5,8 +5,10 @@ import java.util
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.{GraphAnalysis, GraphUtils, GraphsStatsAgentSimEventsListener}
 import org.jfree.chart.JFreeChart
+import org.jfree.chart.labels.{ItemLabelAnchor, ItemLabelPosition, StandardCategoryItemLabelGenerator}
 import org.jfree.chart.plot.CategoryPlot
 import org.jfree.data.category.{CategoryDataset, DefaultCategoryDataset}
+import org.jfree.ui.TextAnchor
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.IterationEndsEvent
 
@@ -93,7 +95,7 @@ class SimpleRideHailUtilization extends IterationSummaryAnalysis with GraphAnaly
   ): Unit = {
     val graphTitleName = "Ride Hail Utilisation"
     val xAxisTitle = "Iteration"
-    val yAxisTitle = "# Ride Trip Passengers"
+    val yAxisTitle = "# Ride Trip"
     val legend = true
     val chart: JFreeChart = GraphUtils.createStackedBarChartWithDefaultSettings(
       dataset,
@@ -104,6 +106,12 @@ class SimpleRideHailUtilization extends IterationSummaryAnalysis with GraphAnaly
       legend
     )
     val plot: CategoryPlot = chart.getCategoryPlot
+    val renderer = chart.getPlot.asInstanceOf[CategoryPlot].getRenderer
+
+    renderer.setBaseItemLabelGenerator(new StandardCategoryItemLabelGenerator())
+    renderer.setBaseItemLabelsVisible(true)
+    val position = new ItemLabelPosition(ItemLabelAnchor.CENTER, TextAnchor.HALF_ASCENT_CENTER)
+    renderer.setBasePositiveItemLabelPosition(position)
     GraphUtils.plotLegendItems(plot, rideTrips, dataset.getRowCount)
     GraphUtils.saveJFreeChartAsPNG(
       chart,
