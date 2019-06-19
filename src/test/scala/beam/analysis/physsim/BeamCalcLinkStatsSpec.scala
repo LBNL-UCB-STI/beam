@@ -26,8 +26,8 @@ class BeamCalcLinkStatsSpec extends WordSpecLike with Matchers with BeforeAndAft
 
   private var beamCalcLinkStats: BeamCalcLinkStats = _
 
-  private val TFHOURS = 31
-  private val TYPESTATS = 3
+  private val TFHOURS = 30
+  private val TYPESTATS = 1
 
   private var fileCsvPath: String = ""
 
