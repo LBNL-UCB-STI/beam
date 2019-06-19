@@ -81,7 +81,7 @@ class BeamSim @Inject()(
   var metricsPrinter: ActorRef = actorSystem.actorOf(MetricsPrinter.props())
   val summaryData = new mutable.HashMap[String, mutable.Map[Int, Double]]()
 
-  var rhuc: RideHailUtilizationCollector = _
+  val rhuc: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
 
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
@@ -92,7 +92,6 @@ class BeamSim @Inject()(
     metricsPrinter ! Subscribe("counter", "**")
     metricsPrinter ! Subscribe("histogram", "**")
 
-    rhuc = new RideHailUtilizationCollector(beamServices)
     eventsManager.addHandler(rhuc)
 
     val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
@@ -171,6 +170,7 @@ class BeamSim @Inject()(
     beamConfigChangesObservable.notifyChangeToSubscribers()
     ExponentialLazyLogging.reset()
     beamServices.privateVehicles.values.foreach(_.initializeFuelLevels)
+    rhuc.reset(event.getIteration)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
@@ -276,8 +276,6 @@ class BeamSim @Inject()(
       generateRepositioningGraphs(event)
     }
 
-    eventsManager.removeHandler(rhuc)
-
     logger.info("Ending Iteration")
     delayMetricAnalysis.generateDelayAnalysis(event)
   }
@@ -286,6 +284,8 @@ class BeamSim @Inject()(
 
     val firstIteration = beamServices.beamConfig.matsim.modules.controler.firstIteration
     val lastIteration = beamServices.beamConfig.matsim.modules.controler.lastIteration
+
+    rhuc.notifyShutdown(event)
 
     logger.info("Generating html page to compare graphs (across all iterations)")
     BeamGraphComparator.generateGraphComparisonHtmlPage(event, firstIteration, lastIteration)

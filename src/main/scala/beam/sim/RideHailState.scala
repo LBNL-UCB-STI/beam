@@ -1,6 +1,6 @@
 package beam.sim
 
-import beam.analysis.RideHailUtilization
+import beam.analysis.RideHailHistoricalData
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Activity
@@ -30,9 +30,9 @@ class RideHailState extends LazyLogging{
   }
 
   @volatile
-  private var _rideHailUtilization: RideHailUtilization = RideHailUtilization(Set.empty, Set.empty, Set.empty, IndexedSeq.empty)
+  private var _rideHailUtilization: RideHailHistoricalData = RideHailHistoricalData(Set.empty, Set.empty, Set.empty, IndexedSeq.empty)
 
-  def setRideHailUtilization(utilization: RideHailUtilization): Unit = {
+  def setRideHailUtilization(utilization: RideHailHistoricalData): Unit = {
     logger.info(
       s"""
          |Set new utilization:
@@ -43,7 +43,7 @@ class RideHailState extends LazyLogging{
     _rideHailUtilization = utilization
   }
 
-  def getRideHailUtilization: RideHailUtilization = {
+  def getRideHailUtilization: RideHailHistoricalData = {
     _rideHailUtilization
   }
 }

@@ -7,31 +7,47 @@ import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events.Event
-import org.matsim.core.controler.events.IterationEndsEvent
-import org.matsim.core.controler.listener.IterationEndsListener
+import org.matsim.core.controler.events.{IterationEndsEvent, ShutdownEvent}
+import org.matsim.core.controler.listener.{IterationEndsListener, ShutdownListener}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.utils.io.IOUtils
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.immutable.SortedSet
 import scala.collection.mutable.ArrayBuffer
 
 case class RideInfo(vehicleId: Id[Vehicle], time: Int, startCoord: Coord, endCoord: Coord, numOfPassengers: Int)
-case class RideHailUtilization(
+case class RideHailHistoricalData(
   notMovedAtAll: Set[Id[Vehicle]],
   movedWithoutPassenger: Set[Id[Vehicle]],
   movedWithPassengers: Set[Id[Vehicle]],
   rides: IndexedSeq[RideInfo]
 )
 
+case class Utilization(
+  iteration: Int,
+  nonEmptyRides: Int,
+  totalRides: Int,
+  movedPassengers: Int,
+  numOfPassengersToTheNumberOfRides: Map[Int, Int],
+  numberOfRidesServedByNumberOfVehicles: Map[Int, Int],
+  rideHailModeChoices: Int,
+  rideHailInAlternatives: Int,
+  totalModeChoices: Int
+)
+
 class RideHailUtilizationCollector(beamSvc: BeamServices)
     extends BasicEventHandler
     with IterationEndsListener
+    with ShutdownListener
     with LazyLogging {
   val shouldDumpRides: Boolean = true
   private val rides: ArrayBuffer[RideInfo] = ArrayBuffer()
+  private val utilizations: ArrayBuffer[Utilization] = ArrayBuffer()
   private var rideHailChoices: Int = 0
   private var rideHailInAlternatives: Int = 0
   private var totalModeChoices: Int = 0
+  logger.info(s"Created RideHailUtilizationCollector with hashcode: ${this.hashCode()}")
 
   override def handleEvent(event: Event): Unit = {
     event match {
@@ -62,8 +78,8 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
     vri
   }
 
-  def calcUtilization(): Unit = {
-    val numOfPassengersToTheNumberOfRides = rides
+  def calcUtilization(iteration: Int): Utilization = {
+    val numOfPassengersToTheNumberOfRides: Map[Int, Int] = rides
       .groupBy(x => x.numOfPassengers)
       .map {
         case (numOfPassengers, xs) =>
@@ -82,33 +98,32 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
         case (vehId, nRides) =>
           nRides -> vehId
       }
-    val ridesToVehicles: Vector[(Int, Int)] = numOfRidesToVehicleId
+    val ridesToVehicles = numOfRidesToVehicleId
       .groupBy { case (nRides, _) => nRides }
       .map {
         case (nRides, xs) =>
           nRides -> xs.map(_._2).size
       }
-      .toVector
-      .sortBy { case (nRides, _) => nRides }
+      .toMap
 
-    val totalNumberOfPassengerRides = rides.count(x => x.numOfPassengers > 0)
+    val totalNumberOfNonEmptyRides = rides.count(x => x.numOfPassengers > 0)
 
     val totalNumberOfMovedPassengers = rides
       .filter(x => x.numOfPassengers > 0)
       .map(_.numOfPassengers)
       .sum
 
-    val msg =
-      s"""
-        |totalNumberOfPassengerRides: $totalNumberOfPassengerRides
-        |totalNumberOfMovedPassengers: $totalNumberOfMovedPassengers
-        |numOfPassengersToTheNumberOfRides: $numOfPassengersToTheNumberOfRides
-        |ridesToVehicles: $ridesToVehicles
-        |total rides: ${rides.length}
-        |rideHailChoices: $rideHailChoices
-        |rideHailInAlternatives: $rideHailInAlternatives
-        |totalModeChoices: $totalModeChoices""".stripMargin
-    logger.info(msg)
+    Utilization(
+      iteration = iteration,
+      nonEmptyRides = totalNumberOfNonEmptyRides,
+      totalRides = rides.length,
+      movedPassengers = totalNumberOfMovedPassengers,
+      numOfPassengersToTheNumberOfRides = numOfPassengersToTheNumberOfRides,
+      numberOfRidesServedByNumberOfVehicles = ridesToVehicles,
+      rideHailModeChoices = rideHailChoices,
+      rideHailInAlternatives = rideHailInAlternatives,
+      totalModeChoices = totalModeChoices
+    )
   }
 
   def writeRides(): Unit = {
@@ -157,7 +172,22 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    calcUtilization()
+    val utilization = calcUtilization(event.getIteration)
+    utilizations += utilization
+
+    val sorted = utilization.numberOfRidesServedByNumberOfVehicles.toVector.sortBy(x => x._1)
+    val msg =
+      s"""
+            |nonEmptyRides: ${utilization.nonEmptyRides}
+            |totalRides: ${utilization.totalRides}
+            |movedPassengers: ${utilization.movedPassengers}
+            |numOfPassengersToTheNumberOfRides: ${utilization.numOfPassengersToTheNumberOfRides}
+            |numberOfRidesServedByNumberOfVehicles: ${sorted}
+            |rideHailChoices: ${utilization.rideHailModeChoices}
+            |rideHailInAlternatives: ${utilization.rideHailInAlternatives}
+            |totalModeChoices: ${utilization.totalModeChoices}""".stripMargin
+    logger.info(msg)
+
     if (shouldDumpRides) {
       writeRides()
     }
@@ -167,8 +197,58 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
     val movedVehicleIds = movedWithPassengers.map(_.vehicleId).toSet
     val neverMoved = beamSvc.rideHailState.getAllRideHailVehicles -- movedVehicleIds -- movedWithoutPassenger
     beamSvc.rideHailState.setRideHailUtilization(
-      RideHailUtilization(neverMoved, movedWithoutPassenger, movedVehicleIds, rides.toArray[RideInfo])
+      RideHailHistoricalData(neverMoved, movedWithoutPassenger, movedVehicleIds, rides.toArray[RideInfo])
     )
+  }
+
+  override def notifyShutdown(event: ShutdownEvent): Unit = {
+    val allRides = SortedSet(utilizations.flatMap(_.numberOfRidesServedByNumberOfVehicles.keys): _*)
+    val allPassengers = SortedSet(utilizations.flatMap(_.numOfPassengersToTheNumberOfRides.keys): _*)
+
+    val filePath = beamSvc.matsimServices.getControlerIO.getOutputFilename("rideHailRideUtilization.csv.gz")
+    val fileHeader = new StringBuffer()
+    fileHeader.append("iteration,nonEmptyRides,totalRides,movedPassengers,")
+    allRides.foreach { rideNumber =>
+      fileHeader.append(s"${rideNumber}RidesServedByNumberOfVehicles")
+      fileHeader.append(",")
+    }
+    allPassengers.foreach { passengers =>
+      fileHeader.append(s"${passengers}PassengersToTheNumberOfRides")
+      fileHeader.append(",")
+    }
+    fileHeader.append("rideHailModeChoices")
+    fileHeader.append(",")
+    fileHeader.append("rideHailInAlternatives")
+    fileHeader.append(",")
+    fileHeader.append("totalModeChoices")
+
+    implicit val bw: BufferedWriter = IOUtils.getBufferedWriter(filePath)
+    try {
+      bw.write(fileHeader.toString)
+      bw.newLine()
+
+      utilizations.foreach { utilization =>
+        writeColumnValue(utilization.iteration)
+        writeColumnValue(utilization.nonEmptyRides)
+        writeColumnValue(utilization.totalRides)
+        writeColumnValue(utilization.movedPassengers)
+
+        allRides.foreach { rides =>
+          writeColumnValue(utilization.numberOfRidesServedByNumberOfVehicles.getOrElse(rides, 0))
+        }
+
+        allPassengers.foreach { passengers =>
+          writeColumnValue(utilization.numOfPassengersToTheNumberOfRides.getOrElse(passengers, 0))
+        }
+        writeColumnValue(utilization.rideHailModeChoices)
+        writeColumnValue(utilization.rideHailInAlternatives)
+        writeColumnValue(utilization.totalModeChoices, false)
+        bw.newLine()
+        bw.flush()
+      }
+    } finally {
+      bw.close()
+    }
   }
 }
 

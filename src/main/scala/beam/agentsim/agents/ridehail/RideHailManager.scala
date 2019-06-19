@@ -383,6 +383,9 @@ class RideHailManager(
 
   var missedAssignment: Int = 0
 
+  var requestedRideHail: Int = 0
+  var servedRideHail: Int = 0
+
   beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.initType match {
     case "PROCEDURAL" =>
       val averageOnDutyHoursPerDay = 3.52 // Measured from Austin Data, assuming drivers took at least 4 trips
@@ -555,6 +558,9 @@ class RideHailManager(
 
   override def postStop: Unit = {
     log.info("postStop")
+    log.info(s"requestedRideHail: $requestedRideHail")
+    log.info(s"servedRideHail: $servedRideHail")
+    log.info(s"ratio: ${servedRideHail.toDouble / requestedRideHail}")
     maybeTick.foreach(_.cancel())
     super.postStop()
   }
@@ -1054,11 +1060,13 @@ class RideHailManager(
   }
 
   def handleRideHailInquiry(inquiry: RideHailRequest): Unit = {
+    requestedRideHail += 1
     rideHailResourceAllocationManager.respondToInquiry(inquiry) match {
       case NoVehiclesAvailable =>
         log.debug("{} -- NoVehiclesAvailable", inquiry.requestId)
         inquiry.customer.personRef ! RideHailResponse(inquiry, None, Some(DriverNotFoundError))
       case inquiryResponse @ SingleOccupantQuoteAndPoolingInfo(agentLocation, poolingInfo) =>
+        servedRideHail += 1
         inquiryIdToInquiryAndResponse.put(inquiry.requestId, (inquiry, inquiryResponse))
         val routingRequests = createRoutingRequestsToCustomerAndDestination(inquiry.departAt, inquiry, agentLocation)
         routingRequests.foreach(rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId, inquiry.requestId))
