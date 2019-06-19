@@ -66,6 +66,7 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
   override def reset(iteration: Int): Unit = {
     rides.clear()
     rideHailChoices = 0
+    rideHailInAlternatives = 0
     totalModeChoices = 0
   }
 
@@ -209,7 +210,7 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
     val fileHeader = new StringBuffer()
     fileHeader.append("iteration,nonEmptyRides,totalRides,movedPassengers,")
     allRides.foreach { rideNumber =>
-      fileHeader.append(s"${rideNumber}RidesServedByNumberOfVehicles")
+      fileHeader.append(s"numberOfVehiclesServed${rideNumber}Rides")
       fileHeader.append(",")
     }
     allPassengers.foreach { passengers =>
