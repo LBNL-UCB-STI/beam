@@ -9,8 +9,6 @@ import org.matsim.api.core.v01.Coord
 
 trait VehiclesAdjustment extends LazyLogging {
 
-  val beamServices: BeamServices
-
   def sampleVehicleTypesForHousehold(
     numVehicles: Int,
     vehicleCategory: VehicleCategory,
@@ -33,9 +31,9 @@ object VehiclesAdjustment {
   val DEFAULT_ADJUSTMENT = "DEFAULT_ADJUSTMENT"
   val UNIFORM_ADJUSTMENT = "UNIFORM_ADJUSTMENT"
 
-  def getVehicleAdjustment(beamServices: BeamServices, beamScenario: BeamScenario): VehiclesAdjustment = {
+  def getVehicleAdjustment(beamScenario: BeamScenario): VehiclesAdjustment = {
 
-    new UniformVehiclesAdjustment(beamServices, beamScenario)
+    new UniformVehiclesAdjustment(beamScenario)
   }
 
 }
