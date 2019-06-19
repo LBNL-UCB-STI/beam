@@ -42,13 +42,22 @@ class RideHailModifyPassengerScheduleManager(
   def handleInterruptReply(reply: InterruptReply): Unit = {
     interruptIdToModifyPassengerScheduleStatus.get(reply.interruptId) match {
       case None =>
-        log.error(
-          "RideHailModifyPassengerScheduleManager- interruptId not found: interruptId {},interruptedPassengerSchedule {}, vehicle {}, tick {}",
-          reply.interruptId,
-          reply.asInstanceOf[InterruptedWhileDriving].passengerSchedule,
-          reply.vehicleId,
-          reply.tick
-        )
+        if (reply.isInstanceOf[InterruptedWhileDriving]) {
+          log.error(
+            "RideHailModifyPassengerScheduleManager- interruptId not found: interruptId {},interruptedPassengerSchedule {}, vehicle {}, tick {}",
+            reply.interruptId,
+            reply.asInstanceOf[InterruptedWhileDriving].passengerSchedule,
+            reply.vehicleId,
+            reply.tick
+          )
+        } else {
+          log.error(
+            "RideHailModifyPassengerScheduleManager- interruptId not found: interruptId {}, vehicle {}, tick {}",
+            reply.interruptId,
+            reply.vehicleId,
+            reply.tick
+          )
+        }
         cancelRepositionAttempt()
       case Some(modifyStatus) =>
         assert(reply.vehicleId == modifyStatus.vehicleId)
