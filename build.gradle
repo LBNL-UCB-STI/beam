@@ -112,7 +112,7 @@ allprojects {
 dependencies {
 
     //beam-utilities
-    compile(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.1') {
+    compile(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.2') {
         exclude group: 'com.github.michaz', module: 'r5'
     }
     
@@ -193,6 +193,7 @@ dependencies {
 
     // TEST Scala //
     testCompile group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.0.1'
+    testRuntime "org.pegdown:pegdown:1.4.2" // HTML report for scalatest
 
     // 3rd Party Scala //
 
@@ -300,7 +301,7 @@ configurations.all {
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-oD', '-l', 'beam.tags.ExcludeRegular']
+    args = ['-R', 'build/classes/scala/test', '-h', 'build/scalatest-report', '-oD', '-l', 'beam.tags.ExcludeRegular']
     classpath = sourceSets.test.runtimeClasspath
 }
 build.dependsOn spec
