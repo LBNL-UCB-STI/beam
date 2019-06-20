@@ -241,7 +241,7 @@ class BeamAgentScheduler(
              |\ttriggerQueue.head=${Option(triggerQueue.peek())}
              |\tawaitingResponse.head=$awaitingToString""".stripMargin
         log.info(logStr)
-        awaitingResponse.values().forEach(x => log.info("awaitingResponse:" + x.toString))
+        // awaitingResponse.values().forEach(x => log.info("awaitingResponse:" + x.toString))
       maybeTriggerMeasurer.foreach {tm =>
         log.info(tm.getStat)
         log.info(tm.asStuckAgentDetectionConfig)
