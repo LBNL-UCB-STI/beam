@@ -233,7 +233,6 @@ class BeamAgentScheduler(
         })
 
     case Monitor =>
-      if (log.isDebugEnabled) {
         val logStr =
           s"""
              |\tnowInSeconds=$nowInSeconds
@@ -241,8 +240,11 @@ class BeamAgentScheduler(
              |\ttriggerQueue.size=${triggerQueue.size}
              |\ttriggerQueue.head=${Option(triggerQueue.peek())}
              |\tawaitingResponse.head=$awaitingToString""".stripMargin
-        log.debug(logStr)
-        awaitingResponse.values().forEach(x => log.debug("awaitingResponse:" + x.toString))
+        log.info(logStr)
+        awaitingResponse.values().forEach(x => log.info("awaitingResponse:" + x.toString))
+      maybeTriggerMeasurer.foreach {tm =>
+        log.info(tm.getStat)
+        log.info(tm.asStuckAgentDetectionConfig)
       }
 
     case SkipOverBadActors =>
@@ -379,7 +381,7 @@ class BeamAgentScheduler(
       Some(
         context.system.scheduler.schedule(
           new FiniteDuration(1, TimeUnit.SECONDS),
-          new FiniteDuration(3, TimeUnit.SECONDS),
+          new FiniteDuration(60, TimeUnit.SECONDS),
           self,
           Monitor
         )
