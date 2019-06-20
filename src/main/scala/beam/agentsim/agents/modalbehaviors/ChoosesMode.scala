@@ -399,6 +399,9 @@ trait ChoosesMode {
         case Some(RIDE_HAIL_TRANSIT) =>
           responsePlaceholders = makeResponsePlaceholders(boundingBox, withRideHailTransit = true)
           requestId = makeRideHailTransitRoutingRequest(bodyStreetVehicle)
+        case Some(BIKE_TRANSIT) =>
+          responsePlaceholders = makeResponsePlaceholders(boundingBox, withRouting = true)
+          makeRequestWith(withTransit = true, Vector(bodyStreetVehicle), withParking = false)
         case Some(m) =>
           logDebug(m.toString)
       }
