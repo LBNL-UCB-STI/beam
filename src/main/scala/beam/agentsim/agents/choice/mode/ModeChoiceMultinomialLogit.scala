@@ -142,7 +142,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         )
 
       val numTransfers = mode match {
-        case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT =>
+        case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | BIKE_TRANSIT =>
           var nVeh = -1
           var vehId = Id.create("dummy", classOf[Vehicle])
           altAndIdx._1.legs.foreach { leg =>
