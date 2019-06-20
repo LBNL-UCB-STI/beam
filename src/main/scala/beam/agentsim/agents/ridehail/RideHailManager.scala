@@ -4,7 +4,8 @@ import java.awt.Color
 import java.util
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorLogging, ActorRef, Props}
+import akka.actor.{ActorLogging, ActorRef, Cancellable, Props}
+import akka.event.Logging
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim
@@ -17,11 +18,7 @@ import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailIterationHistoryActor.GetCurrentIterationRideHailStats
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -50,6 +47,7 @@ import scala.collection.{concurrent, mutable}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 
 object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLocation, Double)] {
   override def compare(
@@ -303,7 +301,36 @@ class RideHailManager(
 
   DebugLib.emptyFunctionForSettingBreakPoint()
 
+
+  var timeSpendForHandleReservationRequestMs: Long = 0
+  var nHandleReservationRequest: Int = 0
+
+  var timeSpendForFindDriverAndSendRoutingRequests: Long = 0
+  var nFindDriverAndSendRoutingRequests: Int = 0
+
+  var shouldTurnOnDebugLevel: Boolean = false
+
+  val maybeTick: Option[Cancellable] = if (true) {
+    Some(context.system.scheduler.schedule(2.seconds, 30.seconds, self, "tick")(context.dispatcher))
+  } else None
+
+  override def postStop: Unit = {
+    maybeTick.foreach(_.cancel())
+    super.postStop()
+  }
+
   override def receive: Receive = {
+    case "tick" =>
+      log.info(s"timeSpendForHandleReservationRequestMs: ${timeSpendForHandleReservationRequestMs}, nHandleReservationRequest: ${nHandleReservationRequest}, AVG: ${timeSpendForHandleReservationRequestMs.toDouble / nHandleReservationRequest}")
+      timeSpendForHandleReservationRequestMs = 0
+      nHandleReservationRequest = 0
+      log.info(s"timeSpendForFindDriverAndSendRoutingRequests: ${timeSpendForFindDriverAndSendRoutingRequests}, nFindDriverAndSendRoutingRequests: ${nFindDriverAndSendRoutingRequests}, AVG: ${timeSpendForFindDriverAndSendRoutingRequests.toDouble / nFindDriverAndSendRoutingRequests}")
+      timeSpendForFindDriverAndSendRoutingRequests = 0
+      nFindDriverAndSendRoutingRequests = 0
+      if (shouldTurnOnDebugLevel) {
+        context.system.eventStream.setLogLevel(Logging.DebugLevel)
+      }
+
     case ev @ StopDrivingIfNoPassengerOnBoardReply(success, requestId, tick) =>
       Option(travelProposalCache.getIfPresent(requestId.toString)) match {
         case Some(travelProposal) =>
@@ -429,7 +456,7 @@ class RideHailManager(
       )
 
     case inquiry @ RideHailRequest(RideHailInquiry, _, _, _, _) =>
-      findDriverAndSendRoutingRequests(inquiry)
+      findDriverAndSendRoutingRequests(inquiry, caller = "RideHailRequest")
 
     case R5Network(network) =>
       rideHailNetworkApi.setR5Network(network)
@@ -438,7 +465,7 @@ class RideHailManager(
     // for the allocation manager, so we resume the allocation process.
     case RoutingResponses(request, None, responses) =>
       //      println(s"got routingResponse: ${request.requestId} with no RHA")
-      findDriverAndSendRoutingRequests(request, responses)
+      findDriverAndSendRoutingRequests(request, responses, caller = "RoutingResponses")
 
     case RoutingResponses(
         request,
@@ -544,7 +571,11 @@ class RideHailManager(
       }
 
     case reserveRide @ RideHailRequest(ReserveRide, _, _, _, _) =>
+      val s = System.currentTimeMillis()
       handleReservationRequest(reserveRide)
+      val diff = System.currentTimeMillis() - s
+      timeSpendForHandleReservationRequestMs += diff
+      nHandleReservationRequest += 1
 
     case modifyPassengerScheduleAck @ ModifyPassengerScheduleAck(
           requestIdOpt,
@@ -842,14 +873,20 @@ class RideHailManager(
   // Returns Boolean indicating success/failure
   def findDriverAndSendRoutingRequests(
     request: RideHailRequest,
-    responses: List[RoutingResponse] = List()
+    responses: List[RoutingResponse] = List(),
+    caller: String
   ): Unit = {
+    val s = System.currentTimeMillis()
     log.debug(
       "Finding driver at tick {}, available: {}, inService: {}, outOfService: {}",
       request.departAt,
       availableRideHailVehicles.size,
       inServiceRideHailVehicles.size,
       outOfServiceRideHailVehicles.size
+    )
+    log.debug(
+      "Finding driver at tick {}, caller: {}",
+      request.departAt, caller
     )
 
     val vehicleAllocationRequest = VehicleAllocationRequest(request, responses)
@@ -875,6 +912,9 @@ class RideHailManager(
         log.debug(s"${request.requestId} -- NoVehicleAllocated")
         request.customer.personRef.get ! RideHailResponse(request, None, Some(DriverNotFoundError))
     }
+    val diff = System.currentTimeMillis - s
+    timeSpendForFindDriverAndSendRoutingRequests += diff
+    nFindDriverAndSendRoutingRequests += 1
   }
 
   def getRideHailAgentLocation(vehicleId: Id[Vehicle]): RideHailAgentLocation = {
@@ -1180,7 +1220,7 @@ class RideHailManager(
         if (inServiceRideHailVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId) ||
             lockedVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId) || outOfServiceRideHailVehicles
               .contains(travelProposal.rideHailAgentLocation.vehicleId)) {
-          findDriverAndSendRoutingRequests(request)
+          findDriverAndSendRoutingRequests(request, caller = "handleReservationRequest")
         } else {
           if (pendingDummyRideHailRequests.contains(request.requestId)) {
 
@@ -1195,7 +1235,7 @@ class RideHailManager(
 
         }
       case None =>
-        findDriverAndSendRoutingRequests(request)
+        findDriverAndSendRoutingRequests(request, caller = "handleReservationRequest")
     }
   }
 
