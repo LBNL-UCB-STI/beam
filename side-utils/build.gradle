@@ -1,0 +1,62 @@
+buildscript {
+    repositories {
+        jcenter()
+        mavenLocal()
+        mavenCentral()
+        maven { url "https://plugins.gradle.org/m2/" }
+    }
+    dependencies {
+        classpath 'cz.alenkacz:gradle-scalafmt:1.7.0'
+    }
+}
+
+apply plugin: 'scala'
+apply plugin: 'idea'
+apply plugin: 'application'
+apply plugin: 'scalafmt'
+
+description = "Side utility application from the same area as BEAM"
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+compileScala.options.encoding = 'UTF-8'
+
+def scalaBinaryVersion = "2.12"
+def slf4jVersion = "1.7.25"
+
+sourceSets.main.scala.srcDirs = ["src/main/scala"]
+sourceSets.main.java.srcDirs = []
+
+sourceSets.test.java.srcDirs = []
+sourceSets.test.scala.srcDirs = ["src/test/scala"]
+
+sourceSets {
+    main {
+        resources {
+            srcDir "src/main/resources"
+        }
+    }
+    test {
+        resources {
+            srcDir "src/test/resources"
+        }
+    }
+}
+
+dependencies {
+    compile(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.2') {
+        exclude group: 'com.github.michaz', module: 'r5'
+    }
+
+    compile "org.slf4j:slf4j-api:${slf4jVersion}"
+    compile "ch.qos.logback:logback-classic:1.2.3"
+    compile "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
+    compile "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
+
+    compile "org.scala-lang:scala-library:2.12.7"
+    compile group: 'org.scala-lang.modules', name: "scala-xml_${scalaBinaryVersion}", version: '1.0.6'
+
+    compile "org.scala-lang:scala-compiler:2.12.7"
+    compile "com.github.scopt:scopt_${scalaBinaryVersion}:3.7.0"
+}
