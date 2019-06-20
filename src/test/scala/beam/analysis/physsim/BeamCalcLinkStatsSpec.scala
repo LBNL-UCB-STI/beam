@@ -26,8 +26,8 @@ class BeamCalcLinkStatsSpec extends WordSpecLike with Matchers with BeforeAndAft
 
   private var beamCalcLinkStats: BeamCalcLinkStats = _
 
-  private val TFHOURS = 31
-  private val TYPESTATS = 3
+  private val TFHours = 30
+  private val TypeStats = 1
 
   private var fileCsvPath: String = ""
 
@@ -70,13 +70,13 @@ class BeamCalcLinkStatsSpec extends WordSpecLike with Matchers with BeforeAndAft
   "BeamCalcLinksStats" must {
 
     "Output file contain all links * 31 Hours * 3 StatType" in {
-      val expetedResult = countLinksFromFileXML(NETWORK_FILE_PATH) * TFHOURS * TYPESTATS
+      val expetedResult = countLinksFromFileXML(NETWORK_FILE_PATH) * TFHours * TypeStats
       val actualResult = gzToBufferedSource(fileCsvPath).getLines().size
       expetedResult shouldBe (actualResult - 1)
     }
 
     "Each link contains 93 records" in {
-      val expetedResult = TFHOURS * TYPESTATS
+      val expetedResult = TFHours * TypeStats
       val map = mapGroupRecordForLinks(0, fileCsvPath)
       map.foreach {
         case (_, link) =>
