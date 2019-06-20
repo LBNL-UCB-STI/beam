@@ -48,4 +48,5 @@ class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeCho
     person: Person,
     attributesOfIndividual: AttributesOfIndividual
   ): Double = 0.0
+
 }

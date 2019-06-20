@@ -1,9 +1,8 @@
 package beam.sim.population
 
 import beam.agentsim
-import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.Modes.BeamMode
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Person, Population => MPopulation}
@@ -19,7 +18,8 @@ import scala.collection.JavaConverters._
 trait PopulationAdjustment extends LazyLogging {
   import PopulationAdjustment._
 
-  val beamServices: BeamServices
+  val scenario: Scenario
+  val beamScenario: BeamScenario
 
   /**
     * Collects the individual person attributes as [[beam.sim.population.AttributesOfIndividual]] and stores them as a custom attribute "beam-attributes" under the person.
@@ -28,7 +28,7 @@ trait PopulationAdjustment extends LazyLogging {
     * @return updated population
     */
   def updateAttributes(population: MPopulation): MPopulation = {
-    val personHouseholds = beamServices.matsimServices.getScenario.getHouseholds.getHouseholds
+    val personHouseholds = scenario.getHouseholds.getHouseholds
       .values()
       .asScala
       .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
@@ -37,7 +37,7 @@ trait PopulationAdjustment extends LazyLogging {
     //Iterate over each person in the population
     population.getPersons.asScala.foreach {
       case (_, person) =>
-        val attributes = createAttributesOfIndividual(beamServices, population, person, personHouseholds(person.getId))
+        val attributes = createAttributesOfIndividual(beamScenario, population, person, personHouseholds(person.getId))
         person.getCustomAttributes.put(PopulationAdjustment.BEAM_ATTRIBUTES, attributes)
     }
     population
@@ -204,7 +204,7 @@ object PopulationAdjustment extends LazyLogging {
   }
 
   def createAttributesOfIndividual(
-    beamServices: BeamServices,
+    beamScenario: BeamScenario,
     population: MPopulation,
     person: Person,
     household: Household
@@ -228,7 +228,7 @@ object PopulationAdjustment extends LazyLogging {
     // Read household attributes for the person
     val householdAttributes = HouseholdAttributes(
       household,
-      agentsim.agents.Population.getVehiclesFromHousehold(household, beamServices.beamScenario)
+      agentsim.agents.Population.getVehiclesFromHousehold(household, beamScenario)
     )
 
     // Read person attribute "valueOfTime", use function of HH income if not, and default it to the respective config value if neither is found
@@ -237,7 +237,7 @@ object PopulationAdjustment extends LazyLogging {
         .map(_.asInstanceOf[Double])
         .getOrElse(
           IncomeToValueOfTime(householdAttributes.householdIncome)
-            .getOrElse(beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
+            .getOrElse(beamScenario.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
         )
     // Generate the AttributesOfIndividual object as save it as custom attribute - "beam-attributes" for the person
     AttributesOfIndividual(

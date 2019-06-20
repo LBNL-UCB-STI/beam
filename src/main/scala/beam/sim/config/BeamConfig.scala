@@ -1644,9 +1644,9 @@ object BeamConfig {
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Scenario = {
           BeamConfig.Beam.Exchange.Scenario(
             convertWgs2Utm = c.hasPathOrNull("convertWgs2Utm") && c.getBoolean("convertWgs2Utm"),
-            fileFormat = if (c.hasPathOrNull("fileFormat")) c.getString("fileFormat") else "csv",
+            fileFormat = if (c.hasPathOrNull("fileFormat")) c.getString("fileFormat") else "xml",
             folder = if (c.hasPathOrNull("folder")) c.getString("folder") else "",
-            source = if (c.hasPathOrNull("source")) c.getString("source") else "MATSim"
+            source = if (c.hasPathOrNull("source")) c.getString("source") else "Beam"
           )
         }
       }

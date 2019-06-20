@@ -12,7 +12,6 @@ import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.Modes._
@@ -175,6 +174,15 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   private var workAssigner: ActorRef = context.parent
 
   private var travelTime: TravelTime = new FreeFlowTravelTime
+
+  val linksBelowMinCarSpeed =
+    networkHelper.allLinks.count(l => l.getFreespeed < beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond)
+  if (linksBelowMinCarSpeed > 0) {
+    log.warning(
+      "{} links are below quick_fix_minCarSpeedInMetersPerSecond, already in free-flow",
+      linksBelowMinCarSpeed
+    )
+  }
 
   private def agencyAndRoute(vehicleId: Id[Vehicle]): (String, String) = {
     val route = transitSchedule(Id.createVehicleId(vehicleId.toString))._1
@@ -975,7 +983,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           val link = networkHelper.getLinkUnsafe(linkId)
           assert(link != null)
           val physSimTravelTime = travelTime.getLinkTravelTime(link, time, null, null).ceil.toInt
-          Math.min(Math.max(physSimTravelTime, minTravelTime), maxTravelTime)
+          val linkTravelTime = Math.max(physSimTravelTime, minTravelTime)
+          Math.min(linkTravelTime, maxTravelTime)
         }
       }
   }
