@@ -379,7 +379,7 @@ class BeamAgentScheduler(
       Some(
         context.system.scheduler.schedule(
           new FiniteDuration(1, TimeUnit.SECONDS),
-          new FiniteDuration(60, TimeUnit.SECONDS),
+          new FiniteDuration(180, TimeUnit.SECONDS),
           self,
           Monitor
         )
