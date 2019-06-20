@@ -34,13 +34,10 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
   override protected def beforeAll(): Unit = {
     val beamExecutionConfig: BeamExecutionConfig = setupBeamWithConfig(config)
 
-    val networkCoordinator = buildNetworkCoordinator(beamExecutionConfig.beamConfig)
-
     val (scenarioBuilt, beamScenario) = buildBeamServicesAndScenario(
       config,
       beamExecutionConfig.beamConfig,
-      beamExecutionConfig.matsimConfig,
-      networkCoordinator
+      beamExecutionConfig.matsimConfig
     )
     scenario = scenarioBuilt
     val injector = buildInjector(config, scenario, beamScenario)
