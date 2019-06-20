@@ -1,7 +1,7 @@
 package beam.agentsim.agents.ridehail
 
 import akka.actor.FSM.Failure
-import akka.actor.{ActorRef, Props, Stash}
+import akka.actor.{ActorRef, Props, Stash, Status}
 import beam.agentsim.Resource.{NotifyVehicleIdle, NotifyVehicleOutOfService, ReleaseParkingStall}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -176,6 +176,9 @@ class RideHailAgent(
 
     case ev @ Event(IllegalTriggerGoToError(reason), _) =>
       log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
+      stop(Failure(reason))
+
+    case Event(Status.Failure(reason), _) =>
       stop(Failure(reason))
 
     case ev @ Event(Finish, _) =>
