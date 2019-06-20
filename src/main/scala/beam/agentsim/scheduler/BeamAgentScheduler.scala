@@ -238,8 +238,7 @@ class BeamAgentScheduler(
              |\tnowInSeconds=$nowInSeconds
              |\tawaitingResponse.size=${awaitingResponse.size()}
              |\ttriggerQueue.size=${triggerQueue.size}
-             |\ttriggerQueue.head=${Option(triggerQueue.peek())}
-             |\tawaitingResponse.head=$awaitingToString""".stripMargin
+             |\ttriggerQueue.head=${Option(triggerQueue.peek())}""".stripMargin
         log.info(logStr)
         // awaitingResponse.values().forEach(x => log.info("awaitingResponse:" + x.toString))
       maybeTriggerMeasurer.foreach {tm =>
