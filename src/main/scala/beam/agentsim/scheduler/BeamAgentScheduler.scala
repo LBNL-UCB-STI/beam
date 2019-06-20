@@ -243,7 +243,6 @@ class BeamAgentScheduler(
         // awaitingResponse.values().forEach(x => log.info("awaitingResponse:" + x.toString))
       maybeTriggerMeasurer.foreach {tm =>
         log.info(tm.getStat)
-        log.info(tm.asStuckAgentDetectionConfig)
       }
 
     case SkipOverBadActors =>
