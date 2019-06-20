@@ -15,4 +15,8 @@ object MathUtils {
   def roundDouble(inVal: Double, scale: Int): Double = {
     BigDecimal(inVal).setScale(scale, BigDecimal.RoundingMode.HALF_UP).toDouble
   }
+
+  def isNumberPowerOfTwo(number: Int): Boolean = {
+    number > 0 && ((number & (number - 1)) == 0)
+  }
 }
