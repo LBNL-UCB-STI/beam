@@ -132,7 +132,7 @@ class BeamMobsim @Inject()(
             Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime).toInt,
             beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
             new StuckFinder(beamServices.beamConfig.beam.debug.stuckAgentDetection)
-          ),
+          ).withDispatcher("beam-agent-scheduler-pinned-dispatcher"),
           "scheduler"
         )
         context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
@@ -146,7 +146,7 @@ class BeamMobsim @Inject()(
 
         private val parkingManager = context.actorOf(
           ZonalParkingManager
-            .props(beamServices, beamServices.beamRouter, ParkingStockAttributes(100)),
+            .props(beamServices, beamServices.beamRouter, ParkingStockAttributes(100)).withDispatcher("zonal-parking-manager-pinned-dispatcher"),
           "ParkingManager"
         )
         context.watch(parkingManager)
@@ -159,7 +159,7 @@ class BeamMobsim @Inject()(
             parkingManager,
             envelopeInUTM,
             rideHailSurgePricingManager
-          ),
+          ).withDispatcher("ride-hail-manager-pinned-dispatcher"),
           "RideHailManager"
         )
         context.watch(rideHailManager)
