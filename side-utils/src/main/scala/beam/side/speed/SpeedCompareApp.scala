@@ -2,6 +2,8 @@ package beam.side.speed
 
 import java.nio.file.Path
 
+import beam.side.speed.parser.UberSpeedRaw
+
 import scala.util.{Failure, Success, Try}
 
 case class CompareConfig(uberSpeedPath: String = "", osmMapPath: String = "")
@@ -26,7 +28,7 @@ trait AppSetup {
 
     opt[String]('o', "osm")
       .required()
-      .valueName("<>")
+      .valueName("<osm_map>")
       .action((o, c) => c.copy(osmMapPath = o))
       .validate(
         o =>
@@ -39,10 +41,12 @@ trait AppSetup {
   }
 }
 
-class SpeedCompareApp extends App with AppSetup {
+object SpeedCompareApp extends App with AppSetup {
 
   parser.parse(args, CompareConfig()) match {
-    case Some(conf) => System.exit(0)
+    case Some(conf) =>
+      UberSpeedRaw(conf.uberSpeedPath).speeds.foreach(println)
+      System.exit(0)
     case None       => System.exit(-1)
   }
 }

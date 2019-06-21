@@ -59,4 +59,8 @@ dependencies {
 
     compile "org.scala-lang:scala-compiler:2.12.7"
     compile "com.github.scopt:scopt_${scalaBinaryVersion}:3.7.0"
+
+    compile "org.apache.commons:commons-compress:1.18"
 }
+
+mainClassName = "beam.side.speed.SpeedCompareApp"
