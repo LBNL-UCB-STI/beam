@@ -63,9 +63,6 @@ class BeamScenarioLoader(
       result
     }
 
-    val scenarioPopulation = replacePersonsAndPersonsAttributesFromPopulation(scenario.getPopulation, personsWithPlans)
-    replacePlansFromPopulation(scenarioPopulation, plans)
-
     val vehicles = scenarioSource.getVehicles
 
     val loadedHouseholds = scenarioSource.getHousehold()
@@ -73,7 +70,9 @@ class BeamScenarioLoader(
     val newHouseholds: Iterable[Household] =
       buildMatsimHouseholds(loadedHouseholds, personsWithPlans, vehicles)
 
-    val households = replaceHouseholds(scenario.getHouseholds, newHouseholds)
+    val households: Households = replaceHouseholds(scenario.getHouseholds, newHouseholds)
+    val scenarioPopulation = replacePersonsAndPersonsAttributesFromPopulation(scenario.getPopulation, personsWithPlans)
+    replacePlansFromPopulation(scenarioPopulation, plans)
 
     val loadedAttributes = buildAttributesCoordinates(loadedHouseholds)
     replaceHouseholdsAttributes(households, loadedAttributes)
