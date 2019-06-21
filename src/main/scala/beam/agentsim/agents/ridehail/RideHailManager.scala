@@ -1629,7 +1629,7 @@ class RideHailManager(
               personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
             )
           } else {
-            // We still need use random generator twice so it will remain have the same _internal_ state
+            // We still need use random generator twice so it will remain in the same _internal_ state
             new Coord(rand.nextDouble() - 2, rand.nextDouble() - 2)
           }
         case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_UNIFORM_RANDOM =>

@@ -83,7 +83,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
   var quadTree: QuadTree[Activity] = _
 
   def updatePersonActivityQuadTree(tick: Double): Unit = {
-    val isOn: Boolean = false
+    val isOn: Boolean = true
     if (isOn && lastTimeQuadTreeUpdated + intervalForUpdatingQuadTree < tick) {
       // TODO: give preference to non repositioning vehicles -> filter them out!
       val currentTime = tick
@@ -184,7 +184,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
     updatePersonActivityQuadTree(tick)
 
-    val algorithm = 6
+    val algorithm = 7
 
     algorithm match {
 
