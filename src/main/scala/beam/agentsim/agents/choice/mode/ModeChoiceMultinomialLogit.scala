@@ -38,7 +38,8 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity]
+    destinationActivity: Option[Activity],
+    person: Option[Person] = None
   ): Option[EmbodiedBeamTrip] = {
     if (alternatives.isEmpty) {
       None
@@ -60,9 +61,25 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         (mct.mode.value, theParams ++ transferParam)
       }.toMap
 
+
       // TODO: personInfo should be deleted
       val chosenModeOpt = model.sampleAlternative(inputData, new Random())
       expectedMaximumUtility = model.getExpectedMaximumUtility(inputData).getOrElse(0)
+
+      val personId = person.map(_.getId)
+      val msgToLog =
+        s"""
+           |@@@[$personId]-----------------------------------------
+           |@@@[$personId]Alternatives:${alternatives}
+           |@@@[$personId]AttributesOfIndividual:${attributesOfIndividual}
+           |@@@[$personId]DestinationActivity:${alternatives}
+           |@@@[$personId]modeCostTimeTransfers:$modeCostTimeTransfers
+           |@@@[$personId]chosenModeOpt:${chosenModeOpt}
+           |@@@[$personId]expectedMaximumUtility:${chosenModeOpt}
+           |-----------------------------------------
+        """.stripMargin
+      logger.warn(msgToLog)
+
 
       chosenModeOpt match {
         case Some(chosenMode) =>
