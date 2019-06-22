@@ -53,6 +53,9 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
     s"repositioningShare: $repoShare, numRideHailAgents: ${rideHailManager.numRideHailAgents}, numVehiclesToReposition $numVehiclesToReposition"
   )
 
+
+  val algorithm = rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.algorithm
+
   val rhs = rideHailManager.beamServices.rideHailState
   val vehicleAllowedToReposition: mutable.Set[Id[Vehicle]] = {
     mutable.HashSet((rhs.getRideHailUtilization.notMovedAtAll ++ rhs.getRideHailUtilization.movedWithoutPassenger).toSeq: _*)
@@ -62,9 +65,11 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
   val lastTickWithRepos = 24*3600
   val step = rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds
   val numberOfRepos = lastTickWithRepos / step
-  val repositionPerTick = vehicleAllowedToReposition.size.toDouble / numberOfRepos
+  var repositionPerTick = vehicleAllowedToReposition.size.toDouble / numberOfRepos
+  repositionPerTick = if (repositionPerTick < 1) 1 else repositionPerTick
   logger.info(
     s"""
+       |algorithm: ${algorithm}
        |vehicleAllowedToReposition: ${vehicleAllowedToReposition.size}
        |lastTickWithRepos: $lastTickWithRepos
        |step: $step
@@ -183,8 +188,6 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
     // Do tests: 1.) no repos 2.) with just upcomming next activities 3.) clustering, etc.
 
     updatePersonActivityQuadTree(tick)
-
-    val algorithm = 7
 
     algorithm match {
 
