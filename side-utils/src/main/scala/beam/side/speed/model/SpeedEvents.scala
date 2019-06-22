@@ -58,3 +58,5 @@ object UberOsmNode {
     }
   }
 }
+
+case class WaySpeed(speedMean: Float, speedAvg: Float, maxDev: Float)
