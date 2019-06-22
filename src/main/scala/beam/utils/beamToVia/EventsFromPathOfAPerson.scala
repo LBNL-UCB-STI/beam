@@ -1,7 +1,5 @@
 package beam.utils.beamToVia
 
-import java.io.{File, PrintWriter}
-
 import beam.agentsim.events.PathTraversalEvent
 import org.matsim.api.core.v01.events.Event
 
@@ -18,70 +16,19 @@ object EventsFromPathOfAPerson extends App {
     .fromFile(sourcePath)
     .getOrElse(Seq.empty[Event])
 
+  //"022802-2012001386215-0-6282252", "060700-2013001017578-0-4879259", "021800-2015000742202-0-4510985",
+  val interestingPersons = mutable.HashSet("010900-2016000955704-0-6276349")
+
   def personIsInterested(personId: String): Boolean = {
-    //personId == "022802-2012001386215-0-6282252"
-    personId == "060700-2013001017578-0-4879259"
+    interestingPersons.contains(personId)
   }
 
   def vehicleIsInterested(vehicleId: String): Boolean = {
-    !vehicleId.startsWith("body-") && vehicleId.length > 0
+    vehicleId.length > 0
+    //!vehicleId.startsWith("body-") && vehicleId.length > 0
   }
 
-  def logEvent(pw: PrintWriter, event: Event): Unit = {
-    pw.println(event.toString)
-  }
-
-  val pw = new PrintWriter(new File(outputEventsPath + ".trace.xml"))
-
-  val (pteEvents, _) = events
-    .foldLeft(
-      (
-        mutable.MutableList[PathTraversalEvent](),
-        mutable.HashSet[String]()
-      )
-    )((accumulator, event) => {
-      val (ptes, vehicles) = accumulator
-      val attributes = event.getAttributes
-
-      val eventType: String = event.getEventType
-      eventType match {
-        case "PersonEntersVehicle" =>
-          val personId = attributes.getOrDefault("person", "")
-          if (personIsInterested(personId)) {
-            val vehicleId = attributes.getOrDefault("vehicle", "")
-            if (vehicleIsInterested(vehicleId)) {
-              vehicles += vehicleId
-
-              logEvent(pw, event)
-            }
-          }
-
-        case "PersonLeavesVehicle" =>
-          val personId = attributes.getOrDefault("person", "")
-          if (personIsInterested(personId)) {
-            val vehicleId = attributes.getOrDefault("vehicle", "")
-            if (vehicleIsInterested(vehicleId)) {
-              vehicles -= vehicleId
-
-              logEvent(pw, event)
-            }
-          }
-
-        case "PathTraversal" =>
-          val vehicleId = attributes.getOrDefault("vehicle", "")
-          if (vehicles.contains(vehicleId)) {
-            ptes += PathTraversalEvent(event)
-
-            logEvent(pw, event)
-          }
-        case _ =>
-      }
-
-      (ptes, vehicles)
-    })
-
-  pw.close()
-
-  val (pathLinkEvents, typeToIdSeq) = PTETransformator.transformMultiple(pteEvents)
-  EventsWriter.write(pathLinkEvents, typeToIdSeq, outputEventsPath, outputGroupsPath)
+  val processedEvents = EventsTransformator.filterEvents(events, personIsInterested, vehicleIsInterested)
+  val (viaLinkEvents, typeToIdsMap) = EventsTransformator.transform(processedEvents)
+  EventsWriter.write(viaLinkEvents, typeToIdsMap, outputEventsPath, outputGroupsPath)
 }
