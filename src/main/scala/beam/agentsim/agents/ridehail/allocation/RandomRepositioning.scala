@@ -279,7 +279,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
             val location = vehIdAndLoc.currentLocationUTM
             val nearBy = activitiesCoordinates.filter { actCoord =>
               val distance = rideHailManager.beamServices.geo.distUTMInMeters(actCoord, location.loc)
-              distance <= 5000 && distance >= 300
+              distance <= 5000// distance <= 5000 && distance >= 300
             }
             val shuffled = RandomUtils.shuffle(nearBy, new Random)
             shuffled.headOption.map { coord =>
