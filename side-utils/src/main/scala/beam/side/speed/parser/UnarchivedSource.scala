@@ -9,10 +9,10 @@ import scala.io.Source
 
 trait UnarchivedSource {
 
-  def read(path: Path): Stream[String] = {
+  def read(path: Path): Iterator[String] = {
     val zis = new ZipArchiveInputStream(new FileInputStream(path.toFile))
     zis.getNextZipEntry
-    Source.fromInputStream(zis).getLines().toStream.drop(1)
+    Source.fromInputStream(zis).getLines().drop(1)
   }
 
 }
