@@ -1,12 +1,17 @@
 package beam.side.speed
 
-import java.nio.file.{Path, Paths}
+import java.nio.file.Paths
 
-import beam.side.speed.parser.UberSpeedRaw
+import beam.side.speed.parser.{OsmWays, UberOsmDictionary, UberSpeedRaw}
 
 import scala.util.{Failure, Success, Try}
 
-case class CompareConfig(uberSpeedPath: String = "", osmMapPath: String = "")
+case class CompareConfig(
+  uberSpeedPath: String = "",
+  osmMapPath: String = "",
+  uberOsmMap: String = "",
+  r5MapPath: String = ""
+)
 
 trait AppSetup {
 
@@ -38,6 +43,32 @@ trait AppSetup {
         }
       )
       .text("OSM map file to compare")
+
+    opt[String]('d', "dict")
+      .required()
+      .valueName("<dict_path>")
+      .action((d, c) => c.copy(uberOsmMap = d))
+      .validate(
+        d =>
+          Try(Paths.get(d).toFile).filter(_.exists()) match {
+            case Success(_) => success
+            case Failure(e) => failure(e.getMessage)
+        }
+      )
+      .text("Uber to OSM way dictionary")
+
+    opt[String]('r', "r5")
+      .required()
+      .valueName("<r5_path>")
+      .action((r, c) => c.copy(r5MapPath = r))
+      .validate(
+        r =>
+          Try(Paths.get(r).toFile).filter(_.exists()) match {
+            case Success(_) => success
+            case Failure(e) => failure(e.getMessage)
+        }
+      )
+      .text("R5 Network")
   }
 }
 
@@ -45,7 +76,9 @@ object SpeedCompareApp extends App with AppSetup {
 
   parser.parse(args, CompareConfig()) match {
     case Some(conf) =>
-      UberSpeedRaw(conf.uberSpeedPath).filterSpeeds.foreach(println)
+      //UberSpeedRaw(conf.uberSpeedPath).filterSpeeds.foreach(println)
+      UberOsmDictionary(conf.uberOsmMap)
+      OsmWays(conf.osmMapPath, conf.r5MapPath).ways.foreach(println)
       System.exit(0)
     case None => System.exit(-1)
   }

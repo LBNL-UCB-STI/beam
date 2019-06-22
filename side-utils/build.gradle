@@ -61,6 +61,11 @@ dependencies {
     compile "com.github.scopt:scopt_${scalaBinaryVersion}:3.7.0"
 
     compile "org.apache.commons:commons-compress:1.18"
+
+    compile(group: 'com.github.michaz', name: 'r5', version: '3ab4fa04') {
+        exclude group: 'ch.qos.logback', module: 'logback-classic'
+        exclude group: 'org.slf4j', module: 'slf4j-simple'
+    }
 }
 
 mainClassName = "beam.side.speed.SpeedCompareApp"

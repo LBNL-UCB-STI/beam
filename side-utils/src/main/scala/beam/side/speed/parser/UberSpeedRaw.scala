@@ -6,25 +6,24 @@ import java.time.DayOfWeek
 import beam.side.speed.model.FilterEvent.WeekDayEventAction.WeekDayEventAction
 import beam.side.speed.model.{UberDaySpeed, UberHourSpeed, UberSpeedEvent, UberWaySpeed}
 
-import scala.collection.immutable
-
 class UberSpeedRaw(path: String) extends DataLoader[UberSpeedEvent] with UnarchivedSource {
   import beam.side.speed.model.UberSpeedEvent._
   import WayFilter._
 
-  private lazy val speeds: immutable.Iterable[UberWaySpeed] = load(Paths.get(path))
+  private lazy val speeds: Map[String, UberWaySpeed] = load(Paths.get(path))
     .foldLeft(Map[String, Seq[UberSpeedEvent]]())(
       (acc, s) => acc + (s.segmentId -> (acc.getOrElse(s.segmentId, Seq()) :+ s))
     )
     .map {
-      case (segmentId, grouped) => dropToWeek(segmentId, grouped)
+      case (segmentId, grouped) => segmentId -> dropToWeek(segmentId, grouped)
     }
 
   def filterSpeeds =
-    speeds
+    speeds.values
       .map(_.waySpeed[WeekDayEventAction](DayOfWeek.WEDNESDAY))
 
   private def dropToWeek(segmentId: String, junctions: Seq[UberSpeedEvent]): UberWaySpeed = {
+    println(s"Way $segmentId")
     val week = junctions
       .groupBy(e => (e.dateTime.getHour, e.dateTime.getDayOfWeek))
       .map {

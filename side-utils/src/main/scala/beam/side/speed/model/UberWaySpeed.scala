@@ -14,7 +14,10 @@ class UberWaySpeed(segmentId: String, week: Seq[UberDaySpeed]) {
 
   def waySpeed[T <: FilterEventAction](filterOption: T#Filtered)(
     implicit filter: WayFilter[T#FilterEvent, T#Filtered]
-  ): WaySpeed = filter.filter(filterOption, dictionary)
+  ): WaySpeed = {
+    println(s"Filtering $this")
+    filter.filter(filterOption, dictionary)
+  }
 
   override def toString = s"UberWaySpeed($segmentId, $week)"
 }
