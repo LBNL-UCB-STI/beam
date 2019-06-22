@@ -206,7 +206,7 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
     val allRides = SortedSet(utilizations.flatMap(_.numberOfRidesServedByNumberOfVehicles.keys): _*)
     val allPassengers = SortedSet(utilizations.flatMap(_.numOfPassengersToTheNumberOfRides.keys): _*)
 
-    val filePath = beamSvc.matsimServices.getControlerIO.getOutputFilename("rideHailRideUtilization.csv.gz")
+    val filePath = beamSvc.matsimServices.getControlerIO.getOutputFilename("rideHailRideUtilization.csv")
     val fileHeader = new StringBuffer()
     fileHeader.append("iteration,nonEmptyRides,totalRides,movedPassengers,")
     allRides.foreach { rideNumber =>
