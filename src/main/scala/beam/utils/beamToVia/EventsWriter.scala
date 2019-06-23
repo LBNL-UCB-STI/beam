@@ -6,10 +6,10 @@ import scala.collection.mutable
 object EventsWriter {
 
   def write(
-    pathLinkEvents: Traversable[PathLinkEvent],
-    typeToIdSeq: mutable.Map[String, mutable.HashSet[String]],
-    outputEventsPath: String,
-    outputGroupsPath: String
+             pathLinkEvents: Traversable[ViaEvent],
+             typeToIdSeq: mutable.Map[String, mutable.HashSet[String]],
+             outputEventsPath: String,
+             outputGroupsPath: String
   ): Unit = {
     val strEvents = pathLinkEvents
       .map(pl => pl.toXml.toString())
