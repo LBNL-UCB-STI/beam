@@ -25,7 +25,7 @@ object CompareLogs extends App with StrictLogging {
     }
   }
 
-  def extractPersonId(str: String): Option[PersonContent] = {
+  def extractPersonContent(str: String): Option[PersonContent] = {
     str match {
       case PersonIdPattern(_, id, _, content) => Some(PersonContent(id, content))
       case _                                  => None
@@ -33,13 +33,13 @@ object CompareLogs extends App with StrictLogging {
   }
 
   def compare(): Unit = {
-    val xml = loadFile("/src/beam/output/beamville/beamville-xml__2019-06-21_14-14-39/beamLog.out")
-      .flatMap(extractPersonId)
+    val xml = loadFile("/src/beam/output/sf-light/sf-light-1k-xml__2019-06-22_12-49-33/beamLog.out")
+      .flatMap(extractPersonContent)
       .groupBy(_.personId)
 
     val csv: Map[String, Seq[PersonContent]] =
-      loadFile("/src/beam/output/beamville/beamville-csv__2019-06-21_14-28-48/beamLog.out")
-        .flatMap(extractPersonId)
+      loadFile("/src/beam/output/sf-light/sf-light-1k-csv__2019-06-22_13-24-20/beamLog.out")
+        .flatMap(extractPersonContent)
         .groupBy(_.personId)
 
     xml.foreach {
@@ -55,8 +55,7 @@ object CompareLogs extends App with StrictLogging {
     }
 
     map.toList
-      .filter(_._1 == "4")
-      .sortBy(_._1.toInt)
+      .sortBy(_._1)
       .foreach {
         case (id: String, log: PersonLineLog) =>
           val xml = log.xmlContent.zip(log.csvContent).filterNot(v => v._1 == v._2)
