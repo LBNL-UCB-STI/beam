@@ -4,8 +4,8 @@ BEAM_ROOT="$(git rev-parse --show-toplevel )"
 
 pushd ${BEAM_ROOT}
 
-    CONFIG_PATH="production/application-sfbay/experiments/ev-fleet-qos-S90/runs/run.chargers_taz-parking_S90_P250_R75_F10k/beam.conf"
-    BEAM_OUTPUT="production/application-sfbay/experiments/ev-fleet-qos-S90/runs/run.chargers_taz-parking_S90_P250_R75_F10k/output"
+    CONFIG_PATH="production/application-sfbay/experiments/ev-fleet-qos-S90/runs/run.chargers_taz-parking_S90_P250_R75_F15k/beam.conf"
+    BEAM_OUTPUT="production/application-sfbay/experiments/ev-fleet-qos-S90/runs/run.chargers_taz-parking_S90_P250_R75_F15k/output"
     if [ -z ${BEAM_OUTPUT} ]; then
         echo "Output directory is undefined"
         exit 1
