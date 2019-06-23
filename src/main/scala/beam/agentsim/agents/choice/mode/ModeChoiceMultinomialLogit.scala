@@ -4,7 +4,6 @@ import beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit._
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
@@ -62,7 +61,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
       }.toMap
 
 
-      // TODO: personInfo should be deleted
+//      val chosenModeOpt = model.sampleAlternative(inputData, new Random(beamServices.beamConfig.matsim.modules.global.randomSeed))
       val chosenModeOpt = model.sampleAlternative(inputData, new Random())
       expectedMaximumUtility = model.getExpectedMaximumUtility(inputData).getOrElse(0)
 
@@ -72,11 +71,13 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
            |@@@[$personId]-----------------------------------------
            |@@@[$personId]Alternatives:${alternatives}
            |@@@[$personId]AttributesOfIndividual:${attributesOfIndividual}
-           |@@@[$personId]DestinationActivity:${alternatives}
+           |@@@[$personId]DestinationActivity:${destinationActivity}
            |@@@[$personId]modeCostTimeTransfers:$modeCostTimeTransfers
+           |@@@[$personId]bestInGroup:$bestInGroup
+           |@@@[$personId]inputData:$inputData
            |@@@[$personId]chosenModeOpt:${chosenModeOpt}
            |@@@[$personId]expectedMaximumUtility:${chosenModeOpt}
-           |-----------------------------------------
+           |@@@[$personId]-----------------------------------------
         """.stripMargin
       logger.warn(msgToLog)
 
