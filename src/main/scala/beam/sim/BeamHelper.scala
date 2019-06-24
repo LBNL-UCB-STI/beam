@@ -461,12 +461,9 @@ trait BeamHelper extends LazyLogging {
     val logStart = {
       val logHH = scenario.getHouseholds.getHouseholds.keySet().asScala.map(_.toString).toList
       val logBeamPrivateVehicles = beamScenario.privateVehicles.keySet.map(_.toString).toList
-      s"""
-         |Scenario households size: ${logHH.size}
-         |Scenario households: ${logHH.sortWith(_ < _)}
-         |BeamScenario privateVehicles size: ${logBeamPrivateVehicles.size}
-         |BeamScenario privateVehicles : ${logBeamPrivateVehicles.sortWith(_ < _)}
-      """.stripMargin
+      s"""|Scenario households size: ${logHH.size}
+          |BeamScenario privateVehicles size: ${logBeamPrivateVehicles.size}
+          |""".stripMargin
     }
     logger.warn(logStart)
 

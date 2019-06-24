@@ -34,6 +34,8 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
   var expectedMaximumUtility: Double = 0.0
   val modalBehaviors: ModalBehaviors = beamServices.beamConfig.beam.agentsim.agents.modalBehaviors
 
+  private val shouldLogDetails: Boolean = false
+
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
@@ -60,25 +62,25 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         (mct.mode.value, theParams ++ transferParam)
       }.toMap
 
-//      val chosenModeOpt = model.sampleAlternative(inputData, new Random(beamServices.beamConfig.matsim.modules.global.randomSeed))
       val chosenModeOpt = model.sampleAlternative(inputData, new Random())
       expectedMaximumUtility = model.getExpectedMaximumUtility(inputData).getOrElse(0)
 
-//      val personId = person.map(_.getId)
-//      val msgToLog =
-//        s"""
-//           |@@@[$personId]-----------------------------------------
-//           |@@@[$personId]Alternatives:${alternatives}
-//           |@@@[$personId]AttributesOfIndividual:${attributesOfIndividual}
-//           |@@@[$personId]DestinationActivity:${destinationActivity}
-//           |@@@[$personId]modeCostTimeTransfers:$modeCostTimeTransfers
-//           |@@@[$personId]bestInGroup:$bestInGroup
-//           |@@@[$personId]inputData:$inputData
-//           |@@@[$personId]chosenModeOpt:${chosenModeOpt}
-//           |@@@[$personId]expectedMaximumUtility:${chosenModeOpt}
-//           |@@@[$personId]-----------------------------------------
-//        """.stripMargin
-//      logger.debug(msgToLog)
+      if (shouldLogDetails) {
+        val personId = person.map(_.getId)
+        val msgToLog =
+          s"""|@@@[$personId]-----------------------------------------
+              |@@@[$personId]Alternatives:${alternatives}
+              |@@@[$personId]AttributesOfIndividual:${attributesOfIndividual}
+              |@@@[$personId]DestinationActivity:${destinationActivity}
+              |@@@[$personId]modeCostTimeTransfers:$modeCostTimeTransfers
+              |@@@[$personId]bestInGroup:$bestInGroup
+              |@@@[$personId]inputData:$inputData
+              |@@@[$personId]chosenModeOpt:${chosenModeOpt}
+              |@@@[$personId]expectedMaximumUtility:${chosenModeOpt}
+              |@@@[$personId]-----------------------------------------
+              |""".stripMargin
+        logger.debug(msgToLog)
+      }
 
       chosenModeOpt match {
         case Some(chosenMode) =>
