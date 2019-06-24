@@ -368,7 +368,7 @@ class BeamSkimmer @Inject()(
       event.getServices.getIterationNumber,
       BeamSkimmer.excerptSkimsFileBaseName + ".csv.gz"
     )
-    val dummyId = Id.create("Car", classOf[BeamVehicleType])
+    val dummyId = Id.create(beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId, classOf[BeamVehicleType])
     val writer = IOUtils.getBufferedWriter(filePath)
     writer.write(fileHeader)
     writer.write(Eol)
@@ -424,7 +424,7 @@ class BeamSkimmer @Inject()(
     val uniqueModes = skims.map(keyVal => keyVal._1._2).toList.distinct
     val uniqueTimeBins = 0 to 23
 
-    val dummyId = Id.create("Car", classOf[BeamVehicleType])
+    val dummyId = Id.create(beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId, classOf[BeamVehicleType])
 
     val writer = IOUtils.getBufferedWriter(filePath)
     writer.write(CsvLineHeader)
