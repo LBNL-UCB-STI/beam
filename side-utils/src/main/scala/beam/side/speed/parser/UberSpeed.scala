@@ -21,8 +21,6 @@ class UberSpeed[T <: FilterEventAction](path: String, dict: UberOsmDictionary, f
       (acc, s) => acc + (s.segmentId -> (acc.getOrElse(s.segmentId, Seq()) :+ s))
     )
   .par.map {
-      case ("7c69faab526569929ca7a4b0ce0758fec7c4a6e4", grouped) =>
-        "7c69faab526569929ca7a4b0ce0758fec7c4a6e4" -> dropToWeek("7c69faab526569929ca7a4b0ce0758fec7c4a6e4", grouped)
       case (segmentId, grouped) => segmentId -> dropToWeek(segmentId, grouped)
     }
 
