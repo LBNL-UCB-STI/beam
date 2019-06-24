@@ -5,8 +5,10 @@ import beam.utils.scenario.urbansim.DataExchange._
 import beam.utils.{ParquetReader, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.avro.generic.GenericRecord
+import org.apache.commons.lang3.math.NumberUtils
 
 import scala.reflect.ClassTag
+import scala.util.Try
 
 object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
 
@@ -94,8 +96,19 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     val personId = getIfNotNull(rec, "person_id").toString
     val householdId = getIfNotNull(rec, "household_id").toString
     val age = getIfNotNull(rec, "age").asInstanceOf[Long].toInt
+    val isFemaleValue = {
+      val value = Try(getIfNotNull(rec, "sex").asInstanceOf[Long]).getOrElse(1L)
+      value == 2L
+    }
     val rank: Int = 0
-    PersonInfo(personId = personId, householdId = householdId, rank = rank, age = age)
+    PersonInfo(
+      personId = personId,
+      householdId = householdId,
+      rank = rank,
+      age = age,
+      isFemale = isFemaleValue,
+      valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime").toString, 0D)).getOrElse(0D)
+    )
   }
 
   private[scenario] def toBuildingInfo(rec: GenericRecord): BuildingInfo = {

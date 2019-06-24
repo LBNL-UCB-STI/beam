@@ -4,7 +4,7 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
 import beam.agentsim.agents.planning.{BeamPlan, Trip}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehiclePersonId}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PersonIdWithActorRef}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest}
 import beam.router.Modes.BeamMode
@@ -153,7 +153,7 @@ class FastHouseholdCAVScheduling(
           curReq.activity.getCoord,
           prevReq.time,
           BeamMode.CAR,
-          BeamVehicleType.defaultCarBeamVehicleType.id
+          cav.beamVehicleType.id
         )
         var serviceTime = prevReq.serviceTime + metric.time
         val ubTime = curReq.time + timeWindow(curReq.tag)
@@ -435,7 +435,7 @@ object HouseholdTripsHelper {
         curTrip.activity.getCoord,
         0,
         defaultMode,
-        org.matsim.api.core.v01.Id.create[BeamVehicleType]("", classOf[BeamVehicleType])
+        org.matsim.api.core.v01.Id.create[BeamVehicleType]("Car", classOf[BeamVehicleType])
       )
       .time
 
@@ -456,7 +456,7 @@ object HouseholdTripsHelper {
     }
 
     val vehiclePersonId =
-      VehiclePersonId(Id.create(plan.getPerson.getId, classOf[Vehicle]), plan.getPerson.getId, ActorRef.noSender)
+      PersonIdWithActorRef(plan.getPerson.getId, ActorRef.noSender)
 
     val pickup = MobilityRequest(
       Some(vehiclePersonId),

@@ -20,10 +20,10 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
     rideHailManager.vehicleManager
       .getClosestIdleVehiclesWithinRadiusByETA(
         inquiry.pickUpLocationUTM,
+        inquiry.destinationUTM,
         rideHailManager.radiusInMeters,
         inquiry.departAt
-      )
-      .headOption match {
+      ) match {
       case Some(agentETA) =>
         SingleOccupantQuoteAndPoolingInfo(agentETA.agentLocation, Some(PoolingInfo(1.1, 0.6)))
       case None =>
@@ -50,7 +50,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
       val routeResponses = vehicleAllocationRequest.requests(request)
 
       // First check for broken route responses (failed routing attempt)
-      if (routeResponses.find(_.itineraries.size == 0).isDefined) {
+      if (routeResponses.find(_.itineraries.isEmpty).isDefined) {
         allocResponses = allocResponses :+ NoVehicleAllocated(request)
       } else {
         // Make sure vehicle still available
@@ -94,11 +94,11 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
           rideHailManager.vehicleManager
             .getClosestIdleVehiclesWithinRadiusByETA(
               request1.pickUpLocationUTM,
+              request1.destinationUTM,
               rideHailManager.radiusInMeters,
               tick,
               excludeRideHailVehicles = alreadyAllocated
-            )
-            .headOption match {
+            ) match {
             case Some(agentETA) =>
               alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId
               allocResponses = allocResponses :+ RoutingRequiredToAllocateVehicle(
@@ -202,11 +202,11 @@ object Pooling {
     rideHailManager.vehicleManager
       .getClosestIdleVehiclesWithinRadiusByETA(
         request.pickUpLocationUTM,
+        request.destinationUTM,
         rideHailManager.radiusInMeters,
         pickUpTime,
         excludeRideHailVehicles = alreadyAllocated
-      )
-      .headOption match {
+      ) match {
       case Some(agentETA) =>
         RoutingRequiredToAllocateVehicle(
           request,

@@ -3,9 +3,9 @@ package beam.agentsim.agents.choice.logit;
 public class NestedLogitData {
     String nestName;
     Double elasticity = 1.0, expectedMaximumUtility = Double.NaN;
-    UtilityFunction utility;
+    UtilityFunctionJava utility;
 
-    public NestedLogitData(Double elasticity, UtilityFunction utility) {
+    public NestedLogitData(Double elasticity, UtilityFunctionJava utility) {
         this.elasticity = elasticity;
         this.utility = utility;
     }
@@ -29,11 +29,11 @@ public class NestedLogitData {
         this.elasticity = elasticity;
     }
 
-    public UtilityFunction getUtility() {
+    public UtilityFunctionJava getUtility() {
         return utility;
     }
 
-    public void setUtility(UtilityFunction utility) {
+    public void setUtility(UtilityFunctionJava utility) {
         this.utility = utility;
     }
 

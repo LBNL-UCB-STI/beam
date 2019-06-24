@@ -2,14 +2,18 @@ package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents.planning.Trip
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
+import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehiclePersonId}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PersonIdWithActorRef}
 import beam.agentsim.agents.{MobilityRequest, _}
 import beam.router.BeamRouter.Location
 import beam.router.BeamSkimmer.Skim
 import beam.router.Modes.BeamMode
-import beam.router.{BeamSkimmer}
+import beam.router.BeamSkimmer
 import beam.sim.BeamServices
+import beam.utils.NetworkHelper
+import beam.router.BeamSkimmer
+import beam.sim.{BeamServices, Geofence}
 import com.vividsolutions.jts.geom.Envelope
 import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedWeightedGraph}
 import org.matsim.api.core.v01.Id
@@ -201,7 +205,7 @@ object AlonsoMoraPoolingAlgForRideHail {
       dst.activity.getCoord,
       src.time,
       BeamMode.CAR,
-      BeamVehicleType.defaultCarBeamVehicleType.id
+      Id.create("Car", classOf[BeamVehicleType])
     )
   }
 
@@ -218,8 +222,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     sortedRequests.drop(1).foldLeft(()) {
       case (_, curReq) =>
         val prevReq = newPoolingList.last
-        val serviceTime = prevReq.serviceTime +
-        getTimeDistanceAndCost(prevReq, curReq, beamServices).time.toInt
+        val serviceTime = prevReq.serviceTime + getTimeDistanceAndCost(prevReq, curReq, beamServices).time
         if (serviceTime <= curReq.time + timeWindow(curReq.tag)) {
           newPoolingList.append(curReq.copy(serviceTime = serviceTime))
         } else {
@@ -229,7 +232,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     Some(newPoolingList.toList)
   }
 
-  def createPersonRequest(vehiclePersonId: VehiclePersonId, src: Location, srcTime: Int, dst: Location)(
+  def createPersonRequest(vehiclePersonId: PersonIdWithActorRef, src: Location, srcTime: Int, dst: Location)(
     implicit skimmer: BeamSkimmer
   ): CustomerRequest = {
     val p1Act1: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act1", src)
@@ -241,10 +244,9 @@ object AlonsoMoraPoolingAlgForRideHail {
         p1Act2.getCoord,
         0,
         BeamMode.CAR,
-        BeamVehicleType.defaultCarBeamVehicleType.id
+        Id.create("Car", classOf[BeamVehicleType])
       )
       .time
-      .toInt
     CustomerRequest(
       vehiclePersonId,
       MobilityRequest(
@@ -268,11 +270,17 @@ object AlonsoMoraPoolingAlgForRideHail {
     )
   }
 
-  def createVehicleAndSchedule(vid: String, dst: Location, dstTime: Int): VehicleAndSchedule = {
+  def createVehicleAndSchedule(
+    vid: String,
+    vehicleType: BeamVehicleType,
+    dst: Location,
+    dstTime: Int,
+    geofence: Option[Geofence] = None
+  ): VehicleAndSchedule = {
     val v1 = new BeamVehicle(
       Id.create(vid, classOf[BeamVehicle]),
       new Powertrain(0.0),
-      BeamVehicleType.defaultCarBeamVehicleType
+      vehicleType
     )
     val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${vid}Act0", dst)
     v1Act0.setEndTime(dstTime)
@@ -288,7 +296,8 @@ object AlonsoMoraPoolingAlgForRideHail {
           Dropoff,
           dstTime
         )
-      )
+      ),
+      geofence
     )
 
   }
@@ -300,12 +309,13 @@ object AlonsoMoraPoolingAlgForRideHail {
   }
   sealed trait RVGraphNode extends RTVGraphNode
   // customer requests
-  case class CustomerRequest(person: VehiclePersonId, pickup: MobilityRequest, dropoff: MobilityRequest)
+  case class CustomerRequest(person: PersonIdWithActorRef, pickup: MobilityRequest, dropoff: MobilityRequest)
       extends RVGraphNode {
     override def getId: String = person.personId.toString
   }
   // Ride Hail vehicles, capacity and their predefined schedule
-  case class VehicleAndSchedule(vehicle: BeamVehicle, schedule: List[MobilityRequest]) extends RVGraphNode {
+  case class VehicleAndSchedule(vehicle: BeamVehicle, schedule: List[MobilityRequest], geofence: Option[Geofence])
+      extends RVGraphNode {
     private val nbOfPassengers: Int = schedule.count(_.tag == Dropoff)
     override def getId: String = vehicle.id.toString
     private val maxOccupancy: Int = vehicle.beamVehicleType.seatingCapacity
