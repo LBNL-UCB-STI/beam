@@ -1,33 +1,37 @@
 package beam.side.speed.parser
 
 import java.nio.file.Paths
-import java.time.DayOfWeek
 
-import beam.side.speed.model.FilterEvent.WeekDayEventAction.WeekDayEventAction
 import beam.side.speed.model._
 
+import scala.collection.parallel
+import scala.collection.parallel.immutable.ParMap
+
+import WayFilter._
+import scala.reflect.ClassTag
+
 class UberSpeed[T <: FilterEventAction](path: String, dict: UberOsmDictionary, fOpt: T#Filtered)
+                                       (implicit t: ClassTag[T], wf: WayFilter[T#FilterEvent, T#Filtered])
     extends DataLoader[UberSpeedEvent]
     with UnarchivedSource {
   import beam.side.speed.model.UberSpeedEvent._
-  import WayFilter._
 
-  lazy val speeds = load(Paths.get(path))
+  private lazy val speeds: ParMap[String, UberWaySpeed] = load(Paths.get(path))
     .foldLeft(Map[String, Seq[UberSpeedEvent]]())(
       (acc, s) => acc + (s.segmentId -> (acc.getOrElse(s.segmentId, Seq()) :+ s))
     )
-  /*.map {
+  .par.map {
+      case ("7c69faab526569929ca7a4b0ce0758fec7c4a6e4", grouped) =>
+        "7c69faab526569929ca7a4b0ce0758fec7c4a6e4" -> dropToWeek("7c69faab526569929ca7a4b0ce0758fec7c4a6e4", grouped)
       case (segmentId, grouped) => segmentId -> dropToWeek(segmentId, grouped)
-    }*/
+    }
 
-  private lazy val filterSpeeds: Map[String, WaySpeed] = Map()
-  /*  speeds.values
-      .map(_.waySpeed[WeekDayEventAction](DayOfWeek.WEDNESDAY))*/
+  private lazy val filterSpeeds: parallel.ParMap[String, WaySpeed] =
+    speeds.mapValues(_.waySpeed[T](fOpt))
 
   def speed(osmId: Long): Option[WaySpeed] = dict(osmId).flatMap(s => filterSpeeds.get(s))
 
   private def dropToWeek(segmentId: String, junctions: Seq[UberSpeedEvent]): UberWaySpeed = {
-    println(s"Way $segmentId")
     val week = junctions
       .groupBy(e => (e.dateTime.getHour, e.dateTime.getDayOfWeek))
       .map {
@@ -48,6 +52,7 @@ class UberSpeed[T <: FilterEventAction](path: String, dict: UberOsmDictionary, f
 
 object UberSpeed {
 
-  def apply[T <: FilterEventAction](path: String, dict: UberOsmDictionary, fOpt: T#Filtered): UberSpeed[T] =
+  def apply[T <: FilterEventAction](path: String, dict: UberOsmDictionary, fOpt: T#Filtered)(implicit t: ClassTag[T],
+                                                                                             wf: WayFilter[T#FilterEvent, T#Filtered]): UberSpeed[T] =
     new UberSpeed(path, dict, fOpt)
 }
