@@ -1,11 +1,14 @@
 package beam.utils.beamToVia
 
 import beam.agentsim.events.PathTraversalEvent
-import org.matsim.api.core.v01.events.Event
+import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.events.{Event, PersonLeavesVehicleEvent}
+import org.matsim.api.core.v01.population.Person
+import org.matsim.vehicles.Vehicle
+
 import scala.collection.mutable
 
-object EventsTransformator {
-
+object EventsTransformer {
   private def transformSingle(
     pte: PathTraversalEvent,
     vehicleId: String,
@@ -38,90 +41,127 @@ object EventsTransformator {
           Seq(entered, left)
       }
 
-    paths //.slice(1, paths.size - 1)
+    paths
   }
 
-  def filterEvents(
+  def filterAndFixEvents(
     events: Traversable[Event],
     personIsInterested: String => Boolean,
-    vehicleIsInterested: String => Boolean
   ): Traversable[Event] = {
-    val (filteredEvents, _) = events
-      .foldLeft(
-        (
-          mutable.MutableList[Event](),
-          mutable.HashSet[String]()
-        )
-      )((accumulator, event) => {
-        val (filtered, vehicles) = accumulator
-        val attributes = event.getAttributes
 
-        val eventType: String = event.getEventType
-        eventType match {
-          case "PersonEntersVehicle" =>
-            val personId = attributes.getOrDefault("person", "")
-            if (personIsInterested(personId)) {
-              val vehicleId = attributes.getOrDefault("vehicle", "")
-              if (vehicleIsInterested(vehicleId)) {
-                vehicles += vehicleId
-                filtered += event
-              }
+    case class Accumulator(
+      filteredEvents: mutable.MutableList[Event] = mutable.MutableList.empty[Event],
+      selectedVehicles: mutable.HashSet[String] = mutable.HashSet.empty[String],
+      personToVehicle: mutable.Map[String, Option[String]] = mutable.Map.empty[String, Option[String]]
+    ) {}
+
+    def getPersonLeavesVehicleEvent(time: Double, person: String, vehicle: String): PersonLeavesVehicleEvent = {
+      val personId: Id[Person] = Id.create(person, classOf[Person])
+      val vehicleId: Id[Vehicle] = Id.create(vehicle, classOf[Vehicle])
+      new PersonLeavesVehicleEvent(time, personId, vehicleId)
+    }
+
+    val accumulator = events.foldLeft(Accumulator())((acc, event) => {
+      val attributes = event.getAttributes
+
+      event.getEventType match {
+        case "PersonEntersVehicle" =>
+          val personId = attributes.getOrDefault("person", "")
+          if (personIsInterested(personId)) {
+            acc.personToVehicle.get(personId) match {
+              case Some(Some(prevVehicleId)) =>
+                acc.filteredEvents += getPersonLeavesVehicleEvent(event.getTime, personId, prevVehicleId)
+              case _ =>
             }
 
-          case "PersonLeavesVehicle" =>
-            val personId = attributes.getOrDefault("person", "")
-            if (personIsInterested(personId)) {
-              val vehicleId = attributes.getOrDefault("vehicle", "")
-              if (vehicleIsInterested(vehicleId)) {
-                vehicles -= vehicleId
-                filtered += event
-              }
-            }
-
-          case "PathTraversal" =>
             val vehicleId = attributes.getOrDefault("vehicle", "")
-            if (vehicles.contains(vehicleId)) filtered += event
+            acc.personToVehicle(personId) = Some(vehicleId)
 
-          case _ =>
-        }
+            acc.filteredEvents += event
+            acc.selectedVehicles += vehicleId
+          }
 
-        (filtered, vehicles)
-      })
+        case "PersonLeavesVehicle" =>
+          val personId = attributes.getOrDefault("person", "")
+          if (personIsInterested(personId)) {
+            val vehicleId = attributes.getOrDefault("vehicle", "")
+            acc.personToVehicle(personId) = None
 
-    filteredEvents
+            acc.filteredEvents += event
+            acc.selectedVehicles -= vehicleId
+          }
+
+        case "PathTraversal" =>
+          val vehicleId = attributes.getOrDefault("vehicle", "")
+          val driver = attributes.getOrDefault("driver", "")
+          acc.personToVehicle(driver) = Some(vehicleId)
+
+          if (acc.selectedVehicles.contains(vehicleId)) {
+            acc.filteredEvents += event
+          } else if (personIsInterested(driver)) {
+            acc.filteredEvents += event
+            acc.selectedVehicles += vehicleId
+          }
+
+        case _ => // acc.filteredEvents += event
+      }
+
+      acc
+    })
+
+    accumulator.filteredEvents
   }
 
   def calcTimeLimits(
     events: Traversable[Event],
     timeLimitId: (String, Double) => String
   ): mutable.Map[String, Double] = {
-    val (timeLimits, _) =
-      events.foldLeft(mutable.Map.empty[String, Double], mutable.Map.empty[String, (Double, Double)]) {
-        case ((limits, eventEnds), event) =>
-          event.getEventType match {
-            case "PathTraversal" =>
-              val pte = PathTraversalEvent(event)
-              val timeEnd = pte.time + pte.linkTravelTime.sum
-              val vId = pte.vehicleId.toString
+    case class Accumulator(
+      limits: mutable.Map[String, Double] = mutable.Map.empty[String, Double],
+      eventEnds: mutable.Map[String, (Double, Double)] = mutable.Map.empty[String, (Double, Double)]
+    )
 
-              eventEnds.get(vId) match {
-                case Some((prevEventStart, prevEventEnd)) =>
-                  if (prevEventEnd > pte.time) {
-                    val limitId = timeLimitId(vId, prevEventStart)
-                    limits += (limitId -> pte.time)
-                  }
-                case _ =>
+    val accumulator = events.foldLeft(Accumulator())((acc, event) => {
+      event.getEventType match {
+        case "PathTraversal" =>
+          val pte = PathTraversalEvent(event)
+          val time = event.getTime
+          val timeEnd = time + pte.linkTravelTime.sum
+          val vehicleId = pte.vehicleId.toString
+
+          acc.eventEnds.get(vehicleId) match {
+            case Some((prevEventStart, prevEventEnd)) =>
+              if (prevEventEnd > time) {
+                val limitId = timeLimitId(vehicleId, prevEventStart)
+                acc.limits += (limitId -> time)
               }
 
-              eventEnds(vId) = (pte.time, timeEnd)
-
-              (limits, eventEnds)
-
-            case _ => (limits, eventEnds)
+            case _ =>
           }
-      }
 
-    timeLimits
+          acc.eventEnds(vehicleId) = (pte.time, timeEnd)
+
+        case "PersonLeavesVehicle" =>
+          val attributes = event.getAttributes
+          val time = event.getTime
+          val vehicleId = attributes.getOrDefault("vehicle","")
+
+          acc.eventEnds.get(vehicleId) match {
+            case Some((prevEventStart, prevEventEnd)) =>
+              if (prevEventEnd > time) {
+                val limitId = timeLimitId(vehicleId, prevEventStart)
+                acc.limits += (limitId -> time)
+              }
+
+            case _ =>
+          }
+
+        case _ =>
+      }
+      acc
+    })
+
+    accumulator.limits
   }
 
   def removePathDuplicates(events: mutable.MutableList[ViaEvent]): Traversable[ViaEvent] = {
@@ -226,7 +266,7 @@ object EventsTransformator {
               val limitId = timeLimitId(pte.vehicleId.toString, pte.time)
               val limit = timeLimits.get(limitId)
 
-              val events = EventsTransformator.transformSingle(pte, vId, limit)
+              val events = EventsTransformer.transformSingle(pte, vId, limit)
 
               typeToIdMap.get(vType) match {
                 case Some(mutableSeq) => mutableSeq += vId
@@ -247,7 +287,7 @@ object EventsTransformator {
 
               lastVehiclePosition.get(vehicleId) match {
                 case Some(lastPosition) =>
-                  viaEvents += ViaPersonArrivalEvent(lastPosition.time + 1, lastPosition.vehicleId, lastPosition.linkId)
+                  viaEvents += ViaPersonArrivalEvent(lastPosition.time, lastPosition.vehicleId, lastPosition.linkId)
                 case _ =>
               }
 

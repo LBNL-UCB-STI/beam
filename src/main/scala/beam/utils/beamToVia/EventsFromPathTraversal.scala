@@ -14,6 +14,6 @@ object EventsFromPathTraversal extends App {
     .fromFile(sourcePath)
     .getOrElse(Seq.empty[Event])
 
-  val (pathLinkEvents, typeToIdSeq) = EventsTransformator.transform(events)
+  val (pathLinkEvents, typeToIdSeq) = EventsTransformer.transform(events)
   EventsWriter.write(pathLinkEvents, typeToIdSeq, outputEventsPath)
 }
