@@ -174,7 +174,7 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
     mockActorRef: ActorRef
   ): (List[VehicleAndSchedule], List[CustomerRequest]) = {
     import scala.concurrent.duration._
-    val vehicleType = beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
+    val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
     val v1: VehicleAndSchedule =
       createVehicleAndSchedule("v1", vehicleType, new Coord(5000, 5000), 8.hours.toSeconds.toInt)
     val v2: VehicleAndSchedule =
@@ -217,7 +217,7 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
   ): (List[VehicleAndSchedule], List[CustomerRequest]) = {
     import scala.concurrent.duration._
     val gf = Geofence(10000, 10000, 13400)
-    val vehicleType = beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
+    val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
     val v1: VehicleAndSchedule =
       createVehicleAndSchedule("v1", vehicleType, new Coord(5000, 5000), 8.hours.toSeconds.toInt, Some(gf))
     val v2: VehicleAndSchedule =

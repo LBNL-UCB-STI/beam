@@ -122,12 +122,12 @@ class PersonAndTransitDriverSpec
       val bus = new BeamVehicle(
         id = busId,
         powerTrain = new Powertrain(0.0),
-        beamVehicleType = beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
+        beamVehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       )
       val tram = new BeamVehicle(
         id = tramId,
         powerTrain = new Powertrain(0.0),
-        beamVehicleType = beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
+        beamVehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       )
 
       val busLeg = EmbodiedBeamLeg(
