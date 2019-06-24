@@ -6,34 +6,33 @@ import scala.collection.mutable
 object EventsWriter {
 
   def write(
-             pathLinkEvents: Traversable[ViaEvent],
-             typeToIdSeq: mutable.Map[String, mutable.HashSet[String]],
-             outputEventsPath: String,
-             outputGroupsPath: String
+    pathLinkEvents: Traversable[ViaEvent],
+    typeToIdSeq: mutable.Map[String, mutable.HashSet[String]],
+    outputEventsPath: String
   ): Unit = {
-    val strEvents = pathLinkEvents
-      .map(pl => pl.toXml.toString())
-
     val pw = new PrintWriter(new File(outputEventsPath))
     pw.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<events version=\"1.0\">")
-    strEvents.foreach(event => pw.println(event))
+    pathLinkEvents.foreach(event => pw.println(event.toXml.toString()))
     pw.println("</events>")
     pw.close()
 
-    val pw2 = new PrintWriter(new File(outputGroupsPath))
-    pw2.println("all types: ")
-    pw2.println("")
-    typeToIdSeq.keys.foreach(pw2.println)
+    val idsPath = outputEventsPath + ".ids"
 
-    pw2.println("")
-    pw2.println("")
-    pw2.println("types with ids: ")
+    val pw2 = new PrintWriter(new File(idsPath + ".txt"))
+    typeToIdSeq.keys.toSeq.sorted.foreach(pw2.println)
+    pw2.close()
+
+    import scala.reflect.io.Directory
+
+    val directory = new Directory(new File(idsPath))
+    if(!directory.deleteRecursively()) Console.println("Can not delete directory for vehicle ids")
+    directory.createDirectory()
+
     typeToIdSeq.foreach {
       case (vehicleType, ids) =>
-        pw2.println("vehicleType =>  " + vehicleType)
-        ids.foreach(pw2.println)
+        val pw3 = new PrintWriter(new File(idsPath + "\\" + "group." +  vehicleType + ".txt"))
+        ids.foreach(pw3.println)
+        pw3.close()
     }
-
-    pw2.close()
   }
 }
