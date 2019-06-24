@@ -1,14 +1,12 @@
 package beam.utils.beamToVia
 
-import beam.agentsim.events.PathTraversalEvent
 import org.matsim.api.core.v01.events.Event
-
 import scala.collection.mutable
 
 object EventsFromPathOfAPerson extends App {
-  //val sourcePath = "D:/Work/BEAM/Via-fs-light/2.events.xml"
+  val sourcePath = "D:/Work/BEAM/Via-fs-light/2.events.xml"
   //val sourcePath = "D:/Work/BEAM/Via-fs-light/2.events.csv"
-  val sourcePath = "D:/Work/BEAM/Via-beamville/0.events.xml"
+  //val sourcePath = "D:/Work/BEAM/Via-beamville/0.events.xml"
 
   val outputEventsPath = sourcePath + ".via.trackEvents.xml"
 
@@ -20,15 +18,13 @@ object EventsFromPathOfAPerson extends App {
   val interestingPersons = mutable.HashSet("010900-2016000955704-0-6276349")
 
   def personIsInterested(personId: String): Boolean = {
+    //true
     interestingPersons.contains(personId)
   }
 
-  def vehicleIsInterested(vehicleId: String): Boolean = {
-    vehicleId.length > 0
-    //!vehicleId.startsWith("body-") && vehicleId.length > 0
-  }
+  val processedEvents =
+    EventsTransformer.filterAndFixEvents(events, personIsInterested)
 
-  val processedEvents = EventsTransformator.filterEvents(events, personIsInterested, vehicleIsInterested)
-  val (viaLinkEvents, typeToIdsMap) = EventsTransformator.transform(processedEvents)
+  val (viaLinkEvents, typeToIdsMap) = EventsTransformer.transform(processedEvents)
   EventsWriter.write(viaLinkEvents, typeToIdsMap, outputEventsPath)
 }
