@@ -261,6 +261,11 @@ class BeamVehicle(
     secondaryFuelLevelInJoules = beamVehicleType.secondaryFuelCapacityInJoule.getOrElse(0.0)
   }
 
+  def initializeFuelLevelsFromSOC(primarySOC: Double, secondarySOC: Double = 1.0) = {
+    primaryFuelLevelInJoules = beamVehicleType.primaryFuelCapacityInJoule * primarySOC
+    secondaryFuelLevelInJoules = beamVehicleType.secondaryFuelCapacityInJoule.getOrElse(0.0) * secondarySOC
+  }
+
   override def toString = s"$id ($beamVehicleType.id)"
 }
 

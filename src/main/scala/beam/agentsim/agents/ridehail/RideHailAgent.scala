@@ -447,12 +447,12 @@ class RideHailAgent(
           .withCurrentLegPassengerScheduleIndex(0)
           .asInstanceOf[RideHailAgentData]
       } else if (!vehicle.isCAV && remainingRangeInMilesVal > 20.0) {
-        val percentageChanceToRefuel = Math.max(100 - (remainingRangeInMilesVal.toInt - 20), 0)
+        val SOC = vehicle.getState.primaryFuelLevel / vehicle.beamVehicleType.primaryFuelCapacityInJoule
+        val percentageChanceToRefuel = Math.max(100 - (SOC*100 - 20)/60*100, 0)
         val randomChance = scala.util.Random.nextInt(100)
         if (randomChance < percentageChanceToRefuel) {
           log.debug("Empty human ridehail vehicle requesting parking stall since percentage hit: event = " + ev)
           rideHailManager ! NotifyVehicleOutOfService(vehicle.id)
-
           //Should I use the tick or the last time?
           val (_, triggerId) = releaseTickAndTriggerId()
           val startFuelTrigger = ScheduleTrigger(
