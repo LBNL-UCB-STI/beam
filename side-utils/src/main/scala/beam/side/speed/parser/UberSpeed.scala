@@ -4,23 +4,27 @@ import java.nio.file.Paths
 import java.time.DayOfWeek
 
 import beam.side.speed.model.FilterEvent.WeekDayEventAction.WeekDayEventAction
-import beam.side.speed.model.{UberDaySpeed, UberHourSpeed, UberSpeedEvent, UberWaySpeed}
+import beam.side.speed.model._
 
-class UberSpeedRaw(path: String) extends DataLoader[UberSpeedEvent] with UnarchivedSource {
+class UberSpeed[T <: FilterEventAction](path: String, dict: UberOsmDictionary, fOpt: T#Filtered)
+    extends DataLoader[UberSpeedEvent]
+    with UnarchivedSource {
   import beam.side.speed.model.UberSpeedEvent._
   import WayFilter._
 
-  private lazy val speeds: Map[String, UberWaySpeed] = load(Paths.get(path))
+  lazy val speeds = load(Paths.get(path))
     .foldLeft(Map[String, Seq[UberSpeedEvent]]())(
       (acc, s) => acc + (s.segmentId -> (acc.getOrElse(s.segmentId, Seq()) :+ s))
     )
-    .map {
+  /*.map {
       case (segmentId, grouped) => segmentId -> dropToWeek(segmentId, grouped)
-    }
+    }*/
 
-  def filterSpeeds =
-    speeds.values
-      .map(_.waySpeed[WeekDayEventAction](DayOfWeek.WEDNESDAY))
+  private lazy val filterSpeeds: Map[String, WaySpeed] = Map()
+  /*  speeds.values
+      .map(_.waySpeed[WeekDayEventAction](DayOfWeek.WEDNESDAY))*/
+
+  def speed(osmId: Long): Option[WaySpeed] = dict(osmId).flatMap(s => filterSpeeds.get(s))
 
   private def dropToWeek(segmentId: String, junctions: Seq[UberSpeedEvent]): UberWaySpeed = {
     println(s"Way $segmentId")
@@ -42,6 +46,8 @@ class UberSpeedRaw(path: String) extends DataLoader[UberSpeedEvent] with Unarchi
   }
 }
 
-object UberSpeedRaw {
-  def apply(path: String): UberSpeedRaw = new UberSpeedRaw(path)
+object UberSpeed {
+
+  def apply[T <: FilterEventAction](path: String, dict: UberOsmDictionary, fOpt: T#Filtered): UberSpeed[T] =
+    new UberSpeed(path, dict, fOpt)
 }
