@@ -200,7 +200,8 @@ object EventsTransformator {
     events: Traversable[Event]
   ): (Traversable[ViaEvent], mutable.Map[String, mutable.HashSet[String]]) = {
     def timeLimitId(vehicleId: String, eventTime: Double): String = vehicleId + "_" + eventTime.toString
-    def vehicleType(pte: PathTraversalEvent): String = pte.mode + "__" + pte.vehicleType
+    def vehicleType(pte: PathTraversalEvent): String =
+      pte.mode + "__" + pte.vehicleType + "__P" + "%03d".format(pte.numberOfPassengers)
     def vehicleId(pte: PathTraversalEvent): String = vehicleType(pte) + "__" + pte.vehicleId
 
     val timeLimits = calcTimeLimits(events, timeLimitId)
@@ -257,6 +258,5 @@ object EventsTransformator {
       }
 
     (removePathDuplicates(viaLinkEvents), typeToIdsMap)
-    //(viaLinkEvents, typeToIdsMap)
   }
 }

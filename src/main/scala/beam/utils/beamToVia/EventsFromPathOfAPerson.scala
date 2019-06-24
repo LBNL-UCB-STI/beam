@@ -7,10 +7,10 @@ import scala.collection.mutable
 
 object EventsFromPathOfAPerson extends App {
   //val sourcePath = "D:/Work/BEAM/Via-fs-light/2.events.xml"
-  val sourcePath = "D:/Work/BEAM/Via-fs-light/2.events.csv"
+  //val sourcePath = "D:/Work/BEAM/Via-fs-light/2.events.csv"
+  val sourcePath = "D:/Work/BEAM/Via-beamville/0.events.xml"
 
-  val outputEventsPath = sourcePath + ".via.pathLinkEvents.xml"
-  val outputGroupsPath = sourcePath + ".via.vehicleTypeToIds.txt"
+  val outputEventsPath = sourcePath + ".via.trackEvents.xml"
 
   val events = EventsReader
     .fromFile(sourcePath)
@@ -30,5 +30,5 @@ object EventsFromPathOfAPerson extends App {
 
   val processedEvents = EventsTransformator.filterEvents(events, personIsInterested, vehicleIsInterested)
   val (viaLinkEvents, typeToIdsMap) = EventsTransformator.transform(processedEvents)
-  EventsWriter.write(viaLinkEvents, typeToIdsMap, outputEventsPath, outputGroupsPath)
+  EventsWriter.write(viaLinkEvents, typeToIdsMap, outputEventsPath)
 }
