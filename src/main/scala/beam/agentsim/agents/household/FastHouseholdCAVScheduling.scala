@@ -401,7 +401,8 @@ object HouseholdTripsHelper {
         case (counter, plan) =>
           val usedCarOut = plan.trips.sliding(2).foldLeft(false) {
             case (usedCar, Seq(prevTrip, curTrip)) =>
-              val (pickup, dropoff, travelTime) = getPickupAndDropoff(plan, curTrip, prevTrip, counter, skim, beamVehicleType)
+              val (pickup, dropoff, travelTime) =
+                getPickupAndDropoff(plan, curTrip, prevTrip, counter, skim, beamVehicleType)
               if (firstPickupOfTheDay.isEmpty || firstPickupOfTheDay.get.time > pickup.time)
                 firstPickupOfTheDay = Some(pickup)
               tours.append(pickup)
