@@ -488,9 +488,9 @@ class PersonAgent(
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
       if (currentLeg.cost > 0.0) {
-        beamScenario.transitSchedule.get(Id.create(vehicleToEnter.toString, classOf[BeamVehicle])).foreach { trip =>
-          // If not in the transit schedule, it is not a transit but a ridehailing trip
-          eventsManager.processEvent(new AgencyRevenueEvent(tick, trip._1.agency_id, currentLeg.cost))
+        currentLeg.beamLeg.travelPath.transitStops.foreach { transitStopInfo =>
+          // If it doesn't have transitStopInfo, it is not a transit but a ridehailing trip
+          eventsManager.processEvent(new AgencyRevenueEvent(tick, transitStopInfo.agencyId, currentLeg.cost))
         }
         eventsManager.processEvent(
           new PersonCostEvent(

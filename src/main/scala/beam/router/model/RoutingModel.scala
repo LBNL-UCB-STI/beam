@@ -66,6 +66,6 @@ object RoutingModel {
     distances: IndexedSeq[Double]
   )
 
-  case class TransitStopsInfo(fromStopId: Int, vehicleId: Id[Vehicle], toStopId: Int)
+  case class TransitStopsInfo(fromStopId: Int, agencyId: String, routeId: String, vehicleId: Id[Vehicle], toStopId: Int)
 
 }

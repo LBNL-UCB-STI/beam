@@ -184,11 +184,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     )
   }
 
-  private def agencyAndRoute(vehicleId: Id[Vehicle]): (String, String) = {
-    val route = transitSchedule(Id.createVehicleId(vehicleId.toString))._1
-    (route.agency_id, route.route_id)
-  }
-
   private val cache = CacheBuilder
     .newBuilder()
     .recordStats()
@@ -718,7 +713,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                 var cost = tripWithFares.legFares.getOrElse(index, 0.0)
                 val age = request.attributesOfIndividual.flatMap(_.age)
                 if (Modes.isR5TransitMode(beamLeg.mode)) {
-                  val (agencyId, routeId) = agencyAndRoute(beamLeg.travelPath.transitStops.get.vehicleId)
+                  val agencyId = beamLeg.travelPath.transitStops.get.agencyId
+                  val routeId = beamLeg.travelPath.transitStops.get.routeId
                   cost = ptFares.getPtFare(Some(agencyId), Some(routeId), age).getOrElse(cost)
                 }
                 if (Modes.isR5TransitMode(beamLeg.mode)) {

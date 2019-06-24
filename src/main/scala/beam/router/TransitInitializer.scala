@@ -3,10 +3,8 @@ package beam.router
 import java.util
 import java.util.Collections
 
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
-import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
 import beam.router.Modes.isOnStreetTransit
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{BeamLeg, BeamPath, RoutingModel}
@@ -23,8 +21,6 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.io.Source
-import scala.util.Try
 
 class TransitInitializer(
   beamConfig: BeamConfig,
@@ -50,7 +46,7 @@ class TransitInitializer(
     val start = System.currentTimeMillis()
     val activeServicesToday = transportNetwork.transitLayer.getActiveServicesForDate(dates.localBaseDate)
     val stopToStopStreetSegmentCache = mutable.Map[(Int, Int), Option[StreetPath]]()
-    def pathWithoutStreetRoute(fromStop: Int, toStop: Int) = {
+    def pathWithoutStreetRoute(fromStop: Int, agencyId: String, routeId: String, toStop: Int) = {
       val from = transportNetwork.transitLayer.streetVertexForStop.get(fromStop)
       val fromVertex = transportNetwork.streetLayer.vertexStore.getCursor(from)
       val to = transportNetwork.transitLayer.streetVertexForStop.get(toStop)
@@ -73,7 +69,7 @@ class TransitInitializer(
         BeamPath(
           Vector(),
           Vector(),
-          Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
+          Option(TransitStopsInfo(fromStop, agencyId, routeId, vehicleId, toStop)),
           SpaceTime(fromCoord, departureTime),
           SpaceTime(toCoord, departureTime + duration),
           0
@@ -93,7 +89,7 @@ class TransitInitializer(
       }
     }
 
-    def pathWithStreetRoute(fromStop: Int, toStop: Int, streetSeg: StreetPath) = {
+    def pathWithStreetRoute(fromStop: Int, agencyId: String, routeId: String, toStop: Int, streetSeg: StreetPath) = {
       val edges = streetSeg.getEdges.asScala
       val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
       val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
@@ -113,7 +109,7 @@ class TransitInitializer(
             linksTimesAndDistances.travelTimes.sum,
             linksTimesAndDistances.travelTimes
           ),
-          Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
+          Option(TransitStopsInfo(fromStop, agencyId, routeId, vehicleId, toStop)),
           SpaceTime(
             startEdge.getGeometry.getStartPoint.getX,
             startEdge.getGeometry.getStartPoint.getY,
@@ -143,12 +139,12 @@ class TransitInitializer(
                 routeTransitPathThroughStreets(fromStop, toStop)
               ) match {
                 case Some(streetSeg) =>
-                  pathWithStreetRoute(fromStop, toStop, streetSeg)
+                  pathWithStreetRoute(fromStop, route.agency_id, route.route_id, toStop, streetSeg)
                 case None =>
-                  pathWithoutStreetRoute(fromStop, toStop)
+                  pathWithoutStreetRoute(fromStop, route.agency_id, route.route_id, toStop)
               }
             } else {
-              pathWithoutStreetRoute(fromStop, toStop)
+              pathWithoutStreetRoute(fromStop, route.agency_id, route.route_id, toStop)
             }
         }
         .toSeq
