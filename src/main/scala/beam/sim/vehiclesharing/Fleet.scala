@@ -2,34 +2,131 @@ package beam.sim.vehiclesharing
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.router.BeamSkimmer
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm
-import org.matsim.api.core.v01.{Id, Scenario}
+import org.apache.log4j.Logger
+import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
+
+trait VehicleManager
 
 trait FleetType {
-  def props(beamServices: BeamServices, parkingManager: ActorRef): Props
+
+  def props(
+    beamServices: BeamServices,
+    beamSkimmer: BeamSkimmer,
+    beamScheduler: ActorRef,
+    parkingManager: ActorRef
+  ): Props
 }
 
-case class FixedNonReservingFleet(config: SharedFleets$Elm.FixedNonReserving) extends FleetType {
-  override def props(beamServices: BeamServices, parkingManager: ActorRef): Props = {
+case class FixedNonReservingFleetByTAZ(
+  managerId: Id[VehicleManager],
+  config: SharedFleets$Elm.FixedNonReservingFleetByTaz,
+  repConfig: Option[BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition]
+) extends FleetType {
+  private val logger = Logger.getLogger(classOf[FixedNonReservingFleetByTAZ])
+  case class FixedNonReservingFleetByTAZException(message: String, cause: Throwable = null)
+      extends Exception(message, cause)
+  override def props(
+    beamServices: BeamServices,
+    beamSkimmer: BeamSkimmer,
+    beamScheduler: ActorRef,
+    parkingManager: ActorRef
+  ): Props = {
+    val rand = new scala.util.Random(System.currentTimeMillis())
+    val initialLocation = mutable.ListBuffer[Coord]()
+    config.vehiclesSharePerTAZFromCSV match {
+      case Some(fileName) =>
+        logger.info(s"Reading shared vehicle fleet from file: $fileName")
+        FleetUtils.readCSV(fileName).foreach {
+          case (idTaz, coord, share) =>
+            val fleetShare: Int = (share * config.fleetSize).toInt
+            (0 until fleetShare).foreach(
+              _ =>
+                initialLocation
+                  .append(beamServices.beamScenario.tazTreeMap.getTAZ(Id.create(idTaz, classOf[TAZ])) match {
+                    case Some(taz) => TAZTreeMap.randomLocationInTAZ(taz, rand)
+                    case _         => coord
+                  })
+            )
+        }
+      case _ =>
+        logger.info(s"Random distribution of shared vehicle fleet i.e. no file or shares by Taz")
+        // fall back to a uniform distribution
+        initialLocation.clear()
+        val tazArray = beamServices.beamScenario.tazTreeMap.getTAZs.toArray
+        (1 to config.fleetSize).foreach { _ =>
+          val taz = tazArray(rand.nextInt(tazArray.length))
+          initialLocation.prepend(TAZTreeMap.randomLocationInTAZ(taz, rand))
+        }
+    }
+
+    val vehicleType = beamServices.beamScenario.vehicleTypes.getOrElse(
+      Id.create(config.vehicleTypeId, classOf[BeamVehicleType]),
+      throw new RuntimeException("Vehicle type id not found: " + config.vehicleTypeId)
+    )
+    Props(
+      new FixedNonReservingFleetManager(
+        managerId,
+        parkingManager,
+        initialLocation,
+        vehicleType,
+        beamScheduler,
+        beamServices,
+        beamSkimmer,
+        config.maxWalkingDistance,
+        repConfig.map(RepositionAlgorithms.lookup(_))
+      )
+    )
+  }
+}
+
+case class FixedNonReservingFleet(managerId: Id[VehicleManager], config: SharedFleets$Elm.FixedNonReserving)
+    extends FleetType {
+  override def props(
+    beamServices: BeamServices,
+    skimmer: BeamSkimmer,
+    beamScheduler: ActorRef,
+    parkingManager: ActorRef
+  ): Props = {
     val initialSharedVehicleLocations =
       beamServices.matsimServices.getScenario.getPopulation.getPersons
         .values()
         .asScala
         .map(Population.personInitialLocation)
-    val vehicleType = beamServices.vehicleTypes.getOrElse(
+    val vehicleType = beamServices.beamScenario.vehicleTypes.getOrElse(
       Id.create(config.vehicleTypeId, classOf[BeamVehicleType]),
       throw new RuntimeException("Vehicle type id not found: " + config.vehicleTypeId)
     )
-    Props(new FixedNonReservingFleetManager(parkingManager, initialSharedVehicleLocations, vehicleType))
+    Props(
+      new FixedNonReservingFleetManager(
+        managerId,
+        parkingManager,
+        initialSharedVehicleLocations,
+        vehicleType,
+        beamScheduler,
+        beamServices,
+        skimmer,
+        config.maxWalkingDistance
+      )
+    )
   }
 }
 
 case class InexhaustibleReservingFleet(config: SharedFleets$Elm.InexhaustibleReserving) extends FleetType {
-  override def props(beamServices: BeamServices, parkingManager: ActorRef): Props = {
-    val vehicleType = beamServices.vehicleTypes.getOrElse(
+  override def props(
+    beamServices: BeamServices,
+    skimmer: BeamSkimmer,
+    beamScheduler: ActorRef,
+    parkingManager: ActorRef
+  ): Props = {
+    val vehicleType = beamServices.beamScenario.vehicleTypes.getOrElse(
       Id.create(config.vehicleTypeId, classOf[BeamVehicleType]),
       throw new RuntimeException("Vehicle type id not found: " + config.vehicleTypeId)
     )

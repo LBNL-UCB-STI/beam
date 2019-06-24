@@ -104,7 +104,7 @@ object R5RoutingApp extends BeamHelper {
     val departureTime = 20131
     val bodyStreetVehicle = StreetVehicle(
       Id.createVehicleId("1"),
-      BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+      Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
       new SpaceTime(startUTM, time = departureTime),
       CAR,
       asDriver = true

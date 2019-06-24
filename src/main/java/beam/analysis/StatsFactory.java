@@ -29,7 +29,8 @@ public class StatsFactory {
         AboveCapacityPtUsageDuration,
         TollRevenue,
         AgencyRevenue,
-        ParkingDelay
+        ParkingDelay,
+        RideHailUtilization
     }
 
     private final BeamConfig beamConfig;
@@ -88,11 +89,11 @@ public class StatsFactory {
                 return new DeadHeadingAnalysis(writeGraphs);
             case VehicleHoursTraveled:
                 return new VehicleTravelTimeAnalysis(beamServices.matsimServices().getScenario(),
-                        beamServices.networkHelper(), beamServices.vehicleTypes().keySet());
+                        beamServices.networkHelper(), beamServices.beamScenario().vehicleTypes().keySet());
             case VehicleMilesTraveled:
-                return new VehicleMilesTraveledAnalysis(beamServices.vehicleTypes().keySet());
+                return new VehicleMilesTraveledAnalysis(beamServices.beamScenario().vehicleTypes().keySet());
             case NumberOfVehicles:
-                return new NumberOfVehiclesAnalysis(beamServices);
+                return new NumberOfVehiclesAnalysis(beamServices.beamScenario());
             case PersonCost:
                 return new PersonCostAnalysis(beamServices);
             case AboveCapacityPtUsageDuration:
@@ -103,6 +104,8 @@ public class StatsFactory {
                 return new AgencyRevenueAnalysis();
             case ParkingDelay:
                 return new ParkingStatsCollector(beamServices);
+            case RideHailUtilization:
+                return new SimpleRideHailUtilization();
             default:
                 return null;
         }
