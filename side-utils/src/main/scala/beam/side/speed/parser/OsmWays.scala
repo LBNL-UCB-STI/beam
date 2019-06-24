@@ -32,7 +32,7 @@ class OsmWays(osmPath: Path, r5Path: Path) {
     .iterate(edgeCursor.advance())(_ => edgeCursor.advance())
     .map(_ => Try(edgeCursor.getOSMID))
     .takeWhile(_.isSuccess)
-    .map {
+    .collect {
       case Success(t) => t -> osm.get(t).map(waySpeed).getOrElse(10.0 / 3.6)
     }
     .toMap

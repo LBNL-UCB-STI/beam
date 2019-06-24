@@ -3,8 +3,9 @@ package beam.side.speed
 import java.nio.file.Paths
 import java.time.DayOfWeek
 
+import beam.side.speed.model.FilterEvent.AllHoursDaysEventAction.AllHoursDaysEventAction
 import beam.side.speed.model.FilterEvent.WeekDayEventAction.WeekDayEventAction
-import beam.side.speed.parser.{OsmWays, SpeedComparator, UberOsmDictionary, UberSpeed}
+import beam.side.speed.parser.{OsmWays, SpeedComparator, UberOsmDictionary, UberSpeed, WayFilter}
 
 import scala.util.{Failure, Success, Try}
 
@@ -78,9 +79,10 @@ object SpeedCompareApp extends App with AppSetup {
 
   parser.parse(args, CompareConfig()) match {
     case Some(conf) =>
+      import WayFilter._
+
       val uber =
-        UberSpeed[WeekDayEventAction](conf.uberSpeedPath, UberOsmDictionary(conf.uberOsmMap), DayOfWeek.WEDNESDAY)
-      uber.speeds.foreach(println)
+        UberSpeed[AllHoursDaysEventAction](conf.uberSpeedPath, UberOsmDictionary(conf.uberOsmMap), Unit)
       SpeedComparator(OsmWays(conf.osmMapPath, conf.r5MapPath), uber).csv()
       System.exit(0)
     case None => System.exit(-1)
