@@ -21,12 +21,9 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
 import beam.agentsim.events.SpaceTime
@@ -1146,7 +1143,10 @@ class RideHailManager(
       rideHailBeamVehicleType
     )
     val startingSOC = 0.6*scala.util.Random.nextDouble() + 0.2
-    rideHailBeamVehicle.initializeFuelLevelsFromSOC(startingSOC)
+    rideHailBeamVehicle.beamVehicleType.primaryFuelType match {
+      case Electricity => rideHailBeamVehicle.initializeFuelLevelsFromSOC(startingSOC)
+      case _ => rideHailBeamVehicle.initializeFuelLevelsFromSOC(1.0)
+    }
     rideHailBeamVehicle.spaceTime = SpaceTime((rideInitialLocation, 0))
     rideHailBeamVehicle.manager = Some(self)
     resources += (rideHailVehicleId -> rideHailBeamVehicle)
