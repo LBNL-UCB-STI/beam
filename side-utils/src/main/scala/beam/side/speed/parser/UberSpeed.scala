@@ -6,25 +6,25 @@ import beam.side.speed.model._
 
 import scala.collection.parallel
 import scala.collection.parallel.immutable.ParMap
-
-import WayFilter._
 import scala.reflect.ClassTag
 
-class UberSpeed[T <: FilterEventAction](path: String, dict: UberOsmDictionary, fOpt: T#Filtered)
-                                       (implicit t: ClassTag[T], wf: WayFilter[T#FilterEvent, T#Filtered])
-    extends DataLoader[UberSpeedEvent]
+class UberSpeed[T <: FilterEventAction](path: String, dict: UberOsmDictionary, fOpt: T#Filtered)(
+  implicit t: ClassTag[T],
+  wf: WayFilter[T#FilterEvent, T#Filtered]
+) extends DataLoader[UberSpeedEvent]
     with UnarchivedSource {
   import beam.side.speed.model.UberSpeedEvent._
 
-  private lazy val speeds: ParMap[String, UberWaySpeed] = load(Paths.get(path))
+  private val speeds: ParMap[String, UberWaySpeed] = load(Paths.get(path))
     .foldLeft(Map[String, Seq[UberSpeedEvent]]())(
       (acc, s) => acc + (s.segmentId -> (acc.getOrElse(s.segmentId, Seq()) :+ s))
     )
-  .par.map {
+    .par
+    .map {
       case (segmentId, grouped) => segmentId -> dropToWeek(segmentId, grouped)
     }
 
-  private lazy val filterSpeeds: parallel.ParMap[String, WaySpeed] =
+  private val filterSpeeds: parallel.ParMap[String, WaySpeed] =
     speeds.mapValues(_.waySpeed[T](fOpt))
 
   def speed(osmId: Long): Option[WaySpeed] = dict(osmId).flatMap(s => filterSpeeds.get(s))
@@ -50,7 +50,9 @@ class UberSpeed[T <: FilterEventAction](path: String, dict: UberOsmDictionary, f
 
 object UberSpeed {
 
-  def apply[T <: FilterEventAction](path: String, dict: UberOsmDictionary, fOpt: T#Filtered)(implicit t: ClassTag[T],
-                                                                                             wf: WayFilter[T#FilterEvent, T#Filtered]): UberSpeed[T] =
+  def apply[T <: FilterEventAction](path: String, dict: UberOsmDictionary, fOpt: T#Filtered)(
+    implicit t: ClassTag[T],
+    wf: WayFilter[T#FilterEvent, T#Filtered]
+  ): UberSpeed[T] =
     new UberSpeed(path, dict, fOpt)
 }

@@ -7,6 +7,7 @@ buildscript {
     }
     dependencies {
         classpath 'cz.alenkacz:gradle-scalafmt:1.7.0'
+        classpath 'com.github.jengelman.gradle.plugins:shadow:5.0.0'
     }
 }
 
@@ -14,6 +15,7 @@ apply plugin: 'scala'
 apply plugin: 'idea'
 apply plugin: 'application'
 apply plugin: 'scalafmt'
+apply plugin: 'com.github.johnrengelman.shadow'
 
 description = "Side utility application from the same area as BEAM"
 
@@ -69,3 +71,10 @@ dependencies {
 }
 
 mainClassName = "beam.side.speed.SpeedCompareApp"
+
+shadowJar {
+    transform(com.github.jengelman.gradle.plugins.shadow.transformers.AppendingTransformer) {
+        resource = 'reference.conf'
+    }
+    mergeServiceFiles()
+}
