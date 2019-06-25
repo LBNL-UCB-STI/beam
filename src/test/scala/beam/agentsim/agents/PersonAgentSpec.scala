@@ -480,12 +480,9 @@ class PersonAgentSpec
         AlightVehicleTrigger(30000, busLeg.beamVehicleId),
         personActor
       )
-      lastSender ! ReservationResponse(
-        Right(
+      lastSender ! ReservationResponse(Right(
           ReserveConfirmInfo()
-        ),
-        TRANSIT
-      )
+        ))
 
       events.expectMsgType[PersonEntersVehicleEvent]
 
@@ -497,8 +494,7 @@ class PersonAgentSpec
       events.expectMsgType[PersonLeavesVehicleEvent]
 
       expectMsgType[TransitReservationRequest]
-      lastSender ! ReservationResponse(
-        Right(
+      lastSender ! ReservationResponse(Right(
           ReserveConfirmInfo(
             Vector(
               ScheduleTrigger(
@@ -517,9 +513,7 @@ class PersonAgentSpec
               ) // My tram is late!
             )
           )
-        ),
-        TRANSIT
-      )
+        ))
 
       //expects a message of type PersonEntersVehicleEvent
       events.expectMsgType[PersonEntersVehicleEvent]
@@ -788,12 +782,9 @@ class PersonAgentSpec
 
       expectMsgType[TransitReservationRequest]
 
-      lastSender ! ReservationResponse(
-        Right(
+      lastSender ! ReservationResponse(Right(
           ReserveConfirmInfo()
-        ),
-        TRANSIT
-      )
+        ))
       events.expectMsgType[PersonEntersVehicleEvent]
 
       //Generating 2 events of PersonCost having 0.0 cost in between PersonEntersVehicleEvent & PersonLeavesVehicleEvent
@@ -841,8 +832,7 @@ class PersonAgentSpec
       events.expectMsgType[PathTraversalEvent]
 
       expectMsgType[TransitReservationRequest]
-      lastSender ! ReservationResponse(
-        Right(
+      lastSender ! ReservationResponse(Right(
           ReserveConfirmInfo(
             Vector(
               ScheduleTrigger(
@@ -861,9 +851,7 @@ class PersonAgentSpec
               ) // My tram is late!
             )
           )
-        ),
-        TRANSIT
-      )
+        ))
 
       events.expectMsgType[PersonEntersVehicleEvent]
 

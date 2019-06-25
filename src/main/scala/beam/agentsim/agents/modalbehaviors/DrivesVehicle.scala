@@ -570,7 +570,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
           currentBeamVehicle
         ) =>
       log.debug("state(DrivesVehicle.drivingBehavior): {}", ev)
-      stay() replying ReservationResponse(Left(VehicleFullError), TRANSIT)
+      stay() replying ReservationResponse(Left(VehicleFullError))
 
     case ev @ Event(req: ReservationRequest, data) =>
       log.debug("state(DrivesVehicle.drivingBehavior): {}", ev)
@@ -640,12 +640,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
           data.passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)
         )
         .asInstanceOf[T] replying
-      ReservationResponse(
-        Right(
+      ReservationResponse(Right(
           ReserveConfirmInfo(boardTrigger ++ alightTrigger ++ boardTrigger2)
-        ),
-        TRANSIT
-      )
+        ))
 
     case ev @ Event(RemovePassengerFromTrip(id), data) =>
       log.debug("state(DrivesVehicle.drivingBehavior): {}", ev)

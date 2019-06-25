@@ -38,7 +38,7 @@ object ReservationRequest {
 
 case class TransitReservationRequest(fromIdx: Int, toIdx: Int, passenger: PersonIdWithActorRef)
 
-case class ReservationResponse(response: Either[ReservationError, ReserveConfirmInfo], reservedMode: BeamMode)
+case class ReservationResponse(response: Either[ReservationError, ReserveConfirmInfo])
 
 case class ReserveConfirmInfo(triggersToSchedule: Vector[ScheduleTrigger] = Vector())
 
