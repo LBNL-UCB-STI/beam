@@ -46,7 +46,7 @@ class TransitInitializer(
     val start = System.currentTimeMillis()
     val activeServicesToday = transportNetwork.transitLayer.getActiveServicesForDate(dates.localBaseDate)
     val stopToStopStreetSegmentCache = mutable.Map[(Int, Int), Option[StreetPath]]()
-    def pathWithoutStreetRoute(fromStop: Int, agencyId: String, routeId: String, toStop: Int) = {
+    def pathWithoutStreetRoute(fromStop: Int, toStop: Int) = {
       val from = transportNetwork.transitLayer.streetVertexForStop.get(fromStop)
       val fromVertex = transportNetwork.streetLayer.vertexStore.getCursor(from)
       val to = transportNetwork.transitLayer.streetVertexForStop.get(toStop)
@@ -89,7 +89,7 @@ class TransitInitializer(
       }
     }
 
-    def pathWithStreetRoute(fromStop: Int, agencyId: String, routeId: String, toStop: Int, streetSeg: StreetPath) = {
+    def pathWithStreetRoute(fromStop: Int, toStop: Int, streetSeg: StreetPath) = {
       val edges = streetSeg.getEdges.asScala
       val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
       val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
@@ -139,12 +139,12 @@ class TransitInitializer(
                 routeTransitPathThroughStreets(fromStop, toStop)
               ) match {
                 case Some(streetSeg) =>
-                  pathWithStreetRoute(fromStop, route.agency_id, route.route_id, toStop, streetSeg)
+                  pathWithStreetRoute(fromStop, toStop, streetSeg)
                 case None =>
-                  pathWithoutStreetRoute(fromStop, route.agency_id, route.route_id, toStop)
+                  pathWithoutStreetRoute(fromStop, toStop)
               }
             } else {
-              pathWithoutStreetRoute(fromStop, route.agency_id, route.route_id, toStop)
+              pathWithoutStreetRoute(fromStop, toStop)
             }
         }
         .toSeq
