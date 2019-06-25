@@ -252,12 +252,11 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             .copy(requestId = request.requestId)
         }
       }
-      eventualResponse.onComplete {
-        case scala.util.Failure(ex) =>
-          log.error(ex, "calcRoute failed")
-        case _ =>
-      }
-      eventualResponse pipeTo sender
+      eventualResponse.recover {
+        case e =>
+          log.error(e, "calcRoute failed")
+          RoutingFailure(e, request.requestId)
+      } pipeTo sender
       askForMoreWork()
 
     case UpdateTravelTimeLocal(newTravelTime) =>
