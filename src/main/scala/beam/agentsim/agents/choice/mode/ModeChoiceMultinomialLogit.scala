@@ -1,8 +1,7 @@
 package beam.agentsim.agents.choice.mode
 
-import beam.agentsim.agents.choice.logit._
 import beam.agentsim.agents.choice.logit
-
+import beam.agentsim.agents.choice.logit._
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
@@ -14,10 +13,10 @@ import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.Activity
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.vehicles.Vehicle
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
+import beam.sim.config.BeamConfig
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -30,18 +29,24 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     extends ModeChoiceCalculator
     with ExponentialLazyLogging {
 
+  override lazy val beamConfig: BeamConfig = beamServices.beamConfig
+
   var expectedMaximumUtility: Double = 0.0
-  val modalBehaviors: ModalBehaviors = beamServices.getModalBehaviors()
+  val modalBehaviors: ModalBehaviors = beamServices.beamConfig.beam.agentsim.agents.modalBehaviors
+
+  private val shouldLogDetails: Boolean = false
 
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity]
+    destinationActivity: Option[Activity],
+    person: Option[Person] = None
   ): Option[EmbodiedBeamTrip] = {
     if (alternatives.isEmpty) {
       None
     } else {
       val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives, attributesOfIndividual, destinationActivity)
+
       val bestInGroup =
       modeCostTimeTransfers groupBy (_.mode) map {
         case (_, group) => group minBy timeAndCost
@@ -59,6 +64,23 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
 
       val chosenModeOpt = model.sampleAlternative(inputData, new Random())
       expectedMaximumUtility = model.getExpectedMaximumUtility(inputData).getOrElse(0)
+
+      if (shouldLogDetails) {
+        val personId = person.map(_.getId)
+        val msgToLog =
+          s"""|@@@[$personId]-----------------------------------------
+              |@@@[$personId]Alternatives:${alternatives}
+              |@@@[$personId]AttributesOfIndividual:${attributesOfIndividual}
+              |@@@[$personId]DestinationActivity:${destinationActivity}
+              |@@@[$personId]modeCostTimeTransfers:$modeCostTimeTransfers
+              |@@@[$personId]bestInGroup:$bestInGroup
+              |@@@[$personId]inputData:$inputData
+              |@@@[$personId]chosenModeOpt:${chosenModeOpt}
+              |@@@[$personId]expectedMaximumUtility:${chosenModeOpt}
+              |@@@[$personId]-----------------------------------------
+              |""".stripMargin
+        logger.debug(msgToLog)
+      }
 
       chosenModeOpt match {
         case Some(chosenMode) =>
@@ -126,7 +148,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
     alternatives.zipWithIndex.map { altAndIdx =>
       val mode = altAndIdx._1.tripClassifier
       val totalCost = getNonTimeCost(altAndIdx._1)
-      val incentive: Double = beamServices.modeIncentives.computeIncentive(attributesOfIndividual, mode)
+      val incentive: Double = beamServices.beamScenario.modeIncentives.computeIncentive(attributesOfIndividual, mode)
 
       val incentivizedCost =
         Math.max(0, totalCost.toDouble - incentive)

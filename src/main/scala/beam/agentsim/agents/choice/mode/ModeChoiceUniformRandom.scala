@@ -3,22 +3,22 @@ package beam.agentsim.agents.choice.mode
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes
 import beam.router.model.EmbodiedBeamTrip
-import beam.sim.BeamServices
+import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
-import org.matsim.api.core.v01.population.Activity
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Activity, Person}
 
 import scala.collection.mutable.ListBuffer
 
 /**
   * BEAM
   */
-class ModeChoiceUniformRandom(val beamServices: BeamServices) extends ModeChoiceCalculator {
+class ModeChoiceUniformRandom(val beamConfig: BeamConfig) extends ModeChoiceCalculator {
 
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity]
+    destinationActivity: Option[Activity],
+    person: Option[Person] = None
   ): Option[EmbodiedBeamTrip] = {
     if (alternatives.nonEmpty) {
       Some(alternatives(chooseRandomAlternativeIndex(alternatives)))

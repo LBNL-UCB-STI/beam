@@ -1,29 +1,27 @@
 package beam.agentsim.agents
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, Identify, OneForOneStrategy, Props, Terminated}
-import akka.pattern._
-import akka.util.Timeout
+import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.router.{BeamSkimmer, RouteHistory}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
+import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.osm.TollCalculator
-import beam.sim.BeamServices
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
+import beam.sim.{BeamScenario, BeamServices}
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.population.{Activity, Leg, Person}
+import com.vividsolutions.jts.geom.Envelope
+import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
 
-import scala.collection.JavaConverters._
-import scala.collection.{mutable, JavaConverters}
-import scala.concurrent.{Await, Future}
+import scala.collection.JavaConverters
 
 class Population(
   val scenario: Scenario,
+  val beamScenario: BeamScenario,
   val beamServices: BeamServices,
   val scheduler: ActorRef,
   val transportNetwork: TransportNetwork,
@@ -34,7 +32,9 @@ class Population(
   val sharedVehicleFleets: Seq[ActorRef],
   val eventsManager: EventsManager,
   val routeHistory: RouteHistory,
-  val beamSkimmer: BeamSkimmer
+  val beamSkimmer: BeamSkimmer,
+  val travelTimeObserved: TravelTimeObserved,
+  boundingBox: Envelope
 ) extends Actor
     with ActorLogging {
 
@@ -45,18 +45,12 @@ class Population(
       case _: Exception      => Stop
       case _: AssertionError => Stop
     }
-  private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
-
-  private val personToHouseholdId: mutable.Map[Id[Person], Id[Household]] =
-    mutable.Map()
-  scenario.getHouseholds.getHouseholds.forEach { (householdId, matSimHousehold) =>
-    personToHouseholdId ++= matSimHousehold.getMemberIds.asScala
-      .map(personId => personId -> householdId)
-  }
 
   initHouseholds()
 
   override def receive: PartialFunction[Any, Unit] = {
+    case TriggerWithId(InitializeTrigger(_), triggerId) =>
+      sender ! CompletionNotice(triggerId, Vector())
     case Terminated(_) =>
     // Do nothing
     case Finish =>
@@ -77,74 +71,64 @@ class Population(
   }
 
   private def initHouseholds(iterId: Option[String] = None): Unit = {
-    import scala.concurrent.ExecutionContext.Implicits.global
+    scenario.getHouseholds.getHouseholds.values().forEach { household =>
+      //TODO a good example where projection should accompany the data
+      if (scenario.getHouseholds.getHouseholdAttributes
+            .getAttribute(household.getId.toString, "homecoordx") == null) {
+        log.error(
+          s"Cannot find homeCoordX for household ${household.getId} which will be interpreted at 0.0"
+        )
+      }
+      if (scenario.getHouseholds.getHouseholdAttributes
+            .getAttribute(household.getId.toString.toLowerCase(), "homecoordy") == null) {
+        log.error(
+          s"Cannot find homeCoordY for household ${household.getId} which will be interpreted at 0.0"
+        )
+      }
+      val homeCoord = new Coord(
+        scenario.getHouseholds.getHouseholdAttributes
+          .getAttribute(household.getId.toString, "homecoordx")
+          .asInstanceOf[Double],
+        scenario.getHouseholds.getHouseholdAttributes
+          .getAttribute(household.getId.toString, "homecoordy")
+          .asInstanceOf[Double]
+      )
 
-    try {
-      // Have to wait for households to create people so they can send their first trigger to the scheduler
-      val houseHoldsInitialized =
-        Future.sequence(scenario.getHouseholds.getHouseholds.values().asScala.map { household =>
-          //TODO a good example where projection should accompany the data
-          if (scenario.getHouseholds.getHouseholdAttributes
-                .getAttribute(household.getId.toString, "homecoordx") == null) {
-            log.error(
-              s"Cannot find homeCoordX for household ${household.getId} which will be interpreted at 0.0"
-            )
-          }
-          if (scenario.getHouseholds.getHouseholdAttributes
-                .getAttribute(household.getId.toString.toLowerCase(), "homecoordy") == null) {
-            log.error(
-              s"Cannot find homeCoordY for household ${household.getId} which will be interpreted at 0.0"
-            )
-          }
-          val homeCoord = new Coord(
-            scenario.getHouseholds.getHouseholdAttributes
-              .getAttribute(household.getId.toString, "homecoordx")
-              .asInstanceOf[Double],
-            scenario.getHouseholds.getHouseholdAttributes
-              .getAttribute(household.getId.toString, "homecoordy")
-              .asInstanceOf[Double]
-          )
-
-          val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
-            .collectionAsScalaIterable(household.getVehicleIds)
-            .map { vid =>
-              val bvid = BeamVehicle.createId(vid)
-              bvid -> beamServices.privateVehicles(bvid)
-            }
-            .toMap
-          val householdActor = context.actorOf(
-            HouseholdActor.props(
-              beamServices,
-              beamServices.modeChoiceCalculatorFactory,
-              scheduler,
-              transportNetwork,
-              tollCalculator,
-              router,
-              rideHailManager,
-              parkingManager,
-              eventsManager,
-              scenario.getPopulation,
-              household,
-              householdVehicles,
-              homeCoord,
-              sharedVehicleFleets,
-              routeHistory,
-              beamSkimmer
-            ),
-            household.getId.toString
-          )
-
-          context.watch(householdActor)
-          householdActor ? Identify(0)
-        })
-      Await.result(houseHoldsInitialized, timeout.duration)
-      log.info(s"Initialized ${scenario.getHouseholds.getHouseholds.size} households")
-    } catch {
-      case e: Exception =>
-        log.error(e, "Error initializing houseHolds")
-        throw e
+      val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
+        .collectionAsScalaIterable(household.getVehicleIds)
+        .map { vid =>
+          val bvid = BeamVehicle.createId(vid)
+          bvid -> beamScenario.privateVehicles(bvid)
+        }
+        .toMap
+      val householdActor = context.actorOf(
+        HouseholdActor.props(
+          beamServices,
+          beamScenario,
+          beamServices.modeChoiceCalculatorFactory,
+          scheduler,
+          transportNetwork,
+          tollCalculator,
+          router,
+          rideHailManager,
+          parkingManager,
+          eventsManager,
+          scenario.getPopulation,
+          household,
+          householdVehicles,
+          homeCoord,
+          sharedVehicleFleets,
+          routeHistory,
+          beamSkimmer,
+          travelTimeObserved,
+          boundingBox
+        ),
+        household.getId.toString
+      )
+      context.watch(householdActor)
+      scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
     }
-
+    log.info(s"Initialized ${scenario.getHouseholds.getHouseholds.size} households")
   }
 
 }
@@ -155,10 +139,10 @@ object Population {
 
   def getVehiclesFromHousehold(
     household: Household,
-    beamServices: BeamServices
+    beamScenario: BeamScenario
   ): Map[Id[BeamVehicle], BeamVehicle] = {
     val houseHoldVehicles = JavaConverters.collectionAsScalaIterable(household.getVehicleIds)
-    houseHoldVehicles.map(i => Id.create(i, classOf[BeamVehicle]) -> beamServices.privateVehicles(i)).toMap
+    houseHoldVehicles.map(i => Id.create(i, classOf[BeamVehicle]) -> beamScenario.privateVehicles(i)).toMap
   }
 
   def personInitialLocation(person: Person): Coord =
@@ -170,6 +154,7 @@ object Population {
 
   def props(
     scenario: Scenario,
+    beamScenario: BeamScenario,
     services: BeamServices,
     scheduler: ActorRef,
     transportNetwork: TransportNetwork,
@@ -180,11 +165,14 @@ object Population {
     sharedVehicleFleets: Seq[ActorRef],
     eventsManager: EventsManager,
     routeHistory: RouteHistory,
-    beamSkimmer: BeamSkimmer
+    beamSkimmer: BeamSkimmer,
+    travelTimeObserved: TravelTimeObserved,
+    boundingBox: Envelope
   ): Props = {
     Props(
       new Population(
         scenario,
+        beamScenario,
         services,
         scheduler,
         transportNetwork,
@@ -195,7 +183,9 @@ object Population {
         sharedVehicleFleets,
         eventsManager,
         routeHistory,
-        beamSkimmer
+        beamSkimmer,
+        travelTimeObserved,
+        boundingBox
       )
     )
   }

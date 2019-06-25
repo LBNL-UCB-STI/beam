@@ -66,7 +66,7 @@ object TazTravelTimeAnalyzer extends LazyLogging {
     val geoUtils = new beam.sim.common.GeoUtils {
       override def localCRS: String = "epsg:26910"
     }
-    val tazTreeMap: TAZTreeMap = BeamServices.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
+    val tazTreeMap: TAZTreeMap = TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
 
     val observedTravelTime: Map[PathCache, Float] = getObservedTravelTime(beamConfig, geoUtils, tazTreeMap)
 
