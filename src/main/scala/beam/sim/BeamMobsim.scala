@@ -62,13 +62,7 @@ class BeamMobsim @Inject()(
     logger.info("Preparing new Iteration (Start)")
     startSegment("iteration-preparation", "mobsim")
 
-    if (beamScenario.vehicleTypes
-          .get(Id.create(beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType]))
-          .isEmpty) {
-      throw new RuntimeException(
-        "Vehicle type for human body: " + beamScenario.beamConfig.beam.agentsim.agents.bodyType + " is missing. Please add it to the vehicle types."
-      )
-    }
+    validateVehicleTypes()
 
     if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("run.start (after GC): "))
@@ -96,6 +90,26 @@ class BeamMobsim @Inject()(
     endSegment("agentsim-events", "agentsim")
 
     logger.info("Processing Agentsim Events (End)")
+  }
+
+  def validateVehicleTypes(): Unit = {
+    if (!beamScenario.vehicleTypes.contains(
+          Id.create(beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
+        )) {
+      throw new RuntimeException(
+        "Vehicle type for human body: " + beamScenario.beamConfig.beam.agentsim.agents.bodyType + " is missing. Please add it to the vehicle types."
+      )
+    }
+    if (!beamScenario.vehicleTypes.contains(
+          Id.create(
+            beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+            classOf[BeamVehicleType]
+          )
+        )) {
+      throw new RuntimeException(
+        "Vehicle type for ride-hail: " + beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId + " is missing. Please add it to the vehicle types."
+      )
+    }
   }
 
 }

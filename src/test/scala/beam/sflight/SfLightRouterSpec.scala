@@ -1,5 +1,6 @@
 package beam.sflight
 
+import akka.actor.Status.Failure
 import akka.actor._
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -294,6 +295,28 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       assert(response.itineraries.exists(_.costEstimate == 1.95))
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
+    }
+
+    "respond with Failure(_) to a request with a bad coordinate" in {
+      val origin = services.geo.wgs2Utm(new Coord(999999999, 999999999))
+      val destination = services.geo.wgs2Utm(new Coord(-122.40686, 37.784992)) // Powell St.
+      val time = 51840
+      router ! RoutingRequest(
+        origin,
+        destination,
+        time,
+        withTransit = true,
+        Vector(
+          StreetVehicle(
+            Id.createVehicleId("body-667520-0"),
+            Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
+            new SpaceTime(origin, time),
+            WALK,
+            asDriver = true
+          )
+        )
+      )
+      expectMsgType[Failure]
     }
 
   }

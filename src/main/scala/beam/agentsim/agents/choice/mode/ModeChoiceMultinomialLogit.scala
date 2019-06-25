@@ -4,7 +4,6 @@ import beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit._
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
@@ -35,10 +34,13 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
   var expectedMaximumUtility: Double = 0.0
   val modalBehaviors: ModalBehaviors = beamServices.beamConfig.beam.agentsim.agents.modalBehaviors
 
+  private val shouldLogDetails: Boolean = false
+
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity]
+    destinationActivity: Option[Activity],
+    person: Option[Person] = None
   ): Option[EmbodiedBeamTrip] = {
     if (alternatives.isEmpty) {
       None
@@ -60,9 +62,25 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
         (mct.mode.value, theParams ++ transferParam)
       }.toMap
 
-      // TODO: personInfo should be deleted
       val chosenModeOpt = model.sampleAlternative(inputData, new Random())
       expectedMaximumUtility = model.getExpectedMaximumUtility(inputData).getOrElse(0)
+
+      if (shouldLogDetails) {
+        val personId = person.map(_.getId)
+        val msgToLog =
+          s"""|@@@[$personId]-----------------------------------------
+              |@@@[$personId]Alternatives:${alternatives}
+              |@@@[$personId]AttributesOfIndividual:${attributesOfIndividual}
+              |@@@[$personId]DestinationActivity:${destinationActivity}
+              |@@@[$personId]modeCostTimeTransfers:$modeCostTimeTransfers
+              |@@@[$personId]bestInGroup:$bestInGroup
+              |@@@[$personId]inputData:$inputData
+              |@@@[$personId]chosenModeOpt:${chosenModeOpt}
+              |@@@[$personId]expectedMaximumUtility:${chosenModeOpt}
+              |@@@[$personId]-----------------------------------------
+              |""".stripMargin
+        logger.debug(msgToLog)
+      }
 
       chosenModeOpt match {
         case Some(chosenMode) =>
