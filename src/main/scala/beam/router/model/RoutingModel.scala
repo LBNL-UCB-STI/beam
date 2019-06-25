@@ -70,8 +70,8 @@ object RoutingModel {
     agencyId: String,
     routeId: String,
     vehicleId: Id[Vehicle],
-    fromIdx: Int = -1,
-    toIdx: Int = -1
+    fromIdx: Int,
+    toIdx: Int
   )
 
 }
