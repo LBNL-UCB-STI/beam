@@ -1534,6 +1534,7 @@ class RideHailManager(
         rideHailResourceAllocationManager.repositionVehicles(tick)
       }
     log.info(s"Will reposition ${repositionVehicles.size} at the tick {}", tick)
+    log.debug("Reposition the following vehicles: {}", repositionVehicles)
 
     if (repositionVehicles.isEmpty) {
       log.debug("sendCompletionAndScheduleNewTimeout from 1204")
