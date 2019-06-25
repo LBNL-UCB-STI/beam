@@ -701,9 +701,9 @@ class PersonAgent(
       val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(
         leg => leg.beamVehicleId == nextLeg.beamVehicleId
       )
-      val resRequest = ReservationRequest(
-        legSegment.head.beamLeg,
-        legSegment.last.beamLeg,
+      val resRequest = TransitReservationRequest(
+        nextLeg.beamLeg.travelPath.transitStops.get.fromIdx,
+        nextLeg.beamLeg.travelPath.transitStops.get.toIdx,
         PersonIdWithActorRef(id, self)
       )
       TransitDriverAgent.selectByVehicleId(legSegment.head.beamVehicleId) ! resRequest

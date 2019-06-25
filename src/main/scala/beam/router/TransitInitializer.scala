@@ -69,7 +69,7 @@ class TransitInitializer(
         BeamPath(
           Vector(),
           Vector(),
-          Option(TransitStopsInfo(fromStop, agencyId, routeId, vehicleId, toStop)),
+          Option(TransitStopsInfo(agencyId, routeId, vehicleId, -1, -1)),
           SpaceTime(fromCoord, departureTime),
           SpaceTime(toCoord, departureTime + duration),
           0
@@ -109,7 +109,7 @@ class TransitInitializer(
             linksTimesAndDistances.travelTimes.sum,
             linksTimesAndDistances.travelTimes
           ),
-          Option(TransitStopsInfo(fromStop, agencyId, routeId, vehicleId, toStop)),
+          Option(TransitStopsInfo(agencyId, routeId, vehicleId, -1, -1)),
           SpaceTime(
             startEdge.getGeometry.getStartPoint.getX,
             startEdge.getGeometry.getStartPoint.getY,

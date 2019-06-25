@@ -36,6 +36,8 @@ object ReservationRequest {
     )
 }
 
+case class TransitReservationRequest(fromIdx: Int, toIdx: Int, passenger: PersonIdWithActorRef)
+
 case class ReservationResponse(
   requestId: Id[ReservationRequest],
   response: Either[ReservationError, ReserveConfirmInfo],

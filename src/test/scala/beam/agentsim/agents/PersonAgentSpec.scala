@@ -299,7 +299,7 @@ class PersonAgentSpec
           travelPath = BeamPath(
             Vector(),
             Vector(),
-            Some(TransitStopsInfo(1, "someAgency", "someRoute", busId, 2)),
+            Some(TransitStopsInfo("someAgency", "someRoute", busId)),
             SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
             SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
             1.0
@@ -319,7 +319,7 @@ class PersonAgentSpec
           travelPath = BeamPath(
             Vector(),
             Vector(),
-            Some(TransitStopsInfo(2, "someAgency", "someRoute", busId, 3)),
+            Some(TransitStopsInfo("someAgency", "someRoute", busId)),
             SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
             SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             1.0
@@ -339,7 +339,7 @@ class PersonAgentSpec
           travelPath = BeamPath(
             linkIds = Vector(),
             linkTravelTime = Vector(),
-            transitStops = Some(TransitStopsInfo(3, "someAgency", "someRoute", tramId, 4)),
+            transitStops = Some(TransitStopsInfo("someAgency", "someRoute", tramId)),
             startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
             distanceInM = 1.0
@@ -588,7 +588,7 @@ class PersonAgentSpec
           BeamPath(
             Vector(),
             Vector(),
-            Some(TransitStopsInfo(1, "someAgency", "someRoute", busId, 2)),
+            Some(TransitStopsInfo("someAgency", "someRoute", busId)),
             SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
             SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
             1.0
@@ -608,7 +608,7 @@ class PersonAgentSpec
           BeamPath(
             Vector(),
             Vector(),
-            Some(TransitStopsInfo(2, "someAgency", "someRoute", busId, 3)),
+            Some(TransitStopsInfo("someAgency", "someRoute", busId)),
             SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
             SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             1.0
@@ -628,7 +628,7 @@ class PersonAgentSpec
           BeamPath(
             Vector(),
             Vector(),
-            Some(TransitStopsInfo(3, "someAgency", "someRoute", tramId, 4)),
+            Some(TransitStopsInfo("someAgency", "someRoute", tramId)),
             SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             SpaceTime(services.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
             1.0
@@ -648,7 +648,7 @@ class PersonAgentSpec
           BeamPath(
             Vector(),
             Vector(),
-            Some(TransitStopsInfo(3, "someAgency", "someRoute", tramId, 4)),
+            Some(TransitStopsInfo("someAgency", "someRoute", tramId)),
             SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 35000),
             SpaceTime(services.geo.utm2Wgs(new Coord(190000.4, 1300)), 35600),
             1.0

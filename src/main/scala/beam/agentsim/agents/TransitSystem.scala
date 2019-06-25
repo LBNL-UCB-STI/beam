@@ -7,7 +7,7 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.Modes
+import beam.router.{BeamRouter, Modes, TransitInitializer}
 import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
@@ -70,7 +70,14 @@ class TransitSystem(
 
   private def initDriverAgents(): Unit = {
     val initializer = new TransitVehicleInitializer(beamScenario.beamConfig, beamScenario.vehicleTypes)
-    beamScenario.transitSchedule.foreach {
+    val transitSchedule = new TransitInitializer(
+      beamScenario.beamConfig,
+      beamScenario.dates,
+      beamScenario.vehicleTypes,
+      beamScenario.transportNetwork,
+      BeamRouter.oneSecondTravelTime
+    ).initMap
+    transitSchedule.foreach {
       case (tripVehId, (route, legs)) =>
         initializer.createTransitVehicle(tripVehId, route, legs).foreach { vehicle =>
           val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
