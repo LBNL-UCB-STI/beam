@@ -284,6 +284,10 @@ object ModeChoiceMultinomialLogit {
         "transfer"  -> UtilityFunctionOperation("multiplier", mnlConfig.params.transfer)
       ),
       "bike" -> Map("intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.bike_intercept)),
+      "bike_transit" -> Map(
+        "intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.bike_transit_intercept),
+        "transfer"  -> UtilityFunctionOperation("multiplier", mnlConfig.params.transfer)
+      ),
       "walk_transit" -> Map(
         "intercept" -> UtilityFunctionOperation("intercept", mnlConfig.params.walk_transit_intercept),
         "transfer"  -> UtilityFunctionOperation("multiplier", mnlConfig.params.transfer)
