@@ -1,7 +1,7 @@
 package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
-import akka.actor.{ActorRef, FSM, Props, Stash}
+import akka.actor.{ActorRef, FSM, Props, Stash, Status}
 import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -914,6 +914,8 @@ class PersonAgent(
 
   val myUnhandled: StateFunction = {
     case Event(IllegalTriggerGoToError(reason), _) =>
+      stop(Failure(reason))
+    case Event(Status.Failure(reason), _) =>
       stop(Failure(reason))
     case Event(StateTimeout, _) =>
       log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))

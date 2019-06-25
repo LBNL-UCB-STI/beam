@@ -456,12 +456,10 @@ trait BeamHelper extends LazyLogging {
 
   def runBeamWithConfig(config: TypesafeConfig): (MatsimConfig, String) = {
     val beamExecutionConfig = setupBeamWithConfig(config)
-    val networkCoordinator: NetworkCoordinator = buildNetworkCoordinator(beamExecutionConfig.beamConfig)
     val (scenario, beamScenario) = buildBeamServicesAndScenario(
       config,
       beamExecutionConfig.beamConfig,
       beamExecutionConfig.matsimConfig,
-      networkCoordinator
     )
     val injector: inject.Injector = buildInjector(config, scenario, beamScenario)
     val services = injector.getInstance(classOf[BeamServices])
@@ -554,8 +552,7 @@ trait BeamHelper extends LazyLogging {
   protected def buildBeamServicesAndScenario(
     typesafeConfig: TypesafeConfig,
     beamConfig: BeamConfig,
-    matsimConfig: MatsimConfig,
-    networkCoordinator: NetworkCoordinator,
+    matsimConfig: MatsimConfig
   ): (MutableScenario, BeamScenario) = {
     val scenarioConfig = beamConfig.beam.exchange.scenario
 
@@ -567,8 +564,8 @@ trait BeamHelper extends LazyLogging {
       if (src == "urbansim") {
         val externalFolderExists: Boolean = Option(scenarioConfig.folder).exists(new File(_).isDirectory)
         if (externalFolderExists) {
-          val emptyScenario = ScenarioBuilder(matsimConfig).withNetwork(networkCoordinator.network).build
           val beamScenario = loadScenario(beamConfig)
+          val emptyScenario = ScenarioBuilder(matsimConfig).withNetwork(beamScenario.network).build
           val scenario = {
             val source = buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
             new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
@@ -580,8 +577,8 @@ trait BeamHelper extends LazyLogging {
       } else if (src == "beam") {
         fileFormat match {
           case "csv" =>
-            val emptyScenario = ScenarioBuilder(matsimConfig).withNetwork(networkCoordinator.network).build
             val beamScenario = loadScenario(beamConfig)
+            val emptyScenario = ScenarioBuilder(matsimConfig).withNetwork(beamScenario.network).build
             val scenario = {
               val source = new BeamScenarioSource(
                 scenarioFolder = scenarioConfig.folder,
