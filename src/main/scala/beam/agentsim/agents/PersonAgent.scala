@@ -30,9 +30,8 @@ import beam.router.Modes.BeamMode.{CAR, CAV, WALK, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
-import beam.sim.{BeamServices, Geofence}
 import beam.sim.population.AttributesOfIndividual
-import beam.sim.{BeamScenario, BeamServices}
+import beam.sim.{BeamScenario, BeamServices, Geofence}
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
@@ -430,11 +429,11 @@ class PersonAgent(
 
   when(WaitingForReservationConfirmation) {
     // TRANSIT SUCCESS
-    case Event(ReservationResponse(_, Right(response), _), data: BasePersonData) =>
+    case Event(ReservationResponse(Right(response), _), data: BasePersonData) =>
       handleSuccessfulReservation(response.triggersToSchedule, data)
     // TRANSIT FAILURE
     case Event(
-        ReservationResponse(_, Left(firstErrorResponse), _),
+        ReservationResponse(Left(firstErrorResponse), _),
         data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _)
         ) =>
       logDebug(s"replanning because ${firstErrorResponse.errorCode}")

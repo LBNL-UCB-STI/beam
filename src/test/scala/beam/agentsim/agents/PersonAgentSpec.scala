@@ -8,7 +8,7 @@ import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
-import beam.agentsim.agents.vehicles.{ReservationRequest, ReservationResponse, ReserveConfirmInfo, _}
+import beam.agentsim.agents.vehicles.{ReservationResponse, ReserveConfirmInfo, _}
 import beam.agentsim.events._
 import beam.agentsim.infrastructure.{TrivialParkingManager, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -23,8 +23,6 @@ import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
-import com.typesafe.config.ConfigFactory
-import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
@@ -38,7 +36,7 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.scalatest.FunSpecLike
 import org.scalatest.mockito.MockitoSugar
 
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 
 class PersonAgentSpec
     extends FunSpecLike
@@ -473,7 +471,7 @@ class PersonAgentSpec
       events.expectMsgType[VehicleLeavesTrafficEvent]
       events.expectMsgType[PathTraversalEvent]
 
-      val reservationRequestBus = expectMsgType[ReservationRequest]
+      expectMsgType[TransitReservationRequest]
       scheduler ! ScheduleTrigger(
         BoardVehicleTrigger(28800, busLeg.beamVehicleId),
         personActor
@@ -483,13 +481,8 @@ class PersonAgentSpec
         personActor
       )
       lastSender ! ReservationResponse(
-        reservationRequestBus.requestId,
         Right(
-          ReserveConfirmInfo(
-            busLeg.beamLeg,
-            busLeg2.beamLeg,
-            reservationRequestBus.passengerVehiclePersonId
-          )
+          ReserveConfirmInfo()
         ),
         TRANSIT
       )
@@ -503,14 +496,10 @@ class PersonAgentSpec
 
       events.expectMsgType[PersonLeavesVehicleEvent]
 
-      val reservationRequestTram = expectMsgType[ReservationRequest]
+      expectMsgType[TransitReservationRequest]
       lastSender ! ReservationResponse(
-        reservationRequestTram.requestId,
         Right(
           ReserveConfirmInfo(
-            tramLeg.beamLeg,
-            tramLeg.beamLeg,
-            reservationRequestTram.passengerVehiclePersonId,
             Vector(
               ScheduleTrigger(
                 BoardVehicleTrigger(
@@ -797,16 +786,11 @@ class PersonAgentSpec
       events.expectMsgType[VehicleLeavesTrafficEvent]
       events.expectMsgType[PathTraversalEvent]
 
-      val reservationRequestBus = expectMsgType[ReservationRequest]
+      expectMsgType[TransitReservationRequest]
 
       lastSender ! ReservationResponse(
-        reservationRequestBus.requestId,
         Right(
-          ReserveConfirmInfo(
-            busLeg.beamLeg,
-            busLeg2.beamLeg,
-            reservationRequestBus.passengerVehiclePersonId
-          )
+          ReserveConfirmInfo()
         ),
         TRANSIT
       )
@@ -856,14 +840,10 @@ class PersonAgentSpec
       events.expectMsgType[VehicleLeavesTrafficEvent]
       events.expectMsgType[PathTraversalEvent]
 
-      val reservationRequestTram = expectMsgType[ReservationRequest]
+      expectMsgType[TransitReservationRequest]
       lastSender ! ReservationResponse(
-        reservationRequestTram.requestId,
         Right(
           ReserveConfirmInfo(
-            tramLeg.beamLeg,
-            tramLeg.beamLeg,
-            reservationRequestBus.passengerVehiclePersonId,
             Vector(
               ScheduleTrigger(
                 BoardVehicleTrigger(

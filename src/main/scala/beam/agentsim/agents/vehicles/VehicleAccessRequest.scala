@@ -38,18 +38,9 @@ object ReservationRequest {
 
 case class TransitReservationRequest(fromIdx: Int, toIdx: Int, passenger: PersonIdWithActorRef)
 
-case class ReservationResponse(
-  requestId: Id[ReservationRequest],
-  response: Either[ReservationError, ReserveConfirmInfo],
-  reservedMode: BeamMode
-)
+case class ReservationResponse(response: Either[ReservationError, ReserveConfirmInfo], reservedMode: BeamMode)
 
-case class ReserveConfirmInfo(
-  departFrom: BeamLeg,
-  arriveAt: BeamLeg,
-  passengerVehiclePersonId: PersonIdWithActorRef,
-  triggersToSchedule: Vector[ScheduleTrigger] = Vector()
-)
+case class ReserveConfirmInfo(triggersToSchedule: Vector[ScheduleTrigger] = Vector())
 
 case object AccessErrorCodes {
 
