@@ -245,11 +245,9 @@ class BeamRouter(
       remoteNodes.foreach(workerAddress => workerFrom(workerAddress) ! IterationFinished(iteration))
       localNodes.foreach(_ ! IterationFinished(iteration))
     case MinSpeedUsage(iteration, count) =>
-      if (count > 0) {
-        log.error(
-          s"Worker[${sender()}]. Iteration $iteration had $count cases when min speed ${services.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond} was used."
-        )
-      }
+      log.info(
+        s"Worker[${sender()}]. Iteration $iteration had $count cases when min speed ${services.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond} was used."
+      )
 
     case work =>
       val originalSender = context.sender
@@ -473,6 +471,7 @@ object BeamRouter {
     * @param originUTM                 start/from location of the route
     * @param destinationUTM            end/to location of the route
     * @param departureTime          time in seconds from base midnight
+    * @param transitModes           what transit modes should be considered
     * @param streetVehicles         what vehicles should be considered in route calc
     * @param streetVehiclesUseIntermodalUse boolean (default true), if false, the vehicles considered for use on egress
     */
