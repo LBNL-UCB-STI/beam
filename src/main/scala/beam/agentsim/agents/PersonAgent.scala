@@ -695,7 +695,8 @@ class PersonAgent(
         isWithinTripReplanning = true
       )
     // TRANSIT
-    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _)) if nextLeg.beamLeg.mode.isTransit =>
+    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _))
+        if nextLeg.beamLeg.mode.isTransit =>
       val resRequest = TransitReservationRequest(
         nextLeg.beamLeg.travelPath.transitStops.get.fromIdx,
         nextLeg.beamLeg.travelPath.transitStops.get.toIdx,

@@ -138,7 +138,7 @@ class PersonAndTransitDriverSpec
           travelPath = BeamPath(
             Vector(),
             Vector(),
-            Some(TransitStopsInfo("someAgency", "someRoute", busId)),
+            None,
             SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
             SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
             1.0
@@ -158,7 +158,7 @@ class PersonAndTransitDriverSpec
           travelPath = BeamPath(
             Vector(),
             Vector(),
-            Some(TransitStopsInfo("someAgency", "someRoute", busId)),
+            None,
             SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
             SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             1.0
@@ -191,6 +191,27 @@ class PersonAndTransitDriverSpec
         unbecomeDriverOnCompletion = false
       )
       val tramLeg = EmbodiedBeamLeg(
+        beamLeg = BeamLeg(
+          startTime = 30000,
+          mode = BeamMode.TRAM,
+          duration = 600,
+          travelPath = BeamPath(
+            linkIds = Vector(),
+            linkTravelTime = Vector(),
+            transitStops = None,
+            startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
+            endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
+            distanceInM = 1.0
+          )
+        ),
+        beamVehicleId = tramId,
+        Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
+        asDriver = false,
+        cost = 0.0,
+        unbecomeDriverOnCompletion = false
+      )
+
+      val tramPassengerLeg = EmbodiedBeamLeg(
         beamLeg = BeamLeg(
           startTime = 30000,
           mode = BeamMode.TRAM,
@@ -359,7 +380,7 @@ class PersonAndTransitDriverSpec
                 unbecomeDriverOnCompletion = false
               ),
               busPassengerLeg,
-              tramLeg,
+              tramPassengerLeg,
               EmbodiedBeamLeg(
                 beamLeg = BeamLeg(
                   startTime = 30600,
