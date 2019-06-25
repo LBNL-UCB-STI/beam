@@ -63,9 +63,6 @@ class BeamScenarioLoader(
       result
     }
 
-    val scenarioPopulation = replacePersonsAndPersonsAttributesFromPopulation(scenario.getPopulation, personsWithPlans)
-    replacePlansFromPopulation(scenarioPopulation, plans)
-
     val vehicles = scenarioSource.getVehicles
 
     val loadedHouseholds = scenarioSource.getHousehold()
@@ -73,16 +70,18 @@ class BeamScenarioLoader(
     val newHouseholds: Iterable[Household] =
       buildMatsimHouseholds(loadedHouseholds, personsWithPlans, vehicles)
 
-    val households = replaceHouseholds(scenario.getHouseholds, newHouseholds)
+    val households: Households = replaceHouseholds(scenario.getHouseholds, newHouseholds)
 
-    val loadedAttributes = buildAttributesCoordinates(loadedHouseholds)
-    replaceHouseholdsAttributes(households, loadedAttributes)
-
-    // beamServices
     beamScenario.privateVehicles.clear()
     vehicles
       .map(c => buildBeamVehicle(beamScenario.vehicleTypes, c))
       .foreach(v => beamScenario.privateVehicles.put(v.id, v))
+
+    val scenarioPopulation = replacePersonsAndPersonsAttributesFromPopulation(scenario.getPopulation, personsWithPlans)
+    replacePlansFromPopulation(scenarioPopulation, plans)
+
+    val loadedAttributes = buildAttributesCoordinates(loadedHouseholds)
+    replaceHouseholdsAttributes(households, loadedAttributes)
 
     logger.info("The scenario loading is completed.")
     scenario

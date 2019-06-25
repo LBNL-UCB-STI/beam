@@ -595,7 +595,7 @@ class PersonAgentSpec
           )
         ),
         busId,
-        Id.create("Car", classOf[BeamVehicleType]),
+        Id.create("beamVilleCar", classOf[BeamVehicleType]),
         asDriver = false,
         0,
         unbecomeDriverOnCompletion = false
@@ -615,7 +615,7 @@ class PersonAgentSpec
           )
         ),
         busId,
-        Id.create("Car", classOf[BeamVehicleType]),
+        Id.create("beamVilleCar", classOf[BeamVehicleType]),
         asDriver = false,
         0,
         unbecomeDriverOnCompletion = false
@@ -635,7 +635,7 @@ class PersonAgentSpec
           )
         ),
         tramId,
-        Id.create("Car", classOf[BeamVehicleType]),
+        Id.create("beamVilleCar", classOf[BeamVehicleType]),
         asDriver = false,
         0,
         unbecomeDriverOnCompletion = false
@@ -655,7 +655,7 @@ class PersonAgentSpec
           )
         ),
         tramId,
-        Id.create("Car", classOf[BeamVehicleType]),
+        Id.create("beamVilleCar", classOf[BeamVehicleType]),
         asDriver = false,
         0,
         unbecomeDriverOnCompletion = false

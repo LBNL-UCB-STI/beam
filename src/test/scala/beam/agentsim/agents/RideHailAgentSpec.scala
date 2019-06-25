@@ -146,7 +146,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
-          beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
+          beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
         )
       beamVehicle.manager = Some(self)
 
@@ -222,7 +222,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
-          beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
+          beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
         )
       beamVehicle.manager = Some(self)
 
@@ -290,7 +290,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
-          beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
+          beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
         )
       beamVehicle.manager = Some(self)
 
