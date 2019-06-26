@@ -7,7 +7,7 @@ class BeamScenarioSource(beamConfig: BeamConfig, rdr: BeamScenarioReader) extend
   private val configAgents = beamConfig.beam.agentsim.agents
 
   override def getPersons: Iterable[PersonInfo] = {
-    rdr.readPersonsFile(configAgents.population.inputPopulationFilePath)
+    rdr.readPersonsFile(configAgents.plans.inputPersonAttributesFilePath)
   }
 
   override def getPlans: Iterable[PlanElement] = {
