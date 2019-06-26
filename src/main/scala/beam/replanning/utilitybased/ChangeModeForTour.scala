@@ -31,8 +31,9 @@ class ChangeModeForTour(
   beamScenario: BeamScenario
 ) extends PlanAlgorithm {
 
+  // should this Random use a fixed seed from beamConfig ?
   val rng = new MersenneTwister(3004568) // Random.org
-  val random = new Random(3004568) // TODO: it should be fixed?
+  val random = new Random(3004568)
 
   val weightedRandom = new EnumeratedDistribution[BeamMode](
     rng,
