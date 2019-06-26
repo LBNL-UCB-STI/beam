@@ -6,7 +6,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.{BIKE, CAR, RIDE_HAIL, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{BIKE, CAR, RIDE_HAIL, TRAM, WALK, WALK_TRANSIT}
 import beam.router.model.{BeamLeg, BeamPath, BeamTrip, EmbodiedBeamTrip}
 import beam.router.{BeamRouter, Modes}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -66,6 +66,8 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
       val transitOption = response.itineraries.find(_.tripClassifier == WALK_TRANSIT).get
       assertMakesSense(transitOption.toBeamTrip)
+      assert(transitOption.totalTravelTimeInSecs == 1116)
+      assert(transitOption.legs(1).beamLeg.mode == TRAM)
       assert(transitOption.costEstimate == 2.75)
       assert(transitOption.legs.head.beamLeg.startTime == 25992)
     }

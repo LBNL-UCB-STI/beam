@@ -138,7 +138,7 @@ class PersonAndTransitDriverSpec
           travelPath = BeamPath(
             Vector(),
             Vector(),
-            Some(TransitStopsInfo(1, busId, 2)),
+            None,
             SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
             SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
             1.0
@@ -158,7 +158,7 @@ class PersonAndTransitDriverSpec
           travelPath = BeamPath(
             Vector(),
             Vector(),
-            Some(TransitStopsInfo(2, busId, 3)),
+            None,
             SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
             SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             1.0
@@ -170,6 +170,26 @@ class PersonAndTransitDriverSpec
         cost = 0.0,
         unbecomeDriverOnCompletion = false
       )
+      val busPassengerLeg = EmbodiedBeamLeg(
+        BeamLeg(
+          startTime = 28800,
+          mode = BeamMode.BUS,
+          duration = 1200,
+          travelPath = BeamPath(
+            Vector(),
+            Vector(),
+            Some(TransitStopsInfo("someAgency", "someRoute", busId, 0, 2)),
+            SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
+            SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
+            2.0
+          )
+        ),
+        beamVehicleId = busId,
+        Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
+        asDriver = false,
+        cost = 2.75,
+        unbecomeDriverOnCompletion = false
+      )
       val tramLeg = EmbodiedBeamLeg(
         beamLeg = BeamLeg(
           startTime = 30000,
@@ -178,7 +198,28 @@ class PersonAndTransitDriverSpec
           travelPath = BeamPath(
             linkIds = Vector(),
             linkTravelTime = Vector(),
-            transitStops = Some(TransitStopsInfo(3, tramId, 4)),
+            transitStops = None,
+            startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
+            endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
+            distanceInM = 1.0
+          )
+        ),
+        beamVehicleId = tramId,
+        Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
+        asDriver = false,
+        cost = 0.0,
+        unbecomeDriverOnCompletion = false
+      )
+
+      val tramPassengerLeg = EmbodiedBeamLeg(
+        beamLeg = BeamLeg(
+          startTime = 30000,
+          mode = BeamMode.TRAM,
+          duration = 600,
+          travelPath = BeamPath(
+            linkIds = Vector(),
+            linkTravelTime = Vector(),
+            transitStops = Some(TransitStopsInfo("someAgency", "someRoute", tramId, 0, 1)),
             startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
             distanceInM = 1.0
@@ -338,9 +379,8 @@ class PersonAndTransitDriverSpec
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
               ),
-              busLeg,
-              busLeg2,
-              tramLeg,
+              busPassengerLeg,
+              tramPassengerLeg,
               EmbodiedBeamLeg(
                 beamLeg = BeamLeg(
                   startTime = 30600,
