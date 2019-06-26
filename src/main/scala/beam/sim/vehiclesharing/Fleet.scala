@@ -39,7 +39,10 @@ case class FixedNonReservingFleetByTAZ(
     beamScheduler: ActorRef,
     parkingManager: ActorRef
   ): Props = {
-    val rand = new scala.util.Random(System.currentTimeMillis())
+    val rand = {
+      val seed = beamServices.beamConfig.matsim.modules. // TODO
+      new scala.util.Random(System.currentTimeMillis())
+    }
     val initialLocation = mutable.ListBuffer[Coord]()
     config.vehiclesSharePerTAZFromCSV match {
       case Some(fileName) =>

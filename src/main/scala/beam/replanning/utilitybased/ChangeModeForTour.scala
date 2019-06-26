@@ -32,7 +32,7 @@ class ChangeModeForTour(
 ) extends PlanAlgorithm {
 
   val rng = new MersenneTwister(3004568) // Random.org
-  val random = new Random(3004568)
+  val random = new Random(3004568) // TODO: it should be fixed?
 
   val weightedRandom = new EnumeratedDistribution[BeamMode](
     rng,
