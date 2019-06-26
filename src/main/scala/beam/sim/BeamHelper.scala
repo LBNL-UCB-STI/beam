@@ -579,7 +579,7 @@ trait BeamHelper extends LazyLogging {
             val emptyScenario = ScenarioBuilder(matsimConfig).withNetwork(beamScenario.network).build
             val scenario = {
               val source = new BeamScenarioSource(
-                scenarioFolder = scenarioConfig.folder,
+                beamConfig,
                 rdr = readers.BeamCsvScenarioReader
               )
               new BeamScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
