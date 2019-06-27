@@ -1,4 +1,4 @@
-package beam.utils.beamToVia
+package beam.utils.beamToVia.viaEvent
 
 sealed trait ViaTraverseLinkEventType
 object EnteredLink extends ViaTraverseLinkEventType
