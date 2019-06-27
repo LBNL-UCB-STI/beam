@@ -35,7 +35,6 @@ import com.conveyal.r5.api.util._
 import com.conveyal.r5.profile._
 import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.{TransitLayer, TransportNetwork}
-import com.google.common.cache.{CacheBuilder, CacheLoader}
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.network.Network
@@ -174,16 +173,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     )
   }
 
-  private val cache = CacheBuilder
-    .newBuilder()
-    .recordStats()
-    .maximumSize(1000)
-    .build(new CacheLoader[R5Request, ProfileResponse] {
-      override def load(key: R5Request): ProfileResponse = {
-        getPlanFromR5(key)
-      }
-    })
-
   override def preStart(): Unit = {
     askForMoreWork()
   }
@@ -247,7 +236,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     case UpdateTravelTimeLocal(newTravelTime) =>
       travelTime = newTravelTime
       log.info(s"{} UpdateTravelTimeLocal. Set new travel time", getNameAndHashCode)
-      cache.invalidateAll()
       askForMoreWork()
 
     case UpdateTravelTimeRemote(map) =>
@@ -257,7 +245,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         getNameAndHashCode,
         map.keySet().size()
       )
-      cache.invalidateAll()
       askForMoreWork()
 
     case EmbodyWithCurrentTravelTime(
@@ -511,7 +498,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           val egressMode = LegMode.WALK
           val profileResponse =
             latency("walkToVehicleRoute-router-time", Metrics.RegularLevel) {
-              cache.get(
+              getPlanFromR5(
                 R5Request(
                   from,
                   to,
@@ -573,7 +560,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           val egressMode = LegMode.WALK
           val profileResponse =
             latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {
-              cache.get(
+              getPlanFromR5(
                 R5Request(
                   from,
                   to,
@@ -645,7 +632,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                             else "mainTransitRoute") + "-router-time"
           val profileResponse: ProfileResponse =
             latency(latencyTag, Metrics.RegularLevel) {
-              cache.get(
+              getPlanFromR5(
                 R5Request(
                   from,
                   to,
@@ -746,6 +733,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         case Failure(e)                                         => throw e
       }
     }
+
+    println(request.originUTM + " " + request.streetVehicles)
 
     val embodiedTrips =
       request.streetVehicles.flatMap(vehicle => tripsForVehicle(vehicle))
