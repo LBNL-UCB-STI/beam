@@ -172,9 +172,12 @@ object ZonalParkingManager extends LazyLogging {
     tazTreeMap: TAZTreeMap,
     geo: GeoUtils,
     beamRouter: ActorRef,
-    boundingBox: Envelope,
-    random: Random = new Random(System.currentTimeMillis)
+    boundingBox: Envelope
   ): Props = {
+    val random = {
+      val seed = beamConfig.matsim.modules.global.randomSeed
+      new Random(seed)
+    }
     Props(ZonalParkingManager(beamConfig, tazTreeMap, geo, random, boundingBox))
   }
 
