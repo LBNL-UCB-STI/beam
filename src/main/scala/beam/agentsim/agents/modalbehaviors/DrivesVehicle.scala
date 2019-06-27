@@ -805,7 +805,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       vehicle.id
     )
 
-    scheduler ! ScheduleTrigger(EndRefuelSessionTrigger(chargingEndTick, tick, energyDelivered, Some(vehicle)), self)
+    scheduler ! CompletionNotice(
+      triggerId,
+      Vector(ScheduleTrigger(EndRefuelSessionTrigger(chargingEndTick, tick, energyDelivered, Some(vehicle)), self))
+    )
 
   }
 
