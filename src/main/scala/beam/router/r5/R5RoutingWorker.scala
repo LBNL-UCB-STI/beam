@@ -432,6 +432,59 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       }
     }
 
+    /*
+ * For the mainRouteToVehicle pattern (see above), we look for RequestTripInfo.streetVehiclesUseIntermodalUse == Egress, and then we
+ * route separately from the vehicle to the destination with an estimate of the start time and adjust the timing of this route
+ * after finding the main route from origin to vehicle.
+ */
+    def maybeUseVehicleOnEgressTry(vehicle: StreetVehicle): Try[Vector[LegWithFare]] = Try {
+      val mainRouteToVehicle = request.streetVehiclesUseIntermodalUse == Egress && isRouteForPerson && vehicle.mode != WALK
+      if (mainRouteToVehicle) {
+        // assume 13 mph / 5.8 m/s as average PT speed: http://cityobservatory.org/urban-buses-are-slowing-down/
+        val estimateDurationToGetToVeh: Int = math
+          .round(geo.distUTMInMeters(request.originUTM, vehicle.locationUTM.loc) / 5.8)
+          .intValue()
+        val time = request.departureTime + estimateDurationToGetToVeh
+        val from = geo.snapToR5Edge(
+          transportNetwork.streetLayer,
+          geo.utm2Wgs(vehicle.locationUTM.loc),
+          10E3
+        )
+        val to = geo.snapToR5Edge(
+          transportNetwork.streetLayer,
+          geo.utm2Wgs(request.destinationUTM),
+          10E3
+        )
+        val directMode = vehicle.mode.r5Mode.get.left.get
+        val accessMode = vehicle.mode.r5Mode.get.left.get
+        val egressMode = LegMode.WALK
+        val profileResponse =
+          latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {
+            getStreetPlanFromR5(
+              R5Request(
+                from,
+                to,
+                time,
+                directMode,
+                accessMode,
+                withTransit = false,
+                egressMode,
+                request.timeValueOfMoney,
+                vehicle.vehicleTypeId
+              )
+            )
+          }
+        if (!profileResponse.options.isEmpty) {
+          val streetSegment = profileResponse.options.get(0).access.get(0)
+          buildStreetBasedLegs(streetSegment, time, vehicleTypes(vehicle.vehicleTypeId))
+        } else {
+          throw DestinationUnreachableException // Cannot go to destination with this vehicle, so no options from this vehicle.
+        }
+      } else {
+        Vector()
+      }
+    }
+
 
     def tripsForVehicle(vehicle: StreetVehicle): Seq[EmbodiedBeamTrip] = {
       /*
@@ -453,63 +506,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
        * on a threshold, optionally routes a WALK leg to the vehicle and adjusts the main route location & time accordingly.
        *
        */
-      // First classify the main route type
       val mainRouteToVehicle = request.streetVehiclesUseIntermodalUse == Egress && isRouteForPerson && vehicle.mode != WALK
       val mainRouteRideHailTransit = request.streetVehiclesUseIntermodalUse == AccessAndEgress && isRouteForPerson && vehicle.mode != WALK
-
-      /*
-       * For the mainRouteToVehicle pattern (see above), we look for RequestTripInfo.streetVehiclesUseIntermodalUse == Egress, and then we
-       * route separately from the vehicle to the destination with an estimate of the start time and adjust the timing of this route
-       * after finding the main route from origin to vehicle.
-       */
-      val maybeUseVehicleOnEgressTry: Try[Vector[LegWithFare]] = Try {
-        if (mainRouteToVehicle) {
-          // assume 13 mph / 5.8 m/s as average PT speed: http://cityobservatory.org/urban-buses-are-slowing-down/
-          val estimateDurationToGetToVeh: Int = math
-            .round(geo.distUTMInMeters(request.originUTM, vehicle.locationUTM.loc) / 5.8)
-            .intValue()
-          val time = request.departureTime + estimateDurationToGetToVeh
-          val from = geo.snapToR5Edge(
-            transportNetwork.streetLayer,
-            geo.utm2Wgs(vehicle.locationUTM.loc),
-            10E3
-          )
-          val to = geo.snapToR5Edge(
-            transportNetwork.streetLayer,
-            geo.utm2Wgs(request.destinationUTM),
-            10E3
-          )
-          val directMode = vehicle.mode.r5Mode.get.left.get
-          val accessMode = vehicle.mode.r5Mode.get.left.get
-          val egressMode = LegMode.WALK
-          val profileResponse =
-            latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {
-              getStreetPlanFromR5(
-                R5Request(
-                  from,
-                  to,
-                  time,
-                  directMode,
-                  accessMode,
-                  withTransit = false,
-                  egressMode,
-                  request.timeValueOfMoney,
-                  vehicle.vehicleTypeId
-                )
-              )
-            }
-          if (!profileResponse.options.isEmpty) {
-            val streetSegment = profileResponse.options.get(0).access.get(0)
-            buildStreetBasedLegs(streetSegment, time, vehicleTypes(vehicle.vehicleTypeId))
-          } else {
-            throw DestinationUnreachableException // Cannot go to destination with this vehicle, so no options from this vehicle.
-          }
-        } else {
-          Vector()
-        }
-      }
-
-      maybeUseVehicleOnEgressTry match {
+      maybeUseVehicleOnEgressTry(vehicle) match {
         case Success(maybeUseVehicleOnEgress) =>
           val theOrigin = if (mainRouteToVehicle || mainRouteRideHailTransit) {
             request.originUTM
