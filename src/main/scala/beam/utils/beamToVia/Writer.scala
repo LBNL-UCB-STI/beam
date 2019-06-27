@@ -24,7 +24,7 @@ object Writer {
 
   def writeViaIdFile(typeToIdSeq: mutable.Map[String, mutable.HashSet[String]], outputPath: String): Unit = {
     val pw2 = new PrintWriter(new File(outputPath))
-    typeToIdSeq.keys.toSeq.sorted.foreach(pw2.println)
+    typeToIdSeq.map{case (k,v) => k + "     " + v.size}.toSeq.sorted.foreach(pw2.println)
     pw2.close()
   }
 

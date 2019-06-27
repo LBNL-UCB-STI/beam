@@ -73,5 +73,8 @@ object RunConfig {
   def filterPopulation(sourcePath: String, populationSamples: Seq[PopulationSample]): RunConfig =
     defaultValues(sourcePath, populationSampling = populationSamples)
 
+  def filterVehicles(sourcePath: String, vehiclesSamples: Seq[VehicleSample]): RunConfig =
+    defaultValues(sourcePath, vehicleSampling = vehiclesSamples)
+
   def withoutFiltering(sourcePath: String): RunConfig = defaultValues(sourcePath)
 }

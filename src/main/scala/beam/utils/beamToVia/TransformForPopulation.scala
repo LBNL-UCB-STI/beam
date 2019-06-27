@@ -36,7 +36,7 @@ object TransformForPopulation {
     population.foldLeft(mutable.HashSet.empty[String])((selected, id) => {
       sampling.foreach(
         rule =>
-          if (rule.personIsInteresting(id) && (rule.percentage >= 1.0 || Math.random() >= rule.percentage))
+          if (rule.personIsInteresting(id) && (rule.percentage >= 1.0 ||  rule.percentage >= Math.random()))
             selected += id
       )
 
