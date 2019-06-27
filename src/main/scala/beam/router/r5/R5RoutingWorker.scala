@@ -286,7 +286,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   private def askForMoreWork(): Unit =
     if (workAssigner != null) workAssigner ! GimmeWork //Master will retry if it hasn't heard
 
-  private def getPlanFromR5(request: R5Request): ProfileResponse = {
+  private def getStreetPlanFromR5(request: R5Request): ProfileResponse = {
     countOccurrence("r5-plans-count")
 
     val profileRequest = createProfileRequest
@@ -300,11 +300,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       util.EnumSet.noneOf(classOf[LegMode])
     } else {
       util.EnumSet.of(request.directMode)
-    }
-    if (request.withTransit) {
-      profileRequest.transitModes = util.EnumSet.allOf(classOf[TransitModes])
-      profileRequest.accessModes = util.EnumSet.of(request.accessMode)
-      profileRequest.egressModes = util.EnumSet.of(request.egressMode)
     }
 
     try {
@@ -337,81 +332,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       }
       directOption.summary = directOption.generateSummary
       profileResponse.addOption(directOption)
-
-      if (profileRequest.hasTransit) {
-        profileRequest.reverseSearch = false
-        val accessRouters = mutable.Map[LegMode, StreetRouter]()
-        for (mode <- profileRequest.accessModes.asScala) {
-          val streetRouter = new StreetRouter(
-            transportNetwork.streetLayer,
-            travelTimeCalculator(vehicleTypes(request.beamVehicleTypeId), profileRequest.fromTime),
-            turnCostCalculator,
-            travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
-          )
-          streetRouter.profileRequest = profileRequest
-          streetRouter.streetMode = toR5StreetMode(mode)
-          //Gets correct maxCar/Bike/Walk time in seconds for access leg based on mode since it depends on the mode
-          streetRouter.timeLimitSeconds = profileRequest.getTimeLimit(mode)
-          streetRouter.transitStopSearch = true
-          streetRouter.quantityToMinimize = StreetRouter.State.RoutingVariable.DURATION_SECONDS
-          if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)) {
-            streetRouter.route()
-            //Searching for access paths
-            accessRouters.put(mode, streetRouter)
-          }
-        }
-
-        val egressRouters = mutable.Map[LegMode, StreetRouter]()
-        profileRequest.reverseSearch = true
-        for (mode <- profileRequest.egressModes.asScala) {
-          val streetRouter = new StreetRouter(
-            transportNetwork.streetLayer,
-            travelTimeCalculator(vehicleTypes(request.beamVehicleTypeId), profileRequest.fromTime),
-            turnCostCalculator,
-            travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
-          )
-          streetRouter.transitStopSearch = true
-          streetRouter.quantityToMinimize = StreetRouter.State.RoutingVariable.DURATION_SECONDS
-          streetRouter.streetMode = toR5StreetMode(mode)
-          streetRouter.profileRequest = profileRequest
-          streetRouter.timeLimitSeconds = profileRequest.getTimeLimit(mode)
-          if (streetRouter.setOrigin(profileRequest.toLat, profileRequest.toLon)) {
-            streetRouter.route()
-            egressRouters.put(mode, streetRouter)
-          }
-        }
-
-        val transitPaths = latency("getpath-transit-time", Metrics.VerboseLevel) {
-          val router = new McRaptorSuboptimalPathProfileRouter(
-            transportNetwork,
-            profileRequest,
-            accessRouters.mapValues(_.getReachedStops).asJava,
-            egressRouters.mapValues(_.getReachedStops).asJava,
-            (departureTime: Int) =>
-              new FareDominatingList(
-                profileRequest.inRoutingFareCalculator,
-                Integer.MAX_VALUE,
-                departureTime + profileRequest.maxTripDurationMinutes * 60
-            ),
-            null
-          )
-          router.getPaths.asScala
-        }
-
-        for (transitPath <- transitPaths) {
-          profileResponse.addTransitPath(
-            accessRouters.asJava,
-            egressRouters.asJava,
-            transitPath,
-            transportNetwork,
-            profileRequest.getFromTimeDateZD
-          )
-        }
-
-        latency("transfer-transit-time", Metrics.VerboseLevel) {
-          profileResponse.generateStreetTransfers(transportNetwork, profileRequest)
-        }
-      }
       profileResponse.recomputeStats(profileRequest)
       profileResponse
     } catch {
@@ -498,7 +418,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           val egressMode = LegMode.WALK
           val profileResponse =
             latency("walkToVehicleRoute-router-time", Metrics.RegularLevel) {
-              getPlanFromR5(
+              getStreetPlanFromR5(
                 R5Request(
                   from,
                   to,
@@ -560,7 +480,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           val egressMode = LegMode.WALK
           val profileResponse =
             latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {
-              getPlanFromR5(
+              getStreetPlanFromR5(
                 R5Request(
                   from,
                   to,
