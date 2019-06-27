@@ -375,32 +375,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
     val isRouteForPerson = request.streetVehicles.exists(_.mode == WALK)
 
-    def tripsForVehicle(vehicle: StreetVehicle): Seq[EmbodiedBeamTrip] = {
-      /*
-       * Our algorithm captures a few different patterns of travel. Two of these require extra routing beyond what we
-       * call the "main" route calculation below. In both cases, we have a single main transit route
-       * which is only calculate once in the code below. But we optionally add a WALK leg from the origin to the
-       * beginning of the route (called "mainRouteFromVehicle" as opposed to main route from origin). Or we optionally
-       * add a vehicle-based trip on the egress portion of the trip (called "mainRouteToVehicle" as opposed to main route
-       * to destination).
-       *
-       * Or we use the R5 egress concept to accomplish "mainRouteRideHailTransit" pattern we use DRIVE mode on both
-       * access and egress legs. For the other "mainRoute" patterns, we want to fix the location of the vehicle, not
-       * make it dynamic. Also note that in all cases, these patterns are only the result of human travelers, we assume
-       * AI is fixed to a vehicle and therefore only needs the simplest of routes.
-       *
-       * For the mainRouteFromVehicle pattern, the traveler is using a vehicle within the context of a
-       * trip that could be multimodal (e.g. drive to transit) or unimodal (drive only). We don't assume the vehicle is
-       * co-located with the person, so this first block of code determines the distance from the vehicle to the person and based
-       * on a threshold, optionally routes a WALK leg to the vehicle and adjusts the main route location & time accordingly.
-       *
-       */
-      // First classify the main route type
+    def maybeWalkToVehicle(vehicle: StreetVehicle): Option[BeamLeg] = {
       val mainRouteFromVehicle = request.streetVehiclesUseIntermodalUse == Access && isRouteForPerson && vehicle.mode != WALK
-      val mainRouteToVehicle = request.streetVehiclesUseIntermodalUse == Egress && isRouteForPerson && vehicle.mode != WALK
-      val mainRouteRideHailTransit = request.streetVehiclesUseIntermodalUse == AccessAndEgress && isRouteForPerson && vehicle.mode != WALK
-
-      val maybeWalkToVehicle: Option[BeamLeg] = if (mainRouteFromVehicle) {
+      if (mainRouteFromVehicle) {
         if (geo.distUTMInMeters(vehicle.locationUTM.loc, request.originUTM) > beamConfig.beam.agentsim.thresholdForWalkingInMeters) {
           val body = request.streetVehicles.find(_.mode == WALK).get
           val from = geo.snapToR5Edge(
@@ -453,6 +430,33 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       } else {
         None
       }
+    }
+
+
+    def tripsForVehicle(vehicle: StreetVehicle): Seq[EmbodiedBeamTrip] = {
+      /*
+       * Our algorithm captures a few different patterns of travel. Two of these require extra routing beyond what we
+       * call the "main" route calculation below. In both cases, we have a single main transit route
+       * which is only calculate once in the code below. But we optionally add a WALK leg from the origin to the
+       * beginning of the route (called "mainRouteFromVehicle" as opposed to main route from origin). Or we optionally
+       * add a vehicle-based trip on the egress portion of the trip (called "mainRouteToVehicle" as opposed to main route
+       * to destination).
+       *
+       * Or we use the R5 egress concept to accomplish "mainRouteRideHailTransit" pattern we use DRIVE mode on both
+       * access and egress legs. For the other "mainRoute" patterns, we want to fix the location of the vehicle, not
+       * make it dynamic. Also note that in all cases, these patterns are only the result of human travelers, we assume
+       * AI is fixed to a vehicle and therefore only needs the simplest of routes.
+       *
+       * For the mainRouteFromVehicle pattern, the traveler is using a vehicle within the context of a
+       * trip that could be multimodal (e.g. drive to transit) or unimodal (drive only). We don't assume the vehicle is
+       * co-located with the person, so this first block of code determines the distance from the vehicle to the person and based
+       * on a threshold, optionally routes a WALK leg to the vehicle and adjusts the main route location & time accordingly.
+       *
+       */
+      // First classify the main route type
+      val mainRouteToVehicle = request.streetVehiclesUseIntermodalUse == Egress && isRouteForPerson && vehicle.mode != WALK
+      val mainRouteRideHailTransit = request.streetVehiclesUseIntermodalUse == AccessAndEgress && isRouteForPerson && vehicle.mode != WALK
+
       /*
        * For the mainRouteToVehicle pattern (see above), we look for RequestTripInfo.streetVehiclesUseIntermodalUse == Egress, and then we
        * route separately from the vehicle to the destination with an estimate of the start time and adjust the timing of this route
@@ -544,8 +548,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           } else {
             LegMode.WALK
           }
-          val walkToVehicleDuration =
-            maybeWalkToVehicle.map(leg => leg.duration).getOrElse(0)
+          val maybeWalkToThisVehicle = maybeWalkToVehicle(vehicle)
+          val walkToVehicleDuration = maybeWalkToThisVehicle.map(leg => leg.duration).getOrElse(0)
           val time = request.departureTime + walkToVehicleDuration
           val profileRequest = createProfileRequest
           profileRequest.fromLon = from.getX
@@ -694,7 +698,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               .map { itinerary =>
                 toBeamTrip(
                   isRouteForPerson,
-                  maybeWalkToVehicle,
+                  maybeWalkToThisVehicle,
                   maybeUseVehicleOnEgress,
                   profileResponse,
                   option,
