@@ -507,7 +507,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
        */
       val mainRouteToVehicle = request.streetVehiclesUseIntermodalUse == Egress && isRouteForPerson && vehicle.mode != WALK
       val mainRouteRideHailTransit = request.streetVehiclesUseIntermodalUse == AccessAndEgress && isRouteForPerson && vehicle.mode != WALK
-      maybeUseVehicleOnEgressTry(vehicle) match {
+      val maybeWalkToThisVehicle = maybeWalkToVehicle(vehicle)
+      val maybeUseThisVehicleOnEgress = maybeUseVehicleOnEgressTry(vehicle)
+
+      maybeUseThisVehicleOnEgress match {
         case Success(maybeUseVehicleOnEgress) =>
           val theOrigin = if (mainRouteToVehicle || mainRouteRideHailTransit) {
             request.originUTM
@@ -529,24 +532,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             geo.utm2Wgs(theDestination),
             10E3
           )
-          val directMode = if (mainRouteToVehicle) {
-            LegMode.WALK
-          } else if (mainRouteRideHailTransit) {
-            null
-          } else {
-            vehicle.mode.r5Mode.get.left.get
-          }
-          val accessMode = if (mainRouteRideHailTransit) {
-            LegMode.CAR
-          } else {
-            directMode
-          }
-          val egressMode = if (mainRouteRideHailTransit) {
-            LegMode.CAR
-          } else {
-            LegMode.WALK
-          }
-          val maybeWalkToThisVehicle = maybeWalkToVehicle(vehicle)
           val walkToVehicleDuration = maybeWalkToThisVehicle.map(leg => leg.duration).getOrElse(0)
           val time = request.departureTime + walkToVehicleDuration
           val profileRequest = createProfileRequest
@@ -556,17 +541,26 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           profileRequest.toLat = to.getY
           profileRequest.fromTime = time
           profileRequest.toTime = time + 61 // Important to allow 61 seconds for transit schedules to be considered!
-          profileRequest.directModes = if (directMode == null) {
+          profileRequest.directModes = if (mainRouteToVehicle) {
+            util.EnumSet.of(LegMode.WALK)
+          } else if (mainRouteRideHailTransit) {
             util.EnumSet.noneOf(classOf[LegMode])
           } else {
-            util.EnumSet.of(directMode)
+            util.EnumSet.of(vehicle.mode.r5Mode.get.left.get)
           }
           if (request.withTransit) {
             profileRequest.transitModes = util.EnumSet.allOf(classOf[TransitModes])
-            profileRequest.accessModes = util.EnumSet.of(accessMode)
-            profileRequest.egressModes = util.EnumSet.of(egressMode)
+            profileRequest.accessModes = if (mainRouteRideHailTransit) {
+              util.EnumSet.of(LegMode.CAR)
+            } else {
+              profileRequest.directModes
+            }
+            profileRequest.egressModes = if (mainRouteRideHailTransit) {
+              util.EnumSet.of(LegMode.CAR)
+            } else {
+              util.EnumSet.of(LegMode.WALK)
+            }
           }
-
           val profileResponse = new ProfileResponse
           val directOption = new ProfileOption
           profileRequest.reverseSearch = false
@@ -674,16 +668,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           profileResponse.recomputeStats(profileRequest)
 
           val tripsWithFares = profileResponse.options.asScala.flatMap { option =>
-            /*
-             * Iterating all itinerary from a ProfileOption to construct the BeamTrip,
-             * itinerary has a PointToPointConnection object that help relating access,
-             * egress and transit for the particular itinerary. That contains indexes of
-             * access and egress and actual object could be located from lists under option object,
-             * as there are separate collections for each.
-             *
-             * And after locating through these indexes, constructing BeamLeg for each and
-             * finally add these legs back to BeamTrip.
-             */
             option.itinerary.asScala.view
               .filter { itin =>
                 val startTime = dates.toBaseMidnightSeconds(
@@ -816,7 +800,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                       }
                   }
 
-                  // egress would only be present if there is some transit, so its under transit presence check
                   if (itinerary.connection.egress != null) {
                     val egress = option.egress.get(itinerary.connection.egress)
                     legsWithFares ++= buildStreetBasedLegs(egress, arrivalTime, vehicleTypes(vehicle.vehicleTypeId))
