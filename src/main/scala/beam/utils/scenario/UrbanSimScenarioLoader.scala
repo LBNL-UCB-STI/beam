@@ -21,6 +21,8 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.duration._
 
 class UrbanSimScenarioLoader(
   var scenario: MutableScenario,
@@ -29,6 +31,8 @@ class UrbanSimScenarioLoader(
   val geo: GeoUtils
 ) extends LazyLogging {
 
+  implicit val ex: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
+
   val population: Population = scenario.getPopulation
 
   val availableModes: String = BeamMode.allModes.map(_.value).mkString(",")
@@ -36,23 +40,31 @@ class UrbanSimScenarioLoader(
   def loadScenario(): Scenario = {
     clear()
 
-    val plans = scenarioSource.getPlans
-    logger.info(s"Read ${plans.size} plans")
-
-    val personsWithPlans = {
+    val plansF = Future {
+      val plans = scenarioSource.getPlans
+      logger.info(s"Read ${plans.size} plans")
+      plans
+    }
+    val personsF = Future {
       val persons: Iterable[PersonInfo] = scenarioSource.getPersons
       logger.info(s"Read ${persons.size} persons")
-      getPersonsWithPlan(persons, plans)
+      persons
     }
+    val householdsF = Future {
+      val households = scenarioSource.getHousehold
+      logger.info(s"Read ${households.size} households")
+      households
+    }
+    val plans = Await.result(plansF, 500.seconds)
+    val persons = Await.result(personsF, 500.seconds)
+
+    val personsWithPlans = getPersonsWithPlan(persons, plans)
     logger.info(s"There are ${personsWithPlans.size} persons with plans")
 
     val householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]] = personsWithPlans.groupBy(_.householdId)
 
-    val householdsWithMembers = {
-      val households = scenarioSource.getHousehold
-      logger.info(s"Read ${households.size} households")
-      households.filter(household => householdIdToPersons.contains(household.householdId))
-    }
+    val households = Await.result(householdsF, 500.seconds)
+    val householdsWithMembers = households.filter(household => householdIdToPersons.contains(household.householdId))
     logger.info(s"There are ${householdsWithMembers.size} non-empty households")
 
     logger.info("Applying households...")
