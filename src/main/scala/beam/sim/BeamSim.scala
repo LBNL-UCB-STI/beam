@@ -181,7 +181,7 @@ class BeamSim @Inject()(
     }
   }
 
-  private def shouldWritePlansAtCurrentIteration(iterationNumber: Int):Boolean = {
+  private def shouldWritePlansAtCurrentIteration(iterationNumber: Int): Boolean = {
     val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
     val interval = beamConfig.beam.outputs.writePlansInterval
     interval > 0 && iterationNumber % interval == 0
