@@ -168,10 +168,23 @@ class BeamSim @Inject()(
     beamConfigChangesObservable.notifyChangeToSubscribers()
     ExponentialLazyLogging.reset()
     beamServices.beamScenario.privateVehicles.values.foreach(_.initializeFuelLevels)
+
+    val iterationNumber = event.getIteration
+
     val controllerIO = event.getServices.getControlerIO
-    if (isFirstIteration(event.getIteration)) {
+    if (isFirstIteration(iterationNumber)) {
       PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv"))
     }
+
+    if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
+      PlansCsvWriter.toCsv(scenario, controllerIO.getIterationFilename(iterationNumber, "plans.csv"))
+    }
+  }
+
+  private def shouldWritePlansAtCurrentIteration(iterationNumber: Int):Boolean = {
+    val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
+    val interval = beamConfig.beam.outputs.writePlansInterval
+    interval > 0 && iterationNumber % interval == 0
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
@@ -192,13 +205,12 @@ class BeamSim @Inject()(
       }
       createGraphsFromEvents.createGraphs(event)
 
-      val interval = beamConfig.beam.outputs.writePlansInterval
-      val iterationNumber = event.getIteration
-      val controllerIO = event.getServices.getControlerIO
-      if (interval > 0 && iterationNumber % interval == 0) {
-        PlansCsvWriter.toCsv(scenario, controllerIO.getIterationFilename(iterationNumber, "plans.csv"))
-      }
-
+//      val interval = beamConfig.beam.outputs.writePlansInterval
+//      val iterationNumber = event.getIteration
+//      val controllerIO = event.getServices.getControlerIO
+//      if (interval > 0 && iterationNumber % interval == 0) {
+//        PlansCsvWriter.toCsv(scenario, controllerIO.getIterationFilename(iterationNumber, "plans.csv"))
+//      }
       iterationSummaryStats += iterationStatsProviders
         .flatMap(_.getSummaryStats.asScala)
         .toMap
