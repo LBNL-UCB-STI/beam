@@ -274,17 +274,17 @@ class BeamAgentScheduler(
                 // register tick (to see, if it changes till next monitor timeout).
                 rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), false)
             }
-          }// else {
-//            monitorStuckDetectionState match {
-//              case Some(MonitorStuckDetectionState(tick, awaitingReponseSize, triggerQueueSize, Some(triggerQueueHead)))
-//                  if ((tick == nowInSeconds && awaitingReponseSize == awaitingResponse
-//                    .size()) && (triggerQueueSize == triggerQueue.size() && triggerQueueHead == triggerQueue.peek())) =>
-//                log.info("monitorStuckDetection removing agent: " + x.agent.path)
-//                terminateActor(x.agent)
-//
-//              case _ =>
-//            }
-//          }
+          } else {
+            monitorStuckDetectionState match {
+              case Some(MonitorStuckDetectionState(tick, awaitingReponseSize, triggerQueueSize, Some(triggerQueueHead)))
+                  if ((tick == nowInSeconds && awaitingReponseSize == awaitingResponse
+                    .size()) && (triggerQueueSize == triggerQueue.size() && triggerQueueHead == triggerQueue.peek())) =>
+                log.info("monitorStuckDetection removing agent: " + x.agent.path)
+                terminateActor(x.agent)
+
+              case _ =>
+            }
+          }
         }
 
         monitorStuckDetectionState = Some(
