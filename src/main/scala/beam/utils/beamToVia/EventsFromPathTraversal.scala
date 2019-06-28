@@ -10,12 +10,9 @@ object EventsFromPathTraversal extends App {
     sourcePath,
     Seq(
       VehicleSample("BUS-DEFAULT", 0.01),
-      VehicleSample("BODY-TYPE-DEFAULT", 0.1),
-      VehicleSample("CABLE_CAR-DEFAULT", 0.1),
-      VehicleSample("TRAM-DEFAULT", 0.1),
-      VehicleSample("Car", 0.1),
-      VehicleSample("SUBWAY-DEFAULT", 0.1)
-    )
+    ),
+    0.05
   )
+
   TransformAllPathTraversal.transformAndWrite(config)
 }

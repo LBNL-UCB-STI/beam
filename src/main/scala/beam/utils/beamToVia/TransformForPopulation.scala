@@ -13,8 +13,6 @@ object TransformForPopulation {
       .fromFile(config.beamEventsPath)
       .getOrElse(Seq.empty[BeamEvent])
 
-    // Writer.writeSeqOfString(events.map(_.toXml.toString()),sourcePath + ".sorted.xml")
-
     val selectedPopulation = collectPopulationIds(events, config.populationSampling)
 
     val processedEvents = EventsTransformer.filterAndFixEvents(events, selectedPopulation.contains)
@@ -36,7 +34,7 @@ object TransformForPopulation {
     population.foldLeft(mutable.HashSet.empty[String])((selected, id) => {
       sampling.foreach(
         rule =>
-          if (rule.personIsInteresting(id) && (rule.percentage >= 1.0 ||  rule.percentage >= Math.random()))
+          if (rule.personIsInteresting(id) && rule.percentage >= Math.random())
             selected += id
       )
 

@@ -19,6 +19,7 @@ case class RunConfig(
   viaIdGoupsDirectoryPath: String,
   viaRunScriptPath: String,
   vehicleSampling: Seq[VehicleSample],
+  vehicleSamplingOtherTypes: Double,
   populationSampling: Seq[PopulationSample],
   circleFilter: Seq[Circle]
 )
@@ -33,6 +34,7 @@ object RunConfig {
     viaIdGoupsDirectoryPath: String,
     viaRunScriptPath: String,
     vehicleSampling: Seq[VehicleSample],
+    vehicleSamplingOtherTypes: Double,
     populationSampling: Seq[PopulationSample],
     circleFilter: Seq[Circle]
   ): RunConfig =
@@ -44,6 +46,7 @@ object RunConfig {
       viaIdGoupsDirectoryPath,
       viaRunScriptPath,
       vehicleSampling,
+      vehicleSamplingOtherTypes,
       populationSampling,
       circleFilter
     )
@@ -56,6 +59,7 @@ object RunConfig {
     viaIdGoupsDirectoryPath: String = "",
     viaRunScriptPath: String = "",
     vehicleSampling: Seq[VehicleSample] = Seq.empty[VehicleSample],
+    vehicleSamplingOtherTypes: Double = 1.0,
     populationSampling: Seq[PopulationSample] = Seq.empty[PopulationSample],
     circleFilter: Seq[Circle] = Seq.empty[Circle]
   ): RunConfig = RunConfig(
@@ -66,6 +70,7 @@ object RunConfig {
     if (viaIdGoupsDirectoryPath.isEmpty) sourcePath + ".via.ids" else viaIdGoupsDirectoryPath,
     viaRunScriptPath,
     vehicleSampling,
+    vehicleSamplingOtherTypes,
     populationSampling,
     circleFilter
   )
@@ -73,8 +78,8 @@ object RunConfig {
   def filterPopulation(sourcePath: String, populationSamples: Seq[PopulationSample]): RunConfig =
     defaultValues(sourcePath, populationSampling = populationSamples)
 
-  def filterVehicles(sourcePath: String, vehiclesSamples: Seq[VehicleSample]): RunConfig =
-    defaultValues(sourcePath, vehicleSampling = vehiclesSamples)
+  def filterVehicles(sourcePath: String, vehiclesSamples: Seq[VehicleSample], vehiclesSamplesOtherTypes:Double = 1.0): RunConfig =
+    defaultValues(sourcePath, vehicleSampling = vehiclesSamples, vehicleSamplingOtherTypes = vehiclesSamplesOtherTypes)
 
   def withoutFiltering(sourcePath: String): RunConfig = defaultValues(sourcePath)
 }
