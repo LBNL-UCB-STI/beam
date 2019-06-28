@@ -8,12 +8,28 @@ import scala.xml.XML
 object TransformForPopulation {
 
   def transformAndWrite(config: RunConfig): Unit = {
-
     val events = EventsReader
       .fromFile(config.beamEventsPath)
       .getOrElse(Seq.empty[BeamEvent])
 
-    val selectedPopulation = collectPopulationIds(events, config.populationSampling)
+    val personMovedThroughCircle: String => Boolean =
+      if (config.circleFilter.isEmpty) _ => true
+      else {
+        val vehiclesMovedThroughCircles =
+          TransformAllPathTraversal.findVehiclesDrivingThroughCircles(events, config.networkPath, config.circleFilter)
+
+        val selectedPersons = events.foldLeft(mutable.HashSet.empty[String]) {
+          case (selected, pev: BeamPersonEntersVehicle) =>
+            if (vehiclesMovedThroughCircles.contains(pev.vehicleId)) selected += pev.personId
+            selected
+          case (selected, _) => selected
+        }
+
+        personId =>
+          selectedPersons.contains(personId)
+      }
+
+    val selectedPopulation = collectPopulationIds(events, config.populationSampling, personMovedThroughCircle)
 
     val processedEvents = EventsTransformer.filterAndFixEvents(events, selectedPopulation.contains)
     val (pathLinkEvents, typeToIdSeq) = EventsTransformer.transform(processedEvents)
@@ -22,12 +38,15 @@ object TransformForPopulation {
     Writer.writeViaIdFile(typeToIdSeq, config.viaIdGoupsFilePath)
   }
 
-  def collectPopulationIds(events: Traversable[BeamEvent], sampling: Seq[PopulationSample]): mutable.HashSet[String] = {
+  def collectPopulationIds(
+    events: Traversable[BeamEvent],
+    sampling: Seq[PopulationSample],
+    personMovedTroughCircles: String => Boolean
+  ): mutable.HashSet[String] = {
     val population = events.foldLeft(mutable.HashSet.empty[String])((ids, event) => {
       event match {
-        case pev: BeamPersonEntersVehicle => ids += pev.personId
-        case plv: BeamPersonLeavesVehicle => ids += plv.personId
-        case _                            => ids
+        case pev: BeamPersonEntersVehicle if personMovedTroughCircles(pev.personId) => ids += pev.personId
+        case _                                                                      => ids
       }
     })
 

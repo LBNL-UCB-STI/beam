@@ -46,7 +46,7 @@ object TransformAllPathTraversal {
       .fromFile(runConfig.beamEventsPath)
       .getOrElse(Seq.empty[BeamEvent])
 
-    val isVehicleInteresting: String => Boolean =
+    val vehicleMovedTroughCircles: String => Boolean =
       if (runConfig.circleFilter.isEmpty) (_) => true
       else {
         val selectedIds = findVehiclesDrivingThroughCircles(events, runConfig.networkPath, runConfig.circleFilter)
@@ -55,7 +55,7 @@ object TransformAllPathTraversal {
       }
 
     val selectedIds =
-      collectIds(events, isVehicleInteresting, runConfig.vehicleSampling, runConfig.vehicleSamplingOtherTypes)
+      collectIds(events, runConfig.vehicleSampling, runConfig.vehicleSamplingOtherTypes, vehicleMovedTroughCircles)
 
     val selectedEvents = events.collect {
       case event: BeamPathTraversal if selectedIds.contains(event.vehicleId) => event
@@ -68,13 +68,13 @@ object TransformAllPathTraversal {
 
   def collectIds(
     events: Traversable[BeamEvent],
-    isVehicleInteresting: String => Boolean,
     rules: Seq[VehicleSample],
-    otherVehicleTypesSamples: Double
+    otherVehicleTypesSamples: Double,
+    vehicleMovedTroughCircles: String => Boolean
   ): mutable.HashSet[String] = {
     val allVehicles = events.foldLeft(mutable.Map.empty[String, mutable.HashSet[String]])((vehicles, event) => {
       event match {
-        case pte: BeamPathTraversal if isVehicleInteresting(pte.vehicleId) =>
+        case pte: BeamPathTraversal if vehicleMovedTroughCircles(pte.vehicleId) =>
           vehicles.get(pte.vehicleType) match {
             case Some(map) => map += pte.vehicleId
             case None      => vehicles(pte.vehicleType) = mutable.HashSet(pte.vehicleId)
@@ -87,7 +87,9 @@ object TransformAllPathTraversal {
     val selectedIds = rules.foldLeft(mutable.HashSet.empty[String])((selected, rule) => {
       allVehicles.get(rule.vehicleType) match {
         case Some(vehicleIds) =>
-          vehicleIds.foreach(id => if (isVehicleInteresting(id) && rule.percentage >= Math.random()) selected += id)
+          vehicleIds.foreach(
+            id => if (vehicleMovedTroughCircles(id) && rule.percentage >= Math.random()) selected += id
+          )
         case None =>
       }
 
