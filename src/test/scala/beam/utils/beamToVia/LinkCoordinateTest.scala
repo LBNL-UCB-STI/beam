@@ -1,6 +1,5 @@
 package beam.utils.beamToVia
 
-import beam.utils.beamToVia.{LinkCoordinate, Point}
 import org.scalatest.{FlatSpecLike, Matchers}
 import scala.collection.mutable
 
@@ -31,8 +30,7 @@ class LinkCoordinateTest extends FlatSpecLike with Matchers {
 
     val errors = mutable.MutableList.empty[String]
 
-    val map = LinkCoordinate.parseNetwork(xml, errors += _)
-    errors shouldBe mutable.MutableList.empty[String]
+    val map = LinkCoordinate.parseNetwork(xml)
     map shouldBe Map(
       91712 -> LinkCoordinate(
         Point(551370.8722547909, 4183680.3650971777),
