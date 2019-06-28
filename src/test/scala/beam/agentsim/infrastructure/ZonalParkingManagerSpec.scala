@@ -292,7 +292,7 @@ object ZonalParkingManagerSpec {
       val quadTree = coords.foldLeft(new QuadTree[TAZ](xMin, yMin, xMax, yMax)) { (tree, tazData) =>
         val (coord, area) = tazData
         val tazId = Id.create(startAtId + tree.size, classOf[TAZ])
-        val taz = new TAZ(tazId, coord, area)
+        val taz = new TAZ(tazId, coord, area, Array.empty[Coord])
         tree.put(coord.getX, coord.getY, taz)
         tree
       }

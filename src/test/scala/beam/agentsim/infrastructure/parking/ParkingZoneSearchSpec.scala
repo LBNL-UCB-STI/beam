@@ -239,8 +239,8 @@ object ParkingZoneSearchSpec {
     val destinationNearTazA = new Coord(1, 1) // near taz 1
     val destinationNearTazB = new Coord(9, 9) // near taz 2
     val destinationInMiddle = new Coord(5, 5) // middle of TAZs
-    val tazA = new TAZ(Id.create("A", classOf[TAZ]), new Coord(0, 0), 0)
-    val tazB = new TAZ(Id.create("B", classOf[TAZ]), new Coord(10, 10), 0)
+    val tazA = new TAZ(Id.create("A", classOf[TAZ]), new Coord(0, 0), 0, Array.empty[Coord])
+    val tazB = new TAZ(Id.create("B", classOf[TAZ]), new Coord(10, 10), 0, Array.empty[Coord])
     val tazsInProblem: Seq[TAZ] = Seq(tazA, tazB)
   }
 
