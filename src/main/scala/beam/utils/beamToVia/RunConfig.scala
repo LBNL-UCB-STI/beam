@@ -1,6 +1,8 @@
 package beam.utils.beamToVia
 
-case class Circle(x: Double, y: Double, r: Double)
+case class Circle(x: Double, y: Double, r: Double) {
+  val rSquare: Double = r * r
+}
 
 case class VehicleSample(vehicleType: String, percentage: Double)
 
@@ -78,8 +80,20 @@ object RunConfig {
   def filterPopulation(sourcePath: String, populationSamples: Seq[PopulationSample]): RunConfig =
     defaultValues(sourcePath, populationSampling = populationSamples)
 
-  def filterVehicles(sourcePath: String, vehiclesSamples: Seq[VehicleSample], vehiclesSamplesOtherTypes:Double = 1.0): RunConfig =
-    defaultValues(sourcePath, vehicleSampling = vehiclesSamples, vehicleSamplingOtherTypes = vehiclesSamplesOtherTypes)
+  def filterVehicles(
+    sourcePath: String,
+    networkPath:String,
+    vehiclesSamples: Seq[VehicleSample] = Seq.empty[VehicleSample],
+    vehiclesSamplesOtherTypes: Double = 1.0,
+    circleFilter: Seq[Circle] = Seq.empty[Circle]
+  ): RunConfig =
+    defaultValues(
+      sourcePath,
+      networkPath,
+      vehicleSampling = vehiclesSamples,
+      vehicleSamplingOtherTypes = vehiclesSamplesOtherTypes,
+      circleFilter = circleFilter
+    )
 
   def withoutFiltering(sourcePath: String): RunConfig = defaultValues(sourcePath)
 }
