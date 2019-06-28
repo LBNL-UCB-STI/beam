@@ -11,7 +11,7 @@ object TransformAllPathTraversal {
       .fromFile(runConfig.beamEventsPath)
       .getOrElse(Seq.empty[BeamEvent])
 
-    val selectedIds = collectIds(events, runConfig.vehicleSampling)
+    val selectedIds = collectIds(events, runConfig.vehicleSampling, runConfig.vehicleSamplingOtherTypes)
 
     val selectedEvents = events.collect {
       case event: BeamPathTraversal if selectedIds.contains(event.vehicleId) => event
@@ -22,7 +22,11 @@ object TransformAllPathTraversal {
     Writer.writeViaIdFile(typeToIdSeq, runConfig.viaIdGoupsFilePath)
   }
 
-  def collectIds(events: Traversable[BeamEvent], rules: Seq[VehicleSample]): mutable.HashSet[String] = {
+  def collectIds(
+    events: Traversable[BeamEvent],
+    rules: Seq[VehicleSample],
+    otherVehicleTypesSamples: Double
+  ): mutable.HashSet[String] = {
     val allVehicles = events.foldLeft(mutable.Map.empty[String, mutable.HashSet[String]])((vehicles, event) => {
       event match {
         case pte: BeamPathTraversal =>
@@ -38,9 +42,7 @@ object TransformAllPathTraversal {
     val selectedIds = rules.foldLeft(mutable.HashSet.empty[String])((selected, rule) => {
       allVehicles.get(rule.vehicleType) match {
         case Some(vehicleIds) =>
-          vehicleIds.foreach(id => {
-            if (rule.percentage >= 1.0 || rule.percentage >= Math.random()) selected += id
-          })
+          vehicleIds.foreach(id => if (rule.percentage >= Math.random()) selected += id)
         case None =>
       }
 
@@ -50,7 +52,8 @@ object TransformAllPathTraversal {
     val filteredTypes = mutable.HashSet(rules.map(_.vehicleType): _*)
     allVehicles.foldLeft(selectedIds)((selected, vehiclesGroup) => {
       val (vehicleType: String, ids) = vehiclesGroup
-      if (!filteredTypes.contains(vehicleType)) selectedIds ++= ids
+      if (!filteredTypes.contains(vehicleType))
+        ids.foreach(id => if (otherVehicleTypesSamples >= Math.random()) selected += id)
       selected
     })
   }
