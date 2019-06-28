@@ -77,12 +77,17 @@ object RunConfig {
     circleFilter
   )
 
-  def filterPopulation(sourcePath: String, populationSamples: Seq[PopulationSample]): RunConfig =
-    defaultValues(sourcePath, populationSampling = populationSamples)
+  def filterPopulation(
+    sourcePath: String,
+    networkPath: String,
+    populationSamples: Seq[PopulationSample],
+    circleFilter: Seq[Circle] = Seq.empty[Circle]
+  ): RunConfig =
+    defaultValues(sourcePath, networkPath, populationSampling = populationSamples, circleFilter = circleFilter)
 
   def filterVehicles(
     sourcePath: String,
-    networkPath:String,
+    networkPath: String,
     vehiclesSamples: Seq[VehicleSample] = Seq.empty[VehicleSample],
     vehiclesSamplesOtherTypes: Double = 1.0,
     circleFilter: Seq[Circle] = Seq.empty[Circle]
