@@ -85,7 +85,11 @@ object AvailableModeUtils extends LazyLogging {
     }
   }
 
-  private def getAvailableModesOfPerson(person: Person, population: Population, permissibleModes: Seq[String]): Seq[String] = {
+  private def getAvailableModesOfPerson(
+    person: Person,
+    population: Population,
+    permissibleModes: Seq[String]
+  ): Seq[String] = {
     val excludedModes = getExcludedModesForPerson(population, person.getId.toString)
     permissibleModes.filterNot(am => excludedModes.exists(em => em.equalsIgnoreCase(am)))
   }
@@ -107,8 +111,9 @@ object AvailableModeUtils extends LazyLogging {
     household: Household,
     population: Population
   ): AttributesOfIndividual = {
-    Option (gerPersonCustomAttributes(person)).getOrElse {
-      val attribs: AttributesOfIndividual = PopulationAdjustment.createAttributesOfIndividual(beamScenario, population, person, household)
+    Option(gerPersonCustomAttributes(person)).getOrElse {
+      val attribs: AttributesOfIndividual =
+        PopulationAdjustment.createAttributesOfIndividual(beamScenario, population, person, household)
       person.getCustomAttributes.put(PopulationAdjustment.BEAM_ATTRIBUTES, attribs)
       attribs
     }
