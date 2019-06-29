@@ -43,8 +43,7 @@ object PlansBuilder {
   val newHH: HouseholdsImpl = new HouseholdsImpl()
   val newHHAttributes: ObjectAttributes = newHH.getHouseholdAttributes
 
-  val modeAllocator: AvailableModeUtils.AllowAllModes =
-    new AvailableModeUtils.AllowAllModes
+  val modeAllocator: AvailableModeUtils.AllowAllModes.type = AvailableModeUtils.AllowAllModes
 
   private var synthHouseholds = Vector[SynthHousehold]()
 
