@@ -1,17 +1,16 @@
 package beam.agentsim.infrastructure
 
-import beam.agentsim.infrastructure.taz.H3TAZTreeMap
-import beam.agentsim.infrastructure.taz.TAZTreeMap
+import beam.agentsim.infrastructure.taz.{H3TAZ, TAZTreeMap}
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamHelper
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.utils.{FileUtils, H3Utils, NetworkHelper, NetworkHelperImpl}
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.{FlatSpec, Matchers}
 
-class H3TAZTreeMapSpec extends FlatSpec with Matchers with BeamHelper {
+class H3TAZSpec extends FlatSpec with Matchers with BeamHelper {
 
   "this" must "work" in {
     val config = ConfigFactory
@@ -20,11 +19,10 @@ class H3TAZTreeMapSpec extends FlatSpec with Matchers with BeamHelper {
                      |beam.physsim.skipPhysSim = true
                      |beam.agentsim.lastIteration = 0
                    """.stripMargin)
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf"))
       .resolve()
     testH3(config)
   }
-
 
   private def testH3(config: Config): Unit = {
     val configBuilder = new MatSimBeamConfigBuilder(config)
@@ -35,14 +33,14 @@ class H3TAZTreeMapSpec extends FlatSpec with Matchers with BeamHelper {
     val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
-    val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
     scenario.setNetwork(networkCoordinator.network)
-
-    val tazMap = TAZTreeMap.fromShapeFile(beamConfig.beam.agentsim.taz.filePath, "taz")
-    val hexMap = H3TAZTreeMap.build(scenario, tazMap)
-
-    H3Utils.writeHexToShp(H3TAZTreeMap.toPolygons(hexMap), "out/test/polygons.shp")
+    val tazMap = TAZTreeMap.fromShapeFile("test/input/sf-light/shape/sf-light-tazs.shp", "taz")
+    val hexMap = H3TAZ.build(scenario, tazMap)
+    val popPerHex = H3TAZ.breakdownByPopulation(scenario, 10, hexMap)
+    assert(popPerHex.foldLeft(0)(_ + _._3.toInt) == scenario.getPopulation.getPersons.size)
+    assert(popPerHex.map(_._2).distinct.size == tazMap.getTAZs.size)
+    //H3TAZ.writeToShp("out/test/polygons2.shp", popPerHex)
+    //H3TAZ.writeToShp("out/test/polygons.shp", hexMap.getAll.map(hex => (hex, hexMap.getTAZ(hex).toString, 0.0)))
   }
 
 }
-
