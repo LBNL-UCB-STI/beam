@@ -30,6 +30,7 @@ object AvailableModeUtils extends LazyLogging {
 
   /**
     * Gets the excluded modes set for the given person in the population
+    *
     * @param population population from the scenario
     * @param personId the respective person's id
     * @return List of excluded mode string
@@ -50,6 +51,7 @@ object AvailableModeUtils extends LazyLogging {
 
   /**
     * Gets the excluded modes set for the given person
+    *
     * @param person the respective person
     * @return
     */
@@ -57,6 +59,7 @@ object AvailableModeUtils extends LazyLogging {
 
   /**
     * Sets the available modes for the given person in the population
+    *
     * @param population population from the scenario
     * @param person the respective person
     * @param permissibleModes List of permissible modes for the person
@@ -74,11 +77,9 @@ object AvailableModeUtils extends LazyLogging {
   ): Unit = {
     val availableModes = getAvailableModesOfPerson(person, population, permissibleModes)
     try {
-      person.getCustomAttributes
-        .put(
-          PopulationAdjustment.BEAM_ATTRIBUTES,
-          attributesOfIndividual.copy(availableModes = availableModes.map(f => BeamMode.withValue(f.toLowerCase)))
-        )
+      val attributesUpdated =
+        attributesOfIndividual.copy(availableModes = availableModes.map(f => BeamMode.withValue(f.toLowerCase)))
+      person.getCustomAttributes.put(PopulationAdjustment.BEAM_ATTRIBUTES, attributesUpdated)
     } catch {
       case e: Exception =>
         logger.error("Error while converting available mode string to respective Beam Mode Enums : " + e.getMessage, e)
@@ -127,6 +128,7 @@ object AvailableModeUtils extends LazyLogging {
 
   /**
     * Replaces the available modes given with the existing available modes for the given person
+    *
     * @param person the respective person
     * @param newAvailableModes List of new available modes to replace
     */
