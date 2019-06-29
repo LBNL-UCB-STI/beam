@@ -57,7 +57,6 @@ object AvailableModeUtils extends LazyLogging {
 
   /**
     * Sets the available modes for the given person in the population
-    *
     * @param population population from the scenario
     * @param person the respective person
     * @param permissibleModes List of permissible modes for the person
