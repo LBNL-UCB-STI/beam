@@ -205,12 +205,6 @@ class BeamSim @Inject()(
       }
       createGraphsFromEvents.createGraphs(event)
 
-//      val interval = beamConfig.beam.outputs.writePlansInterval
-//      val iterationNumber = event.getIteration
-//      val controllerIO = event.getServices.getControlerIO
-//      if (interval > 0 && iterationNumber % interval == 0) {
-//        PlansCsvWriter.toCsv(scenario, controllerIO.getIterationFilename(iterationNumber, "plans.csv"))
-//      }
       iterationSummaryStats += iterationStatsProviders
         .flatMap(_.getSummaryStats.asScala)
         .toMap
