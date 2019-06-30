@@ -1005,14 +1005,14 @@ class PersonAgent(
       stop(Failure("Unexpected RideHailResponse"))
     case Event(ParkingInquiryResponse(_, _), _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))
-    case ev @ Event(
-          TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, energyInJoules, Some(vehicle)), triggerId),
-          _
-        ) =>
-      // TODO JH discuss with colin, maybe it makes sense to move this somewhere else?!
-      log.debug("state(PersonAgent.myUnhandled.EndRefuelSessionTrigger): {}", ev)
-      handleEndCharging(energyInJoules, tick, sessionStart.toInt, vehicle)
-      stay() replying CompletionNotice(triggerId)
+//    case ev @ Event( // TODO JH remove
+//          TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, energyInJoules, Some(vehicle)), triggerId),
+//          _
+//        ) =>
+//      // TODO JH discuss with colin, maybe it makes sense to move this somewhere else?!
+//      log.debug("state(PersonAgent.myUnhandled.EndRefuelSessionTrigger): {}", ev)
+//      handleEndCharging(energyInJoules, tick, sessionStart.toInt, vehicle)
+    ////      stay() replying CompletionNotice(triggerId)
     case Event(e, s) =>
       log.warning("received unhandled request {} in state {}/{}", e, stateName, s)
       stay()

@@ -52,7 +52,6 @@ class BeamVehicle(
   var secondaryFuelLevelInJoules = beamVehicleType.secondaryFuelCapacityInJoule.getOrElse(0.0)
 
   var mustBeDrivenHome: Boolean = false
-  private var connectedToChargingPoint: Boolean = false
 
   /**
     * The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
@@ -64,6 +63,9 @@ class BeamVehicle(
 
   var reservedStall: Option[ParkingStall] = None
   var stall: Option[ParkingStall] = None
+
+  private var connectedToCharger: Boolean = false
+  private var chargerConnectedTick: Option[Long] = None
 
   /**
     * Called by the driver.
@@ -106,21 +108,31 @@ class BeamVehicle(
     stall = None
   }
 
-  def connectToChargingPoint(): Unit = {
-    if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType == Electricity)
-      connectedToChargingPoint = true
-    else
+  /**
+    *
+    * @param startTick
+    */
+  def connectToChargingPoint(startTick: Long): Unit = {
+    if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType == Electricity) {
+      connectedToCharger = true
+      chargerConnectedTick = Some(startTick)
+    } else
       logger.warn(
         "Trying to connect a non BEV/PHEV to a electricity charging station. This will cause an explosion. Ignoring!"
       )
   }
 
   def disconnectFromChargingPoint(): Unit = {
-    connectedToChargingPoint = false
+    connectedToCharger = false
+    chargerConnectedTick = None
   }
 
   def isConnectedToChargingPoint(): Boolean = {
-    connectedToChargingPoint
+    connectedToCharger
+  }
+
+  def getChargerConnectedTick(): Long = {
+    chargerConnectedTick.getOrElse(0L)
   }
 
   /**
@@ -208,7 +220,7 @@ class BeamVehicle(
     *
     * @return refuelingDuration
     */
-  def refuelingSessionDurationAndEnergyInJoules(): (Long, Double) = {
+  def refuelingSessionDurationAndEnergyInJoules(sessionDurationLimit: Option[Long] = None): (Long, Double) = {
     stall match {
       case Some(theStall) =>
         theStall.chargingPointType match {
@@ -217,9 +229,9 @@ class BeamVehicle(
               chargingPoint,
               primaryFuelLevelInJoules,
               beamVehicleType.primaryFuelCapacityInJoule,
-              100.0, // todo this should be vehicle dependent
-              100.0, // todo this should be vehicle dependent
-              None
+              100.0, // todo JH this should be vehicle dependent
+              100.0, // todo JH this should be vehicle dependent
+              sessionDurationLimit
             )
           case None =>
             (0, 0.0)

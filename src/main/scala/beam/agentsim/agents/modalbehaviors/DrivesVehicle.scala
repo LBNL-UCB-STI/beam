@@ -310,7 +310,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
 
             if (currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV) {
               stall.chargingPointType match {
-                case Some(_) => handleStartCharging(tick, triggerId, currentBeamVehicle)
+                case Some(_) => handleStartCharging(tick, currentBeamVehicle)
                 case None =>
                   log.warning(
                     "Charging request by vehicle {} ({}) on a spot without a charging point (parkingZoneId: {}). This is not handled yet!",
@@ -769,44 +769,23 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with HasServices with
       0.0
   }
 
-  def handleStartCharging(tick: Int, triggerId: Long, vehicle: BeamVehicle) = {
+  /**
+    * Currently only throws a [[ChargingPlugInEvent]]. Should be considered to be extended in the future to trigger
+    * a corresponding event to make the overall charging process more flexible
+    *
+    * @param currentTick
+    * @param vehicle the vehicle that should be connected to a charging point
+    */
+  def handleStartCharging(currentTick: Int, vehicle: BeamVehicle) = {
     log.debug("Vehicle {} connects to charger @ stall {}", vehicle.id, vehicle.stall.get)
-    vehicle.connectToChargingPoint()
+    vehicle.connectToChargingPoint(currentTick)
     eventsManager.processEvent(
       new ChargingPlugInEvent(
-        tick,
+        currentTick,
         vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
         vehicle.id
       )
     )
-    // FIXME what if stay duration < session duration -> restrict to max(session duration, stay duration)
-    val dummyStayDurationInTicks = 200; // TODO JH remove / adapt
-
-    // todo JH discuss with colin -> what if refueling session takes longer than sim time?
-    //  -> this will produce a dead letter -> accept or restrict fueling session to sim time?
-
-    // todo JH refactor the following code
-    val (sessionDuration, energyDelivered): (Long, Double) =
-      if (vehicle
-            .refuelingSessionDurationAndEnergyInJoules()
-            ._1 > 0 && vehicle.refuelingSessionDurationAndEnergyInJoules()._1 < dummyStayDurationInTicks)
-        vehicle.refuelingSessionDurationAndEnergyInJoules()
-      else if (vehicle.refuelingSessionDurationAndEnergyInJoules()._1 > dummyStayDurationInTicks)
-        (dummyStayDurationInTicks, vehicle.refuelingSessionDurationAndEnergyInJoules()._1)
-      else
-        (0, vehicle.refuelingSessionDurationAndEnergyInJoules()._1)
-
-    val chargingEndTick = tick + sessionDuration.toInt
-
-    log.debug(
-      "scheduling EndRefuelSessionTrigger at {} with {} J to vehicle {} to be delivered",
-      chargingEndTick,
-      energyDelivered,
-      vehicle.id
-    )
-
-    scheduler ! ScheduleTrigger(EndRefuelSessionTrigger(chargingEndTick, tick, energyDelivered, Some(vehicle)), self)
-
   }
 
 }
