@@ -55,7 +55,7 @@ object AvailableModeUtils extends LazyLogging {
     * @param person the respective person
     * @return
     */
-  def availableModesForPerson(person: Person): Seq[BeamMode] = gerPersonCustomAttributes(person).availableModes
+  def availableModesForPerson(person: Person): Seq[BeamMode] = getPersonCustomAttributes(person).availableModes
 
   /**
     * Sets the available modes for the given person in the population
@@ -65,7 +65,7 @@ object AvailableModeUtils extends LazyLogging {
     * @param permissibleModes List of permissible modes for the person
     */
   def setAvailableModesForPerson(person: Person, population: Population, permissibleModes: Seq[String]): Unit = {
-    val attributesOfIndividual = gerPersonCustomAttributes(person)
+    val attributesOfIndividual = getPersonCustomAttributes(person)
     setModesForPerson(person, population, permissibleModes, attributesOfIndividual)
   }
 
@@ -112,7 +112,7 @@ object AvailableModeUtils extends LazyLogging {
     household: Household,
     population: Population
   ): AttributesOfIndividual = {
-    Option(gerPersonCustomAttributes(person)).getOrElse {
+    Option(getPersonCustomAttributes(person)).getOrElse {
       val attribs: AttributesOfIndividual =
         PopulationAdjustment.createAttributesOfIndividual(beamScenario, population, person, household)
       person.getCustomAttributes.put(PopulationAdjustment.BEAM_ATTRIBUTES, attribs)
@@ -120,7 +120,7 @@ object AvailableModeUtils extends LazyLogging {
     }
   }
 
-  private def gerPersonCustomAttributes(person: Person): AttributesOfIndividual = {
+  private def getPersonCustomAttributes(person: Person): AttributesOfIndividual = {
     person.getCustomAttributes
       .get(PopulationAdjustment.BEAM_ATTRIBUTES)
       .asInstanceOf[AttributesOfIndividual]
@@ -133,7 +133,7 @@ object AvailableModeUtils extends LazyLogging {
     * @param newAvailableModes List of new available modes to replace
     */
   def replaceAvailableModesForPerson(person: Person, newAvailableModes: Seq[String]): Unit = {
-    val attributesOfIndividual = gerPersonCustomAttributes(person)
+    val attributesOfIndividual = getPersonCustomAttributes(person)
     try {
       person.getCustomAttributes
         .put(
