@@ -10,6 +10,7 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.EmbodiedBeamTrip
+import beam.sim.config.BeamConfig
 import beam.sim.{BeamServices, MapStringDouble}
 import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.Activity
@@ -44,6 +45,9 @@ class ModeChoiceLCCM(
   val beamServices: BeamServices,
   val lccm: LatentClassChoiceModel
 ) extends ModeChoiceCalculator {
+
+  override lazy val beamConfig: BeamConfig = beamServices.beamConfig
+
   var expectedMaximumUtility: Double = Double.NaN
   var classMembershipDistribution: Map[String, Double] = Map()
 

@@ -1,11 +1,10 @@
 package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorRef
+import beam.agentsim.agents.vehicles.PassengerSchedule.Manifest
 import beam.router.model.BeamLeg
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
-import org.matsim.vehicles.Vehicle
-import beam.agentsim.agents.vehicles.PassengerSchedule.Manifest
 
 import scala.collection.immutable.TreeMap
 
@@ -18,7 +17,7 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
     PassengerSchedule(schedule ++ legs.map(leg => (leg, Manifest())))
   }
 
-  def addPassenger(passenger: VehiclePersonId, legs: Seq[BeamLeg]): PassengerSchedule = {
+  def addPassenger(passenger: PersonIdWithActorRef, legs: Seq[BeamLeg]): PassengerSchedule = {
     var newSchedule = schedule ++ legs.map(leg => {
       val manifest: Manifest = schedule.getOrElse(leg, Manifest())
       (leg, manifest.copy(riders = manifest.riders + passenger))
@@ -34,11 +33,11 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
     PassengerSchedule(newSchedule)
   }
 
-  def legsBeforePassengerBoards(passenger: VehiclePersonId): List[BeamLeg] = {
+  def legsBeforePassengerBoards(passenger: PersonIdWithActorRef): List[BeamLeg] = {
     schedule.takeWhile(legManifest => !legManifest._2.riders.contains(passenger)).keys.toList
   }
 
-  def legsWithPassenger(passenger: VehiclePersonId): List[BeamLeg] = {
+  def legsWithPassenger(passenger: PersonIdWithActorRef): List[BeamLeg] = {
     schedule.filter(legManifest => legManifest._2.riders.contains(passenger)).keys.toList
   }
 
@@ -84,9 +83,9 @@ object PassengerSchedule {
     new PassengerSchedule(TreeMap[BeamLeg, Manifest]()(BeamLegOrdering))
 
   case class Manifest(
-    riders: Set[VehiclePersonId] = Set.empty,
-    boarders: Set[VehiclePersonId] = Set.empty,
-    alighters: Set[VehiclePersonId] = Set.empty
+    riders: Set[PersonIdWithActorRef] = Set.empty,
+    boarders: Set[PersonIdWithActorRef] = Set.empty,
+    alighters: Set[PersonIdWithActorRef] = Set.empty
   ) {
     override def toString: String = {
       s"[${riders.size}riders;${boarders.size}boarders;${alighters.size}alighters]"
@@ -94,8 +93,4 @@ object PassengerSchedule {
   }
 }
 
-case class VehiclePersonId(
-  vehicleId: Id[Vehicle],
-  personId: Id[Person],
-  personRef: ActorRef
-)
+case class PersonIdWithActorRef(personId: Id[Person], personRef: ActorRef)

@@ -1,10 +1,11 @@
 package beam.replanning.utilitybased
 
 import beam.agentsim.agents.memberships.HouseholdMembershipAllocator
-import beam.sim.BeamServices
+import beam.agentsim.agents.vehicles.FuelType.FuelType
+import beam.sim.{BeamScenario, BeamServices}
+import beam.agentsim.agents.vehicles.FuelType.FuelTypePrices
 import com.google.inject.Provider
 import javax.inject.Inject
-
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.Plan
 import org.matsim.api.core.v01.replanning.PlanStrategyModule
@@ -15,7 +16,8 @@ import org.matsim.core.replanning.{PlanStrategy, PlanStrategyImpl, ReplanningCon
 class UtilityBasedModeChoice @Inject()(
   config: Config,
   beamServices: BeamServices,
-  scenario: Scenario
+  scenario: Scenario,
+  beamScenario: BeamScenario
 ) extends Provider[PlanStrategy] {
 
   val householdMembershipAllocator =
@@ -38,7 +40,7 @@ class UtilityBasedModeChoice @Inject()(
     val strategy = new PlanStrategyImpl.Builder(new RandomPlanSelector())
     strategy.addStrategyModule(new PlanStrategyModule() {
       val changeModeForTour: ChangeModeForTour =
-        new ChangeModeForTour(beamServices, chainBasedTourVehicleAllocator)
+        new ChangeModeForTour(beamServices, chainBasedTourVehicleAllocator, beamScenario)
 
       override def handlePlan(plan: Plan): Unit =
         changeModeForTour.run(plan)

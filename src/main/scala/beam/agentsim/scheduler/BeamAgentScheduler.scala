@@ -53,6 +53,8 @@ object BeamAgentScheduler {
 
   case object Monitor extends SchedulerMessage
 
+  case object RequestCurrentTime extends SchedulerMessage
+
   case object SkipOverBadActors extends SchedulerMessage
 
   case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0) extends SchedulerMessage
@@ -243,6 +245,9 @@ class BeamAgentScheduler(
 
     case Terminated(actor) =>
       terminateActor(actor)
+
+    case RequestCurrentTime =>
+      sender ! nowInSeconds
 
     case Monitor =>
       if (beamConfig.beam.debug.debugEnabled) {

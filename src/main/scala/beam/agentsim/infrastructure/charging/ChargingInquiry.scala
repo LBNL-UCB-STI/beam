@@ -62,8 +62,7 @@ object ChargingInquiry {
     (beamVehicle.beamVehicleType.primaryFuelType, beamVehicle.beamVehicleType.secondaryFuelType) match {
       case (Electricity, None) => { //BEV
         //calculate the remaining driving distance in meters, reduced by 10% of the installed battery capacity as safety margin
-        val remainingDrivingDist = (privateVehicles(personData.currentVehicle.head)
-          .primaryFuelLevelInJoules / beamVehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter) - distanceBuffer
+        val remainingDrivingDist = (privateVehicles(personData.currentVehicle.head).primaryFuelLevelInJoules / beamVehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter) - distanceBuffer
 //        log.debug(s"Remaining distance until BEV has only 10% of it's SOC left =  $remainingDrivingDist meter")
 
         val remainingTourDist = nextActivity match {
@@ -74,19 +73,19 @@ object ChargingInquiry {
               .sliding(2, 1)
               .toList // todo try without list
               .foldLeft(0d) { (sum, pair) =>
-              sum + Math
-                .ceil(
-                  beamSkimmer
-                    .getTimeDistanceAndCost(
-                      pair.head.activity.getCoord,
-                      pair.last.activity.getCoord,
-                      0,
-                      CAR,
-                      beamVehicle.beamVehicleType.id
-                    )
-                    .distance
-                )
-            }
+                sum + Math
+                  .ceil(
+                    beamSkimmer
+                      .getTimeDistanceAndCost(
+                        pair.head.activity.getCoord,
+                        pair.last.activity.getCoord,
+                        0,
+                        CAR,
+                        beamVehicle.beamVehicleType.id
+                      )
+                      .distance
+                  )
+              }
           case None =>
             0 // if we don't have any more trips we don't need a chargingInquiry as we are @home again => assumption: charging @home always takes place
         }

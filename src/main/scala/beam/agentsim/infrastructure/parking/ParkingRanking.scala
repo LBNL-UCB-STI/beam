@@ -66,7 +66,6 @@ object ParkingRanking {
 //    need for charging. this implies that UtilityFunction should not be optional for a
 //    parking inquiry.
 
-
     ???
   }
 }

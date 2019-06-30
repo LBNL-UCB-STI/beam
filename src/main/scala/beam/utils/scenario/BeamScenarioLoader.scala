@@ -2,8 +2,8 @@ package beam.utils.scenario
 
 import java.util
 
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.utils.plan.sampling.AvailableModeUtils
@@ -77,11 +77,10 @@ class BeamScenarioLoader(
     replaceHouseholdsAttributes(households, loadedAttributes)
 
     // beamServices
-    beamServices.personHouseholds = buildServicesPersonHouseholds(households)
-    beamServices.privateVehicles.clear()
+    beamServices.beamScenario.privateVehicles.clear()
     vehicles
-      .map(c => buildBeamVehicle(beamServices.vehicleTypes, c))
-      .foreach(v => beamServices.privateVehicles.put(v.id, v))
+      .map(c => buildBeamVehicle(beamServices.beamScenario.vehicleTypes, c))
+      .foreach(v => beamServices.beamScenario.privateVehicles.put(v.id, v))
 
     logger.info("The scenario loading is completed.")
     scenario
@@ -130,6 +129,12 @@ class BeamScenarioLoader(
     population.getPersons.clear()
     population.getPersonAttributes.clear()
 
+    val personHouseholds = beamServices.matsimServices.getScenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
+      .toMap
+
     persons.foreach { personInfo =>
       val person = population.getFactory.createPerson(Id.createPersonId(personInfo.personId.id)) // TODO: find way to create a person without previous instance
 
@@ -140,7 +145,13 @@ class BeamScenarioLoader(
       personAttrib.putAttribute(personId, "rank", personInfo.rank)
       personAttrib.putAttribute(personId, "age", personInfo.age)
 
-      AvailableModeUtils.setAvailableModesForPerson_v2(beamServices, person, population, availableModes)
+      AvailableModeUtils.setAvailableModesForPerson_v2(
+        beamServices,
+        person,
+        personHouseholds(person.getId),
+        population,
+        availableModes
+      )
 
       population.addPerson(person)
     }
@@ -263,14 +274,6 @@ object BeamScenarioLoader extends LazyLogging {
     }
   }
 
-  def buildServicesPersonHouseholds(households: Households): Map[Id[Person], Household] = {
-    households.getHouseholds
-      .values()
-      .asScala
-      .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
-      .toMap
-  }
-
   def buildBeamVehicle(map: Map[Id[BeamVehicleType], BeamVehicleType], info: VehicleInfo): BeamVehicle = {
     val matsimVehicleType: VehicleType =
       VehicleUtils.getFactory.createVehicleType(Id.create(info.vehicleTypeId, classOf[VehicleType]))
@@ -280,12 +283,7 @@ object BeamScenarioLoader extends LazyLogging {
     val beamVehicleId = Id.create(matsimVehicle.getId, classOf[BeamVehicle])
     val beamVehicleTypeId = Id.create(info.vehicleTypeId, classOf[BeamVehicleType])
 
-    val beamVehicleType = map.getOrElse(
-      beamVehicleTypeId, {
-        logger.warn(s"Not able to find vehicleType for id:[${info.vehicleTypeId}]")
-        BeamVehicleType.defaultCarBeamVehicleType
-      }
-    )
+    val beamVehicleType = map(beamVehicleTypeId)
 
     val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
     new BeamVehicle(beamVehicleId, powerTrain, beamVehicleType)
