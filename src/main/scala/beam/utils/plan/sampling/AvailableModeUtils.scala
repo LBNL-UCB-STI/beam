@@ -110,7 +110,12 @@ object AvailableModeUtils extends LazyLogging {
     setModesForPerson(person, population, permissibleModes, attributesOfIndividual)
   }
 
-  private def getOrElseUpdateAttributesOfIndividualFromPerson(beamScenario: BeamScenario, person: Person, household: Household, population: Population): AttributesOfIndividual = {
+  private def getOrElseUpdateAttributesOfIndividualFromPerson(
+    beamScenario: BeamScenario,
+    person: Person,
+    household: Household,
+    population: Population
+  ): AttributesOfIndividual = {
     Option(
       person.getCustomAttributes
         .get(PopulationAdjustment.BEAM_ATTRIBUTES)

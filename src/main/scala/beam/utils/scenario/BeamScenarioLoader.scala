@@ -131,7 +131,7 @@ class BeamScenarioLoader(
     logger.info("Applying persons...")
     val result = scenarioBuilder.buildPopulation
 
-    persons.foreach{ personInfo =>
+    persons.foreach { personInfo =>
       val person = result.getFactory.createPerson(Id.createPersonId(personInfo.personId.id))
       val personId = person.getId.toString
 
