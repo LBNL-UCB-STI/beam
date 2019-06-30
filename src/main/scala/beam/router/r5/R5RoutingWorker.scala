@@ -49,7 +49,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 case class WorkerParameters(
   beamConfig: BeamConfig,
@@ -485,8 +485,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       }
     }
 
-    val vehicle = request.streetVehicles.head
-
     /*
      * Our algorithm captures a few different patterns of travel. Two of these require extra routing beyond what we
      * call the "main" route calculation below. In both cases, we have a single main transit route
@@ -506,72 +504,73 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
      * on a threshold, optionally routes a WALK leg to the vehicle and adjusts the main route location & time accordingly.
      *
      */
-    val mainRouteToVehicle = request.streetVehiclesUseIntermodalUse == Egress && isRouteForPerson && vehicle.mode != WALK
-    val mainRouteRideHailTransit = request.streetVehiclesUseIntermodalUse == AccessAndEgress && isRouteForPerson && vehicle.mode != WALK
-    val maybeWalkToThisVehicle = maybeWalkToVehicle(vehicle)
-    val maybeUseVehicleOnEgress = maybeUseVehicleOnEgressTry(vehicle).get
+    val mainRouteToVehicle = request.streetVehiclesUseIntermodalUse == Egress && isRouteForPerson
+    val mainRouteRideHailTransit = request.streetVehiclesUseIntermodalUse == AccessAndEgress && isRouteForPerson
 
-    val theOrigin = if (mainRouteToVehicle || mainRouteRideHailTransit) {
-      request.originUTM
-    } else {
-      vehicle.locationUTM.loc
-    }
-    val theDestination = if (mainRouteToVehicle) {
-      vehicle.locationUTM.loc
-    } else {
-      request.destinationUTM
-    }
-    val from = geo.snapToR5Edge(
-      transportNetwork.streetLayer,
-      geo.utm2Wgs(theOrigin),
-      10E3
-    )
-    val to = geo.snapToR5Edge(
-      transportNetwork.streetLayer,
-      geo.utm2Wgs(theDestination),
-      10E3
-    )
-    val walkToVehicleDuration = maybeWalkToThisVehicle.map(leg => leg.duration).getOrElse(0)
-    val time = request.departureTime + walkToVehicleDuration
     val profileRequest = createProfileRequest
-    profileRequest.fromLon = from.getX
-    profileRequest.fromLat = from.getY
-    profileRequest.toLon = to.getX
-    profileRequest.toLat = to.getY
-    profileRequest.fromTime = time
-    profileRequest.toTime = time + 61 // Important to allow 61 seconds for transit schedules to be considered!
-    profileRequest.directModes = if (mainRouteToVehicle) {
-      util.EnumSet.of(LegMode.WALK)
-    } else if (mainRouteRideHailTransit) {
-      util.EnumSet.noneOf(classOf[LegMode])
+    val accessVehicles = if (mainRouteToVehicle) {
+      Vector(request.streetVehicles.find(_.mode == WALK).get)
     } else {
-      util.EnumSet.of(vehicle.mode.r5Mode.get.left.get)
+      request.streetVehicles
+    }
+    val egressVehicles = if (mainRouteRideHailTransit) {
+      request.streetVehicles
+    } else if (request.withTransit) {
+      Vector(request.streetVehicles.find(_.mode == WALK).get)
+    } else {
+      Vector()
+    }
+    val destinationVehicles = if (mainRouteToVehicle) {
+      request.streetVehicles
+    } else {
+      Vector()
     }
     if (request.withTransit) {
       profileRequest.transitModes = util.EnumSet.allOf(classOf[TransitModes])
-      profileRequest.accessModes = if (mainRouteRideHailTransit) {
-        util.EnumSet.of(LegMode.CAR)
-      } else {
-        profileRequest.directModes
-      }
-      profileRequest.egressModes = if (mainRouteRideHailTransit) {
-        util.EnumSet.of(LegMode.CAR)
-      } else {
-        util.EnumSet.of(LegMode.WALK)
-      }
     }
+
+    val destinationVehicle = destinationVehicles.headOption
+
     val profileResponse = new ProfileResponse
     val directOption = new ProfileOption
     profileRequest.reverseSearch = false
-    for (mode <- profileRequest.directModes.asScala) {
+    val directVehicles = accessVehicles
+    for (vehicle <- directVehicles) {
+      val theOrigin = if (mainRouteToVehicle || mainRouteRideHailTransit) {
+        request.originUTM
+      } else {
+        vehicle.locationUTM.loc
+      }
+      val theDestination = if (mainRouteToVehicle) {
+        vehicle.locationUTM.loc
+      } else {
+        request.destinationUTM
+      }
+      val from = geo.snapToR5Edge(
+        transportNetwork.streetLayer,
+        geo.utm2Wgs(theOrigin),
+        10E3
+      )
+      val to = geo.snapToR5Edge(
+        transportNetwork.streetLayer,
+        geo.utm2Wgs(theDestination),
+        10E3
+      )
+      profileRequest.fromLon = from.getX
+      profileRequest.fromLat = from.getY
+      profileRequest.toLon = to.getX
+      profileRequest.toLat = to.getY
       val streetRouter = new StreetRouter(
         transportNetwork.streetLayer,
         travelTimeCalculator(vehicleTypes(vehicle.vehicleTypeId), profileRequest.fromTime),
         turnCostCalculator,
         travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
       )
+      val walkToVehicleDuration = maybeWalkToVehicle(vehicle).map(leg => leg.duration).getOrElse(0)
+      profileRequest.fromTime = request.departureTime + walkToVehicleDuration
+      profileRequest.toTime = profileRequest.fromTime + 61 // Important to allow 61 seconds for transit schedules to be considered!
       streetRouter.profileRequest = profileRequest
-      streetRouter.streetMode = toR5StreetMode(mode)
+      streetRouter.streetMode = toR5StreetMode(vehicle.mode)
       streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
       if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)) {
         if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)) {
@@ -581,7 +580,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
           if (lastState != null) {
             val streetPath = new StreetPath(lastState, transportNetwork, false)
-            val streetSegment = new StreetSegment(streetPath, mode, transportNetwork.streetLayer)
+            val streetSegment = new StreetSegment(streetPath, vehicle.mode.r5Mode.get.left.get, transportNetwork.streetLayer)
             directOption.addDirect(streetSegment, profileRequest.getFromTimeDateZD)
           }
         }
@@ -593,7 +592,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     if (profileRequest.hasTransit) {
       profileRequest.reverseSearch = false
       val accessRouters = mutable.Map[LegMode, StreetRouter]()
-      for (mode <- profileRequest.accessModes.asScala) {
+      for (vehicle <- accessVehicles) {
         val streetRouter = new StreetRouter(
           transportNetwork.streetLayer,
           travelTimeCalculator(vehicleTypes(vehicle.vehicleTypeId), profileRequest.fromTime),
@@ -601,21 +600,32 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
         )
         streetRouter.profileRequest = profileRequest
-        streetRouter.streetMode = toR5StreetMode(mode)
+        streetRouter.streetMode = toR5StreetMode(vehicle.mode)
         //Gets correct maxCar/Bike/Walk time in seconds for access leg based on mode since it depends on the mode
-        streetRouter.timeLimitSeconds = profileRequest.getTimeLimit(mode)
+        streetRouter.timeLimitSeconds = profileRequest.getTimeLimit(vehicle.mode.r5Mode.get.left.get)
         streetRouter.transitStopSearch = true
         streetRouter.quantityToMinimize = StreetRouter.State.RoutingVariable.DURATION_SECONDS
         if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)) {
           streetRouter.route()
-          //Searching for access paths
-          accessRouters.put(mode, streetRouter)
+          accessRouters.put(vehicle.mode.r5Mode.get.left.get, streetRouter)
         }
       }
 
       val egressRouters = mutable.Map[LegMode, StreetRouter]()
       profileRequest.reverseSearch = true
-      for (mode <- profileRequest.egressModes.asScala) {
+      for (vehicle <- egressVehicles) {
+        val theDestination = if (mainRouteToVehicle) {
+          vehicle.locationUTM.loc
+        } else {
+          request.destinationUTM
+        }
+        val to = geo.snapToR5Edge(
+          transportNetwork.streetLayer,
+          geo.utm2Wgs(theDestination),
+          10E3
+        )
+        profileRequest.toLon = to.getX
+        profileRequest.toLat = to.getY
         val streetRouter = new StreetRouter(
           transportNetwork.streetLayer,
           travelTimeCalculator(vehicleTypes(vehicle.vehicleTypeId), profileRequest.fromTime),
@@ -624,12 +634,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         )
         streetRouter.transitStopSearch = true
         streetRouter.quantityToMinimize = StreetRouter.State.RoutingVariable.DURATION_SECONDS
-        streetRouter.streetMode = toR5StreetMode(mode)
+        streetRouter.streetMode = toR5StreetMode(vehicle.mode)
         streetRouter.profileRequest = profileRequest
-        streetRouter.timeLimitSeconds = profileRequest.getTimeLimit(mode)
+        streetRouter.timeLimitSeconds = profileRequest.getTimeLimit(vehicle.mode.r5Mode.get.left.get)
         if (streetRouter.setOrigin(profileRequest.toLat, profileRequest.toLon)) {
           streetRouter.route()
-          egressRouters.put(mode, streetRouter)
+          egressRouters.put(vehicle.mode.r5Mode.get.left.get, streetRouter)
         }
       }
 
@@ -674,7 +684,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             transportNetwork.transitLayer.routes.size() == 0
           )
           //TODO make a more sensible window not just 30 minutes
-          startTime >= time && startTime <= time + 1800
+          startTime >= profileRequest.fromTime && startTime <= profileRequest.fromTime + 1800
         }
         .map { itinerary =>
           // Using itinerary start as access leg's startTime
@@ -686,19 +696,19 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             .toInt
 
           val legsWithFares = mutable.ArrayBuffer.empty[LegWithFare]
-          maybeWalkToThisVehicle.foreach(walkLeg => {
+          val access = option.access.get(itinerary.connection.access)
+          val vehicle = accessVehicles.find(v => v.mode.r5Mode.get.left.get == access.mode).get
+          maybeWalkToVehicle(vehicle).foreach(walkLeg => {
             // If there's a gap between access leg start time and walk leg, we need to move that ahead
             // this covers the various contingencies for doing this.
             val delayStartTime = Math.max(0.0, (tripStartTime - request.departureTime) - walkLeg.duration)
             legsWithFares += LegWithFare(walkLeg.updateStartTime(walkLeg.startTime + delayStartTime.toInt), 0.0)
           })
-
-          val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
-
-          val access = option.access.get(itinerary.connection.access)
           legsWithFares ++= buildStreetBasedLegs(access, tripStartTime, vehicleTypes(vehicle.vehicleTypeId))
 
+          val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
           // Optionally add a Dummy walk BeamLeg to the end of that trip
+
           if (isRouteForPerson && access.mode != LegMode.WALK) {
             if (!isTransit)
               legsWithFares += LegWithFare(
@@ -801,6 +811,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
             if (itinerary.connection.egress != null) {
               val egress = option.egress.get(itinerary.connection.egress)
+              val vehicle = egressVehicles.find(v => v.mode.r5Mode.get.left.get == egress.mode).get
               legsWithFares ++= buildStreetBasedLegs(egress, arrivalTime, vehicleTypes(vehicle.vehicleTypeId))
               if (isRouteForPerson && egress.mode != LegMode.WALK)
                 legsWithFares += LegWithFare(
@@ -809,12 +820,13 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                 )
             }
           }
-          maybeUseVehicleOnEgress.foreach { legWithFare =>
+          val vehicleToDestinationLegs = destinationVehicle.map(v => maybeUseVehicleOnEgressTry(v).get).getOrElse(Vector())
+          vehicleToDestinationLegs.foreach { legWithFare =>
             val departAt = legsWithFares.last.leg.endTime
             val updatedLeg = legWithFare.leg.updateStartTime(departAt)
             legsWithFares += LegWithFare(updatedLeg, legWithFare.fare)
           }
-          if (maybeUseVehicleOnEgress.nonEmpty && isRouteForPerson) {
+          if (vehicleToDestinationLegs.nonEmpty && isRouteForPerson) {
             legsWithFares += LegWithFare(
               dummyLeg(legsWithFares.last.leg.endTime, legsWithFares.last.leg.travelPath.endPoint.loc),
               0.0
@@ -897,6 +909,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               unbecomeDriverOnCompletion = false
             )
           } else {
+            val vehicle = egressVehicles.find(v => v.mode == beamLeg.mode).getOrElse(accessVehicles.find(v => v.mode == beamLeg.mode).get)
             val unbecomeDriverAtComplete = Modes
               .isR5LegMode(beamLeg.mode) && vehicle.asDriver && ((beamLeg.mode == CAR && (indexOfFirstCarLegInParkingTrip < 0 || index != indexOfFirstCarLegInParkingTrip)) ||
             (beamLeg.mode != CAR && beamLeg.mode != WALK) ||
