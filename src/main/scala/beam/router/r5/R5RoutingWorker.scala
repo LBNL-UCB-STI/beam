@@ -649,7 +649,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           accessRouters.mapValues(_.getReachedStops).asJava,
           egressRouters.mapValues(_.getReachedStops).asJava,
           (departureTime: Int) =>
-            new FareDominatingList(
+            new BeamDominatingList(
               profileRequest.inRoutingFareCalculator,
               Integer.MAX_VALUE,
               departureTime + profileRequest.maxTripDurationMinutes * 60
@@ -1262,3 +1262,4 @@ object R5RoutingWorker {
   }
 
 }
+

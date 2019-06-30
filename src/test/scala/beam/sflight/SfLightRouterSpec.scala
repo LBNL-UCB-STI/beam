@@ -6,7 +6,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.{BIKE, CAR, RIDE_HAIL, TRAM, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, TRAM, WALK, WALK_TRANSIT}
 import beam.router.model.{BeamLeg, BeamPath, BeamTrip, EmbodiedBeamTrip}
 import beam.router.{BeamRouter, Modes}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -279,7 +279,14 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             new SpaceTime(origin, time),
             WALK,
             asDriver = true
-          )
+          ),
+          StreetVehicle(
+            Id.createVehicleId("116378-2"),
+            Id.create("Car", classOf[BeamVehicleType]),
+            new SpaceTime(origin, 0),
+            Modes.BeamMode.CAR,
+            asDriver = true
+          ),
         )
       )
       val response = expectMsgType[RoutingResponse]
@@ -287,6 +294,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       assert(response.itineraries.exists(_.costEstimate == 1.95))
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
+      assert(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))
     }
 
     "respond with Failure(_) to a request with a bad coordinate" in {
