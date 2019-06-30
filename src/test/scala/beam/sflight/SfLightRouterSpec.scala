@@ -176,24 +176,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true
-          ),
-          StreetVehicle(
-            Id.createVehicleId("17673-0"),
-            Id.create("Car", classOf[BeamVehicleType]),
-            new SpaceTime(new Coord(origin.getX, origin.getY), time),
-            Modes.BeamMode.CAR,
-            asDriver = true
           )
         )
       )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == RIDE_HAIL))
-      assert(response.itineraries.exists(_.tripClassifier == CAR))
-
-      val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      //      assertMakesSense(carOption)
-      val actualModesOfCarOption = carOption.toBeamTrip.legs.map(_.mode)
-      actualModesOfCarOption should contain theSameElementsInOrderAs List(WALK, CAR, WALK)
     }
 
     "respond with a walk and a car route for going from downtown SF to Treasure Island" in {
@@ -245,6 +232,9 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
           }
       }
 
+      val carOption = response.itineraries.find(_.tripClassifier == CAR).get
+      val actualModesOfCarOption = carOption.toBeamTrip.legs.map(_.mode)
+      actualModesOfCarOption should contain theSameElementsInOrderAs List(WALK, CAR, WALK)
     }
 
     "respond with a unlimited transfer route having cost 2.75 USD." in {

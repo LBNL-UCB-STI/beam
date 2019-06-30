@@ -534,8 +534,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     val profileResponse = new ProfileResponse
     val directOption = new ProfileOption
     profileRequest.reverseSearch = false
-    val directVehicles = accessVehicles
-    for (vehicle <- directVehicles) {
+    for (vehicle <- accessVehicles) {
       val theOrigin = if (mainRouteToVehicle || mainRouteRideHailTransit) {
         request.originUTM
       } else {
