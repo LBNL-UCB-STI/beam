@@ -214,7 +214,7 @@ class BeamScenarioLoader(
   }
 
   private def selectedPlanFromPersonOrBuildNew(person: Person): Plan = {
-    Option(person.getSelectedPlan).getOrElse{
+    Option(person.getSelectedPlan).getOrElse {
       val plan = PopulationUtils.createPlan(person)
       person.addPlan(plan)
       person.setSelectedPlan(plan)
