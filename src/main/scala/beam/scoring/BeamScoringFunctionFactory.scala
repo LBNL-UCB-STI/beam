@@ -58,9 +58,10 @@ class BeamScoringFunctionFactory @Inject()(
             // Here we modify the last leg of the trip (the dummy walk leg) to have the right arrival time
             // This will therefore now accounts for dynamic delays or difference between quoted ride hail trip time and actual
             val bodyVehicleId = trips.head.legs.head.beamVehicleId
+            val bodyVehicleTypeId = trips.head.legs.head.beamVehicleTypeId
             trips.update(
               trips.size - 1,
-              PersonAgent.correctTripEndTime(trips.last, e.getTime().toInt, bodyVehicleId)
+              PersonAgent.correctTripEndTime(trips.last, e.getTime().toInt, bodyVehicleId, bodyVehicleTypeId)
             )
           case _ =>
         }
@@ -168,7 +169,7 @@ class BeamScoringFunctionFactory @Inject()(
                     leg.beamLeg.mode,
                     modeChoiceMultinomialLogit,
                     beamServices,
-                    Option(leg.beamVehicleTypeId),
+                    leg.beamVehicleTypeId,
                     destinationActivity,
                     leg.isRideHail,
                     leg.isPooledTrip

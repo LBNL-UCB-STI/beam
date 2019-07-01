@@ -11,7 +11,19 @@ import scala.collection.JavaConverters._
 object PopulationCsvWriter extends ScenarioCsvWriter {
 
   override protected val fields: Seq[String] =
-    Seq("personId", "age", "isFemale", "householdId", "householdRank", "excludedModes")
+    Seq("personId", "age", "isFemale", "householdId", "householdRank", "excludedModes", "valueOfTime")
+
+  // This method is needed because different sources fill differently
+  // matsim xml loader fill the age in the property customAttributes
+  // urbansim loader fill the age in the property personAttributes
+  def readAge(option1: Option[Int], option2: Option[Int]): Option[Int] = {
+    (option1, option2) match {
+      case (Some(v1), None)     => Some(v1)
+      case (Some(v1), Some(v2)) => Some(Integer.max(v1, v2))
+      case (None, Some(v2))     => Some(v2)
+      case (None, None)         => None
+    }
+  }
 
   override def contentIterator(scenario: Scenario): Iterator[String] = {
     val personIdToHouseHoldId: Map[Id[Person], Id[Household]] = scenario.getHouseholds.getHouseholds
@@ -40,13 +52,20 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
         }
         .getOrElse("")
 
+      val personAge = readAge(
+        customAttributes.age,
+        Option(personAttributes.getAttribute(person.getId.toString, "age")).map(_.toString.toInt)
+      ).map(_.toString).getOrElse("")
+
       val values = Seq(
         person.getId.toString,
-        customAttributes.age.getOrElse(""),
+        personAge,
         !customAttributes.isMale,
         personIdToHouseHoldId.get(person.getId).map(_.toString).getOrElse(""),
         String.valueOf(personAttributes.getAttribute(person.getId.toString, "rank")),
-        excludedModes
+        excludedModes,
+        Option(personAttributes.getAttribute(person.getId.toString, "valueOfTime"))
+          .getOrElse(customAttributes.valueOfTime)
       )
       values.mkString("", FieldSeparator, LineSeparator)
     }

@@ -3,26 +3,31 @@ package beam.agentsim.infrastructure
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Random, Success, Try}
-
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.infrastructure.charging.ChargingInquiryData
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
-import beam.sim.{BeamServices, HasServices}
+import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
+import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.collections.QuadTree
 
+import scala.annotation.tailrec
+import scala.collection.JavaConverters._
+import scala.util.{Failure, Random, Success, Try}
+
 class ZonalParkingManager(
-  val beamServices: BeamServices,
+  tazTreeMap: TAZTreeMap,
+  geo: GeoUtils,
   parkingZones: Array[ParkingZone],
   zoneSearchTree: ParkingZoneSearch.ZoneSearch[TAZ],
-  rand: Random
+  rand: Random,
+  boundingBox: Envelope
 ) extends Actor
-    with HasServices
     with ActorLogging {
 
   var totalStallsInUse: Long = 0L
@@ -50,9 +55,10 @@ class ZonalParkingManager(
         inquiry.chargingInquiryData,
         zoneSearchTree,
         parkingZones,
-        beamServices.tazTreeMap.tazQuadTree,
-        beamServices.geo.distUTMInMeters,
-        rand
+        tazTreeMap.tazQuadTree,
+        geo.distUTMInMeters,
+        rand,
+        boundingBox
       )
 
       // reserveStall is false when agent is only seeking pricing information
@@ -107,20 +113,22 @@ object ZonalParkingManager extends LazyLogging {
 
   /**
     * constructs a ZonalParkingManager from file
-    * @param beamServices central repository for simulation data
     * @param random random number generator used to sample parking stall locations
     * @return an instance of the ZonalParkingManager class
     */
   def apply(
-    beamServices: BeamServices,
-    random: Random
+    beamConfig: BeamConfig,
+    tazTreeMap: TAZTreeMap,
+    geo: GeoUtils,
+    random: Random,
+    boundingBox: Envelope
   ): ZonalParkingManager = {
 
     // generate or load parking
-    val parkingFilePath: String = beamServices.beamConfig.beam.agentsim.taz.parkingFilePath
+    val parkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
 
     val (stalls, searchTree) = if (parkingFilePath.isEmpty) {
-      ParkingZoneFileUtils.generateDefaultParkingFromTazfile(beamServices.beamConfig.beam.agentsim.taz.filePath)
+      ParkingZoneFileUtils.generateDefaultParkingFromTazfile(beamConfig.beam.agentsim.taz.filePath)
     } else {
       Try {
         ParkingZoneFileUtils.fromFile(parkingFilePath)
@@ -128,43 +136,49 @@ object ZonalParkingManager extends LazyLogging {
         case Success((s, t)) => (s, t)
         case Failure(e) =>
           logger.warn(s"unable to read contents of provided parking file $parkingFilePath, got ${e.getMessage}.")
-          ParkingZoneFileUtils.generateDefaultParkingFromTazfile(beamServices.beamConfig.beam.agentsim.taz.filePath)
+          ParkingZoneFileUtils.generateDefaultParkingFromTazfile(beamConfig.beam.agentsim.taz.filePath)
       }
     }
 
-    new ZonalParkingManager(beamServices, stalls, searchTree, random)
+    new ZonalParkingManager(tazTreeMap, geo, stalls, searchTree, random, boundingBox)
   }
 
   /**
     * constructs a ZonalParkingManager from a string iterator
     * @param parkingDescription line-by-line string representation of parking including header
-    * @param beamServices central repository for simulation data
     * @param random random generator used for sampling parking locations
     * @param includesHeader true if the parkingDescription includes a csv-style header
     * @return
     */
   def apply(
     parkingDescription: Iterator[String],
-    beamServices: BeamServices,
+    tazTreeMap: TAZTreeMap,
+    geo: GeoUtils,
     random: Random,
+    boundingBox: Envelope,
     includesHeader: Boolean = true
   ): ZonalParkingManager = {
     val parking = ParkingZoneFileUtils.fromIterator(parkingDescription, includesHeader)
-    new ZonalParkingManager(beamServices, parking.zones, parking.tree, random)
+    new ZonalParkingManager(tazTreeMap, geo, parking.zones, parking.tree, random, boundingBox)
   }
 
   /**
     * builds a ZonalParkingManager Actor
-    * @param beamServices core services related to this simulation
     * @param beamRouter Actor responsible for routing decisions (deprecated/previously unused)
     * @return
     */
   def props(
-    beamServices: BeamServices,
+    beamConfig: BeamConfig,
+    tazTreeMap: TAZTreeMap,
+    geo: GeoUtils,
     beamRouter: ActorRef,
-    random: Random = new Random(System.currentTimeMillis)
+    boundingBox: Envelope
   ): Props = {
-    Props(ZonalParkingManager(beamServices, random))
+    val random = {
+      val seed = beamConfig.matsim.modules.global.randomSeed
+      new Random(seed)
+    }
+    Props(ZonalParkingManager(beamConfig, tazTreeMap, geo, random, boundingBox))
   }
 
   /**
@@ -193,7 +207,8 @@ object ZonalParkingManager extends LazyLogging {
     stalls: Array[ParkingZone],
     tazQuadTree: QuadTree[TAZ],
     distanceFunction: (Coord, Coord) => Double,
-    random: Random
+    random: Random,
+    boundingBox: Envelope
   ): (ParkingZone, ParkingStall) = {
 
     @tailrec
@@ -258,7 +273,7 @@ object ZonalParkingManager extends LazyLogging {
       case Some(result) =>
         result
       case None =>
-        val newStall = ParkingStall.lastResortStall(random)
+        val newStall = ParkingStall.lastResortStall(boundingBox, random)
         (ParkingZone.DefaultParkingZone, newStall)
     }
   }

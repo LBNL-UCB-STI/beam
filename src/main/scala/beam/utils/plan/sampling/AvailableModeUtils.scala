@@ -3,11 +3,12 @@ package beam.utils.plan.sampling
 import java.util
 
 import beam.router.Modes.BeamMode
-import beam.sim.BeamServices
+import beam.sim.BeamScenario
 import beam.sim.population.{AttributesOfIndividual, PopulationAdjustment}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Person, Plan, Population}
 import org.matsim.core.population.algorithms.PermissibleModesCalculator
+import org.matsim.households.Household
 
 import scala.collection.JavaConverters
 
@@ -97,25 +98,38 @@ object AvailableModeUtils extends LazyLogging {
   }
 
   def setAvailableModesForPerson_v2(
-    beamServices: BeamServices,
+    beamScenario: BeamScenario,
     person: Person,
+    household: Household,
     population: Population,
     permissibleModes: Seq[String]
   ): Unit = {
-    val attributesOfIndividual = Option(
-      person.getCustomAttributes
-        .get(PopulationAdjustment.BEAM_ATTRIBUTES)
-        .asInstanceOf[AttributesOfIndividual]
-    ).getOrElse {
-      val attribs = PopulationAdjustment.createAttributesOfIndividual(beamServices, population, person)
-      person.getCustomAttributes.put(PopulationAdjustment.BEAM_ATTRIBUTES, attribs)
-      attribs
+    val attributesOfIndividual = {
+      getOrElseUpdateAttributesOfIndividualFromPerson(beamScenario, person, household, population)
     }
     setModesForPerson(person, population, permissibleModes, attributesOfIndividual)
   }
 
+  private def getOrElseUpdateAttributesOfIndividualFromPerson(
+    beamScenario: BeamScenario,
+    person: Person,
+    household: Household,
+    population: Population
+  ): AttributesOfIndividual = {
+    Option(
+      person.getCustomAttributes
+        .get(PopulationAdjustment.BEAM_ATTRIBUTES)
+        .asInstanceOf[AttributesOfIndividual]
+    ).getOrElse {
+      val attribs = PopulationAdjustment.createAttributesOfIndividual(beamScenario, population, person, household)
+      person.getCustomAttributes.put(PopulationAdjustment.BEAM_ATTRIBUTES, attribs)
+      attribs
+    }
+  }
+
   /**
     * Replaces the available modes given with the existing available modes for the given person
+    *
     * @param person the respective person
     * @param newAvailableModes List of new available modes to replace
     */

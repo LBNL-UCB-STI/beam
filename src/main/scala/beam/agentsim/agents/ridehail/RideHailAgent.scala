@@ -1,7 +1,7 @@
 package beam.agentsim.agents.ridehail
 
 import akka.actor.FSM.Failure
-import akka.actor.{ActorRef, Props, Stash}
+import akka.actor.{ActorRef, Props, Stash, Status}
 import beam.agentsim.Resource.{NotifyVehicleIdle, NotifyVehicleOutOfService, ReleaseParkingStall}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -17,7 +17,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.common.Range
-import beam.sim.{BeamServices, Geofence}
+import beam.sim.{BeamScenario, BeamServices, Geofence}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -29,6 +29,7 @@ object RideHailAgent {
 
   def props(
     services: BeamServices,
+    beamScenario: BeamScenario,
     scheduler: ActorRef,
     transportNetwork: TransportNetwork,
     tollCalculator: TollCalculator,
@@ -53,6 +54,7 @@ object RideHailAgent {
         eventsManager,
         parkingManager,
         services,
+        beamScenario,
         transportNetwork,
         tollCalculator
       )
@@ -149,11 +151,15 @@ class RideHailAgent(
   val eventsManager: EventsManager,
   val parkingManager: ActorRef,
   val beamServices: BeamServices,
+  val beamScenario: BeamScenario,
   val transportNetwork: TransportNetwork,
   val tollCalculator: TollCalculator
 ) extends BeamAgent[RideHailAgentData]
     with DrivesVehicle[RideHailAgentData]
     with Stash {
+
+  val networkHelper = beamServices.networkHelper
+  val geo = beamServices.geo
 
   val myUnhandled: StateFunction = {
     case Event(TriggerWithId(StartShiftTrigger(tick), triggerId), _) =>
@@ -170,6 +176,9 @@ class RideHailAgent(
 
     case ev @ Event(IllegalTriggerGoToError(reason), _) =>
       log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
+      stop(Failure(reason))
+
+    case Event(Status.Failure(reason), _) =>
       stop(Failure(reason))
 
     case ev @ Event(Finish, _) =>

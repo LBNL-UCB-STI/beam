@@ -10,6 +10,7 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.EmbodiedBeamTrip
+import beam.sim.config.BeamConfig
 import beam.sim.{BeamServices, MapStringDouble}
 import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.Activity
@@ -44,13 +45,17 @@ class ModeChoiceLCCM(
   val beamServices: BeamServices,
   val lccm: LatentClassChoiceModel
 ) extends ModeChoiceCalculator {
+
+  override lazy val beamConfig: BeamConfig = beamServices.beamConfig
+
   var expectedMaximumUtility: Double = Double.NaN
   var classMembershipDistribution: Map[String, Double] = Map()
 
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity]
+    destinationActivity: Option[Activity],
+    person: Option[Person] = None
   ): Option[EmbodiedBeamTrip] = {
     choose(alternatives, attributesOfIndividual, Mandatory)
   }
@@ -103,9 +108,13 @@ class ModeChoiceLCCM(
       /*
        * Evaluate and sample from classmembership, then sample from corresponding mode choice model
        */
+      val random = {
+        val seed = beamServices.beamConfig.matsim.modules.global.randomSeed
+        new Random(seed)
+      }
       val chosenClassOpt = lccm
         .classMembershipModels(tourType)
-        .sampleAlternative(classMembershipInputData, new Random())
+        .sampleAlternative(classMembershipInputData, random)
 
       chosenClassOpt match {
         case None =>

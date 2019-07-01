@@ -1,14 +1,8 @@
 package beam.router
 
-import java.time.ZonedDateTime
-
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
-import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
-import beam.agentsim.agents.choice.mode.PtFares.FareRule
-import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
@@ -18,24 +12,21 @@ import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator.BeamFareSegment
 import beam.router.osm.TollCalculator
 import beam.router.r5.DefaultNetworkCoordinator
-import beam.sim.BeamServices
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
-import beam.utils.{DateUtils, NetworkHelperImpl}
+import beam.sim.{BeamHelper, BeamScenario}
+import beam.utils.NetworkHelperImpl
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.config.ConfigUtils
-import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.ScenarioUtils
-import org.matsim.vehicles.Vehicle
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
-import scala.collection.concurrent.TrieMap
 import scala.language.postfixOps
 
 class TollRoutingSpec
@@ -44,52 +35,41 @@ class TollRoutingSpec
     )
     with WordSpecLike
     with Matchers
+    with BeamHelper
     with ImplicitSender
     with MockitoSugar
     with BeforeAndAfterAll {
 
   var router: ActorRef = _
   var networkCoordinator: DefaultNetworkCoordinator = _
-
-  val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
   var scenario: Scenario = _
+  var beamScenario: BeamScenario = _
   var fareCalculator: FareCalculator = _
 
   override def beforeAll: Unit = {
     val beamConfig = BeamConfig(system.settings.config)
+    beamScenario = loadScenario(beamConfig)
+      .copy(fuelTypePrices = Map().withDefaultValue(0.0)) // Reset fuel prices to 0 so we get pure monetary costs
 
     // Have to mock a lot of things to get the router going
     scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
-    when(services.beamConfig).thenReturn(beamConfig)
-    when(services.geo).thenReturn(new GeoUtilsImpl(beamConfig))
-    when(services.agencyAndRouteByVehicleIds).thenReturn(TrieMap[Id[Vehicle], (String, String)]())
-    when(services.ptFares).thenReturn(PtFares(List[FareRule]()))
-    when(services.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
-    when(services.dates).thenReturn(
-      DateUtils(
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
-        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
-      )
-    )
-    when(services.vehicleTypes).thenReturn(Map[Id[BeamVehicleType], BeamVehicleType]())
-    when(services.fuelTypePrices).thenReturn(Map[FuelType, Double]().withDefaultValue(0.0))
     networkCoordinator = new DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
     networkCoordinator.convertFrequenciesToTrips()
 
     val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
-    when(services.networkHelper).thenReturn(networkHelper)
 
     fareCalculator = mock[FareCalculator]
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
     val tollCalculator = new TollCalculator(beamConfig)
     router = system.actorOf(
       BeamRouter.props(
-        services,
+        beamScenario,
         networkCoordinator.transportNetwork,
         networkCoordinator.network,
+        networkHelper,
+        new GeoUtilsImpl(beamConfig),
         scenario,
-        new EventsManagerImpl(),
         scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator
@@ -111,7 +91,7 @@ class TollRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            Id.create("beamVilleCar", classOf[BeamVehicleType]),
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -133,7 +113,7 @@ class TollRoutingSpec
       val response = expectMsgType[RoutingResponse]
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.costEstimate == 3.0, "contains three toll links: two specified in OSM, and one in CSV file")
-      assert(carOption.totalTravelTimeInSecs == 142)
+      assert(carOption.totalTravelTimeInSecs == 87)
 
       val earlierRequest = request.copy(departureTime = 2000)
       router ! earlierRequest
@@ -148,11 +128,12 @@ class TollRoutingSpec
       val moreExpensiveTollCalculator = new TollCalculator(configWithTollTurnedUp)
       val moreExpensiveRouter = system.actorOf(
         BeamRouter.props(
-          services,
+          beamScenario,
           networkCoordinator.transportNetwork,
           networkCoordinator.network,
+          new NetworkHelperImpl(networkCoordinator.network),
+          new GeoUtilsImpl(beamScenario.beamConfig),
           scenario,
-          new EventsManagerImpl(),
           scenario.getTransitVehicles,
           fareCalculator,
           moreExpensiveTollCalculator
@@ -172,7 +153,7 @@ class TollRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            Id.create("beamVilleCar", classOf[BeamVehicleType]),
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
             asDriver = true
@@ -196,7 +177,7 @@ class TollRoutingSpec
       val tollSensitiveResponse = expectMsgType[RoutingResponse]
       val tollSensitiveCarOption = tollSensitiveResponse.itineraries.find(_.tripClassifier == CAR).get
       assert(tollSensitiveCarOption.costEstimate <= 2.0, "if I'm toll sensitive, I don't go over the tolled link")
-      assert(tollSensitiveCarOption.totalTravelTimeInSecs == 284)
+      assert(tollSensitiveCarOption.totalTravelTimeInSecs == 173)
     }
 
     "not report a toll when walking" in {
@@ -208,7 +189,7 @@ class TollRoutingSpec
         Vector(
           StreetVehicle(
             Id.createVehicleId("body"),
-            BeamVehicleType.defaultCarBeamVehicleType.id,
+            Id.create("beamVilleCar", classOf[BeamVehicleType]),
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
             asDriver = true

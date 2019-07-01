@@ -1,6 +1,6 @@
 package beam.agentsim.agents
-import beam.agentsim.agents.planning.{Tour, Trip}
-import beam.agentsim.agents.vehicles.VehiclePersonId
+import beam.agentsim.agents.planning.Trip
+import beam.agentsim.agents.vehicles.PersonIdWithActorRef
 import beam.router.Modes.BeamMode
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
 import org.matsim.api.core.v01.Coord

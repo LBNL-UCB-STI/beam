@@ -4,11 +4,14 @@ import beam.agentsim.agents.planning.Trip
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehiclePersonId}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PersonIdWithActorRef}
 import beam.agentsim.agents.{MobilityRequest, _}
 import beam.router.BeamRouter.Location
 import beam.router.BeamSkimmer.Skim
 import beam.router.Modes.BeamMode
+import beam.router.BeamSkimmer
+import beam.sim.BeamServices
+import beam.utils.NetworkHelper
 import beam.router.BeamSkimmer
 import beam.sim.{BeamServices, Geofence}
 import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedWeightedGraph}
@@ -209,7 +212,10 @@ object AlonsoMoraPoolingAlgForRideHail {
       dst.activity.getCoord,
       src.baselineNonPooledTime,
       BeamMode.CAR,
-      BeamVehicleType.defaultCarBeamVehicleType.id
+      Id.create(
+        skimmer.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+        classOf[BeamVehicleType]
+      )
     )
   }
 
@@ -260,10 +266,12 @@ object AlonsoMoraPoolingAlgForRideHail {
         p1Act2.getCoord,
         0,
         BeamMode.CAR,
-        BeamVehicleType.defaultCarBeamVehicleType.id
+        Id.create(
+          skimmer.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+          classOf[BeamVehicleType]
+        )
       )
       .time
-      .toInt
     CustomerRequest(
       vehiclePersonId,
       MobilityRequest(
@@ -393,6 +401,7 @@ object AlonsoMoraPoolingAlgForRideHail {
 
   def createVehicleAndSchedule(
     vid: String,
+    vehicleType: BeamVehicleType,
     dst: Location,
     dstTime: Int,
     geofence: Option[Geofence] = None,
@@ -401,7 +410,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     val v1 = new BeamVehicle(
       Id.create(vid, classOf[BeamVehicle]),
       new Powertrain(0.0),
-      BeamVehicleType.defaultCarBeamVehicleType
+      vehicleType
     )
     val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${vid}Act0", dst)
     v1Act0.setEndTime(dstTime)
@@ -431,7 +440,7 @@ object AlonsoMoraPoolingAlgForRideHail {
   }
   sealed trait RVGraphNode extends RTVGraphNode
   // customer requests
-  case class CustomerRequest(person: VehiclePersonId, pickup: MobilityRequest, dropoff: MobilityRequest)
+  case class CustomerRequest(person: PersonIdWithActorRef, pickup: MobilityRequest, dropoff: MobilityRequest)
       extends RVGraphNode {
     override def getId: String = person.personId.toString
   }
