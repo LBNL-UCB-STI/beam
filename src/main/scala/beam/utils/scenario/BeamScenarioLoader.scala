@@ -214,13 +214,12 @@ class BeamScenarioLoader(
   }
 
   private def selectedPlanFromPersonOrBuildNew(person: Person): Plan = {
-    var result = person.getSelectedPlan
-    if (result == null) {
-      result = PopulationUtils.createPlan(person)
-      person.addPlan(result)
-      person.setSelectedPlan(result)
+    Option(person.getSelectedPlan).getOrElse{
+      val plan = PopulationUtils.createPlan(person)
+      person.addPlan(plan)
+      person.setSelectedPlan(plan)
+      plan
     }
-    result
   }
 
   private def assertActivityHasLocation(planInfo: PlanElement): Unit = {
