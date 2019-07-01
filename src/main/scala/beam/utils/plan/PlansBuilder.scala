@@ -3,7 +3,7 @@ package beam.utils.plan
 import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Paths}
 
-import beam.utils.plan.sampling.AvailableModeUtils.{setAvailableModesForPerson, AllowAllModes}
+import beam.utils.plan.sampling.AvailableModeUtils.AllowAllModes
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PlansSampler.newPop
 import beam.utils.plan.sampling.PopulationAttrib.Rank
@@ -122,7 +122,7 @@ object PlansBuilder {
     val permissibleModes = modeAllocator
       .getPermissibleModes(person.getSelectedPlan)
       .asScala
-    setAvailableModesForPerson(person, newPop, permissibleModes.toSeq)
+    AvailableModeUtils.setAvailableModesForPerson(person, newPop, permissibleModes.toSeq)
   }
 
   def run(): Unit = {
