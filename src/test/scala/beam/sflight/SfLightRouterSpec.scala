@@ -7,7 +7,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, TRAM, WALK, WALK_TRANSIT}
-import beam.router.model.{BeamLeg, BeamPath, BeamTrip, EmbodiedBeamTrip}
+import beam.router.model.{BeamLeg, BeamPath, BeamTrip}
 import beam.router.{BeamRouter, Modes}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest._
@@ -234,13 +234,6 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             new SpaceTime(origin, 0),
             Modes.BeamMode.CAR,
             asDriver = true
-          ),
-          StreetVehicle(
-            Id.createVehicleId("rideHailVehicle-person=116378-2"),
-            Id.create("Car", classOf[BeamVehicleType]),
-            new SpaceTime(new Coord(origin.getX, origin.getY), time),
-            Modes.BeamMode.CAR,
-            asDriver = false
           ),
           StreetVehicle(
             Id.createVehicleId("body-116378-2"),
