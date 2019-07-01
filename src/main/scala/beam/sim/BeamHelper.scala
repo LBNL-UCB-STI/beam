@@ -462,8 +462,6 @@ trait BeamHelper extends LazyLogging {
     val injector: inject.Injector = buildInjector(config, scenario, beamScenario)
     val services = injector.getInstance(classOf[BeamServices])
 
-    warmStart(beamExecutionConfig.beamConfig, beamExecutionConfig.matsimConfig)
-
     runBeam(
       services,
       scenario,
@@ -557,6 +555,8 @@ trait BeamHelper extends LazyLogging {
     val src = scenarioConfig.source.toLowerCase
 
     val fileFormat = scenarioConfig.fileFormat
+
+    warmStart(beamConfig, matsimConfig)
 
     ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
       if (src == "urbansim") {
