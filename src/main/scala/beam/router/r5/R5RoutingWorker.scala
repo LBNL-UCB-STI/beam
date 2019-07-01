@@ -510,13 +510,26 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     val profileRequest = createProfileRequest
     val accessVehicles = if (mainRouteToVehicle) {
       Vector(request.streetVehicles.find(_.mode == WALK).get)
+    } else if (mainRouteRideHailTransit) {
+      request.streetVehicles.filter(_.mode != WALK)
     } else {
       request.streetVehicles
+    }
+
+    // Not interested in direct options in the ride-hail-transit case,
+    // only in the option where we actually use non-empty ride-hail for access and egress.
+    // This is only for saving a computation, and only because the requests are structured like they are.
+    val directVehicles = if (mainRouteRideHailTransit) {
+      Nil
+    } else {
+      accessVehicles
     }
     val maybeWalkToVehicle: Map[StreetVehicle, Option[BeamLeg]] = accessVehicles.map(v => v -> calcRouteToVehicle(v)).toMap
 
     val egressVehicles = if (mainRouteRideHailTransit) {
       request.streetVehicles
+    } else if (mainRouteRideHailTransit) {
+      request.streetVehicles.filter(_.mode != WALK)
     } else if (request.withTransit) {
       Vector(request.streetVehicles.find(_.mode == WALK).get)
     } else {
@@ -536,7 +549,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     val profileResponse = new ProfileResponse
     val directOption = new ProfileOption
     profileRequest.reverseSearch = false
-    for (vehicle <- accessVehicles) {
+    for (vehicle <- directVehicles) {
       val theOrigin = if (mainRouteToVehicle || mainRouteRideHailTransit) {
         request.originUTM
       } else {
@@ -595,6 +608,18 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       profileRequest.reverseSearch = false
       val accessRouters = mutable.Map[LegMode, StreetRouter]()
       for (vehicle <- accessVehicles) {
+        val theOrigin = if (mainRouteToVehicle || mainRouteRideHailTransit) {
+          request.originUTM
+        } else {
+          vehicle.locationUTM.loc
+        }
+        val from = geo.snapToR5Edge(
+          transportNetwork.streetLayer,
+          geo.utm2Wgs(theOrigin),
+          10E3
+        )
+        profileRequest.fromLon = from.getX
+        profileRequest.fromLat = from.getY
         val streetRouter = new StreetRouter(
           transportNetwork.streetLayer,
           travelTimeCalculator(vehicleTypes(vehicle.vehicleTypeId), profileRequest.fromTime),
@@ -648,6 +673,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       }
 
       val transitPaths = latency("getpath-transit-time", Metrics.VerboseLevel) {
+        profileRequest.fromTime = request.departureTime
+        profileRequest.toTime = request.departureTime + 61 // Important to allow 61 seconds for transit schedules to be considered!
         val router = new McRaptorSuboptimalPathProfileRouter(
           transportNetwork,
           profileRequest,

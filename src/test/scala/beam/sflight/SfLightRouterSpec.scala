@@ -6,7 +6,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, TRAM, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_TRANSIT, TRAM, WALK, WALK_TRANSIT}
 import beam.router.model.{BeamLeg, BeamPath, BeamTrip}
 import beam.router.{BeamRouter, Modes}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -105,6 +105,38 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       val transitOption = response.itineraries.find(_.tripClassifier == DRIVE_TRANSIT).get
       assertMakesSense(transitOption.toBeamTrip)
       assert(transitOption.totalTravelTimeInSecs > 1000) // I have to go get my car
+    }
+
+    "respond with a ride-hail+transit route to a reasonable RoutingRequest" in {
+      val origin = services.geo.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
+      val destination = services.geo.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
+      val time = 25740
+      router ! RoutingRequest(
+        origin,
+        destination,
+        time,
+        withTransit = true,
+        Vector(
+          StreetVehicle(
+            Id.createVehicleId("rideHailVehicle-person=17673-0"),
+            Id.create("Car", classOf[BeamVehicleType]),
+            new SpaceTime(new Coord(origin.getX, origin.getY), time),
+            Modes.BeamMode.CAR,
+            asDriver = false
+          ),
+          StreetVehicle(
+            Id.createVehicleId("body-667520-0"),
+            Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
+            new SpaceTime(origin, time),
+            WALK,
+            asDriver = true
+          )
+        ),
+        streetVehiclesUseIntermodalUse = AccessAndEgress
+      )
+      val response = expectMsgType[RoutingResponse]
+      val rideHailTransitOption = response.itineraries.find(_.tripClassifier == RIDE_HAIL_TRANSIT).get
+      assert(rideHailTransitOption.legs.count(l => l.beamLeg.mode == CAR) == 2, "Access and egress by car")
     }
 
     "respond with fast travel time for a fast bike" in {
