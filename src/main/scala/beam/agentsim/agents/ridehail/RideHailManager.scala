@@ -252,6 +252,26 @@ class RideHailManager(
 
   def fleetSize: Int = resources.size
 
+  private val initialNumHouseholdVehicles = scenario.getHouseholds.getHouseholds
+    .values()
+    .asScala
+    .flatMap { hh =>
+      hh.getVehicleIds.asScala.map { vehId =>
+        beamScenario.privateVehicles
+          .get(vehId)
+          .map(_.beamVehicleType)
+          .getOrElse(throw new IllegalStateException(s"$vehId is not found in `beamServices.privateVehicles`"))
+      }
+    }
+    .filter(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car)
+    .size / beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
+  // Undo sampling to estimate initial number
+
+  val numRideHailAgents = math.round(
+    initialNumHouseholdVehicles *
+      beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet
+  )
+
   val radiusInMeters: Double =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.radiusInMeters
 
@@ -304,25 +324,7 @@ class RideHailManager(
   // Are we in the middle of processing a batch?
   var currentlyProcessingTimeoutTrigger: Option[TriggerWithId] = None
 
-  private val initialNumHouseholdVehicles = scenario.getHouseholds.getHouseholds
-    .values()
-    .asScala
-    .flatMap { hh =>
-      hh.getVehicleIds.asScala.map { vehId =>
-        beamScenario.privateVehicles
-          .get(vehId)
-          .map(_.beamVehicleType)
-          .getOrElse(throw new IllegalStateException(s"$vehId is not found in `beamServices.privateVehicles`"))
-      }
-    }
-    .filter(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car)
-    .size / beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
-  // Undo sampling to estimate initial number
 
-  val numRideHailAgents = math.round(
-    initialNumHouseholdVehicles *
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet
-  )
 
   // Cache analysis
   private var cacheAttempts = 0
