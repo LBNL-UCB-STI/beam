@@ -72,11 +72,11 @@ object ChargingPointType {
       case "chargingstationccscombotype1" => Some(ChargingStationCcsComboType1)
       case "chargingstationccscombotype2" => Some(ChargingStationCcsComboType2)
       case "teslasupercharger"            => Some(TeslaSuperCharger)
-      case "level1"    => Some(Level1)
-      case "level2"    => Some(Level2)
-      case "dcfast"    => Some(DCFast)
-      case "ultrafast" => Some(UltraFast)
-      case "nocharger" => Some(NoCharger)
+      case "level1"                       => Some(Level1)
+      case "level2"                       => Some(Level2)
+      case "dcfast"                       => Some(DCFast)
+      case "ultrafast"                    => Some(UltraFast)
+      case "nocharger"                    => Some(NoCharger)
 //      case ""                             => None
       case CustomChargingPointRegex(id, installedCapacity, currentType) =>
         Some(CustomChargingPoint(id, installedCapacity, currentType))
@@ -100,12 +100,12 @@ object ChargingPointType {
       case TeslaSuperCharger            => 135
       case CustomChargingPoint(_, v, _) => v
       // legacy charging points (values taken from 2018 BEAM code)
-      case Level1                       => 1.5
-      case Level2                       => 6.7
-      case DCFast                       => 50
-      case UltraFast                    => 250
-      case NoCharger                    => 0
-      case _                            => throw new IllegalArgumentException("invalid argument")
+      case Level1    => 1.5
+      case Level2    => 6.7
+      case DCFast    => 50
+      case UltraFast => 250
+      case NoCharger => 0
+      case _         => throw new IllegalArgumentException("invalid argument")
     }
   }
 
@@ -123,12 +123,12 @@ object ChargingPointType {
       case TeslaSuperCharger            => DC
       case CustomChargingPoint(_, _, c) => c
       // legacy charging points
-      case Level2                       => AC
-      case Level1                       => AC
-      case DCFast                       => DC
-      case UltraFast                    => DC
-      case NoCharger                    => AC
-      case _                            => throw new IllegalArgumentException("invalid argument")
+      case Level2    => AC
+      case Level1    => AC
+      case DCFast    => DC
+      case UltraFast => DC
+      case NoCharger => AC
+      case _         => throw new IllegalArgumentException("invalid argument")
     }
   }
 
