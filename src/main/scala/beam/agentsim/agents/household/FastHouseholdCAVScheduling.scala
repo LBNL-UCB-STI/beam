@@ -403,7 +403,7 @@ object HouseholdTripsHelper {
             case (usedCar, Seq(prevTrip, curTrip)) =>
               val (pickup, dropoff, travelTime) =
                 getPickupAndDropoff(plan, curTrip, prevTrip, counter, skim, beamVehicleType)
-              if (firstPickupOfTheDay.isEmpty || firstPickupOfTheDay.get.time > pickup.time)
+              if (firstPickupOfTheDay.isEmpty || firstPickupOfTheDay.get.baselineNonPooledTime > pickup.baselineNonPooledTime)
                 firstPickupOfTheDay = Some(pickup)
               tours.append(pickup)
               tours.append(dropoff)

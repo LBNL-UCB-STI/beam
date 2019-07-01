@@ -8,7 +8,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail.{CustomerRequest, RVGraph, VehicleAndSchedule, _}
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
+import beam.agentsim.agents.{Dropoff, MobilityRequestType, Pickup}
 import beam.router.BeamSkimmer
 import beam.sim.BeamHelper
 import beam.sim.common.GeoUtilsImpl

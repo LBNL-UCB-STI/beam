@@ -950,13 +950,13 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     val ttc = travelTimeByLinkCalculator(vehicleType)
     (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, _) =>
       {
-        ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode)
+        ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode).floatValue()
       }
   }
 
-  private def travelTimeByLinkCalculator(vehicleType: BeamVehicleType): (Int, Int, StreetMode) => Int = {
+  private def travelTimeByLinkCalculator(vehicleType: BeamVehicleType): (Double, Int, StreetMode) => Double = {
     val profileRequest = createProfileRequest
-    (time: Int, linkId: Int, streetMode: StreetMode) =>
+    (time: Double, linkId: Int, streetMode: StreetMode) =>
       {
         val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
         val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))

@@ -141,7 +141,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
       )
     }
 
-    val iterationNumber = rideHailManager.beamServices.iterationNumber
+    val iterationNumber = rideHailManager.beamServices.matsimServices.getIterationNumber
     val quadFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
       .getIterationFilename(iterationNumber, RandomRepositioning.QUAD_OUTPUT_FILE)
     val coordFileName = GraphsStatsAgentSimEventsListener.CONTROLLER_IO

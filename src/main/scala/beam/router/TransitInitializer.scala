@@ -27,7 +27,7 @@ class TransitInitializer(
   dates: DateUtils,
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
   transportNetwork: TransportNetwork,
-  travelTimeByLinkCalculator: (Int, Int, StreetMode) => Int
+  travelTimeByLinkCalculator: (Double, Int, StreetMode) => Double
 ) extends ExponentialLazyLogging {
   private var numStopsNotFound = 0
 
@@ -111,7 +111,7 @@ class TransitInitializer(
           edges.map(_.intValue()).toVector,
           TravelTimeUtils.scaleTravelTime(
             streetSeg.getDuration,
-            linksTimesAndDistances.travelTimes.sum,
+            math.round(linksTimesAndDistances.travelTimes.tail.sum).toInt,
             linksTimesAndDistances.travelTimes
           ),
           None,

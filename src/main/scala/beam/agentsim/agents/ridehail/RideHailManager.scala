@@ -446,7 +446,7 @@ class RideHailManager(
   import scala.concurrent.duration._
   val tickTask: Cancellable = context.system.scheduler.schedule(2.seconds, 60.seconds, self, "tick")(context.dispatcher)
   // Black magic, remove once done with debugging
-  val method: Method = this.getClass.getDeclaredMethod("akka$actor$StashSupport$$theStash")
+//  val method: Method = this.getClass.getDeclaredMethod("akka$actor$StashSupport$$theStash")
 
   override def postStop: Unit = {
     log.info("postStop")
@@ -1238,10 +1238,19 @@ class RideHailManager(
     val consistentSchedule = pickDrops.zip(BeamLeg.makeLegsConsistent(pickDrops.map(_.beamLegAfterTag.map(_.beamLeg))))
     val allLegs = consistentSchedule.flatMap(_._2)
     var passSched = PassengerSchedule().addLegs(allLegs)
-    var pickDropsForGrouping: Map[PersonIdWithActorRef, List[BeamLeg]] = Map()
     var passengersToAdd = Set[PersonIdWithActorRef]()
-    consistentPickDrops.foreach {
-      case (Some(person), legOpt) =>
+    var pickDropsForGrouping: Map[PersonIdWithActorRef, List[BeamLeg]] = Map()
+    consistentSchedule.foreach{
+      case (mobReq, legOpt) =>
+        mobReq.person.foreach { thePerson =>
+          mobReq.tag match {
+            case Pickup =>
+              passengersToAdd = passengersToAdd + thePerson
+            case Dropoff =>
+              passengersToAdd = passengersToAdd - thePerson
+            case _ =>
+          }
+        }
         legOpt.foreach { leg =>
           passengersToAdd.foreach { pass =>
             val legsForPerson = pickDropsForGrouping.get(pass).getOrElse(List()) :+ leg

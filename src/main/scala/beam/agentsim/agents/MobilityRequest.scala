@@ -1,5 +1,5 @@
 package beam.agentsim.agents
-import beam.agentsim.agents.planning.Trip
+import beam.agentsim.agents.planning.{Tour, Trip}
 import beam.agentsim.agents.vehicles.PersonIdWithActorRef
 import beam.router.Modes.BeamMode
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
@@ -15,7 +15,7 @@ case object EnRoute extends MobilityRequestType { override def toString: String 
 case object Init extends MobilityRequestType { override def toString: String = "init" }
 
 case class MobilityRequest(
-                            person: Option[VehiclePersonId],
+                            person: Option[PersonIdWithActorRef],
                             activity: Activity,
                             baselineNonPooledTime: Int,
                             trip: Trip,
@@ -54,7 +54,7 @@ case class MobilityRequest(
 }
 
 object MobilityRequest{
-  def simpleRequest(requestType: MobilityRequestType, person: Option[VehiclePersonId], leg: Option[EmbodiedBeamLeg]) = {
+  def simpleRequest(requestType: MobilityRequestType, person: Option[PersonIdWithActorRef], leg: Option[EmbodiedBeamLeg]) = {
     val act = PopulationUtils.createActivityFromCoord("",new Coord(-1,-1))
     MobilityRequest(person, act, -1, new Trip(act, None, new Tour()), BeamMode.CAR, requestType, -1, None, None, None, leg )
   }

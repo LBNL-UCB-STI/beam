@@ -347,10 +347,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         .getOrElse(throw new RuntimeException("Current Vehicle is not available."))
 
       val updatedStopTick = math.max(stopTick,currentLeg.startTime)
-      val partiallyCompletedBeamLeg = currentLeg.subLegThrough(updatedStopTick,beamServices.networkHelper, beamServices.geo)
+      val partiallyCompletedBeamLeg = currentLeg.subLegThrough(updatedStopTick,networkHelper, geo)
 
       val currentLocation = if(updatedStopTick > currentLeg.startTime){
-        val fuelConsumed = currentBeamVehicle.useFuel(partiallyCompletedBeamLeg, beamServices)
+        val fuelConsumed = currentBeamVehicle.useFuel(partiallyCompletedBeamLeg, beamScenario, networkHelper)
 
         val tollOnCurrentLeg = toll(currentLeg)
         tollsAccumulated += tollOnCurrentLeg
@@ -383,19 +383,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       }
 
       assert(data.passengerSchedule.schedule(currentLeg).riders.isEmpty)
-      val updatedBeamLeg =
-        RideHailUtils.getUpdatedBeamLegAfterStopDriving(
-          currentLeg,
-          stopTick,
-          transportNetwork
-        )
-
-      val fuelConsumed = currentBeamVehicle.useFuel(updatedBeamLeg, beamScenario, networkHelper)
+      val fuelConsumed = currentBeamVehicle.useFuel(currentLeg, beamScenario, networkHelper)
 
       nextNotifyVehicleResourceIdle = Some(
         NotifyVehicleIdle(
           currentVehicleUnderControl,
-          geo.wgs2Utm(updatedBeamLeg.travelPath.endPoint),
+          geo.wgs2Utm(currentLocation),
           data.passengerSchedule,
           currentBeamVehicle.getState,
           data.geofence,
@@ -428,7 +421,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
           id.toString,
           currentBeamVehicle.beamVehicleType,
           data.passengerSchedule.schedule(currentLeg).riders.size,
-          updatedBeamLeg,
+          currentLeg,
           fuelConsumed.primaryFuel,
           fuelConsumed.secondaryFuel,
           currentBeamVehicle.primaryFuelLevelInJoules,

@@ -2,7 +2,9 @@ package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.PassengerSchedule.Manifest
+import beam.router.BeamRouter.Location
 import beam.router.model.BeamLeg
+import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 
@@ -54,7 +56,7 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
     new PassengerSchedule(newSchedule)
   }
 
-  def uniquePassengers: Set[VehiclePersonId] = schedule.values.flatMap(_.riders).toSet
+  def uniquePassengers: Set[PersonIdWithActorRef] = schedule.values.flatMap(_.riders).toSet
 
   def numUniquePassengers: Int = schedule.values.flatMap(_.riders).toSet.size
 

@@ -24,7 +24,7 @@ class DummyEventsHandler extends BasicEventHandler {
 class DrivesVehicleTest extends FunSuite {
   test("processLinkEvents should work properly") {
     val linkIds = Array(1, 2, 3, 4)
-    val linkTravelTime = Array(1, 2, 3, 4)
+    val linkTravelTime = Array(1.0, 2.0, 3.0, 4.0)
     val vehicleId = 1L
 
     val beamLeg = BeamLeg(
@@ -168,7 +168,7 @@ class DrivesVehicleTest extends FunSuite {
       var curTime = leg.startTime
       linksWithTime.foreach {
         case (Seq(from, to), timeAtNode) =>
-          curTime = curTime + timeAtNode
+          curTime = math.round(curTime + timeAtNode).intValue()
           eventsManager.processEvent(new LinkLeaveEvent(curTime, vehicleId, Id.createLinkId(from)))
           eventsManager.processEvent(new LinkEnterEvent(curTime, vehicleId, Id.createLinkId(to)))
       }

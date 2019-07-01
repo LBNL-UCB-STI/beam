@@ -254,7 +254,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     Some(newPoolingList.toList)
   }
 
-  def createPersonRequest(vehiclePersonId: VehiclePersonId, src: Location, departureTime: Int, dst: Location)(
+  def createPersonRequest(vehiclePersonId: PersonIdWithActorRef, src: Location, departureTime: Int, dst: Location)(
     implicit skimmer: BeamSkimmer
   ): CustomerRequest = {
     val p1Act1: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act1", src)
@@ -303,7 +303,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     val v1 = new BeamVehicle(
       Id.create(veh.vehicleId, classOf[BeamVehicle]),
       new Powertrain(0.0),
-      BeamVehicleType.defaultCarBeamVehicleType
+      veh.vehicleType
     )
     val vehCurrentLocation =
       veh.currentPassengerSchedule.map(_.locationAtTime(tick, beamServices)).getOrElse(veh.currentLocationUTM.loc)

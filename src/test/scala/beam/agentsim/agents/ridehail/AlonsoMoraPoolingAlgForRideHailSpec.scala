@@ -7,7 +7,7 @@ import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail.{CustomerRequest, RVGraph, VehicleAndSchedule, _}
 import beam.agentsim.agents.vehicles.{BeamVehicleType, PersonIdWithActorRef}
-import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
+import beam.agentsim.agents.{Dropoff, MobilityRequestType, Pickup}
 import beam.router.BeamSkimmer
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.{BeamHelper, BeamScenario, Geofence}
@@ -176,9 +176,9 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
     import scala.concurrent.duration._
     val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
     val v1: VehicleAndSchedule =
-      createVehicleAndSchedule("v1", vehicleType, new Coord(5000, 5000), 8.hours.toSeconds.toInt)
+      createVehicleAndSchedule("v1", vehicleType, new Coord(5000, 5000), 8.hours.toSeconds.toInt,None,4)
     val v2: VehicleAndSchedule =
-      createVehicleAndSchedule("v2", vehicleType, new Coord(2000, 2000), 8.hours.toSeconds.toInt)
+      createVehicleAndSchedule("v2", vehicleType, new Coord(2000, 2000), 8.hours.toSeconds.toInt,None,4)
     val p1Req: CustomerRequest =
       createPersonRequest(
         makeVehPersonId("p1"),
@@ -219,9 +219,9 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
     val gf = Geofence(10000, 10000, 13400)
     val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
     val v1: VehicleAndSchedule =
-      createVehicleAndSchedule("v1", vehicleType, new Coord(5000, 5000), 8.hours.toSeconds.toInt, Some(gf))
+      createVehicleAndSchedule("v1", vehicleType, new Coord(5000, 5000), 8.hours.toSeconds.toInt, Some(gf), 4)
     val v2: VehicleAndSchedule =
-      createVehicleAndSchedule("v2", vehicleType, new Coord(2000, 2000), 8.hours.toSeconds.toInt, Some(gf))
+      createVehicleAndSchedule("v2", vehicleType, new Coord(2000, 2000), 8.hours.toSeconds.toInt, Some(gf), 4)
     val p1Req: CustomerRequest =
       createPersonRequest(
         makeVehPersonId("p1"),
