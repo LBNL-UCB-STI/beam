@@ -5,6 +5,7 @@ import beam.router.Modes
 import beam.router.Modes.BeamMode.CAR
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.{Activity, Person}
 
@@ -15,10 +16,13 @@ import scala.collection.mutable.ListBuffer
   */
 class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeChoiceCalculator {
 
+  override lazy val beamConfig: BeamConfig = beamServices.beamConfig
+
   def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity]
+    destinationActivity: Option[Activity],
+    person: Option[Person] = None
   ): Option[EmbodiedBeamTrip] = {
     val containsDriveAlt = alternatives.zipWithIndex.collect {
       case (trip, idx) if trip.tripClassifier == CAR => idx
@@ -45,4 +49,5 @@ class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeCho
     person: Person,
     attributesOfIndividual: AttributesOfIndividual
   ): Double = 0.0
+
 }

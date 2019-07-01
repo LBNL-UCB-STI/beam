@@ -111,8 +111,7 @@ allprojects {
 
 dependencies {
 
-    //beam-utilities
-    compile(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.1') {
+    compile(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.3') {
         exclude group: 'com.github.michaz', module: 'r5'
     }
     
@@ -177,7 +176,7 @@ dependencies {
     compile "com.sigopt:sigopt-java:4.9.0"
 
     testCompile group: 'junit', name: 'junit', version: '4.8'
-    testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.+'
+    testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.27.0'
     testCompile group: "org.mockito", name: "mockito-core", version: "2.+"
 
     /////////////////////////////////
@@ -193,6 +192,7 @@ dependencies {
 
     // TEST Scala //
     testCompile group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.0.1'
+    testRuntime "org.pegdown:pegdown:1.4.2" // HTML report for scalatest
 
     // 3rd Party Scala //
 
@@ -300,7 +300,7 @@ configurations.all {
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-oD', '-l', 'beam.tags.ExcludeRegular']
+    args = ['-R', 'build/classes/scala/test', '-h', 'build/scalatest-report', '-oD', '-l', 'beam.tags.ExcludeRegular']
     classpath = sourceSets.test.runtimeClasspath
 }
 build.dependsOn spec
@@ -615,12 +615,15 @@ task execute(type: JavaExec) {
     }
 }
 
+
 task matsimConversion(type: JavaExec) {
     main = 'beam.utils.matsim_conversion.MatsimConversionTool'
     classpath = sourceSets.main.runtimeClasspath
     environment "PWD", "na"
     if (project.hasProperty("confPath")) {
         args Eval.me(confPath)
+        // if this triggers an error, try
+        // args "${confPath}"
     }
 }
 

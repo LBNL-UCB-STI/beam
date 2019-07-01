@@ -18,7 +18,7 @@ case class ReservationRequest(
   requestId: Id[ReservationRequest],
   departFrom: BeamLeg,
   arriveAt: BeamLeg,
-  passengerVehiclePersonId: VehiclePersonId
+  passengerVehiclePersonId: PersonIdWithActorRef
 )
 
 object ReservationRequest {
@@ -26,7 +26,7 @@ object ReservationRequest {
   def apply(
     departFrom: BeamLeg,
     arriveAt: BeamLeg,
-    passengerVehiclePersonId: VehiclePersonId
+    passengerVehiclePersonId: PersonIdWithActorRef
   ): ReservationRequest =
     ReservationRequest(
       Reservation.nextReservationId,
@@ -36,18 +36,11 @@ object ReservationRequest {
     )
 }
 
-case class ReservationResponse(
-  requestId: Id[ReservationRequest],
-  response: Either[ReservationError, ReserveConfirmInfo],
-  reservedMode: BeamMode
-)
+case class TransitReservationRequest(fromIdx: Int, toIdx: Int, passenger: PersonIdWithActorRef)
 
-case class ReserveConfirmInfo(
-  departFrom: BeamLeg,
-  arriveAt: BeamLeg,
-  passengerVehiclePersonId: VehiclePersonId,
-  triggersToSchedule: Vector[ScheduleTrigger] = Vector()
-)
+case class ReservationResponse(response: Either[ReservationError, ReserveConfirmInfo])
+
+case class ReserveConfirmInfo(triggersToSchedule: Vector[ScheduleTrigger] = Vector())
 
 case object AccessErrorCodes {
 

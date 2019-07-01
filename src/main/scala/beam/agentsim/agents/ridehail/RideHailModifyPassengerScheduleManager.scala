@@ -177,8 +177,7 @@ class RideHailModifyPassengerScheduleManager(
     if (waitingToReposition.contains(vehicleId)) {
       waitingToReposition = waitingToReposition - vehicleId
       checkIfRoundOfRepositioningIsDone()
-    }
-    else {
+    } else {
       log.error("Not found in waitingToReposition: {}", vehicleId)
     }
   }

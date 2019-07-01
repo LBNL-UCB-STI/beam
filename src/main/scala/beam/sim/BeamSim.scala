@@ -15,7 +15,6 @@ import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtilizationCollector}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
-import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.sim.config.BeamConfig
@@ -36,7 +35,19 @@ import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.events._
-import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
+import org.matsim.core.controler.listener.{
+  IterationEndsListener,
+  IterationStartsListener,
+  ShutdownListener,
+  StartupListener
+}
+
+import org.matsim.core.controler.listener.{
+  IterationEndsListener,
+  IterationStartsListener,
+  ShutdownListener,
+  StartupListener
+}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -44,6 +55,7 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
+
 import scala.util.{Failure, Success}
 
 class BeamSim @Inject()(
@@ -57,7 +69,9 @@ class BeamSim @Inject()(
   private val beamOutputDataDescriptionGenerator: BeamOutputDataDescriptionGenerator,
   private val beamSkimmer: BeamSkimmer,
   private val travelTimeObserved: TravelTimeObserved,
-  private val beamConfigChangesObservable: BeamConfigChangesObservable
+  private val beamConfigChangesObservable: BeamConfigChangesObservable,
+  private val routeHistory: RouteHistory,
+  private val rideHailIterationHistory: RideHailIterationHistory
 ) extends StartupListener
     with IterationStartsListener
     with IterationEndsListener
@@ -74,7 +88,6 @@ class BeamSim @Inject()(
   private var expectedDisutilityHeatMapDataCollector: ExpectedMaxUtilityHeatMap = _
 
   private var tncIterationsStatsCollector: RideHailIterationsStatsCollector = _
-  private var routeHistory: RouteHistory = _
   val iterationStatsProviders: ListBuffer[IterationStatsProvider] = new ListBuffer()
   val iterationSummaryStats: ListBuffer[Map[java.lang.String, java.lang.Double]] = ListBuffer()
   val graphFileNameDirectory = mutable.Map[String, Int]()
@@ -94,26 +107,27 @@ class BeamSim @Inject()(
 
     eventsManager.addHandler(rhuc)
 
-    val fareCalculator = new FareCalculator(beamServices.beamConfig.beam.routing.r5.directory)
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
-        beamServices,
+        beamServices.beamScenario,
         transportNetwork,
         scenario.getNetwork,
+        networkHelper,
+        beamServices.geo,
         scenario,
-        eventsManager,
         scenario.getTransitVehicles,
-        fareCalculator,
+        beamServices.fareCalculator,
         tollCalculator
       ),
       "router"
     )
+    val maxHour = TimeUnit.SECONDS.toHours(scenario.getConfig.travelTimeCalculator().getMaxTime).toInt
+    val warmStart = BeamWarmStart(beamServices.beamConfig, maxHour)
+    warmStart.warmStartTravelTime(beamServices.beamRouter, scenario)
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
     /*    if(null != beamServices.beamConfig.beam.agentsim.taz.file && !beamServices.beamConfig.beam.agentsim.taz.file.isEmpty)
           beamServices.taz = TAZTreeMap.fromCsv(beamServices.beamConfig.beam.agentsim.taz.file)*/
-
-    beamServices.matsimServices = event.getServices
 
     if (!beamServices.beamConfig.beam.physsim.skipPhysSim) {
       agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(
@@ -142,12 +156,10 @@ class BeamSim @Inject()(
       beamServices.beamConfig.beam.outputs.writeEventsInterval
     )
 
-    routeHistory = beamServices.matsimServices.getInjector.getInstance(classOf[RouteHistory])
-
     tncIterationsStatsCollector = new RideHailIterationsStatsCollector(
       eventsManager,
       beamServices,
-      event.getServices.getInjector.getInstance(classOf[RideHailIterationHistory]),
+      rideHailIterationHistory,
       transportNetwork
     )
 
@@ -169,7 +181,11 @@ class BeamSim @Inject()(
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     beamConfigChangesObservable.notifyChangeToSubscribers()
     ExponentialLazyLogging.reset()
-    beamServices.privateVehicles.values.foreach(_.initializeFuelLevels)
+    beamServices.beamScenario.privateVehicles.values.foreach(_.initializeFuelLevels)
+    val controllerIO = event.getServices.getControlerIO
+    if (isFirstIteration(event.getIteration)) {
+      PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv"))
+    }
     rhuc.reset(event.getIteration)
   }
 
@@ -188,8 +204,7 @@ class BeamSim @Inject()(
 
     val outputGraphsFuture = Future {
       if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
-        modalityStyleStats.processData(scenario.getPopulation,
-          event)
+        modalityStyleStats.processData(scenario.getPopulation, event)
         modalityStyleStats.buildModalityStyleGraph()
       }
       createGraphsFromEvents.createGraphs(event)
@@ -278,6 +293,11 @@ class BeamSim @Inject()(
 
     logger.info("Ending Iteration")
     delayMetricAnalysis.generateDelayAnalysis(event)
+  }
+
+  private def isFirstIteration(currentIteration: Integer): Boolean = {
+    val firstIteration = beamServices.beamConfig.matsim.modules.controler.firstIteration
+    currentIteration == firstIteration
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {

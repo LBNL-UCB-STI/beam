@@ -12,6 +12,7 @@ import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.Hao2018CaccRoad
 import beam.physsim.jdeqsim.cacc.roadCapacityAdjustmentFunctions.RoadCapacityAdjustmentFunction;
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation;
 import beam.router.BeamRouter;
+import beam.router.FreeFlowTravelTime;
 import beam.sim.BeamConfigChangesObservable;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
@@ -140,7 +141,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         EventWriterXML_viaCompatible eventsWriterXML = null;
         if (shouldWritePhysSimEvents(iterationNumber)) {
 
-            eventsWriterXML = new EventWriterXML_viaCompatible(controlerIO.getIterationFilename(iterationNumber, "physSimEvents.xml.gz"), beamConfig.beam().physsim().eventsForFullVersionOfVia());
+            double eventsSampling = beamConfig.beam().physsim().eventsSampling();
+            boolean eventsForFullVersionOfVia = beamConfig.beam().physsim().eventsForFullVersionOfVia();
+            String fileName = controlerIO.getIterationFilename(iterationNumber, "physSimEvents.xml.gz");
+            eventsWriterXML = new EventWriterXML_viaCompatible(fileName, eventsForFullVersionOfVia , eventsSampling);
             jdeqsimEvents.addHandler(eventsWriterXML);
         }
 
@@ -187,11 +191,35 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(links,
                 travelTimes, maxHour);
 
+        TravelTime freeFlow = new FreeFlowTravelTime();
+        int nBins = 0;
+        int nBinsWithUnexpectedlyLowSpeed = 0;
+        for (Map.Entry<String, double[]> entry : map.entrySet()) {
+            int hour = 0;
+            Link link = agentSimScenario.getNetwork().getLinks().get(Id.createLinkId(entry.getKey()));
+            for (double linkTravelTime : entry.getValue()) {
+                double speed = link.getLength() / linkTravelTime;
+                if (speed < beamConfig.beam().physsim().quick_fix_minCarSpeedInMetersPerSecond()) {
+                    double linkTravelTime1 = travelTimes.getLinkTravelTime(link, hour * 60.0 * 60.0, null, null);
+                    double freeFlowTravelTime = freeFlow.getLinkTravelTime(link, hour * 60.0 * 60.0, null, null);
+                    log.debug("{} {} {}", linkTravelTime, linkTravelTime1, freeFlowTravelTime);
+                    nBinsWithUnexpectedlyLowSpeed++;
+                }
+                hour++;
+                nBins++;
+            }
+        }
+        if (nBinsWithUnexpectedlyLowSpeed > 0) {
+            log.error("Iteration {} had {} link speed bins (of {}) with speed smaller than {}.", iterationNumber, nBinsWithUnexpectedlyLowSpeed, nBins, beamConfig.beam().physsim().quick_fix_minCarSpeedInMetersPerSecond());
+        }
+
+
         Integer startingIterationForTravelTimesMSA = beamConfig.beam().routing().startingIterationForTravelTimesMSA();
         if (startingIterationForTravelTimesMSA <= iterationNumber) {
             map = processTravelTime(links, map, maxHour);
             travelTimes = previousTravelTime;
         }
+
 
         router.tell(new BeamRouter.TryToSerialize(map), ActorRef.noSender());
         router.tell(new BeamRouter.UpdateTravelTimeRemote(map), ActorRef.noSender());
@@ -334,7 +362,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
                 String vehicleType = pte.vehicleType();
                 Id<BeamVehicleType> beamVehicleTypeId = Id.create(vehicleType, BeamVehicleType.class);
-                boolean isCaccEnabled = beamServices.vehicleTypes().get(beamVehicleTypeId).get().isCaccEnabled();
+                boolean isCaccEnabled = beamServices.beamScenario().vehicleTypes().get(beamVehicleTypeId).get().isCaccEnabled();
                 caccVehiclesMap.put(vehicleId, isCaccEnabled);
 
                 Id<Person> personId = Id.createPersonId(vehicleId);

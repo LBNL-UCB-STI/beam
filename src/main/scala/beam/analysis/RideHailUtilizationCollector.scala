@@ -64,6 +64,7 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
   }
 
   override def reset(iteration: Int): Unit = {
+    logger.info(s"There were ${rides.length} ride-hail rides for iteration $iteration")
     rides.clear()
     rideHailChoices = 0
     rideHailInAlternatives = 0
