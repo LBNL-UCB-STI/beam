@@ -543,7 +543,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         vehicle.locationUTM.loc
       }
       val theDestination = if (mainRouteToVehicle) {
-        vehicle.locationUTM.loc
+        destinationVehicle.get.locationUTM.loc
       } else {
         request.destinationUTM
       }
@@ -619,7 +619,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       profileRequest.reverseSearch = true
       for (vehicle <- egressVehicles) {
         val theDestination = if (mainRouteToVehicle) {
-          vehicle.locationUTM.loc
+          destinationVehicle.get.locationUTM.loc
         } else {
           request.destinationUTM
         }

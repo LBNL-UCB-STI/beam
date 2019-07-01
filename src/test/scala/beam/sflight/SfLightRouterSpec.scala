@@ -72,6 +72,41 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       assert(transitOption.legs.head.beamLeg.startTime == 25992)
     }
 
+    "transit-route me to my destination vehicle, and to my final destination even if that's where I started" in {
+      val origin = services.geo.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
+      val vehicleLocation = services.geo.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
+      val destination = origin
+      val time = 25740
+      router ! RoutingRequest(
+        origin,
+        destination,
+        time,
+        withTransit = true,
+        Vector(
+          StreetVehicle(
+            Id.createVehicleId("116378-2"),
+            Id.create("Car", classOf[BeamVehicleType]),
+            new SpaceTime(vehicleLocation, 0),
+            Modes.BeamMode.CAR,
+            asDriver = true
+          ),
+          StreetVehicle(
+            Id.createVehicleId("body-667520-0"),
+            Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
+            new SpaceTime(origin, time),
+            WALK,
+            asDriver = true
+          )
+        ),
+        streetVehiclesUseIntermodalUse = Egress
+      )
+      val response = expectMsgType[RoutingResponse]
+
+      val transitOption = response.itineraries.find(_.tripClassifier == DRIVE_TRANSIT).get
+      assertMakesSense(transitOption.toBeamTrip)
+      assert(transitOption.totalTravelTimeInSecs > 1000) // I have to go get my car
+    }
+
     "respond with fast travel time for a fast bike" in {
       val fastBike = beamScenario.vehicleTypes(Id.create("FAST-BIKE", classOf[BeamVehicleType]))
       val expectedSpeed = 20
