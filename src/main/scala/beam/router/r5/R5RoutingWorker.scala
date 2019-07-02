@@ -20,10 +20,10 @@ import beam.router._
 import beam.router.gtfs.FareCalculator
 import beam.router.gtfs.FareCalculator._
 import beam.router.model.BeamLeg._
-import beam.router.model.RoutingModel.{LinksTimesDistances, TransitStopsInfo}
+import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
-import beam.router.r5.R5RoutingWorker.{R5Request, createBushwackingBeamLeg}
+import beam.router.r5.R5RoutingWorker.{createBushwackingBeamLeg, R5Request}
 import beam.sim.BeamScenario
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -244,9 +244,22 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         toR5StreetMode(leg.mode),
         transportNetwork.streetLayer
       )
-      val updatedTravelPath = buildStreetPath(linksTimesAndDistances, leg.startTime)
+      val startLoc = geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesAndDistances.linkIds.head)
+      val endLoc = geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesAndDistances.linkIds.last)
+      val duration = linksTimesAndDistances.travelTimes.tail.sum
+      val updatedTravelPath = BeamPath(
+        linksTimesAndDistances.linkIds,
+        linksTimesAndDistances.travelTimes,
+        None,
+        SpaceTime(startLoc.getX, startLoc.getY, leg.startTime),
+        SpaceTime(
+          endLoc.getX,
+          endLoc.getY,
+          leg.startTime + duration
+        ),
+        duration
+      )
       val updatedLeg = leg.copy(travelPath = updatedTravelPath, duration = updatedTravelPath.duration)
-
       sender ! RoutingResponse(
         Vector(
           EmbodiedBeamTrip(
@@ -852,7 +865,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
           vehicleToDestinationLeg.foreach { legWithFare =>
             // Glue the drive to the final destination behind the trip without a gap
-            embodiedBeamLegs += legWithFare.copy(beamLeg = legWithFare.beamLeg.updateStartTime(embodiedBeamLegs.last.beamLeg.endTime))
+            embodiedBeamLegs += legWithFare.copy(
+              beamLeg = legWithFare.beamLeg.updateStartTime(embodiedBeamLegs.last.beamLeg.endTime)
+            )
           }
           if (isRouteForPerson && embodiedBeamLegs.last.beamLeg.mode != WALK) {
             val body = request.streetVehicles.find(_.mode == WALK).get
@@ -903,7 +918,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     tripStartTime: Int,
     vehicle: StreetVehicle
   ): EmbodiedBeamLeg = {
-    val theTravelPath = buildStreetPath(r5Leg, tripStartTime, toR5StreetMode(r5Leg.mode), vehicleTypes(vehicle.vehicleTypeId))
+    val theTravelPath =
+      buildStreetPath(r5Leg, tripStartTime, toR5StreetMode(r5Leg.mode), vehicleTypes(vehicle.vehicleTypeId))
     val toll = if (r5Leg.mode == LegMode.CAR) {
       val osm = r5Leg.streetEdges.asScala
         .map(
@@ -963,26 +979,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         tripStartTime + linksTimesDistances.travelTimes.tail.sum
       ),
       distance
-    )
-  }
-
-  private def buildStreetPath(
-    linksTimesDistances: LinksTimesDistances,
-    tripStartTime: Int
-  ): BeamPath = {
-    val startLoc = geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesDistances.linkIds.head)
-    val endLoc = geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesDistances.linkIds.last)
-    BeamPath(
-      linksTimesDistances.linkIds,
-      linksTimesDistances.travelTimes,
-      None,
-      SpaceTime(startLoc.getX, startLoc.getY, tripStartTime),
-      SpaceTime(
-        endLoc.getX,
-        endLoc.getY,
-        tripStartTime + linksTimesDistances.travelTimes.tail.sum
-      ),
-      linksTimesDistances.distances.tail.foldLeft(0.0)(_ + _)
     )
   }
 
