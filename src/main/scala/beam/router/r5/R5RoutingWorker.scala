@@ -14,7 +14,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.WALK
+import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.Modes._
 import beam.router._
 import beam.router.gtfs.FareCalculator
@@ -23,7 +23,7 @@ import beam.router.model.BeamLeg._
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
-import beam.router.r5.R5RoutingWorker.{createBushwackingBeamLeg, R5Request}
+import beam.router.r5.R5RoutingWorker.{R5Request, createBushwackingBeamLeg}
 import beam.sim.BeamScenario
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -156,6 +156,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       linksBelowMinCarSpeed
     )
   }
+  private val maxFreeSpeed = networkHelper.allLinks.map(_.getFreespeed).max
 
   override def preStart(): Unit = {
     askForMoreWork()
@@ -345,7 +346,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     // but for R5-internal bushwhacking from network to coordinate, AND ALSO for the A* remaining weight heuristic,
     // which means that this value must be an over(!)estimation, otherwise we will miss optimal routes,
     // particularly in the presence of tolls.
-    profileRequest.carSpeed = 36.11f // 130 km/h, WARNING, see ^^ before changing
+    profileRequest.carSpeed = maxFreeSpeed.toFloat
     profileRequest.maxWalkTime = 3 * 60
     profileRequest.maxCarTime = 4 * 60
     profileRequest.maxBikeTime = 4 * 60
@@ -595,7 +596,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)) {
         if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)) {
           latency("route-transit-time", Metrics.VerboseLevel) {
-            streetRouter.route() //latency 1
+            streetRouter.route()
           }
           val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
           if (lastState != null) {
