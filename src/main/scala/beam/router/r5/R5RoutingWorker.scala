@@ -689,20 +689,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     }
     profileResponse.recomputeStats(profileRequest)
 
-    def embodyTransitLeg(legWithFare: LegWithFare) = {
-      val agencyId = legWithFare.leg.travelPath.transitStops.get.agencyId
-      val routeId = legWithFare.leg.travelPath.transitStops.get.routeId
-      val age = request.attributesOfIndividual.flatMap(_.age)
-      EmbodiedBeamLeg(
-        legWithFare.leg,
-        legWithFare.leg.travelPath.transitStops.get.vehicleId,
-        null,
-        asDriver = false,
-        ptFares.getPtFare(Some(agencyId), Some(routeId), age).getOrElse(legWithFare.fare),
-        unbecomeDriverOnCompletion = false
-      )
-    }
-
     def embodyStreetLeg(legWithFare: LegWithFare) = {
       val vehicle = egressVehicles
         .find(v => v.mode == legWithFare.leg.mode)
@@ -826,7 +812,17 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   0.0
                 )
               )
-              embodiedBeamLegs += embodyTransitLeg(LegWithFare(segmentLeg, fare))
+              val agencyId = segmentLeg.travelPath.transitStops.get.agencyId
+              val routeId = segmentLeg.travelPath.transitStops.get.routeId
+              val age = request.attributesOfIndividual.flatMap(_.age)
+              embodiedBeamLegs += EmbodiedBeamLeg(
+                segmentLeg,
+                segmentLeg.travelPath.transitStops.get.vehicleId,
+                null,
+                asDriver = false,
+                ptFares.getPtFare(Some(agencyId), Some(routeId), age).getOrElse(fare),
+                unbecomeDriverOnCompletion = false
+              )
               arrivalTime = dates
                 .toBaseMidnightSeconds(
                   segmentPattern.toArrivalTime.get(transitJourneyID.time),
