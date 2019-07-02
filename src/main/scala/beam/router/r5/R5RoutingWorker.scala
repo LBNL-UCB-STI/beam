@@ -812,15 +812,18 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   0.0
                 )
               )
-              val agencyId = segmentLeg.travelPath.transitStops.get.agencyId
-              val routeId = segmentLeg.travelPath.transitStops.get.routeId
-              val age = request.attributesOfIndividual.flatMap(_.age)
               embodiedBeamLegs += EmbodiedBeamLeg(
                 segmentLeg,
                 segmentLeg.travelPath.transitStops.get.vehicleId,
                 null,
                 asDriver = false,
-                ptFares.getPtFare(Some(agencyId), Some(routeId), age).getOrElse(fare),
+                ptFares
+                  .getPtFare(
+                    Some(segmentLeg.travelPath.transitStops.get.agencyId),
+                    Some(segmentLeg.travelPath.transitStops.get.routeId),
+                    request.attributesOfIndividual.flatMap(_.age)
+                  )
+                  .getOrElse(fare),
                 unbecomeDriverOnCompletion = false
               )
               arrivalTime = dates
