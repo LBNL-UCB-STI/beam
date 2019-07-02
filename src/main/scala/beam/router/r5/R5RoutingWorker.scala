@@ -700,7 +700,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     }
     profileResponse.recomputeStats(profileRequest)
 
-    val tripsWithFares = profileResponse.options.asScala.flatMap { option =>
+    val embodiedTrips = profileResponse.options.asScala.flatMap { option =>
       option.itinerary.asScala.view
         .map { itinerary =>
           // Using itinerary start as access leg's startTime
@@ -894,73 +894,67 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             LegWithFare(leg.copy(travelPath = updatedTravelPath), newCost)
           }
 
-          TripWithFares(
+          val tripWithFares = TripWithFares(
             BeamTrip(withUpdatedTimeAndCost.map(_.leg).toVector),
             withUpdatedTimeAndCost.map(_.fare).zipWithIndex.map(_.swap).toMap
           )
-        }
-        .filter { trip: TripWithFares =>
-          //TODO make a more sensible window not just 30 minutes
-          trip.trip.legs.head.startTime >= request.departureTime && trip.trip.legs.head.startTime <= request.departureTime + 1800
-        }
 
-    }
-
-    val embodiedTrips = tripsWithFares.map(tripWithFares => {
-      val indexOfFirstCarLegInParkingTrip = tripWithFares.trip.legs
-        .sliding(2)
-        .indexWhere(pair => pair.size == 2 && pair.head.mode == CAR && pair.head.mode == pair.last.mode)
-      val embodiedLegs: IndexedSeq[EmbodiedBeamLeg] =
-        for ((beamLeg, index) <- tripWithFares.trip.legs.zipWithIndex) yield {
-          var cost = tripWithFares.legFares.getOrElse(index, 0.0)
-          val age = request.attributesOfIndividual.flatMap(_.age)
-          if (Modes.isR5TransitMode(beamLeg.mode)) {
-            val agencyId = beamLeg.travelPath.transitStops.get.agencyId
-            val routeId = beamLeg.travelPath.transitStops.get.routeId
-            cost = ptFares.getPtFare(Some(agencyId), Some(routeId), age).getOrElse(cost)
-          }
-          if (Modes.isR5TransitMode(beamLeg.mode)) {
-            EmbodiedBeamLeg(
-              beamLeg,
-              beamLeg.travelPath.transitStops.get.vehicleId,
-              null,
-              asDriver = false,
-              cost,
-              unbecomeDriverOnCompletion = false
-            )
-          } else {
-            val vehicle = egressVehicles
-              .find(v => v.mode == beamLeg.mode)
-              .getOrElse(
-                accessVehicles
-                  .find(v => v.mode == beamLeg.mode)
-                  .getOrElse(destinationVehicles.find(v => v.mode == beamLeg.mode).get)
-              )
-            val unbecomeDriverAtComplete = Modes
-              .isR5LegMode(beamLeg.mode) && vehicle.asDriver && ((beamLeg.mode == CAR && (indexOfFirstCarLegInParkingTrip < 0 || index != indexOfFirstCarLegInParkingTrip)) ||
-            (beamLeg.mode != CAR && beamLeg.mode != WALK) ||
-            (beamLeg.mode == WALK && index == tripWithFares.trip.legs.size - 1))
-            if (beamLeg.mode == WALK) {
-              val body = request.streetVehicles.find(_.mode == WALK).get
-              EmbodiedBeamLeg(beamLeg, body.id, body.vehicleTypeId, body.asDriver, 0.0, unbecomeDriverAtComplete)
-            } else {
-              if (beamLeg.mode == CAR) {
-                cost = cost + DrivingCost
-                  .estimateDrivingCost(beamLeg, vehicleTypes(vehicle.vehicleTypeId), fuelTypePrices)
+          val embodiedLegs: IndexedSeq[EmbodiedBeamLeg] =
+            for ((beamLeg, index) <- tripWithFares.trip.legs.zipWithIndex) yield {
+              var cost = tripWithFares.legFares.getOrElse(index, 0.0)
+              val age = request.attributesOfIndividual.flatMap(_.age)
+              if (Modes.isR5TransitMode(beamLeg.mode)) {
+                val agencyId = beamLeg.travelPath.transitStops.get.agencyId
+                val routeId = beamLeg.travelPath.transitStops.get.routeId
+                cost = ptFares.getPtFare(Some(agencyId), Some(routeId), age).getOrElse(cost)
               }
-              EmbodiedBeamLeg(
-                beamLeg,
-                vehicle.id,
-                vehicle.vehicleTypeId,
-                vehicle.asDriver,
-                cost,
-                unbecomeDriverAtComplete
-              )
+              if (Modes.isR5TransitMode(beamLeg.mode)) {
+                EmbodiedBeamLeg(
+                  beamLeg,
+                  beamLeg.travelPath.transitStops.get.vehicleId,
+                  null,
+                  asDriver = false,
+                  cost,
+                  unbecomeDriverOnCompletion = false
+                )
+              } else {
+                val vehicle = egressVehicles
+                  .find(v => v.mode == beamLeg.mode)
+                  .getOrElse(
+                    accessVehicles
+                      .find(v => v.mode == beamLeg.mode)
+                      .getOrElse(destinationVehicles.find(v => v.mode == beamLeg.mode).get)
+                  )
+                val unbecomeDriverAtComplete = Modes
+                  .isR5LegMode(beamLeg.mode) && vehicle.asDriver && ((beamLeg.mode == CAR) ||
+                (beamLeg.mode != CAR && beamLeg.mode != WALK) ||
+                (beamLeg.mode == WALK && index == tripWithFares.trip.legs.size - 1))
+                if (beamLeg.mode == WALK) {
+                  val body = request.streetVehicles.find(_.mode == WALK).get
+                  EmbodiedBeamLeg(beamLeg, body.id, body.vehicleTypeId, body.asDriver, 0.0, unbecomeDriverAtComplete)
+                } else {
+                  if (beamLeg.mode == CAR) {
+                    cost = cost + DrivingCost
+                      .estimateDrivingCost(beamLeg, vehicleTypes(vehicle.vehicleTypeId), fuelTypePrices)
+                  }
+                  EmbodiedBeamLeg(
+                    beamLeg,
+                    vehicle.id,
+                    vehicle.vehicleTypeId,
+                    vehicle.asDriver,
+                    cost,
+                    unbecomeDriverAtComplete
+                  )
+                }
+              }
             }
-          }
+          EmbodiedBeamTrip(embodiedLegs)
         }
-      EmbodiedBeamTrip(embodiedLegs)
-    })
+        .filter { trip: EmbodiedBeamTrip =>
+          //TODO make a more sensible window not just 30 minutes
+          trip.legs.head.beamLeg.startTime >= request.departureTime && trip.legs.head.beamLeg.startTime <= request.departureTime + 1800
+        }
+    }
 
     if (!embodiedTrips.exists(_.tripClassifier == WALK) && !mainRouteToVehicle) {
       val maybeBody = directVehicles.find(_.mode == WALK)
