@@ -276,11 +276,11 @@ class RideHailAgent(
 
       if (vehicle.isBEV || vehicle.isPHEV) {
         handleStartCharging(tick, vehicle) {
-          Some((chargingEndTick: Int, energyDelivered: Double) =>
+          Some((endRefuelData :EndRefuelData) =>
             CompletionNotice(
               triggerId,
               Vector(
-                ScheduleTrigger(EndRefuelSessionTrigger(chargingEndTick, tick, energyDelivered, Some(vehicle)), self)
+                ScheduleTrigger(EndRefuelSessionTrigger(endRefuelData.chargingEndTick, tick, endRefuelData.energyDelivered, Some(vehicle)), self)
               )
             ))
         }
