@@ -744,28 +744,29 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             )
             .toInt
 
-          val legsWithFares = mutable.ArrayBuffer.empty[LegWithFare]
+          var arrivalTime: Int = Int.MinValue
+          val embodiedBeamLegs = mutable.ArrayBuffer.empty[EmbodiedBeamLeg]
           val access = option.access.get(itinerary.connection.access)
           val vehicle = accessVehicles.find(v => v.mode.r5Mode.get.left.get == access.mode).get
           maybeWalkToVehicle(vehicle).foreach(walkLeg => {
             // Glue the walk to vehicle in front of the trip without a gap
-            legsWithFares += LegWithFare(walkLeg.updateStartTime(tripStartTime - walkLeg.duration), 0.0)
+            embodiedBeamLegs += embodyStreetLeg(LegWithFare(walkLeg.updateStartTime(tripStartTime - walkLeg.duration), 0.0))
           })
-          legsWithFares ++= buildStreetBasedLegs(access, tripStartTime, vehicleTypes(vehicle.vehicleTypeId))
+          embodiedBeamLegs ++= buildStreetBasedLegs(access, tripStartTime, vehicleTypes(vehicle.vehicleTypeId)).map(embodyStreetLeg)
 
+          arrivalTime = embodiedBeamLegs.last.beamLeg.endTime
           val isTransit = itinerary.connection.transit != null && !itinerary.connection.transit.isEmpty
           // Optionally add a Dummy walk BeamLeg to the end of that trip
 
           if (isRouteForPerson && access.mode != LegMode.WALK) {
             if (!isTransit)
-              legsWithFares += LegWithFare(
-                dummyLeg(legsWithFares.last.leg.endTime, legsWithFares.last.leg.travelPath.endPoint.loc),
+              embodiedBeamLegs += embodyStreetLeg(LegWithFare(
+                dummyLeg(arrivalTime, embodiedBeamLegs.last.beamLeg.travelPath.endPoint.loc),
                 0.0
-              )
+              ))
           }
 
           if (isTransit) {
-            var arrivalTime: Int = Int.MinValue
             // Based on "Index in transit list specifies transit with same index" (comment from PointToPointConnection line 14)
             // assuming that: For each transit in option there is a TransitJourneyID in connection
             val segments = option.transit.asScala zip itinerary.connection.transit.asScala
@@ -829,7 +830,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                     0.0
                   )
                 )
-                legsWithFares += LegWithFare(segmentLeg, fare)
+                embodiedBeamLegs += embodyTransitLeg(LegWithFare(segmentLeg, fare))
                 arrivalTime = dates
                   .toBaseMidnightSeconds(
                     segmentPattern.toArrivalTime.get(transitJourneyID.time),
@@ -838,7 +839,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   .toInt
                 if (transitSegment.middle != null) {
                   val body = request.streetVehicles.find(_.mode == WALK).get
-                  legsWithFares += LegWithFare(
+                  embodiedBeamLegs += embodyStreetLeg(LegWithFare(
                     BeamLeg(
                       arrivalTime,
                       mapLegMode(transitSegment.middle.mode),
@@ -851,7 +852,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                       )
                     ),
                     0.0
-                  )
+                  ))
                   arrivalTime = arrivalTime + transitSegment.middle.duration // in case of middle arrival time would update
                 }
             }
@@ -859,37 +860,28 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             if (itinerary.connection.egress != null) {
               val egress = option.egress.get(itinerary.connection.egress)
               val vehicle = egressVehicles.find(v => v.mode.r5Mode.get.left.get == egress.mode).get
-              legsWithFares ++= buildStreetBasedLegs(egress, arrivalTime, vehicleTypes(vehicle.vehicleTypeId))
+              embodiedBeamLegs ++= buildStreetBasedLegs(egress, arrivalTime, vehicleTypes(vehicle.vehicleTypeId)).map(embodyStreetLeg)
               if (isRouteForPerson && egress.mode != LegMode.WALK)
-                legsWithFares += LegWithFare(
-                  dummyLeg(arrivalTime + egress.duration, legsWithFares.last.leg.travelPath.endPoint.loc),
+                embodiedBeamLegs += embodyStreetLeg(LegWithFare(
+                  dummyLeg(arrivalTime + egress.duration, embodiedBeamLegs.last.beamLeg.travelPath.endPoint.loc),
                   0.0
-                )
+                ))
             }
           }
           vehicleToDestinationLegs.foreach { legWithFare =>
             // Glue the drive to the final destination behind the trip without a gap
-            legsWithFares += LegWithFare(
-              legWithFare.leg.updateStartTime(legsWithFares.last.leg.endTime),
+            embodiedBeamLegs += embodyStreetLeg(LegWithFare(
+              legWithFare.leg.updateStartTime(embodiedBeamLegs.last.beamLeg.endTime),
               legWithFare.fare
-            )
+            ))
           }
           if (vehicleToDestinationLegs.nonEmpty && isRouteForPerson) {
-            legsWithFares += LegWithFare(
-              dummyLeg(legsWithFares.last.leg.endTime, legsWithFares.last.leg.travelPath.endPoint.loc),
+            embodiedBeamLegs += embodyStreetLeg(LegWithFare(
+              dummyLeg(embodiedBeamLegs.last.beamLeg.endTime, embodiedBeamLegs.last.beamLeg.travelPath.endPoint.loc),
               0.0
-            )
+            ))
           }
-
-          val embodiedLegs: IndexedSeq[EmbodiedBeamLeg] =
-            for (legWithFare <- legsWithFares) yield {
-              if (Modes.isR5TransitMode(legWithFare.leg.mode)) {
-                embodyTransitLeg(legWithFare)
-              } else {
-                embodyStreetLeg(legWithFare)
-              }
-            }
-          EmbodiedBeamTrip(embodiedLegs)
+          EmbodiedBeamTrip(embodiedBeamLegs)
         }
         .filter { trip: EmbodiedBeamTrip =>
           //TODO make a more sensible window not just 30 minutes
