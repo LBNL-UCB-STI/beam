@@ -690,20 +690,14 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     profileResponse.recomputeStats(profileRequest)
 
     def embodyStreetLeg(legWithFare: LegWithFare, vehicle: StreetVehicle) = {
-      val unbecomeDriverAtComplete = Modes
-        .isR5LegMode(legWithFare.leg.mode) && legWithFare.leg.mode != WALK
-      if (legWithFare.leg.mode == WALK) {
-        EmbodiedBeamLeg(legWithFare.leg, vehicle.id, vehicle.vehicleTypeId, vehicle.asDriver, 0.0, unbecomeDriverAtComplete)
-      } else {
         EmbodiedBeamLeg(
           legWithFare.leg,
           vehicle.id,
           vehicle.vehicleTypeId,
           vehicle.asDriver,
           if (vehicle.mode == CAR) DrivingCost.estimateDrivingCost(legWithFare.leg, vehicleTypes(vehicle.vehicleTypeId), fuelTypePrices) else 0.0,
-          unbecomeDriverAtComplete
+          Modes.isR5LegMode(legWithFare.leg.mode) && legWithFare.leg.mode != WALK
         )
-      }
     }
 
     val embodiedTrips = profileResponse.options.asScala.flatMap { option =>
