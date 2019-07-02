@@ -22,7 +22,7 @@ import beam.router.model.BeamLeg._
 import beam.router.model.RoutingModel.{LinksTimesDistances, TransitStopsInfo}
 import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
-import beam.router.r5.R5RoutingWorker.{R5Request, TripWithFares}
+import beam.router.r5.R5RoutingWorker.R5Request
 import beam.sim.BeamScenario
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -847,11 +847,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               0.0
             )
           }
-          // TODO is it correct way to find first non-dummy leg
-          val fistNonDummyLeg = legsWithFares.collectFirst {
-            case legWithFare if legWithFare.leg.mode == BeamMode.WALK && legWithFare.leg.travelPath.linkIds.nonEmpty =>
-              legWithFare.leg
-          }
 
           val withUpdatedTimeAndCost = legsWithFares.map { legWithFare =>
             val leg = legWithFare.leg
@@ -882,39 +877,22 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             } else {
               travelPath
             }
-
-            val newCost = costOpt
-              .map { cost =>
-                if (fistNonDummyLeg.contains(leg)) cost
-                else 0.0
-              }
-              .getOrElse(fare)
-
-            // Update travel path and cost
-            LegWithFare(leg.copy(travelPath = updatedTravelPath), newCost)
+            LegWithFare(leg.copy(travelPath = updatedTravelPath), costOpt.getOrElse(fare))
           }
 
-          val tripWithFares = TripWithFares(
-            BeamTrip(withUpdatedTimeAndCost.map(_.leg).toVector),
-            withUpdatedTimeAndCost.map(_.fare).zipWithIndex.map(_.swap).toMap
-          )
-
           val embodiedLegs: IndexedSeq[EmbodiedBeamLeg] =
-            for ((beamLeg, index) <- tripWithFares.trip.legs.zipWithIndex) yield {
-              var cost = tripWithFares.legFares.getOrElse(index, 0.0)
+            for (legWithFare <- withUpdatedTimeAndCost) yield {
+              val beamLeg = legWithFare.leg
               val age = request.attributesOfIndividual.flatMap(_.age)
               if (Modes.isR5TransitMode(beamLeg.mode)) {
                 val agencyId = beamLeg.travelPath.transitStops.get.agencyId
                 val routeId = beamLeg.travelPath.transitStops.get.routeId
-                cost = ptFares.getPtFare(Some(agencyId), Some(routeId), age).getOrElse(cost)
-              }
-              if (Modes.isR5TransitMode(beamLeg.mode)) {
                 EmbodiedBeamLeg(
                   beamLeg,
                   beamLeg.travelPath.transitStops.get.vehicleId,
                   null,
                   asDriver = false,
-                  cost,
+                  ptFares.getPtFare(Some(agencyId), Some(routeId), age).getOrElse(legWithFare.fare),
                   unbecomeDriverOnCompletion = false
                 )
               } else {
@@ -927,12 +905,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   )
                 val unbecomeDriverAtComplete = Modes
                   .isR5LegMode(beamLeg.mode) && vehicle.asDriver && ((beamLeg.mode == CAR) ||
-                (beamLeg.mode != CAR && beamLeg.mode != WALK) ||
-                (beamLeg.mode == WALK && index == tripWithFares.trip.legs.size - 1))
+                (beamLeg.mode != CAR && beamLeg.mode != WALK))
                 if (beamLeg.mode == WALK) {
                   val body = request.streetVehicles.find(_.mode == WALK).get
                   EmbodiedBeamLeg(beamLeg, body.id, body.vehicleTypeId, body.asDriver, 0.0, unbecomeDriverAtComplete)
                 } else {
+                  var cost = legWithFare.fare
                   if (beamLeg.mode == CAR) {
                     cost = cost + DrivingCost
                       .estimateDrivingCost(beamLeg, vehicleTypes(vehicle.vehicleTypeId), fuelTypePrices)
