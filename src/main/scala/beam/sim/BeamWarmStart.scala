@@ -97,7 +97,7 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
   }
 
   def getUrbanSimPlanFilePath(defaultPlanFile: String, ext: String): String = {
-    getWarmStartFilePath(s"plans.$ext") match {
+    getWarmStartFilePath(s"plans.$ext", false) match {
       case Some(statsPath) =>
         if (Files.exists(Paths.get(statsPath))) {
           logger.info("Population successfully warm started from {}", statsPath)
