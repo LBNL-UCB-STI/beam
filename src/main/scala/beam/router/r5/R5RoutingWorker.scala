@@ -60,8 +60,7 @@ case class WorkerParameters(
   dates: DateUtils,
   networkHelper: NetworkHelper,
   fareCalculator: FareCalculator,
-  tollCalculator: TollCalculator,
-  travelTimeAndCost: TravelTimeAndCost
+  tollCalculator: TollCalculator
 )
 
 case class LegWithFare(leg: BeamLeg, fare: Double)
@@ -97,15 +96,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val ptFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath)
       val fareCalculator = new FareCalculator(beamConfig)
       val tollCalculator = new TollCalculator(beamConfig)
-      // TODO FIX ME
-      val travelTimeAndCost = new TravelTimeAndCost {
-        override def overrideTravelTimeAndCostFor(
-          origin: Location,
-          destination: Location,
-          departureTime: Int,
-          mode: BeamMode
-        ): TimeAndCost = TimeAndCost(None, None)
-      }
       BeamRouter.checkForConsistentTimeZoneOffsets(dates, networkCoordinator.transportNetwork)
       WorkerParameters(
         beamConfig,
@@ -117,8 +107,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         dates,
         new NetworkHelperImpl(networkCoordinator.network),
         fareCalculator,
-        tollCalculator,
-        travelTimeAndCost
+        tollCalculator
       )
     })
   }
@@ -133,8 +122,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     dates,
     networkHelper,
     fareCalculator,
-    tollCalculator,
-    travelTimeAndCost
+    tollCalculator
   ) = workerParams
 
   private val numOfThreads: Int =
@@ -700,6 +688,51 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     }
     profileResponse.recomputeStats(profileRequest)
 
+    def embodyTransitLeg(legWithFare: LegWithFare) = {
+      val agencyId = legWithFare.leg.travelPath.transitStops.get.agencyId
+      val routeId = legWithFare.leg.travelPath.transitStops.get.routeId
+      val age = request.attributesOfIndividual.flatMap(_.age)
+      EmbodiedBeamLeg(
+        legWithFare.leg,
+        legWithFare.leg.travelPath.transitStops.get.vehicleId,
+        null,
+        asDriver = false,
+        ptFares.getPtFare(Some(agencyId), Some(routeId), age).getOrElse(legWithFare.fare),
+        unbecomeDriverOnCompletion = false
+      )
+    }
+
+    def embodyStreetLeg(legWithFare: LegWithFare) = {
+      val vehicle = egressVehicles
+        .find(v => v.mode == legWithFare.leg.mode)
+        .getOrElse(
+          accessVehicles
+            .find(v => v.mode == legWithFare.leg.mode)
+            .getOrElse(destinationVehicles.find(v => v.mode == legWithFare.leg.mode).get)
+        )
+      val unbecomeDriverAtComplete = Modes
+        .isR5LegMode(legWithFare.leg.mode) && vehicle.asDriver && ((legWithFare.leg.mode == CAR) ||
+        (legWithFare.leg.mode != CAR && legWithFare.leg.mode != WALK))
+      if (legWithFare.leg.mode == WALK) {
+        val body = request.streetVehicles.find(_.mode == WALK).get
+        EmbodiedBeamLeg(legWithFare.leg, body.id, body.vehicleTypeId, body.asDriver, 0.0, unbecomeDriverAtComplete)
+      } else {
+        var cost = legWithFare.fare
+        if (legWithFare.leg.mode == CAR) {
+          cost = cost + DrivingCost
+            .estimateDrivingCost(legWithFare.leg, vehicleTypes(vehicle.vehicleTypeId), fuelTypePrices)
+        }
+        EmbodiedBeamLeg(
+          legWithFare.leg,
+          vehicle.id,
+          vehicle.vehicleTypeId,
+          vehicle.asDriver,
+          cost,
+          unbecomeDriverAtComplete
+        )
+      }
+    }
+
     val embodiedTrips = profileResponse.options.asScala.flatMap { option =>
       option.itinerary.asScala.view
         .map { itinerary =>
@@ -848,82 +881,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             )
           }
 
-          val withUpdatedTimeAndCost = legsWithFares.map { legWithFare =>
-            val leg = legWithFare.leg
-            val fare = legWithFare.fare
-            val travelPath = leg.travelPath
-            val TimeAndCost(timeOpt, costOpt) = travelTimeAndCost.overrideTravelTimeAndCostFor(
-              travelPath.startPoint.loc,
-              travelPath.endPoint.loc,
-              leg.startTime,
-              leg.mode
-            )
-            val updatedTravelPath = if (timeOpt.isDefined) {
-              val newTravelTime = timeOpt.get
-              val newLinkTravelTimes =
-                TravelTimeUtils.scaleTravelTime(
-                  newTravelTime,
-                  travelPath.endPoint.time,
-                  travelPath.linkTravelTime
-                )
-              BeamPath(
-                linkIds = travelPath.linkIds,
-                linkTravelTime = newLinkTravelTimes,
-                transitStops = travelPath.transitStops,
-                startPoint = travelPath.startPoint,
-                endPoint = travelPath.endPoint.copy(time = newTravelTime),
-                distanceInM = travelPath.distanceInM
-              )
-            } else {
-              travelPath
-            }
-            LegWithFare(leg.copy(travelPath = updatedTravelPath), costOpt.getOrElse(fare))
-          }
-
           val embodiedLegs: IndexedSeq[EmbodiedBeamLeg] =
-            for (legWithFare <- withUpdatedTimeAndCost) yield {
-              val beamLeg = legWithFare.leg
-              val age = request.attributesOfIndividual.flatMap(_.age)
-              if (Modes.isR5TransitMode(beamLeg.mode)) {
-                val agencyId = beamLeg.travelPath.transitStops.get.agencyId
-                val routeId = beamLeg.travelPath.transitStops.get.routeId
-                EmbodiedBeamLeg(
-                  beamLeg,
-                  beamLeg.travelPath.transitStops.get.vehicleId,
-                  null,
-                  asDriver = false,
-                  ptFares.getPtFare(Some(agencyId), Some(routeId), age).getOrElse(legWithFare.fare),
-                  unbecomeDriverOnCompletion = false
-                )
+            for (legWithFare <- legsWithFares) yield {
+              if (Modes.isR5TransitMode(legWithFare.leg.mode)) {
+                embodyTransitLeg(legWithFare)
               } else {
-                val vehicle = egressVehicles
-                  .find(v => v.mode == beamLeg.mode)
-                  .getOrElse(
-                    accessVehicles
-                      .find(v => v.mode == beamLeg.mode)
-                      .getOrElse(destinationVehicles.find(v => v.mode == beamLeg.mode).get)
-                  )
-                val unbecomeDriverAtComplete = Modes
-                  .isR5LegMode(beamLeg.mode) && vehicle.asDriver && ((beamLeg.mode == CAR) ||
-                (beamLeg.mode != CAR && beamLeg.mode != WALK))
-                if (beamLeg.mode == WALK) {
-                  val body = request.streetVehicles.find(_.mode == WALK).get
-                  EmbodiedBeamLeg(beamLeg, body.id, body.vehicleTypeId, body.asDriver, 0.0, unbecomeDriverAtComplete)
-                } else {
-                  var cost = legWithFare.fare
-                  if (beamLeg.mode == CAR) {
-                    cost = cost + DrivingCost
-                      .estimateDrivingCost(beamLeg, vehicleTypes(vehicle.vehicleTypeId), fuelTypePrices)
-                  }
-                  EmbodiedBeamLeg(
-                    beamLeg,
-                    vehicle.id,
-                    vehicle.vehicleTypeId,
-                    vehicle.asDriver,
-                    cost,
-                    unbecomeDriverAtComplete
-                  )
-                }
+                embodyStreetLeg(legWithFare)
               }
             }
           EmbodiedBeamTrip(embodiedLegs)
@@ -1183,8 +1146,7 @@ object R5RoutingWorker {
     scenario: Scenario,
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator,
-    transitVehicles: Vehicles,
-    travelTimeAndCost: TravelTimeAndCost
+    transitVehicles: Vehicles
   ) = Props(
     new R5RoutingWorker(
       WorkerParameters(
@@ -1197,8 +1159,7 @@ object R5RoutingWorker {
         beamScenario.dates,
         networkHelper,
         fareCalculator,
-        tollCalculator,
-        travelTimeAndCost
+        tollCalculator
       )
     )
   )

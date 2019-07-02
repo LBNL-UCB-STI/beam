@@ -4,18 +4,7 @@ import java.time.{ZoneOffset, ZonedDateTime}
 import java.util.concurrent.TimeUnit
 
 import akka.actor.Status.Failure
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  Address,
-  Cancellable,
-  ExtendedActorSystem,
-  Props,
-  RelativeActorPath,
-  RootActorPath,
-  Stash
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, Address, Cancellable, ExtendedActorSystem, Props, RelativeActorPath, RootActorPath, Stash}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
@@ -121,16 +110,6 @@ class BeamRouter(
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
-  // TODO FIX ME
-  val travelTimeAndCost: TravelTimeAndCost = new TravelTimeAndCost {
-    override def overrideTravelTimeAndCostFor(
-      origin: Location,
-      destination: Location,
-      departureTime: Int,
-      mode: BeamMode
-    ): TimeAndCost = TimeAndCost(None, None)
-  }
-
   if (beamScenario.beamConfig.beam.useLocalWorker) {
     val localWorker = context.actorOf(
       R5RoutingWorker.props(
@@ -141,8 +120,7 @@ class BeamRouter(
         scenario,
         fareCalculator,
         tollCalculator,
-        transitVehicles,
-        travelTimeAndCost
+        transitVehicles
       ),
       "router-worker"
     )
