@@ -16,6 +16,8 @@ import beam.utils.logging.ExponentialLazyLogging
 
 class UrbanSimScenarioSource(
   val scenarioFolder: String,
+  val isWarmMode: Boolean,
+  val planFile: String,
   val rdr: UrbanSimScenarioReader,
   val geoUtils: GeoUtils,
   val shouldConvertWgs2Utm: Boolean
@@ -26,7 +28,7 @@ class UrbanSimScenarioSource(
   val buildingFilePath: String = s"$scenarioFolder/buildings.$fileExt"
   val personFilePath: String = s"$scenarioFolder/persons.$fileExt"
   val householdFilePath: String = s"$scenarioFolder/households.$fileExt"
-  val planFilePath: String = s"$scenarioFolder/plans.$fileExt"
+  val planFilePath: String = if (isWarmMode) planFile else s"$scenarioFolder/plans.$fileExt"
   val unitFilePath: String = s"$scenarioFolder/units.$fileExt"
   val parcelAttrFilePath: String = s"$scenarioFolder/parcels.$fileExt"
 

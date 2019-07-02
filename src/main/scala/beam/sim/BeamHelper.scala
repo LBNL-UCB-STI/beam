@@ -565,7 +565,7 @@ trait BeamHelper extends LazyLogging {
           val beamScenario = loadScenario(beamConfig)
           val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
           val scenario = {
-            val source = buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
+            val source = buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig, matsimConfig)
             new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
           }.asInstanceOf[MutableScenario]
           (scenario, beamScenario)
@@ -779,7 +779,8 @@ trait BeamHelper extends LazyLogging {
 
   private def buildUrbansimScenarioSource(
     geo: GeoUtils,
-    beamConfig: BeamConfig
+    beamConfig: BeamConfig,
+    matsimConfig: MatsimConfig
   ): UrbanSimScenarioSource = {
     val fileFormat: InputType = Option(beamConfig.beam.exchange.scenario.fileFormat)
       .map(str => InputType(str.toLowerCase))
@@ -795,6 +796,8 @@ trait BeamHelper extends LazyLogging {
 
     new UrbanSimScenarioSource(
       scenarioFolder = beamConfig.beam.exchange.scenario.folder,
+      isWarmMode = beamConfig.beam.warmStart.enabled,
+      planFile = matsimConfig.plans.getInputFile,
       rdr = scenarioReader,
       geoUtils = geo,
       shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
