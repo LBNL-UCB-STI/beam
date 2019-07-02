@@ -46,20 +46,20 @@ object ParkingZoneSearch {
     * @return a stall from the found ParkingZone, or a ParkingStall.DefaultStall
     */
   def incrementalParkingZoneSearch(
-                                    searchStartRadius: Double,
-                                    searchMaxRadius: Double,
-                                    destinationUTM: Location,
-                                    valueOfTime: Double,
-                                    parkingDuration: Double,
-                                    parkingTypes: Seq[ParkingType],
-                                    chargingInquiryData: Option[ChargingInquiryData[String, String]],
-                                    searchTree: ParkingZoneSearch.ZoneSearch[TAZ],
-                                    stalls: Array[ParkingZone],
-                                    tazQuadTree: QuadTree[TAZ],
-                                    distanceFunction: (Coord, Coord) => Double,
-                                    random: Random,
-                                    boundingBox: Envelope
-                                  ): Option[(ParkingZone, ParkingStall)] = {
+    searchStartRadius: Double,
+    searchMaxRadius: Double,
+    destinationUTM: Location,
+    valueOfTime: Double,
+    parkingDuration: Double,
+    parkingTypes: Seq[ParkingType],
+    chargingInquiryData: Option[ChargingInquiryData[String, String]],
+    searchTree: ParkingZoneSearch.ZoneSearch[TAZ],
+    stalls: Array[ParkingZone],
+    tazQuadTree: QuadTree[TAZ],
+    distanceFunction: (Coord, Coord) => Double,
+    random: Random,
+    boundingBox: Envelope
+  ): Option[(ParkingZone, ParkingStall)] = {
 
     @tailrec
     def _search(thisInnerRadius: Double, thisOuterRadius: Double): Option[(ParkingZone, ParkingStall)] = {
@@ -88,14 +88,14 @@ object ParkingZoneSearch {
           random
         ) match {
           case Some(
-          ParkingRanking.RankingAccumulator(
-          bestTAZ,
-          bestParkingType,
-          bestParkingZone,
-          bestCoord,
-          bestRankingValue
-          )
-          ) =>
+              ParkingRanking.RankingAccumulator(
+                bestTAZ,
+                bestParkingType,
+                bestParkingZone,
+                bestCoord,
+                bestRankingValue
+              )
+              ) =>
             val stallPrice: Double =
               bestParkingZone.pricingModel
                 .map { PricingModel.evaluateParkingTicket(_, parkingDuration.toInt) }
@@ -121,7 +121,6 @@ object ParkingZoneSearch {
 
     _search(0, searchStartRadius)
   }
-
 
   /**
     * find the best parking alternative for the data in this request

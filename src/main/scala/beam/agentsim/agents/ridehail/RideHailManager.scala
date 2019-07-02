@@ -21,7 +21,11 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{
+  CouldNotFindRouteToCustomer,
+  DriverNotFoundError,
+  RideHailVehicleTakenError
+}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -197,7 +201,7 @@ object RideHailManager {
 
   }
 
-  val MaxParkingSearchRadius: Int = 20000  // meters
+  val MaxParkingSearchRadius: Int = 20000 // meters
 }
 
 class RideHailManager(
@@ -351,7 +355,6 @@ class RideHailManager(
   // track the usage of the RHM agency parking
   var totalStallsInUse: Long = 0
   var totalStallsAvailable: Long = 0
-
 
   beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.initType match {
     case "PROCEDURAL" =>
@@ -919,15 +922,15 @@ class RideHailManager(
   }
 
   def findRefuelStationAndSendVehicle(
-                                       rideHailAgentLocation: RideHailAgentLocation,
-                                       passengerSchedule: PassengerSchedule,
-                                       tick: Int
-                                     ): Unit = {
+    rideHailAgentLocation: RideHailAgentLocation,
+    passengerSchedule: PassengerSchedule,
+    tick: Int
+  ): Unit = {
 
     // first check for options available to this ridehail fleet
     val searchMaxRadius: Double = rideHailAgentLocation.geofence match {
       case Some(geofence) => geofence.geofenceRadius
-      case None => RideHailManager.MaxParkingSearchRadius
+      case None           => RideHailManager.MaxParkingSearchRadius
     }
     val destinationUtm = rideHailAgentLocation.currentLocationUTM.loc
 
@@ -947,7 +950,6 @@ class RideHailManager(
       boundingBox
     ) match {
       case Some((parkingZone, parkingStall)) =>
-
         // claim the stall
         val claimed: Boolean = ParkingZone.claimStall(parkingZone).value
         if (claimed) {
