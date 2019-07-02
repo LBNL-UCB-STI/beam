@@ -795,7 +795,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         energyDelivered,
         vehicle.id
       )
-      scheduler ! message(chargingEndTick, sessionDuration)
+      scheduler ! message(chargingEndTick, energyDelivered)
     })
 
   }
