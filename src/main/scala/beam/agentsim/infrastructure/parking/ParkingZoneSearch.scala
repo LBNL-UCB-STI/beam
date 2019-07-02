@@ -1,12 +1,21 @@
 package beam.agentsim.infrastructure.parking
 
+import beam.agentsim.infrastructure.ParkingStall
+import beam.agentsim.infrastructure.ZonalParkingManager.DefaultParkingPrice
+
 import scala.collection.Map
 import scala.util.{Failure, Random, Success, Try}
-
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.parking.ParkingRanking.RankingAccumulator
 import beam.agentsim.infrastructure.taz.TAZ
+import beam.router.BeamRouter.Location
+import beam.sim.common.GeoUtils
+import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.utils.collections.QuadTree
+
+import scala.collection.JavaConverters._
+import scala.annotation.tailrec
 
 object ParkingZoneSearch {
 
@@ -18,6 +27,101 @@ object ParkingZoneSearch {
     * or possibly an h3 label.
     */
   type ZoneSearch[A] = Map[Id[A], Map[ParkingType, List[Int]]]
+
+  // increases search radius by this factor at each iteration
+  val SearchFactor: Double = 2.0
+
+  /**
+    * looks for the nearest ParkingZone that meets the agent's needs
+    * @param searchStartRadius small radius describing a ring shape
+    * @param searchMaxRadius larger radius describing a ring shape
+    * @param destinationUTM coordinates of this request
+    * @param parkingDuration duration requested for this parking, used to calculate cost in ranking
+    * @param parkingTypes types of parking this request is interested in
+    * @param chargingInquiryData optional inquiry preferences for charging options
+    * @param searchTree nested map structure assisting search for parking within a TAZ and by parking type
+    * @param stalls collection of all parking alternatives
+    * @param tazQuadTree lookup of all TAZs in this simulation
+    * @param random random generator used to sample a location from the TAZ for this stall
+    * @return a stall from the found ParkingZone, or a ParkingStall.DefaultStall
+    */
+  def incrementalParkingZoneSearch(
+                                    searchStartRadius: Double,
+                                    searchMaxRadius: Double,
+                                    destinationUTM: Location,
+                                    valueOfTime: Double,
+                                    parkingDuration: Double,
+                                    parkingTypes: Seq[ParkingType],
+                                    chargingInquiryData: Option[ChargingInquiryData[String, String]],
+                                    searchTree: ParkingZoneSearch.ZoneSearch[TAZ],
+                                    stalls: Array[ParkingZone],
+                                    tazQuadTree: QuadTree[TAZ],
+                                    distanceFunction: (Coord, Coord) => Double,
+                                    random: Random,
+                                    boundingBox: Envelope
+                                  ): Option[(ParkingZone, ParkingStall)] = {
+
+    @tailrec
+    def _search(thisInnerRadius: Double, thisOuterRadius: Double): Option[(ParkingZone, ParkingStall)] = {
+      if (thisInnerRadius > searchMaxRadius) None
+      else {
+        val tazDistance: Map[TAZ, Double] =
+          tazQuadTree
+            .getRing(destinationUTM.getX, destinationUTM.getY, thisInnerRadius, thisOuterRadius)
+            .asScala
+            .map { taz =>
+              (taz, GeoUtils.distFormula(taz.coord, destinationUTM))
+            }
+            .toMap
+        val tazList: List[TAZ] = tazDistance.keys.toList
+
+        ParkingZoneSearch.find(
+          destinationUTM,
+          valueOfTime,
+          parkingDuration,
+          chargingInquiryData,
+          tazList,
+          parkingTypes,
+          searchTree,
+          stalls,
+          distanceFunction,
+          random
+        ) match {
+          case Some(
+          ParkingRanking.RankingAccumulator(
+          bestTAZ,
+          bestParkingType,
+          bestParkingZone,
+          bestCoord,
+          bestRankingValue
+          )
+          ) =>
+            val stallPrice: Double =
+              bestParkingZone.pricingModel
+                .map { PricingModel.evaluateParkingTicket(_, parkingDuration.toInt) }
+                .getOrElse(DefaultParkingPrice)
+
+            // create a new stall instance. you win!
+            val newStall = ParkingStall(
+              bestTAZ.tazId,
+              bestParkingZone.parkingZoneId,
+              bestCoord,
+              stallPrice,
+              bestParkingZone.chargingPointType,
+              bestParkingZone.pricingModel,
+              bestParkingType
+            )
+
+            Some { (bestParkingZone, newStall) }
+          case None =>
+            _search(thisOuterRadius, thisOuterRadius * SearchFactor)
+        }
+      }
+    }
+
+    _search(0, searchStartRadius)
+  }
+
 
   /**
     * find the best parking alternative for the data in this request
