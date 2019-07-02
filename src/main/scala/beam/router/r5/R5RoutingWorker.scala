@@ -689,32 +689,18 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     }
     profileResponse.recomputeStats(profileRequest)
 
-    def embodyStreetLeg(legWithFare: LegWithFare) = {
-      val vehicle = egressVehicles
-        .find(v => v.mode == legWithFare.leg.mode)
-        .getOrElse(
-          accessVehicles
-            .find(v => v.mode == legWithFare.leg.mode)
-            .getOrElse(destinationVehicles.find(v => v.mode == legWithFare.leg.mode).get)
-        )
+    def embodyStreetLeg(legWithFare: LegWithFare, vehicle: StreetVehicle) = {
       val unbecomeDriverAtComplete = Modes
-        .isR5LegMode(legWithFare.leg.mode) && vehicle.asDriver && ((legWithFare.leg.mode == CAR) ||
-      (legWithFare.leg.mode != CAR && legWithFare.leg.mode != WALK))
+        .isR5LegMode(legWithFare.leg.mode) && legWithFare.leg.mode != WALK
       if (legWithFare.leg.mode == WALK) {
-        val body = request.streetVehicles.find(_.mode == WALK).get
-        EmbodiedBeamLeg(legWithFare.leg, body.id, body.vehicleTypeId, body.asDriver, 0.0, unbecomeDriverAtComplete)
+        EmbodiedBeamLeg(legWithFare.leg, vehicle.id, vehicle.vehicleTypeId, vehicle.asDriver, 0.0, unbecomeDriverAtComplete)
       } else {
-        var cost = legWithFare.fare
-        if (legWithFare.leg.mode == CAR) {
-          cost = cost + DrivingCost
-            .estimateDrivingCost(legWithFare.leg, vehicleTypes(vehicle.vehicleTypeId), fuelTypePrices)
-        }
         EmbodiedBeamLeg(
           legWithFare.leg,
           vehicle.id,
           vehicle.vehicleTypeId,
           vehicle.asDriver,
-          cost,
+          if (vehicle.mode == CAR) DrivingCost.estimateDrivingCost(legWithFare.leg, vehicleTypes(vehicle.vehicleTypeId), fuelTypePrices) else 0.0,
           unbecomeDriverAtComplete
         )
       }
@@ -736,13 +722,15 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           val access = option.access.get(itinerary.connection.access)
           val vehicle = accessVehicles.find(v => v.mode.r5Mode.get.left.get == access.mode).get
           maybeWalkToVehicle(vehicle).foreach(walkLeg => {
+            val body = request.streetVehicles.find(_.mode == WALK).get
             // Glue the walk to vehicle in front of the trip without a gap
             embodiedBeamLegs += embodyStreetLeg(
-              LegWithFare(walkLeg.updateStartTime(tripStartTime - walkLeg.duration), 0.0)
+              LegWithFare(walkLeg.updateStartTime(tripStartTime - walkLeg.duration), 0.0), body
             )
           })
+
           embodiedBeamLegs ++= buildStreetBasedLegs(access, tripStartTime, vehicleTypes(vehicle.vehicleTypeId))
-            .map(embodyStreetLeg)
+            .map(embodyStreetLeg(_, vehicle))
 
           arrivalTime = embodiedBeamLegs.last.beamLeg.endTime
 
@@ -848,7 +836,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                       )
                     ),
                     0.0
-                  )
+                  ), body
                 )
                 arrivalTime = arrivalTime + transitSegment.middle.duration // in case of middle arrival time would update
               }
@@ -858,13 +846,14 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             val egress = option.egress.get(itinerary.connection.egress)
             val vehicle = egressVehicles.find(v => v.mode.r5Mode.get.left.get == egress.mode).get
             embodiedBeamLegs ++= buildStreetBasedLegs(egress, arrivalTime, vehicleTypes(vehicle.vehicleTypeId))
-              .map(embodyStreetLeg)
+              .map(embodyStreetLeg(_, vehicle))
+            val body = request.streetVehicles.find(_.mode == WALK).get
             if (isRouteForPerson && egress.mode != LegMode.WALK)
               embodiedBeamLegs += embodyStreetLeg(
                 LegWithFare(
                   dummyLeg(arrivalTime + egress.duration, embodiedBeamLegs.last.beamLeg.travelPath.endPoint.loc),
                   0.0
-                )
+                ), body
               )
           }
 
@@ -874,15 +863,16 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               LegWithFare(
                 legWithFare.leg.updateStartTime(embodiedBeamLegs.last.beamLeg.endTime),
                 legWithFare.fare
-              )
+              ), destinationVehicle.get
             )
           }
           if (isRouteForPerson && embodiedBeamLegs.last.beamLeg.mode != WALK) {
+            val body = request.streetVehicles.find(_.mode == WALK).get
             embodiedBeamLegs += embodyStreetLeg(
               LegWithFare(
                 dummyLeg(embodiedBeamLegs.last.beamLeg.endTime, embodiedBeamLegs.last.beamLeg.travelPath.endPoint.loc),
                 0.0
-              )
+              ), body
             )
           }
           EmbodiedBeamTrip(embodiedBeamLegs)
@@ -908,7 +898,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           request.requestId
         )
       } else {
-        //        log.debug("Not adding a dummy walk route since agent has no body.")
         RoutingResponse(
           embodiedTrips,
           request.requestId
