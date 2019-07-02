@@ -340,7 +340,11 @@ class RideHailManager(
     rideHailParkingStalls: Array[ParkingZone],
     rideHailParkingSearchTree: ParkingZoneSearch.ZoneSearch[TAZ]
   ) = if (parkingFilePath.isEmpty) {
-    ParkingZoneFileUtils.generateDefaultParkingFromTazfile(beamServices.beamConfig.beam.agentsim.taz.filePath)
+    ParkingZoneFileUtils
+      .generateDefaultParkingFromTazfile(
+        beamServices.beamConfig.beam.agentsim.taz.filePath,
+        Seq(ParkingType.Workplace)
+      )
   } else {
     Try {
       ParkingZoneFileUtils.fromFile(parkingFilePath)
@@ -348,7 +352,11 @@ class RideHailManager(
       case Success((s, t)) => (s, t)
       case Failure(e) =>
         log.warning(s"unable to read contents of provided parking file $parkingFilePath, got ${e.getMessage}.")
-        ParkingZoneFileUtils.generateDefaultParkingFromTazfile(beamServices.beamConfig.beam.agentsim.taz.filePath)
+        ParkingZoneFileUtils
+          .generateDefaultParkingFromTazfile(
+            beamServices.beamConfig.beam.agentsim.taz.filePath,
+            Seq(ParkingType.Workplace)
+          )
     }
   }
 
@@ -934,13 +942,15 @@ class RideHailManager(
     }
     val destinationUtm = rideHailAgentLocation.currentLocationUTM.loc
 
+    // todo: can we find out how long to charge fully here?
+
     ParkingZoneSearch.incrementalParkingZoneSearch(
       500.0,
       searchMaxRadius = searchMaxRadius,
-      destinationUtm,
-      valueOfTime = 0.0, // TODO: value of time, and parking duration
+      destinationUTM = destinationUtm,
+      valueOfTime = beamServices.beamConfig.beam.agentsim.agents.rideHail.human.valueOfTime,
       parkingDuration = 0.0,
-      Seq(ParkingType.Workplace),
+      parkingTypes = Seq(ParkingType.Workplace),
       chargingInquiryData = None,
       rideHailParkingSearchTree,
       rideHailParkingStalls,

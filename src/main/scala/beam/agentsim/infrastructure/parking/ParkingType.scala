@@ -20,4 +20,6 @@ object ParkingType {
       case "Workplace"   => Workplace
     }
   }
+
+  def AllTypes: Seq[ParkingType] = Seq(Residential, Workplace, Public)
 }
