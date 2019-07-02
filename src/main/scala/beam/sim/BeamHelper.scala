@@ -556,8 +556,6 @@ trait BeamHelper extends LazyLogging {
 
     val fileFormat = scenarioConfig.fileFormat
 
-    warmStart(beamConfig, matsimConfig)
-
     ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
       if (src == "urbansim") {
         val externalFolderExists: Boolean = Option(scenarioConfig.folder).exists(new File(_).isDirectory)
@@ -573,6 +571,8 @@ trait BeamHelper extends LazyLogging {
           throw new IllegalArgumentException(s"Urbansim needs a valid folder:[${scenarioConfig.folder}]")
         }
       } else if (src == "beam") {
+        warmStart(beamConfig, matsimConfig)
+
         fileFormat match {
           case "csv" =>
             val beamScenario = loadScenario(beamConfig)
@@ -794,10 +794,23 @@ trait BeamHelper extends LazyLogging {
       case InputType.Parquet => ParquetScenarioReader
     }
 
+    val maxHour = TimeUnit.SECONDS.toHours(matsimConfig.travelTimeCalculator().getMaxTime).toInt
+
+    val isWarmMode = beamConfig.beam.warmStart.enabled
+    val scenarioFolder = beamConfig.beam.exchange.scenario.folder
+    val ext = scenarioReader.inputType.toFileExt
+    val defaultPlanFile = s"$scenarioFolder/plans.$ext"
+
+    val planFile =
+      if (isWarmMode) {
+        BeamWarmStart(beamConfig, maxHour).getUrbanSimPlanFilePath(defaultPlanFile, ext)
+      } else {
+        defaultPlanFile
+      }
+
     new UrbanSimScenarioSource(
-      scenarioFolder = beamConfig.beam.exchange.scenario.folder,
-      isWarmMode = beamConfig.beam.warmStart.enabled,
-      planFile = matsimConfig.plans.getInputFile,
+      scenarioFolder = scenarioFolder,
+      planFilePath = planFile,
       rdr = scenarioReader,
       geoUtils = geo,
       shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm

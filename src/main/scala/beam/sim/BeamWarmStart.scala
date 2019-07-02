@@ -96,6 +96,25 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
     plansPath.toString
   }
 
+  def getUrbanSimPlanFilePath(defaultPlanFile: String, ext: String): String = {
+    getWarmStartFilePath(s"plans.$ext") match {
+      case Some(statsPath) =>
+        if (Files.exists(Paths.get(statsPath))) {
+          logger.info("Population successfully warm started from {}", statsPath)
+          statsPath
+        } else {
+          logger.warn("Population failed to warm start, plans not found at path ( {} )", statsPath)
+          defaultPlanFile
+        }
+      case None =>
+        logger.warn(
+          "Population failed to warm start, plans not found at path ( {} )",
+          srcPath
+        )
+        defaultPlanFile
+    }
+  }
+
   def getWarmStartFilePath(warmStartFile: String, rootFirst: Boolean = true): Option[String] = {
     lazy val itrFile = findIterationWarmStartFile(warmStartFile, parentRunPath)
     lazy val rootFile = findRootWarmStartFile(warmStartFile)
