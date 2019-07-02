@@ -744,7 +744,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           // Based on "Index in transit list specifies transit with same index" (comment from PointToPointConnection line 14)
           // assuming that: For each transit in option there is a TransitJourneyID in connection
           val segments = transitSegments zip transitJourneyIDs
-          val fares = latency("fare-transit-time", Metrics.VerboseLevel) {
+
+          // Lazy because this looks expensive and we may not need it because there's _another_ fare
+          // calculation that takes precedence
+          lazy val fares = latency("fare-transit-time", Metrics.VerboseLevel) {
             val fareSegments = getFareSegments(segments.toVector)
             filterFaresOnTransfers(fareSegments)
           }
@@ -759,11 +762,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                 .getOrElse(throw new RuntimeException())
               val tripId = segmentPattern.tripIds.get(transitJourneyID.time)
               val route = transportNetwork.transitLayer.routes.get(tripPattern.getRouteIdx)
-              val fs =
-                fares.view
-                  .filter(_.patternIndex == segmentPattern.patternIdx)
-                  .map(_.fare.price)
-              val fare = if (fs.nonEmpty) fs.min else 0.0
               val fromStop = tripPattern.getStops.get(segmentPattern.fromIndex)
               val toStop = tripPattern.getStops.get(segmentPattern.toIndex)
               val startTime = dates
@@ -815,7 +813,13 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                     Some(segmentLeg.travelPath.transitStops.get.routeId),
                     request.attributesOfIndividual.flatMap(_.age)
                   )
-                  .getOrElse(fare),
+                  .getOrElse {
+                    val fs =
+                      fares.view
+                        .filter(_.patternIndex == segmentPattern.patternIdx)
+                        .map(_.fare.price)
+                    if (fs.nonEmpty) fs.min else 0.0
+                  },
                 unbecomeDriverOnCompletion = false
               )
               arrivalTime = dates
