@@ -459,7 +459,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         val streetSegment = profileResponse.options.get(0).access.get(0)
         buildStreetBasedLegs(streetSegment, time, vehicleTypes(vehicle.vehicleTypeId))
       } else {
-        Vector(LegWithFare(R5RoutingWorker.createBushwackingBeamLeg(request.departureTime, from, to, geo), 0.0))
+        LegWithFare(R5RoutingWorker.createBushwackingBeamLeg(request.departureTime, from, to, geo), 0.0)
       }
     }
 
@@ -525,8 +525,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     }
 
     val destinationVehicle = destinationVehicles.headOption
-    val vehicleToDestinationLegs =
-      destinationVehicle.map(v => routeFromVehicleToDestination(v)).getOrElse(Vector())
+    val vehicleToDestinationLeg = destinationVehicle.map(v => routeFromVehicleToDestination(v))
 
     val profileResponse = new ProfileResponse
     val directOption = new ProfileOption
@@ -689,17 +688,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     }
     profileResponse.recomputeStats(profileRequest)
 
-    def embodyStreetLeg(legWithFare: LegWithFare, vehicle: StreetVehicle) = {
-        EmbodiedBeamLeg(
-          legWithFare.leg,
-          vehicle.id,
-          vehicle.vehicleTypeId,
-          vehicle.asDriver,
-          if (vehicle.mode == CAR) DrivingCost.estimateDrivingCost(legWithFare.leg, vehicleTypes(vehicle.vehicleTypeId), fuelTypePrices) else 0.0,
-          Modes.isR5LegMode(legWithFare.leg.mode) && legWithFare.leg.mode != WALK
-        )
-    }
-
     val embodiedTrips = profileResponse.options.asScala.flatMap { option =>
       option.itinerary.asScala
         .map { itinerary =>
@@ -718,13 +706,25 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           maybeWalkToVehicle(vehicle).foreach(walkLeg => {
             val body = request.streetVehicles.find(_.mode == WALK).get
             // Glue the walk to vehicle in front of the trip without a gap
-            embodiedBeamLegs += embodyStreetLeg(
-              LegWithFare(walkLeg.updateStartTime(tripStartTime - walkLeg.duration), 0.0), body
+            embodiedBeamLegs += EmbodiedBeamLeg(
+              walkLeg.updateStartTime(tripStartTime - walkLeg.duration),
+              body.id,
+              body.vehicleTypeId,
+              body.asDriver,
+              0.0,
+              false
             )
           })
 
-          embodiedBeamLegs ++= buildStreetBasedLegs(access, tripStartTime, vehicleTypes(vehicle.vehicleTypeId))
-            .map(embodyStreetLeg(_, vehicle))
+          val accessLeg = buildStreetBasedLegs(access, tripStartTime, vehicleTypes(vehicle.vehicleTypeId))
+          embodiedBeamLegs += EmbodiedBeamLeg(
+            accessLeg.leg,
+            vehicle.id,
+            vehicle.vehicleTypeId,
+            vehicle.asDriver,
+            0.0,
+            false
+          )
 
           arrivalTime = embodiedBeamLegs.last.beamLeg.endTime
 
@@ -816,21 +816,23 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                 .toInt
               if (transitSegment.middle != null) {
                 val body = request.streetVehicles.find(_.mode == WALK).get
-                embodiedBeamLegs += embodyStreetLeg(
-                  LegWithFare(
-                    BeamLeg(
+                embodiedBeamLegs += EmbodiedBeamLeg(
+                  BeamLeg(
+                    arrivalTime,
+                    mapLegMode(transitSegment.middle.mode),
+                    transitSegment.middle.duration,
+                    travelPath = buildStreetPath(
+                      transitSegment.middle,
                       arrivalTime,
-                      mapLegMode(transitSegment.middle.mode),
-                      transitSegment.middle.duration,
-                      travelPath = buildStreetPath(
-                        transitSegment.middle,
-                        arrivalTime,
-                        StreetMode.WALK,
-                        vehicleTypes(body.vehicleTypeId)
-                      )
-                    ),
-                    0.0
-                  ), body
+                      StreetMode.WALK,
+                      vehicleTypes(body.vehicleTypeId)
+                    )
+                  ),
+                  body.id,
+                  body.vehicleTypeId,
+                  body.asDriver,
+                  0.0,
+                  false
                 )
                 arrivalTime = arrivalTime + transitSegment.middle.duration // in case of middle arrival time would update
               }
@@ -839,34 +841,49 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           if (itinerary.connection.egress != null) {
             val egress = option.egress.get(itinerary.connection.egress)
             val vehicle = egressVehicles.find(v => v.mode.r5Mode.get.left.get == egress.mode).get
-            embodiedBeamLegs ++= buildStreetBasedLegs(egress, arrivalTime, vehicleTypes(vehicle.vehicleTypeId))
-              .map(embodyStreetLeg(_, vehicle))
+            val egressLeg = buildStreetBasedLegs(egress, arrivalTime, vehicleTypes(vehicle.vehicleTypeId))
+            embodiedBeamLegs += EmbodiedBeamLeg(
+              egressLeg.leg,
+              vehicle.id,
+              vehicle.vehicleTypeId,
+              vehicle.asDriver,
+              0.0,
+              false
+            )
+
             val body = request.streetVehicles.find(_.mode == WALK).get
-            if (isRouteForPerson && egress.mode != LegMode.WALK)
-              embodiedBeamLegs += embodyStreetLeg(
-                LegWithFare(
-                  dummyLeg(arrivalTime + egress.duration, embodiedBeamLegs.last.beamLeg.travelPath.endPoint.loc),
-                  0.0
-                ), body
+            if (isRouteForPerson && egress.mode != LegMode.WALK) {
+              embodiedBeamLegs += EmbodiedBeamLeg(
+                dummyLeg(arrivalTime + egress.duration, embodiedBeamLegs.last.beamLeg.travelPath.endPoint.loc),
+                body.id,
+                body.vehicleTypeId,
+                body.asDriver,
+                0.0,
+                false
               )
+            }
           }
 
-          vehicleToDestinationLegs.foreach { legWithFare =>
+          vehicleToDestinationLeg.foreach { legWithFare =>
             // Glue the drive to the final destination behind the trip without a gap
-            embodiedBeamLegs += embodyStreetLeg(
-              LegWithFare(
-                legWithFare.leg.updateStartTime(embodiedBeamLegs.last.beamLeg.endTime),
-                legWithFare.fare
-              ), destinationVehicle.get
+            embodiedBeamLegs += EmbodiedBeamLeg(
+              legWithFare.leg.updateStartTime(embodiedBeamLegs.last.beamLeg.endTime),
+              destinationVehicle.get.id,
+              destinationVehicle.get.vehicleTypeId,
+              destinationVehicle.get.asDriver,
+              legWithFare.fare,
+              true
             )
           }
           if (isRouteForPerson && embodiedBeamLegs.last.beamLeg.mode != WALK) {
             val body = request.streetVehicles.find(_.mode == WALK).get
-            embodiedBeamLegs += embodyStreetLeg(
-              LegWithFare(
-                dummyLeg(embodiedBeamLegs.last.beamLeg.endTime, embodiedBeamLegs.last.beamLeg.travelPath.endPoint.loc),
-                0.0
-              ), body
+            embodiedBeamLegs += EmbodiedBeamLeg(
+              dummyLeg(embodiedBeamLegs.last.beamLeg.endTime, embodiedBeamLegs.last.beamLeg.travelPath.endPoint.loc),
+              body.id,
+              body.vehicleTypeId,
+              body.asDriver,
+              0.0,
+              false
             )
           }
           EmbodiedBeamTrip(embodiedBeamLegs)
@@ -906,7 +923,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     r5Leg: StreetSegment,
     tripStartTime: Int,
     vehicleType: BeamVehicleType
-  ): Vector[LegWithFare] = {
+  ): LegWithFare = {
     val theTravelPath = buildStreetPath(r5Leg, tripStartTime, toR5StreetMode(r5Leg.mode), vehicleType)
     val toll = if (r5Leg.mode == LegMode.CAR) {
       val osm = r5Leg.streetEdges.asScala
@@ -925,7 +942,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       theTravelPath.duration,
       travelPath = theTravelPath
     )
-    Vector(LegWithFare(theLeg, toll))
+    LegWithFare(theLeg, toll)
   }
 
   private def buildStreetPath(
