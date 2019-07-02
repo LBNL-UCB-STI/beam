@@ -22,7 +22,7 @@ import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoord
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
-import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
+import beam.sim.config.{BeamConfig, BeamExecutionConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationAdjustment
@@ -601,8 +601,6 @@ trait BeamHelper extends LazyLogging {
       }
     }
   }
-
-  case class BeamExecutionConfig(beamConfig: BeamConfig, matsimConfig: MatsimConfig, outputDirectory: String)
 
   def setupBeamWithConfig(
     config: TypesafeConfig
