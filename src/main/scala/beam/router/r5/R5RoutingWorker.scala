@@ -826,25 +826,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                 .toInt
               if (transitSegment.middle != null) {
                 val body = request.streetVehicles.find(_.mode == WALK).get
-                embodiedBeamLegs += EmbodiedBeamLeg(
-                  BeamLeg(
-                    arrivalTime,
-                    mapLegMode(transitSegment.middle.mode),
-                    transitSegment.middle.duration,
-                    travelPath = buildStreetPath(
-                      transitSegment.middle,
-                      arrivalTime,
-                      StreetMode.WALK,
-                      vehicleTypes(body.vehicleTypeId)
-                    )
-                  ),
-                  body.id,
-                  body.vehicleTypeId,
-                  body.asDriver,
-                  0.0,
-                  false
-                )
-                arrivalTime = arrivalTime + transitSegment.middle.duration // in case of middle arrival time would update
+                embodiedBeamLegs += buildStreetBasedLegs(transitSegment.middle, arrivalTime, body)
+                arrivalTime = arrivalTime + transitSegment.middle.duration
               }
           }
 
