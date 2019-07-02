@@ -5,7 +5,6 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.Modes
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, BeamPath, BeamTrip}
 import beam.tags.{ExcludeRegular, Periodic}
@@ -22,6 +21,7 @@ class SfLightRoutePopulationSpec
   "A router" must {
 
     "respond with a drive_transit and a walk_transit route for each trip in sflight" taggedAs (Periodic, ExcludeRegular) in {
+      var numFailedCarRoutes = 0
       scenario.getPopulation.getPersons
         .values()
         .forEach(person => {
@@ -58,45 +58,7 @@ class SfLightRoutePopulationSpec
               assert(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))
               assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
               assert(response.itineraries.filter(_.tripClassifier.isTransit).forall(_.costEstimate > 0))
-            })
-        })
-    }
 
-    "respond with a walk route and usually a car route for each trip in sflight" taggedAs (Periodic, ExcludeRegular) in {
-      var numFailedCarRoutes = 0
-      scenario.getPopulation.getPersons
-        .values()
-        .forEach(person => {
-          val activities = planToVec(person.getSelectedPlan)
-          activities
-            .sliding(2)
-            .foreach(pair => {
-              val origin = pair(0).getCoord
-              val destination = pair(1).getCoord
-              val time = pair(0).getEndTime.toInt
-              router ! RoutingRequest(
-                origin,
-                destination,
-                time,
-                withTransit = false,
-                Vector(
-                  StreetVehicle(
-                    Id.createVehicleId("116378-2"),
-                    Id.create("Car", classOf[BeamVehicleType]),
-                    new SpaceTime(origin, 0),
-                    Modes.BeamMode.CAR,
-                    asDriver = true
-                  ),
-                  StreetVehicle(
-                    Id.createVehicleId("body-116378-2"),
-                    Id.create("Car", classOf[BeamVehicleType]),
-                    new SpaceTime(new Coord(origin.getX, origin.getY), time),
-                    Modes.BeamMode.WALK,
-                    asDriver = true
-                  )
-                )
-              )
-              val response = expectMsgType[RoutingResponse]
               assert(response.itineraries.exists(_.tripClassifier == WALK))
 
               val walkTrip = response.itineraries
