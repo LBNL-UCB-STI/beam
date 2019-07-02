@@ -104,7 +104,8 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
 
       val transitOption = response.itineraries.find(_.tripClassifier == DRIVE_TRANSIT).get
       assertMakesSense(transitOption.toBeamTrip)
-      assert(transitOption.totalTravelTimeInSecs > 1000) // I have to go get my car
+      assert(transitOption.totalTravelTimeInSecs > 1000) // I have to get my car
+      assert(!response.itineraries.exists(_.tripClassifier == WALK)) // I have to get my car
     }
 
     "respond with a ride-hail+transit route to a reasonable RoutingRequest" in {

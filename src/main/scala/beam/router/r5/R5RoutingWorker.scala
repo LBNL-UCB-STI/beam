@@ -967,11 +967,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       EmbodiedBeamTrip(embodiedLegs)
     })
 
-    println(request.originUTM + " " + request.streetVehicles)
-
-    if (!embodiedTrips.exists(_.tripClassifier == WALK)) {
-      //      log.debug("No walk route found. {}", routingRequest)
-      val maybeBody = request.streetVehicles.find(_.mode == WALK)
+    if (!embodiedTrips.exists(_.tripClassifier == WALK) && !mainRouteToVehicle) {
+      val maybeBody = directVehicles.find(_.mode == WALK)
       if (maybeBody.isDefined) {
         val dummyTrip = R5RoutingWorker.createBushwackingTrip(
           new Coord(request.originUTM.getX, request.originUTM.getY),
