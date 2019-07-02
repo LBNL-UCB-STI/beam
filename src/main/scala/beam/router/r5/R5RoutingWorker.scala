@@ -898,45 +898,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     }
   }
 
-  private def buildStreetBasedLegs(
-    r5Leg: StreetSegment,
+  private def buildStreetBasedLegs(segment: StreetSegment,
     tripStartTime: Int,
     vehicle: StreetVehicle
   ): EmbodiedBeamLeg = {
-    val theTravelPath =
-      buildStreetPath(r5Leg, tripStartTime, toR5StreetMode(r5Leg.mode), vehicleTypes(vehicle.vehicleTypeId))
-    val toll = if (r5Leg.mode == LegMode.CAR) {
-      val osm = r5Leg.streetEdges.asScala
-        .map(
-          e =>
-            transportNetwork.streetLayer.edgeStore
-              .getCursor(e.edgeId)
-              .getOSMID
-        )
-        .toVector
-      tollCalculator.calcTollByOsmIds(osm) + tollCalculator.calcTollByLinkIds(theTravelPath)
-    } else 0.0
-    EmbodiedBeamLeg(
-      BeamLeg(
-        tripStartTime,
-        mapLegMode(r5Leg.mode),
-        theTravelPath.duration,
-        travelPath = theTravelPath
-      ),
-      vehicle.id,
-      vehicle.vehicleTypeId,
-      vehicle.asDriver,
-      toll,
-      false
-    )
-  }
-
-  private def buildStreetPath(
-    segment: StreetSegment,
-    tripStartTime: Int,
-    mode: StreetMode,
-    vehicleType: BeamVehicleType
-  ): BeamPath = {
     var activeLinkIds = ArrayBuffer[Int]()
     for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
       activeLinkIds += edge.edgeId.intValue()
@@ -944,12 +909,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     val linksTimesDistances = RoutingModel.linksToTimeAndDistance(
       activeLinkIds,
       tripStartTime,
-      travelTimeByLinkCalculator(vehicleType),
-      mode,
+      travelTimeByLinkCalculator(vehicleTypes(vehicle.vehicleTypeId)),
+      toR5StreetMode(segment.mode),
       transportNetwork.streetLayer
     )
     val distance = linksTimesDistances.distances.tail.sum // note we exclude the first link to keep with MATSim convention
-    BeamPath(
+    val theTravelPath = BeamPath(
       activeLinkIds,
       linksTimesDistances.travelTimes,
       None,
@@ -964,6 +929,30 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         tripStartTime + linksTimesDistances.travelTimes.tail.sum
       ),
       distance
+    )
+    val toll = if (segment.mode == LegMode.CAR) {
+      val osm = segment.streetEdges.asScala
+        .map(
+          e =>
+            transportNetwork.streetLayer.edgeStore
+              .getCursor(e.edgeId)
+              .getOSMID
+        )
+        .toVector
+      tollCalculator.calcTollByOsmIds(osm) + tollCalculator.calcTollByLinkIds(theTravelPath)
+    } else 0.0
+    EmbodiedBeamLeg(
+      BeamLeg(
+        tripStartTime,
+        mapLegMode(segment.mode),
+        theTravelPath.duration,
+        travelPath = theTravelPath
+      ),
+      vehicle.id,
+      vehicle.vehicleTypeId,
+      vehicle.asDriver,
+      toll,
+      false
     )
   }
 
