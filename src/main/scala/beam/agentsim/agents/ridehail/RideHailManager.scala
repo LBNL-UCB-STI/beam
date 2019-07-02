@@ -444,13 +444,13 @@ class RideHailManager(
   }
 
   import scala.concurrent.duration._
-  val tickTask: Cancellable = context.system.scheduler.schedule(2.seconds, 60.seconds, self, "tick")(context.dispatcher)
+//  val tickTask: Cancellable = context.system.scheduler.schedule(2.seconds, 60.seconds, self, "tick")(context.dispatcher)
   // Black magic, remove once done with debugging
 //  val method: Method = this.getClass.getDeclaredMethod("akka$actor$StashSupport$$theStash")
 
   override def postStop: Unit = {
     log.info("postStop")
-    tickTask.cancel()
+//    tickTask.cancel()
     super.postStop()
   }
 
@@ -675,6 +675,10 @@ class RideHailManager(
             case Some(requestId) =>
               // Some here means this is part of a reservation / dispatch of vehicle to a customer
               log.debug("modifyPassengerScheduleAck received, completing reservation {}", modifyPassengerScheduleAck)
+              val currentTick = modifyPassengerScheduleManager.getCurrentTick.get
+              if(tick <  currentTick || triggersToSchedule.find(trig => trig.trigger.tick < tick || trig.trigger.tick < currentTick || trig.trigger.tick == 26850 || trig.trigger.tick == 25230).isDefined){
+                val i = 0
+              }
               completeReservation(requestId, tick, triggersToSchedule)
           }
       }
@@ -1238,7 +1242,8 @@ class RideHailManager(
     val consistentSchedule = pickDrops.zip(BeamLeg.makeLegsConsistent(pickDrops.map(_.beamLegAfterTag.map(_.beamLeg))))
     val allLegs = consistentSchedule.flatMap(_._2)
     var passSched = PassengerSchedule().addLegs(allLegs)
-    var passengersToAdd = Set[PersonIdWithActorRef]()
+    // Initialize passengersToAdd with any passenger that doesn't have a pickup
+    var passengersToAdd = Set[PersonIdWithActorRef]() ++ consistentSchedule.groupBy(_._1.person).filter(tup => tup._1.isDefined && tup._2.size==1).map(_._2.head._1.person.get)
     var pickDropsForGrouping: Map[PersonIdWithActorRef, List[BeamLeg]] = Map()
     consistentSchedule.foreach{
       case (mobReq, legOpt) =>

@@ -39,6 +39,9 @@ object DrivesVehicle {
     // First attempt to find the link in updated that corresponds to the stopping link in old
     val stoppingLink = oldPassengerSchedule.linkAtTime(stopTick)
     val updatedLegsInSchedule = updatedPassengerSchedule.schedule.keys.toList
+    if(updatedLegsInSchedule.sliding(2).filter(tup => tup.size > 1 && tup.head.endTime > tup.last.startTime ).size>0){
+      val i = 0
+    }
     val startingLeg = updatedLegsInSchedule.reverse.find(_.travelPath.linkIds.contains(stoppingLink)) match {
       case Some(leg) =>
        leg
@@ -63,7 +66,7 @@ object DrivesVehicle {
     )
     val updatedStartingLeg = BeamLeg(stopTick,startingLeg.mode,newTravelPath.duration,newTravelPath)
     val indexOfStartingLeg = updatedLegsInSchedule.indexOf(startingLeg)
-    val newLegsInSchedule = updatedLegsInSchedule.slice(0, indexOfStartingLeg) ++ (updatedStartingLeg +: updatedLegsInSchedule.slice(indexOfStartingLeg+1,updatedPassengerSchedule.schedule.size))
+    val newLegsInSchedule = BeamLeg.makeVectorLegsConsistentAsTrip(updatedLegsInSchedule.slice(0, indexOfStartingLeg) ++ (updatedStartingLeg +: updatedLegsInSchedule.slice(indexOfStartingLeg+1,updatedPassengerSchedule.schedule.size)))
     var newPassSchedule = PassengerSchedule().addLegs(newLegsInSchedule)
     updatedPassengerSchedule.uniquePassengers.foreach{ pass =>
       val indicesOfMatchingElements = updatedPassengerSchedule.legsWithPassenger(pass).toIndexedSeq.map(updatedLegsInSchedule.indexOf(_))
@@ -382,7 +385,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         currentLeg.travelPath.startPoint
       }
 
-      assert(data.passengerSchedule.schedule(currentLeg).riders.isEmpty)
       val fuelConsumed = currentBeamVehicle.useFuel(currentLeg, beamScenario, networkHelper)
 
       nextNotifyVehicleResourceIdle = Some(
@@ -438,21 +440,26 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         )
       )
 
-      self ! PassengerScheduleEmptyMessage(
-        geo.wgs2Utm(
-          data.passengerSchedule.schedule
-            .drop(data.currentLegPassengerScheduleIndex)
-            .head
-            ._1
-            .travelPath
-            .endPoint
-        ),
-        tollsAccumulated
-      )
-      tollsAccumulated = 0.0
-      goto(PassengerScheduleEmptyInterrupted) using data
-        .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
-        .asInstanceOf[T]
+      if(data.passengerSchedule.schedule(currentLeg).riders.isEmpty){
+        self ! PassengerScheduleEmptyMessage(
+          geo.wgs2Utm(
+            data.passengerSchedule.schedule
+              .drop(data.currentLegPassengerScheduleIndex)
+              .head
+              ._1
+              .travelPath
+              .endPoint
+          ),
+          tollsAccumulated
+        )
+        tollsAccumulated = 0.0
+        goto(PassengerScheduleEmptyInterrupted) using data
+          .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
+          .asInstanceOf[T]
+      }else{
+        // In this case our passenger schedule isn't empty so we go directly to idle interrupted
+        goto(IdleInterrupted) using data.asInstanceOf[T]
+      }
     case ev @ Event(Resume(), _) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       goto(Driving)

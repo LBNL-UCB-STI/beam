@@ -320,7 +320,7 @@ class RideHailAgent(
     case ev @ Event(ModifyPassengerSchedule(updatedPassengerSchedule, tick, requestId), data) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
-      // i.e. for what time it is. For now, we just believe it that time is not running backwards.
+      // i.e. for what time it is.
       if(data.passengerSchedule.schedule.isEmpty){
         log.debug("updating Passenger schedule - vehicleId({}): {}", id, updatedPassengerSchedule)
         val triggerToSchedule = Vector(
@@ -346,10 +346,11 @@ class RideHailAgent(
         val currentLeg = data.passengerSchedule.schedule.view.drop(data.currentLegPassengerScheduleIndex).head._1
         val updatedStopTime = math.max(currentLeg.startTime,tick)
         val resolvedPassengerSchedule: PassengerSchedule = DrivesVehicle.resolvePassengerScheduleConflicts(updatedStopTime, data.passengerSchedule, updatedPassengerSchedule, beamServices.networkHelper, beamServices.geo)
-        if(data.currentLegPassengerScheduleIndex >= resolvedPassengerSchedule.schedule.size ){
+        val newLegIndex = resolvedPassengerSchedule.schedule.keys.zipWithIndex.find(_._1.startTime<=updatedStopTime).map(_._2).getOrElse(0)
+        if(newLegIndex >= resolvedPassengerSchedule.schedule.size ){
           val i = 0
         }
-        val newNextLeg = resolvedPassengerSchedule.schedule.keys.toIndexedSeq(data.currentLegPassengerScheduleIndex)
+        val newNextLeg = resolvedPassengerSchedule.schedule.keys.toIndexedSeq(newLegIndex)
 
         if(resolvedPassengerSchedule.schedule.values.exists(_.riders.size==6)){
           val i = 0
@@ -367,6 +368,7 @@ class RideHailAgent(
         goto(WaitingToDriveInterrupted) using data
           .copy(geofence = geofence)
           .withPassengerSchedule(resolvedPassengerSchedule)
+          .withCurrentLegPassengerScheduleIndex(newLegIndex)
           .asInstanceOf[RideHailAgentData] replying ModifyPassengerScheduleAck(
           requestId,
           triggerToSchedule,

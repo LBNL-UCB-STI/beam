@@ -102,7 +102,7 @@ object BeamLeg {
     } else { legs }
   }
 
-  def makeVectorLegsConsistentAsTrip(legs: Vector[BeamLeg]): Vector[BeamLeg] = {
+  def makeVectorLegsConsistentAsTrip(legs: List[BeamLeg]): List[BeamLeg] = {
     legs.isEmpty match {
       case true =>
         legs
