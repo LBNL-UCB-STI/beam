@@ -49,7 +49,6 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.util.Try
 
 case class WorkerParameters(
   beamConfig: BeamConfig,
@@ -432,56 +431,46 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       }
     }
 
-    /*
-     * For the mainRouteToVehicle pattern (see above), we look for RequestTripInfo.streetVehiclesUseIntermodalUse == Egress, and then we
-     * route separately from the vehicle to the destination with an estimate of the start time and adjust the timing of this route
-     * after finding the main route from origin to vehicle.
-     */
-    def maybeUseVehicleOnEgressTry(vehicle: StreetVehicle): Try[Vector[LegWithFare]] = Try {
-      val mainRouteToVehicle = request.streetVehiclesUseIntermodalUse == Egress && isRouteForPerson && vehicle.mode != WALK
-      if (mainRouteToVehicle) {
-        // assume 13 mph / 5.8 m/s as average PT speed: http://cityobservatory.org/urban-buses-are-slowing-down/
-        val estimateDurationToGetToVeh: Int = math
-          .round(geo.distUTMInMeters(request.originUTM, vehicle.locationUTM.loc) / 5.8)
-          .intValue()
-        val time = request.departureTime + estimateDurationToGetToVeh
-        val from = geo.snapToR5Edge(
-          transportNetwork.streetLayer,
-          geo.utm2Wgs(vehicle.locationUTM.loc),
-          10E3
-        )
-        val to = geo.snapToR5Edge(
-          transportNetwork.streetLayer,
-          geo.utm2Wgs(request.destinationUTM),
-          10E3
-        )
-        val directMode = vehicle.mode.r5Mode.get.left.get
-        val accessMode = vehicle.mode.r5Mode.get.left.get
-        val egressMode = LegMode.WALK
-        val profileResponse =
-          latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {
-            getStreetPlanFromR5(
-              R5Request(
-                from,
-                to,
-                time,
-                directMode,
-                accessMode,
-                withTransit = false,
-                egressMode,
-                request.timeValueOfMoney,
-                vehicle.vehicleTypeId
-              )
+    def routeFromVehicleToDestination(vehicle: StreetVehicle) = {
+      // assume 13 mph / 5.8 m/s as average PT speed: http://cityobservatory.org/urban-buses-are-slowing-down/
+      val estimateDurationToGetToVeh: Int = math
+        .round(geo.distUTMInMeters(request.originUTM, vehicle.locationUTM.loc) / 5.8)
+        .intValue()
+      val time = request.departureTime + estimateDurationToGetToVeh
+      val from = geo.snapToR5Edge(
+        transportNetwork.streetLayer,
+        geo.utm2Wgs(vehicle.locationUTM.loc),
+        10E3
+      )
+      val to = geo.snapToR5Edge(
+        transportNetwork.streetLayer,
+        geo.utm2Wgs(request.destinationUTM),
+        10E3
+      )
+      val directMode = vehicle.mode.r5Mode.get.left.get
+      val accessMode = vehicle.mode.r5Mode.get.left.get
+      val egressMode = LegMode.WALK
+      val profileResponse =
+        latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {
+          getStreetPlanFromR5(
+            R5Request(
+              from,
+              to,
+              time,
+              directMode,
+              accessMode,
+              withTransit = false,
+              egressMode,
+              request.timeValueOfMoney,
+              vehicle.vehicleTypeId
             )
-          }
-        if (!profileResponse.options.isEmpty) {
-          val streetSegment = profileResponse.options.get(0).access.get(0)
-          buildStreetBasedLegs(streetSegment, time, vehicleTypes(vehicle.vehicleTypeId))
-        } else {
-          throw DestinationUnreachableException // Cannot go to destination with this vehicle, so no options from this vehicle.
+          )
         }
+      if (!profileResponse.options.isEmpty) {
+        val streetSegment = profileResponse.options.get(0).access.get(0)
+        buildStreetBasedLegs(streetSegment, time, vehicleTypes(vehicle.vehicleTypeId))
       } else {
-        Vector()
+        Vector(LegWithFare(R5RoutingWorker.createBushwackingBeamLeg(request.departureTime, from, to, geo), 0.0))
       }
     }
 
@@ -524,7 +513,9 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     } else {
       accessVehicles
     }
-    val maybeWalkToVehicle: Map[StreetVehicle, Option[BeamLeg]] = accessVehicles.map(v => v -> calcRouteToVehicle(v)).toMap
+
+    val maybeWalkToVehicle: Map[StreetVehicle, Option[BeamLeg]] =
+      accessVehicles.map(v => v -> calcRouteToVehicle(v)).toMap
 
     val egressVehicles = if (mainRouteRideHailTransit) {
       request.streetVehicles
@@ -545,6 +536,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     }
 
     val destinationVehicle = destinationVehicles.headOption
+    val vehicleToDestinationLegs =
+      destinationVehicle.map(v => routeFromVehicleToDestination(v)).getOrElse(Vector())
 
     val profileResponse = new ProfileResponse
     val directOption = new ProfileOption
@@ -841,10 +834,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                 )
             }
           }
-          val vehicleToDestinationLegs = destinationVehicle.map(v => maybeUseVehicleOnEgressTry(v).get).getOrElse(Vector())
           vehicleToDestinationLegs.foreach { legWithFare =>
             // Glue the drive to the final destination behind the trip without a gap
-            legsWithFares += LegWithFare(legWithFare.leg.updateStartTime(legsWithFares.last.leg.endTime), legWithFare.fare)
+            legsWithFares += LegWithFare(
+              legWithFare.leg.updateStartTime(legsWithFares.last.leg.endTime),
+              legWithFare.fare
+            )
           }
           if (vehicleToDestinationLegs.nonEmpty && isRouteForPerson) {
             legsWithFares += LegWithFare(
