@@ -149,6 +149,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
          |beam.outputs.events.fileOutputFormats = xml
          |beam.physsim.skipPhysSim = true
          |beam.agentsim.lastIteration = 1
+         |beam.outputs.writeSkimsInterval = 1
          |beam.agentsim.agents.vehicles.sharedFleets = [
          | {
          |    name = "fixed-non-reserving-fleet-by-taz"

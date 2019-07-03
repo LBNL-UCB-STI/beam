@@ -8,17 +8,13 @@ import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import beam.agentsim.Resource.{Boarded, NotAvailable, NotifyVehicleIdle, TryToBoardVehicle}
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.household.HouseholdActor.{
-  MobilityStatusInquiry,
-  MobilityStatusResponse,
-  ReleaseVehicle,
-  ReleaseVehicleAndReply
-}
+import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle, ReleaseVehicleAndReply}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.Token
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.taz.H3TAZ.HexIndex
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -63,7 +59,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       vehicle.id -> vehicle
   }).toMap
 
-  private val availableVehicles = mutable.Map[Id[BeamVehicle], BeamVehicle]()
+  private val availableVehicles = mutable.Map.empty[Id[BeamVehicle], BeamVehicle]
   private val availableVehiclesIndex = new Quadtree
 
   override def receive: Receive = super[RepositionManager].receive orElse { // Reposition
@@ -132,6 +128,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   override def getServices: BeamServices = beamServices
   def getRepositionAlgorithmType: Option[RepositionAlgorithmType] = repositionAlgorithmType
   override def getSkimmer: BeamSkimmer = beamSkimmer
+  override def getAvailableVehicles: Iterable[BeamVehicle] = availableVehicles.values
 
   override def makeAvailable(vehId: Id[BeamVehicle]): Boolean = {
     val vehicle = vehicles(vehId)

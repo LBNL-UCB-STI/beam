@@ -3,11 +3,13 @@ import akka.actor.{Actor, ActorLogging, ActorRef}
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.taz.H3TAZ.HexIndex
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamSkimmer
+import beam.router.skim.FlatSkimmer
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.{Coord, Id}
 
@@ -68,6 +70,7 @@ trait RepositionManager extends Actor with ActorLogging {
   // ****
   def getId: Id[VehicleManager]
   def queryAvailableVehicles: List[BeamVehicle]
+  def getAvailableVehicles: Iterable[BeamVehicle]
   def makeUnavailable(vehId: Id[BeamVehicle], streetVehicle: StreetVehicle): Option[BeamVehicle]
   def makeAvailable(vehId: Id[BeamVehicle]): Boolean
   def makeTeleport(vehId: Id[BeamVehicle], whenWhere: SpaceTime): Unit
@@ -77,18 +80,27 @@ trait RepositionManager extends Actor with ActorLogging {
   def getRepositionAlgorithmType: Option[RepositionAlgorithmType]
 
   def collectData(time: Int, coord: Coord, label: String) = {
-    if (statTime != 0)
+    if (statTime != 0) {
       getSkimmer.countEventsByTAZ(time / statTime, coord, getId, label)
+      getServices.matsimServices.getEvents
+        .processEvent(FlatSkimmer.getEvent(time, time / statTime, coord, getId, label, 1.0))
+    }
   }
 
   def collectData(time: Int) = {
-    if (statTime != 0)
+    if (statTime != 0) {
       getSkimmer.observeVehicleAvailabilityByTAZ(
         time / statTime,
         getId,
         RepositionManager.availability,
         queryAvailableVehicles
       )
+      getAvailableVehicles.foreach { vehicle =>
+        getServices.matsimServices.getEvents.processEvent(
+          FlatSkimmer.getEvent(time, time / statTime, vehicle.spaceTime.loc, getId, RepositionManager.availability, 1.0)
+        )
+      }
+    }
   }
 }
 

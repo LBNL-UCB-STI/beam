@@ -13,9 +13,7 @@ class BeamSubject @Inject()(val injector: Injector) extends StartupListener with
   val beamScenario: BeamScenario = injector.getInstance(classOf[BeamScenario])
   val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
 
-  def get[T] = {
-    observers.find(_.isInstanceOf[T])
-  }
+  def getAll = observers
 
   override def notifyStartup(event: StartupEvent): Unit = {
     // add observers here

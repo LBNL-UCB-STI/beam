@@ -69,21 +69,16 @@ object H3TAZ {
       scenario.getNetwork.getNodes.values().asScala.map(n => in.transform(n.getCoord))
     )
     val h3Map = new H3TAZ(crs)
-    val gf = new GeometryFactory()
-    val tazToPolygon = tazTreeMap.getTAZs.map { taz =>
-      val boundary = taz.geom.map(in.transform).map(c => new Coordinate(c.getX, c.getY))
-      taz.tazId -> gf.createPolygon(boundary :+ boundary.head)
-    }.toMap
+//    val gf = new GeometryFactory()
+//    val tazToPolygon = tazTreeMap.getTAZs.filter(_.geom.nonEmpty).map { taz =>
+//      val boundary = taz.geom.map(in.transform).map(c => new Coordinate(c.getX, c.getY))
+//      taz.tazId -> gf.createPolygon(boundary :+ boundary.head)
+//    }.toMap
     fillBox(box, UBoundResolution).foreach { hex =>
       val hexCentroid = hexToCoord(hex)
-      val selectedTAZ = tazTreeMap
-        .getTAZInRadius(out.transform(hexCentroid), 50)
-        .asScala
-        .filter { taz =>
-          tazToPolygon(taz.tazId).intersects(gf.createPoint(new Coordinate(hexCentroid.getX, hexCentroid.getY)))
-        }
-        .map(_.tazId)
-      h3Map.add(hexCentroid.getX, hexCentroid.getY, hex, selectedTAZ.headOption.getOrElse(emptyTAZId))
+      val hexCentroidBis = out.transform(hexCentroid)
+      val selectedTAZ = tazTreeMap.getTAZ(hexCentroidBis.getX, hexCentroidBis.getY)
+      h3Map.add(hexCentroid.getX, hexCentroid.getY, hex, selectedTAZ.tazId)
     }
     h3Map
   }

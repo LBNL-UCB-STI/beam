@@ -2,22 +2,25 @@ package beam.router.skim
 
 import beam.agentsim.infrastructure.taz.{H3TAZ, TAZ}
 import beam.sim.vehiclesharing.VehicleManager
-import beam.sim.{BeamObserver, BeamObserverData, BeamObserverKey, BeamScenario, BeamServices}
-import org.matsim.api.core.v01.Id
+import beam.sim.{BeamObserver, BeamObserverData, BeamObserverEvent, BeamObserverKey, BeamScenario, BeamServices}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.MatsimServices
 
 import scala.collection.{immutable, mutable}
 
-case class FlatSkimmerKey(timBin: Int,
-                          idTaz: Id[TAZ],
-                          hexIndex: String,
-                          idVehManager: Id[VehicleManager],
-                          label: String) extends BeamObserverKey
+case class FlatSkimmerKey(
+  timBin: Int,
+  idTaz: Id[TAZ],
+  hexIndex: String,
+  idVehManager: Id[VehicleManager],
+  label: String
+) extends BeamObserverKey
 
 case class FlatSkimmerData(value: Double) extends BeamObserverData
 
 class FlatSkimmer(beamScenario: BeamScenario, matsimServices: MatsimServices) extends BeamObserver(beamScenario) {
-  override def cvsFileName: String = "h3-skims-default.csv.gz"
+  FlatSkimmer.h3taz = Some(H3TAZ.build(matsimServices.getScenario, beamScenario.tazTreeMap))
+  override def cvsFileName: String = "flatSkim.csv.gz"
   override def cvsFileHeader: String = "timeBin,idTaz,hexIndex,idVehManager,label,value"
   override def strMapToKeyData(strMap: immutable.Map[String, String]): (BeamObserverKey, BeamObserverData) = {
     val time = strMap("timeBin").toInt
@@ -38,9 +41,38 @@ class FlatSkimmer(beamScenario: BeamScenario, matsimServices: MatsimServices) ex
     imap.put("value", keyVal._2.asInstanceOf[FlatSkimmerData].value.toString)
     imap.toMap
   }
-  FlatSkimmer.h3taz = Some(H3TAZ.build(matsimServices.getScenario, beamScenario.tazTreeMap))
+  override def mergeDataWithSameKey(storedData: BeamObserverData, newData: BeamObserverData): BeamObserverData = {
+    FlatSkimmerData(storedData.asInstanceOf[FlatSkimmerData].value + newData.asInstanceOf[FlatSkimmerData].value)
+  }
+  override def dataToPersistAtEndOfIteration(
+    persistedData: immutable.Map[BeamObserverKey, BeamObserverData],
+    collectedData: immutable.Map[BeamObserverKey, BeamObserverData]
+  ): immutable.Map[BeamObserverKey, BeamObserverData] = collectedData
+  override def checkIdDataShouldBePersistedThisIteration(iteration: Int) = {
+    iteration % beamScenario.beamConfig.beam.outputs.writeSkimsInterval == 0
+  }
 }
 
 object FlatSkimmer {
   var h3taz: Option[H3TAZ] = None
+  def getEvent(time: Double, bin: Int, coord: Coord, vehMng: Id[VehicleManager], label: String, value: Double) =
+    new BeamObserverEvent(time) {
+      override def getEventType: String = "FlatSkimmerEvent"
+      override def getKey: BeamObserverKey = {
+        var hexIndex = "NA"
+        var idTaz = H3TAZ.emptyTAZId
+        FlatSkimmer.h3taz match {
+          case Some(h3taz) =>
+            h3taz.getHex(coord.getX, coord.getY) match {
+              case Some(hex) =>
+                hexIndex = hex
+                idTaz = h3taz.getTAZ(hex)
+              case _ =>
+            }
+          case _ =>
+        }
+        FlatSkimmerKey(bin, idTaz, hexIndex, vehMng, label)
+      }
+      override def getData: BeamObserverData = FlatSkimmerData(value)
+    }
 }
