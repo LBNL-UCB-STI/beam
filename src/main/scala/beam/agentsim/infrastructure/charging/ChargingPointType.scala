@@ -56,7 +56,8 @@ object ChargingPointType {
     }
   }
 
-  private[ChargingPointType] val CustomChargingPointRegex: Regex = "(\\w+\\d*)\\((\\d+\\.?\\d+\\s*),(\\s*\\w{2})\\)".r.unanchored
+  private[ChargingPointType] val CustomChargingPointRegex: Regex =
+    "(\\w+\\d*)\\((\\d+\\.?\\d+\\s*),(\\s*\\w{2})\\)".r.unanchored
 
   // matches either the standard ones or a custom one
   def apply(s: String): Option[ChargingPointType] = {
