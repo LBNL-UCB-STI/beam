@@ -234,7 +234,6 @@ class BeamAgentScheduler(
       if (started) doSimStep(nowInSeconds)
 
     case triggerToSchedule: ScheduleTrigger =>
-//      log.debug("Received trigger {}", triggerToSchedule) // todo JH comment or delete
       context.watch(triggerToSchedule.agent)
       scheduleTrigger(triggerToSchedule)
       if (started) doSimStep(nowInSeconds)
@@ -362,9 +361,6 @@ class BeamAgentScheduler(
           .trigger
           .tick <= stopTick) {
       nowInSeconds = newNow
-
-      //log.debug("doSimStep: {}", newNow) // todo JH comment or delete
-
       if (awaitingResponse.isEmpty || nowInSeconds - awaitingResponse
             .keySet()
             .first() + 1 < maxWindow) {
@@ -375,7 +371,6 @@ class BeamAgentScheduler(
                  .tick <= nowInSeconds) {
           val scheduledTrigger = this.triggerQueue.poll()
           val triggerWithId = scheduledTrigger.triggerWithId
-          //log.info(s"dispatching $triggerWithId") // todo JH comment or delete
           awaitingResponse.put(triggerWithId.trigger.tick, scheduledTrigger)
           stuckFinder.add(System.currentTimeMillis(), scheduledTrigger, true)
 

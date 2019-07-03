@@ -620,12 +620,6 @@ class PersonAgent(
   }
 
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
-
-    //    case ev @ Event(TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, energyInJoules), triggerId), data) =>
-    //      log.debug("state(DrivesVehicle.WaitingToDrive.EndRefuelSessionTrigger): {}", ev)
-    //      handleEndCharging(energyInJoules, tick, sessionStart.toInt, currentBeamVehicle)
-    //      stay() replying CompletionNotice(triggerId) // todo JH remove
-
     case Event(
         StateTimeout,
         data @ BasePersonData(
