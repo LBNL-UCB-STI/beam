@@ -2,7 +2,7 @@ package beam.router.skim
 
 import beam.agentsim.infrastructure.taz.{H3TAZ, TAZ}
 import beam.sim.vehiclesharing.VehicleManager
-import beam.sim.{BeamObserver, BeamObserverData, BeamObserverEvent, BeamObserverKey, BeamScenario, BeamServices}
+import beam.sim._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.MatsimServices
 
@@ -55,6 +55,7 @@ class FlatSkimmer(beamScenario: BeamScenario, matsimServices: MatsimServices) ex
 
 object FlatSkimmer {
   var h3taz: Option[H3TAZ] = None
+
   def getEvent(time: Double, bin: Int, coord: Coord, vehMng: Id[VehicleManager], label: String, value: Double) =
     new BeamObserverEvent(time) {
       override def getEventType: String = "FlatSkimmerEvent"

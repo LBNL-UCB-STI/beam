@@ -1,14 +1,11 @@
 package beam.agentsim.infrastructure.taz
 
-import java.util
-
 import beam.agentsim.infrastructure.taz.H3TAZ.HexIndex
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.uber.h3core.util.GeoCoord
 import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
-import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.{PolygonFeatureFactory, ShapeFileWriter}
@@ -30,9 +27,9 @@ class H3TAZ(val scenarioEPSG: String) {
     val coord = H3TAZ.toGeoCoord(inTransform.transform(new Coord(x, y)))
     var curResolution = H3TAZ.UBoundResolution
     var hexFound: Option[HexIndex] = None
-    while(hexFound.isEmpty && curResolution >= H3TAZ.LBoundResolution) {
+    while (hexFound.isEmpty && curResolution >= H3TAZ.LBoundResolution) {
       val hex = H3TAZ.H3.geoToH3Address(coord.lat, coord.lng, H3TAZ.UBoundResolution)
-      if(tazToH3TAZMapping.contains(hex))
+      if (tazToH3TAZMapping.contains(hex))
         hexFound = Some(hex)
       curResolution -= 1
     }
@@ -124,13 +121,11 @@ object H3TAZ {
       .map(home => H3.geoToH3Address(home.getY, home.getX, UBoundResolution) -> home)
       .groupBy(_._1)
       .mapValues(_.size)
-    (LBoundResolution until UBoundResolution).foreach {
-      res =>
-        if(resolutionMap(res).isEmpty)
-          resolutionMap.put(res, mutable.HashMap.empty)
+    (LBoundResolution until UBoundResolution).foreach { res =>
+      if (resolutionMap(res).isEmpty)
+        resolutionMap.put(res, mutable.HashMap.empty)
 
     }
-
 
     val popPerHexList = ListBuffer.empty[(HexIndex, String, Double)]
     val hexIndexList = h3Taz.getAll.toBuffer

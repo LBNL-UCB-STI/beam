@@ -6,7 +6,6 @@ import org.matsim.core.controler.MatsimServices
 import org.matsim.core.controler.events.{IterationEndsEvent, StartupEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, StartupListener}
 
-
 class BeamSubject @Inject()(val injector: Injector) extends StartupListener with IterationEndsListener {
   private var observers = List.empty[BeamObserver]
 

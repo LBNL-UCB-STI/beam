@@ -85,8 +85,7 @@ object TAZTreeMap {
           val taz = new TAZ(
             f.getAttribute(tazIDFieldName).asInstanceOf[String],
             new Coord(g.getCoordinate.x, g.getCoordinate.y),
-            g.getArea,
-            g.getCoordinates.map(coord => new Coord(coord.x, coord.y))
+            g.getArea
           )
           tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
         case _ =>
@@ -145,7 +144,7 @@ object TAZTreeMap {
     )
 
     for (l <- lines) {
-      val taz = new TAZ(l.id, new Coord(l.coordX, l.coordY), l.area, Array.empty[Coord])
+      val taz = new TAZ(l.id, new Coord(l.coordX, l.coordY), l.area)
       tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
     }
 
@@ -204,7 +203,7 @@ object TAZTreeMap {
 
   val defaultTazTreeMap: TAZTreeMap = {
     val tazQuadTree: QuadTree[TAZ] = new QuadTree(-1, -1, 1, 1)
-    val taz = new TAZ("0", new Coord(0.0, 0.0), 0.0, Array.empty[Coord])
+    val taz = new TAZ("0", new Coord(0.0, 0.0), 0.0)
     tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
     new TAZTreeMap(tazQuadTree)
   }

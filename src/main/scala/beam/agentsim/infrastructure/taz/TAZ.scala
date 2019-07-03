@@ -11,9 +11,9 @@ import scala.collection.JavaConverters._
   * @param coord location of the centroid of this TAZ
   * @param areaInSquareMeters area of TAZ
   */
-class TAZ(val tazId: Id[TAZ], val coord: Coord, val areaInSquareMeters: Double, val geom: Array[Coord]) {
-  def this(tazIdString: String, coord: Coord, area: Double, geom: Array[Coord]) {
-    this(Id.create(tazIdString, classOf[TAZ]), coord, area, geom)
+class TAZ(val tazId: Id[TAZ], val coord: Coord, val areaInSquareMeters: Double) {
+  def this(tazIdString: String, coord: Coord, area: Double) {
+    this(Id.create(tazIdString, classOf[TAZ]), coord, area)
   }
 }
 
@@ -22,7 +22,7 @@ object TAZ {
   val DefaultTAZId: Id[TAZ] = Id.create("default", classOf[TAZ])
   val EmergencyTAZId: Id[TAZ] = Id.create("emergency", classOf[TAZ])
 
-  val DefaultTAZ: TAZ = new TAZ(DefaultTAZId, new Coord(), 0, Array.empty[Coord])
+  val DefaultTAZ: TAZ = new TAZ(DefaultTAZId, new Coord(), 0)
 
   /**
     * performs a concentric disc search from the present location to find TAZs up to the SearchMaxRadius

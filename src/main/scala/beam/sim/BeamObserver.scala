@@ -2,10 +2,8 @@ package beam.sim
 import beam.agentsim.events.ScalaEvent
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.IterationEndsEvent
-import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.events.handler.BasicEventHandler
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
@@ -22,7 +20,6 @@ abstract class BeamObserverEvent(time: Double) extends Event(time) with ScalaEve
 abstract class BeamObserver(beamScenario: BeamScenario) extends BasicEventHandler with LazyLogging {
   private var data: mutable.Map[BeamObserverKey, BeamObserverData] = mutable.Map()
   private var persistedData: immutable.Map[BeamObserverKey, BeamObserverData] = read
-  //protected var beamServicesOption: Option[BeamServices] = None
   protected def cvsFileHeader: String
   protected def cvsFileName: String
   protected def keyDataToStrMap(keyVal: (BeamObserverKey, BeamObserverData)): immutable.Map[String, String]
@@ -33,9 +30,7 @@ abstract class BeamObserver(beamScenario: BeamScenario) extends BasicEventHandle
     collectedData: immutable.Map[BeamObserverKey, BeamObserverData]
   ): immutable.Map[BeamObserverKey, BeamObserverData]
   protected def checkIdDataShouldBePersistedThisIteration(iteration: Int): Boolean
-//  def register(beamServices: BeamServices) = {
-//    beamServicesOption = Some(beamServices)
-//  }
+
   def get(key: BeamObserverKey) = persistedData.get(key)
   private def read: immutable.Map[BeamObserverKey, BeamObserverData] = {
     import scala.collection.JavaConverters._
@@ -78,6 +73,7 @@ abstract class BeamObserver(beamScenario: BeamScenario) extends BasicEventHandle
       case _                    => // None
     }
   }
+
   def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     persistedData = dataToPersistAtEndOfIteration(persistedData, data.toMap)
     data = mutable.Map()
