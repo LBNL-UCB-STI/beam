@@ -4,10 +4,9 @@ import java.util
 
 import beam.agentsim.infrastructure.taz.H3TAZ.HexIndex
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
-import com.uber.h3core.AreaUnit
 import com.uber.h3core.util.GeoCoord
 import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
-import org.matsim.api.core.v01.population.{Activity, Population}
+import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.geotools.MGC
@@ -18,8 +17,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-class H3TAZ(val box: QuadTreeBounds, val scenarioEPSG: String) {
-  val h3TazQuadTree: QuadTree[HexIndex] = new QuadTree[HexIndex](box.minx, box.miny, box.maxx, box.maxy)
+class H3TAZ(val scenarioEPSG: String) {
   val tazToH3TAZMapping: mutable.HashMap[HexIndex, Id[TAZ]] = mutable.HashMap()
   val outTransform: GeotoolsTransformation = new GeotoolsTransformation(H3TAZ.H3Projection, scenarioEPSG)
   val inTransform: GeotoolsTransformation = new GeotoolsTransformation(scenarioEPSG, H3TAZ.H3Projection)
@@ -28,9 +26,17 @@ class H3TAZ(val box: QuadTreeBounds, val scenarioEPSG: String) {
     tazToH3TAZMapping.keys
   }
 
-  def getHex(x: Double, y: Double): HexIndex = {
-    val coord = inTransform.transform(new Coord(x, y))
-    h3TazQuadTree.getClosest(coord.getX, coord.getY)
+  def getHex(x: Double, y: Double): Option[HexIndex] = {
+    val coord = H3TAZ.toGeoCoord(inTransform.transform(new Coord(x, y)))
+    var curResolution = H3TAZ.UBoundResolution
+    var hexFound: Option[HexIndex] = None
+    while(hexFound.isEmpty && curResolution >= H3TAZ.LBoundResolution) {
+      val hex = H3TAZ.H3.geoToH3Address(coord.lat, coord.lng, H3TAZ.UBoundResolution)
+      if(tazToH3TAZMapping.contains(hex))
+        hexFound = Some(hex)
+      curResolution -= 1
+    }
+    hexFound
   }
 
   def getHexByTAZ(h3TazId: Id[TAZ]): Iterable[HexIndex] = {
@@ -38,21 +44,10 @@ class H3TAZ(val box: QuadTreeBounds, val scenarioEPSG: String) {
   }
 
   def getTAZ(hex: HexIndex) = {
-    tazToH3TAZMapping.getOrElse(H3TAZ.H3.h3ToParentAddress(hex, H3TAZ.defaultResolution), H3TAZ.emptyTAZId)
-  }
-
-  def getHexInRadius(x: Double, y: Double, radius: Double): util.Collection[HexIndex] = {
-    val coord = inTransform.transform(new Coord(x, y))
-    h3TazQuadTree.getDisk(coord.getX, coord.getY, radius)
-  }
-
-  def getHexInRadius(loc: Coord, radius: Double): util.Collection[HexIndex] = {
-    val transformedCoord = inTransform.transform(loc)
-    h3TazQuadTree.getDisk(transformedCoord.getX, transformedCoord.getY, radius)
+    tazToH3TAZMapping.getOrElse(H3TAZ.H3.h3ToParentAddress(hex, H3TAZ.LBoundResolution), H3TAZ.emptyTAZId)
   }
 
   private def add(x: Double, y: Double, hex: HexIndex, h3TazId: Id[TAZ] = H3TAZ.emptyTAZId) = {
-    h3TazQuadTree.put(x, y, hex)
     tazToH3TAZMapping.put(hex, h3TazId)
   }
 
@@ -63,8 +58,8 @@ object H3TAZ {
   private val H3 = com.uber.h3core.H3Core.newInstance
   val emptyTAZId: Id[TAZ] = Id.create("NA", classOf[TAZ])
   val H3Projection = "EPSG:4326"
-  val defaultResolution: Int = 8
-  val thresholdResolution: Int = 11 // the hexagon cover an area equivalent to a circle of radius 26m
+  val LBoundResolution: Int = 6 // 3391m radius
+  val UBoundResolution: Int = 10 // 69m radius
 
   def build(scenario: Scenario, tazTreeMap: TAZTreeMap): H3TAZ = {
     val crs = scenario.getConfig.global().getCoordinateSystem
@@ -73,16 +68,16 @@ object H3TAZ {
     val box = quadTreeExtentFromShapeFile(
       scenario.getNetwork.getNodes.values().asScala.map(n => in.transform(n.getCoord))
     )
-    val h3Map = new H3TAZ(box, crs)
+    val h3Map = new H3TAZ(crs)
     val gf = new GeometryFactory()
     val tazToPolygon = tazTreeMap.getTAZs.map { taz =>
       val boundary = taz.geom.map(in.transform).map(c => new Coordinate(c.getX, c.getY))
       taz.tazId -> gf.createPolygon(boundary :+ boundary.head)
     }.toMap
-    fillBox(box, defaultResolution).foreach { hex =>
+    fillBox(box, UBoundResolution).foreach { hex =>
       val hexCentroid = hexToCoord(hex)
       val selectedTAZ = tazTreeMap
-        .getTAZInRadius(out.transform(hexCentroid), 1000)
+        .getTAZInRadius(out.transform(hexCentroid), 50)
         .asScala
         .filter { taz =>
           tazToPolygon(taz.tazId).intersects(gf.createPoint(new Coordinate(hexCentroid.getX, hexCentroid.getY)))
@@ -99,7 +94,7 @@ object H3TAZ {
     val popPerHexMap = scenario.getPopulation.getPersons.asScala
       .map(_._2.getSelectedPlan.getPlanElements.get(0).asInstanceOf[Activity].getCoord)
       .map(in.transform)
-      .map(home => H3.geoToH3Address(home.getY, home.getX, defaultResolution) -> home)
+      .map(home => H3.geoToH3Address(home.getY, home.getX, LBoundResolution) -> home)
       .toBuffer
     val popPerHexList = ListBuffer.empty[(HexIndex, String, Double)]
     val hexIndexList = h3Taz.getAll.toBuffer
@@ -107,7 +102,7 @@ object H3TAZ {
       val hex = hexIndexList.remove(0)
       val res = H3.h3GetResolution(hex)
       val count = popPerHexMap.filter(_._1 == hex).map(_._1).groupBy(identity).mapValues(_.size).getOrElse(hex, 0)
-      if (count <= granularity || res == thresholdResolution) {
+      if (count <= granularity || res == UBoundResolution) {
         popPerHexList.append((hex, h3Taz.getTAZ(hex).toString, count))
       } else {
         val subHex = popPerHexMap.filter(_._1 == hex).map {
@@ -119,6 +114,35 @@ object H3TAZ {
         //hexIndexList.appendAll(allSubHex ++ neighborHex)
         hexIndexList.appendAll(allSubHex)
       }
+    }
+    popPerHexList
+  }
+
+  def breakdownByPopulation2(scenario: Scenario, granularity: Int, h3Taz: H3TAZ) = {
+    val crs = scenario.getConfig.global().getCoordinateSystem
+    val in: GeotoolsTransformation = new GeotoolsTransformation(crs, H3Projection)
+    val resolutionMap = mutable.HashMap.empty[Int, mutable.HashMap[HexIndex, Int]]
+    resolutionMap.put(UBoundResolution, mutable.HashMap.empty)
+    resolutionMap(UBoundResolution) ++= scenario.getPopulation.getPersons.asScala
+      .map(_._2.getSelectedPlan.getPlanElements.get(0).asInstanceOf[Activity].getCoord)
+      .map(in.transform)
+      .map(home => H3.geoToH3Address(home.getY, home.getX, UBoundResolution) -> home)
+      .groupBy(_._1)
+      .mapValues(_.size)
+    (LBoundResolution until UBoundResolution).foreach {
+      res =>
+        if(resolutionMap(res).isEmpty)
+          resolutionMap.put(res, mutable.HashMap.empty)
+
+    }
+
+
+    val popPerHexList = ListBuffer.empty[(HexIndex, String, Double)]
+    val hexIndexList = h3Taz.getAll.toBuffer
+    var currentResolution = LBoundResolution
+    while (hexIndexList.nonEmpty && currentResolution < UBoundResolution) {
+
+      currentResolution = currentResolution + 1
     }
     popPerHexList
   }

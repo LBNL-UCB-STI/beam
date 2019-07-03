@@ -159,6 +159,7 @@ trait BeamHelper extends LazyLogging {
           addControlerListenerBinding().to(classOf[BeamSim])
           addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
           addControlerListenerBinding().to(classOf[RouteHistory])
+          addControlerListenerBinding().to(classOf[BeamSubject])
 
           addControlerListenerBinding().to(classOf[ActivityLocationPlotter])
           addControlerListenerBinding().to(classOf[GraphSurgePricing])
