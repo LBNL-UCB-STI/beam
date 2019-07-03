@@ -314,6 +314,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
             //  if BEV & Opp -> price threshold,
             //  if PHEV -> price threshold (e vs gas?),
             //  if !(PHEV|BEV) -> nothing
+            //  idea: take the code from ChargingInquiryData
 
             if (currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV) {
               stall.chargingPointType match {
