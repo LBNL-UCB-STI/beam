@@ -1142,9 +1142,8 @@ class RideHailManager(
       powertrain,
       rideHailBeamVehicleType
     )
-    val startingSOC = 0.6*scala.util.Random.nextDouble() + 0.2
     rideHailBeamVehicle.beamVehicleType.primaryFuelType match {
-      case Electricity => rideHailBeamVehicle.initializeFuelLevelsFromSOC(startingSOC)
+      case Electricity => rideHailBeamVehicle.initializeFuelLevelsFromSOC(0.6*scala.util.Random.nextDouble() + 0.2)
       case _ => rideHailBeamVehicle.initializeFuelLevelsFromSOC(1.0)
     }
     rideHailBeamVehicle.spaceTime = SpaceTime((rideInitialLocation, 0))
