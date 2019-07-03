@@ -224,8 +224,8 @@ class BeamVehicle(
               chargingPoint,
               primaryFuelLevelInJoules,
               beamVehicleType.primaryFuelCapacityInJoule,
-              100.0, // todo JH this should be vehicle dependent
-              100.0, // todo JH this should be vehicle dependent
+              1e6, // todo JH this should be vehicle dependent
+              1e6, // todo JH this should be vehicle dependent
               sessionDurationLimit
             )
           case None =>
