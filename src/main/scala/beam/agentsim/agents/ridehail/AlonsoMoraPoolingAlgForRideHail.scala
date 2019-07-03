@@ -205,7 +205,10 @@ object AlonsoMoraPoolingAlgForRideHail {
       dst.activity.getCoord,
       src.time,
       BeamMode.CAR,
-      Id.create("Car", classOf[BeamVehicleType])
+      Id.create(
+        skimmer.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+        classOf[BeamVehicleType]
+      )
     )
   }
 
@@ -244,7 +247,10 @@ object AlonsoMoraPoolingAlgForRideHail {
         p1Act2.getCoord,
         0,
         BeamMode.CAR,
-        Id.create("Car", classOf[BeamVehicleType])
+        Id.create(
+          skimmer.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+          classOf[BeamVehicleType]
+        )
       )
       .time
     CustomerRequest(

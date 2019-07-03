@@ -9,17 +9,17 @@ import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.{Person, Population}
+import org.matsim.api.core.v01.population.{Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.population.PopulationUtils
-import org.matsim.core.scenario.MutableScenario
+import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder}
 import org.matsim.households.{Household, _}
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.JavaConverters._
 
 class BeamScenarioLoader(
-  var scenario: MutableScenario,
+  val scenarioBuilder: ScenarioBuilder,
   var beamScenario: BeamScenario,
   val scenarioSource: ScenarioSource,
   val geo: GeoUtils
@@ -36,6 +36,8 @@ class BeamScenarioLoader(
     logger.info(s"Read ${r.size} plans")
     r
   }
+
+  private val scenario: MutableScenario = scenarioBuilder.build
 
   private def replaceHouseholdsAttributes(
     households: Households,
@@ -63,9 +65,6 @@ class BeamScenarioLoader(
       result
     }
 
-    val scenarioPopulation = replacePersonsAndPersonsAttributesFromPopulation(scenario.getPopulation, personsWithPlans)
-    replacePlansFromPopulation(scenarioPopulation, plans)
-
     val vehicles = scenarioSource.getVehicles
 
     val loadedHouseholds = scenarioSource.getHousehold()
@@ -73,16 +72,21 @@ class BeamScenarioLoader(
     val newHouseholds: Iterable[Household] =
       buildMatsimHouseholds(loadedHouseholds, personsWithPlans, vehicles)
 
-    val households = replaceHouseholds(scenario.getHouseholds, newHouseholds)
+    val households: Households = replaceHouseholds(scenario.getHouseholds, newHouseholds)
 
-    val loadedAttributes = buildAttributesCoordinates(loadedHouseholds)
-    replaceHouseholdsAttributes(households, loadedAttributes)
-
-    // beamServices
     beamScenario.privateVehicles.clear()
     vehicles
       .map(c => buildBeamVehicle(beamScenario.vehicleTypes, c))
       .foreach(v => beamScenario.privateVehicles.put(v.id, v))
+
+    val scenarioPopulation: Population = buildPopulation(personsWithPlans)
+    scenario.setPopulation(scenarioPopulation)
+    updateAvailableModesForPopulation(scenario)
+
+    replacePlansFromPopulation(scenarioPopulation, plans)
+
+    val loadedAttributes = buildAttributesCoordinates(loadedHouseholds)
+    replaceHouseholdsAttributes(households, loadedAttributes)
 
     logger.info("The scenario loading is completed.")
     scenario
@@ -123,33 +127,44 @@ class BeamScenarioLoader(
     }
   }
 
-  private[utils] def replacePersonsAndPersonsAttributesFromPopulation(
-    population: Population,
-    persons: Iterable[PersonInfo]
-  ): Population = {
+  private[utils] def buildPopulation(persons: Iterable[PersonInfo]): Population = {
     logger.info("Applying persons...")
-    population.getPersons.clear()
-    population.getPersonAttributes.clear()
+    val result = scenarioBuilder.buildPopulation
 
+    persons.foreach { personInfo =>
+      val person = result.getFactory.createPerson(Id.createPersonId(personInfo.personId.id))
+      val personId = person.getId.toString
+
+      val sexChar = if (personInfo.isFemale) "F" else "M"
+
+      val personAttributes = result.getPersonAttributes
+      personAttributes.putAttribute(personId, "householdId", personInfo.householdId)
+      personAttributes.putAttribute(personId, "rank", personInfo.rank)
+      personAttributes.putAttribute(personId, "age", personInfo.age)
+      personAttributes.putAttribute(personId, "valueOfTime", personInfo.valueOfTime)
+      personAttributes.putAttribute(personId, "sex", sexChar)
+      person.getAttributes.putAttribute("sex", sexChar)
+      person.getAttributes.putAttribute("age", personInfo.age)
+
+      result.addPerson(person)
+    }
+
+    result
+  }
+
+  def updateAvailableModesForPopulation(scenario: MutableScenario): Unit = {
     val personHouseholds = scenario.getHouseholds.getHouseholds
       .values()
       .asScala
       .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
       .toMap
 
-    persons.foreach { personInfo =>
-      val person = population.getFactory.createPerson(Id.createPersonId(personInfo.personId.id)) // TODO: find way to create a person without previous instance
-
-      val personId = person.getId.toString
-      val personAttrib = population.getPersonAttributes
-      val sexChar = if (personInfo.isFemale) "F" else "M"
-      personAttrib.putAttribute(personId, "householdId", personInfo.householdId)
-      personAttrib.putAttribute(personId, "rank", personInfo.rank)
-      personAttrib.putAttribute(personId, "age", personInfo.age)
-      personAttrib.putAttribute(personId, "sex", sexChar)
-      personAttrib.putAttribute(personId, "valueOfTime", personInfo.valueOfTime)
-      person.getAttributes.putAttribute("sex", sexChar)
-      person.getAttributes.putAttribute("age", personInfo.age)
+    val population = scenario.getPopulation
+    population.getPersons.asScala.values.foreach { person: Person =>
+      // TODO: setAvailableModesForPerson_v2 - probable need to improve:
+      // - build AttributesOfIndividual with many fields already filled at BuildPopulation method
+      // - get the property attributesOfInidivual or create abd update person.customAttribute with this property
+      // - update the property availableModes and update the person customProperty (possible twice) with attributesOfIndividual
       AvailableModeUtils.setAvailableModesForPerson_v2(
         beamScenario,
         person,
@@ -157,53 +172,54 @@ class BeamScenarioLoader(
         population,
         availableModes
       )
-
-      population.addPerson(person)
     }
 
-    population
   }
 
   private[utils] def replacePlansFromPopulation(population: Population, plans: Iterable[PlanElement]): Population = {
     logger.info("Applying plans...")
 
-    plans.foreach { planInfo =>
-      val person = population.getPersons.get(Id.createPersonId(planInfo.personId.id))
+    plans.foreach { planElement: PlanElement =>
+      val person = population.getPersons.get(Id.createPersonId(planElement.personId.id))
       if (person != null) {
-        var plan = person.getSelectedPlan
-        if (plan == null) {
-          plan = PopulationUtils.createPlan(person)
-          person.addPlan(plan)
-          person.setSelectedPlan(plan)
-        }
-        val planElement = planInfo.planElementType
-        if (planElement.equalsIgnoreCase("leg")) {
-          planInfo.legMode match {
+        val selectedPlan = selectedPlanFromPersonOrBuildNew(person)
+        val planElementType = planElement.planElementType
+        if (planElementType.equalsIgnoreCase("leg")) {
+          planElement.legMode match {
             case Some(mode) =>
-              PopulationUtils.createAndAddLeg(plan, mode)
+              PopulationUtils.createAndAddLeg(selectedPlan, mode)
             case None =>
-              PopulationUtils.createAndAddLeg(plan, "")
+              PopulationUtils.createAndAddLeg(selectedPlan, "")
           }
-        } else if (planElement.equalsIgnoreCase("activity")) {
-          assertActivityHasLocation(planInfo)
+        } else if (planElementType.equalsIgnoreCase("activity")) {
+          assertActivityHasLocation(planElement)
           val coord = if (beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
-            geo.wgs2Utm(new Coord(planInfo.activityLocationX.get, planInfo.activityLocationY.get))
+            geo.wgs2Utm(new Coord(planElement.activityLocationX.get, planElement.activityLocationY.get))
           } else {
-            new Coord(planInfo.activityLocationX.get, planInfo.activityLocationY.get)
+            new Coord(planElement.activityLocationX.get, planElement.activityLocationY.get)
           }
-          val activityType = planInfo.activityType.getOrElse(
+          val activityType = planElement.activityType.getOrElse(
             throw new IllegalStateException(
-              s"planElement is `activity`, but `activityType` is None. planInfo: $planInfo"
+              s"planElement is `activity`, but `activityType` is None. planInfo: $planElement"
             )
           )
-          val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)
-          planInfo.activityEndTime.foreach { endTime =>
+          val act = PopulationUtils.createAndAddActivityFromCoord(selectedPlan, activityType, coord)
+          planElement.activityEndTime.foreach { endTime =>
             act.setEndTime(endTime)
           }
         }
       }
     }
     population
+  }
+
+  private def selectedPlanFromPersonOrBuildNew(person: Person): Plan = {
+    Option(person.getSelectedPlan).getOrElse {
+      val plan = PopulationUtils.createPlan(person)
+      person.addPlan(plan)
+      person.setSelectedPlan(plan)
+      plan
+    }
   }
 
   private def assertActivityHasLocation(planInfo: PlanElement): Unit = {
