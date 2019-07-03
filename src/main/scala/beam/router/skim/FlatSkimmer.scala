@@ -54,6 +54,7 @@ class FlatSkimmer(beamScenario: BeamScenario, matsimServices: MatsimServices) ex
 }
 
 object FlatSkimmer {
+  import BeamObserver._
   var h3taz: Option[H3TAZ] = None
 
   def getEvent(time: Double, bin: Int, coord: Coord, vehMng: Id[VehicleManager], label: String, value: Double) =

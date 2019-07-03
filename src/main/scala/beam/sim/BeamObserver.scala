@@ -12,10 +12,6 @@ import scala.collection.{immutable, mutable}
 
 trait BeamObserverKey
 trait BeamObserverData
-abstract class BeamObserverEvent(time: Double) extends Event(time) with ScalaEvent {
-  def getKey: BeamObserverKey
-  def getData: BeamObserverData
-}
 
 abstract class BeamObserver(beamScenario: BeamScenario) extends BasicEventHandler with LazyLogging {
   private var data: mutable.Map[BeamObserverKey, BeamObserverData] = mutable.Map()
@@ -66,6 +62,7 @@ abstract class BeamObserver(beamScenario: BeamScenario) extends BasicEventHandle
     writer.close()
   }
   override def handleEvent(event: Event): Unit = {
+    import BeamObserver._
     event match {
       case e: BeamObserverEvent if data.contains(e.getKey) =>
         data.put(e.getKey, mergeDataWithSameKey(data(e.getKey), e.getData))
@@ -83,5 +80,12 @@ abstract class BeamObserver(beamScenario: BeamScenario) extends BasicEventHandle
       }
     }
   }
+}
 
+object BeamObserver {
+  // Event
+  abstract class BeamObserverEvent(time: Double) extends Event(time) with ScalaEvent {
+    def getKey: BeamObserverKey
+    def getData: BeamObserverData
+  }
 }
