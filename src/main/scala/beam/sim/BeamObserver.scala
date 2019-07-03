@@ -25,7 +25,7 @@ abstract class BeamObserver(beamScenario: BeamScenario) extends BasicEventHandle
     persistedData: immutable.Map[BeamObserverKey, BeamObserverData],
     collectedData: immutable.Map[BeamObserverKey, BeamObserverData]
   ): immutable.Map[BeamObserverKey, BeamObserverData]
-  protected def checkIdDataShouldBePersistedThisIteration(iteration: Int): Boolean
+  protected def checkIfDataShouldBePersistedThisIteration(iteration: Int): Boolean
 
   def get(key: BeamObserverKey) = persistedData.get(key)
   private def read: immutable.Map[BeamObserverKey, BeamObserverData] = {
@@ -74,7 +74,7 @@ abstract class BeamObserver(beamScenario: BeamScenario) extends BasicEventHandle
   def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     persistedData = dataToPersistAtEndOfIteration(persistedData, data.toMap)
     data = mutable.Map()
-    if (checkIdDataShouldBePersistedThisIteration(event.getIteration)) {
+    if (checkIfDataShouldBePersistedThisIteration(event.getIteration)) {
       ProfilingUtils.timed(s"write to $cvsFileName on iteration ${event.getIteration}", x => logger.info(x)) {
         write(event)
       }

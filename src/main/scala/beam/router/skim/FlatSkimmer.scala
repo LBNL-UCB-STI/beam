@@ -48,7 +48,7 @@ class FlatSkimmer(beamScenario: BeamScenario, matsimServices: MatsimServices) ex
     persistedData: immutable.Map[BeamObserverKey, BeamObserverData],
     collectedData: immutable.Map[BeamObserverKey, BeamObserverData]
   ): immutable.Map[BeamObserverKey, BeamObserverData] = collectedData
-  override def checkIdDataShouldBePersistedThisIteration(iteration: Int) = {
+  override def checkIfDataShouldBePersistedThisIteration(iteration: Int) = {
     iteration % beamScenario.beamConfig.beam.outputs.writeSkimsInterval == 0
   }
 }
