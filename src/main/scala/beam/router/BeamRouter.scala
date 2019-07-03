@@ -3,6 +3,7 @@ package beam.router
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.util.concurrent.TimeUnit
 
+import akka.actor.Status.Failure
 import akka.actor.{
   Actor,
   ActorLogging,
@@ -222,7 +223,10 @@ class BeamRouter(
       }
     case routingResp: RoutingResponse =>
       pipeResponseToOriginalSender(routingResp)
-      logIfResponseTookExcessiveTime(routingResp)
+      logIfResponseTookExcessiveTime(routingResp.requestId)
+    case routingFailure: RoutingFailure =>
+      pipeTransformedFailureToOriginalSender(routingFailure)
+      logIfResponseTookExcessiveTime(routingFailure.requestId)
     case ClearRoutedWorkerTracker(workIdToClear) =>
       //TODO: Maybe do this for all tracker removals?
       removeOutstandingWorkBy(workIdToClear)
@@ -346,14 +350,24 @@ class BeamRouter(
         )
     }
 
-  private def logIfResponseTookExcessiveTime(routingResp: RoutingResponse): Unit =
-    outstandingWorkIdToTimeSent.remove(routingResp.requestId) match {
+  private def pipeTransformedFailureToOriginalSender(routingFailure: RoutingFailure): Unit =
+    outstandingWorkIdToOriginalSenderMap.remove(routingFailure.requestId) match {
+      case Some(originalSender) => originalSender ! Failure(routingFailure.cause)
+      case None =>
+        log.error(
+          "Received a RoutingFailure that does not match a tracked WorkId: {}",
+          routingFailure.requestId
+        )
+    }
+
+  private def logIfResponseTookExcessiveTime(requestId: Int): Unit =
+    outstandingWorkIdToTimeSent.remove(requestId) match {
       case Some(timeSent) =>
         val secondsSinceSent = timeSent.until(getCurrentTime, java.time.temporal.ChronoUnit.SECONDS)
         if (secondsSinceSent > 30)
           log.warning(
             "Took longer than 30 seconds to hear back from work id '{}' - {} seconds",
-            routingResp.requestId,
+            requestId,
             secondsSinceSent
           )
       case None => //No matching id. No need to log since this is more for analysis
@@ -449,6 +463,8 @@ object BeamRouter {
     itineraries: Seq[EmbodiedBeamTrip],
     requestId: Int
   )
+
+  case class RoutingFailure(cause: Throwable, requestId: Int)
 
   object RoutingResponse {
     val dummyRoutingResponse = Some(RoutingResponse(Vector(), IdGeneratorImpl.nextId))

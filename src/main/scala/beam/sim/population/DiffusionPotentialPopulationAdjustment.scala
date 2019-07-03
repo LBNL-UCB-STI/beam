@@ -2,7 +2,7 @@ package beam.sim.population
 
 import java.util.Random
 
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.common.GeoUtils
 import beam.sim.population.DiffusionPotentialPopulationAdjustment._
 import org.joda.time.DateTime
@@ -13,6 +13,10 @@ import org.matsim.households.Household
 import scala.collection.JavaConverters._
 
 case class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends PopulationAdjustment {
+
+  override lazy val scenario: Scenario = beamServices.matsimServices.getScenario
+  override lazy val beamScenario: BeamScenario = beamServices.beamScenario
+
   val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   val geo: GeoUtils = beamServices.geo
 

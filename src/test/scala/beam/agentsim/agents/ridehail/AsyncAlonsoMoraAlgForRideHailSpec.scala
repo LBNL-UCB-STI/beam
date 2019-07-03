@@ -12,6 +12,7 @@ import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
 import beam.router.BeamSkimmer
 import beam.sim.BeamHelper
 import beam.sim.common.GeoUtilsImpl
+import beam.sim.config.BeamExecutionConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.{Coord, Id}
@@ -145,7 +146,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
           fleet.append(
             createVehicleAndSchedule(
               "v" + j,
-              beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType])),
+              beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType])),
               new Coord(minx + rnd.nextDouble() * (maxx - minx), miny + rnd.nextDouble() * (maxy - miny)),
               i
             )

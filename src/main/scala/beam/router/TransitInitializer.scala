@@ -3,10 +3,8 @@ package beam.router
 import java.util
 import java.util.Collections
 
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
-import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
 import beam.router.Modes.isOnStreetTransit
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{BeamLeg, BeamPath, RoutingModel}
@@ -23,8 +21,6 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.io.Source
-import scala.util.Try
 
 class TransitInitializer(
   beamConfig: BeamConfig,
@@ -73,7 +69,7 @@ class TransitInitializer(
         BeamPath(
           Vector(),
           Vector(),
-          Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
+          None,
           SpaceTime(fromCoord, departureTime),
           SpaceTime(toCoord, departureTime + duration),
           0
@@ -113,7 +109,7 @@ class TransitInitializer(
             linksTimesAndDistances.travelTimes.sum,
             linksTimesAndDistances.travelTimes
           ),
-          Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
+          None,
           SpaceTime(
             startEdge.getGeometry.getStartPoint.getX,
             startEdge.getGeometry.getStartPoint.getY,

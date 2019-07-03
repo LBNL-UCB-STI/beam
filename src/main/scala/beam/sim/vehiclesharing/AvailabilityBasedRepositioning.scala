@@ -77,7 +77,10 @@ case class AvailabilityBasedRepositioning(
           dst.taz.coord,
           now,
           BeamMode.CAR,
-          Id.create("Car", classOf[BeamVehicleType])
+          Id.create( // FIXME Vehicle type borrowed from ridehail -- pass the vehicle type of the car sharing fleet instead
+            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+            classOf[BeamVehicleType]
+          )
         )
         if (destTimeOpt.isEmpty || (destTimeOpt.isDefined && skim.time < destTimeOpt.get._2)) {
           destTimeOpt = Some((dst, skim.time))

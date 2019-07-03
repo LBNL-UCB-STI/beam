@@ -31,12 +31,14 @@ class UrbanSimScenarioSource(
   val parcelAttrFilePath: String = s"$scenarioFolder/parcels.$fileExt"
 
   override def getPersons: Iterable[PersonInfo] = {
-    rdr.readPersonsFile(personFilePath).map { person =>
+    rdr.readPersonsFile(personFilePath).map { person: DataExchange.PersonInfo =>
       PersonInfo(
         personId = PersonId(person.personId),
         householdId = HouseholdId(person.householdId),
         rank = person.rank,
-        age = person.age
+        age = person.age,
+        isFemale = person.isFemale,
+        valueOfTime = person.valueOfTime
       )
     }
   }

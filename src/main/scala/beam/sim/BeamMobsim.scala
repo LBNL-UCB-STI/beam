@@ -9,6 +9,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
 import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -61,6 +62,8 @@ class BeamMobsim @Inject()(
     logger.info("Preparing new Iteration (Start)")
     startSegment("iteration-preparation", "mobsim")
 
+    validateVehicleTypes()
+
     if (beamServices.beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("run.start (after GC): "))
     Metrics.iterationNumber = beamServices.matsimServices.getIterationNumber
@@ -89,6 +92,26 @@ class BeamMobsim @Inject()(
     logger.info("Processing Agentsim Events (End)")
   }
 
+  def validateVehicleTypes(): Unit = {
+    if (!beamScenario.vehicleTypes.contains(
+          Id.create(beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
+        )) {
+      throw new RuntimeException(
+        "Vehicle type for human body: " + beamScenario.beamConfig.beam.agentsim.agents.bodyType + " is missing. Please add it to the vehicle types."
+      )
+    }
+    if (!beamScenario.vehicleTypes.contains(
+          Id.create(
+            beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+            classOf[BeamVehicleType]
+          )
+        )) {
+      throw new RuntimeException(
+        "Vehicle type for ride-hail: " + beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId + " is missing. Please add it to the vehicle types."
+      )
+    }
+  }
+
 }
 
 class BeamMobsimIteration(
@@ -115,7 +138,7 @@ class BeamMobsimIteration(
       Time.parseTime(beamConfig.matsim.modules.qsim.endTime).toInt,
       config.schedulerParallelismWindow,
       new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
-    ),
+    ).withDispatcher("beam-agent-scheduler-pinned-dispatcher"),
     "scheduler"
   )
   context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
@@ -133,7 +156,8 @@ class BeamMobsimIteration(
 
   private val parkingManager = context.actorOf(
     ZonalParkingManager
-      .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, beamRouter, envelopeInUTM),
+      .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, beamRouter, envelopeInUTM)
+      .withDispatcher("zonal-parking-manager-pinned-dispatcher"),
     "ParkingManager"
   )
   context.watch(parkingManager)
@@ -158,7 +182,7 @@ class BeamMobsimIteration(
         beamSkimmer,
         routeHistory
       )
-    ),
+    ).withDispatcher("ride-hail-manager-pinned-dispatcher"),
     "RideHailManager"
   )
   context.watch(rideHailManager)

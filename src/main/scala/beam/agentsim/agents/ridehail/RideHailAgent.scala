@@ -1,10 +1,10 @@
 package beam.agentsim.agents.ridehail
 
 import akka.actor.FSM.Failure
-import akka.actor.{ActorRef, Props, Stash}
+import akka.actor.{ActorRef, Props, Stash, Status}
+
 import scala.concurrent.duration._
 import akka.pattern.ask
-
 import beam.agentsim.Resource.{NotifyVehicleIdle, NotifyVehicleOutOfService, ReleaseParkingStall}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -18,12 +18,7 @@ import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.{RefuelSessionEvent, SpaceTime}
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
-import beam.agentsim.scheduler.BeamAgentScheduler.{
-  CompletionNotice,
-  IllegalTriggerGoToError,
-  RequestCurrentTime,
-  ScheduleTrigger
-}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, RequestCurrentTime, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
@@ -201,6 +196,9 @@ class RideHailAgent(
 
     case ev@Event(IllegalTriggerGoToError(reason), _) =>
       log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
+      stop(Failure(reason))
+
+    case Event(Status.Failure(reason), _) =>
       stop(Failure(reason))
 
     case ev@Event(Finish, _) =>

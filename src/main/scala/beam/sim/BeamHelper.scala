@@ -1,6 +1,6 @@
 package beam.sim
 
-import java.io.{FileOutputStream, FileWriter}
+import java.io.{File, FileOutputStream, FileWriter}
 import java.nio.file.{Files, Paths, StandardCopyOption}
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
@@ -8,7 +8,6 @@ import java.util.{Properties, Random}
 
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.FuelType.FuelTypePrices
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.agentsim.infrastructure.taz.TAZTreeMap
@@ -16,16 +15,14 @@ import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
-import beam.router.Modes.BeamMode
 import beam.router._
 import beam.router.gtfs.FareCalculator
-import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoordinator, NetworkCoordinator}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
-import beam.sim.common.GeoUtils
-import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
+import beam.sim.common.{GeoUtils, GeoUtilsImpl}
+import beam.sim.config.{BeamConfig, BeamExecutionConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationAdjustment
@@ -35,14 +32,13 @@ import beam.utils.scenario.matsim.BeamScenarioSource
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
 import beam.utils.scenario.{BeamScenarioLoader, InputType, UrbanSimScenarioLoader}
 import beam.utils.{NetworkHelper, _}
-import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
+import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.google.inject
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
-import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -50,7 +46,7 @@ import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling}
-import org.matsim.core.scenario.{MutableScenario, ScenarioByInstanceModule, ScenarioUtils}
+import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.households.Household
 import org.matsim.utils.objectattributes.AttributeConverter
@@ -59,7 +55,7 @@ import org.matsim.vehicles.Vehicle
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 
 trait BeamHelper extends LazyLogging {
@@ -236,13 +232,6 @@ trait BeamHelper extends LazyLogging {
     )
 
     val networkCoordinator = buildNetworkCoordinator(beamConfig)
-    val transitSchedule = new TransitInitializer(
-      beamConfig,
-      dates,
-      vehicleTypes,
-      networkCoordinator.transportNetwork,
-      BeamRouter.oneSecondTravelTime
-    ).initMap
 
     BeamScenario(
       readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
@@ -256,7 +245,6 @@ trait BeamHelper extends LazyLogging {
       dates,
       PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath),
       networkCoordinator.transportNetwork,
-      transitSchedule,
       networkCoordinator.network,
       TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath),
       ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath)
@@ -456,20 +444,33 @@ trait BeamHelper extends LazyLogging {
 
   def runBeamWithConfig(config: TypesafeConfig): (MatsimConfig, String) = {
     val beamExecutionConfig = setupBeamWithConfig(config)
-    val beamScenario: BeamScenario = loadScenario(beamExecutionConfig.beamConfig)
-    val defaultScenario = buildScenarioFromMatsimConfig(beamExecutionConfig.matsimConfig, beamScenario)
-    val injector: inject.Injector = buildInjector(config, defaultScenario, beamScenario)
-    val services = buildBeamServices(injector, defaultScenario)
+    val (scenario, beamScenario) = buildBeamServicesAndScenario(
+      config,
+      beamExecutionConfig.beamConfig,
+      beamExecutionConfig.matsimConfig,
+    )
+
+    val logStart = {
+      val logHH = scenario.getHouseholds.getHouseholds.keySet().asScala.map(_.toString).toList
+      val logBeamPrivateVehicles = beamScenario.privateVehicles.keySet.map(_.toString).toList
+      s"""|Scenario households size: ${logHH.size}
+          |BeamScenario privateVehicles size: ${logBeamPrivateVehicles.size}
+          |""".stripMargin
+    }
+    logger.warn(logStart)
+
+    val injector: inject.Injector = buildInjector(config, scenario, beamScenario)
+    val services = injector.getInstance(classOf[BeamServices])
 
     warmStart(beamExecutionConfig.beamConfig, beamExecutionConfig.matsimConfig)
 
     runBeam(
       services,
-      defaultScenario,
-      injector.getInstance(classOf[BeamScenario]),
+      scenario,
+      beamScenario,
       beamExecutionConfig.outputDirectory
     )
-    (defaultScenario.getConfig, beamExecutionConfig.outputDirectory)
+    (scenario.getConfig, beamExecutionConfig.outputDirectory)
   }
 
   def fixDanglingPersons(result: MutableScenario): Unit = {
@@ -507,7 +508,6 @@ trait BeamHelper extends LazyLogging {
     scenario: MutableScenario,
   ): BeamServices = {
     val result = injector.getInstance(classOf[BeamServices])
-    fillScenarioWithExternalSources(injector, scenario, result)
     result
   }
 
@@ -547,37 +547,60 @@ trait BeamHelper extends LazyLogging {
     run(beamServices)
   }
 
-  protected def fillScenarioWithExternalSources(
-    injector: inject.Injector,
-    matsimScenario: MutableScenario,
-    beamServices: BeamServices
-  ): Unit = {
-    val beamScenario = injector.getInstance(classOf[BeamScenario])
-    val beamConfig = beamScenario.beamConfig
-    val useExternalDataForScenario: Boolean =
-      Option(beamConfig.beam.exchange.scenario.folder).exists(!_.isEmpty)
+  protected def buildBeamServicesAndScenario(
+    typesafeConfig: TypesafeConfig,
+    beamConfig: BeamConfig,
+    matsimConfig: MatsimConfig
+  ): (MutableScenario, BeamScenario) = {
+    val scenarioConfig = beamConfig.beam.exchange.scenario
 
-    if (useExternalDataForScenario) {
-      val src = beamConfig.beam.exchange.scenario.source.toLowerCase
-      ProfilingUtils.timed(s"Load scenario using $src", x => logger.info(x)) {
-        if (src == "urbansim") {
-          val source = buildUrbansimScenarioSource(injector, beamConfig)
-          new UrbanSimScenarioLoader(matsimScenario, beamScenario, beamServices, source).loadScenario()
-        } else if (src == "beamcsv") {
-          val source = new BeamScenarioSource(
-            scenarioFolder = beamConfig.beam.exchange.scenario.folder,
-            rdr = readers.BeamCsvScenarioReader
-          )
-          new BeamScenarioLoader(matsimScenario, beamServices, source)
-            .loadScenario()
+    val src = scenarioConfig.source.toLowerCase
+
+    val fileFormat = scenarioConfig.fileFormat
+
+    ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
+      if (src == "urbansim") {
+        val externalFolderExists: Boolean = Option(scenarioConfig.folder).exists(new File(_).isDirectory)
+        if (externalFolderExists) {
+          val beamScenario = loadScenario(beamConfig)
+          val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
+          val scenario = {
+            val source = buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
+            new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
+          }.asInstanceOf[MutableScenario]
+          (scenario, beamScenario)
         } else {
-          throw new NotImplementedError(s"ScenarioSource '$src' is not yet implemented")
+          throw new IllegalArgumentException(s"Urbansim needs a valid folder:[${scenarioConfig.folder}]")
         }
+      } else if (src == "beam") {
+        fileFormat match {
+          case "csv" =>
+            val beamScenario = loadScenario(beamConfig)
+            val scenario = {
+              val source = new BeamScenarioSource(
+                beamConfig,
+                rdr = readers.BeamCsvScenarioReader
+              )
+              val scenarioBuilder = ScenarioBuilder(matsimConfig, beamScenario.network)
+              new BeamScenarioLoader(scenarioBuilder, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
+            }.asInstanceOf[MutableScenario]
+            (scenario, beamScenario)
+          case "xml" =>
+            val beamScenario = loadScenario(beamConfig)
+            val scenario = {
+              val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+              fixDanglingPersons(result)
+              result
+            }
+            (scenario, beamScenario)
+          case unknown =>
+            throw new IllegalArgumentException(s"Beam does not support [$unknown] file type")
+        }
+      } else {
+        throw new NotImplementedError(s"ScenarioSource '$src' is not yet implemented")
       }
     }
   }
-
-  case class BeamExecutionConfig(beamConfig: BeamConfig, matsimConfig: MatsimConfig, outputDirectory: String)
 
   def setupBeamWithConfig(
     config: TypesafeConfig
@@ -753,7 +776,7 @@ trait BeamHelper extends LazyLogging {
   }
 
   private def buildUrbansimScenarioSource(
-    injector: inject.Injector,
+    geo: GeoUtils,
     beamConfig: BeamConfig
   ): UrbanSimScenarioSource = {
     val fileFormat: InputType = Option(beamConfig.beam.exchange.scenario.fileFormat)
@@ -771,36 +794,10 @@ trait BeamHelper extends LazyLogging {
     new UrbanSimScenarioSource(
       scenarioFolder = beamConfig.beam.exchange.scenario.folder,
       rdr = scenarioReader,
-      geoUtils = injector.getInstance(classOf[GeoUtils]),
+      geoUtils = geo,
       shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
     )
   }
 }
 
 case class MapStringDouble(data: Map[String, Double])
-case class BeamScenario(
-  fuelTypePrices: FuelTypePrices,
-  vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
-  privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle],
-  vehicleEnergy: VehicleEnergy,
-  beamConfig: BeamConfig,
-  dates: DateUtils,
-  ptFares: PtFares,
-  transportNetwork: TransportNetwork,
-  transitSchedule: Map[Id[BeamVehicle], (RouteInfo, ArrayBuffer[BeamLeg])],
-  network: Network,
-  tazTreeMap: TAZTreeMap,
-  modeIncentives: ModeIncentive
-) {
-  lazy val rideHailTransitModes: Seq[BeamMode] =
-    if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("all")) BeamMode.transitModes
-    else if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("mass"))
-      BeamMode.massTransitModes
-    else {
-      beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.toUpperCase
-        .split(",")
-        .map(BeamMode.fromString)
-        .toSeq
-        .flatten
-    }
-}

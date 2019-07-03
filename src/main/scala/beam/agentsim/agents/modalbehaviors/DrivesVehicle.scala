@@ -54,7 +54,6 @@ object DrivesVehicle {
 
   sealed trait VehicleOrToken {
     def id: Id[BeamVehicle]
-
     def streetVehicle: StreetVehicle
   }
 
@@ -129,9 +128,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
   protected val geo: GeoUtils
   private var tollsAccumulated = 0.0
   protected val beamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
-
   protected def currentBeamVehicle = beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
-
   protected val fuelConsumedByTrip: mutable.Map[Id[Person], FuelConsumed] = mutable.Map()
 
   case class PassengerScheduleEmptyMessage(
@@ -348,7 +345,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         )
         fuelConsumedByTrip.remove(id.asInstanceOf[Id[Person]])
         tollsAccumulated = 0.0
-
         goto(PassengerScheduleEmpty) using data
           .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
           .asInstanceOf[T]
@@ -618,7 +614,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         currentBeamVehicle
       ) =>
       log.debug("state(DrivesVehicle.drivingBehavior): {}", ev)
-      stay() replying ReservationResponse(req.requestId, Left(VehicleFullError), TRANSIT)
+      stay() replying ReservationResponse(Left(VehicleFullError))
 
     case ev@Event(req: ReservationRequest, data) =>
       log.debug("state(DrivesVehicle.drivingBehavior): {}", ev)
@@ -688,18 +684,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
           data.passengerSchedule.addPassenger(req.passengerVehiclePersonId, legs)
         )
         .asInstanceOf[T] replying
-        ReservationResponse(
-          req.requestId,
-          Right(
-            ReserveConfirmInfo(
-              req.departFrom,
-              req.arriveAt,
-              req.passengerVehiclePersonId,
-              boardTrigger ++ alightTrigger ++ boardTrigger2
-            )
-          ),
-          TRANSIT
+      ReservationResponse(
+        Right(
+          ReserveConfirmInfo(boardTrigger ++ alightTrigger ++ boardTrigger2)
         )
+      )
 
     case ev@Event(RemovePassengerFromTrip(id), data) =>
       log.debug("state(DrivesVehicle.drivingBehavior): {}", ev)

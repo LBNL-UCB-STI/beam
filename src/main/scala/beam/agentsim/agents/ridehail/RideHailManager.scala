@@ -357,7 +357,7 @@ class RideHailManager(
           try {
             val person = persons(idx)
             val vehicleType = VehiclesAdjustment
-              .getVehicleAdjustment(beamServices, beamScenario)
+              .getVehicleAdjustment(beamScenario)
               .sampleRideHailVehicleTypes(
                 numVehicles = 1,
                 vehicleCategory = VehicleCategory.Car,
