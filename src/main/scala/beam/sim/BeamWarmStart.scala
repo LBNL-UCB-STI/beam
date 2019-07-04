@@ -15,6 +15,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.FileUtils.getTempDirectoryPath
 import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
 import org.matsim.api.core.v01.Scenario
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.router.util.TravelTime
 
 import scala.compat.java8.StreamConverters._
@@ -198,8 +199,11 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
 
 object BeamWarmStart extends LazyLogging {
 
-  @deprecated
-  def apply(beamConfig: BeamConfig, maxHour: Int): BeamWarmStart = new BeamWarmStart(beamConfig, maxHour)
+//  @deprecated("Warmstart should not be instantiated. It should use config file", since = "2019-07-04")
+  def apply(beamConfig: BeamConfig): BeamWarmStart = {
+    val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
+    new BeamWarmStart(beamConfig, maxHour)
+  }
 
   def updateRemoteRouter(scenario: Scenario, travelTime: TravelTime, maxHour: Int, beamRouter: ActorRef): Unit = {
     val map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeArray(
