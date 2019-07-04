@@ -28,17 +28,17 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
   val srcPath = beamConfig.beam.warmStart.path
 
   def warmStartTravelTime(beamRouter: ActorRef, scenario: Scenario): Unit = {
-    read.foreach { travelTime =>
+    readTravelTime.foreach { travelTime =>
       beamRouter ! UpdateTravelTimeLocal(travelTime)
       BeamWarmStart.updateRemoteRouter(scenario, travelTime, maxHour, beamRouter)
       logger.info("Travel times successfully warm started from")
     }
   }
 
-  def read: Option[TravelTime] = {
+  def readTravelTime: Option[TravelTime] = {
     getWarmStartFilePath("linkstats.csv.gz", rootFirst = false) match {
       case Some(statsPath) =>
-        if (Files.exists(Paths.get(statsPath))) {
+        if (Files.isRegularFile(Paths.get(statsPath))) {
           val travelTime = getTravelTime(statsPath)
           logger.info("Read travel times from {}.", statsPath)
           Some(travelTime)
