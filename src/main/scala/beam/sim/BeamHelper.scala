@@ -443,7 +443,7 @@ trait BeamHelper extends LazyLogging {
   }
 
   def runBeamWithConfig(config: TypesafeConfig): (MatsimConfig, String) = {
-    val beamExecutionConfig = setupBeamWithConfig(config)
+    val beamExecutionConfig = updateConfigWithWarmStart(setupBeamWithConfig(config))
     val (scenario, beamScenario) = buildBeamServicesAndScenario(
       config,
       beamExecutionConfig.beamConfig,
@@ -461,8 +461,6 @@ trait BeamHelper extends LazyLogging {
 
     val injector: inject.Injector = buildInjector(config, scenario, beamScenario)
     val services = injector.getInstance(classOf[BeamServices])
-
-    warmStart(beamExecutionConfig.beamConfig, beamExecutionConfig.matsimConfig)
 
     runBeam(
       services,
@@ -637,15 +635,19 @@ trait BeamHelper extends LazyLogging {
     result
   }
 
-  private def warmStart(beamConfig: BeamConfig, matsimConfig: MatsimConfig): Unit = {
-    if (beamConfig.beam.outputs.writeSkimsInterval == 0 && beamConfig.beam.warmStart.enabled) {
-      logger.warn(
-        "Beam skims are not being written out - skims will be missing for warm starting from the output of this run!"
-      )
-    }
-    val maxHour = TimeUnit.SECONDS.toHours(matsimConfig.travelTimeCalculator().getMaxTime).toInt
-    val beamWarmStart = BeamWarmStart(beamConfig, maxHour)
-    beamWarmStart.warmStartPopulation(matsimConfig)
+//  private def warmstart(beamConfig: BeamConfig):BeamConfig = {
+//    val agents = beamConfig.beam.agentsim.agents
+//
+//    configAgents.plans.inputPersonAttributesFilePath)
+//    configAgents.plans.inputPlansFilePath
+//    configAgents.households.inputFilePath
+//    configAgents.vehicles.vehiclesFilePath
+//  }
+
+  // TODO: remove this method
+//  private def warmStart(beamConfig: BeamConfig, matsimConfig: MatsimConfig): Unit = {
+  private def updateConfigWithWarmStart(beamExecutionConfig: BeamExecutionConfig): BeamExecutionConfig = {
+    BeamWarmStart.updateExecutionConfig(beamExecutionConfig)
   }
 
   private def prepareDirectories(config: TypesafeConfig, beamConfig: BeamConfig, outputDirectory: String): Unit = {
