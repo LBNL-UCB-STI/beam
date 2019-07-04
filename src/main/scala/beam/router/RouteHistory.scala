@@ -138,9 +138,6 @@ object RouteHistory {
   private val CsvHeader: String = "timeBin,originLinkId,destLinkId,route"
   private val Eol: String = "\n"
 
-//  private val outputFileBaseName = "routeHistory"
-//  private val outputFileName = outputFileBaseName + ".csv.gz"
-
   private[router] def toCsv(routeHistory: RouteHistoryADT): Iterator[String] = {
     val flattenedRouteHistory: Iterator[(TimeBin, OriginLinkId, DestLinkId, String)] = routeHistory.toIterator.flatMap {
       case (timeBin: TimeBin, origins: TrieMap[OriginLinkId, TrieMap[DestLinkId, Route]]) =>
