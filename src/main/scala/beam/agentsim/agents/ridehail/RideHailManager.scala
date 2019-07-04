@@ -269,7 +269,7 @@ class RideHailManager(
 
   val numRideHailAgents = math.round(
     initialNumHouseholdVehicles *
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet
   )
 
   val radiusInMeters: Double =
@@ -323,8 +323,6 @@ class RideHailManager(
 
   // Are we in the middle of processing a batch?
   var currentlyProcessingTimeoutTrigger: Option[TriggerWithId] = None
-
-
 
   // Cache analysis
   private var cacheAttempts = 0

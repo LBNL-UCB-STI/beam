@@ -86,6 +86,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
   val activitySegment: ActivitySegment =
     ActivitySegment(rideHailManager.beamServices.matsimServices.getScenario, intervalSize)
 
+  val algo8 = new Algo8Repos(rideHailManager.beamServices, activitySegment)
+
   val intervalForUpdatingQuadTree = 1800
 
   var lastTimeQuadTreeUpdated = Double.NegativeInfinity
@@ -195,6 +197,28 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
     updatePersonActivityQuadTree(tick)
 
     algorithm match {
+      case 8 =>
+        val nonRepositioningIdleVehicles = rideHailManager.vehicleManager.getIdleVehicles.values.filter { ral =>
+          rideHailManager.modifyPassengerScheduleManager.isVehicleNeitherRepositioningNorProcessingReservation(
+            ral.vehicleId
+          )
+        }
+        if (nonRepositioningIdleVehicles.nonEmpty) {
+          val shouldRepos = nonRepositioningIdleVehicles.filter { rha =>
+            algo8.shouldReposition(tick, rha.vehicleId)
+          }
+          val newPositions = shouldRepos.flatMap { rha =>
+            algo8.findWhereToReposition(tick, rha.currentLocationUTM.loc, rha.vehicleId).map { loc =>
+              rha.vehicleId -> loc
+            }
+          }
+          logger.info(
+            s"nonRepositioningIdleVehicles: ${nonRepositioningIdleVehicles.size}, shouldRepos: ${shouldRepos.size}, newPositions: ${newPositions.size}"
+          )
+          newPositions.toVector
+        } else {
+          Vector.empty
+        }
 
       // TODO: destinations of idle vehicles selected for repositioning should be uniformally distributed in activity space
 

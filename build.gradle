@@ -263,6 +263,8 @@ dependencies {
 
     compile 'org.apache.commons:commons-compress:1.18'
 
+    compile group: 'de.lmu.ifi.dbs.elki', name: 'elki', version:'0.7.5'
+
     def parquet = "1.10.0"
     compile group: 'org.apache.parquet', name: 'parquet-hadoop', version: parquet
     compile group: 'org.apache.parquet', name: 'parquet-avro', version: parquet

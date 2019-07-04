@@ -37,6 +37,7 @@
     <Logger name="beam.router.BeamRouter" level="ERROR" />
     <Logger name="beam.agentsim.agents.TransitDriverAgent" level="ERROR" />
     <Logger name="beam.router.r5.R5RoutingWorker" level="INFO" />
+    <Logger name="beam.agentsim.agents.ridehail.allocation.Algo8Repos" level="INFO" />
     <!--<Logger name="beam.agentsim.agents.vehicles.BeamVehicle" level="error" additivity="false">-->
         <!--<appender-ref ref="STDOUT"/>-->
 
