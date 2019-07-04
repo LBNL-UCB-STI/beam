@@ -635,17 +635,6 @@ trait BeamHelper extends LazyLogging {
     result
   }
 
-//  private def warmstart(beamConfig: BeamConfig):BeamConfig = {
-//    val agents = beamConfig.beam.agentsim.agents
-//
-//    configAgents.plans.inputPersonAttributesFilePath)
-//    configAgents.plans.inputPlansFilePath
-//    configAgents.households.inputFilePath
-//    configAgents.vehicles.vehiclesFilePath
-//  }
-
-  // TODO: remove this method
-//  private def warmStart(beamConfig: BeamConfig, matsimConfig: MatsimConfig): Unit = {
   private def updateConfigWithWarmStart(beamExecutionConfig: BeamExecutionConfig): BeamExecutionConfig = {
     BeamWarmStart.updateExecutionConfig(beamExecutionConfig)
   }
