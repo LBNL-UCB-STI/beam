@@ -8,6 +8,9 @@ object FollowActorScript {
 
   def build(
     events: Traversable[ViaEvent],
+    frameSizeX: Int,
+    frameSizeY: Int,
+    deltaTimeAllowed: Int,
     getLinkStart: Int => Option[Point],
     getLinkEnd: Int => Option[Point]
   ): Seq[String] = {
@@ -15,28 +18,25 @@ object FollowActorScript {
       def toStr: String
     }
 
-    case class ViaScriptFlyTo(time: Double, from: Point, to: Point) extends ViaScriptRow {
+    case class ViaScriptFlyTo(minX: Double, minY: Double, maxX: Double, maxY: Double) extends ViaScriptRow {
       override def toStr: String = {
-        val minX = Math.min(from.x, to.x)
-        val minY = Math.min(from.y, to.y)
-        val maxX = Math.max(from.x, to.x)
-        val maxY = Math.max(from.y, to.y)
-
         // via.view.flyTo(minX, minY, maxX, maxY, number of frames for flying)
-        "via.view.flyTo(minFrameX(%f), minFrameY(%f), maxFrameX(%f), maxFrameY(%f), timeToFrames(%f))".format(
+        "via.view.flyTo(minFrameX(%f), minFrameY(%f), maxFrameX(%f), maxFrameY(%f), framesToFly)".format(
           minX,
           minY,
           maxX,
-          maxY,
-          time
+          maxY
         )
       }
     }
 
     case class ViaScriptSetTime(time: Double) extends ViaScriptRow {
-      override def toStr: String = {
-        "via.setTime(%f)".format(time)
-      }
+      override def toStr: String = "via.setTime(%f)".format(time)
+
+    }
+
+    case class ViaScriptWaitTime(time: Double) extends ViaScriptRow {
+      override def toStr: String = "via.sleep(calcSleepTime(%f))".format(time)
     }
 
     case class ViaScriptString(str: String) extends ViaScriptRow {
@@ -45,58 +45,74 @@ object FollowActorScript {
 
     val initScriptList =
       mutable.MutableList[ViaScriptRow](
-        ViaScriptString("function minFrameX(x){return x - 1500}"),
-        ViaScriptString("function minFrameY(y){return y - 1500}"),
-        ViaScriptString("function maxFrameX(x){return x + 1500}"),
-        ViaScriptString("function maxFrameY(y){return y + 1500}"),
-        ViaScriptString("function timeToFrames(t){return t * 7}"),
+        ViaScriptString("function minFrameX(x){return x - " + frameSizeX / 2 + "}"),
+        ViaScriptString("function minFrameY(y){return y - " + frameSizeY / 2 + "}"),
+        ViaScriptString("function maxFrameX(x){return x + " + frameSizeX / 2 + "}"),
+        ViaScriptString("function maxFrameY(y){return y + " + frameSizeY / 2 + "}"),
+        ViaScriptString("function calcSleepTime(time){return time * 1.0}"),
+        ViaScriptString("framesToFly = 50"),
         ViaScriptString(""),
         ViaScriptString("via.setTimeIncrement(0.1)"),
         ViaScriptString(""),
       )
 
-    case class Accumulator(
+    case class Frame(minX: Double, minY: Double, maxX: Double, maxY: Double) {
+      def isWithin(x: Double, y: Double): Boolean = {
+        minX <= x && x <= maxX && minY <= y && y <= maxY
+      }
+    }
+
+    case class ScriptAccumulator(
       script: mutable.MutableList[ViaScriptRow] = initScriptList,
-      var fromCoord: Option[Point] = None,
-      var fromTime: Option[Double] = None,
-      var settedTime: Option[Double] = None
+      var lastTime: Option[Double] = None,
+      var frame: Option[Frame] = None
     ) {
 
-      def enterLink(time: Double, coord: Point): Unit = {
-        fromTime = Some(time)
-        fromCoord = Some(coord)
-
-        def setTime(t: Double): Unit = {
-          script += ViaScriptSetTime(t)
-          settedTime = Some(t)
+      def moveTo(nextTime: Double, nextCoordinate: Point): Unit = {
+        def setScriptTime(): Unit = {
+          script += ViaScriptSetTime(nextTime)
+          lastTime = Some(nextTime)
         }
 
-        settedTime match {
-          case Some(prevValue) if time - prevValue > 2 => setTime(time)
-          case None                                    => setTime(time)
-          case _                                       =>
+        lastTime match {
+          case None                                                     => setScriptTime()
+          case Some(prevTime) if nextTime - prevTime > deltaTimeAllowed => setScriptTime()
+          case Some(prevTime) =>
+            script += ViaScriptWaitTime(nextTime - prevTime)
+            lastTime = Some(nextTime)
         }
-      }
 
-      def leftLink(leftTime: Double, toCoord: Point): Unit = {
-        (fromCoord, fromTime) match {
-          case (Some(coord), Some(time)) if leftTime - time > 0 =>
-            script += ViaScriptFlyTo(leftTime - time, coord, toCoord)
-          case _ =>
+        def setFrame(): Unit = {
+          val f = Frame(
+            nextCoordinate.x - frameSizeX / 2,
+            nextCoordinate.y - frameSizeY / 2,
+            nextCoordinate.x + frameSizeX / 2,
+            nextCoordinate.y + frameSizeY / 2
+          )
+
+          frame = Some(f)
+
+          script += ViaScriptFlyTo(f.minX, f.minY, f.maxX, f.maxY)
+        }
+
+        frame match {
+          case None                                                       => setFrame()
+          case Some(f) if !f.isWithin(nextCoordinate.x, nextCoordinate.y) => setFrame()
+          case _                                                          =>
         }
       }
     }
 
-    val accumulator = events.foldLeft(Accumulator())((acc, event) => {
+    val accumulator = events.foldLeft(ScriptAccumulator())((acc, event) => {
       event match {
         case ViaTraverseLinkEvent(time, _, EnteredLink, link) =>
           getLinkStart(link) match {
-            case Some(point) => acc.enterLink(event.time, point)
+            case Some(point) => acc.moveTo(time, point)
             case _           =>
           }
         case ViaTraverseLinkEvent(time, _, LeftLink, link) =>
           getLinkEnd(link) match {
-            case Some(point) => acc.leftLink(event.time, point)
+            case Some(point) => acc.moveTo(time, point)
             case _           =>
           }
 

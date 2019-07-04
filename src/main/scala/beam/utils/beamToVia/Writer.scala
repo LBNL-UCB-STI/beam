@@ -8,6 +8,12 @@ import scala.collection.mutable
 
 object Writer {
 
+  def writeSeq[T](seq:Traversable[T], transform:T => String, outputPath:String):Unit = {
+    val pw = new PrintWriter(new File(outputPath))
+    seq.foreach(seqItem => pw.println(transform(seqItem)))
+    pw.close()
+  }
+
   def writeSeqOfString(script: Traversable[String], outputPath: String): Unit = {
     val pw = new PrintWriter(new File(outputPath))
     script.foreach(pw.println)

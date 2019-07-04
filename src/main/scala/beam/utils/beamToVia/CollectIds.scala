@@ -5,10 +5,15 @@ import beam.utils.beamToVia.beamEvent.{BeamEvent, BeamPathTraversal, BeamPersonE
 import scala.collection.mutable
 
 object CollectIds extends App {
-  val sourcePath = "D:/Work/BEAM/Via-fs-light/2.events.xml" // 2.events.csv
+  //val sourcePath = "D:/Work/BEAM/Via-fs-light/2.events.xml" // 2.events.csv
+  val sourcePath = "D:/Work/BEAM/sfbay-smart-base/30.events.csv"
+
+  object DummyFilter extends MutableSamplingFilter {
+    override def filterAndFix(event: BeamEvent): Seq[BeamEvent] = Seq(event)
+  }
 
   val events = EventsReader
-    .fromFile(sourcePath)
+    .fromFileWithFilter(sourcePath, DummyFilter)
     .getOrElse(Seq.empty[BeamEvent])
 
   case class PersonIdInfo(
@@ -21,6 +26,7 @@ object CollectIds extends App {
     def toStr: String =
       "entered: % 3d left: % 3d beenDriver: % 3d   id: %s   ".format(enteredVehicle, leftVehicle, hasBeenDriver, id)
   }
+
   case class VehicleIdInfo(
     id: String,
     var vehicleType: String,
@@ -38,8 +44,8 @@ object CollectIds extends App {
   }
 
   case class Accumulator(
-    vehicles: mutable.Map[String, VehicleIdInfo] = mutable.Map.empty[String, VehicleIdInfo],
-    persons: mutable.Map[String, PersonIdInfo] = mutable.Map.empty[String, PersonIdInfo]
+    vehicles: mutable.HashMap[String, VehicleIdInfo] = mutable.HashMap.empty[String, VehicleIdInfo],
+    persons: mutable.HashMap[String, PersonIdInfo] = mutable.HashMap.empty[String, PersonIdInfo]
   )
 
   val accumulator = events.foldLeft(Accumulator())((acc, event) => {
@@ -80,7 +86,6 @@ object CollectIds extends App {
             acc.vehicles(pev.vehicleId) = VehicleIdInfo(pev.vehicleId, "", mutable.HashSet.empty[String], 0)
           case _ =>
         }
-
     }
 
     acc
@@ -90,8 +95,11 @@ object CollectIds extends App {
     accumulator.persons.values.toArray.sortWith((p1, p2) => p1.id > p2.id).map(_.toStr),
     sourcePath + ".persons.txt"
   )
+
   Writer.writeSeqOfString(
     accumulator.vehicles.values.toArray.sortWith((v1, v2) => v1.vehicleType > v2.vehicleType).map(_.toStr),
     sourcePath + ".vehicles.txt"
   )
+
+  Console.println("done")
 }

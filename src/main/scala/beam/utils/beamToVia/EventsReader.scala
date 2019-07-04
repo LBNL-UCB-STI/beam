@@ -1,47 +1,55 @@
 package beam.utils.beamToVia
 
 import beam.utils.EventReader
-import beam.utils.beamToVia.beamEvent.{BeamEvent, BeamPathTraversal, BeamPersonEntersVehicle, BeamPersonLeavesVehicle}
+import beam.utils.beamToVia.beamEvent.{BeamEvent, BeamEventReader}
 import org.matsim.api.core.v01.events.Event
 
 import scala.collection.mutable
 
 object EventsReader {
-  private def sortEvents(events: Traversable[Event]): Traversable[BeamEvent] = {
-    val initQueue = mutable.PriorityQueue.empty[BeamEvent]((e2, e1) => e1.time.compare(e2.time))
-    val sortedEvens = events.foldLeft(initQueue)((sorted, event) => {
-      event.getEventType match {
-        case BeamPathTraversal.EVENT_TYPE       => sorted += BeamPathTraversal(event)
-        case BeamPersonLeavesVehicle.EVENT_TYPE => sorted += BeamPersonLeavesVehicle(event)
-        case BeamPersonEntersVehicle.EVENT_TYPE => sorted += BeamPersonEntersVehicle(event)
-        case _                                  =>
-      }
 
-      sorted
-    })
+  def fromFileWithFilter(filePath: String, mutableFilter: MutableSamplingFilter): Option[Traversable[BeamEvent]] = {
+    Console.println("started reading a file " + filePath)
 
-    sortedEvens.toSeq
-  }
-
-  def fromFile(filePath: String): Option[Traversable[BeamEvent]] = {
     val extension = filePath.split('.').lastOption
-    val unsorted = extension match {
-      case Some("xml") => Some(EventReader.fromXmlFile(filePath).toArray)
-      case Some("csv") => Some(fromCsv(filePath))
+    val events = extension match {
+      case Some("xml") => Some(sortAndTransform(EventReader.fromXmlFile(filePath), mutableFilter))
+      case Some("csv") => Some(fromCsv(filePath, mutableFilter))
       case _           => None
     }
 
-    unsorted match {
-      case Some(events) => Some(sortEvents(events))
-      case _            => None
+    events match {
+      case Some(coll) => Console.println("read " + coll.size + " events")
+      case _          => Console.println("read nothing ...")
     }
+
+    events
   }
 
-  private def fromCsv(filePath: String): Array[Event] = {
+  private def sortAndTransform(
+    unsorted: TraversableOnce[Event],
+    mutableEventsFilter: MutableSamplingFilter
+  ): IndexedSeq[BeamEvent] = {
+    val emptyAcc = mutable.PriorityQueue.empty[BeamEvent]((e1, e2) => e2.time.compare(e1.time))
+    val (queuedEvents, _) = unsorted.foldLeft((emptyAcc, mutableEventsFilter)) {
+      case ((acc, eventsFilter), event) =>
+        BeamEventReader.read(event) match {
+          case Some(beamEvent) => eventsFilter.filterAndFix(beamEvent).foreach(acc.enqueue(_))
+          case _               =>
+        }
+
+        (acc, eventsFilter)
+    }
+
+    val sortedEvents = queuedEvents.dequeueAll
+    sortedEvents
+  }
+
+  private def fromCsv(filePath: String, mutableEventsFilter: MutableSamplingFilter): IndexedSeq[BeamEvent] = {
     val (events, closable) = EventReader.fromCsvFile(filePath, _ => true)
-    val eventsArray = events.toArray
+    val sortedAndFilteredEvents = sortAndTransform(events, mutableEventsFilter)
     closable.close()
 
-    eventsArray
+    sortedAndFilteredEvents
   }
 }

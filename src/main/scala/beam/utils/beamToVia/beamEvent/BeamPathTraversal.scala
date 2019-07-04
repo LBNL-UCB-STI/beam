@@ -54,15 +54,25 @@ object BeamPathTraversal {
     val time: Int = attr(ATTRIBUTE_DEPARTURE_TIME).toInt
     val arrivalTime: Int = attr(ATTRIBUTE_ARRIVAL_TIME).toInt
 
-    val linkIdsAsStr = Option(attr(ATTRIBUTE_LINK_IDS)).getOrElse("")
-    val linkIds: IndexedSeq[Int] =
-      if (linkIdsAsStr == "") IndexedSeq.empty
-      else linkIdsAsStr.split(",").map(_.toInt)
+    val linkIdsAsStr = Option(attr.getOrElse(ATTRIBUTE_LINK_IDS, ""))
+    val linkIds: IndexedSeq[Int] = linkIdsAsStr match {
+      case None | Some("") => IndexedSeq.empty
+      case Some(v)         => v.split(",").map(_.toInt)
+    }
 
-    val linkTravelTimeStr = Option(attr(ATTRIBUTE_LINK_TRAVEL_TIME)).getOrElse("")
-    val linkTravelTime: IndexedSeq[Int] =
-      if (linkTravelTimeStr == "") IndexedSeq.empty
-      else linkTravelTimeStr.split(",").map(_.toInt)
+    val linkTravelTimeStr = Option(attr.getOrElse(ATTRIBUTE_LINK_TRAVEL_TIME, ""))
+    val linkTravelTime: IndexedSeq[Int] = linkTravelTimeStr match {
+      case None | Some("") =>
+        if (linkIds.nonEmpty) {
+          val travelTime = arrivalTime - time
+          val links = linkIds.size
+          val averageValue = travelTime / links
+
+          val beginning = IndexedSeq.fill[Int](links - 1)(averageValue)
+          beginning :+ (travelTime - averageValue * (links - 1))
+        } else IndexedSeq.empty
+      case Some(v) => v.split(",").map(_.toInt)
+    }
 
     val mode: BeamMode = BeamMode.fromString(attr(ATTRIBUTE_MODE)).get
 
