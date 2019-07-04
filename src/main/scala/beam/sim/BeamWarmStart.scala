@@ -54,19 +54,14 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
   }
 
   private def warmstartFile(description: String, fileName: String): String = {
-    println(s"@@@@@@@@@@@@@@@@@ srcPath#0: $srcPath")
-    println(s"@@@@@@@@@@@@@@@@@ fileName#1: $fileName")
     getWarmStartFilePath(fileName) match {
       case Some(compressedFile) =>
-        println(s"@@@@@@@@@@@@@@@@@ compressedFile#2: $compressedFile")
         if (Files.isRegularFile(Paths.get(compressedFile))) {
-          println(s"@@@@@@@@@@@@@@@@@ parentRunPath#3: $parentRunPath")
           loadPopulation(parentRunPath, compressedFile)
         } else {
           throwErrorFileNotFound(description, compressedFile)
         }
       case None =>
-        println("@@@@@@@@@@@@@2 File not found")
         throwErrorFileNotFound(description, srcPath)
     }
   }
@@ -82,39 +77,29 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
   }
 
   def getWarmStartFilePath(warmStartFile: String, rootFirst: Boolean = true): Option[String] = {
-    println("@@@@@@@@ getWarmStartFilePath entered")
     lazy val itrFile = findIterationWarmStartFile(warmStartFile, parentRunPath)
     lazy val rootFile = findRootWarmStartFile(warmStartFile)
 
     if (rootFirst) {
-      println("@@@@@@@@ getWarmStartFilePath entered#1")
       rootFile.fold(itrFile)(Some(_))
     } else {
-      println("@@@@@@@@ getWarmStartFilePath entered#2")
       itrFile.fold(rootFile)(Some(_))
     }
   }
 
   private def findRootWarmStartFile(warmStartFile: String): Option[String] = {
-    println("@@@@ findRootWarmStartFile#1")
     val search = findFileInDir(warmStartFile, parentRunPath)
-    println("@@@@ findRootWarmStartFile#2")
 
     if (search.nonEmpty) {
-      println("@@@@ findRootWarmStartFile#3")
       search
 
     } else {
-      println("@@@@ findRootWarmStartFile#4")
       val iters = getITERSPath(parentRunPath)
 
-      println("@@@@ findRootWarmStartFile#5")
       if (iters.nonEmpty) {
-        println("@@@@ findRootWarmStartFile#6")
         findFileInDir(warmStartFile, Paths.get(iters.head).getParent.toString)
 
       } else {
-        println("@@@@ findRootWarmStartFile#7")
         Files.walk(Paths.get(parentRunPath)).toScala[Stream].map(_.toString).find(_.endsWith(warmStartFile))
       }
     }
