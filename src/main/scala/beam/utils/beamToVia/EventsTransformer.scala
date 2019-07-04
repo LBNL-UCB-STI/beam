@@ -2,59 +2,43 @@ package beam.utils.beamToVia
 
 import beam.utils.beamToVia.beamEvent.{BeamEvent, BeamPathTraversal, BeamPersonEntersVehicle, BeamPersonLeavesVehicle}
 import beam.utils.beamToVia.viaEvent.{ViaEvent, ViaPersonArrivalEvent, ViaTraverseLinkEvent}
-import org.matsim.api.core.v01.events.Event
 
 import scala.collection.mutable
 
 object EventsTransformer {
 
-  def filterAndFixEvents(
+  /*
+ def addMissingPersonLeavesVehicleEvents(
     events: Traversable[BeamEvent],
-    personIsInterested: String => Boolean,
   ): Traversable[BeamEvent] = {
 
     case class Accumulator(
-      filteredEvents: mutable.MutableList[BeamEvent] = mutable.MutableList.empty[BeamEvent],
-      selectedVehicles: mutable.HashSet[String] = mutable.HashSet.empty[String],
+      resultingEvents: mutable.MutableList[BeamEvent] = mutable.MutableList.empty[BeamEvent],
       personToVehicle: mutable.Map[String, Option[String]] = mutable.Map.empty[String, Option[String]]
-    ) {}
+    )
 
     val accumulator = events.foldLeft(Accumulator()) {
       case (acc, event: BeamPersonEntersVehicle) =>
-        if (personIsInterested(event.personId)) {
-          acc.personToVehicle.get(event.personId) match {
-            case Some(Some(prevVehicleId)) =>
-              acc.filteredEvents += BeamPersonLeavesVehicle(event.time, event.personId, prevVehicleId)
-            case _ =>
-          }
-
-          acc.personToVehicle(event.personId) = Some(event.vehicleId)
-
-          acc.filteredEvents += event
-          acc.selectedVehicles += event.vehicleId
+        acc.personToVehicle.get(event.personId) match {
+          case Some(Some(prevVehicleId)) =>
+            acc.resultingEvents += BeamPersonLeavesVehicle(event.time, event.personId, prevVehicleId)
+          case _ =>
         }
+
+        acc.personToVehicle(event.personId) = Some(event.vehicleId)
+        acc.resultingEvents += event
 
         acc
 
       case (acc, event: BeamPersonLeavesVehicle) =>
-        if (personIsInterested(event.personId)) {
-          acc.personToVehicle(event.personId) = None
-
-          acc.filteredEvents += event
-          acc.selectedVehicles -= event.vehicleId
-        }
+        acc.personToVehicle(event.personId) = None
+        acc.resultingEvents += event
 
         acc
 
       case (acc, event: BeamPathTraversal) =>
         acc.personToVehicle(event.driverId) = Some(event.vehicleId)
-
-        if (acc.selectedVehicles.contains(event.vehicleId)) {
-          acc.filteredEvents += event
-        } else if (personIsInterested(event.driverId)) {
-          acc.filteredEvents += event
-          acc.selectedVehicles += event.vehicleId
-        }
+        acc.resultingEvents += event
 
         acc
 
@@ -62,8 +46,9 @@ object EventsTransformer {
 
     }
 
-    accumulator.filteredEvents
+    accumulator.resultingEvents
   }
+   */
 
   def calcTimeLimits(
     events: Traversable[BeamEvent],
@@ -185,7 +170,8 @@ object EventsTransformer {
   }
 
   def transform(
-    events: Traversable[BeamEvent]
+    events: Traversable[BeamEvent],
+    vahicleIsInteresting: String => Boolean
   ): (Traversable[ViaEvent], mutable.Map[String, mutable.HashSet[String]]) = {
     def timeLimitId(vehicleId: String, eventTime: Double): String = vehicleId + "_" + eventTime.toString
     def vehicleType(pte: BeamPathTraversal): String =
@@ -206,7 +192,7 @@ object EventsTransformer {
       ) {
         case ((viaEvents, typeToIdMap, lastVehiclePosition), event) =>
           event match {
-            case pte: BeamPathTraversal =>
+            case pte: BeamPathTraversal if vahicleIsInteresting(pte.vehicleId) =>
               val vType = vehicleType(pte)
               val vId = vehicleId(pte)
 
@@ -228,7 +214,7 @@ object EventsTransformer {
               viaEvents ++= events
               (viaEvents, typeToIdMap, lastVehiclePosition)
 
-            case plv: BeamPersonLeavesVehicle =>
+            case plv: BeamPersonLeavesVehicle if vahicleIsInteresting(plv.vehicleId) =>
               lastVehiclePosition.get(plv.vehicleId) match {
                 case Some(lastPosition) =>
                   viaEvents += ViaPersonArrivalEvent(lastPosition.time, lastPosition.vehicleId, lastPosition.linkId)
@@ -240,6 +226,8 @@ object EventsTransformer {
             case _ => (viaEvents, typeToIdMap, lastVehiclePosition)
           }
       }
+
+    Console.println("got " + viaLinkEvents.size + " via events with possible duplicates")
 
     (removePathDuplicates(viaLinkEvents), typeToIdsMap)
   }

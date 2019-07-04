@@ -41,67 +41,24 @@ object TransformAllPathTraversal {
     selectedVehicleIds
   }
 
-  def transformAndWrite(runConfig: RunConfig): Unit = {
+  def transformAndWrite(config: RunConfig): Unit = {
+
+    val vehiclesFilter = MutableVehiclesFilter(config.vehicleSampling, config.vehicleSamplingOtherTypes)
     val events = EventsReader
-      .fromFile(runConfig.beamEventsPath)
+      .fromFileWithFilter(config.beamEventsPath, vehiclesFilter)
       .getOrElse(Seq.empty[BeamEvent])
 
-    val vehicleMovedTroughCircles: String => Boolean =
-      if (runConfig.circleFilter.isEmpty) (_) => true
+    val vehicleSelected: String => Boolean =
+      if (config.circleFilter.isEmpty) _ => true
       else {
-        val selectedIds = findVehiclesDrivingThroughCircles(events, runConfig.networkPath, runConfig.circleFilter)
-        vehicleId =>
-          selectedIds.contains(vehicleId)
+        val selectedIds = findVehiclesDrivingThroughCircles(events, config.networkPath, config.circleFilter)
+        id =>
+          selectedIds.contains(id)
       }
 
-    val selectedIds =
-      collectIds(events, runConfig.vehicleSampling, runConfig.vehicleSamplingOtherTypes, vehicleMovedTroughCircles)
+    val (pathLinkEvents, typeToIdSeq) = EventsTransformer.transform(events, vehicleId => vehicleSelected(vehicleId))
 
-    val selectedEvents = events.collect {
-      case event: BeamPathTraversal if selectedIds.contains(event.vehicleId) => event
-    }
-
-    val (pathLinkEvents, typeToIdSeq) = EventsTransformer.transform(selectedEvents)
-    Writer.writeViaEvents(pathLinkEvents, runConfig.viaEventsPath)
-    Writer.writeViaIdFile(typeToIdSeq, runConfig.viaIdGoupsFilePath)
-  }
-
-  def collectIds(
-    events: Traversable[BeamEvent],
-    rules: Seq[VehicleSample],
-    otherVehicleTypesSamples: Double,
-    vehicleMovedTroughCircles: String => Boolean
-  ): mutable.HashSet[String] = {
-    val allVehicles = events.foldLeft(mutable.Map.empty[String, mutable.HashSet[String]])((vehicles, event) => {
-      event match {
-        case pte: BeamPathTraversal if vehicleMovedTroughCircles(pte.vehicleId) =>
-          vehicles.get(pte.vehicleType) match {
-            case Some(map) => map += pte.vehicleId
-            case None      => vehicles(pte.vehicleType) = mutable.HashSet(pte.vehicleId)
-          }
-        case _ =>
-      }
-      vehicles
-    })
-
-    val selectedIds = rules.foldLeft(mutable.HashSet.empty[String])((selected, rule) => {
-      allVehicles.get(rule.vehicleType) match {
-        case Some(vehicleIds) =>
-          vehicleIds.foreach(
-            id => if (vehicleMovedTroughCircles(id) && rule.percentage >= Math.random()) selected += id
-          )
-        case None =>
-      }
-
-      selected
-    })
-
-    val filteredTypes = mutable.HashSet(rules.map(_.vehicleType): _*)
-    allVehicles.foldLeft(selectedIds)((selected, vehiclesGroup) => {
-      val (vehicleType: String, ids) = vehiclesGroup
-      if (!filteredTypes.contains(vehicleType))
-        ids.foreach(id => if (otherVehicleTypesSamples >= Math.random()) selected += id)
-      selected
-    })
+    Writer.writeViaEvents(pathLinkEvents, config.viaEventsPath)
+    Writer.writeViaIdFile(typeToIdSeq, config.viaIdGoupsFilePath)
   }
 }
