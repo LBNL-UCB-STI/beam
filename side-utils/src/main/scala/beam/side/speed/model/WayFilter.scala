@@ -1,7 +1,8 @@
-package beam.side.speed.parser
+package beam.side.speed.model
+
 import java.time.DayOfWeek
 
-import beam.side.speed.model._
+import beam.side.speed.parser.Median
 
 import scala.util.Try
 

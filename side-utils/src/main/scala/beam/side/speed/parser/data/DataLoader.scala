@@ -1,5 +1,4 @@
-package beam.side.speed.parser
-
+package beam.side.speed.parser.data
 import java.nio.file.Path
 
 import beam.side.speed.model.Decoder

@@ -1,4 +1,5 @@
-package beam.side.speed.parser
+package beam.side.speed.parser.data
+
 import java.nio.file.{Path, Paths}
 
 import beam.side.speed.model.UberOsmWays
