@@ -3,6 +3,7 @@ package beam.side.speed.parser
 import java.nio.file.Paths
 
 import beam.side.speed.model._
+import beam.side.speed.parser.data.{DataLoader, UberOsmDictionary, UnarchivedSource}
 
 import scala.collection.parallel
 import scala.collection.parallel.immutable.ParMap
