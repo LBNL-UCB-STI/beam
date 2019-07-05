@@ -7,19 +7,20 @@ class SpeedComparator(ways: OsmWays, uber: UberSpeed[_], fileName: String) {
 
   private def compare: Iterable[BeamUberSpeed] =
     ways.ways
+      .withFilter(_._1 > 0)
       .map {
         case (id, speed) =>
           uber
             .speed(id)
-            .fold(BeamUberSpeed(id, speed.toFloat, 0, 0, 0))(
-              ws => BeamUberSpeed(id, speed.toFloat, ws.speedMean, ws.speedAvg, ws.maxDev)
+            .fold(BeamUberSpeed(id, speed.toFloat, Float.NaN, Float.NaN, Float.NaN))(
+              ws => BeamUberSpeed(id, speed.toFloat, ws.speedMedian, ws.speedAvg, ws.maxDev)
             )
       }
 
   def csv(): Unit = {
     val file = new File(fileName)
     val bw = new BufferedWriter(new FileWriter(file))
-    bw.write("osmId,speedBeam,speedMean,speedAvg,maxDev")
+    bw.write("osmId,speedBeam,speedMedian,speedAvg,maxDev")
     compare.foreach { b =>
       bw.newLine()
       bw.write(b.productIterator.mkString(","))
