@@ -96,7 +96,7 @@ object FileUtils extends LazyLogging {
   def downloadFile(source: String, target: String): Unit = {
     assert(source != null)
     assert(target != null)
-    println(s"@@@@@ downloading $source to $target")
+    logger.info(s"Downloading [$source] to [$target]")
     copyURLToFile(new URL(source), Paths.get(target).toFile)
   }
 
