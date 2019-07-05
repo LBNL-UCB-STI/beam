@@ -200,11 +200,6 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   }
 }
 
-class PoolinAlonsoMoraWithRandomRepositioning(rideHailManager: RideHailManager) extends PoolingAlonsoMora(rideHailManager) {
-  val rndRepos: RandomRepositioning =  new RandomRepositioning(rideHailManager)
-  override def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)] = rndRepos.repositionVehicles(tick)
-}
-
 object RideHailResourceAllocationManager {
   val DEFAULT_MANAGER = "DEFAULT_MANAGER"
   val EV_MANAGER = "EV_MANAGER"
@@ -214,7 +209,6 @@ object RideHailResourceAllocationManager {
   val REPOSITIONING_LOW_WAITING_TIMES = "REPOSITIONING_LOW_WAITING_TIMES"
   val RANDOM_REPOSITIONING = "RANDOM_REPOSITIONING"
   val DUMMY_DISPATCH_WITH_BUFFERING = "DUMMY_DISPATCH_WITH_BUFFERING"
-  val POOLING_ALONSO_MORA_WITH_RANDOM_REPOSITIONING = "POOLING_ALONSO_MORA_WITH_RANDOM_REPOSITIONING"
 
   def apply(
     allocationManager: String,
@@ -234,8 +228,6 @@ object RideHailResourceAllocationManager {
         new RepositioningLowWaitingTimes(rideHailManager)
       case RideHailResourceAllocationManager.RANDOM_REPOSITIONING =>
         new RandomRepositioning(rideHailManager)
-      case RideHailResourceAllocationManager.POOLING_ALONSO_MORA_WITH_RANDOM_REPOSITIONING =>
-        new PoolinAlonsoMoraWithRandomRepositioning(rideHailManager)
       case classFullName =>
         try {
           Class

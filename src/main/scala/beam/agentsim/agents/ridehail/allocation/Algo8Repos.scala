@@ -3,13 +3,7 @@ package beam.agentsim.agents.ridehail.allocation
 import beam.sim.BeamServices
 import beam.utils.ActivitySegment
 import com.typesafe.scalalogging.LazyLogging
-import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.KMeansElkan
-import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.initialization.RandomUniformGeneratedInitialMeans
-import de.lmu.ifi.dbs.elki.data.NumberVector
-import de.lmu.ifi.dbs.elki.database.{Database, StaticArrayDatabase}
-import de.lmu.ifi.dbs.elki.datasource.ArrayAdapterDatabaseConnection
-import de.lmu.ifi.dbs.elki.distance.distancefunction.minkowski.SquaredEuclideanDistanceFunction
-import de.lmu.ifi.dbs.elki.utilities.random.RandomFactory
+
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.MersenneTwister
 import org.apache.commons.math3.util.{Pair => CPair}
@@ -19,6 +13,14 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.util.Random
+
+import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.KMeansElkan
+import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.initialization.RandomUniformGeneratedInitialMeans
+import de.lmu.ifi.dbs.elki.data.NumberVector
+import de.lmu.ifi.dbs.elki.database.{Database, StaticArrayDatabase}
+import de.lmu.ifi.dbs.elki.datasource.ArrayAdapterDatabaseConnection
+import de.lmu.ifi.dbs.elki.distance.distancefunction.minkowski.SquaredEuclideanDistanceFunction
+import de.lmu.ifi.dbs.elki.utilities.random.RandomFactory
 
 case class ClusterInfo(size: Int, coord: Coord)
 
