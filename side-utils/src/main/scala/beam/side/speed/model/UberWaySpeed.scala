@@ -2,9 +2,7 @@ package beam.side.speed.model
 
 import java.time.DayOfWeek
 
-import beam.side.speed.parser.WayFilter
-
-case class UberHourSpeed(hour: Int, speedMean: Float, speedAvg: Float, maxDev: Float)
+case class UberHourSpeed(hour: Int, speedMean: Float, speedAvg: Float, maxDev: Float)case class UberHourSpeed(hour: Int, speedMean: Float, speedAvg: Float, maxDev: Float)
 
 case class UberDaySpeed(weekDay: DayOfWeek, hours: Seq[UberHourSpeed])
 

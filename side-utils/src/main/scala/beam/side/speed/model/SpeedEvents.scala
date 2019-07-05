@@ -1,9 +1,13 @@
 package beam.side.speed.model
 
-import java.time.{Instant, LocalDateTime, ZoneOffset}
+import java.time.LocalDateTime
 
 sealed trait Decoder[T <: Product] {
   def apply(row: String): T
+}
+
+sealed trait Encoder[T <: Product] {
+  def apply(row: T): String
 }
 
 object SpeedEvents {
@@ -62,3 +66,9 @@ object UberOsmNode {
 case class WaySpeed(speedMean: Float, speedAvg: Float, maxDev: Float)
 
 case class BeamUberSpeed(osmId: Long, speedBeam: Float, speedMean: Float, speedAvg: Float, maxDev: Float)
+
+object BeamUberSpeed {
+  implicit val beamUberSpeedEncoder: Encoder[BeamUberSpeed] = new Encoder[BeamUberSpeed] {
+    override def apply(row: BeamUberSpeed): String = row.toString
+  }
+}

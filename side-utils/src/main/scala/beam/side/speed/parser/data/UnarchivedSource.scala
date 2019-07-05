@@ -1,5 +1,4 @@
-package beam.side.speed.parser
-
+package beam.side.speed.parser.data
 import java.io.FileInputStream
 import java.nio.file.Path
 
