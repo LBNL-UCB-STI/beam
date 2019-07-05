@@ -184,10 +184,15 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
 
 object BeamWarmStart extends LazyLogging {
 
-//  @deprecated("Warmstart should not be instantiated. It should use config file", since = "2019-07-04")
-  def apply(beamConfig: BeamConfig): BeamWarmStart = {
-    val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
+  // @deprecated("Warmstart should not be instantiated. It should use config file", since = "2019-07-04")
+  def apply(beamConfig: BeamConfig, calculator: TravelTimeCalculatorConfigGroup): BeamWarmStart = {
+    val maxHour = TimeUnit.SECONDS.toHours(calculator.getMaxTime).toInt
     new BeamWarmStart(beamConfig, maxHour)
+  }
+
+  // @deprecated("Warmstart should not be instantiated. It should use config file", since = "2019-07-04")
+  def apply(beamConfig: BeamConfig): BeamWarmStart = {
+    this(beamConfig, new TravelTimeCalculatorConfigGroup())
   }
 
   def updateRemoteRouter(scenario: Scenario, travelTime: TravelTime, maxHour: Int, beamRouter: ActorRef): Unit = {

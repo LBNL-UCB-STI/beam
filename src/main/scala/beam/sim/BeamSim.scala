@@ -107,10 +107,8 @@ class BeamSim @Inject()(
       ),
       "router"
     )
-    // TODO: this should be enabled
-//    val maxHour = TimeUnit.SECONDS.toHours(scenario.getConfig.travelTimeCalculator().getMaxTime).toInt
-//    val warmStart = BeamWarmStart(beamServices.beamConfig, maxHour)
-//    warmStart.warmStartTravelTime(beamServices.beamRouter, scenario)
+    BeamWarmStart(beamServices.beamConfig, scenario.getConfig.travelTimeCalculator())
+      .warmStartTravelTime(beamServices.beamRouter, scenario)
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
     /*    if(null != beamServices.beamConfig.beam.agentsim.taz.file && !beamServices.beamConfig.beam.agentsim.taz.file.isEmpty)
