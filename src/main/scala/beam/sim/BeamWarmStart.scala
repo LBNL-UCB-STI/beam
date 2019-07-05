@@ -1,6 +1,6 @@
 package beam.sim
 
-import java.io.File
+import java.io.{File, FileNotFoundException}
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.TimeUnit
 
@@ -66,8 +66,9 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
     }
   }
 
+  @throws(classOf[FileNotFoundException])
   private def throwErrorFileNotFound(fileDesc: String, path: String): String = {
-    throw new IllegalArgumentException(s"Warmstart configuration is invalid. [$fileDesc] not found at path [$path]")
+    throw new FileNotFoundException(s"Warmstart configuration is invalid. [$fileDesc] not found at path [$path]")
   }
 
   private def loadPopulation(runPath: String, fileName: String): String = {
