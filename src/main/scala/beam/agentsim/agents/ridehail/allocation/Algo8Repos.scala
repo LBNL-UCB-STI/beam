@@ -37,7 +37,10 @@ class Algo8Repos(val beamServices: BeamServices, val activitySegment: ActivitySe
   val hourToAct: Array[(Int, Activity)] = activitySegment.activities.map(act => ((act.getEndTime / 3600).toInt, act))
   val hourToActivities = hourToAct.groupBy { case (h, _) => h }.map { case (_, xs) => xs.map(_._2) }.toArray
 
-  val activitiesPerHour: Array[Int] = hourToAct.groupBy { case (h, _) => h }.map { case (_, xs) => xs.length }.toArray
+  val activitiesPerHour: Array[Int] = hourToAct.groupBy { case (h, _) => h }
+    .map { case (h, xs) => (h, xs.length) }
+    .toArray.sortBy { case (h, _) => h }.map(_._2)
+
   val totalNumberOfActivities: Int = activitiesPerHour.sum
   val activityWeight: Array[Double] = activitiesPerHour.map(x => x.toDouble / totalNumberOfActivities)
   logger.info(s"totalNumberOfActivities: ${totalNumberOfActivities}")
