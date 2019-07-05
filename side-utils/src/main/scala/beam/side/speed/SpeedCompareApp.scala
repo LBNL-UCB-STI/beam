@@ -17,7 +17,7 @@ case class CompareConfig(
   uberOsmMap: String = "",
   r5MapPath: String = "",
   output: String = "",
-  mode: String = "",
+  mode: String = "all",
   fArgs: Map[String, String] = Map()
 )
 
