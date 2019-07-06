@@ -145,6 +145,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
       selectedActivities.foreach { act =>
         quadTree.put(act.getCoord.getX, act.getCoord.getY, act)
       }
+      lastTimeQuadTreeUpdated = tick
     }
   }
 
@@ -205,7 +206,9 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
     // Do tests: 1.) no repos 2.) with just upcomming next activities 3.) clustering, etc.
 
-    updatePersonActivityQuadTree(tick)
+    ProfilingUtils.timed("updatePersonActivityQuadTree", x => logger.info(x)) {
+      updatePersonActivityQuadTree(tick)
+    }
 
     algorithm match {
       case 8 =>
