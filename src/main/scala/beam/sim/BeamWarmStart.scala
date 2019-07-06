@@ -28,17 +28,9 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
 
   val srcPath = beamConfig.beam.warmStart.path
 
-  def warmStartTravelTime(beamRouter: ActorRef, scenario: Scenario): Unit = {
-    readTravelTime.foreach { travelTime =>
-      beamRouter ! UpdateTravelTimeLocal(travelTime)
-      BeamWarmStart.updateRemoteRouter(scenario, travelTime, maxHour, beamRouter)
-      logger.info("Travel times successfully warm started from")
-    }
-  }
-
   def readTravelTime: Option[TravelTime] = {
     getWarmStartFilePath("linkstats.csv.gz", rootFirst = false) match {
-      case Some(statsPath) =>
+      case Some(statsPath) if isWarmMode =>
         if (Files.isRegularFile(Paths.get(statsPath))) {
           val travelTime = getTravelTime(statsPath)
           logger.info("Read travel times from {}.", statsPath)
@@ -47,7 +39,7 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
           logger.warn("Travel times failed to warm start, stats not found at path ( {} )", statsPath)
           None
         }
-      case None =>
+      case _ =>
         logger.warn("Travel times failed to warm start, stats not found at path ( {} )", srcPath)
         None
     }
@@ -186,14 +178,15 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
 object BeamWarmStart extends LazyLogging {
 
   // @deprecated("Warmstart should not be instantiated. It should use config file", since = "2019-07-04")
-  def apply(beamConfig: BeamConfig, calculator: TravelTimeCalculatorConfigGroup): BeamWarmStart = {
-    val maxHour = TimeUnit.SECONDS.toHours(calculator.getMaxTime).toInt
-    new BeamWarmStart(beamConfig, maxHour)
-  }
+//  private def apply(beamConfig: BeamConfig, calculator: TravelTimeCalculatorConfigGroup): BeamWarmStart = {
+//    val maxHour = TimeUnit.SECONDS.toHours(calculator.getMaxTime).toInt
+//    new BeamWarmStart(beamConfig, maxHour)
+//  }
 
   // @deprecated("Warmstart should not be instantiated. It should use config file", since = "2019-07-04")
   def apply(beamConfig: BeamConfig): BeamWarmStart = {
-    this(beamConfig, new TravelTimeCalculatorConfigGroup())
+    val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
+    new BeamWarmStart(beamConfig, maxHour)
   }
 
   def updateRemoteRouter(scenario: Scenario, travelTime: TravelTime, maxHour: Int, beamRouter: ActorRef): Unit = {
@@ -203,6 +196,23 @@ object BeamWarmStart extends LazyLogging {
       maxHour
     )
     beamRouter ! UpdateTravelTimeRemote(map)
+  }
+
+  def warmStartTravelTime(
+    beamConfig: BeamConfig,
+    calculator: TravelTimeCalculatorConfigGroup,
+    beamRouter: ActorRef,
+    scenario: Scenario
+  ): Unit = {
+    if (beamConfig.beam.warmStart.enabled) {
+      val maxHour = TimeUnit.SECONDS.toHours(calculator.getMaxTime).toInt
+      val warm = new BeamWarmStart(beamConfig, maxHour)
+      warm.readTravelTime.foreach { travelTime =>
+        beamRouter ! UpdateTravelTimeLocal(travelTime)
+        BeamWarmStart.updateRemoteRouter(scenario, travelTime, maxHour, beamRouter)
+        logger.info("Travel times successfully warm started from")
+      }
+    }
   }
 
   def updateExecutionConfig(beamExecutionConfig: BeamExecutionConfig): BeamExecutionConfig = {

@@ -107,8 +107,12 @@ class BeamSim @Inject()(
       ),
       "router"
     )
-    BeamWarmStart(beamServices.beamConfig, scenario.getConfig.travelTimeCalculator())
-      .warmStartTravelTime(beamServices.beamRouter, scenario)
+    BeamWarmStart.warmStartTravelTime(
+      beamServices.beamConfig,
+      scenario.getConfig.travelTimeCalculator(),
+      beamServices.beamRouter,
+      scenario
+    )
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
     /*    if(null != beamServices.beamConfig.beam.agentsim.taz.file && !beamServices.beamConfig.beam.agentsim.taz.file.isEmpty)
