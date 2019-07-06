@@ -1,9 +1,9 @@
 package beam.agentsim.agents.ridehail.allocation
 
-import akka.actor.ActorRef
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, PoolingInfo}
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.repositioningmanager.{DemandFollowingRepositioningManager, RepositioningManager}
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
 import beam.agentsim.agents.vehicles.PersonIdWithActorRef
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
@@ -169,6 +169,9 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     VehicleAllocations(allocResponses)
   }
 
+  val repositioningManager: RepositioningManager = createRepositioningManager()
+  logger.info(s"Using ${repositioningManager.getClass.getSimpleName} as RepositioningManager")
+
   /*
    * repositionVehicles
    *
@@ -178,8 +181,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    * will be enabled in the near-term.
    */
   def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)] = {
-    logger.trace("default implementation repositionVehicles executed")
-    Vector()
+    repositioningManager.repositionVehicles(tick)
   }
 
   /*
@@ -198,6 +200,17 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   def handleRideCancellationReply(reply: StopDrivingIfNoPassengerOnBoardReply): Unit = {
     logger.trace("default implementation handleRideCancellationReply executed")
   }
+
+  def createRepositioningManager(): RepositioningManager = {
+    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.name match {
+      case "NoOpRepositioningManager" =>
+        RepositioningManager[RepositioningManager](rideHailManager.beamServices, rideHailManager)
+      case "DemandFollowingRepositioningManager" =>
+        RepositioningManager[DemandFollowingRepositioningManager](rideHailManager.beamServices, rideHailManager)
+      case x =>
+        throw new IllegalStateException(s"There is no implementation for `$x`")
+    }
+  }
 }
 
 object RideHailResourceAllocationManager {
@@ -207,7 +220,6 @@ object RideHailResourceAllocationManager {
   val POOLING = "POOLING"
   val POOLING_ALONSO_MORA = "POOLING_ALONSO_MORA"
   val REPOSITIONING_LOW_WAITING_TIMES = "REPOSITIONING_LOW_WAITING_TIMES"
-  val RANDOM_REPOSITIONING = "RANDOM_REPOSITIONING"
   val DUMMY_DISPATCH_WITH_BUFFERING = "DUMMY_DISPATCH_WITH_BUFFERING"
 
   def apply(
@@ -226,8 +238,6 @@ object RideHailResourceAllocationManager {
         new PoolingAlonsoMora(rideHailManager)
       case RideHailResourceAllocationManager.REPOSITIONING_LOW_WAITING_TIMES =>
         new RepositioningLowWaitingTimes(rideHailManager)
-      case RideHailResourceAllocationManager.RANDOM_REPOSITIONING =>
-        new RandomRepositioning(rideHailManager)
       case classFullName =>
         try {
           Class
