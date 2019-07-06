@@ -6,7 +6,7 @@ import java.util.Random
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.Location
-import beam.utils.{ActivitySegment, FileUtils, RandomUtils, Statistics}
+import beam.utils.{ActivitySegment, FileUtils, ProfilingUtils, RandomUtils, Statistics}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
@@ -95,7 +95,9 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
   val activitySegment: ActivitySegment =
     ActivitySegment(rideHailManager.beamServices.matsimServices.getScenario, intervalSize)
 
-  val algo8 = new Algo8Repos(rideHailManager.beamServices, activitySegment)
+  val algo8 = ProfilingUtils.timed("Initialized Algo8", x => logger.info(x)) {
+    new Algo8Repos(rideHailManager.beamServices, activitySegment)
+  }
 
   val intervalForUpdatingQuadTree = 1800
 
@@ -213,16 +215,20 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           )
         }
         if (nonRepositioningIdleVehicles.nonEmpty) {
-          val shouldRepos = nonRepositioningIdleVehicles.filter { rha =>
-            algo8.shouldReposition(tick, rha.vehicleId)
+          val wantToRepos = ProfilingUtils.timed("Find who wants to reposition", x => logger.info(x)) {
+            nonRepositioningIdleVehicles.filter { rha =>
+              algo8.shouldReposition(tick, rha.vehicleId)
+            }
           }
-          val newPositions = shouldRepos.flatMap { rha =>
-            algo8.findWhereToReposition(tick, rha.currentLocationUTM.loc, rha.vehicleId).map { loc =>
-              rha.vehicleId -> loc
+          val newPositions = ProfilingUtils.timed(s"Find where to repos from ${wantToRepos.size}", x => logger.info(x)) {
+            wantToRepos.flatMap { rha =>
+              algo8.findWhereToReposition(tick, rha.currentLocationUTM.loc, rha.vehicleId).map { loc =>
+                rha.vehicleId -> loc
+              }
             }
           }
           logger.info(
-            s"nonRepositioningIdleVehicles: ${nonRepositioningIdleVehicles.size}, shouldRepos: ${shouldRepos.size}, newPositions: ${newPositions.size}"
+            s"nonRepositioningIdleVehicles: ${nonRepositioningIdleVehicles.size}, wantToRepos: ${wantToRepos.size}, newPositions: ${newPositions.size}"
           )
           newPositions.toVector
         } else {
