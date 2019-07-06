@@ -206,7 +206,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
     // Do tests: 1.) no repos 2.) with just upcomming next activities 3.) clustering, etc.
 
-    ProfilingUtils.timed("updatePersonActivityQuadTree", x => logger.info(x)) {
+    ProfilingUtils.timed("updatePersonActivityQuadTree", x => logger.debug(x)) {
       updatePersonActivityQuadTree(tick)
     }
 
@@ -218,12 +218,12 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           )
         }
         if (nonRepositioningIdleVehicles.nonEmpty) {
-          val wantToRepos = ProfilingUtils.timed("Find who wants to reposition", x => logger.info(x)) {
+          val wantToRepos = ProfilingUtils.timed("Find who wants to reposition", x => logger.debug(x)) {
             nonRepositioningIdleVehicles.filter { rha =>
               algo8.shouldReposition(tick, rha.vehicleId)
             }
           }
-          val newPositions = ProfilingUtils.timed(s"Find where to repos from ${wantToRepos.size}", x => logger.info(x)) {
+          val newPositions = ProfilingUtils.timed(s"Find where to repos from ${wantToRepos.size}", x => logger.debug(x)) {
             wantToRepos.flatMap { rha =>
               algo8.findWhereToReposition(tick, rha.currentLocationUTM.loc, rha.vehicleId).map { loc =>
                 rha.vehicleId -> loc

@@ -25,7 +25,9 @@ import de.lmu.ifi.dbs.elki.utilities.random.RandomFactory
 case class ClusterInfo(size: Int, coord: Coord)
 
 class Algo8Repos(val beamServices: BeamServices, val activitySegment: ActivitySegment) extends LazyLogging {
-
+  // When we have all activities, we can make `sensitivityOfRepositioningToDemand` in the range from [0, 1] to make it easer to calibrate
+  // If sensitivityOfRepositioningToDemand = 1, it means all vehicles reposition all the time
+  // sensitivityOfRepositioningToDemand = 0, means no one reposition
   val sensitivityOfRepositioningToDemand: Double =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.sensitivityOfRepositioningToDemand
 
