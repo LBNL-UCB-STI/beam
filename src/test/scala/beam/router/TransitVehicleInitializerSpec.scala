@@ -1,21 +1,18 @@
 package beam.router
 
+import beam.agentsim.agents.TransitVehicleInitializer
 import beam.integration.IntegrationSpecCommon
 import beam.router.Modes.BeamMode
-import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
-import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
+import beam.utils.BeamVehicleUtils.readBeamVehicleTypeFile
 import com.conveyal.r5.transit.RouteInfo
 import com.typesafe.config.ConfigValueFactory
-import org.mockito.Mockito._
 import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{Matchers, WordSpecLike}
 
-import scala.collection.concurrent.TrieMap
-
-class TransitInitializerSpec extends WordSpecLike with Matchers with MockitoSugar with IntegrationSpecCommon {
+class TransitVehicleInitializerSpec extends WordSpecLike with Matchers with MockitoSugar with IntegrationSpecCommon {
   "getVehicleType" should {
-    val transitInitializer: TransitInitializer = init
+    val transitInitializer: TransitVehicleInitializer = init
 
     "return SUV, based on agency[217] and route[1342] map" in {
       val expectedType = "BUS-DEFAULT"
@@ -54,7 +51,6 @@ class TransitInitializerSpec extends WordSpecLike with Matchers with MockitoSuga
   }
 
   private def init = {
-    val services = mock[BeamServices](withSettings().stubOnly())
     val beamConfig = BeamConfig(
       baseConfig
         .withValue(
@@ -63,13 +59,8 @@ class TransitInitializerSpec extends WordSpecLike with Matchers with MockitoSuga
             .fromAnyRef("test/test-resources/beam/router/transitVehicleTypesByRoute.csv")
         )
     )
-    val vehicleTypes = {
-      val fuelTypes = readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath)
-      readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath, fuelTypes)
-    }
-    when(services.beamConfig).thenReturn(beamConfig)
-    when(services.vehicleTypes).thenReturn(vehicleTypes)
-    val transitInitializer = new TransitInitializer(services, null, null, BeamRouter.oneSecondTravelTime)
+    val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
+    val transitInitializer = new TransitVehicleInitializer(beamConfig, vehicleTypes)
     transitInitializer
   }
 }

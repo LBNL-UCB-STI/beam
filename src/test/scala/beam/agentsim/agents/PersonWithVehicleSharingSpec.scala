@@ -3,13 +3,12 @@ package beam.agentsim.agents
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorSystem, Props}
-import akka.pattern.{ask, pipe}
-import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
+import akka.pattern._
+import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.Resource.{Boarded, NotAvailable, NotifyVehicleIdle, TryToBoardVehicle}
 import beam.agentsim.agents.PersonTestUtil._
-import beam.agentsim.agents.choice.mode.ModeIncentive
-import beam.agentsim.agents.choice.mode.ModeIncentive.Incentive
+import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.{
   HouseholdActor,
   MobilityStatusInquiry,
@@ -17,128 +16,68 @@ import beam.agentsim.agents.household.HouseholdActor.{
   ReleaseVehicle
 }
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token}
-import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
-import beam.agentsim.infrastructure.TrivialParkingManager
-import beam.agentsim.infrastructure.taz.TAZTreeMap
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, TrivialParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, SchedulerProps, StartSchedule}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.model.{EmbodiedBeamLeg, _}
-import beam.router.osm.TollCalculator
-import beam.router.r5.DefaultNetworkCoordinator
-import beam.router.{BeamSkimmer, RouteHistory}
-import beam.sim.BeamServices
-import beam.sim.common.GeoUtilsImpl
-import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.population.AttributesOfIndividual
+import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.utils.TestConfigUtils.testConfig
-import beam.utils.{NetworkHelperImpl, StuckFinder}
-import com.typesafe.config.ConfigFactory
+import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
+import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.events._
-import org.matsim.api.core.v01.population.{Activity, Person}
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.TeleportationArrivalEvent
 import org.matsim.core.api.internal.HasPersonId
 import org.matsim.core.config.ConfigUtils
-import org.matsim.core.controler.MatsimServices
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
-import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
-import org.mockito.Mockito._
+import org.scalatest.FunSpecLike
 import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
 
-import scala.collection.mutable.ListBuffer
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.ExecutionContext
 
 class PersonWithVehicleSharingSpec
-    extends TestKit(
-      ActorSystem(
-        name = "PersonWithVehicleSharingSpec",
-        config = ConfigFactory
-          .parseString(
-            """
+    extends FunSpecLike
+    with TestKitBase
+    with SimRunnerForTest
+    with MockitoSugar
+    with ImplicitSender
+    with BeamvilleFixtures {
+
+  private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
+  private implicit val executionContext: ExecutionContext = system.dispatcher
+
+  lazy val config: Config = ConfigFactory
+    .parseString(
+      """
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
         akka.test.timefactor = 2
         """
-          )
-          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
-      )
     )
-    with FunSpecLike
-    with BeforeAndAfterAll
-    with MockitoSugar
-    with beam.utils.InjectableMock
-    with ImplicitSender {
+    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .resolve()
 
-  private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
-  private implicit val executionContext: ExecutionContext = system.dispatcher
-  lazy val beamConfig = BeamConfig(system.settings.config)
+  lazy implicit val system: ActorSystem = ActorSystem("PersonWithVehicleSharingSpec", config)
+
+  override def outputDirPath: String = TestConfigUtils.testOutputDir
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
-  private val tAZTreeMap: TAZTreeMap = BeamServices.getTazTreeMap("test/input/beamville/taz-centers.csv")
-  private val tollCalculator = new TollCalculator(beamConfig)
 
-  private lazy val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
-  private lazy val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
-
-  lazy val beamSvc: BeamServices = {
-    val matsimServices = mock[MatsimServices]
-
-    val theServices = mock[BeamServices](withSettings().stubOnly())
-    when(theServices.matsimServices).thenReturn(matsimServices)
-    when(theServices.beamConfig).thenReturn(beamConfig)
-    when(theServices.tazTreeMap).thenReturn(tAZTreeMap)
-    when(theServices.geo).thenReturn(new GeoUtilsImpl(beamConfig))
-    when(theServices.modeIncentives).thenReturn(ModeIncentive(Map[BeamMode, List[Incentive]]()))
-    when(theServices.networkHelper).thenReturn(networkHelper)
-    when(theServices.vehicleEnergy).thenReturn(mock[VehicleEnergy])
-
-    theServices
-  }
-
-  private lazy val modeChoiceCalculator = new ModeChoiceCalculator {
-    override def apply(
-      alternatives: IndexedSeq[EmbodiedBeamTrip],
-      attributesOfIndividual: AttributesOfIndividual,
-      destinationActivity: Option[Activity]
-    ): Option[EmbodiedBeamTrip] =
-      Some(alternatives.head)
-
-    override val beamServices: BeamServices = beamSvc
-
-    override def utilityOf(
-      alternative: EmbodiedBeamTrip,
-      attributesOfIndividual: AttributesOfIndividual,
-      destinationActivity: Option[Activity]
-    ): Double = 0.0
-
-    override def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int): Double = 0D
-
-    override def computeAllDayUtility(
-      trips: ListBuffer[EmbodiedBeamTrip],
-      person: Person,
-      attributesOfIndividual: AttributesOfIndividual
-    ): Double = 0.0
-
-    setupInjectableMock(beamConfig, beamSvc)
-  }
-
-  private val configBuilder = new MatSimBeamConfigBuilder(system.settings.config)
-  private val matsimConfig = configBuilder.buildMatSimConf()
+  private lazy val modeChoiceCalculator = new ModeChoiceUniformRandom(beamConfig)
 
   describe("A PersonAgent") {
 
@@ -162,11 +101,6 @@ class PersonWithVehicleSharingSpec
       population.addPerson(person)
 
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
-      val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
-      scenario.setPopulation(population)
-      scenario.setLocked()
-      ScenarioUtils.loadScenario(scenario)
-      when(beamSvc.matsimServices.getScenario).thenReturn(scenario)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -184,11 +118,12 @@ class PersonWithVehicleSharingSpec
       val householdActor = TestActorRef[HouseholdActor](
         Props(
           new HouseholdActor(
-            beamSvc,
+            services,
+            beamScenario,
             _ => modeChoiceCalculator,
             scheduler,
-            networkCoordinator.transportNetwork,
-            tollCalculator,
+            beamScenario.transportNetwork,
+            services.tollCalculator,
             mockRouter.ref,
             mockRideHailingManager.ref,
             parkingManager,
@@ -199,10 +134,13 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamConfig, beamSvc)
+            new BeamSkimmer(beamScenario, services.geo),
+            new TravelTimeObserved(beamScenario, services.geo),
+            boundingBox
           )
         )
       )
+      scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
 
       scheduler ! StartSchedule(0)
 
@@ -214,7 +152,7 @@ class PersonWithVehicleSharingSpec
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        BeamVehicleType.defaultCarBeamVehicleType
+        beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       )
       vehicle.manager = Some(mockSharedVehicleFleet.ref)
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
@@ -304,11 +242,6 @@ class PersonWithVehicleSharingSpec
       population.addPerson(person)
 
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
-      val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
-      scenario.setPopulation(population)
-      scenario.setLocked()
-      ScenarioUtils.loadScenario(scenario)
-      when(beamSvc.matsimServices.getScenario).thenReturn(scenario)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -326,11 +259,12 @@ class PersonWithVehicleSharingSpec
       val householdActor = TestActorRef[HouseholdActor](
         Props(
           new HouseholdActor(
-            beamSvc,
+            services,
+            beamScenario,
             _ => modeChoiceCalculator,
             scheduler,
-            networkCoordinator.transportNetwork,
-            tollCalculator,
+            beamScenario.transportNetwork,
+            services.tollCalculator,
             mockRouter.ref,
             mockRideHailingManager.ref,
             parkingManager,
@@ -341,10 +275,13 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             new RouteHistory(beamConfig),
-            new BeamSkimmer(beamConfig, beamSvc)
+            new BeamSkimmer(beamScenario, services.geo),
+            new TravelTimeObserved(beamScenario, services.geo),
+            boundingBox
           )
         )
       )
+      scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
 
       scheduler ! StartSchedule(0)
 
@@ -356,7 +293,7 @@ class PersonWithVehicleSharingSpec
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        BeamVehicleType.defaultCarBeamVehicleType
+        beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       )
       vehicle.manager = Some(mockSharedVehicleFleet.ref)
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
@@ -387,7 +324,7 @@ class PersonWithVehicleSharingSpec
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
@@ -407,7 +344,7 @@ class PersonWithVehicleSharingSpec
                   )
                 ),
                 beamVehicleId = vehicle.id,
-                BeamVehicleType.defaultTransitBeamVehicleType.id,
+                Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
                 asDriver = true,
                 cost = 0.0,
                 unbecomeDriverOnCompletion = true
@@ -459,7 +396,7 @@ class PersonWithVehicleSharingSpec
       val vehicle2 = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        BeamVehicleType.defaultCarBeamVehicleType
+        beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       )
       vehicle2.manager = Some(mockSharedVehicleFleet.ref)
       (parkingManager ? parkingInquiry(SpaceTime(0.01, 0.01, 61200)))
@@ -512,7 +449,7 @@ class PersonWithVehicleSharingSpec
       val car1 = new BeamVehicle(
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
-        BeamVehicleType.defaultCarBeamVehicleType
+        beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       )
       car1.manager = Some(mockSharedVehicleFleet.ref)
 
@@ -544,13 +481,7 @@ class PersonWithVehicleSharingSpec
       )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
-
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person1.getId, person2.getId)))
-      val scenario = ScenarioUtils.createMutableScenario(matsimConfig)
-      scenario.setPopulation(population)
-      scenario.setLocked()
-      ScenarioUtils.loadScenario(scenario)
-      when(beamSvc.matsimServices.getScenario).thenReturn(scenario)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -565,13 +496,14 @@ class PersonWithVehicleSharingSpec
       val mockRouter = TestProbe()
       val mockRideHailingManager = TestProbe()
 
-      val householdAgent = TestActorRef[HouseholdActor](
+      val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
-          beamSvc,
+          services,
+          beamScenario,
           _ => modeChoiceCalculator,
           scheduler,
-          networkCoordinator.transportNetwork,
-          tollCalculator,
+          beamScenario.transportNetwork,
+          services.tollCalculator,
           mockRouter.ref,
           mockRideHailingManager.ref,
           parkingManager,
@@ -582,9 +514,12 @@ class PersonWithVehicleSharingSpec
           new Coord(0.0, 0.0),
           Vector(mockSharedVehicleFleet.ref),
           new RouteHistory(beamConfig),
-          new BeamSkimmer(beamConfig, beamSvc)
+          new BeamSkimmer(beamScenario, services.geo),
+          new TravelTimeObserved(beamScenario, services.geo),
+          boundingBox
         )
       )
+      scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
 
       scheduler ! StartSchedule(0)
 
@@ -749,13 +684,9 @@ class PersonWithVehicleSharingSpec
     0.0
   )
 
-  override def beforeAll: Unit = {
-    networkCoordinator.loadNetwork()
-    networkCoordinator.convertFrequenciesToTrips()
-  }
-
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     shutdown()
+    super.afterAll()
   }
 
 }

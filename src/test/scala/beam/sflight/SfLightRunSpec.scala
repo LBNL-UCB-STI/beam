@@ -3,12 +3,11 @@ package beam.sflight
 import java.nio.file.Paths
 
 import beam.agentsim.events.ModeChoiceEvent
-import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.{BeamHelper, BeamServices}
 import beam.tags.{ExcludeRegular, Periodic}
-import beam.utils.{FileUtils, NetworkHelper, NetworkHelperImpl}
+import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.matsim.api.core.v01.events.Event
@@ -35,7 +34,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
   }
 
   "SF Light" must {
-    "run 1k scenario for one iteration and at least one person chooses car mode" in {
+    "run 0.5k scenario for one iteration and at least one person chooses car mode" in {
       val config = ConfigFactory
         .parseString("""
           |beam.outputs.events.fileOutputFormats = xml
@@ -49,19 +48,16 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
       val beamConfig = BeamConfig(config)
 
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+      val beamScenario = loadScenario(beamConfig)
       val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-      val networkCoordinator = DefaultNetworkCoordinator(beamConfig)
-      networkCoordinator.loadNetwork()
-      networkCoordinator.convertFrequenciesToTrips()
-      val networkHelper: NetworkHelper = new NetworkHelperImpl(networkCoordinator.network)
-      scenario.setNetwork(networkCoordinator.network)
+      scenario.setNetwork(beamScenario.network)
 
       var nCarTrips = 0
       val injector = org.matsim.core.controler.Injector.createInjector(
         scenario.getConfig,
         new AbstractModule() {
           override def install(): Unit = {
-            install(module(config, scenario, networkCoordinator, networkHelper))
+            install(module(config, scenario, beamScenario))
             addEventHandlerBinding().toInstance(new BasicEventHandler {
               override def handleEvent(event: Event): Unit = {
                 event match {

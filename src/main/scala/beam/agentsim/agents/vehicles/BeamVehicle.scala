@@ -11,12 +11,10 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.router.Modes
-import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, WALK}
 import beam.router.model.BeamLeg
-import beam.sim.{BeamServices, Geofence}
-import beam.sim.common.GeoUtils
-import beam.sim.common.GeoUtils.{Straight, TurningDirection}
+import beam.sim.BeamScenario
+import beam.sim.common.GeoUtils.TurningDirection
 import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.Id
@@ -120,22 +118,19 @@ class BeamVehicle(
     *
     * It is up to the manager / driver of this vehicle to decide how to react if fuel level becomes negative.
     *
-    * @param beamLeg
-    * @param beamServices
-    * @return FuelConsumed
     */
-  def useFuel(beamLeg: BeamLeg, beamServices: BeamServices): FuelConsumed = {
+  def useFuel(beamLeg: BeamLeg, beamScenario: BeamScenario, networkHelper: NetworkHelper): FuelConsumed = {
     val fuelConsumptionData =
       BeamVehicle.collectFuelConsumptionData(
         beamLeg,
         beamVehicleType,
-        beamServices.networkHelper,
-        beamServices.vehicleEnergy.vehicleEnergyMappingExistsFor(beamVehicleType)
+        networkHelper,
+        beamScenario.vehicleEnergy.vehicleEnergyMappingExistsFor(beamVehicleType)
       )
 
     val primaryEnergyForFullLeg =
       /*val (primaryEnergyForFullLeg, primaryLoggingData) =*/
-      beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
+      beamScenario.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
         fuelConsumptionData,
         fallBack = powerTrain.getRateInJoulesPerMeter,
         Primary
@@ -148,7 +143,7 @@ class BeamVehicle(
         // Use secondary fuel if possible
         val secondaryEnergyForFullLeg =
           /*val (secondaryEnergyForFullLeg, secondaryLoggingData) =*/
-          beamServices.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
+          beamScenario.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
             fuelConsumptionData,
             fallBack = powerTrain.getRateInJoulesPerMeter,
             Secondary

@@ -51,7 +51,7 @@ object PlansBuilder {
   private var pop = Vector[Person]()
   var outDir: String = ""
   var sampleNumber: Int = 0
-  val rand = new Random(4175l)
+  val rand = new Random(4175l) // should this Random use a fixed seed from beamConfig ?
 
   case class UTMConverter(sourceCRS: String, targetCRS: String) extends GeoConverter {
 

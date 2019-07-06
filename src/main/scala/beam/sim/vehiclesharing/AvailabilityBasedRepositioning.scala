@@ -24,7 +24,7 @@ case class AvailabilityBasedRepositioning(
   val orderingAvailVeh = Ordering.by[RepositioningRequest, Int](_.availableVehicles)
   val orderingShortage = Ordering.by[RepositioningRequest, Int](_.shortage)
 
-  beamServices.tazTreeMap.getTAZs.foreach { taz =>
+  beamServices.beamScenario.tazTreeMap.getTAZs.foreach { taz =>
     (0 to 108000 / repositionTimeBin).foreach { i =>
       val time = i * repositionTimeBin
       val availVal = getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.availability)
@@ -55,7 +55,7 @@ case class AvailabilityBasedRepositioning(
 
     val nowRepBin = now / timeBin
     val futureRepBin = nowRepBin + 1
-    beamServices.tazTreeMap.getTAZs.foreach { taz =>
+    beamServices.beamScenario.tazTreeMap.getTAZs.foreach { taz =>
       val availValMin = minAvailabilityMap((nowRepBin, taz.tazId))
       val InquiryUnboarded = unboardedVehicleInquiry((futureRepBin, taz.tazId))
       if (availValMin > 0) {
@@ -77,7 +77,10 @@ case class AvailabilityBasedRepositioning(
           dst.taz.coord,
           now,
           BeamMode.CAR,
-          BeamVehicleType.defaultCarBeamVehicleType.id
+          Id.create( // FIXME Vehicle type borrowed from ridehail -- pass the vehicle type of the car sharing fleet instead
+            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+            classOf[BeamVehicleType]
+          )
         )
         if (destTimeOpt.isEmpty || (destTimeOpt.isDefined && skim.time < destTimeOpt.get._2)) {
           destTimeOpt = Some((dst, skim.time))
@@ -109,7 +112,7 @@ case class AvailabilityBasedRepositioning(
         fleetTemp
           .filter(
             v =>
-              org.taz == beamServices.tazTreeMap
+              org.taz == beamServices.beamScenario.tazTreeMap
                 .getTAZ(v.spaceTime.loc.getX, v.spaceTime.loc.getY)
           )
           .take(fleetSizeToReposition)

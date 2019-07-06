@@ -3,37 +3,33 @@ package beam.router
 import java.util
 import java.util.Collections
 
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
-import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
 import beam.router.Modes.isOnStreetTransit
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{BeamLeg, BeamPath, RoutingModel}
-import beam.sim.BeamServices
-import beam.utils.TravelTimeUtils
+import beam.sim.config.BeamConfig
 import beam.utils.logging.ExponentialLazyLogging
+import beam.utils.{DateUtils, TravelTimeUtils}
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.{ProfileRequest, StreetMode, StreetPath}
 import com.conveyal.r5.streets.StreetRouter
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.vehicles.{Vehicle, Vehicles}
+import org.matsim.vehicles.Vehicle
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.io.Source
-import scala.util.Try
 
 class TransitInitializer(
-  services: BeamServices,
+  beamConfig: BeamConfig,
+  dates: DateUtils,
+  vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
   transportNetwork: TransportNetwork,
-  transitVehicles: Vehicles,
   travelTimeByLinkCalculator: (Int, Int, StreetMode) => Int
 ) extends ExponentialLazyLogging {
   private var numStopsNotFound = 0
-  private val transitVehicleTypesByRoute: Map[String, Map[String, String]] = loadTransitVehicleTypesMap()
 
   /*
    * Plan of action:
@@ -48,10 +44,8 @@ class TransitInitializer(
    */
   def initMap: Map[Id[BeamVehicle], (RouteInfo, ArrayBuffer[BeamLeg])] = {
     val start = System.currentTimeMillis()
-    val activeServicesToday = transportNetwork.transitLayer.getActiveServicesForDate(services.dates.localBaseDate)
+    val activeServicesToday = transportNetwork.transitLayer.getActiveServicesForDate(dates.localBaseDate)
     val stopToStopStreetSegmentCache = mutable.Map[(Int, Int), Option[StreetPath]]()
-    val transitTrips = transportNetwork.transitLayer.tripPatterns.asScala.toStream
-
     def pathWithoutStreetRoute(fromStop: Int, toStop: Int) = {
       val from = transportNetwork.transitLayer.streetVertexForStop.get(fromStop)
       val fromVertex = transportNetwork.streetLayer.vertexStore.getCursor(from)
@@ -75,7 +69,7 @@ class TransitInitializer(
         BeamPath(
           Vector(),
           Vector(),
-          Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
+          None,
           SpaceTime(fromCoord, departureTime),
           SpaceTime(toCoord, departureTime + duration),
           0
@@ -115,7 +109,7 @@ class TransitInitializer(
             linksTimesAndDistances.travelTimes.sum,
             linksTimesAndDistances.travelTimes
           ),
-          Option(TransitStopsInfo(fromStop, vehicleId, toStop)),
+          None,
           SpaceTime(
             startEdge.getGeometry.getStartPoint.getX,
             startEdge.getGeometry.getStartPoint.getY,
@@ -130,7 +124,7 @@ class TransitInitializer(
         )
     }
 
-    val transitData = transitTrips.flatMap { tripPattern =>
+    val transitData = transportNetwork.transitLayer.tripPatterns.asScala.toStream.flatMap { tripPattern =>
       val route = transportNetwork.transitLayer.routes.get(tripPattern.routeIndex)
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
       val transitPaths = tripPattern.stops.indices
@@ -139,7 +133,7 @@ class TransitInitializer(
           case IndexedSeq(fromStopIdx, toStopIdx) =>
             val fromStop = tripPattern.stops(fromStopIdx)
             val toStop = tripPattern.stops(toStopIdx)
-            if (services.beamConfig.beam.routing.transitOnStreetNetwork && isOnStreetTransit(mode)) {
+            if (beamConfig.beam.routing.transitOnStreetNetwork && isOnStreetTransit(mode)) {
               stopToStopStreetSegmentCache.getOrElseUpdate(
                 (fromStop, toStop),
                 routeTransitPathThroughStreets(fromStop, toStop)
@@ -157,7 +151,7 @@ class TransitInitializer(
       tripPattern.tripSchedules.asScala
         .filter(tripSchedule => activeServicesToday.get(tripSchedule.serviceCode))
         .map { tripSchedule =>
-          // First create a unique for this trip which will become the transit agent and vehicle ids
+          // First create a unique id for this trip which will become the transit agent and vehicle id
           val tripVehId = Id.create(tripSchedule.tripId, classOf[BeamVehicle])
           val legs: ArrayBuffer[BeamLeg] = new ArrayBuffer()
           tripSchedule.departures.zipWithIndex.sliding(2).foreach {
@@ -174,10 +168,6 @@ class TransitInitializer(
         }
     }
     val transitScheduleToCreate = transitData.toMap
-    transitScheduleToCreate.foreach {
-      case (tripVehId, (route, legs)) =>
-        createTransitVehicle(tripVehId, route, legs)
-    }
     val end = System.currentTimeMillis()
     logger.info(
       "Initialized transit trips in {} ms. Keys: {}, Values: {}",
@@ -186,74 +176,6 @@ class TransitInitializer(
       transitScheduleToCreate.values.size
     )
     transitScheduleToCreate
-  }
-
-  private def loadTransitVehicleTypesMap() = {
-    Try(
-      Source
-        .fromFile(services.beamConfig.beam.agentsim.agents.vehicles.transitVehicleTypesByRouteFile)
-        .getLines()
-        .toList
-        .tail
-    ).getOrElse(List())
-      .map(_.trim.split(","))
-      .filter(_.length > 2)
-      .groupBy(_(0))
-      .mapValues(_.groupBy(_(1)).mapValues(_.head(2)))
-  }
-
-  def getVehicleType(route: RouteInfo, mode: Modes.BeamMode): BeamVehicleType = {
-    val vehicleTypeId = Id.create(
-      transitVehicleTypesByRoute
-        .get(route.agency_id)
-        .fold(None.asInstanceOf[Option[String]])(_.get(route.route_id))
-        .getOrElse(mode.toString.toUpperCase + "-" + route.agency_id),
-      classOf[BeamVehicleType]
-    )
-
-    if (services.vehicleTypes.contains(vehicleTypeId)) {
-      services.vehicleTypes(vehicleTypeId)
-    } else {
-      logger.debug(
-        "no specific vehicleType available for mode and transit agency pair '{}', using default vehicleType instead",
-        vehicleTypeId.toString
-      )
-      //There has to be a default one defined
-      services.vehicleTypes.getOrElse(
-        Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[BeamVehicleType]),
-        BeamVehicleType.defaultTransitBeamVehicleType
-      )
-    }
-  }
-
-  def createTransitVehicle(
-    transitVehId: Id[Vehicle],
-    route: RouteInfo,
-    legs: Seq[BeamLeg]
-  ): Option[BeamVehicle] = {
-    val mode =
-      Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
-
-    val vehicleType = getVehicleType(route, mode)
-
-    mode match {
-      case (BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY | GONDOLA) if vehicleType != null =>
-        val powertrain = Option(vehicleType.primaryFuelConsumptionInJoulePerMeter)
-          .map(new Powertrain(_))
-          .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
-
-        val beamVehicleId = BeamVehicle.createId(transitVehId) //, Some(mode.toString)
-
-        val vehicle: BeamVehicle = new BeamVehicle(
-          beamVehicleId,
-          powertrain,
-          vehicleType
-        ) // TODO: implement fuel level later as needed
-        Some(vehicle)
-      case _ =>
-        logger.error("{} is not supported yet", mode)
-        None
-    }
   }
 
   private def routeTransitPathThroughStreets(
@@ -272,8 +194,8 @@ class TransitInitializer(
     profileRequest.toLon = toVertex.getLon
     profileRequest.toLat = toVertex.getLat
     profileRequest.fromTime = 0
-    profileRequest.toTime = services.beamConfig.beam.routing.r5.departureWindow.toInt
-    profileRequest.date = services.dates.localBaseDate
+    profileRequest.toTime = beamConfig.beam.routing.r5.departureWindow.toInt
+    profileRequest.date = dates.localBaseDate
     profileRequest.directModes = util.EnumSet.copyOf(Collections.singleton(LegMode.CAR))
     profileRequest.transitModes = null
     profileRequest.accessModes = profileRequest.directModes
