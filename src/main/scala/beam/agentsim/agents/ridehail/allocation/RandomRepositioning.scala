@@ -28,20 +28,6 @@ object RandomRepositioning {
 class RandomRepositioning(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager)
     with LazyLogging {
-  if (rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds == 0) {
-    logger.warn(
-      "RandomRepositioning need to have set `beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds` > 0!"
-    )
-  }
-
-  val allocMgr: String =
-    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.resourceAllocationManager
-
-  val maybeAllocMgr: Option[RideHailResourceAllocationManager] =
-    if (allocMgr.isEmpty) None
-    else {
-      Some(RideHailResourceAllocationManager.apply(allocMgr, rideHailManager))
-    }
 
   val avgFreeSpeed: Double = {
     val freeSpeeds = rideHailManager.beamServices.networkHelper.allLinks.map(_.getFreespeed).sorted
@@ -56,15 +42,13 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
     freeSpeeds.sum / freeSpeeds.length
   }
 
-  val repoShare: Double =
-    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.repositioningShare
+  val repoShare: Double = 0.02
   val numVehiclesToReposition: Int = (repoShare * rideHailManager.numRideHailAgents).toInt
   logger.info(
     s"repositioningShare: $repoShare, numRideHailAgents: ${rideHailManager.numRideHailAgents}, numVehiclesToReposition $numVehiclesToReposition"
   )
 
-  val algorithm =
-    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.algorithm
+  val algorithm = 1
 
   val rhs = rideHailManager.beamServices.rideHailState
 
@@ -77,8 +61,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
   // Precompute on the first tick where to reposition for the whole day
   val lastTickWithRepos = 24 * 3600
 
-  val step =
-    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds
+  val step = 300
   val numberOfRepos = lastTickWithRepos / step
   var repositionPerTick = vehicleAllowedToReposition.size.toDouble / numberOfRepos
   repositionPerTick = if (repositionPerTick < 1) 1 else repositionPerTick
@@ -90,8 +73,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
        |numberOfRepos: $numberOfRepos
        |repositionPerTick: $repositionPerTick""".stripMargin)
 
-  val intervalSize: Int =
-    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds
+  val intervalSize: Int = step
 
   val activitySegment: ActivitySegment =
     ActivitySegment(rideHailManager.beamServices.matsimServices.getScenario, intervalSize)
@@ -236,10 +218,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         }
 
       case 1 =>
-        val repositioningShare =
-          rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.repositioningShare
         val fleetSize = rideHailManager.fleetSize
-        val numVehiclesToReposition = (repositioningShare * fleetSize).toInt
+        val numVehiclesToReposition = (repoShare * fleetSize).toInt
 
         // Get idle vehicles
         val idleVehicles = rideHailManager.vehicleManager.getIdleVehicles.values
@@ -399,11 +379,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
       case 3 =>
         // max distance travel is 20min
         // TODO: use skims to derive radius from it or other way around.
-
-        val repositioningShare =
-          rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.repositioningShare
         val fleetSize = rideHailManager.fleetSize
-        val numVehiclesToReposition = (repositioningShare * fleetSize).toInt
+        val numVehiclesToReposition = (repoShare * fleetSize).toInt
         if (rideHailManager.vehicleManager.getIdleVehicles.size >= 2) {
           val nonRepositioningIdleVehicles = rideHailManager.vehicleManager.getIdleVehicles.values.filter { ral =>
             rideHailManager.modifyPassengerScheduleManager.isVehicleNeitherRepositioningNorProcessingReservation(
@@ -555,23 +532,6 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
     // TODO: add initial rh location algorithm which is based on activity clusters over the day
     // don't consider last activity as no leg after that
 
-  }
-
-  override def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
-    maybeAllocMgr match {
-      case Some(mgr) => mgr.respondToInquiry(inquiry)
-      case None      => super.respondToInquiry(inquiry)
-    }
-  }
-
-  override def allocateVehiclesToCustomers(
-    tick: Int,
-    vehicleAllocationRequest: AllocationRequests
-  ): AllocationResponse = {
-    maybeAllocMgr match {
-      case Some(mgr) => mgr.allocateVehiclesToCustomers(tick, vehicleAllocationRequest)
-      case None      => super.allocateVehiclesToCustomers(tick, vehicleAllocationRequest)
-    }
   }
 
   def showDistanceStats(result: Vector[(Id[Vehicle], Location)]): Unit = {
