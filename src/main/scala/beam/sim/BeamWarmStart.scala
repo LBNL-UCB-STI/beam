@@ -45,13 +45,14 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
     }
   }
 
-  private def warmstartFile(description: String, fileName: String): String = {
+  private def compressedLocation(description: String, fileName: String): String = {
     getWarmStartFilePath(fileName) match {
-      case Some(compressedFile) =>
-        if (Files.isRegularFile(Paths.get(compressedFile))) {
-          loadPopulation(parentRunPath, compressedFile)
+      case Some(compressedFileFullPath) =>
+        logger.info(s"**** warmStartFile method fileName:[$fileName]. compressedFile:[$compressedFileFullPath]")
+        if (Files.isRegularFile(Paths.get(compressedFileFullPath))) {
+          extractFileFromZip(parentRunPath, compressedFileFullPath, fileName)
         } else {
-          throwErrorFileNotFound(description, compressedFile)
+          throwErrorFileNotFound(description, compressedFileFullPath)
         }
       case None =>
         throwErrorFileNotFound(description, srcPath)
@@ -63,15 +64,16 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
     throw new FileNotFoundException(s"Warmstart configuration is invalid. [$fileDesc] not found at path [$path]")
   }
 
-  private def loadPopulation(runPath: String, fileName: String): String = {
-    val plansPath = Paths.get(runPath, "warmstart_plans.xml").toString
-    unGunzipFile(fileName, plansPath, false)
+  private def extractFileFromZip(runPath: String, zipFileFullPath: String, fileName: String): String = {
+    val newFileName = fileName.dropRight(".gz".length)
+    val plansPath = Paths.get(runPath, s"warmstart_$newFileName").toString
+    unGunzipFile(zipFileFullPath, plansPath, false)
     plansPath
   }
 
   def getWarmStartFilePath(warmStartFile: String, rootFirst: Boolean = true): Option[String] = {
-    lazy val itrFile = findIterationWarmStartFile(warmStartFile, parentRunPath)
-    lazy val rootFile = findRootWarmStartFile(warmStartFile)
+    lazy val itrFile: Option[String] = findIterationWarmStartFile(warmStartFile, parentRunPath)
+    lazy val rootFile: Option[String] = findRootWarmStartFile(warmStartFile)
 
     if (rootFirst) {
       rootFile.fold(itrFile)(Some(_))
@@ -178,12 +180,6 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
 object BeamWarmStart extends LazyLogging {
 
   // @deprecated("Warmstart should not be instantiated. It should use config file", since = "2019-07-04")
-//  private def apply(beamConfig: BeamConfig, calculator: TravelTimeCalculatorConfigGroup): BeamWarmStart = {
-//    val maxHour = TimeUnit.SECONDS.toHours(calculator.getMaxTime).toInt
-//    new BeamWarmStart(beamConfig, maxHour)
-//  }
-
-  // @deprecated("Warmstart should not be instantiated. It should use config file", since = "2019-07-04")
   def apply(beamConfig: BeamConfig): BeamWarmStart = {
     val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
     new BeamWarmStart(beamConfig, maxHour)
@@ -233,18 +229,26 @@ object BeamWarmStart extends LazyLogging {
       val configAgents = beamConfig.beam.agentsim.agents
       val scenarioConfig = beamConfig.beam.exchange.scenario
       val fileFormat = scenarioConfig.fileFormat
-      val plansFile = scenarioConfig.source.toLowerCase match {
+      val (plansFile: String, personAttributes) = scenarioConfig.source.toLowerCase match {
         case "urbansim"                    => "plans.csv"
         case "beam" if fileFormat == "csv" => "plans.csv"
         case "beam" if fileFormat == "xml" =>
-          val resultPlansFile = instance.warmstartFile("Plans", "plans.xml.gz")
+          val populationAttributes = instance.compressedLocation("Person attributes", "outputPersonAttributes.xml.gz")
+          matsimConfig.plans().setInputPersonAttributeFile(populationAttributes)
+
+          val resultPlansFile = instance.compressedLocation("Plans", "plans.xml.gz")
+          logger.info(s"** Plans file: $resultPlansFile")
           matsimConfig.plans().setInputFile(resultPlansFile)
-          resultPlansFile
+          logger.warn("@@@@@ MATSIM INPUT FILE" + matsimConfig.plans().getInputFile)
+          (resultPlansFile, populationAttributes)
         case _ =>
           throw new IllegalArgumentException(
             s"Invalid combination source: [${scenarioConfig.source}] and file format: $fileFormat"
           )
       }
+
+      logger.warn(s"person attributes (need to update beamconfig: $personAttributes")
+
       val newPlans = configAgents.plans.copy(inputPersonAttributesFilePath = plansFile)
       val newConfigAgents = configAgents.copy(plans = newPlans)
       val newAgentSim = beamConfig.beam.agentsim.copy(agents = newConfigAgents)
