@@ -1,6 +1,7 @@
 package beam.sim
 
 import beam.analysis.plots.PersonTravelTimeAnalysis
+import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.core.controler.OutputDirectoryHierarchy
@@ -43,16 +44,8 @@ class BeamWarmStartRunSpec extends WordSpecLike with Matchers with BeamHelper wi
 
 object BeamWarmStartRunSpec {
 
-  def using[A <: AutoCloseable, B](resource: A)(f: A => B): B = {
-    try {
-      f(resource)
-    } finally {
-      resource.close()
-    }
-  }
-
   def avgCarModeFromCsv(filePath: String): Double = {
-    val carLine = using(Source.fromFile(filePath)) { source =>
+    val carLine = FileUtils.using(Source.fromFile(filePath)) { source =>
       source.getLines().find(_.startsWith("car"))
     }
     val allHourAvg = carLine
