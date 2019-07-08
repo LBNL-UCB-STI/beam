@@ -65,14 +65,36 @@ object UberOsmNode {
 
 case class WaySpeed(speedMedian: Float, speedAvg: Float, maxDev: Float)
 
-case class BeamUberSpeed(osmId: Long, speedBeam: Float, speedMedian: Float, speedAvg: Float, maxDev: Float)
+case class BeamUberSpeed(
+  osmId: Long,
+  speedBeam: Float,
+  speedMedian: Option[Float],
+  speedAvg: Option[Float],
+  maxDev: Option[Float]
+)
 
 object BeamUberSpeed {
   implicit val beamUberSpeedEncoder: Encoder[BeamUberSpeed] = new Encoder[BeamUberSpeed] {
-    override def apply(row: BeamUberSpeed): String = row.toString
+    override def apply(row: BeamUberSpeed): String =
+      row.productIterator
+        .map {
+          case None    => ""
+          case Some(s) => s.toString
+          case x       => x.toString
+        }
+        .mkString(",")
   }
 }
 
-case class WayMetric(dateTime: LocalDateTime, speedMphMean: Float, speedMphStddev: Float)
+case class WayMetric(dateTime: LocalDateTime, speedMphMean: Float, speedMphStddev: Float) {
+  override def equals(obj: Any): Boolean = obj match {
+    case that: WayMetric => that.dateTime == this.dateTime
+    case _               => false
+  }
+
+  override def hashCode(): Int = dateTime.##
+}
 
 case class UberDirectedWay(orig: Long, dest: Long, metrics: Seq[WayMetric])
+
+case class OsmNodeSpeed(id: Long, orig: Long, dest: Long, speed: Float)

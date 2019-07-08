@@ -3,35 +3,65 @@ package beam.side.speed.parser
 import java.nio.file.Paths
 
 import beam.side.speed.model._
-import beam.side.speed.parser.data.{DataLoader, UberOsmDictionary, UnarchivedSource}
+import beam.side.speed.parser.data.{DataLoader, JunctionDictionary, UberOsmDictionary, UnarchivedSource}
+import scalax.collection.edge.Implicits._
+import scalax.collection.edge.LBase.LEdgeImplicits
+import scalax.collection.edge.LkDiEdge
+import scalax.collection.immutable.Graph
 
-import scala.collection.parallel
-import scala.collection.parallel.immutable.ParMap
 import scala.reflect.ClassTag
 
-class UberSpeed[T <: FilterEventAction](path: String, dict: UberOsmDictionary, fOpt: T#Filtered)(
+class UberSpeed[T <: FilterEventAction](
+  path: String,
+  dictW: UberOsmDictionary,
+  dictJ: JunctionDictionary,
+  fOpt: T#Filtered
+)(
   implicit t: ClassTag[T],
   wf: WayFilter[T#FilterEvent, T#Filtered]
 ) extends DataLoader[UberSpeedEvent]
     with UnarchivedSource {
+
+  object WayMetricsLabel extends LEdgeImplicits[Seq[WayMetric]]
+  import WayMetricsLabel._
   import beam.side.speed.model.UberSpeedEvent._
 
-  private val speeds: ParMap[String, UberWaySpeed] = load(Paths.get(path))
-    .foldLeft(Map[String, Seq[UberSpeedEvent]]())(
-      (acc, s) => acc + (s.segmentId -> (acc.getOrElse(s.segmentId, Seq()) :+ s))
+  private val (ways, nodes) = {
+    val (w, n) = load(Paths.get(path))
+      .foldLeft((Map[String, Seq[WayMetric]](), Map[(String, String), Seq[WayMetric]]())) {
+        case ((accW, accN), s) =>
+          val w = WayMetric(s.dateTime, s.speedMphMean, s.speedMphStddev)
+          (
+            accW + (s.segmentId -> (accW.getOrElse(s.segmentId, Seq()) :+ w)),
+            accN + ((s.startJunctionId, s.endJunctionId) -> (accN
+              .getOrElse((s.startJunctionId, s.endJunctionId), Seq()) :+ w))
+          )
+      }
+    (
+      w.par,
+      n.par
+        .map { case ((s, e), v) => (dictJ(s), dictJ(e), v) }
+        .collect { case (Some(s), Some(e), ws) => UberDirectedWay(s, e, ws) }
     )
-    .par
-    .map {
-      case (segmentId, grouped) => segmentId -> dropToWeek(segmentId, grouped)
-    }
+  }
 
-  private val filterSpeeds: parallel.ParMap[String, WaySpeed] =
-    speeds.mapValues(_.waySpeed[T](fOpt))
+  private val nodeGraph: Graph[Long, LkDiEdge] = Graph(
+    nodes.map { case UberDirectedWay(s, e, w) => (s ~+#> e)(w) }.seq.toSeq: _*
+  )
 
-  def speed(osmId: Long): Option[WaySpeed] = dict(osmId).flatMap(s => filterSpeeds.get(s))
+  def speed(osmId: Long): Option[WaySpeed] =
+    dictW(osmId).flatMap(s => ways.get(s).map(dropToWeek).map(_.waySpeed[T](fOpt)))
 
-  private def dropToWeek(segmentId: String, junctions: Seq[UberSpeedEvent]): UberWaySpeed = {
-    val week = junctions
+  def way(origNodeId: Long, destNodeId: Long): Option[WaySpeed] =
+    nodeGraph
+      .find(origNodeId)
+      .flatMap(o => nodeGraph.find(destNodeId).flatMap(d => o.shortestPathTo(d)))
+      .map(p => p.edges.foldLeft(Seq[WayMetric]())((acc, e2) => acc ++ e2.label))
+      .map(dropToWeek)
+      .map(_.waySpeed[T](fOpt))
+
+  private def dropToWeek(metrics: Seq[WayMetric]): UberWaySpeed = {
+    val week = metrics
       .groupBy(e => (e.dateTime.getHour, e.dateTime.getDayOfWeek))
       .map {
         case ((h, dw), g) =>
@@ -45,15 +75,20 @@ class UberSpeed[T <: FilterEventAction](path: String, dict: UberOsmDictionary, f
       .map {
         case (d, uhs) => UberDaySpeed(d, uhs.toSeq)
       }
-    UberWaySpeed(segmentId, week.toSeq)
+    UberWaySpeed(week.toSeq)
   }
 }
 
 object UberSpeed {
 
-  def apply[T <: FilterEventAction](path: String, dict: UberOsmDictionary, fOpt: T#Filtered)(
+  def apply[T <: FilterEventAction](
+    path: String,
+    dictW: UberOsmDictionary,
+    dictJ: JunctionDictionary,
+    fOpt: T#Filtered
+  )(
     implicit t: ClassTag[T],
     wf: WayFilter[T#FilterEvent, T#Filtered]
   ): UberSpeed[T] =
-    new UberSpeed(path, dict, fOpt)
+    new UberSpeed(path, dictW, dictJ, fOpt)
 }

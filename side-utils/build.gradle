@@ -66,7 +66,7 @@ dependencies {
 
     compile "org.scala-graph:graph-core_${scalaBinaryVersion}:1.12.5"
     compile "org.scala-graph:graph-constrained_${scalaBinaryVersion}:1.12.7"
-    compile "org.scala-graph:graph-json_${scalaBinaryVersion}:1.12.7"
+    compile "org.scala-graph:graph-json_${scalaBinaryVersion}:1.12.1"
 
     compile(group: 'com.github.michaz', name: 'r5', version: '3ab4fa04') {
         exclude group: 'ch.qos.logback', module: 'logback-classic'

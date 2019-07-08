@@ -1,6 +1,7 @@
 package beam.side.speed.parser
 import java.nio.file.{Path, Paths}
 
+import beam.side.speed.model.OsmNodeSpeed
 import com.conveyal.osmlib.{OSM, Way}
 import com.conveyal.r5.kryo.KryoNetworkSerializer
 
@@ -28,23 +29,29 @@ class OsmWays(osmPath: Path, r5Path: Path) {
   private val osm = new OSM(osmPath.toAbsolutePath.toString).ways.asScala
   private val edgeCursor = KryoNetworkSerializer.read(r5Path.toFile).streetLayer.edgeStore.getCursor
 
-  lazy val ways: Map[Long, Double] = Iterator
+  lazy val nodes: Iterator[OsmNodeSpeed] = Iterator
     .iterate(edgeCursor.advance())(_ => edgeCursor.advance())
-    .map(_ => Try(edgeCursor.getOSMID))
+    .map(_ => Try((edgeCursor.getOSMID, edgeCursor.isBackward)))
     .takeWhile(_.isSuccess)
     .collect {
-      case Success(t) => t -> osm.get(t).map(waySpeed).getOrElse(10.0 / 3.6)
+      case Success((t, b)) => osm.get(t).map(w => t -> (w, b))
     }
-    .toMap
+    .collect {
+      case Some((id, (w, false))) =>
+        OsmNodeSpeed(id, w.nodes(0), w.nodes(1), waySpeed(w))
+      case Some((id, (w, true))) =>
+        OsmNodeSpeed(id, w.nodes(1), w.nodes(0), waySpeed(w))
+    }
 
-  private def waySpeed(way: Way): Double = {
+  private def waySpeed(way: Way): Float = {
     val hTag = Option(way.getTag("highway")).getOrElse("unclassified")
     Option(way.getTag("maxspeed"))
       .flatMap {
-        case s if s.contains("mph") => Try(s.replace("mph", "").trim.toDouble * 1.609344 / 3.6).toOption
-        case s                      => Try(s.toDouble / 3.6).toOption
+        case s if s.contains("mph") => Try(s.replace("mph", "").trim.toFloat * 1.609344 / 3.6).toOption
+        case s                      => Try(s.toFloat / 3.6).toOption
       }
       .getOrElse(highways.getOrElse(hTag, 28 * 1.60934 / 3.6))
+      .toFloat
   }
 }
 

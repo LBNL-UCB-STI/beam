@@ -1,6 +1,6 @@
 package beam.side.speed.parser.data
 
-import java.nio.file.Path
+import java.nio.file.{Path, Paths}
 
 import beam.side.speed.model.UberOsmNode
 
@@ -11,5 +11,5 @@ class JunctionDictionary(junctionsPath: Path) extends DataLoader[UberOsmNode] wi
 }
 
 object JunctionDictionary {
-  def apply(junctionsPath: Path): JunctionDictionary = new JunctionDictionary(junctionsPath)
+  def apply(junctionsPath: String): JunctionDictionary = new JunctionDictionary(Paths.get(junctionsPath))
 }
