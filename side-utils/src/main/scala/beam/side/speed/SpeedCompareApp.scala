@@ -8,6 +8,7 @@ import beam.side.speed.model.FilterEvent.HourEventAction.HourEventAction
 import beam.side.speed.model.FilterEvent.WeekDayEventAction.WeekDayEventAction
 import beam.side.speed.model.FilterEvent.WeekDayHourEventAction.WeekDayHourEventAction
 import beam.side.speed.parser._
+import beam.side.speed.parser.data.{JunctionDictionary, UberOsmDictionary}
 
 import scala.util.{Failure, Success, Try}
 
@@ -15,6 +16,7 @@ case class CompareConfig(
   uberSpeedPath: String = "",
   osmMapPath: String = "",
   uberOsmMap: String = "",
+  junctionMapPath: String = "",
   r5MapPath: String = "",
   output: String = "",
   mode: String = "all",
@@ -91,6 +93,18 @@ trait AppSetup {
       .validate(s => Seq("all", "wd", "hours", "wh").find(_ == s).map(_ => success).getOrElse(failure("Invalid")))
       .text("Filtering action name")
 
+    opt[String]('j', "junction")
+      .valueName("<junction_dict_path>")
+      .action((j, c) => c.copy(junctionMapPath = j))
+      .validate(
+        j =>
+          Try(Paths.get(j).toFile).filter(_.exists()) match {
+            case Success(_) => success
+            case Failure(e) => failure(e.getMessage)
+        }
+      )
+      .text("Junction dictionary path")
+
     opt[Map[String, String]]("fArgs")
       .valueName("k1=v1,k2=v2...")
       .action((x, c) => c.copy(fArgs = x))
@@ -102,25 +116,24 @@ object SpeedCompareApp extends App with AppSetup {
 
   parser.parse(args, CompareConfig()) match {
     case Some(conf) =>
-      import WayFilter._
+      import beam.side.speed.model.WayFilter._
+      val nodes = JunctionDictionary(conf.junctionMapPath)
+      val ways = UberOsmDictionary(conf.uberOsmMap)
       val uber = conf.mode match {
-        case "all" => UberSpeed[AllHoursDaysEventAction](conf.uberSpeedPath, UberOsmDictionary(conf.uberOsmMap), Unit)
+        case "all" => UberSpeed[AllHoursDaysEventAction](conf.uberSpeedPath, ways, nodes, Unit)
         case "wd" =>
-          UberSpeed[WeekDayEventAction](
-            conf.uberSpeedPath,
-            UberOsmDictionary(conf.uberOsmMap),
-            DayOfWeek.of(conf.fArgs.head._2.toInt)
-          )
-        case "hours" =>
-          UberSpeed[HourEventAction](conf.uberSpeedPath, UberOsmDictionary(conf.uberOsmMap), conf.fArgs.head._2.toInt)
+          UberSpeed[WeekDayEventAction](conf.uberSpeedPath, ways, nodes, DayOfWeek.of(conf.fArgs.head._2.toInt))
+        case "hours" => UberSpeed[HourEventAction](conf.uberSpeedPath, ways, nodes, conf.fArgs.head._2.toInt)
         case "wh" =>
           UberSpeed[WeekDayHourEventAction](
             conf.uberSpeedPath,
-            UberOsmDictionary(conf.uberOsmMap),
+            ways,
+            nodes,
             (DayOfWeek.of(conf.fArgs("day").toInt), conf.fArgs("hour").toInt)
           )
       }
-      SpeedComparator(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, conf.output).csv()
+
+      SpeedComparator(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, conf.output).csvNode()
       System.exit(0)
     case None => System.exit(-1)
   }

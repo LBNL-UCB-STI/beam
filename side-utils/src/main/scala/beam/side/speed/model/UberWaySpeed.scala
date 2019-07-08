@@ -6,7 +6,7 @@ case class UberHourSpeed(hour: Int, speedMedian: Float, speedAvg: Float, maxDev:
 
 case class UberDaySpeed(weekDay: DayOfWeek, hours: Seq[UberHourSpeed])
 
-class UberWaySpeed(segmentId: String, week: Seq[UberDaySpeed]) {
+class UberWaySpeed(week: Seq[UberDaySpeed]) {
 
   lazy private val dictionary: Map[DayOfWeek, UberDaySpeed] = week.map(e => e.weekDay -> e).toMap
 
@@ -16,9 +16,9 @@ class UberWaySpeed(segmentId: String, week: Seq[UberDaySpeed]) {
     filter.filter(filterOption, dictionary)
   }
 
-  override def toString = s"UberWaySpeed($segmentId, $week)"
+  override def toString = s"UberWaySpeed($week)"
 }
 
 object UberWaySpeed {
-  def apply(segmentId: String, week: Seq[UberDaySpeed]): UberWaySpeed = new UberWaySpeed(segmentId, week)
+  def apply(week: Seq[UberDaySpeed]): UberWaySpeed = new UberWaySpeed(week)
 }

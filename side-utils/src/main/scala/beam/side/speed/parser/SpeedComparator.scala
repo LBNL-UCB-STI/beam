@@ -4,30 +4,33 @@ import java.io.{BufferedWriter, File, FileWriter}
 import beam.side.speed.model.BeamUberSpeed
 
 class SpeedComparator(ways: OsmWays, uber: UberSpeed[_], fileName: String) {
+  import BeamUberSpeed._
 
-  private def compare: Iterable[BeamUberSpeed] =
-    ways.ways
-      .withFilter(_._1 > 0)
-      .map {
-        case (id, speed) =>
+  private def nodeCompare: Iterator[BeamUberSpeed] =
+    ways.nodes
+      .map(
+        n =>
           uber
-            .speed(id)
-            .fold(BeamUberSpeed(id, speed.toFloat, Float.NaN, Float.NaN, Float.NaN))(
-              ws => BeamUberSpeed(id, speed.toFloat, ws.speedMedian, ws.speedAvg, ws.maxDev)
-            )
-      }
+            .speed(n.id)
+            .orElse(uber.way(n.orig, n.dest))
+            .fold(BeamUberSpeed(n.id, n.speed, None, None, None))(
+              ws => BeamUberSpeed(n.id, n.speed, Some(ws.speedMedian), Some(ws.speedAvg), Some(ws.maxDev))
+          )
+      )
 
-  def csv(): Unit = {
+  private val csv: Iterator[BeamUberSpeed] => Unit = { s =>
     val file = new File(fileName)
     val bw = new BufferedWriter(new FileWriter(file))
     bw.write("osmId,speedBeam,speedMedian,speedAvg,maxDev")
-    compare.foreach { b =>
+    s.foreach { b =>
       bw.newLine()
-      bw.write(b.productIterator.mkString(","))
+      bw.write(beamUberSpeedEncoder(b))
     }
     bw.flush()
     bw.close()
   }
+
+  def csvNode(): Unit = csv(nodeCompare)
 }
 
 object SpeedComparator {
