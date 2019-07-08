@@ -246,6 +246,7 @@ object BeamWarmStart extends LazyLogging {
       val populationAttributesCsv = instance.notCompressedLocation("Person attributes", "population.csv")
 
       val plansXml = instance.compressedLocation("Plans", "plans.xml.gz")
+      matsimConfig.plans().setInputFile(plansXml)
       val plansCsv = instance.notCompressedLocation("Plans", "plans.csv")
 
       val houseHoldsCsv = instance.notCompressedLocation("Households", "households.csv")
