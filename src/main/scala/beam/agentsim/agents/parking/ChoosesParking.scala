@@ -151,7 +151,6 @@ trait ChoosesParking extends {
             "distanceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
             "installedCapacity" -> UtilityFunctionOperation("multiplier", 0),
             "parkingCostsPriceFactor" -> UtilityFunctionOperation("multiplier", -beta3),
-
           ))
         }
       //
