@@ -19,6 +19,7 @@ import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.router.util.TravelTime
 
 import scala.compat.java8.StreamConverters._
+import scala.util.Try
 
 class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyLogging {
   val isWarmMode = beamConfig.beam.warmStart.enabled
@@ -55,6 +56,16 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
           throwErrorFileNotFound(description, compressedFileFullPath)
         }
       case None =>
+        throwErrorFileNotFound(description, srcPath)
+    }
+  }
+
+  private def notCompressedLocation(description: String, fileName: String): String = {
+    getWarmStartFilePath(fileName) match {
+      case Some(fileFullPath) if Files.isRegularFile(Paths.get(fileFullPath)) =>
+        logger.info(s"**** warmStartFile method fileName:[$fileName]. notCompressedFile:[$fileFullPath]")
+        fileFullPath
+      case _ =>
         throwErrorFileNotFound(description, srcPath)
     }
   }
@@ -229,31 +240,55 @@ object BeamWarmStart extends LazyLogging {
       val configAgents = beamConfig.beam.agentsim.agents
       val scenarioConfig = beamConfig.beam.exchange.scenario
       val fileFormat = scenarioConfig.fileFormat
-      val (plansFile: String, personAttributes) = scenarioConfig.source.toLowerCase match {
-        case "urbansim"                    => "plans.csv"
-        case "beam" if fileFormat == "csv" => "plans.csv"
-        case "beam" if fileFormat == "xml" =>
-          val populationAttributes = instance.compressedLocation("Person attributes", "outputPersonAttributes.xml.gz")
-          matsimConfig.plans().setInputPersonAttributeFile(populationAttributes)
 
-          val resultPlansFile = instance.compressedLocation("Plans", "plans.xml.gz")
-          logger.info(s"** Plans file: $resultPlansFile")
-          matsimConfig.plans().setInputFile(resultPlansFile)
-          logger.warn("@@@@@ MATSIM INPUT FILE" + matsimConfig.plans().getInputFile)
-          (resultPlansFile, populationAttributes)
-        case _ =>
-          throw new IllegalArgumentException(
-            s"Invalid combination source: [${scenarioConfig.source}] and file format: $fileFormat"
-          )
+      val populationAttributesXml = instance.compressedLocation("Person attributes", "outputPersonAttributes.xml.gz")
+      matsimConfig.plans().setInputPersonAttributeFile(populationAttributesXml)
+      val populationAttributesCsv = instance.notCompressedLocation("Person attributes", "population.csv")
+
+      val plansXml = instance.compressedLocation("Plans", "plans.xml.gz")
+      val plansCsv = instance.notCompressedLocation("Plans", "plans.csv")
+
+      val houseHoldsCsv = instance.notCompressedLocation("Households", "households.csv")
+
+      val vehiclesCsv = instance.notCompressedLocation("Households", "vehicles.csv")
+
+      val newConfigAgents = {
+        val newPlans = {
+          configAgents.plans.copy(inputPersonAttributesFilePath = populationAttributesCsv, inputPlansFilePath = plansCsv)
+        }
+
+        val newHouseHolds = configAgents.households.copy(inputFilePath = houseHoldsCsv)
+
+        val newVehicles = configAgents.vehicles.copy(vehiclesFilePath = vehiclesCsv)
+
+        configAgents.copy(plans = newPlans, households = newHouseHolds, vehicles = newVehicles)
       }
 
-      logger.warn(s"person attributes (need to update beamconfig: $personAttributes")
 
-      val newPlans = configAgents.plans.copy(inputPersonAttributesFilePath = plansFile)
-      val newConfigAgents = configAgents.copy(plans = newPlans)
       val newAgentSim = beamConfig.beam.agentsim.copy(agents = newConfigAgents)
-      val newBeam = beamConfig.beam.copy(agentsim = newAgentSim)
+
+      val newExchange = {
+        val newExchangeScenario = beamConfig.beam.exchange.scenario.copy(source = "Beam", fileFormat="csv")
+        beamConfig.beam.exchange.copy(scenario = newExchangeScenario)
+      }
+
+      val newWarmstart = {
+        val newSkimsFilePath = Try(instance.compressedLocation("Skims file", "skims.csv.gz")).getOrElse("")
+        val newSkimPlusFilePath = Try(instance.compressedLocation("Skim plus", "skimsPlus.csv.gz")).getOrElse("")
+        val newRouteHistoryFilePath = Try(instance.compressedLocation("Route history", "skimsPlus.csv.gz")).getOrElse("")
+        beamConfig.beam.warmStart.copy(
+          skimsFilePath = newSkimsFilePath,
+          skimsPlusFilePath = newSkimPlusFilePath,
+          routeHistoryFilePath = newRouteHistoryFilePath
+        )
+      }
+
+
+      val newBeam = beamConfig.beam.copy(agentsim = newAgentSim, exchange = newExchange, warmStart = newWarmstart)
       val newBeamConfig = beamConfig.copy(beam = newBeam)
+
+
+
 
       beamExecutionConfig.copy(beamConfig = newBeamConfig)
     } else {

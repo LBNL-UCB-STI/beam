@@ -52,6 +52,7 @@ class BeamSkimmer @Inject()(
 
   private def skimsFilePath: Option[String] = {
     val filePath = beamScenario.beamConfig.beam.warmStart.skimsFilePath
+    logger.warn("@@@@@@@@@@@@@@@@@@@@@@@@@ ")
     if (new File(filePath).isFile) {
       Some(filePath)
     } else {
