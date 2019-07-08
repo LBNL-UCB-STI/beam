@@ -1,10 +1,7 @@
 package beam.agentsim.agents.ridehail
 
 import akka.actor.FSM.Failure
-import akka.actor.{ActorRef, Props, Stash, Status}
-
-import scala.concurrent.duration._
-import akka.pattern.ask
+import akka.actor.{ActorRef, FSM, Props, Stash, Status}
 import beam.agentsim.Resource.{NotifyVehicleIdle, NotifyVehicleOutOfService, ReleaseParkingStall}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -18,14 +15,10 @@ import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.{RefuelSessionEvent, SpaceTime}
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
-import beam.agentsim.scheduler.BeamAgentScheduler.{
-  CompletionNotice,
-  IllegalTriggerGoToError,
-  RequestCurrentTime,
-  ScheduleTrigger
-}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.router.BeamRouter.Location
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.common.Range
@@ -35,8 +28,6 @@ import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicle
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
-
-import scala.concurrent.Await
 
 object RideHailAgent {
   val idPrefix: String = "rideHailAgent"
@@ -274,8 +265,8 @@ class RideHailAgent(
       log.debug("state(RideHailAgent.OfflineForCharging.ParkingInquiryResponse): {}", ev)
 
       vehicle.useParkingStall(stall)
-      log.debug("Refuel started at " + _currentTick)
       val (tick, triggerId) = releaseTickAndTriggerId()
+      log.debug("Refuel started at {}, triggerId: {}", tick, triggerId)
 
       if (vehicle.isBEV || vehicle.isPHEV) {
         handleStartCharging(tick, vehicle) {
@@ -338,13 +329,13 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
       handleNotifyVehicleResourceIdleReply(reply, data)
     case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(tick), triggerId), _) =>
-      log.debug("state(RideHailingAgent.Offline.StartRefuelSessionTrigger): {}", ev)
+      log.debug("state(RideHailingAgent.Offline.StartRefuelSessionTrigger): triggerId: {}, ev: {}", triggerId, ev)
       handleStartRefuel(tick, triggerId)
     case ev @ Event(
           TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, energyInJoules, _), triggerId),
           data
         ) =>
-      log.debug("state(RideHailingAgent.Offline.EndRefuelSessionTrigger): {}", ev)
+      log.debug("state(RideHailingAgent.Offline.EndRefuelSessionTrigger): triggerId: {}, ev: {}", triggerId, ev)
       val currentLocation = handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
       vehicle.spaceTime = SpaceTime(currentLocation, tick)
       stay() replying CompletionNotice(triggerId)
@@ -547,24 +538,26 @@ class RideHailAgent(
     parkingManager ! inquiry
   }
 
-  def handleStartRefuel(tick: Int, triggerId: Long) = {
+  def handleStartRefuel(tick: Int, triggerId: Long): State = {
     val (sessionDuration, energyDelivered) =
       vehicle.refuelingSessionDurationAndEnergyInJoules()
 
     log.debug(
-      "scheduling EndRefuelSessionTrigger at {} with {} J to be delivered",
+      "scheduling EndRefuelSessionTrigger at {} with {} J to be delivered, triggerId: {}",
       tick + sessionDuration.toInt,
-      energyDelivered
+      energyDelivered,
+      triggerId
     )
-    stay() replying CompletionNotice(
+    scheduler ! CompletionNotice(
       triggerId,
       Vector(
         ScheduleTrigger(EndRefuelSessionTrigger(tick + sessionDuration.toInt, tick, energyDelivered), self)
       )
     )
+    stay()
   }
 
-  def handleEndRefuel(energyInJoules: Double, tick: Int, sessionStart: Int) = {
+  def handleEndRefuel(energyInJoules: Double, tick: Int, sessionStart: Int): Location = {
     log.debug("Ending refuel session for {}", vehicle.id)
     vehicle.addFuel(energyInJoules)
     eventsManager.processEvent(
@@ -585,7 +578,7 @@ class RideHailAgent(
   def handleNotifyVehicleResourceIdleReply(
     ev: NotifyVehicleResourceIdleReply,
     data: RideHailAgentData
-  ) = {
+  ): FSM.State[BeamAgentState, RideHailAgentData] = {
     log.debug("state(RideHailingAgent.IdleInterrupted.NotifyVehicleResourceIdleReply): {}", ev)
     data.remainingShifts.isEmpty match {
       case true =>
@@ -603,7 +596,7 @@ class RideHailAgent(
   def completeHandleNotifyVehicleResourceIdleReply(
     receivedtriggerId: Option[Long],
     newTriggers: Seq[ScheduleTrigger]
-  ) = {
+  ): Unit = {
     _currentTriggerId match {
       case Some(_) =>
         val (_, triggerId) = releaseTickAndTriggerId()
