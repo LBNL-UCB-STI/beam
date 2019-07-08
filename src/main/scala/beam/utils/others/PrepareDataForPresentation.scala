@@ -4,6 +4,7 @@ import java.io.{Closeable, Writer}
 
 import beam.agentsim.events.PathTraversalEvent
 import beam.router.Modes
+import beam.router.Modes.BeamMode
 import beam.utils.{EventReader, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.events.Event
@@ -88,7 +89,7 @@ object PrepareDataForPresentation extends LazyLogging {
 
   def main(args: Array[String]): Unit = {
     require(args.length == 2, "Must provide two args: 1-st arg is path to events file, 2-nd path to output folder")
-    val pathToEvents = args(0) // "D:/Work/beam/NewSeriesOfRuns/High Intercept & high radius/Full/urbansim-25k__2019-06-21_16-41-50_NoReposition/ITERS/it.0/0.events.csv.gz" //
+    val pathToEvents = args(0) // "D:/Work/beam/NewSeriesOfRuns/High Intercept & high radius/Full/urbansim-25k__2019-06-21_16-41-50_NoReposition/ITERS/it.0/0.events.csv.gz"
     val outputFolderPath = args(1)
     logger.info(s"Path to events: $pathToEvents")
     logger.info(s"Path to output folder: $outputFolderPath")
@@ -118,6 +119,21 @@ object PrepareDataForPresentation extends LazyLogging {
         pathTraversalEvents,
         s"$outputFolderPath/ride-hail_vs_normal-car_$granularity.csvh"
       )
+
+      createNumberOfRideHailPassengers(
+        granularity,
+        maxTime,
+        pathTraversalEvents,
+        s"$outputFolderPath/ride-hail_num_of_passengers_$granularity.csvh"
+      )
+
+      createNumberOfPassengersForBuses(
+        granularity,
+        maxTime,
+        pathTraversalEvents,
+        s"$outputFolderPath/bus_num_of_passengers_$granularity.csvh"
+      )
+
       //      val vehiclesPerHourPath = s"$outputFolderPath/time_to_num_of_vehicles_$granularity.csvh"
       //      createVehiclesPerHour(granularity, maxTime, pathTraversalEvents, vehiclesPerHourPath)
       //
@@ -256,6 +272,92 @@ object PrepareDataForPresentation extends LazyLogging {
         counterPerCategory.zipWithIndex.foreach {
           case (counter, modeIdx) =>
             val categoryName = categories(modeIdx)
+            csvWriter.write(time, categoryName, counter)
+        }
+    }
+    csvWriter.close()
+  }
+
+  def createNumberOfRideHailPassengers(
+    granularity: Int,
+    maxTime: Int,
+    pathTraversalEvents: Array[PathTraversalEvent],
+    writePath: String
+  ): Unit = {
+    val onlyRideHail = pathTraversalEvents.filter(x => x.vehicleId.toString.contains("rideHailVehicle-"))
+
+    val maxNumberOfPassengers = onlyRideHail.maxBy(x => x.numberOfPassengers).numberOfPassengers
+    val numOfBins = maxTime / granularity
+    logger.info(
+      s"Granularity: $granularity, maxArrivalTime: $maxTime, numOfBins: $numOfBins, maxNumberOfPassengers: $maxNumberOfPassengers"
+    )
+    val categories = (0 to maxNumberOfPassengers).toVector
+    val timeToNumberOfPassengers = Array.fill[Int](numOfBins + 1, categories.length)(0)
+    ProfilingUtils.timed("Filling up timeToNumberOfPassengers", x => logger.info(x)) {
+      onlyRideHail.foreach { pte =>
+        val category = pte.numberOfPassengers
+        Range(pte.departureTime, pte.arrivalTime, granularity).foreach { t =>
+          val binIdx = t / granularity
+          val perCategory = timeToNumberOfPassengers(binIdx)
+          val offset = categories.indexOf(category)
+          val counter = perCategory(offset)
+          perCategory.update(offset, counter + 1)
+        }
+      }
+    }
+    val csvWriter = new CsvWriter(writePath, Vector("time", "category", "counter"))
+    timeToNumberOfPassengers.zipWithIndex.foreach {
+      case (counterPerCategory, binIdx) =>
+        val time = binIdx * granularity
+        counterPerCategory.zipWithIndex.foreach {
+          case (counter, modeIdx) =>
+            val category = categories(modeIdx)
+            val categoryName = s"Passengers_$category"
+            csvWriter.write(time, categoryName, counter)
+        }
+    }
+    csvWriter.close()
+  }
+
+  def createNumberOfPassengersForBuses(
+    granularity: Int,
+    maxTime: Int,
+    pathTraversalEvents: Array[PathTraversalEvent],
+    writePath: String
+  ): Unit = {
+    val onlyBuses = pathTraversalEvents.filter(x => x.mode == BeamMode.BUS)
+    val maxNumberOfPassengers = onlyBuses.maxBy(x => x.numberOfPassengers).numberOfPassengers
+    val numOfCategories = 5
+    val step = maxNumberOfPassengers / numOfCategories
+    val xs = Range(0, maxNumberOfPassengers, step).toVector ++ (if (maxNumberOfPassengers % numOfCategories == 0)
+                                                                  Vector.empty
+                                                                else Vector(maxNumberOfPassengers))
+    val categories = xs.sliding(2, 1).map(r => Range.inclusive(r(0), r(1))).toVector
+    val numOfBins = maxTime / granularity
+    logger.info(
+      s"Granularity: $granularity, maxArrivalTime: $maxTime, numOfBins: $numOfBins, maxNumberOfPassengers: $maxNumberOfPassengers"
+    )
+    val timeToNumberOfBusPassengers = Array.fill[Int](numOfBins + 1, categories.length)(0)
+    ProfilingUtils.timed("Filling up timeToNumberOfBusPassengers", x => logger.info(x)) {
+      onlyBuses.foreach { pte =>
+        val category = categories.find(rng => rng.contains(pte.numberOfPassengers)).get
+        Range(pte.departureTime, pte.arrivalTime, granularity).foreach { t =>
+          val binIdx = t / granularity
+          val perCategory = timeToNumberOfBusPassengers(binIdx)
+          val offset = categories.indexOf(category)
+          val counter = perCategory(offset)
+          perCategory.update(offset, counter + 1)
+        }
+      }
+    }
+    val csvWriter = new CsvWriter(writePath, Vector("time", "category", "counter"))
+    timeToNumberOfBusPassengers.zipWithIndex.foreach {
+      case (counterPerCategory, binIdx) =>
+        val time = binIdx * granularity
+        counterPerCategory.zipWithIndex.foreach {
+          case (counter, modeIdx) =>
+            val category = categories(modeIdx)
+            val categoryName = s"Pngs_${category.start}-${category.end}"
             csvWriter.write(time, categoryName, counter)
         }
     }
