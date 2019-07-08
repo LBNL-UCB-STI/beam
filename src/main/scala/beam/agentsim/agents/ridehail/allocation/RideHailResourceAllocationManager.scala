@@ -1,9 +1,13 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, PoolingInfo}
+import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
-import beam.agentsim.agents.ridehail.repositioningmanager.{DemandFollowingRepositioningManager, RepositioningManager}
+import beam.agentsim.agents.ridehail.repositioningmanager.{
+  DemandFollowingRepositioningManager,
+  NoOpRepositioningManager,
+  RepositioningManager
+}
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
 import beam.agentsim.agents.vehicles.PersonIdWithActorRef
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
@@ -13,7 +17,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.mutable
+import scala.util.control.NonFatal
 
 abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager) extends LazyLogging {
 
@@ -202,13 +206,20 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   }
 
   def createRepositioningManager(): RepositioningManager = {
-    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.name match {
-      case "NoOpRepositioningManager" =>
-        RepositioningManager[RepositioningManager](rideHailManager.beamServices, rideHailManager)
-      case "DemandFollowingRepositioningManager" =>
-        RepositioningManager[DemandFollowingRepositioningManager](rideHailManager.beamServices, rideHailManager)
-      case x =>
-        throw new IllegalStateException(s"There is no implementation for `$x`")
+    val name = rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.name
+    try {
+      name match {
+        case "NoOpRepositioningManager" =>
+          RepositioningManager[NoOpRepositioningManager](rideHailManager.beamServices, rideHailManager)
+        case "DemandFollowingRepositioningManager" =>
+          RepositioningManager[DemandFollowingRepositioningManager](rideHailManager.beamServices, rideHailManager)
+        case x =>
+          throw new IllegalStateException(s"There is no implementation for `$x`")
+      }
+    } catch {
+      case NonFatal(ex) =>
+        logger.error(s"Could not create reposition manager from $name: ${ex.getMessage}", ex)
+        throw ex
     }
   }
 }
