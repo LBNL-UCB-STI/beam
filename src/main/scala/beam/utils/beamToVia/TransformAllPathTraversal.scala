@@ -1,5 +1,6 @@
 package beam.utils.beamToVia
 
+import beam.utils.beamToVia.EventsTransformer.removePathDuplicates
 import beam.utils.beamToVia.beamEvent.{BeamEvent, BeamPathTraversal}
 
 import scala.collection.mutable
@@ -44,7 +45,7 @@ object TransformAllPathTraversal {
   def transformAndWrite(config: RunConfig): Unit = {
 
     val vehiclesFilter = MutableVehiclesFilter(config.vehicleSampling, config.vehicleSamplingOtherTypes)
-    val events = EventsReader
+    val events = BeamEventsReader
       .fromFileWithFilter(config.beamEventsPath, vehiclesFilter)
       .getOrElse(Seq.empty[BeamEvent])
 
@@ -56,9 +57,13 @@ object TransformAllPathTraversal {
           selectedIds.contains(id)
       }
 
-    val (pathLinkEvents, typeToIdSeq) = EventsTransformer.transform(events, vehicleId => vehicleSelected(vehicleId))
+    val (viaEventsWithDuplicates, typeToIdSeq) = EventsTransformer.transform(events, vehicleId => vehicleSelected(vehicleId), config.vehicleIdPrefix)
+    Console.println(viaEventsWithDuplicates.size + " via events with possible duplicates")
 
-    Writer.writeViaEvents(pathLinkEvents, config.viaEventsPath)
+    val viaEvents = removePathDuplicates(viaEventsWithDuplicates)
+    Console.println(viaEvents.size + " via events without duplicates")
+
+    Writer.writeViaEvents(viaEvents, config.viaEventsPath)
     Writer.writeViaIdFile(typeToIdSeq, config.viaIdGoupsFilePath)
   }
 }

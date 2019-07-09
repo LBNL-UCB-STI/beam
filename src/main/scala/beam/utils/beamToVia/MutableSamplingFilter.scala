@@ -10,11 +10,13 @@ trait MutableSamplingFilter {
 
 case class MutableVehiclesFilter(
   vehicleSampling: Seq[VehicleSample] = Seq.empty[VehicleSample],
-  vehicleSamplingOtherTypes: Double = 1.0
+  vehicleSamplingOtherTypes: Double = 1.0,
+  excludedVehicles: Seq[String] = Seq.empty[String]
 ) extends MutableSamplingFilter {
 
   private val metVehicles = mutable.Map.empty[String, Boolean]
   private val vehicleTypeSamplesMap = Map(vehicleSampling.map(vs => vs.vehicleType -> vs.percentage): _*)
+  private val excludedVehilesId = mutable.HashSet(excludedVehicles: _*)
 
   private val selectNewVehicleByType: String => Boolean =
     if (vehicleSampling.isEmpty && vehicleSamplingOtherTypes >= 1.0) _ => true
@@ -31,13 +33,14 @@ case class MutableVehiclesFilter(
       }
     }
 
-  def vehicleSelected(vId: String, vType: String): Boolean = metVehicles.get(vId) match {
-    case Some(decision) => decision
-    case None =>
-      val decision = selectNewVehicleByType(vType)
-      metVehicles(vId) = decision
-      decision
-  }
+  def vehicleSelected(vId: String, vType: String): Boolean =
+    !excludedVehilesId.contains(vId) && (metVehicles.get(vId) match {
+      case Some(decision) => decision
+      case None =>
+        val decision = selectNewVehicleByType(vType)
+        metVehicles(vId) = decision
+        decision
+    })
 
   val empty = Seq.empty[BeamEvent]
 
@@ -51,6 +54,14 @@ case class MutableVehiclesFilter(
           else empty
         case _ => empty
       }
+
+    case plv: BeamPersonLeavesVehicle =>
+      metVehicles.get(plv.vehicleId) match {
+        case Some(true) => Seq(plv)
+        case _          => empty
+      }
+
+    case _ => empty
   }
 }
 
@@ -75,10 +86,11 @@ case class MutablePopulationFilter(
         }
       }
 
-  override def toString: String = "population size was " + metPersons.foldLeft(0) {
-    case (size, (_, true)) => size + 1
-    case (size, _)         => size
-  }
+  override def toString: String =
+    metPersons.foldLeft(0) {
+      case (size, (_, true)) => size + 1
+      case (size, _)         => size
+    } + " persons in population"
 
   private def personSelected(id: String): Boolean = metPersons.get(id) match {
     case Some(decision) => decision

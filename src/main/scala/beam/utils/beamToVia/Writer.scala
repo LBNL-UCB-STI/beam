@@ -26,12 +26,16 @@ object Writer {
     pathLinkEvents.foreach(event => pw.println(event.toXml.toString()))
     pw.println("</events>")
     pw.close()
+
+    Console.println("via events written into " + outputPath)
   }
 
   def writeViaIdFile(typeToIdSeq: mutable.Map[String, mutable.HashSet[String]], outputPath: String): Unit = {
     val pw2 = new PrintWriter(new File(outputPath))
     typeToIdSeq.map{case (k,v) => k + "     " + v.size}.toSeq.sorted.foreach(pw2.println)
     pw2.close()
+
+    Console.println("via IDs written into " + outputPath)
   }
 
   def writeViaIdGroupFiles(typeToIdSeq: mutable.Map[String, mutable.HashSet[String]], outputPath: String): Unit = {

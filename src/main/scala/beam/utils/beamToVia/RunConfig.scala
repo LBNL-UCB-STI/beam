@@ -15,11 +15,14 @@ case class RunConfig(
   viaIdGoupsFilePath: String,
   viaIdGoupsDirectoryPath: String,
   viaRunScriptPath: String,
-  viaFollowPersonScriptPath:String,
+  viaFollowPersonScriptPath: String,
+  excludedVehicleIds: Seq[String],
   vehicleSampling: Seq[VehicleSample],
   vehicleSamplingOtherTypes: Double,
   populationSampling: Seq[PopulationSample],
-  circleFilter: Seq[Circle]
+  circleFilter: Seq[Circle],
+  buildTrackPersonScript: Boolean,
+  vehicleIdPrefix: String
 )
 
 object RunConfig {
@@ -31,11 +34,14 @@ object RunConfig {
     viaIdGoupsFilePath: String,
     viaIdGoupsDirectoryPath: String,
     viaRunScriptPath: String,
-    viaFollowPersonScriptPath:String,
+    viaFollowPersonScriptPath: String,
+    excludedVehicleIds: Seq[String],
     vehicleSampling: Seq[VehicleSample],
     vehicleSamplingOtherTypes: Double,
     populationSampling: Seq[PopulationSample],
-    circleFilter: Seq[Circle]
+    circleFilter: Seq[Circle],
+    buildTrackPersonScript: Boolean,
+    vehicleIdPrefix: String
   ): RunConfig =
     new RunConfig(
       beamEventsPath,
@@ -45,10 +51,13 @@ object RunConfig {
       viaIdGoupsDirectoryPath,
       viaRunScriptPath,
       viaFollowPersonScriptPath,
+      excludedVehicleIds,
       vehicleSampling,
       vehicleSamplingOtherTypes,
       populationSampling,
-      circleFilter
+      circleFilter,
+      buildTrackPersonScript,
+      vehicleIdPrefix
     )
 
   def defaultValues(
@@ -58,11 +67,14 @@ object RunConfig {
     viaIdGoupsFilePath: String = "",
     viaIdGoupsDirectoryPath: String = "",
     viaRunScriptPath: String = "",
-    viaFollowPersonScriptPath:String = "",
+    viaFollowPersonScriptPath: String = "",
+    excludedVehicleIds: Seq[String] = Seq.empty[String],
     vehicleSampling: Seq[VehicleSample] = Seq.empty[VehicleSample],
     vehicleSamplingOtherTypes: Double = 1.0,
     populationSampling: Seq[PopulationSample] = Seq.empty[PopulationSample],
-    circleFilter: Seq[Circle] = Seq.empty[Circle]
+    circleFilter: Seq[Circle] = Seq.empty[Circle],
+    buildTrackPersonScript: Boolean = false,
+    vehicleIdPrefix: String = ""
   ): RunConfig = RunConfig(
     sourcePath,
     networkPath,
@@ -70,35 +82,70 @@ object RunConfig {
     if (viaIdGoupsFilePath.isEmpty) sourcePath + ".via.ids.txt" else viaIdGoupsFilePath,
     if (viaIdGoupsDirectoryPath.isEmpty) sourcePath + ".via.ids" else viaIdGoupsDirectoryPath,
     viaRunScriptPath,
-    if(viaFollowPersonScriptPath.isEmpty) sourcePath + ".via.js" else viaFollowPersonScriptPath,
+    if (viaFollowPersonScriptPath.isEmpty) sourcePath + ".via.js" else viaFollowPersonScriptPath,
+    excludedVehicleIds,
     vehicleSampling,
     vehicleSamplingOtherTypes,
     populationSampling,
-    circleFilter
+    circleFilter,
+    buildTrackPersonScript,
+    vehicleIdPrefix
   )
 
-  def filterPopulation(
+  def trackPerson(
     sourcePath: String,
     networkPath: String,
-    populationSamples: Seq[PopulationSample],
-    circleFilter: Seq[Circle] = Seq.empty[Circle]
-  ): RunConfig =
-    defaultValues(sourcePath, networkPath, populationSampling = populationSamples, circleFilter = circleFilter)
-
-  def filterVehicles(
-    sourcePath: String,
-    networkPath: String,
-    vehiclesSamples: Seq[VehicleSample] = Seq.empty[VehicleSample],
-    vehiclesSamplesOtherTypes: Double = 1.0,
-    circleFilter: Seq[Circle] = Seq.empty[Circle]
+    personId: String,
+    idPrefix: String
   ): RunConfig =
     defaultValues(
       sourcePath,
       networkPath,
-      vehicleSampling = vehiclesSamples,
-      vehicleSamplingOtherTypes = vehiclesSamplesOtherTypes,
-      circleFilter = circleFilter
+      viaEventsPath = sourcePath + ".track.via.events.xml",
+      viaFollowPersonScriptPath = sourcePath + ".track.via.js.txt",
+      viaIdGoupsFilePath = sourcePath + ".track.via.ids.txt",
+      populationSampling = Seq(PopulationSample(1, _ == personId)),
+      buildTrackPersonScript = true,
+      vehicleIdPrefix = idPrefix
     )
 
-  def withoutFiltering(sourcePath: String): RunConfig = defaultValues(sourcePath)
+  def filterPopulation(
+    sourcePath: String,
+    networkPath: String,
+    idPrefix: String,
+    populationSamples: Seq[PopulationSample],
+    circleFilter: Seq[Circle] = Seq.empty[Circle],
+    viaEventsFileSuffix: String = "",
+  ): RunConfig =
+    defaultValues(
+      sourcePath,
+      networkPath,
+      viaEventsPath = sourcePath + ".via.events." + viaEventsFileSuffix + ".xml",
+      viaIdGoupsFilePath = sourcePath + ".via.ids." + viaEventsFileSuffix + ".txt",
+      populationSampling = populationSamples,
+      circleFilter = circleFilter,
+      vehicleIdPrefix = idPrefix
+    )
+
+  def filterVehicles(
+    sourcePath: String,
+    networkPath: String,
+    idPrefix: String,
+    vehiclesSamples: Seq[VehicleSample] = Seq.empty[VehicleSample],
+    vehiclesSamplesOtherTypes: Double = 1.0,
+    circleFilter: Seq[Circle] = Seq.empty[Circle],
+    viaEventsFileSuffix: String = "",
+    excludedVehicleIds: Seq[String] = Seq.empty[String],
+  ): RunConfig =
+    defaultValues(
+      sourcePath,
+      networkPath,
+      viaEventsPath = sourcePath + ".via.events." + viaEventsFileSuffix + ".xml",
+      viaIdGoupsFilePath = sourcePath + ".via.ids." + viaEventsFileSuffix + ".txt",
+      excludedVehicleIds = excludedVehicleIds,
+      vehicleSampling = vehiclesSamples,
+      vehicleSamplingOtherTypes = vehiclesSamplesOtherTypes,
+      circleFilter = circleFilter,
+      vehicleIdPrefix = idPrefix
+    )
 }
