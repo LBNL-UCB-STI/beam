@@ -7,6 +7,7 @@ import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.TollRevenueAnalysis
 import beam.router.Modes.BeamMode.{BIKE, CAR}
 import beam.sim.BeamHelper
+import beam.sim.config.BeamExecutionConfig
 import beam.utils.EventReader._
 import com.typesafe.config.{Config, ConfigValueFactory}
 import org.matsim.api.core.v01.Id
