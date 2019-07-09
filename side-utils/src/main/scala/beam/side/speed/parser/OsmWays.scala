@@ -6,6 +6,7 @@ import com.conveyal.osmlib.{OSM, Way}
 import com.conveyal.r5.kryo.KryoNetworkSerializer
 
 import scala.collection.JavaConverters._
+import scala.collection.immutable.TreeMap
 import scala.util.{Success, Try}
 
 class OsmWays(osmPath: Path, r5Path: Path) {
@@ -29,7 +30,7 @@ class OsmWays(osmPath: Path, r5Path: Path) {
   private val osm = new OSM(osmPath.toAbsolutePath.toString).ways.asScala
   private val edgeCursor = KryoNetworkSerializer.read(r5Path.toFile).streetLayer.edgeStore.getCursor
 
-  lazy val nodes: Iterator[OsmNodeSpeed] = Iterator
+  lazy val nodes: Map[(Long, Boolean), OsmNodeSpeed] = Iterator
     .iterate(edgeCursor.advance())(_ => edgeCursor.advance())
     .map(_ => Try((edgeCursor.getOSMID, edgeCursor.isBackward)))
     .takeWhile(_.isSuccess)
@@ -38,10 +39,11 @@ class OsmWays(osmPath: Path, r5Path: Path) {
     }
     .collect {
       case Some((id, (w, false))) =>
-        OsmNodeSpeed(id, w.nodes(0), w.nodes(1), waySpeed(w))
+        (id, false) -> OsmNodeSpeed(id, w.nodes(0), w.nodes(1), waySpeed(w))
       case Some((id, (w, true))) =>
-        OsmNodeSpeed(id, w.nodes(1), w.nodes(0), waySpeed(w))
+        (id, true) -> OsmNodeSpeed(id, w.nodes(1), w.nodes(0), waySpeed(w))
     }
+    .toMap
 
   private def waySpeed(way: Way): Float = {
     val hTag = Option(way.getTag("highway")).getOrElse("unclassified")

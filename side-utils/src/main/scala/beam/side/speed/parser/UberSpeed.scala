@@ -28,31 +28,31 @@ class UberSpeed[T <: FilterEventAction](
 ) extends DataLoader[UberSpeedEvent]
     with UnarchivedSource {
 
-  object WayMetricsLabel extends LEdgeImplicits[Seq[WayMetric]]
+  object WayMetricsLabel extends LEdgeImplicits[WayMetrics]
   import WayMetricsLabel._
   import beam.side.speed.model.UberSpeedEvent._
 
   private val (ways, nodes) = {
     val (w, n) = load(Paths.get(path))
-      .foldLeft((Map[String, Seq[WayMetric]](), Map[(String, String), Seq[WayMetric]]())) {
+      .foldLeft((Map[String, Seq[WayMetric]](), Map[UberWay, Seq[WayMetric]]())) {
         case ((accW, accN), s) =>
           val w = WayMetric(s.dateTime, s.speedMphMean, s.speedMphStddev)
+          val uw = UberWay(s.segmentId, s.startJunctionId, s.endJunctionId)
           (
             accW + (s.segmentId -> (accW.getOrElse(s.segmentId, Seq()) :+ w)),
-            accN + ((s.startJunctionId, s.endJunctionId) -> (accN
-              .getOrElse((s.startJunctionId, s.endJunctionId), Seq()) :+ w))
+            accN + (uw          -> (accN.getOrElse(uw, Seq()) :+ w))
           )
       }
     (
       w.par,
       n.par
-        .map { case ((s, e), v) => (dictJ(s), dictJ(e), v) }
-        .collect { case (Some(s), Some(e), ws) => UberDirectedWay(s, e, ws) }
+        .map { case (uw, v) => (dictJ(uw.startJunctionId), dictJ(uw.endJunctionId), uw.segmentId, v) }
+        .collect { case (Some(s), Some(e), sId, ws) => UberDirectedWay(s, e, sId, ws) }
     )
   }
 
   private val nodeGraph: Graph[Long, LkDiEdge] = Graph(
-    nodes.map { case UberDirectedWay(s, e, w) => (s ~+#> e)(w) }.seq.toSeq: _*
+    nodes.map { case UberDirectedWay(s, e, sId, w) => (s ~+#> e)(WayMetrics(sId, w)) }.seq.toSeq: _*
   )
 
   def speed(osmId: Long): Option[WaySpeed] =
@@ -62,9 +62,16 @@ class UberSpeed[T <: FilterEventAction](
     nodeGraph
       .find(origNodeId)
       .flatMap(o => nodeGraph.find(destNodeId).flatMap(d => o.shortestPathTo(d)))
-      .map(p => p.edges.foldLeft(Seq[WayMetric]())((acc, e2) => acc ++ e2.label))
+      .map(p => p.edges.foldLeft(Seq[WayMetric]())((acc, e2) => acc ++ e2.metrics))
       .map(dropToWeek)
       .map(_.waySpeed[T](fOpt))
+
+  def wayParts(origNodeId: Long, destNodeId: Long): Option[String] =
+    nodeGraph
+      .find(origNodeId)
+      .flatMap(o => nodeGraph.find(destNodeId).flatMap(d => o.shortestPathTo(d)))
+      .map(p => p.edges.foldLeft(Seq[Float]())((acc, e2) => acc :+ e2.metrics.map(_.speedMphMean).max))
+      .map(_.mkString(","))
 
   private def dropToWeek(metrics: Seq[WayMetric]): UberWaySpeed = {
     val week = metrics

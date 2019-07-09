@@ -86,6 +86,14 @@ object BeamUberSpeed {
   }
 }
 
+case class WayMetrics(sId: String, metrics: Seq[WayMetric]) {
+  override def equals(obj: Any): Boolean = obj match {
+    case that: WayMetrics => that.sId == this.sId
+    case _                => false
+  }
+  override def hashCode(): Int = sId.##
+}
+
 case class WayMetric(dateTime: LocalDateTime, speedMphMean: Float, speedMphStddev: Float) {
   override def equals(obj: Any): Boolean = obj match {
     case that: WayMetric => that.dateTime == this.dateTime
@@ -95,6 +103,8 @@ case class WayMetric(dateTime: LocalDateTime, speedMphMean: Float, speedMphStdde
   override def hashCode(): Int = dateTime.##
 }
 
-case class UberDirectedWay(orig: Long, dest: Long, metrics: Seq[WayMetric])
+case class UberWay(segmentId: String, startJunctionId: String, endJunctionId: String)
+
+case class UberDirectedWay(orig: Long, dest: Long, wayId: String, metrics: Seq[WayMetric])
 
 case class OsmNodeSpeed(id: Long, orig: Long, dest: Long, speed: Float)
