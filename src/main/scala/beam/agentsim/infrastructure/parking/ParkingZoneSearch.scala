@@ -171,7 +171,7 @@ object ParkingZoneSearch {
             //"energyPriceFactor" -> chargingCosts, //currently assumed that these costs are included into parkingCostsPriceFactor
             "distanceFactor" -> (distance / 1.4 / 3600.0) * valueOfTime, // in US$
             "installedCapacity" -> (installedCapacity / 350) * (parkingDuration / 3600) * valueOfTime, // in US$ - assumption/untested parkingDuration in seconds
-            "parkingCostsPriceFactor" -> parkingTicket * 100 //in US$, assumptions for now: parking ticket costs include charging
+            "parkingCostsPriceFactor" -> parkingTicket / 100 //in US$, assumptions for now: parking ticket costs include charging
           )
       }
 
