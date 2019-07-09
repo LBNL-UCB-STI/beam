@@ -10,21 +10,21 @@ import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.{Failure, Random, Success, Try}
 
-class RideHailDepotParkingManager (
-                                    parkingFilePath: String,
-                                    tazFilePath: String,
-                                    valueOfTime: Double,
-                                    tazTreeMap: TAZTreeMap,
-                                    random: Random,
-                                    boundingBox: Envelope,
-                                    distFunction: (Location, Location) => Double
+class RideHailDepotParkingManager(
+  parkingFilePath: String,
+  tazFilePath: String,
+  valueOfTime: Double,
+  tazTreeMap: TAZTreeMap,
+  random: Random,
+  boundingBox: Envelope,
+  distFunction: (Location, Location) => Double
 ) extends LazyLogging {
 
   // load parking from a parking file, or generate it using the TAZ beam input
   val (
     rideHailParkingStalls: Array[ParkingZone],
     rideHailParkingSearchTree: ParkingZoneSearch.ZoneSearch[TAZ]
-    ) = if (parkingFilePath.isEmpty) {
+  ) = if (parkingFilePath.isEmpty) {
     ParkingZoneFileUtils
       .generateDefaultParkingFromTazfile(
         tazFilePath,
@@ -49,37 +49,38 @@ class RideHailDepotParkingManager (
   var totalStallsInUse: Long = 0
   var totalStallsAvailable: Long = 0
 
-
   /**
     * searches for a nearby [[ParkingZone]] depot for CAV Ride Hail Agents and returns it's ID (an Int)
     * @param locationUtm the position of this agent
     * @return the id of a ParkingZone, or, nothing if no parking zones are found with availability
     */
   def findDepot(
-                 locationUtm: Location
-               ): Option[Int] = {
+    locationUtm: Location
+  ): Option[Int] = {
 
-    ParkingZoneSearch.incrementalParkingZoneSearch(
-      searchStartRadius = RideHailDepotParkingManager.SearchStartRadius,
-      searchMaxRadius = RideHailDepotParkingManager.SearchMaxRadius,
-      destinationUTM = locationUtm,
-      valueOfTime = valueOfTime,
-      parkingDuration = 0.0,
-      parkingTypes = Seq(ParkingType.Workplace),
-      chargingInquiryData = None,
-      rideHailParkingSearchTree,
-      rideHailParkingStalls,
-      tazTreeMap.tazQuadTree,
-      distFunction,
-      random,
-      boundingBox
-    ).map{ case (parkingZone, _) =>
-      // we discard the ParkingStall for now, and will instead generate one later when
-      // the agent reaches the ParkingZone
-      parkingZone.parkingZoneId
-    }
+    ParkingZoneSearch
+      .incrementalParkingZoneSearch(
+        searchStartRadius = RideHailDepotParkingManager.SearchStartRadius,
+        searchMaxRadius = RideHailDepotParkingManager.SearchMaxRadius,
+        destinationUTM = locationUtm,
+        valueOfTime = valueOfTime,
+        parkingDuration = 0.0,
+        parkingTypes = Seq(ParkingType.Workplace),
+        chargingInquiryData = None,
+        rideHailParkingSearchTree,
+        rideHailParkingStalls,
+        tazTreeMap.tazQuadTree,
+        distFunction,
+        random,
+        boundingBox
+      )
+      .map {
+        case (parkingZone, _) =>
+          // we discard the ParkingStall for now, and will instead generate one later when
+          // the agent reaches the ParkingZone
+          parkingZone.parkingZoneId
+      }
   }
-
 
   /**
     * when agent arrives at ParkingZone, this will claim their stall, or will fail with None if no stalls are available.
@@ -104,7 +105,7 @@ class RideHailDepotParkingManager (
           totalStallsAvailable -= 1
           tazTreeMap
             .getTAZ(parkingZone.tazId)
-            .map{ taz =>
+            .map { taz =>
               ParkingStall(
                 tazId = parkingZone.tazId,
                 parkingZoneId = parkingZone.parkingZoneId,
@@ -131,7 +132,8 @@ class RideHailDepotParkingManager (
       val parkingZone: ParkingZone = rideHailParkingStalls(parkingZoneId)
       val success = ParkingZone.releaseStall(parkingZone).value
       if (!success) None
-      else Some {
+      else
+        Some {
           totalStallsInUse -= 1
           totalStallsAvailable += 1
           ()
@@ -142,18 +144,18 @@ class RideHailDepotParkingManager (
 }
 
 object RideHailDepotParkingManager {
-  val SearchStartRadius: Double = 500.0   // meters
+  val SearchStartRadius: Double = 500.0 // meters
   val SearchMaxRadius: Int = 20000 // meters
 
   def apply(
-             parkingFilePath: String,
-             tazFilePath: String,
-             valueOfTime: Double,
-             tazTreeMap: TAZTreeMap,
-             random: Random,
-             boundingBox: Envelope,
-             distFunction: (Location, Location) => Double
-           ): RideHailDepotParkingManager = {
+    parkingFilePath: String,
+    tazFilePath: String,
+    valueOfTime: Double,
+    tazTreeMap: TAZTreeMap,
+    random: Random,
+    boundingBox: Envelope,
+    distFunction: (Location, Location) => Double
+  ): RideHailDepotParkingManager = {
     new RideHailDepotParkingManager(
       parkingFilePath,
       tazFilePath,

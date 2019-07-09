@@ -287,9 +287,9 @@ object ParkingZoneFileUtils extends LazyLogging {
     * @return
     */
   def generateDefaultParkingFromTazfile(
-                                         tazFilePath: String,
-                                         parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
-                                       ): (Array[ParkingZone], ZoneSearch[TAZ]) = {
+    tazFilePath: String,
+    parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
+  ): (Array[ParkingZone], ZoneSearch[TAZ]) = {
     Try {
       IOUtils.getBufferedReader(tazFilePath)
     } match {
