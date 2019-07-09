@@ -260,7 +260,7 @@ class BeamVehicle(
     StreetVehicle(id, beamVehicleType.id, spaceTime, mode, true)
   }
 
-  def isCAV: Boolean = beamVehicleType.automationLevel > 3
+  def isCAV: Boolean = beamVehicleType.automationLevel == 5
 
   def isBEV: Boolean =
     beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType == None
