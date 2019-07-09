@@ -68,7 +68,7 @@ trait ChoosesParking extends {
 
       val beta1 = 1 // distance to walk to the destination
     val beta2 = 0.001 // installed charging capacity
-    val beta3 = 1 // parking costs (currently include price for charging due to the lack of data)
+    val beta3 = 4.5 // parking costs (currently include price for charging due to the lack of data)
     //val beta4 = 1
     val distanceBuffer = 25000 // in meter (the distance that should be considered as buffer for range estimation
 
@@ -147,11 +147,11 @@ trait ChoosesParking extends {
           case _ =>
             // non BEV / PHEV, installed charging capacity doesn't matter
             new MultinomialLogit(Map.empty, Map(
-            // "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
-            "distanceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
-            "installedCapacity" -> UtilityFunctionOperation("multiplier", 0),
-            "parkingCostsPriceFactor" -> UtilityFunctionOperation("multiplier", -beta3),
-          ))
+              // "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
+              "distanceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
+              "installedCapacity" -> UtilityFunctionOperation("multiplier", 0),
+              "parkingCostsPriceFactor" -> UtilityFunctionOperation("multiplier", -beta3),
+            ))
         }
       //
       //      val utilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
