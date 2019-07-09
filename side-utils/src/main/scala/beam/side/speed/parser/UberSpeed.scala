@@ -1,7 +1,13 @@
 package beam.side.speed.parser
 
 import java.nio.file.Paths
+import java.time.DayOfWeek
 
+import beam.side.speed.model.FilterEvent.AllHoursDaysEventAction.AllHoursDaysEventAction
+import beam.side.speed.model.FilterEvent.HourEventAction.HourEventAction
+import beam.side.speed.model.FilterEvent.HourRangeEventAction.HourRangeEventAction
+import beam.side.speed.model.FilterEvent.WeekDayEventAction.WeekDayEventAction
+import beam.side.speed.model.FilterEvent.WeekDayHourEventAction.WeekDayHourEventAction
 import beam.side.speed.model._
 import beam.side.speed.parser.data.{DataLoader, JunctionDictionary, UberOsmDictionary, UnarchivedSource}
 import scalax.collection.edge.Implicits._
@@ -91,4 +97,19 @@ object UberSpeed {
     wf: WayFilter[T#FilterEvent, T#Filtered]
   ): UberSpeed[T] =
     new UberSpeed(path, dictW, dictJ, fOpt)
+
+  def apply(
+    mode: String,
+    fOpt: Map[String, String],
+    path: String,
+    dictW: UberOsmDictionary,
+    dictJ: JunctionDictionary
+  ): UberSpeed[_] = mode match {
+    case "all"   => UberSpeed[AllHoursDaysEventAction](path, dictW, dictJ, Unit)
+    case "wd"    => UberSpeed[WeekDayEventAction](path, dictW, dictJ, DayOfWeek.of(fOpt.head._2.toInt))
+    case "hours" => UberSpeed[HourEventAction](path, dictW, dictJ, fOpt.head._2.toInt)
+    case "wh" =>
+      UberSpeed[WeekDayHourEventAction](path, dictW, dictJ, (DayOfWeek.of(fOpt("day").toInt), fOpt("hour").toInt))
+    case "hours_range" => UberSpeed[HourRangeEventAction](path, dictW, dictJ, (fOpt("from").toInt, fOpt("to").toInt))
+  }
 }

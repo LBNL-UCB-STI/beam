@@ -31,6 +31,12 @@ object FilterEvent {
     type HourEventAction = HourEventAction.type
   }
 
+  case object HourRangeEventAction extends FilterEventAction {
+    override type FilterEvent = HourRangeDTO
+    override type Filtered = (Int, Int)
+    type HourRangeEventAction = HourRangeEventAction.type
+  }
+
   case object WeekDayHourEventAction extends FilterEventAction {
     override type FilterEvent = WeekDayHourDTO
     override type Filtered = (DayOfWeek, Int)
@@ -41,4 +47,5 @@ object FilterEvent {
 case class AllHoursDaysDTO(filterType: String) extends FilterDTO
 case class WeekDayDTO(filterType: String) extends FilterDTO
 case class HourDTO(filterType: String) extends FilterDTO
+case class HourRangeDTO(filterType: String) extends FilterDTO
 case class WeekDayHourDTO(filterType: String) extends FilterDTO
