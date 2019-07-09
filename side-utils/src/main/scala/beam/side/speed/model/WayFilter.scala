@@ -4,6 +4,7 @@ import java.time.DayOfWeek
 
 import beam.side.speed.parser.Median
 
+import scala.math.{max, min}
 import scala.util.Try
 
 sealed trait WayFilter[T <: FilterDTO, E] {
@@ -31,6 +32,19 @@ object WayFilter {
   implicit val hourEventAction: WayFilter[HourDTO, Int] = new WayFilter[HourDTO, Int] {
     override def filter(filterOption: Int, waySpeed: Map[DayOfWeek, UberDaySpeed]): WaySpeed =
       parseHours(waySpeed.values.flatMap(_.hours).filter(_.hour == filterOption).toSeq)
+  }
+
+  implicit val hourRangeEventAction: WayFilter[HourRangeDTO, (Int, Int)] = new WayFilter[HourRangeDTO, (Int, Int)] {
+    override def filter(filterOption: (Int, Int), waySpeed: Map[DayOfWeek, UberDaySpeed]): WaySpeed =
+      parseHours(
+        waySpeed.values
+          .flatMap(_.hours)
+          .filter(
+            h =>
+              (min(filterOption._1, filterOption._2) to max(filterOption._1, filterOption._2)).toList.contains(h.hour)
+          )
+          .toSeq
+      )
   }
 
   implicit val weekDayHourEventAction: WayFilter[WeekDayHourDTO, (DayOfWeek, Int)] =

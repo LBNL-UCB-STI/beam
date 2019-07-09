@@ -5,6 +5,7 @@ import java.time.DayOfWeek
 
 import beam.side.speed.model.FilterEvent.AllHoursDaysEventAction.AllHoursDaysEventAction
 import beam.side.speed.model.FilterEvent.HourEventAction.HourEventAction
+import beam.side.speed.model.FilterEvent.HourRangeEventAction.HourRangeEventAction
 import beam.side.speed.model.FilterEvent.WeekDayEventAction.WeekDayEventAction
 import beam.side.speed.model.FilterEvent.WeekDayHourEventAction.WeekDayHourEventAction
 import beam.side.speed.parser._
@@ -90,10 +91,11 @@ trait AppSetup {
     opt[String]('m', "mode")
       .valueName("<mode_type>")
       .action((m, c) => c.copy(mode = m))
-      .validate(s => Seq("all", "wd", "hours", "wh").find(_ == s).map(_ => success).getOrElse(failure("Invalid")))
+      .validate(s => Seq("all", "wd", "hours", "wh", "hours_range").find(_ == s).map(_ => success).getOrElse(failure("Invalid")))
       .text("Filtering action name")
 
     opt[String]('j', "junction")
+      .required()
       .valueName("<junction_dict_path>")
       .action((j, c) => c.copy(junctionMapPath = j))
       .validate(
@@ -116,22 +118,9 @@ object SpeedCompareApp extends App with AppSetup {
 
   parser.parse(args, CompareConfig()) match {
     case Some(conf) =>
-      import beam.side.speed.model.WayFilter._
       val nodes = JunctionDictionary(conf.junctionMapPath)
       val ways = UberOsmDictionary(conf.uberOsmMap)
-      val uber = conf.mode match {
-        case "all" => UberSpeed[AllHoursDaysEventAction](conf.uberSpeedPath, ways, nodes, Unit)
-        case "wd" =>
-          UberSpeed[WeekDayEventAction](conf.uberSpeedPath, ways, nodes, DayOfWeek.of(conf.fArgs.head._2.toInt))
-        case "hours" => UberSpeed[HourEventAction](conf.uberSpeedPath, ways, nodes, conf.fArgs.head._2.toInt)
-        case "wh" =>
-          UberSpeed[WeekDayHourEventAction](
-            conf.uberSpeedPath,
-            ways,
-            nodes,
-            (DayOfWeek.of(conf.fArgs("day").toInt), conf.fArgs("hour").toInt)
-          )
-      }
+      val uber = UberSpeed(conf.mode, conf.fArgs, conf.uberSpeedPath, ways, nodes)
 
       SpeedComparator(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, conf.output).csvNode()
       System.exit(0)
