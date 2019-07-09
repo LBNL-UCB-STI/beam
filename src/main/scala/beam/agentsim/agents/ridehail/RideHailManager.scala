@@ -200,8 +200,6 @@ object RideHailManager {
     }
 
   }
-
-  val MaxParkingSearchRadius: Int = 20000 // meters
 }
 
 class RideHailManager(
@@ -334,35 +332,20 @@ class RideHailManager(
   private val rideHailinitialLocationSpatialPlot = new SpatialPlot(1100, 1100, 50)
   val resources: mutable.Map[Id[BeamVehicle], BeamVehicle] = mutable.Map[Id[BeamVehicle], BeamVehicle]()
 
-  // generate or load parking using agentsim.infrastructure.parking.ParkingZoneSearch - rjf 20190702
+  // generate or load parking using agentsim.infrastructure.parking.ParkingZoneSearch
   val parkingFilePath: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.parkingFilePath
-  private[RideHailManager] val (
-    rideHailParkingStalls: Array[ParkingZone],
-    rideHailParkingSearchTree: ParkingZoneSearch.ZoneSearch[TAZ]
-  ) = if (parkingFilePath.isEmpty) {
-    ParkingZoneFileUtils
-      .generateDefaultParkingFromTazfile(
-        beamServices.beamConfig.beam.agentsim.taz.filePath,
-        Seq(ParkingType.Workplace)
-      )
-  } else {
-    Try {
-      ParkingZoneFileUtils.fromFile(parkingFilePath)
-    } match {
-      case Success((s, t)) => (s, t)
-      case Failure(e) =>
-        log.warning(s"unable to read contents of provided parking file $parkingFilePath, got ${e.getMessage}.")
-        ParkingZoneFileUtils
-          .generateDefaultParkingFromTazfile(
-            beamServices.beamConfig.beam.agentsim.taz.filePath,
-            Seq(ParkingType.Workplace)
-          )
-    }
-  }
+  val valueOfTime: Double = beamServices.beamConfig.beam.agentsim.agents.rideHail.human.valueOfTime
 
-  // track the usage of the RHM agency parking
-  var totalStallsInUse: Long = 0
-  var totalStallsAvailable: Long = 0
+  // provides tracking of parking/charging alternatives and their availability
+  val rideHailDepotParkingManager = RideHailDepotParkingManager(
+    parkingFilePath,
+    beamServices.beamConfig.beam.agentsim.taz.filePath,
+    valueOfTime,
+    beamServices.beamScenario.tazTreeMap,
+    rand,
+    boundingBox,
+    beamServices.geo.distUTMInMeters
+  )
 
   beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.initType match {
     case "PROCEDURAL" =>
@@ -929,58 +912,11 @@ class RideHailManager(
     Map(request.customer.personId -> fare)
   }
 
-  def findRefuelStationAndSendVehicle(
-    rideHailAgentLocation: RideHailAgentLocation,
-    passengerSchedule: PassengerSchedule,
-    tick: Int
-  ): Unit = {
-
-    // first check for options available to this ridehail fleet
-    val searchMaxRadius: Double = rideHailAgentLocation.geofence match {
-      case Some(geofence) => geofence.geofenceRadius
-      case None           => RideHailManager.MaxParkingSearchRadius
-    }
+  def findRefuelStationAndSendVehicle(rideHailAgentLocation: RideHailAgentLocation): Unit = {
     val destinationUtm = rideHailAgentLocation.currentLocationUTM.loc
-
-    // todo: can we find out how long to charge fully here?
-
-    ParkingZoneSearch.incrementalParkingZoneSearch(
-      500.0,
-      searchMaxRadius = searchMaxRadius,
-      destinationUTM = destinationUtm,
-      valueOfTime = beamServices.beamConfig.beam.agentsim.agents.rideHail.human.valueOfTime,
-      parkingDuration = 0.0,
-      parkingTypes = Seq(ParkingType.Workplace),
-      chargingInquiryData = None,
-      rideHailParkingSearchTree,
-      rideHailParkingStalls,
-      beamServices.beamScenario.tazTreeMap.tazQuadTree,
-      beamServices.geo.distUTMInMeters,
-      rand,
-      boundingBox
-    ) match {
-      case Some((parkingZone, parkingStall)) =>
-        // claim the stall
-        val claimed: Boolean = ParkingZone.claimStall(parkingZone).value
-        if (claimed) {
-          totalStallsInUse += 1
-          totalStallsAvailable -= 1
-        }
-
-        self ! MoveOutOfServiceVehicleToDepotParking(
-          passengerSchedule,
-          tick,
-          rideHailAgentLocation.vehicleId,
-          parkingStall
-        )
-
-      case None =>
-        // use public parking
-        val inquiry = ParkingInquiry(destinationUtm, "public", 0.0, None, 0.0)
-        parkingInquiryCache.put(inquiry.requestId, rideHailAgentLocation)
-        parkingManager ! inquiry
-    }
-
+    val inquiry = ParkingInquiry(destinationUtm, "work", 0.0, None, 0.0)
+    parkingInquiryCache.put(inquiry.requestId, rideHailAgentLocation)
+    parkingManager ! inquiry
   }
 
   def handleRideHailInquiry(inquiry: RideHailRequest): Unit = {
