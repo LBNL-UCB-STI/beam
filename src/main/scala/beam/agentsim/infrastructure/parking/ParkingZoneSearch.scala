@@ -35,12 +35,12 @@ object ParkingZoneSearch {
     * @param bestUtility     the ranking value/utility score associated with the selected ParkingZone
     */
   case class ParkingSearchResult(
-                                  bestTAZ: TAZ,
-                                  bestParkingType: ParkingType,
-                                  bestParkingZone: ParkingZone,
-                                  bestCoord: Coord,
-                                  bestUtility: Double
-                                )
+    bestTAZ: TAZ,
+    bestParkingType: ParkingType,
+    bestParkingZone: ParkingZone,
+    bestCoord: Coord,
+    bestUtility: Double
+  )
 
   /**
     * find the best parking alternative for the data in this request
@@ -57,17 +57,17 @@ object ParkingZoneSearch {
     * @return the TAZ with the best ParkingZone, it's ParkingType, and the ranking value of that ParkingZone
     */
   def find(
-            destinationUTM: Coord,
-            valueOfTime: Double,
-            parkingDuration: Double,
-            utilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String],
-            tazList: Seq[TAZ],
-            parkingTypes: Seq[ParkingType],
-            tree: ZoneSearch[TAZ],
-            parkingZones: Array[ParkingZone],
-            distanceFunction: (Coord, Coord) => Double,
-            random: Random
-          ): Option[ParkingSearchResult] = {
+    destinationUTM: Coord,
+    valueOfTime: Double,
+    parkingDuration: Double,
+    utilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String],
+    tazList: Seq[TAZ],
+    parkingTypes: Seq[ParkingType],
+    tree: ZoneSearch[TAZ],
+    parkingZones: Array[ParkingZone],
+    distanceFunction: (Coord, Coord) => Double,
+    random: Random
+  ): Option[ParkingSearchResult] = {
     val found = findParkingZones(destinationUTM, tazList, parkingTypes, tree, parkingZones, random)
     //    takeBestByRanking(destinationUTM, valueOfTime, parkingDuration, found, utilityFunction, distanceFunction)
     takeBestBySampling(
@@ -93,21 +93,21 @@ object ParkingZoneSearch {
     * @return list of discovered ParkingZones
     */
   def findParkingZones(
-                        destinationUTM: Coord,
-                        tazList: Seq[TAZ],
-                        parkingTypes: Seq[ParkingType],
-                        tree: ZoneSearch[TAZ],
-                        parkingZones: Array[ParkingZone],
-                        random: Random
-                      ): Seq[ParkingAlternative] = {
+    destinationUTM: Coord,
+    tazList: Seq[TAZ],
+    parkingTypes: Seq[ParkingType],
+    tree: ZoneSearch[TAZ],
+    parkingZones: Array[ParkingZone],
+    random: Random
+  ): Seq[ParkingAlternative] = {
 
     // conduct search (toList required to combine Option and List monads)
     for {
-      taz <- tazList
+      taz                 <- tazList
       parkingTypesSubtree <- tree.get(taz.tazId).toList
-      parkingType <- parkingTypes
-      parkingZoneIds <- parkingTypesSubtree.get(parkingType).toList
-      parkingZoneId <- parkingZoneIds
+      parkingType         <- parkingTypes
+      parkingZoneIds      <- parkingTypesSubtree.get(parkingType).toList
+      parkingZoneId       <- parkingZoneIds
       if parkingZones(parkingZoneId).stallsAvailable > 0
     } yield {
       // get the zone
@@ -138,14 +138,14 @@ object ParkingZoneSearch {
     * @return the parking alternative that will be used for parking this agent's vehicle
     */
   def takeBestBySampling(
-                          found: Iterable[ParkingAlternative],
-                          destinationUTM: Coord,
-                          parkingDuration: Int,
-                          valueOfTime: Double,
-                          utilityFunction: MultinomialLogit[ParkingAlternative, String],
-                          distanceFunction: (Coord, Coord) => Double,
-                          random: Random
-                        ): Option[ParkingSearchResult] = {
+    found: Iterable[ParkingAlternative],
+    destinationUTM: Coord,
+    parkingDuration: Int,
+    valueOfTime: Double,
+    utilityFunction: MultinomialLogit[ParkingAlternative, String],
+    distanceFunction: (Coord, Coord) => Double,
+    random: Random
+  ): Option[ParkingSearchResult] = {
 
     val alternatives: Iterable[(ParkingAlternative, Map[String, Double])] =
       found.map { parkingAlternative =>
@@ -160,19 +160,19 @@ object ParkingZoneSearch {
 
         val installedCapacity = parkingZone.chargingPointType match {
           case Some(chargingPoint) => ChargingPointType.getChargingPointInstalledPowerInKw(chargingPoint)
-          case None => 0
+          case None                => 0
         }
 
         val distance: Double = distanceFunction(destinationUTM, stallCoordinate)
         //val chargingCosts = (39 + random.nextInt((79 - 39) + 1)) / 100d // in $/kWh, assumed price range is $0.39 to $0.79 per kWh
 
         parkingAlternative ->
-          Map(
-            //"energyPriceFactor" -> chargingCosts, //currently assumed that these costs are included into parkingCostsPriceFactor
-            "distanceFactor" -> (distance / 1.4 / 3600.0) * valueOfTime, // in US$
-            "installedCapacity" -> (installedCapacity / 350) * (parkingDuration / 3600) * valueOfTime, // in US$ - assumption/untested parkingDuration in seconds
-            "parkingCostsPriceFactor" -> parkingTicket / 100 //in US$, assumptions for now: parking ticket costs include charging
-          )
+        Map(
+          //"energyPriceFactor" -> chargingCosts, //currently assumed that these costs are included into parkingCostsPriceFactor
+          "distanceFactor"          -> (distance / 1.4 / 3600.0) * valueOfTime, // in US$
+          "installedCapacity"       -> (installedCapacity / 350) * (parkingDuration / 3600) * valueOfTime, // in US$ - assumption/untested parkingDuration in seconds
+          "parkingCostsPriceFactor" -> parkingTicket / 100 //in US$, assumptions for now: parking ticket costs include charging
+        )
       }
 
     utilityFunction.sampleAlternative(alternatives.toMap, random).map { result =>
@@ -199,13 +199,13 @@ object ParkingZoneSearch {
     * @return the best parking option based on our cost function ranking evaluation
     */
   def takeBestByRanking(
-                         destinationUTM: Coord,
-                         valueOfTime: Double,
-                         parkingDuration: Double,
-                         found: Iterable[ParkingAlternative],
-                         chargingInquiry: Option[ChargingInquiry],
-                         distanceFunction: (Coord, Coord) => Double
-                       ): Option[ParkingSearchResult] = {
+    destinationUTM: Coord,
+    valueOfTime: Double,
+    parkingDuration: Double,
+    found: Iterable[ParkingAlternative],
+    chargingInquiry: Option[ChargingInquiry],
+    distanceFunction: (Coord, Coord) => Double
+  ): Option[ParkingSearchResult] = {
 
     found.foldLeft(Option.empty[ParkingSearchResult]) { (accOption, parkingAlternative) =>
       val (thisTAZ: TAZ, thisParkingType: ParkingType, thisParkingZone: ParkingZone, stallLocation: Coord) =
