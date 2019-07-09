@@ -63,7 +63,7 @@ object UberOsmNode {
   }
 }
 
-case class WaySpeed(speedMedian: Float, speedAvg: Float, maxDev: Float)
+case class WaySpeed(speedMedian: Option[Float], speedAvg: Option[Float], maxDev: Option[Float])
 
 case class BeamUberSpeed(
   osmId: Long,

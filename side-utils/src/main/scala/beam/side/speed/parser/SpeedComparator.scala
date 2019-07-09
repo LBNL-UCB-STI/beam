@@ -14,7 +14,7 @@ class SpeedComparator(ways: OsmWays, uber: UberSpeed[_], fileName: String) {
             .speed(n.id)
             .orElse(uber.way(n.orig, n.dest))
             .fold(BeamUberSpeed(n.id, n.speed, None, None, None))(
-              ws => BeamUberSpeed(n.id, n.speed, Some(ws.speedMedian), Some(ws.speedAvg), Some(ws.maxDev))
+              ws => BeamUberSpeed(n.id, n.speed, ws.speedMedian, ws.speedAvg, ws.maxDev)
           )
       )
 
