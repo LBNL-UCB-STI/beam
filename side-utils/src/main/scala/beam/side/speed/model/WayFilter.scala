@@ -10,9 +10,9 @@ sealed trait WayFilter[T <: FilterDTO, E] {
   def filter(filterOption: E, waySpeed: Map[DayOfWeek, UberDaySpeed]): WaySpeed
 
   protected def parseHours(hours: Seq[UberHourSpeed]): WaySpeed = {
-    val speedAvg = Try(hours.map(_.speedMedian).sum / hours.size).getOrElse(0f)
-    val devMax = Try(hours.map(_.maxDev).max).getOrElse(0f)
-    val speedMean = Option(hours.map(_.speedMedian).toArray).filter(_.nonEmpty).map(Median.findMedian).getOrElse(0f)
+    val speedAvg = Try(hours.map(_.speedMedian).sum / hours.size).toOption.filter(_ => hours.nonEmpty)
+    val devMax = Try(hours.map(_.maxDev).max).toOption
+    val speedMean = Option(hours.map(_.speedMedian).toArray).filter(_.nonEmpty).map(Median.findMedian)
     WaySpeed(speedMean, speedAvg, devMax)
   }
 }
