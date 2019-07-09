@@ -288,7 +288,7 @@ class BeamSim @Inject()(
     renameGeneratedOutputFiles(event)
 
     if (beamConfig.beam.outputs.writeGraphs) {
-      generateRepositioningGraphs(event)
+      // generateRepositioningGraphs(event)
     }
 
     logger.info("Ending Iteration")
