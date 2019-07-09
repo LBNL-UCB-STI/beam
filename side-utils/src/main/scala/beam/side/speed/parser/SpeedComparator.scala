@@ -1,13 +1,16 @@
 package beam.side.speed.parser
 import java.io.{BufferedWriter, File, FileWriter}
 
-import beam.side.speed.model.BeamUberSpeed
+import beam.side.speed.model.{BeamUberSpeed, OsmNodeSpeed}
+
+import scala.collection.SortedMap
+import scala.collection.immutable.TreeMap
 
 class SpeedComparator(ways: OsmWays, uber: UberSpeed[_], fileName: String) {
   import BeamUberSpeed._
 
-  private def nodeCompare: Iterator[BeamUberSpeed] =
-    ways.nodes
+  private def nodeCompare: Set[BeamUberSpeed] =
+    SortedMap[(Long, Boolean), OsmNodeSpeed](ways.nodes: _*)
       .map(
         n =>
           uber
@@ -18,7 +21,23 @@ class SpeedComparator(ways: OsmWays, uber: UberSpeed[_], fileName: String) {
           )
       )
 
-  private val csv: Iterator[BeamUberSpeed] => Unit = { s =>
+  def nodeParts(): Unit = {
+    val file = new File(fileName)
+    val bw = new BufferedWriter(new FileWriter(file))
+    ways.nodes
+      .map(n => n.id -> uber.wayParts(n.orig, n.dest))
+      .collect {
+        case (l, Some(s)) => l.toString -> s
+      }
+      .foreach { b =>
+        bw.newLine()
+        bw.write(b.productIterator.mkString(","))
+      }
+    bw.flush()
+    bw.close()
+  }
+
+  private val csv: Set[BeamUberSpeed] => Unit = { s =>
     val file = new File(fileName)
     val bw = new BufferedWriter(new FileWriter(file))
     bw.write("osmId,speedBeam,speedMedian,speedAvg,maxDev")

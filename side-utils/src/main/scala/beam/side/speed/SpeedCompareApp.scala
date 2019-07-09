@@ -1,13 +1,7 @@
 package beam.side.speed
 
 import java.nio.file.Paths
-import java.time.DayOfWeek
 
-import beam.side.speed.model.FilterEvent.AllHoursDaysEventAction.AllHoursDaysEventAction
-import beam.side.speed.model.FilterEvent.HourEventAction.HourEventAction
-import beam.side.speed.model.FilterEvent.HourRangeEventAction.HourRangeEventAction
-import beam.side.speed.model.FilterEvent.WeekDayEventAction.WeekDayEventAction
-import beam.side.speed.model.FilterEvent.WeekDayHourEventAction.WeekDayHourEventAction
 import beam.side.speed.parser._
 import beam.side.speed.parser.data.{JunctionDictionary, UberOsmDictionary}
 
@@ -91,7 +85,9 @@ trait AppSetup {
     opt[String]('m', "mode")
       .valueName("<mode_type>")
       .action((m, c) => c.copy(mode = m))
-      .validate(s => Seq("all", "wd", "hours", "wh", "hours_range").find(_ == s).map(_ => success).getOrElse(failure("Invalid")))
+      .validate(
+        s => Seq("all", "wd", "hours", "wh", "hours_range").find(_ == s).map(_ => success).getOrElse(failure("Invalid"))
+      )
       .text("Filtering action name")
 
     opt[String]('j', "junction")
@@ -122,7 +118,7 @@ object SpeedCompareApp extends App with AppSetup {
       val ways = UberOsmDictionary(conf.uberOsmMap)
       val uber = UberSpeed(conf.mode, conf.fArgs, conf.uberSpeedPath, ways, nodes)
 
-      SpeedComparator(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, conf.output).csvNode()
+      SpeedComparator(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, conf.output).nodeParts()
       System.exit(0)
     case None => System.exit(-1)
   }
