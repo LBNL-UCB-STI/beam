@@ -6,7 +6,31 @@ import org.matsim.api.core.v01.events.Event
 
 import scala.collection.mutable
 
-object EventsReader {
+object BeamEventsReader {
+
+  def fromFileFoldLeft[T](filePath: String, accumulator: T, foldLeft: (T, BeamEvent) => T): Option[T] = {
+    Console.println("started reading a file " + filePath + " for folding")
+
+    val extension = filePath.split('.').lastOption
+    val result = extension match {
+      case Some("xml") =>
+        Some(
+          EventReader
+            .fromXmlFile(filePath)
+            .foldLeft(accumulator)((acc, event) => {
+              BeamEventReader.read(event) match {
+                case Some(beamEvent) => foldLeft(acc, beamEvent)
+                case _               => acc
+              }
+            })
+        )
+      case Some("csv") => Some(fromCsvFold(filePath, accumulator, foldLeft))
+      case _           => None
+    }
+
+    Console.println("done")
+    result
+  }
 
   def fromFileWithFilter(filePath: String, mutableFilter: MutableSamplingFilter): Option[Traversable[BeamEvent]] = {
     Console.println("started reading a file " + filePath)
@@ -19,7 +43,7 @@ object EventsReader {
     }
 
     events match {
-      case Some(coll) => Console.println("read " + coll.size + " events")
+      case Some(coll) => Console.println(coll.size + " events read")
       case _          => Console.println("read nothing ...")
     }
 
@@ -51,5 +75,18 @@ object EventsReader {
     closable.close()
 
     sortedAndFilteredEvents
+  }
+
+  private def fromCsvFold[T](filePath: String, accumulator: T, foldLeft: (T, BeamEvent) => T): T = {
+    val (events, closable) = EventReader.fromCsvFile(filePath, _ => true)
+    val result = events.foldLeft(accumulator)((acc, event) => {
+      BeamEventReader.read(event) match {
+        case Some(beamEvent) => foldLeft(acc, beamEvent)
+        case _               => acc
+      }
+    })
+
+    closable.close()
+    result
   }
 }

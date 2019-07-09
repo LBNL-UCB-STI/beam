@@ -1,5 +1,6 @@
 package beam.utils.beamToVia
 
+import beam.utils.beamToVia.EventsTransformer.removePathDuplicates
 import beam.utils.beamToVia.beamEvent.{BeamEvent, BeamPersonEntersVehicle, BeamPersonLeavesVehicle}
 import beam.utils.beamToVia.viaEvent.ViaEvent
 
@@ -11,7 +12,7 @@ object TransformForPopulation {
   def transformAndWrite(config: RunConfig): Unit = {
     val populationFilter = MutablePopulationFilter(config.populationSampling)
 
-    val events = EventsReader
+    val events = BeamEventsReader
       .fromFileWithFilter(config.beamEventsPath, populationFilter)
       .getOrElse(Seq.empty[BeamEvent])
 
@@ -40,19 +41,22 @@ object TransformForPopulation {
     })
 
     Console.println(populationFilter.toString)
-    Console.println("got " + vehiclesIds.size + " interesting vehicles")
+    Console.println(vehiclesIds.size + " interesting vehicles")
 
-    val (viaEvents, typeToIdSeq) = EventsTransformer.transform(events, vehicleId => vehiclesIds.contains(vehicleId))
+    val (viaEventsWithDuplicates, typeToIdSeq) = EventsTransformer.transform(events, vehicleId => vehiclesIds.contains(vehicleId), config.vehicleIdPrefix)
+    Console.println(viaEventsWithDuplicates.size + " via events with possible duplicates")
 
-    Console.println("final via events count is " + viaEvents.size)
+    val viaEvents = removePathDuplicates(viaEventsWithDuplicates)
+    Console.println(viaEvents.size + " via events without duplicates")
 
     Writer.writeViaEvents(viaEvents, config.viaEventsPath)
     Writer.writeViaIdFile(typeToIdSeq, config.viaIdGoupsFilePath)
 
-    /*
-    val script = createFollowPersonScript(viaEvents, config)
-    Writer.writeSeqOfString(script, config.viaFollowPersonScriptPath)
-   */
+    if (config.buildTrackPersonScript) {
+      val script = createFollowPersonScript(viaEvents, config)
+      Writer.writeSeqOfString(script, config.viaFollowPersonScriptPath)
+      Console.println("follow person script written into " + config.viaFollowPersonScriptPath)
+    }
   }
 
   def createFollowPersonScript(events: Traversable[ViaEvent], config: RunConfig): Traversable[String] = {
@@ -77,7 +81,7 @@ object TransformForPopulation {
       case _                    => None
     }
 
-    val script = FollowActorScript.build(events, 3000, 3000, 10, getLinkStart, getLinkEnd)
+    val script = FollowActorScript.build(events, 2000, 2000, 200, getLinkStart, getLinkEnd)
 
     script
   }

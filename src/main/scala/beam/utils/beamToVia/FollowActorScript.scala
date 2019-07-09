@@ -49,38 +49,61 @@ object FollowActorScript {
         ViaScriptString("function minFrameY(y){return y - " + frameSizeY / 2 + "}"),
         ViaScriptString("function maxFrameX(x){return x + " + frameSizeX / 2 + "}"),
         ViaScriptString("function maxFrameY(y){return y + " + frameSizeY / 2 + "}"),
-        ViaScriptString("function calcSleepTime(time){return time * 1.0}"),
-        ViaScriptString("framesToFly = 50"),
+        ViaScriptString("function calcSleepTime(time){return time * 2.78}"),
+        ViaScriptString("framesToFly = 30"),
         ViaScriptString(""),
-        ViaScriptString("via.setTimeIncrement(0.1)"),
+        ViaScriptString("via.setTimeIncrement(10)"),
         ViaScriptString(""),
       )
 
     case class Frame(minX: Double, minY: Double, maxX: Double, maxY: Double) {
+      private val dX = (maxX - minX) / 4
+      private val dY = (maxY - minY) / 4
+
       def isWithin(x: Double, y: Double): Boolean = {
-        minX <= x && x <= maxX && minY <= y && y <= maxY
+        minX + dX <= x && x <= maxX - dY && minY + dY <= y && y <= maxY - dY
       }
     }
 
     case class ScriptAccumulator(
       script: mutable.MutableList[ViaScriptRow] = initScriptList,
       var lastTime: Option[Double] = None,
-      var frame: Option[Frame] = None
+      var frame: Option[Frame] = None,
+      var lastScriptRow: Option[ViaScriptRow] = None
     ) {
+      def addScript(viaScript: ViaScriptRow): Unit = {
+        (lastScriptRow, viaScript) match {
+          case (Some(waitTime1: ViaScriptWaitTime), waitTime2: ViaScriptWaitTime) =>
+            lastScriptRow = Some(ViaScriptWaitTime(waitTime1.time + waitTime2.time))
+          case (Some(scriptRow), newScript) =>
+            script += scriptRow
+            lastScriptRow = Some(newScript)
+          case (_, newScript) =>
+            lastScriptRow = Some(newScript)
+        }
+      }
+
+      def flush(): Unit = lastScriptRow match {
+        case Some(scriptRow) =>
+          script += scriptRow
+          script += ViaScriptString("via.setTimeIncrement(0)")
+
+          lastScriptRow = None
+        case _ =>
+      }
 
       def moveTo(nextTime: Double, nextCoordinate: Point): Unit = {
-        def setScriptTime(): Unit = {
-          script += ViaScriptSetTime(nextTime)
-          lastTime = Some(nextTime)
+        lastTime match {
+          case None =>
+            addScript(ViaScriptSetTime(nextTime))
+
+          case Some(prevTime) =>
+            val deltaTime = nextTime - prevTime
+            if (deltaTime >= deltaTimeAllowed) addScript(ViaScriptSetTime(nextTime))
+            else if (deltaTime >= 0.001) addScript(ViaScriptWaitTime(deltaTime))
         }
 
-        lastTime match {
-          case None                                                     => setScriptTime()
-          case Some(prevTime) if nextTime - prevTime > deltaTimeAllowed => setScriptTime()
-          case Some(prevTime) =>
-            script += ViaScriptWaitTime(nextTime - prevTime)
-            lastTime = Some(nextTime)
-        }
+        lastTime = Some(nextTime)
 
         def setFrame(): Unit = {
           val f = Frame(
@@ -92,7 +115,7 @@ object FollowActorScript {
 
           frame = Some(f)
 
-          script += ViaScriptFlyTo(f.minX, f.minY, f.maxX, f.maxY)
+          addScript(ViaScriptFlyTo(f.minX, f.minY, f.maxX, f.maxY))
         }
 
         frame match {
@@ -122,6 +145,7 @@ object FollowActorScript {
       acc
     })
 
+    accumulator.flush()
     accumulator.script.map(_.toStr)
   }
 }

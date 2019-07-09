@@ -97,7 +97,7 @@ object EventsTransformer {
     accumulator.limits
   }
 
-  def removePathDuplicates(events: mutable.MutableList[ViaEvent]): Traversable[ViaEvent] = {
+  def removePathDuplicates(events: Seq[ViaEvent]): Traversable[ViaEvent] = {
     /*
     duplicate example:
     1. <event time="19925.0" type="entered link"  vehicle="12" link="41"/>
@@ -171,12 +171,20 @@ object EventsTransformer {
 
   def transform(
     events: Traversable[BeamEvent],
-    vahicleIsInteresting: String => Boolean
-  ): (Traversable[ViaEvent], mutable.Map[String, mutable.HashSet[String]]) = {
+    vahicleIsInteresting: String => Boolean,
+    idPrefix: String
+  ): (Seq[ViaEvent], mutable.Map[String, mutable.HashSet[String]]) = {
+    def vehicleCategory(numberOfPassengers: Int): String = "_VC" + (numberOfPassengers / 5)
+    def vehiclePassengers(numberOfPassengers: Int): String = "_P%03d".format(numberOfPassengers)
+
     def timeLimitId(vehicleId: String, eventTime: Double): String = vehicleId + "_" + eventTime.toString
-    def vehicleType(pte: BeamPathTraversal): String =
-      pte.mode + "__" + pte.vehicleType + "__P" + "%03d".format(pte.numberOfPassengers)
-    def vehicleId(pte: BeamPathTraversal): String = vehicleType(pte) + "__" + pte.vehicleId
+    def vehicleType(pte: BeamPathTraversal): String = {
+      val vCat = vehicleCategory(pte.numberOfPassengers)
+      val vPas = vehiclePassengers(pte.numberOfPassengers)
+      pte.mode + "_" + pte.vehicleType + vPas + vCat
+    }
+
+    def vehicleId(pte: BeamPathTraversal): String = idPrefix + vehicleType(pte) + "__" + pte.vehicleId
 
     val timeLimits = calcTimeLimits(events, timeLimitId)
 
@@ -185,7 +193,8 @@ object EventsTransformer {
     val (viaLinkEvents, typeToIdsMap, _) = events
       .foldLeft(
         (
-          mutable.MutableList.empty[ViaEvent],
+          mutable.MutableList
+            .empty[ViaEvent], // mutable.PriorityQueue.empty[ViaEvent]((e1,e2) => e2.time.compare(e1.time)),
           mutable.Map.empty[String, mutable.HashSet[String]],
           mutable.Map.empty[String, LastVehiclePosition]
         )
@@ -227,8 +236,6 @@ object EventsTransformer {
           }
       }
 
-    Console.println("got " + viaLinkEvents.size + " via events with possible duplicates")
-
-    (removePathDuplicates(viaLinkEvents), typeToIdsMap)
+    (viaLinkEvents, typeToIdsMap)
   }
 }
