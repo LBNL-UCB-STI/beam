@@ -108,9 +108,13 @@ class ModeChoiceLCCM(
       /*
        * Evaluate and sample from classmembership, then sample from corresponding mode choice model
        */
+      val random = {
+        val seed = beamServices.beamConfig.matsim.modules.global.randomSeed
+        new Random(seed)
+      }
       val chosenClassOpt = lccm
         .classMembershipModels(tourType)
-        .sampleAlternative(classMembershipInputData, new Random())
+        .sampleAlternative(classMembershipInputData, random)
 
       chosenClassOpt match {
         case None =>

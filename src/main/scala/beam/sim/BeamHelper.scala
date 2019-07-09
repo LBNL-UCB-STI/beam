@@ -22,7 +22,7 @@ import beam.router.r5.{DefaultNetworkCoordinator, FrequencyAdjustingNetworkCoord
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
-import beam.sim.config.{BeamConfig, ConfigModule, MatSimBeamConfigBuilder}
+import beam.sim.config.{BeamConfig, BeamExecutionConfig, ConfigModule, MatSimBeamConfigBuilder}
 import beam.sim.metrics.Metrics._
 import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationAdjustment
@@ -232,13 +232,6 @@ trait BeamHelper extends LazyLogging {
     )
 
     val networkCoordinator = buildNetworkCoordinator(beamConfig)
-    val transitSchedule = new TransitInitializer(
-      beamConfig,
-      dates,
-      vehicleTypes,
-      networkCoordinator.transportNetwork,
-      BeamRouter.oneSecondTravelTime
-    ).initMap
 
     BeamScenario(
       readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
@@ -252,7 +245,6 @@ trait BeamHelper extends LazyLogging {
       dates,
       PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath),
       networkCoordinator.transportNetwork,
-      transitSchedule,
       networkCoordinator.network,
       TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath),
       ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath)
@@ -571,7 +563,7 @@ trait BeamHelper extends LazyLogging {
         val externalFolderExists: Boolean = Option(scenarioConfig.folder).exists(new File(_).isDirectory)
         if (externalFolderExists) {
           val beamScenario = loadScenario(beamConfig)
-          val emptyScenario = ScenarioBuilder(matsimConfig).withNetwork(beamScenario.network).build
+          val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
           val scenario = {
             val source = buildUrbansimScenarioSource(new GeoUtilsImpl(beamConfig), beamConfig)
             new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
@@ -584,13 +576,13 @@ trait BeamHelper extends LazyLogging {
         fileFormat match {
           case "csv" =>
             val beamScenario = loadScenario(beamConfig)
-            val emptyScenario = ScenarioBuilder(matsimConfig).withNetwork(beamScenario.network).build
             val scenario = {
               val source = new BeamScenarioSource(
-                scenarioFolder = scenarioConfig.folder,
+                beamConfig,
                 rdr = readers.BeamCsvScenarioReader
               )
-              new BeamScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
+              val scenarioBuilder = ScenarioBuilder(matsimConfig, beamScenario.network)
+              new BeamScenarioLoader(scenarioBuilder, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
             }.asInstanceOf[MutableScenario]
             (scenario, beamScenario)
           case "xml" =>
@@ -609,8 +601,6 @@ trait BeamHelper extends LazyLogging {
       }
     }
   }
-
-  case class BeamExecutionConfig(beamConfig: BeamConfig, matsimConfig: MatsimConfig, outputDirectory: String)
 
   def setupBeamWithConfig(
     config: TypesafeConfig

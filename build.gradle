@@ -112,7 +112,7 @@ allprojects {
 dependencies {
 
     compile(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.3') {
-        exclude group: 'com.github.michaz', module: 'r5'
+        exclude group: 'com.github.LBNL-UCB-STI', module: 'r5'
     }
     
     ////////////////////////////

@@ -30,15 +30,15 @@ import beam.router.Modes.BeamMode.{CAR, CAV, WALK, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
-import beam.sim.{BeamServices, Geofence}
 import beam.sim.population.AttributesOfIndividual
-import beam.sim.{BeamScenario, BeamServices}
+import beam.sim.{BeamScenario, BeamServices, Geofence}
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
+import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
 
 import scala.concurrent.duration._
@@ -334,6 +334,18 @@ class PersonAgent(
       nextActivity(data) match {
         case None =>
           logDebug(s"didn't get nextActivity")
+
+          // if we still have a BEV/PHEV that is connected to a charging point,
+          // we assume that they will charge until the end of the simulation and throwing events accordingly
+          beamVehicles.foreach(idVehicleOrTokenTuple => {
+            beamScenario.privateVehicles
+              .get(idVehicleOrTokenTuple._1)
+              .foreach(beamvehicle => {
+                if ((beamvehicle.isPHEV | beamvehicle.isBEV) & beamvehicle.isConnectedToChargingPoint()) {
+                  handleEndCharging(Time.parseTime(beamScenario.beamConfig.beam.agentsim.endTime).toInt, beamvehicle)
+                }
+              })
+          })
           stop replying CompletionNotice(triggerId)
         case Some(nextAct) =>
           logDebug(s"wants to go to ${nextAct.getType} @ $tick")
@@ -430,11 +442,11 @@ class PersonAgent(
 
   when(WaitingForReservationConfirmation) {
     // TRANSIT SUCCESS
-    case Event(ReservationResponse(_, Right(response), _), data: BasePersonData) =>
+    case Event(ReservationResponse(Right(response)), data: BasePersonData) =>
       handleSuccessfulReservation(response.triggersToSchedule, data)
     // TRANSIT FAILURE
     case Event(
-        ReservationResponse(_, Left(firstErrorResponse), _),
+        ReservationResponse(Left(firstErrorResponse)),
         data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _)
         ) =>
       logDebug(s"replanning because ${firstErrorResponse.errorCode}")
@@ -488,9 +500,9 @@ class PersonAgent(
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
       if (currentLeg.cost > 0.0) {
-        beamScenario.transitSchedule.get(Id.create(vehicleToEnter.toString, classOf[BeamVehicle])).foreach { trip =>
-          // If not in the transit schedule, it is not a transit but a ridehailing trip
-          eventsManager.processEvent(new AgencyRevenueEvent(tick, trip._1.agency_id, currentLeg.cost))
+        currentLeg.beamLeg.travelPath.transitStops.foreach { transitStopInfo =>
+          // If it doesn't have transitStopInfo, it is not a transit but a ridehailing trip
+          eventsManager.processEvent(new AgencyRevenueEvent(tick, transitStopInfo.agencyId, currentLeg.cost))
         }
         eventsManager.processEvent(
           new PersonCostEvent(
@@ -696,17 +708,14 @@ class PersonAgent(
         isWithinTripReplanning = true
       )
     // TRANSIT
-    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _, _))
+    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _))
         if nextLeg.beamLeg.mode.isTransit =>
-      val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(
-        leg => leg.beamVehicleId == nextLeg.beamVehicleId
-      )
-      val resRequest = ReservationRequest(
-        legSegment.head.beamLeg,
-        legSegment.last.beamLeg,
+      val resRequest = TransitReservationRequest(
+        nextLeg.beamLeg.travelPath.transitStops.get.fromIdx,
+        nextLeg.beamLeg.travelPath.transitStops.get.toIdx,
         PersonIdWithActorRef(id, self)
       )
-      TransitDriverAgent.selectByVehicleId(legSegment.head.beamVehicleId) ! resRequest
+      TransitDriverAgent.selectByVehicleId(nextLeg.beamVehicleId) ! resRequest
       goto(WaitingForReservationConfirmation)
     // RIDE_HAIL
     case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _, _))
@@ -1004,6 +1013,9 @@ class PersonAgent(
       stop(Failure("Unexpected RideHailResponse"))
     case Event(ParkingInquiryResponse(_, _), _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))
+    case Event(e, s) =>
+      log.warning("received unhandled request {} in state {}/{}", e, stateName, s)
+      stay()
   }
 
   whenUnhandled(drivingBehavior.orElse(myUnhandled))

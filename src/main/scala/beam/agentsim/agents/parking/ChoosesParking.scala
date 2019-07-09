@@ -6,14 +6,20 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{EndRefuelSessionTrigger, StartLegTrigger}
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule}
-import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
-import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
+import beam.agentsim.events.{
+  ChargingPlugInEvent,
+  ChargingPlugOutEvent,
+  LeavingParkingEvent,
+  RefuelSessionEvent,
+  SpaceTime
+}
+import beam.agentsim.infrastructure.charging.ChargingInquiry
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
@@ -22,10 +28,13 @@ import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.common.GeoUtils
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
-import scala.concurrent.duration.Duration
 
-import beam.agentsim.infrastructure.ParkingInquiry
+import scala.concurrent.duration.Duration
+import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, ParkingZoneSearch}
+import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.utils.ParkingManagerIdGenerator
+import org.matsim.api.core.v01.Coord
 
 /**
   * BEAM
@@ -57,11 +66,110 @@ trait ChoosesParking extends {
       }.getOrElse(0.0)
       val destinationUtm = beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc)
 
+      val beta1 = 1 // distance to walk to the destination
+      val beta2 = 0.001 // installed charging capacity
+      val beta3 = 4.5 // parking costs (currently include price for charging due to the lack of data)
+      //val beta4 = 1
+      val distanceBuffer = 25000 // in meter (the distance that should be considered as buffer for range estimation
+
+      val utilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
+        (currentBeamVehicle.beamVehicleType.primaryFuelType, currentBeamVehicle.beamVehicleType.secondaryFuelType) match {
+          case (Electricity, None) => { //BEV
+            //calculate the remaining driving distance in meters, reduced by 10% of the installed battery capacity as safety margin
+            val remainingDrivingDist = (beamScenario
+              .privateVehicles(personData.currentVehicle.head)
+              .primaryFuelLevelInJoules / currentBeamVehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter) - distanceBuffer
+
+            val remainingTourDist = nextActivity(personData) match {
+              case Some(nextAct) =>
+                val nextActIdx = currentTour(personData).tripIndexOfElement(nextAct)
+                currentTour(personData).trips
+                  .slice(nextActIdx, currentTour(personData).trips.length)
+                  .sliding(2, 1)
+                  .toList
+                  .foldLeft(0d) { (sum, pair) =>
+                    sum + Math
+                      .ceil(
+                        beamSkimmer
+                          .getTimeDistanceAndCost(
+                            pair.head.activity.getCoord,
+                            pair.last.activity.getCoord,
+                            0,
+                            CAR,
+                            currentBeamVehicle.beamVehicleType.id
+                          )
+                          .distance
+                      )
+                  }
+              case None =>
+                0 // if we don't have any more trips we don't need a chargingInquiry as we are @home again => assumption: charging @home always takes place
+            }
+
+            remainingTourDist match {
+              case 0 => new MultinomialLogit(Map.empty, Map.empty) //@home
+              // must -> walking distance doesn't matter as we really NEED TO CHARGE
+              case _ if remainingDrivingDist <= remainingTourDist =>
+                new MultinomialLogit(
+                  Map.empty,
+                  Map(
+                    //"energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
+                    "distanceFactor"          -> UtilityFunctionOperation("multiplier", 0),
+                    "installedCapacity"       -> UtilityFunctionOperation("multiplier", beta2),
+                    "parkingCostsPriceFactor" -> UtilityFunctionOperation("multiplier", -beta3),
+                  )
+                )
+              // opportunistic
+              case _ if remainingDrivingDist > remainingTourDist =>
+                new MultinomialLogit(
+                  Map.empty,
+                  Map(
+                    // "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
+                    "distanceFactor"          -> UtilityFunctionOperation("multiplier", -beta1),
+                    "installedCapacity"       -> UtilityFunctionOperation("multiplier", beta2),
+                    "parkingCostsPriceFactor" -> UtilityFunctionOperation("multiplier", -beta3),
+                  )
+                )
+            }
+          }
+          case (Electricity, Some(Gasoline)) => { // PHEV
+            new MultinomialLogit(
+              Map.empty,
+              Map(
+                //"energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
+                "distanceFactor"          -> UtilityFunctionOperation("multiplier", -beta1),
+                "installedCapacity"       -> UtilityFunctionOperation("multiplier", beta2),
+                "parkingCostsPriceFactor" -> UtilityFunctionOperation("multiplier", -beta3),
+              )
+            ) // PHEV is always opportunistic
+          }
+          case _ =>
+            // non BEV / PHEV, installed charging capacity doesn't matter
+            new MultinomialLogit(
+              Map.empty,
+              Map(
+                // "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
+                "distanceFactor"          -> UtilityFunctionOperation("multiplier", -beta1),
+                "installedCapacity"       -> UtilityFunctionOperation("multiplier", 0),
+                "parkingCostsPriceFactor" -> UtilityFunctionOperation("multiplier", -beta3),
+              )
+            )
+        }
+      //
+      //      val utilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
+      //        new MultinomialLogit(
+      //          Map.empty,
+      //          Map(
+      //            "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
+      //            "distanceFactor" -> UtilityFunctionOperation("multiplier", -beta2),
+      //            "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
+      //          )
+      //        )
+
       parkingManager ! ParkingInquiry(
         destinationUtm,
         nextActivity(personData).get.getType,
         attributes.valueOfTime,
-        None, // future charging inquiry will be applied here
+        utilityFunction,
         parkingDuration
       )
   }
@@ -75,6 +183,11 @@ trait ChoosesParking extends {
         val theVehicle = currentBeamVehicle
         throw new RuntimeException(log.format("My vehicle {} is not parked.", currentBeamVehicle.id))
       }
+
+      if (currentBeamVehicle.isConnectedToChargingPoint()) {
+        handleEndCharging(tick, currentBeamVehicle)
+      }
+
       parkingManager ! ReleaseParkingStall(stall.parkingZoneId)
       val nextLeg = data.passengerSchedule.schedule.head._1
       val distance = beamServices.geo.distUTMInMeters(stall.locationUTM, nextLeg.travelPath.endPoint.loc)
@@ -172,7 +285,6 @@ trait ChoosesParking extends {
         } yield (vehicle2StallResponse, stall2DestinationResponse)
 
         responses pipeTo self
-
         stay using data
       }
     case Event(
@@ -258,4 +370,45 @@ trait ChoosesParking extends {
     energyCharge: Double,
     valueOfTime: Double
   ): Double = -cost - energyCharge
+
+  /**
+    * Calculates the duration of the refuel session, the provided energy and throws corresponding events
+    *
+    * @param currentTick
+    * @param vehicle
+    */
+  def handleEndCharging(currentTick: Int, vehicle: BeamVehicle) = {
+
+    val (chargingDuration, energyInJoules) =
+      vehicle.refuelingSessionDurationAndEnergyInJoules(Some(currentTick - vehicle.getChargerConnectedTick()))
+
+    log.debug("Ending refuel session for {} in tick {}. Provided {} J.", vehicle.id, currentTick, energyInJoules)
+    vehicle.addFuel(energyInJoules)
+    eventsManager.processEvent(
+      new RefuelSessionEvent(
+        currentTick,
+        vehicle.stall.get.copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
+        energyInJoules,
+        chargingDuration,
+        vehicle.id
+      )
+    )
+
+    vehicle.disconnectFromChargingPoint()
+    eventsManager.processEvent(
+      new ChargingPlugOutEvent(
+        currentTick,
+        vehicle.stall.get
+          .copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
+        vehicle.id
+      )
+    )
+    log.debug(
+      "Vehicle {} disconnected from charger @ stall {}",
+      vehicle.id,
+      vehicle.stall.get
+    )
+
+  }
+
 }

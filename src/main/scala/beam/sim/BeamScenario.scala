@@ -5,15 +5,13 @@ import beam.agentsim.agents.vehicles.FuelType.FuelTypePrices
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleEnergy}
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.Modes.BeamMode
-import beam.router.model.BeamLeg
 import beam.sim.config.BeamConfig
 import beam.utils.DateUtils
-import com.conveyal.r5.transit.{RouteInfo, TransportNetwork}
+import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Network
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.mutable.ArrayBuffer
 
 /**
   * This holds together a couple of containers of simulation data, all of which are immutable.
@@ -39,7 +37,6 @@ case class BeamScenario(
   dates: DateUtils,
   ptFares: PtFares,
   transportNetwork: TransportNetwork,
-  transitSchedule: Map[Id[BeamVehicle], (RouteInfo, ArrayBuffer[BeamLeg])],
   network: Network,
   tazTreeMap: TAZTreeMap,
   modeIncentives: ModeIncentive
