@@ -47,6 +47,7 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
   }
 
   private def compressedLocation(description: String, fileName: String): String = {
+    println(s"@@@@@@@@@@@@@@ compressedLocation called. fileName[$fileName]")
     getWarmStartFilePath(fileName) match {
       case Some(compressedFileFullPath) =>
         logger.info(s"**** warmStartFile method fileName:[$fileName]. compressedFile:[$compressedFileFullPath]")
@@ -277,6 +278,12 @@ object BeamWarmStart extends LazyLogging {
         val newSkimsFilePath = Try(instance.compressedLocation("Skims file", "skims.csv.gz")).getOrElse("")
         val newSkimPlusFilePath = Try(instance.compressedLocation("Skim plus", "skimsPlus.csv.gz")).getOrElse("")
         val newRouteHistoryFilePath = Try(instance.compressedLocation("Route history", "routeHistory.csv.gz")).getOrElse("")
+
+
+        logger.warn(s"@@@@@@@@@@@@@@@@@@@@@@ newSkimsFilePath file: [$newSkimsFilePath]")
+        logger.warn(s"@@@@@@@@@@@@@@@@@@@@@@ newSkimPlusFilePath file: [$newSkimPlusFilePath]")
+        logger.warn(s"@@@@@@@@@@@@@@@@@@@@@@ routeHistory file: [$newRouteHistoryFilePath]")
+
         beamConfig.beam.warmStart.copy(
           skimsFilePath = newSkimsFilePath,
           skimsPlusFilePath = newSkimPlusFilePath,
