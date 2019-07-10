@@ -61,8 +61,8 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
     }
   }
 
-  private def notCompressedLocation(description: String, fileName: String): String = {
-    getWarmStartFilePath(fileName) match {
+  private def notCompressedLocation(description: String, fileName: String, rootFirst: Boolean): String = {
+    getWarmStartFilePath(fileName, rootFirst) match {
       case Some(fileFullPath) if Files.isRegularFile(Paths.get(fileFullPath)) =>
         logger.info(s"**** warmStartFile method fileName:[$fileName]. notCompressedFile:[$fileFullPath]")
         fileFullPath
@@ -244,15 +244,15 @@ object BeamWarmStart extends LazyLogging {
 
       val populationAttributesXml = instance.compressedLocation("Person attributes", "outputPersonAttributes.xml.gz")
       matsimConfig.plans().setInputPersonAttributeFile(populationAttributesXml)
-      val populationAttributesCsv = instance.notCompressedLocation("Person attributes", "population.csv")
+      val populationAttributesCsv = instance.notCompressedLocation("Person attributes", "population.csv", true)
 
       val plansXml = instance.compressedLocation("Plans", "plans.xml.gz")
       matsimConfig.plans().setInputFile(plansXml)
-      val plansCsv = instance.notCompressedLocation("Plans", "plans.csv")
+      val plansCsv = instance.notCompressedLocation("Plans", "plans.csv", false)
 
-      val houseHoldsCsv = instance.notCompressedLocation("Households", "households.csv")
+      val houseHoldsCsv = instance.notCompressedLocation("Households", "households.csv", true)
 
-      val vehiclesCsv = instance.notCompressedLocation("Households", "vehicles.csv")
+      val vehiclesCsv = instance.notCompressedLocation("Households", "vehicles.csv", true)
 
       val newConfigAgents = {
         val newPlans = {
