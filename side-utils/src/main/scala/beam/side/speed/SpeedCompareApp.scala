@@ -2,6 +2,7 @@ package beam.side.speed
 
 import java.nio.file.Paths
 
+import beam.side.speed.compare.SpeedAnalyser
 import beam.side.speed.parser._
 import beam.side.speed.parser.data.{JunctionDictionary, UberOsmDictionary}
 
@@ -118,7 +119,8 @@ object SpeedCompareApp extends App with AppSetup {
       val ways = UberOsmDictionary(conf.uberOsmMap)
       val uber = UberSpeed(conf.mode, conf.fArgs, conf.uberSpeedPath, ways, nodes)
 
-      SpeedComparator(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, conf.output).nodeParts()
+      //SpeedComparator(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, conf.output).csvNode()
+      SpeedAnalyser(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, conf.output).nodePartsSpeed()
       System.exit(0)
     case None => System.exit(-1)
   }
