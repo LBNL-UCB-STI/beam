@@ -33,7 +33,7 @@ object VehiclesAdjustment {
 
   def getVehicleAdjustment(beamScenario: BeamScenario): VehiclesAdjustment = {
 
-    new UniformVehiclesAdjustment(beamScenario)
+    new IncomeBasedVehiclesAdjustment(beamScenario)
   }
 
 }
