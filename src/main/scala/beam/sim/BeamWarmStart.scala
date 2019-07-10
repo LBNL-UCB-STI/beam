@@ -256,7 +256,8 @@ object BeamWarmStart extends LazyLogging {
 
       val newConfigAgents = {
         val newPlans = {
-          configAgents.plans.copy(inputPersonAttributesFilePath = populationAttributesCsv, inputPlansFilePath = plansCsv)
+          configAgents.plans
+            .copy(inputPersonAttributesFilePath = populationAttributesCsv, inputPlansFilePath = plansCsv)
         }
 
         val newHouseHolds = configAgents.households.copy(inputFilePath = houseHoldsCsv)
@@ -266,19 +267,18 @@ object BeamWarmStart extends LazyLogging {
         configAgents.copy(plans = newPlans, households = newHouseHolds, vehicles = newVehicles)
       }
 
-
       val newAgentSim = beamConfig.beam.agentsim.copy(agents = newConfigAgents)
 
       val newExchange = {
-        val newExchangeScenario = beamConfig.beam.exchange.scenario.copy(source = "Beam", fileFormat="csv")
+        val newExchangeScenario = beamConfig.beam.exchange.scenario.copy(source = "Beam", fileFormat = "csv")
         beamConfig.beam.exchange.copy(scenario = newExchangeScenario)
       }
 
       val newWarmstart = {
         val newSkimsFilePath = Try(instance.compressedLocation("Skims file", "skims.csv.gz")).getOrElse("")
         val newSkimPlusFilePath = Try(instance.compressedLocation("Skim plus", "skimsPlus.csv.gz")).getOrElse("")
-        val newRouteHistoryFilePath = Try(instance.compressedLocation("Route history", "routeHistory.csv.gz")).getOrElse("")
-
+        val newRouteHistoryFilePath =
+          Try(instance.compressedLocation("Route history", "routeHistory.csv.gz")).getOrElse("")
 
         logger.warn(s"@@@@@@@@@@@@@@@@@@@@@@ newSkimsFilePath file: [$newSkimsFilePath]")
         logger.warn(s"@@@@@@@@@@@@@@@@@@@@@@ newSkimPlusFilePath file: [$newSkimPlusFilePath]")
@@ -291,12 +291,8 @@ object BeamWarmStart extends LazyLogging {
         )
       }
 
-
       val newBeam = beamConfig.beam.copy(agentsim = newAgentSim, exchange = newExchange, warmStart = newWarmstart)
       val newBeamConfig = beamConfig.copy(beam = newBeam)
-
-
-
 
       beamExecutionConfig.copy(beamConfig = newBeamConfig)
     } else {
