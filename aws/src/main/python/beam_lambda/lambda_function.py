@@ -16,9 +16,15 @@ S3_PUBLISH_SCRIPT = '''
   -    sleep 10s
   -    opth="output"
   -    echo $opth
-  -    for file in glob.iglob($opth/*); do sudo cp /var/log/cloud-init-output.log "$file" && sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
-  -    for file in glob.iglob($opth/*.zip); do s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/$(os.path.basename($file))"; done;
-  -    sudo aws --region "$S3_REGION" s3 cp $opth/*.zip s3://beam-outputs/'''
+  -    finalPath=""
+  -    for file in $opth/*; do
+  -       for path2 in $file/*; do
+  -         finalPath="$path2";
+  -       done;
+  -    done;
+  -    sudo cp /var/log/cloud-init-output.log "$finalPath"
+  -    sudo aws --region "$S3_REGION" s3 cp "$finalPath" s3://beam-outputs/"$finalPath" --recursive;
+  -    s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#$finalPath"'''
 
 END_SCRIPT_DEFAULT = '''echo "End script not provided."'''
 
@@ -41,31 +47,42 @@ EXPERIMENT_DEFAULT = 'test/input/beamville/calibration/experiments.yml'
 CONFIG_DEFAULT = 'production/application-sfbay/base.conf'
 
 SLACK_HOOK_WITH_TOKEN = 'REPLACE_WITH_REAL_SLACK_HOOK' 
-# Akin to https://hooks.slack.com/services/APP_ID/APP_TOKEN
+#Or use environment variable
 
-initscript = (('''#cloud-config
+initscript = (('''
+#cloud-config
+write_files:
+    - content: |
+          #!/bin/bash
+          data="{\\"text\\":\\""
+          data+=$1
+          data+="\\"}"
+          printf "%s" "$data" > /tmp/slack.json
+          curl -X POST -H 'Content-type: application/json' --data-binary @/tmp/slack.json SLACK_HOOK_WITH_TOKEN
+      path: /tmp/slack.sh
+    - content: |
+          0 * * * * curl -X POST -H "Content-type: application/json" --data '"'"'{"$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running... \\n Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."}'"'"
+      path: /tmp/slack_notification
 runcmd:
   - echo "-------------------Starting Beam Sim----------------------"
   - echo $(date +%s) > /tmp/.starttime
   - cd /home/ubuntu/git/beam
+  - rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat
   - ln -sf /var/log/cloud-init-output.log ./cloud-init-output.log
-  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Started" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT"
-  - curl -X POST -H 'Content-type: application/json' --data '{"text":"Run Started \\n Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT"}' SLACK_HOOK_WITH_TOKEN
+  - hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
+  - chmod +x /tmp/slack.sh
   - echo "notification sent..."
-  - echo '0 * * * * /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running..." -b "Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."' > /tmp/glip_notification
-  - echo '0 * * * * curl -X POST -H "Content-type: application/json" --data '"'"'{"$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running... \\n Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."}'"'"'' > /tmp/slack_notification
   - echo "notification saved..."
-  - crontab /tmp/glip_notification
   - crontab /tmp/slack_notification
   - crontab -l
   - echo "notification scheduled..."
   - git fetch
   - echo "git checkout ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH
-  - echo "git checkout -qf ..."
-  - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
   - sudo git pull
   - sudo git lfs pull
+  - echo "git checkout -qf ..."
+  - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
   - echo "gradlew assemble ..."
   - ./gradlew assemble
   - echo "looping config ..."
@@ -73,6 +90,8 @@ runcmd:
   - export SIGOPT_CLIENT_ID="$SIGOPT_CLIENT_ID"
   - export SIGOPT_DEV_ID="$SIGOPT_DEV_ID"
   - echo $MAXRAM
+  - /tmp/slack.sh "$hello_msg"
+  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Started" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT"
   - s3p=""
   - for cf in $CONFIG
   -  do
@@ -84,8 +103,10 @@ runcmd:
   - then
   -   s3glip="\\n S3 output url ${s3p#","}"
   - fi
+  - bye_msg=$(printf "Run Completed \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT %s \\n Shutdown in $SHUTDOWN_WAIT minutes" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "$s3glip")
+  - echo "$bye_msg"
+  - /tmp/slack.sh "$bye_msg"
   - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Completed" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT $s3glip \\n Shutdown in $SHUTDOWN_WAIT minutes"
-  - curl -X POST -H 'Content-type: application/json' --data '{"text":"Run Completed \\n Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT $s3glip \\n Shutdown in $SHUTDOWN_WAIT minutes"}' SLACK_HOOK_WITH_TOKEN
   - $END_SCRIPT
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''))
@@ -112,7 +133,6 @@ instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't
                   'r5.large', 'r5.xlarge', 'r5.2xlarge', 'r5.4xlarge', 'r5.12xlarge', 'r5.24xlarge',
                   'r5d.large', 'r5d.xlarge', 'r5d.2xlarge', 'r5d.4xlarge', 'r5d.12xlarge', 'r5d.24xlarge',
                   'm5d.large', 'm5d.xlarge', 'm5d.2xlarge', 'm5d.4xlarge', 'm5d.12xlarge', 'm5d.24xlarge',
-                  'm5a.24xlarge',
                   'z1d.large', 'z1d.xlarge', 'z1d.2xlarge', 'z1d.3xlarge', 'z1d.6xlarge', 'z1d.12xlarge']
 
 regions = ['us-east-1', 'us-east-2', 'us-west-2']
@@ -237,7 +257,7 @@ def deploy_handler(event):
     if shutdown_behaviour not in shutdown_behaviours:
         shutdown_behaviour = os.environ['SHUTDOWN_BEHAVIOUR']
 
-    if volume_size < 64 or volume_size > 512:
+    if volume_size < 64 or volume_size > 256:
         volume_size = 64
 
     selected_script = CONFIG_SCRIPT
