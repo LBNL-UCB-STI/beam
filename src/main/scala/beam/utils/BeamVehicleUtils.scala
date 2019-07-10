@@ -79,6 +79,7 @@ object BeamVehicleUtils {
         val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
         val sampleProbabilityWithinCategory =
           Option(line.get("sampleProbabilityWithinCategory")).map(_.toDouble).getOrElse(1.0)
+        val sampleProbabilityString = Option(line.get("sampleProbabilityString"))
 
         val bvt = BeamVehicleType(
           vehicleTypeId,
@@ -101,7 +102,8 @@ object BeamVehicleUtils {
           vehicleCategory,
           primaryVehicleEnergyFile,
           secondaryVehicleEnergyFile,
-          sampleProbabilityWithinCategory
+          sampleProbabilityWithinCategory,
+          sampleProbabilityString
         )
         z += ((vehicleTypeId, bvt))
     }.toMap
