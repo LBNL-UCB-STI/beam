@@ -18,7 +18,7 @@ case class UniformVehiclesAdjustment(beamScenario: BeamScenario) extends Vehicle
 //        )
 //  }
 
-  private val vehicleTypesAndProbabilityByCategoryAndGroup =  scala.collection.mutable.Map[(VehicleCategory, String),Array[(BeamVehicleType, Double)]]()
+  private val vehicleTypesAndProbabilityByCategoryAndGroup = scala.collection.mutable.Map[(VehicleCategory, String),Array[(BeamVehicleType, Double)]]()
   beamScenario.vehicleTypes.values.groupBy(x => x.vehicleCategory).map {
     case (cat, vehTypes) =>
       val submap = getCategoryAndGroup(cat, vehTypes.toArray)
@@ -48,15 +48,24 @@ case class UniformVehiclesAdjustment(beamScenario: BeamScenario) extends Vehicle
     householdSize: Int,
     householdPopulation: Population,
     householdLocation: Coord,
-    realDistribution: UniformRealDistribution
+    realDistribution: UniformRealDistribution,
   ): List[BeamVehicleType] = {
-    val vehTypeWithProbability = vehicleTypesAndProbabilitiesByCategory(vehicleCategory, "Usage Not Set")
+    val categoryAndGroup = getHouseholdIncomeGroup(householdIncome)
+    val vehTypeWithProbability = vehicleTypesAndProbabilityByCategoryAndGroup(categoryAndGroup)
     (1 to numVehicles).map { _ =>
       val newRand = realDistribution.sample()
       val (vehType, _) = vehTypeWithProbability.find { case (_, prob) => prob >= newRand }.get
       vehType
     }.toList
   }
+
+  private def getHouseholdIncomeGroup(
+    householdIncome: Double
+                                     ): (VehicleCategory, String) = {
+    println(householdIncome)
+    (beam.agentsim.agents.vehicles.VehicleCategory.Car, "LowIncome")
+  }
+
 
   def getCategoryAndGroup(category: VehicleCategory, vehTypes: Array[BeamVehicleType]): scala.collection.mutable.Map[(VehicleCategory, String),Array[(BeamVehicleType, Double)]] = {
     var groupIDs = scala.collection.mutable.Map[(VehicleCategory, String), Array[(BeamVehicleType, Double)]]()
@@ -79,19 +88,8 @@ case class UniformVehiclesAdjustment(beamScenario: BeamScenario) extends Vehicle
           groupIDs += (groupID -> vehicleTypes.zip(cumulativeProbabilities).toArray)
       }
     }
-    return groupIDs
+    groupIDs
   }
-
-
-//    inputString.split(";").map(_.split(":")).map(a =>
-//      if (a.length == 2) {
-//        numCases += 1
-//        numCases -> a(0)
-//      } else {
-//        0 -> "All"
-//      }
-//    ).toMap
-//  }
 
   override def sampleRideHailVehicleTypes(
     numVehicles: Int,
