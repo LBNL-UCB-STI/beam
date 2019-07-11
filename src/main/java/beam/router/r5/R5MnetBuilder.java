@@ -1,6 +1,7 @@
 package beam.router.r5;
 
 import beam.sim.config.BeamConfig;
+import beam.utils.osm.WayFixer$;
 import com.conveyal.osmlib.OSM;
 import com.conveyal.osmlib.Way;
 import com.conveyal.r5.streets.EdgeStore;
@@ -56,18 +57,21 @@ public class R5MnetBuilder {
 
     public void buildMNet() {
         // Load the OSM file for retrieving the number of lanes, which is not stored in the R5 network
-//        OSM osm = new OSM(osmFile);
         Map<Long, Way> ways = new OSM(osmFile).ways;
+        WayFixer$.MODULE$.fix(ways);
+
         EdgeStore.Edge cursor = r5Network.streetLayer.edgeStore.getCursor();  // Iterator of edges in R5 network
         OsmToMATSim OTM = new OsmToMATSim(mNetwork, true);
+
+        int numberOfFixes = 0;
+        HashMap<String, Integer> highwayTypeToCounts = new HashMap<>();
+
         while (cursor.advance()) {
 //            log.debug("Edge Index:{}. Cursor {}.", cursor.getEdgeIndex(), cursor);
             // TODO - eventually, we should pass each R5 link to OsmToMATSim and do the two-way handling there.
             // Check if we have already seen this OSM way. Skip if we have.
             Integer edgeIndex = cursor.getEdgeIndex();
-
             Long osmID = cursor.getOSMID();  // id of edge in the OSM db
-
             Way way = ways.get(osmID);
 
             Set<Integer> deezNodes = new HashSet<>(2);
@@ -76,7 +80,10 @@ public class R5MnetBuilder {
 
             final Set<String> flagStrings = new HashSet<>();
             for (EdgeStore.EdgeFlag eF : cursor.getFlags()) {
-                flagStrings.add(flagToString(eF));
+                String flagString = flagToString(eF);
+                if(!flagString.isEmpty()){
+                    flagStrings.add(flagToString(eF));
+                }
             }
 
             //TODO - length needs to be transformed to output CRS. It is important that we calculate the length here
@@ -93,16 +100,28 @@ public class R5MnetBuilder {
             // Grab existing nodes from mNetwork if they already exist, else make new ones and add to mNetwork
             Node fromNode = getOrMakeNode(fromCoord);
             Node toNode = getOrMakeNode(toCoord);
+            Link link = null;
             if (way == null) {
                 // Made up numbers, this is a PT to road network connector or something
-                Link link = buildLink(edgeIndex, flagStrings, length, fromNode, toNode);
+                link = buildLink(edgeIndex, flagStrings, length, fromNode, toNode);
                 mNetwork.addLink(link);
                 log.debug("Created special link: {}", link);
             } else {
-                Link link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, (HashSet<String>)flagStrings);
+                link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, (HashSet<String>)flagStrings);
                 mNetwork.addLink(link);
                 log.debug("Created regular link: {}", link);
             }
+            if (fromNode.getId() == toNode.getId()) {
+                cursor.setLengthMm(1);
+                cursor.setSpeed((short)2905); // 65 miles per hour
+                link.setLength(0.001);
+                link.setCapacity(10000);
+                link.setFreespeed(29.0576);   // 65 miles per hour
+                numberOfFixes += 1;
+            }
+        }
+        if (numberOfFixes > 0) {
+            log.warn("Fixed {} links which were having the same `fromNode` and `toNode`", numberOfFixes);
         }
     }
 
@@ -155,13 +174,36 @@ public class R5MnetBuilder {
         String out = null;
         switch (flag) {
             case ALLOWS_PEDESTRIAN:
+            case ALLOWS_WHEELCHAIR:
+            case LIMITED_WHEELCHAIR:
+            case STAIRS:
+            case CROSSING:
+            case PLATFORM:
+            case SIDEWALK:
+            case ELEVATOR:
                 out = "walk";
                 break;
             case ALLOWS_BIKE:
+            case BIKE_LTS_1:
+            case BIKE_LTS_2:
+            case BIKE_LTS_3:
+            case BIKE_LTS_4:
+            case BIKE_PATH:
                 out = "bike";
                 break;
             case ALLOWS_CAR:
+            case ROUNDABOUT:
                 out = "car";
+                break;
+            case LINK:
+            case LINKABLE:
+            case BOGUS_NAME:
+            case SLOPE_OVERRIDE:
+            case NO_THRU_TRAFFIC:
+            case NO_THRU_TRAFFIC_CAR:
+            case NO_THRU_TRAFFIC_BIKE:
+            case NO_THRU_TRAFFIC_PEDESTRIAN:
+                out = "";
                 break;
         }
         return out;

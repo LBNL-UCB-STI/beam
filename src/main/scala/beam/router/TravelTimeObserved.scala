@@ -3,14 +3,13 @@ import java.awt.geom.Ellipse2D
 import java.awt.{BasicStroke, Color}
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.infrastructure.TAZTreeMap
-import beam.agentsim.infrastructure.TAZTreeMap.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.CAR
-import beam.sim.BeamServices
+import beam.router.Modes.BeamMode.{CAR, WALK}
+import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
-import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, GeoJsonReader, ProfilingUtils}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -32,11 +31,14 @@ import org.supercsv.prefs.CsvPreference
 import scala.collection.mutable
 
 class TravelTimeObserved @Inject()(
-  val beamConfig: BeamConfig,
-  val beamServices: BeamServices,
-  val skimmer: BeamSkimmer
+  val beamScenario: BeamScenario,
+  val geo: GeoUtils
 ) extends LazyLogging {
   import TravelTimeObserved._
+  import beamScenario._
+
+  @volatile
+  private var skimmer: BeamSkimmer = new BeamSkimmer(beamScenario, geo)
 
   private val observedTravelTimesOpt: Option[Map[PathCache, Float]] = {
     val zoneBoundariesFilePath = beamConfig.beam.calibration.roadNetwork.travelTimes.zoneBoundariesFilePath
@@ -45,8 +47,8 @@ class TravelTimeObserved @Inject()(
     if (zoneBoundariesFilePath.nonEmpty && zoneODTravelTimesFilePath.nonEmpty) {
       val tazToMovId: Map[TAZ, Int] = buildTAZ2MovementId(
         zoneBoundariesFilePath,
-        beamServices.geo,
-        beamServices.tazTreeMap
+        geo,
+        tazTreeMap
       )
       val movId2Taz: Map[Int, TAZ] = tazToMovId.map { case (k, v) => v -> k }
       Some(buildPathCache2TravelTime(zoneODTravelTimesFilePath, movId2Taz))
@@ -58,6 +60,47 @@ class TravelTimeObserved @Inject()(
   val uniqueTimeBins: Range.Inclusive = 0 to 23
 
   val dummyId: Id[BeamVehicleType] = Id.create("NA", classOf[BeamVehicleType])
+
+  def observeTrip(
+    trip: EmbodiedBeamTrip,
+    generalizedTimeInHours: Double,
+    generalizedCost: Double,
+    energyConsumption: Double
+  ): Unit = {
+    val legs = trip.legs.filter(x => x.beamLeg.mode == BeamMode.CAR || x.beamLeg.mode == BeamMode.CAV)
+    legs.foreach { carLeg =>
+      val dummyHead = EmbodiedBeamLeg.dummyLegAt(
+        carLeg.beamLeg.startTime,
+        Id.createVehicleId(""),
+        isLastLeg = false,
+        carLeg.beamLeg.travelPath.startPoint.loc,
+        WALK,
+        dummyId
+      )
+
+      val dummyTail = EmbodiedBeamLeg.dummyLegAt(
+        carLeg.beamLeg.endTime,
+        Id.createVehicleId(""),
+        isLastLeg = true,
+        carLeg.beamLeg.travelPath.endPoint.loc,
+        WALK,
+        dummyId
+      )
+      // In case of `CAV` we have to override its mode to `CAR`
+      val fixedCarLeg = if (carLeg.beamLeg.mode == BeamMode.CAV) {
+        carLeg.copy(beamLeg = carLeg.beamLeg.copy(mode = BeamMode.CAR))
+      } else {
+        carLeg
+      }
+      val carTrip = EmbodiedBeamTrip(Vector(dummyHead, fixedCarLeg, dummyTail))
+      skimmer.observeTrip(carTrip, generalizedTimeInHours, generalizedCost, energyConsumption)
+    }
+  }
+
+  def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    writeTravelTimeObservedVsSimulated(event)
+    skimmer = new BeamSkimmer(beamScenario, geo)
+  }
 
   def writeTravelTimeObservedVsSimulated(event: IterationEndsEvent): Unit = {
     observedTravelTimesOpt.foreach { observedTravelTimes =>
@@ -83,9 +126,9 @@ class TravelTimeObserved @Inject()(
     val categoryDataset = new HistogramDataset()
     var deltasOfObservedSimulatedTimes = new mutable.ListBuffer[Double]
 
-    beamServices.tazTreeMap.getTAZs
+    tazTreeMap.getTAZs
       .foreach { origin =>
-        beamServices.tazTreeMap.getTAZs.foreach { destination =>
+        tazTreeMap.getTAZs.foreach { destination =>
           uniqueModes.foreach { mode =>
             uniqueTimeBins
               .foreach { timeBin =>
@@ -127,6 +170,8 @@ object TravelTimeObserved extends LazyLogging {
   val histogramName: String = "simulation_vs_reference_histogram.png"
   val histogramBinSize: Int = 200
 
+  val MaxDistanceFromBeamTaz: Double = 500.0 // 500 meters
+
   case class PathCache(from: Id[TAZ], to: Id[TAZ], hod: Int)
 
   def buildTAZ2MovementId(filePath: String, geo: GeoUtils, tazTreeMap: TAZTreeMap): Map[TAZ, Int] = {
@@ -141,17 +186,17 @@ object TravelTimeObserved extends LazyLogging {
         (taz, movId, distance)
       }
       val xs: Array[(TAZ, Int, Double)] = GeoJsonReader.read(filePath, mapper)
-      val tazId2MovIdByMinDistance = xs
+      val filterByMaxDistance = xs.filter { case (taz, movId, distance) => distance <= MaxDistanceFromBeamTaz }
+      val tazId2MovIdByMinDistance = filterByMaxDistance
         .groupBy { case (taz, _, _) => taz }
         .map {
           case (taz, arr) =>
             val (_, movId, _) = arr.minBy { case (_, _, distance) => distance }
             (taz, movId)
         }
-      val end = System.currentTimeMillis()
-      val numOfUniqueMovId = xs.map(_._2).distinct.size
+      val numOfUniqueMovId = tazId2MovIdByMinDistance.values.toSet.size
       logger.info(
-        s"xs size is ${xs.size}. tazId2MovIdByMinDistance size is ${tazId2MovIdByMinDistance.keys.size}. numOfUniqueMovId: $numOfUniqueMovId"
+        s"xs size is ${xs.length}. tazId2MovIdByMinDistance size is ${tazId2MovIdByMinDistance.keys.size}. numOfUniqueMovId: $numOfUniqueMovId"
       )
       tazId2MovIdByMinDistance
     }
@@ -207,7 +252,7 @@ object TravelTimeObserved extends LazyLogging {
   }
 
   def generateChart(series: mutable.ListBuffer[(Int, Double, Double)], path: String): Unit = {
-    def drawLineHelper(color: Color, percent: Int, xyplot: XYPlot, max: Double) = {
+    def drawLineHelper(color: Color, percent: Int, xyplot: XYPlot, max: Double, text: Double) = {
       xyplot.addAnnotation(
         new XYLineAnnotation(
           0,
@@ -221,7 +266,7 @@ object TravelTimeObserved extends LazyLogging {
 
       xyplot.addAnnotation(
         new XYTextAnnotation(
-          s"$percent%",
+          s"$text%",
           max * Math.cos(Math.toRadians(45 + percent)) / 2,
           max * Math.sin(Math.toRadians(45 + percent)) / 2
         )
@@ -271,7 +316,7 @@ object TravelTimeObserved extends LazyLogging {
       new Color(255, 0, 60) // dark red
     )
 
-    (0 to seriesPerCount.size - 1).map { counter =>
+    (0 until seriesPerCount.size).map { counter =>
       val renderer = xyplot
         .getRendererForDataset(xyplot.getDataset(0))
 
@@ -305,25 +350,21 @@ object TravelTimeObserved extends LazyLogging {
       )
     )
 
-    val percents: Map[Int, Color] = Map(
-      15 -> Color.RED,
-      30 -> Color.BLUE
+    val percents = List(
+      (18, Color.RED, -50.0),
+      (-18, Color.RED, 100.0),
+      (36, Color.BLUE, -83.0),
+      (-36, Color.BLUE, 500.0)
     )
 
     percents.foreach {
-      case (percent: Int, color: Color) =>
+      case (percent: Int, color: Color, value: Double) =>
         drawLineHelper(
           color,
           percent,
           xyplot,
-          max
-        )
-
-        drawLineHelper(
-          color,
-          -percent,
-          xyplot,
-          max
+          max,
+          value
         )
     }
 

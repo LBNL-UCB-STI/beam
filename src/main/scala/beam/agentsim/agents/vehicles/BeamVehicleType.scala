@@ -1,17 +1,9 @@
 package beam.agentsim.agents.vehicles
 
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType._
-import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car, MediumDutyPassenger, VehicleCategory}
+import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import org.matsim.api.core.v01.Id
-import org.matsim.vehicles.Vehicle
 
-/**
-  * Enumerates the names of recognized [[BeamVehicle]]s.
-  * Useful for storing canonical naming conventions.
-  *
-  * @author saf
-  */
 case class BeamVehicleType(
   id: Id[BeamVehicleType],
   seatingCapacity: Int,
@@ -41,80 +33,6 @@ case class BeamVehicleType(
   }
 }
 
-object BeamVehicleType {
-
-  // Consumption rate: https://www.brianmac.co.uk/energyexp.htm
-  // 400 calories/hour == 400k J/hr @ 7km/hr or 2m/s == 55 J/m
-  // Alternative: https://www.verywellfit.com/walking-calories-burned-by-miles-3887154
-  // 85 calories / mile == 85k J/mi or 53 J/m
-  // Assume walking a marathon is max per day
-  val defaultHumanBodyBeamVehicleType: BeamVehicleType =
-    BeamVehicleType(
-      Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
-      0,
-      0,
-      0.5,
-      Food,
-      53,
-      2.21e6,
-      vehicleCategory = Body
-    )
-
-  val powerTrainForHumanBody: Powertrain = new Powertrain(
-    BeamVehicleType.defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter
-  )
-
-  // Transit default based on Diesel Bus
-  val defaultTransitBeamVehicleType: BeamVehicleType =
-    BeamVehicleType(
-      Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
-      50,
-      50,
-      10,
-      Diesel,
-      25829.7,
-      30000000000.0,
-      vehicleCategory = MediumDutyPassenger
-    )
-
-  val defaultCarBeamVehicleType: BeamVehicleType = BeamVehicleType(
-    Id.create("CAR-TYPE-DEFAULT", classOf[BeamVehicleType]),
-    4,
-    0,
-    4.5,
-    Gasoline,
-    3656.0,
-    3655980000.0,
-    vehicleCategory = Car,
-    automationLevel = 1
-  )
-
-  val defaultBikeBeamVehicleType: BeamVehicleType = BeamVehicleType(
-    Id.create("BIKE-TYPE-DEFAULT", classOf[BeamVehicleType]),
-    2,
-    0,
-    1.5,
-    Gasoline,
-    defaultHumanBodyBeamVehicleType.primaryFuelConsumptionInJoulePerMeter / 5.0, // 5x more efficient than walking
-    defaultHumanBodyBeamVehicleType.primaryFuelCapacityInJoule, // same capacity as human body
-    vehicleCategory = Bike
-  )
-
-  def isHumanVehicle(beamVehicleId: Id[Vehicle]): Boolean =
-    beamVehicleId.toString.startsWith("body")
-
-  def isRidehailVehicle(beamVehicleId: Id[Vehicle]): Boolean =
-    beamVehicleId.toString.startsWith("rideHailVehicle")
-
-  def isBicycleVehicle(beamVehicleId: Id[Vehicle]): Boolean =
-    beamVehicleId.toString.startsWith("bike")
-
-  def isTransitVehicle(beamVehicleId: Id[Vehicle]): Boolean =
-    List("bus", "train", "subway", "tram", "rail", "cable_car", "ferry")
-      .exists(beamVehicleId.toString.toLowerCase.startsWith)
-
-}
-
 object FuelType {
   sealed trait FuelType
   case object Food extends FuelType
@@ -129,7 +47,8 @@ object FuelType {
       .find(_.toString.equalsIgnoreCase(value))
       .getOrElse(Undefined)
   }
-  case class FuelTypeAndPrice(fuelTypeId: FuelType, priceInDollarsPerMJoule: Double)
+
+  type FuelTypePrices = Map[FuelType, Double]
 }
 
 object VehicleCategory {

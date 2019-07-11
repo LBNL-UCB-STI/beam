@@ -4,17 +4,27 @@ case class PersonId(id: String) extends AnyVal
 
 case class HouseholdId(id: String) extends AnyVal
 
-case class PersonInfo(personId: PersonId, householdId: HouseholdId, rank: Int, age: Int)
+case class PersonInfo(
+  personId: PersonId,
+  householdId: HouseholdId,
+  rank: Int,
+  age: Int,
+  isFemale: Boolean,
+  valueOfTime: Double
+)
 
 case class PlanElement(
   personId: PersonId,
-  planElement: String,
+  planIndex: Int = 0,
+  planElementType: String,
   planElementIndex: Int,
   activityType: Option[String],
-  x: Option[Double],
-  y: Option[Double],
-  endTime: Option[Double],
-  mode: Option[String]
+  activityLocationX: Option[Double],
+  activityLocationY: Option[Double],
+  activityEndTime: Option[Double],
+  legMode: Option[String]
 )
 
-case class HouseholdInfo(householdId: HouseholdId, cars: Double, income: Double, x: Double, y: Double)
+case class HouseholdInfo(householdId: HouseholdId, cars: Int, income: Double, locationX: Double, locationY: Double)
+
+case class VehicleInfo(vehicleId: String, vehicleTypeId: String, householdId: String)

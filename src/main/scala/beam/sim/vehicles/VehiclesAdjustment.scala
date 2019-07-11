@@ -2,14 +2,12 @@ package beam.sim.vehicles
 import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.UniformRealDistribution
-import org.matsim.api.core.v01.{Coord, Scenario}
+import org.matsim.api.core.v01.Coord
 
 trait VehiclesAdjustment extends LazyLogging {
-
-  val beamServices: BeamServices
 
   def sampleVehicleTypesForHousehold(
     numVehicles: Int,
@@ -33,9 +31,9 @@ object VehiclesAdjustment {
   val DEFAULT_ADJUSTMENT = "DEFAULT_ADJUSTMENT"
   val UNIFORM_ADJUSTMENT = "UNIFORM_ADJUSTMENT"
 
-  def getVehicleAdjustment(beamServices: BeamServices): VehiclesAdjustment = {
+  def getVehicleAdjustment(beamScenario: BeamScenario): VehiclesAdjustment = {
 
-    new UniformVehiclesAdjustment(beamServices)
+    new UniformVehiclesAdjustment(beamScenario)
   }
 
 }

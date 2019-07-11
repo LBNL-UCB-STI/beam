@@ -31,12 +31,14 @@ class UrbanSimScenarioSource(
   val parcelAttrFilePath: String = s"$scenarioFolder/parcels.$fileExt"
 
   override def getPersons: Iterable[PersonInfo] = {
-    rdr.readPersonsFile(personFilePath).map { person =>
+    rdr.readPersonsFile(personFilePath).map { person: DataExchange.PersonInfo =>
       PersonInfo(
         personId = PersonId(person.personId),
         householdId = HouseholdId(person.householdId),
         rank = person.rank,
-        age = person.age
+        age = person.age,
+        isFemale = person.isFemale,
+        valueOfTime = person.valueOfTime
       )
     }
   }
@@ -69,13 +71,13 @@ class UrbanSimScenarioSource(
       }
       PlanElement(
         personId = PersonId(plan.personId),
-        planElement = plan.planElement,
+        planElementType = plan.planElement,
         planElementIndex = plan.planElementIndex,
         activityType = plan.activityType,
-        x = coord.map(_.getX),
-        y = coord.map(_.getY),
-        endTime = plan.endTime,
-        mode = plan.mode
+        activityLocationX = coord.map(_.getX),
+        activityLocationY = coord.map(_.getY),
+        activityEndTime = plan.endTime,
+        legMode = plan.mode
       )
     }
   }
@@ -91,8 +93,8 @@ class UrbanSimScenarioSource(
         householdId = HouseholdId(householdInfo.householdId),
         cars = householdInfo.cars,
         income = householdInfo.income,
-        x = coord.getX,
-        y = coord.getY
+        locationX = coord.getX,
+        locationY = coord.getY
       )
     }
   }
