@@ -86,8 +86,11 @@ object ParkingZoneSearch {
       parkingType         <- parkingTypes
       parkingZoneIds      <- parkingTypesSubtree.get(parkingType).toList
       parkingZoneId       <- parkingZoneIds
-      if parkingZones(parkingZoneId).stallsAvailable > 0 & (parkingZones(parkingZoneId).chargingPointType
-        .getOrElse(ChargingPointType.NoCharger) == ChargingPointType.NoCharger || vehicleIntendsToCharge)
+      if parkingZones(parkingZoneId).stallsAvailable > 0 & canThisCarParkHere(
+        parkingZones(parkingZoneId),
+        parkingType,
+        vehicleIntendsToCharge
+      )
     } yield {
       // get the zone
       Try {
@@ -110,6 +113,8 @@ object ParkingZoneSearch {
     parkingType: ParkingType,
     vehicleIntendsToCharge: Boolean
   ): Boolean = {
+
+    // Cars can park at residential spots with a slow charger. Mainly added to allow for flexibility later
     parkingType match {
       case ParkingType.Residential =>
         ChargingPointType.getChargingPointCurrent(parkingZone.chargingPointType.getOrElse(ChargingPointType.NoCharger)) match {
