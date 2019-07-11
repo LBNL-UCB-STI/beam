@@ -5,6 +5,8 @@ import scala.collection.JavaConverters._
 import scala.util.{Failure, Random, Success, Try}
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
+import beam.agentsim.agents.vehicles.FuelType.Electricity
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.agents.choice.logit.MultinomialLogit
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.parking._
@@ -41,8 +43,17 @@ class ZonalParkingManager(
 
       val preferredParkingTypes: Seq[ParkingType] = inquiry.activityType match {
         case act if act.equalsIgnoreCase("home") => Seq(ParkingType.Residential, ParkingType.Public)
+        case act if act.equalsIgnoreCase("init") => Seq(ParkingType.Residential, ParkingType.Public)
         case act if act.equalsIgnoreCase("work") => Seq(ParkingType.Workplace, ParkingType.Public)
         case _                                   => Seq(ParkingType.Public)
+      }
+
+      val vehicleCanParkAtCharger: Boolean = inquiry.vehicleType match {
+        case Some(vehicleType)
+            if vehicleType.beamVehicleType.primaryFuelType == Electricity || vehicleType.beamVehicleType.secondaryFuelType
+              .contains(Electricity) =>
+          !inquiry.activityType.equalsIgnoreCase("init") //vehicles don't intend to charge on initialization
+        case _ => false
       }
 
       // performs a concentric ring search from the destination to find a parking stall, and creates it
@@ -59,6 +70,7 @@ class ZonalParkingManager(
         tazTreeMap.tazQuadTree,
         geo.distUTMInMeters,
         rand,
+        vehicleCanParkAtCharger,
         boundingBox
       )
 
@@ -209,6 +221,7 @@ object ZonalParkingManager extends LazyLogging {
     tazQuadTree: QuadTree[TAZ],
     distanceFunction: (Coord, Coord) => Double,
     random: Random,
+    vehicleCanParkAtCharger: Boolean,
     boundingBox: Envelope
   ): (ParkingZone, ParkingStall) = {
 
@@ -236,7 +249,8 @@ object ZonalParkingManager extends LazyLogging {
           searchTree,
           stalls,
           distanceFunction,
-          random
+          random,
+          vehicleCanParkAtCharger
         ) match {
           case Some(
               ParkingZoneSearch.ParkingSearchResult(
