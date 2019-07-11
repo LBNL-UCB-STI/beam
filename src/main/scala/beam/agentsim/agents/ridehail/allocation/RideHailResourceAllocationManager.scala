@@ -6,6 +6,7 @@ import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTr
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
 import beam.agentsim.agents.vehicles.PersonIdWithActorRef
+import beam.agentsim.infrastructure.ParkingStall
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.model.EmbodiedBeamLeg
 import com.typesafe.scalalogging.LazyLogging
@@ -167,6 +168,20 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
         }
     }.toList
     VehicleAllocations(allocResponses)
+  }
+
+  def findDepotsForVehicles(cavOnly: Boolean = true): Vector[(Id[Vehicle], ParkingStall)] = {
+    val idleVehicleIds: Vector[Id[Vehicle]] = rideHailManager.vehicleManager.getIdleVehicles.values.toVector
+    val idleVehicles = if(cavOnly) {
+      //TODO:Create a search method in RHM?
+      idleVehicleIds.filter(vehicleId => rideHailManager.resources(beam.agentsim.vehicleId2BeamVehicleId(vehicleId)).isCAV)
+    } else idleVehicleIds
+    idleVehicles.flatMap(vehicle => {
+      val x: Option[(Id[Vehicle], ParkingStall)] = rideHailDepotParkingManager.findDepot.map((parkingStall: ParkingStall) => {
+        (vehicle, parkingStall)
+      })
+      x
+    })
   }
 
   /*

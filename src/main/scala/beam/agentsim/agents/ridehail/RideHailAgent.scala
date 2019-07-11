@@ -382,7 +382,44 @@ class RideHailAgent(
       stay()
     case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(tick), triggerId), _) =>
       log.debug("state(RideHailingAgent.Idle.StartRefuelSessionTrigger): {}", ev)
-      handleStartRefuel(tick, triggerId)
+      //TODO: This is copy/pasted too much - it should be encapsulated
+      //TODO: Also, should this go to Offline? or stay?
+      if (vehicle.isBEV || vehicle.isPHEV) {
+        handleStartCharging(tick, vehicle) {
+          Some(
+            (endRefuelData: EndRefuelData) =>
+              CompletionNotice(
+                triggerId,
+                Vector(
+                  ScheduleTrigger(
+                    EndRefuelSessionTrigger(
+                      endRefuelData.chargingEndTick,
+                      tick,
+                      endRefuelData.energyDelivered,
+                      Some(vehicle)
+                    ),
+                    self
+                  )
+                )
+              )
+          )
+        }
+        stay
+      } else handleStartRefuel(tick, triggerId)
+    //TODO: This also is done similarly in too many places - encapsulate
+    //TODO: Also, handleEndRefuel releases the stall...but CAV maybe shouldn't ... or cav handles differently overall?
+    case ev @ Event(
+      TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, energyInJoules, _), triggerId),
+      data
+    ) =>
+      log.debug("state(RideHailAgent.Idle.TriggerWithId(EndRefuelSessionTrigger)): {}", ev)
+      holdTickAndTriggerId(tick, triggerId)
+      nextNotifyVehicleResourceIdle = nextNotifyVehicleResourceIdle.map(_.copy(triggerId = _currentTriggerId))
+      val currentLocation = handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
+      vehicle.spaceTime = SpaceTime(currentLocation, tick)
+      //The next NotifyVehicleResourceIdle relies on onTransition, using stay would not trigger
+      //Whereas goto(SAME) triggers Same -> Same and will hit the needed logic
+      goto(Idle)
   }
 
   when(IdleInterrupted) {
@@ -569,9 +606,11 @@ class RideHailAgent(
         vehicle.id
       )
     )
-    parkingManager ! ReleaseParkingStall(vehicle.stall.get.parkingZoneId)
+    //TODO: Is this correct - check with Rob - in fact maybe I get access to the rideHailDepotParkingManager and do the release from here...
+    //if so then would still need to check queue in RHM
+    if(!vehicle.isCAV) parkingManager ! ReleaseParkingStall(vehicle.stall.get.parkingZoneId)
     val currentLocation = vehicle.stall.get.locationUTM
-    vehicle.unsetParkingStall()
+    if(!vehicle.isCAV) vehicle.unsetParkingStall()
     currentLocation
   }
 

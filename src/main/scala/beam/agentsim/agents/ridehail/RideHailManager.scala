@@ -455,6 +455,36 @@ class RideHailManager(
     }
   }
 
+  //TODO: Move to top level
+  //TODO: Typify Int to be DepotId
+  val depotQueues: mutable.Map[Int, mutable.Queue[Id[Vehicle]]] = mutable.Map.empty[Int, mutable.Queue[Id[Vehicle]]]
+  def addToDepotQueue(vehicleId: Id[Vehicle], depot: Int) = {
+    depotQueues.get(depot) match {
+      //TODO: Should we check/log if vehicle is already queued since that should not happen
+      case Some(depotQueue) => depotQueue.enqueue(vehicleId)
+      case None => depotQueues += (depot -> mutable.Queue(vehicleId))
+    }
+  }
+
+  def getNextFromDepotQueue(depot: Int): Option[Id[Vehicle]] = {
+    //TODO: Not sure I like the map that also modifies...but we DO want output...
+    depotQueues.get(depot).collect {case queue if (!queue.isEmpty) =>{
+      //TODO: Should we blow away the mapping if the queue is empty?
+      queue.dequeue
+    }}
+  }
+
+  val vehiclesChargingInDepot: mutable.Map[Id[Vehicle], ParkingStall] = mutable.Map.empty[Id[Vehicle], ParkingStall]
+  def addToChargingInDepot(vehicle: Id[Vehicle], stall: ParkingStall) = {
+    //TODO log warning if exists already?
+    vehiclesChargingInDepot += vehicle -> stall
+  }
+
+  def removeFromCharging(vehicle: Id[Vehicle]): Option[ParkingStall] = {
+    vehiclesChargingInDepot.remove(vehicle)
+  }
+
+
   override def receive: Receive = LoggingReceive {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       sender ! CompletionNotice(triggerId, Vector())
@@ -532,6 +562,44 @@ class RideHailManager(
       val rideHailAgentLocation =
         RideHailAgentLocation(beamVehicle.driver.get, vehicleId, beamVehicle.beamVehicleType.id, whenWhere, geofence)
       vehicleManager.vehicleState.put(vehicleId, beamVehicleState)
+
+      //TODO: Make this only branch...don't do other stuff below if this branch chosen?
+      vehiclesOnWayToDepot.remove(vehicleId) match {
+        case Some(depotId) => {
+          rideHailDepotParkingManager.findAndClaimStallAtDepot(depotId) match {
+            case Some(parkingStall: ParkingStall) => beamVehicle.driver.foreach(driverAgent => {
+              addToChargingInDepot(vehicleId, parkingStall)
+              scheduler ! ScheduleTrigger(StartRefuelSessionTrigger(whenWhere.time), driverAgent)
+            })
+            case None => addToDepotQueue(vehicleId, depotId)
+          }
+        }
+        case _ => //Nothing
+      }
+
+      removeFromCharging(vehicleId) match {
+        case Some(parkingStall) => {
+          rideHailDepotParkingManager.releaseStall(parkingStall)
+          val depotId = parkingStall.parkingZoneId
+          //TODO: should a new trigger be set to check for queue instead of inline?
+          getNextFromDepotQueue(depotId) match {
+            case Some(nextVehicleId) => {
+              //TODO: definitely just copy/pasted...either functionalize or resend message to trigger
+              rideHailDepotParkingManager.findAndClaimStallAtDepot(depotId) match {
+                case Some(parkingStall: ParkingStall) => {
+                  val nextBeamVehicle = resources(agentsim.vehicleId2BeamVehicleId(nextVehicleId))
+                  nextBeamVehicle.driver.foreach(driverAgent => {
+                    addToChargingInDepot(nextVehicleId, parkingStall)
+                    scheduler ! ScheduleTrigger(StartRefuelSessionTrigger(whenWhere.time), driverAgent)
+                })}
+                case None => addToDepotQueue(nextVehicleId, depotId)
+              }
+            }
+            case None => //TODO should we clear that ID?
+          }
+        }
+        case None => _
+      }
 
       if (modifyPassengerScheduleManager
             .noPendingReservations(vehicleId) || modifyPassengerScheduleManager
@@ -1316,12 +1384,28 @@ class RideHailManager(
     unstashAll()
   }
 
+  //TODO: Add to top level
+  val vehiclesOnWayToDepot: mutable.Map[Id[Vehicle], Int] = mutable.Map.empty[Id[Vehicle], Int]
+  def addVehiclesOnWayToDepot(newVehiclesHeadedToDepot: Vector[(Id[Vehicle], ParkingStall)]) = {
+    vehiclesOnWayToDepot ++ newVehiclesHeadedToDepot.map(x=>(x._1, x._2.parkingZoneId))
+  }
+
   def startRepositioning(tick: Int, triggerId: Long) = {
     log.debug("Starting wave of repositioning at {}", tick)
     modifyPassengerScheduleManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
 
+    val vehiclesHeadedToDepot: Vector[(Id[Vehicle], ParkingStall)] =
+      rideHailResourceAllocationManager.findDepotsForVehicles()
+
+    addVehiclesOnWayToDepot(vehiclesHeadedToDepot)
+    vehiclesHeadedToDepot.foreach{
+      case (vehicleId, _) => vehicleManager.putOutOfService(vehicleManager.getRideHailAgentLocation(vehicleId))
+    }
+
+    //TODO: Remove duplicates with preference to depot. In fact maybe signal to repositionVehicles so it can not include if already on way to depot
+    //TODO: Move ++ somewhere?
     val repositionVehicles: Vector[(Id[Vehicle], Location)] =
-      rideHailResourceAllocationManager.repositionVehicles(tick)
+      rideHailResourceAllocationManager.repositionVehicles(tick) ++ vehiclesHeadedToDepot.map(x=>(x._1, x._2.locationUTM))
 
     if (repositionVehicles.isEmpty) {
       log.debug("sendCompletionAndScheduleNewTimeout from 1204")
