@@ -46,7 +46,7 @@ class ZonalParkingManager(
         case _                                   => Seq(ParkingType.Public)
       }
 
-      val vehicleIntendsToCharge: Boolean = inquiry.vehicleType match {
+      val vehicleCanParkAtCharger: Boolean = inquiry.vehicleType match {
         case Some(vehicleType)
             if vehicleType.beamVehicleType.primaryFuelType == Electricity || vehicleType.beamVehicleType.secondaryFuelType
               .contains(Electricity) =>
@@ -68,7 +68,7 @@ class ZonalParkingManager(
         tazTreeMap.tazQuadTree,
         geo.distUTMInMeters,
         rand,
-        vehicleIntendsToCharge,
+        vehicleCanParkAtCharger,
         boundingBox
       )
 
@@ -219,7 +219,7 @@ object ZonalParkingManager extends LazyLogging {
     tazQuadTree: QuadTree[TAZ],
     distanceFunction: (Coord, Coord) => Double,
     random: Random,
-    vehicleIntendsToCharge: Boolean,
+    vehicleCanParkAtCharger: Boolean,
     boundingBox: Envelope
   ): (ParkingZone, ParkingStall) = {
 
@@ -248,7 +248,7 @@ object ZonalParkingManager extends LazyLogging {
           stalls,
           distanceFunction,
           random,
-          vehicleIntendsToCharge
+          vehicleCanParkAtCharger
         ) match {
           case Some(
               ParkingRanking.RankingAccumulator(

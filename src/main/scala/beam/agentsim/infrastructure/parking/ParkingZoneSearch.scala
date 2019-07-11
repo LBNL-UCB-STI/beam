@@ -44,10 +44,10 @@ object ParkingZoneSearch {
     parkingZones: Array[ParkingZone],
     distanceFunction: (Coord, Coord) => Double,
     random: Random,
-    vehicleIntendsToCharge: Boolean
+    vehicleCanParkAtCharger: Boolean
   ): Option[RankingAccumulator] = {
     val found =
-      findParkingZones(destinationUTM, tazList, parkingTypes, tree, parkingZones, random, vehicleIntendsToCharge)
+      findParkingZones(destinationUTM, tazList, parkingTypes, tree, parkingZones, random, vehicleCanParkAtCharger)
     takeBestByRanking(
       destinationUTM,
       valueOfTime,
@@ -55,7 +55,7 @@ object ParkingZoneSearch {
       found,
       chargingInquiryData,
       distanceFunction,
-      vehicleIntendsToCharge
+      vehicleCanParkAtCharger
     )
   }
 
@@ -76,7 +76,7 @@ object ParkingZoneSearch {
     tree: ZoneSearch[TAZ],
     parkingZones: Array[ParkingZone],
     random: Random,
-    vehicleIntendsToCharge: Boolean
+    vehicleCanParkAtCharger: Boolean
   ): Seq[(TAZ, ParkingType, ParkingZone, Coord)] = {
 
     // conduct search (toList required to combine Option and List monads)
@@ -89,7 +89,7 @@ object ParkingZoneSearch {
       if parkingZones(parkingZoneId).stallsAvailable > 0 & canThisCarParkHere(
         parkingZones(parkingZoneId),
         parkingType,
-        vehicleIntendsToCharge
+        vehicleCanParkAtCharger
       )
     } yield {
       // get the zone
@@ -111,7 +111,7 @@ object ParkingZoneSearch {
   def canThisCarParkHere(
     parkingZone: ParkingZone,
     parkingType: ParkingType,
-    vehicleIntendsToCharge: Boolean
+    vehicleCanParkAtCharger: Boolean
   ): Boolean = {
 
     // Cars can park at residential spots with a slow charger. Mainly added to allow for flexibility later
@@ -119,12 +119,13 @@ object ParkingZoneSearch {
       case ParkingType.Residential =>
         ChargingPointType.getChargingPointCurrent(parkingZone.chargingPointType.getOrElse(ChargingPointType.NoCharger)) match {
           case ElectricCurrentType.AC => true
-          case _                      => vehicleIntendsToCharge
+          case _                      => vehicleCanParkAtCharger
         }
       case _ =>
         parkingZone.chargingPointType match {
           case Some(NoCharger) => true
-          case _               => vehicleIntendsToCharge
+          case None            => true
+          case _               => vehicleCanParkAtCharger
         }
     }
   }
@@ -145,7 +146,7 @@ object ParkingZoneSearch {
     found: Iterable[(TAZ, ParkingType, ParkingZone, Coord)],
     chargingInquiryData: Option[ChargingInquiryData[String, String]],
     distanceFunction: (Coord, Coord) => Double,
-    vehicleIntendsToCharge: Boolean = false
+    vehicleCanParkAtCharger: Boolean = false
   ): Option[RankingAccumulator] = {
     found.foldLeft(Option.empty[RankingAccumulator]) { (accOption, parkingZoneTuple) =>
       val (thisTAZ: TAZ, thisParkingType: ParkingType, thisParkingZone: ParkingZone, stallLocation: Coord) =

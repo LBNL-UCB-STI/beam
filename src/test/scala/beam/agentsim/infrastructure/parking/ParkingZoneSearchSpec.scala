@@ -25,7 +25,8 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           tree,
           zones,
           ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
-          ParkingZoneSearchSpec.random
+          ParkingZoneSearchSpec.random,
+          true
         )
 
         result should be(None)
@@ -43,7 +44,8 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           parkingSearchTree,
           parkingZones,
           ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
-          ParkingZoneSearchSpec.random
+          ParkingZoneSearchSpec.random,
+          true
         )
 
         result match {
@@ -79,7 +81,8 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           parkingSearchTree,
           parkingZones,
           ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
-          ParkingZoneSearchSpec.random
+          ParkingZoneSearchSpec.random,
+          true
         )
 
         result match {
@@ -121,7 +124,8 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           parkingSearchTree,
           parkingZones,
           ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
-          ParkingZoneSearchSpec.random
+          ParkingZoneSearchSpec.random,
+          true
         )
 
         result match {
@@ -157,7 +161,8 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           parkingSearchTree,
           parkingZones,
           ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
-          ParkingZoneSearchSpec.random
+          ParkingZoneSearchSpec.random,
+          true
         )
 
         result match {
@@ -193,7 +198,8 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           parkingSearchTree,
           parkingZones,
           ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
-          ParkingZoneSearchSpec.random
+          ParkingZoneSearchSpec.random,
+          true
         )
 
         result match {
