@@ -39,7 +39,9 @@ object ChargingPointType {
 
   // provide custom charging points
   case class CustomChargingPoint(id: String, installedCapacity: Double, electricCurrentType: ElectricCurrentType)
-      extends ChargingPointType
+      extends ChargingPointType {
+    override def toString: String = s"$id($installedCapacity,$electricCurrentType)"
+  }
 
   case object CustomChargingPoint {
 
@@ -56,7 +58,7 @@ object ChargingPointType {
 
   }
 
-  private[ChargingPointType] val CustomChargingPointRegex: Regex = "(\\w+)\\((\\d+),(\\w+)\\)".r.unanchored
+  private[ChargingPointType] val CustomChargingPointRegex: Regex = "(\\w+\\d*)\\((\\d+\\.?\\d+\\s*),(\\s*\\w{2})\\)".r.unanchored
 
   // matches either the standard ones or a custom one
   // these were breaking some tests with a ChargingPoint parsing error caused by Event handlers
@@ -146,12 +148,15 @@ object ChargingPointType {
         (vehicleDcChargingLimitsInWatts / 1000.0, batteryCapacityInJoule * 0.8) // DC limits charging to 0.8 * battery capacity
     }
     val sessionLengthLimiter = sessionDurationLimit.getOrElse(Long.MaxValue)
-    val sessionLength = Math.min(
-      sessionLengthLimiter,
-      Math.round(
-        (chargingLimits._2 - currentEnergyLevelInJoule) / 3.6e6 / Math
-          .min(chargingLimits._1, ChargingPointType.getChargingPointInstalledPowerInKw(chargingPointType)) * 3600.0
-      )
+    val sessionLength = Math.max(
+      Math.min(
+        sessionLengthLimiter,
+        Math.round(
+          (chargingLimits._2 - currentEnergyLevelInJoule) / 3.6e6 / Math
+            .min(chargingLimits._1, ChargingPointType.getChargingPointInstalledPowerInKw(chargingPointType)) * 3600.0
+        )
+      ),
+      0
     )
     val sessionEnergyInJoules = sessionLength.toDouble / 3600.0 * Math.min(
       chargingLimits._1,

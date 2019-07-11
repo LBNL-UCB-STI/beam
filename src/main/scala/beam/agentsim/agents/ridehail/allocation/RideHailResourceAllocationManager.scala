@@ -6,6 +6,7 @@ import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTr
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
 import beam.agentsim.agents.vehicles.PersonIdWithActorRef
+import beam.agentsim.infrastructure.ParkingStall
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.model.EmbodiedBeamLeg
 import com.typesafe.scalalogging.LazyLogging
@@ -167,6 +168,48 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
         }
     }.toList
     VehicleAllocations(allocResponses)
+  }
+
+  def findDepotsForVehicles(cavOnly: Boolean = true): Vector[(Id[Vehicle], ParkingStall)] = {
+    val idleVehicleIds: Vector[Id[Vehicle]] = rideHailManager.vehicleManager.getIdleVehicles.values.toVector
+    val idleVehicles = {
+      if (cavOnly) {
+        //TODO:Create a search method in RHM?
+        idleVehicleIds.filter(vehicleId => rideHailManager.resources(beam.agentsim.vehicleId2BeamVehicleId(vehicleId)).isCAV)
+      } else idleVehicleIds
+    }.filter((vehicleId: Id[Vehicle]) => {// TODO: copy/paste again - fix that
+      /*
+ if below a threshold (like 20 miles of remaining range) then we definitely go to charge.
+ If range is above that, we do a random draw with a probability that increases the closer we get to 20 miles.
+ So 21 miles my by 90%, 30 miles might be 75%, 40 miles 50%, etc. We can keep the relationship simple.
+ Maybe we give a threshold and then the slope of a linear relationship between miles and prob.
+ E.g. P(charge) = 1 - (rangeLeft - 20)*slopeParam….
+ where any range that yields a negative probability would just be truncated to 0
+ */
+      import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
+      def metersToMiles(meters: Double) = meters / 1600
+
+      def remainingRangeInMiles(vehicleState: BeamVehicleState) =
+        metersToMiles(vehicleState.remainingPrimaryRangeInM) +
+          metersToMiles(vehicleState.remainingSecondaryRangeInM.getOrElse(0.0))
+
+      val vehicle = rideHailManager.resources(beam.agentsim.vehicleId2BeamVehicleId(vehicleId))
+      val remainingRangeInMilesVal = remainingRangeInMiles(vehicle.getState)
+      if (!vehicle.isCAV && remainingRangeInMilesVal < 20.0) true
+      else {
+        val percentageChanceToRefuel = Math.max(100 - (remainingRangeInMilesVal.toInt - 20), 0)
+        val randomChance = scala.util.Random.nextInt(100)
+        randomChance < percentageChanceToRefuel
+      }
+
+    })
+
+    idleVehicles.flatMap(vehicle => {
+      val x: Option[(Id[Vehicle], ParkingStall)] = rideHailDepotParkingManager.findDepot.map((parkingStall: ParkingStall) => {
+        (vehicle, parkingStall)
+      })
+      x
+    })
   }
 
   /*

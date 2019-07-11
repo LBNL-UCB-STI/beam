@@ -5,7 +5,8 @@ import scala.collection.JavaConverters._
 import scala.util.{Failure, Random, Success, Try}
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
-import beam.agentsim.infrastructure.charging.ChargingInquiryData
+import beam.agentsim.agents.choice.logit.MultinomialLogit
+import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
@@ -52,7 +53,7 @@ class ZonalParkingManager(
         inquiry.valueOfTime,
         inquiry.parkingDuration,
         preferredParkingTypes,
-        inquiry.chargingInquiryData,
+        inquiry.utilityFunction,
         zoneSearchTree,
         parkingZones,
         tazTreeMap.tazQuadTree,

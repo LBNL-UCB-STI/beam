@@ -50,7 +50,7 @@ object LeavingParkingEvent {
 
   def optionalToString[T](opt: Option[T]): String =
     opt match {
-      case None        => ""
+      case None        => "None"
       case Some(value) => value.toString
     }
 
