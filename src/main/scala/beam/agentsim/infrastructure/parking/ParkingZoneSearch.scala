@@ -1,5 +1,7 @@
 package beam.agentsim.infrastructure.parking
 
+import beam.agentsim.infrastructure.charging.ChargingPointType.NoCharger
+
 import scala.collection.Map
 import scala.util.{Failure, Random, Success, Try}
 import beam.agentsim.infrastructure.charging._
@@ -42,9 +44,10 @@ object ParkingZoneSearch {
     parkingZones: Array[ParkingZone],
     distanceFunction: (Coord, Coord) => Double,
     random: Random,
-    canParkAtFastCharger: Boolean = false
+    canParkAtFastCharger: Boolean
   ): Option[RankingAccumulator] = {
-    val found = findParkingZones(destinationUTM, tazList, parkingTypes, tree, parkingZones, random)
+    val found =
+      findParkingZones(destinationUTM, tazList, parkingTypes, tree, parkingZones, random, canParkAtFastCharger)
     takeBestByRanking(
       destinationUTM,
       valueOfTime,
@@ -72,7 +75,8 @@ object ParkingZoneSearch {
     parkingTypes: Seq[ParkingType],
     tree: ZoneSearch[TAZ],
     parkingZones: Array[ParkingZone],
-    random: Random
+    random: Random,
+    canParkAtFastCharger: Boolean
   ): Seq[(TAZ, ParkingType, ParkingZone, Coord)] = {
 
     // conduct search (toList required to combine Option and List monads)
@@ -82,7 +86,8 @@ object ParkingZoneSearch {
       parkingType         <- parkingTypes
       parkingZoneIds      <- parkingTypesSubtree.get(parkingType).toList
       parkingZoneId       <- parkingZoneIds
-      if parkingZones(parkingZoneId).stallsAvailable > 0
+      if parkingZones(parkingZoneId).stallsAvailable > 0 & (parkingZones(parkingZoneId).chargingPointType
+        .getOrElse(ChargingPointType.NoCharger) == ChargingPointType.NoCharger || canParkAtFastCharger)
     } yield {
       // get the zone
       Try {
@@ -95,6 +100,7 @@ object ParkingZoneSearch {
           (taz, parkingType, parkingZones(parkingZoneId), stallLocation)
         case Failure(e) =>
           throw new IndexOutOfBoundsException(s"Attempting to access ParkingZone with index $parkingZoneId failed.\n$e")
+
       }
     }
   }
