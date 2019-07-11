@@ -20,7 +20,7 @@ import scala.util.Random
 trait ModeChoiceCalculator {
 
   val beamConfig: BeamConfig
-  implicit lazy val random: Random = new Random(
+  lazy val random: Random = new Random(
     beamConfig.matsim.modules.global.randomSeed
   )
 
