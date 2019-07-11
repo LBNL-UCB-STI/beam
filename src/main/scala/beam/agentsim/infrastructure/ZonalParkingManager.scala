@@ -5,6 +5,7 @@ import scala.collection.JavaConverters._
 import scala.util.{Failure, Random, Success, Try}
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
+import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.infrastructure.charging.ChargingInquiryData
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
@@ -44,6 +45,13 @@ class ZonalParkingManager(
         case _                                   => Seq(ParkingType.Public)
       }
 
+      val canParkAtCharger: Boolean = inquiry.vehicleType match {
+        case Some(vehicleType)
+            if vehicleType.primaryFuelType == Electricity || vehicleType.secondaryFuelType.contains(Electricity) =>
+          true
+        case _ => false
+      }
+
       // performs a concentric ring search from the destination to find a parking stall, and creates it
       val (parkingZone, parkingStall) = ZonalParkingManager.incrementalParkingZoneSearch(
         500.0,
@@ -58,6 +66,7 @@ class ZonalParkingManager(
         tazTreeMap.tazQuadTree,
         geo.distUTMInMeters,
         rand,
+        canParkAtCharger,
         boundingBox
       )
 
@@ -208,6 +217,7 @@ object ZonalParkingManager extends LazyLogging {
     tazQuadTree: QuadTree[TAZ],
     distanceFunction: (Coord, Coord) => Double,
     random: Random,
+    canParkAtFastCharger: Boolean,
     boundingBox: Envelope
   ): (ParkingZone, ParkingStall) = {
 
@@ -235,7 +245,8 @@ object ZonalParkingManager extends LazyLogging {
           searchTree,
           stalls,
           distanceFunction,
-          random
+          random,
+          canParkAtFastCharger
         ) match {
           case Some(
               ParkingRanking.RankingAccumulator(

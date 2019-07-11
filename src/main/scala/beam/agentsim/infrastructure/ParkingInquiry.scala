@@ -1,4 +1,5 @@
 package beam.agentsim.infrastructure
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.charging.ChargingInquiryData
 import beam.router.BeamRouter.Location
 import beam.utils.ParkingManagerIdGenerator
@@ -18,6 +19,7 @@ case class ParkingInquiry(
   valueOfTime: Double,
   chargingInquiryData: Option[ChargingInquiryData[String, String]],
   parkingDuration: Double,
+  vehicleType: Option[BeamVehicleType] = None,
   reserveStall: Boolean = true,
   requestId: Int = ParkingManagerIdGenerator.nextId // note, this expects all Agents exist in the same JVM to rely on calling this singleton
 )

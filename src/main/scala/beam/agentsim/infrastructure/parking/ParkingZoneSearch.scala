@@ -2,7 +2,6 @@ package beam.agentsim.infrastructure.parking
 
 import scala.collection.Map
 import scala.util.{Failure, Random, Success, Try}
-
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.parking.ParkingRanking.RankingAccumulator
 import beam.agentsim.infrastructure.taz.TAZ
@@ -42,10 +41,19 @@ object ParkingZoneSearch {
     tree: ZoneSearch[TAZ],
     parkingZones: Array[ParkingZone],
     distanceFunction: (Coord, Coord) => Double,
-    random: Random
+    random: Random,
+    canParkAtFastCharger: Boolean = false
   ): Option[RankingAccumulator] = {
     val found = findParkingZones(destinationUTM, tazList, parkingTypes, tree, parkingZones, random)
-    takeBestByRanking(destinationUTM, valueOfTime, parkingDuration, found, chargingInquiryData, distanceFunction)
+    takeBestByRanking(
+      destinationUTM,
+      valueOfTime,
+      parkingDuration,
+      found,
+      chargingInquiryData,
+      distanceFunction,
+      canParkAtFastCharger
+    )
   }
 
   /**
@@ -106,7 +114,8 @@ object ParkingZoneSearch {
     parkingDuration: Double,
     found: Iterable[(TAZ, ParkingType, ParkingZone, Coord)],
     chargingInquiryData: Option[ChargingInquiryData[String, String]],
-    distanceFunction: (Coord, Coord) => Double
+    distanceFunction: (Coord, Coord) => Double,
+    canParkAtFastCharger: Boolean = false
   ): Option[RankingAccumulator] = {
     found.foldLeft(Option.empty[RankingAccumulator]) { (accOption, parkingZoneTuple) =>
       val (thisTAZ: TAZ, thisParkingType: ParkingType, thisParkingZone: ParkingZone, stallLocation: Coord) =

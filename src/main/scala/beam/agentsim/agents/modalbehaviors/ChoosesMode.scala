@@ -736,7 +736,8 @@ trait ChoosesMode {
       attributes.valueOfTime,
       None,
       duration,
-      reserveStall = false
+      Option(currentTourBeamVehicle.beamVehicleType),
+      reserveStall = false,
     )
     parkingManager ! inquiry
     Some(inquiry.requestId)
