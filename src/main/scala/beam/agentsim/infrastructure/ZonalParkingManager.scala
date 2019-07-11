@@ -6,7 +6,7 @@ import scala.util.{Failure, Random, Success, Try}
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.vehicles.FuelType.Electricity
-import beam.agentsim.infrastructure.charging.ChargingInquiryData
+import beam.agentsim.infrastructure.charging.{ChargingInquiryData, ChargingPointType}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
@@ -41,14 +41,16 @@ class ZonalParkingManager(
 
       val preferredParkingTypes: Seq[ParkingType] = inquiry.activityType match {
         case act if act.equalsIgnoreCase("home") => Seq(ParkingType.Residential, ParkingType.Public)
+        case act if act.equalsIgnoreCase("init") => Seq(ParkingType.Residential, ParkingType.Public)
         case act if act.equalsIgnoreCase("work") => Seq(ParkingType.Workplace, ParkingType.Public)
         case _                                   => Seq(ParkingType.Public)
       }
 
-      val canParkAtCharger: Boolean = inquiry.vehicleType match {
+      val vehicleIntendsToCharge: Boolean = inquiry.vehicleType match {
         case Some(vehicleType)
-            if vehicleType.primaryFuelType == Electricity || vehicleType.secondaryFuelType.contains(Electricity) =>
-          true
+            if vehicleType.beamVehicleType.primaryFuelType == Electricity || vehicleType.beamVehicleType.secondaryFuelType
+              .contains(Electricity) =>
+          !inquiry.activityType.equalsIgnoreCase("init") //vehicles don't intend to charge on initialization
         case _ => false
       }
 
@@ -66,7 +68,7 @@ class ZonalParkingManager(
         tazTreeMap.tazQuadTree,
         geo.distUTMInMeters,
         rand,
-        canParkAtCharger,
+        vehicleIntendsToCharge,
         boundingBox
       )
 
@@ -217,7 +219,7 @@ object ZonalParkingManager extends LazyLogging {
     tazQuadTree: QuadTree[TAZ],
     distanceFunction: (Coord, Coord) => Double,
     random: Random,
-    canParkAtFastCharger: Boolean,
+    vehicleIntendsToCharge: Boolean,
     boundingBox: Envelope
   ): (ParkingZone, ParkingStall) = {
 
@@ -246,7 +248,7 @@ object ZonalParkingManager extends LazyLogging {
           stalls,
           distanceFunction,
           random,
-          canParkAtFastCharger
+          vehicleIntendsToCharge
         ) match {
           case Some(
               ParkingRanking.RankingAccumulator(
