@@ -27,9 +27,16 @@ for (i in 1:length(lines)) {
     dev.off()
 }
 
-#png(file = "1_speed.png", width = 3064, height = 2048, units = "px", pointsize = 48)
-#plot(x = cat, type = 'l')
-#dev.off()
+df <- data.frame(speed=numeric(), idx=integer())
+for (i in 1:length(cat)) {
+    for (j in 1:length(cat[[i]])) {
+        df[nrow(df) + 1,] = list(as.numeric(cat[[i]][j]), i)
+    }
+}
+
+png(file = "1_speed.png", width = 3064, height = 2048, units = "px", pointsize = 48)
+boxplot(df$speed ~ df$idx, data = df, xlab = "Segment", ylab = "Speed Mph", main = "Link 1")
+dev.off()
 
 # Give the chart file a name.
 png(file = "scatterplot.png", width = 3064, height = 2048, units = "px", pointsize = 48)
