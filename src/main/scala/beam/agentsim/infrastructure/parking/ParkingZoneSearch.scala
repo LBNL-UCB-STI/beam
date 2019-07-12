@@ -29,6 +29,9 @@ object ParkingZoneSearch {
   // increases search radius by this factor at each iteration
   val SearchFactor: Double = 2.0
 
+  // fallback value for stall pricing model evaluation
+  val DefaultParkingPrice: Double = 0.0
+
   /**
     * looks for the nearest ParkingZone that meets the agent's needs
     * @param searchStartRadius small radius describing a ring shape
@@ -36,7 +39,7 @@ object ParkingZoneSearch {
     * @param destinationUTM coordinates of this request
     * @param parkingDuration duration requested for this parking, used to calculate cost in ranking
     * @param parkingTypes types of parking this request is interested in
-    * @param chargingInquiryData optional inquiry preferences for charging options
+    * @param utilityFunction optional inquiry preferences for charging options
     * @param searchTree nested map structure assisting search for parking within a TAZ and by parking type
     * @param stalls collection of all parking alternatives
     * @param tazQuadTree lookup of all TAZs in this simulation
@@ -45,18 +48,18 @@ object ParkingZoneSearch {
     */
   def incrementalParkingZoneSearch(
     searchStartRadius: Double,
-    searchMaxRadius: Double,
-    destinationUTM: Location,
-    valueOfTime: Double,
-    parkingDuration: Double,
-    parkingTypes: Seq[ParkingType],
-    chargingInquiryData: Option[ChargingInquiryData[String, String]],
-    searchTree: ParkingZoneSearch.ZoneSearch[TAZ],
-    stalls: Array[ParkingZone],
-    tazQuadTree: QuadTree[TAZ],
-    distanceFunction: (Coord, Coord) => Double,
-    random: Random,
-    boundingBox: Envelope
+    searchMaxRadius  : Double,
+    destinationUTM   : Location,
+    valueOfTime      : Double,
+    parkingDuration  : Double,
+    parkingTypes     : Seq[ParkingType],
+    utilityFunction  : MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String],
+    searchTree       : ParkingZoneSearch.ZoneSearch[TAZ],
+    stalls           : Array[ParkingZone],
+    tazQuadTree      : QuadTree[TAZ],
+    distanceFunction : (Coord, Coord) => Double,
+    random           : Random,
+    boundingBox      : Envelope
   ): Option[(ParkingZone, ParkingStall)] = {
 
     @tailrec
@@ -77,7 +80,7 @@ object ParkingZoneSearch {
           destinationUTM,
           valueOfTime,
           parkingDuration,
-          chargingInquiryData,
+          utilityFunction,
           tazList,
           parkingTypes,
           searchTree,
@@ -86,7 +89,7 @@ object ParkingZoneSearch {
           random
         ) match {
           case Some(
-              ParkingRanking.RankingAccumulator(
+          ParkingSearchResult(
                 bestTAZ,
                 bestParkingType,
                 bestParkingZone,

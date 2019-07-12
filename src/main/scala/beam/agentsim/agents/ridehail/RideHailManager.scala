@@ -648,7 +648,7 @@ class RideHailManager(
             log.debug("Not enough range: {}", vehicleId)
             outOfServiceVehicleManager.registerTrigger(vehicleId, triggerId)
             vehicleManager.putOutOfService(rideHailAgentLocation)
-            findRefuelStationAndSendVehicle(rideHailAgentLocation, passengerSchedule, whenWhere.time)
+            findRefuelStationAndSendVehicle(rideHailAgentLocation)
           }
         } else {
           log.debug("Making available: {}", vehicleId)

@@ -6,8 +6,10 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
 import com.vividsolutions.jts.geom.Envelope
 import com.typesafe.scalalogging.LazyLogging
-
 import scala.util.{Failure, Random, Success, Try}
+
+import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
 
 class RideHailDepotParkingManager(
   parkingFilePath: String,
@@ -68,6 +70,20 @@ class RideHailDepotParkingManager(
     locationUtm: Location,
     parkingDuration: Double
   ): Option[ParkingStall] = {
+
+    val beta1 = 1
+    val beta2 = 1
+    val beta3 = 0.001
+
+    val utilityFunction:  MultinomialLogit[ParkingAlternative, String] =
+      new MultinomialLogit(
+        Map.empty,
+        Map(
+          "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
+          "distanceFactor"    -> UtilityFunctionOperation("multiplier", -beta2),
+          "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
+        )
+      )
     for {
       (_, parkingStall) <- ParkingZoneSearch
         .incrementalParkingZoneSearch(
@@ -77,7 +93,7 @@ class RideHailDepotParkingManager(
           valueOfTime = valueOfTime,
           parkingDuration = parkingDuration,
           parkingTypes = Seq(ParkingType.Workplace),
-          chargingInquiryData = None,
+          utilityFunction = utilityFunction,
           rideHailParkingSearchTree,
           rideHailParkingStalls,
           tazTreeMap.tazQuadTree,
