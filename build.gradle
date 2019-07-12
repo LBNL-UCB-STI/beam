@@ -912,7 +912,7 @@ task helmInit(type: HelmInit) {
     }
 }
 
-helmInit.dependsOn clean
+//helmInit.dependsOn clean
 
 helmUpdateStandaloneChartDependencies.dependsOn helmPackageCommonChart
 
@@ -941,6 +941,7 @@ task removeStandaloneCharts(dependsOn: [helmStandaloneList]) {
         }
     }
 }
+
 helmUpdateClusterChartDependencies.dependsOn helmPackageCommonChart
 
 task deployClusterChart(dependsOn: [helmPackageCommonChart, helmPackageClusterChart, helmInit], type: HelmInstall) {

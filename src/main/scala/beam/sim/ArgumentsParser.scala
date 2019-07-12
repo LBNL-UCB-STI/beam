@@ -36,11 +36,11 @@ object ArgumentsParser {
         )
         .text("If running as a cluster, specify master or worker")
       opt[String]("node-host")
-        .action((value, args) => args.copy(nodeHost = Option(value)))
+        .action((value, args) => args.copy(nodeHost = Option(resolveEnv(value))))
         .validate(value => if (value.trim.isEmpty) failure("node-host cannot be empty") else success)
         .text("Host used to run the remote actor system")
       opt[String]("node-port")
-        .action((value, args) => args.copy(nodePort = Option(value)))
+        .action((value, args) => args.copy(nodePort = Option(resolveEnv(value))))
         .validate(value => if (value.trim.isEmpty) failure("node-port cannot be empty") else success)
         .text("Port used to run the remote actor system")
       opt[String]("seed-address")
@@ -72,6 +72,11 @@ object ArgumentsParser {
       )
     }
   }
+
+  private def resolveEnv(prop: String): String =
+    Some(prop)
+      .filterNot(_.contains("$"))
+      .getOrElse(System.getenv(prop.replace("$", "")))
 
   private def parseArguments(parser: OptionParser[Arguments], args: Array[String]): Option[Arguments] = {
     parser.parse(args, init = Arguments())
