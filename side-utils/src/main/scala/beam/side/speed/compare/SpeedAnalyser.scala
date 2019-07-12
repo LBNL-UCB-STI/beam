@@ -1,7 +1,6 @@
 package beam.side.speed.compare
 
 import java.io.{BufferedWriter, File, FileWriter}
-import java.nio.file.Paths
 
 import beam.side.speed.parser.{OsmWays, UberSpeed}
 
@@ -16,7 +15,7 @@ class SpeedAnalyser(ways: OsmWays, uber: UberSpeed[_], filePrefix: String) {
         case (l, Some(s)) => l.toString -> s
       }
       .foreach { b =>
-        bw.write(b.productIterator.mkString(","))
+        bw.write(b._2)
         bw.newLine()
       }
     bw.flush()
@@ -25,23 +24,22 @@ class SpeedAnalyser(ways: OsmWays, uber: UberSpeed[_], filePrefix: String) {
 
   def nodePartsSpeed(): Unit = {
     ways.nodes
-      .take(12)
       .map(n => n.id -> uber.wayParts(n.orig, n.dest))
       .collect {
         case (l, Some(s)) => l.toString -> s
       }
+      .filter(_._2.size > 3)
+      .take(20)
+      .filter(b => Seq("29", "59").contains(b._1))
       .foreach { b =>
-        Option(Paths.get(s"$filePrefix-${b._1}.csv").toFile)
-          .filter(f => !f.exists())
-          .foreach { f =>
-            val bw = new BufferedWriter(new FileWriter(f))
-            b._2.foreach { s =>
-              bw.write(s.mkString(","))
-              bw.newLine()
-            }
-            bw.flush()
-            bw.close()
-          }
+        val file = new File(s"$filePrefix-${b._1}.csv")
+        val bw = new BufferedWriter(new FileWriter(file))
+        b._2.foreach { s =>
+          bw.write(s.mkString(","))
+          bw.newLine()
+        }
+        bw.flush()
+        bw.close()
       }
   }
 }

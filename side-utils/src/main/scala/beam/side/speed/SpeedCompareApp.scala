@@ -119,8 +119,8 @@ object SpeedCompareApp extends App with AppSetup {
       val ways = UberOsmDictionary(conf.uberOsmMap)
       val uber = UberSpeed(conf.mode, conf.fArgs, conf.uberSpeedPath, ways, nodes)
 
-      //SpeedComparator(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, conf.output).csvNode()
-      SpeedAnalyser(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, conf.output).nodePartsSpeed()
+      SpeedComparator(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, conf.output).csvNode()
+      //SpeedAnalyser(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, conf.output).nodePartsMax()
       System.exit(0)
     case None => System.exit(-1)
   }
