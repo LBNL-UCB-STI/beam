@@ -16,6 +16,8 @@ case class PersonInfo(
 case class PlanElement(
   personId: PersonId,
   planIndex: Int = 0,
+  planScore: Double,
+  planSelected: Boolean,
   planElementType: String,
   planElementIndex: Int,
   activityType: Option[String],

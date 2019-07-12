@@ -11,18 +11,24 @@ object PlansCsvWriter extends ScenarioCsvWriter {
   override protected val fields: Seq[String] = Seq(
     "personId",
     "planIndex",
+    "planScore",
+    "planSelected",
     "planElementType",
     "planElementIndex",
     "activityType",
     "activityLocationX",
     "activityLocationY",
     "activityEndTime",
-    "legMode"
+    "legMode",
+    "legDepartureTime",
+    "legTravelTime",
   )
 
   private case class PlanEntry(
     personId: String,
     planIndex: Int,
+    planScore: Double,
+    planSelected: Boolean,
     planElementType: String,
     planElementIndex: Int,
     activityType: String,
@@ -35,6 +41,8 @@ object PlansCsvWriter extends ScenarioCsvWriter {
       Seq(
         personId,
         planIndex,
+        planScore,
+        planSelected,
         planElementType,
         planElementIndex,
         activityType,
@@ -49,11 +57,13 @@ object PlansCsvWriter extends ScenarioCsvWriter {
   private def getPlanInfo(scenario: Scenario): Iterable[PlanElement] = {
     scenario.getPopulation.getPersons.asScala.flatMap {
       case (_, person) =>
+        val selectedPlan = person.getSelectedPlan
         person.getPlans.asScala.zipWithIndex.flatMap {
           case (plan: Plan, planIndex: Int) =>
+            val isSelected = selectedPlan == plan
             plan.getPlanElements.asScala.zipWithIndex.map {
               case (planElement, planElementIndex) =>
-                toPlanInfo(planIndex, plan.getPerson.getId.toString, planElement, planElementIndex)
+                toPlanInfo(planIndex, plan.getPerson.getId.toString, plan.getScore, isSelected, planElement, planElementIndex)
             }
         }
     }
@@ -62,12 +72,13 @@ object PlansCsvWriter extends ScenarioCsvWriter {
   private def toPlanInfo(
     planIndex: Int,
     personId: String,
+    planScore: Double,
+    planIsSelected: Boolean,
     planElement: MatsimPlanElement,
     planeElementIndex: Int
   ): PlanElement = {
     planElement match {
       case leg: Leg =>
-        // Set legMode to None, if it's empty string
         val mode = Option(leg.getMode).flatMap { mode =>
           if (mode == "") None
           else Some(mode)
@@ -76,6 +87,8 @@ object PlansCsvWriter extends ScenarioCsvWriter {
         PlanElement(
           planIndex = planIndex,
           personId = PersonId(personId),
+          planScore = planScore,
+          planSelected = planIsSelected,
           planElementType = "leg",
           planElementIndex = planeElementIndex,
           activityType = None,
@@ -87,6 +100,8 @@ object PlansCsvWriter extends ScenarioCsvWriter {
       case act: Activity =>
         PlanElement(
           personId = PersonId(personId),
+          planScore = planScore,
+          planSelected = planIsSelected,
           planElementType = "activity",
           planElementIndex = planeElementIndex,
           activityType = Option(act.getType),
@@ -104,6 +119,8 @@ object PlansCsvWriter extends ScenarioCsvWriter {
       PlanEntry(
         planIndex = planInfo.planIndex,
         planElementIndex = planInfo.planElementIndex,
+        planScore = planInfo.planScore,
+        planSelected = planInfo.planSelected,
         personId = planInfo.personId.id,
         planElementType = planInfo.planElementType,
         activityType = planInfo.activityType.getOrElse(""),

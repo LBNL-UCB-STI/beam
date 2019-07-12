@@ -71,6 +71,8 @@ class UrbanSimScenarioSource(
       }
       PlanElement(
         personId = PersonId(plan.personId),
+        planScore = 0, // information not available in Urbansim file
+        planSelected = false, // information not available in Urbansim file
         planElementType = plan.planElement,
         planElementIndex = plan.planElementIndex,
         activityType = plan.activityType,
