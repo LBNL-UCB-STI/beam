@@ -1,8 +1,8 @@
 package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.agents.choice.logit.MultinomialLogit
-
 import scala.util.{Failure, Random, Success, Try}
+
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
@@ -10,9 +10,10 @@ import beam.sim.common.GeoUtils
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
-
 import scala.collection.JavaConverters._
 import scala.annotation.tailrec
+
+import beam.agentsim.infrastructure.ParkingStall
 
 object ParkingZoneSearch {
 

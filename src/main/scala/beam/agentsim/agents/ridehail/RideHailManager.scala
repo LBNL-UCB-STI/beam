@@ -603,7 +603,7 @@ class RideHailManager(
           getNextFromDepotQueue(depotId) match {
             case Some(nextVehicleId) => {
               //TODO: definitely just copy/pasted...either functionalize or resend message to trigger
-              rideHailDepotParkingManager.findAndClaimStallAtDepot(depotId) match {
+              rideHailDepotParkingManager.findAndClaimStallAtDepot(parkingStall) match {
                 case Some(parkingStall: ParkingStall) => {
                   val nextBeamVehicle = resources(agentsim.vehicleId2BeamVehicleId(nextVehicleId))
                   nextBeamVehicle.driver.foreach(driverAgent => {
@@ -616,7 +616,7 @@ class RideHailManager(
             case None => //TODO should we clear that ID?
           }
         }
-        case None => _
+        case None => ()
       }
 
       if (modifyPassengerScheduleManager
