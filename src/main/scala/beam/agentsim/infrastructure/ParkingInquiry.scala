@@ -48,7 +48,7 @@ object ParkingInquiry {
       )
     )
 
-  def apply(locationUtm: Location, activity: String): ParkingInquiry = {
-    ParkingInquiry(locationUtm, activity, 0.0, simpleDistanceAndParkingTicketEqualUtilityFunction, 0)
+  def apply(locationUtm: Location, activity: String, beamVehicleOption: Option[BeamVehicle]): ParkingInquiry = {
+    ParkingInquiry(locationUtm, activity, 0.0, simpleDistanceAndParkingTicketEqualUtilityFunction, 0, beamVehicleOption)
   }
 }
