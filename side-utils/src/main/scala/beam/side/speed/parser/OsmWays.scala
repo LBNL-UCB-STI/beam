@@ -33,20 +33,15 @@ class OsmWays(osmPath: Path, r5Path: Path) {
     var idx = 0l
     Iterator
       .continually(edgeCursor.advance())
-      .map(_ => Try((edgeCursor.getOSMID, edgeCursor.isBackward)))
+      .map(_ => Try(edgeCursor.getOSMID))
       .takeWhile(_.isSuccess)
       .collect {
-        case Success((t, b)) if idx <= t =>
+        case Success(t) if idx < t =>
           idx = t
-          osm.get(t).map(w => t -> (w, b))
+          osm.get(t).map(w => t -> w)
       }
       .collect {
-        case Some((id, (w, f))) =>
-          Option(f)
-            .filter(identity)
-            .fold(OsmNodeSpeed(id, w.nodes(1), w.nodes(0), waySpeed(w)))(
-              _ => OsmNodeSpeed(id, w.nodes(0), w.nodes(1), waySpeed(w))
-            )
+        case Some((id, w)) => OsmNodeSpeed(id, w.nodes(0), w.nodes(1), waySpeed(w))
       }
   }
 

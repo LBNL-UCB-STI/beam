@@ -59,25 +59,35 @@ class UberSpeed[T <: FilterEventAction](
     dictW(osmId).flatMap(s => ways.get(s).map(dropToWeek).map(_.waySpeed[T](fOpt)))
 
   def way(origNodeId: Long, destNodeId: Long): Option[WaySpeed] =
-    nodeGraph
-      .find(origNodeId)
-      .flatMap(o => nodeGraph.find(destNodeId).flatMap(d => o.shortestPathTo(d)))
+    shorterPath(origNodeId, destNodeId)
       .map(p => p.edges.foldLeft(Seq[WayMetric]())((acc, e2) => acc ++ e2.metrics))
       .map(dropToWeek)
       .map(_.waySpeed[T](fOpt))
 
-  def wayPartsMax(origNodeId: Long, destNodeId: Long): Option[String] =
-    nodeGraph
-      .find(origNodeId)
-      .flatMap(o => nodeGraph.find(destNodeId).flatMap(d => o.shortestPathTo(d)))
+  def wayPartsMax(origNodeId: Long, destNodeId: Long): Option[String] = {
+    shorterPath(origNodeId, destNodeId)
       .map(p => p.edges.foldLeft(Seq[Float]())((acc, e2) => acc :+ e2.metrics.map(_.speedMphMean).max))
       .map(_.mkString(","))
+  }
 
-  def wayParts(origNodeId: Long, destNodeId: Long): Option[Seq[Seq[Float]]] =
-    nodeGraph
+  private def shorterPath(origNodeId: Long, destNodeId: Long) = {
+    def shorter(p1: Option[nodeGraph.Path], p2: Option[nodeGraph.Path]) =
+      if (p1.map(_.length).getOrElse(Integer.MAX_VALUE) <= p2.map(_.length).getOrElse(Integer.MAX_VALUE)) p1 else p2
+
+    val path1 = nodeGraph
       .find(origNodeId)
       .flatMap(o => nodeGraph.find(destNodeId).flatMap(d => o.shortestPathTo(d)))
-      .map(p => p.edges.foldLeft(Seq[Seq[Float]]())((acc, e2) => acc :+ e2.metrics.map(_.speedMphMean)))
+    val path2 = nodeGraph
+      .find(destNodeId)
+      .flatMap(d => nodeGraph.find(origNodeId).flatMap(o => d.shortestPathTo(o)))
+
+    shorter(path1, path2)
+  }
+
+  def wayParts(origNodeId: Long, destNodeId: Long): Option[Seq[Seq[Float]]] = {
+    shorterPath(origNodeId, destNodeId)
+      .map(_.edges.foldLeft(Seq[Seq[Float]]())((acc, e2) => acc :+ e2.metrics.map(_.speedMphMean)))
+  }
 
   private def dropToWeek(metrics: Seq[WayMetric]): UberWaySpeed = {
     val week = metrics

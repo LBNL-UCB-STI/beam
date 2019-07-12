@@ -16,16 +16,18 @@ plot(x = 1:length(cd1), y = cd1, type = 'l')
 # Save the file.
 dev.off()
 
-lines <- readLines(file("speed/speed_data-1.csv", open = 'r'))
+lines <- readLines(con <- file("speed/speed_data_part-59.csv", open = 'r'))
 
 cat <- vector(mode = "numeric", length = length(lines))
 
 for (i in 1:length(lines)) {
     cat[i] <- c(strsplit(lines[i], ","))
-    png(file = paste0("1_speed_", i, ".png"),  width = 2048, height = 2048, units = "px", pointsize = 48)
+    png(file = paste0("59_speed_", i, ".png"),  width = 2048, height = 2048, units = "px", pointsize = 48)
     plot(x = 1:length(cat[[i]]), y = cat[[i]], type = 'l', xlab = "id", ylab = "mph")
     dev.off()
 }
+
+close(con)
 
 df <- data.frame(speed=numeric(), idx=integer())
 for (i in 1:length(cat)) {
@@ -34,9 +36,22 @@ for (i in 1:length(cat)) {
     }
 }
 
-png(file = "1_speed.png", width = 3064, height = 2048, units = "px", pointsize = 48)
+png(file = "59_speed.png", width = 3064, height = 2048, units = "px", pointsize = 48)
 boxplot(df$speed ~ df$idx, data = df, xlab = "Segment", ylab = "Speed Mph", main = "Link 1")
 dev.off()
+
+linesMaxes <- readLines(ccc <- file("speed/speed_data_max.csv", open = 'r'))
+maxes <- vector(mode = "integer", length = length(linesMaxes))
+
+for (k in 1:length(linesMaxes)) {
+    v <- unlist(strsplit(linesMaxes[k], ","))
+    maxes[k] <- length(v)
+}
+
+close(ccc)
+
+ggplot() + aes(maxes)+ geom_histogram(binwidth=1, colour="black", fill="white")
+ggsave("max_speed_hist.png", width = 16, height = 9, dpi = 300)
 
 # Give the chart file a name.
 png(file = "scatterplot.png", width = 3064, height = 2048, units = "px", pointsize = 48)
