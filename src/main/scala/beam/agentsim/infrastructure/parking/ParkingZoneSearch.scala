@@ -132,7 +132,7 @@ object ParkingZoneSearch {
   ): Boolean = {
     parkingZone.chargingPointType match {
       case Some(_) => vehicleCanParkAtCharger
-      case None    => true
+      case None    => !vehicleCanParkAtCharger
     }
   }
 

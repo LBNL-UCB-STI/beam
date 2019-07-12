@@ -169,7 +169,8 @@ trait ChoosesParking extends {
         nextActivity(personData).get.getType,
         attributes.valueOfTime,
         utilityFunction,
-        parkingDuration
+        parkingDuration,
+        this.currentTourBeamVehicle
       )
   }
   when(ReleasingParkingSpot, stateTimeout = Duration.Zero) {

@@ -42,17 +42,18 @@ class ZonalParkingManager(
       log.debug("Received parking inquiry: {}", inquiry)
 
       val preferredParkingTypes: Seq[ParkingType] = inquiry.activityType match {
-        case act if act.equalsIgnoreCase("home") => Seq(ParkingType.Residential, ParkingType.Public)
-        case act if act.equalsIgnoreCase("init") => Seq(ParkingType.Residential, ParkingType.Public)
-        case act if act.equalsIgnoreCase("work") => Seq(ParkingType.Workplace, ParkingType.Public)
-        case _                                   => Seq(ParkingType.Public)
+        case act if act.equalsIgnoreCase("home")   => Seq(ParkingType.Residential, ParkingType.Public)
+        case act if act.equalsIgnoreCase("init")   => Seq(ParkingType.Residential, ParkingType.Public)
+        case act if act.equalsIgnoreCase("work")   => Seq(ParkingType.Workplace, ParkingType.Public)
+        case act if act.equalsIgnoreCase("charge") => Seq(ParkingType.Workplace, ParkingType.Public)
+        case _                                     => Seq(ParkingType.Public)
       }
 
       val vehicleCanParkAtCharger: Boolean = inquiry.vehicleType match {
         case Some(vehicleType)
             if vehicleType.beamVehicleType.primaryFuelType == Electricity || vehicleType.beamVehicleType.secondaryFuelType
               .contains(Electricity) =>
-          !inquiry.activityType.equalsIgnoreCase("init") //vehicles don't intend to charge on initialization
+          inquiry.activityType.equalsIgnoreCase("charge") //vehicles don't intend to charge on initialization
         case _ => false
       }
 
