@@ -11,37 +11,49 @@ object PlansCsvWriter extends ScenarioCsvWriter {
   override protected val fields: Seq[String] = Seq(
     "personId",
     "planIndex",
+    "planScore",
+    "planSelected",
     "planElementType",
     "planElementIndex",
     "activityType",
     "activityLocationX",
     "activityLocationY",
     "activityEndTime",
-    "legMode"
+    "legMode",
+    "legDepartureTime",
+    "legTravelTime"
   )
 
   private case class PlanEntry(
     personId: String,
     planIndex: Int,
+    planScore: Double,
+    planSelected: Boolean,
     planElementType: String,
     planElementIndex: Int,
     activityType: String,
     activityLocationX: String,
     activityLocationY: String,
     activityEndTime: String,
-    legMode: String
+    legMode: String,
+    legDepartureTime: String,
+    legTravelTime: String
   ) {
     override def toString: String = {
       Seq(
         personId,
         planIndex,
+        planScore,
+        planSelected,
         planElementType,
         planElementIndex,
         activityType,
         activityLocationX,
         activityLocationY,
         activityEndTime,
-        legMode
+        legMode,
+        legDepartureTime,
+        legTravelTime
       ).mkString("", FieldSeparator, LineSeparator)
     }
   }
@@ -49,11 +61,22 @@ object PlansCsvWriter extends ScenarioCsvWriter {
   private def getPlanInfo(scenario: Scenario): Iterable[PlanElement] = {
     scenario.getPopulation.getPersons.asScala.flatMap {
       case (_, person) =>
+        val selectedPlan = person.getSelectedPlan
         person.getPlans.asScala.zipWithIndex.flatMap {
           case (plan: Plan, planIndex: Int) =>
+            val isSelected = selectedPlan == plan
             plan.getPlanElements.asScala.zipWithIndex.map {
               case (planElement, planElementIndex) =>
-                toPlanInfo(planIndex, plan.getPerson.getId.toString, planElement, planElementIndex)
+                toPlanInfo(
+                  planIndex,
+                  plan.getPerson.getId.toString,
+                  plan.getScore,
+                  isSelected,
+                  planElement,
+                  planElementIndex,
+                  None,  // TODO: legDeparaturaTime
+                  None   // TODO legTravelTime
+                )
             }
         }
     }
@@ -62,8 +85,12 @@ object PlansCsvWriter extends ScenarioCsvWriter {
   private def toPlanInfo(
     planIndex: Int,
     personId: String,
+    planScore: Double,
+    isSelectedPlan: Boolean,
     planElement: MatsimPlanElement,
-    planeElementIndex: Int
+    planeElementIndex: Int,
+    legDepartureTime: Option[String],
+    legTravelTime: Option[String]
   ): PlanElement = {
     planElement match {
       case leg: Leg =>
@@ -72,28 +99,35 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           if (mode == "") None
           else Some(mode)
         }
-
         PlanElement(
           planIndex = planIndex,
           personId = PersonId(personId),
           planElementType = "leg",
           planElementIndex = planeElementIndex,
+          planScore = planScore,
+          planSelected = isSelectedPlan,
           activityType = None,
           activityLocationX = None,
           activityLocationY = None,
           activityEndTime = None,
-          legMode = mode
+          legMode = mode,
+          legDepartureTime = legDepartureTime,
+          legTravelTime = legTravelTime
         )
       case act: Activity =>
         PlanElement(
           personId = PersonId(personId),
           planElementType = "activity",
           planElementIndex = planeElementIndex,
+          planScore = planScore,
+          planSelected = isSelectedPlan,
           activityType = Option(act.getType),
           activityLocationX = Option(act.getCoord.getX),
           activityLocationY = Option(act.getCoord.getY),
           activityEndTime = Option(act.getEndTime),
-          legMode = None
+          legMode = None,
+          legDepartureTime = None,
+          legTravelTime = None
         )
     }
   }
@@ -104,13 +138,17 @@ object PlansCsvWriter extends ScenarioCsvWriter {
       PlanEntry(
         planIndex = planInfo.planIndex,
         planElementIndex = planInfo.planElementIndex,
+        planScore = planInfo.planScore,
+        planSelected = planInfo.planSelected,
         personId = planInfo.personId.id,
         planElementType = planInfo.planElementType,
         activityType = planInfo.activityType.getOrElse(""),
         activityLocationX = planInfo.activityLocationX.map(_.toString).getOrElse(""),
         activityLocationY = planInfo.activityLocationY.map(_.toString).getOrElse(""),
         activityEndTime = planInfo.activityEndTime.map(_.toString).getOrElse(""),
-        legMode = planInfo.legMode.getOrElse("")
+        legMode = planInfo.legMode.getOrElse(""),
+        legDepartureTime = planInfo.legDepartureTime.getOrElse(""),
+        legTravelTime = planInfo.legTravelTime.getOrElse("")
       ).toString
     }
   }

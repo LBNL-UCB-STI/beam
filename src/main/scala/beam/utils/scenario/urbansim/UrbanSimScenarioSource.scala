@@ -51,7 +51,7 @@ class UrbanSimScenarioSource(
       )
     }
 
-    planElements.map { plan =>
+    planElements.map { plan: DataExchange.PlanElement =>
       val coord = (plan.x, plan.y) match {
         case (Some(x), Some(y)) =>
           val c =
@@ -73,11 +73,15 @@ class UrbanSimScenarioSource(
         personId = PersonId(plan.personId),
         planElementType = plan.planElement,
         planElementIndex = plan.planElementIndex,
+        planScore = 0,  // TODO: DataExchange.PlanElement does not have score
+        planSelected = false, // TODO: DataExchange.PlanElement does not have planSelected
         activityType = plan.activityType,
         activityLocationX = coord.map(_.getX),
         activityLocationY = coord.map(_.getY),
         activityEndTime = plan.endTime,
-        legMode = plan.mode
+        legMode = plan.mode,
+        legDepartureTime = None, // TODO: DataExchange.PlanElement does not have legDepartureTime
+        legTravelTime = None // // TODO: DataExchange.PlanElement does not have legTravelTime
       )
     }
   }

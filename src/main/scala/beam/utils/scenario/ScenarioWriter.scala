@@ -117,27 +117,28 @@ object CsvScenarioWriter extends ScenarioWriter with LazyLogging {
           else Some(mode)
         }
 
-        PlanElement(
-          personId = PersonId(personId),
-          planElementType = "leg",
-          planElementIndex = index,
-          activityType = None,
-          activityLocationX = None,
-          activityLocationY = None,
-          activityEndTime = None,
-          legMode = mode
-        )
-      case act: Activity =>
-        PlanElement(
-          personId = PersonId(personId),
-          planElementType = "activity",
-          planElementIndex = index,
-          activityType = Option(act.getType),
-          activityLocationX = Option(act.getCoord.getX),
-          activityLocationY = Option(act.getCoord.getY),
-          activityEndTime = Option(act.getEndTime),
-          legMode = None
-        )
+//        PlanElement(
+//          personId = PersonId(personId),
+//          planElementType = "leg",
+//          planElementIndex = index,
+//          activityType = None,
+//          activityLocationX = None,
+//          activityLocationY = None,
+//          activityEndTime = None,
+//          legMode = mode
+//        )
+//      case act: Activity =>
+//        PlanElement(
+//          personId = PersonId(personId),
+//          planElementType = "activity",
+//          planElementIndex = index,
+//          activityType = Option(act.getType),
+//          activityLocationX = Option(act.getCoord.getX),
+//          activityLocationY = Option(act.getCoord.getY),
+//          activityEndTime = Option(act.getEndTime),
+//          legMode = None
+//        )
+        null
     }
   }
   private def getPersonInfo(scenario: MutableScenario): Iterable[PersonInfo] = {

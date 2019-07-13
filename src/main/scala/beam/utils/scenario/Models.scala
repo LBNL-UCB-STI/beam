@@ -16,13 +16,17 @@ case class PersonInfo(
 case class PlanElement(
   personId: PersonId,
   planIndex: Int = 0,
+  planScore: Double,
+  planSelected: Boolean,
   planElementType: String,
   planElementIndex: Int,
   activityType: Option[String],
   activityLocationX: Option[Double],
   activityLocationY: Option[Double],
   activityEndTime: Option[Double],
-  legMode: Option[String]
+  legMode: Option[String],
+  legDepartureTime: Option[String],
+  legTravelTime: Option[String]
 )
 
 case class HouseholdInfo(householdId: HouseholdId, cars: Int, income: Double, locationX: Double, locationY: Double)
