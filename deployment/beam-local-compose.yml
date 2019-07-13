@@ -14,6 +14,7 @@ services:
     environment:
       HOSTNAME_COMMAND: "ifconfig | grep \"inet addr:\" | awk  -F'[: ]+' '!/127/{print $$4}'"
       BEAM_OUTPUT: /opt/output
+      JAVA_OPTS: '"-Xmx2g" "-Xms1g" "-Dlogback.configurationFile=logback.xml"'
     depends_on:
       - beam-master
 
@@ -30,3 +31,4 @@ services:
     command: ["--config",  "/opt/config/simulation/beam.conf", "--cluster-type", "master", "--node-host", "beam-master", "--node-port", "2552", "--seed-address", "beam-master:2552"]
     environment:
       BEAM_OUTPUT: /opt/output
+      JAVA_OPTS: '"-Xmx2g" "-Xms1g" "-Dlogback.configurationFile=logback.xml"'

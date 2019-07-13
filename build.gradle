@@ -6,6 +6,7 @@ import com.amazonaws.services.lambda.model.InvokeRequest
 import com.amazonaws.services.lambda.model.LogType
 import com.google.common.base.Charsets
 import com.google.common.io.Files
+import groovy.json.JsonSlurper
 import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
 import jp.classmethod.aws.gradle.lambda.AWSLambdaPluginExtension
 import org.unbrokendome.gradle.plugins.helm.command.tasks.HelmInit
@@ -16,9 +17,6 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
-
-import groovy.json.JsonSlurper
-
 
 buildscript {
     repositories {
@@ -33,7 +31,7 @@ buildscript {
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
         classpath 'cz.alenkacz:gradle-scalafmt:1.7.0'
         classpath 'com.bmuschko:gradle-docker-plugin:3.6.1'
-        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.4'
+        classpath 'com.github.jengelman.gradle.plugins:shadow:5.1.0'
 
     }
 }
@@ -53,6 +51,12 @@ plugins {
 //ext {
 //    env = "beamville"
 //}
+
+tasks.whenTaskAdded { task ->
+    if (task.name.contains("helm")) {
+        task.enabled = false
+    }
+}
 
 apply plugin: 'java'
 apply plugin: 'scala'
@@ -826,6 +830,7 @@ jar {
 }
 
 shadowJar {
+    zip64 true
     transform(com.github.jengelman.gradle.plugins.shadow.transformers.AppendingTransformer) {
         resource = 'reference.conf'
     }
@@ -912,7 +917,7 @@ task helmInit(type: HelmInit) {
     }
 }
 
-//helmInit.dependsOn clean
+helmInit.dependsOn clean
 
 helmUpdateStandaloneChartDependencies.dependsOn helmPackageCommonChart
 
