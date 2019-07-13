@@ -321,7 +321,7 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
       // i.e. for what time it is.
-      if(data.passengerSchedule.schedule.isEmpty){
+      if (data.passengerSchedule.schedule.isEmpty) {
         log.debug("updating Passenger schedule - vehicleId({}): {}", id, updatedPassengerSchedule)
         val triggerToSchedule = Vector(
           ScheduleTrigger(
@@ -341,18 +341,32 @@ class RideHailAgent(
           vehicle.id,
           tick,
         )
-      }else{
-        log.debug("merging existing passenger schedule with updated - vehicleId({}), existing: {}, updated: {}", id, data.passengerSchedule, updatedPassengerSchedule)
+      } else {
+        log.debug(
+          "merging existing passenger schedule with updated - vehicleId({}), existing: {}, updated: {}",
+          id,
+          data.passengerSchedule,
+          updatedPassengerSchedule
+        )
         val currentLeg = data.passengerSchedule.schedule.view.drop(data.currentLegPassengerScheduleIndex).head._1
-        val updatedStopTime = math.max(currentLeg.startTime,tick)
-        val resolvedPassengerSchedule: PassengerSchedule = DrivesVehicle.resolvePassengerScheduleConflicts(updatedStopTime, data.passengerSchedule, updatedPassengerSchedule, beamServices.networkHelper, beamServices.geo)
-        val newLegIndex = resolvedPassengerSchedule.schedule.keys.zipWithIndex.find(_._1.startTime<=updatedStopTime).map(_._2).getOrElse(0)
-        if(newLegIndex >= resolvedPassengerSchedule.schedule.size ){
+        val updatedStopTime = math.max(currentLeg.startTime, tick)
+        val resolvedPassengerSchedule: PassengerSchedule = DrivesVehicle.resolvePassengerScheduleConflicts(
+          updatedStopTime,
+          data.passengerSchedule,
+          updatedPassengerSchedule,
+          beamServices.networkHelper,
+          beamServices.geo
+        )
+        val newLegIndex = resolvedPassengerSchedule.schedule.keys.zipWithIndex
+          .find(_._1.startTime <= updatedStopTime)
+          .map(_._2)
+          .getOrElse(0)
+        if (newLegIndex >= resolvedPassengerSchedule.schedule.size) {
           val i = 0
         }
         val newNextLeg = resolvedPassengerSchedule.schedule.keys.toIndexedSeq(newLegIndex)
 
-        if(resolvedPassengerSchedule.schedule.values.exists(_.riders.size==6)){
+        if (resolvedPassengerSchedule.schedule.values.exists(_.riders.size == 6)) {
           val i = 0
         }
 

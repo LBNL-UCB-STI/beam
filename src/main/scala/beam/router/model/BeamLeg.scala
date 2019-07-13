@@ -30,13 +30,14 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
   }
 
   def scaleToNewDuration(newDuration: Int): BeamLeg = {
-    val newTravelPath = this.travelPath.scaleTravelTimes(newDuration.toDouble/this.duration.toDouble)
+    val newTravelPath = this.travelPath.scaleTravelTimes(newDuration.toDouble / this.duration.toDouble)
     this
       .copy(
         duration = newDuration,
         travelPath = newTravelPath
       )
   }
+
   def scaleLegDuration(scaleBy: Double): BeamLeg = {
     val newTravelPath = this.travelPath.scaleTravelTimes(scaleBy)
     this
@@ -62,18 +63,26 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
     )
     this.copy(travelPath = newTravelPath).updateStartTime(startTime)
   }
+
   /**
     * SubLegBefore
     * Returns a new BeamLeg composed as if one traversed the original BeamLeg until throughTime
     */
-  def subLegThrough(throughTime: Int, networkHelper: NetworkHelper, geoUtils: GeoUtils):BeamLeg = {
+  def subLegThrough(throughTime: Int, networkHelper: NetworkHelper, geoUtils: GeoUtils): BeamLeg = {
     val linkAtTime = this.travelPath.linkAtTime(throughTime)
     val indexOfNewEndLink = this.travelPath.linkIds.indexWhere(_ == linkAtTime)
-    val newDuration = if(indexOfNewEndLink<=1){0}else{math.round(this.travelPath.linkTravelTime.take(indexOfNewEndLink+1).tail.sum).toInt}
-    val newEndPoint = SpaceTime(geoUtils.utm2Wgs(networkHelper.getLink(this.travelPath.linkIds(indexOfNewEndLink)).get.getCoord),this.startTime+newDuration)
-    val newTravelPath = this.travelPath.copy(linkIds = this.travelPath.linkIds.take(indexOfNewEndLink+1),
-      linkTravelTime = this.travelPath.linkTravelTime.take(indexOfNewEndLink+1),
-      endPoint = newEndPoint)
+    val newDuration = if (indexOfNewEndLink <= 1) { 0 } else {
+      math.round(this.travelPath.linkTravelTime.take(indexOfNewEndLink + 1).tail.sum).toInt
+    }
+    val newEndPoint = SpaceTime(
+      geoUtils.utm2Wgs(networkHelper.getLink(this.travelPath.linkIds(indexOfNewEndLink)).get.getCoord),
+      this.startTime + newDuration
+    )
+    val newTravelPath = this.travelPath.copy(
+      linkIds = this.travelPath.linkIds.take(indexOfNewEndLink + 1),
+      linkTravelTime = this.travelPath.linkTravelTime.take(indexOfNewEndLink + 1),
+      endPoint = newEndPoint
+    )
     this.copy(duration = newTravelPath.duration, travelPath = newTravelPath)
   }
 

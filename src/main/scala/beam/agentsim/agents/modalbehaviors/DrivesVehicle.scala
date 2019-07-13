@@ -24,7 +24,12 @@ import beam.sim.common.GeoUtils
 import beam.utils.NetworkHelper
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{LinkEnterEvent, LinkLeaveEvent, VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
+import org.matsim.api.core.v01.events.{
+  LinkEnterEvent,
+  LinkLeaveEvent,
+  VehicleEntersTrafficEvent,
+  VehicleLeavesTrafficEvent
+}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
@@ -35,46 +40,69 @@ import scala.collection.mutable
   * DrivesVehicle
   */
 object DrivesVehicle {
-  def resolvePassengerScheduleConflicts(stopTick: Int, oldPassengerSchedule: PassengerSchedule, updatedPassengerSchedule: PassengerSchedule, networkHelper: NetworkHelper, geoUtils: GeoUtils): PassengerSchedule = {
+
+  def resolvePassengerScheduleConflicts(
+    stopTick: Int,
+    oldPassengerSchedule: PassengerSchedule,
+    updatedPassengerSchedule: PassengerSchedule,
+    networkHelper: NetworkHelper,
+    geoUtils: GeoUtils
+  ): PassengerSchedule = {
     // First attempt to find the link in updated that corresponds to the stopping link in old
     val stoppingLink = oldPassengerSchedule.linkAtTime(stopTick)
     val updatedLegsInSchedule = updatedPassengerSchedule.schedule.keys.toList
-    if(updatedLegsInSchedule.sliding(2).filter(tup => tup.size > 1 && tup.head.endTime > tup.last.startTime ).size>0){
+    if (updatedLegsInSchedule
+          .sliding(2)
+          .filter(tup => tup.size > 1 && tup.head.endTime > tup.last.startTime)
+          .size > 0) {
       val i = 0
     }
     val startingLeg = updatedLegsInSchedule.reverse.find(_.travelPath.linkIds.contains(stoppingLink)) match {
       case Some(leg) =>
-       leg
+        leg
       case None =>
         // Instead we will have to find the starting point using closest Euclidean distance of the links
         val stoppingCoord = networkHelper.getLink(stoppingLink).get.getCoord
         val allLinks = updatedLegsInSchedule.flatMap(_.travelPath.linkIds)
-        val startingLink = allLinks(allLinks.map(networkHelper.getLink(_).get.getCoord).map(geoUtils.distUTMInMeters(_,stoppingCoord)).zipWithIndex.min._2)
+        val startingLink = allLinks(
+          allLinks
+            .map(networkHelper.getLink(_).get.getCoord)
+            .map(geoUtils.distUTMInMeters(_, stoppingCoord))
+            .zipWithIndex
+            .min
+            ._2
+        )
         updatedLegsInSchedule.reverse.find(_.travelPath.linkIds.contains(startingLink)).get
     }
     val indexOfStartingLink = startingLeg.travelPath.linkIds.indexWhere(_ == stoppingLink)
     val newLinks = startingLeg.travelPath.linkIds.drop(indexOfStartingLink)
     val newDistance = newLinks.map(networkHelper.getLink(_).map(_.getLength.toInt).getOrElse(0)).sum
-    val newStart = SpaceTime(geoUtils.utm2Wgs(networkHelper.getLink(newLinks.head).get.getCoord),stopTick)
-    val newDuration = if(newLinks.size <= 1){0}else{math.round(startingLeg.travelPath.linkTravelTime.drop(indexOfStartingLink).tail.sum.toFloat)}
-    val newTravelPath = BeamPath(newLinks,
+    val newStart = SpaceTime(geoUtils.utm2Wgs(networkHelper.getLink(newLinks.head).get.getCoord), stopTick)
+    val newDuration = if (newLinks.size <= 1) { 0 } else {
+      math.round(startingLeg.travelPath.linkTravelTime.drop(indexOfStartingLink).tail.sum.toFloat)
+    }
+    val newTravelPath = BeamPath(
+      newLinks,
       startingLeg.travelPath.linkTravelTime.drop(indexOfStartingLink),
       None,
       newStart,
       startingLeg.travelPath.endPoint.copy(time = newStart.time + newDuration),
       newDistance
     )
-    val updatedStartingLeg = BeamLeg(stopTick,startingLeg.mode,newTravelPath.duration,newTravelPath)
+    val updatedStartingLeg = BeamLeg(stopTick, startingLeg.mode, newTravelPath.duration, newTravelPath)
     val indexOfStartingLeg = updatedLegsInSchedule.indexOf(startingLeg)
-    val newLegsInSchedule = BeamLeg.makeVectorLegsConsistentAsTrip(updatedLegsInSchedule.slice(0, indexOfStartingLeg) ++ (updatedStartingLeg +: updatedLegsInSchedule.slice(indexOfStartingLeg+1,updatedPassengerSchedule.schedule.size)))
+    val newLegsInSchedule = BeamLeg.makeVectorLegsConsistentAsTrip(
+      updatedLegsInSchedule.slice(0, indexOfStartingLeg) ++ (updatedStartingLeg +: updatedLegsInSchedule
+        .slice(indexOfStartingLeg + 1, updatedPassengerSchedule.schedule.size))
+    )
     var newPassSchedule = PassengerSchedule().addLegs(newLegsInSchedule)
-    updatedPassengerSchedule.uniquePassengers.foreach{ pass =>
-      val indicesOfMatchingElements = updatedPassengerSchedule.legsWithPassenger(pass).toIndexedSeq.map(updatedLegsInSchedule.indexOf(_))
-      newPassSchedule = newPassSchedule.addPassenger(pass,indicesOfMatchingElements.map(newLegsInSchedule(_)))
+    updatedPassengerSchedule.uniquePassengers.foreach { pass =>
+      val indicesOfMatchingElements =
+        updatedPassengerSchedule.legsWithPassenger(pass).toIndexedSeq.map(updatedLegsInSchedule.indexOf(_))
+      newPassSchedule = newPassSchedule.addPassenger(pass, indicesOfMatchingElements.map(newLegsInSchedule(_)))
     }
     newPassSchedule
   }
-
 
   sealed trait VehicleOrToken {
     def id: Id[BeamVehicle]
@@ -204,12 +232,14 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
 //        currentVehicleUnderControl,
 //        tick
 //      )
-      if(tick == 24659){
+      if (tick == 24659) {
         val i = 0
       }
 
       data.passengerSchedule.schedule(currentLeg).alighters.foreach { pv =>
-        logDebug(s"Scheduling AlightVehicleTrigger for Person ${pv.personId} from vehicle ${data.currentVehicle.head} @ $tick")
+        logDebug(
+          s"Scheduling AlightVehicleTrigger for Person ${pv.personId} from vehicle ${data.currentVehicle.head} @ $tick"
+        )
         scheduler ! ScheduleTrigger(
           AlightVehicleTrigger(
             tick,
@@ -349,10 +379,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       val currentVehicleUnderControl = data.currentVehicle.headOption
         .getOrElse(throw new RuntimeException("Current Vehicle is not available."))
 
-      val updatedStopTick = math.max(stopTick,currentLeg.startTime)
-      val partiallyCompletedBeamLeg = currentLeg.subLegThrough(updatedStopTick,networkHelper, geo)
+      val updatedStopTick = math.max(stopTick, currentLeg.startTime)
+      val partiallyCompletedBeamLeg = currentLeg.subLegThrough(updatedStopTick, networkHelper, geo)
 
-      val currentLocation = if(updatedStopTick > currentLeg.startTime){
+      val currentLocation = if (updatedStopTick > currentLeg.startTime) {
         val fuelConsumed = currentBeamVehicle.useFuel(partiallyCompletedBeamLeg, beamScenario, networkHelper)
 
         val tollOnCurrentLeg = toll(currentLeg)
@@ -381,7 +411,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
           )
         )
         partiallyCompletedBeamLeg.travelPath.endPoint
-      }else{
+      } else {
         currentLeg.travelPath.startPoint
       }
 
@@ -440,7 +470,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         )
       )
 
-      if(data.passengerSchedule.schedule(currentLeg).riders.isEmpty){
+      if (data.passengerSchedule.schedule(currentLeg).riders.isEmpty) {
         self ! PassengerScheduleEmptyMessage(
           geo.wgs2Utm(
             data.passengerSchedule.schedule
@@ -456,7 +486,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         goto(PassengerScheduleEmptyInterrupted) using data
           .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
           .asInstanceOf[T]
-      }else{
+      } else {
         // In this case our passenger schedule isn't empty so we go directly to idle interrupted
         goto(IdleInterrupted) using data.asInstanceOf[T]
       }

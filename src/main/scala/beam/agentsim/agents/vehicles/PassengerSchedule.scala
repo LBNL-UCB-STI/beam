@@ -16,7 +16,6 @@ import scala.collection.immutable.TreeMap
   */
 case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
 
-
   def addLegs(legs: Seq[BeamLeg]): PassengerSchedule = {
     PassengerSchedule(schedule ++ legs.map(leg => (leg, Manifest())))
   }
@@ -60,15 +59,17 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
 
   def numUniquePassengers: Int = schedule.values.flatMap(_.riders).toSet.size
 
-  def numLegsWithPassengersAfter(legIndex: Int): Int = schedule.slice(legIndex,schedule.size).values.filter(_.riders.size>0).size
+  def numLegsWithPassengersAfter(legIndex: Int): Int =
+    schedule.slice(legIndex, schedule.size).values.filter(_.riders.size > 0).size
 
   def linkAtTime(tick: Int): Int = {
-    if(tick < schedule.keys.head.startTime){
+    if (tick < schedule.keys.head.startTime) {
       schedule.keys.head.travelPath.linkIds.head
-    }else{
+    } else {
       schedule.keys.toList.reverse.find(_.startTime <= tick).map(_.travelPath.linkAtTime(tick)).get
     }
   }
+
   def locationAtTime(tick: Int, beamServices: BeamServices): Location = {
     beamServices.networkHelper.getLink(linkAtTime(tick)).get.getCoord
   }

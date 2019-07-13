@@ -20,7 +20,6 @@ case class BeamPath(
   distanceInM: Double
 ) {
 
-
   checkCoordinates(startPoint)
   checkCoordinates(endPoint)
 
@@ -35,7 +34,7 @@ case class BeamPath(
 
   def duration: Int = (endPoint.time - startPoint.time)
 
-  if(linkTravelTime.size > 1 && math.abs(math.round(linkTravelTime.tail.sum).toInt - (endPoint.time - startPoint.time)) > 2){
+  if (linkTravelTime.size > 1 && math.abs(math.round(linkTravelTime.tail.sum).toInt - (endPoint.time - startPoint.time)) > 2) {
     assert(false)
   }
 
@@ -54,12 +53,13 @@ case class BeamPath(
 
   def scaleTravelTimes(scaleBy: Double): BeamPath = {
     val newLinkTimes = this.linkTravelTime.map(travelTime => travelTime * scaleBy)
-    val newDuration = if(newLinkTimes.size>1){math.round(newLinkTimes.tail.sum).toInt}else{0}
+    val newDuration = if (newLinkTimes.size > 1) { math.round(newLinkTimes.tail.sum).toInt } else { 0 }
     this.copy(
       linkTravelTime = newLinkTimes,
       endPoint = this.endPoint.copy(time = this.startPoint.time + newDuration)
     )
   }
+
   def linkAtTime(tick: Int): Int = {
     tick - startPoint.time match {
       case secondsAlongPath if secondsAlongPath <= 0 || linkIds.size <= 1 =>
@@ -67,7 +67,7 @@ case class BeamPath(
       case secondsAlongPath if secondsAlongPath > linkTravelTime.tail.sum =>
         linkIds.last
       case secondsAlongPath =>
-        if(linkTravelTime.tail.scanLeft(0.0)((a, b) => a + b).indexWhere(_ >= secondsAlongPath) < 0){
+        if (linkTravelTime.tail.scanLeft(0.0)((a, b) => a + b).indexWhere(_ >= secondsAlongPath) < 0) {
           val i = 0
         }
         linkIds.tail(linkTravelTime.tail.scanLeft(0.0)((a, b) => a + b).indexWhere(_ >= secondsAlongPath) - 1)

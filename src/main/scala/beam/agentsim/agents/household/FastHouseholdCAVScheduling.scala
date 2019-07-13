@@ -24,13 +24,13 @@ import scala.collection.mutable
 import scala.util.control.Breaks._
 
 class FastHouseholdCAVScheduling(
-                                  val household: Household,
-                                  val householdVehicles: List[BeamVehicle],
-                                  val timeWindow: Map[MobilityRequestType, Int],
-                                  val stopSearchAfterXSolutions: Int = 100,
-                                  val limitCavToXPersons: Int = 3,
-                                  val skimmer: BeamSkimmer,
-                                  val beamServices: Option[BeamServices] = None
+  val household: Household,
+  val householdVehicles: List[BeamVehicle],
+  val timeWindow: Map[MobilityRequestType, Int],
+  val stopSearchAfterXSolutions: Int = 100,
+  val limitCavToXPersons: Int = 3,
+  val skimmer: BeamSkimmer,
+  val beamServices: Option[BeamServices] = None
 )(implicit val population: org.matsim.api.core.v01.population.Population) {
 
   import scala.collection.mutable.{ListBuffer => MListBuffer}
@@ -140,7 +140,8 @@ class FastHouseholdCAVScheduling(
       if (cavSchedule.occupancy >= cav.beamVehicleType.seatingCapacity)
         return None
 
-      val sortedRequests = (cavSchedule.schedule ++ requests).filter(_.tag != Relocation).sortBy(_.baselineNonPooledTime)
+      val sortedRequests =
+        (cavSchedule.schedule ++ requests).filter(_.tag != Relocation).sortBy(_.baselineNonPooledTime)
       val startRequest = sortedRequests.head
       val newHouseholdSchedule = MListBuffer(startRequest.copy())
       var newHouseholdScheduleCost = householdScheduleCost.copy()
@@ -336,12 +337,12 @@ case class HouseholdTrips(
 object HouseholdTrips {
 
   def get(
-           household: Household,
-           householdVehicles: List[BeamVehicle],
-           limitCavToXPersons: Int,
-           householdNbOfVehicles: Int,
-           timeWindow: Map[MobilityRequestType, Int],
-           skim: BeamSkimmer
+    household: Household,
+    householdVehicles: List[BeamVehicle],
+    limitCavToXPersons: Int,
+    householdNbOfVehicles: Int,
+    timeWindow: Map[MobilityRequestType, Int],
+    skim: BeamSkimmer
   )(implicit population: org.matsim.api.core.v01.population.Population): Option[HouseholdTrips] = {
     import beam.agentsim.agents.memberships.Memberships.RankedGroup._
     val householdPlans = household.members

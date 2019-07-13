@@ -463,7 +463,8 @@ object AlonsoMoraPoolingAlgForRideHail {
       with RTVGraphNode {
     override def getId: String = requests.foldLeft(s"trip:") { case (c, x) => c + s"$x -> " }
     val cost: Int = schedule.foldLeft(0) { case (c, r)                     => c + (r.serviceTime - r.baselineNonPooledTime) }
-    override def toString: String = s"${requests.size} requests and this schedule: ${schedule.map(_.toString).mkString("\n")}"
+    override def toString: String =
+      s"${requests.size} requests and this schedule: ${schedule.map(_.toString).mkString("\n")}"
   }
   case class RVGraph(clazz: Class[RideHailTrip])
       extends DefaultUndirectedWeightedGraph[RVGraphNode, RideHailTrip](clazz)

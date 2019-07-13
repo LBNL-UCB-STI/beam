@@ -28,15 +28,15 @@ object RideHailAgentETAComparatorMinTimeToCustomer extends Ordering[RideHailAgen
     java.lang.Double.compare(o1.timeToCustomer, o2.timeToCustomer)
   }
 }
+
 object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLocation, Double)] {
   override def compare(
-                        o1: (RideHailAgentLocation, Double),
-                        o2: (RideHailAgentLocation, Double)
-                      ): Int = {
+    o1: (RideHailAgentLocation, Double),
+    o2: (RideHailAgentLocation, Double)
+  ): Int = {
     java.lang.Double.compare(o1._2, o2._2)
   }
 }
-
 
 /**
   * BEAM
@@ -322,6 +322,7 @@ object RideHailVehicleManager {
     currentPassengerSchedule: Option[PassengerSchedule] = None,
     servingPooledTrip: Boolean = false
   ) {
+
     def toStreetVehicle: StreetVehicle = {
       StreetVehicle(vehicleId, vehicleType.id, currentLocationUTM, CAR, asDriver = true)
     }

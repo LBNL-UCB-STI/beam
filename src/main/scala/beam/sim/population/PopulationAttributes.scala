@@ -86,7 +86,8 @@ case class AttributesOfIndividual(
     embodiedBeamLeg.beamLeg.mode match {
       case CAR => // NOTE: Ride hail legs are classified as CAR mode. For now we only need to loop through links here
         val idsAndTravelTimes =
-          embodiedBeamLeg.beamLeg.travelPath.linkIds.zip(embodiedBeamLeg.beamLeg.travelPath.linkTravelTime.map(time => math.round(time.toFloat)))
+          embodiedBeamLeg.beamLeg.travelPath.linkIds
+            .zip(embodiedBeamLeg.beamLeg.travelPath.linkTravelTime.map(time => math.round(time.toFloat)))
         idsAndTravelTimes.foldLeft(0.0)(
           _ + getGeneralizedTimeOfLinkForMNL(
             _,
