@@ -73,7 +73,7 @@ class UrbanSimScenarioSource(
         personId = PersonId(plan.personId),
         planElementType = plan.planElement,
         planElementIndex = plan.planElementIndex,
-        planScore = 0,  // TODO: DataExchange.PlanElement does not have score
+        planScore = 0, // TODO: DataExchange.PlanElement does not have score
         planSelected = false, // TODO: DataExchange.PlanElement does not have planSelected
         activityType = plan.activityType,
         activityLocationX = coord.map(_.getX),
