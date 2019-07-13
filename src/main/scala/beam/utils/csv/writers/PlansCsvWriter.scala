@@ -86,7 +86,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
     planScore: Double,
     isSelectedPlan: Boolean,
     planElement: MatsimPlanElement,
-    planeElementIndex: Int,
+    planeElementIndex: Int
   ): PlanElement = {
     planElement match {
       case leg: Leg =>
