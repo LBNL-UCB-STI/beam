@@ -71,16 +71,13 @@ object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
       planSelected = getIfNotNull(rec, "planSelected", "false").toBoolean,
       planElementType = planElementType,
       planElementIndex = planElementIndex,
-
       activityType = activityType,
       activityLocationX = Option(rec.get("activityLocationX")).map(_.toDouble),
       activityLocationY = Option(rec.get("activityLocationY")).map(_.toDouble),
       activityEndTime = Option(rec.get("activityEndTime")).map(_.toDouble),
-
       legMode = Option(rec.get("legMode")).map(_.toString),
       legDepartureTime = Option(rec.get("legDepartureTime")).map(_.toString),
       legTravelTime = Option(rec.get("legTravelTime")).map(_.toString),
-
       legRouteType = Option(rec.get("legRouteType")).map(_.toString),
       legRouteStartLink = Option(rec.get("legRouteStartLink")).map(_.toString),
       legRouteEndLink = Option(rec.get("legRouteEndLink")).map(_.toString),

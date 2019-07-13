@@ -55,29 +55,24 @@ object PlansCsvWriter extends ScenarioCsvWriter {
     override def toString: String = {
       Seq(
         personId,
-
         planIndex,
         planScore,
         planSelected,
         planElementType,
         planElementIndex,
-
         activityType,
         activityLocationX,
         activityLocationY,
         activityEndTime,
-
         legMode,
         legDepartureTime,
         legTravelTime,
-
         legRouteType,
         legRouteStartLink,
         legRouteEndLink,
         legRouteTravelTime.map(_.toString).getOrElse(""),
         legRouteDistance.map(_.toString).getOrElse(""),
         legRouteLinks.mkString("|")
-
       ).mkString("", FieldSeparator, LineSeparator)
     }
   }
@@ -122,7 +117,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
 
         val routeLinks = leg.getRoute match {
           case route: NetworkRoute => route.getLinkIds.asScala.map(_.toString)
-          case _ => Seq.empty
+          case _                   => Seq.empty
         }
 
         val route = Option(leg.getRoute)
@@ -140,7 +135,6 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           legMode = mode,
           legDepartureTime = Some(leg.getDepartureTime.toString),
           legTravelTime = Some(leg.getTravelTime.toString),
-
           legRouteType = route.map(_.getRouteType),
           legRouteStartLink = route.map(_.getStartLinkId.toString),
           legRouteEndLink = route.map(_.getEndLinkId.toString),
