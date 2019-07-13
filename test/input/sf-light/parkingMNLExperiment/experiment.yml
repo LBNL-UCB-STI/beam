@@ -26,35 +26,34 @@ factors:
     levels:
       - name: Low
         params:
-          beam.agentsim.tuning.transitCapacity: 0.5
+          beam.agentsim.agents.parking.mulitnomialLogit.params.distance_multiplier: 0.5
       - name: Base
         params:
-          beam.agentsim.tuning.transitCapacity: 1
+          beam.agentsim.agents.parking.mulitnomialLogit.params.distance_multiplier: 1
       - name: High
         params:
-          beam.agentsim.tuning.transitCapacity: 2
+          beam.agentsim.agents.parking.mulitnomialLogit.params.distance_multiplier: 2
 
   - title: InstalledCapacityMultiplier
     levels:
       - name: Low
         params:
-          beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation: 0.000
+          beam.agentsim.agents.parking.mulitnomialLogit.params.installed_capacity_multiplier: 0.000
       - name: Base
         params:
-          beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation: 0.001
+          beam.agentsim.agents.parking.mulitnomialLogit.params.installed_capacity_multiplier: 0.001
       - name: High
         params:
-          beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation: 0.002
+          beam.agentsim.agents.parking.mulitnomialLogit.params.installed_capacity_multiplier: 0.002
 
-            - title: ParkingCostsPriceMultiplier
-                levels:
-                    - name: Low
-                      params:
-                        beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation: 0
-                          - name: Base
-                            params:
-                              beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation: 4.5
-                          - name: High
-                            params:
-                              beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation: 9
-
+  - title: ParkingCostsPriceMultiplier
+    levels:
+      - name: Low
+        params:
+          beam.agentsim.agents.parking.mulitnomialLogit.params.parking_costs_price_multiplier: 0
+      - name: Base
+        params:
+          beam.agentsim.agents.parking.mulitnomialLogit.params.parking_costs_price_multiplier: 4.5
+      - name: High
+        params:
+          beam.agentsim.agents.parking.mulitnomialLogit.params.parking_costs_price_multiplier: 9
