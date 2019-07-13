@@ -50,7 +50,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
     legRouteEndLink: String,
     legRouteTravelTime: Option[Double],
     legRouteDistance: Option[Double],
-    legRouteLinks: Seq[String] = Seq.empty
+    legRouteLinks: Seq[String]
   ) {
     override def toString: String = {
       Seq(
