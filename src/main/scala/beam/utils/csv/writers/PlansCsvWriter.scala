@@ -74,8 +74,6 @@ object PlansCsvWriter extends ScenarioCsvWriter {
                   isSelected,
                   planElement,
                   planElementIndex,
-                  None,  // TODO: legDeparaturaTime
-                  None   // TODO legTravelTime
                 )
             }
         }
@@ -89,8 +87,6 @@ object PlansCsvWriter extends ScenarioCsvWriter {
     isSelectedPlan: Boolean,
     planElement: MatsimPlanElement,
     planeElementIndex: Int,
-    legDepartureTime: Option[String],
-    legTravelTime: Option[String]
   ): PlanElement = {
     planElement match {
       case leg: Leg =>
@@ -111,8 +107,8 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           activityLocationY = None,
           activityEndTime = None,
           legMode = mode,
-          legDepartureTime = legDepartureTime,
-          legTravelTime = legTravelTime
+          legDepartureTime = Some(leg.getDepartureTime.toString),
+          legTravelTime = Some(leg.getTravelTime.toString)
         )
       case act: Activity =>
         PlanElement(
