@@ -80,8 +80,15 @@ class UrbanSimScenarioSource(
         activityLocationY = coord.map(_.getY),
         activityEndTime = plan.endTime,
         legMode = plan.mode,
-        legDepartureTime = None, // TODO: DataExchange.PlanElement does not have legDepartureTime
-        legTravelTime = None // // TODO: DataExchange.PlanElement does not have legTravelTime
+        // TODO: DataExchange.PlanElement does not have the following leg information
+        legDepartureTime = None,
+        legTravelTime = None,
+        legRouteType = None,
+        legRouteStartLink = None,
+        legRouteEndLink = None,
+        legRouteTravelTime = None,
+        legRouteDistance = None,
+        legRouteLinks = Seq.empty
       )
     }
   }

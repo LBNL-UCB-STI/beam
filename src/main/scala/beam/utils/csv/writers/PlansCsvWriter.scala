@@ -21,7 +21,13 @@ object PlansCsvWriter extends ScenarioCsvWriter {
     "activityEndTime",
     "legMode",
     "legDepartureTime",
-    "legTravelTime"
+    "legTravelTime",
+    "legRouteType",
+    "legRouteStartLink",
+    "legRouteEndLink",
+    "legRouteTravelTime",
+    "legRouteDistance",
+    "legRouteLinks"
   )
 
   private case class PlanEntry(
@@ -108,7 +114,14 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           activityEndTime = None,
           legMode = mode,
           legDepartureTime = Some(leg.getDepartureTime.toString),
-          legTravelTime = Some(leg.getTravelTime.toString)
+          legTravelTime = Some(leg.getTravelTime.toString),
+
+          legRouteType = Some(leg.getRoute.getRouteType),
+          legRouteStartLink = Some(leg.getRoute.getStartLinkId.toString),
+          legRouteEndLink = Some(leg.getRoute.getEndLinkId.toString),
+          legRouteTravelTime = Some(leg.getRoute.getTravelTime),
+          legRouteDistance = Some(leg.getRoute.getDistance),
+          legRouteLinks = Seq.empty  // TODO: did not find this information
         )
       case act: Activity =>
         PlanElement(
@@ -121,9 +134,17 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           activityLocationX = Option(act.getCoord.getX),
           activityLocationY = Option(act.getCoord.getY),
           activityEndTime = Option(act.getEndTime),
+
           legMode = None,
           legDepartureTime = None,
-          legTravelTime = None
+          legTravelTime = None,
+
+          legRouteType = None,
+          legRouteStartLink = None,
+          legRouteEndLink = None,
+          legRouteTravelTime = None,
+          legRouteDistance = None,
+          legRouteLinks = Seq.empty
         )
     }
   }
