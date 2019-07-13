@@ -3,6 +3,7 @@ package beam.utils.csv.writers
 import beam.utils.scenario.{PersonId, PlanElement}
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Leg, Plan, PlanElement => MatsimPlanElement}
+import org.matsim.core.population.routes.NetworkRoute
 
 import scala.collection.JavaConverters._
 
@@ -43,23 +44,40 @@ object PlansCsvWriter extends ScenarioCsvWriter {
     activityEndTime: String,
     legMode: String,
     legDepartureTime: String,
-    legTravelTime: String
+    legTravelTime: String,
+    legRouteType: String,
+    legRouteStartLink: String,
+    legRouteEndLink: String,
+    legRouteTravelTime: Option[Double],
+    legRouteDistance: Option[Double],
+    legRouteLinks: Seq[String] = Seq.empty
   ) {
     override def toString: String = {
       Seq(
         personId,
+
         planIndex,
         planScore,
         planSelected,
         planElementType,
         planElementIndex,
+
         activityType,
         activityLocationX,
         activityLocationY,
         activityEndTime,
+
         legMode,
         legDepartureTime,
-        legTravelTime
+        legTravelTime,
+
+        legRouteType,
+        legRouteStartLink,
+        legRouteEndLink,
+        legRouteTravelTime.map(_.toString).getOrElse(""),
+        legRouteDistance.map(_.toString).getOrElse(""),
+        legRouteLinks.mkString("|")
+
       ).mkString("", FieldSeparator, LineSeparator)
     }
   }
@@ -101,6 +119,13 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           if (mode == "") None
           else Some(mode)
         }
+
+        val routeLinks = leg.getRoute match {
+          case route: NetworkRoute => route.getLinkIds.asScala.map(_.toString)
+          case _ => Seq.empty
+        }
+
+        val route = Option(leg.getRoute)
         PlanElement(
           planIndex = planIndex,
           personId = PersonId(personId),
@@ -116,12 +141,12 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           legDepartureTime = Some(leg.getDepartureTime.toString),
           legTravelTime = Some(leg.getTravelTime.toString),
 
-          legRouteType = Some(leg.getRoute.getRouteType),
-          legRouteStartLink = Some(leg.getRoute.getStartLinkId.toString),
-          legRouteEndLink = Some(leg.getRoute.getEndLinkId.toString),
-          legRouteTravelTime = Some(leg.getRoute.getTravelTime),
-          legRouteDistance = Some(leg.getRoute.getDistance),
-          legRouteLinks = Seq.empty  // TODO: did not find this information
+          legRouteType = route.map(_.getRouteType),
+          legRouteStartLink = route.map(_.getStartLinkId.toString),
+          legRouteEndLink = route.map(_.getEndLinkId.toString),
+          legRouteTravelTime = route.map(_.getTravelTime),
+          legRouteDistance = route.map(_.getDistance),
+          legRouteLinks = routeLinks
         )
       case act: Activity =>
         PlanElement(
@@ -134,11 +159,9 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           activityLocationX = Option(act.getCoord.getX),
           activityLocationY = Option(act.getCoord.getY),
           activityEndTime = Option(act.getEndTime),
-
           legMode = None,
           legDepartureTime = None,
           legTravelTime = None,
-
           legRouteType = None,
           legRouteStartLink = None,
           legRouteEndLink = None,
@@ -165,7 +188,13 @@ object PlansCsvWriter extends ScenarioCsvWriter {
         activityEndTime = planInfo.activityEndTime.map(_.toString).getOrElse(""),
         legMode = planInfo.legMode.getOrElse(""),
         legDepartureTime = planInfo.legDepartureTime.getOrElse(""),
-        legTravelTime = planInfo.legTravelTime.getOrElse("")
+        legTravelTime = planInfo.legTravelTime.getOrElse(""),
+        legRouteType = planInfo.legRouteType.getOrElse(""),
+        legRouteStartLink = planInfo.legRouteStartLink.getOrElse(""),
+        legRouteEndLink = planInfo.legRouteEndLink.getOrElse(""),
+        legRouteTravelTime = planInfo.legRouteTravelTime,
+        legRouteDistance = planInfo.legRouteDistance,
+        legRouteLinks = planInfo.legRouteLinks
       ).toString
     }
   }
