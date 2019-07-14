@@ -1,7 +1,6 @@
 package beam.sim
 
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
-import beam.sim.RideHailFleetInitializer.RideHailAgentInputData
 import beam.sim.common.Range
 import beam.utils.OutputDataDescriptor
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
@@ -10,70 +9,31 @@ import com.typesafe.scalalogging.LazyLogging
 import scala.util.Try
 import scala.util.control.NonFatal
 
-class RideHailFleetInitializer extends LazyLogging {
+object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
 
-  /**
-    * Initializes [[beam.agentsim.agents.ridehail.RideHailAgent]] fleet
-    *
-    * @param beamServices beam services instance
-    * @return list of [[beam.agentsim.agents.ridehail.RideHailAgent]] objects
-    */
-  def init(
-    beamServices: BeamServices
-  ): List[RideHailAgentInputData] = {
-    val filePath = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.filePath
-    readFleetFromCSV(
-      filePath,
-      beamServices
+  val outputFileBaseName = "rideHailFleet"
+
+  private[sim] def toRideHailAgentInputData(rec: java.util.Map[String, String]): RideHailAgentInputData = {
+    val id = GenericCsvReader.getIfNotNull(rec, "id")
+    val rideHailManagerId = GenericCsvReader.getIfNotNull(rec, "rideHailManagerId")
+    val vehicleType = GenericCsvReader.getIfNotNull(rec, "vehicleType")
+    val initialLocationX = GenericCsvReader.getIfNotNull(rec, "initialLocationX").toDouble
+    val initialLocationY = GenericCsvReader.getIfNotNull(rec, "initialLocationY").toDouble
+    val shifts = Option(rec.get("shifts"))
+    val geofenceX = Option(rec.get("geofenceX")).map(_.toDouble)
+    val geofenceY = Option(rec.get("geofenceY")).map(_.toDouble)
+    val geofenceRadius = Option(rec.get("geofenceRadius")).map(_.toDouble)
+    RideHailAgentInputData(
+      id = id,
+      rideHailManagerId = rideHailManagerId,
+      vehicleType = vehicleType,
+      initialLocationX = initialLocationX,
+      initialLocationY = initialLocationY,
+      shifts = shifts,
+      geofenceX = geofenceX,
+      geofenceY = geofenceY,
+      geofenceRadius = geofenceRadius
     )
-  }
-
-  /**
-    * Reads the ride hail fleet csv as [[beam.agentsim.agents.ridehail.RideHailAgent]] objects
-    *
-    * @param filePath path to the csv file
-    * @return list of [[beam.agentsim.agents.ridehail.RideHailAgent]] objects
-    */
-  private def readFleetFromCSV(
-    filePath: String,
-    beamServices: BeamServices
-  ): List[RideHailAgentInputData] = {
-    def toRideHailAgentInputData(rec: java.util.Map[String, String]): RideHailAgentInputData = {
-      val id = GenericCsvReader.getIfNotNull(rec, "id")
-      val rideHailManagerId = GenericCsvReader.getIfNotNull(rec, "rideHailManagerId")
-      val vehicleType = GenericCsvReader.getIfNotNull(rec, "vehicleType")
-      val initialLocationX = GenericCsvReader.getIfNotNull(rec, "initialLocationX").toDouble
-      val initialLocationY = GenericCsvReader.getIfNotNull(rec, "initialLocationY").toDouble
-      val shifts = Option(rec.get("shifts"))
-      val geofenceX = Option(rec.get("geofenceX")).map(_.toDouble)
-      val geofenceY = Option(rec.get("geofenceY")).map(_.toDouble)
-      val geofenceRadius = Option(rec.get("geofenceRadius")).map(_.toDouble)
-      RideHailAgentInputData(
-        id = id,
-        rideHailManagerId = rideHailManagerId,
-        vehicleType = vehicleType,
-        initialLocationX = initialLocationX,
-        initialLocationY = initialLocationY,
-        shifts = shifts,
-        geofenceX = geofenceX,
-        geofenceY = geofenceY,
-        geofenceRadius = geofenceRadius
-      )
-    }
-    // This is lazy, to make it to read the data we need to call `.toList`
-    val (iter, toClose) = GenericCsvReader.readAs[RideHailAgentInputData](filePath, toRideHailAgentInputData, x => true)
-    try {
-      // Read the data
-      val fleetData = iter.toList
-      logger.info(s"Read fleet data with ${fleetData.size} entries from '$filePath'")
-      fleetData
-    } catch {
-      case NonFatal(ex) =>
-        logger.error(s"Could not initialize fleet from '$filePath': ${ex.getMessage}", ex)
-        List.empty
-    } finally {
-      toClose.close()
-    }
   }
 
   /**
@@ -89,45 +49,67 @@ class RideHailFleetInitializer extends LazyLogging {
           beamServices.matsimServices.getIterationNumber,
           RideHailFleetInitializer.outputFileBaseName + ".csv.gz"
         )
-      val fileHeader: Array[String] = Array[String](
-        "id",
-        "rideHailManagerId",
-        "vehicleType",
-        "initialLocationX",
-        "initialLocationY",
-        "shifts",
-        "geofenceX",
-        "geofenceY",
-        "geofenceRadius"
-      )
-      val csvWriter = new CsvWriter(filePath, fileHeader)
-      Try {
-        fleetData.foreach { fleetData =>
-          csvWriter.write(
-            fleetData.id,
-            fleetData.rideHailManagerId,
-            fleetData.vehicleType,
-            fleetData.initialLocationX,
-            fleetData.initialLocationY,
-            fleetData.shifts.getOrElse(""),
-            fleetData.geofenceX.getOrElse(""),
-            fleetData.geofenceY.getOrElse(""),
-            fleetData.geofenceRadius.getOrElse("")
-          )
-        }
-      }
-      csvWriter.close()
-      logger.info(s"Fleet data with ${fleetData.size} entries is written to '${filePath}'")
+      writeFleetData(filePath, fleetData)
     } catch {
       case e: Exception =>
         logger.error("Error while writing procedurally initialized ride hail fleet data to csv ", e)
     }
   }
-}
 
-object RideHailFleetInitializer extends OutputDataDescriptor {
+  def writeFleetData(filePath: String, fleetData: Seq[RideHailAgentInputData]): Unit = {
+    val fileHeader: Array[String] = Array[String](
+      "id",
+      "rideHailManagerId",
+      "vehicleType",
+      "initialLocationX",
+      "initialLocationY",
+      "shifts",
+      "geofenceX",
+      "geofenceY",
+      "geofenceRadius"
+    )
+    val csvWriter = new CsvWriter(filePath, fileHeader)
+    Try {
+      fleetData.foreach { fleetData =>
+        csvWriter.write(
+          fleetData.id,
+          fleetData.rideHailManagerId,
+          fleetData.vehicleType,
+          fleetData.initialLocationX,
+          fleetData.initialLocationY,
+          fleetData.shifts.getOrElse(""),
+          fleetData.geofenceX.getOrElse(""),
+          fleetData.geofenceY.getOrElse(""),
+          fleetData.geofenceRadius.getOrElse("")
+        )
+      }
+    }
+    csvWriter.close()
+    logger.info(s"Fleet data with ${fleetData.size} entries is written to '$filePath'")
+  }
 
-  val outputFileBaseName = "rideHailFleet"
+  /**
+    * Reads the ride hail fleet csv as [[beam.agentsim.agents.ridehail.RideHailAgent]] objects
+    *
+    * @param filePath path to the csv file
+    * @return list of [[beam.agentsim.agents.ridehail.RideHailAgent]] objects
+    */
+  def readFleetFromCSV(filePath: String): List[RideHailAgentInputData] = {
+    // This is lazy, to make it to read the data we need to call `.toList`
+    val (iter, toClose) = GenericCsvReader.readAs[RideHailAgentInputData](filePath, toRideHailAgentInputData, x => true)
+    try {
+      // Read the data
+      val fleetData = iter.toList
+      logger.info(s"Read fleet data with ${fleetData.size} entries from '$filePath'")
+      fleetData
+    } catch {
+      case NonFatal(ex) =>
+        logger.error(s"Could not initialize fleet from '$filePath': ${ex.getMessage}", ex)
+        List.empty
+    } finally {
+      toClose.close()
+    }
+  }
 
   /**
     * Generates Ranges from the range value as string
