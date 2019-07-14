@@ -1,7 +1,7 @@
 package beam.utils.beamToVia.apps
 
 import beam.utils.beamToVia.beamEvent.{BeamEvent, BeamPersonEntersVehicle}
-import beam.utils.beamToVia.{BeamEventsReader, MutablePopulationFilter, MutableVehiclesFilter, Writer}
+import beam.utils.beamToVia.{BeamEventsReader, Writer}
 
 import scala.collection.mutable
 import scala.io.Source

@@ -15,9 +15,9 @@ object ZipViaEventsFiles extends App {
   )*/
 
   zipEventsFilesInMemory(
-    "D:/Work/BEAM/visualizations/v2.it20.events.bridge_cap_5000.half.csv.via.events.persons_1_2_3.xml",
+    "D:/Work/BEAM/visualizations/v2.it20.events.bridge_cap_5000.half.csv.via.events.person5_1.xml",
     "D:/Work/BEAM/visualizations/v2.it20.events.bridge_cap_5000.half.csv.via.events.popSize0.3.xml",
-    "D:/Work/BEAM/visualizations/v2.it20.events.bridge_cap_5000.half.csv.via.events.ZIPPED.xml"
+    "D:/Work/BEAM/visualizations/v2.it20.events.bridge_cap_5000.half.csv.via.events.ZIPPED_p5.xml"
   )
 
   object ViaEventString {
@@ -128,7 +128,9 @@ object ZipViaEventsFiles extends App {
     object EventsIterator {
       def fromFile(filePath: String): EventsIterator = {
         val xmlEvents = XML.loadFile(filePath) \ "event"
+        Console.println("events read")
         val parsedEvents = xmlEvents.flatMap(xmlEvent => ViaEventString.readXml(xmlEvent))
+        Console.println("events parsed")
         val iterator = EventsIterator(parsedEvents.toArray)
 
         Console.println("created iterator from " + filePath)

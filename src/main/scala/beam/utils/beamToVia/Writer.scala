@@ -8,10 +8,23 @@ import scala.collection.mutable
 
 object Writer {
 
-  def writeSeq[T](seq:Traversable[T], transform:T => String, outputPath:String):Unit = {
+  def writeSeq[T](seq: Traversable[T], transform: T => String, outputPath: String): Unit = {
     val pw = new PrintWriter(new File(outputPath))
     seq.foreach(seqItem => pw.println(transform(seqItem)))
     pw.close()
+  }
+
+  def writeViaEventsQueue[T](queue: mutable.PriorityQueue[T], transform: T => String, outputPath: String): Unit = {
+    val pw = new PrintWriter(new File(outputPath))
+    pw.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<events version=\"1.0\">")
+    while (queue.nonEmpty) {
+      val entry = queue.dequeue()
+      pw.println(transform(entry))
+    }
+    pw.println("</events>")
+    pw.close()
+
+    Console.println("via events written into " + outputPath)
   }
 
   def writeSeqOfString(script: Traversable[String], outputPath: String): Unit = {
@@ -32,7 +45,7 @@ object Writer {
 
   def writeViaIdFile(typeToIdSeq: mutable.Map[String, mutable.HashSet[String]], outputPath: String): Unit = {
     val pw2 = new PrintWriter(new File(outputPath))
-    typeToIdSeq.map{case (k,v) => k + "     " + v.size}.toSeq.sorted.foreach(pw2.println)
+    typeToIdSeq.map { case (k, v) => k + "     " + v.size }.toSeq.sorted.foreach(pw2.println)
     pw2.close()
 
     Console.println("via IDs written into " + outputPath)

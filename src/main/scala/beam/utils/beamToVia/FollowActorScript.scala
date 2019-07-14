@@ -49,10 +49,12 @@ object FollowActorScript {
         ViaScriptString("function minFrameY(y){return y - " + frameSizeY / 2 + "}"),
         ViaScriptString("function maxFrameX(x){return x + " + frameSizeX / 2 + "}"),
         ViaScriptString("function maxFrameY(y){return y + " + frameSizeY / 2 + "}"),
-        ViaScriptString("function calcSleepTime(time){return time * 2.78}"),
-        ViaScriptString("framesToFly = 30"),
         ViaScriptString(""),
-        ViaScriptString("via.setTimeIncrement(10)"),
+        ViaScriptString("speed = 3"),
+        ViaScriptString("function calcSleepTime(time){return time * 27.5 / speed}"),
+        ViaScriptString("via.setTimeIncrement(speed)"),
+        ViaScriptString(""),
+        ViaScriptString("framesToFly = 30"),
         ViaScriptString(""),
       )
 

@@ -1,7 +1,8 @@
 package beam.utils.beamToVia.viaEvent
 
 trait ViaEvent {
-  val time: Double
+  var time: Double
   val link: Int
   def toXml: scala.xml.Elem
+  def timeString: String = time.toString // time.toInt + ".0"
 }

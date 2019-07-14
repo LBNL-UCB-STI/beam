@@ -20,29 +20,6 @@ object BeamPathTraversal {
   val ATTRIBUTE_DRIVER_ID: String = "driver"
   val ATTRIBUTE_VEHICLE_TYPE: String = "vehicleType"
 
-  def apply(
-    time: Double,
-    vehicleId: String,
-    driverId: String,
-    vehicleType: String,
-    mode: String,
-    numberOfPassengers: Int,
-    arrivalTime: Int,
-    linkIds: IndexedSeq[Int],
-    linkTravelTime: IndexedSeq[Int]
-  ): BeamPathTraversal =
-    new BeamPathTraversal(
-      time,
-      vehicleId,
-      driverId,
-      vehicleType,
-      mode,
-      numberOfPassengers,
-      arrivalTime,
-      linkIds,
-      linkTravelTime
-    )
-
   def apply(genericEvent: Event): BeamPathTraversal = {
     assert(genericEvent.getEventType == EVENT_TYPE)
     val attr: mutable.Map[String, String] = genericEvent.getAttributes.asScala
@@ -52,31 +29,37 @@ object BeamPathTraversal {
     val vehicleType: String = attr(ATTRIBUTE_VEHICLE_TYPE)
     val numberOfPassengers: Int = attr(ATTRIBUTE_NUM_PASS).toInt
     val time: Int = attr(ATTRIBUTE_DEPARTURE_TIME).toInt
-    val arrivalTime: Int = attr(ATTRIBUTE_ARRIVAL_TIME).toInt
+    var arrivalTime: Int = attr(ATTRIBUTE_ARRIVAL_TIME).toInt
 
     val linkIdsAsStr = Option(attr.getOrElse(ATTRIBUTE_LINK_IDS, ""))
-    val linkIds: IndexedSeq[Int] = linkIdsAsStr match {
-      case None | Some("") => IndexedSeq.empty
+    val linkIds: Seq[Int] = linkIdsAsStr match {
+      case None | Some("") => Seq.empty
       case Some(v)         => v.split(",").map(_.toInt)
     }
 
     val linkTravelTimeStr = Option(attr.getOrElse(ATTRIBUTE_LINK_TRAVEL_TIME, ""))
-    val linkTravelTime: IndexedSeq[Int] = linkTravelTimeStr match {
+    val linkTravelTime: Seq[Double] = linkTravelTimeStr match {
       case None | Some("") =>
         if (linkIds.nonEmpty) {
           val travelTime = arrivalTime - time
           val links = linkIds.size
           val averageValue = travelTime / links
 
-          val beginning = IndexedSeq.fill[Int](links - 1)(averageValue)
-          beginning :+ (travelTime - averageValue * (links - 1))
-        } else IndexedSeq.empty
-      case Some(v) => v.split(",").map(_.toInt)
+          val beginning = IndexedSeq.fill[Double](links - 1)(averageValue)
+          val tail = travelTime - averageValue * (links - 1.0)
+          beginning :+ tail
+        } else
+          Seq.empty
+
+      case Some(v) =>
+        val travelTimes = v.split(",").map(_.toDouble)
+        arrivalTime = (time + travelTimes.sum).toInt
+        travelTimes
     }
 
     val mode: BeamMode = BeamMode.fromString(attr(ATTRIBUTE_MODE)).get
 
-    BeamPathTraversal(
+    new BeamPathTraversal(
       time,
       vehicleId,
       driverId,
@@ -98,11 +81,22 @@ case class BeamPathTraversal(
   mode: String,
   numberOfPassengers: Int,
   arrivalTime: Int,
-  linkIds: IndexedSeq[Int],
-  linkTravelTime: IndexedSeq[Int]
+  var linkIds: Seq[Int],
+  var linkTravelTime: Seq[Double]
 ) extends BeamEvent {
 
-  def toViaEvents(vehicleId: String, timeLimit: Option[Double]): Seq[ViaEvent] = {
+  def removeHeadLinkFromTrip(): Unit = {
+    linkIds = linkIds.tail
+    linkTravelTime = linkTravelTime.tail
+  }
+
+  def adjustTime(deltaTime: Double): Unit = {
+    val travelTime = arrivalTime - time
+    val delta = (travelTime + deltaTime) / travelTime
+    linkTravelTime = linkTravelTime.map(x => x * delta)
+  }
+
+  def toViaEvents(vehicleId: String, timeLimit: Option[Double]): Seq[ViaTraverseLinkEvent] = {
     val onePiece: Double = timeLimit match {
       case None => 1.0
       case Some(limit) =>
@@ -123,8 +117,8 @@ case class BeamPathTraversal(
       .zip(times)
       .flatMap {
         case (linkId, (enteredTime, leftTime)) =>
-          val entered = ViaTraverseLinkEvent(enteredTime, vehicleId, EnteredLink, linkId)
-          val left = ViaTraverseLinkEvent(leftTime, vehicleId, LeftLink, linkId)
+          val entered = ViaTraverseLinkEvent.entered(enteredTime, vehicleId, linkId)
+          val left = ViaTraverseLinkEvent.left(leftTime, vehicleId, linkId)
           Seq(entered, left)
       }
 

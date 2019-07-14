@@ -1,56 +1,196 @@
 package beam.utils.beamToVia
 
-import beam.utils.beamToVia.beamEvent.{BeamEvent, BeamPathTraversal, BeamPersonEntersVehicle, BeamPersonLeavesVehicle}
-import beam.utils.beamToVia.viaEvent.{ViaEvent, ViaPersonArrivalEvent, ViaTraverseLinkEvent}
+import beam.utils.beamToVia.beamEvent.{
+  BeamEvent,
+  BeamModeChoice,
+  BeamPathTraversal,
+  BeamPersonEntersVehicle,
+  BeamPersonLeavesVehicle
+}
+import beam.utils.beamToVia.beamEventsFilter.{MutableSamplingFilter, PersonEvents, VehicleTrip}
+import beam.utils.beamToVia.viaEvent.{
+  EnteredLink,
+  LeftLink,
+  ViaEvent,
+  ViaModeChoice,
+  ViaPersonArrivalEvent,
+  ViaPersonDepartureEvent,
+  ViaTraverseLinkEvent
+}
 
 import scala.collection.mutable
 
-object EventsTransformer {
+object EventsProcessor {
 
-  /*
- def addMissingPersonLeavesVehicleEvents(
-    events: Traversable[BeamEvent],
-  ): Traversable[BeamEvent] = {
+  def readWithFilter(
+    eventsPath: String,
+    filter: MutableSamplingFilter
+  ): (Traversable[VehicleTrip], Traversable[PersonEvents]) = {
 
-    case class Accumulator(
-      resultingEvents: mutable.MutableList[BeamEvent] = mutable.MutableList.empty[BeamEvent],
-      personToVehicle: mutable.Map[String, Option[String]] = mutable.Map.empty[String, Option[String]]
-    )
+    val beamEventsFilter = BeamEventsReader
+      .fromFileFoldLeft[MutableSamplingFilter](eventsPath, filter, (f, ev) => {
+        f.filter(ev)
+        f
+      })
+      .getOrElse(filter)
 
-    val accumulator = events.foldLeft(Accumulator()) {
-      case (acc, event: BeamPersonEntersVehicle) =>
-        acc.personToVehicle.get(event.personId) match {
-          case Some(Some(prevVehicleId)) =>
-            acc.resultingEvents += BeamPersonLeavesVehicle(event.time, event.personId, prevVehicleId)
-          case _ =>
-        }
+    // fix overlapping of path traversal events for vehicle
+    def pteOverlappingFix(pteSeq: Seq[BeamPathTraversal]): Unit = {
+      pteSeq.tail.foldLeft(pteSeq.head) {
+        case (prevPTE, currPTE) if prevPTE.linkIds.nonEmpty && currPTE.linkIds.nonEmpty =>
+          // if they overlap each other in case of time
+          val timeDiff = currPTE.time - prevPTE.arrivalTime
+          if (timeDiff < 0) prevPTE.adjustTime(timeDiff)
 
-        acc.personToVehicle(event.personId) = Some(event.vehicleId)
-        acc.resultingEvents += event
+          // if they overlap each other in case of travel links
+          if (prevPTE.linkIds.last == currPTE.linkIds.head) {
+            val removedLinkTime = currPTE.linkTravelTime.head
+            currPTE.removeHeadLinkFromTrip()
 
-        acc
+            if (currPTE.linkIds.nonEmpty) currPTE.adjustTime(removedLinkTime)
+            else prevPTE.adjustTime(removedLinkTime)
+          }
 
-      case (acc, event: BeamPersonLeavesVehicle) =>
-        acc.personToVehicle(event.personId) = None
-        acc.resultingEvents += event
+          currPTE
 
-        acc
-
-      case (acc, event: BeamPathTraversal) =>
-        acc.personToVehicle(event.driverId) = Some(event.vehicleId)
-        acc.resultingEvents += event
-
-        acc
-
-      case (acc, _) => acc
-
+        case (_, pte) => pte
+      }
     }
 
-    accumulator.resultingEvents
-  }
-   */
+    val vehiclesTrips = beamEventsFilter.vehiclesTrips
+    val personsTrips = beamEventsFilter.personsTrips
+    val personsEvents = beamEventsFilter.personsEvents
 
-  def calcTimeLimits(
+    if (vehiclesTrips.nonEmpty)
+      vehiclesTrips.foreach {
+        case trip if trip.trip.size > 1 => pteOverlappingFix(trip.trip)
+        case _                          =>
+      }
+
+    if (personsTrips.nonEmpty)
+      personsTrips.foreach {
+        case trip if trip.trip.size > 1 => pteOverlappingFix(trip.trip)
+        case _                          =>
+      }
+
+    Console.println(vehiclesTrips.size + " vehicle selected")
+    Console.println(personsEvents.size + " persons selected")
+
+    (vehiclesTrips, personsEvents)
+  }
+
+  def transformModeChoices(
+    personsEvents: Traversable[PersonEvents]
+  ): mutable.MutableList[ViaEvent] = {
+
+    val modeChoiceLength = 50
+    val viaEvents = mutable.MutableList.empty[ViaEvent]
+
+    personsEvents.foreach(_.events.foldLeft(viaEvents) {
+      case (events, mc: BeamModeChoice) =>
+        events += ViaModeChoice.start(mc.time, mc.personId, mc.linkId)
+        events += ViaModeChoice.end(mc.time + modeChoiceLength, mc.personId, mc.linkId)
+        events
+
+      case (acc, _) => acc
+    })
+
+    Console.println(viaEvents.size + " via events for modeChoices display")
+
+    viaEvents
+  }
+
+  def transformPathTraversals(
+    vehiclesTrips: Traversable[VehicleTrip],
+    vehicleId: BeamPathTraversal => String,
+    vehicleType: BeamPathTraversal => String
+  ): (mutable.PriorityQueue[ViaEvent], mutable.Map[String, mutable.HashSet[String]]) = {
+
+    case class ViaEventsCollector(
+      vehicleId: BeamPathTraversal => String,
+      vehicleType: BeamPathTraversal => String,
+      events: mutable.PriorityQueue[ViaEvent] =
+        mutable.PriorityQueue.empty[ViaEvent]((e1, e2) => e2.time.compare(e1.time)),
+      vehicleTypeToId: mutable.Map[String, mutable.HashSet[String]] = mutable.Map.empty[String, mutable.HashSet[String]]
+    ) {
+      def collectVehicleTrip(ptEvents: Seq[BeamPathTraversal]): Unit = {
+        val minTimeStep = 0.0001
+        val minTimeIntervalForContinuousMovement = 40.0
+
+        case class EventsTransformer(
+          events: mutable.PriorityQueue[ViaEvent],
+          var prevEvent: Option[ViaTraverseLinkEvent] = None,
+        ) {
+          def addPTEEvent(curr: ViaTraverseLinkEvent): Unit = {
+            prevEvent match {
+              case Some(prev) =>
+                if (prev.time >= curr.time) {
+                  curr.time = prev.time + minTimeStep
+                }
+
+                if ((curr.time - prev.time > minTimeIntervalForContinuousMovement &&
+                    curr.eventType == EnteredLink &&
+                    prev.eventType == LeftLink) || (prev.vehicle != curr.vehicle)) {
+
+                  if (curr.time - prev.time < minTimeIntervalForContinuousMovement) addPersonArrival(curr.time, prev)
+                  else addPersonArrival(prev.time, prev)
+
+                  curr.time += minTimeStep
+                  addPersonDeparture(curr)
+                  curr.time += minTimeStep * 2
+                }
+
+              case _ =>
+                curr.time += 0.5
+                addPersonDeparture(curr)
+                curr.time += minTimeStep * 2
+            }
+
+            prevEvent = Some(curr)
+            events.enqueue(curr)
+          }
+
+          def addPersonArrival(time:Double, viaEvent: ViaTraverseLinkEvent): Unit =
+            events.enqueue(ViaPersonArrivalEvent(time + minTimeStep, viaEvent.vehicle, viaEvent.link))
+
+          def addPersonDeparture(viaEvent: ViaTraverseLinkEvent): Unit =
+            events.enqueue(ViaPersonDepartureEvent(viaEvent.time + minTimeStep, viaEvent.vehicle, viaEvent.link))
+        }
+
+        val transformer = ptEvents.foldLeft(EventsTransformer(events))((acc, pte) => {
+          val vId = vehicleId(pte)
+          pte.toViaEvents(vId, None).foreach(acc.addPTEEvent)
+
+          val vType = vehicleType(pte)
+          vehicleTypeToId.get(vType) match {
+            case Some(ids) => ids += vId
+            case None      => vehicleTypeToId(vType) = mutable.HashSet(vId)
+          }
+
+          acc
+        })
+
+        transformer.prevEvent match {
+          case Some(event) => transformer.addPersonArrival(event.time, event)
+          case _           =>
+        }
+      }
+    }
+
+    val viaEventsCollector =
+      vehiclesTrips.foldLeft(ViaEventsCollector(vehicleId, vehicleType))((acc, trip) => {
+        acc.collectVehicleTrip(trip.trip)
+        acc
+      })
+
+    Console.println(viaEventsCollector.events.size + " via events with vehicles trips")
+    Console.println(viaEventsCollector.vehicleTypeToId.size + " vehicle types")
+
+    (viaEventsCollector.events, viaEventsCollector.vehicleTypeToId)
+  }
+
+  /*
+    def calcTimeLimits(
     events: Traversable[BeamEvent],
     timeLimitId: (String, Double) => String
   ): mutable.Map[String, Double] = {
@@ -107,7 +247,7 @@ object EventsTransformer {
 
     it leads into vehicle twitching in Via.
     rows number 2 and 3 should be removed.
-     */
+ */
 
     case class VehicleTripHistory(
       vehicleId: String,
@@ -237,5 +377,5 @@ object EventsTransformer {
       }
 
     (viaLinkEvents, typeToIdsMap)
-  }
+  }*/
 }

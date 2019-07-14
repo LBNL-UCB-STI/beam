@@ -2,6 +2,7 @@ package beam.utils.beamToVia
 
 import beam.utils.EventReader
 import beam.utils.beamToVia.beamEvent.{BeamEvent, BeamEventReader}
+import beam.utils.beamToVia.beamEventsFilter.MutableSamplingFilter
 import org.matsim.api.core.v01.events.Event
 
 import scala.collection.mutable
@@ -31,7 +32,7 @@ object BeamEventsReader {
     Console.println("done")
     result
   }
-
+/*
   def fromFileWithFilter(filePath: String, mutableFilter: MutableSamplingFilter): Option[Traversable[BeamEvent]] = {
     Console.println("started reading a file " + filePath)
 
@@ -58,7 +59,7 @@ object BeamEventsReader {
     val (queuedEvents, _) = unsorted.foldLeft((emptyAcc, mutableEventsFilter)) {
       case ((acc, eventsFilter), event) =>
         BeamEventReader.read(event) match {
-          case Some(beamEvent) => eventsFilter.filterAndFix(beamEvent).foreach(acc.enqueue(_))
+          case Some(beamEvent) => eventsFilter.filter(beamEvent).foreach(acc.enqueue(_))
           case _               =>
         }
 
@@ -75,7 +76,7 @@ object BeamEventsReader {
     closable.close()
 
     sortedAndFilteredEvents
-  }
+  }*/
 
   private def fromCsvFold[T](filePath: String, accumulator: T, foldLeft: (T, BeamEvent) => T): T = {
     val (events, closable) = EventReader.fromCsvFile(filePath, _ => true)
