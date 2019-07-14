@@ -205,12 +205,11 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val dropoffWindow =
         rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.dropoffTimeWindowInSec
 
+      rideHailManager.log.info("%%%%% Num avail: {}",availVehicles.size)
       //      rideHailManager.log.info("Num custs: {} num vehs: {}", spatialPoolCustomerReqs.size(), availVehicles.size)
       val algo = new AsyncAlonsoMoraAlgForRideHail(
         spatialPoolCustomerReqs,
-        if (availVehicles.find(_.getFreeSeats < 4).isDefined) { availVehicles.filter(_.getFreeSeats < 4) } else {
-          availVehicles
-        },
+        availVehicles,
         Map[MobilityRequestType, Int](
           (Pickup, pickupWindow + offset),
           (Dropoff, dropoffWindow + offset),
