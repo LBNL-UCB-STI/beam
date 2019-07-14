@@ -6,6 +6,7 @@ import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent}
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
+import beam.replanning.ReplanningUtil
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
@@ -82,6 +83,18 @@ class BeamScoringFunctionFactory @Inject()(
         // The scores attribute is only relevant to LCCM, but we need to include a default value to avoid NPE during writing of plans
         person.getSelectedPlan.getAttributes
           .putAttribute("scores", MapStringDouble(Map("NA" -> Double.NaN)))
+
+        if(person.getSelectedPlan.getPlanElements.asScala.filter(_.isInstanceOf[Leg]).isEmpty){
+          val newPlan = ReplanningUtil.addBeamTripsToPlanWithOnlyActivities(person.getSelectedPlan,trips.toVector)
+          person.addPlan(newPlan)
+          person.removePlan(person.getSelectedPlan)
+          person.setSelectedPlan(newPlan)
+        }
+        person.getSelectedPlan.getPlanElements.asScala.filter(_.isInstanceOf[Leg]).foldLeft(0) { (i, elem) =>
+          elem.asInstanceOf[Leg].getAttributes.putAttribute("vehicles", trips(i).vehiclesInTrip.mkString(","))
+          i+1
+        }
+
 
         val allDayScore = modeChoiceCalculator.computeAllDayUtility(trips, person, attributes)
 

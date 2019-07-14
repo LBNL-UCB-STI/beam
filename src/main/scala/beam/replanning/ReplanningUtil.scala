@@ -1,5 +1,6 @@
 package beam.replanning
 
+import beam.router.model.EmbodiedBeamTrip
 import beam.utils.DebugLib
 import org.matsim.api.core.v01.population._
 import org.matsim.core.config.groups.PlanCalcScoreConfigGroup
@@ -7,6 +8,7 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.core.replanning.selectors.RandomPlanSelector
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 
 object ReplanningUtil {
 
@@ -14,6 +16,14 @@ object ReplanningUtil {
     val experiencedPlan = person.getSelectedPlan.getCustomAttributes
       .get(PlanCalcScoreConfigGroup.EXPERIENCED_PLAN_KEY)
       .asInstanceOf[Plan]
+
+    for (i <- 0 until (person.getSelectedPlan.getPlanElements.size() - 1)) {
+      experiencedPlan.getPlanElements.get(i) match {
+        case leg: Leg =>
+          leg.getAttributes.putAttribute("vehicles", person.getSelectedPlan.getPlanElements.get(i).getAttributes.getAttribute("vehicles"))
+        case _ =>
+      }
+    }
 
     if (experiencedPlan != null && experiencedPlan.getPlanElements.size() > 0) {
       // BeamMobsim needs activities with coords
@@ -28,12 +38,13 @@ object ReplanningUtil {
         case (_, _) =>
       }
       val attributes = experiencedPlan.getAttributes
-      val selectedPlanAttributes = person.getSelectedPlan.getAttributes
-      attributes.putAttribute(
-        "modality-style",
-        selectedPlanAttributes.getAttribute("modality-style")
-      )
-      attributes.putAttribute("scores", selectedPlanAttributes.getAttribute("scores"))
+      val modalityStyle = if(person.getSelectedPlan.getAttributes.getAttribute("modality-style") == null){ "" }else{person.getSelectedPlan.getAttributes.getAttribute("modality-style")}
+      val scores = if(person.getSelectedPlan.getAttributes.getAttribute("scores") == null){ "" }else{person.getSelectedPlan.getAttributes.getAttribute("scores")}
+      attributes.putAttribute("modality-style", modalityStyle)
+      attributes.putAttribute("scores", scores)
+      if(attributes.getAttribute("modality-style") == null){
+        val i = 0
+      }
       assert(experiencedPlan.getPlanElements.get(0).asInstanceOf[Activity].getCoord != null)
 
       copyRemainingPlanElementsIfExperiencedPlanIncomplete(person.getSelectedPlan, experiencedPlan)
@@ -55,7 +66,9 @@ object ReplanningUtil {
               PopulationUtils.createActivity(activity)
             )
           case _ =>
-            experiencedPlan.addLeg(PopulationUtils.createLeg(originalPlan.getPlanElements.get(i).asInstanceOf[Leg]))
+            val newLeg = PopulationUtils.createLeg(originalPlan.getPlanElements.get(i).asInstanceOf[Leg])
+            newLeg.getAttributes.putAttribute("vehicles", originalPlan.getPlanElements.get(i).getAttributes.getAttribute("vehicles"))
+            experiencedPlan.addLeg(newLeg)
         }
       }
       DebugLib.emptyFunctionForSettingBreakPoint()
@@ -69,5 +82,16 @@ object ReplanningUtil {
     PopulationUtils.copyFromTo(person.getSelectedPlan, newPlan)
     person.addPlan(newPlan)
     person.setSelectedPlan(newPlan)
+  }
+
+  def addBeamTripsToPlanWithOnlyActivities(originalPlan: Plan, trips: Vector[EmbodiedBeamTrip]): Plan = {
+    val newPlan = PopulationUtils.createPlan(originalPlan.getPerson)
+    for (i <- 0 until originalPlan.getPlanElements.size() - 1){
+      newPlan.getPlanElements.add(originalPlan.getPlanElements.get(i))
+      val newLeg = PopulationUtils.createLeg(trips(i).tripClassifier.matsimMode)
+      newPlan.getPlanElements.add(newLeg)
+    }
+    newPlan.getPlanElements.add(originalPlan.getPlanElements.get(originalPlan.getPlanElements.size() - 1))
+    newPlan
   }
 }
