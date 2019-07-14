@@ -13,6 +13,7 @@ import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.population.PopulationUtils
+import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder}
 import org.matsim.households.{Household, _}
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
@@ -235,12 +236,17 @@ class BeamScenarioLoader(
     planElement.legDepartureTime.foreach(v => leg.setDepartureTime(v.toDouble))
     planElement.legTravelTime.foreach(v => leg.setTravelTime(v.toDouble))
 
-    val legRoute = leg.getRoute
+    val legRoute: NetworkRoute = {
+      val links = planElement.legRouteLinks.map(v => Id.create(v, classOf[Link])).asJava
+      RouteUtils.createNetworkRoute(links, beamScenario.network)
+    }
+    leg.setRoute(legRoute)
+
     planElement.legRouteDistance.foreach(legRoute.setDistance)
     planElement.legRouteStartLink.foreach(v => legRoute.setStartLinkId(Id.create(v, classOf[Link])))
     planElement.legRouteEndLink.foreach(v => legRoute.setEndLinkId(Id.create(v, classOf[Link])))
     planElement.legRouteTravelTime.foreach(v => legRoute.setTravelTime(v))
-    // TODO: could not find way to setup planElement.legRouteLinks and planElement.legRouteType
+
     leg
   }
 
