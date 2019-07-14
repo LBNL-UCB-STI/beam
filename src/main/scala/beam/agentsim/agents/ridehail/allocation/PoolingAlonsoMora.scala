@@ -130,47 +130,69 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val pooledAllocationReqs = toAllocate.filter(_.asPooled)
       val customerIdToReqs = toAllocate.map(rhr => rhr.customer.personId -> rhr).toMap
       val (availVehicles, poolCustomerReqs, offset) =
-        if (rideHailManager.vehicleManager.inServiceRideHailVehicles.isEmpty) {
-          (
-            rideHailManager.vehicleManager.getIdleAndInServiceVehicles.values
-              .map(
-                veh =>
-                  createVehicleAndScheduleFromRideHailAgentLocation(
-                    veh,
-                    tick,
-                    rideHailManager.beamServices
-                )
-              )
-              .toList,
-            pooledAllocationReqs.map(
-              rhr => createPersonRequest(rhr.customer, rhr.pickUpLocationUTM, tick, rhr.destinationUTM)
-            ),
-            0
-          )
-        } else {
-          (
-            rideHailManager.vehicleManager.inServiceRideHailVehicles.values
-              .map(
-                veh =>
-                  createVehicleAndScheduleFromRideHailAgentLocation(
-                    veh,
-                    tick + rideHailManager.beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
-                    rideHailManager.beamServices
-                )
-              )
-              .toList,
-            pooledAllocationReqs.map(
-              rhr =>
-                createPersonRequest(
-                  rhr.customer,
-                  rhr.pickUpLocationUTM,
+        (
+          rideHailManager.vehicleManager.getIdleAndInServiceVehicles.values
+            .map(
+              veh =>
+                createVehicleAndScheduleFromRideHailAgentLocation(
+                  veh,
                   tick + rideHailManager.beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
-                  rhr.destinationUTM
+                  rideHailManager.beamServices
+                )
+            )
+            .toList,
+          pooledAllocationReqs.map(
+            rhr =>
+              createPersonRequest(
+                rhr.customer,
+                rhr.pickUpLocationUTM,
+                tick + rideHailManager.beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
+                rhr.destinationUTM
               )
-            ),
-            rideHailManager.beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
-          )
-        }
+          ),
+          rideHailManager.beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
+        )
+//        if (rideHailManager.vehicleManager.inServiceRideHailVehicles.isEmpty) {
+//          (
+//            rideHailManager.vehicleManager.getIdleAndInServiceVehicles.values
+//              .map(
+//                veh =>
+//                  createVehicleAndScheduleFromRideHailAgentLocation(
+//                    veh,
+//                    tick,
+//                    rideHailManager.beamServices
+//                )
+//              )
+//              .toList,
+//            pooledAllocationReqs.map(
+//              rhr => createPersonRequest(rhr.customer, rhr.pickUpLocationUTM, tick, rhr.destinationUTM)
+//            ),
+//            0
+//          )
+//        } else {
+//          (
+//            rideHailManager.vehicleManager.inServiceRideHailVehicles.values
+//              .map(
+//                veh =>
+//                  createVehicleAndScheduleFromRideHailAgentLocation(
+//                    veh,
+//                    tick + rideHailManager.beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
+//                    rideHailManager.beamServices
+//                )
+//              )
+//              .toList,
+//            pooledAllocationReqs.map(
+//              rhr =>
+//                createPersonRequest(
+//                  rhr.customer,
+//                  rhr.pickUpLocationUTM,
+//                  tick + rideHailManager.beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
+//                  rhr.destinationUTM
+//              )
+//            ),
+//            rideHailManager.beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
+//          )
+//        }
 
       spatialPoolCustomerReqs.clear()
       poolCustomerReqs.foreach { d =>
@@ -202,16 +224,6 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         Await.result(algo.greedyAssignment(), atMost = 2.minutes)
       } catch {
         case e: TimeoutException =>
-//          rideHailManager.log.error("timeout of AsyncAlonsoMoraAlgForRideHail falling back to synchronous")
-//          val algo = new AlonsoMoraPoolingAlgForRideHail(
-//            spatialPoolCustomerReqs,
-//            availVehicles.toList,
-//            Map[MobilityServiceRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
-//            maxRequestsPerVehicle = 100
-//          )
-//          val rvGraph: RVGraph = algo.pairwiseRVGraph
-//          val rtvGraph = algo.rTVGraph(rvGraph)
-//          algo.greedyAssignment(rtvGraph)
           rideHailManager.log.error("timeout of AsyncAlonsoMoraAlgForRideHail no allocations made")
           List()
       }

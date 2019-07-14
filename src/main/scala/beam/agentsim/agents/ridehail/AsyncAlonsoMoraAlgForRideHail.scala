@@ -164,9 +164,6 @@ class AsyncAlonsoMoraAlgForRideHail(
               }
           }
       }
-      if (greedyAssignmentList.nonEmpty && greedyAssignmentList.flatMap(_._1.schedule).exists(_.tag == EnRoute)) {
-        println("ok")
-      }
       greedyAssignmentList.toList
     }
   }
