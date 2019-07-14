@@ -62,11 +62,13 @@ object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
 
   private[readers] def toPlanInfo(rec: java.util.Map[String, String]): PlanElement = {
     val personId = getIfNotNull(rec, "personId")
+    val planIndex = getIfNotNull(rec, "planIndex").toInt
     val planElementType = getIfNotNull(rec, "planElementType")
     val planElementIndex = getIfNotNull(rec, "planElementIndex").toInt
     val activityType = Option(rec.get("activityType"))
     PlanElement(
       personId = PersonId(personId),
+      planIndex = planIndex,
       planScore = getIfNotNull(rec, "planScore", "0").toDouble,
       planSelected = getIfNotNull(rec, "planSelected", "false").toBoolean,
       planElementType = planElementType,
