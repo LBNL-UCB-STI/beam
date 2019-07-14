@@ -10,6 +10,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicleType, PersonIdWithActorRef}
 import beam.agentsim.agents.{Dropoff, MobilityRequestType, Pickup}
 import beam.router.BeamSkimmer
 import beam.sim.common.GeoUtilsImpl
+import beam.sim.config.BeamExecutionConfig
 import beam.sim.{BeamHelper, BeamScenario, Geofence}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory

@@ -12,6 +12,7 @@ import beam.agentsim.agents.{Dropoff, MobilityRequestType, Pickup}
 import beam.router.BeamSkimmer
 import beam.sim.BeamHelper
 import beam.sim.common.GeoUtilsImpl
+import beam.sim.config.BeamExecutionConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.{Coord, Id}
