@@ -1,54 +1,41 @@
 package beam.utils.beamToVia.apps
 
+import beam.utils.beamToVia.{BeamEventsReader, HashSetReader, Writer}
 import beam.utils.beamToVia.beamEvent.{BeamEvent, BeamPathTraversal, BeamPersonEntersVehicle, BeamPersonLeavesVehicle}
-import beam.utils.beamToVia.{BeamEventsReader, Circle, LinkCoordinate, MutableSamplingFilter, Point, Writer}
+import beam.utils.beamToVia.beamEventsFilter.MutableSamplingFilter
 
 import scala.collection.mutable
 
 object CollectIds extends App {
   val sourcePath = "D:/Work/BEAM/visualizations/v2.it20.events.bridge_cap_5000.half.csv"
+  val outputPath = "D:/Work/BEAM/visualizations/collectedIds/v2.it20.events.bridge_cap_5000.half2.csv"
 
-  val networkXml = xml.XML.loadFile("D:/Work/BEAM/visualizations/physSimNetwork.xml")
-  val nodes = LinkCoordinate.parseNodes(networkXml)
+  val personsInCircle = HashSetReader.fromFile("D:/Work/BEAM/visualizations/v2.it20.events.bridge_cap_5000.half_in_SF.persons.txt")
+  val vehiclesInCircle = HashSetReader.fromFile("D:/Work/BEAM/visualizations/v2.it20.events.bridge_cap_5000.half_in_SF.vehicles.txt")
 
-  val sfCircle = Circle(548966, 4179000, 5000)
-  def pointIsInteresting(point: Point): Boolean = point.vithinCircle(sfCircle.x, sfCircle.y, sfCircle.rSquare)
+/*  object Filter extends MutableSamplingFilter {
+    private val empty = Seq.empty[BeamEvent]
+    override def filter(event: BeamEvent): Seq[BeamEvent] = {
+      event match {
+        case pte: BeamPathTraversal =>
+          if (vehiclesInCircle.contains(pte.vehicleId)) Seq(event)
+          else empty
 
-  val interestingNodes = nodes
-    .foldLeft(mutable.Map.empty[Int, Point]) {
-      case (selectedNodes, (nodeId, point)) if pointIsInteresting(point) => selectedNodes += nodeId -> point
-      case (selectedNodes, _)                                            => selectedNodes
-    }
-    .toMap
+        case pev: BeamPersonEntersVehicle =>
+          if (personsInCircle.contains(pev.personId) && vehiclesInCircle.contains(pev.vehicleId)) Seq(event)
+          else empty
 
-  val interestingLinks = LinkCoordinate
-    .parseNetwork(networkXml, interestingNodes)
-    .foldLeft(mutable.HashSet.empty[Int]) {
-      case (links, (linkId, _)) => links += linkId
-    }
+        case plv: BeamPersonLeavesVehicle =>
+          if (personsInCircle.contains(plv.personId) && vehiclesInCircle.contains(plv.vehicleId)) Seq(event)
+          else empty
 
-  /*object AllFilter extends MutableSamplingFilter {
-    override def filterAndFix(event: BeamEvent): Seq[BeamEvent] = Seq(event)
-  }*/
-
-  object SFCircleFilter extends MutableSamplingFilter {
-    var interestingVehicles = mutable.HashSet.empty[String]
-    val empty = Seq.empty[BeamEvent]
-    override def filterAndFix(event: BeamEvent): Seq[BeamEvent] = event match {
-      case pte: BeamPathTraversal =>
-        if (pte.linkIds.exists(interestingLinks.contains)) {
-          interestingVehicles += pte.vehicleId
-          Seq(pte)
-        } else {
-          empty
-        }
-
-      case _ => Seq(event)
+        case _ => empty
+      }
     }
   }
 
   val events = BeamEventsReader
-    .fromFileWithFilter(sourcePath, SFCircleFilter)
+    .fromFileWithFilter(sourcePath, Filter)
     .getOrElse(Seq.empty[BeamEvent])
 
   case class PersonIdInfo(
@@ -94,84 +81,98 @@ object CollectIds extends App {
 
   case class Accumulator(
     vehicles: mutable.HashMap[String, VehicleIdInfo] = mutable.HashMap.empty[String, VehicleIdInfo],
+    vehiclesTypeToIds: mutable.HashMap[String, mutable.HashSet[String]] =
+      mutable.HashMap.empty[String, mutable.HashSet[String]],
     persons: mutable.HashMap[String, PersonIdInfo] = mutable.HashMap.empty[String, PersonIdInfo],
     vehicleTypes: mutable.HashMap[String, Int] = mutable.HashMap.empty[String, Int],
     vehicleToType: mutable.HashMap[String, String] = mutable.HashMap.empty[String, String]
   )
 
-  def vehicleSelected(vehicleId: String): Boolean = SFCircleFilter.interestingVehicles.contains(vehicleId)
-
   val accumulator = events.foldLeft(Accumulator())((acc, event) => {
-    event match {
-      case pte: BeamPathTraversal if vehicleSelected(pte.vehicleId) =>
-        acc.persons.get(pte.driverId) match {
-          case Some(person) => person.hasBeenDriver += 1
-          case None         => acc.persons(pte.driverId) = PersonIdInfo(pte.driverId, hasBeenDriver = 1)
-        }
+    if (event.time <= 27000) acc
+    else
+      event match {
+        case pte: BeamPathTraversal =>
+          acc.persons.get(pte.driverId) match {
+            case Some(person) => person.hasBeenDriver += 1
+            case None         => acc.persons(pte.driverId) = PersonIdInfo(pte.driverId, hasBeenDriver = 1)
+          }
 
-        acc.vehicles.get(pte.vehicleId) match {
-          case Some(vehicle) =>
-            if (!vehicle.vehicleMode.contains(pte.mode)) vehicle.vehicleMode += pte.mode
-            if (vehicle.vehicleType.isEmpty) vehicle.vehicleType = pte.vehicleType
-            vehicle.appearedInPathTraversal += 1
+          acc.vehicles.get(pte.vehicleId) match {
+            case Some(vehicle) =>
+              if (!vehicle.vehicleMode.contains(pte.mode)) vehicle.vehicleMode += pte.mode
+              if (vehicle.vehicleType.isEmpty) vehicle.vehicleType = pte.vehicleType
+              vehicle.appearedInPathTraversal += 1
 
-          case None =>
-            acc.vehicles(pte.vehicleId) = VehicleIdInfo(pte.vehicleId, pte.mode, mutable.HashSet(pte.vehicleType), 1)
-        }
+            case None =>
+              acc.vehicles(pte.vehicleId) = VehicleIdInfo(pte.vehicleId, pte.mode, mutable.HashSet(pte.vehicleType), 1)
+          }
 
-        val vehicleType = pte.mode + "__" + pte.vehicleType
-        acc.vehicleTypes.get(vehicleType) match {
-          case Some(cnt) => acc.vehicleTypes(vehicleType) = cnt + 1
-          case None      => acc.vehicleTypes(vehicleType) = 1
-        }
+          val vehicleType = pte.mode + "__" + pte.vehicleType
+          acc.vehicleTypes.get(vehicleType) match {
+            case Some(cnt) => acc.vehicleTypes(vehicleType) = cnt + 1
+            case None      => acc.vehicleTypes(vehicleType) = 1
+          }
 
-        acc.vehicleToType(pte.vehicleId) = vehicleType
+          acc.vehiclesTypeToIds.get(pte.vehicleType) match {
+            case Some(vehicleIds) => vehicleIds += pte.vehicleId
+            case None             => acc.vehiclesTypeToIds(pte.vehicleType) = mutable.HashSet(pte.vehicleId)
+          }
 
-      case plv: BeamPersonLeavesVehicle if vehicleSelected(plv.vehicleId) =>
-        acc.persons.get(plv.personId) match {
-          case Some(person) => person.leftVehicle += 1
-          case None         => acc.persons(plv.personId) = PersonIdInfo(plv.personId, leftVehicle = 1)
-        }
+          acc.vehicleToType(pte.vehicleId) = vehicleType
 
-        acc.vehicles.get(plv.vehicleId) match {
-          case None =>
-            acc.vehicles(plv.vehicleId) = VehicleIdInfo(plv.vehicleId, "", mutable.HashSet.empty[String], 0)
-          case _ =>
-        }
+        case plv: BeamPersonLeavesVehicle =>
+          acc.persons.get(plv.personId) match {
+            case Some(person) => person.leftVehicle += 1
+            case None         => acc.persons(plv.personId) = PersonIdInfo(plv.personId, leftVehicle = 1)
+          }
 
-      case pev: BeamPersonEntersVehicle if vehicleSelected(pev.vehicleId) =>
-        acc.persons.get(pev.personId) match {
-          case Some(person) =>
-            person.enteredVehicle += 1
-            person.usedVehicles += pev.vehicleId
-          case None =>
-            acc.persons(pev.personId) =
-              PersonIdInfo(pev.personId, enteredVehicle = 1, usedVehicles = mutable.HashSet(pev.vehicleId))
-        }
+          acc.vehicles.get(plv.vehicleId) match {
+            case None =>
+              acc.vehicles(plv.vehicleId) = VehicleIdInfo(plv.vehicleId, "", mutable.HashSet.empty[String], 0)
+            case _ =>
+          }
 
-        acc.vehicles.get(pev.vehicleId) match {
-          case None =>
-            acc.vehicles(pev.vehicleId) = VehicleIdInfo(pev.vehicleId, "", mutable.HashSet.empty[String], 0)
-          case _ =>
-        }
+        case pev: BeamPersonEntersVehicle =>
+          acc.persons.get(pev.personId) match {
+            case Some(person) =>
+              person.enteredVehicle += 1
+              person.usedVehicles += pev.vehicleId
+            case None =>
+              acc.persons(pev.personId) =
+                PersonIdInfo(pev.personId, enteredVehicle = 1, usedVehicles = mutable.HashSet(pev.vehicleId))
+          }
 
-      case _ =>
-    }
+          acc.vehicles.get(pev.vehicleId) match {
+            case None =>
+              acc.vehicles(pev.vehicleId) = VehicleIdInfo(pev.vehicleId, "", mutable.HashSet.empty[String], 0)
+            case _ =>
+          }
+
+        case _ =>
+      }
 
     acc
   })
 
+  accumulator.vehiclesTypeToIds.foreach {
+    case (vehicleType, typeIds) =>
+      val vtOutPath = outputPath + "." + vehicleType + ".ids.txt"
+      Writer.writeSeqOfString(typeIds, vtOutPath)
+      Console.println("ids of type " + vehicleType + " written into " + vtOutPath)
+  }
+
   Writer.writeSeqOfString(
     accumulator.persons.values.map(_.toStr(accumulator.vehicleToType)).toSeq.sorted,
-    sourcePath + ".persons.txt"
+    outputPath + ".persons.txt"
   )
-  Console.println("persons written into " + sourcePath + ".persons.txt")
+  Console.println("persons written into " + outputPath + ".persons.txt")
 
   Writer.writeSeqOfString(
     accumulator.vehicles.values.toArray.sortWith((v1, v2) => v1.vehicleType > v2.vehicleType).map(_.toStr),
-    sourcePath + ".vehicles.txt"
+    outputPath + ".vehicles.txt"
   )
-  Console.println("vehicles written into " + sourcePath + ".vehicles.txt")
+  Console.println("vehicles written into " + outputPath + ".vehicles.txt")
 
   Writer.writeSeqOfString(
     accumulator.vehicleTypes
@@ -181,9 +182,9 @@ object CollectIds extends App {
       }
       .toSeq
       .sorted,
-    sourcePath + ".vehicleTypes.txt"
+    outputPath + ".vehicleTypes.txt"
   )
-  Console.println("vehicle types written into " + sourcePath + ".vehicleTypes.txt")
+  Console.println("vehicle types written into " + outputPath + ".vehicleTypes.txt")
 
-  Console.println("done")
+  Console.println("done")*/
 }
