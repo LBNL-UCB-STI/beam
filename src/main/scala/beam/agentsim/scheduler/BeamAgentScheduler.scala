@@ -259,7 +259,7 @@ class BeamAgentScheduler(
             rideHailManagerStuckDetectionLog match {
               case RideHailManagerStuckDetectionLog(Some(tick), true) if tick == nowInSeconds  => // still stuck, no need to print state again
               case RideHailManagerStuckDetectionLog(Some(tick), false) if tick == nowInSeconds =>
-                // the time has not changed sense set last monitor timeout and RidehailManager still blocking scheduler -> log state and try to remove stuckness
+                // the time has not changed since set last monitor timeout and RidehailManager still blocking scheduler -> log state and try to remove stuckness
                 rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), true)
                 x.agent ! LogActorState
 //                x.agent ! RecoverFromStuckness(x.triggerWithId.trigger.tick)

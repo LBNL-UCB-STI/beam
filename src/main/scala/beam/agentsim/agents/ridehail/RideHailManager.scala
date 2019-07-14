@@ -517,6 +517,10 @@ class RideHailManager(
     case NotifyVehicleOutOfService(vehicleId) =>
       vehicleManager.putOutOfService(vehicleManager.getRideHailAgentLocation(vehicleId))
 
+    case NotifyVehicleIdle(_,_,_,_,_,_) if currentlyProcessingTimeoutTrigger.isDefined =>
+      // To avoid complexity, we don't add any new vehicles to the Idle list when we are in the middle of dispatch or repositioning
+      stash()
+
     case ev @ NotifyVehicleIdle(
           vId,
           whenWhere,
@@ -538,6 +542,7 @@ class RideHailManager(
           beamVehicle.beamVehicleType,
           whenWhere,
           geofence,
+          None,
           None,
           false
         )
@@ -781,13 +786,18 @@ class RideHailManager(
           findAllocationsAndProcess(tick)
       }
 
-    case reply @ InterruptedWhileDriving(interruptId, vehicleId, tick, interruptedPassengerSchedule, _) =>
+    case reply @ InterruptedWhileDriving(interruptId, vehicleId, tick, interruptedPassengerSchedule, currentPassengerScheduleIndex) =>
       if (pendingAgentsSentToPark.contains(vehicleId)) {
         log.error(
           "It is not expected in the current implementation that a moving vehicle would be stopped and sent for charging"
         )
       } else {
         modifyPassengerScheduleManager.handleInterruptReply(reply)
+        // Update with latest passenger schedule
+        vehicleManager.putIntoService(
+          vehicleManager.getRideHailAgentLocation(vehicleId)
+            .copy(currentPassengerSchedule = Some(reply.passengerSchedule), currentPassengerScheduleIndex = Some(currentPassengerScheduleIndex))
+        )
         if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived)
           findAllocationsAndProcess(tick)
       }
@@ -1186,6 +1196,7 @@ class RideHailManager(
       rideHailBeamVehicle.beamVehicleType,
       SpaceTime(rideInitialLocation, 0),
       geofence,
+      None,
       None,
       false
     )

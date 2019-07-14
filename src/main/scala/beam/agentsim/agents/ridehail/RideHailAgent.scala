@@ -253,6 +253,9 @@ class RideHailAgent(
     case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
       log.debug("state(RideHailingAgent.Offline): {}", ev)
       stay replying InterruptedWhileOffline(interruptId, vehicle.id, tick)
+    case ev @ Event(Resume(), _) =>
+      log.debug("state(RideHailingAgent.Offline): {}", ev)
+      stay
     case ev @ Event(
           reply @ NotifyVehicleResourceIdleReply(_, _),
           data

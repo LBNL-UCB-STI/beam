@@ -320,6 +320,7 @@ object RideHailVehicleManager {
     currentLocationUTM: SpaceTime,
     geofence: Option[Geofence] = None,
     currentPassengerSchedule: Option[PassengerSchedule] = None,
+    currentPassengerScheduleIndex: Option[Int] = None,
     servingPooledTrip: Boolean = false
   ) {
 
