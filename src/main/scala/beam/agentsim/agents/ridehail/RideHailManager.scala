@@ -554,9 +554,10 @@ class RideHailManager(
       val rideHailAgentLocation =
         RideHailAgentLocation(beamVehicle.driver.get, vehicleId, beamVehicle.beamVehicleType.id, whenWhere, geofence)
       vehicleManager.vehicleState.put(vehicleId, beamVehicleState)
-      
+
       removeVehicleArrivedAtRefuelingDepot(vehicleId) match {
         case Some(parkingStall) => attemptToRefuel(vehicleId, parkingStall, whenWhere.time)
+        //If not arrived for refueling; TODO: Maybe methodize since otherwise this needs a comment
         case _ => {
           removeFromCharging(vehicleId) match {
             case Some(parkingStall) => {
@@ -567,9 +568,11 @@ class RideHailManager(
                 case Some((nextVehicleId, nextVehiclesParkingStall)) => {
                   attemptToRefuel(nextVehicleId, nextVehiclesParkingStall, whenWhere.time)
                 }
+                //If no more vehicles in the queue; TODO: Maybe methodize since otherwise this needs a comment
                 case None => sender() ! NotifyVehicleResourceIdleReply(triggerId, Vector[ScheduleTrigger]())
               }
             }
+            //If not because done charging; TODO: Maybe methodize since otherwise this needs a comment
             case None => sender() ! NotifyVehicleResourceIdleReply(triggerId, Vector[ScheduleTrigger]())
           }
         }
