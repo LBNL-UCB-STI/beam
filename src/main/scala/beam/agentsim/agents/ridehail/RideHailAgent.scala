@@ -464,23 +464,7 @@ class RideHailAgent(
   when(PassengerScheduleEmpty) {
     case ev @ Event(PassengerScheduleEmptyMessage(lastTime, _, _), data) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {} Remaining Shifts: {}", ev, data.remainingShifts)
-      import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
-      def metersToMiles(meters: Double) = meters / 1600
-
-      def remainingRangeInMiles(vehicleState: BeamVehicleState) =
-        metersToMiles(vehicleState.remainingPrimaryRangeInM) +
-        metersToMiles(vehicleState.remainingSecondaryRangeInM.getOrElse(0.0))
-
-      val remainingRangeInMilesVal = remainingRangeInMiles(vehicle.getState)
-      if (!vehicle.isCAV && remainingRangeInMilesVal < 20.0) {
-        /*
-         if below a threshold (like 20 miles of remaining range) then we definitely go to charge.
-         If range is above that, we do a random draw with a probability that increases the closer we get to 20 miles.
-         So 21 miles my by 90%, 30 miles might be 75%, 40 miles 50%, etc. We can keep the relationship simple.
-         Maybe we give a threshold and then the slope of a linear relationship between miles and prob.
-         E.g. P(charge) = 1 - (rangeLeft - 20)*slopeParam….
-         where any range that yields a negative probability would just be truncated to 0
-         */
+      if(!vehicle.isCAV && vehicle.isRefuelNeeded){
         log.debug("Empty human ridehail vehicle requesting parking stall: event = " + ev)
         rideHailManager ! NotifyVehicleOutOfService(vehicle.id)
 
@@ -496,34 +480,8 @@ class RideHailAgent(
           .withPassengerSchedule(PassengerSchedule())
           .withCurrentLegPassengerScheduleIndex(0)
           .asInstanceOf[RideHailAgentData]
-      } else if (!vehicle.isCAV && remainingRangeInMilesVal > 20.0) {
-        val percentageChanceToRefuel = Math.max(100 - (remainingRangeInMilesVal.toInt - 20), 0)
-        val randomChance = scala.util.Random.nextInt(100)
-        if (randomChance < percentageChanceToRefuel) {
-          log.debug("Empty human ridehail vehicle requesting parking stall since percentage hit: event = " + ev)
-          rideHailManager ! NotifyVehicleOutOfService(vehicle.id)
-
-          //Should I use the tick or the last time?
-          val (_, triggerId) = releaseTickAndTriggerId()
-          val startFuelTrigger = ScheduleTrigger(
-            StartRefuelSessionTrigger(lastTime.time),
-            self
-          )
-          scheduler ! CompletionNotice(triggerId, Vector(startFuelTrigger))
-
-          goto(OfflineForCharging) using data
-            .withPassengerSchedule(PassengerSchedule())
-            .withCurrentLegPassengerScheduleIndex(0)
-            .asInstanceOf[RideHailAgentData]
-        } else {
-          log.debug("Empty human ridehail vehicle NOT requesting parking stall: event = " + ev)
-          goto(Idle) using data
-            .withPassengerSchedule(PassengerSchedule())
-            .withCurrentLegPassengerScheduleIndex(0)
-            .asInstanceOf[RideHailAgentData]
-        }
       } else {
-        log.debug("Ridehail vehicle default NOT Empty human: event = " + ev)
+        if(!vehicle.isCAV) log.debug("No refueling selected for {}", vehicle)
         goto(Idle) using data
           .withPassengerSchedule(PassengerSchedule())
           .withCurrentLegPassengerScheduleIndex(0)

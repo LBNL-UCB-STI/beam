@@ -502,6 +502,9 @@ class RideHailManager(
     vehiclesChargingInDepot.remove(vehicle)
   }
 
+  def findBeamVehicleUsing(vehicleId: Id[Vehicle]): Option[BeamVehicle] = {
+    resources(agentsim.vehicleId2BeamVehicleId(vehicleId))
+  }
 
   override def receive: Receive = LoggingReceive {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
@@ -1413,7 +1416,7 @@ class RideHailManager(
     modifyPassengerScheduleManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
 
     val vehiclesHeadedToDepot: Vector[(Id[Vehicle], ParkingStall)] =
-      rideHailResourceAllocationManager.findDepotsForVehicles()
+      rideHailResourceAllocationManager.findDepotsForVehiclesInNeedOfRefueling()
 
     addVehiclesOnWayToDepot(vehiclesHeadedToDepot)
     vehiclesHeadedToDepot.foreach{

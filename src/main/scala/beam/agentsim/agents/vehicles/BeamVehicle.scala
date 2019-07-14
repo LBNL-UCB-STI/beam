@@ -273,6 +273,34 @@ class BeamVehicle(
     secondaryFuelLevelInJoules = beamVehicleType.secondaryFuelCapacityInJoule.getOrElse(0.0)
   }
 
+  def isRefuelNeeded: Boolean = {
+    /*
+if below a threshold (like 20 miles of remaining range) then we definitely go to charge.
+If range is above that, we do a random draw with a probability that increases the closer we get to 20 miles.
+So 21 miles my by 90%, 30 miles might be 75%, 40 miles 50%, etc. We can keep the relationship simple.
+Maybe we give a threshold and then the slope of a linear relationship between miles and prob.
+E.g. P(charge) = 1 - (rangeLeft - 20)*slopeParam….
+where any range that yields a negative probability would just be truncated to 0
+*/
+    import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
+    def metersToMiles(meters: Double) = meters / 1600
+    def remainingRangeInMiles(vehicleState: BeamVehicleState) =
+      metersToMiles(vehicleState.remainingPrimaryRangeInM) +
+        metersToMiles(vehicleState.remainingSecondaryRangeInM.getOrElse(0.0))
+    val remainingRangeInMilesVal = remainingRangeInMiles(getState)
+    if (remainingRangeInMilesVal < 20.0) {
+      log.debug("Refueling since less than 20 miles for {}", toString)
+      true
+    }
+    else {
+      val percentageChanceToRefuel = Math.max(100 - (remainingRangeInMilesVal.toInt - 20), 0)
+      val randomChance = scala.util.Random.nextInt(100)
+      val isRefuel = randomChance < percentageChanceToRefuel
+      if(isRefuel)log.debug("Refueling since percentage hit for {}", toString)
+      isRefuel
+    }
+  }
+
   override def toString = s"$id ($beamVehicleType.id)"
 }
 
