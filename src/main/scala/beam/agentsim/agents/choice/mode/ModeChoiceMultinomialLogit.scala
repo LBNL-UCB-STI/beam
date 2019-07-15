@@ -34,7 +34,7 @@ class ModeChoiceMultinomialLogit(val beamServices: BeamServices, val model: Mult
   var expectedMaximumUtility: Double = 0.0
   val modalBehaviors: ModalBehaviors = beamServices.beamConfig.beam.agentsim.agents.modalBehaviors
 
-  private val shouldLogDetails: Boolean = true
+  private val shouldLogDetails: Boolean = false
 
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
