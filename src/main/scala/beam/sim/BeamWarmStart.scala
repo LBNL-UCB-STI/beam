@@ -47,10 +47,8 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
   }
 
   private def compressedLocation(description: String, fileName: String): String = {
-    println(s"@@@@@@@@@@@@@@ compressedLocation called. fileName[$fileName]")
     getWarmStartFilePath(fileName) match {
       case Some(compressedFileFullPath) =>
-        logger.info(s"**** warmStartFile method fileName:[$fileName]. compressedFile:[$compressedFileFullPath]")
         if (Files.isRegularFile(Paths.get(compressedFileFullPath))) {
           extractFileFromZip(parentRunPath, compressedFileFullPath, fileName)
         } else {
@@ -240,7 +238,6 @@ object BeamWarmStart extends LazyLogging {
       }
       val configAgents = beamConfig.beam.agentsim.agents
       val scenarioConfig = beamConfig.beam.exchange.scenario
-      val fileFormat = scenarioConfig.fileFormat
 
       val populationAttributesXml = instance.compressedLocation("Person attributes", "outputPersonAttributes.xml.gz")
       matsimConfig.plans().setInputPersonAttributeFile(populationAttributesXml)
@@ -274,15 +271,11 @@ object BeamWarmStart extends LazyLogging {
         beamConfig.beam.exchange.copy(scenario = newExchangeScenario)
       }
 
-      val newWarmstart = {
+      val newWarmStart = {
         val newSkimsFilePath = Try(instance.compressedLocation("Skims file", "skims.csv.gz")).getOrElse("")
         val newSkimPlusFilePath = Try(instance.compressedLocation("Skim plus", "skimsPlus.csv.gz")).getOrElse("")
         val newRouteHistoryFilePath =
           Try(instance.compressedLocation("Route history", "routeHistory.csv.gz")).getOrElse("")
-
-        logger.warn(s"@@@@@@@@@@@@@@@@@@@@@@ newSkimsFilePath file: [$newSkimsFilePath]")
-        logger.warn(s"@@@@@@@@@@@@@@@@@@@@@@ newSkimPlusFilePath file: [$newSkimPlusFilePath]")
-        logger.warn(s"@@@@@@@@@@@@@@@@@@@@@@ routeHistory file: [$newRouteHistoryFilePath]")
 
         beamConfig.beam.warmStart.copy(
           skimsFilePath = newSkimsFilePath,
@@ -291,7 +284,7 @@ object BeamWarmStart extends LazyLogging {
         )
       }
 
-      val newBeam = beamConfig.beam.copy(agentsim = newAgentSim, exchange = newExchange, warmStart = newWarmstart)
+      val newBeam = beamConfig.beam.copy(agentsim = newAgentSim, exchange = newExchange, warmStart = newWarmStart)
       val newBeamConfig = beamConfig.copy(beam = newBeam)
 
       beamExecutionConfig.copy(beamConfig = newBeamConfig)
