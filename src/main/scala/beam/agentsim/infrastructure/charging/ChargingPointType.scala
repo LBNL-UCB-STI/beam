@@ -58,7 +58,8 @@ object ChargingPointType {
 
   }
 
-  private[ChargingPointType] val CustomChargingPointRegex: Regex = "(\\w+\\d*)\\((\\d+\\.?\\d+\\s*),(\\s*\\w{2})\\)".r.unanchored
+  private[ChargingPointType] val CustomChargingPointRegex: Regex =
+    "(\\w+\\d*)\\((\\d+\\.?\\d+\\s*),(\\s*\\w{2})\\)".r.unanchored
 
   // matches either the standard ones or a custom one
   // these were breaking some tests with a ChargingPoint parsing error caused by Event handlers

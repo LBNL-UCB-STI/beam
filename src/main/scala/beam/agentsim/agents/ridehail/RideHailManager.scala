@@ -332,7 +332,12 @@ class RideHailManager(
   realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
   private val rideHailinitialLocationSpatialPlot = new SpatialPlot(1100, 1100, 50)
   val resources: mutable.Map[Id[BeamVehicle], BeamVehicle] = mutable.Map[Id[BeamVehicle], BeamVehicle]()
+
   def findBeamVehicleUsing(vehicleId: VehicleId): Option[BeamVehicle] = {
+    resources.get(agentsim.vehicleId2BeamVehicleId(vehicleId))
+  }
+
+  def unsafeFindBeamVehicleUsing(vehicleId: VehicleId): BeamVehicle = {
     resources(agentsim.vehicleId2BeamVehicleId(vehicleId))
   }
 
@@ -550,7 +555,7 @@ class RideHailManager(
 
       vehicleManager.updateLocationOfAgent(vehicleId, whenWhere, vehicleManager.getServiceStatusOf(vehicleId))
 
-      val beamVehicle = findBeamVehicleUsing(vehicleId)
+      val beamVehicle = unsafeFindBeamVehicleUsing(vehicleId)
       val rideHailAgentLocation =
         RideHailAgentLocation(beamVehicle.driver.get, vehicleId, beamVehicle.beamVehicleType.id, whenWhere, geofence)
       vehicleManager.vehicleState.put(vehicleId, beamVehicleState)
@@ -618,7 +623,7 @@ class RideHailManager(
       } else {
         sender() ! NotifyVehicleResourceIdleReply(triggerId, Vector[ScheduleTrigger]())
       }
-      */
+       */
       //QUESTION: Should this still be done no matter what?
       modifyPassengerScheduleManager
         .checkInResource(vehicleId, Some(whenWhere), Some(passengerSchedule))
@@ -950,13 +955,23 @@ class RideHailManager(
   }
 
   /* BEGIN: Refueling Logic */
-  private val depotToRefuelingQueuesMap: mutable.Map[DepotId, mutable.Queue[(VehicleId, ParkingStall)]] = mutable.Map.empty[DepotId, mutable.Queue[(VehicleId, ParkingStall)]]
-  def addVehicleAndStallToRefuelingQueueFor(depotId: DepotId, vehicleId: VehicleId, parkingStall: ParkingStall): Unit = {
+  private val depotToRefuelingQueuesMap: mutable.Map[DepotId, mutable.Queue[(VehicleId, ParkingStall)]] =
+    mutable.Map.empty[DepotId, mutable.Queue[(VehicleId, ParkingStall)]]
+
+  def addVehicleAndStallToRefuelingQueueFor(
+    depotId: DepotId,
+    vehicleId: VehicleId,
+    parkingStall: ParkingStall
+  ): Unit = {
     depotToRefuelingQueuesMap.get(depotId) match {
       case Some(depotQueue) => {
-        if(depotQueue.exists(_ == vehicleId))
-          log.warning("{} already exists in depot {} queue. Not re-adding as it is a duplicate. " +
-            "THIS SHOULD NEVER HAPPEN!", vehicleId, depotId)
+        if (depotQueue.contains(vehicleId))
+          log.warning(
+            "{} already exists in depot {} queue. Not re-adding as it is a duplicate. " +
+            "THIS SHOULD NEVER HAPPEN!",
+            vehicleId,
+            depotId
+          )
         else depotQueue.enqueue((vehicleId, parkingStall))
       }
       case None => depotToRefuelingQueuesMap += (depotId -> mutable.Queue((vehicleId, parkingStall)))
@@ -969,11 +984,17 @@ class RideHailManager(
     }
   }
 
-  private val chargingVehicleToParkingStallMap: mutable.Map[VehicleId, ParkingStall] = mutable.Map.empty[VehicleId, ParkingStall]
+  private val chargingVehicleToParkingStallMap: mutable.Map[VehicleId, ParkingStall] =
+    mutable.Map.empty[VehicleId, ParkingStall]
+
   def addVehicleToChargingInDepotUsing(stall: ParkingStall, vehicleId: VehicleId): Unit = {
-    if(chargingVehicleToParkingStallMap.exists(vehicleId))
-      log.warning("{} is already charging in {}, yet it is being added to {}. THIS SHOULD NOT HAPPEN!",
-        vehicleId, chargingVehicleToParkingStallMap(vehicleId), stall)
+    if (chargingVehicleToParkingStallMap.keys.exists(_ == vehicleId))
+      log.warning(
+        "{} is already charging in {}, yet it is being added to {}. THIS SHOULD NOT HAPPEN!",
+        vehicleId,
+        chargingVehicleToParkingStallMap(vehicleId),
+        stall
+      )
     chargingVehicleToParkingStallMap += vehicleId -> stall
   }
 
@@ -981,7 +1002,9 @@ class RideHailManager(
     chargingVehicleToParkingStallMap.remove(vehicle)
   }
 
-  private val vehiclesOnWayToRefuelingDepot: mutable.Map[VehicleId, ParkingStall] = mutable.Map.empty[VehicleId, ParkingStall]
+  private val vehiclesOnWayToRefuelingDepot: mutable.Map[VehicleId, ParkingStall] =
+    mutable.Map.empty[VehicleId, ParkingStall]
+
   def addVehiclesOnWayToRefuelingDepot(newVehiclesHeadedToDepot: Vector[(VehicleId, ParkingStall)]): Unit = {
     vehiclesOnWayToRefuelingDepot ++ newVehiclesHeadedToDepot
   }
@@ -991,14 +1014,21 @@ class RideHailManager(
   }
 
   def attemptToRefuel(vehicleId: VehicleId, parkingStall: ParkingStall, time: Int): Unit = {
-    val beamVehicle = findBeamVehicleUsing(vehicleId)
+    val beamVehicleOption = findBeamVehicleUsing(vehicleId)
     rideHailDepotParkingManager.findAndClaimStallAtDepot(parkingStall) match {
-      case Some(parkingStall: ParkingStall) => beamVehicle.driver.foreach(driverAgent => {
-        addVehicleToChargingInDepotUsing(parkingStall, vehicleId)
-        scheduler ! ScheduleTrigger(StartRefuelSessionTrigger(time), driverAgent)
-        //QUESTION:  Should this be sender() ! NotifyVehicleResourceIdleReply(triggerId, Vector[ScheduleTrigger](startFuelTrigger))
-      })
-      case None => addVehicleToRefuelingQueueFor(parkingStall.parkingZoneId, vehicleId)
+      case Some(parkingStall: ParkingStall) => {
+        beamVehicleOption match {
+          case Some(beamVehicle) =>
+            beamVehicle.driver.foreach(driverAgent => {
+              addVehicleToChargingInDepotUsing(parkingStall, vehicleId)
+              scheduler ! ScheduleTrigger(StartRefuelSessionTrigger(time), driverAgent)
+              //QUESTION:  Should this be sender() ! NotifyVehicleResourceIdleReply(triggerId, Vector[ScheduleTrigger](startFuelTrigger))
+            })
+          case None => log.warning("Unable to find vehicle {} to start depot refueling")
+        }
+
+      }
+      case None => addVehicleAndStallToRefuelingQueueFor(parkingStall.parkingZoneId, vehicleId, parkingStall)
     }
   }
   /* END: Refueling Logic */
@@ -1426,17 +1456,21 @@ class RideHailManager(
       rideHailResourceAllocationManager.findDepotsForVehiclesInNeedOfRefueling()
 
     addVehiclesOnWayToRefuelingDepot(vehiclesHeadedToRefuelingDepot)
-    vehiclesHeadedToRefuelingDepot.foreach{
+    vehiclesHeadedToRefuelingDepot.foreach {
       case (vehicleId, _) => vehicleManager.putOutOfService(vehicleManager.getRideHailAgentLocation(vehicleId))
     }
 
     //TODO: Maybe signal to repositionVehicles so it can automatically exclude vehicles already on way to depot
     val nonRefuelingRepositionVehicles: Vector[(VehicleId, Location)] =
-      rideHailResourceAllocationManager.repositionVehicles(tick).filterNot{
-        case (vehicleId, _) => vehiclesHeadedToRefuelingDepot.exists{ case (vehicleHeadedToRefuel, _) => vehicleHeadedToRefuel == vehicleId}
+      rideHailResourceAllocationManager.repositionVehicles(tick).filterNot {
+        case (vehicleId, _) =>
+          vehiclesHeadedToRefuelingDepot.exists {
+            case (vehicleHeadedToRefuel, _) => vehicleHeadedToRefuel == vehicleId
+          }
       }
 
-    val repositionVehicles: Vector[(VehicleId, Location)] = nonRefuelingRepositionVehicles ++ vehiclesHeadedToRefuelingDepot.map{
+    val repositionVehicles
+      : Vector[(VehicleId, Location)] = nonRefuelingRepositionVehicles ++ vehiclesHeadedToRefuelingDepot.map {
       case (vehicleId, parkingStall) => (vehicleId, parkingStall.locationUTM)
     }
 

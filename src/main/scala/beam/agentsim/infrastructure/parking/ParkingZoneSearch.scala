@@ -48,18 +48,18 @@ object ParkingZoneSearch {
     */
   def incrementalParkingZoneSearch(
     searchStartRadius: Double,
-    searchMaxRadius  : Double,
-    destinationUTM   : Location,
-    valueOfTime      : Double,
-    parkingDuration  : Double,
-    parkingTypes     : Seq[ParkingType],
-    utilityFunction  : MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String],
-    searchTree       : ParkingZoneSearch.ZoneSearch[TAZ],
-    stalls           : Array[ParkingZone],
-    tazQuadTree      : QuadTree[TAZ],
-    distanceFunction : (Coord, Coord) => Double,
-    random           : Random,
-    boundingBox      : Envelope
+    searchMaxRadius: Double,
+    destinationUTM: Location,
+    valueOfTime: Double,
+    parkingDuration: Double,
+    parkingTypes: Seq[ParkingType],
+    utilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String],
+    searchTree: ParkingZoneSearch.ZoneSearch[TAZ],
+    stalls: Array[ParkingZone],
+    tazQuadTree: QuadTree[TAZ],
+    distanceFunction: (Coord, Coord) => Double,
+    random: Random,
+    boundingBox: Envelope
   ): Option[(ParkingZone, ParkingStall)] = {
 
     @tailrec
@@ -89,7 +89,7 @@ object ParkingZoneSearch {
           random
         ) match {
           case Some(
-          ParkingSearchResult(
+              ParkingSearchResult(
                 bestTAZ,
                 bestParkingType,
                 bestParkingZone,

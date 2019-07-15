@@ -171,22 +171,26 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   }
 
   def findDepotsForVehiclesInNeedOfRefueling(cavOnly: Boolean = true): Vector[(Id[Vehicle], ParkingStall)] = {
-    val idleVehicleIds: Vector[Id[Vehicle]] = rideHailManager.vehicleManager.getIdleVehicles.values.toVector
+    val idleVehicleIdsAndLocation: Vector[(Id[Vehicle], RideHailAgentLocation)] =
+      rideHailManager.vehicleManager.getIdleVehicles.toVector
 
-    val idleVehicleIdsWantingToRefuel = idleVehicleIds.filter((vehicleId: Id[Vehicle]) => {
-      rideHailManager.findBeamVehicleUsing(vehicleId) match {
-        case Some(beamVehicle) => {
-          if(cavOnly && !beamVehicle.isCAV) false
-          else beamVehicle.isRefuelNeeded
+    val idleVehicleIdsWantingToRefuelWithLocation = idleVehicleIdsAndLocation.filter {
+      case ((vehicleId: Id[Vehicle], _)) => {
+        rideHailManager.findBeamVehicleUsing(vehicleId) match {
+          case Some(beamVehicle) => {
+            if (cavOnly && !beamVehicle.isCAV) false
+            else beamVehicle.isRefuelNeeded
+          }
+          case None => false
         }
-        case None => false
       }
-    })
+    }
 
-    for{
-      vehicleId <- idleVehicleIdsWantingToRefuel
-      beamVehicle <- rideHailManager.findBeamVehicleUsing(vehicleId)
-      parkingStall <- rideHailManager.rideHailDepotParkingManager.findDepot(beamVehicle.spaceTime.loc, beamVehicle.getState.primaryFuelLevel)
+    for {
+      (vehicleId, location) <- idleVehicleIdsWantingToRefuelWithLocation
+      beamVehicle           <- rideHailManager.findBeamVehicleUsing(vehicleId)
+      parkingStall <- rideHailManager.rideHailDepotParkingManager
+        .findDepot(location.currentLocationUTM.loc, beamVehicle.getState.primaryFuelLevel)
     } yield (vehicleId, parkingStall)
   }
 

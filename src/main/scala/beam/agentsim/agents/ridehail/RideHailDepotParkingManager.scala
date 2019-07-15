@@ -75,7 +75,7 @@ class RideHailDepotParkingManager(
     val beta2 = 1
     val beta3 = 0.001
 
-    val utilityFunction:  MultinomialLogit[ParkingAlternative, String] =
+    val utilityFunction: MultinomialLogit[ParkingAlternative, String] =
       new MultinomialLogit(
         Map.empty,
         Map(
