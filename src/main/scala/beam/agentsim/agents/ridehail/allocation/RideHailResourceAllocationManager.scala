@@ -189,8 +189,9 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     for {
       (vehicleId, location) <- idleVehicleIdsWantingToRefuelWithLocation
       beamVehicle           <- rideHailManager.findBeamVehicleUsing(vehicleId)
+      (parkingDuration, _) = beamVehicle.refuelingSessionDurationAndEnergyInJoules()
       parkingStall <- rideHailManager.rideHailDepotParkingManager
-        .findDepot(location.currentLocationUTM.loc, beamVehicle.getState.primaryFuelLevel)
+        .findDepot(location.currentLocationUTM.loc, parkingDuration)
     } yield (vehicleId, parkingStall)
   }
 
