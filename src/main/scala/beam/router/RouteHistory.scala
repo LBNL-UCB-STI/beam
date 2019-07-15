@@ -107,19 +107,26 @@ class RouteHistory @Inject()(
     }
   }
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    val filePath = event.getServices.getControlerIO.getIterationFilename(
-      event.getServices.getIterationNumber,
-      RouteHistory.outputFileBaseName + ".csv.gz"
-    )
 
-    FileUtils.writeToFile(
-      filePath,
-      toCsv(routeHistory),
-    )
+    if (shouldWriteInIteration(event.getIteration, beamConfig.beam.physsim.writeRouteHistoryInterval)) {
+      val filePath = event.getServices.getControlerIO.getIterationFilename(
+        event.getServices.getIterationNumber,
+        RouteHistory.outputFileBaseName + ".csv.gz"
+      )
+
+      FileUtils.writeToFile(
+        filePath,
+        toCsv(routeHistory),
+      )
+    }
+
     previousRouteHistory = routeHistory
     routeHistory = new TrieMap()
   }
 
+  private def shouldWriteInIteration(iterationNumber: Int, interval: Int): Boolean = {
+    interval == 1 || (interval > 0 && iterationNumber % interval == 0)
+  }
 }
 
 object RouteHistory {
