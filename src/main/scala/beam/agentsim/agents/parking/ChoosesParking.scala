@@ -112,7 +112,7 @@ trait ChoosesParking extends {
       val timeCost
         : Double = 0.0 //scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF,  ZN UPDATE: Also need to change VOT function
       val score = calculateScore(distance, stall.cost, energyCharge, timeCost)
-      eventsManager.processEvent(LeavingParkingEvent(tick, stall, score, id, currentBeamVehicle.id))
+      eventsManager.processEvent(LeavingParkingEvent(tick, stall, score, Some { id }, currentBeamVehicle.id))
       currentBeamVehicle.unsetParkingStall()
       goto(WaitingToDrive) using data
 

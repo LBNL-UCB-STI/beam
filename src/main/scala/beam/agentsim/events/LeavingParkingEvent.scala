@@ -16,7 +16,7 @@ import org.matsim.vehicles.Vehicle
 
 case class LeavingParkingEvent(
   time: Double,
-  personId: Id[Person],
+  personId: Option[Id[Person]],
   vehicleId: Id[Vehicle],
   tazId: Id[TAZ],
   score: Double,
@@ -24,18 +24,25 @@ case class LeavingParkingEvent(
   pricingModel: Option[PricingModel],
   ChargingPointType: Option[ChargingPointType]
 ) extends Event(time)
-    with HasPersonId
+//    with HasPersonId
     with ScalaEvent {
   import LeavingParkingEvent._
 
-  override def getPersonId: Id[Person] = personId
+  /**
+    * this method fulfills the [[HasPersonId]] requirement, but will behave unpredictably when used
+    * on agents without PersonIds, such as [[beam.agentsim.agents.ridehail.RideHailAgent]]s.
+    *
+    * for this reason, this event type no longer extends the HasPersonId trait.
+    * @return
+    */
+  def getPersonId: Id[Person] = Id.create(personId.map { _.toString }.getOrElse(""), classOf[Person])
 
   override def getEventType: String = EVENT_TYPE
 
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
     attr.put(ATTRIBUTE_SCORE, score.toString)
-    attr.put(ATTRIBUTE_PERSON_ID, personId.toString)
+    attr.put(ATTRIBUTE_PERSON_ID, personId.map { _.toString }.getOrElse(""))
     attr.put(ATTRIBUTE_VEHICLE_ID, vehicleId.toString)
     attr.put(ATTRIBUTE_PARKING_TYPE, parkingType.toString)
     attr.put(ATTRIBUTE_PRICING_MODEL, optionalToString(pricingModel))
@@ -68,7 +75,7 @@ object LeavingParkingEvent {
     time: Double,
     stall: ParkingStall,
     score: Double,
-    personId: Id[Person],
+    personId: Option[Id[Person]],
     vehId: Id[Vehicle]
   ): LeavingParkingEvent =
     new LeavingParkingEvent(
@@ -86,7 +93,10 @@ object LeavingParkingEvent {
     assert(genericEvent.getEventType == EVENT_TYPE)
     val attr = genericEvent.getAttributes.asScala
     val time: Double = genericEvent.getTime
-    val personId: Id[Person] = Id.create(attr(ATTRIBUTE_PERSON_ID), classOf[Person])
+    val personIdString: String = attr(ATTRIBUTE_PERSON_ID)
+    val personId: Option[Id[Person]] =
+      if (personIdString.isEmpty) None
+      else Some { Id.create(attr(ATTRIBUTE_PERSON_ID), classOf[Person]) }
     val vehicleId: Id[Vehicle] = Id.create(attr(ATTRIBUTE_VEHICLE_ID), classOf[Vehicle])
     val tazId: Id[TAZ] = Id.create(attr(ATTRIBUTE_PARKING_TAZ), classOf[TAZ])
     val score: Double = attr(ATTRIBUTE_SCORE).toDouble

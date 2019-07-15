@@ -18,7 +18,8 @@ class RideHailDepotParkingManager(
   tazTreeMap: TAZTreeMap,
   random: Random,
   boundingBox: Envelope,
-  distFunction: (Location, Location) => Double
+  distFunction: (Location, Location) => Double,
+  utilityFunction: MultinomialLogit[ParkingAlternative, String]
 ) extends LazyLogging {
 
   // load parking from a parking file, or generate it using the TAZ beam input
@@ -71,19 +72,6 @@ class RideHailDepotParkingManager(
     parkingDuration: Double
   ): Option[ParkingStall] = {
 
-    val beta1 = 1
-    val beta2 = 1
-    val beta3 = 0.001
-
-    val utilityFunction: MultinomialLogit[ParkingAlternative, String] =
-      new MultinomialLogit(
-        Map.empty,
-        Map(
-          "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
-          "distanceFactor"    -> UtilityFunctionOperation("multiplier", -beta2),
-          "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
-        )
-      )
     for {
       (_, parkingStall) <- ParkingZoneSearch
         .incrementalParkingZoneSearch(
@@ -173,7 +161,8 @@ object RideHailDepotParkingManager {
     tazTreeMap: TAZTreeMap,
     random: Random,
     boundingBox: Envelope,
-    distFunction: (Location, Location) => Double
+    distFunction: (Location, Location) => Double,
+    utilityFunction: MultinomialLogit[ParkingAlternative, String]
   ): RideHailDepotParkingManager = {
     new RideHailDepotParkingManager(
       parkingFilePath,
@@ -182,7 +171,8 @@ object RideHailDepotParkingManager {
       tazTreeMap,
       random,
       boundingBox,
-      distFunction
+      distFunction,
+      utilityFunction
     )
   }
 }

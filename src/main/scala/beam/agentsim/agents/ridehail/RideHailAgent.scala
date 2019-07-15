@@ -12,7 +12,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
-import beam.agentsim.events.{RefuelSessionEvent, SpaceTime}
+import beam.agentsim.events.{LeavingParkingEvent, ParkEvent, RefuelSessionEvent, SpaceTime}
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
@@ -263,9 +263,9 @@ class RideHailAgent(
 
     case ev @ Event(ParkingInquiryResponse(stall, _), _) =>
       log.debug("state(RideHailAgent.OfflineForCharging.ParkingInquiryResponse): {}", ev)
-
       vehicle.useParkingStall(stall)
       val (tick, triggerId) = releaseTickAndTriggerId()
+      eventsManager.processEvent(ParkEvent(tick, stall, currentBeamVehicle.id, id.toString))
       log.debug("Refuel started at {}, triggerId: {}", tick, triggerId)
 
       startRefueling(tick, triggerId)
@@ -548,10 +548,27 @@ class RideHailAgent(
     //Question: Are these CAV checks correct - check with Rob
     //In fact maybe I get access to the rideHailDepotParkingManager and do the release from here instead of RideHailManager
     //If so then note it would still need to check the queue and any other localized cleanup
-    if (!vehicle.isCAV) parkingManager ! ReleaseParkingStall(vehicle.stall.get.parkingZoneId)
-    val currentLocation = vehicle.stall.get.locationUTM
-    if (!vehicle.isCAV) vehicle.unsetParkingStall()
-    currentLocation
+    vehicle.stall match {
+      case None =>
+        log.warning(s"ended refueling but vehicle ${vehicle.id} has no stall")
+        vehicle.spaceTime.loc
+      case Some(parkingStall) =>
+        val cost = parkingStall.cost
+        eventsManager
+          .processEvent(
+            LeavingParkingEvent(
+              tick,
+              vehicle.stall.get,
+              cost,
+              personId = None,
+              currentBeamVehicle.id
+            )
+          )
+        if (!vehicle.isCAV) parkingManager ! ReleaseParkingStall(vehicle.stall.get.parkingZoneId)
+        val currentLocation = vehicle.stall.get.locationUTM
+        if (!vehicle.isCAV) vehicle.unsetParkingStall()
+        currentLocation
+    }
   }
 
   def handleNotifyVehicleResourceIdleReply(

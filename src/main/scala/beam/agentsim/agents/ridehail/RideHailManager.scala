@@ -59,7 +59,6 @@ import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -67,6 +66,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.math.{max, min}
 import scala.util.{Failure, Success, Try}
+
+import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
 
 object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLocation, Double)] {
   override def compare(
@@ -345,6 +347,26 @@ class RideHailManager(
   val parkingFilePath: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.parkingFilePath
   val valueOfTime: Double = beamServices.beamConfig.beam.agentsim.agents.rideHail.human.valueOfTime
 
+  // for parking/charging search
+  val utilityFunction: MultinomialLogit[ParkingAlternative, String] =
+    new MultinomialLogit(
+      Map.empty,
+      Map(
+        "energyPriceFactor" -> UtilityFunctionOperation(
+          "multiplier",
+          -beamServices.beamConfig.beam.agentsim.agents.rideHail.mnl.beta1
+        ),
+        "distanceFactor" -> UtilityFunctionOperation(
+          "multiplier",
+          -beamServices.beamConfig.beam.agentsim.agents.rideHail.mnl.beta2
+        ),
+        "installedCapacity" -> UtilityFunctionOperation(
+          "multiplier",
+          -beamServices.beamConfig.beam.agentsim.agents.rideHail.mnl.beta3
+        )
+      )
+    )
+
   // provides tracking of parking/charging alternatives and their availability
   val rideHailDepotParkingManager = RideHailDepotParkingManager(
     parkingFilePath,
@@ -353,7 +375,8 @@ class RideHailManager(
     beamServices.beamScenario.tazTreeMap,
     rand,
     boundingBox,
-    beamServices.geo.distUTMInMeters
+    beamServices.geo.distUTMInMeters,
+    utilityFunction,
   )
 
   beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.initType match {
