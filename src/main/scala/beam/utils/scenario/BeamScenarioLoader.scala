@@ -236,21 +236,21 @@ class BeamScenarioLoader(
     planElement.legDepartureTime.foreach(v => leg.setDepartureTime(v.toDouble))
     planElement.legTravelTime.foreach(v => leg.setTravelTime(v.toDouble))
 
-    //    val legRoute: NetworkRoute = {
-    //      val links = planElement.legRouteLinks.map(v => Id.create(v, classOf[Link])).asJava
-    //      if (links.isEmpty) {
-    //        null
-    //      } else {
-    //        RouteUtils.createNetworkRoute(links, beamScenario.network)
-    //      }
-    //    }
-    //    if (legRoute != null) {
-    //      leg.setRoute(legRoute)
-    //      planElement.legRouteDistance.foreach(legRoute.setDistance)
-    //      planElement.legRouteStartLink.foreach(v => legRoute.setStartLinkId(Id.create(v, classOf[Link])))
-    //      planElement.legRouteEndLink.foreach(v => legRoute.setEndLinkId(Id.create(v, classOf[Link])))
-    //      planElement.legRouteTravelTime.foreach(v => legRoute.setTravelTime(v))
-    //    }
+    val legRoute: NetworkRoute = {
+      val links = planElement.legRouteLinks.map(v => Id.create(v, classOf[Link])).asJava
+      if (links.isEmpty) {
+        null
+      } else {
+        RouteUtils.createNetworkRoute(links, beamScenario.network)
+      }
+    }
+    if (legRoute != null) {
+      leg.setRoute(legRoute)
+      planElement.legRouteDistance.foreach(legRoute.setDistance)
+      planElement.legRouteStartLink.foreach(v => legRoute.setStartLinkId(Id.create(v, classOf[Link])))
+      planElement.legRouteEndLink.foreach(v => legRoute.setEndLinkId(Id.create(v, classOf[Link])))
+      planElement.legRouteTravelTime.foreach(v => legRoute.setTravelTime(v))
+    }
     leg
   }
 

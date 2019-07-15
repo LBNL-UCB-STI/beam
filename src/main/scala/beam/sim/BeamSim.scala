@@ -199,7 +199,10 @@ class BeamSim @Inject()(
     beamSkimmer.notifyIterationEnds(event)
 
     if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
-      PlansCsvWriter.toCsv(scenario, beamServices.matsimServices.getControlerIO.getIterationFilename(event.getIteration, "plans.csv"))
+      PlansCsvWriter.toCsv(
+        scenario,
+        beamServices.matsimServices.getControlerIO.getIterationFilename(event.getIteration, "plans.csv")
+      )
     }
 
     if (beamConfig.beam.debug.debugEnabled)

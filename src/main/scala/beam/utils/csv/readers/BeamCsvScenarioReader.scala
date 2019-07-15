@@ -21,7 +21,6 @@ object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
   }
   override def readPlansFile(path: String): Array[PlanElement] = {
     readAs[PlanElement](path, "readPlansFile", toPlanInfo)
-
   }
   override def readHouseholdsFile(householdsPath: String, vehicles: Iterable[VehicleInfo]): Array[HouseholdInfo] = {
     val householdToNumberOfCars = vehicles.groupBy(_.householdId).map {
@@ -66,6 +65,7 @@ object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
     val planElementType = getIfNotNull(rec, "planElementType")
     val planElementIndex = getIfNotNull(rec, "planElementIndex").toInt
     val activityType = Option(rec.get("activityType"))
+    val linkIds = Option(rec.get("legRouteLinks")).map(_.split("\\|").map(_.trim)).getOrElse(Array.empty[String])
     PlanElement(
       personId = PersonId(personId),
       planIndex = planIndex,
@@ -85,7 +85,7 @@ object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
       legRouteEndLink = Option(rec.get("legRouteEndLink")).map(_.toString),
       legRouteTravelTime = Option(rec.get("legRouteTravelTime")).map(_.toDouble),
       legRouteDistance = Option(rec.get("legRouteDistance")).map(_.toDouble),
-      legRouteLinks = Option(rec.get("legRouteLinks")).toSeq.flatMap(_.split(",")).map(_.trim)
+      legRouteLinks = linkIds
     )
   }
 
