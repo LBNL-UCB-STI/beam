@@ -52,7 +52,6 @@ class BeamSkimmer @Inject()(
 
   private def skimsFilePath: Option[String] = {
     val filePath = beamScenario.beamConfig.beam.warmStart.skimsFilePath
-    logger.warn("@@@@@@@@@@@@@@@@@@@@@@@@@ ")
     if (new File(filePath).isFile) {
       Some(filePath)
     } else {
@@ -581,7 +580,7 @@ class BeamSkimmer @Inject()(
           .getOrElse(TrieMap.empty)
       } catch {
         case NonFatal(ex) =>
-          logger.error(s"Could not load previous skim from '${skimsPlusFilePath}': ${ex.getMessage}", ex)
+          logger.error(s"Could not load previous skim from '$skimsPlusFilePath': ${ex.getMessage}", ex)
           TrieMap.empty
       }
     } else {
