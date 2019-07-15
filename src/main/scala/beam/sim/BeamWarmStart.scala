@@ -22,12 +22,12 @@ import scala.compat.java8.StreamConverters._
 import scala.util.Try
 
 class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyLogging {
-  val isWarmMode = beamConfig.beam.warmStart.enabled
-  if (!isWarmMode) { // TODO: it will be inlined
+  val isWarmMode: Boolean = beamConfig.beam.warmStart.enabled
+  if (!isWarmMode) {
     throw new IllegalStateException("BeamWarmStart cannot be initialized since warmstart is disabled")
   }
 
-  val srcPath = beamConfig.beam.warmStart.path
+  private val srcPath = beamConfig.beam.warmStart.path
 
   def readTravelTime: Option[TravelTime] = {
     getWarmStartFilePath("linkstats.csv.gz", rootFirst = false) match {
