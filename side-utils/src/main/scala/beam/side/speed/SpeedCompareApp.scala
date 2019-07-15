@@ -87,7 +87,7 @@ trait AppSetup {
       .valueName("<mode_type>")
       .action((m, c) => c.copy(mode = m))
       .validate(
-        s => Seq("all", "wd", "hours", "wh", "hours_range").find(_ == s).map(_ => success).getOrElse(failure("Invalid"))
+        s => Seq("all", "wd", "hours", "wh", "hours_range", "we").find(_ == s).map(_ => success).getOrElse(failure("Invalid"))
       )
       .text("Filtering action name")
 
@@ -120,7 +120,7 @@ object SpeedCompareApp extends App with AppSetup {
       val uber = UberSpeed(conf.mode, conf.fArgs, conf.uberSpeedPath, ways, nodes)
 
       SpeedComparator(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, conf.output).csvNode()
-      //SpeedAnalyser(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, conf.output).nodePartsMax()
+      //SpeedAnalyser(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, conf.output).nodePartsSpeed()
       System.exit(0)
     case None => System.exit(-1)
   }

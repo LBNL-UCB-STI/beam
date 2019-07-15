@@ -24,12 +24,12 @@ class SpeedAnalyser(ways: OsmWays, uber: UberSpeed[_], filePrefix: String) {
 
   def nodePartsSpeed(): Unit = {
     ways.nodes
+      .filter(b => Seq("29", "59").contains(b.id.toString))
+      .take(2)
       .map(n => n.id -> uber.wayParts(n.orig, n.dest))
       .collect {
         case (l, Some(s)) => l.toString -> s
       }
-      .filter(b => Seq("29", "59").contains(b._1))
-      .take(2)
       .foreach { b =>
         val file = new File(s"$filePrefix-${b._1}.csv")
         val bw = new BufferedWriter(new FileWriter(file))

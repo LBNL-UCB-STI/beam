@@ -1,10 +1,7 @@
 package beam.side.speed.parser
 import java.io.{BufferedWriter, File, FileWriter}
 
-import beam.side.speed.model.{BeamUberSpeed, OsmNodeSpeed}
-
-import scala.collection.SortedMap
-import scala.collection.immutable.TreeMap
+import beam.side.speed.model.BeamUberSpeed
 
 class SpeedComparator(ways: OsmWays, uber: UberSpeed[_], fileName: String) {
   import BeamUberSpeed._
@@ -16,10 +13,11 @@ class SpeedComparator(ways: OsmWays, uber: UberSpeed[_], fileName: String) {
           uber
             .speed(n.id)
             .orElse(uber.way(n.orig, n.dest))
-            .fold(BeamUberSpeed(n.id, n.speed, None, None, None))(
-              ws => BeamUberSpeed(n.id, n.speed, ws.speedMedian, ws.speedAvg, ws.maxDev)
-          )
+            .map(ws => BeamUberSpeed(n.id, n.speed, ws.speedMedian, ws.speedAvg, ws.maxDev))
       )
+      .collect {
+        case Some(b) => b
+      }
 
   private val csv: Iterator[BeamUberSpeed] => Unit = { s =>
     val file = new File(fileName)
