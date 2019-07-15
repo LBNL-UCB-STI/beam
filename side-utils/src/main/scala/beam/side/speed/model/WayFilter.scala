@@ -7,14 +7,34 @@ import beam.side.speed.parser.Median
 import scala.math.{max, min}
 import scala.util.Try
 
+case class WeightedHour(weight: Int, hour: UberHourSpeed)
+
+sealed trait Rule extends (() => (Int, Float))
+
+class NightRule(v1: UberHourSpeed) extends Rule {
+  def apply: (Int, Float) = (2, v1.speedAvg * 2)
+}
+
+class DayRule(v1: UberHourSpeed) extends Rule {
+  def apply: (Int, Float) = (1, v1.speedAvg)
+}
+
+object Rule {
+
+  def apply(hour: UberHourSpeed): Rule = hour.hour match {
+    case h if h < 5 => new NightRule(hour)
+    case _          => new DayRule(hour)
+  }
+}
+
 sealed trait WayFilter[T <: FilterDTO, E] {
   def filter(filterOption: E, waySpeed: Map[DayOfWeek, UberDaySpeed]): WaySpeed
 
   protected def parseHours(hours: Seq[UberHourSpeed]): WaySpeed = {
-    val speedAvg = Try(hours.map(_.speedMedian).sum / hours.size).toOption.filter(_ => hours.nonEmpty)
+    val speedAvg = Try(hours.map(_.speedAvg).sum / hours.size).toOption.filter(_ => hours.nonEmpty)
     val devMax = Try(hours.map(_.maxDev).max).toOption
-    val speedMean = Option(hours.map(_.speedMedian).toArray).filter(_.nonEmpty).map(Median.findMedian)
-    WaySpeed(speedMean, speedAvg, devMax)
+    val speedMedian = Option(hours.map(_.speedMedian).toArray).filter(_.nonEmpty).map(Median.findMedian)
+    WaySpeed(speedMedian, speedAvg, devMax)
   }
 }
 
@@ -23,6 +43,18 @@ object WayFilter {
     override def filter(filterOption: Unit, waySpeed: Map[DayOfWeek, UberDaySpeed]): WaySpeed =
       parseHours(waySpeed.values.flatMap(_.hours).toSeq)
   }
+
+  implicit val allHoursWeightedEventAction: WayFilter[AllHoursWeightedDTO, Unit] =
+    new WayFilter[AllHoursWeightedDTO, Unit] {
+
+      override def filter(filterOption: Unit, waySpeed: Map[DayOfWeek, UberDaySpeed]): WaySpeed = {
+        val hours = waySpeed.values.flatMap(_.hours).map(s => Rule(s)).map(_.apply)
+        val speedAvg = Try(hours.map(_._2).sum / hours.map(_._1).sum).toOption.filter(_ => hours.nonEmpty)
+        val speedMedian =
+          Option(hours.flatMap(w => Seq.fill(w._1)(w._2 / w._1)).toArray).filter(_.nonEmpty).map(Median.findMedian)
+        WaySpeed(speedMedian, speedAvg, None)
+      }
+    }
 
   implicit val weekDayEventAction: WayFilter[WeekDayDTO, DayOfWeek] = new WayFilter[WeekDayDTO, DayOfWeek] {
     override def filter(filterOption: DayOfWeek, waySpeed: Map[DayOfWeek, UberDaySpeed]): WaySpeed =
