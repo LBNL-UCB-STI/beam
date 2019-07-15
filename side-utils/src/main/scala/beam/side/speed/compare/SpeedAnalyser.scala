@@ -28,15 +28,18 @@ class SpeedAnalyser(ways: OsmWays, uber: UberSpeed[_], filePrefix: String) {
       .collect {
         case (l, Some(s)) => l.toString -> s
       }
-      .filter(_._2.size > 3)
-      .take(20)
       .filter(b => Seq("29", "59").contains(b._1))
+      .take(2)
       .foreach { b =>
         val file = new File(s"$filePrefix-${b._1}.csv")
         val bw = new BufferedWriter(new FileWriter(file))
+        bw.write("speed,hour")
+        bw.newLine()
         b._2.foreach { s =>
-          bw.write(s.mkString(","))
-          bw.newLine()
+          s.hours.foreach { h =>
+            bw.write(s"${h.speedAvg},${h.hour}")
+            bw.newLine()
+          }
         }
         bw.flush()
         bw.close()
