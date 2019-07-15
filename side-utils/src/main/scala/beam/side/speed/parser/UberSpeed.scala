@@ -4,6 +4,7 @@ import java.nio.file.Paths
 import java.time.DayOfWeek
 
 import beam.side.speed.model.FilterEvent.AllHoursDaysEventAction.AllHoursDaysEventAction
+import beam.side.speed.model.FilterEvent.AllHoursWeightedEventAction.AllHoursWeightedEventAction
 import beam.side.speed.model.FilterEvent.HourEventAction.HourEventAction
 import beam.side.speed.model.FilterEvent.HourRangeEventAction.HourRangeEventAction
 import beam.side.speed.model.FilterEvent.WeekDayEventAction.WeekDayEventAction
@@ -60,6 +61,7 @@ class UberSpeed[T <: FilterEventAction](
 
   def way(origNodeId: Long, destNodeId: Long): Option[WaySpeed] =
     shorterPath(origNodeId, destNodeId)
+      .filter(_.length < 15)
       .map(_.edges.foldLeft(Seq[WayMetric]())((acc, e2) => acc ++ e2.metrics))
       .map(dropToWeek)
       .map(_.waySpeed[T](fOpt))
@@ -86,21 +88,24 @@ class UberSpeed[T <: FilterEventAction](
 
   def wayParts(origNodeId: Long, destNodeId: Long): Option[Seq[UberDaySpeed]] = {
     shorterPath(origNodeId, destNodeId)
+      .filter(_.length < 15)
       .map(_.edges.foldLeft(Seq[WayMetric]())((acc, e2) => acc ++ e2.metrics))
       .map { s =>
         val week = s
           .groupBy(e => (e.dateTime.getHour, e.dateTime.getDayOfWeek))
+          .toSeq
           .map {
             case ((h, dw), g) =>
-              val speedAvg = g.map(_.speedMphMean).max * 1.60934 / 3.6
+              val speedMax = g.map(_.speedMphMean).max * 1.60934 / 3.6
+              val speedAvg = g.map(_.speedMphMean).sum * 1.60934 / (3.6 * g.size)
               val devMax = g.map(_.speedMphStddev).max * 1.60934 / 3.6
               val speedMedian = Median.findMedian(g.map(_.speedMphMean).toArray) * 1.60934 / 3.6
-              (dw, UberHourSpeed(h, speedMedian.toFloat, speedAvg.toFloat, devMax.toFloat))
+              (dw, UberHourSpeed(h, speedMedian.toFloat, speedAvg.toFloat, devMax.toFloat, speedMax.toFloat))
           }
           .groupBy(_._1)
-          .mapValues(_.values)
+          .mapValues(s => s.map(_._2))
           .map {
-            case (d, uhs) => UberDaySpeed(d, uhs.toSeq)
+            case (d, uhs) => UberDaySpeed(d, uhs.toList)
           }
         week.toSeq
       }
@@ -109,17 +114,19 @@ class UberSpeed[T <: FilterEventAction](
   private def dropToWeek(metrics: Seq[WayMetric]): UberWaySpeed = {
     val week = metrics
       .groupBy(e => (e.dateTime.getHour, e.dateTime.getDayOfWeek))
+      .toSeq
       .map {
         case ((h, dw), g) =>
+          val speedMax = g.map(_.speedMphMean).max * 1.60934 / 3.6
           val speedAvg = g.map(_.speedMphMean).sum * 1.60934 / (3.6 * g.size)
           val devMax = g.map(_.speedMphStddev).max * 1.60934 / 3.6
           val speedMedian = Median.findMedian(g.map(_.speedMphMean).toArray) * 1.60934 / 3.6
-          (dw, UberHourSpeed(h, speedMedian.toFloat, speedAvg.toFloat, devMax.toFloat))
+          (dw, UberHourSpeed(h, speedMedian.toFloat, speedAvg.toFloat, devMax.toFloat, speedMax.toFloat))
       }
       .groupBy(_._1)
-      .mapValues(_.values)
+      .mapValues(s => s.map(_._2))
       .map {
-        case (d, uhs) => UberDaySpeed(d, uhs.toSeq)
+        case (d, uhs) => UberDaySpeed(d, uhs.toList)
       }
     UberWaySpeed(week.toSeq)
   }
@@ -151,5 +158,6 @@ object UberSpeed {
     case "wh" =>
       UberSpeed[WeekDayHourEventAction](path, dictW, dictJ, (DayOfWeek.of(fOpt("day").toInt), fOpt("hour").toInt))
     case "hours_range" => UberSpeed[HourRangeEventAction](path, dictW, dictJ, (fOpt("from").toInt, fOpt("to").toInt))
+    case "we" => UberSpeed[AllHoursWeightedEventAction](path, dictW, dictJ, Unit)
   }
 }

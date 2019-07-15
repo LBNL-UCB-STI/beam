@@ -4,11 +4,13 @@
 # Created on: 2019-07-09
 library(ggplot2)
 
-speedData <- read.csv("compare_sf.csv")
+speedData <- read.csv("speed/speed_data_compare_1.csv")
 sdata <- speedData[complete.cases(speedData), ]
-sdata2 <- sdata[sdata[2] != 0.0, ]
-cd <- (sdata2[4]- sdata2[2])
+cd <- (sdata[4]- sdata[2])
 cd1 <- cd[complete.cases(cd), ]
+
+print(nrow(sdata))
+print(length(cd1))
 
 png(file = "scatterplot_diff.png", width = 3064, height = 2048, units = "px", pointsize = 48)
 
@@ -52,6 +54,12 @@ close(ccc)
 
 ggplot() + aes(maxes)+ geom_histogram(binwidth=1, colour="black", fill="white")
 ggsave("max_speed_hist.png", width = 16, height = 9, dpi = 300)
+
+hourSpeed <- read.csv("speed/speed_data_59.csv")
+png(file = "59_speed_hour.png", width = 3064, height = 2048, units = "px", pointsize = 48)
+boxplot(hourSpeed$speed ~ hourSpeed$hour, data = hourSpeed, xlab = "Hour", ylab = "Speed Mph", main = "Link 1")
+dev.off()
+
 
 # Give the chart file a name.
 png(file = "scatterplot.png", width = 3064, height = 2048, units = "px", pointsize = 48)

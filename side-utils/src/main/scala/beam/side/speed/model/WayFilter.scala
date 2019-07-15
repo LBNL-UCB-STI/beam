@@ -12,11 +12,11 @@ case class WeightedHour(weight: Int, hour: UberHourSpeed)
 sealed trait Rule extends (() => (Int, Float))
 
 class NightRule(v1: UberHourSpeed) extends Rule {
-  def apply: (Int, Float) = (2, v1.speedAvg * 2)
+  def apply: (Int, Float) = (2, v1.speedMax * 2)
 }
 
 class DayRule(v1: UberHourSpeed) extends Rule {
-  def apply: (Int, Float) = (1, v1.speedAvg)
+  def apply: (Int, Float) = (1, v1.speedMax)
 }
 
 object Rule {
