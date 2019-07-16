@@ -40,5 +40,11 @@ object FailFast extends LazyLogging {
         "Scheduler Parallelism Window must be less than Request Buffer Timeout"
       )
     }
+
+    if (beamServices.beamConfig.beam.physsim.writeRouteHistoryInterval < 0) {
+      throw new RuntimeException(
+        "Wrong value of Route History file writing iteration"
+      )
+    }
   }
 }
