@@ -9,8 +9,6 @@ import com.google.common.io.Files
 import groovy.json.JsonSlurper
 import jp.classmethod.aws.gradle.lambda.AWSLambdaInvokeTask
 import jp.classmethod.aws.gradle.lambda.AWSLambdaPluginExtension
-import org.unbrokendome.gradle.plugins.helm.command.tasks.HelmInit
-import org.unbrokendome.gradle.plugins.helm.command.tasks.HelmInstall
 
 import java.lang.reflect.Field
 import java.time.Instant
@@ -42,21 +40,11 @@ plugins {
     id "org.scoverage" version "3.0.0"
     id 'org.ajoberstar.grgit' version '1.7.2'
     id 'maven-publish'
-    id 'org.unbroken-dome.helm' version '0.3.0'
-    id 'org.unbroken-dome.helm-commands' version '0.3.0'
-    id 'org.unbroken-dome.helm-releases' version '0.3.0'
-    id 'org.unbroken-dome.helm-publish' version '0.3.0'
 }
 
 //ext {
 //    env = "beamville"
 //}
-
-tasks.whenTaskAdded { task ->
-    if (task.name.contains("helm")) {
-        task.enabled = false
-    }
-}
 
 apply plugin: 'java'
 apply plugin: 'scala'
@@ -835,189 +823,4 @@ shadowJar {
         resource = 'reference.conf'
     }
     mergeServiceFiles()
-}
-
-helm {
-    home = file("${project.buildDir}/helm")
-    debug = true
-
-    def dateCreation = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"))
-
-    filtering {
-        values.put 'beamImage', 'beammodel/beam'
-        values.put 'beamImageTag', '0.6.2'
-        values.put 'bucketName', 'beam-config'
-        values.put 'authorName', 'Kirill Mitin'
-        values.put 'authorEmail', 'mitin.kirill.ol@gmail.com'
-        values.put 'creationTime', dateCreation
-        values.put 'simulationConfig', "${project.findProperty('config')}"
-        values.put 'mem', "${project.findProperty('mem')}"
-        values.put 'cpu', "${project.findProperty('cpu')}"
-    }
-    lint {
-        strict = true
-    }
-
-    charts {
-        common {
-            chartName = 'beam-common'
-            chartVersion = '0.1.0'
-            sourceDir = file('kubernetes/beam-common')
-        }
-
-        standalone {
-            chartName = 'beam-standalone'
-            chartVersion = '0.1.0'
-            sourceDir = file('kubernetes/beam-standalone')
-
-            filtering {
-                values.put 'simulationNamespace', "standalone-${dateCreation}"
-            }
-
-            dependencies {
-                add(name: 'common', chart: 'beam-common')
-            }
-
-        }
-
-        cluster {
-            chartName = 'beam-cluster'
-            chartVersion = '0.1.0'
-            sourceDir = file('kubernetes/beam-cluster')
-
-            filtering {
-                values.put 'simulationNamespace', "cluster-${dateCreation}"
-            }
-
-            dependencies {
-                add(name: 'common', chart: 'common')
-            }
-        }
-    }
-
-    releases {
-        standalone {
-            from charts.standalone
-            replace = true
-        }
-        cluster {
-            from charts.cluster
-            replace = true
-        }
-    }
-}
-
-task helmInit(type: HelmInit) {
-    upgrade = true
-    doLast {
-        exec {
-            executable 'kubectl'
-            args = ['patch', 'deploy', '--namespace', 'kube-system', 'tiller-deploy', '-p', '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}']
-        }
-    }
-}
-
-helmInit.dependsOn clean
-
-helmUpdateStandaloneChartDependencies.dependsOn helmPackageCommonChart
-
-task deployStandaloneChart(dependsOn: [helmPackageStandaloneChart, helmPackageCommonChart, helmInit], type: HelmInstall) {
-    def date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"))
-    chart = "${project.buildDir}/helm/charts/beam-standalone-0.1.0.tgz"
-    releaseName = "beam-standalone-${date}"
-}
-
-task helmStandaloneList(dependsOn: [helmInit], type: Exec) {
-    executable 'helm'
-    args 'ls', '-q', 'beam-standalone'
-    standardOutput = new ByteArrayOutputStream()
-    ext.charts = {
-        return standardOutput.toString().replace('\n', ' ')
-    }
-}
-
-task removeStandaloneCharts(dependsOn: [helmStandaloneList]) {
-    doLast {
-        exec {
-            def charts = Arrays.asList(helmStandaloneList.charts().trim().split(' '))
-            executable 'helm'
-            def argList =  ["delete", "--purge"] + charts
-            args = argList
-        }
-    }
-}
-
-helmUpdateClusterChartDependencies.dependsOn helmPackageCommonChart
-
-task deployClusterChart(dependsOn: [helmPackageCommonChart, helmPackageClusterChart, helmInit], type: HelmInstall) {
-    def date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
-    chart = "${project.buildDir}/helm/charts/beam-cluster-0.1.0.tgz"
-    releaseName = "beam-cluster-${date}"
-}
-
-task helmClusterList(dependsOn: [helmInit], type: Exec) {
-    executable 'helm'
-    args 'ls', '-q', 'beam-cluster'
-    standardOutput = new ByteArrayOutputStream()
-    ext.charts = {
-        return standardOutput.toString().replace('\n', ' ')
-    }
-}
-
-task removeClusterCharts(dependsOn: [helmClusterList]) {
-    doLast {
-        exec {
-            def charts = Arrays.asList(helmClusterList.charts().trim().split(' '))
-            executable 'helm'
-            def argList =  ["delete", "--purge"] + charts
-            args = argList
-        }
-    }
-}
-
-task initEksCreation(type: AWSLambdaInvokeTask) {
-    def date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"))
-    functionName = "eksCreation"
-    invocationType = InvocationType.Event
-    def pload = """{
-    "region": "${project.findProperty('regionId')}",
-    "instance_id": "${project.findProperty('instanceType') ?: defaultInstanceType}",
-    "creation_tag": "${date}"
-}"""
-    payload = pload
-    ext.creation = date
-    doLast {
-        println date
-    }
-}
-
-task createEKSCluster(dependsOn: initEksCreation) {
-    def pload = """{
-    "region": "${project.findProperty('regionId')}",
-    "creation_tag": "${initEksCreation.creation}"
-    }"""
-
-    doLast {
-        def parsed
-
-        while (!parsed) {
-            sleep(5 * 1000)
-            AWSLambdaPluginExtension ext = getProject().getExtensions().getByType(AWSLambdaPluginExtension.class)
-            AWSLambda lambda = ext.getClient()
-            InvokeRequest request = new InvokeRequest()
-                    .withFunctionName("eksDescribe")
-                    .withInvocationType(InvocationType.RequestResponse)
-                    .withLogType(LogType.None)
-
-            request.setPayload(pload)
-            def res = lambda.invoke(request)
-
-            def jsonSlurper = new JsonSlurper()
-            def p = jsonSlurper.parseText(new String(res.payload.array(), "UTF-8"))
-
-            parsed = jsonSlurper.parseText(p.body)
-        }
-
-        println parsed.cluster
-    }
 }
