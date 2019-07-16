@@ -322,6 +322,12 @@ class RideHailAgent(
     case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
       log.debug("state(RideHailingAgent.Offline): {}", ev)
       stay replying InterruptedWhileOffline(interruptId, vehicle.id, tick)
+    case ev @ Event(ModifyPassengerSchedule(_, _, _), data) =>
+      stash()
+      goto(IdleInterrupted)
+    case ev @ Event(Resume(), _) =>
+      log.debug("state(RideHailingAgent.Offline): {}", ev)
+      stay
     case ev @ Event(
           reply @ NotifyVehicleResourceIdleReply(_, _),
           data
@@ -389,26 +395,76 @@ class RideHailAgent(
     case ev @ Event(ModifyPassengerSchedule(updatedPassengerSchedule, tick, requestId), data) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
-      // i.e. for what time it is. For now, we just believe it that time is not running backwards.
-      log.debug("updating Passenger schedule - vehicleId({}): {}", id, updatedPassengerSchedule)
-      val triggerToSchedule = Vector(
-        ScheduleTrigger(
-          StartLegTrigger(
-            updatedPassengerSchedule.schedule.firstKey.startTime,
-            updatedPassengerSchedule.schedule.firstKey
-          ),
-          self
+      // i.e. for what time it is.
+      if (data.passengerSchedule.schedule.isEmpty) {
+        log.debug("updating Passenger schedule - vehicleId({}): {}", id, updatedPassengerSchedule)
+        val triggerToSchedule = Vector(
+          ScheduleTrigger(
+            StartLegTrigger(
+              updatedPassengerSchedule.schedule.firstKey.startTime,
+              updatedPassengerSchedule.schedule.firstKey
+            ),
+            self
+          )
         )
-      )
-      goto(WaitingToDriveInterrupted) using data
-        .copy(geofence = geofence)
-        .withPassengerSchedule(updatedPassengerSchedule)
-        .asInstanceOf[RideHailAgentData] replying ModifyPassengerScheduleAck(
-        requestId,
-        triggerToSchedule,
-        vehicle.id,
-        tick,
-      )
+        goto(WaitingToDriveInterrupted) using data
+          .copy(geofence = geofence)
+          .withPassengerSchedule(updatedPassengerSchedule)
+          .asInstanceOf[RideHailAgentData] replying ModifyPassengerScheduleAck(
+          requestId,
+          triggerToSchedule,
+          vehicle.id,
+          tick,
+        )
+      } else {
+        log.debug(
+          "merging existing passenger schedule with updated - vehicleId({}), existing: {}, updated: {}",
+          id,
+          data.passengerSchedule,
+          updatedPassengerSchedule
+        )
+        val currentLeg = data.passengerSchedule.schedule.view.drop(data.currentLegPassengerScheduleIndex).head._1
+        val updatedStopTime = math.max(currentLeg.startTime, tick)
+        val resolvedPassengerSchedule: PassengerSchedule = DrivesVehicle.resolvePassengerScheduleConflicts(
+          updatedStopTime,
+          data.passengerSchedule,
+          updatedPassengerSchedule,
+          beamServices.networkHelper,
+          beamServices.geo
+        )
+        val newLegIndex = resolvedPassengerSchedule.schedule.keys.zipWithIndex
+          .find(_._1.startTime <= updatedStopTime)
+          .map(_._2)
+          .getOrElse(0)
+        if (newLegIndex >= resolvedPassengerSchedule.schedule.size) {
+          val i = 0
+        }
+        val newNextLeg = resolvedPassengerSchedule.schedule.keys.toIndexedSeq(newLegIndex)
+
+        if (resolvedPassengerSchedule.schedule.values.exists(_.riders.size == 6)) {
+          val i = 0
+        }
+
+        val triggerToSchedule = Vector(
+          ScheduleTrigger(
+            StartLegTrigger(
+              newNextLeg.startTime,
+              newNextLeg
+            ),
+            self
+          )
+        )
+        goto(WaitingToDriveInterrupted) using data
+          .copy(geofence = geofence)
+          .withPassengerSchedule(resolvedPassengerSchedule)
+          .withCurrentLegPassengerScheduleIndex(newLegIndex)
+          .asInstanceOf[RideHailAgentData] replying ModifyPassengerScheduleAck(
+          requestId,
+          triggerToSchedule,
+          vehicle.id,
+          tick,
+        )
+      }
     case ev @ Event(Resume(), _) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       goto(Idle)
@@ -523,7 +579,7 @@ class RideHailAgent(
 
   def requestParkingStall(): Unit = {
     val rideHailAgentLocation =
-      RideHailAgentLocation(vehicle.driver.get, vehicle.id, vehicle.beamVehicleType.id, vehicle.spaceTime, geofence)
+      RideHailAgentLocation(vehicle.driver.get, vehicle.id, vehicle.beamVehicleType, vehicle.spaceTime, geofence)
     val destinationUtm = rideHailAgentLocation.currentLocationUTM.loc
     val beta1 = 1
     val beta2 = 1

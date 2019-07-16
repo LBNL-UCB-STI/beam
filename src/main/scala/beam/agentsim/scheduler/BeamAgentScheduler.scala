@@ -265,24 +265,24 @@ class BeamAgentScheduler(
             rideHailManagerStuckDetectionLog match {
               case RideHailManagerStuckDetectionLog(Some(tick), true) if tick == nowInSeconds  => // still stuck, no need to print state again
               case RideHailManagerStuckDetectionLog(Some(tick), false) if tick == nowInSeconds =>
-                // the time has not changed sense set last monitor timeout and RidehailManager still blocking scheduler -> log state and try to remove stuckness
+                // the time has not changed since set last monitor timeout and RidehailManager still blocking scheduler -> log state and try to remove stuckness
                 rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), true)
                 x.agent ! LogActorState
-                x.agent ! RecoverFromStuckness(x.triggerWithId.trigger.tick)
+//                x.agent ! RecoverFromStuckness(x.triggerWithId.trigger.tick)
               case _ =>
                 // register tick (to see, if it changes till next monitor timeout).
                 rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), false)
             }
           } else {
-            monitorStuckDetectionState match {
-              case Some(MonitorStuckDetectionState(tick, awaitingReponseSize, triggerQueueSize, Some(triggerQueueHead)))
-                  if ((tick == nowInSeconds && awaitingReponseSize == awaitingResponse
-                    .size()) && (triggerQueueSize == triggerQueue.size() && triggerQueueHead == triggerQueue.peek())) =>
-                log.info("monitorStuckDetection removing agent: " + x.agent.path)
-                terminateActor(x.agent)
-
-              case _ =>
-            }
+//            monitorStuckDetectionState match {
+//              case Some(MonitorStuckDetectionState(tick, awaitingReponseSize, triggerQueueSize, Some(triggerQueueHead)))
+//                  if ((tick == nowInSeconds && awaitingReponseSize == awaitingResponse
+//                    .size()) && (triggerQueueSize == triggerQueue.size() && triggerQueueHead == triggerQueue.peek())) =>
+//                log.info("monitorStuckDetection removing agent: " + x.agent.path)
+//                terminateActor(x.agent)
+//
+//              case _ =>
+//            }
           }
         }
 

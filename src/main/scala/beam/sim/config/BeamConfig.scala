@@ -28,24 +28,23 @@ object BeamConfig {
   )
   object Beam {
     case class Agentsim(
-      agentSampleSizeAsFractionOfPopulation   : scala.Double,
-      agents                                  : BeamConfig.Beam.Agentsim.Agents,
-      endTime                                 : java.lang.String,
-      firstIteration                          : scala.Int,
-      lastIteration                           : scala.Int,
-      numAgents                               : scala.Int,
-      populationAdjustment                    : java.lang.String,
-      scenarios                               : BeamConfig.Beam.Agentsim.Scenarios,
-      scheduleMonitorTask                     : BeamConfig.Beam.Agentsim.ScheduleMonitorTask,
-      schedulerParallelismWindow              : scala.Int,
-      simulationName                          : java.lang.String,
-      startTime                               : java.lang.String,
-      taz                                     : BeamConfig.Beam.Agentsim.Taz,
-      thresholdForMakingParkingChoiceInMeters : scala.Int,
-      thresholdForWalkingInMeters             : scala.Int,
-      timeBinSize                             : scala.Int,
-      toll                                    : BeamConfig.Beam.Agentsim.Toll,
-      tuning                                  : BeamConfig.Beam.Agentsim.Tuning
+      agentSampleSizeAsFractionOfPopulation: scala.Double,
+      agents: BeamConfig.Beam.Agentsim.Agents,
+      endTime: java.lang.String,
+      firstIteration: scala.Int,
+      lastIteration: scala.Int,
+      populationAdjustment: java.lang.String,
+      scenarios: BeamConfig.Beam.Agentsim.Scenarios,
+      scheduleMonitorTask: BeamConfig.Beam.Agentsim.ScheduleMonitorTask,
+      schedulerParallelismWindow: scala.Int,
+      simulationName: java.lang.String,
+      startTime: java.lang.String,
+      taz: BeamConfig.Beam.Agentsim.Taz,
+      thresholdForMakingParkingChoiceInMeters: scala.Int,
+      thresholdForWalkingInMeters: scala.Int,
+      timeBinSize: scala.Int,
+      toll: BeamConfig.Beam.Agentsim.Toll,
+      tuning: BeamConfig.Beam.Agentsim.Tuning
     )
     object Agentsim {
       case class Agents(
@@ -928,24 +927,49 @@ object BeamConfig {
             
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim = {
         BeamConfig.Beam.Agentsim(
-          agentSampleSizeAsFractionOfPopulation   = if(c.hasPathOrNull("agentSampleSizeAsFractionOfPopulation")) c.getDouble("agentSampleSizeAsFractionOfPopulation") else 1.0,
-          agents                                  = BeamConfig.Beam.Agentsim.Agents(if(c.hasPathOrNull("agents")) c.getConfig("agents") else com.typesafe.config.ConfigFactory.parseString("agents{}")),
-          endTime                                 = if(c.hasPathOrNull("endTime")) c.getString("endTime") else "30:00:00",
-          firstIteration                          = if(c.hasPathOrNull("firstIteration")) c.getInt("firstIteration") else 0,
-          lastIteration                           = if(c.hasPathOrNull("lastIteration")) c.getInt("lastIteration") else 0,
-          numAgents                               = if(c.hasPathOrNull("numAgents")) c.getInt("numAgents") else 100,
-          populationAdjustment                    = if(c.hasPathOrNull("populationAdjustment")) c.getString("populationAdjustment") else "DEFAULT_ADJUSTMENT",
-          scenarios                               = BeamConfig.Beam.Agentsim.Scenarios(if(c.hasPathOrNull("scenarios")) c.getConfig("scenarios") else com.typesafe.config.ConfigFactory.parseString("scenarios{}")),
-          scheduleMonitorTask                     = BeamConfig.Beam.Agentsim.ScheduleMonitorTask(if(c.hasPathOrNull("scheduleMonitorTask")) c.getConfig("scheduleMonitorTask") else com.typesafe.config.ConfigFactory.parseString("scheduleMonitorTask{}")),
-          schedulerParallelismWindow              = if(c.hasPathOrNull("schedulerParallelismWindow")) c.getInt("schedulerParallelismWindow") else 30,
-          simulationName                          = if(c.hasPathOrNull("simulationName")) c.getString("simulationName") else "beamville",
-          startTime                               = if(c.hasPathOrNull("startTime")) c.getString("startTime") else "00:00:00",
-          taz                                     = BeamConfig.Beam.Agentsim.Taz(if(c.hasPathOrNull("taz")) c.getConfig("taz") else com.typesafe.config.ConfigFactory.parseString("taz{}")),
-          thresholdForMakingParkingChoiceInMeters = if(c.hasPathOrNull("thresholdForMakingParkingChoiceInMeters")) c.getInt("thresholdForMakingParkingChoiceInMeters") else 100,
-          thresholdForWalkingInMeters             = if(c.hasPathOrNull("thresholdForWalkingInMeters")) c.getInt("thresholdForWalkingInMeters") else 100,
-          timeBinSize                             = if(c.hasPathOrNull("timeBinSize")) c.getInt("timeBinSize") else 3600,
-          toll                                    = BeamConfig.Beam.Agentsim.Toll(if(c.hasPathOrNull("toll")) c.getConfig("toll") else com.typesafe.config.ConfigFactory.parseString("toll{}")),
-          tuning                                  = BeamConfig.Beam.Agentsim.Tuning(if(c.hasPathOrNull("tuning")) c.getConfig("tuning") else com.typesafe.config.ConfigFactory.parseString("tuning{}"))
+          agentSampleSizeAsFractionOfPopulation =
+            if (c.hasPathOrNull("agentSampleSizeAsFractionOfPopulation"))
+              c.getDouble("agentSampleSizeAsFractionOfPopulation")
+            else 1.0,
+          agents = BeamConfig.Beam.Agentsim.Agents(
+            if (c.hasPathOrNull("agents")) c.getConfig("agents")
+            else com.typesafe.config.ConfigFactory.parseString("agents{}")
+          ),
+          endTime = if (c.hasPathOrNull("endTime")) c.getString("endTime") else "30:00:00",
+          firstIteration = if (c.hasPathOrNull("firstIteration")) c.getInt("firstIteration") else 0,
+          lastIteration = if (c.hasPathOrNull("lastIteration")) c.getInt("lastIteration") else 0,
+          populationAdjustment =
+            if (c.hasPathOrNull("populationAdjustment")) c.getString("populationAdjustment") else "DEFAULT_ADJUSTMENT",
+          scenarios = BeamConfig.Beam.Agentsim.Scenarios(
+            if (c.hasPathOrNull("scenarios")) c.getConfig("scenarios")
+            else com.typesafe.config.ConfigFactory.parseString("scenarios{}")
+          ),
+          scheduleMonitorTask = BeamConfig.Beam.Agentsim.ScheduleMonitorTask(
+            if (c.hasPathOrNull("scheduleMonitorTask")) c.getConfig("scheduleMonitorTask")
+            else com.typesafe.config.ConfigFactory.parseString("scheduleMonitorTask{}")
+          ),
+          schedulerParallelismWindow =
+            if (c.hasPathOrNull("schedulerParallelismWindow")) c.getInt("schedulerParallelismWindow") else 30,
+          simulationName = if (c.hasPathOrNull("simulationName")) c.getString("simulationName") else "beamville",
+          startTime = if (c.hasPathOrNull("startTime")) c.getString("startTime") else "00:00:00",
+          taz = BeamConfig.Beam.Agentsim.Taz(
+            if (c.hasPathOrNull("taz")) c.getConfig("taz") else com.typesafe.config.ConfigFactory.parseString("taz{}")
+          ),
+          thresholdForMakingParkingChoiceInMeters =
+            if (c.hasPathOrNull("thresholdForMakingParkingChoiceInMeters"))
+              c.getInt("thresholdForMakingParkingChoiceInMeters")
+            else 100,
+          thresholdForWalkingInMeters =
+            if (c.hasPathOrNull("thresholdForWalkingInMeters")) c.getInt("thresholdForWalkingInMeters") else 100,
+          timeBinSize = if (c.hasPathOrNull("timeBinSize")) c.getInt("timeBinSize") else 3600,
+          toll = BeamConfig.Beam.Agentsim.Toll(
+            if (c.hasPathOrNull("toll")) c.getConfig("toll")
+            else com.typesafe.config.ConfigFactory.parseString("toll{}")
+          ),
+          tuning = BeamConfig.Beam.Agentsim.Tuning(
+            if (c.hasPathOrNull("tuning")) c.getConfig("tuning")
+            else com.typesafe.config.ConfigFactory.parseString("tuning{}")
+          )
         )
       }
     }
@@ -1269,19 +1293,36 @@ object BeamConfig {
             
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Outputs = {
         BeamConfig.Beam.Outputs(
-          addTimestampToOutputDirectory = !c.hasPathOrNull("addTimestampToOutputDirectory") || c.getBoolean("addTimestampToOutputDirectory"),
-          baseOutputDirectory           = if(c.hasPathOrNull("baseOutputDirectory")) c.getString("baseOutputDirectory") else "output",
-          defaultWriteInterval          = if(c.hasPathOrNull("defaultWriteInterval")) c.getInt("defaultWriteInterval") else 1,
-          displayPerformanceTimings     = c.hasPathOrNull("displayPerformanceTimings") && c.getBoolean("displayPerformanceTimings"),
-          events                        = BeamConfig.Beam.Outputs.Events(if(c.hasPathOrNull("events")) c.getConfig("events") else com.typesafe.config.ConfigFactory.parseString("events{}")),
-          generalizedLinkStats          = BeamConfig.Beam.Outputs.GeneralizedLinkStats(if(c.hasPathOrNull("generalizedLinkStats")) c.getConfig("generalizedLinkStats") else com.typesafe.config.ConfigFactory.parseString("generalizedLinkStats{}")),
-          generalizedLinkStatsInterval  = if(c.hasPathOrNull("generalizedLinkStatsInterval")) c.getInt("generalizedLinkStatsInterval") else 0,
-          stats                         = BeamConfig.Beam.Outputs.Stats(if(c.hasPathOrNull("stats")) c.getConfig("stats") else com.typesafe.config.ConfigFactory.parseString("stats{}")),
-          writeEventsInterval           = if(c.hasPathOrNull("writeEventsInterval")) c.getInt("writeEventsInterval") else 1,
-          writeGraphs                   = !c.hasPathOrNull("writeGraphs") || c.getBoolean("writeGraphs"),
-          writeLinkTraversalInterval    = if(c.hasPathOrNull("writeLinkTraversalInterval")) c.getInt("writeLinkTraversalInterval") else 0,
-          writePlansInterval            = if(c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0,
-          writeSkimsInterval            = if(c.hasPathOrNull("writeSkimsInterval")) c.getInt("writeSkimsInterval") else 0
+          addTimestampToOutputDirectory = !c.hasPathOrNull("addTimestampToOutputDirectory") || c.getBoolean(
+            "addTimestampToOutputDirectory"
+          ),
+          baseOutputDirectory =
+            if (c.hasPathOrNull("baseOutputDirectory")) c.getString("baseOutputDirectory")
+            else "/Users/critter/Documents/beam/beam-output/",
+          defaultWriteInterval = if (c.hasPathOrNull("defaultWriteInterval")) c.getInt("defaultWriteInterval") else 1,
+          displayPerformanceTimings = c.hasPathOrNull("displayPerformanceTimings") && c.getBoolean(
+            "displayPerformanceTimings"
+          ),
+          events = BeamConfig.Beam.Outputs.Events(
+            if (c.hasPathOrNull("events")) c.getConfig("events")
+            else com.typesafe.config.ConfigFactory.parseString("events{}")
+          ),
+          generalizedLinkStats = BeamConfig.Beam.Outputs.GeneralizedLinkStats(
+            if (c.hasPathOrNull("generalizedLinkStats")) c.getConfig("generalizedLinkStats")
+            else com.typesafe.config.ConfigFactory.parseString("generalizedLinkStats{}")
+          ),
+          generalizedLinkStatsInterval =
+            if (c.hasPathOrNull("generalizedLinkStatsInterval")) c.getInt("generalizedLinkStatsInterval") else 0,
+          stats = BeamConfig.Beam.Outputs.Stats(
+            if (c.hasPathOrNull("stats")) c.getConfig("stats")
+            else com.typesafe.config.ConfigFactory.parseString("stats{}")
+          ),
+          writeEventsInterval = if (c.hasPathOrNull("writeEventsInterval")) c.getInt("writeEventsInterval") else 1,
+          writeGraphs = !c.hasPathOrNull("writeGraphs") || c.getBoolean("writeGraphs"),
+          writeLinkTraversalInterval =
+            if (c.hasPathOrNull("writeLinkTraversalInterval")) c.getInt("writeLinkTraversalInterval") else 0,
+          writePlansInterval = if (c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0,
+          writeSkimsInterval = if (c.hasPathOrNull("writeSkimsInterval")) c.getInt("writeSkimsInterval") else 0
         )
       }
     }

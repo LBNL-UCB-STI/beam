@@ -2,14 +2,17 @@ package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.PassengerSchedule.Manifest
+import beam.router.BeamRouter.Location
 import beam.router.model.BeamLeg
+import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 
 import scala.collection.immutable.TreeMap
 
 /**
-  * Holds information about the numbers and identities of agents in the model
+  * Holds information about the numbers and identities of agents in on board a vehicle
+  * and the BeamLegs they are taking through the network
   */
 case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
 
@@ -50,6 +53,25 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
       newSchedule = newSchedule + (newLeg -> legAndMan._2)
     }
     new PassengerSchedule(newSchedule)
+  }
+
+  def uniquePassengers: Set[PersonIdWithActorRef] = schedule.values.flatMap(_.riders).toSet
+
+  def numUniquePassengers: Int = schedule.values.flatMap(_.riders).toSet.size
+
+  def numLegsWithPassengersAfter(legIndex: Int): Int =
+    schedule.slice(legIndex, schedule.size).values.filter(_.riders.size > 0).size
+
+  def linkAtTime(tick: Int): Int = {
+    if (tick < schedule.keys.head.startTime) {
+      schedule.keys.head.travelPath.linkIds.head
+    } else {
+      schedule.keys.toList.reverse.find(_.startTime <= tick).map(_.travelPath.linkAtTime(tick)).get
+    }
+  }
+
+  def locationAtTime(tick: Int, beamServices: BeamServices): Location = {
+    beamServices.networkHelper.getLink(linkAtTime(tick)).get.getCoord
   }
 
   override def toString: String = {

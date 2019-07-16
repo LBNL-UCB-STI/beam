@@ -145,7 +145,7 @@ class PersonWithPersonalVehiclePlanSpec
                 beamLeg = embodyRequest.leg.copy(
                   duration = 500,
                   travelPath = embodyRequest.leg.travelPath
-                    .copy(linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50))
+                    .copy(linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50.0))
                 ),
                 beamVehicleId = vehicleId,
                 Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
@@ -362,7 +362,7 @@ class PersonWithPersonalVehiclePlanSpec
                 beamLeg = embodyRequest.leg.copy(
                   duration = 500,
                   travelPath = embodyRequest.leg.travelPath
-                    .copy(linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50))
+                    .copy(linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50.0))
                 ),
                 beamVehicleId = vehicleId,
                 Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),

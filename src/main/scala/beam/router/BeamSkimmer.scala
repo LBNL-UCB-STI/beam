@@ -89,7 +89,7 @@ class BeamSkimmer @Inject()(
             departureTime,
             mode,
             travelTime,
-            new BeamPath(null, null, None, null, null, travelDistance)
+            new BeamPath(IndexedSeq(), IndexedSeq(), None, null, null, travelDistance)
           ),
           beamScenario.vehicleTypes(vehicleTypeId),
           beamScenario.fuelTypePrices

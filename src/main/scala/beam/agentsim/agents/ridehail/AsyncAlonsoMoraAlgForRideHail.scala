@@ -1,6 +1,6 @@
 package beam.agentsim.agents.ridehail
 
-import beam.agentsim.agents.{MobilityRequestTrait, Pickup}
+import beam.agentsim.agents.{EnRoute, MobilityRequestType, Pickup}
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
@@ -18,17 +18,21 @@ import scala.concurrent.Future
 class AsyncAlonsoMoraAlgForRideHail(
   spatialDemand: QuadTree[CustomerRequest],
   supply: List[VehicleAndSchedule],
-  timeWindow: Map[MobilityRequestTrait, Int],
+  timeWindow: Map[MobilityRequestType, Int],
   maxRequestsPerVehicle: Int,
   beamServices: BeamServices
 )(implicit val skimmer: BeamSkimmer) {
 
   private def vehicle2Requests(v: VehicleAndSchedule): (List[RTVGraphNode], List[(RTVGraphNode, RTVGraphNode)]) = {
     import scala.collection.mutable.{ListBuffer => MListBuffer}
+    if (v.getFreeSeats < 4) {
+      val i = 0
+    }
     val vertices = MListBuffer.empty[RTVGraphNode]
     val edges = MListBuffer.empty[(RTVGraphNode, RTVGraphNode)]
     val finalRequestsList = MListBuffer.empty[RideHailTrip]
-    val center = v.getLastDropoff.activity.getCoord
+    val center = v.getRequestWithCurrentVehiclePosition.activity.getCoord
+    val currentTimeOfVehicle = v.getRequestWithCurrentVehiclePosition.baselineNonPooledTime
     val searchRadius = timeWindow(Pickup) * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
     val requests = v.geofence match {
       case Some(gf) =>
@@ -46,11 +50,12 @@ class AsyncAlonsoMoraAlgForRideHail(
         spatialDemand.getDisk(center.getX, center.getY, searchRadius).asScala.toList
     }
     requests
+    //.filter(_.pickup.baselineNonPooledTime >= currentTimeOfVehicle)
       .sortBy(x => GeoUtils.minkowskiDistFormula(center, x.pickup.activity.getCoord))
       .take(maxRequestsPerVehicle) foreach (
       r =>
         AlonsoMoraPoolingAlgForRideHail
-          .getRidehailSchedule(timeWindow, v.schedule ++ List(r.pickup, r.dropoff), beamServices) match {
+          .getRidehailSchedule(timeWindow, v.schedule, List(r.pickup, r.dropoff), beamServices) match {
           case Some(schedule) =>
             val t = RideHailTrip(List(r), schedule)
             finalRequestsList append t
@@ -74,7 +79,8 @@ class AsyncAlonsoMoraAlgForRideHail(
           AlonsoMoraPoolingAlgForRideHail
             .getRidehailSchedule(
               timeWindow,
-              v.schedule ++ (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
+              v.schedule,
+              (t1.requests ++ t2.requests).flatMap(x => List(x.pickup, x.dropoff)),
               beamServices
             ) match {
             case Some(schedule) =>
