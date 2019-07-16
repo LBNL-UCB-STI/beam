@@ -690,7 +690,7 @@ trait BeamHelper extends LazyLogging {
     beamServices: BeamServices,
     outputDir: String
   ): Unit = {
-    if (beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation < 1) {
+    if (!beamConfig.beam.warmStart.enabled && beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation < 1) {
       val numAgents = math.round(
         beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation * scenario.getPopulation.getPersons.size()
       )
