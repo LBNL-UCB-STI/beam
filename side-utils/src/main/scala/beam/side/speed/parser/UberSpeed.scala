@@ -62,8 +62,8 @@ class UberSpeed[T <: FilterEventAction](
   def way(origNodeId: Long, destNodeId: Long): Option[WaySpeed] =
     shorterPath(origNodeId, destNodeId)
       .filter(_.length < 15)
-      .map(_.edges.foldLeft(Seq[WayMetric]())((acc, e2) => acc ++ e2.metrics))
-      .map(dropToWeek)
+      .map(_.edges.map(_.metrics.map(_.speedMphMean).max).toSeq)
+      .map(maxWeek)
       .map(_.waySpeed[T](fOpt))
 
   def wayPartsMax(origNodeId: Long, destNodeId: Long): Option[String] = {
@@ -74,7 +74,15 @@ class UberSpeed[T <: FilterEventAction](
 
   private def shorterPath(origNodeId: Long, destNodeId: Long) = {
     def shorter(p1: Option[nodeGraph.Path], p2: Option[nodeGraph.Path]) =
-      if (p1.map(_.length).getOrElse(Integer.MAX_VALUE) <= p2.map(_.length).getOrElse(Integer.MAX_VALUE)) p1 else p2
+      if (p1.map(_.length).getOrElse(Integer.MAX_VALUE) == p2.map(_.length).getOrElse(Integer.MAX_VALUE)) {
+        val mp1 = p1.map(_.edges.flatMap(_.metrics)).getOrElse(Seq())
+        val mp2 = p2.map(_.edges.flatMap(_.metrics)).getOrElse(Seq())
+        if (mp1.size == mp2.size) {
+          if ( mp1.map(_.speedMphMean).sum / mp1.size >= mp2.map(_.speedMphMean).sum / mp2.size) p1 else p2
+        } else if (mp1.size > mp2.size) p1
+        else p2
+      } else if (p1.map(_.length).getOrElse(Integer.MAX_VALUE) < p2.map(_.length).getOrElse(Integer.MAX_VALUE)) p1
+      else p2
 
     val path1 = nodeGraph
       .find(origNodeId)
@@ -110,6 +118,10 @@ class UberSpeed[T <: FilterEventAction](
         week.toSeq
       }
   }
+
+  private def maxWeek(metrics: Seq[Float]): UberWaySpeed =
+    UberWaySpeed(Seq(UberDaySpeed(DayOfWeek.TUESDAY, metrics.map(f => (f * 1.60934 / 3.6).toFloat).map(f => UberHourSpeed(10, f, f, f, f)).toList)))
+
 
   private def dropToWeek(metrics: Seq[WayMetric]): UberWaySpeed = {
     val week = metrics

@@ -4,15 +4,16 @@
 # Created on: 2019-07-09
 library(ggplot2)
 
-speedData <- read.csv("speed/speed_data_compare_1.csv")
-sdata <- speedData[complete.cases(speedData), ]
+keep <- c("osmId","speedBeam","speedMedian","speedAvg")
+speedData <- read.csv("speed/speed_data_compare_2.csv")
+sdata <- speedData[complete.cases(speedData[keep]), ]
 cd <- (sdata[4]- sdata[2])
 cd1 <- cd[complete.cases(cd), ]
 
-print(nrow(sdata))
-print(length(cd1))
+print(subset(sdata, speedAvg < 3))
+print(nrow(subset(sdata, speedAvg < 3)))
 
-png(file = "scatterplot_diff.png", width = 3064, height = 2048, units = "px", pointsize = 48)
+png(file = "scatterplot_diff_1.png", width = 3064, height = 2048, units = "px", pointsize = 48)
 
 plot(x = 1:length(cd1), y = cd1, type = 'l')
 # Save the file.
@@ -62,7 +63,7 @@ dev.off()
 
 
 # Give the chart file a name.
-png(file = "scatterplot.png", width = 3064, height = 2048, units = "px", pointsize = 48)
+png(file = "scatterplot_1.png", width = 3064, height = 2048, units = "px", pointsize = 48)
 
 plot(sdata$speedMedian ~ sdata$speedBeam,
     data = sdata,
