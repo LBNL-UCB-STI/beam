@@ -238,15 +238,19 @@ class BeamScenarioLoader(
 
     val legRoute: NetworkRoute = {
       val links = planElement.legRouteLinks.map(v => Id.create(v, classOf[Link])).asJava
-      RouteUtils.createNetworkRoute(links, beamScenario.network)
+      if (links.isEmpty) {
+        null
+      } else {
+        RouteUtils.createNetworkRoute(links, beamScenario.network)
+      }
     }
-    leg.setRoute(legRoute)
-
-    planElement.legRouteDistance.foreach(legRoute.setDistance)
-    planElement.legRouteStartLink.foreach(v => legRoute.setStartLinkId(Id.create(v, classOf[Link])))
-    planElement.legRouteEndLink.foreach(v => legRoute.setEndLinkId(Id.create(v, classOf[Link])))
-    planElement.legRouteTravelTime.foreach(v => legRoute.setTravelTime(v))
-
+    if (legRoute != null) {
+      leg.setRoute(legRoute)
+      planElement.legRouteDistance.foreach(legRoute.setDistance)
+      planElement.legRouteStartLink.foreach(v => legRoute.setStartLinkId(Id.create(v, classOf[Link])))
+      planElement.legRouteEndLink.foreach(v => legRoute.setEndLinkId(Id.create(v, classOf[Link])))
+      planElement.legRouteTravelTime.foreach(v => legRoute.setTravelTime(v))
+    }
     leg
   }
 

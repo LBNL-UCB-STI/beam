@@ -3,7 +3,6 @@ package beam.sim
 import java.io.{File, FileOutputStream, FileWriter}
 import java.nio.file.{Files, Paths, StandardCopyOption}
 import java.time.ZonedDateTime
-import java.util.concurrent.TimeUnit
 import java.util.{Properties, Random}
 
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
@@ -443,7 +442,7 @@ trait BeamHelper extends LazyLogging {
   }
 
   def runBeamWithConfig(config: TypesafeConfig): (MatsimConfig, String) = {
-    val beamExecutionConfig = setupBeamWithConfig(config)
+    val beamExecutionConfig = updateConfigWithWarmStart(setupBeamWithConfig(config))
     val (scenario, beamScenario) = buildBeamServicesAndScenario(
       config,
       beamExecutionConfig.beamConfig,
@@ -451,18 +450,28 @@ trait BeamHelper extends LazyLogging {
     )
 
     val logStart = {
-      val logHH = scenario.getHouseholds.getHouseholds.keySet().asScala.map(_.toString).toList
-      val logBeamPrivateVehicles = beamScenario.privateVehicles.keySet.map(_.toString).toList
-      s"""|Scenario households size: ${logHH.size}
-          |BeamScenario privateVehicles size: ${logBeamPrivateVehicles.size}
-          |""".stripMargin
+      val populationSize = scenario.getPopulation.getPersons.size()
+      val vehiclesSize = scenario.getVehicles.getVehicles.size()
+      val lanesSize = scenario.getLanes.getLanesToLinkAssignments.size()
+
+      val logHHsize = scenario.getHouseholds.getHouseholds.size()
+      val logBeamPrivateVehiclesSize = beamScenario.privateVehicles.size
+      val logVehicleTypeSize = beamScenario.vehicleTypes.size
+      val modIncentivesSize = beamScenario.modeIncentives.modeIncentives.size
+      s"""
+         |Scenario population size: $populationSize
+         |Scenario vehicles size: $vehiclesSize
+         |Scenario lanes size: $lanesSize
+         |BeamScenario households size: $logHHsize
+         |BeamScenario privateVehicles size: $logBeamPrivateVehiclesSize
+         |BeamScenario vehicleTypes size: $logVehicleTypeSize
+         |BeamScenario modIncentives size $modIncentivesSize
+         |""".stripMargin
     }
     logger.warn(logStart)
 
     val injector: inject.Injector = buildInjector(config, scenario, beamScenario)
     val services = injector.getInstance(classOf[BeamServices])
-
-    warmStart(beamExecutionConfig.beamConfig, beamExecutionConfig.matsimConfig)
 
     runBeam(
       services,
@@ -637,15 +646,8 @@ trait BeamHelper extends LazyLogging {
     result
   }
 
-  private def warmStart(beamConfig: BeamConfig, matsimConfig: MatsimConfig): Unit = {
-    if (beamConfig.beam.outputs.writeSkimsInterval == 0 && beamConfig.beam.warmStart.enabled) {
-      logger.warn(
-        "Beam skims are not being written out - skims will be missing for warm starting from the output of this run!"
-      )
-    }
-    val maxHour = TimeUnit.SECONDS.toHours(matsimConfig.travelTimeCalculator().getMaxTime).toInt
-    val beamWarmStart = BeamWarmStart(beamConfig, maxHour)
-    beamWarmStart.warmStartPopulation(matsimConfig)
+  private def updateConfigWithWarmStart(beamExecutionConfig: BeamExecutionConfig): BeamExecutionConfig = {
+    BeamWarmStart.updateExecutionConfig(beamExecutionConfig)
   }
 
   private def prepareDirectories(config: TypesafeConfig, beamConfig: BeamConfig, outputDirectory: String): Unit = {
