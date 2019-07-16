@@ -191,6 +191,7 @@ class BeamScenarioLoader(
             val person = population.getPersons.get(Id.createPersonId(personId.id))
 
             val currentPlan = PopulationUtils.createPlan(person)
+            currentPlan.setScore(listOfElementsGroupedByPlan.head.planScore)
             person.addPlan(currentPlan)
 
             val personWithoutSelectedPlan = person.getSelectedPlan == null
