@@ -67,6 +67,8 @@ case class WaySpeed(speedMedian: Option[Float], speedAvg: Option[Float], maxDev:
 
 case class BeamUberSpeed(
   osmId: Long,
+  j1: Long,
+  j2: Long,
   speedBeam: Float,
   speedMedian: Option[Float],
   speedAvg: Option[Float],
