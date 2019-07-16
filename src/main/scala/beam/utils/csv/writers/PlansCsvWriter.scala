@@ -87,12 +87,12 @@ object PlansCsvWriter extends ScenarioCsvWriter {
             plan.getPlanElements.asScala.zipWithIndex.map {
               case (planElement, planElementIndex) =>
                 toPlanInfo(
-                  planIndex,
-                  plan.getPerson.getId.toString,
-                  plan.getScore,
-                  isSelected,
-                  planElement,
-                  planElementIndex,
+                  planIndex = planIndex,
+                  personId = plan.getPerson.getId.toString,
+                  planScore = plan.getScore,
+                  isSelectedPlan = isSelected,
+                  planElement = planElement,
+                  planeElementIndex = planElementIndex,
                 )
             }
         }
@@ -122,12 +122,12 @@ object PlansCsvWriter extends ScenarioCsvWriter {
 
         val route = Option(leg.getRoute)
         PlanElement(
-          planIndex = planIndex,
           personId = PersonId(personId),
-          planElementType = "leg",
-          planElementIndex = planeElementIndex,
+          planIndex = planIndex,
           planScore = planScore,
           planSelected = isSelectedPlan,
+          planElementType = "leg",
+          planElementIndex = planeElementIndex,
           activityType = None,
           activityLocationX = None,
           activityLocationY = None,
@@ -145,10 +145,11 @@ object PlansCsvWriter extends ScenarioCsvWriter {
       case act: Activity =>
         PlanElement(
           personId = PersonId(personId),
-          planElementType = "activity",
-          planElementIndex = planeElementIndex,
+          planIndex = planIndex,
           planScore = planScore,
           planSelected = isSelectedPlan,
+          planElementType = "activity",
+          planElementIndex = planeElementIndex,
           activityType = Option(act.getType),
           activityLocationX = Option(act.getCoord.getX),
           activityLocationY = Option(act.getCoord.getY),
@@ -170,12 +171,12 @@ object PlansCsvWriter extends ScenarioCsvWriter {
     val plans = getPlanInfo(scenario)
     plans.toIterator.map { planInfo =>
       PlanEntry(
+        personId = planInfo.personId.id,
         planIndex = planInfo.planIndex,
-        planElementIndex = planInfo.planElementIndex,
         planScore = planInfo.planScore,
         planSelected = planInfo.planSelected,
-        personId = planInfo.personId.id,
         planElementType = planInfo.planElementType,
+        planElementIndex = planInfo.planElementIndex,
         activityType = planInfo.activityType.getOrElse(""),
         activityLocationX = planInfo.activityLocationX.map(_.toString).getOrElse(""),
         activityLocationY = planInfo.activityLocationY.map(_.toString).getOrElse(""),
