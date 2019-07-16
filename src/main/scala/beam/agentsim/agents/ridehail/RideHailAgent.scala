@@ -560,7 +560,7 @@ class RideHailAgent(
               tick,
               vehicle.stall.get,
               cost,
-              personId = None,
+              driverId = id.toString,
               currentBeamVehicle.id
             )
           )
