@@ -74,7 +74,7 @@ object ArgumentsParser {
   }
 
   private def resolveEnv(prop: String): String =
-    Some(prop)
+    Option(prop)
       .filterNot(_.contains("$"))
       .getOrElse(System.getenv(prop.replace("$", "")))
 

@@ -47,7 +47,7 @@ apply plugin: 'com.github.johnrengelman.shadow'
 apply plugin: 'com.bmuschko.docker-java-application'
 
 group = 'beam'
-version = '0.6.0'
+version = '0.7.1'
 
 description = """"""
 
@@ -544,7 +544,7 @@ docker {
         baseImage = 'anapsix/alpine-java:8u181b13_jdk_unlimited'
         maintainer = 'Kirill Mitin "mitin.kirill.ol@gmail.com"'
         ports = [2552]
-        tag = 'beammodel/beam:0.6.2'
+        tag = 'beammodel/beam:' + version
     }
 
     startScripts {
@@ -598,7 +598,7 @@ def jfrWithMem = ["-XX:+UnlockCommercialFeatures", "-XX:+UnlockDiagnosticVMOptio
                   "-XX:+FlightRecorder", "-XX:FlightRecorderOptions=disk=true,maxage=10h,dumponexit=true,loglevel=info"]
 
 // UseParallelGC
-applicationDefaultJvmArgs = ["-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
+applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${myAvailableRam/2}g", "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
                              "-Dlogback.configurationFile=logback_prod.xml"] + logGC
 
 println(applicationDefaultJvmArgs)
