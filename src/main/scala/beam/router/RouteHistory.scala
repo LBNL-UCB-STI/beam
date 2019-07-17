@@ -111,7 +111,7 @@ class RouteHistory @Inject()(
     }
   }
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    
+
     if (shouldWriteInIteration(event.getIteration, beamConfig.beam.physsim.writeRouteHistoryInterval)) {
       val filePath = event.getServices.getControlerIO.getIterationFilename(
         event.getServices.getIterationNumber,
