@@ -385,13 +385,9 @@ def getCurrentGitBranch() {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Task to run tests periodically on continue integration server.
-// ./gradlew deploy -PrunName=sfbay-performance-run -PdeployMode=%% -Pnodes=%%
 // ./gradleW deploy -PregionId=us-west-2 -PinstanceType=c5.xlarge -PclusterName=beam-cluster -Pnodes=3
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
-task deploy {
-    def nodesAmount = Integer.valueOf(project.findProperty('nodes') ?: '0')
-    def isCluster = nodesAmount > 0
-    
+task deploy(type: AWSLambdaInvokeTask) {
     doFirst {
         if (!project.hasProperty('runName')) {
             throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deploy -PrunName=sfbay-performance-run')
@@ -414,32 +410,20 @@ task deploy {
                 }
                 break
             default:
-                if (!isCluster) throw new GradleException('Please provide a valid deployMode.')
+                throw new GradleException('Please provide a valid deployMode.')
                 break
         }
     }
-    
-    def pload
 
-    if (isCluster) {
-        pload = """{
-    "region": "${project.findProperty('regionId')}",
-    "instance_type": "${project.findProperty('instanceType') ?: defaultInstanceType}",
-    "creation_tag": "${LocalDateTime.now().format(DateTimeFormatter.ofPattern('yyyy-MM-dd-HH-mm-ss'))}",
-    "title": "${project.findProperty('runName') ?: 'beam_EKS_deployment'}",
-    "cluster_name": "${project.findProperty('clusterName')}",
-    "nodes": "$nodesAmount"
-}"""
-    } else {
-        pload = """{
+    def pload = """{
   "title": "${project.findProperty('runName')}",
   "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
   "commit": "${beamCommit ?: 'HEAD'}",
   "deploy_mode": "${project.findProperty('deployMode')}",
   "configs": "${project.findProperty('beamConfigs') ?: project.findProperty(getCurrentGitBranch() + '.configs')}",
   "experiments": "${
-            project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch() + '.experiments')
-        }",
+        project.findProperty('beamExperiments') ?: project.findProperty(getCurrentGitBranch() + '.experiments')
+    }",
   "execute_class": "${project.findProperty('executeClass')}",
   "execute_args": "${project.findProperty('executeArgs')}",
   "max_ram": "${maxRAM ?: '140g'}",
@@ -452,94 +436,14 @@ task deploy {
   "shutdown_behaviour": "$shutdownBehaviour",
   "command": "deploy"
 }"""
-    }
+
+    functionName = "simulateBeam"
+    invocationType = InvocationType.RequestResponse
+    payload = pload
 
     doLast {
-        AWSLambdaPluginExtension ext = getProject().getExtensions().getByType(AWSLambdaPluginExtension.class)
-        Field clientConfField = AWSLambdaClient.class.getSuperclass().getDeclaredField("clientConfiguration")
-        clientConfField.setAccessible(true)
-        AWSLambdaClient lambda = ext.getClient()
-        ClientConfiguration cfg = (ClientConfiguration)clientConfField.get(lambda)
-        cfg.withSocketTimeout(6*60*1000)
-        InvokeRequest request
-
-        if (isCluster) {
-            request = new InvokeRequest()
-                    .withFunctionName("runNodes")
-                    .withInvocationType(InvocationType.RequestResponse)
-                    .withLogType(LogType.None)
-                    .withPayload(pload)
-                    .withSdkClientExecutionTimeout(6*60*1000)
-                    .withSdkRequestTimeout(6*60*1000)
-        } else {
-            request = new InvokeRequest()
-                    .withFunctionName("simulateBeam")
-                    .withInvocationType(InvocationType.RequestResponse)
-                    .withLogType(LogType.None)
-                    .withPayload(pload)
-        }
-
-        def res = lambda.invoke(request)
-
-        def jsonSlurper = new JsonSlurper()
-        def p = jsonSlurper.parseText(new String(res.payload.array(), "UTF-8"))
-
-        def parsed = jsonSlurper.parseText(p.body)
-
-        if (isCluster) {
-            configureEKS(parsed)
-        }
-
         println pload
-        println new String(res.payload.array(), "UTF-8")
-    }
-}
-
-def configureEKS(Object parsed) {
-    exec {
-        executable 'aws'
-        args = ["eks", "--region", "us-west-2", "update-kubeconfig", "--name", parsed.cluster, "--role-arn", "arn:aws:iam::340032650202:role/BeamEksDeployment"]
-    }
-    println parsed.cluster
-
-    def sourceFile = file('kubernetes/default/node-auth.yaml')
-    def str = Files.toString(sourceFile, Charsets.UTF_8);
-    def replaced = str.replace('{{nodeInstance}}', parsed.NodeInstanceRole)
-    Files.write(replaced, file("${project.buildDir}/node-auth.yaml"), Charsets.UTF_8)
-
-    exec {
-        executable 'kubectl'
-        args = ['apply', '-f', "${project.buildDir}/node-auth.yaml"]
-    }
-    exec {
-        executable 'kubectl'
-        args = ['apply', '-f', 'kubernetes/default/secrets.yaml']
-    }
-    exec {
-        executable 'kubectl'
-        args = ['apply', '-f', 'kubernetes/default/s3-daemonset.yaml']
-    }
-    checkTiller()
-}
-
-def checkTiller() {
-    exec {
-        executable 'kubectl'
-        args = ['get', 'serviceaccounts', '--namespace', 'kube-system', '-o', 'name']
-        standardOutput = new ByteArrayOutputStream()
-        ext.accounts = {
-            return standardOutput.toString().replace('\n', ' ')
-        }
-    }
-    if (!ext.accounts().contains('tiller')) {
-        exec {
-            executable 'kubectl'
-            args = ['create', 'serviceaccount', '--namespace', 'kube-system', 'tiller']
-        }
-        exec {
-            executable 'kubectl'
-            args = ['create', 'clusterrolebinding', 'tiller-cluster-rule', '--clusterrole=cluster-admin', '--serviceaccount=kube-system:tiller']
-        }
+        println new String(invokeResult.payload.array(), "UTF-8")
     }
 }
 
