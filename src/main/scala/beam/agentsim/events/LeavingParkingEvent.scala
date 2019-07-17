@@ -15,13 +15,13 @@ import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
 
 case class LeavingParkingEvent(
-  time             : Double,
-  driverId         : String,
-  vehicleId        : Id[Vehicle],
-  tazId            : Id[TAZ],
-  score            : Double,
-  parkingType      : ParkingType,
-  pricingModel     : Option[PricingModel],
+  time: Double,
+  driverId: String,
+  vehicleId: Id[Vehicle],
+  tazId: Id[TAZ],
+  score: Double,
+  parkingType: ParkingType,
+  pricingModel: Option[PricingModel],
   ChargingPointType: Option[ChargingPointType]
 ) extends Event(time)
 //    with HasPersonId (removed to support Id[Person] and Id[RideHailAgent] parking events)
@@ -63,11 +63,11 @@ object LeavingParkingEvent {
   val ATTRIBUTE_DRIVER_ID: String = "driver"
 
   def apply(
-    time    : Double,
-    stall   : ParkingStall,
-    score   : Double,
+    time: Double,
+    stall: ParkingStall,
+    score: Double,
     driverId: String,
-    vehId   : Id[Vehicle]
+    vehId: Id[Vehicle]
   ): LeavingParkingEvent =
     new LeavingParkingEvent(
       time,

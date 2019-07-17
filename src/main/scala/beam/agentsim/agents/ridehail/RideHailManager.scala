@@ -352,17 +352,17 @@ class RideHailManager(
     new MultinomialLogit(
       Map.empty,
       Map(
-        "energyPriceFactor" -> UtilityFunctionOperation(
-          "multiplier",
-          -beamServices.beamConfig.beam.agentsim.agents.rideHail.mnl.beta1
-        ),
         "distanceFactor" -> UtilityFunctionOperation(
           "multiplier",
-          -beamServices.beamConfig.beam.agentsim.agents.rideHail.mnl.beta2
+          -beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.distance_multiplier
         ),
         "installedCapacity" -> UtilityFunctionOperation(
           "multiplier",
-          -beamServices.beamConfig.beam.agentsim.agents.rideHail.mnl.beta3
+          beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.installed_capacity_multiplier
+        ),
+        "parkingCostsPriceFactor" -> UtilityFunctionOperation(
+          "multiplier",
+          -beamServices.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.parking_costs_price_multiplier
         )
       )
     )
