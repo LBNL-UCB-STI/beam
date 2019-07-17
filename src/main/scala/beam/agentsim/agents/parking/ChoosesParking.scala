@@ -81,7 +81,7 @@ trait ChoosesParking extends {
 
             val remainingTourDist = nextActivity(personData) match {
               case Some(nextAct) =>
-                val nextActIdx = currentTour(personData).tripIndexOfElement(nextAct)
+                val nextActIdx = currentTour(personData).tripIndexOfElement(nextAct)-1
                 currentTour(personData).trips
                   .slice(nextActIdx, currentTour(personData).trips.length)
                   .sliding(2, 1)
