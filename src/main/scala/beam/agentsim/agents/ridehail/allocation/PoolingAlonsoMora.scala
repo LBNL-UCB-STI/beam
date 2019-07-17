@@ -213,7 +213,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         Map[MobilityRequestType, Int](
           (Pickup, pickupWindow + offset),
           (Dropoff, dropoffWindow + offset),
-          (EnRoute, Int.MaxValue - 30000000)
+          (EnRoute, Int.MaxValue - 30000000),
+          (Relocation, Int.MaxValue - 30000000)
         ),
         maxRequestsPerVehicle = maxRequests,
         rideHailManager.beamServices
