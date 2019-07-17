@@ -14,7 +14,6 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
   beamScenario.vehicleTypes.values.groupBy(x => x.vehicleCategory).map {
     case (cat, vehTypes) =>
       val submap = getCategoryAndGroup(cat, vehTypes.toArray)
-      println(cat)
       vehicleTypesAndProbabilityByCategoryAndGroup ++= submap
   }
 
