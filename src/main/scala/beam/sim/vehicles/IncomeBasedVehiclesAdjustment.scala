@@ -10,10 +10,11 @@ import org.matsim.api.core.v01.Coord
 case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends VehiclesAdjustment {
 
   private val vehicleTypesAndProbabilityByCategoryAndGroup =
-    scala.collection.mutable.Map[(VehicleCategory, String), Array[(BeamVehicleType, Double)]]()
+    scala.collection.mutable.Map[(VehicleCategory, (String, String)), Array[(BeamVehicleType, Double)]]()
   beamScenario.vehicleTypes.values.groupBy(x => x.vehicleCategory).map {
     case (cat, vehTypes) =>
       val submap = getCategoryAndGroup(cat, vehTypes.toArray)
+      println(cat)
       vehicleTypesAndProbabilityByCategoryAndGroup ++= submap
   }
 
@@ -26,7 +27,14 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     householdLocation: Coord,
     realDistribution: UniformRealDistribution,
   ): List[BeamVehicleType] = {
-    val categoryAndGroup = getHouseholdIncomeGroup(householdIncome)
+    val matchedGroups =
+      vehicleTypesAndProbabilityByCategoryAndGroup.keys.filter(x => isThisHouseholdInThisGroup(householdIncome, x._2))
+    if (matchedGroups.size > 1) {
+      logger.warn(
+        s"Multiple categories defined for household with income ${householdIncome}, choosing a default one"
+      )
+    }
+    val categoryAndGroup = matchedGroups.head
     val vehTypeWithProbabilityOption = vehicleTypesAndProbabilityByCategoryAndGroup.get(categoryAndGroup)
     val vehTypeWithProbability: Array[(BeamVehicleType, Double)] = vehTypeWithProbabilityOption match {
       case Some(vtWithProb) => vtWithProb
@@ -49,7 +57,9 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     realDistribution: UniformRealDistribution
   ): List[BeamVehicleType] = {
     val vehTypeWithProbabilityOption =
-      vehicleTypesAndProbabilityByCategoryAndGroup.get((beam.agentsim.agents.vehicles.VehicleCategory.Car, "ridehail"))
+      vehicleTypesAndProbabilityByCategoryAndGroup.get(
+        (beam.agentsim.agents.vehicles.VehicleCategory.Car, ("ridehail", "all"))
+      )
     val vehTypeWithProbability: Array[(BeamVehicleType, Double)] = vehTypeWithProbabilityOption match {
       case Some(vtWithProb) => vtWithProb
       case _ =>
@@ -65,35 +75,27 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     }.toList
   }
 
-  private def getHouseholdIncomeGroup(
-    householdIncome: Double
-  ): (VehicleCategory, String) = {
-    val incomeBin = householdIncome match {
-      case inc if inc <= 17000                 => "inc17"
-      case inc if inc > 17000 && inc <= 36000  => "inc36"
-      case inc if inc > 36000 && inc <= 61000  => "inc61"
-      case inc if inc > 61000 && inc <= 86000  => "inc86"
-      case inc if inc > 86000 && inc <= 133000 => "inc133"
-      case inc if inc > 133000                 => "inc327"
-    }
-    (beam.agentsim.agents.vehicles.VehicleCategory.Car, incomeBin)
-  }
-
   private def getCategoryAndGroup(
     category: VehicleCategory,
     vehTypes: Array[BeamVehicleType]
-  ): scala.collection.mutable.Map[(VehicleCategory, String), Array[(BeamVehicleType, Double)]] = {
-    var groupIDs = scala.collection.mutable.Map[(VehicleCategory, String), Array[(BeamVehicleType, Double)]]()
-    var groupIDlist: scala.collection.mutable.ListBuffer[(VehicleCategory, String)] =
+  ): scala.collection.mutable.Map[(VehicleCategory, (String, String)), Array[(BeamVehicleType, Double)]] = {
+    var groupIDs = scala.collection.mutable.Map[(VehicleCategory, (String, String)), Array[(BeamVehicleType, Double)]]()
+    var groupIDlist: scala.collection.mutable.ListBuffer[(VehicleCategory, (String, String))] =
       scala.collection.mutable.ListBuffer()
     var vehicleTypeAndProbabilityList: scala.collection.mutable.ListBuffer[(BeamVehicleType, Double)] =
       scala.collection.mutable.ListBuffer()
     vehTypes.foreach { vehType =>
       vehType.sampleProbabilityString.getOrElse("All").replaceAll("\\s", "").toLowerCase.split(";").foreach { group =>
-        val groupAndProbability = group.split(":")
-        if (groupAndProbability.length == 2) {
-          groupIDlist += ((category, groupAndProbability(0)))
-          vehicleTypeAndProbabilityList += ((vehType, groupAndProbability(1).toDouble))
+        val keyAndValues = group.split('|')
+        if (keyAndValues.length >= 2) {
+          val groupKey = keyAndValues(0)
+          for (i <- 1 until keyAndValues.length) {
+            val keyAndProb = keyAndValues(i).split(":")
+            if (keyAndProb.length == 2) {
+              groupIDlist += ((category, (groupKey, keyAndProb(0))))
+              vehicleTypeAndProbabilityList += ((vehType, keyAndProb(1).toDouble))
+            }
+          }
         }
       }
       groupIDlist.zip(vehicleTypeAndProbabilityList).groupBy(_._1).map {
@@ -107,4 +109,18 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     groupIDs
   }
 
+  def isThisHouseholdInThisGroup(householdIncome: Double, groupAndKey: (String, String)): Boolean = {
+    if (groupAndKey._1.equalsIgnoreCase("income")) {
+      val bounds = groupAndKey._2.split("-")
+      if (bounds.length == 2) {
+        (householdIncome / 1000 <= bounds(1).toDouble) && (householdIncome / 1000 > bounds(0).toDouble)
+      } else {
+        logger.warn(
+          s"Badly Formed vehicle sampling key ${groupAndKey._2} under group ${groupAndKey._1}"
+        )
+        false
+      }
+    } else false
+
+  }
 }
