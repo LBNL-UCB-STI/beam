@@ -266,6 +266,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         vehicleTypeId: Id[BeamVehicleType],
         embodyRequestId: Int
         ) =>
+      // Why don't we respect `leg.duration` ?
       val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
         leg.travelPath.linkIds,
         leg.startTime,
