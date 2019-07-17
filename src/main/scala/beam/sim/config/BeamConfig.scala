@@ -2043,7 +2043,13 @@ object BeamConfig {
 
     case class WarmStart(
       enabled: scala.Boolean,
-      path: java.lang.String
+      path: java.lang.String,
+      routeHistoryFileName: java.lang.String,
+      routeHistoryFilePath: java.lang.String,
+      skimsFileName: java.lang.String,
+      skimsFilePath: java.lang.String,
+      skimsPlusFileName: java.lang.String,
+      skimsPlusFilePath: java.lang.String
     )
 
     object WarmStart {
@@ -2051,7 +2057,16 @@ object BeamConfig {
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.WarmStart = {
         BeamConfig.Beam.WarmStart(
           enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
-          path = if (c.hasPathOrNull("path")) c.getString("path") else ""
+          path = if (c.hasPathOrNull("path")) c.getString("path") else "",
+          routeHistoryFileName =
+            if (c.hasPathOrNull("routeHistoryFileName")) c.getString("routeHistoryFileName") else "routeHistory.csv.gz",
+          routeHistoryFilePath =
+            if (c.hasPathOrNull("routeHistoryFilePath")) c.getString("routeHistoryFilePath") else "",
+          skimsFileName = if (c.hasPathOrNull("skimsFileName")) c.getString("skimsFileName") else "skims.csv.gz",
+          skimsFilePath = if (c.hasPathOrNull("skimsFilePath")) c.getString("skimsFilePath") else "",
+          skimsPlusFileName =
+            if (c.hasPathOrNull("skimsPlusFileName")) c.getString("skimsPlusFileName") else "skimsPlus.csv.gz",
+          skimsPlusFilePath = if (c.hasPathOrNull("skimsPlusFilePath")) c.getString("skimsPlusFilePath") else ""
         )
       }
     }
