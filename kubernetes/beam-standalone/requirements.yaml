@@ -1,7 +1,0 @@
-dependencies:
-  - name: beam-common
-    version: ${chartVersion}
-    repository: file://../beam-common
-    tags:
-      - common
-      - beam-common
