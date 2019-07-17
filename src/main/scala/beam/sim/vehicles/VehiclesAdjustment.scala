@@ -28,7 +28,6 @@ trait VehiclesAdjustment extends LazyLogging {
 }
 
 object VehiclesAdjustment {
-  val DEFAULT_ADJUSTMENT = "DEFAULT"
   val UNIFORM_ADJUSTMENT = "UNIFORM"
   val INCOME_BASED_ADJUSTMENT = "INCOME_BASED"
 
