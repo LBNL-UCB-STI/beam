@@ -8,7 +8,7 @@ import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
-import beam.agentsim.agents.vehicles.{ReservationRequest, ReservationResponse, ReserveConfirmInfo, _}
+import beam.agentsim.agents.vehicles.{ReservationResponse, ReserveConfirmInfo, _}
 import beam.agentsim.events._
 import beam.agentsim.infrastructure.{TrivialParkingManager, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -23,8 +23,6 @@ import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
-import com.typesafe.config.ConfigFactory
-import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
@@ -291,18 +289,18 @@ class PersonAgentSpec
         }
       )
 
-      val busLeg = EmbodiedBeamLeg(
-        BeamLeg(
+      val busPassengerLeg = EmbodiedBeamLeg(
+        beamLeg = BeamLeg(
           startTime = 28800,
           mode = BeamMode.BUS,
-          duration = 600,
+          duration = 1200,
           travelPath = BeamPath(
             Vector(),
             Vector(),
-            Some(TransitStopsInfo(1, busId, 2)),
+            Some(TransitStopsInfo("someAgency", "someRoute", busId, 0, 2)),
             SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
-            SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
-            1.0
+            SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
+            2.0
           )
         ),
         beamVehicleId = busId,
@@ -311,27 +309,8 @@ class PersonAgentSpec
         cost = 2.75,
         unbecomeDriverOnCompletion = false
       )
-      val busLeg2 = EmbodiedBeamLeg(
-        beamLeg = BeamLeg(
-          startTime = 29400,
-          mode = BeamMode.BUS,
-          duration = 600,
-          travelPath = BeamPath(
-            Vector(),
-            Vector(),
-            Some(TransitStopsInfo(2, busId, 3)),
-            SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
-            SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
-            1.0
-          )
-        ),
-        beamVehicleId = busId,
-        Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
-        asDriver = false,
-        cost = 0.0,
-        unbecomeDriverOnCompletion = false
-      )
-      val tramLeg = EmbodiedBeamLeg(
+
+      val tramPassengerLeg = EmbodiedBeamLeg(
         beamLeg = BeamLeg(
           startTime = 30000,
           mode = BeamMode.TRAM,
@@ -339,7 +318,7 @@ class PersonAgentSpec
           travelPath = BeamPath(
             linkIds = Vector(),
             linkTravelTime = Vector(),
-            transitStops = Some(TransitStopsInfo(3, tramId, 4)),
+            transitStops = Some(TransitStopsInfo("someAgency", "someRoute", tramId, 0, 1)),
             startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
             distanceInM = 1.0
@@ -435,9 +414,8 @@ class PersonAgentSpec
                 cost = 0.0,
                 unbecomeDriverOnCompletion = false
               ),
-              busLeg,
-              busLeg2,
-              tramLeg,
+              busPassengerLeg,
+              tramPassengerLeg,
               EmbodiedBeamLeg(
                 beamLeg = BeamLeg(
                   startTime = 30600,
@@ -473,26 +451,16 @@ class PersonAgentSpec
       events.expectMsgType[VehicleLeavesTrafficEvent]
       events.expectMsgType[PathTraversalEvent]
 
-      val reservationRequestBus = expectMsgType[ReservationRequest]
+      expectMsgType[TransitReservationRequest]
       scheduler ! ScheduleTrigger(
-        BoardVehicleTrigger(28800, busLeg.beamVehicleId),
+        BoardVehicleTrigger(28800, busPassengerLeg.beamVehicleId),
         personActor
       )
       scheduler ! ScheduleTrigger(
-        AlightVehicleTrigger(30000, busLeg.beamVehicleId),
+        AlightVehicleTrigger(30000, busPassengerLeg.beamVehicleId),
         personActor
       )
-      lastSender ! ReservationResponse(
-        reservationRequestBus.requestId,
-        Right(
-          ReserveConfirmInfo(
-            busLeg.beamLeg,
-            busLeg2.beamLeg,
-            reservationRequestBus.passengerVehiclePersonId
-          )
-        ),
-        TRANSIT
-      )
+      lastSender ! ReservationResponse(Right(ReserveConfirmInfo()))
 
       events.expectMsgType[PersonEntersVehicleEvent]
 
@@ -503,33 +471,28 @@ class PersonAgentSpec
 
       events.expectMsgType[PersonLeavesVehicleEvent]
 
-      val reservationRequestTram = expectMsgType[ReservationRequest]
+      expectMsgType[TransitReservationRequest]
       lastSender ! ReservationResponse(
-        reservationRequestTram.requestId,
         Right(
           ReserveConfirmInfo(
-            tramLeg.beamLeg,
-            tramLeg.beamLeg,
-            reservationRequestTram.passengerVehiclePersonId,
             Vector(
               ScheduleTrigger(
                 BoardVehicleTrigger(
                   30000,
-                  tramLeg.beamVehicleId
+                  tramPassengerLeg.beamVehicleId
                 ),
                 personActor
               ),
               ScheduleTrigger(
                 AlightVehicleTrigger(
                   32000,
-                  tramLeg.beamVehicleId
+                  tramPassengerLeg.beamVehicleId
                 ),
                 personActor
               ) // My tram is late!
             )
           )
-        ),
-        TRANSIT
+        )
       )
 
       //expects a message of type PersonEntersVehicleEvent
@@ -580,38 +543,18 @@ class PersonAgentSpec
         "BeamMobsim.iteration"
       )
 
-      val busLeg = EmbodiedBeamLeg(
+      val busPassengerLeg = EmbodiedBeamLeg(
         BeamLeg(
           28800,
           BeamMode.BUS,
-          600,
+          1200,
           BeamPath(
             Vector(),
             Vector(),
-            Some(TransitStopsInfo(1, busId, 2)),
+            Some(TransitStopsInfo("someAgency", "someRoute", busId, 0, 2)),
             SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
-            SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
-            1.0
-          )
-        ),
-        busId,
-        Id.create("beamVilleCar", classOf[BeamVehicleType]),
-        asDriver = false,
-        0,
-        unbecomeDriverOnCompletion = false
-      )
-      val busLeg2 = EmbodiedBeamLeg(
-        BeamLeg(
-          29400,
-          BeamMode.BUS,
-          600,
-          BeamPath(
-            Vector(),
-            Vector(),
-            Some(TransitStopsInfo(2, busId, 3)),
-            SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
             SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
-            1.0
+            2.0
           )
         ),
         busId,
@@ -620,7 +563,7 @@ class PersonAgentSpec
         0,
         unbecomeDriverOnCompletion = false
       )
-      val tramLeg = EmbodiedBeamLeg(
+      val tramPassengerLeg = EmbodiedBeamLeg(
         BeamLeg(
           30000,
           BeamMode.TRAM,
@@ -628,7 +571,7 @@ class PersonAgentSpec
           BeamPath(
             Vector(),
             Vector(),
-            Some(TransitStopsInfo(3, tramId, 4)),
+            Some(TransitStopsInfo("someAgency", "someRoute", tramId, 0, 1)),
             SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             SpaceTime(services.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
             1.0
@@ -648,7 +591,7 @@ class PersonAgentSpec
           BeamPath(
             Vector(),
             Vector(),
-            Some(TransitStopsInfo(3, tramId, 4)),
+            Some(TransitStopsInfo("someAgency", "someRoute", tramId, 0, 1)),
             SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 35000),
             SpaceTime(services.geo.utm2Wgs(new Coord(190000.4, 1300)), 35600),
             1.0
@@ -727,11 +670,11 @@ class PersonAgentSpec
       val personActor = lastSender
 
       scheduler ! ScheduleTrigger(
-        BoardVehicleTrigger(28800, busLeg.beamVehicleId),
+        BoardVehicleTrigger(28800, busPassengerLeg.beamVehicleId),
         personActor
       )
       scheduler ! ScheduleTrigger(
-        AlightVehicleTrigger(34400, busLeg.beamVehicleId),
+        AlightVehicleTrigger(34400, busPassengerLeg.beamVehicleId),
         personActor
       )
 
@@ -759,9 +702,8 @@ class PersonAgentSpec
                 0,
                 unbecomeDriverOnCompletion = false
               ),
-              busLeg,
-              busLeg2,
-              tramLeg,
+              busPassengerLeg,
+              tramPassengerLeg,
               EmbodiedBeamLeg(
                 BeamLeg(
                   30600,
@@ -797,18 +739,12 @@ class PersonAgentSpec
       events.expectMsgType[VehicleLeavesTrafficEvent]
       events.expectMsgType[PathTraversalEvent]
 
-      val reservationRequestBus = expectMsgType[ReservationRequest]
+      expectMsgType[TransitReservationRequest]
 
       lastSender ! ReservationResponse(
-        reservationRequestBus.requestId,
         Right(
-          ReserveConfirmInfo(
-            busLeg.beamLeg,
-            busLeg2.beamLeg,
-            reservationRequestBus.passengerVehiclePersonId
-          )
-        ),
-        TRANSIT
+          ReserveConfirmInfo()
+        )
       )
       events.expectMsgType[PersonEntersVehicleEvent]
 
@@ -856,14 +792,10 @@ class PersonAgentSpec
       events.expectMsgType[VehicleLeavesTrafficEvent]
       events.expectMsgType[PathTraversalEvent]
 
-      val reservationRequestTram = expectMsgType[ReservationRequest]
+      expectMsgType[TransitReservationRequest]
       lastSender ! ReservationResponse(
-        reservationRequestTram.requestId,
         Right(
           ReserveConfirmInfo(
-            tramLeg.beamLeg,
-            tramLeg.beamLeg,
-            reservationRequestBus.passengerVehiclePersonId,
             Vector(
               ScheduleTrigger(
                 BoardVehicleTrigger(
@@ -881,8 +813,7 @@ class PersonAgentSpec
               ) // My tram is late!
             )
           )
-        ),
-        TRANSIT
+        )
       )
 
       events.expectMsgType[PersonEntersVehicleEvent]

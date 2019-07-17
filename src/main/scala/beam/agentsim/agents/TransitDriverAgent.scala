@@ -7,13 +7,12 @@ import beam.agentsim.agents.PersonAgent.{DrivingData, PassengerScheduleEmpty, Ve
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, StartLegTrigger}
-import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
+import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, ReservationRequest, TransitReservationRequest}
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
-import beam.sim.{BeamServices, Geofence}
-import beam.sim.BeamScenario
+import beam.sim.{BeamScenario, Geofence}
 import beam.sim.common.GeoUtils
 import beam.utils.NetworkHelper
 import com.conveyal.r5.transit.TransportNetwork
@@ -101,11 +100,14 @@ class TransitDriverAgent(
   val legs: Seq[BeamLeg],
   val geo: GeoUtils,
   val networkHelper: NetworkHelper
-) extends DrivesVehicle[TransitDriverData] {
+) extends DrivesVehicle[DrivingData] {
 
   override val id: Id[TransitDriverAgent] = transitDriverId
 
   val myUnhandled: StateFunction = {
+    case Event(TransitReservationRequest(fromIdx, toIdx, passenger), data) =>
+      val slice = legs.slice(fromIdx, toIdx)
+      drivingBehavior(Event(ReservationRequest(slice.head, slice.last, passenger), data))
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
     case Event(Finish, _) =>
@@ -119,7 +121,7 @@ class TransitDriverAgent(
   startWith(Uninitialized, TransitDriverData(null))
 
   when(Uninitialized) {
-    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
+    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data: TransitDriverData) =>
       logDebug(s" $id has been initialized, going to Waiting state")
       beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
       vehicle.becomeDriver(self)

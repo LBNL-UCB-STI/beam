@@ -1,25 +1,25 @@
 package beam.utils.scenario.matsim
 
+import beam.sim.config.BeamConfig
 import beam.utils.scenario._
 
-class BeamScenarioSource(val scenarioFolder: String, val rdr: BeamScenarioReader) extends ScenarioSource {
-
-  private val fileSuffix: String = rdr.inputType.toFileExt
-
-  private def filePath(fileName: String) = s"$scenarioFolder/$fileName.$fileSuffix"
+class BeamScenarioSource(beamConfig: BeamConfig, rdr: BeamScenarioReader) extends ScenarioSource {
+  private val configAgents = beamConfig.beam.agentsim.agents
 
   override def getPersons: Iterable[PersonInfo] = {
-    rdr.readPersonsFile(filePath("population"))
+    rdr.readPersonsFile(configAgents.plans.inputPersonAttributesFilePath)
   }
+
   override def getPlans: Iterable[PlanElement] = {
-    rdr.readPlansFile(filePath("plans"))
+    rdr.readPlansFile(configAgents.plans.inputPlansFilePath)
   }
+
   override def getHousehold: Iterable[HouseholdInfo] = {
-    rdr.readHouseholdsFile(filePath("households"), getVehicles)
+    rdr.readHouseholdsFile(configAgents.households.inputFilePath, getVehicles)
   }
 
   override lazy val getVehicles: Iterable[VehicleInfo] = {
-    rdr.readVehiclesFile(filePath("vehicles"))
+    rdr.readVehiclesFile(configAgents.vehicles.vehiclesFilePath)
   }
 
 }

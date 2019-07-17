@@ -1,6 +1,6 @@
 package beam.agentsim.agents.ridehail
 import beam.sim.BeamHelper
-import beam.sim.config.BeamConfig
+import beam.sim.config.{BeamConfig, BeamExecutionConfig}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.Config
 import org.matsim.core.utils.misc.Time
