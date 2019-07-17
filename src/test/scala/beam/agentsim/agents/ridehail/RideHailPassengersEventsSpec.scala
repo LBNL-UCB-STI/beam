@@ -32,7 +32,7 @@ class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamH
 
       val injector = org.matsim.core.controler.Injector.createInjector(
         scenario.getConfig,
-        module(baseConfig, scenario, beamScenario)
+        module(baseConfig, beamConfig, scenario, beamScenario)
       )
 
       val beamServices: BeamServices =
