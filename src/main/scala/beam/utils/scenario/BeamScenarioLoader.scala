@@ -9,9 +9,11 @@ import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.{Person, Plan, Population}
+import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.population.PopulationUtils
+import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder}
 import org.matsim.households.{Household, _}
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
@@ -176,50 +178,81 @@ class BeamScenarioLoader(
 
   }
 
-  private[utils] def replacePlansFromPopulation(population: Population, plans: Iterable[PlanElement]): Population = {
+  private[utils] def replacePlansFromPopulation(
+    population: Population,
+    plansElements: Iterable[PlanElement]
+  ): Population = {
     logger.info("Applying plans...")
 
-    plans.foreach { planElement: PlanElement =>
-      val person = population.getPersons.get(Id.createPersonId(planElement.personId.id))
-      if (person != null) {
-        val selectedPlan = selectedPlanFromPersonOrBuildNew(person)
-        val planElementType = planElement.planElementType
-        if (planElementType.equalsIgnoreCase("leg")) {
-          planElement.legMode match {
-            case Some(mode) =>
-              PopulationUtils.createAndAddLeg(selectedPlan, mode)
-            case None =>
-              PopulationUtils.createAndAddLeg(selectedPlan, "")
-          }
-        } else if (planElementType.equalsIgnoreCase("activity")) {
-          assertActivityHasLocation(planElement)
-          val coord = if (beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
-            geo.wgs2Utm(new Coord(planElement.activityLocationX.get, planElement.activityLocationY.get))
-          } else {
-            new Coord(planElement.activityLocationX.get, planElement.activityLocationY.get)
-          }
-          val activityType = planElement.activityType.getOrElse(
-            throw new IllegalStateException(
-              s"planElement is `activity`, but `activityType` is None. planInfo: $planElement"
-            )
-          )
-          val act = PopulationUtils.createAndAddActivityFromCoord(selectedPlan, activityType, coord)
-          planElement.activityEndTime.foreach { endTime =>
-            act.setEndTime(endTime)
-          }
+    plansElements.groupBy(_.personId).foreach {
+      case (personId: PersonId, listOfElementsGroupedByPerson) =>
+        listOfElementsGroupedByPerson.groupBy(_.planIndex).foreach {
+          case (_, listOfElementsGroupedByPlan) if listOfElementsGroupedByPlan.nonEmpty =>
+            val person = population.getPersons.get(Id.createPersonId(personId.id))
+
+            val currentPlan = PopulationUtils.createPlan(person)
+            currentPlan.setScore(listOfElementsGroupedByPlan.head.planScore)
+            person.addPlan(currentPlan)
+
+            val personWithoutSelectedPlan = person.getSelectedPlan == null
+            val isCurrentPlanIndexSelected = listOfElementsGroupedByPlan.head.planSelected
+            val isLastPlanIteration = person.getPlans.size() == listOfElementsGroupedByPerson.size
+            if (personWithoutSelectedPlan && (isCurrentPlanIndexSelected || isLastPlanIteration)) {
+              person.setSelectedPlan(currentPlan)
+            }
+
+            listOfElementsGroupedByPlan.foreach { planElement =>
+              if (planElement.planElementType.equalsIgnoreCase("leg")) {
+                buildAndAddLegToPlan(currentPlan, planElement)
+              } else if (planElement.planElementType.equalsIgnoreCase("activity")) {
+                buildAndAddActivityToPlan(currentPlan, planElement)
+              }
+            }
         }
-      }
     }
     population
   }
 
-  private def selectedPlanFromPersonOrBuildNew(person: Person): Plan = {
-    Option(person.getSelectedPlan).getOrElse {
-      val plan = PopulationUtils.createPlan(person)
-      person.addPlan(plan)
-      person.setSelectedPlan(plan)
-      plan
+  private def buildAndAddActivityToPlan(currentPlan: Plan, planElement: PlanElement): Activity = {
+    assertActivityHasLocation(planElement)
+    val coord = if (beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
+      geo.wgs2Utm(new Coord(planElement.activityLocationX.get, planElement.activityLocationY.get))
+    } else {
+      new Coord(planElement.activityLocationX.get, planElement.activityLocationY.get)
     }
+    val activityType = planElement.activityType.getOrElse(
+      throw new IllegalStateException(
+        s"planElement is `activity`, but `activityType` is None. planInfo: $planElement"
+      )
+    )
+    val act = PopulationUtils.createAndAddActivityFromCoord(currentPlan, activityType, coord)
+    planElement.activityEndTime.foreach { endTime =>
+      act.setEndTime(endTime)
+    }
+    act
+  }
+
+  private def buildAndAddLegToPlan(currentPlan: Plan, planElement: PlanElement): Leg = {
+    val leg = PopulationUtils.createAndAddLeg(currentPlan, planElement.legMode.getOrElse(""))
+    planElement.legDepartureTime.foreach(v => leg.setDepartureTime(v.toDouble))
+    planElement.legTravelTime.foreach(v => leg.setTravelTime(v.toDouble))
+
+    val legRoute: NetworkRoute = {
+      val links = planElement.legRouteLinks.map(v => Id.create(v, classOf[Link])).asJava
+      if (links.isEmpty) {
+        null
+      } else {
+        RouteUtils.createNetworkRoute(links, beamScenario.network)
+      }
+    }
+    if (legRoute != null) {
+      leg.setRoute(legRoute)
+      planElement.legRouteDistance.foreach(legRoute.setDistance)
+      planElement.legRouteStartLink.foreach(v => legRoute.setStartLinkId(Id.create(v, classOf[Link])))
+      planElement.legRouteEndLink.foreach(v => legRoute.setEndLinkId(Id.create(v, classOf[Link])))
+      planElement.legRouteTravelTime.foreach(v => legRoute.setTravelTime(v))
+    }
+    leg
   }
 
   private def assertActivityHasLocation(planInfo: PlanElement): Unit = {
