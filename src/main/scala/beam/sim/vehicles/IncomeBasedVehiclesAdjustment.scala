@@ -9,12 +9,13 @@ import org.matsim.api.core.v01.Coord
 
 case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends VehiclesAdjustment {
 
+  case class CategoryAttributeAndGroup(vehicleCategory: VehicleCategory, householdAttribute: String, group: String)
+
   private val vehicleTypesAndProbabilityByCategoryAndGroup =
-    scala.collection.mutable.Map[(VehicleCategory, (String, String)), Array[(BeamVehicleType, Double)]]()
-  beamScenario.vehicleTypes.values.groupBy(x => x.vehicleCategory).map {
+    scala.collection.mutable.Map[CategoryAttributeAndGroup, Array[(BeamVehicleType, Double)]]()
+  beamScenario.vehicleTypes.values.groupBy(_.vehicleCategory).foreach {
     case (cat, vehTypes) =>
       val submap = getCategoryAndGroup(cat, vehTypes.toArray)
-      println(cat)
       vehicleTypesAndProbabilityByCategoryAndGroup ++= submap
   }
 
@@ -28,7 +29,7 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     realDistribution: UniformRealDistribution,
   ): List[BeamVehicleType] = {
     val matchedGroups =
-      vehicleTypesAndProbabilityByCategoryAndGroup.keys.filter(x => isThisHouseholdInThisGroup(householdIncome, x._2))
+      vehicleTypesAndProbabilityByCategoryAndGroup.keys.filter(x => isThisHouseholdInThisGroup(householdIncome, x))
     if (matchedGroups.size > 1) {
       logger.warn(
         s"Multiple categories defined for household with income ${householdIncome}, choosing a default one"
@@ -40,7 +41,7 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
       case Some(vtWithProb) => vtWithProb
       case _ =>
         logger.warn(
-          s"There is no vehicle defined for group ${categoryAndGroup._2}, defaulting to ${vehicleTypesAndProbabilityByCategoryAndGroup.head._1._2}"
+          s"There is no vehicle defined for group ${categoryAndGroup.group}, defaulting to ${vehicleTypesAndProbabilityByCategoryAndGroup.head._1.group}"
         )
         vehicleTypesAndProbabilityByCategoryAndGroup.head._2
     }
@@ -58,13 +59,13 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
   ): List[BeamVehicleType] = {
     val vehTypeWithProbabilityOption =
       vehicleTypesAndProbabilityByCategoryAndGroup.get(
-        (beam.agentsim.agents.vehicles.VehicleCategory.Car, ("ridehail", "all"))
+        CategoryAttributeAndGroup(beam.agentsim.agents.vehicles.VehicleCategory.Car, "ridehail", "all")
       )
     val vehTypeWithProbability: Array[(BeamVehicleType, Double)] = vehTypeWithProbabilityOption match {
       case Some(vtWithProb) => vtWithProb
       case _ =>
         logger.warn(
-          s"There is no vehicle defined for ridehail vehicles, defaulting to ${vehicleTypesAndProbabilityByCategoryAndGroup.head._1._2}"
+          s"There is no vehicle defined for ridehail vehicles, defaulting to ${vehicleTypesAndProbabilityByCategoryAndGroup.head._1.group}"
         )
         vehicleTypesAndProbabilityByCategoryAndGroup.head._2
     }
@@ -78,24 +79,31 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
   private def getCategoryAndGroup(
     category: VehicleCategory,
     vehTypes: Array[BeamVehicleType]
-  ): scala.collection.mutable.Map[(VehicleCategory, (String, String)), Array[(BeamVehicleType, Double)]] = {
-    var groupIDs = scala.collection.mutable.Map[(VehicleCategory, (String, String)), Array[(BeamVehicleType, Double)]]()
-    var groupIDlist: scala.collection.mutable.ListBuffer[(VehicleCategory, (String, String))] =
+  ): scala.collection.mutable.Map[CategoryAttributeAndGroup, Array[(BeamVehicleType, Double)]] = {
+    var groupIDs = scala.collection.mutable.Map[CategoryAttributeAndGroup, Array[(BeamVehicleType, Double)]]()
+    var groupIDlist: scala.collection.mutable.ListBuffer[CategoryAttributeAndGroup] =
       scala.collection.mutable.ListBuffer()
     var vehicleTypeAndProbabilityList: scala.collection.mutable.ListBuffer[(BeamVehicleType, Double)] =
       scala.collection.mutable.ListBuffer()
     vehTypes.foreach { vehType =>
       vehType.sampleProbabilityString.getOrElse("All").replaceAll("\\s", "").toLowerCase.split(";").foreach { group =>
-        val keyAndValues = group.split('|')
-        if (keyAndValues.length >= 2) {
-          val groupKey = keyAndValues(0)
-          for (i <- 1 until keyAndValues.length) {
-            val keyAndProb = keyAndValues(i).split(":")
-            if (keyAndProb.length == 2) {
-              groupIDlist += ((category, (groupKey, keyAndProb(0))))
-              vehicleTypeAndProbabilityList += ((vehType, keyAndProb(1).toDouble))
+        group.split('|') match {
+          case Array(groupKey, values @ _*) =>
+            values.foreach { value =>
+              value.split(":") match {
+                case Array(key, probability) =>
+                  groupIDlist += CategoryAttributeAndGroup(category, groupKey, key)
+                  vehicleTypeAndProbabilityList += ((vehType, probability.toDouble))
+                case _ =>
+                  logger.warn(
+                    s"Badly formed category in vehicle adjustment: ${value}"
+                  )
+              }
             }
-          }
+          case _ =>
+            logger.warn(
+              s"Badly formed vehicle sampling string in vehicle adjustment: ${group}"
+            )
         }
       }
       groupIDlist.zip(vehicleTypeAndProbabilityList).groupBy(_._1).map {
@@ -109,14 +117,17 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     groupIDs
   }
 
-  def isThisHouseholdInThisGroup(householdIncome: Double, groupAndKey: (String, String)): Boolean = {
-    if (groupAndKey._1.equalsIgnoreCase("income")) {
-      val bounds = groupAndKey._2.split("-")
+  def isThisHouseholdInThisGroup(
+    householdIncome: Double,
+    categoryAttributeAndGroup: CategoryAttributeAndGroup
+  ): Boolean = {
+    if (categoryAttributeAndGroup.householdAttribute.equalsIgnoreCase("income")) {
+      val bounds = categoryAttributeAndGroup.group.split("-")
       if (bounds.length == 2) {
         (householdIncome / 1000 <= bounds(1).toDouble) && (householdIncome / 1000 > bounds(0).toDouble)
       } else {
         logger.warn(
-          s"Badly Formed vehicle sampling key ${groupAndKey._2} under group ${groupAndKey._1}"
+          s"Badly Formed vehicle sampling key ${categoryAttributeAndGroup.group} under group ${categoryAttributeAndGroup.householdAttribute}"
         )
         false
       }
