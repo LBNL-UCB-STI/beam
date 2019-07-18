@@ -405,14 +405,15 @@ class RideHailManager(
         }
       }
 
-      new RideHailFleetInitializer().writeFleetData(beamServices, fleetData)
+      RideHailFleetInitializer.writeFleetData(beamServices, fleetData)
       log.info("Initialized {} ride hailing shifts", idx)
 
     case "FILE" =>
-      new RideHailFleetInitializer().init(beamServices) foreach { fleetData =>
+      val fleetFilePath = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.filePath
+      RideHailFleetInitializer.readFleetFromCSV(fleetFilePath).foreach { fleetData =>
         createRideHailVehicleAndAgent(
           fleetData.id.split("-").toList.tail.mkString("-"),
-          beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType])),
+          beamScenario.vehicleTypes(Id.create(fleetData.vehicleType, classOf[BeamVehicleType])),
           new Coord(fleetData.initialLocationX, fleetData.initialLocationY),
           fleetData.shifts,
           fleetData.toGeofence

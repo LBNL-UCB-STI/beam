@@ -10,6 +10,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicleType, PersonIdWithActorRef}
 import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
 import beam.router.BeamSkimmer
 import beam.sim.common.GeoUtilsImpl
+import beam.sim.config.BeamExecutionConfig
 import beam.sim.{BeamHelper, BeamScenario, Geofence}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
@@ -51,7 +52,7 @@ class AlonsoMoraPoolingAlgForRideHailSpec
   val beamExecConfig: BeamExecutionConfig = setupBeamWithConfig(system.settings.config)
   implicit lazy val beamScenario = loadScenario(beamExecConfig.beamConfig)
   lazy val scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, beamScenario)
-  lazy val injector = buildInjector(system.settings.config, scenario, beamScenario)
+  lazy val injector = buildInjector(system.settings.config, beamExecConfig.beamConfig, scenario, beamScenario)
   lazy val services = buildBeamServices(injector, scenario)
 
   describe("AlonsoMoraPoolingAlgForRideHail") {

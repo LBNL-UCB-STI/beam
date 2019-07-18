@@ -24,7 +24,8 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
   var boundsCalculator: Option[BoundsCalculator] = None
   var firstRepositionCoordsOfDay: Option[(Coord, Coord)] = None
 
-  val repositioningConfig = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes
+  val repositioningConfig =
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes
 
   // TODO: get proper number here from rideHailManager
   val timeWindowSizeInSecForDecidingAboutRepositioning =

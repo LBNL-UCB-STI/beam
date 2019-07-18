@@ -12,6 +12,7 @@ import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
 import beam.router.BeamSkimmer
 import beam.sim.BeamHelper
 import beam.sim.common.GeoUtilsImpl
+import beam.sim.config.BeamExecutionConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.{Coord, Id}
@@ -51,7 +52,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
   val beamExecConfig: BeamExecutionConfig = setupBeamWithConfig(system.settings.config)
   implicit lazy val beamScenario = loadScenario(beamExecConfig.beamConfig)
   lazy val scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, beamScenario)
-  lazy val injector = buildInjector(system.settings.config, scenario, beamScenario)
+  lazy val injector = buildInjector(system.settings.config, beamExecConfig.beamConfig, scenario, beamScenario)
   lazy val services = buildBeamServices(injector, scenario)
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 

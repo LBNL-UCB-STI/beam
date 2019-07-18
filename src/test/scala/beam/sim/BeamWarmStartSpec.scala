@@ -261,8 +261,7 @@ class BeamWarmStartSpec extends WordSpecLike with Matchers with BeforeAndAfterAl
       .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
       .withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef(casePath.toString))
       .resolve()
-    val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
-    BeamWarmStart(BeamConfig(conf), maxHour)
+    BeamWarmStart(BeamConfig(conf))
   }
 }
 

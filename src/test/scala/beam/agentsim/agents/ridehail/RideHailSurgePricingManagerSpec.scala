@@ -1,6 +1,6 @@
 package beam.agentsim.agents.ridehail
 import beam.sim.BeamHelper
-import beam.sim.config.BeamConfig
+import beam.sim.config.{BeamConfig, BeamExecutionConfig}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.Config
 import org.matsim.core.utils.misc.Time
@@ -19,7 +19,7 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
   val beamExecConfig: BeamExecutionConfig = setupBeamWithConfig(config)
   lazy val beamScenario = loadScenario(beamExecConfig.beamConfig)
   lazy val scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, beamScenario)
-  lazy val injector = buildInjector(config, scenario, beamScenario)
+  lazy val injector = buildInjector(config, beamExecConfig.beamConfig, scenario, beamScenario)
   lazy val beamServices = buildBeamServices(injector, scenario)
 
   "RideHailSurgePricingManager" must {
