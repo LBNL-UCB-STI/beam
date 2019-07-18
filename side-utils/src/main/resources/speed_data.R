@@ -2,16 +2,17 @@
 # Objective : TODO
 # Created by: kirill.mitin
 # Created on: 2019-07-15
-#library(ggplot2)
+library(ggplot2)
 
 keep <- c("osmId", "speedBeam", "speedMedian", "speedAvg")
 speedData <- read.csv("speed/osm_way_segm.csv")
 sdata <- speedData[complete.cases(speedData[keep]),]
 
-cd <- transform(sdata, diff = speedBeam - speedAvg)
+cd <- transform(sdata, diffSpeed = speedBeam - speedAvg)
 
-#ggplot(cd, aes(x = diff, x = maxDev)) + geom_point()
-#ggsave("diff_plot.png", width = 16, height = 9, dpi = 300)
+ggplot(cd, aes(x = diffSpeed, y = maxDev)) + geom_point() + geom_text(aes(label = speedAvg), check_overlap = TRUE) +
+    labs(x = "Diff", y = "Observations") + scale_x_continuous(breaks = seq(-30, 30, 2))
+ggsave("diff_plot.png", width = 32, height = 18, dpi = 300)
 
 png(file = "diff_scatterplot.png", width = 3064, height = 2048, units = "px", pointsize = 48)
 
