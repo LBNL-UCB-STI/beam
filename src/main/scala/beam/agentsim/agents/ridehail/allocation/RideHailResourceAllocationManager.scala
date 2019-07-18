@@ -3,11 +3,7 @@ package beam.agentsim.agents.ridehail.allocation
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
-import beam.agentsim.agents.ridehail.repositioningmanager.{
-  DemandFollowingRepositioningManager,
-  NoOpRepositioningManager,
-  RepositioningManager
-}
+import beam.agentsim.agents.ridehail.repositioningmanager.{DemainFollowing_MoveDistantCandidatesFirst, DemandFollowingRepositioningManager, NoOpRepositioningManager, RepositioningManager}
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
 import beam.agentsim.agents.vehicles.PersonIdWithActorRef
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
@@ -213,6 +209,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
           RepositioningManager[NoOpRepositioningManager](rideHailManager.beamServices, rideHailManager)
         case "DemandFollowingRepositioningManager" =>
           RepositioningManager[DemandFollowingRepositioningManager](rideHailManager.beamServices, rideHailManager)
+        case "DemainFollowing_MoveDistantCandidatesFirst" =>
+          RepositioningManager[DemainFollowing_MoveDistantCandidatesFirst](rideHailManager.beamServices, rideHailManager)
         case x =>
           throw new IllegalStateException(s"There is no implementation for `$x`")
       }

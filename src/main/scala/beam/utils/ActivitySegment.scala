@@ -52,7 +52,6 @@ object ActivitySegment {
         }
       }
       .toArray
-      .sortBy(x => x.getEndTime)
     new ActivitySegment(activities, binSize)
   }
 
