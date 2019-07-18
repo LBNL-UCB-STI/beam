@@ -49,10 +49,11 @@ object WayFilter {
 
       override def filter(filterOption: Unit, waySpeed: Map[DayOfWeek, UberDaySpeed]): WaySpeed = {
         val hours = waySpeed.values.flatMap(_.hours).map(s => Rule(s)).map(_.apply)
+        val s = waySpeed.values.headOption.flatMap(_.hours.headOption.map(_.maxDev))
         val speedAvg = Try(hours.map(_._2).sum / hours.map(_._1).sum).toOption.filter(_ => hours.nonEmpty)
         val speedMedian =
           Option(hours.flatMap(w => Seq.fill(w._1)(w._2 / w._1)).toArray).filter(_.nonEmpty).map(Median.findMedian)
-        WaySpeed(speedMedian, speedAvg, None)
+        WaySpeed(speedMedian, speedAvg, s)
       }
     }
 

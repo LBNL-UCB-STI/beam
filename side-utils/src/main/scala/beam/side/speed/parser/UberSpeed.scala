@@ -62,7 +62,7 @@ class UberSpeed[T <: FilterEventAction](
   def way(origNodeId: Long, destNodeId: Long): Option[WaySpeed] =
     shorterPath(origNodeId, destNodeId)
       .filter(_.length < 15)
-      .map(_.edges.map(_.metrics.map(_.speedMphMean).max).toSeq)
+      .map(_.edges.map(e => (e.metrics.map(_.speedMphMean).max, e.metrics.size)).toSeq)
       .map(maxWeek)
       .map(_.waySpeed[T](fOpt))
 
@@ -78,7 +78,7 @@ class UberSpeed[T <: FilterEventAction](
         val mp1 = p1.map(_.edges.flatMap(_.metrics)).getOrElse(Seq())
         val mp2 = p2.map(_.edges.flatMap(_.metrics)).getOrElse(Seq())
         if (mp1.size == mp2.size) {
-          if ( mp1.map(_.speedMphMean).sum / mp1.size >= mp2.map(_.speedMphMean).sum / mp2.size) p1 else p2
+          if (mp1.map(_.speedMphMean).sum / mp1.size >= mp2.map(_.speedMphMean).sum / mp2.size) p1 else p2
         } else if (mp1.size > mp2.size) p1
         else p2
       } else if (p1.map(_.length).getOrElse(Integer.MAX_VALUE) < p2.map(_.length).getOrElse(Integer.MAX_VALUE)) p1
@@ -119,9 +119,18 @@ class UberSpeed[T <: FilterEventAction](
       }
   }
 
-  private def maxWeek(metrics: Seq[Float]): UberWaySpeed =
-    UberWaySpeed(Seq(UberDaySpeed(DayOfWeek.TUESDAY, metrics.map(f => (f * 1.60934 / 3.6).toFloat).map(f => UberHourSpeed(10, f, f, f, f)).toList)))
-
+  private def maxWeek(metrics: Seq[(Float, Int)]): UberWaySpeed =
+    UberWaySpeed(
+      Seq(
+        UberDaySpeed(
+          DayOfWeek.TUESDAY,
+          metrics
+            .map { case (f, s) => (f * 1.60934 / 3.6).toFloat -> s }
+            .map { case (f, s) => UberHourSpeed(10, f, f, s, f) }
+            .toList
+        )
+      )
+    )
 
   private def dropToWeek(metrics: Seq[WayMetric]): UberWaySpeed = {
     val week = metrics
@@ -170,6 +179,6 @@ object UberSpeed {
     case "wh" =>
       UberSpeed[WeekDayHourEventAction](path, dictW, dictJ, (DayOfWeek.of(fOpt("day").toInt), fOpt("hour").toInt))
     case "hours_range" => UberSpeed[HourRangeEventAction](path, dictW, dictJ, (fOpt("from").toInt, fOpt("to").toInt))
-    case "we" => UberSpeed[AllHoursWeightedEventAction](path, dictW, dictJ, Unit)
+    case "we"          => UberSpeed[AllHoursWeightedEventAction](path, dictW, dictJ, Unit)
   }
 }
