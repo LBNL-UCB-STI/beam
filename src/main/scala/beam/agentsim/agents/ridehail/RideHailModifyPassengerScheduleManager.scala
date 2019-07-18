@@ -199,16 +199,18 @@ class RideHailModifyPassengerScheduleManager(
             log.debug(
               s"Abandoning attempt to modify passenger schedule of vehilce ${reply.vehicleId} @ ${reply.tick}"
             )
-            val requestId = interruptIdToModifyPassengerScheduleStatus(reply.interruptId).modifyPassengerSchedule.reservationRequestId.get
+            val requestId = interruptIdToModifyPassengerScheduleStatus(reply.interruptId).modifyPassengerSchedule.reservationRequestId
             clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
-            if (rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId)) {
-              log.debug(
-                "sendCompletionAndScheduleNewTimeout from line 100 @ {} with trigger {}",
-                _currentTick,
-                _currentTriggerId
-              )
-              if (rideHailManager.processBufferedRequestsOnTimeout) {
-                rideHailManager.cleanUpBufferedRequestProcessing(_currentTick.get)
+            if(requestId.isDefined){
+              if (rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId)) {
+                log.debug(
+                  "sendCompletionAndScheduleNewTimeout from line 100 @ {} with trigger {}",
+                  _currentTick,
+                  _currentTriggerId
+                )
+                if (rideHailManager.processBufferedRequestsOnTimeout) {
+                  rideHailManager.cleanUpBufferedRequestProcessing(_currentTick.get)
+                }
               }
             }
           case _ =>
