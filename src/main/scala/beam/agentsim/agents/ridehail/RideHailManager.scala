@@ -23,7 +23,11 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{
+  CouldNotFindRouteToCustomer,
+  DriverNotFoundError,
+  RideHailVehicleTakenError
+}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -261,9 +265,8 @@ class RideHailManager(
 
   val numRideHailAgents = math.round(
     initialNumHouseholdVehicles *
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet
   )
-
 
   def fleetSize: Int = resources.size
 
@@ -272,11 +275,6 @@ class RideHailManager(
 
   val rideHailNetworkApi: RideHailNetworkAPI = new RideHailNetworkAPI()
   val processBufferedRequestsOnTimeout = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0
-
-  private val rideHailResourceAllocationManager = RideHailResourceAllocationManager(
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name,
-    this
-  )
 
   val modifyPassengerScheduleManager =
     new RideHailModifyPassengerScheduleManager(
@@ -318,8 +316,6 @@ class RideHailManager(
 
   // Are we in the middle of processing a batch?
   var currentlyProcessingTimeoutTrigger: Option[TriggerWithId] = None
-
-
 
   // Cache analysis
   private var cacheAttempts = 0
@@ -446,6 +442,11 @@ class RideHailManager(
     }
   }
   log.info("Initialized {} ride hailing agents", numRideHailAgents)
+
+  private val rideHailResourceAllocationManager = RideHailResourceAllocationManager(
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name,
+    this
+  )
 
   def storeRoutes(responses: List[RoutingResponse]): Unit = {
     responses.foreach {

@@ -82,20 +82,26 @@ class DemainFollowing_MoveDistantCandidatesFirst(val beamServices: BeamServices,
         }
       }
       // Demand next [15, 60] minutes
-      val activitiesCoordinates = activitySegment.getCoords(tick + 15 * 60, tick + 60*60)
+      val activitiesCoordinates = activitySegment.getCoords(tick + 15 * 60, tick + 60 * 60)
       if (activitiesCoordinates.nonEmpty && wantToRepos.nonEmpty) {
-        val withNewLocationAndDist = wantToRepos.map { rha =>
-          val (closestCoord, dist) = activitiesCoordinates.map { coord =>
-            val distance = rideHailManager.beamServices.geo.distUTMInMeters(coord, rha.currentLocationUTM.loc)
-            (coord, distance)
-          }.minBy { case (c, d) => d }
-          (rha, closestCoord, dist)
-        }.toVector.sortBy { case (_, _, distance) => distance }
+        val withNewLocationAndDist = wantToRepos
+          .map { rha =>
+            val (closestCoord, dist) = activitiesCoordinates
+              .map { coord =>
+                val distance = rideHailManager.beamServices.geo.distUTMInMeters(coord, rha.currentLocationUTM.loc)
+                (coord, distance)
+              }
+              .minBy { case (c, d) => d }
+            (rha, closestCoord, dist)
+          }
+          .toVector
+          .sortBy { case (_, _, distance) => distance }
 
         val idxTail30Percent = withNewLocationAndDist.size - (withNewLocationAndDist.size * 0.3).toInt
         val tail30Percent = withNewLocationAndDist.slice(idxTail30Percent, withNewLocationAndDist.size)
 
-        logger.info(s"withNewLocationAndDist[${withNewLocationAndDist.size}]: ${withNewLocationAndDist.map(x => (x._1.vehicleId, x._2, x._3))}")
+        logger.info(s"withNewLocationAndDist[${withNewLocationAndDist.size}]: ${withNewLocationAndDist
+          .map(x => (x._1.vehicleId, x._2, x._3))}")
         logger.info(s"tail30Percent[${tail30Percent.size}]: ${tail30Percent.map(x => (x._1.vehicleId, x._2, x._3))}")
       }
 
