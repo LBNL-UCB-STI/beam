@@ -42,16 +42,17 @@ object RepositioningAnalyzer extends LazyLogging {
     val y = Option(rec.get("activityLocationY")).map(_.toDouble)
     val endTime = Option(rec.get("activityEndTime")).map(_.toDouble)
     val mode = Option(rec.get("legMode")).map(_.toString)
-    PlanElement(
-      personId = PersonId(personId),
-      planElementType = planElement,
-      planElementIndex = planElementIndex,
-      activityType = activityType,
-      activityLocationX = x,
-      activityLocationY = y,
-      activityEndTime = endTime,
-      legMode = mode
-    )
+//    PlanElement(
+//      personId = PersonId(personId),
+//      planElementType = planElement,
+//      planElementIndex = planElementIndex,
+//      activityType = activityType,
+//      activityLocationX = x,
+//      activityLocationY = y,
+//      activityEndTime = endTime,
+//      legMode = mode
+//    )
+    ???
   }
 
   def writeActivities(path: String, activitiesPerHour: Map[Int, Array[PlanElement]]): Unit = {
