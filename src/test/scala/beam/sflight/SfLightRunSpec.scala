@@ -57,7 +57,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
         scenario.getConfig,
         new AbstractModule() {
           override def install(): Unit = {
-            install(module(config, scenario, beamScenario))
+            install(module(config, beamConfig, scenario, beamScenario))
             addEventHandlerBinding().toInstance(new BasicEventHandler {
               override def handleEvent(event: Event): Unit = {
                 event match {

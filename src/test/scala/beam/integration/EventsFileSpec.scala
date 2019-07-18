@@ -36,12 +36,11 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     val beamExecutionConfig: BeamExecutionConfig = setupBeamWithConfig(config)
 
     val (scenarioBuilt, beamScenario) = buildBeamServicesAndScenario(
-      config,
       beamExecutionConfig.beamConfig,
       beamExecutionConfig.matsimConfig
     )
     scenario = scenarioBuilt
-    val injector = buildInjector(config, scenario, beamScenario)
+    val injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
     val services = buildBeamServices(injector, scenario)
 
     runBeam(services, scenario, beamScenario, scenario.getConfig.controler().getOutputDirectory)
