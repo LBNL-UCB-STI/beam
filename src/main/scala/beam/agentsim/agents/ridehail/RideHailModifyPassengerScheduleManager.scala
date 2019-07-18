@@ -202,7 +202,7 @@ class RideHailModifyPassengerScheduleManager(
             val requestId = interruptIdToModifyPassengerScheduleStatus(reply.interruptId).modifyPassengerSchedule.reservationRequestId
             clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
             if(requestId.isDefined){
-              if (rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId)) {
+              if (rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId.get)) {
                 log.debug(
                   "sendCompletionAndScheduleNewTimeout from line 100 @ {} with trigger {}",
                   _currentTick,
