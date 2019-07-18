@@ -19,7 +19,7 @@ class RideHailSurgePricingManagerSpec extends WordSpecLike with Matchers with Mo
   val beamExecConfig: BeamExecutionConfig = setupBeamWithConfig(config)
   lazy val beamScenario = loadScenario(beamExecConfig.beamConfig)
   lazy val scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, beamScenario)
-  lazy val injector = buildInjector(config, scenario, beamScenario)
+  lazy val injector = buildInjector(config, beamExecConfig.beamConfig, scenario, beamScenario)
   lazy val beamServices = buildBeamServices(injector, scenario)
 
   "RideHailSurgePricingManager" must {
