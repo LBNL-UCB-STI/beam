@@ -56,10 +56,9 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
     private int nonCACCCategoryRoadsTravelled = 0;
     private int caccCategoryRoadsTravelled = 0;
     private double flowCapacityFactor;
-    private MultiValuedMap<Double, Double> caccCapacityIncrease = new ArrayListValuedHashMap<>();
-    private Map<String, Double> caccLinkCapacityIncrease = new HashMap<>();
-    private Map<String, Double> allLinksCapacityIncrease = new HashMap<>();
-
+    private final MultiValuedMap<Double, Double> caccCapacityIncrease = new ArrayListValuedHashMap<>();
+    private final Map<String, Double> caccLinkCapacityIncrease = new HashMap<>();
+    private final Map<String, Double> allLinksCapacityIncrease = new HashMap<>();
 
     private final Optional<ICsvMapWriter> csvWriter;
 
@@ -115,7 +114,7 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
 
             double finalUpdatedCapacity = updatedCapacity;
             csvWriter.ifPresent(writer -> {
-                HashMap<String, String> row = new HashMap<>();
+                Map<String, String> row = new HashMap<>();
                 row.put("linkId", link.getId().toString());
                 row.put("fractionCACCOnRoad", Double.toString(fractionCACCOnRoad));
                 row.put("initialCapacity", Double.toString(initialCapacity));
@@ -153,9 +152,14 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
         log.info("numberOfTimesOnlyNonCACCTravellingOnCACCEnabledRoads: " + numberOfTimesOnlyNonCACCTravellingOnCACCEnabledRoads);
         log.info("caccCategoryRoadsTravelled / nonCACCCategoryRoadsTravelled ratio: " + 1.0 * caccCategoryRoadsTravelled / nonCACCCategoryRoadsTravelled);
         if (writeGraphs) {
-            CaccRoadCapacityGraphs.generateCapacityIncreaseScatterPlotGraph(caccCapacityIncrease, controllerIO.getIterationFilename(currentIterationNumber, "caccRoadCapacityIncrease.png"));
-            CaccRoadCapacityGraphs.generateCapacityIncreaseHistogramGraph(caccLinkCapacityIncrease, controllerIO.getIterationFilename(currentIterationNumber, "caccRoadCapacityHistogram.png"), "CACC Roads Capacity Increase Histogram");
-            CaccRoadCapacityGraphs.generateCapacityIncreaseHistogramGraph(allLinksCapacityIncrease, controllerIO.getIterationFilename(currentIterationNumber, "allCategoryRoadCapacityHistogram.png"), "All Category Roads Capacity Increase Histogram");
+            CaccRoadCapacityGraphs.generateCapacityIncreaseScatterPlotGraph(caccCapacityIncrease,
+                    controllerIO.getIterationFilename(currentIterationNumber, "caccRoadCapacityIncrease.png"));
+            CaccRoadCapacityGraphs.generateCapacityIncreaseHistogramGraph(caccLinkCapacityIncrease,
+                    controllerIO.getIterationFilename(currentIterationNumber, "caccRoadCapacityHistogram.png"),
+                    "CACC Roads Capacity Increase Histogram");
+            CaccRoadCapacityGraphs.generateCapacityIncreaseHistogramGraph(allLinksCapacityIncrease,
+                    controllerIO.getIterationFilename(currentIterationNumber, "allCategoryRoadCapacityHistogram.png"),
+                    "All Category Roads Capacity Increase Histogram");
         }
         reset();
     }
@@ -233,7 +237,8 @@ class CaccRoadCapacityGraphs {
      * @param capacityIncreaseFrequencies data map for the graph
      * @param graphImageFile              output graph file name
      */
-    static void generateCapacityIncreaseHistogramGraph(Map<String, Double> capacityIncreaseFrequencies, String graphImageFile, String plotTitle) {
+    static void generateCapacityIncreaseHistogramGraph(Map<String, Double> capacityIncreaseFrequencies,
+                                                       String graphImageFile, String plotTitle) {
         String x_axis = "Road Capacity Increase (%)";
         String y_axis = "Frequency";
         int width = 1000;
