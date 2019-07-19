@@ -69,7 +69,7 @@ trait ChoosesParking extends {
       val distanceFactor = beamScenario.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.distance_multiplier // distance to walk to the destination
     val installedCapacityFactor = beamScenario.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.installed_capacity_multiplier // installed charging capacity
     val parkingCostsPriceFactor = beamScenario.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.parking_costs_price_multiplier // parking costs (currently include price for charging due to the lack of data)
-    val distanceBuffer = 25000 // in meter (the distance that should be considered as buffer for range estimation
+    val distanceBuffer = 35000 // in meter (the distance that should be considered as buffer for range estimation
 
       val utilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
         (currentBeamVehicle.beamVehicleType.primaryFuelType, currentBeamVehicle.beamVehicleType.secondaryFuelType) match {
@@ -381,7 +381,7 @@ trait ChoosesParking extends {
     val (chargingDuration, energyInJoules) =
       vehicle.refuelingSessionDurationAndEnergyInJoules(Some(currentTick - vehicle.getChargerConnectedTick()))
 
-    log.debug("Ending refuel session for {} in tick {}. Provided {} J.", vehicle.id, currentTick, energyInJoules)
+    log.info("Ending refuel session for {} in tick {}. Provided {} J.", vehicle.id, currentTick, energyInJoules)
     vehicle.addFuel(energyInJoules)
     eventsManager.processEvent(
       new RefuelSessionEvent(
@@ -399,10 +399,12 @@ trait ChoosesParking extends {
         currentTick,
         vehicle.stall.get
           .copy(locationUTM = beamServices.geo.utm2Wgs(vehicle.stall.get.locationUTM)),
-        vehicle.id
+        vehicle.id,
+        vehicle.primaryFuelLevelInJoules,
+        Some(vehicle.secondaryFuelLevelInJoules)
       )
     )
-    log.debug(
+    log.info(
       "Vehicle {} disconnected from charger @ stall {}",
       vehicle.id,
       vehicle.stall.get

@@ -798,7 +798,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
   def handleStartCharging(currentTick: Int, vehicle: BeamVehicle)(
     schedulerMessage: Option[EndRefuelData => SchedulerMessage]
   ) = {
-    log.debug("Vehicle {} connects to charger @ stall {}", vehicle.id, vehicle.stall.get)
+    log.info("Vehicle {} connects to charger @ stall {}", vehicle.id, vehicle.stall.get)
     vehicle.connectToChargingPoint(currentTick)
     eventsManager.processEvent(
       new ChargingPlugInEvent(
@@ -812,7 +812,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
     schedulerMessage.foreach(message => {
       val (sessionDuration, energyDelivered): (Long, Double) = vehicle.refuelingSessionDurationAndEnergyInJoules()
       val chargingEndTick = currentTick + sessionDuration.toInt
-      log.debug(
+      log.info(
         "scheduling EndRefuelSessionTrigger at {} with {} J to vehicle {} to be delivered",
         chargingEndTick,
         energyDelivered,
