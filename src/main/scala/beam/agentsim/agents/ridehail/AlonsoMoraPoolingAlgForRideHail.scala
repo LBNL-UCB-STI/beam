@@ -7,12 +7,9 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PersonIdWithActorRef}
 import beam.agentsim.agents.{MobilityRequest, _}
 import beam.router.BeamRouter.Location
+import beam.router.BeamSkimmer
 import beam.router.BeamSkimmer.Skim
 import beam.router.Modes.BeamMode
-import beam.router.BeamSkimmer
-import beam.sim.BeamServices
-import beam.utils.NetworkHelper
-import beam.router.BeamSkimmer
 import beam.sim.{BeamServices, Geofence}
 import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedWeightedGraph}
 import org.matsim.api.core.v01.Id
@@ -27,7 +24,7 @@ import scala.collection.mutable.ListBuffer
 class AlonsoMoraPoolingAlgForRideHail(
   spatialDemand: QuadTree[CustomerRequest],
   supply: List[VehicleAndSchedule],
-  timeWindow: Map[MobilityRequestType, Int],
+  timeWindow: Map[MobilityRequestType, Double],
   maxRequestsPerVehicle: Int,
   beamServices: BeamServices
 )(implicit val skimmer: BeamSkimmer) {
@@ -153,13 +150,12 @@ class AlonsoMoraPoolingAlgForRideHail(
   }
 
   // a greedy assignment using a cost function
-  def greedyAssignment(rtvG: RTVGraph): List[(RideHailTrip, VehicleAndSchedule, Int)] = {
+  def greedyAssignment(rtvG: RTVGraph): List[(RideHailTrip, VehicleAndSchedule, Double)] = {
     val V: Int = supply.foldLeft(0) { case (maxCapacity, v) => Math max (maxCapacity, v.getFreeSeats) }
-    val C0: Int = timeWindow.foldLeft(0)(_ + _._2)
     import scala.collection.mutable.{ListBuffer => MListBuffer}
     val Rok = MListBuffer.empty[CustomerRequest]
     val Vok = MListBuffer.empty[VehicleAndSchedule]
-    val greedyAssignmentList = MListBuffer.empty[(RideHailTrip, VehicleAndSchedule, Int)]
+    val greedyAssignmentList = MListBuffer.empty[(RideHailTrip, VehicleAndSchedule, Double)]
     for (k <- V to 1 by -1) {
       rtvG
         .vertexSet()
@@ -176,6 +172,7 @@ class AlonsoMoraPoolingAlgForRideHail(
                 .head
             )
             .asInstanceOf[VehicleAndSchedule]
+          val C0 = timeWindow(Pickup) + timeWindow(Dropoff) * trip.cost
           val cost = trip.cost + C0 * rtvG
             .outgoingEdgesOf(trip)
             .asScala
@@ -220,7 +217,7 @@ object AlonsoMoraPoolingAlgForRideHail {
   }
 
   def getRidehailSchedule(
-    timeWindow: Map[MobilityRequestType, Int],
+    timeWindow: Map[MobilityRequestType, Double],
     schedule: List[MobilityRequest],
     newRequests: List[MobilityRequest],
     beamServices: BeamServices
@@ -244,8 +241,13 @@ object AlonsoMoraPoolingAlgForRideHail {
     }
     sortedRequests.foreach { curReq =>
       val prevReq = newPoolingList.lastOption.getOrElse(newPoolingList.last)
-      val serviceTime = prevReq.serviceTime + getTimeDistanceAndCost(prevReq, curReq, beamServices).time
-      if (serviceTime <= curReq.baselineNonPooledTime + timeWindow(curReq.tag)) {
+      val travelTime = getTimeDistanceAndCost(prevReq, curReq, beamServices).time
+      val serviceTime = prevReq.serviceTime + travelTime
+      val delay = curReq.tag match {
+        case Dropoff => timeWindow(Pickup) + timeWindow(Dropoff) * travelTime
+        case _ => timeWindow(curReq.tag)
+      }
+      if (serviceTime <= curReq.baselineNonPooledTime + delay) {
         newPoolingList.append(curReq.copy(serviceTime = serviceTime))
       } else {
         return None
@@ -264,7 +266,7 @@ object AlonsoMoraPoolingAlgForRideHail {
       .getTimeDistanceAndCost(
         p1Act1.getCoord,
         p1Act2.getCoord,
-        0,
+        departureTime,
         BeamMode.CAR,
         Id.create(
           skimmer.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
@@ -454,6 +456,7 @@ object AlonsoMoraPoolingAlgForRideHail {
     private val numberOfPassengers: Int =
       schedule.takeWhile(_.tag != EnRoute).count(req => req.person.isDefined && req.tag == Dropoff)
     override def getId: String = vehicle.id.toString
+    def getNoPassengers: Int = numberOfPassengers
     def getFreeSeats: Int = seatsAvailable - numberOfPassengers
     def getRequestWithCurrentVehiclePosition: MobilityRequest = schedule.find(_.tag == EnRoute).getOrElse(schedule.head)
   }

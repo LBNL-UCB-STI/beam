@@ -1,11 +1,11 @@
 package beam.agentsim.agents.ridehail.allocation
 
+import beam.agentsim.agents._
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents._
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{Location, RoutingRequest}
 import beam.router.BeamSkimmer
@@ -205,14 +205,14 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val dropoffWindow =
         rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.dropoffTimeWindowInSec
 
-      rideHailManager.log.info("%%%%% Num avail: {}",availVehicles.size)
+      //rideHailManager.log.info("%%%%% Num avail: {}",availVehicles.size)
       //      rideHailManager.log.info("Num custs: {} num vehs: {}", spatialPoolCustomerReqs.size(), availVehicles.size)
       val algo = new AsyncAlonsoMoraAlgForRideHail(
         spatialPoolCustomerReqs,
         availVehicles,
-        Map[MobilityRequestType, Int](
+        Map[MobilityRequestType, Double](
           (Pickup, pickupWindow + offset),
-          (Dropoff, dropoffWindow + offset),
+          (Dropoff, dropoffWindow),
           (EnRoute, Int.MaxValue - 30000000),
           (Relocation, Int.MaxValue - 30000000)
         ),
@@ -221,7 +221,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       )
       import scala.concurrent.duration._
       val assignment = try {
-        Await.result(algo.greedyAssignment(), atMost = 2.minutes)
+        Await.result(algo.greedyAssignment(tick), atMost = 2.minutes)
       } catch {
         case e: TimeoutException =>
           rideHailManager.log.error("timeout of AsyncAlonsoMoraAlgForRideHail no allocations made")

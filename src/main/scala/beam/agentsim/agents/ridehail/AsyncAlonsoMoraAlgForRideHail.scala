@@ -1,13 +1,15 @@
 package beam.agentsim.agents.ridehail
 
-import beam.agentsim.agents.{EnRoute, MobilityRequestType, Pickup}
 import beam.agentsim.agents.ridehail.AlonsoMoraPoolingAlgForRideHail._
+import beam.agentsim.agents.{Dropoff, MobilityRequestType, Pickup}
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
+import beam.sim.vehiclesharing.VehicleManager
 import org.jgrapht.graph.DefaultEdge
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.JavaConverters._
@@ -18,7 +20,7 @@ import scala.concurrent.Future
 class AsyncAlonsoMoraAlgForRideHail(
   spatialDemand: QuadTree[CustomerRequest],
   supply: List[VehicleAndSchedule],
-  timeWindow: Map[MobilityRequestType, Int],
+  timeWindow: Map[MobilityRequestType, Double],
   maxRequestsPerVehicle: Int,
   beamServices: BeamServices
 )(implicit val skimmer: BeamSkimmer) {
@@ -32,7 +34,7 @@ class AsyncAlonsoMoraAlgForRideHail(
     val edges = MListBuffer.empty[(RTVGraphNode, RTVGraphNode)]
     val finalRequestsList = MListBuffer.empty[RideHailTrip]
     val center = v.getRequestWithCurrentVehiclePosition.activity.getCoord
-    val currentTimeOfVehicle = v.getRequestWithCurrentVehiclePosition.baselineNonPooledTime
+    //val currentTimeOfVehicle = v.getRequestWithCurrentVehiclePosition.baselineNonPooledTime
     val searchRadius = timeWindow(Pickup) * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
     val requests = v.geofence match {
       case Some(gf) =>
@@ -119,15 +121,27 @@ class AsyncAlonsoMoraAlgForRideHail(
       }
   }
 
-  def greedyAssignment(): Future[List[(RideHailTrip, VehicleAndSchedule, Int)]] = {
+  def greedyAssignment(tick: Int): Future[List[(RideHailTrip, VehicleAndSchedule, Double)]] = {
+    skimmer.countEvents(
+      tick,
+      TAZTreeMap.emptyTAZId,
+      Id.create("reposition", classOf[VehicleManager]),
+      "vehicles",
+      count = supply.count(_.seatsAvailable > 0)
+    )
+    skimmer.countEvents(
+      tick,
+      TAZTreeMap.emptyTAZId,
+      Id.create("reposition", classOf[VehicleManager]),
+      "demand",
+      count = spatialDemand.size()
+    )
     val rTvGFuture = asyncBuildOfRTVGraph()
     val V: Int = supply.foldLeft(0) { case (maxCapacity, v) => Math max (maxCapacity, v.getFreeSeats) }
-    val C0: Int = timeWindow.foldLeft(0)(_ + _._2)
-    import scala.collection.mutable.{ListBuffer => MListBuffer}
     rTvGFuture.map { rTvG =>
-      val greedyAssignmentList = MListBuffer.empty[(RideHailTrip, VehicleAndSchedule, Int)]
-      val Rok = MListBuffer.empty[CustomerRequest]
-      val Vok = MListBuffer.empty[VehicleAndSchedule]
+      val greedyAssignmentList = scala.collection.mutable.ListBuffer.empty[(RideHailTrip, VehicleAndSchedule, Double)]
+      val Rok = scala.collection.mutable.ListBuffer.empty[CustomerRequest]
+      val Vok = scala.collection.mutable.ListBuffer.empty[VehicleAndSchedule]
       for (k <- V to 1 by -1) {
         rTvG
           .vertexSet()
@@ -144,26 +158,70 @@ class AsyncAlonsoMoraAlgForRideHail(
                   .head
               )
               .asInstanceOf[VehicleAndSchedule]
-            val cost = trip.cost + C0 * rTvG
-              .outgoingEdgesOf(trip)
-              .asScala
-              .filter(e => rTvG.getEdgeTarget(e).isInstanceOf[CustomerRequest])
-              .count(y => !trip.requests.contains(y.asInstanceOf[CustomerRequest]))
-
+            val C0 = timeWindow(Pickup) + timeWindow(Dropoff) * 3600
+            val cost = trip.cost + C0 * (maxRequestsPerVehicle - trip.requests.size)
             (trip, vehicle, cost)
           }
           .toList
           .sortBy(_._3)
           .foldLeft(()) {
             case (_, (trip, vehicle, cost)) =>
-              if (!(trip.requests exists (r => Rok contains r)) &&
-                  !(Vok contains vehicle)) {
+              if (!(Vok contains vehicle) && !(trip.requests exists (r => Rok contains r))) {
                 Rok.appendAll(trip.requests)
                 Vok.append(vehicle)
                 greedyAssignmentList.append((trip, vehicle, cost))
               }
           }
       }
+      skimmer.countEvents(
+        tick,
+        TAZTreeMap.emptyTAZId,
+        Id.create("reposition", classOf[VehicleManager]),
+        "servedReq",
+        count = greedyAssignmentList.map(_._1.requests.size).sum
+      )
+      skimmer.countEvents(
+        tick,
+        TAZTreeMap.emptyTAZId,
+        Id.create("reposition", classOf[VehicleManager]),
+        "nonpooledReq",
+        count = greedyAssignmentList.count(a => a._2.getNoPassengers + a._1.requests.size == 1)
+      )
+      skimmer.countEvents(
+      tick,
+      TAZTreeMap.emptyTAZId,
+      Id.create("reposition", classOf[VehicleManager]),
+      "pooledReq",
+      count = greedyAssignmentList.count(a => a._2.getNoPassengers + a._1.requests.size > 1)
+      )
+      skimmer.countEvents(
+        tick,
+        TAZTreeMap.emptyTAZId,
+        Id.create("reposition", classOf[VehicleManager]),
+        "pooledReq2",
+        count = greedyAssignmentList.count(a => a._2.getNoPassengers + a._1.requests.size == 2)
+      )
+      skimmer.countEvents(
+        tick,
+        TAZTreeMap.emptyTAZId,
+        Id.create("reposition", classOf[VehicleManager]),
+        "pooledReq3",
+        count = greedyAssignmentList.count(a => a._2.getNoPassengers + a._1.requests.size == 3)
+      )
+      skimmer.countEvents(
+        tick,
+        TAZTreeMap.emptyTAZId,
+        Id.create("reposition", classOf[VehicleManager]),
+        "pooledReq4",
+        count = greedyAssignmentList.count(a => a._2.getNoPassengers + a._1.requests.size == 4)
+      )
+      skimmer.countEvents(
+        tick,
+        TAZTreeMap.emptyTAZId,
+        Id.create("reposition", classOf[VehicleManager]),
+        "pooledReq5",
+        count = greedyAssignmentList.count(a => a._2.getNoPassengers + a._1.requests.size == 5)
+      )
       greedyAssignmentList.toList
     }
   }
