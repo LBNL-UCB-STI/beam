@@ -4,13 +4,13 @@
 # Created on: 2019-07-15
 library(ggplot2)
 
-keep <- c("osmId", "speedBeam", "speedMedian", "speedAvg")
-speedData <- read.csv("speed/osm_way_segm.csv")
+keep <- c("osmId", "speedBeam", "speedMedian", "speedAvg", "cat")
+speedData <- read.csv("speed/osm_way_cats.csv")
 sdata <- speedData[complete.cases(speedData[keep]),]
 
 cd <- transform(sdata, diffSpeed = speedBeam - speedAvg)
 
-ggplot(cd, aes(x = diffSpeed, y = maxDev)) + geom_point() + geom_text(aes(label = speedAvg), check_overlap = TRUE) +
+ggplot(cd, aes(x = diffSpeed, y = maxDev, color=cat)) + geom_point() + geom_text(aes(label = speedAvg), check_overlap = TRUE) +
     labs(x = "Diff", y = "Observations") + scale_x_continuous(breaks = seq(-30, 30, 2))
 ggsave("diff_plot.png", width = 32, height = 18, dpi = 300)
 

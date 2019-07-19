@@ -41,11 +41,13 @@ class OsmWays(osmPath: Path, r5Path: Path) {
           osm.get(t).map(w => t -> w)
       }
       .collect {
-        case Some((id, w)) => OsmNodeSpeed(id, w.nodes(0), w.nodes(1), waySpeed(w))
+        case Some((id, w)) =>
+          val (s, t) = waySpeed(w)
+          OsmNodeSpeed(id, w.nodes(0), w.nodes(1), s, t)
       }
   }
 
-  private def waySpeed(way: Way): Float = {
+  private def waySpeed(way: Way): (Float, String) = {
     val hTag = Option(way.getTag("highway")).getOrElse("unclassified")
     val sp = Option(way.getTag("maxspeed"))
       .flatMap {
@@ -54,11 +56,7 @@ class OsmWays(osmPath: Path, r5Path: Path) {
       }
       .getOrElse(highways.getOrElse(hTag, 28 * 1.60934 / 3.6))
       .toFloat
-
-    if (sp == 0) {
-      println(way)
-    }
-    sp
+    sp -> hTag
   }
 }
 
