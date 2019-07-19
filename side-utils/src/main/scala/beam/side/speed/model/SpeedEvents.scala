@@ -72,7 +72,8 @@ case class BeamUberSpeed(
   speedBeam: Float,
   speedMedian: Option[Float],
   speedAvg: Option[Float],
-  maxDev: Option[Float]
+  maxDev: Option[Float],
+  cat: String
 )
 
 object BeamUberSpeed {
@@ -109,4 +110,4 @@ case class UberWay(segmentId: String, startJunctionId: String, endJunctionId: St
 
 case class UberDirectedWay(orig: Long, dest: Long, wayId: String, metrics: Seq[WayMetric])
 
-case class OsmNodeSpeed(id: Long, orig: Long, dest: Long, speed: Float)
+case class OsmNodeSpeed(id: Long, orig: Long, dest: Long, speed: Float, cat: String)
