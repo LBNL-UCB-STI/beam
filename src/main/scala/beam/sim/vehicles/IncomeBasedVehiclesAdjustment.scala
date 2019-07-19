@@ -30,12 +30,19 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
   ): List[BeamVehicleType] = {
     val matchedGroups =
       vehicleTypesAndProbabilityByCategoryAndGroup.keys.filter(x => isThisHouseholdInThisGroup(householdIncome, x))
-    if (matchedGroups.size > 1) {
+    val categoryAndGroup = if (matchedGroups.size > 1) {
       logger.warn(
         s"Multiple categories defined for household with income ${householdIncome}, choosing a default one"
       )
+      matchedGroups.head
+    } else if (matchedGroups.isEmpty) {
+      logger.warn(
+        s"No categories defined for household with income ${householdIncome}, choosing a default one"
+      )
+      vehicleTypesAndProbabilityByCategoryAndGroup.keys.head
+    } else {
+      matchedGroups.head
     }
-    val categoryAndGroup = matchedGroups.head
     val vehTypeWithProbabilityOption = vehicleTypesAndProbabilityByCategoryAndGroup.get(categoryAndGroup)
     val vehTypeWithProbability: Array[(BeamVehicleType, Double)] = vehTypeWithProbabilityOption match {
       case Some(vtWithProb) => vtWithProb
@@ -121,17 +128,24 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     householdIncome: Double,
     categoryAttributeAndGroup: CategoryAttributeAndGroup
   ): Boolean = {
-    if (categoryAttributeAndGroup.householdAttribute.equalsIgnoreCase("income")) {
-      val bounds = categoryAttributeAndGroup.group.split("-")
-      if (bounds.length == 2) {
-        (householdIncome / 1000 <= bounds(1).toDouble) && (householdIncome / 1000 > bounds(0).toDouble)
-      } else {
+    categoryAttributeAndGroup.householdAttribute match {
+      case "income" =>
+        categoryAttributeAndGroup.group.split("-") match {
+          case Array(lowerBound, upperBound) =>
+            (householdIncome / 1000 <= upperBound.toDouble) && (householdIncome / 1000 > lowerBound.toDouble)
+          case _ =>
+            logger.warn(
+              s"Badly Formed vehicle sampling key ${categoryAttributeAndGroup.group} under group ${categoryAttributeAndGroup.householdAttribute}"
+            )
+            false
+        }
+      case "ridehail" =>
+        false
+      case _ =>
         logger.warn(
-          s"Badly Formed vehicle sampling key ${categoryAttributeAndGroup.group} under group ${categoryAttributeAndGroup.householdAttribute}"
+          s"Sample vehicles by ${categoryAttributeAndGroup.householdAttribute} not implemented yet"
         )
         false
-      }
-    } else false
-
+    }
   }
 }
