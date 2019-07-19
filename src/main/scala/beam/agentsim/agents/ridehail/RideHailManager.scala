@@ -492,6 +492,10 @@ class RideHailManager(
   var timeSpendForFindAllocationsAndProcessMs: Long = 0
   var nFindAllocationsAndProcess: Int = 0
 
+  var prevReposTick: Int = 0
+  var currReposTick: Int = 0
+  var nRepositioned: Int = 0
+
   override def receive: Receive = LoggingReceive {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       sender ! CompletionNotice(triggerId, Vector())
@@ -513,6 +517,14 @@ class RideHailManager(
       )
       timeSpendForFindAllocationsAndProcessMs = 0
       nFindAllocationsAndProcess = 0
+
+      val diff = currReposTick - prevReposTick
+      log.info(
+        s"prevReposTick: $prevReposTick, currReposTick: $currReposTick, diff: ${diff}, repositined ${nRepositioned} vehicles"
+      )
+
+      prevReposTick = currReposTick
+      nRepositioned = 0
 
     case LogActorState =>
       ReflectionUtils.logFields(log, this, 0)
@@ -1397,21 +1409,27 @@ class RideHailManager(
     rideHailResourceAllocationManager.removeRequestFromBuffer(request)
   }
 
-  def cleanUp = {
+  def cleanUp: Unit = {
     currentlyProcessingTimeoutTrigger = None
     unstashAll()
   }
 
-  def startRepositioning(tick: Int, triggerId: Long) = {
+  def startRepositioning(tick: Int, triggerId: Long): Unit = {
+    if (prevReposTick == 0) {
+      prevReposTick = tick
+    }
+    currReposTick = tick
+
     log.debug("Starting wave of repositioning at {}", tick)
     modifyPassengerScheduleManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
 
     val repositionVehicles: Vector[(Id[Vehicle], Location)] =
-      ProfilingUtils.timed(s"repositionVehicles at tick $tick", log.info) {
+      ProfilingUtils.timed(s"repositionVehicles at tick $tick", log.debug) {
         rideHailResourceAllocationManager.repositionVehicles(tick)
       }
-    log.info(s"Will reposition ${repositionVehicles.size} at the tick {}", tick)
+    log.debug(s"Will reposition ${repositionVehicles.size} at the tick {}", tick)
     log.debug("Reposition the following vehicles: {}", repositionVehicles)
+    nRepositioned += repositionVehicles.size
 
     if (repositionVehicles.isEmpty) {
       log.debug("sendCompletionAndScheduleNewTimeout from 1204")
