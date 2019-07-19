@@ -161,14 +161,13 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
                     controllerIO.getIterationFilename(currentIterationNumber, "allCategoryRoadCapacityHistogram.png"),
                     "All Category Roads Capacity Increase Histogram");
         }
-        reset();
     }
 
     private boolean isWriteEnabled(int iterationNumber) {
         return (writeInterval > 0 && iterationNumber % writeInterval == 0);
     }
 
-    private void reset() {
+    public void reset() {
         caccCapacityIncrease.clear();
         csvWriter.ifPresent(writer -> {
            try { writer.close();}
