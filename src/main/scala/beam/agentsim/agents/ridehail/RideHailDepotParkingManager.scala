@@ -151,8 +151,10 @@ class RideHailDepotParkingManager(
 }
 
 object RideHailDepotParkingManager {
+  // a ride hail agent is searching for a charging depot and is not in service of an activity.
+  // for this reason, a higher max radius is reasonable.
   val SearchStartRadius: Double = 500.0 // meters
-  val SearchMaxRadius: Int = 20000 // meters
+  val SearchMaxRadius: Int = 80465 // 50 miles, in meters
 
   def apply(
     parkingFilePath: String,
