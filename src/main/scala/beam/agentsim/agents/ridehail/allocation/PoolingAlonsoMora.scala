@@ -14,6 +14,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.vehicles.Vehicle
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.{Await, TimeoutException}
 
@@ -205,8 +206,9 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val dropoffWindow =
         rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.dropoffTimeWindowInSec
 
-      //rideHailManager.log.info("%%%%% Num avail: {}",availVehicles.size)
-      //      rideHailManager.log.info("Num custs: {} num vehs: {}", spatialPoolCustomerReqs.size(), availVehicles.size)
+      rideHailManager.log.debug("%%%%% Num avail: {}", availVehicles.size)
+      rideHailManager.log.debug("%%%%% Requests: {}", spatialPoolCustomerReqs.values().asScala.map(_.toString).mkString("\n"))
+      rideHailManager.log.debug("%%%%% Available Vehicles: {}", availVehicles.map(_.vehicle.id).mkString(","))
       val algo = new AsyncAlonsoMoraAlgForRideHail(
         spatialPoolCustomerReqs,
         availVehicles,
@@ -235,14 +237,11 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         case (theTrip, vehicleAndOldSchedule, cost) =>
           // Pooling alg can return a schedule identical to one that is already in progress, for these we ignore
           if (theTrip.schedule != vehicleAndOldSchedule.schedule) {
-            if (!rideHailManager.vehicleManager.inServiceRideHailVehicles.isEmpty) {
-              val i = 0
               rideHailManager.log.debug(
-                "Assigned to EnRoute vehicle {} the trip: \n {}",
+                "%%%%% Assigned vehicle {} the trip: \n {}",
                 vehicleAndOldSchedule.vehicle.id,
                 theTrip
               )
-            }
             alreadyAllocated = alreadyAllocated + vehicleAndOldSchedule.vehicle.id
             var newRideHailRequest: Option[RideHailRequest] = None
             var scheduleToCache: List[MobilityRequest] = List()

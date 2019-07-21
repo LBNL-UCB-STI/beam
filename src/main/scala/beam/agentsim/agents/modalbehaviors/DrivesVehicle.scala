@@ -260,7 +260,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         processLinkEvents(eventsManager, data.currentVehicle.head, currentLeg)
       }
 
-      logDebug("PathTraversal")
+      logDebug(s"PathTraversal @ $tick")
       eventsManager.processEvent(
         new VehicleLeavesTrafficEvent(
           tick,

@@ -32,6 +32,7 @@ class RideHailModifyPassengerScheduleManager(
     mutable.Map[Id[Interrupt], RideHailModifyPassengerScheduleStatus]()
   private val vehicleIdToModifyPassengerScheduleStatus =
     mutable.Map[Id[Vehicle], RideHailModifyPassengerScheduleStatus]()
+  private val interruptedVehicleIds = mutable.Set[Id[Vehicle]]() // For debug only
   var allTriggersInWave: Vector[ScheduleTrigger] = Vector()
   var ignoreErrorPrint = false
   var numInterruptRepliesPending: Int = 0
@@ -52,6 +53,7 @@ class RideHailModifyPassengerScheduleManager(
       case Some(status) =>
         interruptIdToModifyPassengerScheduleStatus.put(reply.interruptId, status.copy(interruptReply = Some(reply)))
         vehicleIdToModifyPassengerScheduleStatus.put(reply.vehicleId, status.copy(interruptReply = Some(reply)))
+        interruptedVehicleIds.remove(reply.vehicleId)
         numInterruptRepliesPending = numInterruptRepliesPending - 1
       case _ =>
         log.error(
@@ -199,7 +201,8 @@ class RideHailModifyPassengerScheduleManager(
             log.debug(
               s"Abandoning attempt to modify passenger schedule of vehilce ${reply.vehicleId} @ ${reply.tick}"
             )
-            val requestId = interruptIdToModifyPassengerScheduleStatus(reply.interruptId).modifyPassengerSchedule.reservationRequestId
+            val requestIdOpt = interruptIdToModifyPassengerScheduleStatus(reply.interruptId).modifyPassengerSchedule.reservationRequestId
+            val requestId = requestIdOpt match { case Some(_) => requestIdOpt case None => reservationRequestIdOpt }
             clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
             if(requestId.isDefined){
               if (rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId.get)) {
@@ -275,6 +278,16 @@ class RideHailModifyPassengerScheduleManager(
       rideHailModifyPassengerScheduleStatus.vehicleId,
       rideHailModifyPassengerScheduleStatus
     )
+    interruptedVehicleIds.add(rideHailModifyPassengerScheduleStatus.vehicleId)
+  }
+  def setStatusToIdle(vehicleId: Id[Vehicle]) = {
+    vehicleIdToModifyPassengerScheduleStatus.get(vehicleId) match {
+      case Some(status) =>
+        val newStatus = status.copy(interruptReply = Some(InterruptedWhileIdle(status.interruptId,vehicleId,status.tick)))
+        vehicleIdToModifyPassengerScheduleStatus.put(vehicleId,newStatus)
+        interruptIdToModifyPassengerScheduleStatus.put(status.interruptId,newStatus)
+      case None =>
+    }
   }
 
   def cleanUpCaches = {
@@ -283,6 +296,7 @@ class RideHailModifyPassengerScheduleManager(
     }
     vehicleIdToModifyPassengerScheduleStatus.clear
     interruptIdToModifyPassengerScheduleStatus.clear
+    interruptedVehicleIds.clear
   }
 
   def clearModifyStatusFromCacheWithVehicleId(vehicleId: Id[Vehicle]): Unit = {
@@ -294,7 +308,7 @@ class RideHailModifyPassengerScheduleManager(
   private def clearModifyStatusFromCacheWithInterruptId(
     interruptId: Id[Interrupt]
   ): Unit = {
-    log.debug("remove interrupt froclearModifyStatusFromCacheWithInterruptId {}",interruptId)
+    log.debug("remove interrupt from clearModifyStatusFromCacheWithInterruptId {}", interruptId)
     interruptIdToModifyPassengerScheduleStatus.remove(interruptId).foreach { rideHailModifyPassengerScheduleStatus =>
       vehicleIdToModifyPassengerScheduleStatus.remove(rideHailModifyPassengerScheduleStatus.vehicleId)
     }

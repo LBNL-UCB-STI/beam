@@ -445,6 +445,7 @@ object AlonsoMoraPoolingAlgForRideHail {
   case class CustomerRequest(person: PersonIdWithActorRef, pickup: MobilityRequest, dropoff: MobilityRequest)
       extends RVGraphNode {
     override def getId: String = person.personId.toString
+    override def toString: String = s"Person:${person.personId}|Pickup:$pickup|Dropoff:$dropoff"
   }
   // Ride Hail vehicles, capacity and their predefined schedule
   case class VehicleAndSchedule(

@@ -185,6 +185,19 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
       stop
 
+    // This can happen if the NotifyVehicleIdle is sent to RHM after RHM starts a buffered allocation process
+    // and meanwhile dispatches this RHA who has now moved on to other things. This is how we complete the trigger
+    // that made this RHA available in the first place
+    case ev @ Event(NotifyVehicleResourceIdleReply(_,_),_) =>
+      log.debug("state(RideHailingAgent.myUnhandled): releaseTickAndTrigger if needed {}",ev)
+      _currentTriggerId match {
+        case Some(_) =>
+          val (_,triggerId) = releaseTickAndTriggerId()
+          scheduler ! CompletionNotice(triggerId, Vector())
+        case None =>
+      }
+      stay
+
     case event @ Event(_, _) =>
       log.error(
         "unhandled event: {} in state [ {} ] - vehicle( {} )",
@@ -345,12 +358,6 @@ class RideHailAgent(
           tick,
         )
       } else {
-        log.debug(
-          "merging existing passenger schedule with updated - vehicleId({}), existing: {}, updated: {}",
-          id,
-          data.passengerSchedule,
-          updatedPassengerSchedule
-        )
         val currentLeg = data.passengerSchedule.schedule.view.drop(data.currentLegPassengerScheduleIndex).head._1
         val updatedStopTime = math.max(currentLeg.startTime, tick)
         val resolvedPassengerSchedule: PassengerSchedule = DrivesVehicle.resolvePassengerScheduleConflicts(
@@ -359,6 +366,13 @@ class RideHailAgent(
           updatedPassengerSchedule,
           beamServices.networkHelper,
           beamServices.geo
+        )
+        log.debug(
+          s"merged existing passenger schedule with updated - vehicleId({}) @ $tick, existing: {}, updated: {}, resolved: {}",
+          id,
+          data.passengerSchedule,
+          updatedPassengerSchedule,
+          resolvedPassengerSchedule
         )
         val newLegIndex = resolvedPassengerSchedule.schedule.keys.zipWithIndex
           .find(_._1.startTime <= updatedStopTime)
@@ -504,7 +518,7 @@ class RideHailAgent(
   ) = {
     _currentTriggerId match {
       case Some(_) =>
-        val (_, triggerId) = releaseTickAndTriggerId()
+        val (tick, triggerId) = releaseTickAndTriggerId()
         if (receivedtriggerId.isEmpty || triggerId != receivedtriggerId.get) {
           log.error(
             "RHA {}: local triggerId {} does not match the id received from RHM {}",
@@ -513,7 +527,7 @@ class RideHailAgent(
             receivedtriggerId
           )
         }
-        log.debug("RHA {}: completing trigger and scheduling {}", id, newTriggers)
+        log.debug("RHA {}: completing trigger @ {} and scheduling {}", id, tick, newTriggers)
         scheduler ! CompletionNotice(triggerId, newTriggers)
       case None =>
         log.error("RHA {}: was expecting to release a triggerId but None found", id)

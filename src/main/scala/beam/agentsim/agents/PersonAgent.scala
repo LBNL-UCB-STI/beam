@@ -483,7 +483,7 @@ class PersonAgent(
         TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter), triggerId),
         data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _)
         ) =>
-      logDebug(s"PersonEntersVehicle: $vehicleToEnter")
+      logDebug(s"PersonEntersVehicle: $vehicleToEnter @ $tick")
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
       if (currentLeg.cost > 0.0) {
@@ -517,7 +517,7 @@ class PersonAgent(
         data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _)
         ) if vehicleToExit.equals(currentVehicle.head) =>
       updateFuelConsumed(energyConsumedOption)
-      logDebug(s"PersonLeavesVehicle: $vehicleToExit")
+      logDebug(s"PersonLeavesVehicle: $vehicleToExit @ $tick")
       eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, vehicleToExit))
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using data.copy(
