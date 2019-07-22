@@ -45,16 +45,26 @@ class ZonalParkingManager(
         case act if act.equalsIgnoreCase("home")   => Seq(ParkingType.Residential, ParkingType.Public)
         case act if act.equalsIgnoreCase("init")   => Seq(ParkingType.Residential, ParkingType.Public)
         case act if act.equalsIgnoreCase("work")   => Seq(ParkingType.Workplace, ParkingType.Public)
-        case act if act.equalsIgnoreCase("charge") => Seq(ParkingType.Workplace, ParkingType.Public)
+        case act if act.equalsIgnoreCase("charge") => Seq(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
         case _                                     => Seq(ParkingType.Public)
       }
 
-      val vehicleCanParkAtCharger: Boolean = inquiry.vehicleType match {
-        case Some(vehicleType)
-            if vehicleType.beamVehicleType.primaryFuelType == Electricity || vehicleType.beamVehicleType.secondaryFuelType
-              .contains(Electricity) =>
-          inquiry.activityType.equalsIgnoreCase("charge") //vehicles don't intend to charge on initialization
-        case _ => false
+      val returnSpotsWithChargers: Boolean = inquiry.activityType.toLowerCase match {
+        case "charge" => true
+        case "init" => false
+        case _ => inquiry.vehicleType match {
+          case Some(vehicleType) =>
+            vehicleType.beamVehicleType.primaryFuelType match {
+              case Electricity => true
+              case _ => false
+            }
+          case _ => false
+        }
+      }
+
+      val returnSpotsWithoutChargers: Boolean = inquiry.activityType.toLowerCase match {
+        case "charge" => false
+        case _ => true
       }
 
       // performs a concentric ring search from the destination to find a parking stall, and creates it
@@ -71,7 +81,8 @@ class ZonalParkingManager(
         tazTreeMap.tazQuadTree,
         geo.distUTMInMeters,
         rand,
-        vehicleCanParkAtCharger,
+        returnSpotsWithChargers,
+        returnSpotsWithoutChargers,
         boundingBox
       )
 
@@ -222,7 +233,8 @@ object ZonalParkingManager extends LazyLogging {
     tazQuadTree: QuadTree[TAZ],
     distanceFunction: (Coord, Coord) => Double,
     random: Random,
-    vehicleCanParkAtCharger: Boolean,
+    returnSpotsWithChargers: Boolean,
+    returnSpotsWithoutChargers: Boolean,
     boundingBox: Envelope
   ): (ParkingZone, ParkingStall) = {
 
@@ -251,7 +263,8 @@ object ZonalParkingManager extends LazyLogging {
           stalls,
           distanceFunction,
           random,
-          vehicleCanParkAtCharger
+          returnSpotsWithChargers,
+          returnSpotsWithoutChargers
         ) match {
           case Some(
               ParkingZoneSearch.ParkingSearchResult(

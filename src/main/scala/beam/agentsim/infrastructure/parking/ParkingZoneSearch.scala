@@ -66,9 +66,10 @@ object ParkingZoneSearch {
     parkingZones: Array[ParkingZone],
     distanceFunction: (Coord, Coord) => Double,
     random: Random,
-    vehicleCanParkAtCharger: Boolean
+    returnSpotsWithChargers: Boolean,
+    returnSpotsWithoutChargers: Boolean
   ): Option[ParkingSearchResult] = {
-    val found = findParkingZones(destinationUTM, tazList, parkingTypes, tree, parkingZones, random, vehicleCanParkAtCharger)
+    val found = findParkingZones(destinationUTM, tazList, parkingTypes, tree, parkingZones, random, returnSpotsWithChargers, returnSpotsWithoutChargers)
     takeBestBySampling(
       found,
       destinationUTM,
@@ -98,7 +99,8 @@ object ParkingZoneSearch {
     tree: ZoneSearch[TAZ],
     parkingZones: Array[ParkingZone],
     random: Random,
-    vehicleCanParkAtCharger: Boolean
+    returnSpotsWithChargers: Boolean,
+    returnSpotsWithoutChargers: Boolean
   ): Seq[ParkingAlternative] = {
 
     // conduct search (toList required to combine Option and List monads)
@@ -108,7 +110,7 @@ object ParkingZoneSearch {
       parkingType         <- parkingTypes
       parkingZoneIds      <- parkingTypesSubtree.get(parkingType).toList
       parkingZoneId       <- parkingZoneIds
-      if parkingZones(parkingZoneId).stallsAvailable > 0 && canThisCarParkHere(parkingZones(parkingZoneId), parkingType, vehicleCanParkAtCharger)
+      if parkingZones(parkingZoneId).stallsAvailable > 0 && canThisCarParkHere(parkingZones(parkingZoneId), parkingType, returnSpotsWithChargers, returnSpotsWithoutChargers)
     } yield {
       // get the zone
       Try {
@@ -128,11 +130,12 @@ object ParkingZoneSearch {
   def canThisCarParkHere(
     parkingZone: ParkingZone,
     parkingType: ParkingType,
-    vehicleCanParkAtCharger: Boolean
+    returnSpotsWithChargers: Boolean,
+    returnSpotsWithoutChargers: Boolean
   ): Boolean = {
     parkingZone.chargingPointType match {
-      case Some(_) => vehicleCanParkAtCharger
-      case None    => !vehicleCanParkAtCharger
+      case Some(_) => returnSpotsWithChargers
+      case None    => returnSpotsWithoutChargers
     }
   }
 

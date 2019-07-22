@@ -66,7 +66,18 @@ trait ChoosesMode {
           )
         case _ => None
       }
-    } else {
+    } else if (stateData.isInstanceOf[BasePersonData]) {
+      stateData.asInstanceOf[BasePersonData].currentTourPersonalVehicle match {
+        case Some(personalVehicle) =>
+          Option(
+            beamVehicles(personalVehicle)
+              .asInstanceOf[ActualVehicle]
+              .vehicle
+          )
+        case _ => None
+      }
+    }
+    else {
       None
     }
 
