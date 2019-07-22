@@ -16,7 +16,6 @@ import org.matsim.vehicles.Vehicle
 class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailManager: RideHailManager)
     extends RepositioningManager(beamServices, rideHailManager)
     with LazyLogging {
-  implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   // Only override proposeVehicleAllocation if you wish to do something different from closest euclidean vehicle
   //  override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): VehicleAllocationResponse

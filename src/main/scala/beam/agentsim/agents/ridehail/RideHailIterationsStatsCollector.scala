@@ -123,7 +123,7 @@ class RideHailIterationsStatsCollector(
 
     rideHailIterationHistoryActor updateRideHailStats
     TNCIterationStats(
-      rideHailStats.mapValues(_.toList),
+      rideHailStats.map { case (k, v) => (k, v.toList)},
       beamServices.beamScenario.tazTreeMap,
       timeBinSizeInSec,
       numberOfTimeBins
