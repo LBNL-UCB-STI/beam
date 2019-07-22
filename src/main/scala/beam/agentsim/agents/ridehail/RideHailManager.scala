@@ -1559,7 +1559,7 @@ class RideHailManager(
     } else {
       val outArray = scala.collection.mutable.ArrayBuffer.empty[String]
       Array((startTimes zip endTimes).foreach(x => outArray += Array("{", x._1, ":", x._2, "}").mkString))
-      return Option(outArray.mkString(";"))
+      Option(outArray.mkString(";"))
     }
   }
 }

@@ -68,18 +68,6 @@ trait BeamServices {
   def networkHelper: NetworkHelper
   def fareCalculator: FareCalculator
   def tollCalculator: TollCalculator
-
-  @volatile
-  private var _neverMovedVehicles: IndexedSeq[String] = Vector.empty
-
-  def setNeverMovedVehicles(neverMovedVehicles: IndexedSeq[String]): Unit = {
-    _neverMovedVehicles = neverMovedVehicles
-  }
-
-  def getNeverMovedVehicles: IndexedSeq[String] = {
-    _neverMovedVehicles
-  }
-  val rideHailState: RideHailState = new RideHailState
 }
 
 class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {

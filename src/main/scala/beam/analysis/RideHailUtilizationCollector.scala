@@ -162,10 +162,10 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
     val movedWithoutPassenger = RideHailUtilizationCollector.getMovedWithoutPassenger(rides)
     val movedWithPassengers = RideHailUtilizationCollector.getRidesWithPassengers(rides)
     val movedVehicleIds = movedWithPassengers.map(_.vehicleId).toSet
-    val neverMoved = beamSvc.rideHailState.getAllRideHailVehicles -- movedVehicleIds -- movedWithoutPassenger
-    beamSvc.rideHailState.setRideHailUtilization(
-      RideHailHistoricalData(neverMoved, movedWithoutPassenger, movedVehicleIds, rides.toArray[RideInfo])
-    )
+
+    logger.info(s"""|movedWithoutPassenger: ${movedWithoutPassenger.size}
+                    |movedWithPassengers: ${movedWithPassengers.size}
+                    |movedVehicleIds(distinct): ${movedVehicleIds.size}""".stripMargin)
   }
   def writeRides(): Unit = {
     val filePath = beamSvc.matsimServices.getControlerIO.getIterationFilename(
