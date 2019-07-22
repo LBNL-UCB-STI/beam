@@ -59,7 +59,7 @@ object ChargingPointType {
   }
 
   private[ChargingPointType] val CustomChargingPointRegex: Regex =
-    "(\\w+\\d*)\\((\\d+\\.?\\d+\\s*),(\\s*\\w{2})\\)".r.unanchored
+    "(\\w+\\d*)\\((\\d+\\.?\\d+\\s*)|(\\s*\\w{2})\\)".r.unanchored
 
   // matches either the standard ones or a custom one
   // these were breaking some tests with a ChargingPoint parsing error caused by Event handlers
@@ -75,16 +75,12 @@ object ChargingPointType {
       case "chargingstationccscombotype1" => Some(ChargingStationCcsComboType1)
       case "chargingstationccscombotype2" => Some(ChargingStationCcsComboType2)
       case "teslasupercharger"            => Some(TeslaSuperCharger)
-      case "level1"                       => Some(Level1)
-      case "level2"                       => Some(Level2)
-      case "dcfast"                       => Some(DCFast)
-      case "ultrafast"                    => Some(UltraFast)
-      case "nocharger"                    => Some(NoCharger)
-//      case ""                             => None
+      case "nocharger" | "none" | ""      => None
       case CustomChargingPointRegex(id, installedCapacity, currentType) =>
         Some(CustomChargingPoint(id, installedCapacity, currentType))
-      case _ => None
-//        throw new IllegalArgumentException("invalid argument for ChargingPointType: " + s.trim)
+      case _ =>
+        None
+        throw new IllegalArgumentException("invalid argument for ChargingPointType: " + s.trim.toLowerCase)
     }
   }
 
@@ -102,13 +98,7 @@ object ChargingPointType {
       case ChargingStationCcsComboType2 => 50
       case TeslaSuperCharger            => 135
       case CustomChargingPoint(_, v, _) => v
-      // legacy charging points (values taken from 2018 BEAM code)
-      case Level1    => 1.5
-      case Level2    => 6.7
-      case DCFast    => 50
-      case UltraFast => 250
-      case NoCharger => 0
-      case _         => throw new IllegalArgumentException("invalid argument")
+      case _                            => throw new IllegalArgumentException("invalid argument")
     }
   }
 
@@ -125,13 +115,7 @@ object ChargingPointType {
       case ChargingStationCcsComboType2 => DC
       case TeslaSuperCharger            => DC
       case CustomChargingPoint(_, _, c) => c
-      // legacy charging points
-      case Level2    => AC
-      case Level1    => AC
-      case DCFast    => DC
-      case UltraFast => DC
-      case NoCharger => AC
-      case _         => throw new IllegalArgumentException("invalid argument")
+      case _                            => throw new IllegalArgumentException("invalid argument")
     }
   }
 

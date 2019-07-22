@@ -54,6 +54,7 @@ object DrivesVehicle {
 
   sealed trait VehicleOrToken {
     def id: Id[BeamVehicle]
+
     def streetVehicle: StreetVehicle
   }
 
@@ -128,7 +129,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
   protected val geo: GeoUtils
   private var tollsAccumulated = 0.0
   protected val beamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
+
   protected def currentBeamVehicle = beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
+
   protected val fuelConsumedByTrip: mutable.Map[Id[Person], FuelConsumed] = mutable.Map()
 
   case class PassengerScheduleEmptyMessage(
@@ -305,21 +308,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
             currentBeamVehicle.useParkingStall(stall)
             eventsManager.processEvent(ParkEvent(tick, stall, currentBeamVehicle.id, id.toString)) // nextLeg.endTime -> to fix repeated path traversal
 
-            // RideHailAgent is not coming to this point
-            // todo JH think about: we have a charging spot here with the highest utility,
-            //  but there is still no decision made if we are going to charge if
-            //  we are in opportunistic mode --> price threshold? dummy value?!
-            //  see ChoosesParking for logic -->
-            //  if BEV & Must -> Charge,
-            //  if BEV & Opp -> price threshold,
-            //  if PHEV -> price threshold (e vs gas?),
-            //  if !(PHEV|BEV) -> nothing
-            //  idea: take the code from ChargingInquiryData
-
+            // charge vehicle
             if (currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV) {
               stall.chargingPointType match {
                 case Some(_) => handleStartCharging(tick, currentBeamVehicle)(None)
-                case None =>
+                case None => // this should only happen rarely
                   log.debug(
                     "Charging request by vehicle {} ({}) on a spot without a charging point (parkingZoneId: {}). This is not handled yet!",
                     currentBeamVehicle.id,
@@ -327,6 +320,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
                     stall.parkingZoneId // todo JH discuss colin -> maybe -INF utility?
                   )
               }
+
             }
           }
           currentBeamVehicle.setReservedParkingStall(None)
