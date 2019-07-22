@@ -19,7 +19,7 @@ import scalax.collection.immutable.Graph
 import scala.reflect.ClassTag
 
 class UberSpeed[T <: FilterEventAction](
-  path: String,
+  path: Seq[String],
   dictW: UberOsmDictionary,
   dictJ: JunctionDictionary,
   fOpt: T#Filtered
@@ -34,7 +34,7 @@ class UberSpeed[T <: FilterEventAction](
   import beam.side.speed.model.UberSpeedEvent._
 
   private val (ways, nodes) = {
-    val (w, n) = load(Paths.get(path))
+    val (w, n) = load(path.map(Paths.get(_)))
       .foldLeft((Map[String, Seq[WayMetric]](), Map[UberWay, Seq[WayMetric]]())) {
         case ((accW, accN), s) =>
           val w = WayMetric(s.dateTime, s.speedMphMean, s.speedMphStddev)
@@ -57,7 +57,9 @@ class UberSpeed[T <: FilterEventAction](
   )
 
   def speed(osmId: Long): Option[WaySpeed] =
-    dictW(osmId).flatMap(s => ways.get(s).map(dropToWeek).map(_.waySpeed[T](fOpt)))
+    dictW(osmId).flatMap(
+      s => ways.get(s).map(s => Seq((s.map(_.speedMphMean).max, s.size))).map(maxWeek).map(_.waySpeed[T](fOpt))
+    )
 
   def way(origNodeId: Long, destNodeId: Long): Option[WaySpeed] =
     shorterPath(origNodeId, destNodeId)
@@ -156,7 +158,7 @@ class UberSpeed[T <: FilterEventAction](
 object UberSpeed {
 
   def apply[T <: FilterEventAction](
-    path: String,
+    path: Seq[String],
     dictW: UberOsmDictionary,
     dictJ: JunctionDictionary,
     fOpt: T#Filtered
@@ -169,7 +171,7 @@ object UberSpeed {
   def apply(
     mode: String,
     fOpt: Map[String, String],
-    path: String,
+    path: Seq[String],
     dictW: UberOsmDictionary,
     dictJ: JunctionDictionary
   ): UberSpeed[_] = mode match {

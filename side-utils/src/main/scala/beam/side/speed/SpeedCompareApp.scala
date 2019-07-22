@@ -9,7 +9,7 @@ import beam.side.speed.parser.data.{JunctionDictionary, UberOsmDictionary}
 import scala.util.{Failure, Success, Try}
 
 case class CompareConfig(
-  uberSpeedPath: String = "",
+  uberSpeedPath: Seq[String] = Seq(),
   osmMapPath: String = "",
   uberOsmMap: String = "",
   junctionMapPath: String = "",
@@ -24,15 +24,15 @@ trait AppSetup {
   val parser = new scopt.OptionParser[CompareConfig]("speedcompare") {
     head("Uber with BEAM Speed Compare App", "version 1.0")
 
-    opt[String]('u', "uber")
+    opt[Seq[String]]('u', "uber")
       .required()
       .valueName("<user_path>")
       .action((s, c) => c.copy(uberSpeedPath = s))
       .validate(
         s =>
-          Try(Paths.get(s).toFile).filter(_.exists()) match {
-            case Success(_) => success
-            case Failure(e) => failure(e.getMessage)
+          s.map(p => Try(Paths.get(p).toFile).filter(_.exists())).find(_.isFailure) match {
+            case Some(Failure(e)) => failure(e.getMessage)
+            case _                => success
         }
       )
       .text("Uber zip path")
@@ -87,7 +87,11 @@ trait AppSetup {
       .valueName("<mode_type>")
       .action((m, c) => c.copy(mode = m))
       .validate(
-        s => Seq("all", "wd", "hours", "wh", "hours_range", "we").find(_ == s).map(_ => success).getOrElse(failure("Invalid"))
+        s =>
+          Seq("all", "wd", "hours", "wh", "hours_range", "we")
+            .find(_ == s)
+            .map(_ => success)
+            .getOrElse(failure("Invalid"))
       )
       .text("Filtering action name")
 

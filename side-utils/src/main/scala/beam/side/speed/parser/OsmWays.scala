@@ -48,15 +48,27 @@ class OsmWays(osmPath: Path, r5Path: Path) {
   }
 
   private def waySpeed(way: Way): (Float, String) = {
-    val hTag = Option(way.getTag("highway")).getOrElse("unclassified")
-    val sp = Option(way.getTag("maxspeed"))
+    val hTags = Option(way.getTag("highway"))
+      .map(_.replaceAll("[\\[\\] ']", ""))
+      .map(_.split(","))
+      .toSeq
+      .flatten
+
+    val (hTag, sp) = Option(way.getTag("maxspeed"))
       .flatMap {
-        case s if s.contains("mph") => Try(s.replace("mph", "").trim.toDouble * 1.609344 / 3.6).toOption
-        case s                      => Try(s.toDouble / 3.6).toOption
+        case s if s.contains("mph") =>
+          Try(s.replace("mph", "").trim.toDouble * 1.609344 / 3.6).toOption
+            .map(spe => hTags.headOption.getOrElse("unclassified") -> spe)
+        case s =>
+          Try(s.toDouble / 3.6).toOption
+            .map(spe => hTags.headOption.getOrElse("unclassified") -> spe)
       }
-      .getOrElse(highways.getOrElse(hTag, 28 * 1.60934 / 3.6))
-      .toFloat
-    sp -> hTag
+      .getOrElse(
+        hTags.foldLeft("unclassified" -> highways("unclassified"))(
+          (z, a) => Seq(z, a -> highways.getOrElse(a, 28 * 1.60934 / 3.6)).maxBy(_._2)
+        )
+      )
+    sp.toFloat -> hTag
   }
 }
 

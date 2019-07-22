@@ -8,10 +8,15 @@ import scala.io.Source
 
 trait UnarchivedSource {
 
-  def read(path: Path): Iterator[String] = {
-    val zis = new ZipArchiveInputStream(new FileInputStream(path.toFile))
-    zis.getNextZipEntry
-    Source.fromInputStream(zis).getLines().drop(1)
+  def read(paths: Seq[Path]): Iterator[String] = {
+    paths.iterator
+      .map(
+        p =>
+          new ZipArchiveInputStream(new FileInputStream(p.toFile)) { self =>
+            self.getNextZipEntry
+        }
+      )
+      .flatMap(zis => Source.fromInputStream(zis).getLines().drop(1))
   }
 
 }
