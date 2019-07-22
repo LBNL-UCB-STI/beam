@@ -24,6 +24,8 @@ import scala.util.Random
 
 case class ClusterInfo(size: Int, coord: Coord)
 
+// To start using it you should set `beam.agentsim.agents.rideHail.repositioningManager.name="DemandFollowingRepositioningManager"` in configuration
+// Check `beam-template.conf` to see the configurable parameters
 class DemandFollowingRepositioningManager(val beamServices: BeamServices, val rideHailManager: RideHailManager)
     extends RepositioningManager(beamServices, rideHailManager)
     with LazyLogging {
