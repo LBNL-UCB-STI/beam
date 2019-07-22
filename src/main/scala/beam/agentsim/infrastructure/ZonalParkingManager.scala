@@ -5,6 +5,8 @@ import scala.collection.JavaConverters._
 import scala.util.{Failure, Random, Success, Try}
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
+import beam.agentsim.agents.vehicles.FuelType.Electricity
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.agents.choice.logit.MultinomialLogit
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.parking._
@@ -41,8 +43,30 @@ class ZonalParkingManager(
 
       val preferredParkingTypes: Seq[ParkingType] = inquiry.activityType match {
         case act if act.equalsIgnoreCase("home") => Seq(ParkingType.Residential, ParkingType.Public)
+        case act if act.equalsIgnoreCase("init") => Seq(ParkingType.Residential, ParkingType.Public)
         case act if act.equalsIgnoreCase("work") => Seq(ParkingType.Workplace, ParkingType.Public)
-        case _                                   => Seq(ParkingType.Public)
+        case act if act.equalsIgnoreCase("charge") =>
+          Seq(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
+        case _ => Seq(ParkingType.Public)
+      }
+
+      val returnSpotsWithChargers: Boolean = inquiry.activityType.toLowerCase match {
+        case "charge" => true
+        case "init"   => false
+        case _ =>
+          inquiry.vehicleType match {
+            case Some(vehicleType) =>
+              vehicleType.beamVehicleType.primaryFuelType match {
+                case Electricity => true
+                case _           => false
+              }
+            case _ => false
+          }
+      }
+
+      val returnSpotsWithoutChargers: Boolean = inquiry.activityType.toLowerCase match {
+        case "charge" => false
+        case _        => true
       }
 
       // performs a concentric ring search from the destination to find a parking stall, and creates it
@@ -59,6 +83,8 @@ class ZonalParkingManager(
         tazTreeMap.tazQuadTree,
         geo.distUTMInMeters,
         rand,
+        returnSpotsWithChargers,
+        returnSpotsWithoutChargers,
         boundingBox
       )
 
@@ -209,6 +235,8 @@ object ZonalParkingManager extends LazyLogging {
     tazQuadTree: QuadTree[TAZ],
     distanceFunction: (Coord, Coord) => Double,
     random: Random,
+    returnSpotsWithChargers: Boolean,
+    returnSpotsWithoutChargers: Boolean,
     boundingBox: Envelope
   ): (ParkingZone, ParkingStall) = {
 
@@ -236,7 +264,9 @@ object ZonalParkingManager extends LazyLogging {
           searchTree,
           stalls,
           distanceFunction,
-          random
+          random,
+          returnSpotsWithChargers,
+          returnSpotsWithoutChargers
         ) match {
           case Some(
               ParkingZoneSearch.ParkingSearchResult(

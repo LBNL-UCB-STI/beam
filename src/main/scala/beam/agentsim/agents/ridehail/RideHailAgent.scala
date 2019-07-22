@@ -534,7 +534,7 @@ class RideHailAgent(
       "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
     )
     val mnl = new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](Map.empty, commonUtilityParams)
-    val inquiry = ParkingInquiry(destinationUtm, "work", 0.0, mnl, 0.0)
+    val inquiry = ParkingInquiry(destinationUtm, "charge", 0.0, mnl, 0.0, Option(vehicle))
     parkingManager ! inquiry
   }
 

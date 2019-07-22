@@ -562,7 +562,7 @@ class RideHailManager(
             log.debug("Not enough range: {}", vehicleId)
             outOfServiceVehicleManager.registerTrigger(vehicleId, triggerId)
             vehicleManager.putOutOfService(rideHailAgentLocation)
-            findRefuelStationAndSendVehicle(rideHailAgentLocation)
+            findRefuelStationAndSendVehicle(rideHailAgentLocation, beamVehicle)
           }
         } else {
           log.debug("Making available: {}", vehicleId)
@@ -894,9 +894,9 @@ class RideHailManager(
     Map(request.customer.personId -> fare)
   }
 
-  def findRefuelStationAndSendVehicle(rideHailAgentLocation: RideHailAgentLocation): Unit = {
+  def findRefuelStationAndSendVehicle(rideHailAgentLocation: RideHailAgentLocation, beamVehicle: BeamVehicle): Unit = {
     val destinationUtm = rideHailAgentLocation.currentLocationUTM.loc
-    val inquiry = ParkingInquiry(destinationUtm, "work")
+    val inquiry = ParkingInquiry(destinationUtm, "charge", Option(beamVehicle))
     parkingInquiryCache.put(inquiry.requestId, rideHailAgentLocation)
     parkingManager ! inquiry
   }

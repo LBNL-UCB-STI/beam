@@ -73,6 +73,7 @@ trait ChoosesParking extends {
       val parkingCostsPriceFactor =
         beamScenario.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.parking_costs_price_multiplier // parking costs (currently include price for charging due to the lack of data)
       val distanceBuffer = 35000 // in meter (the distance that should be considered as buffer for range estimation
+      var nextActivityType = nextActivity(personData).get.getType
 
       val utilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
         (currentBeamVehicle.beamVehicleType.primaryFuelType, currentBeamVehicle.beamVehicleType.secondaryFuelType) match {
@@ -108,9 +109,12 @@ trait ChoosesParking extends {
             }
 
             remainingTourDist match {
-              case 0 => new MultinomialLogit(Map.empty, Map.empty) //@home
+              case 0 =>
+                nextActivityType = "charge"
+                new MultinomialLogit(Map.empty, Map.empty) //@home
               // must -> walking distance doesn't matter as we really NEED TO CHARGE
               case _ if remainingDrivingDist <= remainingTourDist =>
+                nextActivityType = "charge"
                 new MultinomialLogit(
                   Map.empty,
                   Map(
@@ -169,10 +173,11 @@ trait ChoosesParking extends {
 
       parkingManager ! ParkingInquiry(
         destinationUtm,
-        nextActivity(personData).get.getType,
+        nextActivityType,
         attributes.valueOfTime,
         utilityFunction,
-        parkingDuration
+        parkingDuration,
+        this.currentTourBeamVehicle
       )
   }
   when(ReleasingParkingSpot, stateTimeout = Duration.Zero) {
