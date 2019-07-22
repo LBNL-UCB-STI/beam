@@ -13,6 +13,8 @@ abstract class RepositioningManager(
   private val rideHailManager: RideHailManager
 ) {
   def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)]
+
+  def clear(): Unit = {}
 }
 
 object RepositioningManager {

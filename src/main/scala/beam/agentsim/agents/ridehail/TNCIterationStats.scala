@@ -1,5 +1,7 @@
 package beam.agentsim.agents.ridehail
 
+import java.util
+
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.TNCIterationStats._
 import beam.agentsim.infrastructure.taz.TAZ
@@ -53,9 +55,10 @@ case class TNCIterationStats(
   def reposition(
     vehiclesToReposition: Vector[RideHailAgentLocation],
     repositionCircleRadiusInMeters: Double,
-    tick: Double,
+    tick: Int,
     timeHorizonToConsiderForIdleVehiclesInSec: Double,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    allTazState: util.HashMap[String, ArrayBuffer[util.HashMap[String, String]]]
   ): Vector[(Id[vehicles.Vehicle], Location)] = {
 
     // logger.debug("whichCoordToRepositionTo.start=======================")
@@ -96,13 +99,11 @@ case class TNCIterationStats(
       }
     }
 
-    val result = (for ((taz, vehicles) <- tazVehicleMap) yield {
 
+    val result = (for ((taz, vehicles) <- tazVehicleMap) yield {
       val listOfTazInRadius =
         tazTreeMap.getTAZInRadius(taz.coord.getX, taz.coord.getY, repositionCircleRadiusInMeters)
-
       //  logger.debug(s"number of TAZ in radius around current TAZ (${taz.tazId}): ${listOfTazInRadius.size()}")
-
       if (listOfTazInRadius.size() > 0) {
         DebugLib.emptyFunctionForSettingBreakPoint()
       }
@@ -120,17 +121,46 @@ case class TNCIterationStats(
           .pow(distanceInMeters, 2) /
         Math.pow(distanceInMeters + 1000.0, 2)
 
+        val tazState = new util.HashMap[String, String]
+        tazState.put("tick", tick.toString)
+        tazState.put("taz_id", taz.tazId.toString)
+        tazState.put("is_top_scored", "0")
+        tazState.put("num_of_taz_in_radius", listOfTazInRadius.size().toString)
+        tazState.put("repositionCircleRadiusInMeters", repositionCircleRadiusInMeters.toString)
+        tazState.put("taz_in_radius", tazInRadius.tazId.toString)
+        tazState.put("distance_in_meters", distanceInMeters.toString)
+        tazState.put("distance_weight", distanceInMeters.toString)
+        tazState.put("distance_score", distanceScore.toString)
+        tazState.put("startTimeBin", startTimeBin.toString)
+        tazState.put("endTimeBin", endTimeBin.toString)
+        tazState.put("bin", "0")
+        tazState.put("sumOfWaitingTimes", "0")
+        tazState.put("waiting_time_score", "0")
+        tazState.put("getDemandEstimate", "0")
+        tazState.put("demand_score", "0")
+        tazState.put("bin_score", "0")
+        tazState.put("final_score", "0")
+
+        val perBinTaz = ArrayBuffer[util.HashMap[String, String]]()
+
         val score = (startTimeBin to endTimeBin)
-          .map(
-            getRideHailStatsInfo(tazInRadius.tazId, _) match {
+          .map { bin =>
+            val map = tazState.clone().asInstanceOf[util.HashMap[String, String]]
+            map.put("bin", bin.toString)
+            val binScore = getRideHailStatsInfo(tazInRadius.tazId, bin) match {
               case Some(statsEntry) =>
                 val waitingTimeScore = waitingTimeWeight * Math
                   .pow(statsEntry.sumOfWaitingTimes, 2) /
-                Math.pow(statsEntry.sumOfWaitingTimes + 1000.0, 2)
+                  Math.pow(statsEntry.sumOfWaitingTimes + 1000.0, 2)
+                map.put("sumOfWaitingTimes", statsEntry.sumOfWaitingTimes.toString)
+                map.put("waiting_time_score", waitingTimeScore.toString)
 
                 val demandScore = demandWeight * Math
                   .pow(statsEntry.getDemandEstimate, 2) /
-                Math.pow(statsEntry.getDemandEstimate + 10.0, 2)
+                  Math.pow(statsEntry.getDemandEstimate + 10.0, 2)
+                map.put("getDemandEstimate", statsEntry.getDemandEstimate.toString)
+                map.put("demand_score", demandScore.toString)
+
 
                 val finalScore = waitingTimeScore + demandScore + distanceScore
 
@@ -149,8 +179,16 @@ case class TNCIterationStats(
               case _ =>
                 0
             }
-          )
+            map.put("bin_score", binScore.toString)
+            perBinTaz += map
+            binScore
+          }
           .sum
+
+        perBinTaz.foreach { map =>
+          map.put("final_score", score.toString)
+        }
+        allTazState.put(tazInRadius.tazId.toString, perBinTaz)
 
         //        if (score > 0) {
         //          DebugLib.emptyFunctionForSettingBreakPoint()
@@ -165,6 +203,12 @@ case class TNCIterationStats(
         .filter(
           tazScore => tazScore.score > minScoreThresholdForRepositioning && tazScore.score > 0
         )
+
+      topScored.foreach { tazWithScore =>
+        allTazState.get(tazWithScore.taz.tazId.toString).foreach { maps =>
+          maps.put("is_top_scored", "1")
+        }
+      }
 
       // TODO: add WEIGHTED_KMEANS as well
 
@@ -246,7 +290,8 @@ case class TNCIterationStats(
     tick: Double,
     timeHorizonToConsiderForIdleVehiclesInSec: Double,
     thresholdForMinimumNumberOfIdlingVehicles: Int,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    allVehState: util.HashMap[String, util.HashMap[String, String]]
   ): Vector[RideHailAgentLocation] = {
     var priorityQueue =
       mutable.PriorityQueue[VehicleLocationScores]()((vls1, vls2) => vls1.score.compare(vls2.score))
@@ -283,6 +328,8 @@ case class TNCIterationStats(
         }
       }
       priorityQueue.enqueue(VehicleLocationScores(rhLoc, idleScore))
+
+      allVehState.get(rhLoc.vehicleId.toString).put("idle_score", idleScore.toString)
     }
 
     priorityQueue = priorityQueue.filter(
@@ -315,6 +362,9 @@ case class TNCIterationStats(
      */
 
     val head = takeTopN(priorityQueue, maxNumberOfVehiclesToReposition.toInt)
+    head.foreach { h =>
+      allVehState.get(h.rideHailAgentLocation.vehicleId.toString).put("is_top", "1")
+    }
 
     //printTAZForVehicles(idleVehicles)
 

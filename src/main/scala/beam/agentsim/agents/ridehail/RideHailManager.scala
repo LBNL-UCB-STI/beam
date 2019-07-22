@@ -483,6 +483,9 @@ class RideHailManager(
     log.info(s"servedRideHail: $servedRideHail")
     log.info(s"ratio: ${servedRideHail.toDouble / requestedRideHail}")
     maybeTick.foreach(_.cancel())
+
+    rideHailResourceAllocationManager.repositioningManager.clear()
+
     super.postStop()
   }
 
