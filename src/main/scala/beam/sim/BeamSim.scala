@@ -8,7 +8,6 @@ import akka.actor.{ActorRef, ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.ridehail.allocation.RandomRepositioning
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
@@ -434,33 +433,6 @@ class BeamSim @Inject()(
       GraphsStatsAgentSimEventsListener.GRAPH_WIDTH,
       GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT
     )
-  }
-
-  /*
-    This method execute a python script
-   */
-  private def generateRepositioningGraphs(event: ControlerEvent): Unit = {
-    event match {
-      case _ if event.isInstanceOf[IterationEndsEvent] =>
-        val iterationEvent = event.asInstanceOf[IterationEndsEvent]
-        Future {
-          val iteration = iterationEvent.getIteration
-          val iterationOutputPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationPath(iteration)
-          val quadOutputFileName = s"$iteration.${RandomRepositioning.QUAD_OUTPUT_FILE}"
-          val coordOutputFileName = s"$iteration.${RandomRepositioning.COORD_OUTPUT_FILE}"
-          PythonExecutor(
-            s"${System.getProperty("user.dir")}/src/main/python/graphs/debug/repositionVisualization.py",
-            iterationOutputPath,
-            quadOutputFileName,
-            coordOutputFileName
-          )
-        } onComplete {
-          case Success(value) =>
-            logger.info("Repositioning Graph Generated Successfully!!!")
-          case Failure(exception) =>
-            logger.error(s"Error in executing python script ${exception.getMessage}")
-        }
-    }
   }
 
   /**

@@ -19,12 +19,12 @@ import org.supercsv.prefs.CsvPreference
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-
 object RandomRepositioning {
   val QUAD_OUTPUT_FILE = "quad_output.csv"
   val COORD_OUTPUT_FILE = "coord_output.csv"
 }
 
+// Leaving this class here just for the historical purpose to show what we tried. Currently it is not used.
 class RandomRepositioning(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager)
     with LazyLogging {
