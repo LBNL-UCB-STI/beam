@@ -30,17 +30,16 @@ object ChargingPointType {
 
   case object TeslaSuperCharger extends ChargingPointType
 
-  // added back in because of integration tests which work with old files
-  case object Level1 extends ChargingPointType
-  case object Level2 extends ChargingPointType
-  case object DCFast extends ChargingPointType
-  case object UltraFast extends ChargingPointType
-  case object NoCharger extends ChargingPointType
+//  case object Level1 extends ChargingPointType
+//  case object Level2 extends ChargingPointType
+//  case object DCFast extends ChargingPointType
+//  case object UltraFast extends ChargingPointType
+//  case object NoCharger extends ChargingPointType
 
   // provide custom charging points
   case class CustomChargingPoint(id: String, installedCapacity: Double, electricCurrentType: ElectricCurrentType)
       extends ChargingPointType {
-    override def toString: String = s"$id($installedCapacity,$electricCurrentType)"
+    override def toString: String = s"$id($installedCapacity|$electricCurrentType)"
   }
 
   case object CustomChargingPoint {
@@ -59,7 +58,7 @@ object ChargingPointType {
   }
 
   private[ChargingPointType] val CustomChargingPointRegex: Regex =
-    "(\\w+\\d*)\\((\\d+\\.?\\d+\\s*)|(\\s*\\w{2})\\)".r.unanchored
+    "(\\w+\\d*)\\((\\d+\\.?\\d+\\s*)\\|(\\s*\\w{2})\\)".r.unanchored
 
   // matches either the standard ones or a custom one
   // these were breaking some tests with a ChargingPoint parsing error caused by Event handlers
