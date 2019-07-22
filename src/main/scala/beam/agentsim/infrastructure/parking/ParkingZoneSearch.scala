@@ -69,7 +69,16 @@ object ParkingZoneSearch {
     returnSpotsWithChargers: Boolean,
     returnSpotsWithoutChargers: Boolean
   ): Option[ParkingSearchResult] = {
-    val found = findParkingZones(destinationUTM, tazList, parkingTypes, tree, parkingZones, random, returnSpotsWithChargers, returnSpotsWithoutChargers)
+    val found = findParkingZones(
+      destinationUTM,
+      tazList,
+      parkingTypes,
+      tree,
+      parkingZones,
+      random,
+      returnSpotsWithChargers,
+      returnSpotsWithoutChargers
+    )
     takeBestBySampling(
       found,
       destinationUTM,
@@ -110,7 +119,12 @@ object ParkingZoneSearch {
       parkingType         <- parkingTypes
       parkingZoneIds      <- parkingTypesSubtree.get(parkingType).toList
       parkingZoneId       <- parkingZoneIds
-      if parkingZones(parkingZoneId).stallsAvailable > 0 && canThisCarParkHere(parkingZones(parkingZoneId), parkingType, returnSpotsWithChargers, returnSpotsWithoutChargers)
+      if parkingZones(parkingZoneId).stallsAvailable > 0 && canThisCarParkHere(
+        parkingZones(parkingZoneId),
+        parkingType,
+        returnSpotsWithChargers,
+        returnSpotsWithoutChargers
+      )
     } yield {
       // get the zone
       Try {

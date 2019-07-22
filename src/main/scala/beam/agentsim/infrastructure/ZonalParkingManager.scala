@@ -42,29 +42,31 @@ class ZonalParkingManager(
       log.debug("Received parking inquiry: {}", inquiry)
 
       val preferredParkingTypes: Seq[ParkingType] = inquiry.activityType match {
-        case act if act.equalsIgnoreCase("home")   => Seq(ParkingType.Residential, ParkingType.Public)
-        case act if act.equalsIgnoreCase("init")   => Seq(ParkingType.Residential, ParkingType.Public)
-        case act if act.equalsIgnoreCase("work")   => Seq(ParkingType.Workplace, ParkingType.Public)
-        case act if act.equalsIgnoreCase("charge") => Seq(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
-        case _                                     => Seq(ParkingType.Public)
+        case act if act.equalsIgnoreCase("home") => Seq(ParkingType.Residential, ParkingType.Public)
+        case act if act.equalsIgnoreCase("init") => Seq(ParkingType.Residential, ParkingType.Public)
+        case act if act.equalsIgnoreCase("work") => Seq(ParkingType.Workplace, ParkingType.Public)
+        case act if act.equalsIgnoreCase("charge") =>
+          Seq(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
+        case _ => Seq(ParkingType.Public)
       }
 
       val returnSpotsWithChargers: Boolean = inquiry.activityType.toLowerCase match {
         case "charge" => true
-        case "init" => false
-        case _ => inquiry.vehicleType match {
-          case Some(vehicleType) =>
-            vehicleType.beamVehicleType.primaryFuelType match {
-              case Electricity => true
-              case _ => false
-            }
-          case _ => false
-        }
+        case "init"   => false
+        case _ =>
+          inquiry.vehicleType match {
+            case Some(vehicleType) =>
+              vehicleType.beamVehicleType.primaryFuelType match {
+                case Electricity => true
+                case _           => false
+              }
+            case _ => false
+          }
       }
 
       val returnSpotsWithoutChargers: Boolean = inquiry.activityType.toLowerCase match {
         case "charge" => false
-        case _ => true
+        case _        => true
       }
 
       // performs a concentric ring search from the destination to find a parking stall, and creates it

@@ -76,8 +76,7 @@ trait ChoosesMode {
           )
         case _ => None
       }
-    }
-    else {
+    } else {
       None
     }
 
