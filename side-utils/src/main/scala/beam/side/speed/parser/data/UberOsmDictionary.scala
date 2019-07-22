@@ -5,7 +5,7 @@ import java.nio.file.{Path, Paths}
 import beam.side.speed.model.UberOsmWays
 
 class UberOsmDictionary(waysPath: Path) extends DataLoader[UberOsmWays] with UnarchivedSource {
-  private val osmDictionary: Map[Long, String] = load(waysPath).map(w => w.osmWayId -> w.segmentId).toMap
+  private val osmDictionary: Map[Long, String] = load(Seq(waysPath)).map(w => w.osmWayId -> w.segmentId).toMap
 
   def apply(osmWayId: Long): Option[String] = osmDictionary.get(osmWayId)
 }
