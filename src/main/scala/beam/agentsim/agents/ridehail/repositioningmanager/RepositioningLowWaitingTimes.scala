@@ -1,9 +1,7 @@
 package beam.agentsim.agents.ridehail.repositioningmanager
 
 import java.awt.Color
-import java.util.concurrent.TimeUnit
 
-import akka.util.Timeout
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.router.BeamRouter.Location

@@ -4,7 +4,6 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassenge
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.repositioningmanager.{
-  DemainFollowing_MoveDistantCandidatesFirst,
   DemandFollowingRepositioningManager,
   NoOpRepositioningManager,
   RepositioningLowWaitingTimes,
@@ -215,11 +214,6 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
           RepositioningManager[NoOpRepositioningManager](rideHailManager.beamServices, rideHailManager)
         case "DemandFollowingRepositioningManager" =>
           RepositioningManager[DemandFollowingRepositioningManager](rideHailManager.beamServices, rideHailManager)
-        case "DemandFollowing_MoveDistantCandidatesFirst" =>
-          RepositioningManager[DemainFollowing_MoveDistantCandidatesFirst](
-            rideHailManager.beamServices,
-            rideHailManager
-          )
         case "RepositioningLowWaitingTimes" =>
           RepositioningManager[RepositioningLowWaitingTimes](rideHailManager.beamServices, rideHailManager)
         case x =>
