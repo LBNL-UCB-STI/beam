@@ -47,7 +47,15 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
   private var rideHailInAlternatives: Int = 0
   private var totalModeChoices: Int = 0
 
-  val commonHeaders: Vector[String] = Vector("iteration", "nonEmptyRides", "totalRides", "movedPassengers", "rideHailModeChoices", "rideHailInAlternatives", "totalModeChoices")
+  val commonHeaders: Vector[String] = Vector(
+    "iteration",
+    "nonEmptyRides",
+    "totalRides",
+    "movedPassengers",
+    "rideHailModeChoices",
+    "rideHailInAlternatives",
+    "totalModeChoices"
+  )
 
   logger.info(s"Created RideHailUtilizationCollector with hashcode: ${this.hashCode()}")
 
@@ -167,13 +175,15 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
                     |movedWithPassengers: ${movedWithPassengers.size}
                     |movedVehicleIds(distinct): ${movedVehicleIds.size}""".stripMargin)
   }
+
   def writeRides(): Unit = {
     val filePath = beamSvc.matsimServices.getControlerIO.getIterationFilename(
       beamSvc.matsimServices.getIterationNumber,
       "ridehailRides.csv.gz"
     )
 
-    val csvWriter = new CsvWriter(filePath, Vector("vehicleId", "time","startX","startY","endX","endY","numberOfPassengers"))
+    val csvWriter =
+      new CsvWriter(filePath, Vector("vehicleId", "time", "startX", "startY", "endX", "endY", "numberOfPassengers"))
     try {
       val vehicleToRides = rides.groupBy(x => x.vehicleId)
 
@@ -188,19 +198,24 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
       ordered.foreach {
         case (_, sortedRides) =>
           sortedRides.foreach { ri =>
-            csvWriter.write(ri.vehicleId, ri.time, ri.startCoord.getX, ri.startCoord.getY, ri.endCoord.getX, ri.endCoord.getY, ri.numOfPassengers)
+            csvWriter.write(
+              ri.vehicleId,
+              ri.time,
+              ri.startCoord.getX,
+              ri.startCoord.getY,
+              ri.endCoord.getX,
+              ri.endCoord.getY,
+              ri.numOfPassengers
+            )
           }
       }
-    }
-    catch {
+    } catch {
       case NonFatal(ex) =>
         logger.error(s"Could not write ride-hail rides to '$filePath': ${ex.getMessage}", ex)
-    }
-    finally {
+    } finally {
       csvWriter.close()
     }
   }
-
 
   def writeUtilization(): Unit = {
     val filePath = beamSvc.matsimServices.getControlerIO.getOutputFilename("rideHailRideUtilization.csv")
@@ -226,18 +241,18 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
         val lastPassenger = allPassengers.last
         allPassengers.foreach { passengers =>
           val isLastColumn = lastPassenger == passengers
-          csvWriter.writeColumn(utilization.numOfPassengersToTheNumberOfRides.getOrElse(passengers, 0),
-            shouldAddDelimiter = !isLastColumn)
+          csvWriter.writeColumn(
+            utilization.numOfPassengersToTheNumberOfRides.getOrElse(passengers, 0),
+            shouldAddDelimiter = !isLastColumn
+          )
         }
 
         csvWriter.writeNewLine()
       }
-    }
-    catch {
+    } catch {
       case NonFatal(ex) =>
         logger.error(s"Could not write ride-hail utilization to '$filePath': ${ex.getMessage}", ex)
-    }
-    finally {
+    } finally {
       csvWriter.close()
     }
   }

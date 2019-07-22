@@ -20,6 +20,7 @@ import org.supercsv.prefs.CsvPreference
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+
 object RandomRepositioning {
   val QUAD_OUTPUT_FILE = "quad_output.csv"
   val COORD_OUTPUT_FILE = "coord_output.csv"
