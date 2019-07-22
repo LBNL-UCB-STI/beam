@@ -10,14 +10,14 @@ import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
 
 class ChargingPlugOutEvent(
-                            tick: Double,
-                            stall: ParkingStall,
-                            vehId: Id[Vehicle],
-                            primaryFuelLevel: Double,
-                            secondaryFuelLevel: Option[Double]
-                          ) extends Event(tick)
-  with HasPersonId
-  with ScalaEvent {
+  tick: Double,
+  stall: ParkingStall,
+  vehId: Id[Vehicle],
+  primaryFuelLevel: Double,
+  secondaryFuelLevel: Option[Double]
+) extends Event(tick)
+    with HasPersonId
+    with ScalaEvent {
 
   import ChargingPlugOutEvent._
 
@@ -25,12 +25,17 @@ class ChargingPlugOutEvent(
 
   override def getPersonId: Id[Person] = Id.create(vehId, classOf[Person])
 
-  val pricingModelString = stall.pricingModel.map {
-    _.toString
-  }.getOrElse("None")
-  val chargingPointString = stall.chargingPointType.map {
-    _.toString
-  }.getOrElse("None")
+  val pricingModelString = stall.pricingModel
+    .map {
+      _.toString
+    }
+    .getOrElse("None")
+
+  val chargingPointString = stall.chargingPointType
+    .map {
+      _.toString
+    }
+    .getOrElse("None")
 
   override def getAttributes: util.Map[String, String] = {
     val attributes = super.getAttributes

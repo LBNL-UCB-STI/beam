@@ -66,10 +66,14 @@ trait ChoosesParking extends {
       }.getOrElse(0.0)
       val destinationUtm = beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc)
 
-      val distanceFactor = beamScenario.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.distance_multiplier // distance to walk to the destination
-    val installedCapacityFactor = beamScenario.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.installed_capacity_multiplier // installed charging capacity
-    val parkingCostsPriceFactor = beamScenario.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.parking_costs_price_multiplier // parking costs (currently include price for charging due to the lack of data)
-    val distanceBuffer = 35000 // in meter (the distance that should be considered as buffer for range estimation
+      val distanceFactor =
+        beamScenario.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.distance_multiplier // distance to walk to the destination
+      val installedCapacityFactor =
+        beamScenario.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.installed_capacity_multiplier // installed charging capacity
+      val parkingCostsPriceFactor =
+        beamScenario.beamConfig.beam.agentsim.agents.parking.mulitnomialLogit.params.parking_costs_price_multiplier // parking costs (currently include price for charging due to the lack of data)
+      val distanceBuffer = 35000 // in meter (the distance that should be considered as buffer for range estimation
+      var nextActivityType = nextActivity(personData).get.getType
 
       val utilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
         (currentBeamVehicle.beamVehicleType.primaryFuelType, currentBeamVehicle.beamVehicleType.secondaryFuelType) match {
@@ -81,7 +85,7 @@ trait ChoosesParking extends {
 
             val remainingTourDist = nextActivity(personData) match {
               case Some(nextAct) =>
-                val nextActIdx = currentTour(personData).tripIndexOfElement(nextAct)-1
+                val nextActIdx = currentTour(personData).tripIndexOfElement(nextAct) - 1
                 currentTour(personData).trips
                   .slice(nextActIdx, currentTour(personData).trips.length)
                   .sliding(2, 1)
@@ -105,15 +109,18 @@ trait ChoosesParking extends {
             }
 
             remainingTourDist match {
-              case 0 => new MultinomialLogit(Map.empty, Map.empty) //@home
+              case 0 =>
+                nextActivityType = "charge"
+                new MultinomialLogit(Map.empty, Map.empty) //@home
               // must -> walking distance doesn't matter as we really NEED TO CHARGE
               case _ if remainingDrivingDist <= remainingTourDist =>
+                nextActivityType = "charge"
                 new MultinomialLogit(
                   Map.empty,
                   Map(
                     //"energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
-                    "distanceFactor" -> UtilityFunctionOperation("multiplier", 0),
-                    "installedCapacity" -> UtilityFunctionOperation("multiplier", installedCapacityFactor),
+                    "distanceFactor"          -> UtilityFunctionOperation("multiplier", 0),
+                    "installedCapacity"       -> UtilityFunctionOperation("multiplier", installedCapacityFactor),
                     "parkingCostsPriceFactor" -> UtilityFunctionOperation("multiplier", -parkingCostsPriceFactor),
                   )
                 )
@@ -123,8 +130,8 @@ trait ChoosesParking extends {
                   Map.empty,
                   Map(
                     // "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
-                    "distanceFactor" -> UtilityFunctionOperation("multiplier", -distanceFactor),
-                    "installedCapacity" -> UtilityFunctionOperation("multiplier", installedCapacityFactor),
+                    "distanceFactor"          -> UtilityFunctionOperation("multiplier", -distanceFactor),
+                    "installedCapacity"       -> UtilityFunctionOperation("multiplier", installedCapacityFactor),
                     "parkingCostsPriceFactor" -> UtilityFunctionOperation("multiplier", -parkingCostsPriceFactor),
                   )
                 )
@@ -135,8 +142,8 @@ trait ChoosesParking extends {
               Map.empty,
               Map(
                 //"energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
-                "distanceFactor" -> UtilityFunctionOperation("multiplier", -distanceFactor),
-                "installedCapacity" -> UtilityFunctionOperation("multiplier", installedCapacityFactor),
+                "distanceFactor"          -> UtilityFunctionOperation("multiplier", -distanceFactor),
+                "installedCapacity"       -> UtilityFunctionOperation("multiplier", installedCapacityFactor),
                 "parkingCostsPriceFactor" -> UtilityFunctionOperation("multiplier", -parkingCostsPriceFactor),
               )
             ) // PHEV is always opportunistic
@@ -147,8 +154,8 @@ trait ChoosesParking extends {
               Map.empty,
               Map(
                 // "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
-                "distanceFactor" -> UtilityFunctionOperation("multiplier", -distanceFactor),
-                "installedCapacity" -> UtilityFunctionOperation("multiplier", 0),
+                "distanceFactor"          -> UtilityFunctionOperation("multiplier", -distanceFactor),
+                "installedCapacity"       -> UtilityFunctionOperation("multiplier", 0),
                 "parkingCostsPriceFactor" -> UtilityFunctionOperation("multiplier", -parkingCostsPriceFactor),
               )
             )
@@ -166,10 +173,11 @@ trait ChoosesParking extends {
 
       parkingManager ! ParkingInquiry(
         destinationUtm,
-        nextActivity(personData).get.getType,
+        nextActivityType,
         attributes.valueOfTime,
         utilityFunction,
-        parkingDuration
+        parkingDuration,
+        this.currentTourBeamVehicle
       )
   }
   when(ReleasingParkingSpot, stateTimeout = Duration.Zero) {
@@ -191,9 +199,9 @@ trait ChoosesParking extends {
       val nextLeg = data.passengerSchedule.schedule.head._1
       val distance = beamServices.geo.distUTMInMeters(stall.locationUTM, nextLeg.travelPath.endPoint.loc)
       val energyCharge: Double = 0.0 //TODO
-    val timeCost
-    : Double = 0.0 //scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF,  ZN UPDATE: Also need to change VOT function
-    val score = calculateScore(distance, stall.cost, energyCharge, timeCost)
+      val timeCost
+        : Double = 0.0 //scaleTimeByValueOfTime(0.0) // TODO: CJRS... let's discuss how to fix this - SAF,  ZN UPDATE: Also need to change VOT function
+      val score = calculateScore(distance, stall.cost, energyCharge, timeCost)
       eventsManager.processEvent(LeavingParkingEvent(tick, stall, score, id, currentBeamVehicle.id))
       currentBeamVehicle.unsetParkingStall()
       goto(WaitingToDrive) using data
@@ -279,7 +287,7 @@ trait ChoosesParking extends {
         )
 
         val responses = for {
-          vehicle2StallResponse <- futureVehicle2StallResponse.mapTo[RoutingResponse]
+          vehicle2StallResponse     <- futureVehicle2StallResponse.mapTo[RoutingResponse]
           stall2DestinationResponse <- futureStall2DestinationResponse.mapTo[RoutingResponse]
         } yield (vehicle2StallResponse, stall2DestinationResponse)
 
@@ -287,9 +295,9 @@ trait ChoosesParking extends {
         stay using data
       }
     case Event(
-    (routingResponse1: RoutingResponse, routingResponse2: RoutingResponse),
-    data: BasePersonData
-    ) =>
+        (routingResponse1: RoutingResponse, routingResponse2: RoutingResponse),
+        data: BasePersonData
+        ) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
       val nextLeg =
         data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
@@ -364,11 +372,11 @@ trait ChoosesParking extends {
   }
 
   def calculateScore(
-                      walkingDistance: Double,
-                      cost: Double,
-                      energyCharge: Double,
-                      valueOfTime: Double
-                    ): Double = -cost - energyCharge
+    walkingDistance: Double,
+    cost: Double,
+    energyCharge: Double,
+    valueOfTime: Double
+  ): Double = -cost - energyCharge
 
   /**
     * Calculates the duration of the refuel session, the provided energy and throws corresponding events

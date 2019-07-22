@@ -55,10 +55,30 @@ trait ChoosesMode {
 
   def boundingBox: Envelope
 
-  def currentTourBeamVehicle: BeamVehicle =
-    beamVehicles(stateData.asInstanceOf[ChoosesModeData].personData.currentTourPersonalVehicle.get)
-      .asInstanceOf[ActualVehicle]
-      .vehicle
+  def currentTourBeamVehicle: Option[BeamVehicle] =
+    if (stateData.isInstanceOf[ChoosesModeData]) {
+      stateData.asInstanceOf[ChoosesModeData].personData.currentTourPersonalVehicle match {
+        case Some(personalVehicle) =>
+          Option(
+            beamVehicles(personalVehicle)
+              .asInstanceOf[ActualVehicle]
+              .vehicle
+          )
+        case _ => None
+      }
+    } else if (stateData.isInstanceOf[BasePersonData]) {
+      stateData.asInstanceOf[BasePersonData].currentTourPersonalVehicle match {
+        case Some(personalVehicle) =>
+          Option(
+            beamVehicles(personalVehicle)
+              .asInstanceOf[ActualVehicle]
+              .vehicle
+          )
+        case _ => None
+      }
+    } else {
+      None
+    }
 
   onTransition {
     case _ -> ChoosingMode =>
@@ -736,6 +756,7 @@ trait ChoosesMode {
       attributes.valueOfTime,
       ParkingInquiry.simpleDistanceAndParkingTicketEqualUtilityFunction,
       duration,
+      currentTourBeamVehicle,
       reserveStall = false
     )
     parkingManager ! inquiry

@@ -1,4 +1,5 @@
 package beam.agentsim.infrastructure
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
 import beam.agentsim.infrastructure.charging.ChargingInquiry
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch
@@ -22,6 +23,7 @@ case class ParkingInquiry(
   valueOfTime: Double,
   utilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String],
   parkingDuration: Double,
+  vehicleType: Option[BeamVehicle] = None,
   reserveStall: Boolean = true,
   requestId: Int = ParkingManagerIdGenerator.nextId // note, this expects all Agents exist in the same JVM to rely on calling this singleton
 )
@@ -46,7 +48,7 @@ object ParkingInquiry {
       )
     )
 
-  def apply(locationUtm: Location, activity: String): ParkingInquiry = {
-    ParkingInquiry(locationUtm, activity, 0.0, simpleDistanceAndParkingTicketEqualUtilityFunction, 0)
+  def apply(locationUtm: Location, activity: String, beamVehicleOption: Option[BeamVehicle]): ParkingInquiry = {
+    ParkingInquiry(locationUtm, activity, 0.0, simpleDistanceAndParkingTicketEqualUtilityFunction, 0, beamVehicleOption)
   }
 }
