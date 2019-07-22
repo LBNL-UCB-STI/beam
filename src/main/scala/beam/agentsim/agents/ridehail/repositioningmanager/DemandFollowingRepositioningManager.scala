@@ -52,6 +52,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   val hourToActivities: Array[Array[Activity]] =
     hourToAct.groupBy { case (h, _) => h }.map { case (_, xs) => xs.map(_._2) }.toArray
 
+  // Index is hour, value is number of activities
   val activitiesPerHour: Array[Int] = hourToAct
     .groupBy { case (h, _) => h }
     .map { case (h, xs) => (h, xs.length) }
@@ -106,7 +107,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     val rnd = rndGen.nextDouble()
     val shouldRepos = rnd < scaled
     logger.debug(
-      s"tick: ${tick}, hour: ${currentHour}, vehicleId: $vehicleId, rnd: ${rnd}, weight: ${weight}, scaled: ${scaled}, shouldReposition => ${shouldRepos}"
+      s"tick: $tick, hour: $currentHour, vehicleId: $vehicleId, rnd: $rnd, weight: $weight, scaled: $scaled, shouldReposition => $shouldRepos"
     )
     shouldRepos
   }
@@ -115,6 +116,8 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     val currentHour = tick / 3600
     val nextHour = currentHour + 1
     hourToClusters.lift(nextHour).map { clusters =>
+      // We get top 5 closest clusters and randomly pick one of them.
+      // The probability is proportional to the cluster size - meaning it is proportional to the demand, as higher demands as higher probability
       val top5Closest = clusters.sortBy(x => beamServices.geo.distUTMInMeters(x.coord, vehicleLocation)).take(5)
       val pmf = top5Closest.map { x =>
         new CPair[ClusterInfo, java.lang.Double](x, x.size.toDouble)
@@ -122,7 +125,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
       val distr = new EnumeratedDistribution[ClusterInfo](rng, pmf.asJava)
       val sampled = distr.sample()
       logger.debug(
-        s"tick ${tick}, currentHour: ${currentHour}, nextHour: ${nextHour}, vehicleId: ${vehicleId}, vehicleLocation: ${vehicleLocation}. Top 5 closest: ${top5Closest.toVector}, sampled: ${sampled}"
+        s"tick $tick, currentHour: $currentHour, nextHour: $nextHour, vehicleId: $vehicleId, vehicleLocation: $vehicleLocation. Top 5 closest: ${top5Closest.toVector}, sampled: $sampled"
       )
       sampled.coord
     }
