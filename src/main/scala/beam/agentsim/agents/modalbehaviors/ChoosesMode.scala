@@ -1120,6 +1120,7 @@ object ChoosesMode {
     override def hasParkingBehaviors: Boolean = true
 
     override def geofence: Option[Geofence] = None
+    override def legStartsAt: Option[Int] = None
   }
 
   case class ChoosesModeResponsePlaceholders(
