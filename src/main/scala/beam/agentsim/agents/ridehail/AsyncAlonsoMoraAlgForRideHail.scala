@@ -124,7 +124,7 @@ class AsyncAlonsoMoraAlgForRideHail(
 
   def greedyAssignment(tick: Int): Future[List[(RideHailTrip, VehicleAndSchedule, Double)]] = {
 
-    skimByTazId(supply.map(_.vehicle.toStreetVehicle.locationUTM.loc), tick, "available-vehicles")
+    skimByTazId(supply.filter(_.vehicle.toStreetVehicle.locationUTM != null).map(_.vehicle.toStreetVehicle.locationUTM.loc), tick, "available-vehicles")
     skimByTazId(spatialDemand.values().asScala.map(_.pickup.activity.getCoord), tick, "pooling-requests")
 
     val rTvGFuture = asyncBuildOfRTVGraph()
