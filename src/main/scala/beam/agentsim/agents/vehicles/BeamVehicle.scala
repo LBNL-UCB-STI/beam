@@ -291,12 +291,12 @@ object BeamVehicle {
     beamLeg: BeamLeg,
     theVehicleType: BeamVehicleType,
     networkHelper: NetworkHelper,
-    onlyLength_Id_And_Type: Boolean = false
+    vehicleMappingExists: Boolean = false
   ): IndexedSeq[FuelConsumptionData] = {
     //TODO: This method is becoming a little clunky. If it has to grow again then maybe refactor/break it out
     if (beamLeg.mode.isTransit & !Modes.isOnStreetTransit(beamLeg.mode)) {
       Vector.empty
-    } else if (onlyLength_Id_And_Type) {
+    } else if (!vehicleMappingExists) {
       beamLeg.travelPath.linkIds
         .drop(1)
         .map(

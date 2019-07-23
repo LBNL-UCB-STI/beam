@@ -149,16 +149,32 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
 
 
-        org.matsim.core.mobsim.jdeqsim.JDEQSimulation jdeqSimulation = getJDEQSimulation(jdeqSimScenario, beamConfig, jdeqsimEvents,iterationNumber,beamServices.matsimServices().getControlerIO());
-        linkStatsGraph.notifyIterationStarts(jdeqsimEvents, agentSimScenario.getConfig().travelTimeCalculator());
+        RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction = null;
+        try {
+            if (beamConfig.beam().physsim().jdeqsim().cacc().enabled()) {
+                roadCapacityAdjustmentFunction = new Hao2018CaccRoadCapacityAdjustmentFunction(
+                        beamConfig,
+                        iterationNumber,
+                        controlerIO,
+                        this.beamConfigChangesObservable
+                );
+            }
+            org.matsim.core.mobsim.jdeqsim.JDEQSimulation jdeqSimulation = getJDEQSimulation(jdeqSimScenario, beamConfig,
+                    jdeqsimEvents, iterationNumber, beamServices.matsimServices().getControlerIO(),
+                    roadCapacityAdjustmentFunction);
+            linkStatsGraph.notifyIterationStarts(jdeqsimEvents, agentSimScenario.getConfig().travelTimeCalculator());
 
-        log.info("JDEQSim Start");
-        startSegment("jdeqsim-execution", "jdeqsim");
-        if (beamConfig.beam().debug().debugEnabled()) {
-            log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use Before JDEQSim (after GC): "));
+            log.info("JDEQSim Start");
+            startSegment("jdeqsim-execution", "jdeqsim");
+            if (beamConfig.beam().debug().debugEnabled()) {
+                log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use Before JDEQSim (after GC): "));
+            }
+
+            jdeqSimulation.run();
         }
-
-        jdeqSimulation.run();
+        finally {
+            if (roadCapacityAdjustmentFunction != null) roadCapacityAdjustmentFunction.reset();
+        }
 
         if (beamConfig.beam().debug().debugEnabled()) {
             log.info(DebugLib.gcAndGetMemoryLogMessage("Memory Use After JDEQSim (after GC): "));
@@ -263,7 +279,10 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     }
 
-    public org.matsim.core.mobsim.jdeqsim.JDEQSimulation getJDEQSimulation(MutableScenario jdeqSimScenario, BeamConfig beamConfig, EventsManager jdeqsimEvents, int iterationNumber, OutputDirectoryHierarchy controlerIO) {
+    public org.matsim.core.mobsim.jdeqsim.JDEQSimulation getJDEQSimulation(MutableScenario jdeqSimScenario, BeamConfig beamConfig,
+                                                                           EventsManager jdeqsimEvents, int iterationNumber,
+                                                                           OutputDirectoryHierarchy controlerIO,
+                                                                           RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction) {
         JDEQSimConfigGroup config = new JDEQSimConfigGroup();
         config.setFlowCapacityFactor(beamConfig.beam().physsim().flowCapacityFactor());
         config.setStorageCapacityFactor(beamConfig.beam().physsim().storageCapacityFactor());
@@ -271,16 +290,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         org.matsim.core.mobsim.jdeqsim.JDEQSimulation jdeqSimulation = null;
 
-        if (beamConfig.beam().physsim().jdeqsim().cacc().enabled()) {
-
+        if (roadCapacityAdjustmentFunction != null) {
             log.info("CACC enabled");
-            RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction = new Hao2018CaccRoadCapacityAdjustmentFunction(
-                    beamConfig,
-                    iterationNumber,
-                    controlerIO,
-                    this.beamConfigChangesObservable
-                    );
-
             int caccCategoryRoadCount = 0;
             for (Link link : jdeqSimScenario.getNetwork().getLinks().values()) {
                 if (roadCapacityAdjustmentFunction.isCACCCategoryRoad(link)) {
