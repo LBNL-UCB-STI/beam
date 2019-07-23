@@ -93,7 +93,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
           }
         }
       }
-      logger.info(
+      logger.debug(
         s"nonRepositioningIdleVehicles: ${nonRepositioningIdleVehicles.size}, wantToRepos: ${wantToRepos.size}, newPositions: ${newPositions.size}"
       )
       newPositions.toVector
