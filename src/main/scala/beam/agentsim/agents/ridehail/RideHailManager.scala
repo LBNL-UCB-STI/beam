@@ -525,6 +525,7 @@ class RideHailManager(
       // protocol so they can release their trigger.
       cachedNotifyVehicleIdle.put(vehicleId,notify)
 
+      // Maybe don't do this??? Art
     case NotifyVehicleIdle(vehicleId, _, _, _, _, _) if cachedNotifyVehicleIdle.contains(vehicleId) =>
       // Here we have likely just unstashed this message
 
@@ -647,14 +648,6 @@ class RideHailManager(
               // Some here means this is part of a reservation / dispatch of vehicle to a customer
               log.debug("modifyPassengerScheduleAck received, completing reservation {}", modifyPassengerScheduleAck)
               val currentTick = modifyPassengerScheduleManager.getCurrentTick.get
-              if (tick < currentTick || triggersToSchedule
-                    .find(
-                      trig =>
-                        trig.trigger.tick < tick || trig.trigger.tick < currentTick || trig.trigger.tick == 26850 || trig.trigger.tick == 25230
-                    )
-                    .isDefined) {
-                val i = 0
-              }
               completeReservation(requestId, tick, triggersToSchedule)
           }
       }
@@ -715,13 +708,15 @@ class RideHailManager(
     case RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgent) =>
       modifyPassengerScheduleManager.sendNewPassengerScheduleToVehicle(passengerSchedule, rideHailAgent, tick)
 
-    case reply @ InterruptedWhileWaitingToDrive(_, _, tick) =>
+    case reply @ InterruptedWhileWaitingToDrive(_, vehicleId, tick) =>
       modifyPassengerScheduleManager.handleInterruptReply(reply)
+      updateLatestObservedTick(vehicleId, tick)
       if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived)
         findAllocationsAndProcess(tick)
 
-    case reply @ InterruptedWhileOffline(_, _, tick) =>
+    case reply @ InterruptedWhileOffline(_, vehicleId, tick) =>
       modifyPassengerScheduleManager.handleInterruptReply(reply)
+      updateLatestObservedTick(vehicleId, tick)
       if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived)
         findAllocationsAndProcess(tick)
 
@@ -730,6 +725,7 @@ class RideHailManager(
         outOfServiceVehicleManager.handleInterruptReply(vehicleId, tick)
       } else {
         modifyPassengerScheduleManager.handleInterruptReply(reply)
+        updateLatestObservedTick(vehicleId, tick)
         // Make sure we take away passenger schedule from RHA Location
         vehicleManager.makeAvailable(vehicleManager.getRideHailAgentLocation(vehicleId).copy(currentPassengerSchedule = None, currentPassengerScheduleIndex = None))
         if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived)
@@ -743,15 +739,8 @@ class RideHailManager(
         )
       } else {
         modifyPassengerScheduleManager.handleInterruptReply(reply)
-        // Update with latest passenger schedule
-        vehicleManager.putIntoService(
-          vehicleManager
-            .getRideHailAgentLocation(vehicleId)
-            .copy(
-              currentPassengerSchedule = Some(interruptedPassengerSchedule),
-              currentPassengerScheduleIndex = Some(currentPassengerScheduleIndex)
-            )
-        )
+        updatePassengerSchedule(vehicleId, interruptedPassengerSchedule, currentPassengerScheduleIndex)
+        updateLatestObservedTick(vehicleId, tick)
         if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived)
           findAllocationsAndProcess(tick)
       }
@@ -814,6 +803,28 @@ class RideHailManager(
     case msg =>
       log.warning("unknown message received by RideHailManager {}", msg)
 
+  }
+
+  def updatePassengerSchedule(vehicleId: Id[Vehicle], passengerSchedule: PassengerSchedule, passengerScheduleIndex: Int) = {
+    // Update with latest passenger schedule
+    vehicleManager.putIntoService(
+      vehicleManager
+        .getRideHailAgentLocation(vehicleId)
+        .copy(
+          currentPassengerSchedule = Some(passengerSchedule),
+          currentPassengerScheduleIndex = Some(passengerScheduleIndex)
+        )
+    )
+  }
+  def updateLatestObservedTick(vehicleId: Id[Vehicle], tick: Int) = {
+    // Update with latest passenger schedule
+    vehicleManager.putIntoService(
+      vehicleManager
+        .getRideHailAgentLocation(vehicleId)
+        .copy(
+          latestTickExperienced = tick
+        )
+    )
   }
 
   def handleNotifyVehicleIdle(notifyVehicleIdleMessage: NotifyVehicleIdle): Unit = {
@@ -1128,7 +1139,10 @@ class RideHailManager(
         sender() ! RideHailResponse.dummyWithError(RideHailVehicleTakenError)
     }
     if (processBufferedRequestsOnTimeout && currentlyProcessingTimeoutTrigger.isDefined) {
-      if (pendingModifyPassengerScheduleAcks.isEmpty)cleanUpBufferedRequestProcessing(tick)
+      if (pendingModifyPassengerScheduleAcks.isEmpty) {
+        log.debug("Cleaning up and completing batch processing @ {}",tick)
+        cleanUpBufferedRequestProcessing(tick)
+      }
     }
   }
 
@@ -1284,7 +1298,7 @@ class RideHailManager(
 
   //TODO this doesn't distinguish fare by customer, lumps them all together
   def createTravelProposal(alloc: VehicleMatchedToCustomers): TravelProposal = {
-    val passSched = modilityRequestToPassengerSchedule(alloc.schedule)
+    val passSched = mobilityRequestToPassengerSchedule(alloc.schedule)
     val baseFare = alloc.schedule.flatMap(_.beamLegAfterTag.map(_.cost)).sum
     TravelProposal(
       alloc.rideHailAgentLocation,
@@ -1294,15 +1308,19 @@ class RideHailManager(
     )
   }
 
-  def modilityRequestToPassengerSchedule(pickDrops: List[MobilityRequest]): PassengerSchedule = {
+  def mobilityRequestToPassengerSchedule(pickDrops: List[MobilityRequest]): PassengerSchedule = {
     val consistentSchedule = pickDrops.zip(BeamLeg.makeLegsConsistent(pickDrops.map(_.beamLegAfterTag.map(_.beamLeg))))
     val allLegs = consistentSchedule.flatMap(_._2)
     var passSched = PassengerSchedule().addLegs(allLegs)
     // Initialize passengersToAdd with any passenger that doesn't have a pickup
-    var passengersToAdd = Set[PersonIdWithActorRef]() ++ consistentSchedule
+    val noPickupPassengers = Set[PersonIdWithActorRef]() ++ consistentSchedule
       .groupBy(_._1.person)
       .filter(tup => tup._1.isDefined && tup._2.size == 1)
       .map(_._2.head._1.person.get)
+    var passengersToAdd = noPickupPassengers
+    if(!passengersToAdd.isEmpty){
+      val i = 0
+    }
     var pickDropsForGrouping: Map[PersonIdWithActorRef, List[BeamLeg]] = Map()
     consistentSchedule.foreach {
       case (mobReq, legOpt) =>
@@ -1325,6 +1343,9 @@ class RideHailManager(
     }
     pickDropsForGrouping.foreach { passAndLegs =>
       passSched = passSched.addPassenger(passAndLegs._1, passAndLegs._2)
+    }
+    noPickupPassengers.foreach { pass =>
+      passSched = passSched.removePassengerBoarding(pass)
     }
     passSched
   }

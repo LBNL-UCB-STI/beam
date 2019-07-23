@@ -36,6 +36,14 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
     PassengerSchedule(newSchedule)
   }
 
+  def removePassengerBoarding(passenger: PersonIdWithActorRef): PassengerSchedule = {
+    var newSchedule = TreeMap[BeamLeg, Manifest]()(BeamLegOrdering)
+    schedule.foreach{ legAndMan =>
+      newSchedule = newSchedule + (legAndMan._1 -> legAndMan._2.copy(boarders = legAndMan._2.boarders - passenger))
+    }
+    new PassengerSchedule(newSchedule)
+  }
+
   def legsBeforePassengerBoards(passenger: PersonIdWithActorRef): List[BeamLeg] = {
     schedule.takeWhile(legManifest => !legManifest._2.riders.contains(passenger)).keys.toList
   }
@@ -56,6 +64,11 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
   }
 
   def uniquePassengers: Set[PersonIdWithActorRef] = schedule.values.flatMap(_.riders).toSet
+
+  def passengersWhoNeverBoard: Set[PersonIdWithActorRef] = {
+    val allBoarders = schedule.values.flatMap(_.boarders).toSet
+    uniquePassengers.filterNot(allBoarders.contains(_))
+  }
 
   def numUniquePassengers: Int = schedule.values.flatMap(_.riders).toSet.size
 

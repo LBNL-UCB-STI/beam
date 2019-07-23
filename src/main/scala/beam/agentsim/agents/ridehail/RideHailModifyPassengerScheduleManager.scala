@@ -133,6 +133,7 @@ class RideHailModifyPassengerScheduleManager(
       case _ =>
         throw new RuntimeException("Should not attempt to send completion when doing single reservations")
     }
+    rideHailManager.log.debug("Earliest tick in triggers to schedule is {} and latest is {}",allTriggersInWave.map(_.trigger.tick).min, allTriggersInWave.map(_.trigger.tick).max)
     scheduler.tell(
       CompletionNotice(triggerId, allTriggersInWave :+ ScheduleTrigger(timerTrigger, rideHailManagerRef)),
       rideHailManagerRef

@@ -321,7 +321,8 @@ object RideHailVehicleManager {
     geofence: Option[Geofence] = None,
     currentPassengerSchedule: Option[PassengerSchedule] = None,
     currentPassengerScheduleIndex: Option[Int] = None,
-    servingPooledTrip: Boolean = false
+    servingPooledTrip: Boolean = false,
+    latestTickExperienced: Int = 0
   ) {
 
     def toStreetVehicle: StreetVehicle = {

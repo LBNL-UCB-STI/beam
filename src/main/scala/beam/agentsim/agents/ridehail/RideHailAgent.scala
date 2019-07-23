@@ -259,6 +259,7 @@ class RideHailAgent(
   }
   when(Offline) {
     case Event(TriggerWithId(StartShiftTrigger(tick), triggerId), _) =>
+      updatedLatestObservedTick(tick)
       log.debug("state(RideHailingAgent.Offline): starting shift {}", id)
       rideHailManager ! NotifyVehicleIdle(
         vehicle.id,
@@ -272,7 +273,7 @@ class RideHailAgent(
       goto(Idle)
     case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
       log.debug("state(RideHailingAgent.Offline): {}", ev)
-      stay replying InterruptedWhileOffline(interruptId, vehicle.id, tick)
+      stay replying InterruptedWhileOffline(interruptId, vehicle.id, latestObservedTick)
     case ev @ Event(Resume, _) =>
       log.debug("state(RideHailingAgent.Offline): {}", ev)
       stay
@@ -283,12 +284,14 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
       handleNotifyVehicleResourceIdleReply(reply, data)
     case ev @ Event(TriggerWithId(StartRefuelTrigger(tick), triggerId), _) =>
+      updatedLatestObservedTick(tick)
       log.debug("state(RideHailingAgent.Offline.StartRefuelTrigger): {}", ev)
       handleStartRefuel(tick, triggerId)
     case ev @ Event(
           TriggerWithId(EndRefuelTrigger(tick, sessionStart, energyInJoules), triggerId),
           data
         ) =>
+      updatedLatestObservedTick(tick)
       log.debug("state(RideHailingAgent.Offline.EndRefuelTrigger): {}", ev)
       val currentLocation = handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
       vehicle.spaceTime = SpaceTime(currentLocation, tick)
@@ -320,6 +323,7 @@ class RideHailAgent(
         TriggerWithId(EndShiftTrigger(tick), triggerId),
         data @ RideHailAgentData(_, _, _, _, _, _)
         ) =>
+      updatedLatestObservedTick(tick)
       val newShiftToSchedule = if (data.remainingShifts.size < 1) {
         Vector()
       } else {
@@ -329,7 +333,7 @@ class RideHailAgent(
       goto(Offline) replying CompletionNotice(triggerId, newShiftToSchedule)
     case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
       log.debug("state(RideHailingAgent.Idle): {}", ev)
-      goto(IdleInterrupted) replying InterruptedWhileIdle(interruptId, vehicle.id, tick)
+      goto(IdleInterrupted) replying InterruptedWhileIdle(interruptId, vehicle.id, latestObservedTick)
     case ev @ Event(
           reply @ NotifyVehicleResourceIdleReply(_, _),
           data
@@ -340,6 +344,7 @@ class RideHailAgent(
           TriggerWithId(EndRefuelTrigger(tick, sessionStart, energyInJoules), triggerId),
           data
         ) =>
+      updatedLatestObservedTick(tick)
       log.debug("state(RideHailingAgent.Idle.EndRefuelTrigger): {}", ev)
       holdTickAndTriggerId(tick, triggerId)
       val currentLocation = handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
@@ -439,7 +444,7 @@ class RideHailAgent(
       goto(Idle)
     case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
-      stay() replying InterruptedWhileIdle(interruptId, vehicle.id, tick)
+      stay() replying InterruptedWhileIdle(interruptId, vehicle.id, latestObservedTick)
     case ev @ Event(
           reply @ NotifyVehicleResourceIdleReply(_, _),
           data

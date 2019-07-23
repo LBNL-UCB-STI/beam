@@ -101,6 +101,9 @@ object DrivesVehicle {
         updatedPassengerSchedule.legsWithPassenger(pass).toIndexedSeq.map(updatedLegsInSchedule.indexOf(_))
       newPassSchedule = newPassSchedule.addPassenger(pass, indicesOfMatchingElements.map(newLegsInSchedule(_)))
     }
+    updatedPassengerSchedule.passengersWhoNeverBoard.foreach { pass =>
+      newPassSchedule = newPassSchedule.removePassengerBoarding(pass)
+    }
     newPassSchedule
   }
 
@@ -177,6 +180,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
   protected val beamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
   protected def currentBeamVehicle = beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
   protected val fuelConsumedByTrip: mutable.Map[Id[Person], FuelConsumed] = mutable.Map()
+  var latestObservedTick: Int = 0
 
 
   case class PassengerScheduleEmptyMessage(
@@ -195,11 +199,14 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
     )
   }
 
+  def updatedLatestObservedTick(newTick: Int) = if(newTick > latestObservedTick)latestObservedTick = newTick
+
   when(Driving) {
     case ev @ Event(
           TriggerWithId(EndLegTrigger(tick), triggerId),
           LiterallyDrivingData(data, legEndingAt, _)
         ) if tick == legEndingAt =>
+      updatedLatestObservedTick(tick)
 //      log.debug("state(DrivesVehicle.Driving): {}", ev)
       log.debug("state(DrivesVehicle.Driving): EndLegTrigger({}) for driver {}", tick, id)
       val currentLeg = data.passengerSchedule.schedule.keys.view
@@ -356,6 +363,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
 
     //TODO Need explanation as to why we do nothing if we receive EndLeg but data is not type LiterallyDrivingData
     case ev @ Event(TriggerWithId(EndLegTrigger(tick), triggerId), data) =>
+      updatedLatestObservedTick(tick)
       log.debug("state(DrivesVehicle.Driving): {}", ev)
 
       log.debug(
@@ -372,7 +380,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       goto(DrivingInterrupted) replying InterruptedWhileDriving(
         interruptId,
         currentBeamVehicle.id,
-        tick,
+        latestObservedTick,
         data.passengerSchedule,
         data.currentLegPassengerScheduleIndex
       )
@@ -515,6 +523,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
 
   when(WaitingToDrive) {
     case ev @ Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) if data.legStartsAt.isEmpty || tick == data.legStartsAt.get =>
+      updatedLatestObservedTick(tick)
 //      log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
       log.debug("state(DrivesVehicle.WaitingToDrive): StartLegTrigger({},{}) for driver {}", tick, newLeg, id)
 
@@ -571,7 +580,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       }
     case ev @ Event(Interrupt(interruptId,tick), _) =>
       log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
-      goto(WaitingToDriveInterrupted) replying InterruptedWhileWaitingToDrive(interruptId,currentBeamVehicle.id,tick)
+      goto(WaitingToDriveInterrupted) replying InterruptedWhileWaitingToDrive(interruptId,currentBeamVehicle.id,latestObservedTick)
 
     case ev @ Event(
           NotifyVehicleResourceIdleReply(
