@@ -211,16 +211,17 @@ class RideHailModifyPassengerScheduleManager(
             rideHailAgentLocation.rideHailAgent ! Resume
             clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
             if(requestId.isDefined){
-              if (rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId.get)) {
-                log.debug(
-                  "sendCompletionAndScheduleNewTimeout from line 100 @ {} with trigger {}",
-                  _currentTick,
-                  _currentTriggerId
-                )
-                if (rideHailManager.processBufferedRequestsOnTimeout) {
-                  rideHailManager.cleanUpBufferedRequestProcessing(_currentTick.get)
-                }
-              }
+              rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId.get)
+//              if (rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId.get)) {
+//                log.debug(
+//                  "sendCompletionAndScheduleNewTimeout from line 100 @ {} with trigger {}",
+//                  _currentTick,
+//                  _currentTriggerId
+//                )
+//                if (rideHailManager.processBufferedRequestsOnTimeout) {
+//                  rideHailManager.cleanUpBufferedRequestProcessing(_currentTick.get)
+//                }
+//              }
             }
           case _ =>
             // Success! Continue with modify process
