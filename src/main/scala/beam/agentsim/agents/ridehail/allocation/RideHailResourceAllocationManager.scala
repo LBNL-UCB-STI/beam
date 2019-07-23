@@ -4,8 +4,8 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassenge
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.repositioningmanager.{
-  DemandFollowingRepositioningManager,
   DefaultRepositioningManager,
+  DemandFollowingRepositioningManager,
   RepositioningLowWaitingTimes,
   RepositioningManager
 }
