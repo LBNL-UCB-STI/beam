@@ -715,7 +715,12 @@ class RideHailManager(
     case RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgent) =>
       modifyPassengerScheduleManager.sendNewPassengerScheduleToVehicle(passengerSchedule, rideHailAgent, tick)
 
-    case reply @ InterruptedWhileOffline(interruptId, vehicleId, tick) =>
+    case reply @ InterruptedWhileWaitingToDrive(_, _, tick) =>
+      modifyPassengerScheduleManager.handleInterruptReply(reply)
+      if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived)
+        findAllocationsAndProcess(tick)
+
+    case reply @ InterruptedWhileOffline(_, _, tick) =>
       modifyPassengerScheduleManager.handleInterruptReply(reply)
       if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived)
         findAllocationsAndProcess(tick)

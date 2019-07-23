@@ -110,9 +110,11 @@ object PersonAgent {
     def hasParkingBehaviors: Boolean
 
     def geofence: Option[Geofence]
+
+    def legStartsAt: Option[Int]
   }
 
-  case class LiterallyDrivingData(delegate: DrivingData, legEndsAt: Double) extends DrivingData { // sorry
+  case class LiterallyDrivingData(delegate: DrivingData, legEndsAt: Double, legStartsAt: Option[Int]) extends DrivingData { // sorry
     def currentVehicle: VehicleStack = delegate.currentVehicle
 
     def passengerSchedule: PassengerSchedule = delegate.passengerSchedule
@@ -121,12 +123,12 @@ object PersonAgent {
       delegate.currentLegPassengerScheduleIndex
 
     def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
-      LiterallyDrivingData(delegate.withPassengerSchedule(newPassengerSchedule), legEndsAt)
+      LiterallyDrivingData(delegate.withPassengerSchedule(newPassengerSchedule), legEndsAt, legStartsAt)
 
     def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int) =
       LiterallyDrivingData(
         delegate.withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex),
-        legEndsAt
+        legEndsAt, legStartsAt
       )
 
     override def hasParkingBehaviors: Boolean = false
@@ -157,6 +159,7 @@ object PersonAgent {
     override def hasParkingBehaviors: Boolean = true
 
     override def geofence: Option[Geofence] = None
+    override def legStartsAt: Option[Int] = None
   }
 
   case class ActivityStartTrigger(tick: Int) extends Trigger
@@ -628,7 +631,7 @@ class PersonAgent(
       // TODO: Refactor.
       def nextState: FSM.State[BeamAgentState, PersonData] = {
         val currentVehicleForNextState =
-          if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
+           if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
             beamVehicles(nextLeg.beamVehicleId) match {
               case t @ Token(_, manager, _) =>
                 manager ! TryToBoardVehicle(t, self)

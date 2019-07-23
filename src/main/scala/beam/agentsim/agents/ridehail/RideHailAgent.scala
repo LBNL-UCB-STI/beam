@@ -84,7 +84,7 @@ object RideHailAgent {
     ): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
 
     override def hasParkingBehaviors: Boolean = false
-
+    override def legStartsAt: Option[Int] = None
   }
 
   // triggerId is included to facilitate debugging
@@ -109,7 +109,7 @@ object RideHailAgent {
 
   case class Interrupt(interruptId: Id[Interrupt], tick: Int)
 
-  case class Resume()
+  case object Resume
 
   sealed trait InterruptReply {
     val interruptId: Id[Interrupt]
@@ -127,11 +127,14 @@ object RideHailAgent {
 
   case class InterruptedWhileIdle(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Int) extends InterruptReply
   case class InterruptedWhileOffline(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Int)
+    extends InterruptReply
+  case class InterruptedWhileWaitingToDrive(interruptId: Id[Interrupt], vehicleId: Id[Vehicle], tick: Int)
       extends InterruptReply
 
   case object Idle extends BeamAgentState
 
   case object Offline extends BeamAgentState
+  case object OfflineInterrupted extends BeamAgentState
 
   case object IdleInterrupted extends BeamAgentState
 
@@ -170,26 +173,30 @@ class RideHailAgent(
       // Wait five minutes
       stay() replying CompletionNotice(triggerId, Vector(ScheduleTrigger(EndShiftTrigger(tick + 300), self)))
 
-    case ev @ Event(TriggerWithId(EndLegTrigger(_), triggerId), _) =>
-      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
+    case ev @ Event(TriggerWithId(EndLegTrigger(_), triggerId), data) =>
+      log.debug("myUnhandled state({}): ignoring EndLegTrigger probably because of a modifyPassSchedule: {}", stateName, ev)
       stay replying CompletionNotice(triggerId)
 
+    case ev @ Event(TriggerWithId(StartLegTrigger(_,_), triggerId), data) =>
+      log.debug("myUnhandled state({}): ignoring StartLegTrigger probably because of a modifyPassSchedule: {}", stateName, ev)
+      stay replying CompletionNotice(triggerId) using DrivesVehicle.stripLiterallyDrivingData(data).asInstanceOf[RideHailAgentData]
+
     case ev @ Event(IllegalTriggerGoToError(reason), _) =>
-      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
+      log.debug("myUnhandled state({}): {}", stateName, ev)
       stop(Failure(reason))
 
     case Event(Status.Failure(reason), _) =>
       stop(Failure(reason))
 
     case ev @ Event(Finish, _) =>
-      log.debug("state(RideHailingAgent.myUnhandled): {}", ev)
+      log.debug("myUnhandled state({}): {}", stateName, ev)
       stop
 
     // This can happen if the NotifyVehicleIdle is sent to RHM after RHM starts a buffered allocation process
     // and meanwhile dispatches this RHA who has now moved on to other things. This is how we complete the trigger
     // that made this RHA available in the first place
     case ev @ Event(NotifyVehicleResourceIdleReply(_,_),_) =>
-      log.debug("state(RideHailingAgent.myUnhandled): releaseTickAndTrigger if needed {}",ev)
+      log.debug("myUnhandled state({}): releaseTickAndTrigger if needed {}",stateName, ev)
       _currentTriggerId match {
         case Some(_) =>
           val (_,triggerId) = releaseTickAndTriggerId()
@@ -266,7 +273,7 @@ class RideHailAgent(
     case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
       log.debug("state(RideHailingAgent.Offline): {}", ev)
       stay replying InterruptedWhileOffline(interruptId, vehicle.id, tick)
-    case ev @ Event(Resume(), _) =>
+    case ev @ Event(Resume, _) =>
       log.debug("state(RideHailingAgent.Offline): {}", ev)
       stay
     case ev @ Event(
@@ -286,6 +293,26 @@ class RideHailAgent(
       val currentLocation = handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
       vehicle.spaceTime = SpaceTime(currentLocation, tick)
       stay() replying CompletionNotice(triggerId)
+  }
+  when(OfflineInterrupted) {
+    case Event(Resume,_) =>
+      log.debug("state(RideHailingAgent.Offline.Resume)")
+      goto(Offline)
+    case Event(TriggerWithId(StartShiftTrigger(_), _), _) =>
+      stash()
+      stay()
+    case ev @ Event(Interrupt(_,_), _) =>
+      stash()
+      stay()
+    case ev @ Event(NotifyVehicleResourceIdleReply(_, _), _) =>
+      stash()
+      stay()
+    case ev @ Event(TriggerWithId(StartRefuelTrigger(tick), triggerId), _) =>
+      stash()
+      stay()
+    case ev @ Event(TriggerWithId(EndRefuelTrigger(_, _, _), _),_) =>
+      stash()
+      stay()
   }
 
   when(Idle) {
@@ -407,7 +434,7 @@ class RideHailAgent(
           tick,
         )
       }
-    case ev @ Event(Resume(), _) =>
+    case ev @ Event(Resume, _) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       goto(Idle)
     case ev @ Event(Interrupt(interruptId: Id[Interrupt], tick), _) =>
@@ -421,6 +448,14 @@ class RideHailAgent(
       handleNotifyVehicleResourceIdleReply(reply, data)
 
   }
+
+  when(WaitingToDriveInterrupted){
+    case ev @ Event(ModifyPassengerSchedule(_, _, _), _) =>
+      log.debug("state(RideHailingAgent.WaitingToDriveInterrupted): {}", ev)
+      stash()
+      goto(IdleInterrupted)
+  }
+
 
   when(PassengerScheduleEmpty) {
     case ev @ Event(PassengerScheduleEmptyMessage(_, _, _), data) =>
@@ -447,7 +482,7 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       stash()
       stay()
-    case ev @ Event(Resume(), _) =>
+    case ev @ Event(Resume, _) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       stash()
       stay()

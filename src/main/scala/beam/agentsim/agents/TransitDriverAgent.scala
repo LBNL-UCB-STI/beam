@@ -85,6 +85,7 @@ object TransitDriverAgent {
     override def hasParkingBehaviors: Boolean = false
 
     override def geofence: Option[Geofence] = None
+    override def legStartsAt: Option[Int] = None
   }
 }
 

@@ -104,6 +104,15 @@ object DrivesVehicle {
     newPassSchedule
   }
 
+  def stripLiterallyDrivingData(data: DrivingData) = {
+    data match {
+      case LiterallyDrivingData(subData,_,_) =>
+        subData
+      case _ =>
+        data
+    }
+  }
+
   sealed trait VehicleOrToken {
     def id: Id[BeamVehicle]
     def streetVehicle: StreetVehicle
@@ -169,6 +178,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
   protected def currentBeamVehicle = beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
   protected val fuelConsumedByTrip: mutable.Map[Id[Person], FuelConsumed] = mutable.Map()
 
+
   case class PassengerScheduleEmptyMessage(
     lastVisited: SpaceTime,
     toll: Double,
@@ -188,7 +198,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
   when(Driving) {
     case ev @ Event(
           TriggerWithId(EndLegTrigger(tick), triggerId),
-          LiterallyDrivingData(data, legEndingAt)
+          LiterallyDrivingData(data, legEndingAt, _)
         ) if tick == legEndingAt =>
 //      log.debug("state(DrivesVehicle.Driving): {}", ev)
       log.debug("state(DrivesVehicle.Driving): EndLegTrigger({}) for driver {}", tick, id)
@@ -309,7 +319,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
             data.passengerSchedule.schedule.keys.view
               .drop(data.currentLegPassengerScheduleIndex + 1)
               .head
-          goto(WaitingToDrive) using data
+          goto(WaitingToDrive) using stripLiterallyDrivingData(data)
             .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
             .asInstanceOf[T] replying CompletionNotice(
             triggerId,
@@ -339,7 +349,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         )
         fuelConsumedByTrip.remove(id.asInstanceOf[Id[Person]])
         tollsAccumulated = 0.0
-        goto(PassengerScheduleEmpty) using data
+        goto(PassengerScheduleEmpty) using stripLiterallyDrivingData(data)
           .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
           .asInstanceOf[T]
       }
@@ -370,7 +380,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
   }
 
   when(DrivingInterrupted) {
-    case ev @ Event(StopDriving(stopTick), LiterallyDrivingData(data, _)) =>
+    case ev @ Event(StopDriving(stopTick), LiterallyDrivingData(data, _, _)) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       val currentLeg = data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
@@ -488,9 +498,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
           .asInstanceOf[T]
       } else {
         // In this case our passenger schedule isn't empty so we go directly to idle interrupted
-        goto(IdleInterrupted) using data.asInstanceOf[T]
+        goto(IdleInterrupted) using stripLiterallyDrivingData(data).asInstanceOf[T]
       }
-    case ev @ Event(Resume(), _) =>
+    case ev @ Event(Resume, _) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       goto(Driving)
     case ev @ Event(TriggerWithId(EndLegTrigger(_), _), _) =>
@@ -504,7 +514,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
   }
 
   when(WaitingToDrive) {
-    case ev @ Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) =>
+    case ev @ Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) if data.legStartsAt.isEmpty || tick == data.legStartsAt.get =>
 //      log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
       log.debug("state(DrivesVehicle.WaitingToDrive): StartLegTrigger({},{}) for driver {}", tick, newLeg, id)
 
@@ -553,16 +563,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
           .head
           ._1
         val endTime = tick + beamLeg.duration
-        goto(Driving) using LiterallyDrivingData(data, endTime)
+        goto(Driving) using LiterallyDrivingData(data, endTime, Some(tick))
           .asInstanceOf[T] replying CompletionNotice(
           triggerId,
           triggerToSchedule ++ Vector(ScheduleTrigger(EndLegTrigger(endTime), self))
         )
       }
-    case ev @ Event(Interrupt(_, _), _) =>
+    case ev @ Event(Interrupt(interruptId,tick), _) =>
       log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
-      stash()
-      stay
+      goto(WaitingToDriveInterrupted) replying InterruptedWhileWaitingToDrive(interruptId,currentBeamVehicle.id,tick)
 
     case ev @ Event(
           NotifyVehicleResourceIdleReply(
@@ -594,12 +603,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
   }
 
   when(WaitingToDriveInterrupted) {
-    case ev @ Event(Resume(), _) =>
+    case ev @ Event(Resume, _) =>
       log.debug("state(DrivesVehicle.WaitingToDriveInterrupted): {}", ev)
       goto(WaitingToDrive)
 
     case ev @ Event(TriggerWithId(StartLegTrigger(_, _), _), _) =>
       log.debug("state(DrivesVehicle.WaitingToDriveInterrupted): {}", ev)
+      stash()
+      stay
+    case ev @ Event(NotifyVehicleResourceIdleReply(_,_),_) =>
       stash()
       stay
 
@@ -714,7 +726,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
     // trip and meanwhile a CAV was scheduled to pick them up (and then drop them off) for the next trip, but they're still driving baby
     case Event(
         TriggerWithId(BoardVehicleTrigger(tick, vehicleId), triggerId),
-        data @ LiterallyDrivingData(_, _)
+        data @ LiterallyDrivingData(_, _, _)
         ) =>
       val currentLeg = data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
@@ -726,7 +738,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       )
     case Event(
         TriggerWithId(AlightVehicleTrigger(tick, vehicleId, _), triggerId),
-        data @ LiterallyDrivingData(_, _)
+        data @ LiterallyDrivingData(_, _, _)
         ) =>
       val currentLeg = data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)

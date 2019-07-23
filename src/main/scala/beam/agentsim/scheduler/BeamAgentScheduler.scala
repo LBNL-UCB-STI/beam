@@ -8,8 +8,6 @@ import akka.event.LoggingReceive
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.ridehail.RideHailManager.{
-  ContinueBufferedRideHailRequests,
-  RecoverFromStuckness,
   RideHailRepositioningTrigger
 }
 import beam.agentsim.scheduler.BeamAgentScheduler._
