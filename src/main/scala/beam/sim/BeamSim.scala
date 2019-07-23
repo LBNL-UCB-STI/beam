@@ -21,7 +21,7 @@ import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
 import beam.utils.logging.ExponentialLazyLogging
-import beam.utils.scripts.{FailFast, PythonExecutor}
+import beam.utils.scripts.FailFast
 import beam.utils.{DebugLib, NetworkHelper}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
@@ -47,8 +47,6 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
-
-import scala.util.{Failure, Success}
 
 class BeamSim @Inject()(
   private val actorSystem: ActorSystem,
