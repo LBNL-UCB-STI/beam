@@ -548,6 +548,12 @@ class BeamSkimmer @Inject()(
     skimsPlus.put(key, skimsPlus.getOrElse(key, 0.0) + count.toDouble)
   }
 
+  def addValue(curBin: Int, tazId: Id[TAZ], vehicleManager: Id[VehicleManager], label: Label, value: Double) = {
+    if (curBin > trackSkimsPlusTS) trackSkimsPlusTS = curBin
+    val key = (trackSkimsPlusTS, tazId, vehicleManager, label)
+    skimsPlus.put(key, skimsPlus.getOrElse(key, 0.0) + value)
+  }
+
   def observeVehicleAvailabilityByTAZ(
     curBin: Int,
     vehicleManager: Id[VehicleManager],

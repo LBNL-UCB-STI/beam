@@ -14,6 +14,7 @@ import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -122,26 +123,16 @@ class AsyncAlonsoMoraAlgForRideHail(
   }
 
   def greedyAssignment(tick: Int): Future[List[(RideHailTrip, VehicleAndSchedule, Double)]] = {
-    skimmer.countEvents(
-      tick,
-      TAZTreeMap.emptyTAZId,
-      Id.create("reposition", classOf[VehicleManager]),
-      "vehicles",
-      count = supply.count(_.seatsAvailable > 0)
-    )
-    skimmer.countEvents(
-      tick,
-      TAZTreeMap.emptyTAZId,
-      Id.create("reposition", classOf[VehicleManager]),
-      "demand",
-      count = spatialDemand.size()
-    )
+
+    skimByTazId(supply.map(_.vehicle.toStreetVehicle.locationUTM.loc), tick, "available-vehicles")
+    skimByTazId(spatialDemand.values().asScala.map(_.pickup.activity.getCoord), tick, "pooling-requests")
+
     val rTvGFuture = asyncBuildOfRTVGraph()
     val V: Int = supply.foldLeft(0) { case (maxCapacity, v) => Math max (maxCapacity, v.getFreeSeats) }
     rTvGFuture.map { rTvG =>
-      val greedyAssignmentList = scala.collection.mutable.ListBuffer.empty[(RideHailTrip, VehicleAndSchedule, Double)]
-      val Rok = scala.collection.mutable.ListBuffer.empty[CustomerRequest]
-      val Vok = scala.collection.mutable.ListBuffer.empty[VehicleAndSchedule]
+      val greedyAssignmentList = mutable.ListBuffer.empty[(RideHailTrip, VehicleAndSchedule, Double)]
+      val Rok = mutable.ListBuffer.empty[CustomerRequest]
+      val Vok = mutable.ListBuffer.empty[VehicleAndSchedule]
       for (k <- V to 1 by -1) {
         rTvG
           .vertexSet()
@@ -173,56 +164,47 @@ class AsyncAlonsoMoraAlgForRideHail(
               }
           }
       }
-      skimmer.countEvents(
-        tick,
-        TAZTreeMap.emptyTAZId,
-        Id.create("reposition", classOf[VehicleManager]),
-        "servedReq",
-        count = greedyAssignmentList.map(_._1.requests.size).sum
-      )
-      skimmer.countEvents(
-        tick,
-        TAZTreeMap.emptyTAZId,
-        Id.create("reposition", classOf[VehicleManager]),
-        "nonpooledReq",
-        count = greedyAssignmentList.count(a => a._2.getNoPassengers + a._1.requests.size == 1)
-      )
-      skimmer.countEvents(
-      tick,
-      TAZTreeMap.emptyTAZId,
-      Id.create("reposition", classOf[VehicleManager]),
-      "pooledReq",
-      count = greedyAssignmentList.count(a => a._2.getNoPassengers + a._1.requests.size > 1)
-      )
-      skimmer.countEvents(
-        tick,
-        TAZTreeMap.emptyTAZId,
-        Id.create("reposition", classOf[VehicleManager]),
-        "pooledReq2",
-        count = greedyAssignmentList.count(a => a._2.getNoPassengers + a._1.requests.size == 2)
-      )
-      skimmer.countEvents(
-        tick,
-        TAZTreeMap.emptyTAZId,
-        Id.create("reposition", classOf[VehicleManager]),
-        "pooledReq3",
-        count = greedyAssignmentList.count(a => a._2.getNoPassengers + a._1.requests.size == 3)
-      )
-      skimmer.countEvents(
-        tick,
-        TAZTreeMap.emptyTAZId,
-        Id.create("reposition", classOf[VehicleManager]),
-        "pooledReq4",
-        count = greedyAssignmentList.count(a => a._2.getNoPassengers + a._1.requests.size == 4)
-      )
-      skimmer.countEvents(
-        tick,
-        TAZTreeMap.emptyTAZId,
-        Id.create("reposition", classOf[VehicleManager]),
-        "pooledReq5",
-        count = greedyAssignmentList.count(a => a._2.getNoPassengers + a._1.requests.size == 5)
-      )
+      skimAssignmentList(greedyAssignmentList, tick, 1)
+      skimAssignmentList(greedyAssignmentList, tick, 2)
+      skimAssignmentList(greedyAssignmentList, tick, 3)
+      skimAssignmentList(greedyAssignmentList, tick, 4)
+      val totTime = greedyAssignmentList.filter(a => a._2.getNoPassengers + a._1.requests.size > 1)
+        .map(_._1.schedule.filter(_.serviceTime >= tick).map(_.serviceTime))
+        .map(scheduleTime => scheduleTime.last - scheduleTime.head)
+        .sum
+      skimByValue(totTime, tick, "evtt-pooling-requests")
       greedyAssignmentList.toList
     }
+  }
+
+  def skimAssignmentList(assignmentList: mutable.ListBuffer[(RideHailTrip, VehicleAndSchedule, Double)], tick: Int, nbPassenger: Int) = {
+    skimByTazId(
+      assignmentList
+        .filter(a => a._2.getNoPassengers + a._1.requests.size == nbPassenger)
+        .flatMap(_._1.requests.map(_.pickup.activity.getCoord)),
+      tick,
+      s"matched-${nbPassenger}P-pooling-requests")
+  }
+
+  def skimByTazId(locations: Iterable[Coord], tick: Int, label: String) = {
+    locations
+      .groupBy( loc => beamServices.beamScenario.tazTreeMap.getTAZ(loc.getX, loc.getY).tazId)
+      .mapValues(_.size)
+      .foreach { case (tazId, occurrence) =>
+        skimmer.countEvents(
+          tick,
+          tazId,
+          Id.create("pooling-alonso-mora", classOf[VehicleManager]),
+          label,
+          count = occurrence)
+      }
+  }
+  def skimByValue(value: Double, tick: Int, label: String) = {
+    skimmer.addValue(
+      tick,
+      TAZTreeMap.emptyTAZId,
+      Id.create("pooling-alonso-mora", classOf[VehicleManager]),
+      label,
+      value)
   }
 }

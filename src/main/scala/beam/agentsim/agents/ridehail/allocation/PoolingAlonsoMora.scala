@@ -7,9 +7,11 @@ import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.BeamRouter.{Location, RoutingRequest}
 import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode.CAR
+import beam.sim.vehiclesharing.VehicleManager
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.vehicles.Vehicle
@@ -308,8 +310,20 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           case res @ RoutingRequiredToAllocateVehicle(_, routes) =>
             allocResponses = allocResponses :+ res
             alreadyAllocated = alreadyAllocated + routes.head.streetVehicles.head.id
+            skimmer.countEventsByTAZ(
+              tick,
+              req.pickUpLocationUTM,
+              Id.create("pooling-alonso-mora", classOf[VehicleManager]),
+              "rd-solo-matched"
+            )
           case res =>
             allocResponses = allocResponses :+ res
+            skimmer.countEventsByTAZ(
+              tick,
+              req.pickUpLocationUTM,
+              Id.create("pooling-alonso-mora", classOf[VehicleManager]),
+              "rd-solo-unmatched"
+            )
         }
       }
     }
