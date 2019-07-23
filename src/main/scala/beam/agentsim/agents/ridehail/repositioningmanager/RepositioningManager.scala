@@ -29,7 +29,7 @@ object RepositioningManager {
   }
 }
 
-class NoOpRepositioningManager(val beamServices: BeamServices, val rideHailManager: RideHailManager)
+class DefaultRepositioningManager(val beamServices: BeamServices, val rideHailManager: RideHailManager)
     extends RepositioningManager(beamServices, rideHailManager) {
   override def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)] = Vector.empty
 }

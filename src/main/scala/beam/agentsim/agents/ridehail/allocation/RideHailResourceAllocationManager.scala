@@ -5,7 +5,7 @@ import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.repositioningmanager.{
   DemandFollowingRepositioningManager,
-  NoOpRepositioningManager,
+  DefaultRepositioningManager,
   RepositioningLowWaitingTimes,
   RepositioningManager
 }
@@ -180,7 +180,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   /*
    * repositionVehicles
    *
-   * This method is called periodically according to the parameter beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds
+   * This method is called periodically according to the parameter `beam.agentsim.agents.rideHail.repositioningManager.timeout`
    * The response of this method is used to reposition idle vehicles to new locations to better meet anticipated demand.
    * Currently it is not possible to enable repositioning AND batch allocation simultaneously. But simultaneous execution
    * will be enabled in the near-term.
@@ -210,11 +210,11 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     val name = rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.name
     try {
       name match {
-        case "NoOpRepositioningManager" =>
-          RepositioningManager[NoOpRepositioningManager](rideHailManager.beamServices, rideHailManager)
-        case "DemandFollowingRepositioningManager" =>
+        case "DEFAULT_REPOSITIONING_MANAGER" =>
+          RepositioningManager[DefaultRepositioningManager](rideHailManager.beamServices, rideHailManager)
+        case "DEMAND_FOLLOWING_REPOSITIONING_MANAGER" =>
           RepositioningManager[DemandFollowingRepositioningManager](rideHailManager.beamServices, rideHailManager)
-        case "RepositioningLowWaitingTimes" =>
+        case "REPOSITIONING_LOW_WAITING_TIMES" =>
           RepositioningManager[RepositioningLowWaitingTimes](rideHailManager.beamServices, rideHailManager)
         case x =>
           throw new IllegalStateException(s"There is no implementation for `$x`")
