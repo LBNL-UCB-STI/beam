@@ -238,15 +238,15 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
         allRides.foreach { rides =>
           csvWriter.writeColumn(utilization.numberOfRidesServedByNumberOfVehicles.getOrElse(rides, 0))
         }
-        val lastPassenger = allPassengers.last
-        allPassengers.foreach { passengers =>
-          val isLastColumn = lastPassenger == passengers
-          csvWriter.writeColumn(
-            utilization.numOfPassengersToTheNumberOfRides.getOrElse(passengers, 0),
-            shouldAddDelimiter = !isLastColumn
-          )
+        if (allPassengers.nonEmpty) {
+          allPassengers.foreach { passengers =>
+            val isLastColumn = allPassengers.last == passengers
+            csvWriter.writeColumn(
+              utilization.numOfPassengersToTheNumberOfRides.getOrElse(passengers, 0),
+              shouldAddDelimiter = !isLastColumn
+            )
+          }
         }
-
         csvWriter.writeNewLine()
       }
     } catch {
