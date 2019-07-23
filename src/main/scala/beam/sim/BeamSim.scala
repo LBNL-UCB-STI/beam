@@ -86,7 +86,7 @@ class BeamSim @Inject()(
   var metricsPrinter: ActorRef = actorSystem.actorOf(MetricsPrinter.props())
   val summaryData = new mutable.HashMap[String, mutable.Map[Int, Double]]()
 
-  val rhuc: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
+  val rideHailUtilizationCollector: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
 
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
@@ -97,7 +97,7 @@ class BeamSim @Inject()(
     metricsPrinter ! Subscribe("counter", "**")
     metricsPrinter ! Subscribe("histogram", "**")
 
-    eventsManager.addHandler(rhuc)
+    eventsManager.addHandler(rideHailUtilizationCollector)
 
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
@@ -184,7 +184,7 @@ class BeamSim @Inject()(
     if (isFirstIteration(iterationNumber)) {
       PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv"))
     }
-    rhuc.reset(event.getIteration)
+    rideHailUtilizationCollector.reset(event.getIteration)
 
     if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
       PlansCsvWriter.toCsv(scenario, controllerIO.getIterationFilename(iterationNumber, "plans_beg.csv"))
@@ -215,7 +215,7 @@ class BeamSim @Inject()(
     if (beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
 
-    rhuc.notifyIterationEnds(event)
+    rideHailUtilizationCollector.notifyIterationEnds(event)
 
     val outputGraphsFuture = Future {
       if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
