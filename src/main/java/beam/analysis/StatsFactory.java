@@ -30,7 +30,8 @@ public class StatsFactory {
         TollRevenue,
         AgencyRevenue,
         ParkingDelay,
-        RideHailUtilization
+        RideHailUtilization,
+        ActivityType
     }
 
     private final BeamConfig beamConfig;
@@ -106,6 +107,8 @@ public class StatsFactory {
                 return new ParkingStatsCollector(beamServices);
             case RideHailUtilization:
                 return new SimpleRideHailUtilization();
+            case ActivityType:
+                return new ActivityTypeAnalysis(beamServices.matsimServices().getConfig().travelTimeCalculator().getMaxTime());
             default:
                 return null;
         }
