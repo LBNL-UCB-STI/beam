@@ -189,10 +189,15 @@ class BeamWarmStart private (beamConfig: BeamConfig, maxHour: Int) extends LazyL
 
 object BeamWarmStart extends LazyLogging {
 
-  // @deprecated("Warmstart should not be instantiated. It should use config file", since = "2019-07-04")
-  def apply(beamConfig: BeamConfig): BeamWarmStart = {
-    val maxHour = TimeUnit.SECONDS.toHours(new TravelTimeCalculatorConfigGroup().getMaxTime).toInt
-    new BeamWarmStart(beamConfig, maxHour)
+  def apply(beamConfig: BeamConfig): BeamWarmStart = this(beamConfig)
+
+  def apply(beamConfig: BeamConfig, calculator: TravelTimeCalculatorConfigGroup): BeamWarmStart = {
+    val (warm, _) = instanceFromCalculator(beamConfig, calculator)
+    warm
+  }
+
+  def apply(beamConfig: BeamConfig, maxHours: Int) = {
+
   }
 
   def updateRemoteRouter(scenario: Scenario, travelTime: TravelTime, maxHour: Int, beamRouter: ActorRef): Unit = {
@@ -211,8 +216,7 @@ object BeamWarmStart extends LazyLogging {
     scenario: Scenario
   ): Unit = {
     if (beamConfig.beam.warmStart.enabled) {
-      val maxHour = TimeUnit.SECONDS.toHours(calculator.getMaxTime).toInt
-      val warm = new BeamWarmStart(beamConfig, maxHour)
+      val (warm: BeamWarmStart, maxHour: Int) = instanceFromCalculator(beamConfig, calculator)
       warm.readTravelTime.foreach { travelTime =>
         beamRouter ! UpdateTravelTimeLocal(travelTime)
         BeamWarmStart.updateRemoteRouter(scenario, travelTime, maxHour, beamRouter)
@@ -220,6 +224,16 @@ object BeamWarmStart extends LazyLogging {
       }
     }
   }
+
+  private def instanceWithMaxHours(beamConfig: BeamConfig, maxHours: Int): BeamWarmStart = {
+    new BeamWarmStart(beamConfig, maxHours)
+  }
+
+
+  def maxHoursFromCalculator(calculator: TravelTimeCalculatorConfigGroup): Int = {
+    TimeUnit.SECONDS.toHours(calculator.getMaxTime).toInt
+  }
+
 
   def updateExecutionConfig(beamExecutionConfig: BeamExecutionConfig): BeamExecutionConfig = {
     val beamConfig = beamExecutionConfig.beamConfig
@@ -232,10 +246,7 @@ object BeamWarmStart extends LazyLogging {
           "Beam skims are not being written out - skims will be missing for warm starting from the output of this run!"
         )
       }
-      val instance = {
-        val maxHour = TimeUnit.SECONDS.toHours(matsimConfig.travelTimeCalculator().getMaxTime).toInt
-        new BeamWarmStart(beamConfig, maxHour)
-      }
+      val (instance, _) = instanceFromCalculator(beamConfig, matsimConfig.travelTimeCalculator())
       val configAgents = beamConfig.beam.agentsim.agents
       val scenarioConfig = beamConfig.beam.exchange.scenario
 

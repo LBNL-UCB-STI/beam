@@ -78,7 +78,7 @@ object R5RoutingApp extends BeamHelper {
     val f = Await.result(workerRouter ? Identify(0), Duration.Inf)
     logger.info("R5RoutingWorker is initialized!")
 
-    val warmStart = BeamWarmStart(beamCfg)
+    val warmStart = BeamWarmStart(beamCfg, new TravelTimeCalculatorConfigGroup)
     logger.info(s"warmStart isEnabled?: ${warmStart.isWarmMode}")
 
     warmStart.readTravelTime.foreach { travelTime =>
