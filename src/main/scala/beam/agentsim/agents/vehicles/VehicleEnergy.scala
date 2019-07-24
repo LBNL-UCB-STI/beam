@@ -234,8 +234,8 @@ class VehicleEnergy(
         numberOfLanesOption,
         _,
         _,
-        _,
         speedInMetersPerSecondOption,
+        _,
         _,
         _,
         _
