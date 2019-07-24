@@ -52,7 +52,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
   val beamExecConfig: BeamExecutionConfig = setupBeamWithConfig(system.settings.config)
   implicit lazy val beamScenario = loadScenario(beamExecConfig.beamConfig)
   lazy val scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, beamScenario)
-  lazy val injector = buildInjector(system.settings.config, scenario, beamScenario)
+  lazy val injector = buildInjector(system.settings.config, beamExecConfig.beamConfig, scenario, beamScenario)
   lazy val services = buildBeamServices(injector, scenario)
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 

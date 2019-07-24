@@ -251,6 +251,12 @@ object BeamWarmStart extends LazyLogging {
 
       val vehiclesCsv = instance.notCompressedLocation("Households", "vehicles.csv", true)
 
+      val rideHailFleetCsv = instance.compressedLocation("Ride-hail fleet state", "rideHailFleet.csv.gz")
+      val newRideHailInit = {
+        val updatedInitCfg = configAgents.rideHail.initialization.copy(filePath = rideHailFleetCsv, initType = "FILE")
+        configAgents.rideHail.copy(initialization = updatedInitCfg)
+      }
+
       val newConfigAgents = {
         val newPlans = {
           configAgents.plans
@@ -261,7 +267,12 @@ object BeamWarmStart extends LazyLogging {
 
         val newVehicles = configAgents.vehicles.copy(vehiclesFilePath = vehiclesCsv)
 
-        configAgents.copy(plans = newPlans, households = newHouseHolds, vehicles = newVehicles)
+        configAgents.copy(
+          plans = newPlans,
+          households = newHouseHolds,
+          vehicles = newVehicles,
+          rideHail = newRideHailInit
+        )
       }
 
       val newAgentSim = beamConfig.beam.agentsim.copy(agents = newConfigAgents)

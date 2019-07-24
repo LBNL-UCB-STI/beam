@@ -1,20 +1,19 @@
-package beam.agentsim.agents.ridehail.allocation
+package beam.agentsim.agents.ridehail.repositioningmanager
 
 import java.awt.Color
-import java.util.concurrent.TimeUnit
 
-import akka.util.Timeout
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.router.BeamRouter.Location
+import beam.sim.BeamServices
 import beam.utils._
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
-class RepositioningLowWaitingTimes(
-  val rideHailManager: RideHailManager
-) extends RideHailResourceAllocationManager(rideHailManager) {
-  implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailManager: RideHailManager)
+    extends RepositioningManager(beamServices, rideHailManager)
+    with LazyLogging {
 
   // Only override proposeVehicleAllocation if you wish to do something different from closest euclidean vehicle
   //  override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): VehicleAllocationResponse
@@ -22,31 +21,36 @@ class RepositioningLowWaitingTimes(
   var boundsCalculator: Option[BoundsCalculator] = None
   var firstRepositionCoordsOfDay: Option[(Coord, Coord)] = None
 
-  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
+  val repositioningConfig =
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes
+
+  // TODO: get proper number here from rideHailManager
+  val timeWindowSizeInSecForDecidingAboutRepositioning =
+    repositioningConfig.timeWindowSizeInSecForDecidingAboutRepositioning
+
+  val percentageOfVehiclesToReposition =
+    repositioningConfig.percentageOfVehiclesToReposition
+
+  val maxNumberOfVehiclesToReposition =
+    (rideHailManager.fleetSize * percentageOfVehiclesToReposition).toInt
+
+  var repositionCircleRadiusInMeters =
+    repositioningConfig.repositionCircleRadiusInMeters
+
+  val minimumNumberOfIdlingVehiclesThresholdForRepositioning =
+    repositioningConfig.minimumNumberOfIdlingVehiclesThresholdForRepositioning
+
+  val allowIncreasingRadiusIfDemandInRadiusLow =
+    repositioningConfig.allowIncreasingRadiusIfDemandInRadiusLow
+
+  val minDemandPercentageInRadius =
+    repositioningConfig.minDemandPercentageInRadius
+
+  override def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)] = {
 
     rideHailManager.tncIterationStats match {
       case Some(tncIterStats) =>
         val idleVehicles = rideHailManager.vehicleManager.getIdleVehicles
-        val repositioningConfig =
-          rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes
-        // TODO: get proper number here from rideHailManager
-        val timeWindowSizeInSecForDecidingAboutRepositioning =
-          repositioningConfig.timeWindowSizeInSecForDecidingAboutRepositioning
-        val percentageOfVehiclesToReposition =
-          repositioningConfig.percentageOfVehiclesToReposition
-        val maxNumberOfVehiclesToReposition =
-          (rideHailManager.fleetSize * percentageOfVehiclesToReposition).toInt
-
-        var repositionCircleRadiusInMeters =
-          repositioningConfig.repositionCircleRadiusInMeters
-        val minimumNumberOfIdlingVehiclesThresholdForRepositioning =
-          repositioningConfig.minimumNumberOfIdlingVehiclesThresholdForRepositioning
-
-        val allowIncreasingRadiusIfDemandInRadiusLow =
-          repositioningConfig.allowIncreasingRadiusIfDemandInRadiusLow
-        val minDemandPercentageInRadius =
-          repositioningConfig.minDemandPercentageInRadius
-
         //if (firstRepositioningOfDay && tick > 0 && rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.name.equalsIgnoreCase(RideHailManager.INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER)) {
         // allow more aggressive repositioning at start of day
         //minimumNumberOfIdlingVehiclesThresholdForRepositioning = 0

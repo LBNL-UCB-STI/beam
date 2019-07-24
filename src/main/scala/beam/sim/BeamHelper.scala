@@ -123,6 +123,7 @@ trait BeamHelper extends LazyLogging {
 
   def module(
     typesafeConfig: TypesafeConfig,
+    beamConfig: BeamConfig,
     scenario: Scenario,
     beamScenario: BeamScenario
   ): com.google.inject.Module =
@@ -137,7 +138,7 @@ trait BeamHelper extends LazyLogging {
 
           // Beam Inject below:
           install(new ConfigModule(typesafeConfig))
-          install(new BeamAgentModule(BeamConfig(typesafeConfig)))
+          install(new BeamAgentModule(beamConfig))
           install(new UtilsModule)
         }
       }).asJava,
@@ -148,8 +149,6 @@ trait BeamHelper extends LazyLogging {
         override def install(): Unit = {
           // This code will be executed 3 times due to this https://github.com/LBNL-UCB-STI/matsim/blob/master/matsim/src/main/java/org/matsim/core/controler/Injector.java#L99:L101
           // createMapBindingsForType is called 3 times. Be careful not to do expensive operations here
-          val beamConfig = BeamConfig(typesafeConfig)
-
           bind(classOf[BeamConfig]).toInstance(beamConfig)
           bind(classOf[BeamConfigChangesObservable]).toInstance(new BeamConfigChangesObservable(beamConfig))
           bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
@@ -207,7 +206,7 @@ trait BeamHelper extends LazyLogging {
       }
     )
 
-  def loadScenario(beamConfig: BeamConfig) = {
+  def loadScenario(beamConfig: BeamConfig): BeamScenario = {
     val vehicleTypes = maybeScaleTransit(
       beamConfig,
       readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
@@ -250,7 +249,7 @@ trait BeamHelper extends LazyLogging {
     )
   }
 
-  def vehicleEnergy(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]) = {
+  def vehicleEnergy(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]): VehicleEnergy = {
     val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
     val vehicleCsvReader = new VehicleCsvReader(beamConfig)
     val consumptionRateFilterStore =
@@ -444,7 +443,6 @@ trait BeamHelper extends LazyLogging {
   def runBeamWithConfig(config: TypesafeConfig): (MatsimConfig, String) = {
     val beamExecutionConfig = updateConfigWithWarmStart(setupBeamWithConfig(config))
     val (scenario, beamScenario) = buildBeamServicesAndScenario(
-      config,
       beamExecutionConfig.beamConfig,
       beamExecutionConfig.matsimConfig,
     )
@@ -470,7 +468,7 @@ trait BeamHelper extends LazyLogging {
     }
     logger.warn(logStart)
 
-    val injector: inject.Injector = buildInjector(config, scenario, beamScenario)
+    val injector: inject.Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
     val services = injector.getInstance(classOf[BeamServices])
 
     runBeam(
@@ -522,12 +520,13 @@ trait BeamHelper extends LazyLogging {
 
   protected def buildInjector(
     config: TypesafeConfig,
+    beamConfig: BeamConfig,
     scenario: MutableScenario,
     beamScenario: BeamScenario
   ): inject.Injector = {
     org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
-      module(config, scenario, beamScenario)
+      module(config, beamConfig, scenario, beamScenario)
     )
   }
 
@@ -557,7 +556,6 @@ trait BeamHelper extends LazyLogging {
   }
 
   protected def buildBeamServicesAndScenario(
-    typesafeConfig: TypesafeConfig,
     beamConfig: BeamConfig,
     matsimConfig: MatsimConfig
   ): (MutableScenario, BeamScenario) = {
