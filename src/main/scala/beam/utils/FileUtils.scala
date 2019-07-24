@@ -2,7 +2,7 @@ package beam.utils
 
 import java.io._
 import java.net.URL
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Path, Paths}
 import java.text.SimpleDateFormat
 import java.util.stream
 
@@ -13,6 +13,7 @@ import org.apache.commons.io.FilenameUtils.getName
 import org.matsim.core.config.Config
 import org.matsim.core.utils.io.IOUtils
 
+import scala.io.Source
 import scala.language.reflectiveCalls
 
 /**
@@ -84,6 +85,13 @@ object FileUtils extends LazyLogging {
   def safeLines(fileLoc: String): stream.Stream[String] = {
     using(readerFromFile(fileLoc))(_.lines)
   }
+
+  def lines(path: String): Iterator[String] =
+    Option(Paths.get(path))
+      .map(_.toFile)
+      .filter(_.isFile)
+      .map(f => Source.fromInputStream(new FileInputStream(f)).getLines().drop(1))
+      .getOrElse(Iterator.empty)
 
   def readerFromFile(filePath: String): java.io.BufferedReader = {
     IOUtils.getBufferedReader(filePath)
