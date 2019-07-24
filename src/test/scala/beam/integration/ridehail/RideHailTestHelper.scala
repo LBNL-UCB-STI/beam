@@ -25,16 +25,8 @@ object RideHailTestHelper {
         ConfigValueFactory.fromAnyRef(0.1)
       )
       .withValue(
-        "beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds",
-        ConfigValueFactory.fromAnyRef(300)
-      )
-      .withValue(
         "beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds",
         ConfigValueFactory.fromAnyRef(0)
-      )
-      .withValue(
-        "beam.agentsim.agents.rideHail.allocationManager.randomRepositioning.repositioningShare",
-        ConfigValueFactory.fromAnyRef(0.2)
       )
       .withValue("beam.debug.stuckAgentDetection.enabled", ConfigValueFactory.fromAnyRef(true))
       .resolve()

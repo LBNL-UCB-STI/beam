@@ -1,9 +1,11 @@
 # fallback on built-in heuristics
 # this must be first so later entries will override it
 * text=auto
+
 # check out text files with lf, not crlf, on Windows.  (especially
 # important for Scala source files, since """ preserves line endings)
 text eol=lf
+
 # These files are text and should be normalized (convert crlf => lf)
 *.c       eol=lf
 *.check   eol=lf
@@ -18,10 +20,12 @@ text eol=lf
 *.sh      eol=lf
 *.txt     eol=lf
 *.xml     eol=lf
+
 # Windows-specific files get windows endings
 *.bat     eol=crlf
 *.cmd     eol=crlf
 *-windows.tmpl eol=crlf
+
 *.osm filter=lfs diff=lfs merge=lfs -text
 *.pbf filter=lfs diff=lfs merge=lfs -text
 *.csv filter=lfs diff=lfs merge=lfs -text
@@ -35,3 +39,4 @@ text eol=lf
 test/**/*.xml filter=lfs diff=lfs merge=lfs -text
 production/**/*.xml filter=lfs diff=lfs merge=lfs -text
 production/**/*.parquet filter=lfs diff=lfs merge=lfs -text
+test/input/sf-light/TechTakeover_longTerm_lowTech/ filter=lfs diff=lfs merge=lfs -text
