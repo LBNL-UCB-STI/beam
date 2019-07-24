@@ -120,7 +120,8 @@ class BeamVehicle(
     *
     */
   def useFuel(beamLeg: BeamLeg, beamScenario: BeamScenario, networkHelper: NetworkHelper): FuelConsumed = {
-    val fuelConsumptionDataWithOnlyLength_Id_And_Type = !beamScenario.vehicleEnergy.vehicleEnergyMappingExistsFor(beamVehicleType)
+    val fuelConsumptionDataWithOnlyLength_Id_And_Type =
+      !beamScenario.vehicleEnergy.vehicleEnergyMappingExistsFor(beamVehicleType)
     val fuelConsumptionData =
       BeamVehicle.collectFuelConsumptionData(
         beamLeg,
