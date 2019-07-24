@@ -139,6 +139,11 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     end = System.currentTimeMillis()
     val diff2 = end - start
 
+    logger.whenDebugEnabled {
+      val sortedByTime = times2RideHailAgents.toVector.sortBy(x => x.timeToCustomer)
+      logger.info(s"At tick $customerRequestTime there were AvailableRideHailAgents: $sortedByTime")
+    }
+
     if (diff1 + diff2 > 100)
       logger.debug(
         s"getClosestIdleVehiclesWithinRadiusByETA for $pickupLocation with $radius nearbyAvailableRideHailAgents: $diff1, diff2: $diff2. Total: ${diff1 + diff2} ms"
