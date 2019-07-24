@@ -120,12 +120,13 @@ class BeamVehicle(
     *
     */
   def useFuel(beamLeg: BeamLeg, beamScenario: BeamScenario, networkHelper: NetworkHelper): FuelConsumed = {
+    val fuelConsumptionDataWithOnlyLength_Id_And_Type = !beamScenario.vehicleEnergy.vehicleEnergyMappingExistsFor(beamVehicleType)
     val fuelConsumptionData =
       BeamVehicle.collectFuelConsumptionData(
         beamLeg,
         beamVehicleType,
         networkHelper,
-        beamScenario.vehicleEnergy.vehicleEnergyMappingExistsFor(beamVehicleType)
+        fuelConsumptionDataWithOnlyLength_Id_And_Type
       )
 
     val primaryEnergyForFullLeg =
@@ -291,12 +292,12 @@ object BeamVehicle {
     beamLeg: BeamLeg,
     theVehicleType: BeamVehicleType,
     networkHelper: NetworkHelper,
-    vehicleMappingExists: Boolean = false
+    fuelConsumptionDataWithOnlyLength_Id_And_Type: Boolean = false
   ): IndexedSeq[FuelConsumptionData] = {
     //TODO: This method is becoming a little clunky. If it has to grow again then maybe refactor/break it out
     if (beamLeg.mode.isTransit & !Modes.isOnStreetTransit(beamLeg.mode)) {
       Vector.empty
-    } else if (!vehicleMappingExists) {
+    } else if (fuelConsumptionDataWithOnlyLength_Id_And_Type) {
       beamLeg.travelPath.linkIds
         .drop(1)
         .map(
@@ -317,35 +318,15 @@ object BeamVehicle {
     } else {
       val linkIds = beamLeg.travelPath.linkIds.drop(1)
       val linkTravelTimes: IndexedSeq[Int] = beamLeg.travelPath.linkTravelTime.drop(1)
-      // generate the link arrival times for each link ,by adding cumulative travel times of previous links
-//      val linkArrivalTimes = linkTravelTimes.scan(beamLeg.startTime)((enterTime,duration) => enterTime + duration).dropRight(1)
-//      val nextLinkIds = linkIds.takeRight(linkIds.size - 1)
       linkIds.zipWithIndex.map {
         case (id, idx) =>
           val travelTime = linkTravelTimes(idx)
-//          val arrivalTime = linkArrivalTimes(idx)
           val currentLink: Option[Link] = networkHelper.getLink(id)
           val averageSpeed = try {
             if (travelTime > 0) currentLink.map(_.getLength).getOrElse(0.0) / travelTime else 0
           } catch {
             case _: Exception => 0.0
           }
-          // get the next link , and calculate the direction to be taken based on the angle between the two links
-//          val nextLink = if (idx < nextLinkIds.length) {
-//            networkHelper.getLink(nextLinkIds(idx))
-//          } else {
-//            currentLink
-//          }
-//          val turnAtLinkEnd = currentLink match {
-//            case Some(curLink) =>
-//              GeoUtils.getDirection(GeoUtils.vectorFromLink(curLink), GeoUtils.vectorFromLink(nextLink.get))
-//            case None =>
-//              Straight
-//          }
-//          val numStops = turnAtLinkEnd match {
-//            case Straight => 0
-//            case _        => 1
-//          }
           FuelConsumptionData(
             linkId = id,
             vehicleType = theVehicleType,
@@ -353,7 +334,7 @@ object BeamVehicle {
             linkCapacity = None, //currentLink.map(_.getCapacity),
             linkLength = currentLink.map(_.getLength),
             averageSpeed = Some(averageSpeed),
-            freeFlowSpeed = currentLink.map(_.getFreespeed),
+            freeFlowSpeed = None,
             linkArrivalTime = None, //Some(arrivalTime),
             turnAtLinkEnd = None, //Some(turnAtLinkEnd),
             numberOfStops = None //Some(numStops)
