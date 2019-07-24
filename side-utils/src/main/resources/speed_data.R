@@ -4,9 +4,8 @@
 # Created on: 2019-07-15
 library(ggplot2)
 
-keep <- c("osmId", "speedBeam", "speedMedian", "speedAvg", "cat")
 speedData <- read.csv("speed/compare_no_locals.csv")
-sdata <- speedData[complete.cases(speedData[keep]), ]
+sdata <- speedData[complete.cases(speedData), ]
 
 cd <- transform(sdata, diffSpeed = speedBeam - speedAvg)
 
@@ -41,3 +40,6 @@ plot(x = 1:nrow(cd), y = cd$diff, type = 'l')
 # Save the file.
 dev.off()
 
+subdata <- subset(cd, maxDev > 200)
+print(head(subdata[order(subdata$diffSpeed, decreasing=TRUE), ], 20))
+print(head(subdata[order(subdata$diffSpeed, decreasing=FALSE), ], 20))
