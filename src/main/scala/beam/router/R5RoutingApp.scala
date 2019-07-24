@@ -24,7 +24,6 @@ import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.syntax._
 import org.matsim.api.core.v01.Id
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
-
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -78,10 +77,8 @@ object R5RoutingApp extends BeamHelper {
     val f = Await.result(workerRouter ? Identify(0), Duration.Inf)
     logger.info("R5RoutingWorker is initialized!")
 
-    val warmStart = BeamWarmStart(beamCfg, new TravelTimeCalculatorConfigGroup)
-    logger.info(s"warmStart isEnabled?: ${warmStart.isWarmMode}")
-
-    warmStart.readTravelTime.foreach { travelTime =>
+    val maxHours: Int = BeamWarmStart.maxHoursFromCalculator(new TravelTimeCalculatorConfigGroup)
+    BeamWarmStart.readTravelTime(beamCfg, maxHours).foreach { travelTime =>
       workerRouter ! UpdateTravelTimeLocal(travelTime)
       logger.info("Send `UpdateTravelTimeLocal`")
     }
