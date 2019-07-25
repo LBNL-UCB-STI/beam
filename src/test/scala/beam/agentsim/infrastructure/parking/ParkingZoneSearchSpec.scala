@@ -97,7 +97,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         )
 
         result match {
-          case None => fail()
+          case None                                                                                                 => fail()
           case Some(ParkingZoneSearch.ParkingSearchResult(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
             // TAZ B should have been selected because everything is equal except for availability is lower for A
             taz should equal(tazB)
@@ -141,7 +141,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         )
 
         result match {
-          case None => fail()
+          case None                                                                                                 => fail()
           case Some(ParkingZoneSearch.ParkingSearchResult(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
             // TAZ B should have been selected because everything is equal except for availability is lower for A
             taz should equal(tazB)

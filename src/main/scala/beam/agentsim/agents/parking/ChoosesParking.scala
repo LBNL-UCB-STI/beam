@@ -157,7 +157,6 @@ trait ChoosesParking extends {
             )
         }
 
-
       parkingManager ! ParkingInquiry(
         destinationUtm,
         nextActivityType,

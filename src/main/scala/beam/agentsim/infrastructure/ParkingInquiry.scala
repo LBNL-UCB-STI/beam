@@ -19,24 +19,24 @@ import beam.utils.ParkingManagerIdGenerator
   * @param requestId       a unique ID generated for this inquiry
   */
 case class ParkingInquiry(
-                           destinationUtm: Location,
-                           activityType: String,
-                           valueOfTime: Double,
-                           utilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String],
-                           parkingDuration: Double,
-                           vehicleType: Option[BeamVehicle] = None,
-                           reserveStall: Boolean = true,
-                           requestId: Int = ParkingManagerIdGenerator.nextId // note, this expects all Agents exist in the same JVM to rely on calling this singleton
-                         )
+  destinationUtm: Location,
+  activityType: String,
+  valueOfTime: Double,
+  utilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String],
+  parkingDuration: Double,
+  vehicleType: Option[BeamVehicle] = None,
+  reserveStall: Boolean = true,
+  requestId: Int = ParkingManagerIdGenerator.nextId // note, this expects all Agents exist in the same JVM to rely on calling this singleton
+)
 
 object ParkingInquiry {
 
   val simpleDistanceAndParkingTicketEqualUtilityFunction
-  : MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
+    : MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
     new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](
       Map.empty,
       Map(
-        "distanceFactor" -> UtilityFunctionOperation.Multiplier(-1),
+        "distanceFactor"          -> UtilityFunctionOperation.Multiplier(-1),
         "parkingCostsPriceFactor" -> UtilityFunctionOperation.Multiplier(-1)
       )
     )
@@ -49,15 +49,26 @@ object ParkingInquiry {
       )
     )
 
-  def apply(destinationUtm: Location,
-            activityType: String,
-            valueOfTime: Double,
-            utilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String],
-            parkingDuration: Double,
-            vehicleType: Option[BeamVehicle] = None,
-            reserveStall: Boolean = true,
-            requestId: Int = ParkingManagerIdGenerator.nextId): ParkingInquiry = {
-    ParkingInquiry(destinationUtm, activityType, valueOfTime, utilityFunction, parkingDuration, vehicleType, reserveStall, requestId)
+  def apply(
+    destinationUtm: Location,
+    activityType: String,
+    valueOfTime: Double,
+    utilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String],
+    parkingDuration: Double,
+    vehicleType: Option[BeamVehicle] = None,
+    reserveStall: Boolean = true,
+    requestId: Int = ParkingManagerIdGenerator.nextId
+  ): ParkingInquiry = {
+    ParkingInquiry(
+      destinationUtm,
+      activityType,
+      valueOfTime,
+      utilityFunction,
+      parkingDuration,
+      vehicleType,
+      reserveStall,
+      requestId
+    )
   }
 
   def apply(locationUtm: Location, activity: String): ParkingInquiry = {
