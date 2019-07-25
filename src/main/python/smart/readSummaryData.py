@@ -118,7 +118,7 @@ for filename in all_files:
     li.append(rhdf.tail(1))
 
 rhdf = pd.concat([li[i] for i in [4, 1, 0, 3, 2, 6, 5]], axis=0, ignore_index=True).replace(['ht', 'lt', 'ba'],
-                                                                                            ['High Tech', 'Low Tech',
+                                                                                            ['High Tech', 'Low Tech','Baseline'])
 
 
 df = pd.concat([df, rhdf], axis=1)
