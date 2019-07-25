@@ -1009,8 +1009,8 @@ class PersonAgent(
       stay()
     case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>
       stay() replying CompletionNotice(triggerId)
-    case Event(RideHailResponse(_, _, _, _), _) =>
-      stop(Failure("Unexpected RideHailResponse"))
+    case ev @ Event(RideHailResponse(_, _, _, _), _) =>
+      stop(Failure(s"Unexpected RideHailResponse from ${sender()}: $ev"))
     case Event(ParkingInquiryResponse(_, _), _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))
     case Event(e, s) =>
