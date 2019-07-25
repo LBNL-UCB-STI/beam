@@ -124,9 +124,4 @@ case class BeamPathTraversal(
 
     paths
   }
-
-  override def toXml: Elem =
-    <event time={time.toString} type="PathTraversal" vehicle={vehicleId} driver={driverId} vehicleType={vehicleType} 
-           numPassangers={numberOfPassengers.toString} departureTime={time.toString} arrivalTime={arrivalTime.toString} 
-           mode={mode} links={linkIds.mkString(",")} linkTravelTime={linkTravelTime.mkString(",")}/>
 }

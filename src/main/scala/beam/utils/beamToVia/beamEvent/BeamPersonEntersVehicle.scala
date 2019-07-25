@@ -26,6 +26,4 @@ object BeamPersonEntersVehicle {
   }
 }
 
-case class BeamPersonEntersVehicle(time:Double, personId: String, vehicleId: String) extends BeamEvent {
-  override def toXml: Elem = <event time={time.toString} type="PersonEntersVehicle" person={personId} vehicle={vehicleId} />
-}
+case class BeamPersonEntersVehicle(time:Double, personId: String, vehicleId: String) extends BeamEvent

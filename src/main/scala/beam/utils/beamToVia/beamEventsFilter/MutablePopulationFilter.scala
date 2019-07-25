@@ -1,6 +1,8 @@
 package beam.utils.beamToVia.beamEventsFilter
 
 import beam.utils.beamToVia.beamEvent.{
+  BeamActivityEnd,
+  BeamActivityStart,
   BeamEvent,
   BeamModeChoice,
   BeamPathTraversal,
@@ -57,6 +59,13 @@ case class MutablePopulationFilter(selectNewPersonById: String => Boolean) exten
       decision
   }
 
+  private def addPersonEvent(personId: String, event: BeamEvent): Unit = {
+    personsEventsMap.get(personId) match {
+      case Some(pe) => pe.events += event
+      case None     => personsEventsMap(personId) = PersonEvents(personId, event)
+    }
+  }
+
   override def filter(event: BeamEvent): Unit = event match {
     case pev: BeamPersonEntersVehicle if personSelected(pev.personId) =>
       vehicleToPassengers.get(pev.vehicleId) match {
@@ -70,11 +79,9 @@ case class MutablePopulationFilter(selectNewPersonById: String => Boolean) exten
         case None             =>
       }
 
-    case mc: BeamModeChoice if personSelected(mc.personId) =>
-      personsEventsMap.get(mc.personId) match {
-        case Some(pe) => pe.events += event
-        case None     => personsEventsMap(mc.personId) = PersonEvents(mc.personId, mc)
-      }
+    case mChoice: BeamModeChoice if personSelected(mChoice.personId)      => addPersonEvent(mChoice.personId, mChoice)
+    case actend: BeamActivityEnd if personSelected(actend.personId)       => addPersonEvent(actend.personId, actend)
+    case actstart: BeamActivityStart if personSelected(actstart.personId) => addPersonEvent(actstart.personId, actstart)
 
     case pte: BeamPathTraversal =>
       val driver =

@@ -15,11 +15,12 @@ object BeamEventReader {
     case BeamPersonLeavesVehicle.EVENT_TYPE => Some(BeamPersonLeavesVehicle(event))
     case BeamPersonEntersVehicle.EVENT_TYPE => Some(BeamPersonEntersVehicle(event))
     case BeamModeChoice.EVENT_TYPE          => Some(BeamModeChoice(event))
+    case BeamActivityStart.EVENT_TYPE       => Some(BeamActivityStart(event))
+    case BeamActivityEnd.EVENT_TYPE         => Some(BeamActivityEnd(event))
     case _                                  => None
   }
 }
 
 trait BeamEvent {
-  def time: Double
-  def toXml: xml.Elem
+  val time: Double
 }
