@@ -6,8 +6,8 @@ import beam.router.BeamSkimmer
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
-
 import org.jgrapht.graph.DefaultEdge
+import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.JavaConverters._
@@ -29,14 +29,23 @@ class AsyncAlonsoMoraAlgForRideHail(
     val edges = MListBuffer.empty[(RTVGraphNode, RTVGraphNode)]
     val finalRequestsList = MListBuffer.empty[RideHailTrip]
     val center = v.getLastDropoff.activity.getCoord
-    spatialDemand
-      .getDisk(
-        center.getX,
-        center.getY,
-        timeWindow(Pickup) * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
-      )
-      .asScala
-      .toList
+    val searchRadius = timeWindow(Pickup) * BeamSkimmer.speedMeterPerSec(BeamMode.CAV)
+    val requests = v.geofence match {
+      case Some(gf) =>
+        val gfCenter = new Coord(gf.geofenceX, gf.geofenceY)
+        spatialDemand
+          .getDisk(center.getX, center.getY, searchRadius)
+          .asScala
+          .filter(
+            r =>
+              GeoUtils.distFormula(r.pickup.activity.getCoord, gfCenter) <= gf.geofenceRadius &&
+              GeoUtils.distFormula(r.dropoff.activity.getCoord, gfCenter) <= gf.geofenceRadius
+          )
+          .toList
+      case _ =>
+        spatialDemand.getDisk(center.getX, center.getY, searchRadius).asScala.toList
+    }
+    requests
       .sortBy(x => GeoUtils.minkowskiDistFormula(center, x.pickup.activity.getCoord))
       .take(maxRequestsPerVehicle) foreach (
       r =>

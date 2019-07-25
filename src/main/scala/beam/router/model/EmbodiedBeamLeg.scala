@@ -14,12 +14,10 @@ case class EmbodiedBeamLeg(
   asDriver: Boolean,
   cost: Double,
   unbecomeDriverOnCompletion: Boolean,
-  isPooledTrip: Boolean = false
+  isPooledTrip: Boolean = false,
+  replanningPenalty: Double = 0
 ) {
-
-  val isHumanBodyVehicle: Boolean =
-    BeamVehicleType.isHumanVehicle(beamVehicleId)
-  val isRideHail: Boolean = BeamVehicleType.isRidehailVehicle(beamVehicleId)
+  val isRideHail: Boolean = beamVehicleId.toString.startsWith("rideHailVehicle")
 }
 
 object EmbodiedBeamLeg {
@@ -29,8 +27,8 @@ object EmbodiedBeamLeg {
     vehicleId: Id[Vehicle],
     isLastLeg: Boolean,
     location: Location,
-    mode: BeamMode = WALK,
-    vehicleTypeId: Id[BeamVehicleType] = BeamVehicleType.defaultHumanBodyBeamVehicleType.id,
+    mode: BeamMode,
+    vehicleTypeId: Id[BeamVehicleType],
     asDriver: Boolean = true
   ): EmbodiedBeamLeg = {
     EmbodiedBeamLeg(

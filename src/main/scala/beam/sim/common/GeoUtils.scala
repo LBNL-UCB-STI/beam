@@ -2,14 +2,20 @@ package beam.sim.common
 
 import beam.agentsim.events.SpaceTime
 import beam.sim.config.BeamConfig
+import beam.utils.ProfilingUtils
 import beam.utils.logging.ExponentialLazyLogging
+import beam.utils.map.GpxPoint
 import com.conveyal.r5.profile.StreetMode
-import com.conveyal.r5.streets.{Split, StreetLayer}
+import com.conveyal.r5.streets.{EdgeStore, Split, StreetLayer}
+import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.{ImplementedBy, Inject}
-import com.vividsolutions.jts.geom.Envelope
+import com.vividsolutions.jts.geom.{Coordinate, Envelope}
+import org.matsim.api.core.v01
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.network.Link
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
+
+case class EdgeWithCoord(edgeIndex: Int, wgsCoord: Coordinate)
 
 /**
   * Created by sfeygin on 4/2/17.
@@ -64,7 +70,21 @@ trait GeoUtils extends ExponentialLazyLogging {
   def getNearestR5Edge(streetLayer: StreetLayer, coordWGS: Coord, maxRadius: Double = 1E5): Int = {
     val theSplit = getR5Split(streetLayer, coordWGS, maxRadius, StreetMode.WALK)
     if (theSplit == null) {
-      Int.MinValue
+      val closestEdgesToTheCorners = ProfilingUtils
+        .timed("getEdgesCloseToBoundingBox", x => logger.info(x)) {
+          getEdgesCloseToBoundingBox(streetLayer)
+        }
+        .map { case (edgeWithCoord, gpxPoint) => edgeWithCoord }
+      val closest = closestEdgesToTheCorners.minBy { edge =>
+        val matsimUtmCoord = wgs2Utm(new v01.Coord(edge.wgsCoord.x, edge.wgsCoord.y))
+        distUTMInMeters(matsimUtmCoord, wgs2Utm(coordWGS))
+      }
+      val distUTM = distUTMInMeters(wgs2Utm(coordWGS), wgs2Utm(new v01.Coord(closest.wgsCoord.x, closest.wgsCoord.y)))
+      logger.warn(
+        s"""The split is `null` for StreetLayer.BoundingBox: ${streetLayer.getEnvelope}, coordWGS: $coordWGS, maxRadius: $maxRadius.
+           | Will return closest to the corner: $closest which is $distUTM meters far away""".stripMargin
+      )
+      closest.edgeIndex
     } else {
       theSplit.edge
     }
@@ -106,39 +126,87 @@ trait GeoUtils extends ExponentialLazyLogging {
     }
     theSplit
   }
+
+  def getEdgesCloseToBoundingBox(streetLayer: StreetLayer): Array[(EdgeWithCoord, GpxPoint)] = {
+    val cursor = streetLayer.edgeStore.getCursor()
+    val iter = new Iterator[EdgeStore#Edge] {
+      override def hasNext: Boolean = cursor.advance()
+
+      override def next(): EdgeStore#Edge = cursor
+    }
+
+    val boundingBox = streetLayer.envelope
+
+    val insideBoundingBox = iter
+      .flatMap { edge =>
+        Option(edge.getGeometry.getBoundary.getCoordinate).map { coord =>
+          EdgeWithCoord(edge.getEdgeIndex, coord)
+        }
+      }
+      .withFilter(x => boundingBox.contains(x.wgsCoord))
+      .toArray
+
+    /*
+    min => x0,y0
+    max => x1,y1
+x0,y1 (TOP LEFT)    ._____._____. x1,y1 (TOP RIGHT)
+                    |           |
+                    |           |
+                    .           .
+                    |           |
+                    |           |
+x0,y0 (BOTTOM LEFT) ._____._____. x1, y0 (BOTTOM RIGHT)
+     */
+
+    val bottomLeft = new Coord(boundingBox.getMinX, boundingBox.getMinY)
+    val topLeft = new Coord(boundingBox.getMinX, boundingBox.getMaxY)
+    val topRight = new Coord(boundingBox.getMaxX, boundingBox.getMaxY)
+    val bottomRight = new Coord(boundingBox.getMaxX, boundingBox.getMinY)
+    val midLeft = new Coord((bottomLeft.getX + topLeft.getX) / 2, (bottomLeft.getY + topLeft.getY) / 2)
+    val midTop = new Coord((topLeft.getX + topRight.getX) / 2, (topLeft.getY + topRight.getY) / 2)
+    val midRight = new Coord((topRight.getX + bottomRight.getX) / 2, (topRight.getY + bottomRight.getY) / 2)
+    val midBottom = new Coord((bottomLeft.getX + bottomRight.getX) / 2, (bottomLeft.getY + bottomRight.getY) / 2)
+
+    val corners = Array(
+      GpxPoint("BottomLeft", bottomLeft),
+      GpxPoint("TopLeft", topLeft),
+      GpxPoint("TopRight", topRight),
+      GpxPoint("BottomRight", bottomRight),
+      GpxPoint("MidLeft", midLeft),
+      GpxPoint("MidTop", midTop),
+      GpxPoint("MidRight", midRight),
+      GpxPoint("MidBottom", midBottom)
+    )
+
+    val closestEdges = corners.map { gpxPoint =>
+      val utmCornerCoord = wgs2Utm(gpxPoint.wgsCoord)
+      val closestEdge: EdgeWithCoord = insideBoundingBox.minBy {
+        case x =>
+          val utmCoord = wgs2Utm(new Coord(x.wgsCoord.x, x.wgsCoord.y))
+          distUTMInMeters(utmCornerCoord, utmCoord)
+      }
+      (closestEdge, gpxPoint)
+    }
+    closestEdges
+  }
 }
 
 object GeoUtils {
-
-  @Inject
-  var beamConfig: BeamConfig = _
-
-  implicit class CoordOps(val coord: Coord) extends AnyVal {
-
-    def toWgs: Coord = {
-      lazy val utm2Wgs: GeotoolsTransformation =
-        new GeotoolsTransformation(beamConfig.beam.spatial.localCRS, "epsg:4326")
-      //TODO fix this monstrosity
-      if (coord.getX > 1.0 | coord.getX < -0.0) {
-        utm2Wgs.transform(coord)
-      } else {
-        coord
-      }
-    }
-
-    def toUtm: Coord = {
-      lazy val wgs2Utm: GeotoolsTransformation =
-        new GeotoolsTransformation("epsg:4326", beamConfig.beam.spatial.localCRS)
-      wgs2Utm.transform(coord)
-    }
-  }
 
   def distFormula(coord1: Coord, coord2: Coord): Double = {
     Math.sqrt(Math.pow(coord1.getX - coord2.getX, 2.0) + Math.pow(coord1.getY - coord2.getY, 2.0))
   }
 
+  /**
+    * Calculate the Minkowski distance between two coordinates. Provided coordinates need to be in UTM.
+    *
+    * Source: Shahid, Rizwan, u. a. „Comparison of Distance Measures in Spatial Analytical Modeling for Health Service Planning“. BMC Health Services Research, Bd. 9, Nr. 1, Dezember 2009. Crossref, doi:10.1186/1472-6963-9-200.
+    *
+    * @param coord1 first coordinate in UTM
+    * @param coord2 second coordinate in UTM
+    * @return distance in meters
+    */
   def minkowskiDistFormula(coord1: Coord, coord2: Coord): Double = {
-    // source: Rizwan Shahid et al, Comparison of distance measures in spatial analytical modeling for health service planning
     val exponent: Double = 3 / 2.toDouble
     val a = Math.pow(Math.abs(coord1.getX - coord2.getX), exponent)
     val b = Math.pow(Math.abs(coord1.getY - coord2.getY), exponent)
@@ -170,6 +238,7 @@ object GeoUtils {
 
   /**
     * Get the desired direction to be taken , based on the angle between the coordinates
+    *
     * @param source source coordinates
     * @param destination destination coordinates
     * @return Direction to be taken ( L / SL / HL / R / HR / SR / S)
@@ -190,6 +259,7 @@ object GeoUtils {
 
   /**
     * Generate the vector coordinates from the link nodes
+    *
     * @param link link in the network
     * @return vector coordinates
     */
@@ -202,6 +272,7 @@ object GeoUtils {
 
   /**
     * Computes the angle between two coordinates
+    *
     * @param source source coordinates
     * @param destination destination coordinates
     * @return angle between the coordinates (in radians).
@@ -217,6 +288,12 @@ object GeoUtils {
       rad
     }
   }
+
+  def getR5EdgeCoord(linkIdInt: Int, transportNetwork: TransportNetwork): Coord = {
+    val currentEdge = transportNetwork.streetLayer.edgeStore.getCursor(linkIdInt)
+    new Coord(currentEdge.getGeometry.getCoordinate.x, currentEdge.getGeometry.getCoordinate.y)
+  }
+
 }
 
 class GeoUtilsImpl @Inject()(val beamConfig: BeamConfig) extends GeoUtils {

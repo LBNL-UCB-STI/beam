@@ -1,11 +1,16 @@
 package beam.agentsim.agents.ridehail.allocation
 
-import akka.actor.ActorRef
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, PoolingInfo}
+import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.repositioningmanager.{
+  DefaultRepositioningManager,
+  DemandFollowingRepositioningManager,
+  RepositioningLowWaitingTimes,
+  RepositioningManager
+}
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
-import beam.agentsim.agents.vehicles.VehiclePersonId
+import beam.agentsim.agents.vehicles.PersonIdWithActorRef
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.model.EmbodiedBeamLeg
 import com.typesafe.scalalogging.LazyLogging
@@ -13,7 +18,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.mutable
+import scala.util.control.NonFatal
 
 abstract class RideHailResourceAllocationManager(private val rideHailManager: RideHailManager) extends LazyLogging {
 
@@ -35,12 +40,14 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    * rational choices about mode that reflect the true travel time cost of pooling.
    */
   def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
-    rideHailManager.vehicleManager.getClosestIdleRideHailAgent(
+    rideHailManager.vehicleManager.getClosestIdleVehiclesWithinRadiusByETA(
       inquiry.pickUpLocationUTM,
-      rideHailManager.radiusInMeters
+      inquiry.destinationUTM,
+      rideHailManager.radiusInMeters,
+      inquiry.departAt
     ) match {
-      case Some(agentLocation) =>
-        SingleOccupantQuoteAndPoolingInfo(agentLocation, None)
+      case Some(agentETA) =>
+        SingleOccupantQuoteAndPoolingInfo(agentETA.agentLocation, None)
       case None =>
         NoVehiclesAvailable
     }
@@ -124,10 +131,10 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
         rideHailManager.vehicleManager
           .getClosestIdleVehiclesWithinRadiusByETA(
             request.pickUpLocationUTM,
+            request.destinationUTM,
             rideHailManager.radiusInMeters,
             tick
-          )
-          .headOption match {
+          ) match {
           case Some(agentETA) =>
             val routeRequired = RoutingRequiredToAllocateVehicle(
               request,
@@ -142,17 +149,17 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
             NoVehicleAllocated(request)
         }
       // The following if condition ensures we actually got routes back in all cases
-      case (request, routingResponses) if routingResponses.find(_.itineraries.size == 0).isDefined =>
+      case (request, routingResponses) if routingResponses.find(_.itineraries.isEmpty).isDefined =>
         NoVehicleAllocated(request)
       case (request, routingResponses) =>
         rideHailManager.vehicleManager
           .getClosestIdleVehiclesWithinRadiusByETA(
             request.pickUpLocationUTM,
+            request.destinationUTM,
             rideHailManager.radiusInMeters,
             tick,
             excludeRideHailVehicles = alreadyAllocated
-          )
-          .headOption match {
+          ) match {
           case Some(agentETA) =>
             alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId
             val pickDropIdAndLegs = List(
@@ -167,17 +174,19 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     VehicleAllocations(allocResponses)
   }
 
+  val repositioningManager: RepositioningManager = createRepositioningManager()
+  logger.info(s"Using ${repositioningManager.getClass.getSimpleName} as RepositioningManager")
+
   /*
    * repositionVehicles
    *
-   * This method is called periodically according to the parameter beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds
+   * This method is called periodically according to the parameter `beam.agentsim.agents.rideHail.repositioningManager.timeout`
    * The response of this method is used to reposition idle vehicles to new locations to better meet anticipated demand.
    * Currently it is not possible to enable repositioning AND batch allocation simultaneously. But simultaneous execution
    * will be enabled in the near-term.
    */
-  def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
-    logger.trace("default implementation repositionVehicles executed")
-    Vector()
+  def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)] = {
+    repositioningManager.repositionVehicles(tick)
   }
 
   /*
@@ -196,6 +205,26 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   def handleRideCancellationReply(reply: StopDrivingIfNoPassengerOnBoardReply): Unit = {
     logger.trace("default implementation handleRideCancellationReply executed")
   }
+
+  def createRepositioningManager(): RepositioningManager = {
+    val name = rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.name
+    try {
+      name match {
+        case "DEFAULT_REPOSITIONING_MANAGER" =>
+          RepositioningManager[DefaultRepositioningManager](rideHailManager.beamServices, rideHailManager)
+        case "DEMAND_FOLLOWING_REPOSITIONING_MANAGER" =>
+          RepositioningManager[DemandFollowingRepositioningManager](rideHailManager.beamServices, rideHailManager)
+        case "REPOSITIONING_LOW_WAITING_TIMES" =>
+          RepositioningManager[RepositioningLowWaitingTimes](rideHailManager.beamServices, rideHailManager)
+        case x =>
+          throw new IllegalStateException(s"There is no implementation for `$x`")
+      }
+    } catch {
+      case NonFatal(ex) =>
+        logger.error(s"Could not create reposition manager from $name: ${ex.getMessage}", ex)
+        throw ex
+    }
+  }
 }
 
 object RideHailResourceAllocationManager {
@@ -205,7 +234,6 @@ object RideHailResourceAllocationManager {
   val POOLING = "POOLING"
   val POOLING_ALONSO_MORA = "POOLING_ALONSO_MORA"
   val REPOSITIONING_LOW_WAITING_TIMES = "REPOSITIONING_LOW_WAITING_TIMES"
-  val RANDOM_REPOSITIONING = "RANDOM_REPOSITIONING"
   val DUMMY_DISPATCH_WITH_BUFFERING = "DUMMY_DISPATCH_WITH_BUFFERING"
 
   def apply(
@@ -223,9 +251,7 @@ object RideHailResourceAllocationManager {
       case RideHailResourceAllocationManager.POOLING_ALONSO_MORA =>
         new PoolingAlonsoMora(rideHailManager)
       case RideHailResourceAllocationManager.REPOSITIONING_LOW_WAITING_TIMES =>
-        new RepositioningLowWaitingTimes(rideHailManager)
-      case RideHailResourceAllocationManager.RANDOM_REPOSITIONING =>
-        new RandomRepositioning(rideHailManager)
+        ???
       case classFullName =>
         try {
           Class
@@ -275,7 +301,7 @@ case class VehicleMatchedToCustomers(
   rideHailAgentLocation: RideHailAgentLocation,
   pickDropIdWithRoutes: List[PickDropIdAndLeg]
 ) extends VehicleAllocation
-case class PickDropIdAndLeg(personId: Option[VehiclePersonId], leg: Option[EmbodiedBeamLeg])
+case class PickDropIdAndLeg(personId: Option[PersonIdWithActorRef], leg: Option[EmbodiedBeamLeg])
 
 case class AllocationRequests(requests: Map[RideHailRequest, List[RoutingResponse]])
 

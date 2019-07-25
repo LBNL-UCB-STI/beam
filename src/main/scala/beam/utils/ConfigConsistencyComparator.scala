@@ -7,6 +7,10 @@ import scala.collection.JavaConverters._
 import com.typesafe.config.{ConfigException, ConfigFactory, ConfigResolveOptions, ConfigValue, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 
+import scala.collection.mutable
+import scala.io.Source
+import scala.util.Try
+
 object ConfigConsistencyComparator extends LazyLogging {
   private val eol = System.lineSeparator()
   private val borderLeft = "**  "
@@ -20,11 +24,16 @@ object ConfigConsistencyComparator extends LazyLogging {
   private val bottom = sessionSeparator + eol
   private val consistentFileMessage = buildTopicTile("All good, your config file is fully consistent!")
 
-  val logStringBuilder = new StringBuilder(top)
-
   private val ignorePaths: Set[String] = Set("beam.physsim.inputNetworkFilePath")
 
+  private var consistencyMessage: Option[String] = None
+
+  def getMessage: Option[String] = {
+    consistencyMessage
+  }
+
   def parseBeamTemplateConfFile(userConfFileLocation: String): Unit = {
+    val logStringBuilder = new java.lang.StringBuilder(top)
     val configResolver = ConfigResolveOptions
       .defaults()
       .setAllowUnresolved(true)
@@ -34,6 +43,12 @@ object ConfigConsistencyComparator extends LazyLogging {
     val userMatsimConf = baseUserConf.withOnlyPath("matsim")
     val userConf = userBeamConf.withFallback(userMatsimConf).resolve(configResolver)
     val templateConf = ConfigFactory.parseFile(new File("src/main/resources/beam-template.conf")).resolve()
+
+    val duplicateKeys = findDuplicateKeys(userConfFileLocation)
+    if (duplicateKeys.nonEmpty) {
+      val title = "Found the following duplicate config keys from your config file:"
+      logStringBuilder.append(buildTopicWithKeys(title, duplicateKeys))
+    }
 
     val deprecatedKeys = findDeprecatedKeys(userConf, templateConf)
     if (deprecatedKeys.nonEmpty) {
@@ -60,10 +75,33 @@ object ConfigConsistencyComparator extends LazyLogging {
 
     logStringBuilder.append(bottom)
 
-    logger.info(logStringBuilder.toString)
-
     if (notFoundFiles.nonEmpty) {
       throw new IllegalArgumentException("There are not found files.")
+    }
+    consistencyMessage = Some(logStringBuilder.toString)
+  }
+
+  //This method filter duplicate only for non nested keys
+  def findDuplicateKeys(userConfFileLocation: String): Seq[String] = {
+    val source = Source.fromFile(userConfFileLocation)
+    try {
+      val lines = Try(source.getLines().toList).getOrElse(List())
+      val bracketStack = mutable.Stack[String]()
+      val configKey = mutable.Map[String, Int]().withDefaultValue(0)
+      val withoutCommentConfigLines = lines.withFilter(!_.trim.startsWith("#"))
+      for (line <- withoutCommentConfigLines) {
+        if (line.contains("{") && !line.contains("${")) {
+          bracketStack.push("{")
+        } else if (line.contains("}") && !line.contains("${")) {
+          bracketStack.pop()
+        } else if (bracketStack.isEmpty && line.contains("=")) {
+          val keyedValue = line.split("=")
+          configKey.update(keyedValue(0).trim, configKey(keyedValue(0).trim) + 1)
+        }
+      }
+      configKey.retain((_, value) => value > 1).keys.toSeq
+    } finally {
+      source.close()
     }
   }
 
@@ -97,7 +135,7 @@ object ConfigConsistencyComparator extends LazyLogging {
     buildTopicTile(title) + buildStringFromKeys(keys)
   }
 
-  def buildTopicTile(title: String): String = {
+  private def buildTopicTile(title: String): String = {
     s"""$borderLeft
        |$topicBorderLeft$title
        |""".stripMargin

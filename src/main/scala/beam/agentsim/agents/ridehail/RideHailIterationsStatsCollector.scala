@@ -2,7 +2,7 @@ package beam.agentsim.agents.ridehail
 
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
 import beam.sim.BeamServices
-import beam.utils.GeoUtils
+import beam.sim.common.GeoUtils
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Coord
@@ -112,13 +112,19 @@ class RideHailIterationsStatsCollector(
 
   eventsManager.addHandler(this)
 
+  private var neverMovedVehicles: IndexedSeq[String] = Vector.empty
+
+  def getNeverMovedVehicles: IndexedSeq[String] = {
+    neverMovedVehicles
+  }
+
   def tellHistoryToRideHailIterationHistoryActorAndReset(): Unit = {
     updateStatsForIdlingVehicles()
 
     rideHailIterationHistoryActor updateRideHailStats
     TNCIterationStats(
-      rideHailStats.mapValues(_.toList),
-      beamServices.tazTreeMap,
+      rideHailStats.map { case (k, v) => (k, v.toList) },
+      beamServices.beamScenario.tazTreeMap,
       timeBinSizeInSec,
       numberOfTimeBins
     )
@@ -184,8 +190,10 @@ class RideHailIterationsStatsCollector(
   }
 
   private def logIdlingStats(): Unit = {
+    neverMovedVehicles = vehicles.collect { case (id, count) if count == -1 => id }.toVector
+
     // -1 : Vehicles never encountered any ride hail path traversal
-    val numAlwaysIdleVehicles = vehicles.count(_._2 == -1)
+    val numAlwaysIdleVehicles = neverMovedVehicles.size
     // 0 : Vehicles with ride hail path traversal but num_pass were 0 (zero)
     val numIdleVehiclesWithoutPassenger = vehicles.count(_._2 == 0)
     // Ride Hail Vehicles that never encounter any path traversal with some passenger
@@ -226,7 +234,7 @@ class RideHailIterationsStatsCollector(
   }
 
   private def getTazId(coord: Coord): String =
-    Try(beamServices.tazTreeMap.getTAZ(coord.getX, coord.getY).tazId.toString).getOrElse("0")
+    Try(beamServices.beamScenario.tazTreeMap.getTAZ(coord.getX, coord.getY).tazId.toString).getOrElse("0")
 
   private def getTimeBin(time: Double): Int = (time / timeBinSizeInSec).toInt
 

@@ -3,8 +3,8 @@ package beam.integration
 import java.io.File
 
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ParkEvent, PathTraversalEvent}
-import beam.integration.EventReader._
 import beam.sim.BeamHelper
+import beam.utils.EventReader
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.apache.commons.io.FileUtils
 import org.matsim.api.core.v01.events.Event
@@ -89,8 +89,8 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
 
     val queueEvents = ArrayBuffer[Seq[Event]]()
     for (i <- 0 until iterations) {
-      val filePath = getEventsFilePath(matsimConfig, "xml", i).getAbsolutePath
-      queueEvents.append(EventReader.fromFile(filePath).toSeq)
+      val filePath = EventReader.getEventsFilePath(matsimConfig, "xml", i).getAbsolutePath
+      queueEvents.append(EventReader.fromXmlFile(filePath))
     }
 
     val outputDirectoryFile = new File(outputDirectory)
@@ -99,10 +99,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
     queueEvents
   }
 
-  private lazy val limitedEvents = runAndCollectForIterations("limited", 4)
   private lazy val defaultEvents = runAndCollectForIterations("default", 4)
-  private lazy val expensiveEvents = runAndCollectForIterations("expensive", 4)
-  private lazy val emptyEvents = runAndCollectForIterations("empty", 4)
 
   val countForPathTraversalAndCarMode: Seq[Event] => Int = { events =>
     events.count { e =>
@@ -211,6 +208,8 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
     }
 
     "expensive parking should reduce driving" in {
+      val expensiveEvents = runAndCollectForIterations("expensive", 4)
+
       val expensiveModeChoiceCarCount = expensiveEvents.map(countForPathTraversalAndCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(countForPathTraversalAndCarMode)
 
@@ -223,6 +222,8 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
     }
 
     "empty parking access should reduce driving" in {
+      val emptyEvents = runAndCollectForIterations("empty", 4)
+
       val emptyModeChoiceCarCount = emptyEvents.map(countForPathTraversalAndCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(countForPathTraversalAndCarMode)
 
@@ -235,6 +236,8 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
     }
 
     "limited parking access should reduce driving" ignore {
+      val limitedEvents = runAndCollectForIterations("limited", 4)
+
       val limitedModeChoiceCarCount = limitedEvents.map(countForPathTraversalAndCarMode)
       val defaultModeChoiceCarCount = defaultEvents.map(countForPathTraversalAndCarMode)
 

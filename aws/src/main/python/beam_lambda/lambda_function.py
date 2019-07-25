@@ -14,11 +14,17 @@ EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf cloud'''
 
 S3_PUBLISH_SCRIPT = '''
   -    sleep 10s
-  -    opth="output/$(basename $(dirname $cf))"
-  -    echo opth
-  -    for file in glob.iglob($opth/*); do sudo cp /var/log/cloud-init-output.log "$file" && sudo zip -r "${file%.*}_$UID.zip" "$file"; done;
-  -    for file in glob.iglob($opth/*.zip); do s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/$(os.path.basename($file))"; done;
-  -    sudo aws --region "$S3_REGION" s3 cp $opth/*.zip s3://beam-outputs/'''
+  -    opth="output"
+  -    echo $opth
+  -    finalPath=""
+  -    for file in $opth/*; do
+  -       for path2 in $file/*; do
+  -         finalPath="$path2";
+  -       done;
+  -    done;
+  -    sudo cp /var/log/cloud-init-output.log "$finalPath"
+  -    sudo aws --region "$S3_REGION" s3 cp "$finalPath" s3://beam-outputs/"$finalPath" --recursive;
+  -    s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#$finalPath"'''
 
 END_SCRIPT_DEFAULT = '''echo "End script not provided."'''
 
@@ -40,26 +46,40 @@ EXPERIMENT_DEFAULT = 'test/input/beamville/calibration/experiments.yml'
 
 CONFIG_DEFAULT = 'production/application-sfbay/base.conf'
 
-initscript = (('''#cloud-config
+initscript = (('''
+#cloud-config
+write_files:
+    - content: |
+          #!/bin/bash
+          data="{\\"text\\":\\""
+          data+=$1
+          data+="\\"}"
+          printf "%s" "$data" > /tmp/slack.json
+          curl -X POST -H 'Content-type: application/json' --data-binary @/tmp/slack.json $SLACK_HOOK_WITH_TOKEN
+      path: /tmp/slack.sh
+    - content: |
+          0 * * * * curl -X POST -H "Content-type: application/json" --data '"'"'{"$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running... \\n Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."}'"'"
+      path: /tmp/slack_notification
 runcmd:
   - echo "-------------------Starting Beam Sim----------------------"
   - echo $(date +%s) > /tmp/.starttime
   - cd /home/ubuntu/git/beam
+  - rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat
   - ln -sf /var/log/cloud-init-output.log ./cloud-init-output.log
-  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Started" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT"
+  - hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
+  - chmod +x /tmp/slack.sh
   - echo "notification sent..."
-  - echo '0 * * * * /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running..." -b "Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."' > /tmp/glip_notification
   - echo "notification saved..."
-  - crontab /tmp/glip_notification
+  - crontab /tmp/slack_notification
   - crontab -l
   - echo "notification scheduled..."
   - git fetch
   - echo "git checkout ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH
-  - echo "git checkout -qf ..."
-  - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
   - sudo git pull
   - sudo git lfs pull
+  - echo "git checkout -qf ..."
+  - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
   - echo "gradlew assemble ..."
   - ./gradlew assemble
   - echo "looping config ..."
@@ -67,6 +87,8 @@ runcmd:
   - export SIGOPT_CLIENT_ID="$SIGOPT_CLIENT_ID"
   - export SIGOPT_DEV_ID="$SIGOPT_DEV_ID"
   - echo $MAXRAM
+  - /tmp/slack.sh "$hello_msg"
+  - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Started" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT"
   - s3p=""
   - for cf in $CONFIG
   -  do
@@ -78,6 +100,9 @@ runcmd:
   - then
   -   s3glip="\\n S3 output url ${s3p#","}"
   - fi
+  - bye_msg=$(printf "Run Completed \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT %s \\n Shutdown in $SHUTDOWN_WAIT minutes" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "$s3glip")
+  - echo "$bye_msg"
+  - /tmp/slack.sh "$bye_msg"
   - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Run Completed" -b "Run Name** $TITLED** \\n Instance ID $(ec2metadata --instance-id) \\n Instance type **$(ec2metadata --instance-type)** \\n Host name **$(ec2metadata --public-hostname)** \\n Web browser **http://$(ec2metadata --public-hostname):8000** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT $s3glip \\n Shutdown in $SHUTDOWN_WAIT minutes"
   - $END_SCRIPT
   - sudo shutdown -h +$SHUTDOWN_WAIT
@@ -267,7 +292,12 @@ def deploy_handler(event):
             runName = titled
             if len(params) > 1:
                 runName += "-" + `runNum`
-            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']).replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg).replace('$MAIN_CLASS', execute_class).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$TITLED', runName).replace('$MAX_RAM', max_ram).replace('$S3_PUBLISH', s3_publish).replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id).replace('$END_SCRIPT', end_script)
+            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION',os.environ['REGION']) \
+                .replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg) \
+                .replace('$MAIN_CLASS', execute_class).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait) \
+                .replace('$TITLED', runName).replace('$MAX_RAM', max_ram).replace('$S3_PUBLISH', s3_publish) \
+                .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id).replace('$END_SCRIPT', end_script) \
+                .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN'])
             instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size)
             host = get_dns(instance_id)
             txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
