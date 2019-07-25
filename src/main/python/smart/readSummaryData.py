@@ -6,7 +6,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # %%
-#filepath = '~/Desktop/SMART_plots_2/'
+# NOTE: Look at data/structure.md for information on what beam outputs need to be downloaded 
+#    and how they should be stored
+# This code works for the SMART runs circa March 2019. Further updates to the code will make 
+#    this no longer work, particulary with regard to how vehicle types are named. It will be updated
+#    once those runs are complete
 
 li = []
 
