@@ -106,7 +106,7 @@ trait NetworkCoordinator extends LazyLogging {
 
   def createPhyssimNetwork(): Unit = {
     logger.info(s"Create the MATSim network from R5 network")
-    val rmNetBuilder = new R5MnetBuilder(transportNetwork, beamConfig, loadSpeedData.asJava)
+    val rmNetBuilder = new R5MnetBuilder(transportNetwork, beamConfig, loadSpeedData().asJava)
     rmNetBuilder.buildMNet()
     network = rmNetBuilder.getNetwork
 
