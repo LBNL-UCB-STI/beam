@@ -35,6 +35,7 @@ public class R5MnetBuilder {
     private final GeotoolsTransformation transform;
     private final String osmFile;
     private final Map<Coord, Id<Node>> coordinateNodes = new HashMap<>();
+    private final Map<Long, Double> speedData;
 
     private int matsimNetworkNodeId = 0;
 
@@ -42,7 +43,9 @@ public class R5MnetBuilder {
      * @param r5Net     R5 network.
      * @param beamConfig config to get Path to mapdb file with OSM data and from-to CRS
      */
-    public R5MnetBuilder(TransportNetwork r5Net, BeamConfig beamConfig) {
+    public R5MnetBuilder(TransportNetwork r5Net, BeamConfig beamConfig, Map<Long, Double> speedData) {
+        this.speedData = speedData;
+
         BeamConfig.Beam beam = beamConfig.beam();
 
         osmFile = beam.routing().r5().osmMapdbFile();
@@ -108,6 +111,9 @@ public class R5MnetBuilder {
                 log.debug("Created special link: {}", link);
             } else {
                 link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, (HashSet<String>)flagStrings);
+                Double freeSpeed = speedData.getOrDefault(osmID, link.getFreespeed());
+                link.setFreespeed(freeSpeed);
+                cursor.setSpeed((short)(freeSpeed * 100));
                 mNetwork.addLink(link);
                 log.debug("Created regular link: {}", link);
             }

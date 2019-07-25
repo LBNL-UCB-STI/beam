@@ -4,6 +4,7 @@ import java.nio.file.Files.exists
 import java.nio.file.Paths
 
 import beam.sim.config.BeamConfig
+import beam.utils.BeamVehicleUtils
 import com.conveyal.r5.kryo.KryoNetworkSerializer
 import com.conveyal.r5.transit.{TransportNetwork, TripSchedule}
 import com.typesafe.scalalogging.LazyLogging
@@ -12,8 +13,10 @@ import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 trait NetworkCoordinator extends LazyLogging {
+  import SpeedDataEvent._
 
   val beamConfig: BeamConfig
 
@@ -68,7 +71,7 @@ trait NetworkCoordinator extends LazyLogging {
 
   def createPhyssimNetwork(): Unit = {
     logger.info(s"Create the MATSim network from R5 network")
-    val rmNetBuilder = new R5MnetBuilder(transportNetwork, beamConfig)
+    val rmNetBuilder = new R5MnetBuilder(transportNetwork, beamConfig, loadSpeedData.asJava)
     rmNetBuilder.buildMNet()
     network = rmNetBuilder.getNetwork
     logger.info(s"MATSim network created")
@@ -109,6 +112,13 @@ trait NetworkCoordinator extends LazyLogging {
       }
     }
     transportNetwork.transitLayer.hasFrequencies = false
+  }
+
+  private def loadSpeedData(): mutable.Map[java.lang.Long, java.lang.Double] = {
+    BeamVehicleUtils
+      .read[SpeedDataEvent](beamConfig.beam.physsim.speedDataFilePath)
+      .foldLeft(mutable.Map[Long, Double]())((acc, s) => acc += s.osmId -> s.speedAvg)
+      .map { case (l, d) => long2Long(l) -> double2Double(d) }
   }
 
 }
