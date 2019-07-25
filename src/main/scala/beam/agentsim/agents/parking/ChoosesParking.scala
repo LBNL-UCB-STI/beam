@@ -128,7 +128,6 @@ trait ChoosesParking extends {
                 new MultinomialLogit(
                   Map.empty,
                   Map(
-                    // "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
                     "distanceFactor"          -> UtilityFunctionOperation("multiplier", -distanceFactor),
                     "installedCapacity"       -> UtilityFunctionOperation("multiplier", installedCapacityFactor),
                     "parkingCostsPriceFactor" -> UtilityFunctionOperation("multiplier", -parkingCostsPriceFactor),
