@@ -337,6 +337,7 @@ class RideHailManager(
         .shuffle(scenario.getPopulation.getPersons.values().asScala, rand)
         .toArray
       val activityEndTimes: ArrayBuffer[Int] = new ArrayBuffer[Int]()
+      val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamScenario)
       scenario.getPopulation.getPersons.asScala.foreach(
         _._2.getSelectedPlan.getPlanElements.asScala
           .collect {
@@ -354,8 +355,7 @@ class RideHailManager(
         } else {
           try {
             val person = persons(idx)
-            val vehicleType = VehiclesAdjustment
-              .getVehicleAdjustment(beamScenario)
+            val vehicleType = vehiclesAdjustment
               .sampleRideHailVehicleTypes(
                 numVehicles = 1,
                 vehicleCategory = VehicleCategory.Car,
