@@ -118,7 +118,6 @@ trait ChoosesParking extends {
                 new MultinomialLogit(
                   Map.empty,
                   Map(
-                    //"energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
                     "distanceFactor"          -> UtilityFunctionOperation("multiplier", 0),
                     "installedCapacity"       -> UtilityFunctionOperation("multiplier", installedCapacityFactor),
                     "parkingCostsPriceFactor" -> UtilityFunctionOperation("multiplier", -parkingCostsPriceFactor),
@@ -141,7 +140,6 @@ trait ChoosesParking extends {
             new MultinomialLogit(
               Map.empty,
               Map(
-                //"energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
                 "distanceFactor"          -> UtilityFunctionOperation("multiplier", -distanceFactor),
                 "installedCapacity"       -> UtilityFunctionOperation("multiplier", installedCapacityFactor),
                 "parkingCostsPriceFactor" -> UtilityFunctionOperation("multiplier", -parkingCostsPriceFactor),
@@ -153,23 +151,13 @@ trait ChoosesParking extends {
             new MultinomialLogit(
               Map.empty,
               Map(
-                // "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
                 "distanceFactor"          -> UtilityFunctionOperation("multiplier", -distanceFactor),
                 "installedCapacity"       -> UtilityFunctionOperation("multiplier", 0),
                 "parkingCostsPriceFactor" -> UtilityFunctionOperation("multiplier", -parkingCostsPriceFactor),
               )
             )
         }
-      //
-      //      val utilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
-      //        new MultinomialLogit(
-      //          Map.empty,
-      //          Map(
-      //            "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
-      //            "distanceFactor" -> UtilityFunctionOperation("multiplier", -beta2),
-      //            "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
-      //          )
-      //        )
+
 
       parkingManager ! ParkingInquiry(
         destinationUtm,
