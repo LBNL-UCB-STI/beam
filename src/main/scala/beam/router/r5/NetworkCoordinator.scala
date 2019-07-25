@@ -17,6 +17,7 @@ import org.matsim.core.network.io.MatsimNetworkReader
 
 import scala.collection.JavaConverters._
 import scala.util.control.NonFatal
+import scala.collection.mutable
 
 case class LinkParam(linkId: Int, capacity: Option[Double], freeSpeed: Option[Double], length: Option[Double]) {
 
@@ -36,6 +37,7 @@ case class LinkParam(linkId: Int, capacity: Option[Double], freeSpeed: Option[Do
 }
 
 trait NetworkCoordinator extends LazyLogging {
+  import SpeedDataEvent._
 
   val beamConfig: BeamConfig
 
@@ -104,7 +106,7 @@ trait NetworkCoordinator extends LazyLogging {
 
   def createPhyssimNetwork(): Unit = {
     logger.info(s"Create the MATSim network from R5 network")
-    val rmNetBuilder = new R5MnetBuilder(transportNetwork, beamConfig)
+    val rmNetBuilder = new R5MnetBuilder(transportNetwork, beamConfig, loadSpeedData.asJava)
     rmNetBuilder.buildMNet()
     network = rmNetBuilder.getNetwork
 
@@ -174,4 +176,11 @@ trait NetworkCoordinator extends LazyLogging {
       Map.empty
     }
   }
+  private def loadSpeedData(): mutable.Map[java.lang.Long, java.lang.Double] = {
+    BeamVehicleUtils
+      .read[SpeedDataEvent](beamConfig.beam.physsim.speedDataFilePath)
+      .foldLeft(mutable.Map[Long, Double]())((acc, s) => acc += s.osmId -> s.speedAvg)
+      .map { case (l, d) => long2Long(l) -> double2Double(d) }
+  }
+
 }
