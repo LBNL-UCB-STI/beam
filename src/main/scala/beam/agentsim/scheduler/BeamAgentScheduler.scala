@@ -245,9 +245,6 @@ class BeamAgentScheduler(
     case Terminated(actor) =>
       terminateActor(actor)
 
-    case RequestCurrentTime =>
-      sender ! nowInSeconds
-
     case Monitor =>
       if (beamConfig.beam.debug.debugEnabled) {
         val logStr =
