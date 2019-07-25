@@ -16,6 +16,7 @@ import scalax.collection.edge.LBase.LEdgeImplicits
 import scalax.collection.edge.LkDiEdge
 import scalax.collection.immutable.Graph
 
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 class UberSpeed[T <: FilterEventAction](
@@ -35,13 +36,13 @@ class UberSpeed[T <: FilterEventAction](
 
   private val (ways, nodes) = {
     val (w, n) = load(path.map(Paths.get(_)))
-      .foldLeft((Map[String, Seq[WayMetric]](), Map[UberWay, Seq[WayMetric]]())) {
+      .foldLeft((mutable.Map[String, Seq[WayMetric]](), mutable.Map[UberWay, Seq[WayMetric]]())) {
         case ((accW, accN), s) =>
           val w = WayMetric(s.dateTime, s.speedMphMean, s.speedMphStddev)
           val uw = UberWay(s.segmentId, s.startJunctionId, s.endJunctionId)
           (
-            accW + (s.segmentId -> (accW.getOrElse(s.segmentId, Seq()) :+ w)),
-            accN + (uw          -> (accN.getOrElse(uw, Seq()) :+ w))
+            accW += (s.segmentId -> (accW.getOrElse(s.segmentId, Seq()) :+ w)),
+            accN += (uw          -> (accN.getOrElse(uw, Seq()) :+ w))
           )
       }
     (

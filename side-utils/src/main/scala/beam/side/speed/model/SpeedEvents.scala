@@ -76,6 +76,21 @@ case class BeamUberSpeed(
   cat: String
 )
 
+case class LinkSpeed(linkId: Int, capacity: Option[Double], freeSpeed: Option[Float], length: Option[Double])
+
+object LinkSpeed {
+  implicit val linkSpeedSpeedEncoder: Encoder[LinkSpeed] = new Encoder[LinkSpeed] {
+    override def apply(row: LinkSpeed): String =
+      row.productIterator
+        .map {
+          case None    => ""
+          case Some(s) => s.toString
+          case x       => x.toString
+        }
+        .mkString(",")
+  }
+}
+
 object BeamUberSpeed {
   implicit val beamUberSpeedEncoder: Encoder[BeamUberSpeed] = new Encoder[BeamUberSpeed] {
     override def apply(row: BeamUberSpeed): String =
@@ -110,4 +125,4 @@ case class UberWay(segmentId: String, startJunctionId: String, endJunctionId: St
 
 case class UberDirectedWay(orig: Long, dest: Long, wayId: String, metrics: Seq[WayMetric])
 
-case class OsmNodeSpeed(id: Long, orig: Long, dest: Long, speed: Float, cat: String)
+case class OsmNodeSpeed(eId: Int, id: Long, orig: Long, dest: Long, speed: Float, cat: String)

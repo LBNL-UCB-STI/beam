@@ -30,20 +30,20 @@ class OsmWays(osmPath: Path, r5Path: Path) {
   private val edgeCursor = KryoNetworkSerializer.read(r5Path.toFile).streetLayer.edgeStore.getCursor
 
   lazy val nodes: Iterator[OsmNodeSpeed] = {
-    var idx = 0l
+    var idx = -1l
     Iterator
       .continually(edgeCursor.advance())
-      .map(_ => Try(edgeCursor.getOSMID))
+      .map(_ => Try(edgeCursor.getOSMID -> edgeCursor.getEdgeIndex))
       .takeWhile(_.isSuccess)
       .collect {
-        case Success(t) if idx < t =>
-          idx = t
-          osm.get(t).map(w => t -> w)
+        case Success((o, e)) if idx < e =>
+          idx = e
+          osm.get(o).map(w => (e, o, w))
       }
       .collect {
-        case Some((id, w)) =>
+        case Some((eId, id, w)) =>
           val (s, t) = waySpeed(w)
-          OsmNodeSpeed(id, w.nodes(0), w.nodes(1), s, t)
+          OsmNodeSpeed(eId, id, w.nodes(0), w.nodes(1), s, t)
       }
   }
 

@@ -1,31 +1,31 @@
 package beam.side.speed.parser
 import java.io.{BufferedWriter, File, FileWriter}
 
-import beam.side.speed.model.BeamUberSpeed
+import beam.side.speed.model.{BeamUberSpeed, LinkSpeed}
 
 class SpeedComparator(ways: OsmWays, uber: UberSpeed[_], fileName: String) {
-  import BeamUberSpeed._
+  import LinkSpeed._
 
-  private def nodeCompare: Iterator[BeamUberSpeed] =
+  private def nodeCompare: Iterator[LinkSpeed] =
     ways.nodes
       .map(
         n =>
           uber
             .speed(n.id)
             .orElse(uber.way(n.orig, n.dest))
-            .map(ws => BeamUberSpeed(n.id, n.orig, n.dest, n.speed, ws.speedMedian, ws.speedAvg, ws.maxDev, n.cat))
+            .map(ws => LinkSpeed(n.eId, None, ws.speedAvg, None))
       )
       .collect {
         case Some(b) => b
       }
 
-  private val csv: Iterator[BeamUberSpeed] => Unit = { s =>
+  private val csv: Iterator[LinkSpeed] => Unit = { s =>
     val file = new File(fileName)
     val bw = new BufferedWriter(new FileWriter(file))
-    bw.write("osmId,j1,j2,speedBeam,speedMedian,speedAvg,maxDev,cat")
+    bw.write("link_id,capacity,free_speed,length")
     s.foreach { b =>
       bw.newLine()
-      bw.write(beamUberSpeedEncoder(b))
+      bw.write(linkSpeedSpeedEncoder(b))
     }
     bw.flush()
     bw.close()
