@@ -317,7 +317,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
                     "Charging request by vehicle {} ({}) on a spot without a charging point (parkingZoneId: {}). This is not handled yet!",
                     currentBeamVehicle.id,
                     if (currentBeamVehicle.isBEV) "BEV" else if (currentBeamVehicle.isPHEV) "PHEV" else "non-electric",
-                    stall.parkingZoneId // todo JH discuss colin -> maybe -INF utility?
+                    stall.parkingZoneId
                   )
               }
 
