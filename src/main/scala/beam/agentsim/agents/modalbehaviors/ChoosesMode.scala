@@ -42,7 +42,10 @@ trait ChoosesMode {
   val dummyRHVehicle =
     StreetVehicle(
       Id.create("dummyRH", classOf[Vehicle]),
-      Id.create("Car", classOf[BeamVehicleType]),
+      Id.create(
+        beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+        classOf[BeamVehicleType]
+      ),
       SpaceTime(0.0, 0.0, 0),
       CAR,
       asDriver = false
@@ -900,7 +903,8 @@ trait ChoosesMode {
       modeChoiceCalculator(
         filteredItinerariesForChoice,
         attributesOfIndividual,
-        nextActivity(choosesModeData.personData)
+        nextActivity(choosesModeData.personData),
+        Some(matsimPlan.getPerson)
       ) match {
         case Some(chosenTrip) =>
           goto(FinishingModeChoice) using choosesModeData.copy(pendingChosenTrip = Some(chosenTrip))

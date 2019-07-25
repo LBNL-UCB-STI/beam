@@ -3,8 +3,7 @@ package beam.utils.plan
 import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Paths}
 
-import beam.sim.population.PopulationAdjustment
-import beam.sim.population.PopulationAdjustment.BEAM_ATTRIBUTES
+import beam.utils.plan.sampling.AvailableModeUtils.AllowAllModes
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PlansSampler.newPop
 import beam.utils.plan.sampling.PopulationAttrib.Rank
@@ -43,15 +42,14 @@ object PlansBuilder {
   val newHH: HouseholdsImpl = new HouseholdsImpl()
   val newHHAttributes: ObjectAttributes = newHH.getHouseholdAttributes
 
-  val modeAllocator: AvailableModeUtils.AllowAllModes =
-    new AvailableModeUtils.AllowAllModes
+  val modeAllocator: AllowAllModes.type = AllowAllModes
 
   private var synthHouseholds = Vector[SynthHousehold]()
 
   private var pop = Vector[Person]()
   var outDir: String = ""
   var sampleNumber: Int = 0
-  val rand = new Random(4175l)
+  val rand = new Random(4175l) // should this Random use a fixed seed from beamConfig ?
 
   case class UTMConverter(sourceCRS: String, targetCRS: String) extends GeoConverter {
 

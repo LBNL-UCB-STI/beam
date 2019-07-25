@@ -10,6 +10,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicleType, PersonIdWithActorRef}
 import beam.agentsim.agents.{Dropoff, MobilityRequestTrait, Pickup}
 import beam.router.BeamSkimmer
 import beam.sim.common.GeoUtilsImpl
+import beam.sim.config.BeamExecutionConfig
 import beam.sim.{BeamHelper, BeamScenario, Geofence}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
@@ -51,7 +52,7 @@ class AlonsoMoraPoolingAlgForRideHailSpec
   val beamExecConfig: BeamExecutionConfig = setupBeamWithConfig(system.settings.config)
   implicit lazy val beamScenario = loadScenario(beamExecConfig.beamConfig)
   lazy val scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, beamScenario)
-  lazy val injector = buildInjector(system.settings.config, scenario, beamScenario)
+  lazy val injector = buildInjector(system.settings.config, beamExecConfig.beamConfig, scenario, beamScenario)
   lazy val services = buildBeamServices(injector, scenario)
 
   describe("AlonsoMoraPoolingAlgForRideHail") {
@@ -174,7 +175,7 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
     mockActorRef: ActorRef
   ): (List[VehicleAndSchedule], List[CustomerRequest]) = {
     import scala.concurrent.duration._
-    val vehicleType = beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
+    val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
     val v1: VehicleAndSchedule =
       createVehicleAndSchedule("v1", vehicleType, new Coord(5000, 5000), 8.hours.toSeconds.toInt)
     val v2: VehicleAndSchedule =
@@ -217,7 +218,7 @@ object AlonsoMoraPoolingAlgForRideHailSpec {
   ): (List[VehicleAndSchedule], List[CustomerRequest]) = {
     import scala.concurrent.duration._
     val gf = Geofence(10000, 10000, 13400)
-    val vehicleType = beamScenario.vehicleTypes(Id.create("Car", classOf[BeamVehicleType]))
+    val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
     val v1: VehicleAndSchedule =
       createVehicleAndSchedule("v1", vehicleType, new Coord(5000, 5000), 8.hours.toSeconds.toInt, Some(gf))
     val v2: VehicleAndSchedule =

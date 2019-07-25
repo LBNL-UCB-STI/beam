@@ -54,7 +54,8 @@ class ModeChoiceLCCM(
   override def apply(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity]
+    destinationActivity: Option[Activity],
+    person: Option[Person] = None
   ): Option[EmbodiedBeamTrip] = {
     choose(alternatives, attributesOfIndividual, Mandatory)
   }
@@ -107,9 +108,10 @@ class ModeChoiceLCCM(
       /*
        * Evaluate and sample from classmembership, then sample from corresponding mode choice model
        */
+
       val chosenClassOpt = lccm
         .classMembershipModels(tourType)
-        .sampleAlternative(classMembershipInputData, new Random())
+        .sampleAlternative(classMembershipInputData, random)
 
       chosenClassOpt match {
         case None =>
