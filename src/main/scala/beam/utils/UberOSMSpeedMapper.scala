@@ -1,15 +1,12 @@
 package beam.utils
 import beam.analysis.via.CSVWriter
+import beam.utils.csv.GenericCsvReader
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.network.Network
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
-import org.supercsv.io.CsvMapReader
-import org.supercsv.prefs.CsvPreference
 
-import scala.reflect.ClassTag
-
-object UberOSMSpeedMapper extends LazyLogging{
+object UberOSMSpeedMapper extends GenericCsvReader with LazyLogging{
 
   /*
     We need to pass 4 argument
@@ -18,6 +15,8 @@ object UberOSMSpeedMapper extends LazyLogging{
     3. comma separate list of movement-speed files
     4. output file name
    */
+
+  private val meterPerSec = 0.44704 //1 milesPerHour = 0.44704 meterPerSec
 
   def main(args: Array[String]): Unit = {
 
@@ -47,7 +46,7 @@ object UberOSMSpeedMapper extends LazyLogging{
           val speed = osmSpeed.get(segment)
           speed.foreach(s => {
             writer.newLine()
-            writer.write(s"${linkId.toString},,${s*0.44704},")
+            writer.write(s"${linkId.toString},,${s*meterPerSec},")
           })
         })
       }
@@ -58,11 +57,11 @@ object UberOSMSpeedMapper extends LazyLogging{
 
 
   def readOsmWayToSegmentFile(paths: String): Map[String, String] = {
-    paths.split(",").flatMap(readAs[(String, String)](_, "osmway to segment", toOsmSegmentMap)).toMap
+    paths.split(",").flatMap(readAs[(String, String)](_,  toOsmSegmentMap , _ => true)._1).toMap
   }
 
   def readOsmSpeed(paths: String): Map[String, Double] = {
-    paths.split(",").flatMap(readAs[(String, Double)](_, "osm speed", toSpeed)).groupBy(_._1).map({
+    paths.split(",").flatMap(readAs[(String, Double)](_, toSpeed , _ => true )._1).groupBy(_._1).map({
       case(key, values) => key -> values.map(_._2).max
     })
   }
@@ -73,23 +72,5 @@ object UberOSMSpeedMapper extends LazyLogging{
 
   private def toSpeed(rec: java.util.Map[String, String]): (String, Double) = {
     (getIfNotNull(rec, "segment_id"), getIfNotNull(rec, "speed_mph_mean").toDouble)
-  }
-
-
-  private[utils] def readAs[T](path: String, what: String, mapper: java.util.Map[String, String] => T)(
-    implicit ct: ClassTag[T]
-  ): Array[T] = {
-    ProfilingUtils.timed(what, x => logger.info(x)) {
-      FileUtils.using(new CsvMapReader(FileUtils.readerFromFile(path), CsvPreference.STANDARD_PREFERENCE)) { csvRdr =>
-        val header = csvRdr.getHeader(true)
-        Iterator.continually(csvRdr.read(header: _*)).takeWhile(_ != null).map(mapper).toArray
-      }
-    }
-  }
-
-  private def getIfNotNull(rec: java.util.Map[String, String], column: String): String = {
-    val v = rec.get(column)
-    assert(v != null, s"Value in column '$column' is null")
-    v
   }
 }
