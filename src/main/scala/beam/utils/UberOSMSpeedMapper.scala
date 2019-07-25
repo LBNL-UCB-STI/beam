@@ -6,7 +6,7 @@ import org.matsim.api.core.v01.network.Network
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
 
-object UberOSMSpeedMapper extends GenericCsvReader with LazyLogging{
+object UberOSMSpeedMapper extends GenericCsvReader with LazyLogging {
 
   /*
     We need to pass 4 argument
@@ -27,10 +27,10 @@ object UberOSMSpeedMapper extends GenericCsvReader with LazyLogging{
 
     val network = NetworkUtils.createNetwork()
     new MatsimNetworkReader(network).readFile(networkFile)
-    writeOsmMappingCsv(network, movementFiles , speedFiles , outputFile)
+    writeOsmMappingCsv(network, movementFiles, speedFiles, outputFile)
   }
 
-  def writeOsmMappingCsv(network: Network , movementSegmentFile: String, speedFile: String, outputFile: String): Unit ={
+  def writeOsmMappingCsv(network: Network, movementSegmentFile: String, speedFile: String, outputFile: String): Unit = {
     val osmSegment = readOsmWayToSegmentFile(movementSegmentFile)
     val osmSpeed = readOsmSpeed(speedFile)
 
@@ -38,32 +38,37 @@ object UberOSMSpeedMapper extends GenericCsvReader with LazyLogging{
     val writer = csvWriter.getBufferedWriter
     writer.write("linkid,capacity,free_speed,length")
 
-    network.getLinks.forEach((linkId,link) => {
+    network.getLinks.forEach((linkId, link) => {
       val attributes = link.getAttributes
       val origid = attributes.getAttribute("origid")
-      if(origid != null) {
-        osmSegment.get(origid.toString).foreach(segment =>{
-          val speed = osmSpeed.get(segment)
-          speed.foreach(s => {
-            writer.newLine()
-            writer.write(s"${linkId.toString},,${s*meterPerSec},")
+      if (origid != null) {
+        osmSegment
+          .get(origid.toString)
+          .foreach(segment => {
+            val speed = osmSpeed.get(segment)
+            speed.foreach(s => {
+              writer.newLine()
+              writer.write(s"${linkId.toString},,${s * meterPerSec},")
+            })
           })
-        })
       }
     })
 
     writer.close()
   }
 
-
   def readOsmWayToSegmentFile(paths: String): Map[String, String] = {
-    paths.split(",").flatMap(readAs[(String, String)](_,  toOsmSegmentMap , _ => true)._1).toMap
+    paths.split(",").flatMap(readAs[(String, String)](_, toOsmSegmentMap, _ => true)._1).toMap
   }
 
   def readOsmSpeed(paths: String): Map[String, Double] = {
-    paths.split(",").flatMap(readAs[(String, Double)](_, toSpeed , _ => true )._1).groupBy(_._1).map({
-      case(key, values) => key -> values.map(_._2).max
-    })
+    paths
+      .split(",")
+      .flatMap(readAs[(String, Double)](_, toSpeed, _ => true)._1)
+      .groupBy(_._1)
+      .map({
+        case (key, values) => key -> values.map(_._2).max
+      })
   }
 
   private def toOsmSegmentMap(rec: java.util.Map[String, String]): (String, String) = {
