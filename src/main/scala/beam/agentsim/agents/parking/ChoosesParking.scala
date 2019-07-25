@@ -19,7 +19,7 @@ import beam.agentsim.events.{
   RefuelSessionEvent,
   SpaceTime
 }
-import beam.agentsim.infrastructure.charging.ChargingInquiry
+
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
