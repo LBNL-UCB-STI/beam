@@ -6,6 +6,11 @@ import numpy as np
 import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
 
+#%%
+
+# NOTE: This requires that readSummaryData.py is run first, which produces final_output.csv
+
+
 plt.style.use('seaborn-colorblind')
 # plt.style.use('ggplot')
 plt.rcParams['axes.edgecolor'] = 'black'
@@ -23,7 +28,7 @@ mode_colors = {'Ride Hail': colors['red'], 'Car': colors['grey'], 'Walk': colors
 
 df = pd.read_csv('final_output.csv')
 
-expansion_factor = 8000000/630000
+expansion_factor = 7750000/612597
 
 # %%
 plt.figure(figsize=(6, 3.5))
@@ -63,8 +68,9 @@ for ind in range(7):
     plt.text(xpos[ind], 1.02, names[ind], ha='center')
 ax.set_ylim((0, 1.0))
 plt.ylabel('Portion of Trips')
-plt.savefig('Plots/modesplit.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/modesplit.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
+
 # %%
 plt.figure(figsize=(6, 3.5))
 xpos = [1, 2.5, 3.5, 5, 6, 7.5, 8.5]
@@ -109,8 +115,9 @@ for ind in range(7):
     plt.text(xpos[ind], height_all[ind] + 1.5, names[ind], ha='center')
 #ax.set_ylim((0, 160))
 plt.ylabel('Vehicle Miles Traveled (millions)')
-plt.savefig('Plots/vmt_mode.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/vmt_mode.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
+
 # %%
 plt.figure(figsize=(6, 3.5))
 xpos = [1, 2.5, 3.5, 5, 6, 7.5, 8.5]
@@ -147,8 +154,8 @@ for ind in range(7):
     plt.text(xpos[ind], height_all[ind] + 2.5, names[ind], ha='center')
 ax.set_ylim((0, 400))
 plt.ylabel('LDV Person Miles Traveled (millions)')
-plt.savefig('Plots/pmt_mode.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/pmt_mode.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 # %%
 plt.figure(figsize=(6, 3.5))
@@ -187,8 +194,8 @@ for ind in range(7):
     plt.text(xpos[ind], height_all[ind] + 2.5, names[ind], ha='center')
 ax.set_ylim((0, 420))
 plt.ylabel('Person Miles Traveled (millions)')
-plt.savefig('Plots/pmt_mode_2.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/pmt_mode_2.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 # %%
 plt.figure(figsize=(6, 3.5))
 xpos = [1, 2.5, 3.5, 5, 6, 7.5, 8.5]
@@ -211,8 +218,8 @@ for ind in range(7):
     plt.text(xpos[ind], height_all[ind] + 5, names[ind], ha='center')
 # ax.set_ylim((0,400))
 plt.ylabel('Light duty vehicle energy use (TJ)')
-plt.savefig('Plots/energy_source.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/energy_source.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 
 # %%
@@ -236,8 +243,8 @@ for ind in range(7):
     plt.text(xpos[ind], energy_intensity[ind] + 0.005, names[ind], ha='center')
 # ax.set_ylim((0,400))
 plt.ylabel('Energy productivity (mi/MJ)')
-plt.savefig('Plots/energy_intensity.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/energy_intensity.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 # %%
 plt.figure(figsize=(6, 3.5))
 xpos = [1, 2.5, 3.5, 5, 6, 7.5, 8.5]
@@ -267,8 +274,8 @@ for ind in range(7):
     plt.text(xpos[ind], height_All[ind] + 2, names[ind], ha='center')
 #ax.set_ylim((0, 160))
 plt.ylabel('Light duty vehicle miles traveled (millions)')
-plt.savefig('Plots/vmt_tech.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/vmt_tech.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 # %%
 plt.figure(figsize=(6, 3.5))
 xpos = [1, 2.5, 3.5, 5, 6, 7.5, 8.5]
@@ -298,8 +305,8 @@ plt.ylabel('Cost per Capita')
 plt.legend((plt_car, plt_transit, plt_rh, plt_nm),
            ('Car', 'Transit', 'Ridehail', 'NonMotorized'), labelspacing=-2.5,
            bbox_to_anchor=(1.05, 0.5), frameon=False)
-plt.savefig('Plots/cost.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/cost.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 # %%
 xa = np.array([2019, 2025])
 xbc = np.array([2019, 2040])
@@ -343,8 +350,8 @@ plt.xlabel('Year')
 plt.ylabel('Average on demand wait time (min)')
 # ax.spines['bottom'].set_color('green')
 # ax.spines['left'].set_color('green')
-plt.savefig('Plots/OD_Wait_Time.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/OD_Wait_Time.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 # %%
 xa = np.array([2019, 2025])
 xbc = np.array([2019, 2040])
@@ -372,8 +379,8 @@ ax.set_ylim((0, 40))
 plt.ylabel('Light Duty Vehicle Miles per Capita')
 plt.legend((plt_CAV, plt_High, plt_Low), ('CAV', 'Partial Automation', 'Low Automation'), bbox_to_anchor=(1.05, 0.5),
            frameon=False)
-plt.savefig('Plots/vmt_percapita_tech.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/vmt_percapita_tech.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 # %%
 plt.figure(figsize=(6, 3.5))
 xpos = [1, 2.5, 3.5, 5, 6, 7.5, 8.5]
@@ -397,9 +404,9 @@ for ind in range(7):
 plt.ylabel('Light Duty Vehicle Miles (millions)')
 plt.legend((plt_CAV, plt_High, plt_Low), ('CAV', 'Partial Automation', 'Low Automation'), bbox_to_anchor=(1.05, 0.5),
            frameon=False)
-plt.savefig('Plots/vmt_tech_2.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.savefig('plots/vmt_tech_2.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
 
-plt.clf()
+plt.close()
 # %%
 plt.figure(figsize=(6, 5.5))
 xpos = [1, 2.5, 3.5, 5, 6, 7.5, 8.5]
@@ -427,8 +434,8 @@ ax.set_ylim((0, 400))
 plt.ylabel('Light Duty Vehicle Miles Traveled (millions)')
 plt.legend((plt_pv, plt_rh, empty, pooled), ('Personal Vehicle', 'Ridehail', 'Empty', 'Shared'), bbox_to_anchor=(1.05, 0.5),
            frameon=False)
-plt.savefig('Plots/vmt_rh_empty.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/vmt_rh_empty.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 # %%
 plt.figure(figsize=(6, 3.5))
@@ -455,8 +462,8 @@ ax.set_ylim((0, 100))
 plt.ylabel('Light Duty Vehicle Miles Traveled (millions)')
 plt.legend((plt_rh, empty, pooled), ('Total Ridehail VMT', 'Empty VMT', 'Shared VMT'), bbox_to_anchor=(1.05, 0.5),
            frameon=False)
-plt.savefig('Plots/vmt_just_rh_empty.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/vmt_just_rh_empty.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 # %%
 plt.figure(figsize=(6, 3.5))
@@ -484,8 +491,8 @@ ax.set_ylim((0, 400))
 plt.ylabel('Personal Vehicle Miles Traveled (millions)')
 plt.legend((plt_cav, plt_pv, empty, pooled), ('CAV', 'Human Driven','Empty','Shared'), bbox_to_anchor=(1.05, 0.5),
            frameon=False)
-plt.savefig('Plots/vmt_just_cav_empty.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/vmt_just_cav_empty.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 
 # %%
@@ -506,8 +513,8 @@ ax.set_ylim((0, 4.5))
 plt.ylabel('Average Ride Hail Wait (min)')
 #plt.legend((plt_rh, empty, pooled), ('Total Ridehail VMT', 'Empty VMT', 'Shared VMT'), bbox_to_anchor=(1.05, 0.5),
 #           frameon=False)
-plt.savefig('Plots/wait_time.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/wait_time.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 # %%
 plt.figure(figsize=(6, 3.5))
 xpos = [1, 2.5, 3.5, 5, 6, 7.5, 8.5]
@@ -528,8 +535,8 @@ for ind in range(7):
 plt.ylabel('Light Duty Vehicle Energy (TJ)')
 ax.set_ylim((0, 1100))
 plt.legend((plt_Electricity, plt_Gas), ('Electricity', 'Gasoline'), bbox_to_anchor=(1.05, 0.5), frameon=False)
-plt.savefig('Plots/energy_fuelsource.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/energy_fuelsource.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 # %%
 populations = [612597, 612598, 612598, 755015, 755006, 755022, 754962]
@@ -551,8 +558,8 @@ for ind in range(7):
 plt.ylabel('Light Duty Vehicle Energy per Capita (GJ)')
 # ax.set_ylim((0,310))
 plt.legend((plt_Electricity, plt_Gas), ('Electricity', 'Gasoline'), bbox_to_anchor=(1.05, 0.5), frameon=False)
-plt.savefig('Plots/energy_fuelsource_percapita.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/energy_fuelsource_percapita.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 
 #%%
@@ -592,8 +599,8 @@ for ind in range(7):
     plt.text(xpos[ind], height_all[ind] + 0.3, names[ind], ha='center')
 ax.set_ylim((0, 18))
 plt.ylabel('Person Hours Traveled (millions)')
-plt.savefig('Plots/pht.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/pht.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 # %%
 
@@ -632,8 +639,8 @@ for ind in range(7):
     plt.text(xpos[ind], height_all[ind] + 0.2, names[ind], ha='center')
 ax.set_ylim((0, 14))
 plt.ylabel('Person Hours Traveled (millions)')
-plt.savefig('Plots/pht_ldv.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/pht_ldv.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 # %%
 
@@ -670,8 +677,8 @@ for ind in range(7):
     plt.text(xpos[ind], height_all[ind] + 0.025, names[ind], ha='center')
 ax.set_ylim((0, 1.4))
 plt.ylabel('LDV Person Hours Traveled (per capita)')
-plt.savefig('Plots/pht_percapita.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/pht_percapita.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 # %%
 plt.figure(figsize=(6, 3.5))
@@ -711,8 +718,8 @@ for ind in range(7):
     plt.text(xpos[ind], height_all[ind] + 0.025, names[ind], ha='center')
 ax.set_ylim((0, 1.4))
 plt.ylabel('LDV Person Hours Traveled (per capita)')
-plt.savefig('Plots/pht_percapita_reorder.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/pht_percapita_reorder.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 # %%
 plt.figure(figsize=(6, 3.5))
@@ -757,8 +764,8 @@ for ind in range(7):
     plt.text(xpos[ind], 1.02, names[ind], ha='center')
 ax.set_ylim((0, 1.0))
 plt.ylabel('Portion of Trips')
-plt.savefig('Plots/modesplit.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/modesplit.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 # %%
 plt.figure(figsize=(6, 3.5))
@@ -804,8 +811,8 @@ for ind in range(7):
     plt.text(xpos[ind], 1.02, names[ind], ha='center')
 ax.set_ylim((0, 1.0))
 plt.ylabel('Portion of Trips')
-plt.savefig('Plots/modesplit_reorder.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/modesplit_reorder.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 
 # %%
@@ -851,8 +858,8 @@ for ind in range(7):
     plt.text(xpos[ind], height_all[ind] + 5, names[ind], ha='center')
 ax.set_ylim((0, 400))
 plt.ylabel('Vehicle Miles Traveled (millions)')
-plt.savefig('Plots/vmt_mode_2.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/vmt_mode_2.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 # %%
 plt.figure(figsize=(6, 3.5))
@@ -889,8 +896,8 @@ for ind in range(7):
     plt.text(xpos[ind], height_all[ind] + 0.5, names[ind], ha='center')
 # ax.set_ylim((0,160))
 plt.ylabel('LDV Person Miles Traveled per Capita')
-plt.savefig('Plots/pmt_percapita_mode.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/pmt_percapita_mode.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 # %%
 plt.figure(figsize=(6, 3.5))
@@ -918,8 +925,8 @@ ax.grid(False)
 for ind in range(7):
     plt.text(xpos[ind], height[ind] + 0.025, names[ind], ha='center')
 plt.ylabel('Energy per Light Duty Vehicle Passenger Mile (MJ/mi)')
-plt.savefig('Plots/energy_per_pmt.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/energy_per_pmt.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 # %%
 plt.figure(figsize=(6, 3.5))
@@ -947,8 +954,8 @@ ax.grid(False)
 for ind in range(7):
     plt.text(xpos[ind], height[ind] + 0.025, names[ind], ha='center')
 plt.ylabel('Energy per Light Duty Vehicle Mile (MJ/mi)')
-plt.savefig('Plots/energy_per_vmt.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/energy_per_vmt.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 # %%
 plt.figure(figsize=(6, 3.5))
@@ -974,8 +981,8 @@ ax.grid(False)
 for ind in range(7):
     plt.text(xpos[ind], height[ind] + 0.01, names[ind], ha='center')
 plt.ylabel('Mean Occupancy')
-plt.savefig('Plots/occupancy.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/occupancy.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 # %%
 plt.figure(figsize=(6, 3.5))
@@ -1014,8 +1021,8 @@ for ind in range(7):
     plt.text(xpos[ind], height_all[ind] + 0.5, names[ind], ha='center')
 # ax.set_ylim((0,160))
 plt.ylabel('Person Miles Traveled per Capita')
-plt.savefig('Plots/pmt_percapita_mode_reorder.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/pmt_percapita_mode_reorder.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 '''
 #%%
 plt.figure(figsize=(5,6))
@@ -1049,8 +1056,8 @@ for ind in range(7):
     plt.text(xpos[ind],height_all[ind] + 2.5,names[ind],ha='center')
 #ax.set_ylim((0,160))
 plt.ylabel('Person Miles Traveled (millions)')
-plt.savefig('Plots/pmt_mode.png', transparent=True,bbox_inches='tight',dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/pmt_mode.png', transparent=True,bbox_inches='tight',dpi=200, facecolor='white')
+plt.close()
 '''
 # %%
 plt.figure(figsize=(6, 3.5))
@@ -1071,8 +1078,8 @@ for ind in range(7):
     plt.text(xpos[ind],height_all[ind] + 5,names[ind],ha='center')
 #ax.set_ylim((0,400))
 plt.ylabel('Light duty vehicle energy use (TJ)')
-plt.savefig('Plots/energy_source_2.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/energy_source_2.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 # %%
 plt.figure(figsize=(6, 3.5))
@@ -1103,8 +1110,8 @@ for ind in range(7):
     plt.text(xpos[ind], height_All[ind] + 2, names[ind], ha='center')
 ax.set_ylim((0, 400))
 plt.ylabel('Light duty vehicle miles traveled (millions)')
-plt.savefig('Plots/vmt_tech_3.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/vmt_tech_3.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 # %%
 plt.figure(figsize=(6, 3.5))
@@ -1125,8 +1132,8 @@ for ind in range(7):
     plt.text(xpos[ind], MEP[ind] + 4, names[ind], ha='center')
 ax.set_ylim((0, 700))
 plt.ylabel('MEP')
-plt.savefig('Plots/MEP.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/MEP.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 
 
@@ -1176,8 +1183,8 @@ plt.xlabel('Year')
 plt.ylabel('MEP')
 # ax.spines['bottom'].set_color('green')
 # ax.spines['left'].set_color('green')
-plt.savefig('Plots/MEP_lineplot.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/MEP_lineplot.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 
 
 
@@ -1228,8 +1235,8 @@ plt.xlabel('Year')
 plt.ylabel('Total light duty vehicle energy (TJ)')
 # ax.spines['bottom'].set_color('green')
 # ax.spines['left'].set_color('green')
-plt.savefig('Plots/Energy.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/Energy.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 '''
 xa = np.array([2019, 2025])
 xbc = np.array([2019, 2040])
@@ -1273,8 +1280,8 @@ plt.xlabel('Year')
 plt.ylabel('Light duty vehicle miles traveled (millions)')
 # ax.spines['bottom'].set_color('green')
 # ax.spines['left'].set_color('green')
-plt.savefig('Plots/vmt.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/vmt.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 '''
 xa = np.array([2019, 2025])
 xbc = np.array([2019, 2040])
@@ -1308,7 +1315,7 @@ area_B = ax.fill_between(xbc, B_LT[key], B_HT[key], alpha=0.5, hatch='|')
 tech_legend = plt.legend((area_A, area_B, area_C),
                          ('A: Sharing is Caring', 'B: Technology takes over', "C: We're in trouble"), loc=3)
 ax.add_artist(tech_legend)
-ax.axis(True)
+
 circles = mlines.Line2D([], [], color='black', marker='o',
                         markersize=5, label='Low Tech')
 triangles = mlines.Line2D([], [], color='black', marker='v',
@@ -1319,11 +1326,11 @@ plt.ylabel('Road network average speed (MPH)')
 # ax.spines['bottom'].set_color('green')
 # ax.spines['left'].set_color('green')
 # ax.set_ylim((16,32))
-plt.savefig('Plots/Speed.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/Speed.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
 #%%
 
-veh_count = pd.read_csv('vehicle_counts2.csv')
+veh_count = pd.read_csv('vehicle_counts.csv')
 plt.figure(figsize=(6, 3.5))
 xpos = [1, 2.5, 3.5, 5, 6, 7.5, 8.5]
 names = ['Base', 'Low', 'High', 'Low', 'High', 'Low', 'High']
@@ -1351,5 +1358,5 @@ for ind in range(7):
     plt.text(xpos[ind], height_All[ind] + 0.1, names[ind], ha='center')
 #ax.set_ylim((0, 400))
 plt.ylabel('Number of Vehicles (millions)')
-plt.savefig('Plots/nvehs.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
-plt.clf()
+plt.savefig('plots/nvehs.png', transparent=True, bbox_inches='tight', dpi=200, facecolor='white')
+plt.close()
