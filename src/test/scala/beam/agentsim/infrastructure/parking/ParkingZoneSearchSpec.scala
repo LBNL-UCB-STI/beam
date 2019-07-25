@@ -27,6 +27,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           zones,
           ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
           ParkingZoneSearchSpec.random,
+          true,
           true
         )
 
@@ -37,40 +38,40 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
     // todo JH talk with RJF if the fact, that both parking zones can provide a parking stall @ the same location
     //  is an intended behavior (which would mean that they are somehow overlapping?!)
     //  How is "nearest" TAZ defined? By it's center? then the calculation in ParkingZoneSearch might be wrong
-//    "search for parking with full availability" should {
-//      "find a spot in the nearest TAZ with full availability which places the stall exactly at the driver's destination" in new ParkingZoneSearchSpec.SimpleParkingAlternatives {
-//        val result: Option[ParkingZoneSearch.ParkingSearchResult] = ParkingZoneSearch.find(
-//          destinationNearTazB,
-//          valueOfTime = 1.0,
-//          parkingDuration = 0.0, // ignore pricing ranking
-//          ParkingInquiry.simpleDistanceEqualUtilityFunction,
-//          tazsInProblem,
-//          Seq(ParkingType.Public),
-//          parkingSearchTree,
-//          parkingZones,
-//          ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
-//          ParkingZoneSearchSpec.random
-//        )
-//
-//        result match {
-//          case None => fail()
-//          case Some(
-//              ParkingZoneSearch.ParkingSearchResult(taz, parkingType, parkingZone, stallCoord, utilityOfAlternative)
-//              ) =>
-//            // the TAZ selected should be TAZ B
-//            taz should equal(tazB)
-//
-//            // since everything is equal, either TAZ should work out, but
-//            utilityOfAlternative should equal(0)
-//
-//            // these should be consistent with the configuration of this scenario
-//            parkingType should equal(ParkingType.Public)
-//
-//            // since availability is 18/18 = 1.0, sample location should equal destination coordinate
-//            stallCoord should equal(destinationNearTazB)
-//        }
-//      }
-//    }
+    //    "search for parking with full availability" should {
+    //      "find a spot in the nearest TAZ with full availability which places the stall exactly at the driver's destination" in new ParkingZoneSearchSpec.SimpleParkingAlternatives {
+    //        val result: Option[ParkingZoneSearch.ParkingSearchResult] = ParkingZoneSearch.find(
+    //          destinationNearTazB,
+    //          valueOfTime = 1.0,
+    //          parkingDuration = 0.0, // ignore pricing ranking
+    //          ParkingInquiry.simpleDistanceEqualUtilityFunction,
+    //          tazsInProblem,
+    //          Seq(ParkingType.Public),
+    //          parkingSearchTree,
+    //          parkingZones,
+    //          ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
+    //          ParkingZoneSearchSpec.random
+    //        )
+    //
+    //        result match {
+    //          case None => fail()
+    //          case Some(
+    //              ParkingZoneSearch.ParkingSearchResult(taz, parkingType, parkingZone, stallCoord, utilityOfAlternative)
+    //              ) =>
+    //            // the TAZ selected should be TAZ B
+    //            taz should equal(tazB)
+    //
+    //            // since everything is equal, either TAZ should work out, but
+    //            utilityOfAlternative should equal(0)
+    //
+    //            // these should be consistent with the configuration of this scenario
+    //            parkingType should equal(ParkingType.Public)
+    //
+    //            // since availability is 18/18 = 1.0, sample location should equal destination coordinate
+    //            stallCoord should equal(destinationNearTazB)
+    //        }
+    //      }
+    //    }
 
     "search for parking exactly between two TAZs finds some availability at one TAZ" should {
       "find a spot near their destination but with some variance due to the availability of parking" in new ParkingZoneSearchSpec.SimpleParkingAlternatives {
@@ -91,11 +92,12 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           parkingZones,
           ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
           ParkingZoneSearchSpec.random,
+          true,
           true
         )
 
         result match {
-          case None                                                                                                 => fail()
+          case None => fail()
           case Some(ParkingZoneSearch.ParkingSearchResult(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
             // TAZ B should have been selected because everything is equal except for availability is lower for A
             taz should equal(tazB)
@@ -134,11 +136,12 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           parkingZones,
           ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
           ParkingZoneSearchSpec.random,
+          true,
           true
         )
 
         result match {
-          case None                                                                                                 => fail()
+          case None => fail()
           case Some(ParkingZoneSearch.ParkingSearchResult(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
             // TAZ B should have been selected because everything is equal except for availability is lower for A
             taz should equal(tazB)
@@ -176,6 +179,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
             parkingZones,
             ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
             ParkingZoneSearchSpec.random,
+            true,
             true
           )
         } yield {
@@ -184,7 +188,9 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
 
         // 50% or more times TAZ B should have been selected because everything is equal
         // except the ticket fee and the availability which is lower for A
-        samples.count { _.bestTAZ == tazB } > (sampleSize / 2)
+        samples.count {
+          _.bestTAZ == tazB
+        } > (sampleSize / 2)
 
         // these should be consistent with the configuration of this scenario
         samples
@@ -225,6 +231,7 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
             parkingZones,
             ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
             ParkingZoneSearchSpec.random,
+            true,
             true
           )
         } yield {
@@ -233,7 +240,9 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
 
         // 50% or more times TAZ A should have been selected because everything except the ticket fee is equal
         // except the ticket fee and the availability which is lower for A
-        samples.count { _.bestTAZ == tazA } > (sampleSize / 2)
+        samples.count {
+          _.bestTAZ == tazA
+        } > (sampleSize / 2)
 
         // these should be consistent with the configuration of this scenario
         samples
