@@ -994,6 +994,7 @@ object BeamConfig {
           linkToGradePercentFilePath: java.lang.String,
           sharedFleets: scala.List[BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm],
           transitVehicleTypesByRouteFile: java.lang.String,
+          vehicleAdjustmentMethod: java.lang.String,
           vehicleTypesFilePath: java.lang.String,
           vehiclesFilePath: java.lang.String
         )
@@ -1168,6 +1169,8 @@ object BeamConfig {
               transitVehicleTypesByRouteFile =
                 if (c.hasPathOrNull("transitVehicleTypesByRouteFile")) c.getString("transitVehicleTypesByRouteFile")
                 else "",
+              vehicleAdjustmentMethod =
+                if (c.hasPathOrNull("vehicleAdjustmentMethod")) c.getString("vehicleAdjustmentMethod") else "UNIFORM",
               vehicleTypesFilePath =
                 if (c.hasPathOrNull("vehicleTypesFilePath")) c.getString("vehicleTypesFilePath")
                 else "/test/input/beamville/vehicleTypes.csv",
