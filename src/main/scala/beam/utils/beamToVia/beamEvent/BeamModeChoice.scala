@@ -10,9 +10,7 @@ object BeamModeChoice {
   val EVENT_TYPE: String = "ModeChoice"
   val ATTRIBUTE_PERSON_ID = "person"
   val ATTRIBUTE_LINK_ID = "location"
-
-  def apply(time: Double, personId: String, linkId:Int): BeamModeChoice =
-    new BeamModeChoice(time, personId, linkId)
+  val ATTRIBUTE_MODE = "mode"
 
   def apply(genericEvent: Event): BeamModeChoice = {
     assert(genericEvent.getEventType == EVENT_TYPE)
@@ -21,11 +19,10 @@ object BeamModeChoice {
     val time = genericEvent.getTime
     val personId: String = attr(ATTRIBUTE_PERSON_ID)
     val linkId:Int = attr(ATTRIBUTE_LINK_ID).toInt
+    val mode = attr(ATTRIBUTE_MODE)
 
-    BeamModeChoice(time, personId, linkId)
+    new BeamModeChoice(time, personId, linkId, mode)
   }
 }
 
-case class BeamModeChoice(time: Double, personId: String, linkId:Int) extends BeamEvent {
-  override def toXml: Elem = <event time={time.toString} type="ModeChoice" person={personId} />
-}
+case class BeamModeChoice(time: Double, personId: String, linkId:Int, mode:String) extends BeamEvent

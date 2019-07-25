@@ -1,6 +1,8 @@
 package beam.utils.beamToVia
 
 import beam.utils.beamToVia.beamEvent.{
+  BeamActivityEnd,
+  BeamActivityStart,
   BeamEvent,
   BeamModeChoice,
   BeamPathTraversal,
@@ -11,8 +13,8 @@ import beam.utils.beamToVia.beamEventsFilter.{MutableSamplingFilter, PersonEvent
 import beam.utils.beamToVia.viaEvent.{
   EnteredLink,
   LeftLink,
+  ViaActivity,
   ViaEvent,
-  ViaModeChoice,
   ViaPersonArrivalEvent,
   ViaPersonDepartureEvent,
   ViaTraverseLinkEvent
@@ -79,25 +81,72 @@ object EventsProcessor {
     (vehiclesTrips, personsEvents)
   }
 
-  def transformModeChoices(
+  def transformActivities(
     personsEvents: Traversable[PersonEvents]
-  ): mutable.MutableList[ViaEvent] = {
+  ): (mutable.MutableList[ViaEvent], mutable.HashMap[String, Int]) = {
 
-    val modeChoiceLength = 50
     val viaEvents = mutable.MutableList.empty[ViaEvent]
+    val actTypes = mutable.HashMap.empty[String, Int]
+
+    def getActType(acttivityType: String) = "activity_" + acttivityType
+
+    def calcActivities(actType: String): Unit = {
+      actTypes.get(actType) match {
+        case Some(cnt) => actTypes(actType) = cnt + 1
+        case None      => actTypes(actType) = 1
+      }
+    }
+
+    personsEvents.foreach(_.events.foldLeft(viaEvents)((events, event) => {
+      event match {
+        case activity: BeamActivityStart =>
+          val actType = getActType(activity.activityType)
+          calcActivities(actType)
+          viaEvents += ViaActivity.start(activity.time, activity.personId, activity.linkId, actType)
+
+        case activity: BeamActivityEnd =>
+          val actType = getActType(activity.activityType)
+          calcActivities(actType)
+          viaEvents += ViaActivity.end(activity.time, activity.personId, activity.linkId, actType)
+
+        case _ =>
+      }
+
+      events
+    }))
+
+    Console.println(viaEvents.size + " via events for activities display (" + actTypes.size + " different types)")
+
+    (viaEvents, actTypes)
+  }
+
+  def transformModeChoices(
+    personsEvents: Traversable[PersonEvents],
+    modeChoiceDuration: Int = 50
+  ): (mutable.MutableList[ViaEvent], mutable.HashMap[String, Int]) = {
+
+    val viaEvents = mutable.MutableList.empty[ViaEvent]
+    val modes = mutable.HashMap.empty[String, Int]
 
     personsEvents.foreach(_.events.foldLeft(viaEvents) {
       case (events, mc: BeamModeChoice) =>
-        events += ViaModeChoice.start(mc.time, mc.personId, mc.linkId)
-        events += ViaModeChoice.end(mc.time + modeChoiceLength, mc.personId, mc.linkId)
+        val actionName = "modeChoice_" + mc.mode
+
+        modes.get(actionName) match {
+          case Some(cnt) => modes(actionName) = cnt + 1
+          case None      => modes(actionName) = 1
+        }
+
+        events += ViaActivity.start(mc.time, mc.personId, mc.linkId, actionName)
+        events += ViaActivity.end(mc.time + modeChoiceDuration, mc.personId, mc.linkId, actionName)
         events
 
       case (acc, _) => acc
     })
 
-    Console.println(viaEvents.size + " via events for modeChoices display")
+    Console.println(viaEvents.size + " via events for modeChoices display (" + modes.size + " different types)")
 
-    viaEvents
+    (viaEvents, modes)
   }
 
   def transformPathTraversals(
@@ -150,7 +199,7 @@ object EventsProcessor {
             events.enqueue(curr)
           }
 
-          def addPersonArrival(time:Double, viaEvent: ViaTraverseLinkEvent): Unit =
+          def addPersonArrival(time: Double, viaEvent: ViaTraverseLinkEvent): Unit =
             events.enqueue(ViaPersonArrivalEvent(time + minTimeStep, viaEvent.vehicle, viaEvent.link))
 
           def addPersonDeparture(viaEvent: ViaTraverseLinkEvent): Unit =

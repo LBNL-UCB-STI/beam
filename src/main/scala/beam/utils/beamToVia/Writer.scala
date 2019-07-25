@@ -15,6 +15,8 @@ object Writer {
   }
 
   def writeViaEventsQueue[T](queue: mutable.PriorityQueue[T], transform: T => String, outputPath: String): Unit = {
+    Console.println("started writing via events")
+
     val pw = new PrintWriter(new File(outputPath))
     pw.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<events version=\"1.0\">")
     while (queue.nonEmpty) {
@@ -49,6 +51,22 @@ object Writer {
     pw2.close()
 
     Console.println("via IDs written into " + outputPath)
+  }
+
+  def writeViaModes(modeToCount: mutable.Map[String, Int], outputPath: String): Unit = {
+    val pw2 = new PrintWriter(new File(outputPath))
+    modeToCount.map { case (mode, count) => mode + "     " + count }.toSeq.sorted.foreach(pw2.println)
+    pw2.close()
+
+    Console.println("via modes written into " + outputPath)
+  }
+
+  def writeViaActivities(activityToCount: mutable.Map[String, Int], outputPath: String): Unit = {
+    val pw2 = new PrintWriter(new File(outputPath))
+    activityToCount.map { case (mode, count) => mode + "     " + count }.toSeq.sorted.foreach(pw2.println)
+    pw2.close()
+
+    Console.println("via activities written into " + outputPath)
   }
 
   def writeViaIdGroupFiles(typeToIdSeq: mutable.Map[String, mutable.HashSet[String]], outputPath: String): Unit = {

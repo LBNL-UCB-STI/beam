@@ -80,6 +80,35 @@ object MutableVehiclesFilter {
 
     new MutableVehiclesFilter(selectNewVehicleByIdType)
   }
+
+  def withListOfIncludeAndNecessary(
+    preSelectVehicles: mutable.HashSet[String],
+    necessaryVehicles: mutable.HashSet[String],
+    vehicleSampling: Seq[VehicleSample] = Seq.empty[VehicleSample],
+    vehicleSamplingOtherTypes: Double = 1.0
+  ): MutableVehiclesFilter = {
+    val vehicleTypeSamplesMap = Map(vehicleSampling.map(vs => vs.vehicleType -> vs.percentage): _*)
+
+    val selectNewVehicleByIdType: (String, String) => Boolean =
+      if (vehicleSampling.isEmpty && vehicleSamplingOtherTypes >= 1.0)(vId, _) =>
+        necessaryVehicles.contains(vId) || preSelectVehicles.contains(vId)
+      else if (vehicleSampling.isEmpty)(vId, _) =>
+        necessaryVehicles.contains(vId) || (preSelectVehicles.contains(vId) && Math
+          .random() <= vehicleSamplingOtherTypes)
+      else if (vehicleSamplingOtherTypes >= 1.0) { (vId, vehicleType) =>
+        necessaryVehicles.contains(vId) || (preSelectVehicles.contains(vId) && (vehicleTypeSamplesMap.get(vehicleType) match {
+          case Some(percentage) => Math.random() <= percentage
+          case None             => true
+        }))
+      } else { (vId, vehicleType) =>
+        necessaryVehicles.contains(vId) || (preSelectVehicles.contains(vId) && (vehicleTypeSamplesMap.get(vehicleType) match {
+          case Some(percentage) => Math.random() <= percentage
+          case None             => Math.random() <= vehicleSamplingOtherTypes
+        }))
+      }
+
+    new MutableVehiclesFilter(selectNewVehicleByIdType)
+  }
 }
 
 class MutableVehiclesFilter(selectNewVehicleByIdType: (String, String) => Boolean) extends MutableSamplingFilter {
