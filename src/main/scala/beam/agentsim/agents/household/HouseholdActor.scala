@@ -14,15 +14,11 @@ import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavT
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.agents.ridehail.RideHailAgent.{
-  ModifyPassengerSchedule,
-  ModifyPassengerScheduleAck,
-  ModifyPassengerScheduleAcks
-}
+import beam.agentsim.agents.ridehail.RideHailAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck, ModifyPassengerScheduleAcks}
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, PersonIdWithActorRef}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.RoutingResponse
@@ -40,7 +36,6 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.PopulationUtils
 import org.matsim.households
 import org.matsim.households.Household
-
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -102,6 +97,7 @@ object HouseholdActor {
   case class ReleaseVehicle(vehicle: BeamVehicle)
   case class ReleaseVehicleAndReply(vehicle: BeamVehicle, tick: Option[Int] = None)
   case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken])
+  case class InitialParkingResponse(beamVehicle: BeamVehicle, parkingStall: ParkingStall)
 
   /**
     * Implementation of intra-household interaction in BEAM using actors.
@@ -162,6 +158,14 @@ object HouseholdActor {
     implicit val pop: org.matsim.api.core.v01.population.Population = population
 
     private var members: Map[Id[Person], PersonIdWithActorRef] = Map()
+
+    // tracks the state of any vehicle parking that is occurring.
+    private var numVehiclesParked: Int = 0
+    private var numVehiclesToPark: Int = 0
+
+    // triggers may need to be scheduled through the scheduler as a result of HouseholdActor logic
+    // these are sent as a batch at the end of a cycle of parking vehicles
+    private var triggersToSchedule: List[ScheduleTrigger] = List.empty
 
     // Data need to execute CAV dispatch
     private val cavPlans: mutable.ListBuffer[CAVSchedule] = mutable.ListBuffer()
@@ -305,7 +309,25 @@ object HouseholdActor {
           members = members + (person.getId -> PersonIdWithActorRef(person.getId, personRef))
           schedulerRef ! ScheduleTrigger(InitializeTrigger(0), personRef)
         }
-        if (cavs.isEmpty) completeInitialization(triggerId, Vector())
+//        if (cavs.isEmpty) completeInitialization(triggerId, Vector())
+        if (cavs.isEmpty) {
+          findInitialParkingSpotsForCAVs()
+        }
+
+      case InitialParkingResponse(vehicle, parkingStall) =>
+        vehicle.useParkingStall(parkingStall)
+        numVehiclesParked += 1
+        if (numVehiclesParked == numVehiclesToPark) {
+
+          // all vehicles have been parked; send completion notice to the scheduler
+          val (_, triggerId) = releaseTickAndTriggerId()
+          schedulerRef ! CompletionNotice(triggerId, triggersToSchedule)
+
+          // reset local state
+          numVehiclesParked = 0
+          numVehiclesToPark = 0
+          triggersToSchedule = List.empty
+        }
 
       case RoutingResponses(tick, routingResponses) =>
         // Check if there are any broken routes, for now we cancel the whole cav plan if this happens and give a warning
@@ -318,8 +340,8 @@ object HouseholdActor {
           cavPlans.clear()
           personAndActivityToLegs = Map()
           personAndActivityToCav = Map()
-          val (_, triggerId) = releaseTickAndTriggerId()
-          completeInitialization(triggerId, Vector())
+//          val (_, triggerId) = releaseTickAndTriggerId()
+          findInitialParkingSpotsForCAVs()
         } else {
           // Index the responses by Id
           val indexedResponses = routingResponses.map(resp => resp.requestId -> resp).toMap
@@ -404,8 +426,10 @@ object HouseholdActor {
         throw new RuntimeException(reason)
 
       case ModifyPassengerScheduleAcks(acks) =>
-        val (_, triggerId) = releaseTickAndTriggerId()
-        completeInitialization(triggerId, acks.flatMap(_.triggersToSchedule).toVector)
+//        val (_, triggerId) = releaseTickAndTriggerId()
+        triggersToSchedule ++= acks.flatMap(_.triggersToSchedule)
+        findInitialParkingSpotsForCAVs()
+//        completeInitialization(triggerId, acks.flatMap(_.triggersToSchedule).toVector)
 
       case CavTripLegsRequest(person, originActivity) =>
         personAndActivityToLegs.get((person.personId, originActivity)) match {
@@ -448,23 +472,22 @@ object HouseholdActor {
 
     }
 
-    def completeInitialization(triggerId: Long, triggersToSchedule: Vector[ScheduleTrigger]): Unit = {
-
+    def findInitialParkingSpotsForCAVs(): Unit = {
+      val vehiclesToPark = vehicles.filter(_._2.beamVehicleType.automationLevel > 3).values
+      numVehiclesToPark = vehiclesToPark.size
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.
       Future
-        .sequence(vehicles.filter(_._2.beamVehicleType.automationLevel > 3).values.map { veh =>
+        .sequence(vehiclesToPark.map { veh =>
           veh.manager = Some(self)
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           for {
             ParkingInquiryResponse(stall, _) <- parkingManager ? ParkingInquiry(homeCoord, "init", None)
-          } {
-            veh.useParkingStall(stall)
+          } yield {
+            InitialParkingResponse(veh, stall)
           }
-          Future.successful(())
         })
-        .map(_ => CompletionNotice(triggerId, triggersToSchedule))
-        .pipeTo(schedulerRef)
+        .pipeTo(self)
     }
 
     def dieIfNoChildren(): Unit = {
