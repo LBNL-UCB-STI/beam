@@ -311,7 +311,7 @@ object HouseholdActor {
         }
 //        if (cavs.isEmpty) completeInitialization(triggerId, Vector())
         if (cavs.isEmpty) {
-          findInitialParkingSpotsForCAVs()
+          parkHouseholdVehicles()
         }
 
       case InitialParkingResponse(vehicle, parkingStall) =>
@@ -341,7 +341,7 @@ object HouseholdActor {
           personAndActivityToLegs = Map()
           personAndActivityToCav = Map()
 //          val (_, triggerId) = releaseTickAndTriggerId()
-          findInitialParkingSpotsForCAVs()
+          parkHouseholdVehicles()
         } else {
           // Index the responses by Id
           val indexedResponses = routingResponses.map(resp => resp.requestId -> resp).toMap
@@ -428,7 +428,7 @@ object HouseholdActor {
       case ModifyPassengerScheduleAcks(acks) =>
 //        val (_, triggerId) = releaseTickAndTriggerId()
         triggersToSchedule ++= acks.flatMap(_.triggersToSchedule)
-        findInitialParkingSpotsForCAVs()
+        parkHouseholdVehicles()
 //        completeInitialization(triggerId, acks.flatMap(_.triggersToSchedule).toVector)
 
       case CavTripLegsRequest(person, originActivity) =>
@@ -472,10 +472,10 @@ object HouseholdActor {
 
     }
 
-    def findInitialParkingSpotsForCAVs(): Unit = {
-      // uncertain who made this change, but this would mean that we only park
-      // CAVs, but, we need to park everyone, right?
-      //  val vehiclesToPark = vehicles.filter(_._2.beamVehicleType.automationLevel > 3).values
+    def parkHouseholdVehicles(): Unit = {
+      // todo uncertain who made this change, but this would mean that we only park
+      //  CAVs, but, we need to park everyone, right?
+      // val vehiclesToPark = vehicles.filter(_._2.beamVehicleType.automationLevel > 3).values
       val vehiclesToPark = vehicles.values
       numVehiclesToPark = vehiclesToPark.size
       // Pipe my cars through the parking manager
