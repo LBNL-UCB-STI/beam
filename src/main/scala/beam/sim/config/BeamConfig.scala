@@ -1855,7 +1855,8 @@ object BeamConfig {
       storageCapacityFactor: scala.Double,
       writeEventsInterval: scala.Int,
       writeMATSimNetwork: scala.Boolean,
-      writePlansInterval: scala.Int
+      writePlansInterval: scala.Int,
+      writeRouteHistoryInterval: scala.Int
     )
 
     object Physsim {
@@ -1948,7 +1949,9 @@ object BeamConfig {
             if (c.hasPathOrNull("storageCapacityFactor")) c.getDouble("storageCapacityFactor") else 1.0,
           writeEventsInterval = if (c.hasPathOrNull("writeEventsInterval")) c.getInt("writeEventsInterval") else 0,
           writeMATSimNetwork = !c.hasPathOrNull("writeMATSimNetwork") || c.getBoolean("writeMATSimNetwork"),
-          writePlansInterval = if (c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0
+          writePlansInterval = if (c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0,
+          writeRouteHistoryInterval =
+            if (c.hasPathOrNull("writeRouteHistoryInterval")) c.getInt("writeRouteHistoryInterval") else 10
         )
       }
     }
