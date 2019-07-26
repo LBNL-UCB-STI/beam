@@ -49,28 +49,6 @@ object ParkingInquiry {
       )
     )
 
-  def apply(
-    destinationUtm: Location,
-    activityType: String,
-    valueOfTime: Double,
-    utilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String],
-    parkingDuration: Double,
-    vehicleType: Option[BeamVehicle] = None,
-    reserveStall: Boolean = true,
-    requestId: Int = ParkingManagerIdGenerator.nextId
-  ): ParkingInquiry = {
-    ParkingInquiry(
-      destinationUtm,
-      activityType,
-      valueOfTime,
-      utilityFunction,
-      parkingDuration,
-      vehicleType,
-      reserveStall,
-      requestId
-    )
-  }
-
   def apply(locationUtm: Location, activity: String): ParkingInquiry = {
     ParkingInquiry(locationUtm, activity, 0.0, simpleDistanceAndParkingTicketEqualUtilityFunction, 0, None)
   }
