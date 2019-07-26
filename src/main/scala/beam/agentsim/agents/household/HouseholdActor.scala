@@ -473,7 +473,10 @@ object HouseholdActor {
     }
 
     def findInitialParkingSpotsForCAVs(): Unit = {
-      val vehiclesToPark = vehicles.filter(_._2.beamVehicleType.automationLevel > 3).values
+      // uncertain who made this change, but this would mean that we only park
+      // CAVs, but, we need to park everyone, right?
+      //  val vehiclesToPark = vehicles.filter(_._2.beamVehicleType.automationLevel > 3).values
+      val vehiclesToPark = vehicles.values
       numVehiclesToPark = vehiclesToPark.size
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.
