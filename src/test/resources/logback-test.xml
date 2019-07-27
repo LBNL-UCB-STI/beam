@@ -15,7 +15,7 @@
         </layout>
     </appender>
 
-    <root level="ALL">
+    <root level="ERROR">
         <appender-ref ref="STDOUT" />
     </root>
 
