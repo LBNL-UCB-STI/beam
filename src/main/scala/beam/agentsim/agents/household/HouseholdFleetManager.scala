@@ -8,7 +8,12 @@ import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle, ReleaseVehicleAndReply}
+import beam.agentsim.agents.household.HouseholdActor.{
+  MobilityStatusInquiry,
+  MobilityStatusResponse,
+  ReleaseVehicle,
+  ReleaseVehicleAndReply
+}
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.BeamVehicle
@@ -34,23 +39,24 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
   override def receive: Receive = {
     case ResolvedParkingResponses(triggerId, xs) =>
       logger.debug(s"ResolvedParkingResponses ($triggerId, $xs)")
-      xs.foreach { case (id, resp) =>
-        val veh = vehicles(id)
-        veh.manager = Some(self)
-        veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
-        veh.mustBeDrivenHome = true
-        veh.useParkingStall(resp.stall)
-        self ! ReleaseVehicleAndReply(veh)
+      xs.foreach {
+        case (id, resp) =>
+          val veh = vehicles(id)
+          veh.manager = Some(self)
+          veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
+          veh.mustBeDrivenHome = true
+          veh.useParkingStall(resp.stall)
+          self ! ReleaseVehicleAndReply(veh)
       }
       triggerSender.foreach(actorRef => actorRef ! CompletionNotice(triggerId, Vector()))
 
-
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       triggerSender = Some(sender())
-      val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = vehicles.toList.map { case (id, _)=>
-        (parkingManager ? ParkingInquiry(homeCoord, "init", None)).mapTo[ParkingInquiryResponse].map { r =>
-          (id, r)
-        }
+      val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = vehicles.toList.map {
+        case (id, _) =>
+          (parkingManager ? ParkingInquiry(homeCoord, "init", None)).mapTo[ParkingInquiryResponse].map { r =>
+            (id, r)
+          }
       }
       val futureOfList = Future.sequence(listOfFutures)
       val response = futureOfList.map(ResolvedParkingResponses(triggerId, _))
