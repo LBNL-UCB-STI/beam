@@ -5,6 +5,7 @@ import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
 import beam.agentsim.agents.vehicles.ConsumptionRateFilterStore.{Primary, Secondary}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -61,6 +62,9 @@ class BeamVehicle(
   var reservedStall: Option[ParkingStall] = None
   var stall: Option[ParkingStall] = None
 
+  private var connectedToCharger: Boolean = false
+  private var chargerConnectedTick: Option[Long] = None
+
   /**
     * Called by the driver.
     */
@@ -100,6 +104,33 @@ class BeamVehicle(
 
   def unsetParkingStall(): Unit = {
     stall = None
+  }
+
+  /**
+    *
+    * @param startTick
+    */
+  def connectToChargingPoint(startTick: Long): Unit = {
+    if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType == Electricity) {
+      connectedToCharger = true
+      chargerConnectedTick = Some(startTick)
+    } else
+      logger.warn(
+        "Trying to connect a non BEV/PHEV to a electricity charging station. This will cause an explosion. Ignoring!"
+      )
+  }
+
+  def disconnectFromChargingPoint(): Unit = {
+    connectedToCharger = false
+    chargerConnectedTick = None
+  }
+
+  def isConnectedToChargingPoint(): Boolean = {
+    connectedToCharger
+  }
+
+  def getChargerConnectedTick(): Long = {
+    chargerConnectedTick.getOrElse(0L)
   }
 
   /**
@@ -186,7 +217,7 @@ class BeamVehicle(
     *
     * @return refuelingDuration
     */
-  def refuelingSessionDurationAndEnergyInJoules(): (Long, Double) = {
+  def refuelingSessionDurationAndEnergyInJoules(sessionDurationLimit: Option[Long] = None): (Long, Double) = {
     stall match {
       case Some(theStall) =>
         theStall.chargingPointType match {
@@ -195,9 +226,9 @@ class BeamVehicle(
               chargingPoint,
               primaryFuelLevelInJoules,
               beamVehicleType.primaryFuelCapacityInJoule,
-              100.0,
-              100.0,
-              None
+              1e6,
+              1e6,
+              sessionDurationLimit
             )
           case None =>
             (0, 0.0)
@@ -232,6 +263,12 @@ class BeamVehicle(
   }
 
   def isCAV: Boolean = beamVehicleType.automationLevel == 5
+
+  def isBEV: Boolean =
+    beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType == None
+
+  def isPHEV: Boolean =
+    beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType == Some(Gasoline)
 
   def initializeFuelLevels = {
     primaryFuelLevelInJoules = beamVehicleType.primaryFuelCapacityInJoule
@@ -285,6 +322,7 @@ object BeamVehicle {
 
   /**
     * Organizes the fuel consumption data table
+    *
     * @param beamLeg Instance of beam leg
     * @param networkHelper the transport network instance
     * @return list of fuel consumption objects generated

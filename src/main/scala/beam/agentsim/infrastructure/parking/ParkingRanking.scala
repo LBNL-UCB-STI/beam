@@ -9,6 +9,8 @@ import org.matsim.api.core.v01.Coord
 
 object ParkingRanking {
 
+  type RankingFunction = (ParkingZone, Double, Option[ChargingInquiry]) => Double
+
   val PlaceholderForChargingCosts = 0.0
 
   /**
@@ -19,13 +21,14 @@ object ParkingRanking {
     * @param valueOfTime agent's value of time
     * @return utility of parking
     */
-  def apply(
+  def rankingValue(
     parkingZone: ParkingZone,
     parkingDuration: Double,
     distanceToStall: Double,
-    valueOfTime: Double
+    valueOfTime: Double,
+    chargingInquiry: Option[ChargingInquiry]
   ): Double = {
-    val price: Double = parkingZone.pricingModel match {
+    val parkingTicket: Double = parkingZone.pricingModel match {
       case None               => 0.0
       case Some(pricingModel) => PricingModel.evaluateParkingTicket(pricingModel, parkingDuration.toInt)
     }
@@ -33,24 +36,36 @@ object ParkingRanking {
     // assumes 1.4 m/s walking speed, distance in meters, value of time in seconds
     val valueOfTimeSpentWalking: Double = distanceToStall / 1.4 / 3600.0 * valueOfTime
 
-    // TODO: include cost of charge here
+    // is either a cost we count against this alternative, or, zero, if we are non-electric or have a need for charging
+    val installedCapacityTerm: Double = chargingInquiry match {
+      case None =>
+        0.0 // not a BEV / PHEV
+      case Some(chargingData) => { // BEV / PHEV -> we use our utility function
+        chargingData.utility match {
+          case None => 0.0 // vehicle MUST charge -> we neglect the costs for charging, as we don't care
+          case Some(_) =>
+            parkingZone.chargingPointType match {
+              case Some(chargingPoint) => ChargingPointType.getChargingPointInstalledPowerInKw(chargingPoint)
+              case None                => 0
+            }
+        }
+      }
+    }
 
-    -price - valueOfTimeSpentWalking - PlaceholderForChargingCosts
+//    utilityFunction.getUtilityOfAlternative(alternative.head._1, alternative.head._2).getOrElse(0)
+//
+//    parkingAlternative ->
+//      Map(
+//        "energyPriceFactor" -> (parkingTicket * installedCapacityTerm),
+//        "distanceFactor"    -> (distanceToStall / 1.4 / 3600.0) * valueOfTime,
+//        "installedCapacity" -> installedCapacityTerm
+//      )
+//
+
+//    we need to get the utility of this alternative. we want to get this value regardless of our
+//    need for charging. this implies that UtilityFunction should not be optional for a
+//    parking inquiry.
+
+    ???
   }
-
-  /**
-    * accumulator used to carry the best-ranked parking attributes along with aggregate search data
-    * @param bestTAZ TAZ where best-ranked ParkingZone is stored
-    * @param bestParkingType ParkingType related to the best-ranked ParkingZone
-    * @param bestParkingZone the best-ranked ParkingZone
-    * @param bestCoord the sampled coordinate of the stall
-    * @param bestRankingValue the ranking value associated with the best-ranked ParkingZone
-    */
-  case class RankingAccumulator(
-    bestTAZ: TAZ,
-    bestParkingType: ParkingType,
-    bestParkingZone: ParkingZone,
-    bestCoord: Coord,
-    bestRankingValue: Double
-  )
 }

@@ -83,8 +83,14 @@ File: :code:`~/Library/LaunchAgents/setenv.BEAM_OUTPUT.plist`::
       </dict>
     </plist>
 
-GIT-LFS timeout - how to proceed
+GIT-LFS - known issues
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+** IntelliJ IDEA credentials issue **
+
+Sometimes it might be possible that IntelliJ IDEA integration struggles with the credentials of git-lfs if they are different from your regular git credentials (which is most probably the case for beam). Hence if you changed files in beam that are tracked by git-lfs (e.g. vehicles.csv.gz) you should use command line git for pushing them to the server.
+
+** timeout **
+
 Sometimes it is possible to face a timeout issue when trying to push huge files. The steps below can be followed:
 
 #. Connect to some EC2 server inside the same Amazon S3 region: us-east-2
