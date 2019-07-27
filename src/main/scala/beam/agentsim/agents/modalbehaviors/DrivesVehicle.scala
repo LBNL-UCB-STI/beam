@@ -22,7 +22,6 @@ import beam.agentsim.events.{
   SpaceTime
 }
 import beam.agentsim.infrastructure.ParkingStall
-import beam.agentsim.infrastructure.charging.ChargingInquiry
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerMessage}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
