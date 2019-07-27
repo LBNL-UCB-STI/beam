@@ -16,25 +16,25 @@ import org.scalatest.mockito.MockitoSugar
 class RideHailAllocationRandomRepositioningSpec extends FlatSpec with BeamHelper with MockitoSugar {
 
   it should "be able to run for 1 iteration without exceptions" in {
-    // FIXME
-    val config = RideHailTestHelper.buildConfig(RideHailResourceAllocationManager.DEFAULT_MANAGER)
+      // FIXME
+      val config = RideHailTestHelper.buildConfig(RideHailResourceAllocationManager.DEFAULT_MANAGER)
 
-    val matsimConfig = RideHailTestHelper.buildMatsimConfig(config)
+      val matsimConfig = RideHailTestHelper.buildMatsimConfig(config)
 
-    val beamConfig = BeamConfig(config)
-    FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
-    val beamScenario = loadScenario(beamConfig)
-    val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-    scenario.setNetwork(beamScenario.network)
+      val beamConfig = BeamConfig(config)
+      FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+      val beamScenario = loadScenario(beamConfig)
+      val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+      scenario.setNetwork(beamScenario.network)
 
-    val iterationCounter = mock[IterationEndsListener]
-    val injector = org.matsim.core.controler.Injector.createInjector(
+      val iterationCounter = mock[IterationEndsListener]
+      val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
       new AbstractModule() {
-        override def install(): Unit = {
-          install(module(config, beamConfig, scenario, beamScenario))
-          addControlerListenerBinding().toInstance(iterationCounter)
-        }
+      override def install(): Unit = {
+      install(module(config, beamConfig, scenario, beamScenario))
+      addControlerListenerBinding().toInstance(iterationCounter)
+      }
       }
     )
     val popAdjustment = DefaultPopulationAdjustment
