@@ -712,13 +712,13 @@ class RideHailManager(
       modifyPassengerScheduleManager.handleInterruptReply(reply)
       updateLatestObservedTick(vehicleId, tick)
       if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived)
-        findAllocationsAndProcess(tick)
+        findAllocationsAndProcess(modifyPassengerScheduleManager.getCurrentTick.get)
 
     case reply @ InterruptedWhileOffline(_, vehicleId, tick) =>
       modifyPassengerScheduleManager.handleInterruptReply(reply)
       updateLatestObservedTick(vehicleId, tick)
       if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived)
-        findAllocationsAndProcess(tick)
+        findAllocationsAndProcess(modifyPassengerScheduleManager.getCurrentTick.get)
 
     case reply @ InterruptedWhileIdle(interruptId, vehicleId, tick) =>
       if (pendingAgentsSentToPark.contains(vehicleId)) {
@@ -729,7 +729,7 @@ class RideHailManager(
         // Make sure we take away passenger schedule from RHA Location
         vehicleManager.makeAvailable(vehicleManager.getRideHailAgentLocation(vehicleId).copy(currentPassengerSchedule = None, currentPassengerScheduleIndex = None))
         if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived)
-          findAllocationsAndProcess(tick)
+          findAllocationsAndProcess(modifyPassengerScheduleManager.getCurrentTick.get)
       }
 
     case reply @ InterruptedWhileDriving(interruptId, vehicleId, tick, interruptedPassengerSchedule, currentPassengerScheduleIndex) =>
@@ -742,7 +742,7 @@ class RideHailManager(
         updatePassengerSchedule(vehicleId, interruptedPassengerSchedule, currentPassengerScheduleIndex)
         updateLatestObservedTick(vehicleId, tick)
         if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived)
-          findAllocationsAndProcess(tick)
+          findAllocationsAndProcess(modifyPassengerScheduleManager.getCurrentTick.get)
       }
 
 //    case ParkingInquiryResponse(None, requestId) =>
