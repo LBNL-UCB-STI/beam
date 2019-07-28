@@ -135,22 +135,29 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val (availVehicles, poolCustomerReqs, offset) =
         (
           rideHailManager.vehicleManager.getIdleAndInServiceVehicles.values
-            .map(
+            .map{
               veh =>
-                createVehicleAndScheduleFromRideHailAgentLocation(
+                if(tick < veh.latestTickExperienced){
+                  val i = 0
+                }
+                val vehAndSched = createVehicleAndScheduleFromRideHailAgentLocation(
                   veh,
-//                  tick + rideHailManager.beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
                   Math.max(tick,veh.latestTickExperienced),
                   rideHailManager.beamServices
                 )
-            )
+                rideHailManager.log.debug(
+                  "%%%%% Vehicle {} is available with this schedule: \n {}",
+                  vehAndSched.vehicle.id,
+                  vehAndSched.schedule.map(_.toString).mkString("\n")
+                )
+                vehAndSched
+            }
             .toList,
           pooledAllocationReqs.map(
             rhr =>
               createPersonRequest(
                 rhr.customer,
                 rhr.pickUpLocationUTM,
-//                tick + rideHailManager.beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
                 tick,
                 rhr.destinationUTM
               )

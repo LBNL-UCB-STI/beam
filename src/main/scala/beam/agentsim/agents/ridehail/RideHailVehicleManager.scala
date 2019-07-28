@@ -172,7 +172,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
   }
 
   def getIdleAndInServiceVehicles: Map[Id[Vehicle], RideHailAgentLocation] = {
-    idleRideHailVehicles.toMap ++ inServiceRideHailVehicles.toMap
+    (idleRideHailVehicles.toMap ++ inServiceRideHailVehicles.toMap).filterNot(elem => rideHailManager.doNotUseInAllocation.contains(elem._1))
   }
 
   def getServiceStatusOf(vehicleId: Id[Vehicle]): RideHailVehicleManager.RideHailServiceStatus = {

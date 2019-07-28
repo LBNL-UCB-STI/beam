@@ -230,7 +230,9 @@ object AlonsoMoraPoolingAlgForRideHail {
       case Some(_) if reversedSchedule.exists(_.tag == EnRoute) =>
         val enRouteIndex = reversedSchedule.indexWhere(_.tag == EnRoute) + 1
         newPoolingList.appendAll(reversedSchedule.slice(0, enRouteIndex))
-        (reversedSchedule.slice(enRouteIndex, reversedSchedule.size) ++ newRequests).sortBy(_.baselineNonPooledTime)
+        // We make sure that request time is always equal or greater than the driver's "current tick" as denoted by time in EnRoute
+        val shiftRequestsBy = Math.max(0,reversedSchedule(enRouteIndex-1).baselineNonPooledTime - newRequests.head.baselineNonPooledTime)
+        (reversedSchedule.slice(enRouteIndex, reversedSchedule.size) ++ newRequests.map(req => req.copy(baselineNonPooledTime = req.baselineNonPooledTime + shiftRequestsBy, serviceTime = req.serviceTime + shiftRequestsBy))).sortBy(mr => (mr.baselineNonPooledTime, mr.person.map(_.personId.toString).getOrElse("ZZZZZZZZZZZZZZZZZZZZZZZ")))
       case Some(_) =>
         newPoolingList.appendAll(reversedSchedule)
         newRequests.sortBy(_.baselineNonPooledTime)
@@ -382,7 +384,7 @@ object AlonsoMoraPoolingAlgForRideHail {
       alonsoSchedule += MobilityRequest(
         None,
         v1Act0,
-        tick,
+        tick+1,
         Trip(v1Act0, None, null),
         BeamMode.RIDE_HAIL,
         EnRoute,

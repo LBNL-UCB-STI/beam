@@ -178,8 +178,9 @@ class RideHailAgent(
       stay replying CompletionNotice(triggerId)
 
     case ev @ Event(TriggerWithId(StartLegTrigger(_,_), triggerId), data) =>
-      log.debug("myUnhandled state({}): ignoring StartLegTrigger probably because of a modifyPassSchedule: {}", stateName, ev)
-      stay replying CompletionNotice(triggerId) using DrivesVehicle.stripLiterallyDrivingData(data).asInstanceOf[RideHailAgentData]
+      log.debug("myUnhandled state({}): stashing StartLegTrigger probably because interrupt was received while in WaitinToDrive before getting this trigger: {}", stateName, ev)
+      stash
+      stay
 
     case ev @ Event(IllegalTriggerGoToError(reason), _) =>
       log.debug("myUnhandled state({}): {}", stateName, ev)
