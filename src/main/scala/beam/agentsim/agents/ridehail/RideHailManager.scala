@@ -718,6 +718,7 @@ class RideHailManager(
         findAllocationsAndProcess(modifyPassengerScheduleManager.getCurrentTick.get)
 
     case reply @ InterruptedWhileOffline(_, vehicleId, tick) =>
+      doNotUseInAllocation.add(vehicleId)
       modifyPassengerScheduleManager.handleInterruptReply(reply)
       updateLatestObservedTick(vehicleId, tick)
       if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived)
