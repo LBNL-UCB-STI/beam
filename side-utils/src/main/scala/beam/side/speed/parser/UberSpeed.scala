@@ -143,8 +143,8 @@ class UberSpeed[T <: FilterEventAction](
         case ((h, dw), g) =>
           val speedMax = g.map(_.speedMphMean).max * 1.60934 / 3.6
           val speedAvg = g.map(_.speedMphMean).sum * 1.60934 / (3.6 * g.size)
-          val devMax = g.map(_.speedMphStddev).max * 1.60934 / 3.6
           val speedMedian = Median.findMedian(g.map(_.speedMphMean).toArray) * 1.60934 / 3.6
+          val devMax = g.size
           (dw, UberHourSpeed(h, speedMedian.toFloat, speedAvg.toFloat, devMax.toFloat, speedMax.toFloat))
       }
       .groupBy(_._1)

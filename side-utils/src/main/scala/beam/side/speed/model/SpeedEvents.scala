@@ -76,7 +76,13 @@ case class BeamUberSpeed(
   cat: String
 )
 
-case class LinkSpeed(linkId: Int, capacity: Option[Double], freeSpeed: Option[Float], length: Option[Double])
+case class LinkSpeed(
+  linkId: Int,
+  capacity: Option[Double],
+  freeSpeed: Option[Float],
+  length: Option[Double],
+  obsrs: Option[Int]
+)
 
 object LinkSpeed {
   implicit val linkSpeedSpeedEncoder: Encoder[LinkSpeed] = new Encoder[LinkSpeed] {

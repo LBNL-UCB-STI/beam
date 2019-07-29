@@ -22,11 +22,11 @@ ggsave("diff_plot_no_locals_id.png", width = 32, height = 18, dpi = 300)
 png(file = "diff_scatterplot_no_locals.png", width = 3064, height = 2048, units = "px", pointsize = 48)
 
 plot(cd$maxDev ~ cd$diff,
-data = cd,
-xlab = "Diff",
-axes = FALSE,
-ylab = "Observations",
-main = "Beam vs Uber"
+    data = cd,
+    xlab = "Diff",
+    axes = FALSE,
+    ylab = "Observations",
+    main = "Beam vs Uber"
 )
 axis(side = 1, at = seq(- 40, 40, by = 2))
 axis(side = 2, at = seq(- 50, 1000, by = 20))
@@ -34,12 +34,15 @@ axis(side = 2, at = seq(- 50, 1000, by = 20))
 # Save the file.
 dev.off()
 
-png(file = "scatterplot_diff_no_locals.png", width = 3064, height = 2048, units = "px", pointsize = 48)
+diffData <- read.csv("speed/link_diff_no_locals.csv")
 
-plot(x = 1:nrow(cd), y = cd$diff, type = 'l')
+png(file = "link_diff_simple_no_locals.png", width = 3064, height = 2048, units = "px", pointsize = 48)
+
+plot(x = diffData$link_id, y = diffData$diff, type = 'l')
 # Save the file.
 dev.off()
 
 subdata <- subset(cd, maxDev > 200)
 print(head(subdata[order(subdata$diffSpeed, decreasing=TRUE), ], 20))
 print(head(subdata[order(subdata$diffSpeed, decreasing=FALSE), ], 20))
+print(subset(diffData, beam_speed < 11))

@@ -13,7 +13,10 @@ class SpeedComparator(ways: OsmWays, uber: UberSpeed[_], fileName: String) {
           uber
             .speed(n.id)
             .orElse(uber.way(n.orig, n.dest))
-            .map(ws => LinkSpeed(n.eId, None, ws.speedAvg, None))
+            .map(
+              ws =>
+                LinkSpeed(n.eId, Some(n.speed), ws.speedAvg, ws.speedAvg.map(s => n.speed - s), ws.maxDev.map(_.toInt))
+          )
       )
       .collect {
         case Some(b) => b
@@ -22,7 +25,7 @@ class SpeedComparator(ways: OsmWays, uber: UberSpeed[_], fileName: String) {
   private val csv: Iterator[LinkSpeed] => Unit = { s =>
     val file = new File(fileName)
     val bw = new BufferedWriter(new FileWriter(file))
-    bw.write("link_id,capacity,free_speed,length")
+    bw.write("link_id,beam_speed,free_speed,diff")
     s.foreach { b =>
       bw.newLine()
       bw.write(linkSpeedSpeedEncoder(b))
