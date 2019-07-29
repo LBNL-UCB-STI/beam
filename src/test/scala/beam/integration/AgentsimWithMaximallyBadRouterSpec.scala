@@ -4,7 +4,7 @@ import akka.actor.Status.Failure
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase}
 import beam.agentsim.agents.PersonTestUtil
-import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
+import beam.agentsim.agents.ridehail.{RideHailIterationHistory, AdaptiveRideHailSurgePricingManager}
 import beam.integration.AgentsimWithMaximallyBadRouterSpec.BadRouterForTest
 import beam.router.Modes.BeamMode
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
@@ -49,7 +49,7 @@ class AgentsimWithMaximallyBadRouterSpec
         scenario,
         services.matsimServices.getEvents,
         system,
-        new RideHailSurgePricingManager(services),
+        new AdaptiveRideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
         new BeamSkimmer(beamScenario, services.geo),

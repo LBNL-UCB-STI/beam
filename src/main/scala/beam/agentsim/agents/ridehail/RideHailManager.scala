@@ -203,22 +203,22 @@ object RideHailManager {
 }
 
 class RideHailManager(
-  val id: Id[RideHailManager],
-  val beamServices: BeamServices,
-  val beamScenario: BeamScenario,
-  val transportNetwork: TransportNetwork,
-  val tollCalculator: TollCalculator,
-  val scenario: Scenario,
-  val eventsManager: EventsManager,
-  val scheduler: ActorRef,
-  val router: ActorRef,
-  val parkingManager: ActorRef,
-  val boundingBox: Envelope,
-  val activityQuadTreeBounds: QuadTreeBounds,
-  val surgePricingManager: RideHailSurgePricingManager,
-  val tncIterationStats: Option[TNCIterationStats],
-  val beamSkimmer: BeamSkimmer,
-  val routeHistory: RouteHistory
+                       val id: Id[RideHailManager],
+                       val beamServices: BeamServices,
+                       val beamScenario: BeamScenario,
+                       val transportNetwork: TransportNetwork,
+                       val tollCalculator: TollCalculator,
+                       val scenario: Scenario,
+                       val eventsManager: EventsManager,
+                       val scheduler: ActorRef,
+                       val router: ActorRef,
+                       val parkingManager: ActorRef,
+                       val boundingBox: Envelope,
+                       val activityQuadTreeBounds: QuadTreeBounds,
+                       val surgePricingManager: RideHailSurgePricingManager,
+                       val tncIterationStats: Option[TNCIterationStats],
+                       val beamSkimmer: BeamSkimmer,
+                       val routeHistory: RouteHistory
 ) extends Actor
     with ActorLogging
     with Stash {
