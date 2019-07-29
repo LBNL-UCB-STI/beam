@@ -131,7 +131,7 @@ class RideHailAgentSpec
       rideHailAgent ! Interrupt(Id.create("1", classOf[Interrupt]), 30000)
       expectMsgType[InterruptedWhileIdle]
       rideHailAgent ! ModifyPassengerSchedule(passengerSchedule, 30000)
-      rideHailAgent ! Resume()
+      rideHailAgent ! Resume
       val modifyPassengerScheduleAck = expectMsgType[ModifyPassengerScheduleAck]
       modifyPassengerScheduleAck.triggersToSchedule.foreach(scheduler ! _)
       expectMsgType[VehicleEntersTrafficEvent]
@@ -188,7 +188,7 @@ class RideHailAgentSpec
       assert(rideHailAgent.stateName == DrivingInterrupted)
       expectNoMessage()
       // Still, I tell it to resume
-      rideHailAgent ! Resume()
+      rideHailAgent ! Resume
       scheduler ! ScheduleTrigger(TestTrigger(50000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
 
@@ -267,7 +267,7 @@ class RideHailAgentSpec
       rideHailAgent ! StopDriving(30000)
       assert(rideHailAgent.stateName == IdleInterrupted)
 
-      rideHailAgent ! Resume() // That's the opposite of Interrupt(), not resume driving
+      rideHailAgent ! Resume // That's the opposite of Interrupt(), not resume driving
       scheduler ! ScheduleTrigger(TestTrigger(50000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
 
@@ -345,7 +345,7 @@ class RideHailAgentSpec
       assert(rideHailAgent.stateName == DrivingInterrupted)
       expectNoMessage()
       // Don't StopDriving() here because we have a Passenger and we don't know how that works yet.
-      rideHailAgent ! Resume()
+      rideHailAgent ! Resume
       scheduler ! ScheduleTrigger(TestTrigger(50000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
       expectMsgType[VehicleLeavesTrafficEvent]

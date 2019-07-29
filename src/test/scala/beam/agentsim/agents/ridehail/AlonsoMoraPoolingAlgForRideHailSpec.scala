@@ -66,7 +66,7 @@ class AlonsoMoraPoolingAlgForRideHailSpec
         new AlonsoMoraPoolingAlgForRideHail(
           AlonsoMoraPoolingAlgForRideHailSpec.demandSpatialIndex(sc._2),
           sc._1,
-          Map[MobilityRequestType, Int]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
+          Map[MobilityRequestType, Double]((Pickup, 6 * 60), (Dropoff, 10 * 60)),
           maxRequestsPerVehicle = 1000,
           services
         )
