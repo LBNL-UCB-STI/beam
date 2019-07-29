@@ -134,25 +134,22 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val customerIdToReqs = toAllocate.map(rhr => rhr.customer.personId -> rhr).toMap
       val (availVehicles, poolCustomerReqs, offset) =
         (
-          rideHailManager.vehicleManager.getIdleAndInServiceVehicles.values
-            .map{
-              veh =>
-                if(tick < veh.latestTickExperienced){
-                  val i = 0
-                }
-                val vehAndSched = createVehicleAndScheduleFromRideHailAgentLocation(
-                  veh,
-                  Math.max(tick,veh.latestTickExperienced),
-                  rideHailManager.beamServices
-                )
-                rideHailManager.log.debug(
-                  "%%%%% Vehicle {} is available with this schedule: \n {}",
-                  vehAndSched.vehicle.id,
-                  vehAndSched.schedule.map(_.toString).mkString("\n")
-                )
-                vehAndSched
+          rideHailManager.vehicleManager.getIdleAndInServiceVehicles.values.map { veh =>
+            if (tick < veh.latestTickExperienced) {
+              val i = 0
             }
-            .toList,
+            val vehAndSched = createVehicleAndScheduleFromRideHailAgentLocation(
+              veh,
+              Math.max(tick, veh.latestTickExperienced),
+              rideHailManager.beamServices
+            )
+            rideHailManager.log.debug(
+              "%%%%% Vehicle {} is available with this schedule: \n {}",
+              vehAndSched.vehicle.id,
+              vehAndSched.schedule.map(_.toString).mkString("\n")
+            )
+            vehAndSched
+          }.toList,
           pooledAllocationReqs.map(
             rhr =>
               createPersonRequest(
@@ -160,7 +157,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                 rhr.pickUpLocationUTM,
                 tick,
                 rhr.destinationUTM
-              )
+            )
           ),
           rideHailManager.beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
         )
@@ -218,7 +215,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.dropoffTimeWindowInSec
 
 //      rideHailManager.log.debug("%%%%% Num avail: {}", availVehicles.size)
-      rideHailManager.log.debug("%%%%% Requests: {}", spatialPoolCustomerReqs.values().asScala.map(_.toString).mkString("\n"))
+      rideHailManager.log
+        .debug("%%%%% Requests: {}", spatialPoolCustomerReqs.values().asScala.map(_.toString).mkString("\n"))
 //      rideHailManager.log.debug("%%%%% Available Vehicles: {}", availVehicles.map(_.vehicle.id).mkString(","))
       val algo = new AsyncAlonsoMoraAlgForRideHail(
         spatialPoolCustomerReqs,
@@ -248,14 +246,22 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         case (theTrip, vehicleAndOldSchedule, cost) =>
           // Pooling alg can return a schedule identical to one that is already in progress, for these we ignore
           if (theTrip.schedule != vehicleAndOldSchedule.schedule) {
+            rideHailManager.log.debug(
+              "%%%%% Assigned vehicle {} the trip @ {}: \n {}",
+              vehicleAndOldSchedule.vehicle.id,
+              tick,
+              theTrip
+            )
+            if (rideHailManager.vehicleManager
+                  .getRideHailAgentLocation(vehicleAndOldSchedule.vehicle.id)
+                  .latestTickExperienced > 0) {
               rideHailManager.log.debug(
-                "%%%%% Assigned vehicle {} the trip @ {}: \n {}",
+                "\tlatest tick by vehicle {} is {}",
                 vehicleAndOldSchedule.vehicle.id,
-                tick,
-                theTrip
+                rideHailManager.vehicleManager
+                  .getRideHailAgentLocation(vehicleAndOldSchedule.vehicle.id)
+                  .latestTickExperienced
               )
-            if(rideHailManager.vehicleManager.getRideHailAgentLocation(vehicleAndOldSchedule.vehicle.id).latestTickExperienced>0){
-              rideHailManager.log.debug("\tlatest tick by vehicle {} is {}",vehicleAndOldSchedule.vehicle.id,rideHailManager.vehicleManager.getRideHailAgentLocation(vehicleAndOldSchedule.vehicle.id).latestTickExperienced)
             }
             alreadyAllocated = alreadyAllocated + vehicleAndOldSchedule.vehicle.id
             var newRideHailRequest: Option[RideHailRequest] = None

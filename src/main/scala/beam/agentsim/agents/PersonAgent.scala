@@ -114,7 +114,8 @@ object PersonAgent {
     def legStartsAt: Option[Int]
   }
 
-  case class LiterallyDrivingData(delegate: DrivingData, legEndsAt: Double, legStartsAt: Option[Int]) extends DrivingData { // sorry
+  case class LiterallyDrivingData(delegate: DrivingData, legEndsAt: Double, legStartsAt: Option[Int])
+      extends DrivingData { // sorry
     def currentVehicle: VehicleStack = delegate.currentVehicle
 
     def passengerSchedule: PassengerSchedule = delegate.passengerSchedule
@@ -128,7 +129,8 @@ object PersonAgent {
     def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int) =
       LiterallyDrivingData(
         delegate.withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex),
-        legEndsAt, legStartsAt
+        legEndsAt,
+        legStartsAt
       )
 
     override def hasParkingBehaviors: Boolean = false
@@ -631,7 +633,7 @@ class PersonAgent(
       // TODO: Refactor.
       def nextState: FSM.State[BeamAgentState, PersonData] = {
         val currentVehicleForNextState =
-           if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
+          if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
             beamVehicles(nextLeg.beamVehicleId) match {
               case t @ Token(_, manager, _) =>
                 manager ! TryToBoardVehicle(t, self)

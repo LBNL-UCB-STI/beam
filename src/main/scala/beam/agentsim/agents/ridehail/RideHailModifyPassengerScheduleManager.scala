@@ -27,7 +27,6 @@ class RideHailModifyPassengerScheduleManager(
   val beamConfig: BeamConfig
 ) extends HasTickAndTrigger {
 
-
   private val interruptIdToModifyPassengerScheduleStatus =
     mutable.Map[Id[Interrupt], RideHailModifyPassengerScheduleStatus]()
   private val vehicleIdToModifyPassengerScheduleStatus =
@@ -133,7 +132,12 @@ class RideHailModifyPassengerScheduleManager(
       case _ =>
         throw new RuntimeException("Should not attempt to send completion when doing single reservations")
     }
-    if(allTriggersInWave.size>0)rideHailManager.log.debug("Earliest tick in triggers to schedule is {} and latest is {}",allTriggersInWave.map(_.trigger.tick).min, allTriggersInWave.map(_.trigger.tick).max)
+    if (allTriggersInWave.size > 0)
+      rideHailManager.log.debug(
+        "Earliest tick in triggers to schedule is {} and latest is {}",
+        allTriggersInWave.map(_.trigger.tick).min,
+        allTriggersInWave.map(_.trigger.tick).max
+      )
     scheduler.tell(
       CompletionNotice(triggerId, allTriggersInWave :+ ScheduleTrigger(timerTrigger, rideHailManagerRef)),
       rideHailManagerRef
@@ -208,10 +212,13 @@ class RideHailModifyPassengerScheduleManager(
               reply.getClass.getCanonicalName
             )
             val requestIdOpt = interruptIdToModifyPassengerScheduleStatus(reply.interruptId).modifyPassengerSchedule.reservationRequestId
-            val requestId = requestIdOpt match { case Some(_) => requestIdOpt case None => reservationRequestIdOpt }
+            val requestId = requestIdOpt match {
+              case Some(_) => requestIdOpt
+              case None    => reservationRequestIdOpt
+            }
             rideHailAgentLocation.rideHailAgent ! Resume
             clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
-            if(requestId.isDefined){
+            if (requestId.isDefined) {
               rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId.get)
 //              if (rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId.get)) {
 //                log.debug(
@@ -227,7 +234,10 @@ class RideHailModifyPassengerScheduleManager(
           case _ =>
             // Success! Continue with modify process
             sendModifyPassengerScheduleMessage(
-              status.copy(modifyPassengerSchedule = status.modifyPassengerSchedule.copy(updatedPassengerSchedule = passengerSchedule,reservationRequestId = reservationRequestIdOpt)),
+              status.copy(
+                modifyPassengerSchedule = status.modifyPassengerSchedule
+                  .copy(updatedPassengerSchedule = passengerSchedule, reservationRequestId = reservationRequestIdOpt)
+              ),
               reply.isInstanceOf[InterruptedWhileDriving]
             )
         }
@@ -263,7 +273,9 @@ class RideHailModifyPassengerScheduleManager(
         rideHailAgent,
         InterruptSent
       )
-      log.debug("RideHailModifyPassengerScheduleManager- sendInterrupt:  " + rideHailModifyPassengerScheduleStatus.interruptId)
+      log.debug(
+        "RideHailModifyPassengerScheduleManager- sendInterrupt:  " + rideHailModifyPassengerScheduleStatus.interruptId
+      )
       saveModifyStatusInCache(rideHailModifyPassengerScheduleStatus)
       sendInterruptMessage(rideHailModifyPassengerScheduleStatus)
     } else {
@@ -288,12 +300,14 @@ class RideHailModifyPassengerScheduleManager(
     )
     interruptedVehicleIds.add(rideHailModifyPassengerScheduleStatus.vehicleId)
   }
+
   def setStatusToIdle(vehicleId: Id[Vehicle]) = {
     vehicleIdToModifyPassengerScheduleStatus.get(vehicleId) match {
       case Some(status) =>
-        val newStatus = status.copy(interruptReply = Some(InterruptedWhileIdle(status.interruptId,vehicleId,status.tick)))
-        vehicleIdToModifyPassengerScheduleStatus.put(vehicleId,newStatus)
-        interruptIdToModifyPassengerScheduleStatus.put(status.interruptId,newStatus)
+        val newStatus =
+          status.copy(interruptReply = Some(InterruptedWhileIdle(status.interruptId, vehicleId, status.tick)))
+        vehicleIdToModifyPassengerScheduleStatus.put(vehicleId, newStatus)
+        interruptIdToModifyPassengerScheduleStatus.put(status.interruptId, newStatus)
       case None =>
     }
   }
@@ -310,7 +324,7 @@ class RideHailModifyPassengerScheduleManager(
   def clearModifyStatusFromCacheWithVehicleId(vehicleId: Id[Vehicle]): Unit = {
     vehicleIdToModifyPassengerScheduleStatus.remove(vehicleId).foreach { status =>
       interruptIdToModifyPassengerScheduleStatus.remove(status.interruptId)
-      log.debug("remove interrupt from clearModifyStatusFromCacheWithVehicleId {}",status.interruptId)
+      log.debug("remove interrupt from clearModifyStatusFromCacheWithVehicleId {}", status.interruptId)
     }
   }
   private def clearModifyStatusFromCacheWithInterruptId(

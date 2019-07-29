@@ -231,8 +231,17 @@ object AlonsoMoraPoolingAlgForRideHail {
         val enRouteIndex = reversedSchedule.indexWhere(_.tag == EnRoute) + 1
         newPoolingList.appendAll(reversedSchedule.slice(0, enRouteIndex))
         // We make sure that request time is always equal or greater than the driver's "current tick" as denoted by time in EnRoute
-        val shiftRequestsBy = Math.max(0,reversedSchedule(enRouteIndex-1).baselineNonPooledTime - newRequests.head.baselineNonPooledTime)
-        (reversedSchedule.slice(enRouteIndex, reversedSchedule.size) ++ newRequests.map(req => req.copy(baselineNonPooledTime = req.baselineNonPooledTime + shiftRequestsBy, serviceTime = req.serviceTime + shiftRequestsBy))).sortBy(mr => (mr.baselineNonPooledTime, mr.person.map(_.personId.toString).getOrElse("ZZZZZZZZZZZZZZZZZZZZZZZ")))
+        val shiftRequestsBy =
+          Math.max(0, reversedSchedule(enRouteIndex - 1).baselineNonPooledTime - newRequests.head.baselineNonPooledTime)
+        (reversedSchedule.slice(enRouteIndex, reversedSchedule.size) ++ newRequests.map(
+          req =>
+            req.copy(
+              baselineNonPooledTime = req.baselineNonPooledTime + shiftRequestsBy,
+              serviceTime = req.serviceTime + shiftRequestsBy
+          )
+        )).sortBy(
+          mr => (mr.baselineNonPooledTime, mr.person.map(_.personId.toString).getOrElse("ZZZZZZZZZZZZZZZZZZZZZZZ"))
+        )
       case Some(_) =>
         newPoolingList.appendAll(reversedSchedule)
         newRequests.sortBy(_.baselineNonPooledTime)
@@ -247,7 +256,7 @@ object AlonsoMoraPoolingAlgForRideHail {
       val serviceTime = prevReq.serviceTime + travelTime
       val delay = curReq.tag match {
         case Dropoff => timeWindow(Pickup) + timeWindow(Dropoff) * travelTime
-        case _ => timeWindow(curReq.tag)
+        case _       => timeWindow(curReq.tag)
       }
       if (serviceTime <= curReq.baselineNonPooledTime + delay) {
         newPoolingList.append(curReq.copy(serviceTime = serviceTime))
@@ -384,7 +393,7 @@ object AlonsoMoraPoolingAlgForRideHail {
       alonsoSchedule += MobilityRequest(
         None,
         v1Act0,
-        tick+1,
+        tick + 1,
         Trip(v1Act0, None, null),
         BeamMode.RIDE_HAIL,
         EnRoute,

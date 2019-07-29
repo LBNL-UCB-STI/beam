@@ -38,7 +38,7 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
 
   def removePassengerBoarding(passenger: PersonIdWithActorRef): PassengerSchedule = {
     var newSchedule = TreeMap[BeamLeg, Manifest]()(BeamLegOrdering)
-    schedule.foreach{ legAndMan =>
+    schedule.foreach { legAndMan =>
       newSchedule = newSchedule + (legAndMan._1 -> legAndMan._2.copy(boarders = legAndMan._2.boarders - passenger))
     }
     new PassengerSchedule(newSchedule)

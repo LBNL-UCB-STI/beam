@@ -124,7 +124,11 @@ class AsyncAlonsoMoraAlgForRideHail(
 
   def greedyAssignment(tick: Int): Future[List[(RideHailTrip, VehicleAndSchedule, Double)]] = {
 
-    skimByTazId(supply.filter(_.vehicle.toStreetVehicle.locationUTM != null).map(_.vehicle.toStreetVehicle.locationUTM.loc), tick, "available-vehicles")
+    skimByTazId(
+      supply.filter(_.vehicle.toStreetVehicle.locationUTM != null).map(_.vehicle.toStreetVehicle.locationUTM.loc),
+      tick,
+      "available-vehicles"
+    )
     skimByTazId(spatialDemand.values().asScala.map(_.pickup.activity.getCoord), tick, "pooling-requests")
 
     val rTvGFuture = asyncBuildOfRTVGraph()
@@ -168,7 +172,8 @@ class AsyncAlonsoMoraAlgForRideHail(
       skimAssignmentList(greedyAssignmentList, tick, 2)
       skimAssignmentList(greedyAssignmentList, tick, 3)
       skimAssignmentList(greedyAssignmentList, tick, 4)
-      val totTime = greedyAssignmentList.filter(a => a._2.getNoPassengers + a._1.requests.size > 1)
+      val totTime = greedyAssignmentList
+        .filter(a => a._2.getNoPassengers + a._1.requests.size > 1)
         .map(_._1.schedule.filter(_.serviceTime >= tick).map(_.serviceTime))
         .map(scheduleTime => scheduleTime.last - scheduleTime.head)
         .sum
@@ -177,34 +182,43 @@ class AsyncAlonsoMoraAlgForRideHail(
     }
   }
 
-  def skimAssignmentList(assignmentList: mutable.ListBuffer[(RideHailTrip, VehicleAndSchedule, Double)], tick: Int, nbPassenger: Int) = {
+  def skimAssignmentList(
+    assignmentList: mutable.ListBuffer[(RideHailTrip, VehicleAndSchedule, Double)],
+    tick: Int,
+    nbPassenger: Int
+  ) = {
     skimByTazId(
       assignmentList
         .filter(a => a._2.getNoPassengers + a._1.requests.size == nbPassenger)
         .flatMap(_._1.requests.map(_.pickup.activity.getCoord)),
       tick,
-      s"matched-${nbPassenger}P-pooling-requests")
+      s"matched-${nbPassenger}P-pooling-requests"
+    )
   }
 
   def skimByTazId(locations: Iterable[Coord], tick: Int, label: String) = {
     locations
-      .groupBy( loc => beamServices.beamScenario.tazTreeMap.getTAZ(loc.getX, loc.getY).tazId)
+      .groupBy(loc => beamServices.beamScenario.tazTreeMap.getTAZ(loc.getX, loc.getY).tazId)
       .mapValues(_.size)
-      .foreach { case (tazId, occurrence) =>
-        skimmer.countEvents(
-          tick,
-          tazId,
-          Id.create("pooling-alonso-mora", classOf[VehicleManager]),
-          label,
-          count = occurrence)
+      .foreach {
+        case (tazId, occurrence) =>
+          skimmer.countEvents(
+            tick,
+            tazId,
+            Id.create("pooling-alonso-mora", classOf[VehicleManager]),
+            label,
+            count = occurrence
+          )
       }
   }
+
   def skimByValue(value: Double, tick: Int, label: String) = {
     skimmer.addValue(
       tick,
       TAZTreeMap.emptyTAZId,
       Id.create("pooling-alonso-mora", classOf[VehicleManager]),
       label,
-      value)
+      value
+    )
   }
 }

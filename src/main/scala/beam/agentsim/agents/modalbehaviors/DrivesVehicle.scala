@@ -109,7 +109,7 @@ object DrivesVehicle {
 
   def stripLiterallyDrivingData(data: DrivingData) = {
     data match {
-      case LiterallyDrivingData(subData,_,_) =>
+      case LiterallyDrivingData(subData, _, _) =>
         subData
       case _ =>
         data
@@ -182,7 +182,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
   protected val fuelConsumedByTrip: mutable.Map[Id[Person], FuelConsumed] = mutable.Map()
   var latestObservedTick: Int = 0
 
-
   case class PassengerScheduleEmptyMessage(
     lastVisited: SpaceTime,
     toll: Double,
@@ -199,7 +198,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
     )
   }
 
-  def updatedLatestObservedTick(newTick: Int) = if(newTick > latestObservedTick)latestObservedTick = newTick
+  def updatedLatestObservedTick(newTick: Int) = if (newTick > latestObservedTick) latestObservedTick = newTick
 
   when(Driving) {
     case ev @ Event(
@@ -522,7 +521,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
   }
 
   when(WaitingToDrive) {
-    case ev @ Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data) if data.legStartsAt.isEmpty || tick == data.legStartsAt.get =>
+    case ev @ Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data)
+        if data.legStartsAt.isEmpty || tick == data.legStartsAt.get =>
       updatedLatestObservedTick(tick)
 //      log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
       log.debug("state(DrivesVehicle.WaitingToDrive): StartLegTrigger({},{}) for driver {}", tick, newLeg, id)
@@ -578,9 +578,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
           triggerToSchedule ++ Vector(ScheduleTrigger(EndLegTrigger(endTime), self))
         )
       }
-    case ev @ Event(Interrupt(interruptId,tick), _) =>
+    case ev @ Event(Interrupt(interruptId, tick), _) =>
       log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
-      goto(WaitingToDriveInterrupted) replying InterruptedWhileWaitingToDrive(interruptId,currentBeamVehicle.id,latestObservedTick)
+      goto(WaitingToDriveInterrupted) replying InterruptedWhileWaitingToDrive(
+        interruptId,
+        currentBeamVehicle.id,
+        latestObservedTick
+      )
 
     case ev @ Event(
           NotifyVehicleResourceIdleReply(
@@ -620,7 +624,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       log.debug("state(DrivesVehicle.WaitingToDriveInterrupted): {}", ev)
       stash()
       stay
-    case ev @ Event(NotifyVehicleResourceIdleReply(_,_),_) =>
+    case ev @ Event(NotifyVehicleResourceIdleReply(_, _), _) =>
       stash()
       stay
 
