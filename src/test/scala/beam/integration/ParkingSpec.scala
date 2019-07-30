@@ -221,7 +221,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
         .sum should be > expensiveModeChoiceCarCount.takeRight(5).sum
     }
 
-    "empty parking access should reduce driving" in {
+    "empty parking access should reduce driving" ignore {
       val emptyEvents = runAndCollectForIterations("empty", 5)
 
       val emptyModeChoiceCarCount = emptyEvents.map(countForPathTraversalAndCarMode)
