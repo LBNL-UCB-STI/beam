@@ -87,11 +87,11 @@ class RideHailAgentSpec
               BeamMode.CAR,
               10000,
               BeamPath(
-                Vector(),
-                Vector(),
+                Vector(1),
+                Vector(1),
                 None,
                 SpaceTime(0.0, 0.0, 28800),
-                SpaceTime(0.0, 0.0, 38800),
+                SpaceTime(0.0, 0.0, 28800),
                 10000
               )
             ),
@@ -100,11 +100,11 @@ class RideHailAgentSpec
               BeamMode.CAR,
               10000,
               BeamPath(
-                Vector(),
-                Vector(),
+                Vector(1),
+                Vector(1),
                 None,
                 SpaceTime(0.0, 0.0, 38800),
-                SpaceTime(0.0, 0.0, 48800),
+                SpaceTime(0.0, 0.0, 38800),
                 10000
               )
             )
@@ -118,11 +118,11 @@ class RideHailAgentSpec
               BeamMode.CAR,
               10000,
               BeamPath(
-                Vector(),
-                Vector(),
+                Vector(1),
+                Vector(1),
                 None,
                 SpaceTime(0.0, 0.0, 38800),
-                SpaceTime(0.0, 0.0, 48800),
+                SpaceTime(0.0, 0.0, 38800),
                 10000
               )
             )
@@ -270,6 +270,8 @@ class RideHailAgentSpec
       rideHailAgent ! Resume // That's the opposite of Interrupt(), not resume driving
       scheduler ! ScheduleTrigger(TestTrigger(50000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
+
+      expectMsgType[PathTraversalEvent]
 
       expectMsgType[VehicleLeavesTrafficEvent]
 
