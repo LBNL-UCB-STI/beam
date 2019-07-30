@@ -22,16 +22,20 @@ object ReplanningUtil {
 
     if (experiencedPlan != null && experiencedPlan.getPlanElements.size() > 0) {
       // keep track of the vehicles that been used during previous simulation
-      if(person.getSelectedPlan.getPlanElements.size() != experiencedPlan.getPlanElements.size()) {
+      if (person.getSelectedPlan.getPlanElements.size() != experiencedPlan.getPlanElements.size()) {
         logger.warn("person.getSelectedPlan.getPlanElements")
-        person.getSelectedPlan.getPlanElements.asScala.foreach(elem => logger.warn(s"${elem.getClass}: ${elem.toString}"))
+        person.getSelectedPlan.getPlanElements.asScala
+          .foreach(elem => logger.warn(s"${elem.getClass}: ${elem.toString}"))
         logger.warn("experiencedPlan.getPlanElements")
         experiencedPlan.getPlanElements.asScala.foreach(elem => logger.warn(s"${elem.getClass}: ${elem.toString}"))
       }
       for (i <- 0 until (experiencedPlan.getPlanElements.size() - 1)) {
         experiencedPlan.getPlanElements.get(i) match {
           case leg: Leg =>
-            leg.getAttributes.putAttribute("vehicles", person.getSelectedPlan.getPlanElements.get(i).getAttributes.getAttribute("vehicles"))
+            leg.getAttributes.putAttribute(
+              "vehicles",
+              person.getSelectedPlan.getPlanElements.get(i).getAttributes.getAttribute("vehicles")
+            )
           case _ =>
         }
       }
@@ -47,11 +51,15 @@ object ReplanningUtil {
         case (_, _) =>
       }
       val attributes = experiencedPlan.getAttributes
-      val modalityStyle = if(person.getSelectedPlan.getAttributes.getAttribute("modality-style") == null){ "" }else{person.getSelectedPlan.getAttributes.getAttribute("modality-style")}
-      val scores = if(person.getSelectedPlan.getAttributes.getAttribute("scores") == null){ "" }else{person.getSelectedPlan.getAttributes.getAttribute("scores")}
+      val modalityStyle = if (person.getSelectedPlan.getAttributes.getAttribute("modality-style") == null) { "" } else {
+        person.getSelectedPlan.getAttributes.getAttribute("modality-style")
+      }
+      val scores = if (person.getSelectedPlan.getAttributes.getAttribute("scores") == null) { "" } else {
+        person.getSelectedPlan.getAttributes.getAttribute("scores")
+      }
       attributes.putAttribute("modality-style", modalityStyle)
       attributes.putAttribute("scores", scores)
-      if(attributes.getAttribute("modality-style") == null){
+      if (attributes.getAttribute("modality-style") == null) {
         val i = 0
       }
       assert(experiencedPlan.getPlanElements.get(0).asInstanceOf[Activity].getCoord != null)
@@ -76,7 +84,8 @@ object ReplanningUtil {
             )
           case _ =>
             val newLeg = PopulationUtils.createLeg(originalPlan.getPlanElements.get(i).asInstanceOf[Leg])
-            newLeg.getAttributes.putAttribute("vehicles", originalPlan.getPlanElements.get(i).getAttributes.getAttribute("vehicles"))
+            newLeg.getAttributes
+              .putAttribute("vehicles", originalPlan.getPlanElements.get(i).getAttributes.getAttribute("vehicles"))
             experiencedPlan.addLeg(newLeg)
         }
       }
@@ -95,7 +104,7 @@ object ReplanningUtil {
 
   def addBeamTripsToPlanWithOnlyActivities(originalPlan: Plan, trips: Vector[EmbodiedBeamTrip]): Plan = {
     val newPlan = PopulationUtils.createPlan(originalPlan.getPerson)
-    for (i <- 0 until originalPlan.getPlanElements.size() - 1){
+    for (i <- 0 until originalPlan.getPlanElements.size() - 1) {
       newPlan.getPlanElements.add(originalPlan.getPlanElements.get(i))
       val newLeg = PopulationUtils.createLeg(trips(i).tripClassifier.matsimMode)
       newPlan.getPlanElements.add(newLeg)

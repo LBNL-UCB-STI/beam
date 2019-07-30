@@ -84,17 +84,16 @@ class BeamScoringFunctionFactory @Inject()(
         person.getSelectedPlan.getAttributes
           .putAttribute("scores", MapStringDouble(Map("NA" -> Double.NaN)))
 
-        if(person.getSelectedPlan.getPlanElements.asScala.filter(_.isInstanceOf[Leg]).isEmpty){
-          val newPlan = ReplanningUtil.addBeamTripsToPlanWithOnlyActivities(person.getSelectedPlan,trips.toVector)
+        if (person.getSelectedPlan.getPlanElements.asScala.filter(_.isInstanceOf[Leg]).isEmpty) {
+          val newPlan = ReplanningUtil.addBeamTripsToPlanWithOnlyActivities(person.getSelectedPlan, trips.toVector)
           person.addPlan(newPlan)
           person.removePlan(person.getSelectedPlan)
           person.setSelectedPlan(newPlan)
         }
         person.getSelectedPlan.getPlanElements.asScala.filter(_.isInstanceOf[Leg]).foldLeft(0) { (i, elem) =>
           elem.asInstanceOf[Leg].getAttributes.putAttribute("vehicles", trips(i).vehiclesInTrip.mkString(","))
-          i+1
+          i + 1
         }
-
 
         val allDayScore = modeChoiceCalculator.computeAllDayUtility(trips, person, attributes)
 
