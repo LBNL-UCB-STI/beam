@@ -145,8 +145,10 @@ class PersonWithPersonalVehiclePlanSpec
                 beamLeg = embodyRequest.leg.copy(
                   duration = 500,
                   travelPath = embodyRequest.leg.travelPath
-                    .copy(linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50.0),
-                      endPoint = embodyRequest.leg.travelPath.endPoint.copy(time = embodyRequest.leg.startTime + (embodyRequest.leg.travelPath.linkIds.size - 1)*50)
+                    .copy(
+                      linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50.0),
+                      endPoint = embodyRequest.leg.travelPath.endPoint
+                        .copy(time = embodyRequest.leg.startTime + (embodyRequest.leg.travelPath.linkIds.size - 1) * 50)
                     )
                 ),
                 beamVehicleId = vehicleId,
@@ -364,8 +366,10 @@ class PersonWithPersonalVehiclePlanSpec
                 beamLeg = embodyRequest.leg.copy(
                   duration = 500,
                   travelPath = embodyRequest.leg.travelPath
-                    .copy(linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50.0),
-                      endPoint = embodyRequest.leg.travelPath.endPoint.copy(time = embodyRequest.leg.startTime + (embodyRequest.leg.travelPath.linkIds.size - 1)*50)
+                    .copy(
+                      linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50.0),
+                      endPoint = embodyRequest.leg.travelPath.endPoint
+                        .copy(time = embodyRequest.leg.startTime + (embodyRequest.leg.travelPath.linkIds.size - 1) * 50)
                     )
                 ),
                 beamVehicleId = vehicleId,
@@ -500,7 +504,8 @@ class PersonWithPersonalVehiclePlanSpec
             val embodiedLeg = EmbodiedBeamLeg(
               beamLeg = leg.copy(
                 duration = 500,
-                travelPath = leg.travelPath.copy(linkTravelTime = IndexedSeq(0, 100, 100, 100, 100, 100, 0),
+                travelPath = leg.travelPath.copy(
+                  linkTravelTime = IndexedSeq(0, 100, 100, 100, 100, 100, 0),
                   endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500)
                 )
               ),
