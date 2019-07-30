@@ -749,6 +749,26 @@ class PersonAgent(
         )
       )
       goto(WaitingForReservationConfirmation)
+    // CAV but too late
+    // TODO: Refactor so it uses literally the same code block as transit
+    case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _))
+        if nextLeg.beamLeg.startTime < _currentTick.get =>
+      // We've missed the CAV. This occurs when something takes longer than planned (based on the
+      // initial inquiry). So we replan but change tour mode to WALK_TRANSIT since we've already done our non-transit
+      // portion.
+      log.error("Missed CAV pickup, late by {} sec", _currentTick.get - nextLeg.beamLeg.startTime)
+
+      val replanningReason = getReplanningReasonFrom(data, ReservationErrorCode.MissedTransitPickup.entryName)
+      eventsManager.processEvent(
+        new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason)
+      )
+      goto(ChoosingMode) using ChoosesModeData(
+        personData = data
+          .copy(currentTourMode = Some(WALK_TRANSIT), numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
+        currentLocation =
+          SpaceTime(beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint).loc, _currentTick.get),
+        isWithinTripReplanning = true
+      )
     // CAV
     // TODO: Refactor so it uses literally the same code block as transit
     case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _, _)) =>
