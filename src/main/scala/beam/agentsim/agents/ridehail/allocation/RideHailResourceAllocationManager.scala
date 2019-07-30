@@ -3,7 +3,12 @@ package beam.agentsim.agents.ridehail.allocation
 import beam.agentsim.agents.{Dropoff, MobilityRequest, Pickup, Relocation}
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
-import beam.agentsim.agents.ridehail.repositioningmanager.{DefaultRepositioningManager, DemandFollowingRepositioningManager, RepositioningLowWaitingTimes, RepositioningManager}
+import beam.agentsim.agents.ridehail.repositioningmanager.{
+  DefaultRepositioningManager,
+  DemandFollowingRepositioningManager,
+  RepositioningLowWaitingTimes,
+  RepositioningManager
+}
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import com.typesafe.scalalogging.LazyLogging

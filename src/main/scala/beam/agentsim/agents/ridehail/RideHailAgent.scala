@@ -391,7 +391,7 @@ class RideHailAgent(
     case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(tick), triggerId), _) =>
       stash()
       stay()
-    case ev @ Event(TriggerWithId(EndRefuelSessionTrigger(_,_, _, _), _), _) =>
+    case ev @ Event(TriggerWithId(EndRefuelSessionTrigger(_, _, _, _), _), _) =>
       stash()
       stay()
   }

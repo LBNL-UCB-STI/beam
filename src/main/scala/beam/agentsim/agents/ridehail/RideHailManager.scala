@@ -731,7 +731,6 @@ class RideHailManager(
       updateLatestObservedTick(vehicleId, tick)
       continueProcessingTimeoutIfReady
 
-
     case reply @ InterruptedWhileOffline(_, vehicleId, tick) =>
       doNotUseInAllocation.add(vehicleId)
       modifyPassengerScheduleManager.handleInterruptReply(reply)
@@ -866,10 +865,10 @@ class RideHailManager(
   }
 
   def continueProcessingTimeoutIfReady: Unit = {
-    if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived){
-      if(processBufferedRequestsOnTimeout){
+    if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived) {
+      if (processBufferedRequestsOnTimeout) {
         findAllocationsAndProcess(modifyPassengerScheduleManager.getCurrentTick.get)
-      }else{
+      } else {
         continueRepositioning(modifyPassengerScheduleManager.getCurrentTick.get)
       }
     }
@@ -926,7 +925,7 @@ class RideHailManager(
         log.debug("Not enough range: {}", vehicleId)
         outOfServiceVehicleManager.registerTrigger(vehicleId, triggerId)
         vehicleManager.putOutOfService(rideHailAgentLocation)
-        findRefuelStationAndSendVehicle(rideHailAgentLocation,beamVehicle)
+        findRefuelStationAndSendVehicle(rideHailAgentLocation, beamVehicle)
       } else {
         log.debug("Making available: {}", vehicleId)
         log.debug(
@@ -1473,7 +1472,7 @@ class RideHailManager(
 
     log.debug("Starting wave of repositioning at {}", tick)
     modifyPassengerScheduleManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
-    if(modifyPassengerScheduleManager.isModifyStatusCacheEmpty){
+    if (modifyPassengerScheduleManager.isModifyStatusCacheEmpty) {
       log.debug("sendCompletionAndScheduleNewTimeout from 1470")
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(Reposition, tick)
       cleanUp
