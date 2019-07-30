@@ -28,12 +28,16 @@ trait VehiclesAdjustment extends LazyLogging {
 }
 
 object VehiclesAdjustment {
-  val DEFAULT_ADJUSTMENT = "DEFAULT_ADJUSTMENT"
-  val UNIFORM_ADJUSTMENT = "UNIFORM_ADJUSTMENT"
+  val UNIFORM_ADJUSTMENT = "UNIFORM"
+  val INCOME_BASED_ADJUSTMENT = "INCOME_BASED"
 
   def getVehicleAdjustment(beamScenario: BeamScenario): VehiclesAdjustment = {
+    beamScenario.beamConfig.beam.agentsim.agents.vehicles.vehicleAdjustmentMethod match {
+      case UNIFORM_ADJUSTMENT      => new UniformVehiclesAdjustment(beamScenario)
+      case INCOME_BASED_ADJUSTMENT => new IncomeBasedVehiclesAdjustment(beamScenario)
+      case _                       => new UniformVehiclesAdjustment(beamScenario)
+    }
 
-    new UniformVehiclesAdjustment(beamScenario)
   }
 
 }

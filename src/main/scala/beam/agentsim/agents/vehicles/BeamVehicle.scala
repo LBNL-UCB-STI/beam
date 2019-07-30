@@ -5,6 +5,7 @@ import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
 import beam.agentsim.agents.vehicles.ConsumptionRateFilterStore.{Primary, Secondary}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -61,6 +62,9 @@ class BeamVehicle(
   var reservedStall: Option[ParkingStall] = None
   var stall: Option[ParkingStall] = None
 
+  private var connectedToCharger: Boolean = false
+  private var chargerConnectedTick: Option[Long] = None
+
   /**
     * Called by the driver.
     */
@@ -103,6 +107,33 @@ class BeamVehicle(
   }
 
   /**
+    *
+    * @param startTick
+    */
+  def connectToChargingPoint(startTick: Long): Unit = {
+    if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType == Electricity) {
+      connectedToCharger = true
+      chargerConnectedTick = Some(startTick)
+    } else
+      logger.warn(
+        "Trying to connect a non BEV/PHEV to a electricity charging station. This will cause an explosion. Ignoring!"
+      )
+  }
+
+  def disconnectFromChargingPoint(): Unit = {
+    connectedToCharger = false
+    chargerConnectedTick = None
+  }
+
+  def isConnectedToChargingPoint(): Boolean = {
+    connectedToCharger
+  }
+
+  def getChargerConnectedTick(): Long = {
+    chargerConnectedTick.getOrElse(0L)
+  }
+
+  /**
     * useFuel
     *
     * This method estimates energy consumed for [beamLeg] using data in [beamServices]. It accommodates a secondary
@@ -120,12 +151,14 @@ class BeamVehicle(
     *
     */
   def useFuel(beamLeg: BeamLeg, beamScenario: BeamScenario, networkHelper: NetworkHelper): FuelConsumed = {
+    val fuelConsumptionDataWithOnlyLength_Id_And_Type =
+      !beamScenario.vehicleEnergy.vehicleEnergyMappingExistsFor(beamVehicleType)
     val fuelConsumptionData =
       BeamVehicle.collectFuelConsumptionData(
         beamLeg,
         beamVehicleType,
         networkHelper,
-        beamScenario.vehicleEnergy.vehicleEnergyMappingExistsFor(beamVehicleType)
+        fuelConsumptionDataWithOnlyLength_Id_And_Type
       )
 
     val primaryEnergyForFullLeg =
@@ -184,7 +217,7 @@ class BeamVehicle(
     *
     * @return refuelingDuration
     */
-  def refuelingSessionDurationAndEnergyInJoules(): (Long, Double) = {
+  def refuelingSessionDurationAndEnergyInJoules(sessionDurationLimit: Option[Long] = None): (Long, Double) = {
     stall match {
       case Some(theStall) =>
         theStall.chargingPointType match {
@@ -193,9 +226,9 @@ class BeamVehicle(
               chargingPoint,
               primaryFuelLevelInJoules,
               beamVehicleType.primaryFuelCapacityInJoule,
-              100.0,
-              100.0,
-              None
+              1e6,
+              1e6,
+              sessionDurationLimit
             )
           case None =>
             (0, 0.0)
@@ -230,6 +263,12 @@ class BeamVehicle(
   }
 
   def isCAV: Boolean = beamVehicleType.automationLevel == 5
+
+  def isBEV: Boolean =
+    beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType == None
+
+  def isPHEV: Boolean =
+    beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType == Some(Gasoline)
 
   def initializeFuelLevels = {
     primaryFuelLevelInJoules = beamVehicleType.primaryFuelCapacityInJoule
@@ -283,6 +322,7 @@ object BeamVehicle {
 
   /**
     * Organizes the fuel consumption data table
+    *
     * @param beamLeg Instance of beam leg
     * @param networkHelper the transport network instance
     * @return list of fuel consumption objects generated
@@ -291,12 +331,12 @@ object BeamVehicle {
     beamLeg: BeamLeg,
     theVehicleType: BeamVehicleType,
     networkHelper: NetworkHelper,
-    onlyLength_Id_And_Type: Boolean = false
+    fuelConsumptionDataWithOnlyLength_Id_And_Type: Boolean = false
   ): IndexedSeq[FuelConsumptionData] = {
     //TODO: This method is becoming a little clunky. If it has to grow again then maybe refactor/break it out
     if (beamLeg.mode.isTransit & !Modes.isOnStreetTransit(beamLeg.mode)) {
       Vector.empty
-    } else if (onlyLength_Id_And_Type) {
+    } else if (fuelConsumptionDataWithOnlyLength_Id_And_Type) {
       beamLeg.travelPath.linkIds
         .drop(1)
         .map(
@@ -323,29 +363,12 @@ object BeamVehicle {
       linkIds.zipWithIndex.map {
         case (id, idx) =>
           val travelTime = linkTravelTimes(idx)
-//          val arrivalTime = linkArrivalTimes(idx)
           val currentLink: Option[Link] = networkHelper.getLink(id)
           val averageSpeed = try {
             if (travelTime > 0) currentLink.map(_.getLength).getOrElse(0.0) / travelTime else 0
           } catch {
             case _: Exception => 0.0
           }
-          // get the next link , and calculate the direction to be taken based on the angle between the two links
-//          val nextLink = if (idx < nextLinkIds.length) {
-//            networkHelper.getLink(nextLinkIds(idx))
-//          } else {
-//            currentLink
-//          }
-//          val turnAtLinkEnd = currentLink match {
-//            case Some(curLink) =>
-//              GeoUtils.getDirection(GeoUtils.vectorFromLink(curLink), GeoUtils.vectorFromLink(nextLink.get))
-//            case None =>
-//              Straight
-//          }
-//          val numStops = turnAtLinkEnd match {
-//            case Straight => 0
-//            case _        => 1
-//          }
           FuelConsumptionData(
             linkId = id,
             vehicleType = theVehicleType,
@@ -353,7 +376,7 @@ object BeamVehicle {
             linkCapacity = None, //currentLink.map(_.getCapacity),
             linkLength = currentLink.map(_.getLength),
             averageSpeed = Some(averageSpeed),
-            freeFlowSpeed = currentLink.map(_.getFreespeed),
+            freeFlowSpeed = None,
             linkArrivalTime = None, //Some(arrivalTime),
             turnAtLinkEnd = None, //Some(turnAtLinkEnd),
             numberOfStops = None //Some(numStops)

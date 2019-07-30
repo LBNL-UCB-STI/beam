@@ -8,12 +8,11 @@ import akka.actor.{ActorRef, ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
-import beam.agentsim.agents.ridehail.allocation.RandomRepositioning
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
-import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider}
+import beam.analysis.{DelayMetricAnalysis, IterationStatsProvider, RideHailUtilizationCollector}
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.osm.TollCalculator
 import beam.router.{BeamRouter, BeamSkimmer, RouteHistory, TravelTimeObserved}
@@ -22,7 +21,7 @@ import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
 import beam.utils.logging.ExponentialLazyLogging
-import beam.utils.scripts.{FailFast, PythonExecutor}
+import beam.utils.scripts.FailFast
 import beam.utils.{DebugLib, NetworkHelper}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
@@ -48,7 +47,6 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success}
 
 class BeamSim @Inject()(
   private val actorSystem: ActorSystem,
@@ -86,6 +84,8 @@ class BeamSim @Inject()(
   var metricsPrinter: ActorRef = actorSystem.actorOf(MetricsPrinter.props())
   val summaryData = new mutable.HashMap[String, mutable.Map[Int, Double]]()
 
+  val rideHailUtilizationCollector: RideHailUtilizationCollector = new RideHailUtilizationCollector(beamServices)
+
   override def notifyStartup(event: StartupEvent): Unit = {
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
       beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
@@ -94,6 +94,8 @@ class BeamSim @Inject()(
 
     metricsPrinter ! Subscribe("counter", "**")
     metricsPrinter ! Subscribe("histogram", "**")
+
+    eventsManager.addHandler(rideHailUtilizationCollector)
 
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
@@ -180,6 +182,7 @@ class BeamSim @Inject()(
     if (isFirstIteration(iterationNumber)) {
       PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv"))
     }
+    rideHailUtilizationCollector.reset(event.getIteration)
 
     if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
       PlansCsvWriter.toCsv(scenario, controllerIO.getIterationFilename(iterationNumber, "plans_beg.csv"))
@@ -209,6 +212,8 @@ class BeamSim @Inject()(
 
     if (beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.gcAndGetMemoryLogMessage("notifyIterationEnds.start (after GC): "))
+
+    rideHailUtilizationCollector.notifyIterationEnds(event)
 
     val outputGraphsFuture = Future {
       if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
@@ -289,7 +294,7 @@ class BeamSim @Inject()(
     renameGeneratedOutputFiles(event)
 
     if (beamConfig.beam.outputs.writeGraphs) {
-      generateRepositioningGraphs(event)
+      // generateRepositioningGraphs(event)
     }
 
     logger.info("Ending Iteration")
@@ -426,33 +431,6 @@ class BeamSim @Inject()(
       GraphsStatsAgentSimEventsListener.GRAPH_WIDTH,
       GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT
     )
-  }
-
-  /*
-    This method execute a python script
-   */
-  private def generateRepositioningGraphs(event: ControlerEvent): Unit = {
-    event match {
-      case _ if event.isInstanceOf[IterationEndsEvent] =>
-        val iterationEvent = event.asInstanceOf[IterationEndsEvent]
-        Future {
-          val iteration = iterationEvent.getIteration
-          val iterationOutputPath = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getIterationPath(iteration)
-          val quadOutputFileName = s"$iteration.${RandomRepositioning.QUAD_OUTPUT_FILE}"
-          val coordOutputFileName = s"$iteration.${RandomRepositioning.COORD_OUTPUT_FILE}"
-          PythonExecutor(
-            s"${System.getProperty("user.dir")}/src/main/python/graphs/debug/repositionVisualization.py",
-            iterationOutputPath,
-            quadOutputFileName,
-            coordOutputFileName
-          )
-        } onComplete {
-          case Success(value) =>
-            logger.info("Repositioning Graph Generated Successfully!!!")
-          case Failure(exception) =>
-            logger.error(s"Error in executing python script ${exception.getMessage}")
-        }
-    }
   }
 
   /**

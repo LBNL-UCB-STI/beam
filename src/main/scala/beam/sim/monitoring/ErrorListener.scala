@@ -38,7 +38,7 @@ class ErrorListener() extends Actor with ActorLogging {
         case _: RemovePassengerFromTrip =>
         // Can be safely skipped
         case TriggerWithId(trigger, triggerId) =>
-          log.warning(s"Trigger sent to dead letters $trigger")
+          log.warning("Trigger id {} sent to dead letters: {}", triggerId, trigger)
           d.sender ! CompletionNotice(triggerId)
         // Allow RHM to continue
         case _: Interrupt =>

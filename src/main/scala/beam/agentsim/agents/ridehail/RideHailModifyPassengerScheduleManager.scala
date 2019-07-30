@@ -38,9 +38,9 @@ class RideHailModifyPassengerScheduleManager(
 
   // We can change this to be Set[Id[Vehicle]], but then in case of terminated actor, we have to map it back to Id[Vehicle]
   //
-  var waitingToReposition: Set[ActorRef] = Set.empty
+  var waitingToReposition: Set[Id[Vehicle]] = Set.empty
 
-  def setRepositioningsToProcess(toReposition: Set[ActorRef]): Unit = {
+  def setRepositioningsToProcess(toReposition: Set[Id[Vehicle]]): Unit = {
     waitingToReposition = toReposition
   }
 
@@ -98,8 +98,8 @@ class RideHailModifyPassengerScheduleManager(
     )
   }
 
-  def cancelRepositionAttempt(agentToRemove: ActorRef): Unit = {
-    repositioningFinished(agentToRemove)
+  def cancelRepositionAttempt(vehicleId: Id[Vehicle]): Unit = {
+    repositioningFinished(vehicleId)
   }
 
   def repositioningFinished(agentToRemove: ActorRef): Unit = {
@@ -126,7 +126,7 @@ class RideHailModifyPassengerScheduleManager(
     if (triggersToSchedule.nonEmpty) {
       allTriggersInWave = triggersToSchedule ++ allTriggersInWave
     }
-    repositioningFinished(rideHailManager.vehicleManager.getRideHailAgentLocation(vehicleId).rideHailAgent)
+    repositioningFinished(vehicleId)
   }
 
   def sendCompletionAndScheduleNewTimeout(batchDispatchType: BatchDispatchType, tick: Int): Unit = {
@@ -138,7 +138,7 @@ class RideHailModifyPassengerScheduleManager(
         )
       case Reposition =>
         RideHailRepositioningTrigger(
-          currentTick + beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionTimeoutInSeconds
+          currentTick + beamConfig.beam.agentsim.agents.rideHail.repositioningManager.timeout
         )
       case _ =>
         throw new RuntimeException("Should not attempt to send completion when doing single reservations")
@@ -328,7 +328,7 @@ class RideHailModifyPassengerScheduleManager(
       saveModifyStatusInCache(rideHailModifyPassengerScheduleStatus)
       sendInterruptMessage(rideHailModifyPassengerScheduleStatus)
     } else {
-      cancelRepositionAttempt(rideHailAgent)
+      cancelRepositionAttempt(vehicleId)
       log.debug(
         "RideHailModifyPassengerScheduleManager- message ignored as repositioning cannot overwrite reserve: {}",
         vehicleId
@@ -453,7 +453,7 @@ case class RideHailModifyPassengerScheduleStatus(
   status: InterruptMessageStatus
 )
 
-case class ReduceAwaitingRepositioningAckMessagesByOne(toRemove: ActorRef)
+case class ReduceAwaitingRepositioningAckMessagesByOne(vehicleId: Id[Vehicle])
 
 object RideHailModifyPassengerScheduleManager {
 
