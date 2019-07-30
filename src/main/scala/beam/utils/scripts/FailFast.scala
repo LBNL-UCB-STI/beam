@@ -28,7 +28,8 @@ object FailFast extends LazyLogging {
     /*
      * Pooling not ready yet
      */
-    if (beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name.equals("POOLING_ALONSO_MORA") && beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds == 0) {
+    if (beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name
+          .equals("POOLING_ALONSO_MORA") && beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds == 0) {
       throw new RuntimeException(
         "PoolingAlonsoMora is not yet compatible with a parameter value of 0 for requestBufferTimeoutInSeconds. Either make that parameter non-zero or use DEFAULT_MANAGER for the allocationManager."
       )
