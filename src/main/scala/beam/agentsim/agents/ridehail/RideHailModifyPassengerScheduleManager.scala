@@ -180,9 +180,6 @@ class RideHailModifyPassengerScheduleManager(
     tick: Int,
     reservationRequestIdOpt: Option[Int] = None
   ): Unit = {
-    log.debug(
-      "RideHailModifyPassengerScheduleManager - modifying pass schedule of: " + rideHailVehicleId
-    )
     vehicleIdToModifyPassengerScheduleStatus.get(rideHailVehicleId) match {
       case Some(status) =>
       val reply = status.interruptReply.get
@@ -201,6 +198,9 @@ class RideHailModifyPassengerScheduleManager(
         )
         ) =>
           // Success! Continue with modify process
+          log.debug(
+            "RideHailModifyPassengerScheduleManager - modifying pass schedule of: " + rideHailVehicleId
+          )
           sendModifyPassengerScheduleMessage(
             status.copy(
               modifyPassengerSchedule = status.modifyPassengerSchedule
@@ -260,6 +260,9 @@ class RideHailModifyPassengerScheduleManager(
               }
             case _ =>
               // Success! Continue with modify process
+              log.debug(
+                "RideHailModifyPassengerScheduleManager - modifying pass schedule of: " + rideHailVehicleId
+              )
               sendModifyPassengerScheduleMessage(
                 status.copy(
                   modifyPassengerSchedule = status.modifyPassengerSchedule
@@ -282,7 +285,7 @@ class RideHailModifyPassengerScheduleManager(
       }
     case None =>
       // This is a non-buffered modify scenario, we still need to send Interrupt
-      sendInterruptMessage(ModifyPassengerSchedule(passengerSchedule,tick,None),tick,rideHailVehicleId,rideHailAgentRef,SingleReservation)
+      sendInterruptMessage(ModifyPassengerSchedule(passengerSchedule,tick,reservationRequestIdOpt),tick,rideHailVehicleId,rideHailAgentRef,SingleReservation)
     }
   }
 
@@ -400,14 +403,14 @@ class RideHailModifyPassengerScheduleManager(
 
   def printState(): Unit = {
     if (log.isDebugEnabled) {
-      log.debug("printState START")
-      vehicleIdToModifyPassengerScheduleStatus.foreach { x =>
-        log.debug("vehicleIdModify: {} -> {}", x._1, x._2)
-      }
-      interruptIdToModifyPassengerScheduleStatus.foreach { x =>
-        log.debug("interruptId: {} -> {}", x._1, x._2)
-      }
-      log.debug("printState END")
+//      log.debug("printState START")
+//      vehicleIdToModifyPassengerScheduleStatus.foreach { x =>
+//        log.debug("vehicleIdModify: {} -> {}", x._1, x._2)
+//      }
+//      interruptIdToModifyPassengerScheduleStatus.foreach { x =>
+//        log.debug("interruptId: {} -> {}", x._1, x._2)
+//      }
+//      log.debug("printState END")
     }
   }
 
