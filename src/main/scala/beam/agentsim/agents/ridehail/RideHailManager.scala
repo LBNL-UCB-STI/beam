@@ -21,7 +21,11 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, InService, OutOfService, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{
+  CouldNotFindRouteToCustomer,
+  DriverNotFoundError,
+  RideHailVehicleTakenError
+}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -703,7 +707,12 @@ class RideHailManager(
       outOfServiceVehicleManager.initiateMovementToParkingDepot(vehicleId, passengerSchedule, tick)
 
     case RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgent) =>
-      modifyPassengerScheduleManager.sendNewPassengerScheduleToVehicle(passengerSchedule, rideHailAgent.vehicleId, rideHailAgent.rideHailAgent, tick)
+      modifyPassengerScheduleManager.sendNewPassengerScheduleToVehicle(
+        passengerSchedule,
+        rideHailAgent.vehicleId,
+        rideHailAgent.rideHailAgent,
+        tick
+      )
 
     case reply @ InterruptedWhileWaitingToDrive(_, vehicleId, tick) =>
       // It's too complicated to modify these vehicles, it's also rare so we ignore them
@@ -725,7 +734,7 @@ class RideHailManager(
         outOfServiceVehicleManager.handleInterruptReply(vehicleId, tick)
       } else {
         modifyPassengerScheduleManager.handleInterruptReply(reply)
-        if(currentlyProcessingTimeoutTrigger.isDefined)vehicleManager.makeAvailable(vehicleId)
+        if (currentlyProcessingTimeoutTrigger.isDefined) vehicleManager.makeAvailable(vehicleId)
         updateLatestObservedTick(vehicleId, tick)
         // Make sure we take away passenger schedule from RHA Location
         updatePassengerSchedule(vehicleId, None, None)
@@ -746,7 +755,7 @@ class RideHailManager(
         )
       } else {
         modifyPassengerScheduleManager.handleInterruptReply(reply)
-        if(currentlyProcessingTimeoutTrigger.isDefined)vehicleManager.putIntoService(vehicleId)
+        if (currentlyProcessingTimeoutTrigger.isDefined) vehicleManager.putIntoService(vehicleId)
         updatePassengerSchedule(vehicleId, Some(interruptedPassengerSchedule), Some(currentPassengerScheduleIndex))
         updateLatestObservedTick(vehicleId, tick)
         if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived)
@@ -906,7 +915,11 @@ class RideHailManager(
         findRefuelStationAndSendVehicle(rideHailAgentLocation)
       } else {
         log.debug("Making available: {}", vehicleId)
-        log.debug("Num in service: {}, num idle: {}",vehicleManager.inServiceRideHailVehicles.size,vehicleManager.idleRideHailVehicles.size)
+        log.debug(
+          "Num in service: {}, num idle: {}",
+          vehicleManager.inServiceRideHailVehicles.size,
+          vehicleManager.idleRideHailVehicles.size
+        )
         vehicleManager.makeAvailable(rideHailAgentLocation)
         rideHailAgentLocation.rideHailAgent ! NotifyVehicleResourceIdleReply(triggerId, Vector[ScheduleTrigger]())
       }
@@ -1091,8 +1104,8 @@ class RideHailManager(
       request.pickUpLocationUTM
     )
     if (vehicleManager.inServiceRideHailVehicles.contains(travelProposal.rideHailAgentLocation.vehicleId)) {
-      failedAllocation(request,tick)
-    }else{
+      failedAllocation(request, tick)
+    } else {
       // Track remaining seats available
       vehicleManager.putIntoService(
         travelProposal.rideHailAgentLocation
@@ -1112,7 +1125,11 @@ class RideHailManager(
         request.requestId,
         s"(${pendingModifyPassengerScheduleAcks.size})" //${pendingModifyPassengerScheduleAcks.keySet.map(_.toString).mkString(",")}"
       )
-      log.debug("Num in service: {}, num idle: {}",vehicleManager.inServiceRideHailVehicles.size,vehicleManager.idleRideHailVehicles.size)
+      log.debug(
+        "Num in service: {}, num idle: {}",
+        vehicleManager.inServiceRideHailVehicles.size,
+        vehicleManager.idleRideHailVehicles.size
+      )
       cachedNotifyVehicleIdle.get(travelProposal.rideHailAgentLocation.vehicleId) match {
         case Some(notifyVehicleIdle) =>
           handleNotifyVehicleIdle(notifyVehicleIdle)

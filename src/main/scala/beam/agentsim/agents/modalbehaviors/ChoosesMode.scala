@@ -621,13 +621,15 @@ trait ChoosesMode {
       linkIds = secondPathLinkIds,
       linkTravelTime = secondTravelTimes,
       startPoint = firstPathEndpoint,
-      endPoint = leg.beamLeg.travelPath.endPoint.copy(time = (firstPathEndpoint.time + secondTravelTimes.tail.sum).toInt),
+      endPoint =
+        leg.beamLeg.travelPath.endPoint.copy(time = (firstPathEndpoint.time + secondTravelTimes.tail.sum).toInt),
       distanceInM = secondDistance
     )
     val firstPath = leg.beamLeg.travelPath.copy(
       linkIds = theLinkIds.take(indexFromBeg),
       linkTravelTime = firstTravelTimes,
-      endPoint = firstPathEndpoint.copy(time = (leg.beamLeg.travelPath.startPoint.time + firstTravelTimes.tail.sum).toInt),
+      endPoint =
+        firstPathEndpoint.copy(time = (leg.beamLeg.travelPath.startPoint.time + firstTravelTimes.tail.sum).toInt),
       distanceInM = leg.beamLeg.travelPath.distanceInM - secondPath.distanceInM
     )
     val firstLeg = leg.copy(

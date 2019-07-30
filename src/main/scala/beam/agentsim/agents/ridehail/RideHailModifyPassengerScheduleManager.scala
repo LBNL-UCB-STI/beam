@@ -54,9 +54,15 @@ class RideHailModifyPassengerScheduleManager(
         vehicleIdToModifyPassengerScheduleStatus.put(reply.vehicleId, status.copy(interruptReply = Some(reply)))
         interruptedVehicleIds.remove(reply.vehicleId)
         numInterruptRepliesPending = numInterruptRepliesPending - 1
-        status.interruptOrigin match{
+        status.interruptOrigin match {
           case SingleReservation =>
-            sendNewPassengerScheduleToVehicle(status.modifyPassengerSchedule.updatedPassengerSchedule,status.vehicleId,status.rideHailAgent,status.tick,status.modifyPassengerSchedule.reservationRequestId)
+            sendNewPassengerScheduleToVehicle(
+              status.modifyPassengerSchedule.updatedPassengerSchedule,
+              status.vehicleId,
+              status.rideHailAgent,
+              status.tick,
+              status.modifyPassengerSchedule.reservationRequestId
+            )
           case _ =>
         }
       case _ =>
@@ -182,110 +188,119 @@ class RideHailModifyPassengerScheduleManager(
   ): Unit = {
     vehicleIdToModifyPassengerScheduleStatus.get(rideHailVehicleId) match {
       case Some(status) =>
-      val reply = status.interruptReply.get
-      val isRepositioning = waitingToReposition.nonEmpty
-      interruptIdToModifyPassengerScheduleStatus.get(reply.interruptId) match {
-        case Some(
-        RideHailModifyPassengerScheduleStatus(
-        _,
-        _,
-        _,
-        SingleReservation,
-        _,
-        _,
-        rideHailAgentRef,
-        InterruptSent
-        )
-        ) =>
-          // Success! Continue with modify process
-          log.debug(
-            "RideHailModifyPassengerScheduleManager - modifying pass schedule of: " + rideHailVehicleId
-          )
-          sendModifyPassengerScheduleMessage(
-            status.copy(
-              modifyPassengerSchedule = status.modifyPassengerSchedule
-                .copy(updatedPassengerSchedule = passengerSchedule, reservationRequestId = reservationRequestIdOpt)
-            ),
-            false
-          )
-        case Some(
-            RideHailModifyPassengerScheduleStatus(
-              _,
-              _,
-              _,
-              HoldForPlanning,
-              _,
-              _,
-              rideHailAgentRef,
-              InterruptSent
+        val reply = status.interruptReply.get
+        val isRepositioning = waitingToReposition.nonEmpty
+        interruptIdToModifyPassengerScheduleStatus.get(reply.interruptId) match {
+          case Some(
+              RideHailModifyPassengerScheduleStatus(
+                _,
+                _,
+                _,
+                SingleReservation,
+                _,
+                _,
+                rideHailAgentRef,
+                InterruptSent
+              )
+              ) =>
+            // Success! Continue with modify process
+            log.debug(
+              "RideHailModifyPassengerScheduleManager - modifying pass schedule of: " + rideHailVehicleId
             )
-            ) =>
-          reply match {
-            case InterruptedWhileOffline(_, _, _) if isRepositioning =>
-              log.debug(
-                "Cancelling repositioning for {} because {}, interruptId {}, numberPendingModifyPassengerScheduleAcks {}",
-                reply.vehicleId,
-                reply.getClass.getCanonicalName,
-                reply.interruptId
+            sendModifyPassengerScheduleMessage(
+              status.copy(
+                modifyPassengerSchedule = status.modifyPassengerSchedule
+                  .copy(updatedPassengerSchedule = passengerSchedule, reservationRequestId = reservationRequestIdOpt)
+              ),
+              false
+            )
+          case Some(
+              RideHailModifyPassengerScheduleStatus(
+                _,
+                _,
+                _,
+                HoldForPlanning,
+                _,
+                _,
+                rideHailAgentRef,
+                InterruptSent
               )
-              cancelRepositionAttempt(rideHailAgentRef)
-              rideHailAgentRef ! Resume
-              clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
-            case InterruptedWhileOffline(_, _, _) =>
-              log.debug(
-                "Abandoning attempt to modify passenger schedule of vehicle {} @ {} because {}",
-                reply.vehicleId,
-                reply.tick,
-                reply.getClass.getCanonicalName
-              )
-              val requestIdOpt = interruptIdToModifyPassengerScheduleStatus(reply.interruptId).modifyPassengerSchedule.reservationRequestId
-              val requestId = requestIdOpt match {
-                case Some(_) => requestIdOpt
-                case None    => reservationRequestIdOpt
-              }
-              rideHailAgentRef ! Resume
-              clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
-              if (requestId.isDefined) {
-                rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId.get)
-                //              if (rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId.get)) {
-                //                log.debug(
-                //                  "sendCompletionAndScheduleNewTimeout from line 100 @ {} with trigger {}",
-                //                  _currentTick,
-                //                  _currentTriggerId
-                //                )
-                //                if (rideHailManager.processBufferedRequestsOnTimeout) {
-                //                  rideHailManager.cleanUpBufferedRequestProcessing(_currentTick.get)
-                //                }
-                //              }
-              }
-            case _ =>
-              // Success! Continue with modify process
-              log.debug(
-                "RideHailModifyPassengerScheduleManager - modifying pass schedule of: " + rideHailVehicleId
-              )
-              sendModifyPassengerScheduleMessage(
-                status.copy(
-                  modifyPassengerSchedule = status.modifyPassengerSchedule
-                    .copy(updatedPassengerSchedule = passengerSchedule, reservationRequestId = reservationRequestIdOpt)
-                ),
-                reply.isInstanceOf[InterruptedWhileDriving]
-              )
-          }
-        case _ =>
-          log.error(
-            "RideHailModifyPassengerScheduleManager- interruptId not found: interruptId {},interruptedPassengerSchedule {}, vehicle {}, tick {}",
-            reply.interruptId,
-            if (reply.isInstanceOf[InterruptedWhileDriving]) {
-              reply.asInstanceOf[InterruptedWhileDriving].passengerSchedule
-            } else { "NA" },
-            reply.vehicleId,
-            reply.tick
-          )
-          cancelRepositionAttempt(rideHailAgentRef)
-      }
-    case None =>
-      // This is a non-buffered modify scenario, we still need to send Interrupt
-      sendInterruptMessage(ModifyPassengerSchedule(passengerSchedule,tick,reservationRequestIdOpt),tick,rideHailVehicleId,rideHailAgentRef,SingleReservation)
+              ) =>
+            reply match {
+              case InterruptedWhileOffline(_, _, _) if isRepositioning =>
+                log.debug(
+                  "Cancelling repositioning for {} because {}, interruptId {}, numberPendingModifyPassengerScheduleAcks {}",
+                  reply.vehicleId,
+                  reply.getClass.getCanonicalName,
+                  reply.interruptId
+                )
+                cancelRepositionAttempt(rideHailAgentRef)
+                rideHailAgentRef ! Resume
+                clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
+              case InterruptedWhileOffline(_, _, _) =>
+                log.debug(
+                  "Abandoning attempt to modify passenger schedule of vehicle {} @ {} because {}",
+                  reply.vehicleId,
+                  reply.tick,
+                  reply.getClass.getCanonicalName
+                )
+                val requestIdOpt = interruptIdToModifyPassengerScheduleStatus(reply.interruptId).modifyPassengerSchedule.reservationRequestId
+                val requestId = requestIdOpt match {
+                  case Some(_) => requestIdOpt
+                  case None    => reservationRequestIdOpt
+                }
+                rideHailAgentRef ! Resume
+                clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
+                if (requestId.isDefined) {
+                  rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId.get)
+                  //              if (rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId.get)) {
+                  //                log.debug(
+                  //                  "sendCompletionAndScheduleNewTimeout from line 100 @ {} with trigger {}",
+                  //                  _currentTick,
+                  //                  _currentTriggerId
+                  //                )
+                  //                if (rideHailManager.processBufferedRequestsOnTimeout) {
+                  //                  rideHailManager.cleanUpBufferedRequestProcessing(_currentTick.get)
+                  //                }
+                  //              }
+                }
+              case _ =>
+                // Success! Continue with modify process
+                log.debug(
+                  "RideHailModifyPassengerScheduleManager - modifying pass schedule of: " + rideHailVehicleId
+                )
+                sendModifyPassengerScheduleMessage(
+                  status.copy(
+                    modifyPassengerSchedule = status.modifyPassengerSchedule
+                      .copy(
+                        updatedPassengerSchedule = passengerSchedule,
+                        reservationRequestId = reservationRequestIdOpt
+                      )
+                  ),
+                  reply.isInstanceOf[InterruptedWhileDriving]
+                )
+            }
+          case _ =>
+            log.error(
+              "RideHailModifyPassengerScheduleManager- interruptId not found: interruptId {},interruptedPassengerSchedule {}, vehicle {}, tick {}",
+              reply.interruptId,
+              if (reply.isInstanceOf[InterruptedWhileDriving]) {
+                reply.asInstanceOf[InterruptedWhileDriving].passengerSchedule
+              } else { "NA" },
+              reply.vehicleId,
+              reply.tick
+            )
+            cancelRepositionAttempt(rideHailAgentRef)
+        }
+      case None =>
+        // This is a non-buffered modify scenario, we still need to send Interrupt
+        sendInterruptMessage(
+          ModifyPassengerSchedule(passengerSchedule, tick, reservationRequestIdOpt),
+          tick,
+          rideHailVehicleId,
+          rideHailAgentRef,
+          SingleReservation
+        )
     }
   }
 

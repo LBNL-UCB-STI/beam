@@ -171,7 +171,10 @@ class PersonWithVehicleSharingSpec
               EmbodiedBeamLeg(
                 beamLeg = embodyRequest.leg.copy(
                   duration = 500,
-                  travelPath = embodyRequest.leg.travelPath.copy(linkTravelTime = IndexedSeq(0, 500, 0), endPoint = embodyRequest.leg.travelPath.endPoint.copy(time = embodyRequest.leg.startTime + 500))
+                  travelPath = embodyRequest.leg.travelPath.copy(
+                    linkTravelTime = IndexedSeq(0, 500, 0),
+                    endPoint = embodyRequest.leg.travelPath.endPoint.copy(time = embodyRequest.leg.startTime + 500)
+                  )
                 ),
                 beamVehicleId = vehicleId,
                 beamVehicleTypeId = vehicle.beamVehicleType.id,
@@ -537,7 +540,10 @@ class PersonWithVehicleSharingSpec
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = leg.copy(
               duration = 500,
-              travelPath = leg.travelPath.copy(linkTravelTime = IndexedSeq(0, 500, 0), endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500))
+              travelPath = leg.travelPath.copy(
+                linkTravelTime = IndexedSeq(0, 500, 0),
+                endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500)
+              )
             ),
             beamVehicleId = vehicleId,
             beamVehicleTypeId = vehicleTypeId,
@@ -572,7 +578,10 @@ class PersonWithVehicleSharingSpec
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = leg.copy(
               duration = 500,
-              travelPath = leg.travelPath.copy(linkTravelTime = IndexedSeq(0, 500, 0), endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500))
+              travelPath = leg.travelPath.copy(
+                linkTravelTime = IndexedSeq(0, 500, 0),
+                endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500)
+              )
             ),
             beamVehicleId = vehicleId,
             beamVehicleTypeId = vehicleTypeId,

@@ -252,6 +252,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
   def makeAvailable(vehicleId: Id[Vehicle]): Boolean = {
     this.makeAvailable(getRideHailAgentLocation(vehicleId))
   }
+
   def makeAvailable(agentLocation: RideHailAgentLocation) = {
     idleRideHailVehicles.put(agentLocation.vehicleId, agentLocation)
     idleRideHailAgentSpatialIndex.put(
@@ -273,9 +274,10 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     )
   }
 
-  def putIntoService(vehicleId: Id[Vehicle]): Boolean  = {
+  def putIntoService(vehicleId: Id[Vehicle]): Boolean = {
     this.putIntoService(getRideHailAgentLocation(vehicleId))
   }
+
   def putIntoService(agentLocation: RideHailAgentLocation) = {
     idleRideHailVehicles.remove(agentLocation.vehicleId)
     idleRideHailAgentSpatialIndex.remove(
@@ -300,6 +302,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
   def putOutOfService(vehicleId: Id[Vehicle]): Boolean = {
     this.putOutOfService(getRideHailAgentLocation(vehicleId))
   }
+
   def putOutOfService(agentLocation: RideHailAgentLocation) = {
     idleRideHailVehicles.remove(agentLocation.vehicleId)
     idleRideHailAgentSpatialIndex.remove(
