@@ -6,26 +6,35 @@ import org.matsim.api.core.v01.population._
 import org.matsim.core.config.groups.PlanCalcScoreConfigGroup
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.replanning.selectors.RandomPlanSelector
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 object ReplanningUtil {
 
+  private val logger: Logger = LoggerFactory.getLogger("ReplanningUtil")
+
   def makeExperiencedMobSimCompatible[T <: Plan, I](person: HasPlansAndId[T, I]): Unit = {
     val experiencedPlan = person.getSelectedPlan.getCustomAttributes
       .get(PlanCalcScoreConfigGroup.EXPERIENCED_PLAN_KEY)
       .asInstanceOf[Plan]
 
-    for (i <- 0 until (person.getSelectedPlan.getPlanElements.size() - 1)) {
-      experiencedPlan.getPlanElements.get(i) match {
-        case leg: Leg =>
-          leg.getAttributes.putAttribute("vehicles", person.getSelectedPlan.getPlanElements.get(i).getAttributes.getAttribute("vehicles"))
-        case _ =>
-      }
-    }
-
     if (experiencedPlan != null && experiencedPlan.getPlanElements.size() > 0) {
+      // keep track of the vehicles that been used during previous simulation
+      if(person.getSelectedPlan.getPlanElements.size() != experiencedPlan.getPlanElements.size()) {
+        logger.warn("person.getSelectedPlan.getPlanElements")
+        person.getSelectedPlan.getPlanElements.asScala.foreach(elem => logger.warn(s"${elem.getClass}: ${elem.toString}"))
+        logger.warn("experiencedPlan.getPlanElements")
+        experiencedPlan.getPlanElements.asScala.foreach(elem => logger.warn(s"${elem.getClass}: ${elem.toString}"))
+      }
+      for (i <- 0 until (experiencedPlan.getPlanElements.size() - 1)) {
+        experiencedPlan.getPlanElements.get(i) match {
+          case leg: Leg =>
+            leg.getAttributes.putAttribute("vehicles", person.getSelectedPlan.getPlanElements.get(i).getAttributes.getAttribute("vehicles"))
+          case _ =>
+        }
+      }
       // BeamMobsim needs activities with coords
       val plannedActivities =
         person.getSelectedPlan.getPlanElements.asScala.filter(e => e.isInstanceOf[Activity])
