@@ -102,12 +102,12 @@ class RideHailModifyPassengerScheduleManager(
     repositioningFinished(vehicleId)
   }
 
-  def repositioningFinished(agentToRemove: ActorRef): Unit = {
-    if (waitingToReposition.contains(agentToRemove)) {
-      waitingToReposition = waitingToReposition - agentToRemove
+  def repositioningFinished(vehicleId: Id[Vehicle]): Unit = {
+    if (waitingToReposition.contains(vehicleId)) {
+      waitingToReposition = waitingToReposition - vehicleId
       checkIfRoundOfRepositioningIsDone()
     } else {
-      log.error("Not found in waitingToReposition: {}", agentToRemove)
+      log.error("Not found in waitingToReposition: {}", vehicleId)
     }
   }
 
@@ -234,7 +234,7 @@ class RideHailModifyPassengerScheduleManager(
                   reply.getClass.getCanonicalName,
                   reply.interruptId
                 )
-                cancelRepositionAttempt(rideHailAgentRef)
+                cancelRepositionAttempt(reply.vehicleId)
                 rideHailAgentRef ! Resume
                 clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
               case InterruptedWhileOffline(_, _, _) =>
@@ -290,7 +290,7 @@ class RideHailModifyPassengerScheduleManager(
               reply.vehicleId,
               reply.tick
             )
-            cancelRepositionAttempt(rideHailAgentRef)
+            cancelRepositionAttempt(reply.vehicleId)
         }
       case None =>
         // This is a non-buffered modify scenario, we still need to send Interrupt

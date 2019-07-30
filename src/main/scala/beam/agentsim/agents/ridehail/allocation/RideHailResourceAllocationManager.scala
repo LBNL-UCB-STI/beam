@@ -1,16 +1,10 @@
 package beam.agentsim.agents.ridehail.allocation
 
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDrivingIfNoPassengerOnBoardReply
+import beam.agentsim.agents.{Dropoff, MobilityRequest, Pickup, Relocation}
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
-import beam.agentsim.agents.ridehail.repositioningmanager.{
-  DefaultRepositioningManager,
-  DemandFollowingRepositioningManager,
-  RepositioningLowWaitingTimes,
-  RepositioningManager
-}
+import beam.agentsim.agents.ridehail.repositioningmanager.{DefaultRepositioningManager, DemandFollowingRepositioningManager, RepositioningLowWaitingTimes, RepositioningManager}
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
-import beam.agentsim.agents.vehicles.PersonIdWithActorRef
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
@@ -203,13 +197,6 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   def reservationCompletionNotice(personId: Id[Person], vehicleId: Id[Vehicle]): Unit = {}
 
   def getUnprocessedCustomers: Set[RideHailRequest] = awaitingRoutes
-
-  /*
-   * This is deprecated.
-   */
-  def handleRideCancellationReply(reply: StopDrivingIfNoPassengerOnBoardReply): Unit = {
-    logger.trace("default implementation handleRideCancellationReply executed")
-  }
 
   def createRepositioningManager(): RepositioningManager = {
     val name = rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.name

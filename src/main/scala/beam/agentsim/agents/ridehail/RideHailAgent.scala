@@ -361,7 +361,7 @@ class RideHailAgent(
         ) =>
       log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
       handleNotifyVehicleResourceIdleReply(reply, data)
-    case ev @ Event(TriggerWithId(StartRefuelTrigger(tick), triggerId), _) =>
+    case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(tick), triggerId), _) =>
       updatedLatestObservedTick(tick)
       log.debug("state(RideHailingAgent.Offline.StartRefuelTrigger): {}", ev)
       handleStartRefuel(tick, triggerId)
@@ -388,10 +388,10 @@ class RideHailAgent(
     case ev @ Event(NotifyVehicleResourceIdleReply(_, _), _) =>
       stash()
       stay()
-    case ev @ Event(TriggerWithId(StartRefuelTrigger(tick), triggerId), _) =>
+    case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(tick), triggerId), _) =>
       stash()
       stay()
-    case ev @ Event(TriggerWithId(EndRefuelTrigger(_, _, _), _), _) =>
+    case ev @ Event(TriggerWithId(EndRefuelSessionTrigger(_,_, _, _), _), _) =>
       stash()
       stay()
   }
@@ -638,7 +638,7 @@ class RideHailAgent(
 
   def requestParkingStall(): Unit = {
     val rideHailAgentLocation =
-      RideHailAgentLocation(vehicle.driver.get, vehicle.id, vehicle.beamVehicleType.id, vehicle.spaceTime, geofence)
+      RideHailAgentLocation(vehicle.driver.get, vehicle.id, vehicle.beamVehicleType, vehicle.spaceTime, geofence)
     val destinationUtm = rideHailAgentLocation.currentLocationUTM.loc
     val beta1 = 1
     val beta2 = 1

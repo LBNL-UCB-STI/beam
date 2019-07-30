@@ -433,7 +433,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
                   .toList
                   .map { act =>
                     // Get the closest available vehicle by activity coord
-                    val closestIdleRHVehicle = rideHailManager.vehicleManager.availableRideHailAgentSpatialIndex
+                    val closestIdleRHVehicle = rideHailManager.vehicleManager.idleRideHailAgentSpatialIndex
                       .getClosest(act.getCoord.getX, act.getCoord.getY)
                     // Measure the distance to vehicle
                     val distance = rideHailManager.beamServices.geo.distUTMInMeters(

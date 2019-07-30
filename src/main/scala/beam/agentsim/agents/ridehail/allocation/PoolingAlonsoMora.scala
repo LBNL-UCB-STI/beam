@@ -352,7 +352,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     )
     VehicleAllocations(allocResponses)
   }
-  override def repositionVehicles(tick: Double): Vector[(Id[Vehicle], Location)] = {
+  override def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)] = {
     randomRepositioning.repositionVehicles(tick)
   }
 
