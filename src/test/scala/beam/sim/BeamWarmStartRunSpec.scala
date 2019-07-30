@@ -27,8 +27,8 @@ class BeamWarmStartRunSpec extends WordSpecLike with Matchers with BeamHelper wi
       val (_, output) = runBeamWithConfig(baseConf)
       val averageCarSpeedIt0 = BeamWarmStartRunSpec.avgCarModeFromCsv(extractFileName(output, 0))
       val averageCarSpeedIt1 = BeamWarmStartRunSpec.avgCarModeFromCsv(extractFileName(output, 1))
-      averageCarSpeedIt0 should equal(5.4 +- 0.6)
-      averageCarSpeedIt1 should equal(5.4 +- 0.6)
+      averageCarSpeedIt0 should equal(5.9 +- 1.6)
+      averageCarSpeedIt1 should equal(5.9 +- 1.6)
 
     }
   }
