@@ -214,7 +214,10 @@ class RideHailModifyPassengerScheduleManager(
                   reply.interruptId
                 )
                 cancelRepositionAttempt(reply.vehicleId)
-                log.debug("sending Resume from sendNewPassengerScheduleToVehicle when repositioning to {}", reply.vehicleId)
+                log.debug(
+                  "sending Resume from sendNewPassengerScheduleToVehicle when repositioning to {}",
+                  reply.vehicleId
+                )
                 rideHailAgentRef ! Resume
                 clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
               case InterruptedWhileOffline(_, _, _) =>
