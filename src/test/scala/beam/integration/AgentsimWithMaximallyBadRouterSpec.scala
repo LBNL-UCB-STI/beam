@@ -4,7 +4,8 @@ import akka.actor.Status.Failure
 import akka.actor._
 import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase}
 import beam.agentsim.agents.PersonTestUtil
-import beam.agentsim.agents.ridehail.{RideHailIterationHistory, AdaptiveRideHailSurgePricingManager}
+import beam.agentsim.agents.ridehail.RideHailIterationHistory
+import beam.agentsim.agents.ridehail.surgepricing.AdaptiveRideHailSurgePricingManager
 import beam.integration.AgentsimWithMaximallyBadRouterSpec.BadRouterForTest
 import beam.router.Modes.BeamMode
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}

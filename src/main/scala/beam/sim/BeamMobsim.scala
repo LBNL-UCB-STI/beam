@@ -8,7 +8,8 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
-import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, AdaptiveRideHailSurgePricingManager}
+import beam.agentsim.agents.ridehail.surgepricing.{AdaptiveRideHailSurgePricingManager, RideHailSurgePricingManager}
+import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager}
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
 import beam.agentsim.infrastructure.ZonalParkingManager
@@ -44,7 +45,7 @@ class BeamMobsim @Inject()(
                             val scenario: Scenario,
                             val eventsManager: EventsManager,
                             val actorSystem: ActorSystem,
-                            val rideHailSurgePricingManager: AdaptiveRideHailSurgePricingManager,
+                            val rideHailSurgePricingManager: RideHailSurgePricingManager,
                             val rideHailIterationHistory: RideHailIterationHistory,
                             val routeHistory: RouteHistory,
                             val beamSkimmer: BeamSkimmer,
@@ -116,7 +117,7 @@ class BeamMobsim @Inject()(
 
 class BeamMobsimIteration(
                            val beamServices: BeamServices,
-                           val rideHailSurgePricingManager: AdaptiveRideHailSurgePricingManager,
+                           val rideHailSurgePricingManager: RideHailSurgePricingManager,
                            val rideHailIterationHistory: RideHailIterationHistory,
                            val routeHistory: RouteHistory,
                            val beamSkimmer: BeamSkimmer,

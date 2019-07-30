@@ -1,7 +1,7 @@
 package beam.analysis.plots;
 
-import beam.agentsim.agents.ridehail.AdaptiveRideHailSurgePricingManager;
-import beam.agentsim.agents.ridehail.RideHailSurgePricingManager;
+import beam.agentsim.agents.ridehail.surgepricing.RideHailSurgePricingManager;
+import beam.agentsim.agents.ridehail.surgepricing.RideHailSurgePricingManager.SurgePriceBin;
 import com.google.inject.Inject;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
@@ -19,7 +19,6 @@ import org.matsim.core.controler.listener.IterationEndsListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.collection.Iterator;
-import beam.agentsim.agents.ridehail.RideHailSurgePricingManager.SurgePriceBin;
 import scala.collection.mutable.ArrayBuffer;
 
 import java.io.BufferedWriter;
@@ -59,11 +58,11 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
     private String surgePricingAndRevenueWithTaz = "";
     private String revenueGraphImageFile = "";
     private String revenueCsvFileName = "";
-    private final AdaptiveRideHailSurgePricingManager surgePricingManager;
+    private final RideHailSurgePricingManager surgePricingManager;
     private final boolean writeGraph;
 
     @Inject
-    public GraphSurgePricing(AdaptiveRideHailSurgePricingManager surgePricingManager) {
+    public GraphSurgePricing(RideHailSurgePricingManager surgePricingManager) {
         this.surgePricingManager = surgePricingManager;
         noOfCategories = this.surgePricingManager.numberOfCategories();
 
@@ -163,7 +162,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         }
     }
 
-    private void processSurgePriceBinsMap(AdaptiveRideHailSurgePricingManager surgePricingManager) {
+    private void processSurgePriceBinsMap(RideHailSurgePricingManager surgePricingManager) {
 
         scala.collection.immutable.Map<String, scala.collection.mutable.ArrayBuffer<SurgePriceBin>> surgePriceBinsMap = surgePricingManager.surgePriceBins();
         Iterator mapIter = surgePriceBinsMap.keysIterator();

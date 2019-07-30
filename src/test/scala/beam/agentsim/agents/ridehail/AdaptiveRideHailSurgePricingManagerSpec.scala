@@ -1,5 +1,7 @@
 package beam.agentsim.agents.ridehail
-import beam.agentsim.agents.ridehail.RideHailSurgePricingManager.SurgePriceBin
+
+import beam.agentsim.agents.ridehail.surgepricing.AdaptiveRideHailSurgePricingManager
+import beam.agentsim.agents.ridehail.surgepricing.RideHailSurgePricingManager.SurgePriceBin
 import beam.sim.BeamHelper
 import beam.sim.config.{BeamConfig, BeamExecutionConfig}
 import beam.utils.TestConfigUtils.testConfig
@@ -26,7 +28,6 @@ class AdaptiveRideHailSurgePricingManagerSpec extends WordSpecLike with Matchers
   "RideHailSurgePricingManager" must {
     "be correctly initialized" in {
       val surgePricingManager = new AdaptiveRideHailSurgePricingManager(beamServices)
-      surgePricingManager.priceAdjustmentStrategy = "CONTINUES_DEMAND_SUPPLY_MATCHING"
       surgePricingManager.surgePriceBins should have size beamScenario.tazTreeMap.tazQuadTree.size()
       val expectedResult = SurgePriceBin(0.0, 0.0, 1.0, 1.0)
       surgePricingManager.surgePriceBins.values.map(f => f.map(_ shouldBe expectedResult))
@@ -40,7 +41,6 @@ class AdaptiveRideHailSurgePricingManagerSpec extends WordSpecLike with Matchers
       var rhspm = new AdaptiveRideHailSurgePricingManager(beamServices) {
         override val rand: Random = mockRandom
       }
-      rhspm.priceAdjustmentStrategy = "CONTINUES_DEMAND_SUPPLY_MATCHING"
 
       var expectedValue = rhspm.surgePriceBins.map({ f =>
         (f._1, f._2.map(s => s.currentIterationSurgePriceLevel + rhspm.surgeLevelAdaptionStep))
@@ -60,8 +60,8 @@ class AdaptiveRideHailSurgePricingManagerSpec extends WordSpecLike with Matchers
             val updatedPreviousSurgePriceLevel =
               binElem.currentIterationSurgePriceLevel
             val updatedSurgeLevel = binElem.currentIterationSurgePriceLevel //+ (binElem.currentIterationSurgePriceLevel - binElem.previousIterationSurgePriceLevel)
-            val updatedCurrentSurgePriceLevel =
-              Math.max(updatedSurgeLevel, rhspm.minimumSurgeLevel)
+          val updatedCurrentSurgePriceLevel =
+            Math.max(updatedSurgeLevel, rhspm.minimumSurgeLevel)
             val updatedPrevIterRevenue = binElem.currentIterationRevenue
             val currentIterationRevenue = 0
             SurgePriceBin(
@@ -77,13 +77,12 @@ class AdaptiveRideHailSurgePricingManagerSpec extends WordSpecLike with Matchers
 
       //First iteration random returns false
       when(mockRandom.nextBoolean) thenReturn false
-//      random = new Random(){
-//        override def nextBoolean(): Boolean = false
-//      }
+      //      random = new Random(){
+      //        override def nextBoolean(): Boolean = false
+      //      }
       rhspm = new AdaptiveRideHailSurgePricingManager(beamServices) {
         override val rand: Random = mockRandom
       }
-      rhspm.priceAdjustmentStrategy = "CONTINUES_DEMAND_SUPPLY_MATCHING"
 
       expectedValue = rhspm.surgePriceBins.map({ f =>
         (f._1, f._2.map(s => s.currentIterationSurgePriceLevel - rhspm.surgeLevelAdaptionStep))
@@ -103,8 +102,8 @@ class AdaptiveRideHailSurgePricingManagerSpec extends WordSpecLike with Matchers
             val updatedPreviousSurgePriceLevel =
               binElem.currentIterationSurgePriceLevel
             val updatedSurgeLevel = binElem.currentIterationSurgePriceLevel //- (binElem.currentIterationSurgePriceLevel - binElem.previousIterationSurgePriceLevel)
-            val updatedCurrentSurgePriceLevel =
-              Math.max(updatedSurgeLevel, rhspm.minimumSurgeLevel)
+          val updatedCurrentSurgePriceLevel =
+            Math.max(updatedSurgeLevel, rhspm.minimumSurgeLevel)
             val updatedPrevIterRevenue = binElem.currentIterationRevenue
             val currentIterationRevenue = 0
             SurgePriceBin(
@@ -121,7 +120,6 @@ class AdaptiveRideHailSurgePricingManagerSpec extends WordSpecLike with Matchers
 
     "correctly update previous iteration revenues and resetting current" in {
       val rhspm = new AdaptiveRideHailSurgePricingManager(beamServices)
-      rhspm.priceAdjustmentStrategy = "CONTINUES_DEMAND_SUPPLY_MATCHING"
       val expectedResultCurrentIterationRevenue = 0
       val initialValueCurrent =
         rhspm.surgePriceBins.map(f => (f._1, f._2.map(s => s.currentIterationRevenue)))
@@ -136,19 +134,17 @@ class AdaptiveRideHailSurgePricingManagerSpec extends WordSpecLike with Matchers
         .map(f => f.map(_.currentIterationRevenue shouldBe expectedResultCurrentIterationRevenue))
     }
 
-    "return fixed value of 1.0 when KEEP_PRICE_LEVEL_FIXED_AT_ONE used" in {
-      val rhspm = new AdaptiveRideHailSurgePricingManager(beamServices)
-      rhspm.priceAdjustmentStrategy = "KEEP_PRICE_LEVEL_FIXED_AT_ONE"
-
-      val tazArray = beamScenario.tazTreeMap.tazQuadTree.values.asScala.toSeq
-      val randomTaz = tazArray(Random.nextInt(tazArray.size))
-
-      rhspm.getSurgeLevel(randomTaz.coord, 0) shouldEqual 1.0
-    }
+//    "return fixed value of 1.0 when KEEP_PRICE_LEVEL_FIXED_AT_ONE used" in {
+//      val rhspm = new AdaptiveRideHailSurgePricingManager(beamServices)
+//
+//      val tazArray = beamScenario.tazTreeMap.tazQuadTree.values.asScala.toSeq
+//      val randomTaz = tazArray(Random.nextInt(tazArray.size))
+//
+//      rhspm.getSurgeLevel(randomTaz.coord, 0) shouldEqual 1.0
+//    }
 
     "return correct surge level" in {
       val rhspm = new AdaptiveRideHailSurgePricingManager(beamServices)
-      rhspm.priceAdjustmentStrategy = "CONTINUES_DEMAND_SUPPLY_MATCHING"
 
       val tazArray = beamScenario.tazTreeMap.tazQuadTree.values.asScala.toSeq
 
