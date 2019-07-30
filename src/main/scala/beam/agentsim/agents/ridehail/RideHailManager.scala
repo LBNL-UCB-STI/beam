@@ -529,6 +529,7 @@ class RideHailManager(
       // To avoid complexity, we don't add any new vehicles to the Idle list when we are in the middle of dispatch or repositioning
       // But we hold onto them because if we end up attempting to modify their passenger schedule, we need to first complete the notify
       // protocol so they can release their trigger.
+      doNotUseInAllocation.add(vehicleId)
       cachedNotifyVehicleIdle.put(vehicleId, notify)
 
     case notifyVehicleIdleMessage @ NotifyVehicleIdle(_, _, _, _, _, _) =>

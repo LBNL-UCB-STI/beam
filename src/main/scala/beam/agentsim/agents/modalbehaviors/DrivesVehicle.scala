@@ -220,14 +220,14 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
     )
   }
 
-  def updatedLatestObservedTick(newTick: Int) = if (newTick > latestObservedTick) latestObservedTick = newTick
+  def updateLatestObservedTick(newTick: Int) = if (newTick > latestObservedTick) latestObservedTick = newTick
 
   when(Driving) {
     case ev @ Event(
           TriggerWithId(EndLegTrigger(tick), triggerId),
           LiterallyDrivingData(data, legEndingAt, _)
         ) if tick == legEndingAt =>
-      updatedLatestObservedTick(tick)
+      updateLatestObservedTick(tick)
 //      log.debug("state(DrivesVehicle.Driving): {}", ev)
       log.debug("state(DrivesVehicle.Driving): EndLegTrigger({}) for driver {}", tick, id)
       val currentLeg = data.passengerSchedule.schedule.keys.view
@@ -396,7 +396,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
 
     //TODO Need explanation as to why we do nothing if we receive EndLeg but data is not type LiterallyDrivingData
     case ev @ Event(TriggerWithId(EndLegTrigger(tick), triggerId), data) =>
-      updatedLatestObservedTick(tick)
+      updateLatestObservedTick(tick)
       log.debug("state(DrivesVehicle.Driving): {}", ev)
 
       log.debug(
@@ -557,7 +557,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
   when(WaitingToDrive) {
     case ev @ Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data)
         if data.legStartsAt.isEmpty || tick == data.legStartsAt.get =>
-      updatedLatestObservedTick(tick)
+      updateLatestObservedTick(tick)
 //      log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
       log.debug("state(DrivesVehicle.WaitingToDrive): StartLegTrigger({},{}) for driver {}", tick, newLeg, id)
 

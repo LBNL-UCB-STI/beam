@@ -132,12 +132,15 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       implicit val skimmer: BeamSkimmer = rideHailManager.beamSkimmer
       val pooledAllocationReqs = toAllocate.filter(_.asPooled)
       val customerIdToReqs = toAllocate.map(rhr => rhr.customer.personId -> rhr).toMap
+      val vehiclePoolToUse = rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds match {
+        case 0 =>
+          rideHailManager.vehicleManager.getIdleVehicles.values
+        case _ =>
+          rideHailManager.vehicleManager.getIdleAndInServiceVehicles.values
+      }
       val (availVehicles, poolCustomerReqs, offset) =
         (
-          rideHailManager.vehicleManager.getIdleAndInServiceVehicles.values.map { veh =>
-            if (tick < veh.latestTickExperienced) {
-              val i = 0
-            }
+          vehiclePoolToUse.map { veh =>
             val vehAndSched = createVehicleAndScheduleFromRideHailAgentLocation(
               veh,
               Math.max(tick, veh.latestTickExperienced),

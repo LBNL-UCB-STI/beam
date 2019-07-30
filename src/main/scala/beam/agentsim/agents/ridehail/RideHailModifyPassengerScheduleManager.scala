@@ -87,6 +87,7 @@ class RideHailModifyPassengerScheduleManager(
       modifyStatus.rideHailAgent.tell(StopDriving(modifyStatus.tick), rideHailManagerRef)
     }
     modifyStatus.rideHailAgent.tell(modifyStatus.modifyPassengerSchedule, rideHailManagerRef)
+    log.debug("sending Resume from sendModifyPassengerScheduleMessage to {}", modifyStatus.vehicleId)
     modifyStatus.rideHailAgent.tell(Resume, rideHailManagerRef)
     interruptIdToModifyPassengerScheduleStatus.put(
       modifyStatus.interruptId,
@@ -123,6 +124,7 @@ class RideHailModifyPassengerScheduleManager(
     triggersToSchedule: Vector[BeamAgentScheduler.ScheduleTrigger],
     tick: Int
   ): Unit = {
+    clearModifyStatusFromCacheWithVehicleId(vehicleId)
     if (triggersToSchedule.nonEmpty) {
       allTriggersInWave = triggersToSchedule ++ allTriggersInWave
     }
@@ -196,30 +198,7 @@ class RideHailModifyPassengerScheduleManager(
                 _,
                 _,
                 _,
-                SingleReservation,
                 _,
-                _,
-                rideHailAgentRef,
-                InterruptSent
-              )
-              ) =>
-            // Success! Continue with modify process
-            log.debug(
-              "RideHailModifyPassengerScheduleManager - modifying pass schedule of: " + rideHailVehicleId
-            )
-            sendModifyPassengerScheduleMessage(
-              status.copy(
-                modifyPassengerSchedule = status.modifyPassengerSchedule
-                  .copy(updatedPassengerSchedule = passengerSchedule, reservationRequestId = reservationRequestIdOpt)
-              ),
-              false
-            )
-          case Some(
-              RideHailModifyPassengerScheduleStatus(
-                _,
-                _,
-                _,
-                HoldForPlanning,
                 _,
                 _,
                 rideHailAgentRef,
@@ -235,6 +214,7 @@ class RideHailModifyPassengerScheduleManager(
                   reply.interruptId
                 )
                 cancelRepositionAttempt(reply.vehicleId)
+                log.debug("sending Resume from sendNewPassengerScheduleToVehicle when repositioning to {}", reply.vehicleId)
                 rideHailAgentRef ! Resume
                 clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
               case InterruptedWhileOffline(_, _, _) =>
@@ -249,6 +229,7 @@ class RideHailModifyPassengerScheduleManager(
                   case Some(_) => requestIdOpt
                   case None    => reservationRequestIdOpt
                 }
+                log.debug("sending Resume from sendNewPassengerScheduleToVehicle to {}", reply.vehicleId)
                 rideHailAgentRef ! Resume
                 clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
                 if (requestId.isDefined) {
@@ -363,6 +344,7 @@ class RideHailModifyPassengerScheduleManager(
 
   def cleanUpCaches = {
     interruptIdToModifyPassengerScheduleStatus.values.foreach { status =>
+      log.debug("sending Resume from cleanUpCaches to {}", status.vehicleId)
       status.rideHailAgent.tell(Resume, rideHailManagerRef)
     }
     vehicleIdToModifyPassengerScheduleStatus.clear

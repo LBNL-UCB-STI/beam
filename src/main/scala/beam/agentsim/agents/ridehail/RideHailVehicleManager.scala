@@ -173,7 +173,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
   }
 
   def getIdleVehicles: mutable.HashMap[Id[Vehicle], RideHailAgentLocation] = {
-    idleRideHailVehicles
+    idleRideHailVehicles.filterNot(elem => rideHailManager.doNotUseInAllocation.contains(elem._1))
   }
 
   def getIdleAndInServiceVehicles: Map[Id[Vehicle], RideHailAgentLocation] = {

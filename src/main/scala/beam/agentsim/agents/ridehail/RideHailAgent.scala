@@ -337,7 +337,7 @@ class RideHailAgent(
 
   when(Offline) {
     case Event(TriggerWithId(StartShiftTrigger(tick), triggerId), _) =>
-      updatedLatestObservedTick(tick)
+      updateLatestObservedTick(tick)
       log.debug("state(RideHailingAgent.Offline): starting shift {}", id)
       holdTickAndTriggerId(tick, triggerId)
       rideHailManager ! NotifyVehicleIdle(
@@ -362,14 +362,14 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
       handleNotifyVehicleResourceIdleReply(reply, data)
     case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(tick), triggerId), _) =>
-      updatedLatestObservedTick(tick)
+      updateLatestObservedTick(tick)
       log.debug("state(RideHailingAgent.Offline.StartRefuelTrigger): {}", ev)
       handleStartRefuel(tick, triggerId)
     case ev @ Event(
           TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, energyInJoules, _), triggerId),
           data
         ) =>
-      updatedLatestObservedTick(tick)
+      updateLatestObservedTick(tick)
       log.debug("state(RideHailingAgent.Offline.EndRefuelTrigger): {}", ev)
       val currentLocation = handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
       vehicle.spaceTime = SpaceTime(currentLocation, tick)
@@ -401,7 +401,7 @@ class RideHailAgent(
         TriggerWithId(EndShiftTrigger(tick), triggerId),
         data @ RideHailAgentData(_, _, _, _, _, _)
         ) =>
-      updatedLatestObservedTick(tick)
+      updateLatestObservedTick(tick)
       val newShiftToSchedule = if (data.remainingShifts.size < 1) {
         Vector()
       } else {
@@ -422,7 +422,7 @@ class RideHailAgent(
           TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, energyInJoules, _), triggerId),
           data
         ) =>
-      updatedLatestObservedTick(tick)
+      updateLatestObservedTick(tick)
       log.debug("state(RideHailingAgent.Idle.EndRefuelTrigger): {}", ev)
       holdTickAndTriggerId(tick, triggerId)
       val currentLocation = handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
@@ -444,6 +444,7 @@ class RideHailAgent(
 
   when(IdleInterrupted) {
     case ev @ Event(ModifyPassengerSchedule(updatedPassengerSchedule, tick, requestId), data) =>
+      updateLatestObservedTick(tick)
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
       // i.e. for what time it is.
