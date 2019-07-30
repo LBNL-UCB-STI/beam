@@ -729,15 +729,14 @@ class RideHailManager(
       doNotUseInAllocation.add(vehicleId)
       modifyPassengerScheduleManager.handleInterruptReply(reply)
       updateLatestObservedTick(vehicleId, tick)
-      if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived)
-        findAllocationsAndProcess(modifyPassengerScheduleManager.getCurrentTick.get)
+      continueProcessingTimeoutIfReady
+
 
     case reply @ InterruptedWhileOffline(_, vehicleId, tick) =>
       doNotUseInAllocation.add(vehicleId)
       modifyPassengerScheduleManager.handleInterruptReply(reply)
       updateLatestObservedTick(vehicleId, tick)
-      if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived)
-        findAllocationsAndProcess(modifyPassengerScheduleManager.getCurrentTick.get)
+      continueProcessingTimeoutIfReady
 
     case reply @ InterruptedWhileIdle(interruptId, vehicleId, tick) =>
       if (pendingAgentsSentToPark.contains(vehicleId)) {
@@ -748,8 +747,7 @@ class RideHailManager(
         updateLatestObservedTick(vehicleId, tick)
         // Make sure we take away passenger schedule from RHA Location
         updatePassengerSchedule(vehicleId, None, None)
-        if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived)
-          findAllocationsAndProcess(modifyPassengerScheduleManager.getCurrentTick.get)
+        continueProcessingTimeoutIfReady
       }
 
     case reply @ InterruptedWhileDriving(
@@ -768,8 +766,7 @@ class RideHailManager(
         if (currentlyProcessingTimeoutTrigger.isDefined) vehicleManager.putIntoService(vehicleId)
         updatePassengerSchedule(vehicleId, Some(interruptedPassengerSchedule), Some(currentPassengerScheduleIndex))
         updateLatestObservedTick(vehicleId, tick)
-        if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived)
-          findAllocationsAndProcess(modifyPassengerScheduleManager.getCurrentTick.get)
+        continueProcessingTimeoutIfReady
       }
 
 //    case ParkingInquiryResponse(None, requestId) =>
@@ -865,6 +862,16 @@ class RideHailManager(
         vehicleManager.makeAvailable(locationWithLatest)
       case OutOfService =>
         vehicleManager.putOutOfService(locationWithLatest)
+    }
+  }
+
+  def continueProcessingTimeoutIfReady: Unit = {
+    if (currentlyProcessingTimeoutTrigger.isDefined && modifyPassengerScheduleManager.allInterruptConfirmationsReceived){
+      if(processBufferedRequestsOnTimeout){
+        findAllocationsAndProcess(modifyPassengerScheduleManager.getCurrentTick.get)
+      }else{
+        continueRepositioning(modifyPassengerScheduleManager.getCurrentTick.get)
+      }
     }
   }
 
@@ -1466,7 +1473,14 @@ class RideHailManager(
 
     log.debug("Starting wave of repositioning at {}", tick)
     modifyPassengerScheduleManager.startWaveOfRepositioningOrBatchedReservationRequests(tick, triggerId)
+    if(modifyPassengerScheduleManager.isModifyStatusCacheEmpty){
+      log.debug("sendCompletionAndScheduleNewTimeout from 1470")
+      modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(Reposition, tick)
+      cleanUp
+    }
+  }
 
+  def continueRepositioning(tick: Int): Unit = {
     val repositionVehicles: Vector[(Id[Vehicle], Location)] =
       ProfilingUtils.timed(s"repositionVehicles at tick $tick", log.debug) {
         rideHailResourceAllocationManager.repositionVehicles(tick)
@@ -1476,7 +1490,7 @@ class RideHailManager(
     nRepositioned += repositionVehicles.size
 
     if (repositionVehicles.isEmpty) {
-      log.debug("sendCompletionAndScheduleNewTimeout from 1204")
+      log.debug("sendCompletionAndScheduleNewTimeout from 1486")
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(Reposition, tick)
       cleanUp
     } else {
