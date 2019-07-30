@@ -707,7 +707,7 @@ class RideHailManager(
       outOfServiceVehicleManager.initiateMovementToParkingDepot(vehicleId, passengerSchedule, tick)
 
     case RepositionVehicleRequest(passengerSchedule, tick, vehicleId, rideHailAgent) =>
-      modifyPassengerScheduleManager.sendNewPassengerScheduleToVehicle(passengerSchedule, rideHailAgent, tick)
+      modifyPassengerScheduleManager.sendNewPassengerScheduleToVehicle(passengerSchedule, rideHailAgent.vehicleId, rideHailAgent.rideHailAgent, tick)
 
     case reply @ InterruptedWhileWaitingToDrive(_, vehicleId, tick) =>
       // It's too complicated to modify these vehicles, it's also rare so we ignore them
@@ -1115,7 +1115,8 @@ class RideHailManager(
     }
     modifyPassengerScheduleManager.sendNewPassengerScheduleToVehicle(
       travelProposal.passengerSchedule,
-      travelProposal.rideHailAgentLocation,
+      travelProposal.rideHailAgentLocation.vehicleId,
+      travelProposal.rideHailAgentLocation.rideHailAgent,
       tick,
       Some(request.requestId)
     )

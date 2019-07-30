@@ -92,7 +92,7 @@ class AsyncAlonsoMoraAlgForRideHailSpec
           sc._1,
           Map[MobilityRequestType, Double]((Pickup, 7 * 60), (Dropoff, 10 * 60)),
           maxRequestsPerVehicle = 1000,
-          null
+          services
         )
       import scala.concurrent.duration._
       val assignment = Await.result(alg.greedyAssignment(0), atMost = 10.minutes).toArray

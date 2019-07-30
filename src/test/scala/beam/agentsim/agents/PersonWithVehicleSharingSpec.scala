@@ -171,7 +171,7 @@ class PersonWithVehicleSharingSpec
               EmbodiedBeamLeg(
                 beamLeg = embodyRequest.leg.copy(
                   duration = 500,
-                  travelPath = embodyRequest.leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
+                  travelPath = embodyRequest.leg.travelPath.copy(linkTravelTime = IndexedSeq(0, 500, 0), endPoint = embodyRequest.leg.travelPath.endPoint.copy(time = embodyRequest.leg.startTime + 500))
                 ),
                 beamVehicleId = vehicleId,
                 beamVehicleTypeId = vehicle.beamVehicleType.id,
@@ -319,7 +319,7 @@ class PersonWithVehicleSharingSpec
                     linkTravelTime = Vector(50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(0.0, 0.0, 28800),
-                    endPoint = SpaceTime(0.01, 0.0, 28950),
+                    endPoint = SpaceTime(0.01, 0.0, 28850),
                     distanceInM = 1000D
                   )
                 ),
@@ -422,7 +422,7 @@ class PersonWithVehicleSharingSpec
                     linkTravelTime = Vector(10, 10, 10, 10),
                     transitStops = None,
                     startPoint = SpaceTime(0.01, 0.01, 61200),
-                    endPoint = SpaceTime(0.0, 0.0, 61240),
+                    endPoint = SpaceTime(0.0, 0.0, 61230),
                     distanceInM = 1000D
                   )
                 ),
@@ -537,7 +537,7 @@ class PersonWithVehicleSharingSpec
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = leg.copy(
               duration = 500,
-              travelPath = leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
+              travelPath = leg.travelPath.copy(linkTravelTime = IndexedSeq(0, 500, 0), endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500))
             ),
             beamVehicleId = vehicleId,
             beamVehicleTypeId = vehicleTypeId,
@@ -572,7 +572,7 @@ class PersonWithVehicleSharingSpec
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = leg.copy(
               duration = 500,
-              travelPath = leg.travelPath.copy(linkTravelTime = Array(0, 500, 0))
+              travelPath = leg.travelPath.copy(linkTravelTime = IndexedSeq(0, 500, 0), endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500))
             ),
             beamVehicleId = vehicleId,
             beamVehicleTypeId = vehicleTypeId,

@@ -36,7 +36,7 @@ class DrivesVehicleTest extends FunSuite {
         linkTravelTime = linkTravelTime,
         transitStops = None,
         startPoint = SpaceTime.zero,
-        endPoint = SpaceTime.zero,
+        endPoint = SpaceTime.zero.copy(time = 9), // We need endPoint.time - startPoint.time == linkTravelTime.tail.sum
         distanceInM = 10.0
       )
     )
@@ -94,7 +94,7 @@ class DrivesVehicleTest extends FunSuite {
           linkTravelTime = Vector(5, 5, 5, 5, 5),
           transitStops = None,
           startPoint = SpaceTime.zero,
-          endPoint = SpaceTime.zero,
+          endPoint = SpaceTime.zero.copy(time = 20),
           distanceInM = 10.0
         )
       )
@@ -110,7 +110,7 @@ class DrivesVehicleTest extends FunSuite {
           linkTravelTime = Vector(1, 2, 3, 4),
           transitStops = None,
           startPoint = SpaceTime.zero,
-          endPoint = SpaceTime.zero,
+          endPoint = SpaceTime.zero.copy(time = 9),
           distanceInM = 10.0
         )
       )
