@@ -87,6 +87,8 @@ class RideHailDepotParkingManager(
           tazTreeMap.tazQuadTree,
           distFunction,
           random,
+          returnSpotsWithChargers = true,
+          returnSpotsWithoutChargers = false,
           boundingBox
         )
       taz <- tazTreeMap.getTAZ(parkingStall.tazId)

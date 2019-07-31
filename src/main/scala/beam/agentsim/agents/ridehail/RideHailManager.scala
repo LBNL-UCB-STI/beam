@@ -71,15 +71,6 @@ import scala.util.{Failure, Success, Try}
 import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
 
-object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLocation, Double)] {
-  override def compare(
-    o1: (RideHailAgentLocation, Double),
-    o2: (RideHailAgentLocation, Double)
-  ): Int = {
-    java.lang.Double.compare(o1._2, o2._2)
-  }
-}
-
 object RideHailManager {
   val INITIAL_RIDE_HAIL_LOCATION_HOME = "HOME"
   val INITIAL_RIDE_HAIL_LOCATION_RANDOM_ACTIVITY = "RANDOM_ACTIVITY"
@@ -348,8 +339,8 @@ class RideHailManager(
   }
 
   // generate or load parking using agentsim.infrastructure.parking.ParkingZoneSearch
-  val parkingFilePath: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.parkingFilePath
-  val valueOfTime: Double = beamServices.beamConfig.beam.agentsim.agents.rideHail.human.valueOfTime
+  val parkingFilePath: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath
+  val valueOfTime: Double = beamServices.beamConfig.beam.agentsim.agents.rideHail.cav.valueOfTime
 
   // for parking/charging search
   val utilityFunction: MultinomialLogit[ParkingAlternative, String] =
@@ -598,7 +589,7 @@ class RideHailManager(
 
       val beamVehicle = unsafeFindBeamVehicleUsing(vehicleId)
       val rideHailAgentLocation =
-        RideHailAgentLocation(beamVehicle.driver.get, vehicleId, beamVehicle.beamVehicleType.id, whenWhere, geofence)
+        RideHailAgentLocation(beamVehicle.driver.get, vehicleId, beamVehicle.beamVehicleType, whenWhere, geofence)
       vehicleManager.vehicleState.put(vehicleId, beamVehicleState)
 
       removeVehicleArrivedAtRefuelingDepot(vehicleId) match {
@@ -1691,7 +1682,6 @@ class RideHailManager(
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(Reposition, tick)
       cleanUp
     }
-  }
 
     val vehiclesHeadedToRefuelingDepot: Vector[(VehicleId, ParkingStall)] =
       rideHailResourceAllocationManager.findDepotsForVehiclesInNeedOfRefueling()

@@ -59,7 +59,9 @@ object ParkingZoneSearch {
     tazQuadTree: QuadTree[TAZ],
     distanceFunction: (Coord, Coord) => Double,
     random: Random,
-    boundingBox: Envelope
+    returnSpotsWithChargers: Boolean,
+    returnSpotsWithoutChargers: Boolean,
+    boundingBox: Envelope,
   ): Option[(ParkingZone, ParkingStall)] = {
 
     @tailrec
@@ -86,7 +88,9 @@ object ParkingZoneSearch {
           searchTree,
           stalls,
           distanceFunction,
-          random
+          random,
+          returnSpotsWithChargers,
+          returnSpotsWithoutChargers
         ) match {
           case Some(
               ParkingSearchResult(

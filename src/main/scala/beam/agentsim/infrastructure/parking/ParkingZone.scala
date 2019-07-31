@@ -46,7 +46,6 @@ class ParkingZone(
 
 object ParkingZone {
 
-
   val DefaultParkingZoneId: Int = -1
 
   // used in place of Int.MaxValue to avoid possible buffer overrun due to async failures
@@ -56,7 +55,8 @@ object ParkingZone {
   // which would tell us that we had 1 extra releaseStall event.
   val UbiqiutousParkingAvailability: Int = 1000000
 
-  val DefaultParkingZone = ParkingZone(DefaultParkingZoneId, TAZ.DefaultTAZId, UbiqiutousParkingAvailability, None, None)
+  val DefaultParkingZone =
+    ParkingZone(DefaultParkingZoneId, TAZ.DefaultTAZId, UbiqiutousParkingAvailability, None, None)
 
   /**
     * creates a new StallValues object

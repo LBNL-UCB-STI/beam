@@ -70,7 +70,7 @@ class ZonalParkingManager(
       }
 
       // performs a concentric ring search from the destination to find a parking stall, and creates it
-      val (parkingZone, parkingStall) = ParkingZoneSearch.incrementalParkingZoneSearch(
+      val (parkingZone: ParkingZone, parkingStall: ParkingStall) = ParkingZoneSearch.incrementalParkingZoneSearch(
         500.0,
         ZonalParkingManager.MaxSearchRadius,
         inquiry.destinationUtm,
