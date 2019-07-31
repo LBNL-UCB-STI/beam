@@ -221,7 +221,7 @@ class PersonAgentSpec
                     linkTravelTime = Vector(50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(0.0, 0.0, 28800),
-                    endPoint = SpaceTime(1.0, 1.0, 28900),
+                    endPoint = SpaceTime(1.0, 1.0, 28850),
                     distanceInM = 1000D
                   )
                 ),
