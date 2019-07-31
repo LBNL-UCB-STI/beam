@@ -111,9 +111,12 @@ object PersonAgent {
     def hasParkingBehaviors: Boolean
 
     def geofence: Option[Geofence]
+
+    def legStartsAt: Option[Int]
   }
 
-  case class LiterallyDrivingData(delegate: DrivingData, legEndsAt: Double) extends DrivingData { // sorry
+  case class LiterallyDrivingData(delegate: DrivingData, legEndsAt: Double, legStartsAt: Option[Int])
+      extends DrivingData { // sorry
     def currentVehicle: VehicleStack = delegate.currentVehicle
 
     def passengerSchedule: PassengerSchedule = delegate.passengerSchedule
@@ -122,12 +125,13 @@ object PersonAgent {
       delegate.currentLegPassengerScheduleIndex
 
     def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
-      LiterallyDrivingData(delegate.withPassengerSchedule(newPassengerSchedule), legEndsAt)
+      LiterallyDrivingData(delegate.withPassengerSchedule(newPassengerSchedule), legEndsAt, legStartsAt)
 
     def withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex: Int) =
       LiterallyDrivingData(
         delegate.withCurrentLegPassengerScheduleIndex(currentLegPassengerScheduleIndex),
-        legEndsAt
+        legEndsAt,
+        legStartsAt
       )
 
     override def hasParkingBehaviors: Boolean = false
@@ -158,6 +162,7 @@ object PersonAgent {
     override def hasParkingBehaviors: Boolean = true
 
     override def geofence: Option[Geofence] = None
+    override def legStartsAt: Option[Int] = None
   }
 
   case class ActivityStartTrigger(tick: Int) extends Trigger
@@ -496,7 +501,7 @@ class PersonAgent(
         TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter), triggerId),
         data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _)
         ) =>
-      logDebug(s"PersonEntersVehicle: $vehicleToEnter")
+      logDebug(s"PersonEntersVehicle: $vehicleToEnter @ $tick")
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
 
       if (currentLeg.cost > 0.0) {
@@ -530,7 +535,7 @@ class PersonAgent(
         data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _)
         ) if vehicleToExit.equals(currentVehicle.head) =>
       updateFuelConsumed(energyConsumedOption)
-      logDebug(s"PersonLeavesVehicle: $vehicleToExit")
+      logDebug(s"PersonLeavesVehicle: $vehicleToExit @ $tick")
       eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, vehicleToExit))
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using data.copy(
@@ -744,6 +749,26 @@ class PersonAgent(
         )
       )
       goto(WaitingForReservationConfirmation)
+    // CAV but too late
+    // TODO: Refactor so it uses literally the same code block as transit
+    case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _))
+        if nextLeg.beamLeg.startTime < _currentTick.get =>
+      // We've missed the CAV. This occurs when something takes longer than planned (based on the
+      // initial inquiry). So we replan but change tour mode to WALK_TRANSIT since we've already done our non-transit
+      // portion.
+      log.error("Missed CAV pickup, late by {} sec", _currentTick.get - nextLeg.beamLeg.startTime)
+
+      val replanningReason = getReplanningReasonFrom(data, ReservationErrorCode.MissedTransitPickup.entryName)
+      eventsManager.processEvent(
+        new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason)
+      )
+      goto(ChoosingMode) using ChoosesModeData(
+        personData = data
+          .copy(currentTourMode = Some(WALK_TRANSIT), numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
+        currentLocation =
+          SpaceTime(beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint).loc, _currentTick.get),
+        isWithinTripReplanning = true
+      )
     // CAV
     // TODO: Refactor so it uses literally the same code block as transit
     case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _, _)) =>

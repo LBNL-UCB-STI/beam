@@ -27,7 +27,7 @@ class TransitInitializer(
   dates: DateUtils,
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
   transportNetwork: TransportNetwork,
-  travelTimeByLinkCalculator: (Int, Int, StreetMode) => Int
+  travelTimeByLinkCalculator: (Double, Int, StreetMode) => Double
 ) extends ExponentialLazyLogging {
   private var numStopsNotFound = 0
 
@@ -101,12 +101,17 @@ class TransitInitializer(
           StreetMode.CAR,
           transportNetwork.streetLayer
         )
+        val scaledLinkTimes = TravelTimeUtils.scaleTravelTime(
+          streetSeg.getDuration,
+          math.round(linksTimesAndDistances.travelTimes.tail.sum.toFloat),
+          linksTimesAndDistances.travelTimes
+        )
         val distance = linksTimesAndDistances.distances.tail.sum
         BeamPath(
           edges.map(_.intValue()).toVector,
           TravelTimeUtils.scaleTravelTime(
             streetSeg.getDuration,
-            linksTimesAndDistances.travelTimes.sum,
+            math.round(linksTimesAndDistances.travelTimes.tail.sum).toInt,
             linksTimesAndDistances.travelTimes
           ),
           None,
@@ -118,7 +123,7 @@ class TransitInitializer(
           SpaceTime(
             endEdge.getGeometry.getEndPoint.getX,
             endEdge.getGeometry.getEndPoint.getY,
-            departureTime + streetSeg.getDuration
+            departureTime + math.round(streetSeg.getDuration - scaledLinkTimes.head).toInt
           ),
           distance
         )
