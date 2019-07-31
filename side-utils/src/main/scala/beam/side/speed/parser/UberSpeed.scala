@@ -5,13 +5,14 @@ import java.time.DayOfWeek
 
 import beam.side.speed.model.FilterEvent.AllHoursDaysEventAction.AllHoursDaysEventAction
 import beam.side.speed.model.FilterEvent.AllHoursWeightedEventAction.AllHoursWeightedEventAction
+import beam.side.speed.model.FilterEvent.BeamLengthWeightedEventAction.BeamLengthWeightedEventAction
 import beam.side.speed.model.FilterEvent.HourEventAction.HourEventAction
 import beam.side.speed.model.FilterEvent.HourRangeEventAction.HourRangeEventAction
 import beam.side.speed.model.FilterEvent.MaxHourPointsEventAction.MaxHourPointsEventAction
 import beam.side.speed.model.FilterEvent.WeekDayEventAction.WeekDayEventAction
 import beam.side.speed.model.FilterEvent.WeekDayHourEventAction.WeekDayHourEventAction
 import beam.side.speed.model._
-import beam.side.speed.parser.data.{DataLoader, JunctionDictionary, UberOsmDictionary, UnarchivedSource}
+import beam.side.speed.parser.data._
 import scalax.collection.edge.Implicits._
 import scalax.collection.edge.LBase.LEdgeImplicits
 import scalax.collection.edge.LkDiEdge
@@ -22,8 +23,9 @@ import scala.reflect.ClassTag
 
 class UberSpeed[T <: FilterEventAction](
   path: Seq[String],
-  dictW: UberOsmDictionary,
-  dictJ: JunctionDictionary,
+  dictW: Dictionary[UberOsmWays, Long, String],
+  dictS: Dictionary[UberOsmWays, String, Long],
+  dictJ: Dictionary[UberOsmNode, String, Long],
   fOpt: T#Filtered
 )(
   implicit t: ClassTag[T],
@@ -62,6 +64,27 @@ class UberSpeed[T <: FilterEventAction](
     dictW(osmId).flatMap(
       s => ways.get(s).map(dropToWeek).map(_.waySpeed[T](fOpt))
     )
+
+  def waySimplified(
+    origNodeId: Long,
+    destNodeId: Long,
+    beams: Dictionary[BeamSpeed, Long, BeamSpeed]
+  ): Option[WaySpeed] =
+    shorterPath(origNodeId, destNodeId)
+      .filter(_.length < 15)
+      .map(_.edges.map(e => dictS(e.sId).flatMap(beams(_)).map(b => b.speed -> b.length)).toSeq)
+      .map(
+        s =>
+          s.collect {
+            case Some(t) => t
+        }
+      )
+      .flatMap {
+        case Nil => None
+        case xs  => Some(xs)
+      }
+      .map(maxWeek)
+      .map(_.waySpeed[T](fOpt))
 
   def way(origNodeId: Long, destNodeId: Long): Option[WaySpeed] =
     shorterPath(origNodeId, destNodeId)
@@ -129,9 +152,8 @@ class UberSpeed[T <: FilterEventAction](
         UberDaySpeed(
           DayOfWeek.TUESDAY,
           metrics
-            .map { case (f, s) => (f * 1.60934 / 3.6).toFloat -> s }
-            .map { case (f, s) => UberHourSpeed(10, f, f, s, f) }
-            .toList
+          //.map { case (f, s) => (f * 1.60934 / 3.6).toFloat -> s }
+          .map { case (f, s) => UberHourSpeed(10, f, f, s, f) }.toList
         )
       )
     )
@@ -161,33 +183,44 @@ object UberSpeed {
 
   def apply[T <: FilterEventAction](
     path: Seq[String],
-    dictW: UberOsmDictionary,
-    dictJ: JunctionDictionary,
+    dictW: Dictionary[UberOsmWays, Long, String],
+    dictS: Dictionary[UberOsmWays, String, Long],
+    dictJ: Dictionary[UberOsmNode, String, Long],
     fOpt: T#Filtered
   )(
     implicit t: ClassTag[T],
     wf: WayFilter[T#FilterEvent, T#Filtered]
   ): UberSpeed[T] =
-    new UberSpeed(path, dictW, dictJ, fOpt)
+    new UberSpeed(path, dictW, dictS, dictJ, fOpt)
 
   def apply(
     mode: String,
     fOpt: Map[String, String],
     path: Seq[String],
-    dictW: UberOsmDictionary,
-    dictJ: JunctionDictionary
+    dictW: Dictionary[UberOsmWays, Long, String],
+    dictS: Dictionary[UberOsmWays, String, Long],
+    dictJ: Dictionary[UberOsmNode, String, Long]
   ): UberSpeed[_] = mode match {
-    case "all"   => UberSpeed[AllHoursDaysEventAction](path, dictW, dictJ, Unit)
-    case "wd"    => UberSpeed[WeekDayEventAction](path, dictW, dictJ, DayOfWeek.of(fOpt.head._2.toInt))
-    case "hours" => UberSpeed[HourEventAction](path, dictW, dictJ, fOpt.head._2.toInt)
+    case "all"   => UberSpeed[AllHoursDaysEventAction](path, dictW, dictS, dictJ, Unit)
+    case "wd"    => UberSpeed[WeekDayEventAction](path, dictW, dictS, dictJ, DayOfWeek.of(fOpt.head._2.toInt))
+    case "hours" => UberSpeed[HourEventAction](path, dictW, dictS, dictJ, fOpt.head._2.toInt)
     case "wh" =>
-      UberSpeed[WeekDayHourEventAction](path, dictW, dictJ, (DayOfWeek.of(fOpt("day").toInt), fOpt("hour").toInt))
-    case "hours_range" => UberSpeed[HourRangeEventAction](path, dictW, dictJ, (fOpt("from").toInt, fOpt("to").toInt))
-    case "we"          => UberSpeed[AllHoursWeightedEventAction](path, dictW, dictJ, Unit)
+      UberSpeed[WeekDayHourEventAction](
+        path,
+        dictW,
+        dictS,
+        dictJ,
+        (DayOfWeek.of(fOpt("day").toInt), fOpt("hour").toInt)
+      )
+    case "hours_range" =>
+      UberSpeed[HourRangeEventAction](path, dictW, dictS, dictJ, (fOpt("from").toInt, fOpt("to").toInt))
+    case "we" => UberSpeed[AllHoursWeightedEventAction](path, dictW, dictS, dictJ, Unit)
+    case "sl" => UberSpeed[BeamLengthWeightedEventAction](path, dictW, dictS, dictJ, Unit)
     case "mp" =>
       UberSpeed[MaxHourPointsEventAction](
         path,
         dictW,
+        dictS,
         dictJ,
         MaxHourPointFiltered(fOpt("from").toInt, fOpt("to").toInt, fOpt("p").toInt)
       )

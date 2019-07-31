@@ -3,8 +3,9 @@ package beam.side.speed
 import java.nio.file.Paths
 
 import beam.side.speed.compare.SpeedAnalyser
+import beam.side.speed.model.{BeamSpeed, UberOsmNode, UberOsmWays}
 import beam.side.speed.parser._
-import beam.side.speed.parser.data.{JunctionDictionary, UberOsmDictionary}
+import beam.side.speed.parser.data.{Dictionary, JunctionDictionary, UberOsmDictionary}
 
 import scala.util.{Failure, Success, Try}
 
@@ -13,6 +14,7 @@ case class CompareConfig(
   osmMapPath: String = "",
   uberOsmMap: String = "",
   junctionMapPath: String = "",
+  beamSpeedPath: String = "",
   r5MapPath: String = "",
   output: String = "",
   mode: String = "all",
@@ -108,6 +110,19 @@ trait AppSetup {
       )
       .text("Junction dictionary path")
 
+    opt[String]('s', "beam_speed")
+      .required()
+      .valueName("<beam_speed_path>")
+      .action((s, c) => c.copy(beamSpeedPath = s))
+      .validate(
+        s =>
+          Try(Paths.get(s).toFile).filter(_.exists()) match {
+            case Success(_) => success
+            case Failure(e) => failure(e.getMessage)
+        }
+      )
+      .text("Beam speed dictionary path")
+
     opt[Map[String, String]]("fArgs")
       .valueName("k1=v1,k2=v2...")
       .action((x, c) => c.copy(fArgs = x))
@@ -119,11 +134,16 @@ object SpeedCompareApp extends App with AppSetup {
 
   parser.parse(args, CompareConfig()) match {
     case Some(conf) =>
-      val nodes = JunctionDictionary(conf.junctionMapPath)
-      val ways = UberOsmDictionary(conf.uberOsmMap)
-      val uber = UberSpeed(conf.mode, conf.fArgs, conf.uberSpeedPath, ways, nodes)
+      val nodes =
+        new Dictionary[UberOsmNode, String, Long](Paths.get(conf.junctionMapPath), u => u.segmentId    -> u.osmNodeId)
+      val ways = new Dictionary[UberOsmWays, Long, String](Paths.get(conf.uberOsmMap), u => u.osmWayId -> u.segmentId)
+      val waysBeam =
+        new Dictionary[UberOsmWays, String, Long](Paths.get(conf.uberOsmMap), u => u.segmentId -> u.osmWayId)
+      val beamSpeed =
+        new Dictionary[BeamSpeed, Long, BeamSpeed](Paths.get(conf.beamSpeedPath), u => u.osmId -> u)
+      val uber = UberSpeed(conf.mode, conf.fArgs, conf.uberSpeedPath, ways, waysBeam, nodes)
 
-      SpeedComparator(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, conf.output).csvNode()
+      SpeedComparator(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, beamSpeed, conf.output).csvNode()
       //SpeedAnalyser(OsmWays(conf.osmMapPath, conf.r5MapPath), uber, conf.output).nodePartsSpeed()
       System.exit(0)
     case None => System.exit(-1)

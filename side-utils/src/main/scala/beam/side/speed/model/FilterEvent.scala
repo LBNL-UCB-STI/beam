@@ -54,6 +54,12 @@ object FilterEvent {
     override type Filtered = MaxHourPointFiltered
     type MaxHourPointsEventAction = MaxHourPointsEventAction.type
   }
+
+  case object BeamLengthWeightedEventAction extends FilterEventAction {
+    override type FilterEvent = BeamLengthDTO
+    override type Filtered = Unit
+    type BeamLengthWeightedEventAction = BeamLengthWeightedEventAction.type
+  }
 }
 
 case class AllHoursDaysDTO(filterType: String) extends FilterDTO
@@ -63,5 +69,6 @@ case class HourDTO(filterType: String) extends FilterDTO
 case class HourRangeDTO(filterType: String) extends FilterDTO
 case class WeekDayHourDTO(filterType: String) extends FilterDTO
 case class MaxHourPointsDTO(filterType: String) extends FilterDTO
+case class BeamLengthDTO(filterType: String) extends FilterDTO
 
 case class MaxHourPointFiltered(from: Int, to: Int, threshold: Int)

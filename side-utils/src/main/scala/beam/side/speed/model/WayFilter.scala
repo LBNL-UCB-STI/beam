@@ -97,4 +97,12 @@ object WayFilter {
         WaySpeed(Some(speedMax), None, Some(points))
       }
     }
+
+  implicit val beamLengthWeightedEventAction: WayFilter[BeamLengthDTO, Unit] = new WayFilter[BeamLengthDTO, Unit] {
+    override def filter(filterOption: Unit, waySpeed: Map[DayOfWeek, UberDaySpeed]): WaySpeed = {
+      def lenghts = waySpeed.values.flatMap(_.hours).map(s => (s.speedMax * (s.maxDev / 100)) -> (s.maxDev / 100))
+      val speedAvg = Try(lenghts.map(_._2).sum / lenghts.map(_._1).sum).toOption.filter(_ => lenghts.nonEmpty)
+      WaySpeed(None, speedAvg, None)
+    }
+  }
 }

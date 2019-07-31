@@ -1,9 +1,15 @@
 package beam.side.speed.parser
 import java.io.{BufferedWriter, File, FileWriter}
 
-import beam.side.speed.model.{BeamUberSpeed, LinkSpeed, WaySpeed}
+import beam.side.speed.model.{BeamSpeed, BeamUberSpeed, LinkSpeed, WaySpeed}
+import beam.side.speed.parser.data.Dictionary
 
-class SpeedComparator(ways: OsmWays, uber: UberSpeed[_], fileName: String) {
+class SpeedComparator(
+  ways: OsmWays,
+  uber: UberSpeed[_],
+  beamDict: Dictionary[BeamSpeed, Long, BeamSpeed],
+  fileName: String
+) {
   import LinkSpeed._
 
   private def nodeCompare: Iterator[LinkSpeed] =
@@ -20,6 +26,21 @@ class SpeedComparator(ways: OsmWays, uber: UberSpeed[_], fileName: String) {
               case WaySpeed(Some(speedMedian), _, Some(points))
                   if points >= 10 && ((n.speed - speedMedian) / n.speed) > 0.3 =>
                 LinkSpeed(n.eId, None, Some(speedMedian), None)
+          }
+      )
+      .collect {
+        case Some(b) => b
+      }
+
+  private def nodeCompareSimplified: Iterator[LinkSpeed] =
+    ways.nodes
+      .map(
+        n =>
+          uber
+            .speed(n.id)
+            .orElse(uber.waySimplified(n.orig, n.dest, beamDict))
+            .collect {
+              case WaySpeed(None, Some(sp), None) => LinkSpeed(n.eId, None, Some(sp), None)
           }
       )
       .collect {
@@ -43,6 +64,11 @@ class SpeedComparator(ways: OsmWays, uber: UberSpeed[_], fileName: String) {
 
 object SpeedComparator {
 
-  def apply(ways: OsmWays, uber: UberSpeed[_], fileName: String): SpeedComparator =
-    new SpeedComparator(ways, uber, fileName)
+  def apply(
+    ways: OsmWays,
+    uber: UberSpeed[_],
+    beamDict: Dictionary[BeamSpeed, Long, BeamSpeed],
+    fileName: String
+  ): SpeedComparator =
+    new SpeedComparator(ways, uber, beamDict, fileName)
 }

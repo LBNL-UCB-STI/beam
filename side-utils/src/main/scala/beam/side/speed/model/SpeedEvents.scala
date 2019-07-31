@@ -63,6 +63,17 @@ object UberOsmNode {
   }
 }
 
+case class BeamSpeed(osmId: Long, speed: Float, length: Int)
+
+object BeamSpeed {
+  implicit val beamSpeedDecoder: Decoder[BeamSpeed] = new Decoder[BeamSpeed] {
+    override def apply(row: String): BeamSpeed = {
+      val Seq(id, s, l) = row.split(',').toSeq
+      BeamSpeed(id.toLong, s.toFloat, l.toInt)
+    }
+  }
+}
+
 case class WaySpeed(speedMedian: Option[Float], speedAvg: Option[Float], maxDev: Option[Float])
 
 case class BeamUberSpeed(
