@@ -35,9 +35,10 @@
     <Logger name="beam.utils.DebugActorWithTimer" level="ERROR" />
     <Logger name="beam.calibration" level="INFO" />
     <Logger name="beam.router.BeamRouter" level="ERROR" />
-    <Logger name="beam.agentsim.agents.ridehail.RideHailAgent " level="DEBUG" />
+    <Logger name="beam.agentsim.agents.ridehail.RideHailAgent " level="INFO" />
     <Logger name="beam.agentsim.agents.TransitDriverAgent" level="ERROR" />
     <Logger name="beam.router.r5.R5RoutingWorker" level="INFO" />
+    <Logger name="beam.agentsim.agents.ridehail.repositioningmanager.DemandFollowingRepositioningManager" level="INFO" />
     <!--<Logger name="beam.agentsim.agents.vehicles.BeamVehicle" level="error" additivity="false">-->
         <!--<appender-ref ref="STDOUT"/>-->
 

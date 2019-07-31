@@ -171,10 +171,20 @@ object ParkingZoneSearch {
     tree: ZoneSearch[TAZ],
     parkingZones: Array[ParkingZone],
     distanceFunction: (Coord, Coord) => Double,
-    random: Random
+    random: Random,
+    returnSpotsWithChargers: Boolean,
+    returnSpotsWithoutChargers: Boolean
   ): Option[ParkingSearchResult] = {
-    val found = findParkingZones(destinationUTM, tazList, parkingTypes, tree, parkingZones, random)
-    //    takeBestByRanking(destinationUTM, valueOfTime, parkingDuration, found, utilityFunction, distanceFunction)
+    val found = findParkingZones(
+      destinationUTM,
+      tazList,
+      parkingTypes,
+      tree,
+      parkingZones,
+      random,
+      returnSpotsWithChargers,
+      returnSpotsWithoutChargers
+    )
     takeBestBySampling(
       found,
       destinationUTM,
@@ -203,7 +213,9 @@ object ParkingZoneSearch {
     parkingTypes: Seq[ParkingType],
     tree: ZoneSearch[TAZ],
     parkingZones: Array[ParkingZone],
-    random: Random
+    random: Random,
+    returnSpotsWithChargers: Boolean,
+    returnSpotsWithoutChargers: Boolean
   ): Seq[ParkingAlternative] = {
 
     // conduct search (toList required to combine Option and List monads)
@@ -213,7 +225,12 @@ object ParkingZoneSearch {
       parkingType         <- parkingTypes
       parkingZoneIds      <- parkingTypesSubtree.get(parkingType).toList
       parkingZoneId       <- parkingZoneIds
-      if parkingZones(parkingZoneId).stallsAvailable > 0
+      if parkingZones(parkingZoneId).stallsAvailable > 0 && canThisCarParkHere(
+        parkingZones(parkingZoneId),
+        parkingType,
+        returnSpotsWithChargers,
+        returnSpotsWithoutChargers
+      )
     } yield {
       // get the zone
       Try {
@@ -227,6 +244,18 @@ object ParkingZoneSearch {
         case Failure(e) =>
           throw new IndexOutOfBoundsException(s"Attempting to access ParkingZone with index $parkingZoneId failed.\n$e")
       }
+    }
+  }
+
+  def canThisCarParkHere(
+    parkingZone: ParkingZone,
+    parkingType: ParkingType,
+    returnSpotsWithChargers: Boolean,
+    returnSpotsWithoutChargers: Boolean
+  ): Boolean = {
+    parkingZone.chargingPointType match {
+      case Some(_) => returnSpotsWithChargers
+      case None    => returnSpotsWithoutChargers
     }
   }
 
@@ -271,12 +300,17 @@ object ParkingZoneSearch {
         val distance: Double = distanceFunction(destinationUTM, stallCoordinate)
         //val chargingCosts = (39 + random.nextInt((79 - 39) + 1)) / 100d // in $/kWh, assumed price range is $0.39 to $0.79 per kWh
 
+        val averagePersonWalkingSpeed = 1.4; // in m/s
+        val hourInSeconds = 3600;
+        val maxAssumedInstalledChargingCapacity = 350; // in kW
+        val dollarsInCents = 100;
+
         parkingAlternative ->
         Map(
           //"energyPriceFactor" -> chargingCosts, //currently assumed that these costs are included into parkingCostsPriceFactor
-          "distanceFactor"          -> (distance / 1.4 / 3600.0) * valueOfTime, // in US$
-          "installedCapacity"       -> (installedCapacity / 350) * (parkingDuration / 3600) * valueOfTime, // in US$ - assumption/untested parkingDuration in seconds
-          "parkingCostsPriceFactor" -> parkingTicket / 100 //in US$, assumptions for now: parking ticket costs include charging
+          "distanceFactor"          -> (distance / averagePersonWalkingSpeed / hourInSeconds) * valueOfTime, // in US$
+          "installedCapacity"       -> (installedCapacity / maxAssumedInstalledChargingCapacity) * (parkingDuration / hourInSeconds) * valueOfTime, // in US$ - assumption/untested parkingDuration in seconds
+          "parkingCostsPriceFactor" -> parkingTicket / dollarsInCents //in US$, assumptions for now: parking ticket costs include charging
         )
       }
 
