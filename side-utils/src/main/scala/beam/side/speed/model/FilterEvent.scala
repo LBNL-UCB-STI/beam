@@ -48,6 +48,12 @@ object FilterEvent {
     override type Filtered = (DayOfWeek, Int)
     type WeekDayHourEventAction = WeekDayHourEventAction.type
   }
+
+  case object MaxHourPointsEventAction extends FilterEventAction {
+    override type FilterEvent = MaxHourPointsDTO
+    override type Filtered = MaxHourPointFiltered
+    type MaxHourPointsEventAction = MaxHourPointsEventAction.type
+  }
 }
 
 case class AllHoursDaysDTO(filterType: String) extends FilterDTO
@@ -56,3 +62,6 @@ case class WeekDayDTO(filterType: String) extends FilterDTO
 case class HourDTO(filterType: String) extends FilterDTO
 case class HourRangeDTO(filterType: String) extends FilterDTO
 case class WeekDayHourDTO(filterType: String) extends FilterDTO
+case class MaxHourPointsDTO(filterType: String) extends FilterDTO
+
+case class MaxHourPointFiltered(from: Int, to: Int, threshold: Int)

@@ -88,7 +88,7 @@ trait AppSetup {
       .action((m, c) => c.copy(mode = m))
       .validate(
         s =>
-          Seq("all", "wd", "hours", "wh", "hours_range", "we")
+          Seq("all", "wd", "hours", "wh", "hours_range", "we", "mp")
             .find(_ == s)
             .map(_ => success)
             .getOrElse(failure("Invalid"))

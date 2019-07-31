@@ -85,4 +85,16 @@ object WayFilter {
       override def filter(filterOption: (DayOfWeek, Int), waySpeed: Map[DayOfWeek, UberDaySpeed]): WaySpeed =
         parseHours(waySpeed.get(filterOption._1).map(_.hours).getOrElse(Seq()).filter(_.hour == filterOption._2))
     }
+
+  implicit val maxHoursPointsEventAction: WayFilter[MaxHourPointsDTO, MaxHourPointFiltered] =
+    new WayFilter[MaxHourPointsDTO, MaxHourPointFiltered] {
+      override def filter(filterOption: MaxHourPointFiltered, waySpeed: Map[DayOfWeek, UberDaySpeed]): WaySpeed = {
+        val hoursRange = (0 to 23).toList.diff((filterOption.to to filterOption.from).toList)
+        val points = waySpeed.values
+          .flatMap(_.hours)
+          .foldLeft(0)((acc, h) => Option(hoursRange.contains(h.hour)).filter(identity).fold(acc)(_ => acc + 1))
+        val speedMax = waySpeed.values.flatMap(_.hours).map(_.speedMax).max
+        WaySpeed(Some(speedMax), None, Some(points))
+      }
+    }
 }

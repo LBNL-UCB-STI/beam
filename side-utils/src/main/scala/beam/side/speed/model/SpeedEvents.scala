@@ -80,8 +80,7 @@ case class LinkSpeed(
   linkId: Int,
   capacity: Option[Double],
   freeSpeed: Option[Float],
-  length: Option[Double],
-  obsrs: Option[Int]
+  length: Option[Double]
 )
 
 object LinkSpeed {
