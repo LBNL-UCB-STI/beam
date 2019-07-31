@@ -2,7 +2,8 @@ package beam.agentsim.infrastructure.parking
 
 import scala.util.Random
 
-import beam.agentsim.infrastructure.charging.ChargingInquiryData
+import beam.agentsim.infrastructure.ParkingInquiry
+import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.taz._
 import beam.sim.common.GeoUtils
 import org.matsim.api.core.v01.{Coord, Id}
@@ -19,48 +20,57 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
           destinationInMiddle,
           valueOfTime = 0.0,
           parkingDuration = 0.0, // ignore pricing ranking
-          Option.empty[ChargingInquiryData[String, String]],
+          ParkingInquiry.simpleDistanceAndParkingTicketEqualUtilityFunction,
           Seq(TAZ.DefaultTAZ),
           Seq(ParkingType.Public),
           tree,
           zones,
           ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
-          ParkingZoneSearchSpec.random
+          ParkingZoneSearchSpec.random,
+          true,
+          true
         )
 
         result should be(None)
       }
     }
+
     "search for parking with full availability" should {
-      "find a spot in the nearest TAZ with full availability which places the stall exactly at the driver's destination" in new ParkingZoneSearchSpec.SimpleParkingAlternatives {
-        val result: Option[ParkingRanking.RankingAccumulator] = ParkingZoneSearch.find(
-          destinationNearTazA,
+      "find a spot which places the stall exactly at the driver's destination" in new ParkingZoneSearchSpec.SimpleParkingAlternatives {
+        val result: Option[ParkingZoneSearch.ParkingSearchResult] = ParkingZoneSearch.find(
+          destinationNearTazB,
           valueOfTime = 1.0,
           parkingDuration = 0.0, // ignore pricing ranking
-          Option.empty[ChargingInquiryData[String, String]],
+          ParkingInquiry.simpleDistanceEqualUtilityFunction,
           tazsInProblem,
           Seq(ParkingType.Public),
           parkingSearchTree,
           parkingZones,
           ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
-          ParkingZoneSearchSpec.random
+          ParkingZoneSearchSpec.random,
+          true,
+          true
         )
 
         result match {
-          case None                                                                                             => fail()
-          case Some(ParkingRanking.RankingAccumulator(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
+          case None => fail()
+          case Some(
+              ParkingZoneSearch.ParkingSearchResult(taz, parkingType, parkingZone, stallCoord, utilityOfAlternative)
+              ) =>
+            // due to 100% availability at both stalls, the taz could be either TAZ
+
             // since everything is equal, either TAZ should work out, but
-            // whichever one was selected, it should have had a ranking value of zero
-            rankingValue should equal(0.0)
+            utilityOfAlternative should equal(0)
 
             // these should be consistent with the configuration of this scenario
             parkingType should equal(ParkingType.Public)
 
             // since availability is 18/18 = 1.0, sample location should equal destination coordinate
-            stallCoord should equal(destinationNearTazA)
+            stallCoord should equal(destinationNearTazB)
         }
       }
     }
+
     "search for parking exactly between two TAZs finds some availability at one TAZ" should {
       "find a spot near their destination but with some variance due to the availability of parking" in new ParkingZoneSearchSpec.SimpleParkingAlternatives {
 
@@ -69,22 +79,24 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         // make TAZ B's parking stalls have medium availability
         parkingZones(1).stallsAvailable = 14
 
-        val result: Option[ParkingRanking.RankingAccumulator] = ParkingZoneSearch.find(
+        val result: Option[ParkingZoneSearch.ParkingSearchResult] = ParkingZoneSearch.find(
           destinationInMiddle,
           valueOfTime = 1.0,
           parkingDuration = 0.0, // ignore pricing ranking
-          Option.empty[ChargingInquiryData[String, String]],
+          ParkingInquiry.simpleDistanceAndParkingTicketEqualUtilityFunction,
           tazsInProblem,
           Seq(ParkingType.Public),
           parkingSearchTree,
           parkingZones,
           ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
-          ParkingZoneSearchSpec.random
+          ParkingZoneSearchSpec.random,
+          true,
+          true
         )
 
         result match {
-          case None                                                                                             => fail()
-          case Some(ParkingRanking.RankingAccumulator(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
+          case None                                                                                                 => fail()
+          case Some(ParkingZoneSearch.ParkingSearchResult(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
             // TAZ B should have been selected because everything is equal except for availability is lower for A
             taz should equal(tazB)
 
@@ -111,22 +123,24 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         // make TAZ A's parking stalls have very low availability
         parkingZones(0).stallsAvailable = 0
 
-        val result: Option[ParkingRanking.RankingAccumulator] = ParkingZoneSearch.find(
+        val result: Option[ParkingZoneSearch.ParkingSearchResult] = ParkingZoneSearch.find(
           destinationNearTazA,
           valueOfTime = 1.0,
           parkingDuration = 0.0,
-          Option.empty[ChargingInquiryData[String, String]],
+          ParkingInquiry.simpleDistanceAndParkingTicketEqualUtilityFunction,
           tazsInProblem,
           Seq(ParkingType.Public),
           parkingSearchTree,
           parkingZones,
           ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
-          ParkingZoneSearchSpec.random
+          ParkingZoneSearchSpec.random,
+          true,
+          true
         )
 
         result match {
-          case None                                                                                             => fail()
-          case Some(ParkingRanking.RankingAccumulator(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
+          case None                                                                                                 => fail()
+          case Some(ParkingZoneSearch.ParkingSearchResult(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
             // TAZ B should have been selected because everything is equal except for availability is lower for A
             taz should equal(tazB)
 
@@ -147,32 +161,48 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         val parkingDuration: Double = 3600 * 9
         val valueOfTime: Double = 0.0
 
-        val result: Option[ParkingRanking.RankingAccumulator] = ParkingZoneSearch.find(
-          destinationInMiddle,
-          valueOfTime = valueOfTime,
-          parkingDuration = parkingDuration,
-          Option.empty[ChargingInquiryData[String, String]],
-          tazsInProblem,
-          Seq(ParkingType.Public),
-          parkingSearchTree,
-          parkingZones,
-          ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
-          ParkingZoneSearchSpec.random
-        )
+        // number of samples for sampling based on MNL
+        val sampleSize = 10000
 
-        result match {
-          case None                                                                                             => fail()
-          case Some(ParkingRanking.RankingAccumulator(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
-            // TAZ B should have been selected because everything is equal except for availability is lower for A
-            taz should equal(tazB)
-
-            // these should be consistent with the configuration of this scenario
-            parkingType should equal(ParkingType.Public)
-            parkingZone.parkingZoneId should equal(1)
-
-            // the stall should be exactly located at the destination
-            stallCoord should equal(destinationInMiddle)
+        val samples: IndexedSeq[ParkingZoneSearch.ParkingSearchResult] = for {
+          _ <- 1 until sampleSize
+          result <- ParkingZoneSearch.find(
+            destinationInMiddle,
+            valueOfTime = valueOfTime,
+            parkingDuration = parkingDuration,
+            ParkingInquiry.simpleDistanceAndParkingTicketEqualUtilityFunction,
+            tazsInProblem,
+            Seq(ParkingType.Public),
+            parkingSearchTree,
+            parkingZones,
+            ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
+            ParkingZoneSearchSpec.random,
+            true,
+            true
+          )
+        } yield {
+          result
         }
+
+        // 50% or more times TAZ B should have been selected because everything is equal
+        // except the ticket fee and the availability which is lower for A
+        samples.count {
+          _.bestTAZ == tazB
+        } > (sampleSize / 2)
+
+        // these should be consistent with the configuration of this scenario
+        samples
+          .filter(_.bestTAZ == tazB)
+          .foreach(searchResult => (searchResult.bestParkingType should equal(ParkingType.Public)))
+        samples
+          .filter(_.bestTAZ == tazB)
+          .foreach(searchResult => (searchResult.bestParkingZone.parkingZoneId should equal(1)))
+
+        // the stall should be exactly located at the destination
+        samples
+          .filter(_.bestTAZ == tazB)
+          .foreach(searchResult => (searchResult.bestCoord should equal(destinationInMiddle)))
+
       }
     }
     "search for parking exactly between two TAZs where flat fee pricing is better" should {
@@ -183,32 +213,48 @@ class ParkingZoneSearchSpec extends WordSpec with Matchers {
         val parkingDuration: Double = 3600 * 11
         val valueOfTime: Double = 0.0
 
-        val result: Option[ParkingRanking.RankingAccumulator] = ParkingZoneSearch.find(
-          destinationInMiddle,
-          valueOfTime = valueOfTime,
-          parkingDuration = parkingDuration,
-          Option.empty[ChargingInquiryData[String, String]],
-          tazsInProblem,
-          Seq(ParkingType.Public),
-          parkingSearchTree,
-          parkingZones,
-          ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
-          ParkingZoneSearchSpec.random
-        )
+        // number of samples for sampling based on MNL
+        val sampleSize = 10000
 
-        result match {
-          case None                                                                                             => fail()
-          case Some(ParkingRanking.RankingAccumulator(taz, parkingType, parkingZone, stallCoord, rankingValue)) =>
-            // TAZ B should have been selected because everything is equal except for availability is lower for A
-            taz should equal(tazA)
-
-            // these should be consistent with the configuration of this scenario
-            parkingType should equal(ParkingType.Public)
-            parkingZone.parkingZoneId should equal(0)
-
-            // the stall should be exactly located at the destination
-            stallCoord should equal(destinationInMiddle)
+        val samples: IndexedSeq[ParkingZoneSearch.ParkingSearchResult] = for {
+          _ <- 1 until sampleSize
+          result <- ParkingZoneSearch.find(
+            destinationInMiddle,
+            valueOfTime = valueOfTime,
+            parkingDuration = parkingDuration,
+            ParkingInquiry.simpleDistanceAndParkingTicketEqualUtilityFunction,
+            tazsInProblem,
+            Seq(ParkingType.Public),
+            parkingSearchTree,
+            parkingZones,
+            ParkingZoneSearchSpec.mockGeoUtils.distUTMInMeters,
+            ParkingZoneSearchSpec.random,
+            true,
+            true
+          )
+        } yield {
+          result
         }
+
+        // 50% or more times TAZ A should have been selected because everything except the ticket fee is equal
+        // except the ticket fee and the availability which is lower for A
+        samples.count {
+          _.bestTAZ == tazA
+        } > (sampleSize / 2)
+
+        // these should be consistent with the configuration of this scenario
+        samples
+          .filter(_.bestTAZ == tazA)
+          .foreach(searchResult => (searchResult.bestParkingType should equal(ParkingType.Public)))
+
+        samples
+          .filter(_.bestTAZ == tazA)
+          .foreach(searchResult => (searchResult.bestParkingZone.parkingZoneId should equal(0)))
+
+        // the stall should be exactly located at the destination
+        samples
+          .filter(_.bestTAZ == tazA)
+          .foreach(searchResult => (searchResult.bestCoord should equal(destinationInMiddle)))
       }
     }
   }
@@ -229,8 +275,8 @@ object ParkingZoneSearchSpec {
 
     val sourceData: Iterator[String] =
       """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
-        |A,Public,FlatFee,UltraFast,7,1000,unused
-        |B,Public,Block,UltraFast,18,100,unused
+        |A,Public,FlatFee,none,7,1000,unused
+        |B,Public,Block,none,18,100,unused
         |
       """.stripMargin.split("\n").toIterator
 

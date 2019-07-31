@@ -3,7 +3,6 @@ package beam.agentsim.infrastructure.parking
 import java.io.{BufferedReader, File, IOException}
 
 import scala.annotation.tailrec
-import scala.collection.Map
 import scala.util.{Failure, Success, Try}
 import scala.util.matching.Regex
 import scala.collection.JavaConverters._
@@ -22,7 +21,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     * used to parse a row of the parking file
     * last row (ReservedFor) is ignored
     */
-  val ParkingFileRowRegex: Regex = """(\w+),(\w+),(\w+),(\w+),(\d+),(\d+).*""".r.unanchored
+  val ParkingFileRowRegex: Regex = """(\w+),(\w+),(\w+),(\w.+),(\d+),(\d+).*""".r.unanchored
 
   /**
     * header for parking files (used for writing new parking files)

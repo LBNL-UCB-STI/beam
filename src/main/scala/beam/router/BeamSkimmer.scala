@@ -96,7 +96,7 @@ class BeamSkimmer @Inject()(
             departureTime,
             mode,
             travelTime,
-            new BeamPath(null, null, None, null, null, travelDistance)
+            new BeamPath(IndexedSeq(), IndexedSeq(), None, null, null, travelDistance)
           ),
           beamScenario.vehicleTypes(vehicleTypeId),
           beamScenario.fuelTypePrices
@@ -278,15 +278,15 @@ class BeamSkimmer @Inject()(
 
   def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     if (beamConfig.beam.outputs.writeSkimsInterval > 0 && event.getIteration % beamConfig.beam.outputs.writeSkimsInterval == 0) {
-      ProfilingUtils.timed(s"writeObservedSkims on iteration ${event.getIteration}", x => logger.info(x)) {
-        writeObservedSkims(event)
-      }
-      ProfilingUtils.timed(
-        s"writeAllModeSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}",
-        x => logger.info(x)
-      ) {
-        writeAllModeSkimsForPeakNonPeakPeriods(event)
-      }
+//      ProfilingUtils.timed(s"writeObservedSkims on iteration ${event.getIteration}", x => logger.info(x)) {
+//        writeObservedSkims(event)
+//      }
+//      ProfilingUtils.timed(
+//        s"writeAllModeSkimsForPeakNonPeakPeriods on iteration ${event.getIteration}",
+//        x => logger.info(x)
+//      ) {
+//        writeAllModeSkimsForPeakNonPeakPeriods(event)
+//      }
       ProfilingUtils.timed(s"writeObservedSkimsPlus on iteration ${event.getIteration}", x => logger.info(x)) {
         writeObservedSkimsPlus(event)
       }
@@ -538,6 +538,24 @@ class BeamSkimmer @Inject()(
     val taz = tazTreeMap.getTAZ(location.getX, location.getY)
     val key = (trackSkimsPlusTS, taz.tazId, vehicleManager, label)
     skimsPlus.put(key, skimsPlus.getOrElse(key, 0.0) + count.toDouble)
+  }
+
+  def countEvents(
+    curBin: Int,
+    tazId: Id[TAZ],
+    vehicleManager: Id[VehicleManager],
+    label: Label,
+    count: Int = 1
+  ): Unit = {
+    if (curBin > trackSkimsPlusTS) trackSkimsPlusTS = curBin
+    val key = (trackSkimsPlusTS, tazId, vehicleManager, label)
+    skimsPlus.put(key, skimsPlus.getOrElse(key, 0.0) + count.toDouble)
+  }
+
+  def addValue(curBin: Int, tazId: Id[TAZ], vehicleManager: Id[VehicleManager], label: Label, value: Double) = {
+    if (curBin > trackSkimsPlusTS) trackSkimsPlusTS = curBin
+    val key = (trackSkimsPlusTS, tazId, vehicleManager, label)
+    skimsPlus.put(key, skimsPlus.getOrElse(key, 0.0) + value)
   }
 
   def observeVehicleAvailabilityByTAZ(
