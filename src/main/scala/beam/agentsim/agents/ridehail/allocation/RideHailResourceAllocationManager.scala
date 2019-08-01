@@ -230,7 +230,6 @@ object RideHailResourceAllocationManager {
   val IMMEDIATE_DISPATCH_WITH_OVERWRITE = "IMMEDIATE_DISPATCH_WITH_OVERWRITE"
   val POOLING = "POOLING"
   val POOLING_ALONSO_MORA = "POOLING_ALONSO_MORA"
-  val REPOSITIONING_LOW_WAITING_TIMES = "REPOSITIONING_LOW_WAITING_TIMES"
   val DUMMY_DISPATCH_WITH_BUFFERING = "DUMMY_DISPATCH_WITH_BUFFERING"
 
   def apply(
@@ -247,8 +246,6 @@ object RideHailResourceAllocationManager {
         new Pooling(rideHailManager)
       case RideHailResourceAllocationManager.POOLING_ALONSO_MORA =>
         new PoolingAlonsoMora(rideHailManager)
-      case RideHailResourceAllocationManager.REPOSITIONING_LOW_WAITING_TIMES =>
-        ???
       case classFullName =>
         try {
           Class
