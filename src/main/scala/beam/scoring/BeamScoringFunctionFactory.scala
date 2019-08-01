@@ -13,29 +13,28 @@ import beam.sim.population.AttributesOfIndividual
 import beam.sim.population.PopulationAdjustment._
 import beam.sim.{BeamConfigChangesObservable, BeamServices, MapStringDouble, OutputDataDescription}
 import beam.utils.{FileUtils, OutputDataDescriptor}
+import com.typesafe.scalalogging.LazyLogging
 import javax.inject.Inject
 import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
-import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.language.postfixOps
 
 class BeamScoringFunctionFactory @Inject()(
   beamServices: BeamServices,
   beamConfigChangesObservable: BeamConfigChangesObservable
 ) extends ScoringFunctionFactory
     with IterationEndsListener
-    with Observer {
+    with Observer
+    with LazyLogging {
 
   beamConfigChangesObservable.addObserver(this)
 
   private var beamConfig = beamServices.beamConfig
-  private val log = LoggerFactory.getLogger(classOf[BeamScoringFunctionFactory])
 
   override def createNewScoringFunction(person: Person): ScoringFunction = {
     new ScoringFunction {
@@ -84,15 +83,21 @@ class BeamScoringFunctionFactory @Inject()(
         person.getSelectedPlan.getAttributes
           .putAttribute("scores", MapStringDouble(Map("NA" -> Double.NaN)))
 
-        if (person.getSelectedPlan.getPlanElements.asScala.filter(_.isInstanceOf[Leg]).isEmpty) {
+        val personLegs = person.getSelectedPlan.getPlanElements.asScala.collect { case leg: Leg => leg }
+        if (personLegs.isEmpty) {
           val newPlan = ReplanningUtil.addBeamTripsToPlanWithOnlyActivities(person.getSelectedPlan, trips.toVector)
           person.addPlan(newPlan)
           person.removePlan(person.getSelectedPlan)
           person.setSelectedPlan(newPlan)
         }
-        person.getSelectedPlan.getPlanElements.asScala.filter(_.isInstanceOf[Leg]).foldLeft(0) { (i, elem) =>
-          elem.asInstanceOf[Leg].getAttributes.putAttribute("vehicles", trips(i).vehiclesInTrip.mkString(","))
-          i + 1
+        if (trips.size != personLegs.size) {
+          logger.warn(
+            s"Person[${person.getId}] has ${trips.size} trips, ${personLegs.size} legs. Is there something wrong?"
+          )
+        }
+        trips.zip(personLegs).map {
+          case (trip, leg) =>
+            leg.getAttributes.putAttribute("vehicles", trip.vehiclesInTrip.mkString(","))
         }
 
         val allDayScore = modeChoiceCalculator.computeAllDayUtility(trips, person, attributes)
@@ -347,10 +352,10 @@ object BeamScoringFunctionFactory extends OutputDataDescriptor {
       "mode"                  -> "Trip mode based on all legs within the trip",
       "cost"                  -> "Estimated cost incurred for the entire trip",
       "score"                 -> "Trip score calculated based on the scoring function"
-    ) map {
+    ).map {
       case (header, description) =>
         outputDataDescription.copy(field = header, description = description)
-    } asJava
+    }.asJava
   }
 
 }
