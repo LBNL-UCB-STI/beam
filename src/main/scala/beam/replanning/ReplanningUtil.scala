@@ -32,10 +32,11 @@ object ReplanningUtil {
       for (i <- 0 until (experiencedPlan.getPlanElements.size() - 1)) {
         experiencedPlan.getPlanElements.get(i) match {
           case leg: Leg =>
-            leg.getAttributes.putAttribute(
-              "vehicles",
-              person.getSelectedPlan.getPlanElements.get(i).getAttributes.getAttribute("vehicles")
-            )
+            // Make sure it is not `null`
+            Option(person.getSelectedPlan.getPlanElements.get(i).getAttributes.getAttribute("vehicles")).foreach {
+              attibValue =>
+                leg.getAttributes.putAttribute("vehicles", attibValue)
+            }
           case _ =>
         }
       }
@@ -84,8 +85,9 @@ object ReplanningUtil {
             )
           case _ =>
             val newLeg = PopulationUtils.createLeg(originalPlan.getPlanElements.get(i).asInstanceOf[Leg])
-            newLeg.getAttributes
-              .putAttribute("vehicles", originalPlan.getPlanElements.get(i).getAttributes.getAttribute("vehicles"))
+            Option(originalPlan.getPlanElements.get(i).getAttributes.getAttribute("vehicles")).foreach { attribValue =>
+              newLeg.getAttributes.putAttribute("vehicles", attribValue)
+            }
             experiencedPlan.addLeg(newLeg)
         }
       }
