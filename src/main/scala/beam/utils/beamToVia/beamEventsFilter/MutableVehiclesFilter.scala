@@ -6,6 +6,13 @@ import scala.collection.mutable
 
 object MutableVehiclesFilter {
 
+  trait SelectNewVehicle {
+    def select(vehicleMode: String, vehicleType: String, vehicleId: String): Boolean
+    def fitIn(chanсe: Double): Boolean = Math.random() <= chanсe
+  }
+
+  def apply(selectNewVehicle: SelectNewVehicle): MutableVehiclesFilter = new MutableVehiclesFilter(selectNewVehicle)
+
   def apply(
     vehicleSampling: Seq[VehicleSample] = Seq.empty[VehicleSample],
     vehicleSamplingOtherTypes: Double = 1.0
@@ -27,7 +34,12 @@ object MutableVehiclesFilter {
         }
       }
 
-    new MutableVehiclesFilter(selectNewVehicleByIdType)
+    object SelectNewVehicle1 extends SelectNewVehicle {
+      override def select(vehicleMode: String, vehicleType: String, vehicleId: String): Boolean =
+        selectNewVehicleByIdType(vehicleId, vehicleType)
+    }
+
+    MutableVehiclesFilter(SelectNewVehicle1)
   }
 
   def withListOfExclude(
@@ -52,7 +64,12 @@ object MutableVehiclesFilter {
         })
       }
 
-    new MutableVehiclesFilter(selectNewVehicleByIdType)
+    object SelectNewVehicle1 extends SelectNewVehicle {
+      override def select(vehicleMode: String, vehicleType: String, vehicleId: String): Boolean =
+        selectNewVehicleByIdType(vehicleId, vehicleType)
+    }
+
+    MutableVehiclesFilter(SelectNewVehicle1)
   }
 
   def withListOfInclude(
@@ -78,7 +95,12 @@ object MutableVehiclesFilter {
         })
       }
 
-    new MutableVehiclesFilter(selectNewVehicleByIdType)
+    object SelectNewVehicle1 extends SelectNewVehicle {
+      override def select(vehicleMode: String, vehicleType: String, vehicleId: String): Boolean =
+        selectNewVehicleByIdType(vehicleId, vehicleType)
+    }
+
+    MutableVehiclesFilter(SelectNewVehicle1)
   }
 
   def withListOfIncludeAndNecessary(
@@ -107,19 +129,24 @@ object MutableVehiclesFilter {
         }))
       }
 
-    new MutableVehiclesFilter(selectNewVehicleByIdType)
+    object SelectNewVehicle1 extends SelectNewVehicle {
+      override def select(vehicleMode: String, vehicleType: String, vehicleId: String): Boolean =
+        selectNewVehicleByIdType(vehicleId, vehicleType)
+    }
+
+    MutableVehiclesFilter(SelectNewVehicle1)
   }
 }
 
-class MutableVehiclesFilter(selectNewVehicleByIdType: (String, String) => Boolean) extends MutableSamplingFilter {
+class MutableVehiclesFilter(selectNewVehicle: MutableVehiclesFilter.SelectNewVehicle) extends MutableSamplingFilter {
 
   private val metVehicles = mutable.Map.empty[String, Boolean]
   private val vehicleTrips = mutable.Map.empty[String, VehicleTrip]
 
-  def vehicleSelected(vId: String, vType: String): Boolean = metVehicles.get(vId) match {
+  def vehicleSelected(vId: String, vType: String, vMode: String): Boolean = metVehicles.get(vId) match {
     case Some(decision) => decision
     case None =>
-      val decision = selectNewVehicleByIdType(vId, vType)
+      val decision = selectNewVehicle.select(vMode, vType, vId)
       metVehicles(vId) = decision
       decision
   }
@@ -136,7 +163,7 @@ class MutableVehiclesFilter(selectNewVehicleByIdType: (String, String) => Boolea
       metVehicles.get(pte.vehicleId) match {
         case Some(true) => addVehiclePTE(pte)
         case None =>
-          val decision = vehicleSelected(pte.vehicleId, pte.vehicleType)
+          val decision = vehicleSelected(pte.vehicleId, pte.vehicleType, pte.mode)
           if (decision) addVehiclePTE(pte)
         case _ =>
       }

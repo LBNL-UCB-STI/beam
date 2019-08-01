@@ -7,36 +7,12 @@ import beam.utils.beamToVia.beamEventsFilter.MutableSamplingFilter
 import scala.collection.mutable
 
 object CollectIds extends App {
-  val sourcePath = "D:/Work/BEAM/visualizations/v2.it20.events.bridge_cap_5000.half.csv"
-  val outputPath = "D:/Work/BEAM/visualizations/collectedIds/v2.it20.events.bridge_cap_5000.half2.csv"
+  val dirPath = "D:/Work/BEAM/visualizations/"
 
-  val personsInCircle = HashSetReader.fromFile("D:/Work/BEAM/visualizations/v2.it20.events.bridge_cap_5000.half_in_SF.persons.txt")
-  val vehiclesInCircle = HashSetReader.fromFile("D:/Work/BEAM/visualizations/v2.it20.events.bridge_cap_5000.half_in_SF.vehicles.txt")
+  val sourcePath = dirPath + "v33.it20.events.csv"
+  val outputPath = dirPath + "collectedIds/v33.it20.events.csv"
 
-/*  object Filter extends MutableSamplingFilter {
-    private val empty = Seq.empty[BeamEvent]
-    override def filter(event: BeamEvent): Seq[BeamEvent] = {
-      event match {
-        case pte: BeamPathTraversal =>
-          if (vehiclesInCircle.contains(pte.vehicleId)) Seq(event)
-          else empty
-
-        case pev: BeamPersonEntersVehicle =>
-          if (personsInCircle.contains(pev.personId) && vehiclesInCircle.contains(pev.vehicleId)) Seq(event)
-          else empty
-
-        case plv: BeamPersonLeavesVehicle =>
-          if (personsInCircle.contains(plv.personId) && vehiclesInCircle.contains(plv.vehicleId)) Seq(event)
-          else empty
-
-        case _ => empty
-      }
-    }
-  }
-
-  val events = BeamEventsReader
-    .fromFileWithFilter(sourcePath, Filter)
-    .getOrElse(Seq.empty[BeamEvent])
+  val vehiclesInCircle = HashSetReader.fromFile(dirPath + "v33.it20.events.in_SF.vehicles.txt")
 
   case class PersonIdInfo(
     id: String,
@@ -79,16 +55,49 @@ object CollectIds extends App {
       )
   }
 
-  case class Accumulator(
-    vehicles: mutable.HashMap[String, VehicleIdInfo] = mutable.HashMap.empty[String, VehicleIdInfo],
-    vehiclesTypeToIds: mutable.HashMap[String, mutable.HashSet[String]] =
-      mutable.HashMap.empty[String, mutable.HashSet[String]],
-    persons: mutable.HashMap[String, PersonIdInfo] = mutable.HashMap.empty[String, PersonIdInfo],
-    vehicleTypes: mutable.HashMap[String, Int] = mutable.HashMap.empty[String, Int],
-    vehicleToType: mutable.HashMap[String, String] = mutable.HashMap.empty[String, String]
-  )
+  def vehicleType(pte: BeamPathTraversal): String =
+    pte.mode + "_" + pte.vehicleType + "_P%03d".format(pte.numberOfPassengers)
 
-  val accumulator = events.foldLeft(Accumulator())((acc, event) => {
+  def vehicleId(pte: BeamPathTraversal): String =
+    vehicleType(pte) + "__" + pte.vehicleId
+
+  class Accumulator {
+    val vehicleTypes = mutable.HashMap.empty[String, Int]
+    val vehicleTypesOutOfCircle = mutable.HashMap.empty[String, Int]
+    // val vehicles = mutable.HashMap.empty[String, VehicleIdInfo]
+    // val vehiclesTypeToIds = mutable.HashMap.empty[String, mutable.HashSet[String]]
+    // val persons = mutable.HashMap.empty[String, PersonIdInfo]
+    // val vehicleToType = mutable.HashMap.empty[String, String]
+
+    def process(event: BeamEvent): Unit = {
+      event match {
+        case pte: BeamPathTraversal if vehiclesInCircle.contains(pte.vehicleId) =>
+          val vType = pte.mode + "____" + pte.vehicleType
+          vehicleTypes.get(vType) match {
+            case Some(cnt) => vehicleTypes(vType) = cnt + 1
+            case None      => vehicleTypes(vType) = 1
+          }
+
+        case pte: BeamPathTraversal =>
+          val vType = pte.mode + "____" + pte.vehicleType
+          vehicleTypesOutOfCircle.get(vType) match {
+            case Some(cnt) => vehicleTypesOutOfCircle(vType) = cnt + 1
+            case None      => vehicleTypesOutOfCircle(vType) = 1
+          }
+
+        case _ =>
+      }
+    }
+  }
+
+  val accumulator = BeamEventsReader
+    .fromFileFoldLeft[Accumulator](sourcePath, new Accumulator(), (acc, event) => {
+      acc.process(event)
+      acc
+    })
+    .getOrElse(new Accumulator())
+
+  /* val accumulator = events.foldLeft(Accumulator())((acc, event) => {
     if (event.time <= 27000) acc
     else
       event match {
@@ -173,6 +182,7 @@ object CollectIds extends App {
     outputPath + ".vehicles.txt"
   )
   Console.println("vehicles written into " + outputPath + ".vehicles.txt")
+   */
 
   Writer.writeSeqOfString(
     accumulator.vehicleTypes
@@ -186,5 +196,17 @@ object CollectIds extends App {
   )
   Console.println("vehicle types written into " + outputPath + ".vehicleTypes.txt")
 
-  Console.println("done")*/
+  Writer.writeSeqOfString(
+    accumulator.vehicleTypesOutOfCircle
+      .map {
+        case (vType, cnt) => "%09d %s".format(cnt, vType)
+        case _            => ""
+      }
+      .toSeq
+      .sorted,
+    outputPath + ".vehicleTypes.OOC.txt"
+  )
+  Console.println("vehicle types out of circle written into " + outputPath + ".vehicleTypes.txt")
+
+  Console.println("done")
 }
