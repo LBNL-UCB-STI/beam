@@ -23,7 +23,7 @@ import beam.router.model.BeamLeg._
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
-import beam.router.r5.R5RoutingWorker.{R5Request, StopVisitor, createBushwackingBeamLeg}
+import beam.router.r5.R5RoutingWorker.{createBushwackingBeamLeg, R5Request, StopVisitor}
 import beam.sim.BeamScenario
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -589,8 +589,19 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       streetRouter.streetMode = toR5StreetMode(vehicle.mode)
       if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)) {
         if (profileRequest.hasTransit) {
-          val destinationSplit = transportNetwork.streetLayer.findSplit(profileRequest.toLat, profileRequest.toLon, StreetLayer.LINK_RADIUS_METERS, streetRouter.streetMode)
-          val stopVisitor = new StopVisitor(transportNetwork.streetLayer, streetRouter.quantityToMinimize, streetRouter.transitStopSearchQuantity, profileRequest.getMinTimeLimit(streetRouter.streetMode), destinationSplit)
+          val destinationSplit = transportNetwork.streetLayer.findSplit(
+            profileRequest.toLat,
+            profileRequest.toLon,
+            StreetLayer.LINK_RADIUS_METERS,
+            streetRouter.streetMode
+          )
+          val stopVisitor = new StopVisitor(
+            transportNetwork.streetLayer,
+            streetRouter.quantityToMinimize,
+            streetRouter.transitStopSearchQuantity,
+            profileRequest.getMinTimeLimit(streetRouter.streetMode),
+            destinationSplit
+          )
           streetRouter.setRoutingVisitor(stopVisitor)
           streetRouter.timeLimitSeconds = profileRequest.getTimeLimit(vehicle.mode.r5Mode.get.left.get)
           streetRouter.route()
@@ -604,7 +615,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
               val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
               if (lastState != null) {
                 val streetPath = new StreetPath(lastState, transportNetwork, false)
-                val streetSegment = new StreetSegment(streetPath, vehicle.mode.r5Mode.get.left.get, transportNetwork.streetLayer)
+                val streetSegment =
+                  new StreetSegment(streetPath, vehicle.mode.r5Mode.get.left.get, transportNetwork.streetLayer)
                 directOption.addDirect(streetSegment, profileRequest.getFromTimeDateZD)
               } else if (profileRequest.streetTime * 60 > streetRouter.timeLimitSeconds) {
                 val streetRouter = new StreetRouter(
@@ -618,10 +630,12 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                 streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
                 streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)
                 streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)
+                streetRouter.route()
                 val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
                 if (lastState != null) {
                   val streetPath = new StreetPath(lastState, transportNetwork, false)
-                  val streetSegment = new StreetSegment(streetPath, vehicle.mode.r5Mode.get.left.get, transportNetwork.streetLayer)
+                  val streetSegment =
+                    new StreetSegment(streetPath, vehicle.mode.r5Mode.get.left.get, transportNetwork.streetLayer)
                   directOption.addDirect(streetSegment, profileRequest.getFromTimeDateZD)
                 }
               }
@@ -634,7 +648,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
             if (lastState != null) {
               val streetPath = new StreetPath(lastState, transportNetwork, false)
-              val streetSegment = new StreetSegment(streetPath, vehicle.mode.r5Mode.get.left.get, transportNetwork.streetLayer)
+              val streetSegment =
+                new StreetSegment(streetPath, vehicle.mode.r5Mode.get.left.get, transportNetwork.streetLayer)
               directOption.addDirect(streetSegment, profileRequest.getFromTimeDateZD)
             }
           }
@@ -670,8 +685,19 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         streetRouter.streetMode = toR5StreetMode(vehicle.mode)
         streetRouter.profileRequest = profileRequest
         streetRouter.timeLimitSeconds = profileRequest.getTimeLimit(vehicle.mode.r5Mode.get.left.get)
-        val destinationSplit = transportNetwork.streetLayer.findSplit(profileRequest.fromLat, profileRequest.fromLon, StreetLayer.LINK_RADIUS_METERS, streetRouter.streetMode)
-        val stopVisitor = new StopVisitor(transportNetwork.streetLayer, streetRouter.quantityToMinimize, streetRouter.transitStopSearchQuantity, profileRequest.getMinTimeLimit(streetRouter.streetMode), destinationSplit)
+        val destinationSplit = transportNetwork.streetLayer.findSplit(
+          profileRequest.fromLat,
+          profileRequest.fromLon,
+          StreetLayer.LINK_RADIUS_METERS,
+          streetRouter.streetMode
+        )
+        val stopVisitor = new StopVisitor(
+          transportNetwork.streetLayer,
+          streetRouter.quantityToMinimize,
+          streetRouter.transitStopSearchQuantity,
+          profileRequest.getMinTimeLimit(streetRouter.streetMode),
+          destinationSplit
+        )
         streetRouter.setRoutingVisitor(stopVisitor)
         if (streetRouter.setOrigin(profileRequest.toLat, profileRequest.toLon)) {
           streetRouter.route()
@@ -904,7 +930,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     }
   }
 
-  private def buildStreetBasedLegs(segment: StreetSegment,
+  private def buildStreetBasedLegs(
+    segment: StreetSegment,
     tripStartTime: Int,
     vehicle: StreetVehicle
   ): EmbodiedBeamLeg = {
@@ -1173,7 +1200,13 @@ object R5RoutingWorker {
     )
   }
 
-  private class StopVisitor(val streetLayer: StreetLayer, val dominanceVariable: StreetRouter.State.RoutingVariable, val maxStops: Int, val minTravelTimeSeconds: Int, val destinationSplit: Split) extends RoutingVisitor {
+  private class StopVisitor(
+    val streetLayer: StreetLayer,
+    val dominanceVariable: StreetRouter.State.RoutingVariable,
+    val maxStops: Int,
+    val minTravelTimeSeconds: Int,
+    val destinationSplit: Split
+  ) extends RoutingVisitor {
     private val NO_STOP_FOUND = streetLayer.parentNetwork.transitLayer.stopForStreetVertex.getNoEntryKey
     val stops: TIntIntMap = new TIntIntHashMap
     private var s0: StreetRouter.State = _
@@ -1183,12 +1216,13 @@ object R5RoutingWorker {
       val stop = streetLayer.parentNetwork.transitLayer.stopForStreetVertex.get(state.vertex)
       if (stop != NO_STOP_FOUND) {
         if (state.getDurationSeconds < minTravelTimeSeconds) return
-        if (!stops.containsKey(stop) || stops.get(stop) > state.getRoutingVariable(dominanceVariable)) stops.put(stop, state.getRoutingVariable(dominanceVariable))
+        if (!stops.containsKey(stop) || stops.get(stop) > state.getRoutingVariable(dominanceVariable))
+          stops.put(stop, state.getRoutingVariable(dominanceVariable))
       }
     }
 
-    override def shouldBreakSearch: Boolean = stops.size >= this.maxStops || s0.vertex == destinationSplit.vertex0 || s0.vertex == destinationSplit.vertex1
+    override def shouldBreakSearch: Boolean =
+      stops.size >= this.maxStops || s0.vertex == destinationSplit.vertex0 || s0.vertex == destinationSplit.vertex1
   }
-
 
 }
