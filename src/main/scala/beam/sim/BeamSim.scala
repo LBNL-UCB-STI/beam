@@ -163,10 +163,10 @@ class BeamSim @Inject()(
     )
 
     val controllerIO = event.getServices.getControlerIO
-    PopulationCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("population.csv"))
-    VehiclesCsvWriter(beamServices).toCsv(scenario, controllerIO.getOutputFilename("vehicles.csv"))
-    HouseholdsCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("households.csv"))
-    NetworkCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("network.csv"))
+    PopulationCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("population.csv.gz"))
+    VehiclesCsvWriter(beamServices).toCsv(scenario, controllerIO.getOutputFilename("vehicles.csv.gz"))
+    HouseholdsCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("households.csv.gz"))
+    NetworkCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("network.csv.gz"))
 
     FailFast.run(beamServices)
   }
@@ -180,13 +180,9 @@ class BeamSim @Inject()(
 
     val controllerIO = event.getServices.getControlerIO
     if (isFirstIteration(iterationNumber)) {
-      PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv"))
+      PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv.gz"))
     }
     rideHailUtilizationCollector.reset(event.getIteration)
-
-    if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
-      PlansCsvWriter.toCsv(scenario, controllerIO.getIterationFilename(iterationNumber, "plans_beg.csv"))
-    }
   }
 
   private def shouldWritePlansAtCurrentIteration(iterationNumber: Int): Boolean = {
@@ -206,7 +202,7 @@ class BeamSim @Inject()(
     if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
       PlansCsvWriter.toCsv(
         scenario,
-        beamServices.matsimServices.getControlerIO.getIterationFilename(event.getIteration, "plans.csv")
+        beamServices.matsimServices.getControlerIO.getIterationFilename(event.getIteration, "plans.csv.gz")
       )
     }
 
