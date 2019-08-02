@@ -48,7 +48,6 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
-import scala.util.Try
 
 class BeamSim @Inject()(
   private val actorSystem: ActorSystem,
@@ -170,6 +169,10 @@ class BeamSim @Inject()(
     HouseholdsCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("households.csv.gz"))
     NetworkCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("network.csv.gz"))
 
+    // This will create files like `outputPersonAttributes.xml.gz` and others.
+    // `outputPersonAttributes.xml.gz` is needed for proper warmstart
+    dumpMatsimStuffEveryIteration()
+
     FailFast.run(beamServices)
   }
 
@@ -194,10 +197,6 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    // This is needed in case we want to stop simulation earlier than lastIteration
-    // This will create files like `outputPersonAttributes.xml.gz` and others in the end of every iteration, instead of in the end of simulation
-    dumpMatsimStuffEveryIteration(event.getIteration)
-
     val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
 
     travelTimeObserved.notifyIterationEnds(event)
@@ -302,30 +301,14 @@ class BeamSim @Inject()(
     delayMetricAnalysis.generateDelayAnalysis(event)
   }
 
-  val matsimFiles: Array[String] = Array(
-    "outputCounts.xml.gz",
-    "outputLanes.xml.gz",
-    "outputHouseholds.xml.gz",
-    "outputVehicles.xml.gz",
-    "outputFacilities.xml.gz",
-    "outputConfig.xml",
-    "outputNetwork.xml.gz",
-    "outputPersonAttributes.xml.gz",
-    "outputPlans.xml.gz"
-  )
-
-  private def dumpMatsimStuffEveryIteration(iteration: Int): Unit = {
-    ProfilingUtils.timed(s"dumpMatsimStuffEveryIteration in the end of iteration $iteration", x => logger.info(x)) {
+  private def dumpMatsimStuffEveryIteration(): Unit = {
+    ProfilingUtils.timed(s"dumpMatsimStuffEveryIteration in the beginning of simulation", x => logger.info(x)) {
       val dumper = beamServices.injector.getInstance(classOf[DumpDataAtEnd])
       dumper match {
         case listener: ShutdownListener =>
           val event = new ShutdownEvent(beamServices.matsimServices, false)
           // Create files
           listener.notifyShutdown(event)
-          // Removed old
-          matsimFiles.foreach { filename =>
-            Try(new File(beamServices.matsimServices.getControlerIO.getOutputFilename(filename)).delete())
-          }
           // Rename
           renameGeneratedOutputFiles(event)
         case x =>
