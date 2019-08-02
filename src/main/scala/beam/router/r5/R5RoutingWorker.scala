@@ -576,16 +576,15 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       profileRequest.fromLat = from.getY
       profileRequest.toLon = to.getX
       profileRequest.toLat = to.getY
+      val walkToVehicleDuration = maybeWalkToVehicle(vehicle).map(leg => leg.beamLeg.duration).getOrElse(0)
+      profileRequest.fromTime = request.departureTime + walkToVehicleDuration
+      profileRequest.toTime = profileRequest.fromTime + 61 // Important to allow 61 seconds for transit schedules to be considered!
       val streetRouter = new StreetRouter(
         transportNetwork.streetLayer,
         travelTimeCalculator(vehicleTypes(vehicle.vehicleTypeId), profileRequest.fromTime),
         turnCostCalculator,
         travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
       )
-      val walkToVehicleDuration = maybeWalkToVehicle(vehicle).map(leg => leg.beamLeg.duration).getOrElse(0)
-      profileRequest.fromTime = request.departureTime + walkToVehicleDuration
-      profileRequest.toTime = profileRequest.fromTime + 61 // Important to allow 61 seconds for transit schedules to be considered!
-      streetRouter.quantityToMinimize = StreetRouter.State.RoutingVariable.DURATION_SECONDS
       streetRouter.profileRequest = profileRequest
       streetRouter.streetMode = toR5StreetMode(vehicle.mode)
       if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)) {
@@ -614,7 +613,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   turnCostCalculator,
                   travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
                 )
-                streetRouter.quantityToMinimize = StreetRouter.State.RoutingVariable.DURATION_SECONDS
                 streetRouter.profileRequest = profileRequest
                 streetRouter.streetMode = toR5StreetMode(vehicle.mode)
                 streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
@@ -669,7 +667,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           turnCostCalculator,
           travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
         )
-        streetRouter.quantityToMinimize = StreetRouter.State.RoutingVariable.DURATION_SECONDS
         streetRouter.streetMode = toR5StreetMode(vehicle.mode)
         streetRouter.profileRequest = profileRequest
         streetRouter.timeLimitSeconds = profileRequest.getTimeLimit(vehicle.mode.r5Mode.get.left.get)
