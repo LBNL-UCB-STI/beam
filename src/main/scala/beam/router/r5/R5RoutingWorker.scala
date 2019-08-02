@@ -14,7 +14,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode.{CAR, WALK}
+import beam.router.Modes.BeamMode.WALK
 import beam.router.Modes._
 import beam.router._
 import beam.router.gtfs.FareCalculator
@@ -585,6 +585,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       val walkToVehicleDuration = maybeWalkToVehicle(vehicle).map(leg => leg.beamLeg.duration).getOrElse(0)
       profileRequest.fromTime = request.departureTime + walkToVehicleDuration
       profileRequest.toTime = profileRequest.fromTime + 61 // Important to allow 61 seconds for transit schedules to be considered!
+      streetRouter.quantityToMinimize = StreetRouter.State.RoutingVariable.DURATION_SECONDS
       streetRouter.profileRequest = profileRequest
       streetRouter.streetMode = toR5StreetMode(vehicle.mode)
       if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)) {
@@ -613,7 +614,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
                   turnCostCalculator,
                   travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
                 )
-                streetRouter.transitStopSearch = false
+                streetRouter.quantityToMinimize = StreetRouter.State.RoutingVariable.DURATION_SECONDS
                 streetRouter.profileRequest = profileRequest
                 streetRouter.streetMode = toR5StreetMode(vehicle.mode)
                 streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
@@ -629,7 +630,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
             }
           }
         } else if (!mainRouteRideHailTransit) {
-          streetRouter.transitStopSearch = false
           streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
           if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)) {
             streetRouter.route()
@@ -648,6 +648,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 
     if (profileRequest.hasTransit) {
       val egressRouters = mutable.Map[LegMode, StreetRouter]()
+      val egressStopsByMode = mutable.Map[LegMode, StopVisitor]()
       profileRequest.reverseSearch = true
       for (vehicle <- egressVehicles) {
         val theDestination = if (mainRouteToVehicle) {
@@ -668,14 +669,17 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
           turnCostCalculator,
           travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
         )
-        streetRouter.transitStopSearch = true
         streetRouter.quantityToMinimize = StreetRouter.State.RoutingVariable.DURATION_SECONDS
         streetRouter.streetMode = toR5StreetMode(vehicle.mode)
         streetRouter.profileRequest = profileRequest
         streetRouter.timeLimitSeconds = profileRequest.getTimeLimit(vehicle.mode.r5Mode.get.left.get)
+        val destinationSplit = transportNetwork.streetLayer.findSplit(profileRequest.fromLat, profileRequest.fromLon, StreetLayer.LINK_RADIUS_METERS, streetRouter.streetMode)
+        val stopVisitor = new StopVisitor(transportNetwork.streetLayer, streetRouter.quantityToMinimize, streetRouter.transitStopSearchQuantity, profileRequest.getMinTimeLimit(streetRouter.streetMode), destinationSplit)
+        streetRouter.setRoutingVisitor(stopVisitor)
         if (streetRouter.setOrigin(profileRequest.toLat, profileRequest.toLon)) {
           streetRouter.route()
           egressRouters.put(vehicle.mode.r5Mode.get.left.get, streetRouter)
+          egressStopsByMode.put(vehicle.mode.r5Mode.get.left.get, stopVisitor)
         }
       }
 
@@ -685,8 +689,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         val router = new McRaptorSuboptimalPathProfileRouter(
           transportNetwork,
           profileRequest,
-          accessStopsByMode.mapValues(_.getStops).asJava,
-          egressRouters.mapValues(_.getReachedStops).asJava,
+          accessStopsByMode.mapValues(_.stops).asJava,
+          egressStopsByMode.mapValues(_.stops).asJava,
           (departureTime: Int) =>
             new BeamDominatingList(
               profileRequest.inRoutingFareCalculator,
@@ -1174,7 +1178,7 @@ object R5RoutingWorker {
 
   private class StopVisitor(val streetLayer: StreetLayer, val dominanceVariable: StreetRouter.State.RoutingVariable, val maxStops: Int, val minTravelTimeSeconds: Int, val destinationSplit: Split) extends RoutingVisitor {
     private val NO_STOP_FOUND = streetLayer.parentNetwork.transitLayer.stopForStreetVertex.getNoEntryKey
-    private val stops = new TIntIntHashMap
+    val stops: TIntIntMap = new TIntIntHashMap
     private var s0: StreetRouter.State = _
 
     override def visitVertex(state: StreetRouter.State): Unit = {
@@ -1187,8 +1191,6 @@ object R5RoutingWorker {
     }
 
     override def shouldBreakSearch: Boolean = stops.size >= this.maxStops || s0.vertex == destinationSplit.vertex0 || s0.vertex == destinationSplit.vertex1
-
-    def getStops: TIntIntMap = stops
   }
 
 
