@@ -20,7 +20,7 @@ class SfLightRoutePopulationSpec
 
   "A router" must {
 
-    "respond with a drive_transit and a walk_transit route for each trip in sflight" taggedAs (Periodic, ExcludeRegular) in {
+    "respond with a car route for most trips in sflight" taggedAs (Periodic, ExcludeRegular) in {
       var numFailedCarRoutes = 0
       scenario.getPopulation.getPersons
         .values()
@@ -55,7 +55,6 @@ class SfLightRoutePopulationSpec
                 )
               )
               val response = expectMsgType[RoutingResponse]
-              assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
               assert(response.itineraries.filter(_.tripClassifier.isTransit).forall(_.costEstimate > 0))
 
               assert(response.itineraries.exists(_.tripClassifier == WALK))
