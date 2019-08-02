@@ -355,7 +355,6 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       assert(response.itineraries.exists(_.costEstimate == 1.95))
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
-      assert(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))
     }
 
     "respond with Failure(_) to a request with a bad coordinate" in {

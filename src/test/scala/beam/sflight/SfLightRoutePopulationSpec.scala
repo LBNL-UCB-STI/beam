@@ -55,7 +55,6 @@ class SfLightRoutePopulationSpec
                 )
               )
               val response = expectMsgType[RoutingResponse]
-              assert(response.itineraries.exists(_.tripClassifier == DRIVE_TRANSIT))
               assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
               assert(response.itineraries.filter(_.tripClassifier.isTransit).forall(_.costEstimate > 0))
 
