@@ -31,6 +31,7 @@ public class StatsFactory {
         AgencyRevenue,
         ParkingDelay,
         RideHailUtilization,
+        ParkingType,
         ActivityType,
         VehicleChargingAnalysis
     }
@@ -108,6 +109,8 @@ public class StatsFactory {
                 return new ParkingStatsCollector(beamServices);
             case RideHailUtilization:
                 return new SimpleRideHailUtilization();
+            case ParkingType:
+                return new ParkingTypeAnalysis(beamServices.matsimServices().getConfig().travelTimeCalculator().getMaxTime());
             case ActivityType:
                 return new ActivityTypeAnalysis(beamServices.matsimServices().getConfig().travelTimeCalculator().getMaxTime());
             case VehicleChargingAnalysis:
