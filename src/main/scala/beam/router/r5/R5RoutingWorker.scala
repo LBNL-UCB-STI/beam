@@ -23,7 +23,7 @@ import beam.router.model.BeamLeg._
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
-import beam.router.r5.R5RoutingWorker.{R5Request, createBushwackingBeamLeg}
+import beam.router.r5.R5RoutingWorker.{R5Request, StopVisitor, createBushwackingBeamLeg}
 import beam.sim.BeamScenario
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -38,6 +38,8 @@ import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.{TransitLayer, TransportNetwork}
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.config.Config
+import gnu.trove.map.TIntIntMap
+import gnu.trove.map.hash.TIntIntHashMap
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.router.util.TravelTime
@@ -545,6 +547,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
     val vehicleToDestinationLeg = destinationVehicle.map(v => routeFromVehicleToDestination(v))
 
     val accessRouters = mutable.Map[LegMode, StreetRouter]()
+    val accessStopsByMode = mutable.Map[LegMode, StopVisitor]()
     val profileResponse = new ProfileResponse
     val directOption = new ProfileOption
     profileRequest.reverseSearch = false
@@ -586,10 +589,13 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       streetRouter.streetMode = toR5StreetMode(vehicle.mode)
       if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)) {
         if (profileRequest.hasTransit) {
-          streetRouter.transitStopSearch = true
+          val destinationSplit = transportNetwork.streetLayer.findSplit(profileRequest.toLat, profileRequest.toLon, StreetLayer.LINK_RADIUS_METERS, streetRouter.streetMode)
+          val stopVisitor = new StopVisitor(transportNetwork.streetLayer, streetRouter.quantityToMinimize, streetRouter.transitStopSearchQuantity, profileRequest.getMinTimeLimit(streetRouter.streetMode), destinationSplit)
+          streetRouter.setRoutingVisitor(stopVisitor)
           streetRouter.timeLimitSeconds = profileRequest.getTimeLimit(vehicle.mode.r5Mode.get.left.get)
           streetRouter.route()
           accessRouters.put(vehicle.mode.r5Mode.get.left.get, streetRouter)
+          accessStopsByMode.put(vehicle.mode.r5Mode.get.left.get, stopVisitor)
           if (!mainRouteRideHailTransit) {
             // Not interested in direct options in the ride-hail-transit case,
             // only in the option where we actually use non-empty ride-hail for access and egress.
@@ -679,7 +685,7 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
         val router = new McRaptorSuboptimalPathProfileRouter(
           transportNetwork,
           profileRequest,
-          accessRouters.mapValues(_.getReachedStops).asJava,
+          accessStopsByMode.mapValues(_.getStops).asJava,
           egressRouters.mapValues(_.getReachedStops).asJava,
           (departureTime: Int) =>
             new BeamDominatingList(
@@ -1165,5 +1171,25 @@ object R5RoutingWorker {
       )
     )
   }
+
+  private class StopVisitor(val streetLayer: StreetLayer, val dominanceVariable: StreetRouter.State.RoutingVariable, val maxStops: Int, val minTravelTimeSeconds: Int, val destinationSplit: Split) extends RoutingVisitor {
+    private val NO_STOP_FOUND = streetLayer.parentNetwork.transitLayer.stopForStreetVertex.getNoEntryKey
+    private val stops = new TIntIntHashMap
+    private var s0: StreetRouter.State = _
+
+    override def visitVertex(state: StreetRouter.State): Unit = {
+      s0 = state
+      val stop = streetLayer.parentNetwork.transitLayer.stopForStreetVertex.get(state.vertex)
+      if (stop != NO_STOP_FOUND) {
+        if (state.getDurationSeconds < minTravelTimeSeconds) return
+        if (!stops.containsKey(stop) || stops.get(stop) > state.getRoutingVariable(dominanceVariable)) stops.put(stop, state.getRoutingVariable(dominanceVariable))
+      }
+    }
+
+    override def shouldBreakSearch: Boolean = stops.size >= this.maxStops || s0.vertex == destinationSplit.vertex0 || s0.vertex == destinationSplit.vertex1
+
+    def getStops: TIntIntMap = stops
+  }
+
 
 }
