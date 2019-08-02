@@ -1,9 +1,7 @@
 package beam.analysis.plots;
 
-import beam.agentsim.agents.ridehail.RideHailSurgePricingManager;
-import beam.agentsim.agents.ridehail.SurgePriceBin;
-import beam.sim.OutputDataDescription;
-import beam.utils.OutputDataDescriptor;
+import beam.agentsim.agents.ridehail.surgepricing.RideHailSurgePricingManager;
+import beam.agentsim.agents.ridehail.surgepricing.RideHailSurgePricingManager.SurgePriceBin;
 import com.google.inject.Inject;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
@@ -179,7 +177,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
             double[][] _tazDataset = new double[2][numberOfTimeBins];
 
             for (int i = 0; iter.hasNext(); i++) {
-                SurgePriceBin bin = (SurgePriceBin) iter.next();
+                SurgePriceBin bin = (RideHailSurgePricingManager.SurgePriceBin) iter.next();
 
                 double price = bin.currentIterationSurgePriceLevel();
                 double revenue = bin.currentIterationRevenue();
@@ -194,7 +192,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         }
     }
 
-    private void processBin(int binNumber, SurgePriceBin surgePriceBin) {
+    private void processBin(int binNumber, RideHailSurgePricingManager.SurgePriceBin surgePriceBin) {
 
         double revenue = surgePriceBin.currentIterationRevenue();
         revenueDataSet[binNumber] += revenue;
@@ -420,8 +418,8 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
                     double[] priceLevels = dataset[j];
 
-                    for(int i = 0; i < priceLevels.length; i++) {
-                        out.write(strFormat + "," + getRoundedNumber(priceLevels[i]) + "," + (i+1));
+                    for (int i = 0; i < priceLevels.length; i++) {
+                        out.write(strFormat + "," + getRoundedNumber(priceLevels[i]) + "," + (i + 1));
                         out.newLine();
                     }
                 }
@@ -431,8 +429,8 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
                     double[] priceLevels = dataset[j];
 
-                    for(int i = 0; i < priceLevels.length; i++) {
-                        out.write(categoriesList.get(j) + "," + getRoundedNumber(priceLevels[i]) + "," + (i+1));
+                    for (int i = 0; i < priceLevels.length; i++) {
+                        out.write(categoriesList.get(j) + "," + getRoundedNumber(priceLevels[i]) + "," + (i + 1));
                         out.newLine();
                     }
                 }
@@ -456,7 +454,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
                 double[] priceLevels = data[0];
                 double[] revenues = data[1];
 
-                for(int i = 0; i < priceLevels.length; i++) {
+                for (int i = 0; i < priceLevels.length; i++) {
                     out.write(tazId + ",pricelevel," + getRoundedNumber(priceLevels[i]) + "," + (i + 1));
                     out.newLine();
 
@@ -478,7 +476,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
             out.write("Revenue,Hour");
             out.newLine();
 
-            for(int i=0; i<revenueDataSet.length; i++){
+            for (int i = 0; i < revenueDataSet.length; i++) {
 
                 out.write(getRoundedNumber(revenueDataSet[i]) + "," + (i));
                 out.newLine();

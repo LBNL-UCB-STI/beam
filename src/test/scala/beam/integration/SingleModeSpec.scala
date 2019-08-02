@@ -3,7 +3,8 @@ package beam.integration
 import akka.actor._
 import akka.testkit.TestKitBase
 import beam.agentsim.agents.PersonTestUtil
-import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
+import beam.agentsim.agents.ridehail.RideHailIterationHistory
+import beam.agentsim.agents.ridehail.surgepricing.AdaptiveRideHailSurgePricingManager
 import beam.agentsim.events.PathTraversalEvent
 import beam.router.Modes.BeamMode
 import beam.router.{BeamSkimmer, RouteHistory, TravelTimeObserved}
@@ -73,7 +74,7 @@ class SingleModeSpec
         scenario,
         services.matsimServices.getEvents,
         system,
-        new RideHailSurgePricingManager(services),
+        new AdaptiveRideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
         new BeamSkimmer(beamScenario, services.geo),
@@ -126,7 +127,7 @@ class SingleModeSpec
         scenario,
         services.matsimServices.getEvents,
         system,
-        new RideHailSurgePricingManager(services),
+        new AdaptiveRideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
         new BeamSkimmer(beamScenario, services.geo),
@@ -198,7 +199,7 @@ class SingleModeSpec
         scenario,
         services.matsimServices.getEvents,
         system,
-        new RideHailSurgePricingManager(services),
+        new AdaptiveRideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
         new BeamSkimmer(beamScenario, services.geo),
@@ -276,7 +277,7 @@ class SingleModeSpec
         scenario,
         services.matsimServices.getEvents,
         system,
-        new RideHailSurgePricingManager(services),
+        new AdaptiveRideHailSurgePricingManager(services),
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
         new BeamSkimmer(beamScenario, services.geo),

@@ -22,11 +22,8 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, InService, OutOfService, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.ridehail.surgepricing.RideHailSurgePricingManager
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
@@ -199,22 +196,22 @@ object RideHailManager {
 }
 
 class RideHailManager(
-  val id: Id[RideHailManager],
-  val beamServices: BeamServices,
-  val beamScenario: BeamScenario,
-  val transportNetwork: TransportNetwork,
-  val tollCalculator: TollCalculator,
-  val scenario: Scenario,
-  val eventsManager: EventsManager,
-  val scheduler: ActorRef,
-  val router: ActorRef,
-  val parkingManager: ActorRef,
-  val boundingBox: Envelope,
-  val activityQuadTreeBounds: QuadTreeBounds,
-  val surgePricingManager: RideHailSurgePricingManager,
-  val tncIterationStats: Option[TNCIterationStats],
-  val beamSkimmer: BeamSkimmer,
-  val routeHistory: RouteHistory
+                       val id: Id[RideHailManager],
+                       val beamServices: BeamServices,
+                       val beamScenario: BeamScenario,
+                       val transportNetwork: TransportNetwork,
+                       val tollCalculator: TollCalculator,
+                       val scenario: Scenario,
+                       val eventsManager: EventsManager,
+                       val scheduler: ActorRef,
+                       val router: ActorRef,
+                       val parkingManager: ActorRef,
+                       val boundingBox: Envelope,
+                       val activityQuadTreeBounds: QuadTreeBounds,
+                       val surgePricingManager: RideHailSurgePricingManager,
+                       val tncIterationStats: Option[TNCIterationStats],
+                       val beamSkimmer: BeamSkimmer,
+                       val routeHistory: RouteHistory
 ) extends Actor
     with ActorLogging
     with Stash {
@@ -984,11 +981,7 @@ class RideHailManager(
       costPerMile = defaultCostPerMile
       baseCost = defaultBaseCost
     }
-    val timeFare = costPerSecond * surgePricingManager
-      .getSurgeLevel(
-        request.pickUpLocationUTM,
-        request.departAt
-      ) * trip.legsWithPassenger(request.customer).map(_.duration).sum.toDouble
+    val timeFare = costPerSecond
     val distanceFare = costPerMile * trip.schedule.keys.map(_.travelPath.distanceInM / 1609).sum
 
     val timeFareAdjusted = beamScenario.vehicleTypes.get(rideHailVehicleTypeId) match {
@@ -997,7 +990,15 @@ class RideHailManager(
       case _ =>
         timeFare
     }
-    val fare = distanceFare + timeFareAdjusted + additionalCost + baseCost
+
+    val surgePricingAdjustedTimeDistanceFare = (distanceFare+timeFareAdjusted)* surgePricingManager
+    .getSurgeLevel(
+      request.pickUpLocationUTM,
+      request.departAt
+    ) * trip.legsWithPassenger(request.customer).map(_.duration).sum.toDouble
+
+    val fare = surgePricingAdjustedTimeDistanceFare + additionalCost + baseCost
+
     Map(request.customer.personId -> fare)
   }
 

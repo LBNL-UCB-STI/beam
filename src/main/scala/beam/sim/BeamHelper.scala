@@ -6,7 +6,9 @@ import java.time.ZonedDateTime
 import java.util.{Properties, Random}
 
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
-import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
+import beam.agentsim.agents.ridehail.RideHailIterationHistory
+import beam.agentsim.agents.ridehail.surgepricing.RideHailSurgePricingManager._
+import beam.agentsim.agents.ridehail.surgepricing.{AdaptiveRideHailSurgePricingManager, DummyRideHailSurgePricingManager, FileBasedRideHailSurgePricingManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.handling.BeamEventsHandling
 import beam.agentsim.infrastructure.taz.TAZTreeMap
@@ -152,7 +154,7 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[BeamConfig]).toInstance(beamConfig)
           bind(classOf[BeamConfigChangesObservable]).toInstance(new BeamConfigChangesObservable(beamConfig))
           bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
-          bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
+          bind(classOf[RideHailSurgePricingManager]).to(getManagerClass(beamConfig.beam.agentsim.agents.rideHail.surgePricing.surgePricingManager))
 
           addControlerListenerBinding().to(classOf[BeamSim])
           addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
