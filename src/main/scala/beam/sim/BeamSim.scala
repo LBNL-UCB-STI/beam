@@ -22,7 +22,7 @@ import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
 import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.scripts.FailFast
-import beam.utils.{DebugLib, NetworkHelper}
+import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -33,13 +33,9 @@ import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.controler.corelisteners.DumpDataAtEnd
 import org.matsim.core.controler.events._
-import org.matsim.core.controler.listener.{
-  IterationEndsListener,
-  IterationStartsListener,
-  ShutdownListener,
-  StartupListener
-}
+import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener, ShutdownListener, StartupListener}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -47,6 +43,7 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
+import scala.util.Try
 
 class BeamSim @Inject()(
   private val actorSystem: ActorSystem,
@@ -192,6 +189,9 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    // This is needed in case we want to stop simulation earlier than lastIteration
+    // This will create files like `outputPersonAttributes.xml.gz` and others in the end of every iteration, instead of in the end of simulation
+    dumpMatsimStuffEveryIteration(event.getIteration)
 
     val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
 
@@ -295,6 +295,38 @@ class BeamSim @Inject()(
 
     logger.info("Ending Iteration")
     delayMetricAnalysis.generateDelayAnalysis(event)
+  }
+
+  val matsimFiles: Array[String] = Array(
+    "outputCounts.xml.gz",
+    "outputLanes.xml.gz",
+    "outputHouseholds.xml.gz",
+    "outputVehicles.xml.gz",
+    "outputFacilities.xml.gz",
+    "outputConfig.xml",
+    "outputNetwork.xml.gz",
+    "outputPersonAttributes.xml.gz",
+    "outputPlans.xml.gz"
+  )
+
+  private def dumpMatsimStuffEveryIteration(iteration: Int): Unit = {
+    ProfilingUtils.timed(s"dumpMatsimStuffEveryIteration in the end of iteration $iteration", x => logger.info(x)) {
+      val dumper = beamServices.injector.getInstance(classOf[DumpDataAtEnd])
+      dumper match {
+        case listener: ShutdownListener =>
+          val event = new ShutdownEvent(beamServices.matsimServices, false)
+          // Create files
+          listener.notifyShutdown(event)
+          // Removed old
+          matsimFiles.foreach { filename =>
+            Try(new File(beamServices.matsimServices.getControlerIO.getOutputFilename(filename)).delete())
+          }
+          // Rename
+          renameGeneratedOutputFiles(event)
+        case x =>
+          logger.warn("dumper is not `ShutdownListener`")
+      }
+    }
   }
 
   private def isFirstIteration(currentIteration: Integer): Boolean = {
