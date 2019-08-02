@@ -48,6 +48,7 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future}
+import scala.util.Try
 
 class BeamSim @Inject()(
   private val actorSystem: ActorSystem,
@@ -302,6 +303,18 @@ class BeamSim @Inject()(
   }
 
   private def dumpMatsimStuffEveryIteration(): Unit = {
+    // We have to remove all but not `outputPersonAttributes.xml.gz` files. `outputPersonAttributes.xml.gz` is needed for warm-start
+    // The same files will be created in the end of simulation
+    val matsimFilesToRemove: Array[String] = Array(
+      "outputCounts.xml.gz",
+      "outputLanes.xml.gz",
+      "outputHouseholds.xml.gz",
+      "outputVehicles.xml.gz",
+      "outputFacilities.xml.gz",
+      "outputConfig.xml",
+      "outputNetwork.xml.gz",
+      "outputPlans.xml.gz"
+    )
     ProfilingUtils.timed(s"dumpMatsimStuffEveryIteration in the beginning of simulation", x => logger.info(x)) {
       val dumper = beamServices.injector.getInstance(classOf[DumpDataAtEnd])
       dumper match {
@@ -309,6 +322,10 @@ class BeamSim @Inject()(
           val event = new ShutdownEvent(beamServices.matsimServices, false)
           // Create files
           listener.notifyShutdown(event)
+          // Removed old
+          matsimFilesToRemove.foreach { filename =>
+            Try(new File(beamServices.matsimServices.getControlerIO.getOutputFilename(filename)).delete())
+          }
           // Rename
           renameGeneratedOutputFiles(event)
         case x =>
