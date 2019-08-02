@@ -90,11 +90,6 @@ class BeamScoringFunctionFactory @Inject()(
           person.removePlan(person.getSelectedPlan)
           person.setSelectedPlan(newPlan)
         }
-        if (trips.size != personLegs.size) {
-          logger.warn(
-            s"Person[${person.getId}] has ${trips.size} trips, ${personLegs.size} legs. Is there something wrong?"
-          )
-        }
         trips.zip(personLegs).map {
           case (trip, leg) =>
             leg.getAttributes.putAttribute("vehicles", trip.vehiclesInTrip.mkString(","))

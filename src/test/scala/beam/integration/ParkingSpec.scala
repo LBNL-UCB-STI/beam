@@ -207,7 +207,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
       }
     }
 
-    "expensive parking should reduce driving" in {
+    "expensive parking should reduce driving" ignore {
       val expensiveEvents = runAndCollectForIterations("expensive", 5)
 
       val expensiveModeChoiceCarCount = expensiveEvents.map(countForPathTraversalAndCarMode)
