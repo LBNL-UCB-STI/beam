@@ -281,7 +281,9 @@ object ZonalParkingManagerSpec {
     random: Random = Random
   )(implicit system: ActorSystem): ActorRef = {
     val maxSearchRadius = 16093.4 // meters, aka 10 miles
-    val zonalParkingManagerProps = Props(ZonalParkingManager(parkingDescription, tazTreeMap, geo, random, maxSearchRadius, boundingBox))
+    val zonalParkingManagerProps = Props(
+      ZonalParkingManager(parkingDescription, tazTreeMap, geo, random, maxSearchRadius, boundingBox)
+    )
     TestActorRef[ZonalParkingManager](zonalParkingManagerProps)
   }
 
