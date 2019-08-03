@@ -181,6 +181,15 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
       .filterNot(elem => rideHailManager.doNotUseInAllocation.contains(elem._1))
   }
 
+  // This is faster implementation in case if you use `getIdleAndInServiceVehicles` to do a lookup only for one vehicle id
+  def getRideHailAgentLocationInIdleAndInServiceVehicles(vehicleId: Id[Vehicle]): Option[RideHailAgentLocation] = {
+    if (rideHailManager.doNotUseInAllocation.contains(vehicleId))
+      None
+    else {
+      idleRideHailVehicles.get(vehicleId).orElse(inServiceRideHailVehicles.get(vehicleId))
+    }
+  }
+
   def getServiceStatusOf(vehicleId: Id[Vehicle]): RideHailVehicleManager.RideHailServiceStatus = {
     if (idleRideHailVehicles.contains(vehicleId)) {
       Available
