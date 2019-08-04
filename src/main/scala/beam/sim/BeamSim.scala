@@ -170,9 +170,7 @@ class BeamSim @Inject()(
     HouseholdsCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("households.csv.gz"))
     NetworkCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("network.csv.gz"))
 
-    // This will create files like `outputPersonAttributes.xml.gz` and others.
-    // `outputPersonAttributes.xml.gz` is needed for proper warmstart
-    dumpMatsimStuffEveryIteration()
+    dumpMatsimStuffAtTheBeginningOfSimulation()
 
     FailFast.run(beamServices)
   }
@@ -302,7 +300,7 @@ class BeamSim @Inject()(
     delayMetricAnalysis.generateDelayAnalysis(event)
   }
 
-  private def dumpMatsimStuffEveryIteration(): Unit = {
+  private def dumpMatsimStuffAtTheBeginningOfSimulation(): Unit = {
     // We have to remove all but not `outputPersonAttributes.xml.gz` files. `outputPersonAttributes.xml.gz` is needed for warm-start
     // The same files will be created in the end of simulation
     val matsimFilesToRemove: Array[String] = Array(
@@ -315,7 +313,7 @@ class BeamSim @Inject()(
       "outputNetwork.xml.gz",
       "outputPlans.xml.gz"
     )
-    ProfilingUtils.timed(s"dumpMatsimStuffEveryIteration in the beginning of simulation", x => logger.info(x)) {
+    ProfilingUtils.timed(s"dumpMatsimStuffAtTheBeginningOfSimulation in the beginning of simulation", x => logger.info(x)) {
       val dumper = beamServices.injector.getInstance(classOf[DumpDataAtEnd])
       dumper match {
         case listener: ShutdownListener =>
