@@ -301,30 +301,16 @@ class BeamSim @Inject()(
   }
 
   private def dumpMatsimStuffAtTheBeginningOfSimulation(): Unit = {
-    // We have to remove all but not `outputPersonAttributes.xml.gz` files. `outputPersonAttributes.xml.gz` is needed for warm-start
-    // The same files will be created in the end of simulation
-    val matsimFilesToRemove: Array[String] = Array(
-      "outputCounts.xml.gz",
-      "outputLanes.xml.gz",
-      "outputHouseholds.xml.gz",
-      "outputVehicles.xml.gz",
-      "outputFacilities.xml.gz",
-      "outputConfig.xml",
-      "outputNetwork.xml.gz",
-      "outputPlans.xml.gz"
-    )
     ProfilingUtils.timed(s"dumpMatsimStuffAtTheBeginningOfSimulation in the beginning of simulation", x => logger.info(x)) {
+      // `DumpDataAtEnd` during `notifyShutdown` dumps network, plans, person attributes and other things.
+      // Reusing it to get `outputPersonAttributes.xml.gz` which is needed for warmstart
       val dumper = beamServices.injector.getInstance(classOf[DumpDataAtEnd])
       dumper match {
         case listener: ShutdownListener =>
           val event = new ShutdownEvent(beamServices.matsimServices, false)
           // Create files
           listener.notifyShutdown(event)
-          // Removed old
-          matsimFilesToRemove.foreach { filename =>
-            Try(new File(beamServices.matsimServices.getControlerIO.getOutputFilename(filename)).delete())
-          }
-          // Rename
+          // Rename files
           renameGeneratedOutputFiles(event)
         case x =>
           logger.warn("dumper is not `ShutdownListener`")
