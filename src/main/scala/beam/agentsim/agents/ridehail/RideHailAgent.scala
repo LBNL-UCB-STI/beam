@@ -581,7 +581,16 @@ class RideHailAgent(
 
   def endRefueling(tick: Int, triggerId: Long, sessionStart: Double, energyInJoules: Double, state: => State): State = {
     holdTickAndTriggerId(tick, triggerId)
-    nextNotifyVehicleResourceIdle = nextNotifyVehicleResourceIdle.map(_.copy(triggerId = _currentTriggerId))
+    nextNotifyVehicleResourceIdle = Some(
+      NotifyVehicleIdle(
+        currentBeamVehicle.id,
+        geo.wgs2Utm(currentBeamVehicle.spaceTime),
+        PassengerSchedule(),
+        currentBeamVehicle.getState,
+        None,
+        _currentTriggerId
+      )
+    )
     val currentLocation = handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
     vehicle.spaceTime = SpaceTime(currentLocation, tick)
     state
