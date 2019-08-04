@@ -301,7 +301,10 @@ class BeamSim @Inject()(
   }
 
   private def dumpMatsimStuffAtTheBeginningOfSimulation(): Unit = {
-    ProfilingUtils.timed(s"dumpMatsimStuffAtTheBeginningOfSimulation in the beginning of simulation", x => logger.info(x)) {
+    ProfilingUtils.timed(
+      s"dumpMatsimStuffAtTheBeginningOfSimulation in the beginning of simulation",
+      x => logger.info(x)
+    ) {
       // `DumpDataAtEnd` during `notifyShutdown` dumps network, plans, person attributes and other things.
       // Reusing it to get `outputPersonAttributes.xml.gz` which is needed for warmstart
       val dumper = beamServices.injector.getInstance(classOf[DumpDataAtEnd])
