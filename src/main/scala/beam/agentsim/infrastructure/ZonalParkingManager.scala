@@ -29,9 +29,16 @@ class ZonalParkingManager(
   parkingZones: Array[ParkingZone],
   zoneSearchTree: ParkingZoneSearch.ZoneSearch[TAZ],
   rand: Random,
+  maxSearchRadius: Double,
   boundingBox: Envelope
 ) extends Actor
     with ActorLogging {
+
+  if (maxSearchRadius < ZonalParkingManager.MinSearchRadius) {
+    log.warning(
+      s"maxSearchRadius of $maxSearchRadius meters provided from config is less than the fixed minimum search radius of ${ZonalParkingManager.MinSearchRadius}; no searches will occur with these settings."
+    )
+  }
 
   var totalStallsInUse: Long = 0L
   var totalStallsAvailable: Long = parkingZones.map { _.stallsAvailable }.foldLeft(0L) { _ + _ }
@@ -70,9 +77,9 @@ class ZonalParkingManager(
       }
 
       // performs a concentric ring search from the destination to find a parking stall, and creates it
-      val (parkingZone: ParkingZone, parkingStall: ParkingStall) = ParkingZoneSearch.incrementalParkingZoneSearch(
-        500.0,
-        ZonalParkingManager.MaxSearchRadius,
+      val (parkingZone, parkingStall) = ZonalParkingManager.incrementalParkingZoneSearch(
+        ZonalParkingManager.MinSearchRadius,
+        maxSearchRadius,
         inquiry.destinationUtm,
         inquiry.valueOfTime,
         inquiry.parkingDuration,
@@ -139,10 +146,14 @@ class ZonalParkingManager(
 object ZonalParkingManager extends LazyLogging {
 
   val ParkingDurationForRideHailAgents: Int = 30 * 60 // 30 minutes?
-  val MaxSearchRadius: Double = 10e3
+  val SearchFactor: Double = 2.0 // increases search radius by this factor at each iteration
   val DefaultParkingPrice: Double = 0.0
   val ParkingAvailabilityThreshold: Double = 0.25
   val DepotParkingValueOfTime: Double = 0.0 // ride hail drivers do not have a value of time
+
+  // this number should be less than the MaxSearchRadius config value, tuned to being
+  // slightly less than the average distance between TAZ centroids.
+  val MinSearchRadius: Double = 1000.0
 
   /**
     * constructs a ZonalParkingManager from file
@@ -172,8 +183,9 @@ object ZonalParkingManager extends LazyLogging {
           ParkingZoneFileUtils.generateDefaultParkingFromTazfile(beamConfig.beam.agentsim.taz.filePath)
       }
     }
+    val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
 
-    new ZonalParkingManager(tazTreeMap, geo, stalls, searchTree, random, boundingBox)
+    new ZonalParkingManager(tazTreeMap, geo, stalls, searchTree, random, maxSearchRadius, boundingBox)
   }
 
   /**
@@ -188,11 +200,12 @@ object ZonalParkingManager extends LazyLogging {
     tazTreeMap: TAZTreeMap,
     geo: GeoUtils,
     random: Random,
+    maxSearchRadius: Double,
     boundingBox: Envelope,
     includesHeader: Boolean = true
   ): ZonalParkingManager = {
     val parking = ParkingZoneFileUtils.fromIterator(parkingDescription, includesHeader)
-    new ZonalParkingManager(tazTreeMap, geo, parking.zones, parking.tree, random, boundingBox)
+    new ZonalParkingManager(tazTreeMap, geo, parking.zones, parking.tree, random, maxSearchRadius, boundingBox)
   }
 
   /**
@@ -211,6 +224,7 @@ object ZonalParkingManager extends LazyLogging {
       val seed = beamConfig.matsim.modules.global.randomSeed
       new Random(seed)
     }
+    val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
     Props(ZonalParkingManager(beamConfig, tazTreeMap, geo, random, boundingBox))
   }
 }

@@ -23,7 +23,6 @@ import scala.concurrent.{Await, TimeoutException}
 class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
 
-  val randomRepositioning: RandomRepositioning = new RandomRepositioning(rideHailManager)
   val tempScheduleStore: mutable.Map[Int, List[MobilityRequest]] = mutable.Map()
 
   val spatialPoolCustomerReqs: QuadTree[CustomerRequest] = new QuadTree[CustomerRequest](
@@ -356,8 +355,4 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     )
     VehicleAllocations(allocResponses)
   }
-  override def repositionVehicles(tick: Int): Vector[(Id[Vehicle], Location)] = {
-    randomRepositioning.repositionVehicles(tick)
-  }
-
 }
