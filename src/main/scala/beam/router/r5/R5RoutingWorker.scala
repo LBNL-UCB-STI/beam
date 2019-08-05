@@ -23,7 +23,7 @@ import beam.router.model.BeamLeg._
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamTrip, RoutingModel, _}
 import beam.router.osm.TollCalculator
-import beam.router.r5.R5RoutingWorker.{R5Request, StopVisitor, createBushwackingBeamLeg}
+import beam.router.r5.R5RoutingWorker.{createBushwackingBeamLeg, R5Request, StopVisitor}
 import beam.sim.BeamScenario
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -138,7 +138,8 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
   private var r5: R5Wrapper = new R5Wrapper(workerParams, new FreeFlowTravelTime)
 
   private val linksBelowMinCarSpeed =
-    workerParams.networkHelper.allLinks.count(l => l.getFreespeed < workerParams.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond)
+    workerParams.networkHelper.allLinks
+      .count(l => l.getFreespeed < workerParams.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond)
   if (linksBelowMinCarSpeed > 0) {
     log.warning(
       "{} links are below quick_fix_minCarSpeedInMetersPerSecond, already in free-flow",
@@ -212,7 +213,10 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       askForMoreWork()
 
     case UpdateTravelTimeRemote(map) =>
-      r5 = new R5Wrapper(workerParams, TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map))
+      r5 = new R5Wrapper(
+        workerParams,
+        TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map)
+      )
       log.info(
         s"{} UpdateTravelTimeRemote. Set new travel time from map with size {}",
         getNameAndHashCode,
@@ -221,11 +225,11 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       askForMoreWork()
 
     case EmbodyWithCurrentTravelTime(
-    leg: BeamLeg,
-    vehicleId: Id[Vehicle],
-    vehicleTypeId: Id[BeamVehicleType],
-    embodyRequestId: Int
-    ) =>
+        leg: BeamLeg,
+        vehicleId: Id[Vehicle],
+        vehicleTypeId: Id[BeamVehicleType],
+        embodyRequestId: Int
+        ) =>
       val response: RoutingResponse = r5.embodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, embodyRequestId)
       sender ! response
       askForMoreWork()
@@ -238,21 +242,26 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
 class R5Wrapper(workerParams: WorkerParameters, travelTime: TravelTime) extends MetricsSupport {
 
   private val WorkerParameters(
-  beamConfig,
-  transportNetwork,
-  vehicleTypes,
-  fuelTypePrices,
-  ptFares,
-  geo,
-  dates,
-  networkHelper,
-  fareCalculator,
-  tollCalculator
+    beamConfig,
+    transportNetwork,
+    vehicleTypes,
+    fuelTypePrices,
+    ptFares,
+    geo,
+    dates,
+    networkHelper,
+    fareCalculator,
+    tollCalculator
   ) = workerParams
 
   private val maxFreeSpeed = networkHelper.allLinks.map(_.getFreespeed).max
 
-  def embodyWithCurrentTravelTime(leg: BeamLeg, vehicleId: Id[Vehicle], vehicleTypeId: Id[BeamVehicleType], embodyRequestId: Int) = {
+  def embodyWithCurrentTravelTime(
+    leg: BeamLeg,
+    vehicleId: Id[Vehicle],
+    vehicleTypeId: Id[BeamVehicleType],
+    embodyRequestId: Int
+  ) = {
     val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
       leg.travelPath.linkIds,
       leg.startTime,
