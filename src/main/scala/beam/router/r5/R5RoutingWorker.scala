@@ -526,8 +526,6 @@ class R5RoutingWorker(workerParams: WorkerParameters) extends Actor with ActorLo
       accessVehicles.map(v => v -> calcRouteToVehicle(v)).toMap
 
     val egressVehicles = if (mainRouteRideHailTransit) {
-      request.streetVehicles
-    } else if (mainRouteRideHailTransit) {
       request.streetVehicles.filter(_.mode != WALK)
     } else if (request.withTransit) {
       Vector(request.streetVehicles.find(_.mode == WALK).get)
